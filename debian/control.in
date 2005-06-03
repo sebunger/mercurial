@@ -1,0 +1,27 @@
+Source: mercurial
+Section: devel
+Priority: optional
+Maintainer: Vincent Danjean <Vincent.Danjean@ens-lyon.org>
+Build-Depends: debhelper (>= 4.2.0), @cdbs@, python-dev
+Standards-Version: 3.6.1
+
+Package: mercurial
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, python
+Recommends: tkdiff, rcs
+Description: scalable distributed SCM
+ Mercurial is a fast, lightweight Source Control Management system designed
+ for efficient handling of very large distributed projects.
+ .
+ Its features include:
+  * O(1) delta-compressed file storage and retrieval scheme
+  * Complete cross-indexing of files and changesets for efficient exploration
+    of project history
+  * Robust SHA1-based integrity checking and append-only storage model
+  * Decentralized development model with arbitrary merging between trees
+  * High-speed HTTP-based network merge protocol
+  * Easy-to-use command-line interface
+  * Integrated stand-alone web interface
+  * Small Python codebase
+ .
+ Homepage: http://www.selenic.com/mercurial/

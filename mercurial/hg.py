@@ -827,7 +827,7 @@ class localrepository:
             b = temp("remote", other)
             c = temp("parent", base)
 
-            cmd = os.environ["HGMERGE"]
+	    cmd = os.environ["HGMERGE"]
             self.ui.debug("invoking merge with %s\n" % cmd)
             r = os.system("%s %s %s %s %s" % (cmd, a, b, c, fn))
             if r:
