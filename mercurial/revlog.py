@@ -8,7 +8,7 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import zlib, struct, sha, os, tempfile, binascii, heapq
+import zlib, struct, sha, binascii, heapq
 from mercurial import mdiff
 
 def hex(node): return binascii.hexlify(node)
@@ -156,6 +156,17 @@ class revlog:
     def end(self, rev): return self.start(rev) + self.length(rev)
     def base(self, rev): return self.index[rev][2]
 
+    def heads(self):
+        p = {}
+        h = []
+        for r in range(self.count() - 1, -1, -1):
+            n = self.node(r)
+            if n not in p:
+                h.append(n)
+            for pn in self.parents(n):
+                p[pn] = 1
+        return h
+    
     def lookup(self, id):
         try:
             rev = int(id)
@@ -234,6 +245,9 @@ class revlog:
         if p2 is None: p2 = nullid
 
         node = hash(text, p1, p2)
+
+        if node in self.nodemap:
+            return node
 
         n = self.count()
         t = n - 1
@@ -422,7 +436,7 @@ class revlog:
 
         yield struct.pack(">l", 0)
 
-    def addgroup(self, revs, linkmapper, transaction):
+    def addgroup(self, revs, linkmapper, transaction, unique = 0):
         # given a set of deltas, add them to the revision log. the
         # first delta is against its parent, which should be in our
         # log, the rest are against the previous delta.
@@ -452,7 +466,10 @@ class revlog:
             node, p1, p2, cs = struct.unpack("20s20s20s20s", chunk[:80])
             link = linkmapper(cs)
             if node in self.nodemap:
-                raise "already have %s" % hex(node[:4])
+                # this can happen if two branches make the same change
+                if unique:
+                    raise "already have %s" % hex(node[:4])
+                continue
             delta = chunk[80:]
 
             if not chain:

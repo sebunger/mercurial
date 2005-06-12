@@ -1,3 +1,16 @@
+mercurial (0.5b+20050612-1) unstable; urgency=low
+
+  * New upstream sources
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Sun, 12 Jun 2005 11:40:02 +0200
+
+mercurial (0.5b-5) unstable; urgency=low
+
+  * manually fix wrong build-dependencies that have been previously generated
+    by cdbs (ie remove 'build-essential' and duplicates)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Sat,  4 Jun 2005 09:16:40 +0200
+
 mercurial (0.5b-4) unstable; urgency=low
 
   * remove automatic generation of control from control.in (with cdbs
