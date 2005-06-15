@@ -2,8 +2,8 @@ mercurial for Debian
 --------------------
 
 For users using mercurial since a long time ;-), I added the convert-repo in
-the examples directory. It is needed if you have lod repository that you want
-to use with new version of mercurial.
+the examples directory. It is needed if you have an old repository that you
+want to use with new version of mercurial.
 Note: these old versions of mercurial have never been officially packaged in
 Debian.
 
