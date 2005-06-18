@@ -1,0 +1,2036 @@
+changeset:   396:8f8bb77d560e70bcc95577e4dfa877df18d876ab
+tag:         tip
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 21:37:23 2005
+summary:     Show revisions in diffs like CVS, based on a patch from Goffredo Baroncelli.
+
+changeset:   395:fbe8834923c57e2222b621c3cc1a78f326ed59d6
+user:        mpm@selenic.com
+date:        Fri Jun 17 21:03:44 2005
+summary:     commands: report http exceptions nicely
+
+changeset:   394:e6db25785b00017c2ac405286d3665112c29106f
+user:        mpm@selenic.com
+date:        Fri Jun 17 19:32:13 2005
+summary:     Add COPYING
+
+changeset:   393:e3f564643888002955a3f98c68a895782dc50e7b
+user:        mpm@selenic.com
+date:        Fri Jun 17 19:03:22 2005
+summary:     hg init: add -u flag to update
+
+changeset:   392:ee4c80d294e571c7c9edbacbb329e55956add4c0
+user:        mpm@selenic.com
+date:        Fri Jun 17 18:50:55 2005
+summary:     Tidy up conflict and pull tests
+
+changeset:   391:5f65a108a55957118b5b95e3e38449f451221d0e
+user:        mpm@selenic.com
+date:        Fri Jun 17 18:50:11 2005
+summary:     hgweb: pull cgitb into CGI script example, where it can easily be disabled
+
+changeset:   390:50aea13227a21b7e30bfd97b4b4402e386c437c2
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 16:05:32 2005
+summary:     create .hg/hgrc with [paths] default entry only if source was given on hg init.
+
+changeset:   389:ef8ff43f9c11deb91c8205d5b12ca2505a9d46c3
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 15:56:28 2005
+summary:     Updated TODO
+
+changeset:   388:3987377776443b8060fa5dc5d6359c0bf0e87a06
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 12:03:03 2005
+summary:     Fixed tests for displaying tags in hg history and hg parents.
+
+changeset:   387:c07c6fb2f0a8e01f279db68c177f689ae4598e78
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 11:30:46 2005
+summary:     Show tags in hg history etc.
+
+changeset:   386:494c8e3f47f393934afc87f41b6b6f83634182b0
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 11:19:43 2005
+summary:     Improvements for hg identify:
+
+changeset:   385:e9e1efd5291ca048f07a5a29a6c0ba51f0695db8
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 17 11:16:31 2005
+summary:     Fixed problems with extra spaces around tags in .hgtags
+
+changeset:   384:a29decbf7475110ecf7108a49a0f1cfb47379097
+user:        mpm@selenic.com
+date:        Fri Jun 17 08:54:37 2005
+summary:     mpatch: attempt to handle unpack alignment issues on Solaris
+
+changeset:   383:4862a134e2c2516f09324d12a0036c073b190ada
+user:        mpm@selenic.com
+date:        Fri Jun 17 08:32:55 2005
+summary:     hg merge: fix time asymmetry bug with deleting files on update to past
+
+changeset:   382:37249c522770efa58ca95871c0362ab871b0c1e9
+user:        mpm@selenic.com
+date:        Thu Jun 16 18:37:15 2005
+summary:     test suite: fix timezone problems and port collision problem
+
+changeset:   381:024ee0f8722ac970186170c74d2e884141c17a8e
+user:        mpm@selenic.com
+date:        Thu Jun 16 10:39:30 2005
+summary:     Ancestor algorithm fix
+
+changeset:   380:c72ccad3e3b87ad8853b99f2af2eefab14acb9f3
+parent:      378:4e23eaffd4ae3e07b03c987bf9903173a0033790
+parent:      379:c8bd9793446de2ce21b642433ae1db0d03e8b028
+user:        mpm@selenic.com
+date:        Thu Jun 16 07:23:07 2005
+summary:     Merge with TAH
+
+changeset:   379:c8bd9793446de2ce21b642433ae1db0d03e8b028
+parent:      377:e5d769afd3efc56d0e7cd7e792cefd2be54b26f2
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun 16 07:22:14 2005
+summary:     Updated TODO
+
+changeset:   378:4e23eaffd4ae3e07b03c987bf9903173a0033790
+user:        mpm@selenic.com
+date:        Thu Jun 16 07:18:35 2005
+summary:     hgweb: missed a long hash
+
+changeset:   377:e5d769afd3efc56d0e7cd7e792cefd2be54b26f2
+parent:      375:b29219389b003780cb30b48d5f70ed8bc8e5899b
+parent:      376:fadc9e1263690fbfba430f0a95845373644c1516
+user:        mpm@selenic.com
+date:        Thu Jun 16 07:13:49 2005
+summary:     Merge with TAH
+
+changeset:   376:fadc9e1263690fbfba430f0a95845373644c1516
+parent:      371:6e3436082697f5d82a3af479d76074beb556911b
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun 16 06:44:05 2005
+summary:     hgweb: fix deleted file in filediff key error
+
+changeset:   375:b29219389b003780cb30b48d5f70ed8bc8e5899b
+user:        mpm@selenic.com
+date:        Thu Jun 16 07:13:08 2005
+summary:     Show nice short hashes in hgweb
+
+changeset:   374:f07d00fcd2810bbafe66e3383208d14483fe1324
+user:        mpm@selenic.com
+date:        Thu Jun 16 07:12:28 2005
+summary:     update tests to reflect new short hash length
+
+changeset:   373:67081329d49a5f03175616abf7856ebfa45029f0
+user:        mpm@selenic.com
+date:        Thu Jun 16 07:11:40 2005
+summary:     Change the size of the short hash representation
+
+changeset:   372:4b0f562c61f4b2b23396088c8ee68247cb9b3e62
+user:        mpm@selenic.com
+date:        Thu Jun 16 05:58:48 2005
+summary:     Move httprangereader into its own file
+
+changeset:   371:6e3436082697f5d82a3af479d76074beb556911b
+user:        mpm@selenic.com
+date:        Thu Jun 16 05:52:41 2005
+summary:     hg push: "default-push" default target path
+
+changeset:   370:c90385d82aec613c8d72581239549d08ae3488ed
+user:        mpm@selenic.com
+date:        Thu Jun 16 05:48:04 2005
+summary:     revlog: add a children function
+
+changeset:   369:09f24af48b8221d1a3631105132fa40f436b4f2a
+user:        mpm@selenic.com
+date:        Thu Jun 16 05:23:09 2005
+summary:     hgweb: fix deleted file in changeset key error
+
+changeset:   368:4b1cec05f3eb85987e336619cef25168105fa57b
+user:        mpm@selenic.com
+date:        Thu Jun 16 03:35:09 2005
+summary:     Add a TODO list
+
+changeset:   367:73ea73ab3359260a6c391c680df6fa5526782532
+user:        mpm@selenic.com
+date:        Thu Jun 16 03:18:06 2005
+summary:     Use errno.EPIPE rather than 32
+
+changeset:   366:21306bd3e0f59d11eb23192d5a15fed1c80e7594
+user:        mpm@selenic.com
+date:        Thu Jun 16 03:15:38 2005
+summary:     hgweb: remove pointless manifest reads
+
+changeset:   365:f94d3632a323714cea91dba8af5dbc4f127cf36e
+user:        mpm@selenic.com
+date:        Thu Jun 16 01:58:53 2005
+summary:     One too many newlines in verbose output showed up in regression
+
+changeset:   364:6f43778f26da87abeb8f1b4cbf602ceb8bf5f5b1
+user:        mpm@selenic.com
+date:        Thu Jun 16 01:58:11 2005
+summary:     test-help: hg copy now shows up in the help
+
+changeset:   363:ae96b7e1318dfc1b09cdf4797a197d703a3ddbfb
+user:        mpm@selenic.com
+date:        Thu Jun 16 01:57:07 2005
+summary:     Add hg copy
+
+changeset:   362:41037316203623df8b97ea094e92a9e9046b284f
+user:        mpm@selenic.com
+date:        Thu Jun 16 01:50:28 2005
+summary:     run-tests: run tests given on the command line
+
+changeset:   361:88268aa2b8d231e7510f4a14fc6ea592929a80a7
+user:        mpm@selenic.com
+date:        Thu Jun 16 01:49:20 2005
+summary:     Fix another sortdiff cornercase
+
+changeset:   360:10519e4cbd0288a580d8a9858ef9e90197d44a90
+user:        mpm@selenic.com
+date:        Wed Jun 15 23:04:05 2005
+summary:     filelog: add metadata support
+
+changeset:   359:0c4688e9ee5cb4dd09ca9def3db4241233ff2b05
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:20:26 2005
+summary:     hgweb: add file permissions
+
+changeset:   358:9f4077d7ef6fd889f1cc8434701b24f53784ee87
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:06:40 2005
+summary:     [PATCH] manifest.readflags performance buglet
+
+changeset:   357:1cb3d9d5119ee9b1c3c2978590d26ee189e65aa5
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:05:45 2005
+summary:     [PATCH] Update hgit to the new commands.dodiff parameters
+
+changeset:   356:7dec9a46d82a4e668059c550d36b0309431cb73b
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:04:42 2005
+summary:     hgit rev-list support
+
+changeset:   355:3e18360a8912c4cd36f5e00e24d6022e0ab47a2f
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:02:41 2005
+summary:     hg import: better file accounting
+
+changeset:   354:e3667e3a18ac62f690507c0d2372d4c922be88ea
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:01:15 2005
+summary:     hg commit: add -A flag
+
+changeset:   353:dda243bb34b3ac992a34758fd4411bd0bb85582d
+user:        mpm@selenic.com
+date:        Wed Jun 15 20:00:10 2005
+summary:     hg addremove: take optional files list
+
+changeset:   352:ca39b80cbe15c177f87f19318d280188ceeaa8a6
+user:        mpm@selenic.com
+date:        Wed Jun 15 19:50:00 2005
+summary:     ignore files associated with quilt
+
+changeset:   351:9525208e1c1da9e8676f31cdddfaa128dc5ffad8
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:50:44 2005
+summary:     hgweb: change number navigation tidy up
+
+changeset:   350:b4e0e20646bbdd28ff6a7739250d6bd501445822
+parent:      346:f69a5d2d4fe1ecb6dbe1ca4a8ee5be2fc9397402
+parent:      349:b2293093b89e176707a3250f3e861382a0578aff
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:33:57 2005
+summary:     Merge with TAH
+
+changeset:   349:b2293093b89e176707a3250f3e861382a0578aff
+parent:      348:442eb02cf87015019271160fc105a1e9694564f2
+parent:      340:97a897d32dfc802a3fd647c8b5458e7b761489a4
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Wed Jun 15 09:32:29 2005
+summary:     Merged with mercurial-identify (which includes upstream's current tip)
+
+changeset:   348:442eb02cf87015019271160fc105a1e9694564f2
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Tue Jun 14 09:49:52 2005
+summary:     Improved hgeditor:
+
+changeset:   347:a0b2758edee727fd30581665a52164659286df12
+parent:      330:27d08c0c2a7e5fe1ad956202cdf88617f561ccfe
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Tue Jun 14 09:01:18 2005
+summary:     Cleaned up show_changeset()
+
+changeset:   346:f69a5d2d4fe1ecb6dbe1ca4a8ee5be2fc9397402
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:27:20 2005
+summary:     merge3: fix argument order
+
+changeset:   345:9d8d9207c0b3aa6667e4bddf12f760493ca3c95a
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:10:18 2005
+summary:     Add a tags/identify test group
+
+changeset:   344:db419f14df4b96d4e016b869e5d9ebe8655c7f6d
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:09:19 2005
+summary:     Fix yet another resolve corner case
+
+changeset:   343:d7df759d0e97f3980283eb3d6fb0d72910daaee5
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:08:03 2005
+summary:     rework all code using tags
+
+changeset:   342:f7c51058cbb722fb7dbe70d9fd7551c17c4c585e
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:03:25 2005
+summary:     update help test for identify
+
+changeset:   341:c0deea64ce643b41653ac00b032555d1ebe49419
+user:        mpm@selenic.com
+date:        Wed Jun 15 10:02:13 2005
+summary:     run-tests: actually mark changed output as failure
+
+changeset:   340:97a897d32dfc802a3fd647c8b5458e7b761489a4
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Wed Jun 15 08:07:05 2005
+summary:     Handle the case where the current working copy is not based on a checkout.
+
+changeset:   339:a76fc9c4b67b9ae896e5ae49781ccc10902c38b4
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Wed Jun 15 07:44:43 2005
+summary:     added hg identify|id (based on a patch from Andrew Thompson)
+
+changeset:   338:1e091b3293d5d843594fac9fe0c44a3d99ee34a9
+user:        mpm@selenic.com
+date:        Wed Jun 15 04:37:53 2005
+summary:     default path support with .hg/hgrc
+
+changeset:   337:c3d873ef4b31c4b84e5147d0881745532517d8d6
+user:        mpm@selenic.com
+date:        Wed Jun 15 04:36:09 2005
+summary:     Add support for .hg/hgrc file
+
+changeset:   336:aa6cbde09f7276b3ec82da4cbb686964eb550fbf
+user:        mpm@selenic.com
+date:        Wed Jun 15 03:30:56 2005
+summary:     Add some more tests
+
+changeset:   335:74b9332faece4a3933a16acc2c70b0ee9fc96c73
+user:        mpm@selenic.com
+date:        Wed Jun 15 03:06:57 2005
+summary:     Fix misrecognition of commands
+
+changeset:   334:290574209284b915a122dff0c48f2ca54230f6f0
+user:        mpm@selenic.com
+date:        Wed Jun 15 00:04:15 2005
+summary:     hgit: remove tabs
+
+changeset:   333:d60a3060f9e23bc022a0fe1ad6d7ed23bf43db61
+user:        mpm@selenic.com
+date:        Tue Jun 14 23:53:22 2005
+summary:     hg rawcommit: fix files arg conflict
+
+changeset:   332:6c869059beb487a0620dba44e2ad7ffa63cbd505
+user:        mpm@selenic.com
+date:        Tue Jun 14 23:44:37 2005
+summary:     testing fixups
+
+changeset:   331:55f63f3b6a54f63431b552785519b03f12c59cd0
+user:        mpm@selenic.com
+date:        Tue Jun 14 23:28:42 2005
+summary:     Add a simple testing framework
+
+changeset:   330:27d08c0c2a7e5fe1ad956202cdf88617f561ccfe
+parent:      328:dac675ef618949ced82e437d797083c7190faee5
+parent:      329:67c19ad374a9862aa32f4c22d5510d449c59de3e
+user:        mpm@selenic.com
+date:        Tue Jun 14 04:36:40 2005
+summary:     Merge with TAH
+
+changeset:   329:67c19ad374a9862aa32f4c22d5510d449c59de3e
+parent:      320:292e10b5831ae2d903b57bd1d949349fb182ed6b
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Mon Jun 13 09:49:21 2005
+summary:     Use common output function show_changeset() for hg heads|history|log|tip.
+
+changeset:   328:dac675ef618949ced82e437d797083c7190faee5
+user:        mpm@selenic.com
+date:        Tue Jun 14 03:29:04 2005
+summary:     hg pull: more query fixes
+
+changeset:   327:a9ad98a9c9bc0e80a396ac7e59577ebdfb791c86
+user:        mpm@selenic.com
+date:        Tue Jun 14 01:01:38 2005
+summary:     Tweak README for branch, push, and .hgrc
+
+changeset:   326:235443668bea3d8dc5521b89d7b3afbdb143abc8
+user:        mpm@selenic.com
+date:        Tue Jun 14 00:53:33 2005
+summary:     mdiff: fix the fix
+
+changeset:   325:ad87e19854a641b87c79a84d6b3a071475c4c4fb
+user:        mpm@selenic.com
+date:        Mon Jun 13 23:43:48 2005
+summary:     mdiff: reinstate new algorithm
+
+changeset:   324:ce81bdd91d067b85a8356e057a2166169dd99c37
+user:        mpm@selenic.com
+date:        Mon Jun 13 22:04:04 2005
+summary:     hg merge: some getchangegroup fixups
+
+changeset:   323:c6f0673ab7e951b8cadeb90dc32c4c8a0aeb252d
+user:        mpm@selenic.com
+date:        Mon Jun 13 22:01:12 2005
+summary:     lazyparser speed ups
+
+changeset:   322:a0acae914e95ed59387a2690fff8515131fc2161
+user:        mpm@selenic.com
+date:        Mon Jun 13 21:58:33 2005
+summary:     hgweb: Fix reloading of index
+
+changeset:   321:73b8a8a059eca41d4365b2741b5cfaabd86c2d3c
+user:        mpm@selenic.com
+date:        Mon Jun 13 08:05:08 2005
+summary:     Transparent proxy support
+
+changeset:   320:292e10b5831ae2d903b57bd1d949349fb182ed6b
+user:        mpm@selenic.com
+date:        Mon Jun 13 06:39:08 2005
+summary:     hg push: propagate return code
+
+changeset:   319:9ab17e83bce32455e034be9f6ee15a5e8815bb20
+user:        mpm@selenic.com
+date:        Mon Jun 13 05:35:41 2005
+summary:     stopgap hg push support
+
+changeset:   318:2819f63b16bfbb72125a18d2ce8a4c211753ef8a
+user:        mpm@selenic.com
+date:        Sun Jun 12 20:20:07 2005
+summary:     mdiff: revert grouping optimization for the time being
+
+changeset:   317:b18ce742566a5c13a140b1177c39b577bee778ff
+user:        mpm@selenic.com
+date:        Sun Jun 12 20:18:32 2005
+summary:     hg commit: user and date options
+
+changeset:   316:c48d069163d693f7dbb8bce7f827fe523cd20024
+user:        mpm@selenic.com
+date:        Sun Jun 12 18:51:11 2005
+summary:     Add new convert-repo script
+
+changeset:   315:5f0231b29f428e77c2b0e18e1985dcb26131da30
+user:        mpm@selenic.com
+date:        Sun Jun 12 18:49:49 2005
+summary:     Remove the old convert-repo script for .4-era hg repositories
+
+changeset:   314:3402cb9a4c066cb8659b871611cb32f5c5f17e0e
+user:        mpm@selenic.com
+date:        Sun Jun 12 18:48:01 2005
+summary:     More tweaking to rawcommit for repo conversion
+
+changeset:   313:e75ea4662d81596cde00006726704a1324c04a69
+user:        mpm@selenic.com
+date:        Sun Jun 12 18:23:29 2005
+summary:     Minor caching improvement for manifest
+
+changeset:   312:09375250eb31431caca998715e48fc67d3f61cf3
+user:        mpm@selenic.com
+date:        Sun Jun 12 18:11:43 2005
+summary:     Optimize diff and status in subdirectories
+
+changeset:   311:3b17056b72dc8c6d5c8ad0b8a140f7e53e3100d4
+user:        mpm@selenic.com
+date:        Sat Jun 11 20:10:06 2005
+summary:     fix KeyErrors from reading empty dirstate
+
+changeset:   310:273f6a01d18b3459bbb24b1f393ccfd71900cf0b
+user:        mpm@selenic.com
+date:        Sat Jun 11 00:10:07 2005
+summary:     hg patch: add default commit text
+
+changeset:   309:61414da06fe5bb0af5c53a816d82232141d25fa9
+user:        mpm@selenic.com
+date:        Fri Jun 10 23:48:08 2005
+summary:     add easy profiling support
+
+changeset:   308:075619d00dd72c1218850d7facef9bdd01ee3696
+user:        mpm@selenic.com
+date:        Fri Jun 10 22:49:25 2005
+summary:     Add tip to tags
+
+changeset:   307:3863e08d597c69a230a044412c3024f3d117aa46
+user:        mpm@selenic.com
+date:        Fri Jun 10 22:48:12 2005
+summary:     add tip to repo.lookup
+
+changeset:   306:f06a4a3b86a794c67508341dd6b92d3ff70f702e
+parent:      305:719812eb0156ade1b4004f5a905fcc9e599034df
+parent:      304:38fb7d23b78d69e8fa536f74bc16aa034d828a0a
+user:        mpm@selenic.com
+date:        Fri Jun 10 19:36:38 2005
+summary:     Merge with TAH
+
+changeset:   305:719812eb0156ade1b4004f5a905fcc9e599034df
+parent:      302:498fb0fa2795da638c2a534dc42588901f36105b
+user:        mpm@selenic.com
+date:        Fri Jun 10 19:36:02 2005
+summary:     more merge fixes
+
+changeset:   304:38fb7d23b78d69e8fa536f74bc16aa034d828a0a
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 10 08:52:39 2005
+summary:     Use vi if $EDITOR is unset.
+
+changeset:   303:15a9e55e7ea58a5fea96a91d832eecdb9fbe1d9e
+parent:      299:7c239fad0f27861bf180048583fdeabe4ebce896
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Fri Jun 10 08:50:20 2005
+summary:     Check if $DISPLAY is set before using tkdiff or kdiff3.
+
+changeset:   302:498fb0fa2795da638c2a534dc42588901f36105b
+user:        mpm@selenic.com
+date:        Fri Jun 10 10:29:36 2005
+summary:     various fixups for git import
+
+changeset:   301:5add718d92db7f4cb622a57ab599b6f2155cd315
+user:        mpm@selenic.com
+date:        Fri Jun 10 10:26:29 2005
+summary:     revlog: allow duplicates
+
+changeset:   300:d3400605d24629bb966f5f2d2d13d557175d2e74
+user:        mpm@selenic.com
+date:        Fri Jun 10 10:25:04 2005
+summary:     hg init: when hardlinking, remove dirstate
+
+changeset:   299:7c239fad0f27861bf180048583fdeabe4ebce896
+parent:      296:a3d83bf86755f201e8eeeb0653260ff8b872bca8
+parent:      298:91c9fd6a7c70d16838c7141aa06c152ef026bde2
+user:        mpm@selenic.com
+date:        Thu Jun  9 19:48:50 2005
+summary:     Merge with TAH
+
+changeset:   298:91c9fd6a7c70d16838c7141aa06c152ef026bde2
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun  9 10:24:08 2005
+summary:     Turn on +x for every +r bit when making a file executable and obey umask.
+
+changeset:   297:0dbcf3c9ff20a27a49eb5c369c3fb990d0bc0834
+parent:      295:38919e1c254dd1aaa3233e31fd92a4b7411cf3b1
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun  9 09:53:07 2005
+summary:     Fixed usage of removed variable 'wp'.
+
+changeset:   296:a3d83bf86755f201e8eeeb0653260ff8b872bca8
+user:        mpm@selenic.com
+date:        Thu Jun  9 19:41:21 2005
+summary:     hg update: fix clobbering files when going backwards
+
+changeset:   295:38919e1c254dd1aaa3233e31fd92a4b7411cf3b1
+user:        mpm@selenic.com
+date:        Thu Jun  9 08:03:18 2005
+summary:     Fix hg import fix
+
+changeset:   294:f8d56da6ac8f843f14974080004954a177a6cb46
+user:        mpm@selenic.com
+date:        Thu Jun  9 07:22:38 2005
+summary:     hg patch: fix to actually take a list of patches
+
+changeset:   293:11d64332a1cb8fca4e1eeccc4ca01c16815a3f56
+user:        mpm@selenic.com
+date:        Thu Jun  9 06:11:57 2005
+summary:     hg help improvements
+
+changeset:   292:09364bcebdf0af2a237937a7571addd7196ab652
+user:        mpm@selenic.com
+date:        Thu Jun  9 03:38:46 2005
+summary:     Make most file opening binary
+
+changeset:   291:2c4f2be05587187c55d32566edc454ba2b52b7fc
+user:        mpm@selenic.com
+date:        Thu Jun  9 03:26:09 2005
+summary:     Add wopener for opening files in the working directory
+
+changeset:   290:07c6cb9fd1c56863918d45c0a783e11f4bd5141e
+user:        mpm@selenic.com
+date:        Thu Jun  9 03:08:55 2005
+summary:     replace hg branch with hg init [source]
+
+changeset:   289:266396e320062cda6601d029a5237a6625be609e
+user:        mpm@selenic.com
+date:        Thu Jun  9 02:28:34 2005
+summary:     hg commit: add -t and -l options
+
+changeset:   288:97c87ac6d7a4a09ca5efcdd176363ffe1d0f0f4a
+user:        mpm@selenic.com
+date:        Thu Jun  9 02:27:03 2005
+summary:     commit: edit text fixups
+
+changeset:   287:cd6a462ed1e1caf615811a5e4c90af297fecce41
+user:        mpm@selenic.com
+date:        Thu Jun  9 02:15:07 2005
+summary:     commit: abort with empty commit text
+
+changeset:   286:bd9d1e93f8d6b9b69d9e0a317c8268820229e76f
+user:        mpm@selenic.com
+date:        Thu Jun  9 00:46:34 2005
+summary:     hg pull: ditch .hgpaths for new .hgrc
+
+changeset:   285:5a1e6d27f3998708af924c601a1cd12e6fd386dd
+user:        mpm@selenic.com
+date:        Thu Jun  9 00:45:06 2005
+summary:     ui: add configuration file support
+
+changeset:   284:d7c2efd0b54135622d7eafb97f984e6ab3261825
+user:        mpm@selenic.com
+date:        Thu Jun  9 00:44:32 2005
+summary:     verify: don't die from new permission bits
+
+changeset:   283:18c9566ad717c7c0a51b4e794676f4e4deab90e6
+user:        mpm@selenic.com
+date:        Wed Jun  8 23:06:46 2005
+summary:     minor hgk fixes
+
+changeset:   282:97d83e7fbf2f5f463e27a45ebc0c81e433f2a478
+user:        mpm@selenic.com
+date:        Wed Jun  8 21:01:18 2005
+summary:     mpatch: properly NULL out return in lalloc
+
+changeset:   281:574420507d8c771261156c812082e9ff10ddc991
+user:        mpm@selenic.com
+date:        Wed Jun  8 20:59:18 2005
+summary:     hg cat: relative file support
+
+changeset:   280:a69c3b2957d1ad68c19332b7268cb476668cb220
+user:        mpm@selenic.com
+date:        Wed Jun  8 20:52:01 2005
+summary:     Mark the usual things executable
+
+changeset:   279:5edd24db6dc7c9997df6bbd132df02b109941fb7
+user:        mpm@selenic.com
+date:        Wed Jun  8 20:50:50 2005
+summary:     permissions merge: remove a debugging print
+
+changeset:   278:777e388c06d61ef26f7f60ab3784d17bbf0d164b
+user:        mpm@selenic.com
+date:        Wed Jun  8 20:47:10 2005
+summary:     unidiff: handle empty diffs more gracefully
+
+changeset:   277:79279550c8ffa4cf556e403e9855bc1ed28b8bdd
+user:        mpm@selenic.com
+date:        Wed Jun  8 20:46:39 2005
+summary:     merge: update permissions even if file contents didn't change
+
+changeset:   276:10e325db7347208964fbb934b640fdd3af14359c
+user:        mpm@selenic.com
+date:        Wed Jun  8 20:16:33 2005
+summary:     add tracking of execute permissions
+
+changeset:   275:61d45b0ba8fb5059944345964b6835f498d7ca54
+user:        mpm@selenic.com
+date:        Wed Jun  8 06:06:05 2005
+summary:     various merge improvements
+
+changeset:   274:5da941efbb527fa0695197d6c9af0a1ab3e4675c
+user:        mpm@selenic.com
+date:        Wed Jun  8 05:02:31 2005
+summary:     [PATCH] hgk should parse dates in the diff output
+
+changeset:   273:4f8174389001197176091fbc9779696f8345c58d
+user:        mpm@selenic.com
+date:        Wed Jun  8 05:00:56 2005
+summary:     merge: Fix bug where we overwrote local when local was newer
+
+changeset:   272:467cea2bf2d8e06d05e5e33801e3bdf4004a4a05
+user:        mpm@selenic.com
+date:        Tue Jun  7 18:53:05 2005
+summary:     diff: use tab to separate date from filename
+
+changeset:   271:35acefbf0ae60e259f590cd317e394f86356e176
+user:        mpm@selenic.com
+date:        Tue Jun  7 10:21:53 2005
+summary:     hgweb: ignore pipe errors
+
+changeset:   270:5a80ed2158c8e0d0a3a601320f6cccab2bd8f714
+user:        mpm@selenic.com
+date:        Tue Jun  7 10:07:31 2005
+summary:     Reverse order of hg log and hg history lists
+
+changeset:   269:24e9e140485fb91c32e06c0bfa3daf7b4abc3b5d
+user:        mpm@selenic.com
+date:        Tue Jun  7 10:04:43 2005
+summary:     hgweb: shrink the default changelog list to 10
+
+changeset:   268:1634a7ea674888872145482f538d685b74ce78b0
+user:        mpm@selenic.com
+date:        Tue Jun  7 10:03:38 2005
+summary:     unknown command fixups
+
+changeset:   267:497aa6d276d207d9b8065a7bae67aac88e16d296
+user:        mpm@selenic.com
+date:        Tue Jun  7 10:00:56 2005
+summary:     Initial import of hgit and hgk
+
+changeset:   266:4af7677de4a92658cefe9793a8c7163a72e90eaa
+user:        mpm@selenic.com
+date:        Tue Jun  7 09:57:00 2005
+summary:     Fix argument processing for patch and rawcommit
+
+changeset:   265:7ca05593bd302d799851450513928f291005d7b7
+user:        mpm@selenic.com
+date:        Mon Jun  6 20:52:19 2005
+summary:     hgweb: fix non-existent source or destination for diff
+
+changeset:   264:4c1d7072d5cdf83feee4a4083b33b3c2346f476f
+user:        mpm@selenic.com
+date:        Mon Jun  6 20:51:09 2005
+summary:     Attempt to make diff deal with null sources properly
+
+changeset:   263:e8eb427c6d718d98d7fbcae1fe14d7368d6014ff
+user:        mpm@selenic.com
+date:        Sun Jun  5 20:50:03 2005
+summary:     Fix empty repository transaction bug
+
+changeset:   262:3db7001465361fec577c963e0867a1e80904949f
+user:        mpm@selenic.com
+date:        Sun Jun  5 20:48:39 2005
+summary:     implement demand loading hack
+
+changeset:   261:3dae0296551d27572df4da4ea454738a558059c6
+user:        mpm@selenic.com
+date:        Sun Jun  5 20:42:52 2005
+summary:     Update README
+
+changeset:   260:d7ce76d82876ec9ad0072539e7af5b4cf0eee375
+user:        mpm@selenic.com
+date:        Sun Jun  5 10:42:44 2005
+summary:     Some tweaking of notes.txt
+
+changeset:   259:45c293b7134100c027ae3697cfe34921e152170e
+user:        mpm@selenic.com
+date:        Sun Jun  5 09:37:11 2005
+summary:     fix addremove
+
+changeset:   258:268bcb5a072a5130e6c7ceced070ec038adf00c9
+user:        mpm@selenic.com
+date:        Sun Jun  5 06:02:27 2005
+summary:     hgweb: watch changelog for changes
+
+changeset:   257:65dccc4555c28316077f7f6878312c3b81cd00d3
+user:        mpm@selenic.com
+date:        Sun Jun  5 05:35:08 2005
+summary:     Sort tags in revision order
+
+changeset:   256:649ed23e46617a7e0bc43a7a2d124485772c06d9
+user:        mpm@selenic.com
+date:        Sun Jun  5 05:21:13 2005
+summary:     minor fixes for update()
+
+changeset:   255:20a44c82795ff223f1fd67d1a4876616b77cb096
+user:        mpm@selenic.com
+date:        Sun Jun  5 05:09:00 2005
+summary:     hg help: use docstrings only
+
+changeset:   254:c03f58e5fd2d4c704c2b7434915f8d7eaf9b51f3
+user:        mpm@selenic.com
+date:        Sun Jun  5 04:34:35 2005
+summary:     unify checkout and resolve into update
+
+changeset:   253:2da0a56aa1fde4fb29f619bd0bec4e66accfb37b
+user:        mpm@selenic.com
+date:        Sun Jun  5 01:16:48 2005
+summary:     Remove invalid state from dirstate
+
+changeset:   252:5eda6c5429786757831c329abcfecd1a290b85d4
+user:        mpm@selenic.com
+date:        Sun Jun  5 01:14:39 2005
+summary:     Handle unknown commands nicely
+
+changeset:   251:3fd8fc14b12f87abc2f04ee6fcd46b8073d46eca
+user:        mpm@selenic.com
+date:        Sun Jun  5 01:14:11 2005
+summary:     backup dirstate for undo
+
+changeset:   250:45ee7c4cae4fdf54ba44cc8249e6d16880dbf09b
+user:        mpm@selenic.com
+date:        Sun Jun  5 00:25:08 2005
+summary:     Catch broken pipes in command interpreter
+
+changeset:   249:619e775aa7f9166c09555c8b7cbd70b50a1f4723
+user:        mpm@selenic.com
+date:        Sun Jun  5 00:16:32 2005
+summary:     import and startup cleanups
+
+changeset:   248:b7645b3c86ff134eda52d8871e907c9d195cbbaa
+user:        mpm@selenic.com
+date:        Sat Jun  4 23:45:31 2005
+summary:     migrate remaining commands
+
+changeset:   247:863b508c5b36e60c4b093d8933427ebdf81dcc86
+user:        mpm@selenic.com
+date:        Sat Jun  4 22:24:23 2005
+summary:     migrate verify
+
+changeset:   246:96cde50a746f9ec48ada33999ab6194fef9789f7
+user:        mpm@selenic.com
+date:        Sat Jun  4 22:14:14 2005
+summary:     Migrate rawcommit, import, export, history, and merge
+
+changeset:   245:fef0f8e041aad2b28566f6b3262fe8a6be70385a
+user:        mpm@selenic.com
+date:        Sat Jun  4 21:18:56 2005
+summary:     big heap of command clean-up work
+
+changeset:   244:43105253cf5e7630ac60397b413056c7afd9a03d
+user:        mpm@selenic.com
+date:        Sat Jun  4 21:13:25 2005
+summary:     root relative IO and valid commit states
+
+changeset:   243:9a9ea2d1d3c4b631394bd8f850122c1943adba8d
+user:        mpm@selenic.com
+date:        Sat Jun  4 21:10:42 2005
+summary:     fix heads for rev 0
+
+changeset:   242:a2edb4481f19fcb472b4f3ebda9a7d4116c6ae9f
+user:        mpm@selenic.com
+date:        Sat Jun  4 04:42:53 2005
+summary:     hgmerge: use diff3 if available
+
+changeset:   241:afe895fcc0d00db4b92ed07364a212486698288b
+parent:      240:737c66b682900d82aaca6aa0310c0defd42302af
+parent:      237:4f802588cdfbe71a17a754bd5c477b2c2e8239c5
+user:        mpm@selenic.com
+date:        Sat Jun  4 04:29:46 2005
+summary:     Resolve bits from TAH
+
+changeset:   240:737c66b682900d82aaca6aa0310c0defd42302af
+user:        mpm@selenic.com
+date:        Sat Jun  4 04:27:55 2005
+summary:     Replace tkmerge with hgmerge
+
+changeset:   239:75840796e8e22db31caaf94eea8827324b63dd32
+user:        mpm@selenic.com
+date:        Fri Jun  3 23:44:34 2005
+summary:     mdiff.py: kill #! line, add copyright notice
+
+changeset:   238:3b92f8fe47ae4338edde0f47a80824d1926e1469
+parent:      232:fc4a6e5b58121380fe3afcd3b0d9e2ced0265855
+user:        mpm@selenic.com
+date:        Fri Jun  3 23:43:17 2005
+summary:     hgweb.py: kill #! line, clean up copyright notice
+
+changeset:   237:4f802588cdfbe71a17a754bd5c477b2c2e8239c5
+parent:      232:fc4a6e5b58121380fe3afcd3b0d9e2ced0265855
+parent:      236:85f0420fd8485ceb1cad9b29a64d4fb54552b96e
+user:        mpm@selenic.com
+date:        Fri Jun  3 23:32:37 2005
+summary:     Merge from tah
+
+changeset:   236:85f0420fd8485ceb1cad9b29a64d4fb54552b96e
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun  2 10:23:44 2005
+summary:     Removed extra closing brace from date string.
+
+changeset:   235:eb341488aa4c42d082cfd94a84585095769ed227
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun  2 10:14:12 2005
+summary:     Obfuscate author in all HTML templates.
+
+changeset:   234:3427806d5ab96e471a03dd322bfbe08c65d58493
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun  2 08:06:29 2005
+summary:     ui.warn can use more than one argument like the other ui methods.
+
+changeset:   233:33c48b6356905c093d61057a133be738b2964801
+parent:      218:06bc1ef248a6e92eeaf1fe246d980a6b6e47379d
+user:        Thomas Arendsen Hein <thomas@intevation.de>
+date:        Thu Jun  2 08:05:56 2005
+summary:     Add missing > to </td> in templates.
+
+changeset:   232:fc4a6e5b58121380fe3afcd3b0d9e2ced0265855
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:58:47 2005
+summary:     hg resolve: merge a given node into the working directory
+
+changeset:   231:15e7c6cee92946ffef5825b402752fb5a241ad09
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:56:50 2005
+summary:     add 'm' state to dirstates
+
+changeset:   230:00ea3613f82c216b5f145087c344ff08d3f2675f
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:55:56 2005
+summary:     make diffdir default to dirstate.parents()
+
+changeset:   229:1b11da6ee69e065ee4f11f535e6d50b6ec8b36b7
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:54:54 2005
+summary:     teach commit about dirstate.parents()
+
+changeset:   228:2502aa6634845c927190d90dfe98bdb46baa2aee
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:54:14 2005
+summary:     teach rawcommit about dirstate.parents()
+
+changeset:   227:f57519cddd3dad6875ae96bbeac626b054182242
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:46:38 2005
+summary:     move repo.current to dirstate.parents()
+
+changeset:   226:1536ccac47e90a1850ea8a3f86f2cb9c196f2cc0
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:45:04 2005
+summary:     merge: don't bail on outstanding changes
+
+changeset:   225:1651a3e619252e8928cd47fa6810ec27d4aea920
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:44:01 2005
+summary:     fix repo locking
+
+changeset:   224:ccbcc4d76f81c038e8d7801b6df8b2cd9fe72ec0
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:43:16 2005
+summary:     fix bad assumption about uniqueness of file versions
+
+changeset:   223:1aaa49039a6b109d589db95cd64cd24cef3e4d05
+user:        mpm@selenic.com
+date:        Fri Jun  3 22:40:32 2005
+summary:     add back tempfile import
+
+changeset:   222:87484f627422189536d8ee676e31ba1477a33104
+user:        mpm@selenic.com
+date:        Fri Jun  3 04:46:49 2005
+summary:     make pull work for multiple heads
+
+changeset:   221:2bfe525ef6ca5e74d505464d3d85389a13a2b464
+user:        mpm@selenic.com
+date:        Fri Jun  3 04:07:01 2005
+summary:     Beginning of multi-head support
+
+changeset:   220:3113a94c1bff3f166a3f33ec8698b549ed1811e0
+user:        mpm@selenic.com
+date:        Fri Jun  3 03:39:29 2005
+summary:     change dircache into dirstate
+
+changeset:   219:8ff4532376a41375b54ffade603d524c706606b4
+user:        mpm@selenic.com
+date:        Thu Jun  2 05:19:38 2005
+summary:     hg checkout: refuse to checkout if there are outstanding changes
+
+changeset:   218:06bc1ef248a6e92eeaf1fe246d980a6b6e47379d
+user:        mpm@selenic.com
+date:        Thu Jun  2 03:01:09 2005
+summary:     hgweb: put map-raw in setup.py and MANIFEST.in
+
+changeset:   217:e6d6497a6331cbb1e01c1b717cf01ee5a065b43b
+user:        mpm@selenic.com
+date:        Thu Jun  2 01:21:53 2005
+summary:     merge: catch unexpected responses
+
+changeset:   216:201115f2859b91ec7019c1e468b14367feebe9cc
+user:        mpm@selenic.com
+date:        Thu Jun  2 01:15:07 2005
+summary:     hg annotate: actually annotate the given version
+
+changeset:   215:9ff5a78d0c45565dc329649ee7ffb0eba142804a
+user:        mpm@selenic.com
+date:        Thu Jun  2 00:59:36 2005
+summary:     hgweb: import ui
+
+changeset:   214:2d60aa9bde0aba8ff1f746473d2db758449404f2
+user:        mpm@selenic.com
+date:        Wed Jun  1 23:04:13 2005
+summary:     catch TERM signal in command processor
+
+changeset:   213:d2172916ef6c64001cf747040dd625db89b61929
+user:        mpm@selenic.com
+date:        Wed Jun  1 21:48:34 2005
+summary:     commands: migrate status and branch
+
+changeset:   212:48398a5353e393f682c7455d0de7d44ded965d28
+user:        mpm@selenic.com
+date:        Wed Jun  1 21:11:19 2005
+summary:     commands: better argument processing, per-command help
+
+changeset:   211:426d3c3ae3630b31ba93a692aa175cc2f4018597
+user:        mpm@selenic.com
+date:        Wed Jun  1 20:43:11 2005
+summary:     commands: fix up some help strings
+
+changeset:   210:d2badbd7d1ad224a4f7554039dacdfb1a83be91e
+user:        mpm@selenic.com
+date:        Wed Jun  1 20:40:19 2005
+summary:     hg undo: fixup working dir state
+
+changeset:   209:63af1db35611a22ebf5774feb05f6eb4505e7761
+user:        mpm@selenic.com
+date:        Wed Jun  1 10:25:42 2005
+summary:     Beginning of new command parsing interface
+
+changeset:   208:0a37e9c8ad6ca9bdf08d0d2240273543d6128f8e
+user:        mpm@selenic.com
+date:        Wed Jun  1 10:21:38 2005
+summary:     revlog: remove some unnecessary imports
+
+changeset:   207:ec327cf0d3a939d7a8c705ba179c8d8b128f316d
+user:        mpm@selenic.com
+date:        Wed Jun  1 08:57:53 2005
+summary:     Move ui class to its own module
+
+changeset:   206:3295b6b508de61fcc88cb03fd9976ed263716654
+user:        mpm@selenic.com
+date:        Wed Jun  1 08:45:50 2005
+summary:     hg: don't complain about missing repo with no args
+
+changeset:   205:d255d99a7cbdc02efa9abc0b0654a359282cf08c
+user:        mpm@selenic.com
+date:        Wed Jun  1 08:40:31 2005
+summary:     README: integrate some changes from Kevin Smith
+
+changeset:   204:161cef501e8d293067cae5dd962042eb20556fc5
+user:        mpm@selenic.com
+date:        Wed Jun  1 08:17:34 2005
+summary:     README: integrate various changes and suggestions from Rafael Villar Burke
+
+changeset:   203:0b486b5e0796f9709915543a7971cdd84f40f459
+user:        mpm@selenic.com
+date:        Wed Jun  1 07:33:27 2005
+summary:     hg rawcommit command
+
+changeset:   202:e875a0cf7f3a4c57e0b8e783e08a4434fd80ab12
+user:        mpm@selenic.com
+date:        Wed Jun  1 07:24:14 2005
+summary:     Call python via env in hgweb.cgi
+
+changeset:   201:f918a6fa2572c9f17d81b1fa027f17ba10f0a19f
+user:        mpm@selenic.com
+date:        Wed Jun  1 07:10:10 2005
+summary:     hgweb: add template filters, template style maps, and raw pages
+
+changeset:   200:8450c18f2a45796d97f0857ce7549a661923bf2f
+user:        mpm@selenic.com
+date:        Tue May 31 19:03:46 2005
+summary:     annotate: memory efficiency
+
+changeset:   199:2424676edd8cac7bb85454da79324d5643257105
+user:        mpm@selenic.com
+date:        Tue May 31 18:56:05 2005
+summary:     annotate: deal with merges
+
+changeset:   198:c88ef31fb5c00b4b2162d1146e3c76c0df3fddd2
+user:        mpm@selenic.com
+date:        Mon May 30 20:21:21 2005
+summary:     hgweb: fix tip so that it doesn't need refreshing
+
+changeset:   197:b388603984fc101875d3c6ff0ed319001bf4aac0
+user:        mpm@selenic.com
+date:        Mon May 30 19:20:39 2005
+summary:     hgweb: add view-only support
+
+changeset:   196:48827121af7e95fd6aed35b1e30963965cf67eb3
+user:        jake@edge2.net
+date:        Mon May 30 18:53:48 2005
+summary:     add export, recover, and undo to the man page
+
+changeset:   195:b98bcf66dd9d69fffb32994d5b878fbbccb2c2d9
+user:        mpm@selenic.com
+date:        Mon May 30 18:42:00 2005
+summary:     hgweb: make age() smarter
+
+changeset:   194:4ec26766be83dabc5b85f258ba1277c4738eed6f
+user:        mpm@selenic.com
+date:        Mon May 30 18:28:02 2005
+summary:     Update tags
+
+changeset:   193:0a28dfe59f8fab54a5118c5be4f40da34a53cdb7
+tag:         0.5b
+user:        mpm@selenic.com
+date:        Mon May 30 18:27:21 2005
+summary:     Bump the version number to 0.5b for the protocol change
+
+changeset:   192:5d8553352d2ee495b48e76cc9285173ac7e5ecaf
+user:        mpm@selenic.com
+date:        Mon May 30 18:03:54 2005
+summary:     Changes to network protocol
+
+changeset:   191:d7e859cf2f1b29ca22acc0d97df63b161ef17f24
+user:        mpm@selenic.com
+date:        Sun May 29 19:24:51 2005
+summary:     merge: add count of new manifests, files, and revisions
+
+changeset:   190:3dd5ce2fddb65c05da9c5eded60fe738dc186bc5
+user:        mpm@selenic.com
+date:        Sun May 29 19:06:43 2005
+summary:     merge: short-circuit search for merge into empty repo
+
+changeset:   189:37625132fe375d694c60a497ac962d02ea87a9d9
+user:        mpm@selenic.com
+date:        Sun May 29 00:13:12 2005
+summary:     Add tag for 0.5
+
+changeset:   188:f40273b0ad7b3a6d3012fd37736d0611f41ecf54
+tag:         0.5
+user:        mpm@selenic.com
+date:        Sun May 29 00:09:11 2005
+summary:     Mercurial 0.5
+
+changeset:   187:aa9a0d50e6124941031bd519af7fa94bc54110c4
+user:        mpm@selenic.com
+date:        Sat May 28 23:59:09 2005
+summary:     Fix two minor merge bugs
+
+changeset:   186:9a2075c0b9b8b50784f9313027654fdfe0c2b442
+user:        mpm@selenic.com
+date:        Sat May 28 23:31:49 2005
+summary:     Add $HGEDITOR hook and example script
+
+changeset:   185:db3aa85b937971a17f2479c28e54b7da7d2cd72a
+user:        mpm@selenic.com
+date:        Sat May 28 21:48:00 2005
+summary:     Add manifest hash to commit messages for easy signing
+
+changeset:   184:697f05bfe976294479e28531fdece9a379d7e7e7
+user:        mpm@selenic.com
+date:        Sat May 28 05:38:34 2005
+summary:     Improved binary diff from Christopher Li
+
+changeset:   183:767916673e16a6f3f9833e2a750dc780b4c46592
+user:        mpm@selenic.com
+date:        Fri May 27 23:30:35 2005
+summary:     hgweb: Sort tags by revision number
+
+changeset:   182:089594a5bbde8512ef722147f39442d7bdbe397a
+parent:      180:f25944662097a4f1b9fdd1aa6e4d373e8cb0c9c8
+parent:      181:038e4d8602bdfb31368bf0acddaae4be35c4e182
+user:        mpm@selenic.com
+date:        Fri May 27 23:09:56 2005
+summary:     Pull from Jake's hg docs
+
+changeset:   181:038e4d8602bdfb31368bf0acddaae4be35c4e182
+parent:      177:91055f795d88d82383cb29b0a93f6182b21d6e16
+user:        jake@edge2.net
+date:        Fri May 27 23:09:43 2005
+summary:     updated for .hgpaths and http/old-http protocol name change
+
+changeset:   180:f25944662097a4f1b9fdd1aa6e4d373e8cb0c9c8
+user:        mpm@selenic.com
+date:        Fri May 27 22:45:41 2005
+summary:     hgweb: Fix navigate to 0 bug
+
+changeset:   179:ff5377a4b2039847970bcb98ca27ae6601fbfe43
+user:        mpm@selenic.com
+date:        Fri May 27 22:42:52 2005
+summary:     Add ~/.hgpaths to README
+
+changeset:   178:b3bf5a0edd6930462c0cdb93ba337f02146f9482
+parent:      176:1d8e9637a0a430129175915c03877bdc1332e147
+parent:      177:91055f795d88d82383cb29b0a93f6182b21d6e16
+user:        mpm@selenic.com
+date:        Fri May 27 22:27:46 2005
+summary:     Merge from Jake's hg docs
+
+changeset:   177:91055f795d88d82383cb29b0a93f6182b21d6e16
+parent:      175:0eb6e2c9800dacff5a24ade97510ce6512b322fc
+user:        jake@edge2.net
+date:        Fri May 27 16:16:58 2005
+summary:     adding doc directory and files
+
+changeset:   176:1d8e9637a0a430129175915c03877bdc1332e147
+user:        mpm@selenic.com
+date:        Fri May 27 22:26:14 2005
+summary:     Change hg: protocol name to http: and http: to old-http:
+
+changeset:   175:0eb6e2c9800dacff5a24ade97510ce6512b322fc
+user:        mpm@selenic.com
+date:        Fri May 27 09:39:42 2005
+summary:     hg: remove some debug commands, improve help messages, add .hgpaths file
+
+changeset:   174:23057dc57d1b01b06897e8d89bd6fe81b12c849c
+user:        mpm@selenic.com
+date:        Fri May 27 08:54:48 2005
+summary:     hg merge: abort if there are outstanding changes in the working directory
+
+changeset:   173:8da1df932c16d3cfa29f0f13c89c8adebca659cf
+user:        mpm@selenic.com
+date:        Fri May 27 08:47:43 2005
+summary:     hgweb: make navigation of changesets a bit nicer
+
+changeset:   172:e9b1147db4488da582e74a99c920bb96973e74a7
+user:        mpm@selenic.com
+date:        Fri May 27 06:37:05 2005
+summary:     hgweb: alternating colors for multifile diffs
+
+changeset:   171:75dddd697ed4b89e4161996b0c75ff3c5dfd0125
+user:        mpm@selenic.com
+date:        Fri May 27 04:20:24 2005
+summary:     trivial tweak to merge3
+
+changeset:   170:e6c621a825f2c234cc25266233289701152a58a8
+user:        mpm@selenic.com
+date:        Thu May 26 23:02:28 2005
+summary:     hg diff: fix missing final newline bug
+
+changeset:   169:e93a16de0c662d6a63ad2bae0e131b7737f2c7ef
+user:        mpm@selenic.com
+date:        Thu May 26 23:02:04 2005
+summary:     hgweb: actually commit the tags template
+
+changeset:   168:65cf1b0cfe867709c99d84503d79d1d7124b9f4a
+user:        mpm@selenic.com
+date:        Thu May 26 22:24:01 2005
+summary:     hgweb: add tags links and manifest links
+
+changeset:   167:fad9ad1ec7c734b952d795efa68386aba3e17d2c
+user:        mpm@selenic.com
+date:        Thu May 26 21:15:05 2005
+summary:     Hide most revision numbers in hgweb
+
+changeset:   166:39624c47060f0fd7bebfdba721efe29c1785e53e
+user:        mpm@selenic.com
+date:        Thu May 26 20:11:05 2005
+summary:     hgweb: don't blow up on search for unknown keys
+
+changeset:   165:7fc8385df51440659ff840d411d81fc3ad795b66
+user:        mpm@selenic.com
+date:        Thu May 26 20:08:47 2005
+summary:     Add tag/rev/node search to hgweb
+
+changeset:   164:2e87f04880ab8f4872f897b2af660dc15d005502
+user:        mpm@selenic.com
+date:        Thu May 26 19:56:20 2005
+summary:     Make fancyopts handle no arguments
+
+changeset:   163:f38c90953c2c48eaebe82226167aa86b3106a4b9
+user:        mpm@selenic.com
+date:        Thu May 26 19:48:50 2005
+summary:     Make undo and recover friendlier
+
+changeset:   162:5dcbe4d9a30c4e5561d34f9d9738df3322384d6d
+user:        mpm@selenic.com
+date:        Thu May 26 19:04:54 2005
+summary:     Implement recover and undo commands
+
+changeset:   161:0b4c5cb953d9a3c636a52a5109ecf192f2b3ee9f
+user:        mpm@selenic.com
+date:        Thu May 26 18:53:04 2005
+summary:     Simply repository locking
+
+changeset:   160:5c331d941c7f7e15618059f770c8ecd8a9d902a3
+user:        mpm@selenic.com
+date:        Thu May 26 02:40:22 2005
+summary:     Update the README a bit
+
+changeset:   159:f9d8620ef4699375f5251a5e49e4faa94543f8a6
+user:        mpm@selenic.com
+date:        Thu May 26 02:28:23 2005
+summary:     Add example CGI script
+
+changeset:   158:be7103467d2e0051928e8c0e74988632d1e25734
+user:        mpm@selenic.com
+date:        Thu May 26 02:27:10 2005
+summary:     Add 'hg serve' command for stand-alone server
+
+changeset:   157:2653740d811892ea471bd70441b8c8f31e40105d
+user:        mpm@selenic.com
+date:        Thu May 26 02:21:06 2005
+summary:     Install the templates where they can be found by hgweb.py
+
+changeset:   156:32ce2c5d4d25ec4f0f1f7ac00ff09217147fa6f5
+user:        mpm@selenic.com
+date:        Wed May 25 19:04:38 2005
+summary:     Fix some broken parent links in hgweb
+
+changeset:   155:083c38bdfa6468113b31a7def64e89b00fbd6551
+parent:      151:1f6c61a6058644f4b51e84f81b026cb7a05fc958
+parent:      154:1d5f799ebe1e5e7defd09b8a373caff009d058a4
+user:        mpm@selenic.com
+date:        Wed May 25 18:54:54 2005
+summary:     Merge from hgweb
+
+changeset:   154:1d5f799ebe1e5e7defd09b8a373caff009d058a4
+user:        jake@edge2.net
+date:        Wed May 25 01:08:09 2005
+summary:     fixed problem with head/body tags, added dtd, fixed table attributes
+
+changeset:   153:e8a360cd5a9ffab0f5b7f76a6e6a460c68edc914
+user:        jake@edge2.net
+date:        Tue May 24 16:42:05 2005
+summary:     changed pos to rev for changelog cmd, changed & to ;
+
+changeset:   152:67b8d24d2dbea07afab09fae1378c9927aa9edcc
+parent:      144:ea9188538222ac5764a31564004f880f6040c188
+user:        jake@edge2.net
+date:        Tue May 24 16:33:12 2005
+summary:     hgweb is no longer a script
+
+changeset:   151:1f6c61a6058644f4b51e84f81b026cb7a05fc958
+user:        mpm@selenic.com
+date:        Wed May 25 18:53:34 2005
+summary:     Bail on attempts to do an empty commit
+
+changeset:   150:8029ee2949b81d569eb72b2f7f0b1dd1ff16c99b
+user:        mpm@selenic.com
+date:        Wed May 25 18:53:01 2005
+summary:     Add options to annotate for user/rev/changeset
+
+changeset:   149:8cd45e152c830b674a9cc9094f58f59139089ec5
+user:        mpm@selenic.com
+date:        Wed May 25 09:34:06 2005
+summary:     Pass filename to $HGMERGE
+
+changeset:   148:c32286d0a6653f764c719a507c47c855bee6f5bf
+user:        mpm@selenic.com
+date:        Wed May 25 09:13:25 2005
+summary:     Improve pruning of branches in outstanding changeset algorithm
+
+changeset:   147:b6d8ed7aeba037a5e802bba779a6082678c0e10e
+user:        mpm@selenic.com
+date:        Wed May 25 09:11:44 2005
+summary:     A new ancestor algorithm
+
+changeset:   146:4a828422247de16207fd1df3df6e87fae64ecf37
+user:        mpm@selenic.com
+date:        Wed May 25 06:30:35 2005
+summary:     Handle merge with deletions
+
+changeset:   145:fbce9fc531d207e326be5f55940c5f1f7cc95291
+user:        mpm@selenic.com
+date:        Wed May 25 06:29:38 2005
+summary:     Minor fixes to verify
+
+changeset:   144:ea9188538222ac5764a31564004f880f6040c188
+user:        mpm@selenic.com
+date:        Tue May 24 08:14:41 2005
+summary:     Fix transaction handling bug by reverting fileopener change
+
+changeset:   143:bf325dce498eb2163b602123c0f62ab3fc9cba91
+user:        mpm@selenic.com
+date:        Tue May 24 07:15:36 2005
+summary:     Fix pos in navbar
+
+changeset:   142:529bf610092ed07deaffbb870cda939a3e0720cc
+user:        mpm@selenic.com
+date:        Tue May 24 06:57:48 2005
+summary:     Prettify the web interface
+
+changeset:   141:5f471a75d6074544ba0ac65931c8aef31e2829a5
+user:        mpm@selenic.com
+date:        Tue May 24 02:06:25 2005
+summary:     Simple script to recompress a log file
+
+changeset:   140:30ef7711387209701ef1e08dad8daf39ed3659ed
+user:        mpm@selenic.com
+date:        Tue May 24 02:05:48 2005
+summary:     Minor safety checks to manifest diff
+
+changeset:   139:17e66e1a0382b65cd35990424b951740147f167a
+user:        mpm@selenic.com
+date:        Tue May 24 02:05:05 2005
+summary:     Minor updates to comparison
+
+changeset:   138:c77a679e9cfa2b15e690a9cb0b3cc7d1ec691f3e
+user:        mpm@selenic.com
+date:        Tue May 24 02:00:02 2005
+summary:     Revamped templated hgweb
+
+changeset:   137:b45b1b00fc9e8025b14101d8dc7562635310c3b7
+parent:      130:e6678a1beb6a8d691f0f7544a7619b66459a6135
+parent:      136:0e8d60d2bb2bf94dd43c2286d992307b87dcff05
+user:        mpm@selenic.com
+date:        Sun May 22 18:13:38 2005
+summary:     Merge from hgweb
+
+changeset:   136:0e8d60d2bb2bf94dd43c2286d992307b87dcff05
+user:        jake@edge2.net
+date:        Sun May 22 07:43:14 2005
+summary:     added annotate
+
+changeset:   135:c0faf50822eaa9ea08c17a9617242d0541ecb8b8
+user:        jake@edge2.net
+date:        Sun May 22 05:31:54 2005
+summary:     change template to a generator
+
+changeset:   134:13d609f8d8302993a8c93f88d74c01529ebabef2
+user:        jake@edge2.net
+date:        Sun May 22 01:21:16 2005
+summary:     fix problem with non wrapping file list
+
+changeset:   133:fb84d3e7104243881f638a2e33be8cf5908e4b19
+user:        jake@edge2.net
+date:        Sun May 22 01:13:42 2005
+summary:     added template support for some hgweb output, also, template files for
+
+changeset:   132:210eeb6f5197ce36bd89c94425f611b3683a395c
+user:        jake@edge2.net
+date:        Sat May 21 20:46:16 2005
+summary:     making hgweb class
+
+changeset:   131:c9d51742471cee12a50be65754fe54103e900e81
+parent:      127:44538462d3c83dfc968e62a8115c73f54691f7f7
+user:        jake@edge2.net
+date:        Sat May 21 20:35:26 2005
+summary:     moving hgweb to mercurial subdir
+
+changeset:   130:e6678a1beb6a8d691f0f7544a7619b66459a6135
+user:        mpm@selenic.com
+date:        Sun May 22 03:26:44 2005
+summary:     Make hg diff handle files that have been added but not yet committed.
+
+changeset:   129:1db9207def077e2b457ba639b091c10fd28556f3
+user:        mpm@selenic.com
+date:        Sun May 22 03:03:12 2005
+summary:     Fix diff and export not showing added files
+
+changeset:   128:d6afb6dbf9f2327bd0b1cce76ad45e48dc4b7396
+user:        mpm@selenic.com
+date:        Sat May 21 23:14:58 2005
+summary:     Add safety checking to mpatch
+
+changeset:   127:44538462d3c83dfc968e62a8115c73f54691f7f7
+user:        mpm@selenic.com
+date:        Sat May 21 05:19:25 2005
+summary:     Fix braindamaged import in mdiff.
+
+changeset:   126:f6d1f8a84372d8b0a6a6c1374da057458b00ad01
+user:        mpm@selenic.com
+date:        Sat May 21 03:50:11 2005
+summary:     Remove some debugging code from lazyparser
+
+changeset:   125:8913e13196e1d999e9723792a75af8990958f7ad
+user:        mpm@selenic.com
+date:        Sat May 21 03:49:25 2005
+summary:     Remove python version of the patches code
+
+changeset:   124:0f6c49138f675a388a64ec4f6934ed574185ea06
+user:        mpm@selenic.com
+date:        Sat May 21 03:47:13 2005
+summary:     Remove debugoldmerge command
+
+changeset:   123:b93cc016eec9c711995b135ae38b9dd670a3238a
+user:        mpm@selenic.com
+date:        Sat May 21 03:46:47 2005
+summary:     hg history: don't print file list without -v switch
+
+changeset:   122:82fd709deb8e9a11cc5bdc530708a2f6b153feca
+user:        mpm@selenic.com
+date:        Sat May 21 03:45:03 2005
+summary:     Subdir support for annotate
+
+changeset:   121:66fb61d9d97d72ba277bb2043c0829170e78da86
+user:        mpm@selenic.com
+date:        Sat May 21 03:44:34 2005
+summary:     Use revlog.delta and mdiff.patchtext to massively speed up processing
+
+changeset:   120:bae6f0328f635e856ceb196d381209dc66e586bb
+user:        mpm@selenic.com
+date:        Sat May 21 03:42:29 2005
+summary:     Add a function to return the new text from a binary diff
+
+changeset:   119:c7a66f9752a49487ff5f34ffad9705be02468616
+user:        mpm@selenic.com
+date:        Sat May 21 03:40:24 2005
+summary:     Add code to retrieve or construct a revlog delta
+
+changeset:   118:a0e57df96e968d54fe7f9aa07c952bbba1bf9b1e
+user:        mpm@selenic.com
+date:        Sat May 21 03:38:01 2005
+summary:     Add fileopener to move some pathname knowledge from filelog to repository
+
+changeset:   117:2ac722ad1a9dc163580dda51762e44b2502fa2be
+user:        mpm@selenic.com
+date:        Sat May 21 03:36:02 2005
+summary:     Make revision code slightly faster
+
+changeset:   116:e484cd5ec2827f1572156a845ef38c8881ff181a
+user:        mpm@selenic.com
+date:        Sat May 21 03:35:20 2005
+summary:     Only use lazy indexing for big indices and avoid the overhead of the
+
+changeset:   115:39b438eeb25ae17cf41aab188003f8ef8a7b1e32
+user:        mpm@selenic.com
+date:        Sat May 21 03:34:04 2005
+summary:     Make lazyindex load slightly faster
+
+changeset:   114:82fb6d09f91107c16fd8456dce724cd3bab82536
+user:        mpm@selenic.com
+date:        Sat May 21 03:33:24 2005
+summary:     Simplify checkout slightly, replace checkdir with os.makedirs
+
+changeset:   113:1918852a67a816b0d923117beaeaba8150ad8e15
+user:        mpm@selenic.com
+date:        Sat May 21 03:31:55 2005
+summary:     Sort files on check-in for good I/O patterns
+
+changeset:   112:aea6562add6cc7e5311d1c84db506e8cda10ebc7
+user:        mpm@selenic.com
+date:        Sat May 21 03:31:12 2005
+summary:     Make compression more intelligent:
+
+changeset:   111:2c80f6f8fc08a6a71b74283a8db4d079652fc3bf
+user:        mpm@selenic.com
+date:        Sat May 21 03:28:09 2005
+summary:     Add script for doing conversion of repo from oldstyle to newstyle
+
+changeset:   110:c37c7f784ee3c4e6c5b40a2f80bc00eb8925a4ec
+user:        mpm@selenic.com
+date:        Sat May 21 03:27:21 2005
+summary:     Move hg from storing files in data with base64 encoding to full
+
+changeset:   109:95699294f580c94b2e4612778a5b3d11f13b395e
+user:        mpm@selenic.com
+date:        Sat May 21 03:22:02 2005
+summary:     Annotate was being too clever trying to work in place, and triggering
+
+changeset:   108:8d55c2d72c7c23c6ffbe8c91c1001695c5537760
+user:        mpm@selenic.com
+date:        Sat May 21 03:20:39 2005
+summary:     Warn if we fail to truncate something
+
+changeset:   107:707a7481a861540d16c1f7a7291250aefb2c8aff
+user:        mpm@selenic.com
+date:        Thu May 19 04:25:37 2005
+summary:     Make prompting go
+
+changeset:   106:e8d4bbf4c9e24bf008001ce95f6fc5187d11ce5b
+user:        mpm@selenic.com
+date:        Thu May 19 03:37:49 2005
+summary:     Don't diff unknown files
+
+changeset:   105:6eeb5005048662bc3619e474bb04555ca100a3a3
+user:        mpm@selenic.com
+date:        Thu May 19 03:33:46 2005
+summary:     Date on its own line in file log
+
+changeset:   104:20b3e7aad499c3ed1b2d1470d121fb80dbc61608
+parent:      102:58039eddbddaba5dde6385bc7ee16cee777c947d
+parent:      103:33500fe7d56c4c9ffe9429f758b09f515a3fbe01
+user:        mpm@selenic.com
+date:        Thu May 19 03:29:10 2005
+summary:     Pull from hg://edge2.net/hg/cmds
+
+changeset:   103:33500fe7d56c4c9ffe9429f758b09f515a3fbe01
+parent:      71:47c9a869adee981f852af88af5d5cba4c7d1e62f
+user:        jake@edge2.net
+date:        Mon May 16 00:30:36 2005
+summary:     adding subdir support for log and status commands
+
+changeset:   102:58039eddbddaba5dde6385bc7ee16cee777c947d
+parent:      98:3dde7c87e36df4da5694313a41803bc8ed358e60
+parent:      101:6da5cf0c4193cd9bc00f132e9069aaa8f474e17c
+user:        mpm@selenic.com
+date:        Thu May 19 03:06:07 2005
+summary:     Merge from hgweb
+
+changeset:   101:6da5cf0c4193cd9bc00f132e9069aaa8f474e17c
+user:        jake@edge2.net
+date:        Wed May 18 01:03:50 2005
+summary:     added pagination for changes (front) page
+
+changeset:   100:526722d24ee5b3b860d4060e008219e083488356
+user:        jake@edge2.net
+date:        Sat May 14 02:48:10 2005
+summary:     reorganize code into classes
+
+changeset:   99:db5eb6a86179ce819db03da9ef2090b32f8e3fc4
+parent:      67:a182f2561c8e964fb739fd88b5e049f9216911fb
+user:        jake@edge2.net
+date:        Sat May 14 02:27:14 2005
+summary:     making change list be reverse ordered
+
+changeset:   98:3dde7c87e36df4da5694313a41803bc8ed358e60
+user:        mpm@selenic.com
+date:        Thu May 19 02:59:54 2005
+summary:     Add paranoia to diff code
+
+changeset:   97:7a2abee6b0c2836fd4429edc21a7256bd460d738
+user:        mpm@selenic.com
+date:        Thu May 19 02:47:49 2005
+summary:     Add iterator to the lazymap code
+
+changeset:   96:fce47326677c5685314c9988a0a53b9711e310e9
+user:        mpm@selenic.com
+date:        Thu May 19 02:45:44 2005
+summary:     Add updated merge3 code
+
+changeset:   95:589f507bb2598b9ebd32b876e3e9ea60320545c2
+user:        mpm@selenic.com
+date:        Thu May 19 02:31:51 2005
+summary:     Beginnings of transaction undo support
+
+changeset:   94:7daef883134f1ef6ea976368a6313aa0e7047917
+user:        mpm@selenic.com
+date:        Thu May 19 02:29:39 2005
+summary:     Refactor merge code
+
+changeset:   93:0b0efe409d794cc263ba1b7933763df3eb23a6e5
+user:        mpm@selenic.com
+date:        Thu May 19 01:24:18 2005
+summary:     Fix two bugs in verify
+
+changeset:   92:e6fc7ff522463b8a7dfb5ce00291cbac85e604d6
+user:        mpm@selenic.com
+date:        Thu May 19 01:23:10 2005
+summary:     Add debugindexdot to generate graphviz dot files from indexes
+
+changeset:   91:1c212bbb38d515a8f1da464bddac047e103bf1ea
+user:        mpm@selenic.com
+date:        Thu May 19 01:21:53 2005
+summary:     hack so that debugindex takes filenames
+
+changeset:   90:ab9ebff09dcdcbab2249df035ffc1efe8597679d
+user:        mpm@selenic.com
+date:        Tue May 17 23:38:21 2005
+summary:     Fix manifest merge swap bug
+
+changeset:   89:4cd9145d5b5307128bbdbc2c7f7e75b6b36fe051
+user:        mpm@selenic.com
+date:        Tue May 17 23:37:15 2005
+summary:     Add tip command
+
+changeset:   88:d9913355961dcf3e0ea7c1e3676019046f6d2900
+user:        mpm@selenic.com
+date:        Tue May 17 22:40:24 2005
+summary:     Missing newline in "requesting changegroup"
+
+changeset:   87:b2b3fdbd79f4b27ce4d7b26ad3b9d95974de03c9
+user:        mpm@selenic.com
+date:        Tue May 17 22:23:53 2005
+summary:     Verify improvements:
+
+changeset:   86:1b945e8ba67bd5031bdd1c5ef2ef969a6eb22a3b
+user:        mpm@selenic.com
+date:        Tue May 17 22:20:29 2005
+summary:     Friendlier exceptions for unknown node errors
+
+changeset:   85:58a1a0425c9b81fe29294f1f6eb9caa4cc313e3f
+user:        mpm@selenic.com
+date:        Tue May 17 21:40:45 2005
+summary:     Fix merge bug, I hope
+
+changeset:   84:b2e3528115da1f6c923a39771bf5946f6ae96260
+user:        mpm@selenic.com
+date:        Tue May 17 21:40:26 2005
+summary:     More useful message on broken addgroup chain
+
+changeset:   83:9fd5b35cfc45235a05f0b82bd7a87ed3ab9f9dc4
+user:        mpm@selenic.com
+date:        Tue May 17 21:06:59 2005
+summary:     Add -q quiet option
+
+changeset:   82:7ed96baa7caa6392ed49a7f782dd055349ad3d03
+user:        mpm@selenic.com
+date:        Tue May 17 20:13:00 2005
+summary:     Gotos are embarrassing.
+
+changeset:   81:17884f79d59d8c8b3630819e931b0ae8c232d338
+user:        mpm@selenic.com
+date:        Tue May 17 11:27:14 2005
+summary:     Add annotate and blame to the command list and README
+
+changeset:   80:5b7a444c794a09fbef5d8f4aeba482d1f4377ebe
+user:        mpm@selenic.com
+date:        Tue May 17 11:22:50 2005
+summary:     Fix field width for annotate
+
+changeset:   79:837d473d54d5fca87d34d03c2c9970b12a890640
+user:        mpm@selenic.com
+date:        Tue May 17 11:12:30 2005
+summary:     Add basic annotation support
+
+changeset:   78:85f1f87dc8ff2820d873bae04d5ac0f9501eb0af
+user:        mpm@selenic.com
+date:        Tue May 17 11:07:57 2005
+summary:     Add "HG: merge resolve" to editor text for merge
+
+changeset:   77:bed15e766511ac9d0ae83f97131719ce144a5290
+user:        mpm@selenic.com
+date:        Tue May 17 11:07:01 2005
+summary:     Fix bug in lazymap code
+
+changeset:   76:d993ebd69d28ab705b273d13bea1d24ccdc4f57f
+user:        mpm@selenic.com
+date:        Tue May 17 10:33:22 2005
+summary:     Add lazy{parser,index,map} to speed up processing of index files
+
+changeset:   75:b942bbe4bb84c667f34a7796415a3e439b5b4577
+user:        mpm@selenic.com
+date:        Tue May 17 10:32:18 2005
+summary:     Fix a bug in patches() if there's not text and no patch
+
+changeset:   74:401e18c95ad381fa53adeb2f598a63fd70098e54
+user:        mpm@selenic.com
+date:        Tue May 17 10:30:01 2005
+
+changeset:   73:ee1cbe841e01e143c6685f12415de7d30b774617
+user:        mpm@selenic.com
+date:        Tue May 17 08:10:02 2005
+summary:     Change revlog to use new patch code
+
+changeset:   72:4a6ab4d80dc4fe5449e702242402e1fe91fc41e7
+user:        mpm@selenic.com
+date:        Tue May 17 08:08:33 2005
+summary:     Add an O(m + nlog n) patching extension
+
+changeset:   71:47c9a869adee981f852af88af5d5cba4c7d1e62f
+user:        mpm@selenic.com
+date:        Sat May 14 20:27:14 2005
+summary:     Add mdiff.patches to speed up applying thousands of patches to the manifest
+
+changeset:   70:ce080e8eccd7afffcf5c466e0102d17406413d1c
+user:        mpm@selenic.com
+date:        Sat May 14 20:13:49 2005
+summary:     Fix debugindex formatting for large repos
+
+changeset:   69:ab03c7a52cf2210029543ea3404bc2e503a1d0b4
+user:        mpm@selenic.com
+date:        Sat May 14 04:22:08 2005
+summary:     Minor changes to import so that we can successfully import Ingo's
+
+changeset:   68:6fa994fe90fc105ea31c26516f1695f92f9d01c9
+user:        mpm@selenic.com
+date:        Fri May 13 23:26:00 2005
+summary:     Print changeset metadata for export
+
+changeset:   67:a182f2561c8e964fb739fd88b5e049f9216911fb
+user:        mpm@selenic.com
+date:        Fri May 13 23:12:32 2005
+summary:     Add tag support
+
+changeset:   66:5ec8b2ed858f8fc506dff3edfc6ce95a2d028b3b
+user:        mpm@selenic.com
+date:        Fri May 13 22:44:11 2005
+summary:     Beginnings of changelog tagging
+
+changeset:   65:d40cc5aacc31ed673d9b5b24f98bee78c283062c
+tag:         0.4f
+user:        mpm@selenic.com
+date:        Fri May 13 21:47:16 2005
+summary:     Fix up a bunch of bugs in the new merge code
+
+changeset:   64:b3e2ddff0159d52f30304cd4f80f87170e80e11d
+user:        mpm@selenic.com
+date:        Fri May 13 03:54:55 2005
+summary:     Diff in subdirectories from Jake Edge
+
+changeset:   63:1c590d34bf61e2ea12c71738e5a746cd74586157
+tag:         0.4e
+user:        mpm@selenic.com
+date:        Thu May 12 11:23:51 2005
+summary:     Minor changes for release 0.4e
+
+changeset:   62:022d98aa0a2ac6cea6e7702baafa26557bc9bd79
+user:        mpm@selenic.com
+date:        Thu May 12 11:23:26 2005
+summary:     Fix tabs
+
+changeset:   61:1215bf60468f4f8bde16fa3a5c3d1d94b5732fae
+user:        mpm@selenic.com
+date:        Thu May 12 11:22:37 2005
+summary:     Add server side of hg:// protocol to hgweb
+
+changeset:   60:e32fdbd978396c92d1d18f64ba143c810af0fd01
+user:        mpm@selenic.com
+date:        Thu May 12 11:21:58 2005
+summary:     Add hg:// protocol
+
+changeset:   59:2bff7c0ea1d3e5b3127031a36f80e3c0c027562c
+user:        mpm@selenic.com
+date:        Thu May 12 11:20:43 2005
+summary:     Minor corrections
+
+changeset:   58:2ab801e0ea9fefdfde3250cfd1de5a620b617ebc
+user:        mpm@selenic.com
+date:        Thu May 12 11:20:16 2005
+summary:     A quick set of comparisons between hg, git, and bk
+
+changeset:   57:115106376f4544f474f41896021231b2d333c6a1
+user:        mpm@selenic.com
+date:        Thu May 12 03:11:10 2005
+summary:     hgweb.py from Jake Edge
+
+changeset:   56:ad2ea1185f04094dd487d2a65f43aba5d2c9bfc2
+user:        mpm@selenic.com
+date:        Thu May 12 01:06:41 2005
+summary:     Add getchangegroup code to efficiently calculate and request a changegroup
+
+changeset:   55:2add70d5144145a5a0950a43c8d2a41a78d29dea
+user:        mpm@selenic.com
+date:        Thu May 12 00:38:26 2005
+summary:     From: Thomas Arendsen Hein <thomas@intevation.de>
+
+changeset:   54:b24731008221f78e59155a9f896a6db705fe294d
+user:        mpm@selenic.com
+date:        Thu May 12 00:37:23 2005
+summary:     Fix lsdiff filtering
+
+changeset:   53:9f3097864c35897f97fbacac4f4517e53fec01b9
+user:        mpm@selenic.com
+date:        Thu May 12 00:36:17 2005
+summary:     Drop empty lines from lsdiff
+
+changeset:   52:c78eea339e8b62d5ef321c892afcaea5ccf18b2a
+user:        mpm@selenic.com
+date:        Thu May 12 00:34:31 2005
+summary:     Strip trailing spaces from lsdiff file list
+
+changeset:   51:0cbcdb855156c2766a8b931fd6887a0de9455551
+user:        mpm@selenic.com
+date:        Thu May 12 00:32:03 2005
+summary:     Ignore .orig and .rej files from patch
+
+changeset:   50:0263ce8be574cc2146b9880422c7aaa389a0eca9
+user:        mpm@selenic.com
+date:        Thu May 12 00:06:34 2005
+summary:     Add -q option to import
+
+changeset:   49:14bff5d8e526a0e50a24ba4a257439759ec8c251
+user:        mpm@selenic.com
+date:        Wed May 11 23:56:22 2005
+summary:     Import comments from patches
+
+changeset:   48:9f64181ff9a9e80c6033f9784b66f551af7c7d24
+user:        mpm@selenic.com
+date:        Wed May 11 19:44:12 2005
+summary:     Fix resolve bug putting unchanged files in resolve cset
+
+changeset:   47:45cc818f2445fc3a7358c3465170cb40410db9ff
+user:        mpm@selenic.com
+date:        Wed May 11 09:33:19 2005
+summary:     Rollback is implemented
+
+changeset:   46:93e868fa0db86845c07164f39a145a81de5a17f5
+user:        mpm@selenic.com
+date:        Tue May 10 10:40:49 2005
+summary:     Add changegroup support
+
+changeset:   45:f2b2d5daec30981e6757a6e4c5a4ac497ae0bc10
+user:        mpm@selenic.com
+date:        Tue May 10 10:34:57 2005
+summary:     Fix recursion depth trouble with ancestor algorithm
+
+changeset:   44:e825a68d72272076fae6a12990d8feaf50fc0d61
+user:        mpm@selenic.com
+date:        Tue May 10 10:33:48 2005
+summary:     Fix occassional diff bug with manifests
+
+changeset:   43:42177b56b949e4b4a7fb710247bd73831e27a1b8
+user:        mpm@selenic.com
+date:        Tue May 10 10:32:05 2005
+summary:     Attempt to recover journal automatically
+
+changeset:   42:91f1fa8471586b6f41d2e9c9aca73f46bd0c5f91
+user:        mpm@selenic.com
+date:        Tue May 10 10:31:00 2005
+summary:     Fix multiple changes to file per transaction
+
+changeset:   41:df3f4625387818eb3e69a73de3f60dd9215aa96e
+user:        mpm@selenic.com
+date:        Sun May  8 02:33:31 2005
+summary:     Fix truncate logic for indices again
+
+changeset:   40:5f87633e1ea220d4ceb0e6b2a0e0475aa00d7871
+user:        mpm@selenic.com
+date:        Sun May  8 02:33:09 2005
+summary:     Date is an int as a string in changelog
+
+changeset:   39:adf70fffca9f1c872e7dd39d16b786bf7b6911c0
+user:        mpm@selenic.com
+date:        Sun May  8 02:32:31 2005
+summary:     Add lookup smarts everywhere
+
+changeset:   38:ed1d3e3ca8e0d2a479af0eba8e006a84486707cc
+user:        mpm@selenic.com
+date:        Sun May  8 02:13:26 2005
+summary:     Add improved rev lookup to diff and export
+
+changeset:   37:a8811676c85a29d5ff567b2509737e83e0efcf14
+user:        mpm@selenic.com
+date:        Sun May  8 02:12:31 2005
+summary:     Move hex/bin bits to revlog
+
+changeset:   36:da28286bf6b7d602ef1cf5a7cf4b374f4cd60431
+user:        mpm@selenic.com
+date:        Sun May  8 02:11:36 2005
+summary:     Add smart node lookup by substring or by rev number
+
+changeset:   35:9197c26a414becaaf2fec9d2097df99f16441907
+user:        mpm@selenic.com
+date:        Sun May  8 02:10:50 2005
+summary:     unidiff: punt on comparing empty files
+
+changeset:   34:8708c75da2aca09707e88540b888bc2e41af1173
+user:        mpm@selenic.com
+date:        Sat May  7 21:37:28 2005
+summary:     Add export command
+
+changeset:   33:98633e60067c7f0fe9ecff15e04d01accb695990
+user:        mpm@selenic.com
+date:        Sat May  7 19:27:52 2005
+summary:     Support for 0, 1, or 2 diff revs
+
+changeset:   32:6a4d8718bee0ff7d84ca3b501fef4d909600a4c0
+user:        mpm@selenic.com
+date:        Fri May  6 19:09:35 2005
+summary:     Add diffrevs function to compare two nodes
+
+changeset:   31:642058291e74f1f44d901c7dabc19da2417f0aa0
+user:        mpm@selenic.com
+date:        Fri May  6 01:22:11 2005
+summary:     diffdir tidy in preparation for arg handling
+
+changeset:   30:12f598340423c8d124e112e03a7c9c5d59bcc39c
+user:        mpm@selenic.com
+date:        Fri May  6 01:20:56 2005
+summary:     Fix up commit arg breakage
+
+changeset:   29:4d3a5dcb69725fe0e8cdded5ca84344a9e73ebf4
+user:        mpm@selenic.com
+date:        Fri May  6 01:05:50 2005
+summary:     Make diffdir take a revision argument
+
+changeset:   28:9f64ee81719922f857c4bff34af2b9ab68b16fc4
+user:        mpm@selenic.com
+date:        Thu May  5 08:57:51 2005
+summary:     Add some tests to the repo
+
+changeset:   27:febfb35d2a3e2b0df980b379e44cc2214d0a93ff
+user:        mpm@selenic.com
+date:        Thu May  5 08:57:16 2005
+summary:     hg co after hg merge
+
+changeset:   26:9cf83bf9ad389cc739af9b8948e35976a0f9ef03
+user:        mpm@selenic.com
+date:        Thu May  5 08:51:25 2005
+summary:     Simplify integrity checking
+
+changeset:   25:daa724b273002a751e2caa79b4511439c61a75ee
+user:        mpm@selenic.com
+date:        Thu May  5 08:47:25 2005
+summary:     Fix corruption from manifest.listcache optimization
+
+changeset:   24:57a1eef7941545af94295c45439e5d14138c8784
+user:        mpm@selenic.com
+date:        Thu May  5 08:45:52 2005
+summary:     Add debughash and debugindex commands
+
+changeset:   23:018fb8d9ea8de6de59f57354d43b7fb4cd26ed0a
+user:        mpm@selenic.com
+date:        Thu May  5 03:27:08 2005
+summary:     Import time for hg history command
+
+changeset:   22:40b8c158c5407dbdd7ad57b1624beb3a0141ec55
+user:        mpm@selenic.com
+date:        Thu May  5 03:26:27 2005
+summary:     Document diff in help
+
+changeset:   21:54a57a5ebcb14de88a9ed46480d25be8ac1b8147
+user:        mpm@selenic.com
+date:        Thu May  5 03:19:02 2005
+summary:     Show date in history
+
+changeset:   20:a664c2b624cfd8566732c16412e2baa4479648a2
+user:        mpm@selenic.com
+date:        Thu May  5 01:42:30 2005
+summary:     The actual hg remove fix from Thomas Hein
+
+changeset:   19:12360c04fa48b8907eea1396890a3b521278f10e
+user:        mpm@selenic.com
+date:        Thu May  5 01:32:16 2005
+summary:     From: Thomas Arendsen Hein <thomas@intevation.de>
+
+changeset:   18:2fd3e1e3783f8d1a688fa78b2c8657fec839adcd
+user:        mpm@selenic.com
+date:        Wed May  4 21:01:17 2005
+summary:     Give a friendlier message when repo isn't found
+
+changeset:   17:ffe6a5ca1a89071e08aa29a39a83db907ece2a7a
+user:        mpm@selenic.com
+date:        Wed May  4 20:50:21 2005
+summary:     Make hg verify do more thorough cross-checking.
+
+changeset:   16:7eca4cfa8aad5fce9a04f7d8acadcd0452e2f34e
+tag:         0.4d
+user:        mpm@selenic.com
+date:        Wed May  4 20:07:28 2005
+summary:     Update version numbers
+
+changeset:   15:6daf7757e92b6f85866877c6f136a92fb7af16ce
+user:        mpm@selenic.com
+date:        Wed May  4 20:07:10 2005
+summary:     Fix network pull of repo files with "%" in their base64 encoding.
+
+changeset:   14:e0e5c1b9febdda2231454bc7cf1ef09b31f6a734
+user:        mpm@selenic.com
+date:        Wed May  4 19:33:46 2005
+summary:     Fix off-by-one truncation in transaction rollback.
+
+changeset:   13:eb87b7dc42360ce565f8de40dfa8606b4a58fc70
+user:        mpm@selenic.com
+date:        Wed May  4 19:32:39 2005
+summary:     Fix empty transaction destruction
+
+changeset:   12:8b64243ee17b5d197e7e3fc661e1ad230ac8ad4e
+user:        mpm@selenic.com
+date:        Wed May  4 19:30:56 2005
+summary:     Delete journal on destruction even if there are no entries to replay.
+
+changeset:   11:7f16aaeed62f9690a1a203e01987ae4e5f45df7f
+user:        oxymoron@cinder.waste.org
+date:        Wed May  4 09:39:04 2005
+summary:     Allow checkout by number or hash
+
+changeset:   10:e76ed1e480ef2be7787c2c4ca0ee6aa034e32dd4
+user:        oxymoron@cinder.waste.org
+date:        Wed May  4 09:37:43 2005
+summary:     Fix linking of changeset revs when merging
+
+changeset:   9:b4d0c3786ad3e47beacf8412157326a32b6d25a4
+tag:         0.4c
+user:        mpm@selenic.com
+date:        Wed May  4 04:51:52 2005
+summary:     Ignore empty ignore patterns
+
+changeset:   8:e5a480dadca3e787276a0657997d65b9fbedfbee
+user:        mpm@selenic.com
+date:        Wed May  4 04:51:29 2005
+summary:     Ignore MANIFEST
+
+changeset:   7:510265b68bbfe99ded885d2169fca26df3407de1
+user:        mpm@selenic.com
+date:        Wed May  4 04:51:16 2005
+summary:     Add MANIFEST.in to repo
+
+changeset:   6:207fa2778d6551d197ddc10e4af08e0280dc09a5
+user:        mpm@selenic.com
+date:        Wed May  4 04:50:07 2005
+summary:     Add some ignore expressions
+
+changeset:   5:5f249577ac40654f7e116fa68ad29cbfbdada812
+user:        mpm@selenic.com
+date:        Wed May  4 04:39:58 2005
+summary:     Don't complain that help is an unknown command
+
+changeset:   4:ce3bd728b858a3868bf790d2cbd7bf34c49cd3e4
+user:        mpm@selenic.com
+date:        Wed May  4 04:36:16 2005
+summary:     Fix exception handling for reading current working version
+
+changeset:   3:3a6392190075d94ab94a9552710f596c2907b0f8
+user:        mpm@selenic.com
+date:        Wed May  4 04:35:26 2005
+summary:     Ignore build/ and .pyc files
+
+changeset:   2:ecf3fd948051bbc9c7cfcfe606ec9fcb746e5347
+user:        mpm@selenic.com
+date:        Wed May  4 04:35:03 2005
+summary:     Handle nullid better for ancestor
+
+changeset:   1:273ce12ad8f155317b2c078ec75a4eba507f1fba
+user:        mpm@selenic.com
+date:        Tue May  3 23:27:13 2005
+summary:     Update README to discuss remote pull, rsync, and the hg repo
+
+changeset:   0:9117c6561b0bd7792fa13b50d28239d51b78e51f
+user:        mpm@selenic.com
+date:        Tue May  3 23:16:10 2005
+summary:     Add back links from file revisions to changeset revisions
+

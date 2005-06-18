@@ -1,3 +1,13 @@
+mercurial (0.5b+20050618-1) unstable; urgency=low
+
+  * New upstream sources (tip 396:8f8bb77d560e70bcc95577e4dfa877df18d876ab)
+    this fix a alignment bug reported on alpha
+  * many others fix and improvments from upstream
+  * Change short description 
+    Closes: #314577: Please spell out the abbreviation in the synopsis
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Sat, 18 Jun 2005 10:02:39 +0200
+
 mercurial (0.5b+20050612-2) unstable; urgency=low
 
   * Fix spelling mistake (thanks Emanuele Aina)
@@ -6,8 +16,9 @@ mercurial (0.5b+20050612-2) unstable; urgency=low
     package debhelper 4.9.0 by autobuilders
     Closes: #313491: mercurial_0.5b+20050612-1: FTBFS: syntax error at
     /usr/bin/dh_strip line 191, near 'if'
+  * Closes: #314577: Please spell out the abbreviation in the synopsis
 
- -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed, 15 Jun 2005 10:24:13 +0200
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Fri, 17 Jun 2005 11:14:06 +0200
 
 mercurial (0.5b+20050612-1) unstable; urgency=low
 

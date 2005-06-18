@@ -8,7 +8,7 @@
 import os, re, sys, signal
 import fancyopts, ui, hg
 from demandload import *
-demandload(globals(), "mdiff time hgweb traceback")
+demandload(globals(), "mdiff time hgweb traceback random signal errno")
 
 class UnknownCommand(Exception): pass
 
@@ -32,7 +32,7 @@ def relpath(repo, args):
         return [ os.path.normpath(os.path.join(p, x)) for x in args ]
     return args
 
-def dodiff(repo, files = None, node1 = None, node2 = None):
+def dodiff(ui, repo, path, files = None, node1 = None, node2 = None):
     def date(c):
         return time.asctime(time.gmtime(float(c[2].split(' ')[0])))
 
@@ -44,10 +44,16 @@ def dodiff(repo, files = None, node1 = None, node2 = None):
         date2 = date(change)
     else:
         date2 = time.asctime()
-        (c, a, d, u) = repo.diffdir(repo.root, node1)
+        (c, a, d, u) = repo.diffdir(path, node1)
         if not node1:
             node1 = repo.dirstate.parents()[0]
         def read(f): return file(os.path.join(repo.root, f)).read()
+
+    if ui.quiet:
+        r = None
+    else:
+        hexfunc = ui.verbose and hg.hex or hg.short
+        r = [hexfunc(node) for node in [node1, node2] if node]
 
     change = repo.changelog.read(node1)
     mmap = repo.manifest.read(change[0])
@@ -61,16 +67,73 @@ def dodiff(repo, files = None, node1 = None, node2 = None):
         if f in mmap:
             to = repo.file(f).read(mmap[f])
         tn = read(f)
-        sys.stdout.write(mdiff.unidiff(to, date1, tn, date2, f))
+        sys.stdout.write(mdiff.unidiff(to, date1, tn, date2, f, r))
     for f in a:
         to = None
         tn = read(f)
-        sys.stdout.write(mdiff.unidiff(to, date1, tn, date2, f))
+        sys.stdout.write(mdiff.unidiff(to, date1, tn, date2, f, r))
     for f in d:
         to = repo.file(f).read(mmap[f])
         tn = None
-        sys.stdout.write(mdiff.unidiff(to, date1, tn, date2, f))
-    
+        sys.stdout.write(mdiff.unidiff(to, date1, tn, date2, f, r))
+
+def show_changeset(ui, repo, rev=0, changenode=None, filelog=None):
+    """show a single changeset or file revision"""
+    changelog = repo.changelog
+    if filelog:
+        log = filelog
+        filerev = rev
+        node = filenode = filelog.node(filerev)
+        changerev = filelog.linkrev(filenode)
+        changenode = changenode or changelog.node(changerev)
+    else:
+        log = changelog
+        changerev = rev
+        if changenode is None:
+            changenode = changelog.node(changerev)
+        elif not changerev:
+            rev = changerev = changelog.rev(changenode)
+        node = changenode
+
+    if ui.quiet:
+        ui.write("%d:%s\n" % (rev, hg.hex(node)))
+        return
+
+    changes = changelog.read(changenode)
+
+    parents = [(log.rev(parent), hg.hex(parent))
+               for parent in log.parents(node)
+               if ui.debugflag or parent != hg.nullid]
+    if not ui.debugflag and len(parents) == 1 and parents[0][0] == rev-1:
+        parents = []
+
+    if filelog:
+        ui.write("revision:    %d:%s\n" % (filerev, hg.hex(filenode)))
+        for parent in parents:
+            ui.write("parent:      %d:%s\n" % parent)
+        ui.status("changeset:   %d:%s\n" % (changerev, hg.hex(changenode)))
+    else:
+        ui.write("changeset:   %d:%s\n" % (changerev, hg.hex(changenode)))
+        for tag in repo.nodetags(changenode):
+            ui.status("tag:         %s\n" % tag)
+        for parent in parents:
+            ui.write("parent:      %d:%s\n" % parent)
+        ui.note("manifest:    %d:%s\n" % (repo.manifest.rev(changes[0]),
+                                          hg.hex(changes[0])))
+    ui.status("user:        %s\n" % changes[1])
+    ui.status("date:        %s\n" % time.asctime(
+        time.localtime(float(changes[2].split(' ')[0]))))
+    ui.note("files:       %s\n" % " ".join(changes[3]))
+    description = changes[4].strip()
+    if description:
+        if ui.verbose:
+            ui.status("description:\n")
+            ui.status(description)
+            ui.status("\n")
+        else:
+            ui.status("summary:     %s\n" % description.splitlines()[0])
+    ui.status("\n")
+
 def help(ui, cmd=None):
     '''show help for a given command or all commands'''
     if cmd:
@@ -116,9 +179,22 @@ def add(ui, repo, file, *files):
     '''add the specified files on the next commit'''
     repo.add(relpath(repo, (file,) + files))
 
-def addremove(ui, repo):
+def addremove(ui, repo, *files):
     """add all new files, delete all missing files"""
-    (c, a, d, u) = repo.diffdir(repo.root)
+    if files:
+        files = relpath(repo, files)
+        d = []
+        u = []
+        for f in files:
+            p = repo.wjoin(f)
+            s = repo.dirstate.state(f)
+            isfile = os.path.isfile(p)
+            if s != 'r' and not isfile:
+                d.append(f)
+            elif s not in 'nmai' and isfile:
+                u.append(f)
+    else:
+        (c, a, d, u) = repo.diffdir(repo.root)
     repo.add(u)
     repo.remove(d)
 
@@ -178,7 +254,13 @@ def commit(ui, repo, *files, **opts):
         try: text = open(opts['logfile']).read()
         except IOError: pass
 
-    repo.commit(relpath(repo, files), text)
+    if opts['addremove']:
+        addremove(ui, repo, *files)
+    repo.commit(relpath(repo, files), text, opts['user'], opts['date'])
+
+def copy(ui, repo, source, dest):
+    """mark a file as copied or renamed for the next commit"""
+    return repo.copy(*relpath(repo, (source, dest)))
 
 def debugaddchangegroup(ui, repo):
     data = sys.stdin.read()
@@ -214,7 +296,7 @@ def diff(ui, repo, *files, **opts):
     revs = []
     if opts['rev']:
         revs = map(lambda x: repo.lookup(x), opts['rev'])
-    
+
     if len(revs) > 2:
         self.ui.warn("too many revisions to diff\n")
         sys.exit(1)
@@ -224,7 +306,7 @@ def diff(ui, repo, *files, **opts):
     else:
         files = relpath(repo, [""])
 
-    dodiff(repo, files, *revs)
+    dodiff(ui, repo, os.getcwd(), files, *revs)
 
 def export(ui, repo, changeset):
     """dump the changeset header and diffs for a revision"""
@@ -240,54 +322,45 @@ def export(ui, repo, changeset):
         print "# Parent  %s" % hg.hex(other)
     print change[4].rstrip()
     print
-    
-    dodiff(repo, None, prev, node)
+
+    dodiff(ui, repo, "", None, prev, node)
 
 def forget(ui, repo, file, *files):
     """don't add the specified files on the next commit"""
     repo.forget(relpath(repo, (file,) + files))
 
 def heads(ui, repo):
-    '''show current repository heads'''
+    """show current repository heads"""
     for n in repo.changelog.heads():
-        i = repo.changelog.rev(n)
-        changes = repo.changelog.read(n)
-        (p1, p2) = repo.changelog.parents(n)
-        (h, h1, h2) = map(hg.hex, (n, p1, p2))
-        (i1, i2) = map(repo.changelog.rev, (p1, p2))
-        print "rev:      %4d:%s" % (i, h)
-        print "parents:  %4d:%s" % (i1, h1)
-        if i2: print "          %4d:%s" % (i2, h2)
-        print "manifest: %4d:%s" % (repo.manifest.rev(changes[0]),
-                                    hg.hex(changes[0]))
-        print "user:", changes[1]
-        print "date:", time.asctime(
-            time.localtime(float(changes[2].split(' ')[0])))
-        if ui.verbose: print "files:", " ".join(changes[3])
-        print "description:"
-        print changes[4]
+        show_changeset(ui, repo, changenode=n)
 
 def history(ui, repo):
     """show the changelog history"""
     for i in range(repo.changelog.count() - 1, -1, -1):
-        n = repo.changelog.node(i)
-        changes = repo.changelog.read(n)
-        (p1, p2) = repo.changelog.parents(n)
-        (h, h1, h2) = map(hg.hex, (n, p1, p2))
-        (i1, i2) = map(repo.changelog.rev, (p1, p2))
-        print "rev:      %4d:%s" % (i, h)
-        print "parents:  %4d:%s" % (i1, h1)
-        if i2: print "          %4d:%s" % (i2, h2)
-        print "manifest: %4d:%s" % (repo.manifest.rev(changes[0]),
-                                    hg.hex(changes[0]))
-        print "user:", changes[1]
-        print "date:", time.asctime(
-            time.localtime(float(changes[2].split(' ')[0])))
-        if ui.verbose: print "files:", " ".join(changes[3])
-        print "description:"
-        print changes[4]
+        show_changeset(ui, repo, rev=i)
 
-def init(ui, source=None):
+def identify(ui, repo):
+    """print information about the working copy"""
+    parents = [p for p in repo.dirstate.parents() if p != hg.nullid]
+    if not parents:
+        ui.write("unknown\n")
+        return
+
+    hexfunc = ui.verbose and hg.hex or hg.short
+    (c, a, d, u) = repo.diffdir(repo.root)
+    output = ["%s%s" % ('+'.join([hexfunc(parent) for parent in parents]),
+                        (c or a or d) and "+" or "")]
+
+    if not ui.quiet:
+        # multiple tags for a single parent separated by '/'
+        parenttags = ['/'.join(tags)
+                      for tags in map(repo.nodetags, parents) if tags]
+        # tags for multiple parents separated by ' + '
+        output.append(' + '.join(parenttags))
+
+    ui.write("%s\n" % ' '.join(output))
+
+def init(ui, source=None, **opts):
     """create a new repository or copy an existing one"""
 
     if source:
@@ -309,37 +382,31 @@ def init(ui, source=None):
             try:
                 os.remove(".hg/dirstate")
             except: pass
+
+            repo = hg.repository(ui, ".")
+
         else:
             repo = hg.repository(ui, ".", create=1)
             other = hg.repository(ui, source)
             cg = repo.getchangegroup(other)
             repo.addchangegroup(cg)
+
+        f = repo.opener("hgrc", "w")
+        f.write("[paths]\n")
+        f.write("default = %s\n" % source)
+
+        if opts['update']:
+            update(ui, repo)
     else:
-        hg.repository(ui, ".", create=1)
-    
+        repo = hg.repository(ui, ".", create=1)
+
 def log(ui, repo, f):
     """show the revision history of a single file"""
     f = relpath(repo, [f])[0]
 
     r = repo.file(f)
     for i in range(r.count() - 1, -1, -1):
-        n = r.node(i)
-        (p1, p2) = r.parents(n)
-        (h, h1, h2) = map(hg.hex, (n, p1, p2))
-        (i1, i2) = map(r.rev, (p1, p2))
-        cr = r.linkrev(n)
-        cn = hg.hex(repo.changelog.node(cr))
-        print "rev:       %4d:%s" % (i, h)
-        print "changeset: %4d:%s" % (cr, cn)
-        print "parents:   %4d:%s" % (i1, h1)
-        if i2: print "           %4d:%s" % (i2, h2)
-        changes = repo.changelog.read(repo.changelog.node(cr))
-        print "user: %s" % changes[1]
-        print "date: %s" % time.asctime(
-            time.localtime(float(changes[2].split(' ')[0])))
-        print "description:"
-        print changes[4].rstrip()
-        print
+        show_changeset(ui, repo, filelog=r, rev=i)
 
 def manifest(ui, repo, rev = []):
     """output the latest or given revision of the project manifest"""
@@ -363,7 +430,7 @@ def parents(ui, repo, node = None):
 
     for n in p:
         if n != hg.nullid:
-            ui.write("%d:%s\n" % (repo.changelog.rev(n), hg.hex(n)))
+            show_changeset(ui, repo, changenode=n)
 
 def patch(ui, repo, patch1, *patches, **opts):
     """import an ordered set of patches"""
@@ -391,16 +458,21 @@ def patch(ui, repo, patch1, *patches, **opts):
         # make sure text isn't empty
         if not text: text = "imported patch %s\n" % patch
 
-        f = os.popen("lsdiff --strip %d %s" % (strip, pf))
-        files = filter(None, map(lambda x: x.rstrip(), f.read().splitlines()))
+        f = os.popen("patch -p%d < %s" % (strip, pf))
+        files = []
+        for l in f.read().splitlines():
+            l.rstrip('\r\n');
+            if not quiet:
+                print l
+            if l[:14] == 'patching file ':
+                files.append(l[14:])
         f.close()
 
-        if files:
-            if os.system("patch -p%d < %s %s" % (strip, pf, quiet)):
-                raise "patch failed!"
+        if len(files) > 0:
+            addremove(ui, repo, *files)
         repo.commit(files, text)
 
-def pull(ui, repo, source):
+def pull(ui, repo, source="default"):
     """pull changes from the specified source"""
     paths = {}
     for name, path in ui.configitems("paths"):
@@ -412,7 +484,43 @@ def pull(ui, repo, source):
     cg = repo.getchangegroup(other)
     repo.addchangegroup(cg)
 
-def rawcommit(ui, repo, files, **rc):
+def push(ui, repo, dest="default-push"):
+    """push changes to the specified destination"""
+    paths = {}
+    for name, path in ui.configitems("paths"):
+        paths[name] = path
+
+    if dest in paths: dest = paths[dest]
+    
+    if not dest.startswith("ssh://"):
+        ui.warn("abort: can only push to ssh:// destinations currently\n")
+        return 1
+
+    m = re.match(r'ssh://(([^@]+)@)?([^:/]+)(:(\d+))?(/(.*))?', dest)
+    if not m:
+        ui.warn("abort: couldn't parse destination %s\n" % dest)
+        return 1
+
+    user, host, port, path = map(m.group, (2, 3, 5, 7))
+    host = user and ("%s@%s" % (user, host)) or host
+    port = port and (" -p %s") % port or ""
+    path = path or ""
+
+    sport = random.randrange(30000, 60000)
+    cmd = "ssh %s%s -R %d:localhost:%d 'cd %s; hg pull http://localhost:%d/'"
+    cmd = cmd % (host, port, sport+1, sport, path, sport+1)
+
+    child = os.fork()
+    if not child:
+        sys.stdout = file("/dev/null", "w")
+        sys.stderr = sys.stdout
+        hgweb.server(repo.root, "pull", "", "localhost", sport)
+    else:
+        r = os.system(cmd)
+        os.kill(child, signal.SIGTERM)
+        return r
+
+def rawcommit(ui, repo, flist, **rc):
     "raw commit interface"
 
     text = rc['text']
@@ -423,7 +531,7 @@ def rawcommit(ui, repo, files, **rc):
         print "missing commit text"
         return 1
 
-    files = relpath(repo, files)
+    files = relpath(repo, flist)
     if rc['files']:
         files += open(rc['files']).read().splitlines()
         
@@ -449,8 +557,8 @@ def status(ui, repo):
     A = added
     R = removed
     ? = not tracked'''
-    
-    (c, a, d, u) = repo.diffdir(repo.root)
+
+    (c, a, d, u) = repo.diffdir(os.getcwd())
     (c, a, d, u) = map(lambda x: relfilter(repo, x), (c, a, d, u))
 
     for f in c: print "C", f
@@ -460,31 +568,20 @@ def status(ui, repo):
 
 def tags(ui, repo):
     """list repository tags"""
-    repo.lookup(0) # prime the cache
-    i = repo.tags.items()
-    n = []
-    for e in i:
-        try:
-            l = repo.changelog.rev(e[1])
-        except KeyError:
-            l = -2
-        n.append((l, e))
-
-    n.sort()
-    n.reverse()
-    i = [ e[1] for e in n ]
-    for k, n in i:
+    
+    l = repo.tagslist()
+    l.reverse()
+    for t,n in l:
         try:
             r = repo.changelog.rev(n)
         except KeyError:
             r = "?"
-        print "%-30s %5d:%s" % (k, repo.changelog.rev(n), hg.hex(n))
+        print "%-30s %5d:%s" % (t, repo.changelog.rev(n), hg.hex(n))
 
 def tip(ui, repo):
     """show the tip revision"""
     n = repo.changelog.tip()
-    t = repo.changelog.rev(n)
-    ui.status("%d:%s\n" % (t, hg.hex(n)))
+    show_changeset(ui, repo, changenode=n)
 
 def undo(ui, repo):
     """undo the last transaction"""
@@ -514,7 +611,7 @@ def verify(ui, repo):
 
 table = {
     "add": (add, [], "hg add [files]"),
-    "addremove": (addremove, [], "hg addremove"),
+    "addremove": (addremove, [], "hg addremove [files]"),
     "ann|annotate": (annotate,
                      [('r', 'revision', '', 'revision'),
                       ('u', 'user', None, 'show user'),
@@ -524,8 +621,12 @@ table = {
     "cat|dump": (cat, [], 'hg cat <file> [rev]'),
     "commit|ci": (commit,
                   [('t', 'text', "", 'commit text'),
-                   ('l', 'logfile', "", 'commit text file')],
+                   ('A', 'addremove', None, 'run add/remove during commit'),
+                   ('l', 'logfile', "", 'commit text file'),
+                   ('d', 'date', "", 'data'),
+                   ('u', 'user', "", 'user')],
                   'hg commit [files]'),
+    "copy": (copy, [], 'hg copy <source> <dest>'),
     "debugaddchangegroup": (debugaddchangegroup, [], 'debugaddchangegroup'),
     "debugchangegroup": (debugchangegroup, [], 'debugchangegroup [roots]'),
     "debugindex": (debugindex, [], 'debugindex <file>'),
@@ -537,7 +638,9 @@ table = {
     "heads": (heads, [], 'hg heads'),
     "history": (history, [], 'hg history'),
     "help": (help, [], 'hg help [command]'),
-    "init": (init, [], 'hg init [url]'),
+    "identify|id": (identify, [], 'hg identify'),
+    "init": (init, [('u', 'update', None, 'update after init')],
+             'hg init [options] [url]'),
     "log": (log, [], 'hg log <file>'),
     "manifest|dumpmanifest": (manifest, [], 'hg manifest [rev]'),
     "parents": (parents, [], 'hg parents [node]'),
@@ -547,6 +650,7 @@ table = {
                       ('q', 'quiet', "", 'silence diff')],
                      "hg import [options] patches"),
     "pull|merge": (pull, [], 'hg pull [source]'),
+    "push": (push, [], 'hg push <destination>'),
     "rawcommit": (rawcommit,
                   [('p', 'parent', [], 'parent'),
                    ('d', 'date', "", 'data'),
@@ -580,7 +684,7 @@ norepo = "init branch help debugindex debugindexdot"
 def find(cmd):
     i = None
     for e in table.keys():
-        if re.match(e + "$", cmd):
+        if re.match("(%s)$" % e, cmd):
             return table[e]
 
     raise UnknownCommand(cmd)
@@ -654,7 +758,11 @@ def dispatch(args):
     except KeyboardInterrupt:
         u.warn("interrupted!\n")
     except IOError, inst:
-        if inst.errno == 32:
+        if hasattr(inst, "code"):
+            u.warn("abort: %s\n" % inst)
+        elif hasattr(inst, "reason"):
+            u.warn("abort: error %d: %s\n" % (inst.reason[0], inst.reason[1]))
+        elif hasattr(inst, "args") and inst[0] == errno.EPIPE:
             u.warn("broken pipe\n")
         else:
             raise

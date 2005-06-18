@@ -8,7 +8,8 @@
 import difflib, struct
 from mercurial.mpatch import *
 
-def unidiff(a, ad, b, bd, fn):
+def unidiff(a, ad, b, bd, fn, r=None):
+
     if not a and not b: return ""
 
     if a == None:
@@ -36,6 +37,10 @@ def unidiff(a, ad, b, bd, fn):
         if l[ln][-1] != '\n':
             l[ln] += "\n\ No newline at end of file\n"
 
+    if r:
+        l.insert(0, "diff %s %s\n" %
+                    (' '.join(["-r %s" % rev for rev in r]), fn))
+
     return "".join(l)
 
 def textdiff(a, b):
@@ -45,16 +50,32 @@ def sortdiff(a, b):
     la = lb = 0
     lena = len(a)
     lenb = len(b)
+    
     while 1:
         am, bm, = la, lb
-        while lb < lenb and la < len and a[la] == b[lb] :
+
+        # walk over matching lines
+        while lb < lenb and la < lena and a[la] == b[lb] :
             la += 1
             lb += 1
-        if la>am: yield (am, bm, la-am)
-        while lb < lenb and b[lb] < a[la]: lb += 1
-        if lb>=lenb: break
-        while la < lena and b[lb] > a[la]: la += 1
-        if la>=lena: break
+
+        if la > am:
+            yield (am, bm, la - am) # return a match
+
+        # skip mismatched lines from b
+        while la < lena and lb < lenb and b[lb] < a[la]:
+            lb += 1
+
+        if lb >= lenb:
+            break
+        
+        # skip mismatched lines from a
+        while la < lena and lb < lenb and b[lb] > a[la]:
+            la += 1
+
+        if la >= lena:
+            break
+        
     yield (lena, lenb, 0)
 
 def diff(a, b, sorted=0):
@@ -67,7 +88,11 @@ def diff(a, b, sorted=0):
     for i in a: p.append(p[-1] + len(i))
 
     if sorted:
-        d = sortdiff(a, b)
+        try:
+            d = sortdiff(a, b)
+        except:
+            print a, b
+            raise
     else:
         d = difflib.SequenceMatcher(None, a, b).get_matching_blocks()
     la = 0

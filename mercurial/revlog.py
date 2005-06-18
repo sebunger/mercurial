@@ -13,7 +13,7 @@ from mercurial import mdiff
 
 def hex(node): return binascii.hexlify(node)
 def bin(node): return binascii.unhexlify(node)
-def short(node): return hex(node[:4])
+def short(node): return hex(node[:6])
 
 def compress(text):
     if not text: return text
@@ -43,17 +43,28 @@ nullid = "\0" * 20
 indexformat = ">4l20s20s20s"
 
 class lazyparser:
-    def __init__(self, data):
+    def __init__(self, data, revlog):
         self.data = data
         self.s = struct.calcsize(indexformat)
         self.l = len(data)/self.s
         self.index = [None] * self.l
         self.map = {nullid: -1}
+        self.all = 0
+        self.revlog = revlog
 
-    def load(self, pos):
-        block = pos / 1000
-        i = block * 1000
-        end = min(self.l, i + 1000)
+    def load(self, pos=None):
+        if self.all: return
+        if pos is not None:
+            block = pos / 1000
+            i = block * 1000
+            end = min(self.l, i + 1000)
+        else:
+            self.all = 1
+            i = 0
+            end = self.l
+            self.revlog.index = self.index
+            self.revlog.nodemap = self.map
+            
         while i < end:
             d = self.data[i * self.s: (i + 1) * self.s]
             e = struct.unpack(indexformat, d)
@@ -78,16 +89,14 @@ class lazymap:
     def __init__(self, parser):
         self.p = parser
     def load(self, key):
+        if self.p.all: return
         n = self.p.data.find(key)
         if n < 0: raise KeyError("node " + hex(key))
         pos = n / self.p.s
         self.p.load(pos)
     def __contains__(self, key):
-        try:
-            self[key]
-            return True
-        except KeyError:
-            return False
+        self.p.load()
+        return key in self.p.map
     def __iter__(self):
         for i in xrange(self.p.l):
             try:
@@ -121,7 +130,7 @@ class revlog:
 
         if len(i) > 10000:
             # big index, let's parse it on demand
-            parser = lazyparser(i)
+            parser = lazyparser(i, self)
             self.index = lazyindex(parser)
             self.nodemap = lazymap(parser)
         else:
@@ -166,6 +175,19 @@ class revlog:
             for pn in self.parents(n):
                 p[pn] = 1
         return h
+
+    def children(self, node):
+        c = []
+        p = self.rev(node)
+        for r in range(p + 1, self.count()):
+            n = self.node(r)
+            for pn in self.parents(n):
+                if pn == p:
+                    c.append(p)
+                    continue
+                elif pn == nullid:
+                    continue
+        return c
     
     def lookup(self, id):
         try:
@@ -303,10 +325,10 @@ class revlog:
             earliest = self.count()
             while h:
                 d, n = heapq.heappop(h)
-                r = self.rev(n)
                 if n not in seen:
                     seen[n] = 1
-                    yield (-d, n)
+                    r = self.rev(n)
+                    yield (-d, r, n)
                     for p in self.parents(n):
                         heapq.heappush(h, (-dist[p], p))
 
@@ -319,7 +341,7 @@ class revlog:
         # the other, or they match
         while 1:
             if lx == ly:
-                return lx[1]
+                return lx[2]
             elif lx < ly:
                 ly = y.next()
             elif lx > ly:

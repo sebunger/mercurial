@@ -6,10 +6,6 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-# useful for debugging
-import cgitb
-cgitb.enable()
-
 import os, cgi, time, re, difflib, sys, zlib
 from mercurial.hg import *
 from mercurial.ui import *
@@ -129,12 +125,15 @@ class hgweb:
             "date": (lambda x: time.asctime(time.gmtime(x))),
             "addbreaks": nl2br,
             "obfuscate": obfuscate,
+            "short": (lambda x: x[:12]),
             "firstline": (lambda x: x.splitlines(1)[0]),
+            "permissions": (lambda x: x and "-rwxr-xr-x" or "-rw-r--r--")
             }
 
     def refresh(self):
         s = os.stat(os.path.join(self.path, ".hg", "00changelog.i"))
         if s.st_mtime != self.mtime:
+            self.mtime = s.st_mtime
             self.repo = repository(ui(), self.path)
 
     def date(self, cs):
@@ -171,7 +170,7 @@ class hgweb:
                          lines = prettyprintlines(diff),
                          parity = parity[0],
                          file = f,
-                         filenode = hex(fn))
+                         filenode = hex(fn or nullid))
             parity[0] = 1 - parity[0]
             
         def prettyprintlines(diff):
@@ -231,8 +230,8 @@ class hgweb:
                 if f < self.maxchanges / 2: continue
                 if f > count: break
                 r = "%d" % f
-                if pos + f < count - (f/2): l.append(("+" + r, pos + f))
-                if pos - f >= 0 + (f/2): l.insert(0, ("-" + r, pos - f))
+                if pos + f < count: l.append(("+" + r, pos + f))
+                if pos - f >= 0: l.insert(0, ("-" + r, pos - f))
 
             yield self.t("naventry", rev = 0, label="(0)")
                     
@@ -245,7 +244,7 @@ class hgweb:
             parity = (start - end) & 1
             cl = self.repo.changelog
             l = [] # build a list in forward order for efficiency
-            for i in range(start, end + 1):
+            for i in range(start, end):
                 n = cl.node(i)
                 changes = cl.read(n)
                 hn = hex(n)
@@ -275,9 +274,9 @@ class hgweb:
         cl = self.repo.changelog
         mf = cl.read(cl.tip())[0]
         count = cl.count()
-        end = min(pos, count - 1)
-        start = max(0, pos - self.maxchanges)
-        end = min(count - 1, start + self.maxchanges)
+        start = max(0, pos - self.maxchanges + 1)
+        end = min(count, start + self.maxchanges)
+        pos = end - 1
 
         yield self.t('changelog',
                      header = self.header(),
@@ -299,7 +298,7 @@ class hgweb:
         mf = self.repo.manifest.read(changes[0])
         for f in changes[3]:
             files.append(self.t("filenodelink",
-                                filenode = hex(mf[f]), file = f))
+                                filenode = hex(mf.get(f, nullid)), file = f))
 
         def diff():
             yield self.diff(p1, n, changes[3])
@@ -381,7 +380,7 @@ class hgweb:
                 yield self.t("fileline", line = t,
                              linenumber = "% 6d" % (l + 1),
                              parity = l & 1)
-        
+
         yield self.t("filerevision", file = f,
                      header = self.header(),
                      footer = self.footer(),
@@ -399,6 +398,7 @@ class hgweb:
                      parent2 = self.parent("filerevparent",
                                            hex(p2), fl.rev(p2), file=f),
                      p1 = hex(p1), p2 = hex(p2),
+                     permissions = self.repo.manifest.readflags(mfn)[f],
                      p1rev = fl.rev(p1), p2rev = fl.rev(p2))
 
     def fileannotate(self, f, node):
@@ -464,12 +464,14 @@ class hgweb:
                      parent2 = self.parent("fileannotateparent",
                                            hex(p2), fl.rev(p2), file=f),
                      p1 = hex(p1), p2 = hex(p2),
+                     permissions = self.repo.manifest.readflags(mfn)[f],
                      p1rev = fl.rev(p1), p2rev = fl.rev(p2))
 
     def manifest(self, mnode, path):
         mf = self.repo.manifest.read(bin(mnode))
         rev = self.repo.manifest.rev(bin(mnode))
         node = self.repo.changelog.node(rev)
+        mff=self.repo.manifest.readflags(bin(mnode))
 
         files = {}
  
@@ -499,7 +501,8 @@ class hgweb:
                                  manifest = mnode,
                                  filenode = hex(fnode),
                                  parity = parity,
-                                 basename = f)
+                                 basename = f, 
+                                 permissions = mff[full])
                 else:
                     yield self.t("manifestdirentry",
                                  parity = parity,
@@ -522,12 +525,8 @@ class hgweb:
         cl = self.repo.changelog
         mf = cl.read(cl.tip())[0]
 
-        self.repo.lookup(0) # prime the cache
-        i = self.repo.tags.items()
-        n = [ (cl.rev(e[1]), e) for e in i ] # sort by revision
-        n.sort()
-        n.reverse()
-        i = [ e[1] for e in n ]
+        i = self.repo.tagslist()
+        i.reverse()
 
         def entries():
             parity = 0
@@ -560,7 +559,7 @@ class hgweb:
                      footer = self.footer(),
                      repo = self.reponame,
                      file = file,
-                     filenode = hex(mf[file]),
+                     filenode = hex(mf.get(file, nullid)),
                      node = changeset,
                      rev = self.repo.changelog.rev(n),
                      p1 = hex(p1),
@@ -584,13 +583,12 @@ class hgweb:
         self.t = templater(m, self.filters)
 
         if not args.has_key('cmd') or args['cmd'][0] == 'changelog':
-            hi = self.repo.changelog.count()
+            hi = self.repo.changelog.count() - 1
             if args.has_key('rev'):
                 hi = args['rev'][0]
                 try:
                     hi = self.repo.changelog.rev(self.repo.lookup(hi))
-                except KeyError:
-                    hi = self.repo.changelog.count()
+                except KeyError: pass
 
             write(self.changelog(hi))
             
