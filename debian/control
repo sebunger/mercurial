@@ -2,8 +2,8 @@ Source: mercurial
 Section: devel
 Priority: optional
 Maintainer: Vincent Danjean <Vincent.Danjean@ens-lyon.org>
-Build-Depends: debhelper (>= 4.2.0), quilt, patchutils (>= 0.2.25), cdbs (>= 0.4.27-1), python-dev
-Standards-Version: 3.6.1
+Build-Depends: debhelper (>= 4.2.0), quilt, patchutils (>= 0.2.25), cdbs (>= 0.4.27-1), python-dev, xmlto, asciidoc
+Standards-Version: 3.6.2
 
 Package: mercurial
 Architecture: any

@@ -6,26 +6,11 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 import sys, struct, os
+import util
 from revlog import *
 from demandload import *
 demandload(globals(), "re lock urllib urllib2 transaction time socket")
-demandload(globals(), "tempfile httprangereader difflib")
-
-def is_exec(f):
-    return (os.stat(f).st_mode & 0100 != 0)
-
-def set_exec(f, mode):
-    s = os.stat(f).st_mode
-    if (s & 0100 != 0) == mode:
-        return
-    if mode:
-        # Turn on +x for every +r bit when making a file executable
-        # and obey umask.
-        umask = os.umask(0)
-        os.umask(umask)
-        os.chmod(f, s | (s & 0444) >> 2 & ~umask)
-    else:
-        os.chmod(f, s & 0666)
+demandload(globals(), "tempfile httprangereader bdiff")
 
 class filelog(revlog):
     def __init__(self, opener, path):
@@ -62,20 +47,16 @@ class filelog(revlog):
     def annotate(self, node):
 
         def decorate(text, rev):
-            return [(rev, l) for l in text.splitlines(1)]
-
-        def strip(annotation):
-            return [e[1] for e in annotation]
+            return ([rev] * len(text.splitlines()), text)
 
         def pair(parent, child):
             new = []
-            sm = difflib.SequenceMatcher(None, strip(parent), strip(child))
-            for o, m, n, s, t in sm.get_opcodes():
-                if o == 'equal':
-                    new += parent[m:n]
-                else:
-                    new += child[s:t]
-            return new
+            lb = 0
+            for a1, a2, b1, b2 in bdiff.blocks(parent[1], child[1]):
+                new[lb:] = child[0][lb:b1]
+                new[b1:] = parent[0][a1:a2]
+                lb = b2
+            return (new, child[1])
 
         # find all ancestors
         needed = {node:1}
@@ -108,7 +89,7 @@ class filelog(revlog):
                         del hist[p]
             hist[n] = curr
 
-        return hist[n]
+        return zip(hist[n][0], hist[n][1].splitlines(1))
 
 class manifest(revlog):
     def __init__(self, opener):
@@ -336,8 +317,8 @@ def opener(base):
                     os.makedirs(d)
             else:
                 if s.st_nlink > 1:
-                    file(f + ".tmp", "w").write(file(f).read())
-                    os.rename(f+".tmp", f)
+                    file(f + ".tmp", "wb").write(file(f, "rb").read())
+                    util.rename(f+".tmp", f)
 
         return file(f, mode)
 
@@ -353,10 +334,14 @@ class localrepository:
             if not path:
                 p = os.getcwd()
                 while not os.path.isdir(os.path.join(p, ".hg")):
+                    oldp = p
                     p = os.path.dirname(p)
-                    if p == "/": raise "No repo found"
+                    if p == oldp: raise "No repo found"
                 path = p
             self.path = os.path.join(path, ".hg")
+
+            if not create and not os.path.isdir(self.path):
+                raise "repository %s not found" % self.path
 
         self.root = path
         self.ui = ui
@@ -383,10 +368,10 @@ class localrepository:
         if self.ignorelist is None:
             self.ignorelist = []
             try:
-                l = self.wfile(".hgignore")
+                l = file(self.wjoin(".hgignore"))
                 for pat in l:
                     if pat != "\n":
-                        self.ignorelist.append(re.compile(pat[:-1]))
+                        self.ignorelist.append(re.compile(util.pconvert(pat[:-1])))
             except IOError: pass
         for pat in self.ignorelist:
             if pat.search(f): return True
@@ -409,6 +394,9 @@ class localrepository:
                             n, k = l.split(" ", 1)
                             self.tagscache[k.strip()] = bin(n)
             except KeyError: pass
+            for k, n in self.ui.configitems("tags"):
+                self.tagscache[k] = bin(n)
+                
             self.tagscache['tip'] = self.changelog.tip()
 
         return self.tagscache
@@ -477,7 +465,7 @@ class localrepository:
             self.ui.status("attempting to rollback last transaction\n")
             transaction.rollback(self.opener, self.join("undo"))
             self.dirstate = None
-            os.rename(self.join("undo.dirstate"), self.join("dirstate"))
+            util.rename(self.join("undo.dirstate"), self.join("dirstate"))
             self.dirstate = dirstate(self.opener, self.ui, self.root)
         else:
             self.ui.warn("no undo information available\n")
@@ -492,6 +480,7 @@ class localrepository:
             raise inst
 
     def rawcommit(self, files, text, user, date, p1=None, p2=None):
+        orig_parent = self.dirstate.parents()[0] or nullid
         p1 = p1 or self.dirstate.parents()[0] or nullid
         p2 = p2 or self.dirstate.parents()[1] or nullid
         c1 = self.changelog.read(p1)
@@ -500,25 +489,31 @@ class localrepository:
         mf1 = self.manifest.readflags(c1[0])
         m2 = self.manifest.read(c2[0])
 
+        if orig_parent == p1:
+            update_dirstate = 1
+        else:
+            update_dirstate = 0
+
         tr = self.transaction()
         mm = m1.copy()
         mfm = mf1.copy()
         linkrev = self.changelog.count()
-        self.dirstate.setparents(p1, p2)
         for f in files:
             try:
                 t = self.wfile(f).read()
-                tm = is_exec(self.wjoin(f))
+                tm = util.is_exec(self.wjoin(f), mfm.get(f, False))
                 r = self.file(f)
                 mfm[f] = tm
                 mm[f] = r.add(t, {}, tr, linkrev,
                               m1.get(f, nullid), m2.get(f, nullid))
-                self.dirstate.update([f], "n")
+                if update_dirstate:
+                    self.dirstate.update([f], "n")
             except IOError:
                 try:
                     del mm[f]
                     del mfm[f]
-                    self.dirstate.forget([f])
+                    if update_dirstate:
+                        self.dirstate.forget([f])
                 except:
                     # deleted from p2?
                     pass
@@ -526,6 +521,8 @@ class localrepository:
         mnode = self.manifest.add(mm, mfm, tr, linkrev, c1[0], c2[0])
         n = self.changelog.add(mnode, files, text, tr, p1, p2, user, date)
         tr.close()
+        if update_dirstate:
+            self.dirstate.setparents(n, nullid)
 
     def commit(self, files = None, text = "", user = None, date = None):
         commit = []
@@ -564,9 +561,8 @@ class localrepository:
         for f in commit:
             self.ui.note(f + "\n")
             try:
-                fp = self.wjoin(f)
-                mf1[f] = is_exec(fp)
-                t = file(fp).read()
+                mf1[f] = util.is_exec(self.wjoin(f), mf1.get(f, False))
+                t = self.wfile(f).read()
             except IOError:
                 self.warn("trouble committing %s!\n" % f)
                 raise
@@ -585,7 +581,9 @@ class localrepository:
 
         # update manifest
         m1.update(new)
-        for f in remove: del m1[f]
+        for f in remove:
+            if f in m1:
+                del m1[f]
         mn = self.manifest.add(m1, mf1, tr, linkrev, c1[0], c2[0])
 
         # add changeset
@@ -634,7 +632,7 @@ class localrepository:
             if ".hg" in subdirs: subdirs.remove(".hg")
             
             for f in files:
-                fn = os.path.join(d, f)
+                fn = util.pconvert(os.path.join(d, f))
                 try: s = os.stat(os.path.join(self.root, fn))
                 except: continue
                 if fn in dc:
@@ -706,6 +704,9 @@ class localrepository:
             p = self.wjoin(f)
             if os.path.isfile(p):
                 self.ui.warn("%s still exists!\n" % f)
+            elif self.dirstate.state(f) == 'a':
+                self.ui.warn("%s never committed!\n" % f)
+                self.dirstate.forget(f)
             elif f not in self.dirstate:
                 self.ui.warn("%s not tracked!\n" % f)
             else:
@@ -1001,9 +1002,13 @@ class localrepository:
         m2 = self.manifest.read(m2n)
         mf2 = self.manifest.readflags(m2n)
         ma = self.manifest.read(man)
-        mfa = self.manifest.readflags(m2n)
+        mfa = self.manifest.readflags(man)
 
         (c, a, d, u) = self.diffdir(self.root)
+
+        # is this a jump, or a merge?  i.e. is there a linear path
+        # from p1 to p2?
+        linear_path = (pa == p1 or pa == p2)
 
         # resolve the manifest to determine which files
         # we care about merging
@@ -1021,13 +1026,30 @@ class localrepository:
         mfw = mf1.copy()
         for f in a + c + u:
             mw[f] = ""
-            mfw[f] = is_exec(self.wjoin(f))
+            mfw[f] = util.is_exec(self.wjoin(f), mfw.get(f, False))
         for f in d:
             if f in mw: del mw[f]
+
+            # If we're jumping between revisions (as opposed to merging),
+            # and if neither the working directory nor the target rev has
+            # the file, then we need to remove it from the dirstate, to
+            # prevent the dirstate from listing the file when it is no
+            # longer in the manifest.
+            if linear_path and f not in m2:
+                self.dirstate.forget((f,))
 
         for f, n in mw.iteritems():
             if f in m2:
                 s = 0
+
+                # is the wfile new since m1, and match m2?
+                if f not in m1:
+                    t1 = self.wfile(f).read()
+                    t2 = self.file(f).revision(m2[f])
+                    if cmp(t1, t2) == 0:
+                        mark[f] = 1
+                        n = m2[f]
+                    del t1, t2
 
                 # are files different?
                 if n != m2[f]:
@@ -1035,7 +1057,6 @@ class localrepository:
                     # are both different from the ancestor?
                     if n != a and m2[f] != a:
                         self.ui.debug(" %s versions differ, resolve\n" % f)
-                        merge[f] = (m1.get(f, nullid), m2[f])
                         # merge executable bits
                         # "if we changed or they changed, change in merge"
                         a, b, c = mfa.get(f, 0), mfw[f], mf2[f]
@@ -1055,20 +1076,22 @@ class localrepository:
                 if not s and mfw[f] != mf2[f]:
                     if force:
                         self.ui.debug(" updating permissions for %s\n" % f)
-                        set_exec(self.wjoin(f), mf2[f])
+                        util.set_exec(self.wjoin(f), mf2[f])
                     else:
                         a, b, c = mfa.get(f, 0), mfw[f], mf2[f]
                         mode = ((a^b) | (a^c)) ^ a
                         if mode != b:
                             self.ui.debug(" updating permissions for %s\n" % f)
-                            set_exec(self.wjoin(f), mode)
+                            util.set_exec(self.wjoin(f), mode)
                             mark[f] = 1
                 del m2[f]
             elif f in ma:
                 if not force and n != ma[f]:
-                    r = self.ui.prompt(
-                        (" local changed %s which remote deleted\n" % f) +
-                        "(k)eep or (d)elete?", "[kd]", "k")
+                    r = ""
+                    if linear_path or allow:
+                        r = self.ui.prompt(
+                            (" local changed %s which remote deleted\n" % f) +
+                            "(k)eep or (d)elete?", "[kd]", "k")
                     if r == "d":
                         remove.append(f)
                 else:
@@ -1087,9 +1110,11 @@ class localrepository:
         for f, n in m2.iteritems():
             if f[0] == "/": continue
             if not force and f in ma and n != ma[f]:
-                r = self.ui.prompt(
-                    ("remote changed %s which local deleted\n" % f) +
-                    "(k)eep or (d)elete?", "[kd]", "k")
+                r = ""
+                if linear_path or allow:
+                    r = self.ui.prompt(
+                        ("remote changed %s which local deleted\n" % f) +
+                        "(k)eep or (d)elete?", "[kd]", "k")
                 if r == "d": remove.append(f)
             else:
                 self.ui.debug("remote created %s\n" % f)
@@ -1102,7 +1127,7 @@ class localrepository:
                 get[f] = merge[f][1]
             merge = {}
 
-        if pa == p1 or pa == p2:
+        if linear_path:
             # we don't need to do any magic, just jump to the new rev
             mode = 'n'
             p1, p2 = p2, nullid
@@ -1139,7 +1164,7 @@ class localrepository:
             except IOError:
                 os.makedirs(os.path.dirname(self.wjoin(f)))
                 self.wfile(f, "w").write(t)
-            set_exec(self.wjoin(f), mf2[f])
+            util.set_exec(self.wjoin(f), mf2[f])
             self.dirstate.update([f], mode)
 
         # merge the tricky bits
@@ -1149,7 +1174,7 @@ class localrepository:
             self.ui.status("merging %s\n" % f)
             m, o, flag = merge[f]
             self.merge3(f, m, o)
-            set_exec(self.wjoin(f), flag)
+            util.set_exec(self.wjoin(f), flag)
             self.dirstate.update([f], 'm')
 
         for f in remove:
@@ -1166,7 +1191,7 @@ class localrepository:
         def temp(prefix, node):
             pre = "%s~%s." % (os.path.basename(fn), prefix)
             (fd, name) = tempfile.mkstemp("", pre)
-            f = os.fdopen(fd, "w")
+            f = os.fdopen(fd, "wb")
             f.write(fl.revision(node))
             f.close()
             return name
@@ -1331,9 +1356,15 @@ class remoterepository:
         self.ui = ui
         no_list = [ "localhost", "127.0.0.1" ]
         host = ui.config("http_proxy", "host")
+        if host is None:
+            host = os.environ.get("http_proxy")
+        if host and host.startswith('http://'):
+            host = host[7:]
         user = ui.config("http_proxy", "user")
         passwd = ui.config("http_proxy", "passwd")
         no = ui.config("http_proxy", "no")
+        if no is None:
+            no = os.environ.get("no_proxy")
         if no:
             no_list = no_list + no.split(",")
             
@@ -1346,6 +1377,9 @@ class remoterepository:
 
         # Note: urllib2 takes proxy values from the environment and those will
         # take precedence
+        for env in ["HTTP_PROXY", "http_proxy", "no_proxy"]:
+            if os.environ.has_key(env):
+                del os.environ[env]
 
         proxy_handler = urllib2.BaseHandler()
         if host and not no_proxy:

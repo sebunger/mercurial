@@ -1,3 +1,41 @@
+mercurial (0.6-1) unstable; urgency=low
+
+  * New upstream release
+    This release contains a huge number of improvements:
+    
+    improved source tracking
+      multi-head support
+      permission tracking
+      rename and copy tracking
+      improved tag handling
+    friendlier, more robust command line interface
+      integrated help
+      faster startup
+      better exception handling
+      smarter three-way merge helper
+    improved communication
+      faster outstanding changeset detection
+      SSH-based push support
+      non-transparent proxy support
+    improved configuration handling
+      support for .hgrc and .hg/hgrc files
+      save per-repo defaults for pull
+    new delta extension
+      faster, smaller, and simpler than GNU diff or xdiff
+      faster commit, push/pull, and annotate
+    improved interoperability
+      convert-repo framework for importing from other SCMs
+      can work with gitk and git-viz
+    portability improvements
+      tested on big and little-endian 32 and 64-bit UNIX platforms
+      Windows support is nearly complete
+    and much more
+      numerous performance tweaks and bugfixes
+      automated test suite
+      updated docs and FAQ
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Sat, 25 Jun 2005 00:15:13 +0200
+
 mercurial (0.5b+20050618-1) unstable; urgency=low
 
   * New upstream sources (tip 396:8f8bb77d560e70bcc95577e4dfa877df18d876ab)

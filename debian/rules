@@ -11,3 +11,13 @@ include /usr/share/cdbs/1/rules/patchsys-quilt.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
 DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgmerge.1
+
+build: build-doc
+
+build-doc:
+	$(MAKE) -C doc man
+
+clean::
+	#$(MAKE) -C doc clean
+	cd doc && $(RM) *.xml *.1 *.html
+	$(RM) -v mercurial/*.pyc
