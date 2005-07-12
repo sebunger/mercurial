@@ -24,9 +24,12 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef _WIN32
-
+#ifdef _MSC_VER
+#define inline __inline
 typedef unsigned long uint32_t;
-
+#else
+#include <stdint.h>
+#endif
 static uint32_t ntohl(uint32_t x)
 {
 	return ((x & 0x000000ffUL) << 24) |
@@ -34,10 +37,9 @@ static uint32_t ntohl(uint32_t x)
 		((x & 0x00ff0000UL) >>  8) |
 		((x & 0xff000000UL) >> 24);
 }
-
 #else
-  #include <netinet/in.h>
-  #include <sys/types.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
 #endif
 
 static char mpatch_doc[] = "Efficient binary patching.";

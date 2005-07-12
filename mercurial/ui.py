@@ -5,7 +5,9 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import os, sys, re, ConfigParser
+import os, ConfigParser
+from demandload import *
+demandload(globals(), "re socket sys util")
 
 class ui:
     def __init__(self, verbose=False, debug=False, quiet=False,
@@ -41,9 +43,30 @@ class ui:
             return self.cdata.items(section)
         return []
 
+    def username(self):
+        return (self.config("ui", "username") or
+                os.environ.get("HGUSER") or
+                os.environ.get("EMAIL") or
+                (os.environ.get("LOGNAME",
+                                os.environ.get("USERNAME", "unknown"))
+                 + '@' + socket.getfqdn()))
+
+    def expandpath(self, loc):
+        paths = {}
+        for name, path in self.configitems("paths"):
+            paths[name] = path
+
+        return paths.get(loc, loc)
+
     def write(self, *args):
         for a in args:
             sys.stdout.write(str(a))
+
+    def write_err(self, *args):
+        sys.stdout.flush()
+        for a in args:
+            sys.stderr.write(str(a))
+
     def readline(self):
         return sys.stdin.readline()[:-1]
     def prompt(self, msg, pat, default = "y"):
@@ -58,7 +81,7 @@ class ui:
     def status(self, *msg):
         if not self.quiet: self.write(*msg)
     def warn(self, *msg):
-        self.write(*msg)
+        self.write_err(*msg)
     def note(self, *msg):
         if self.verbose: self.write(*msg)
     def debug(self, *msg):
@@ -70,14 +93,16 @@ class ui:
         f.write(text)
         f.close()
 
-        editor = os.environ.get("HGEDITOR") or os.environ.get("EDITOR", "vi")
-        r = os.system("%s %s" % (editor, name))
+        editor = (self.config("ui", "editor") or
+                  os.environ.get("HGEDITOR") or
+                  os.environ.get("EDITOR", "vi"))
 
-        if r:
-            raise "Edit failed!"
+        os.environ["HGUSER"] = self.username()
+        util.system("%s %s" % (editor, name), errprefix = "edit failed")
 
         t = open(name).read()
         t = re.sub("(?m)^HG:.*\n", "", t)
 
+        os.unlink(name)
+
         return t
-    

@@ -31,7 +31,7 @@ class lock:
                     time.sleep(1)
                     continue
                 raise inst
-        
+
     def trylock(self):
         pid = os.getpid()
         try:
@@ -43,5 +43,7 @@ class lock:
     def release(self):
         if self.held:
             self.held = 0
-            os.unlink(self.f)
+            try:
+                os.unlink(self.f)
+            except: pass
 

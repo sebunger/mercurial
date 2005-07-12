@@ -1,3 +1,45 @@
+mercurial (0.6b-1) unstable; urgency=low
+
+  * New upstream release
+    What's new:
+    
+    improved ui
+     new clone command replaces mkdir+init+pull+update
+     new revert command
+     add range support and -p option to log to show patches
+     tags command now supports local tags
+     improved push and pull
+     better exception and signal handling
+     improved option parsing
+     support for user-defined hooks (aka triggers)
+    performance updates
+     even faster import of large sets of patches
+     faster delta generation
+     faster annotate
+     faster status and ignore
+    improved web interface
+     more conformant and compatible HTML output
+     built-in RSS feeds
+     better tags handling
+     fast multiple keyword search
+    portability work
+     support for Windows is nearly complete
+     should easily compile and install on any modern UNIX
+     comes with RPM spec file and script
+    and more
+     doc and help updates
+     improved test suite
+     numerous bug fixes and cleanups
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 12 Jul 2005 11:45:13 +0200
+
+mercurial (0.6-2) unstable; urgency=low
+
+  * Add meld to Suggest as it is not used by default hgmerge
+    (Closes: #316347: Please Recommands: meld)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Thu, 30 Jun 2005 16:30:33 +0200
+
 mercurial (0.6-1) unstable; urgency=low
 
   * New upstream release
