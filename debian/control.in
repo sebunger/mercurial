@@ -2,14 +2,15 @@ Source: mercurial
 Section: devel
 Priority: optional
 Maintainer: Vincent Danjean <Vincent.Danjean@ens-lyon.org>
-Build-Depends: debhelper (>= 4.2.0), @cdbs@, python-dev
-Standards-Version: 3.6.1
+Build-Depends: debhelper (>= 4.2.0), @cdbs@, python-dev, xmlto, asciidoc
+Standards-Version: 3.6.2
 
 Package: mercurial
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, python
-Recommends: tkdiff, rcs
-Description: scalable distributed SCM
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Recommends: kdiff3 | tkdiff | rcs
+Suggests: meld
+Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
  .

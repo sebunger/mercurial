@@ -1,3 +1,13 @@
+mercurial (0.6b-2) unstable; urgency=low
+
+  * Adds proper python dependencies
+  * Recommends tkdiff or kdiff3 for merge purpose
+  * Suggests meld as this is another merging program that can be used by
+    mercurial (but this needs the user set the HGMERGE variable)
+  * Closes: #316347: Please Recommands: meld
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed, 17 Aug 2005 10:33:33 +0200
+
 mercurial (0.6b-1) unstable; urgency=low
 
   * New upstream release
