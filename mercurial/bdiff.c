@@ -12,6 +12,11 @@
 #include <Python.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __hpux
+#define inline
+#endif
+
 #ifdef _WIN32
 #ifdef _MSC_VER
 #define inline __inline
@@ -229,7 +234,8 @@ static struct hunklist diff(struct line *a, int an, struct line *b, int bn)
 	/* allocate and fill arrays */
 	t = equatelines(a, an, b, bn);
 	pos = calloc(bn, sizeof(struct pos));
-	l.head = l.base = malloc(sizeof(struct hunk) * ((an + bn) / 4 + 2));
+	/* we can't have more matches than lines in the shorter file */
+	l.head = l.base = malloc(sizeof(struct hunk) * ((an<bn ? an:bn) + 1));
 
 	if (pos && l.base && t) {
 		/* generate the matching block list */
@@ -247,7 +253,7 @@ static PyObject *blocks(PyObject *self, PyObject *args)
 {
 	PyObject *sa, *sb, *rl = NULL, *m;
 	struct line *a, *b;
-	struct hunklist l;
+	struct hunklist l = {NULL, NULL};
 	struct hunk *h;
 	int an, bn, pos = 0;
 
@@ -281,7 +287,7 @@ static PyObject *bdiff(PyObject *self, PyObject *args)
 {
 	PyObject *sa, *sb, *result = NULL;
 	struct line *al, *bl;
-	struct hunklist l;
+	struct hunklist l = {NULL, NULL};
 	struct hunk *h;
 	char encode[12], *rb;
 	int an, bn, len = 0, la = 0, lb = 0;

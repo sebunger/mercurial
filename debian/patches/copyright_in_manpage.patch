@@ -1,0 +1,24 @@
+Index: mercurial-0.6c/doc/hg.1.txt
+===================================================================
+--- mercurial-0.6c.orig/doc/hg.1.txt	2005-08-20 10:40:43.000000000 +0200
++++ mercurial-0.6c/doc/hg.1.txt	2005-08-23 10:50:09.724652459 +0200
+@@ -645,6 +645,6 @@
+ 
+ COPYING
+ -------
+-Copyright (C) 2005 Matt Mackall.
++Copyright \(C) 2005 Matt Mackall.
+ Free use of this software is granted under the terms of the GNU General
+ Public License (GPL).
+Index: mercurial-0.6c/doc/hgmerge.1.txt
+===================================================================
+--- mercurial-0.6c.orig/doc/hgmerge.1.txt	2005-08-20 10:40:43.000000000 +0200
++++ mercurial-0.6c/doc/hgmerge.1.txt	2005-08-23 10:52:07.904364503 +0200
+@@ -30,6 +30,6 @@
+ 
+ COPYING
+ -------
+-Copyright (C) 2005 Matt Mackall.
++Copyright \(C) 2005 Matt Mackall.
+ Free use of this software is granted under the terms of the GNU General
+ Public License (GPL).

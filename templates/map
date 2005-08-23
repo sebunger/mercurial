@@ -1,3 +1,4 @@
+default = "changelog"
 header = header.tmpl
 footer = footer.tmpl
 search = search.tmpl
@@ -7,7 +8,7 @@ filedifflink = "<a href="?cmd=filediff;node=#node#;file=#file#">#file#</a> "
 filenodelink = "<a href="?cmd=file;filenode=#filenode#;file=#file#">#file#</a> "
 fileellipses = "..."
 changelogentry = changelogentry.tmpl
-searchentry = searchentry.tmpl
+searchentry = changelogentry.tmpl
 changeset = changeset.tmpl
 manifest = manifest.tmpl
 manifestdirentry = "<tr class="parity#parity#"><td><tt>drwxr-xr-x</tt>&nbsp;<td><a href="?cmd=manifest;manifest=#manifest#;path=#path#">#basename#/</a>"
@@ -34,3 +35,5 @@ changelogtag = "<tr><th class="tag">tag:</th><td class="tag">#tag#</td></tr>"
 changesettag = "<tr><th class="tag">tag:</th><td class="tag">#tag#</td></tr>"
 filediffparent = "<tr><th class="parent">parent #rev#:</th><td class="parent"><a href="?cmd=changeset;node=#node#">#node|short#</a></td></tr>"
 filelogparent = "<tr><td align="right">parent #rev#:&nbsp;</td><td><a href="?cmd=file;file=#file#;filenode=#node#">#node|short#</a></td></tr>"
+indexentry = "<tr class="parity#parity#"><td><a  href="#url#">#name#</a></td><td>#shortdesc#</td><td>#author# <i>#email|obfuscate#</i></td><td>#lastupdate|age# ago</td></tr>"
+index = index.tmpl

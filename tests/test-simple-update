@@ -1,20 +1,20 @@
 #!/bin/sh
 
-set -ex
+set -e
 
 mkdir test
 cd test
 echo foo>foo
 hg init
 hg addremove
-hg commit -t "1"
+hg commit -m "1"
 hg verify
 
 hg clone . ../branch
 cd ../branch
 hg co
 echo bar>>foo
-hg commit -t "2"
+hg commit -m "2"
 
 cd ../test
 hg pull ../branch

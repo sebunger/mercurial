@@ -18,19 +18,16 @@ writing tests:
 
 - hg commit and hg up -m want user interaction
 
-  for commit use -t "text"
+  for commit use -m "text"
   for hg up -m, set HGMERGE to something noninteractive (like true or merge)
 
 - changeset hashes will change based on user and date which make
   things like hg history output change
 
-  use commit -t "test" -u test -d "0 0"
+  use commit -m "test" -u test -d "0 0"
 
 - diff will show the current time
 
-  use hg diff | sed "s/\(\(---\|+++\).*\)\t.*/\1/" to strip dates
-
-- set -x and pipelines don't generate stable output
-
-  turn off set -x or break pipelines into pieces
+  use hg diff | sed "s/\(\(---\|+++\) [a-zA-Z0-9_/.-]*\).*/\1/" to strip
+  dates
 

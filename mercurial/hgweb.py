@@ -6,7 +6,7 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import os, cgi, time, re, difflib, sys, zlib
+import os, cgi, time, re, difflib, socket, sys, zlib
 from mercurial.hg import *
 from mercurial.ui import *
 
@@ -70,7 +70,7 @@ def template(tmpl, filters = {}, **map):
         if m:
             yield tmpl[:m.start(0)]
             v = map.get(m.group(1), "")
-            v = callable(v) and v() or v
+            v = callable(v) and v(**map) or v
 
             fl = m.group(2)
             if fl:
@@ -114,34 +114,35 @@ class templater:
 def rfc822date(x):
     return time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime(x))
 
-class hgweb:
-    maxchanges = 10
-    maxfiles = 10
+common_filters = {
+    "escape": cgi.escape,
+    "age": age,
+    "date": (lambda x: time.asctime(time.gmtime(x))),
+    "addbreaks": nl2br,
+    "obfuscate": obfuscate,
+    "short": (lambda x: x[:12]),
+    "firstline": (lambda x: x.splitlines(1)[0]),
+    "permissions": (lambda x: x and "-rwxr-xr-x" or "-rw-r--r--"),
+    "rfc822date": rfc822date,
+    }
 
-    def __init__(self, path, name, templates = ""):
-        self.templates = templates or templatepath()
+class hgweb:
+
+    def __init__(self, path, name=None, templates=""):
+        self.templates = templates
         self.reponame = name
         self.path = path
         self.mtime = -1
         self.viewonly = 0
-
-        self.filters = {
-            "escape": cgi.escape,
-            "age": age,
-            "date": (lambda x: time.asctime(time.gmtime(x))),
-            "addbreaks": nl2br,
-            "obfuscate": obfuscate,
-            "short": (lambda x: x[:12]),
-            "firstline": (lambda x: x.splitlines(1)[0]),
-            "permissions": (lambda x: x and "-rwxr-xr-x" or "-rw-r--r--"),
-            "rfc822date": rfc822date,
-            }
 
     def refresh(self):
         s = os.stat(os.path.join(self.path, ".hg", "00changelog.i"))
         if s.st_mtime != self.mtime:
             self.mtime = s.st_mtime
             self.repo = repository(ui(), self.path)
+            self.maxchanges = self.repo.ui.config("web", "maxchanges", 10)
+            self.maxfiles = self.repo.ui.config("web", "maxchanges", 10)
+            self.allowpull = self.repo.ui.configbool("web", "allowpull", True)
 
     def date(self, cs):
         return time.asctime(time.gmtime(float(cs[2].split(' ')[0])))
@@ -224,14 +225,8 @@ class hgweb:
             tn = None
             yield diffblock(mdiff.unidiff(to, date1, tn, date2, f), f, tn)
 
-    def header(self):
-        yield self.t("header")
-
-    def footer(self):
-        yield self.t("footer")
-
     def changelog(self, pos):
-        def changenav():
+        def changenav(**map):
             def seq(factor = 1):
                 yield 1 * factor
                 yield 3 * factor
@@ -254,7 +249,7 @@ class hgweb:
 
             yield self.t("naventry", label="tip")
 
-        def changelist():
+        def changelist(**map):
             parity = (start - end) & 1
             cl = self.repo.changelog
             l = [] # build a list in forward order for efficiency
@@ -295,7 +290,7 @@ class hgweb:
 
     def search(self, query):
 
-        def changelist():
+        def changelist(**map):
             cl = self.repo.changelog
             count = 0
             qw = query.lower().split()
@@ -361,7 +356,7 @@ class hgweb:
             files.append(self.t("filenodelink",
                                 filenode = hex(mf.get(f, nullid)), file = f))
 
-        def diff():
+        def diff(**map):
             yield self.diff(p1, n, None)
 
         yield self.t('changeset',
@@ -382,7 +377,7 @@ class hgweb:
         fl = self.repo.file(f)
         count = fl.count()
 
-        def entries():
+        def entries(**map):
             l = []
             parity = (count - 1) & 1
 
@@ -457,7 +452,7 @@ class hgweb:
         t = float(cs[2].split(' ')[0])
         mfn = cs[0]
 
-        def annotate():
+        def annotate(**map):
             parity = 1
             last = None
             for r, l in fl.annotate(n):
@@ -527,7 +522,7 @@ class hgweb:
                 short = os.path.basename(remain)
                 files[short] = (f, n)
 
-        def filelist():
+        def filelist(**map):
             parity = 0
             fl = files.keys()
             fl.sort()
@@ -563,7 +558,7 @@ class hgweb:
         i = self.repo.tagslist()
         i.reverse()
 
-        def entries():
+        def entries(**map):
             parity = 0
             for k,n in i:
                 yield self.t("tagentry",
@@ -583,7 +578,7 @@ class hgweb:
         cs = cl.read(n)
         mf = self.repo.manifest.read(cs[0])
 
-        def diff():
+        def diff(**map):
             yield self.diff(p1, n, file)
 
         yield self.t("filediff",
@@ -600,10 +595,18 @@ class hgweb:
     # find tag, changeset, file
 
     def run(self):
+        def header(**map):
+            yield self.t("header", **map)
+
+        def footer(**map):
+            yield self.t("footer", **map)
+
         self.refresh()
         args = cgi.parse()
 
-        m = os.path.join(self.templates, "map")
+        t = self.templates or self.repo.ui.config("web", "templates",
+                                                  templatepath())
+        m = os.path.join(t, "map")
         if args.has_key('style'):
             b = os.path.basename("map-" + args['style'][0])
             p = os.path.join(self.templates, b)
@@ -615,21 +618,26 @@ class hgweb:
         if "?" in uri: uri = uri.split("?")[0]
         url = "http://%s%s%s" % (os.environ["SERVER_NAME"], port, uri)
 
-        self.t = templater(m, self.filters,
+        name = self.reponame or self.repo.ui.config("web", "name", os.getcwd())
+
+        self.t = templater(m, common_filters,
                            {"url":url,
-                            "repo":self.reponame,
-                            "header":self.header(),
-                            "footer":self.footer(),
+                            "repo":name,
+                            "header":header,
+                            "footer":footer,
                             })
 
-        if not args.has_key('cmd') or args['cmd'][0] == 'changelog':
+        if not args.has_key('cmd'):
+            args['cmd'] = [self.t.cache['default'],]
+
+        if args['cmd'][0] == 'changelog':
             c = self.repo.changelog.count() - 1
             hi = c
             if args.has_key('rev'):
                 hi = args['rev'][0]
                 try:
                     hi = self.repo.changelog.rev(self.repo.lookup(hi))
-                except KeyError:
+                except RepoError:
                     write(self.search(hi))
                     return
 
@@ -657,12 +665,12 @@ class hgweb:
             write(self.filelog(args['file'][0], args['filenode'][0]))
 
         elif args['cmd'][0] == 'heads':
-            httphdr("text/plain")
+            httphdr("application/mercurial-0.1")
             h = self.repo.heads()
             sys.stdout.write(" ".join(map(hex, h)) + "\n")
 
         elif args['cmd'][0] == 'branches':
-            httphdr("text/plain")
+            httphdr("application/mercurial-0.1")
             nodes = []
             if args.has_key('nodes'):
                 nodes = map(bin, args['nodes'][0].split(" "))
@@ -670,7 +678,7 @@ class hgweb:
                 sys.stdout.write(" ".join(map(hex, b)) + "\n")
 
         elif args['cmd'][0] == 'between':
-            httphdr("text/plain")
+            httphdr("application/mercurial-0.1")
             nodes = []
             if args.has_key('pairs'):
                 pairs = [ map(bin, p.split("-"))
@@ -679,9 +687,9 @@ class hgweb:
                 sys.stdout.write(" ".join(map(hex, b)) + "\n")
 
         elif args['cmd'][0] == 'changegroup':
-            httphdr("application/hg-changegroup")
+            httphdr("application/mercurial-0.1")
             nodes = []
-            if self.viewonly:
+            if not self.allowpull:
                 return
 
             if args.has_key('roots'):
@@ -699,17 +707,44 @@ class hgweb:
         else:
             write(self.t("error"))
 
-def create_server(path, name, templates, address, port,
+def create_server(path, name, templates, address, port, use_ipv6 = False,
                   accesslog = sys.stdout, errorlog = sys.stderr):
 
+    def openlog(opt, default):
+        if opt and opt != '-':
+            return open(opt, 'w')
+        return default
+
+    u = ui()
+    repo = repository(u, path)
+    if not address:
+        address = u.config("web", "address", "")
+    if not port:
+        port = int(u.config("web", "port", 8000))
+    if not use_ipv6:
+        use_ipv6 = u.configbool("web", "ipv6")
+
+    accesslog = openlog(accesslog or u.config("web", "accesslog", "-"),
+                        sys.stdout)
+    errorlog = openlog(errorlog or u.config("web", "errorlog", "-"),
+                       sys.stderr)
+
     import BaseHTTPServer
+
+    class IPv6HTTPServer(BaseHTTPServer.HTTPServer):
+        address_family = getattr(socket, 'AF_INET6', None)
+
+        def __init__(self, *args, **kwargs):
+            if self.address_family is None:
+                raise RepoError('IPv6 not available on this system')
+            BaseHTTPServer.HTTPServer.__init__(self, *args, **kwargs)
 
     class hgwebhandler(BaseHTTPServer.BaseHTTPRequestHandler):
         def log_error(self, format, *args):
             errorlog.write("%s - - [%s] %s\n" % (self.address_string(),
                                                  self.log_date_time_string(),
                                                  format % args))
-            
+
         def log_message(self, format, *args):
             accesslog.write("%s - - [%s] %s\n" % (self.address_string(),
                                                   self.log_date_time_string(),
@@ -774,10 +809,69 @@ def create_server(path, name, templates, address, port,
                 sys.argv, sys.stdin, sys.stdout, sys.stderr = save
 
     hg = hgweb(path, name, templates)
-    return BaseHTTPServer.HTTPServer((address, port), hgwebhandler)
+    if use_ipv6:
+        return IPv6HTTPServer((address, port), hgwebhandler)
+    else:
+        return BaseHTTPServer.HTTPServer((address, port), hgwebhandler)
 
-def server(path, name, templates, address, port,
+def server(path, name, templates, address, port, use_ipv6 = False,
            accesslog = sys.stdout, errorlog = sys.stderr):
-    httpd = create_server(path, name, templates, address, port,
+    httpd = create_server(path, name, templates, address, port, use_ipv6,
                           accesslog, errorlog)
     httpd.serve_forever()
+
+# This is a stopgap
+class hgwebdir:
+    def __init__(self, config):
+        self.cp = ConfigParser.SafeConfigParser()
+        self.cp.read(config)
+
+    def run(self):
+        try:
+            virtual = os.environ["PATH_INFO"]
+        except:
+            virtual = ""
+
+        if virtual:
+            real = self.cp.get("paths", virtual[1:])
+            h = hgweb(real)
+            h.run()
+            return
+
+        def header(**map):
+            yield tmpl("header", **map)
+
+        def footer(**map):
+            yield tmpl("footer", **map)
+
+        templates = templatepath()
+        m = os.path.join(templates, "map")
+        tmpl = templater(m, common_filters,
+                         {"header": header, "footer": footer})
+
+        def entries(**map):
+            parity = 0
+            l = self.cp.items("paths")
+            l.sort()
+            for v,r in l:
+                cp2 = ConfigParser.SafeConfigParser()
+                cp2.read(os.path.join(r, ".hg", "hgrc"))
+
+                def get(sec, val, default):
+                    try:
+                        return cp2.get(sec, val)
+                    except:
+                        return default
+
+                yield tmpl("indexentry",
+                           author = get("web", "author", "unknown"),
+                           name = get("web", "name", v),
+                           url = os.environ["REQUEST_URI"] + "/" + v,
+                           parity = parity,
+                           shortdesc = get("web", "description", "unknown"),
+                           lastupdate = os.stat(os.path.join(r, ".hg",
+                                                "00changelog.d")).st_mtime)
+
+                parity = 1 - parity
+
+        write(tmpl("index", entries = entries))

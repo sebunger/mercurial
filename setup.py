@@ -12,7 +12,7 @@ from distutils.command.install_data import install_data
 import mercurial.version
 
 # specify version string, otherwise 'hg identify' will be used:
-version = ''
+version = '0.6c'
 
 class install_package_data(install_data):
     def finalize_options(self):

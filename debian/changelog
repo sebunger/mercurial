@@ -1,3 +1,37 @@
+mercurial (0.6c-1) unstable; urgency=low
+
+  * New upstream release
+    What's new:
+
+    core functionality
+     ability to use tags to identify branches 
+     detect adding new heads with push
+     protocol versioning for push/pull
+     https: support
+     minor merge fixes
+    command line
+     much more powerful path handling
+     incoming/outgoing commands
+     smarter import/export
+     fewer long, confusing hashes to deal with
+     many new command options and settings
+    portability
+     improved portability of test suite and support scripts
+     improved Windows support
+    web interface
+     easy to set up multiple repository interface
+     several new hgrc config options
+     IPv6 support
+    documentation
+     improved built-in help and man pages
+     a steadily growing wiki
+     tutorial in multiple languages
+    extras
+     a highly functional bash auto-completion script
+     a new Emacs mode
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 23 Aug 2005 11:01:36 +0200
+
 mercurial (0.6b-2) unstable; urgency=low
 
   * Adds proper python dependencies

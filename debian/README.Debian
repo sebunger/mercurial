@@ -1,6 +1,17 @@
 mercurial for Debian
 --------------------
 
+Documentation
+*************
+
+Most of the mercurial documentation is available on the web on a Wiki.
+The URL is : http://www.serpentine.com/mercurial/
+Some parts of the Wiki will be added in the package (for people not online)
+as soon as mercurial documentation stabilises enough.
+
+Very old users of mercurial
+***************************
+
 For users using mercurial since a long time ;-), I added the convert-repo in
 the examples directory. It is needed if you have an old repository that you
 want to use with new version of mercurial.
