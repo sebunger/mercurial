@@ -72,22 +72,49 @@ Lines beginning with "#" or ";" are ignored and may be used to provide comments\
 This section describes the different sections that may appear in a Mercurial "hgrc" file, the purpose of each section, its possible keys, and their possible values\&.
 
 .TP
+decode/encode
+Filters for transforming files on checkout/checkin\&. This would typically be used for newline processing or other localization/canonicalization of files\&.
+
+.nf
+Filters consist of a filter pattern followed by a filter command\&.
+The command must accept data on stdin and return the transformed
+data on stdout\&.
+.fi
+
+.nf
+Example:
+.fi
+
+.nf
+[encode]
+# uncompress gzip files on checkin to improve delta compression
+# note: not necessarily a good idea, just an example
+*\&.gz = gunzip
+.fi
+
+.nf
+[decode]
+# recompress gzip files when writing them to the working dir
+*\&.gz = gzip
+.fi
+
+.TP
 hooks
 Commands that get automatically executed by various actions such as starting or finishing a commit\&.
 
 .RS
 
 .TP
-precommit
-Run before starting a commit\&. Exit status 0 allows the commit to proceed\&. Non\-zero status will cause the commit to fail\&.
+changegroup
+Run after a changegroup has been added via push or pull\&.
 
 .TP
 commit
 Run after a changeset has been created\&. Passed the ID of the newly created changeset\&.
 
 .TP
-changegroup
-Run after a changegroup has been added via push or pull\&.
+precommit
+Run before starting a commit\&. Exit status 0 allows the commit to proceed\&. Non\-zero status will cause the commit to fail\&.
 
 .RE
 .IP
@@ -103,16 +130,16 @@ host
 Host name and (optional) port of the proxy server, for example "myproxy:8000"\&.
 
 .TP
-user
-Optional\&. User name to authenticate with at the proxy server\&.
+no
+Optional\&. Comma\-separated list of host names that should bypass the proxy\&.
 
 .TP
 passwd
 Optional\&. Password to authenticate with at the proxy server\&.
 
 .TP
-no
-Optional\&. Comma\-separated list of host names that should bypass the proxy\&.
+user
+Optional\&. User name to authenticate with at the proxy server\&.
 
 .RE
 .IP
@@ -148,20 +175,20 @@ quiet
 Reduce the amount of output printed\&. True or False\&. Default is False\&.
 
 .TP
-username
-The committer of a changeset created when running "commit"\&. Typically a person's name and email address, e\&.g\&. "Fred Widget <fred@example\&.com>"\&. Default is $EMAIL or username@hostname\&.
-
-.TP
-verbose
-Increase the amount of output printed\&. True or False\&. Default is False\&.
+remotecmd
+remote command to use for clone/push/pull operations\&. Default is \fIhg\fR\&.
 
 .TP
 ssh
 command to use for SSH connections\&. Default is \fIssh\fR\&.
 
 .TP
-remotecmd
-remote command to use for clone/push/pull operations\&. Default is \fIhg\fR\&.
+username
+The committer of a changeset created when running "commit"\&. Typically a person's name and email address, e\&.g\&. "Fred Widget <fred@example\&.com>"\&. Default is $EMAIL or username@hostname\&.
+
+.TP
+verbose
+Increase the amount of output printed\&. True or False\&. Default is False\&.
 
 .RE
 .IP
@@ -173,32 +200,44 @@ Web interface configuration\&.
 .RS
 
 .TP
-name
-Repository name to use in the web interface\&. Default is current working directory\&.
+accesslog
+Where to output the access log\&. Default is stdout\&.
 
 .TP
 address
 Interface address to bind to\&. Default is all\&.
 
 .TP
-port
-Port to listen on\&. Default is 8000\&.
+allowbz2
+Whether to allow \&.tar\&.bz2 downloading of repo revisions\&. Default is false\&.
 
 .TP
-ipv6
-Whether to use IPv6\&. Default is false\&.
+allowgz
+Whether to allow \&.tar\&.gz downloading of repo revisions\&. Default is false\&.
 
 .TP
-accesslog
-Where to output the access log\&. Default is stdout\&.
+allowpull
+Whether to allow pulling from the repository\&. Default is true\&.
+
+.TP
+allowzip
+Whether to allow \&.zip downloading of repo revisions\&. Default is false\&. This feature creates temporary files\&.
+
+.TP
+description
+Textual description of the repository's purpose or contents\&. Default is "unknown"\&.
 
 .TP
 errorlog
 Where to output the error log\&. Default is stderr\&.
 
 .TP
-templates
-Where to find the HTML templates\&. Default is install path\&.
+ipv6
+Whether to use IPv6\&. Default is false\&.
+
+.TP
+name
+Repository name to use in the web interface\&. Default is current working directory\&.
 
 .TP
 maxchanges
@@ -209,8 +248,16 @@ maxfiles
 Maximum number of files to list per changeset\&. Default is 10\&.
 
 .TP
-allowpull
-Whether to allow pulling from the repository\&. Default is true\&.
+port
+Port to listen on\&. Default is 8000\&.
+
+.TP
+style
+Which template map style to use\&.
+
+.TP
+templates
+Where to find the HTML templates\&. Default is install path\&.
 
 .RE
 .IP

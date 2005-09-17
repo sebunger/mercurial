@@ -22,6 +22,10 @@ class ui:
         self.debugflag = self.configbool("ui", "debug")
         self.interactive = self.configbool("ui", "interactive", True)
 
+        self.updateopts(verbose, debug, quiet, interactive)
+
+    def updateopts(self, verbose=False, debug=False, quiet=False,
+                 interactive=True):
         self.quiet = (self.quiet or quiet) and not verbose and not debug
         self.verbose = (self.verbose or verbose) or debug
         self.debugflag = (self.debugflag or debug)
@@ -52,6 +56,20 @@ class ui:
             return self.cdata.items(section)
         return []
 
+    def walkconfig(self):
+        seen = {}
+        for (section, name), value in self.overlay.iteritems():
+            yield section, name, value
+            seen[section, name] = 1
+        for section in self.cdata.sections():
+            for name, value in self.cdata.items(section):
+                if (section, name) in seen: continue
+                yield section, name, value.replace('\n', '\\n')
+                seen[section, name] = 1
+
+    def extensions(self):
+        return self.configitems("extensions")
+
     def username(self):
         return (os.environ.get("HGUSER") or
                 self.config("ui", "username") or
@@ -59,6 +77,17 @@ class ui:
                 (os.environ.get("LOGNAME",
                                 os.environ.get("USERNAME", "unknown"))
                  + '@' + socket.getfqdn()))
+
+    def shortuser(self, user):
+        """Return a short representation of a user name or email address."""
+        if not self.verbose:
+            f = user.find('@')
+            if f >= 0:
+                user = user[:f]
+            f = user.find('<')
+            if f >= 0:
+                user = user[f+1:]
+        return user
 
     def expandpath(self, loc):
         paths = {}
@@ -78,7 +107,7 @@ class ui:
 
     def readline(self):
         return sys.stdin.readline()[:-1]
-    def prompt(self, msg, pat, default = "y"):
+    def prompt(self, msg, pat, default="y"):
         if not self.interactive: return default
         while 1:
             self.write(msg, " ")
@@ -107,7 +136,7 @@ class ui:
                   os.environ.get("EDITOR", "vi"))
 
         os.environ["HGUSER"] = self.username()
-        util.system("%s %s" % (editor, name), errprefix = "edit failed")
+        util.system("%s %s" % (editor, name), errprefix="edit failed")
 
         t = open(name).read()
         t = re.sub("(?m)^HG:.*\n", "", t)

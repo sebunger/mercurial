@@ -1,5 +1,6 @@
 hgeditor
 contrib/convert-repo
+contrib/tcsh_completion
 contrib/hgit
 contrib/hgk
 contrib/git-viz

@@ -17,7 +17,7 @@ common-install-impl::
 	install -d $(DEB_DESTDIR)/etc/bash_completion.d/
 	install -m 644 \
 		contrib/bash_completion \
-		$(DEB_DESTDIR)/etc/bash_completion.d/
+		$(DEB_DESTDIR)/etc/bash_completion.d/mercurial
 	#
 	# Install system-wide conffile
 	install -d $(DEB_DESTDIR)/etc/mercurial/

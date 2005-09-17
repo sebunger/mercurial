@@ -1,0 +1,10 @@
+Index: mercurial-0.7/contrib/bash_completion
+===================================================================
+--- mercurial-0.7.orig/contrib/bash_completion	2005-09-16 23:02:33.000000000 +0200
++++ mercurial-0.7/contrib/bash_completion	2005-09-17 16:19:45.000000000 +0200
+@@ -1,5 +1,3 @@
+-#!/bin/bash
+-
+ _hg_commands()
+ {
+     local commands="$(hg -v help | sed -e '1,/^list of commands:/d' \

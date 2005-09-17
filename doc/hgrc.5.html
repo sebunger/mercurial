@@ -1,0 +1,350 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="generator" content="AsciiDoc 7.0.0">
+<meta name="author" content="Bryan O'Sullivan">
+<meta name="author-email" content="bos@serpentine.com">
+<title>HGRC(5)</title>
+</head>
+<body>
+<h1>HGRC(5)</h1>
+<p>
+<strong>by Bryan O'Sullivan</strong><br />
+<tt>&lt;<a href="mailto:bos@serpentine.com">bos@serpentine.com</a>&gt;</tt><br />
+</p>
+<hr />
+<h2>NAME</h2>
+<p>hgrc - configuration files for Mercurial</p>
+<hr />
+<h2>SYNOPSIS</h2>
+<p>The Mercurial system uses a set of configuration files to control
+aspects of its behaviour.</p>
+<hr />
+<h2>FILES</h2>
+<p>Mercurial reads configuration data from three files:</p>
+<dl>
+<dt>
+/etc/mercurial/hgrc
+</dt>
+<dd>
+    Options in this global configuration file apply to all Mercurial
+    commands executed by any user in any directory.
+</dd>
+<dt>
+$HOME/.hgrc
+</dt>
+<dd>
+    Per-user configuration options that apply to all Mercurial commands,
+    no matter from which directory they are run.  Values in this file
+    override global settings.
+</dd>
+<dt>
+&lt;repo&gt;/.hg/hgrc
+</dt>
+<dd>
+    Per-repository configuration options that only apply in a
+    particular repository.  This file is not version-controlled, and
+    will not get transferred during a "clone" operation.  Values in
+    this file override global and per-user settings.
+</dd>
+</dl>
+<hr />
+<h2>SYNTAX</h2>
+<p>A configuration file consists of sections, led by a "[section]" header
+and followed by "name: value" entries; "name=value" is also accepted.</p>
+<pre>[spam]
+eggs=ham
+green=
+   eggs</pre>
+<p>Each line contains one entry.  If the lines that follow are indented,
+they are treated as continuations of that entry.</p>
+<p>Leading whitespace is removed from values.  Empty lines are skipped.</p>
+<p>The optional values can contain format strings which refer to other
+values in the same section, or values in a special DEFAULT section.</p>
+<p>Lines beginning with "#" or ";" are ignored and may be used to provide
+comments.</p>
+<hr />
+<h2>SECTIONS</h2>
+<p>This section describes the different sections that may appear in a
+Mercurial "hgrc" file, the purpose of each section, its possible
+keys, and their possible values.</p>
+<dl>
+<dt>
+decode/encode
+</dt>
+<dd>
+  Filters for transforming files on checkout/checkin. This would
+  typically be used for newline processing or other
+  localization/canonicalization of files.
+<pre>Filters consist of a filter pattern followed by a filter command.
+The command must accept data on stdin and return the transformed
+data on stdout.</pre>
+<pre>Example:</pre>
+<pre>[encode]
+# uncompress gzip files on checkin to improve delta compression
+# note: not necessarily a good idea, just an example
+*.gz = gunzip</pre>
+<pre>[decode]
+# recompress gzip files when writing them to the working dir
+*.gz = gzip</pre>
+</dd>
+<dt>
+hooks
+</dt>
+<dd>
+  Commands that get automatically executed by various actions such as
+  starting or finishing a commit.
+<dl>
+<dt>
+changegroup
+</dt>
+<dd>
+    Run after a changegroup has been added via push or pull.
+</dd>
+<dt>
+commit
+</dt>
+<dd>
+    Run after a changeset has been created. Passed the ID of the newly
+    created changeset.
+</dd>
+<dt>
+precommit
+</dt>
+<dd>
+    Run before starting a commit.  Exit status 0 allows the commit to
+    proceed.  Non-zero status will cause the commit to fail.
+</dd>
+</dl>
+</dd>
+<dt>
+http_proxy
+</dt>
+<dd>
+  Used to access web-based Mercurial repositories through a HTTP
+  proxy.
+<dl>
+<dt>
+host
+</dt>
+<dd>
+    Host name and (optional) port of the proxy server, for example
+    "myproxy:8000".
+</dd>
+<dt>
+no
+</dt>
+<dd>
+    Optional.  Comma-separated list of host names that should bypass
+    the proxy.
+</dd>
+<dt>
+passwd
+</dt>
+<dd>
+    Optional.  Password to authenticate with at the proxy server.
+</dd>
+<dt>
+user
+</dt>
+<dd>
+    Optional.  User name to authenticate with at the proxy server.
+</dd>
+</dl>
+</dd>
+<dt>
+paths
+</dt>
+<dd>
+  Assigns symbolic names to repositories.  The left side is the
+  symbolic name, and the right gives the directory or URL that is the
+  location of the repository.
+</dd>
+<dt>
+ui
+</dt>
+<dd>
+  User interface controls.
+<dl>
+<dt>
+debug
+</dt>
+<dd>
+    Print debugging information.  True or False.  Default is False.
+</dd>
+<dt>
+editor
+</dt>
+<dd>
+    The editor to use during a commit.  Default is $EDITOR or "vi".
+</dd>
+<dt>
+interactive
+</dt>
+<dd>
+    Allow to prompt the user.  True or False.  Default is True.
+</dd>
+<dt>
+merge
+</dt>
+<dd>
+    The conflict resolution program to use during a manual merge.
+    Default is "hgmerge".
+</dd>
+<dt>
+quiet
+</dt>
+<dd>
+    Reduce the amount of output printed.  True or False.  Default is False.
+</dd>
+<dt>
+remotecmd
+</dt>
+<dd>
+    remote command to use for clone/push/pull operations. Default is <em>hg</em>.
+</dd>
+<dt>
+ssh
+</dt>
+<dd>
+    command to use for SSH connections. Default is <em>ssh</em>.
+</dd>
+<dt>
+username
+</dt>
+<dd>
+    The committer of a changeset created when running "commit".
+    Typically a person's name and email address, e.g. "Fred Widget
+    &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
+</dd>
+<dt>
+verbose
+</dt>
+<dd>
+    Increase the amount of output printed.  True or False.  Default is False.
+</dd>
+</dl>
+</dd>
+<dt>
+web
+</dt>
+<dd>
+  Web interface configuration.
+<dl>
+<dt>
+accesslog
+</dt>
+<dd>
+    Where to output the access log. Default is stdout.
+</dd>
+<dt>
+address
+</dt>
+<dd>
+    Interface address to bind to. Default is all.
+</dd>
+<dt>
+allowbz2
+</dt>
+<dd>
+    Whether to allow .tar.bz2 downloading of repo revisions. Default is false.
+</dd>
+<dt>
+allowgz
+</dt>
+<dd>
+    Whether to allow .tar.gz downloading of repo revisions. Default is false.
+</dd>
+<dt>
+allowpull
+</dt>
+<dd>
+    Whether to allow pulling from the repository. Default is true.
+</dd>
+<dt>
+allowzip
+</dt>
+<dd>
+    Whether to allow .zip downloading of repo revisions. Default is false.
+    This feature creates temporary files.
+</dd>
+<dt>
+description
+</dt>
+<dd>
+    Textual description of the repository's purpose or contents.
+    Default is "unknown".
+</dd>
+<dt>
+errorlog
+</dt>
+<dd>
+    Where to output the error log. Default is stderr.
+</dd>
+<dt>
+ipv6
+</dt>
+<dd>
+    Whether to use IPv6. Default is false.
+</dd>
+<dt>
+name
+</dt>
+<dd>
+    Repository name to use in the web interface. Default is current
+    working directory.
+</dd>
+<dt>
+maxchanges
+</dt>
+<dd>
+    Maximum number of changes to list on the changelog. Default is 10.
+</dd>
+<dt>
+maxfiles
+</dt>
+<dd>
+    Maximum number of files to list per changeset. Default is 10.
+</dd>
+<dt>
+port
+</dt>
+<dd>
+    Port to listen on. Default is 8000.
+</dd>
+<dt>
+style
+</dt>
+<dd>
+    Which template map style to use.
+</dd>
+<dt>
+templates
+</dt>
+<dd>
+    Where to find the HTML templates. Default is install path.
+</dd>
+</dl>
+</dd>
+</dl>
+<hr />
+<h2>AUTHOR</h2>
+<p>Bryan O'Sullivan &lt;bos@serpentine.com&gt;.</p>
+<p>Mercurial was written by Matt Mackall &lt;mpm@selenic.com&gt;.</p>
+<hr />
+<h2>SEE ALSO</h2>
+<p>hg(1)</p>
+<hr />
+<h2>COPYING</h2>
+<p>This manual page is copyright 2005 Bryan O'Sullivan.
+Mercurial is copyright 2005 Matt Mackall.
+Free use of this software is granted under the terms of the GNU General
+Public License (GPL).</p>
+<p></p>
+<p></p>
+<hr /><p><small>
+Last updated 16-Sep-2005 14:03:24 PDT
+</small></p>
+</body>
+</html>
