@@ -8,7 +8,7 @@ Standards-Version: 3.6.2
 Package: mercurial
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
-Recommends: kdiff3 | tkdiff | rcs
+Recommends: kdiff3 | tkdiff | rcs, tk8.4 | wish
 Suggests: meld
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed

@@ -26,6 +26,20 @@ common-install-impl::
 	echo "# See hgrc(5) for more information" \
 		>> $(DEB_DESTDIR)/etc/mercurial/hgrc
 	#
+	# Install system-wide extensions
+	install -d $(DEB_DESTDIR)/etc/mercurial/hgrc.d/
+	echo "# mercurial configuration file for upstream hg extensions" \
+		> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
+	echo "# See hgrc(5) for more information" \
+		>> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
+	echo "[extensions]" \
+		>> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
+	echo "hgext/hgk=" \
+		>> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
+	# Install hgk subscript
+	install -d $(DEB_DESTDIR)/usr/share/mercurial
+	install -m 0755 contrib/hgk $(DEB_DESTDIR)/usr/share/mercurial/hgk
+	#
 	# Install emacs scripts.
 	install -d $(DEB_DESTDIR)/usr/share/emacs/site-lisp/ 
 	install -m 0644 \
@@ -34,6 +48,11 @@ common-install-impl::
 	#
 
 build: build-doc
+update-config:: link_hgit
+
+link_hgit:
+	mkdir -p hgext
+	ln -fs ../contrib/hgit hgext/hgk.py
 
 build-doc:
 	$(MAKE) -C doc man
@@ -42,3 +61,5 @@ clean::
 	#$(MAKE) -C doc clean
 	cd doc && $(RM) *.xml *.1 *.html
 	$(RM) -v mercurial/*.pyc
+	$(RM) -v hgext/hgk.py
+	-[ -d hgext ] && rmdir hgext

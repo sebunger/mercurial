@@ -1,0 +1,86 @@
+Index: mercurial-0.7/mercurial/commands.py
+===================================================================
+--- mercurial-0.7.orig/mercurial/commands.py	2005-09-23 11:15:19.000000000 +0200
++++ mercurial-0.7/mercurial/commands.py	2005-09-23 11:33:40.000000000 +0200
+@@ -449,11 +449,18 @@
+         fns.sort()
+         m = max(map(len, fns))
+         for f in fns:
++            mod=module_from(f, '')
+             if ui.verbose:
++                if mod:
++                    mod=" [module %s]"%(mod)
+                 commands = cmds[f].replace("|",", ")
+-                ui.write(" %s:\n      %s\n"%(commands,h[f]))
++                ui.write(" %s:%s\n      %s\n"%(commands,mod,h[f]))
+             else:
+-                ui.write(' %-*s   %s\n' % (m, f, h[f]))
++                if mod:
++                    mod="[%s] "%(mod)
++                else:
++                    mod=" "
++                ui.write(' %-*s  %s%s\n' % (m, f, mod, h[f]))
+ 
+     # global options
+     if ui.verbose:
+@@ -2000,6 +2007,12 @@
+ 
+     raise UnknownCommand(cmd)
+ 
++def module_from(cmd, hg_core='core(hg)'):
++    try:
++        return table.get(find(cmd)[0])[3]
++    except IndexError:
++        return hg_core
++
+ class SignalInterrupt(Exception):
+     """Exception raised on SIGTERM and SIGHUP."""
+ 
+@@ -2056,21 +2069,35 @@
+     u = ui.ui()
+     external = []
+     for x in u.extensions():
+-        if x[1]:
+-            mod = imp.load_source(x[0], x[1])
+-        else:
+-            def importh(name):
+-                mod = __import__(name)
+-                components = name.split('.')
+-                for comp in components[1:]:
+-                    mod = getattr(mod, comp)
+-                return mod
+-            mod = importh(x[0])
+-        external.append(mod)
++        try:
++            if x[1]:
++                mod = imp.load_source(x[0], x[1])
++            else:
++                def importh(name):
++                    mod = __import__(name)
++                    components = name.split('.')
++                    for comp in components[1:]:
++                        mod = getattr(mod, comp)
++                    return mod
++                mod = importh(x[0])
++            external.append(mod)
++        except ImportError:
++            u.warn("hg: WARNING: cannot find extension %s\n" % (x[0]))
++        except IOError, inst:
++            if inst.errno == errno.ENOENT:
++                u.warn("hg: WARNING: cannot find extension %s (no file '%s')\n"
++                       % (x[0], x[1]))
++            else:
++                raise
++
+     for x in external:
+         for t in x.cmdtable:
+             if t in table:
+-                u.warn("module %s override %s\n" % (x.__name__, t))
++                u.warn("hg: WARNING: module %s override %s" % (x.__name__, t))
++                u.warn(" (was in module '%s')\n" % (module_from(t)))
++            ext_entry=list(x.cmdtable.get(t))
++            ext_entry.append(x.__name__)
++            x.cmdtable[t]=tuple(ext_entry)
+         table.update(x.cmdtable)
+ 
+     try:

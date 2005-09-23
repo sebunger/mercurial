@@ -33,6 +33,14 @@ case "$1" in
 		rm $FILE
 	    fi
 	fi
+	if [ "$2" = "0.7-3" ] && [ -f /etc/mercurial/hgrc.d/hgit.rc ]; then
+	    # This release has never been official. Let's purge the
+	    # old config file if someone installed the package from
+	    # my web page. No need to take care of user's modifications:
+	    # it was experimental stuff.
+	    echo "Purging old config file '/etc/mercurial/hgrc.d/hgit.rc'"
+	    rm -fv /etc/mercurial/hgrc.d/hgit.rc
+	fi
     ;;
 
     abort-upgrade)

@@ -1,7 +1,51 @@
+mercurial (0.7-4) unstable; urgency=low
+
+  * backport from upstream of
+    - use of 'hgext' directory for extensions
+    - 'hgk.py' extension (was hgit before)
+    => 'hg view' works ;-)
+  * add 'Recommands: wish' for the hgk extension
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Fri, 23 Sep 2005 11:45:13 +0200
+
+mercurial (0.7-3) unstable; urgency=low
+
+  * Add system-wide config directory (so that extensions can be easyly added)
+  * Enable hgit extension
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 20 Sep 2005 02:47:16 +0200
+
+mercurial (0.7-2) unstable; urgency=low
+
+  * Correct changelog.Debian (I forgot to add upstream changes in the
+    previous entry)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Sun, 18 Sep 2005 22:46:14 +0200
+
 mercurial (0.7-1) unstable; urgency=low
 
-  * New upstream release (a bit delayed due to a crash disk and a new job)
-    (Closes: #328725)
+  * New upstream release (Closes: #328725)
+    core
+     improved merge logic
+     improved copy/rename support (still experimental)
+     automatic binary file handling
+     generic file filtering support
+     various performance improvements
+    command line
+     new bundle/unbundle commands for exchanging native updates
+     more natural support for remove, copy, and rename
+     faster, more powerful log command
+     new grep command for searching entire history
+     support for plug-in extensions
+     improved exception handling and debugging facilities
+    hgweb
+     optional downloading of tarballs and zip files
+    Windows support
+     hardlinking support
+     newline conversion through file filtering
+    contrib
+     updated hgk 
+  * New package (a bit delayed due to a crash disk and a new job)
   * Upstream added support for options -h and --help (Closes: #324049)
   * renamming conffile 'bash_completion' to 'mercurial' (Closes: #325266)
 

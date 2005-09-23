@@ -9,6 +9,16 @@ The URL is : http://www.serpentine.com/mercurial/
 Some parts of the Wiki will be added in the package (for people not online)
 as soon as mercurial documentation stabilises enough.
 
+Extensions
+**********
+
+hgit
+----
+The hgit extension is enabled for all users in this package. It is harmless.
+However, if you want to disable it, remove or rename hgit.rc in
+/etc/mercurial/hgrc.d:
+mv /etc/mercurial/hgrc.d/hgit.rc /etc/mercurial/hgrc.d/hgit.norc
+
 Very old users of mercurial
 ***************************
 

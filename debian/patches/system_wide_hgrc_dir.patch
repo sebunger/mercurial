@@ -1,0 +1,50 @@
+Index: mercurial-0.7/mercurial/ui.py
+===================================================================
+--- mercurial-0.7.orig/mercurial/ui.py	2005-09-20 02:48:59.000000000 +0200
++++ mercurial-0.7/mercurial/ui.py	2005-09-20 02:51:19.000000000 +0200
+@@ -14,8 +14,10 @@
+                  interactive=True):
+         self.overlay = {}
+         self.cdata = ConfigParser.SafeConfigParser()
++        hgrcs=self.listDirectory("/etc/mercurial/hgrc.d", ['.rc'])
+         self.cdata.read([os.path.normpath(hgrc) for hgrc in
+-                         "/etc/mercurial/hgrc", os.path.expanduser("~/.hgrc")])
++	                 hgrcs + ["/etc/mercurial/hgrc",
++			          os.path.expanduser("~/.hgrc")]])
+ 
+         self.quiet = self.configbool("ui", "quiet")
+         self.verbose = self.configbool("ui", "verbose")
+@@ -24,6 +26,15 @@
+ 
+         self.updateopts(verbose, debug, quiet, interactive)
+ 
++    def listDirectory(self, directory, fileExtList):
++        "get list of file info objects for files of particular extensions"
++	if not os.path.isdir(directory):
++	    return []
++        fileList = [os.path.normcase(f) for f in os.listdir(directory)]
++	fileList = [os.path.join(directory, f) for f in fileList \
++	                 if os.path.splitext(f)[1] in fileExtList]
++	return fileList
++
+     def updateopts(self, verbose=False, debug=False, quiet=False,
+                  interactive=True):
+         self.quiet = (self.quiet or quiet) and not verbose and not debug
+Index: mercurial-0.7/doc/hgrc.5.txt
+===================================================================
+--- mercurial-0.7.orig/doc/hgrc.5.txt	2005-09-16 23:02:33.000000000 +0200
++++ mercurial-0.7/doc/hgrc.5.txt	2005-09-20 02:55:57.000000000 +0200
+@@ -15,10 +15,11 @@
+ FILES
+ -----
+ 
+-Mercurial reads configuration data from three files:
++Mercurial reads configuration data from several files:
+ 
+ /etc/mercurial/hgrc::
+-    Options in this global configuration file apply to all Mercurial
++/etc/mercurial/hgrc.d/*.rc::
++    Options in these global configuration files apply to all Mercurial
+     commands executed by any user in any directory.
+ 
+ $HOME/.hgrc::
