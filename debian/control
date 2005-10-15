@@ -9,7 +9,7 @@ Package: mercurial
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
 Recommends: kdiff3 | tkdiff | rcs, tk8.4 | wish
-Suggests: meld
+Suggests: meld, commit-tool
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

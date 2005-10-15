@@ -1,3 +1,9 @@
+mercurial (0.7-5) unstable; urgency=low
+
+  * Add hgweb.cgi and hgwebdir.cgi in examples (Closes: #332973)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Sat, 15 Oct 2005 11:24:54 +0200
+
 mercurial (0.7-4) unstable; urgency=low
 
   * backport from upstream of

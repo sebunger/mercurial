@@ -2,3 +2,5 @@ hgeditor
 contrib/convert-repo
 contrib/tcsh_completion
 contrib/git-viz
+hgweb.cgi
+hgwebdir.cgi
