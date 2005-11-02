@@ -7,3 +7,4 @@ backport_extensions_hgext.patch
 backport_hgk_ext.patch
 hgit_for_debian.patch
 hgk_is_a_wish_script.patch
+fix_DST.patch

@@ -1,3 +1,10 @@
+mercurial (0.7-6) unstable; urgency=low
+
+  * Backport of the patch "fix handling of daylight saving time"
+    from upstream (Closes: #336646)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed,  2 Nov 2005 06:17:04 +0100
+
 mercurial (0.7-5) unstable; urgency=low
 
   * Add hgweb.cgi and hgwebdir.cgi in examples (Closes: #332973)
