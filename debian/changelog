@@ -1,3 +1,10 @@
+mercurial (0.7-7) unstable; urgency=low
+
+  * Add support for alias st for hg status (Closes: #340235)
+    (backport from tip, thanks  Michael Gebetsroither <michael.geb@gmx.at>)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 22 Nov 2005 13:01:39 +0100
+
 mercurial (0.7-6) unstable; urgency=low
 
   * Backport of the patch "fix handling of daylight saving time"
