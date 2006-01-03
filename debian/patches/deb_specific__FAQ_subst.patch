@@ -1,7 +1,7 @@
-Index: mercurial-0.6c/doc/FAQ.txt
+Index: mercurial-0.7/doc/FAQ.txt
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ mercurial-0.6c/doc/FAQ.txt	2005-08-22 09:19:58.000000000 +0200
++++ mercurial-0.7/doc/FAQ.txt	2005-12-29 11:13:05.000000000 +0100
 @@ -0,0 +1,2 @@
 +The mercurial FAQ is now maintained on a Wiki page. Look at the URL :
-+http://www.serpentine.com/mercurial/index.cgi?FAQ
++http://www.selenic.com/mercurial/wiki/index.cgi/FAQ

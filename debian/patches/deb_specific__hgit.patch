@@ -13,7 +13,7 @@ Index: mercurial-0.7/contrib/hgit
      "start interactive history viewer"
      os.chdir(repo.root)
 -    os.system("hgk " + " ".join(etc))
-+    os.system("/usr/share/mercurial/hgk " + " ".join(etc))
++    os.system(ui.config("hgk", "path", "/usr/share/mercurial/hgk") + " " + " ".join(etc))
  
  cmdtable = {
      "view": (view, [], 'hg view'),

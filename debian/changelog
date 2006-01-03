@@ -1,3 +1,12 @@
+mercurial (0.7-8) unstable; urgency=low
+
+  * Closes: #343459: correct FAQ URL
+  * Closes: #343458: fix directory completion
+  * Closes: #343472: clone does not work with path aliases
+    (Thanks Daniel Kobras for these three bugreports with patch)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue,  3 Jan 2006 21:13:23 +0100
+
 mercurial (0.7-7) unstable; urgency=low
 
   * Add support for alias st for hg status (Closes: #340235)
