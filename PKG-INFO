@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: mercurial
-Version: 0.7
+Version: 0d36e3d7e2ea
 Summary: scalable distributed SCM
 Home-page: http://selenic.com/mercurial
 Author: Matt Mackall

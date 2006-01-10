@@ -1,0 +1,10 @@
+Index: mercurial-0.7+20060110+0d36e3d7e2ea/contrib/bash_completion
+===================================================================
+--- mercurial-0.7+20060110+0d36e3d7e2ea.orig/contrib/bash_completion	2006-01-03 20:37:22.000000000 +0100
++++ mercurial-0.7+20060110+0d36e3d7e2ea/contrib/bash_completion	2006-01-10 21:55:27.000000000 +0100
+@@ -1,4 +1,4 @@
+-shopt -s extglob
++#shopt -s extglob
+ 
+ _hg_commands()
+ {

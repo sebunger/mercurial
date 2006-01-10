@@ -6,16 +6,16 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 import os, ConfigParser
+from i18n import gettext as _
 from demandload import *
 demandload(globals(), "re socket sys util")
 
-class ui:
+class ui(object):
     def __init__(self, verbose=False, debug=False, quiet=False,
                  interactive=True):
         self.overlay = {}
         self.cdata = ConfigParser.SafeConfigParser()
-        self.cdata.read([os.path.normpath(hgrc) for hgrc in
-                         "/etc/mercurial/hgrc", os.path.expanduser("~/.hgrc")])
+        self.readconfig(util.rcpath)
 
         self.quiet = self.configbool("ui", "quiet")
         self.verbose = self.configbool("ui", "verbose")
@@ -31,8 +31,14 @@ class ui:
         self.debugflag = (self.debugflag or debug)
         self.interactive = (self.interactive and interactive)
 
-    def readconfig(self, fp):
-        self.cdata.readfp(fp)
+    def readconfig(self, fn):
+        if isinstance(fn, basestring):
+            fn = [fn]
+        for f in fn:
+            try:
+                self.cdata.read(f)
+            except ConfigParser.ParsingError, inst:
+                raise util.Abort(_("Failed to parse %s\n%s") % (f, inst))
 
     def setconfig(self, section, name, val):
         self.overlay[(section, name)] = val
@@ -89,9 +95,12 @@ class ui:
                 user = user[f+1:]
         return user
 
-    def expandpath(self, loc):
+    def expandpath(self, loc, root=""):
         paths = {}
         for name, path in self.configitems("paths"):
+            m = path.find("://")
+            if m == -1:
+                    path = os.path.join(root, path)
             paths[name] = path
 
         return paths.get(loc, loc)
@@ -101,7 +110,7 @@ class ui:
             sys.stdout.write(str(a))
 
     def write_err(self, *args):
-        sys.stdout.flush()
+        if not sys.stdout.closed: sys.stdout.flush()
         for a in args:
             sys.stderr.write(str(a))
 
@@ -115,7 +124,7 @@ class ui:
             if re.match(pat, r):
                 return r
             else:
-                self.write("unrecognized response\n")
+                self.write(_("unrecognized response\n"))
     def status(self, *msg):
         if not self.quiet: self.write(*msg)
     def warn(self, *msg):
@@ -136,7 +145,7 @@ class ui:
                   os.environ.get("EDITOR", "vi"))
 
         os.environ["HGUSER"] = self.username()
-        util.system("%s %s" % (editor, name), errprefix="edit failed")
+        util.system("%s \"%s\"" % (editor, name), errprefix=_("edit failed"))
 
         t = open(name).read()
         t = re.sub("(?m)^HG:.*\n", "", t)

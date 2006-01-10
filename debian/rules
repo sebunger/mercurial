@@ -52,7 +52,7 @@ update-config:: link_hgit
 
 link_hgit:
 	mkdir -p hgext
-	ln -fs ../contrib/hgit hgext/hgk.py
+	ln -fs ../contrib/hgk.py hgext/hgk.py
 
 build-doc:
 	$(MAKE) -C doc man
