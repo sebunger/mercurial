@@ -1,3 +1,13 @@
+mercurial (0.8) unstable; urgency=low
+  Upgrade notes:
+  - diff and status command are now repo-wide by default
+    (use 'hg diff .' for the old behavior)
+  - GPG signing is now done with the gpg extension
+  - the --text option for commit, rawcommit, and tag has been removed
+  - the copy/rename --parents option has been removed
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Mon, 30 Jan 2006 16:11:19 +0100
+
 mercurial (0.6c-1) unstable; urgency=low
 
   Previous versions of mercurial can lead to conflicts for internal filenames

@@ -1,6 +1,12 @@
 hgeditor
 contrib/convert-repo
-contrib/tcsh_completion
+contrib/favicon.ico
 contrib/git-viz
+contrib/hgdiff
+contrib/hg-menu.vim
+contrib/hg-ssh
+contrib/patchbomb
+contrib/tcsh_completion
+contrib/zsh_completion
 hgweb.cgi
 hgwebdir.cgi

@@ -53,6 +53,7 @@ update-config:: link_hgit
 link_hgit:
 	mkdir -p hgext
 	ln -fs ../contrib/hgk.py hgext/hgk.py
+	ln -fs ../contrib/hbisect.py hgext/hbisect.py
 
 build-doc:
 	$(MAKE) -C doc man
@@ -62,4 +63,5 @@ clean::
 	cd doc && $(RM) *.xml *.1 *.html
 	$(RM) -v mercurial/*.pyc
 	$(RM) -v hgext/hgk.py
+	$(RM) -v hgext/hbisect.py
 	-[ -d hgext ] && rmdir hgext

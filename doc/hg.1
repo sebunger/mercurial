@@ -214,6 +214,10 @@ hardlinking\&.
 .fi
 
 .nf
+See pull for valid source format details\&.
+.fi
+
+.nf
 options:
 \-U, \-\-noupdate   do not update the new working directory
 \-\-pull           use pull protocol to copy metadata
@@ -542,6 +546,10 @@ outgoing [\-p] [dest]
 Show changesets not found in the specified destination repo or the default push repo\&. These are the changesets that would be pushed if a push was requested\&.
 
 .nf
+See pull for valid source format details\&.
+.fi
+
+.nf
 options:
 \-p, \-\-patch           show patch
 .fi
@@ -641,11 +649,16 @@ options:
 
 .TP
 rawcommit [\-p \-d \-u \-F \-m \-l]
-Lowlevel commit, for use in helper scripts\&.
+Lowlevel commit, for use in helper scripts\&. (DEPRECATED)
 
 .nf
 This command is not intended to be used by normal users, as it is
 primarily useful for importing from other SCMs\&.
+.fi
+
+.nf
+This command is now deprecated and will be removed in a future
+release, please use debugsetparents and commit instead\&.
 .fi
 
 .TP

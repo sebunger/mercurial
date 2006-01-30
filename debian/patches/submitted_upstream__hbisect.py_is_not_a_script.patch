@@ -1,0 +1,10 @@
+Index: mercurial-0.8/contrib/hbisect.py
+===================================================================
+--- mercurial-0.8.orig/contrib/hbisect.py	2006-01-30 01:01:08.000000000 +0100
++++ mercurial-0.8/contrib/hbisect.py	2006-01-30 16:23:41.000000000 +0100
+@@ -1,5 +1,3 @@
+-#!/usr/bin/env python
+-#
+ # This software may be used and distributed according to the terms
+ # of the GNU General Public License, incorporated herein by reference.
+ 

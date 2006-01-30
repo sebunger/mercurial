@@ -1,8 +1,8 @@
-Index: mercurial-0.7+20060110+0d36e3d7e2ea/mercurial/commands.py
+Index: mercurial-0.8/mercurial/commands.py
 ===================================================================
---- mercurial-0.7+20060110+0d36e3d7e2ea.orig/mercurial/commands.py	2006-01-10 22:05:01.000000000 +0100
-+++ mercurial-0.7+20060110+0d36e3d7e2ea/mercurial/commands.py	2006-01-10 22:42:08.000000000 +0100
-@@ -445,11 +445,18 @@
+--- mercurial-0.8.orig/mercurial/commands.py	2006-01-30 01:01:08.000000000 +0100
++++ mercurial-0.8/mercurial/commands.py	2006-01-30 16:05:12.000000000 +0100
+@@ -455,11 +455,18 @@
          fns.sort()
          m = max(map(len, fns))
          for f in fns:
@@ -11,7 +11,7 @@ Index: mercurial-0.7+20060110+0d36e3d7e2ea/mercurial/commands.py
 +                if mod:
 +                    mod=" [module %s]"%(mod)
                  commands = cmds[f].replace("|",", ")
--                ui.write(" %s:\n      %s\n"%(commands,h[f]))
+-                ui.write(" %s:\n      %s\n"%(commands, h[f]))
 +                ui.write(" %s:%s\n      %s\n"%(commands,mod,h[f]))
              else:
 -                ui.write(' %-*s   %s\n' % (m, f, h[f]))
@@ -23,7 +23,7 @@ Index: mercurial-0.7+20060110+0d36e3d7e2ea/mercurial/commands.py
  
      # global options
      if ui.verbose:
-@@ -2491,6 +2498,12 @@
+@@ -2540,6 +2547,12 @@
  
      raise UnknownCommand(cmd)
  
@@ -36,7 +36,7 @@ Index: mercurial-0.7+20060110+0d36e3d7e2ea/mercurial/commands.py
  class SignalInterrupt(Exception):
      """Exception raised on SIGTERM and SIGHUP."""
  
-@@ -2557,7 +2570,10 @@
+@@ -2606,7 +2619,10 @@
      external = []
      for x in u.extensions():
          def on_exception(exc, inst):
@@ -48,7 +48,7 @@ Index: mercurial-0.7+20060110+0d36e3d7e2ea/mercurial/commands.py
              u.warn("%s\n" % inst)
              if "--traceback" in sys.argv[1:]:
                  traceback.print_exc()
-@@ -2585,7 +2601,10 @@
+@@ -2634,7 +2650,10 @@
          cmdtable = getattr(x, 'cmdtable', {})
          for t in cmdtable:
              if t in table:
