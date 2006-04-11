@@ -13,7 +13,8 @@ of the GNU General Public License, incorporated herein by reference.
 from node import *
 from i18n import gettext as _
 from demandload import demandload
-demandload(globals(), "binascii errno heapq mdiff sha struct zlib")
+demandload(globals(), "binascii changegroup errno heapq mdiff os")
+demandload(globals(), "sha struct zlib")
 
 def hash(text, p1, p2):
     """generate a hash from the given text and its parent hashes
@@ -48,7 +49,7 @@ def decompress(bin):
     if t == '\0': return bin
     if t == 'x': return zlib.decompress(bin)
     if t == 'u': return bin[1:]
-    raise RevlogError(_("unknown compression type %s") % t)
+    raise RevlogError(_("unknown compression type %r") % t)
 
 indexformat = ">4l20s20s20s"
 
@@ -187,15 +188,33 @@ class revlog(object):
         self.indexfile = indexfile
         self.datafile = datafile
         self.opener = opener
+
+        self.indexstat = None
         self.cache = None
         self.chunkcache = None
+        self.load()
 
+    def load(self):
         try:
-            i = self.opener(self.indexfile).read()
+            f = self.opener(self.indexfile)
         except IOError, inst:
             if inst.errno != errno.ENOENT:
                 raise
             i = ""
+        else:
+            try:
+                st = os.fstat(f.fileno())
+            except AttributeError, inst:
+                st = None
+            else:
+                oldst = self.indexstat
+                if (oldst and st.st_dev == oldst.st_dev
+                    and st.st_ino == oldst.st_ino
+                    and st.st_mtime == oldst.st_mtime
+                    and st.st_ctime == oldst.st_ctime):
+                    return
+            self.indexstat = st
+            i = f.read()
 
         if i and i[:4] != "\0\0\0\0":
             raise RevlogError(_("incompatible revlog signature on %s") %
@@ -213,7 +232,7 @@ class revlog(object):
             m = [None] * l
 
             n = 0
-            for f in xrange(0, len(i), s):
+            for f in xrange(0, l * s, s):
                 # offset, size, base, linkrev, p1, p2, nodeid
                 e = struct.unpack(indexformat, i[f:f + s])
                 m[n] = (e[6], n)
@@ -236,10 +255,14 @@ class revlog(object):
         if node == nullid: return (nullid, nullid)
         return self.index[self.rev(node)][4:6]
 
-    def start(self, rev): return self.index[rev][0]
-    def length(self, rev): return self.index[rev][1]
+    def start(self, rev): return (rev < 0) and -1 or self.index[rev][0]
+    def length(self, rev):
+        if rev < 0:
+            return 0
+        else:
+            return self.index[rev][1]
     def end(self, rev): return self.start(rev) + self.length(rev)
-    def base(self, rev): return self.index[rev][2]
+    def base(self, rev): return (rev < 0) and rev or self.index[rev][2]
 
     def reachable(self, rev, stop=None):
         reachable = {}
@@ -510,12 +533,17 @@ class revlog(object):
     def delta(self, node):
         """return or calculate a delta between a node and its predecessor"""
         r = self.rev(node)
-        b = self.base(r)
-        if r == b:
-            return self.diff(self.revision(self.node(r - 1)),
-                             self.revision(node))
+        return self.revdiff(r - 1, r)
+
+    def revdiff(self, rev1, rev2):
+        """return or calculate a delta between two revisions"""
+        b1 = self.base(rev1)
+        b2 = self.base(rev2)
+        if b1 == b2 and rev1 + 1 == rev2:
+            return self.chunk(rev2)
         else:
-            return self.chunk(r)
+            return self.diff(self.revision(self.node(rev1)),
+                             self.revision(self.node(rev2)))
 
     def revision(self, node):
         """return an uncompressed revision of a given"""
@@ -538,7 +566,7 @@ class revlog(object):
         for r in xrange(base + 1, rev + 1):
             bins.append(self.chunk(r))
 
-        text = mdiff.patches(text, bins)
+        text = self.patches(text, bins)
 
         p1, p2 = self.parents(node)
         if node != hash(text, p1, p2):
@@ -624,12 +652,10 @@ class revlog(object):
             # we store negative distances because heap returns smallest member
             h = [(-dist[node], node)]
             seen = {}
-            earliest = self.count()
             while h:
                 d, n = heapq.heappop(h)
                 if n not in seen:
                     seen[n] = 1
-                    r = self.rev(n)
                     yield (-d, n)
                     for p in self.parents(n):
                         heapq.heappush(h, (-dist[p], p))
@@ -683,43 +709,27 @@ class revlog(object):
 
         # if we don't have any revisions touched by these changesets, bail
         if not revs:
-            yield struct.pack(">l", 0)
+            yield changegroup.closechunk()
             return
 
         # add the parent of the first rev
         p = self.parents(self.node(revs[0]))[0]
         revs.insert(0, self.rev(p))
 
-        # helper to reconstruct intermediate versions
-        def construct(text, base, rev):
-            bins = [self.chunk(r) for r in xrange(base + 1, rev + 1)]
-            return mdiff.patches(text, bins)
-
         # build deltas
         for d in xrange(0, len(revs) - 1):
             a, b = revs[d], revs[d + 1]
-            na = self.node(a)
             nb = self.node(b)
 
             if infocollect is not None:
                 infocollect(nb)
 
-            # do we need to construct a new delta?
-            if a + 1 != b or self.base(b) == b:
-                ta = self.revision(na)
-                tb = self.revision(nb)
-                d = self.diff(ta, tb)
-            else:
-                d = self.chunk(b)
-
+            d = self.revdiff(a, b)
             p = self.parents(nb)
             meta = nb + p[0] + p[1] + lookup(nb)
-            l = struct.pack(">l", len(meta) + len(d) + 4)
-            yield l
-            yield meta
-            yield d
+            yield changegroup.genchunk("%s%s" % (meta, d))
 
-        yield struct.pack(">l", 0)
+        yield changegroup.closechunk()
 
     def addgroup(self, revs, linkmapper, transaction, unique=0):
         """
@@ -733,15 +743,15 @@ class revlog(object):
         #track the base of the current delta log
         r = self.count()
         t = r - 1
-        node = nullid
+        node = None
 
         base = prev = -1
         start = end = measure = 0
         if r:
-            start = self.start(self.base(t))
-            end = self.end(t)
-            measure = self.length(self.base(t))
             base = self.base(t)
+            start = self.start(base)
+            end = self.end(t)
+            measure = self.length(base)
             prev = self.tip()
 
         transaction.add(self.datafile, end)
@@ -793,18 +803,21 @@ class revlog(object):
                     raise RevlogError(_("consistency error adding group"))
                 measure = len(text)
             else:
-                e = (end, len(cdelta), self.base(t), link, p1, p2, node)
+                e = (end, len(cdelta), base, link, p1, p2, node)
                 self.index.append(e)
                 self.nodemap[node] = r
                 dfh.write(cdelta)
                 ifh.write(struct.pack(indexformat, *e))
 
             t, r, chain, prev = r, r + 1, node, node
-            start = self.start(self.base(t))
+            base = self.base(t)
+            start = self.start(base)
             end = self.end(t)
 
         dfh.close()
         ifh.close()
+        if node is None:
+            raise RevlogError(_("group to be added is empty"))
         return node
 
     def strip(self, rev, minlink):
@@ -828,6 +841,7 @@ class revlog(object):
 
         # then reset internal state in memory to forget those revisions
         self.cache = None
+        self.chunkcache = None
         for p in self.index[rev:]:
             del self.nodemap[p[6]]
         del self.index[rev:]
@@ -841,14 +855,29 @@ class revlog(object):
         expected = 0
         if self.count():
             expected = self.end(self.count() - 1)
+
         try:
             f = self.opener(self.datafile)
             f.seek(0, 2)
             actual = f.tell()
-            return expected - actual
+            dd = actual - expected
         except IOError, inst:
-            if inst.errno == errno.ENOENT:
-                return 0
-            raise
+            if inst.errno != errno.ENOENT:
+                raise
+            dd = 0
+
+        try:
+            f = self.opener(self.indexfile)
+            f.seek(0, 2)
+            actual = f.tell()
+            s = struct.calcsize(indexformat)
+            i = actual / s
+            di = actual - (i * s)
+        except IOError, inst:
+            if inst.errno != errno.ENOENT:
+                raise
+            di = 0
+
+        return (dd, di)
 
 

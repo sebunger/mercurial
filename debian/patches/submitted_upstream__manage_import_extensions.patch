@@ -1,8 +1,8 @@
-Index: mercurial-0.8/mercurial/commands.py
+Index: mercurial-0.8.1/mercurial/commands.py
 ===================================================================
---- mercurial-0.8.orig/mercurial/commands.py	2006-01-30 01:01:08.000000000 +0100
-+++ mercurial-0.8/mercurial/commands.py	2006-01-30 16:05:12.000000000 +0100
-@@ -455,11 +455,18 @@
+--- mercurial-0.8.1.orig/mercurial/commands.py	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/mercurial/commands.py	2006-04-10 20:29:50.000000000 +0200
+@@ -750,11 +750,18 @@
          fns.sort()
          m = max(map(len, fns))
          for f in fns:
@@ -23,7 +23,7 @@ Index: mercurial-0.8/mercurial/commands.py
  
      # global options
      if ui.verbose:
-@@ -2540,6 +2547,12 @@
+@@ -3197,6 +3204,12 @@
  
      raise UnknownCommand(cmd)
  
@@ -36,7 +36,7 @@ Index: mercurial-0.8/mercurial/commands.py
  class SignalInterrupt(Exception):
      """Exception raised on SIGTERM and SIGHUP."""
  
-@@ -2606,7 +2619,10 @@
+@@ -3263,7 +3276,10 @@
      external = []
      for x in u.extensions():
          def on_exception(exc, inst):
@@ -48,7 +48,7 @@ Index: mercurial-0.8/mercurial/commands.py
              u.warn("%s\n" % inst)
              if "--traceback" in sys.argv[1:]:
                  traceback.print_exc()
-@@ -2634,7 +2650,10 @@
+@@ -3294,7 +3310,10 @@
          cmdtable = getattr(x, 'cmdtable', {})
          for t in cmdtable:
              if t in table:

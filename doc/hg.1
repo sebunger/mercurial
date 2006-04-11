@@ -30,11 +30,29 @@ hg \- Mercurial source code management system
 
 The hg(1) command provides a command line interface to the Mercurial system\&.
 
+.SH "COMMAND ELEMENTS"
+
+.TP
+files ...
+indicates one or more filename or relative path filenames; see "FILE NAME PATTERNS" for information on pattern matching
+
+.TP
+path
+indicates a path on the local machine
+
+.TP
+revision
+indicates a changeset which can be specified as a changeset revision number, a tag, or a unique substring of the changeset hash value
+
+.TP
+repository path
+either the pathname of a local repository or the URI of a remote repository\&. There are two available URI protocols, http:// which is fast and the old\-http:// protocol which is much slower but does not require a special server on the web host\&.
+
 .SH "OPTIONS"
 
 .TP
 \-R, \-\-repository
-repository root directory
+repository root directory or symbolic path name
 
 .TP
 \-\-cwd
@@ -57,6 +75,10 @@ enable additional output
 enable debugging output
 
 .TP
+\-\-debugger
+start debugger
+
+.TP
 \-\-traceback
 print traceback on exception
 
@@ -76,28 +98,10 @@ output version information and exit
 \-h, \-\-help
 display help and exit
 
-.SH "COMMAND ELEMENTS"
-
-.TP
-files ...
-indicates one or more filename or relative path filenames; see "FILE NAME PATTERNS" for information on pattern matching
-
-.TP
-path
-indicates a path on the local machine
-
-.TP
-revision
-indicates a changeset which can be specified as a changeset revision number, a tag, or a unique substring of the changeset hash value
-
-.TP
-repository path
-either the pathname of a local repository or the URI of a remote repository\&. There are two available URI protocols, http:// which is fast and the old\-http:// protocol which is much slower but does not require a special server on the web host\&.
-
 .SH "COMMANDS"
 
 .TP
-add [options] [files ...]
+add [OPTION]... [FILE]...
 Schedule files to be version controlled and added to the repository\&.
 
 .nf
@@ -105,12 +109,17 @@ The files will be added to the repository at the next commit\&.
 .fi
 
 .nf
-If no names are given, add all files in the current directory and
-its subdirectories\&.
+If no names are given, add all files in the repository\&.
+.fi
+
+.nf
+options:
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
 .fi
 
 .TP
-addremove [options] [files ...]
+addremove [OPTION]... [FILE]...
 Add all new files and remove all missing files from the repository\&.
 
 .nf
@@ -118,8 +127,14 @@ New files are ignored if they match any of the patterns in \&.hgignore\&. As
 with add, these changes take effect at the next commit\&.
 .fi
 
+.nf
+options:
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+.fi
+
 .TP
-annotate [\-r <rev> \-u \-n \-c \-d] [files ...]
+annotate [\-r REV] [\-a] [\-u] [\-d] [\-n] [\-c] FILE...
 List changes in files, showing the revision id responsible for each line
 
 .nf
@@ -135,24 +150,19 @@ anyway, probably with undesirable results\&.
 
 .nf
 options:
-\-a, \-\-text            treat all files as text
-\-I, \-\-include <pat>   include names matching the given patterns
-\-X, \-\-exclude <pat>   exclude names matching the given patterns
-\-r, \-\-revision <rev>  annotate the specified revision
-\-u, \-\-user            list the author
-\-d, \-\-date            list the commit date
-\-c, \-\-changeset       list the changeset
-\-n, \-\-number          list the revision number (default)
+\-r, \-\-rev        annotate the specified revision
+\-a, \-\-text       treat all files as text
+\-u, \-\-user       list the author
+\-d, \-\-date       list the date
+\-n, \-\-number     list the revision number (default)
+\-c, \-\-changeset  list the changeset
+\-I, \-\-include    include names matching the given patterns
+\-X, \-\-exclude    exclude names matching the given patterns
 .fi
 
 .TP
-bundle <file> <other>
-(EXPERIMENTAL)
-
-.nf
-Generate a compressed changegroup file collecting all changesets
-not found in the other repository\&.
-.fi
+bundle FILE DEST
+Generate a compressed changegroup file collecting all changesets not found in the other repository\&.
 
 .nf
 This file can then be transferred using conventional means and
@@ -167,8 +177,13 @@ Unlike import/export, this exactly preserves all changeset
 contents including permissions, rename data, and revision history\&.
 .fi
 
+.nf
+options:
+\-f, \-\-force  run even when remote repository is unrelated
+.fi
+
 .TP
-cat [options] <file ...>
+cat [OPTION]... FILE...
 Print the specified files as they were at the given revision\&. If no revision is given then the tip is used\&.
 
 .nf
@@ -185,14 +200,14 @@ for the export command, with the following additions:
 
 .nf
 options:
-\-I, \-\-include <pat>       include names matching the given patterns
-\-X, \-\-exclude <pat>       exclude names matching the given patterns
-\-o, \-\-output <filespec>   print output to file with formatted name
-\-r, \-\-rev <rev>           print the given revision
+\-o, \-\-output   print output to file with formatted name
+\-r, \-\-rev      print the given revision
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
 .fi
 
 .TP
-clone [options] <source> [dest]
+clone [OPTION]... SOURCE [DEST]
 Create a copy of an existing repository in a new directory\&.
 
 .nf
@@ -219,38 +234,36 @@ See pull for valid source format details\&.
 
 .nf
 options:
-\-U, \-\-noupdate   do not update the new working directory
-\-\-pull           use pull protocol to copy metadata
-\-e, \-\-ssh        specify ssh command to use
-\-\-remotecmd      specify hg command to run on the remote side
+\-U, \-\-noupdate  do not update the new working directory
+\-r, \-\-rev       a changeset you would like to have after cloning
+\-\-pull          use pull protocol to copy metadata
+\-e, \-\-ssh       specify ssh command to use
+\-\-remotecmd     specify hg command to run on the remote side
 .fi
 
 .TP
-commit [options] [files...]
+commit [OPTION]... [FILE]...
 Commit changes to the given files into the repository\&.
 
 .nf
 If a list of files is omitted, all changes reported by "hg status"
-from the root of the repository will be commited\&.
+will be committed\&.
 .fi
 
 .nf
-The HGEDITOR or EDITOR environment variables are used to start an
-editor to add a commit comment\&.
+If no commit message is specified, the editor configured in your hgrc
+or in the EDITOR environment variable is started to enter a message\&.
 .fi
 
 .nf
-Options:
-.fi
-
-.nf
-\-A, \-\-addremove       run addremove during commit
-\-I, \-\-include <pat>   include names matching the given patterns
-\-X, \-\-exclude <pat>   exclude names matching the given patterns
-\-m, \-\-message <text>  use <text> as commit message
-\-l, \-\-logfile <file>  read the commit message from <file>
-\-d, \-\-date <datecode> record datecode as commit date
-\-u, \-\-user <user>     record user as commiter
+options:
+\-A, \-\-addremove  run addremove during commit
+\-m, \-\-message    use <text> as commit message
+\-l, \-\-logfile    read the commit message from <file>
+\-d, \-\-date       record datecode as commit date
+\-u, \-\-user       record user as commiter
+\-I, \-\-include    include names matching the given patterns
+\-X, \-\-exclude    exclude names matching the given patterns
 .fi
 
 .nf
@@ -258,7 +271,7 @@ aliases: ci
 .fi
 
 .TP
-copy <source ...> <dest>
+copy [OPTION]... [SOURCE]... DEST
 Mark dest as having copies of source files\&. If dest is a directory, copies are put in that directory\&. If dest is a file, there can only be one source\&.
 
 .nf
@@ -278,11 +291,11 @@ fully used by merge, nor fully reported by log\&.
 .fi
 
 .nf
-Options:
-\-A, \-\-after           record a copy that has already occurred
-\-I, \-\-include <pat>   include names matching the given patterns
-\-X, \-\-exclude <pat>   exclude names matching the given patterns
-\-f, \-\-force           forcibly copy over an existing managed file
+options:
+\-A, \-\-after    record a copy that has already occurred
+\-f, \-\-force    forcibly copy over an existing managed file
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
 .fi
 
 .nf
@@ -290,7 +303,7 @@ aliases: cp
 .fi
 
 .TP
-diff [\-a] [\-r revision] [\-r revision] [files ...]
+diff [\-a] [\-I] [\-X] [\-r REV1 [\-r REV2]] [FILE]...
 Show differences between revisions for the specified files\&.
 
 .nf
@@ -313,13 +326,16 @@ probably with undesirable results\&.
 
 .nf
 options:
-\-a, \-\-text           treat all files as text
-\-I, \-\-include <pat>  include names matching the given patterns
-\-X, \-\-exclude <pat>  exclude names matching the given patterns
+\-r, \-\-rev               revision
+\-a, \-\-text              treat all files as text
+\-p, \-\-show\-function     show which function each change is in
+\-w, \-\-ignore\-all\-space  ignore white space when comparing lines
+\-I, \-\-include           include names matching the given patterns
+\-X, \-\-exclude           exclude names matching the given patterns
 .fi
 
 .TP
-export [\-o filespec] [revision] ...
+export [\-a] [\-o OUTFILESPEC] REV...
 Print the changeset header and diffs for one or more revisions\&.
 
 .nf
@@ -350,23 +366,29 @@ probably with undesirable results\&.
 .fi
 
 .nf
+With the \-\-switch\-parent option, the diff will be against the second
+parent\&. It can be useful to review a merge\&.
+.fi
+
+.nf
 options:
-\-a, \-\-text                treat all files as text
-\-o, \-\-output <filespec>   print output to file with formatted name
+\-o, \-\-output     print output to file with formatted name
+\-a, \-\-text       treat all files as text
+\-\-switch\-parent  diff against the second parent
 .fi
 
 .TP
-forget [options] [files]
+forget [OPTION]... FILE...
 Undo an \fIhg add\fR scheduled for the next commit\&.
 
 .nf
 options:
-\-I, \-\-include <pat>  include names matching the given patterns
-\-X, \-\-exclude <pat>  exclude names matching the given patterns
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
 .fi
 
 .TP
-grep [options] pattern [files]
+grep [OPTION]... PATTERN [FILE]...
 Search revisions of files for a regular expression\&.
 
 .nf
@@ -387,18 +409,20 @@ use the \-\-all flag\&.
 .nf
 options:
 \-0, \-\-print0              end fields with NUL
-\-I, \-\-include <pat>       include names matching the given patterns
-\-X, \-\-exclude <pat>       exclude names matching the given patterns
-    \-\-all                 print all revisions that match
+\-\-all                     print all revisions that match
 \-i, \-\-ignore\-case         ignore case when matching
 \-l, \-\-files\-with\-matches  print only filenames and revs that match
 \-n, \-\-line\-number         print matching line numbers
-\-r <rev>, \-\-rev <rev>     search in given revision range
+\-r, \-\-rev                 search in given revision range
 \-u, \-\-user                print user who committed change
+\-I, \-\-include             include names matching the given
+                          patterns
+\-X, \-\-exclude             exclude names matching the given
+                          patterns
 .fi
 
 .TP
-heads
+heads [\-b] [\-r <rev>]
 Show all repository head changesets\&.
 
 .nf
@@ -406,6 +430,18 @@ Repository "heads" are changesets that don't have children
 changesets\&. They are where development generally takes place and
 are the usual targets for update and merge operations\&.
 .fi
+
+.nf
+options:
+\-b, \-\-branches  show branches
+\-\-style         display using template map file
+\-r, \-\-rev       show only heads which are descendants of rev
+\-\-template      display with template
+.fi
+
+.TP
+help [COMMAND]
+show help for a given command or all commands
 
 .TP
 identify
@@ -422,7 +458,7 @@ aliases: id
 .fi
 
 .TP
-import [\-p <n> \-b <base> \-f] <patches>
+import [\-p NUM] [\-b BASE] [\-f] PATCH...
 Import a list of patches and commit them individually\&.
 
 .nf
@@ -440,10 +476,11 @@ safety check, not to import a real mail message\&.
 
 .nf
 options:
-\-p, \-\-strip <n>   directory strip option for patch\&. This has the same
-                  meaning as the corresponding patch option
-\-b <path>         base directory to read patches from
-\-f, \-\-force       skip check for outstanding uncommitted changes
+\-p, \-\-strip  directory strip option for patch\&. This has the same
+             meaning as the corresponding patch option (default:
+             1)
+\-b, \-\-base   base path
+\-f, \-\-force  skip check for outstanding uncommitted changes
 .fi
 
 .nf
@@ -451,16 +488,29 @@ aliases: patch
 .fi
 
 .TP
-incoming [\-p] [source]
-Show new changesets found in the specified repo or the default pull repo\&. These are the changesets that would be pulled if a pull was requested\&.
+incoming [\-p] [\-n] [\-M] [\-\-bundle FILENAME] [SOURCE]
+Show new changesets found in the specified path/URL or the default pull location\&. These are the changesets that would be pulled if a pull was requested\&.
 
 .nf
-Currently only local repositories are supported\&.
+For remote repository, using \-\-bundle avoids downloading the changesets
+twice if the incoming is followed by a pull\&.
+.fi
+
+.nf
+See pull for valid source format details\&.
 .fi
 
 .nf
 options:
-\-p, \-\-patch           show patch
+\-M, \-\-no\-merges     do not show merges
+\-f, \-\-force         run even when remote repository is unrelated
+\-\-style             display using template map file
+\-n, \-\-newest\-first  show newest record first
+\-\-bundle            file to store the bundles into
+\-p, \-\-patch         show patch
+\-\-template          display with template
+\-e, \-\-ssh           specify ssh command to use
+\-\-remotecmd         specify hg command to run on the remote side
 .fi
 
 .nf
@@ -468,7 +518,7 @@ aliases: in
 .fi
 
 .TP
-init [dest]
+init [DEST]
 Initialize a new repository in the given directory\&. If the given directory does not exist, it is created\&.
 
 .nf
@@ -476,7 +526,7 @@ If no directory is given, the current directory is used\&.
 .fi
 
 .TP
-locate [options] [files]
+locate [OPTION]... [PATTERN]...
 Print all files under Mercurial control whose names match the given patterns\&.
 
 .nf
@@ -499,33 +549,37 @@ that contain white space as multiple filenames\&.
 
 .nf
 options:
-.fi
-
-.nf
-\-0, \-\-print0         end filenames with NUL, for use with xargs
-\-f, \-\-fullpath       print complete paths from the filesystem root
-\-I, \-\-include <pat>  include names matching the given patterns
-\-r, \-\-rev <rev>      search the repository as it stood at rev
-\-X, \-\-exclude <pat>  exclude names matching the given patterns
+\-r, \-\-rev       search the repository as it stood at rev
+\-0, \-\-print0    end filenames with NUL, for use with xargs
+\-f, \-\-fullpath  print complete paths from the filesystem root
+\-I, \-\-include   include names matching the given patterns
+\-X, \-\-exclude   exclude names matching the given patterns
 .fi
 
 .TP
-log [\-r revision ...] [\-p] [files]
+log [OPTION]... [FILE]
 Print the revision history of the specified files or the entire project\&.
 
 .nf
 By default this command outputs: changeset id and hash, tags,
-parents, user, date and time, and a summary for each commit\&. The
-\-v switch adds some more detail, such as changed files, manifest
-hashes or message signatures\&.
+non\-trivial parents, user, date and time, and a summary for each
+commit\&. When the \-v/\-\-verbose switch is used, the list of changed
+files and full commit message is shown\&.
 .fi
 
 .nf
 options:
-\-I, \-\-include <pat>   include names matching the given patterns
-\-X, \-\-exclude <pat>   exclude names matching the given patterns
-\-r, \-\-rev <A>         show the specified revision or range
-\-p, \-\-patch           show patch
+\-b, \-\-branches     show branches
+\-k, \-\-keyword      search for a keyword
+\-l, \-\-limit        limit number of changes displayed
+\-r, \-\-rev          show the specified revision or range
+\-M, \-\-no\-merges    do not show merges
+\-\-style            display using template map file
+\-m, \-\-only\-merges  show only merges
+\-p, \-\-patch        show patch
+\-\-template         display with template
+\-I, \-\-include      include names matching the given patterns
+\-X, \-\-exclude      exclude names matching the given patterns
 .fi
 
 .nf
@@ -533,7 +587,7 @@ aliases: history
 .fi
 
 .TP
-manifest [revision]
+manifest [REV]
 Print a list of version controlled files for the given revision\&.
 
 .nf
@@ -542,16 +596,33 @@ is given then the tip is used\&.
 .fi
 
 .TP
-outgoing [\-p] [dest]
-Show changesets not found in the specified destination repo or the default push repo\&. These are the changesets that would be pushed if a push was requested\&.
+merge [\-b TAG] [\-f] [REV]
+Merge the contents of the current working directory and the requested revision\&. Files that changed between either parent are marked as changed for the next commit and a commit must be performed before any further updates are allowed\&.
 
 .nf
-See pull for valid source format details\&.
+options:
+\-b, \-\-branch  merge with head of a specific branch
+\-f, \-\-force   force a merge with outstanding changes
+.fi
+
+.TP
+outgoing [\-M] [\-p] [\-n] [DEST]
+Show changesets not found in the specified destination repository or the default push location\&. These are the changesets that would be pushed if a push was requested\&.
+
+.nf
+See pull for valid destination format details\&.
 .fi
 
 .nf
 options:
-\-p, \-\-patch           show patch
+\-M, \-\-no\-merges     do not show merges
+\-f, \-\-force         run even when remote repository is unrelated
+\-p, \-\-patch         show patch
+\-\-style             display using template map file
+\-n, \-\-newest\-first  show newest record first
+\-\-template          display with template
+\-e, \-\-ssh           specify ssh command to use
+\-\-remotecmd         specify hg command to run on the remote side
 .fi
 
 .nf
@@ -559,8 +630,15 @@ aliases: out
 .fi
 
 .TP
-parents
+parents [\-b] [REV]
 Print the working directory's parent revisions\&.
+
+.nf
+options:
+\-b, \-\-branches  show branches
+\-\-style         display using template map file
+\-\-template      display with template
+.fi
 
 .TP
 paths [NAME]
@@ -572,7 +650,7 @@ and $HOME/\&.hgrc\&.  If run inside a repository, \&.hg/hgrc is used, too\&.
 .fi
 
 .TP
-pull <repository path>
+pull [\-u] [\-e FILE] [\-r REV]... [\-\-remotecmd FILE] [SOURCE]
 Pull changes from a remote repository to a local one\&.
 
 .nf
@@ -593,21 +671,32 @@ ssh://[user@]host[:port][/path]
 .fi
 
 .nf
-SSH requires an accessible shell account on the destination machine
-and a copy of hg in the remote path\&.  With SSH, paths are relative
-to the remote user's home directory by default; use two slashes at
-the start of a path to specify it as relative to the filesystem root\&.
+Some notes about using SSH with Mercurial:
+\- SSH requires an accessible shell account on the destination machine
+  and a copy of hg in the remote path or specified with as remotecmd\&.
+\- /path is relative to the remote user's home directory by default\&.
+  Use two slashes at the start of a path to specify an absolute path\&.
+\- Mercurial doesn't use its own compression via SSH; the right thing
+  to do is to configure it in your ~/\&.ssh/ssh_config, e\&.g\&.:
+    Host *\&.mylocalnetwork\&.example\&.com
+      Compression off
+    Host *
+      Compression on
+  Alternatively specify "ssh \-C" as your ssh command in your hgrc or
+  with the \-\-ssh command line option\&.
 .fi
 
 .nf
 options:
-\-u, \-\-update   update the working directory to tip after pull
-\-e, \-\-ssh    specify ssh command to use
-\-\-remotecmd  specify hg command to run on the remote side
+\-u, \-\-update  update the working directory to tip after pull
+\-e, \-\-ssh     specify ssh command to use
+\-f, \-\-force   run even when remote repository is unrelated
+\-r, \-\-rev     a specific revision you would like to pull
+\-\-remotecmd   specify hg command to run on the remote side
 .fi
 
 .TP
-push <destination>
+push [\-f] [\-e FILE] [\-r REV]... [\-\-remotecmd FILE] [DEST]
 Push changes from the local repository to the given destination\&.
 
 .nf
@@ -633,32 +722,16 @@ ssh://[user@]host[:port][/path]
 .fi
 
 .nf
-SSH requires an accessible shell account on the destination
-machine and a copy of hg in the remote path\&.
+Look at the help text for the pull command for important details
+about ssh:// URLs\&.
 .fi
 
 .nf
 options:
-.fi
-
-.nf
-\-f, \-\-force  force update
+\-f, \-\-force  force push
 \-e, \-\-ssh    specify ssh command to use
+\-r, \-\-rev    a specific revision you would like to push
 \-\-remotecmd  specify hg command to run on the remote side
-.fi
-
-.TP
-rawcommit [\-p \-d \-u \-F \-m \-l]
-Lowlevel commit, for use in helper scripts\&. (DEPRECATED)
-
-.nf
-This command is not intended to be used by normal users, as it is
-primarily useful for importing from other SCMs\&.
-.fi
-
-.nf
-This command is now deprecated and will be removed in a future
-release, please use debugsetparents and commit instead\&.
 .fi
 
 .TP
@@ -671,7 +744,7 @@ operation\&. It should only be necessary when Mercurial suggests it\&.
 .fi
 
 .TP
-remove [options] [files ...]
+remove [OPTION]... FILE...
 Schedule the indicated files for removal from the repository\&.
 
 .nf
@@ -682,11 +755,18 @@ directory, they will be deleted from it\&.
 .fi
 
 .nf
+options:
+\-f, \-\-force    remove file even if modified
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+.fi
+
+.nf
 aliases: rm
 .fi
 
 .TP
-rename <source ...> <dest>
+rename [OPTION]... SOURCE... DEST
 Mark dest as copies of sources; mark sources for deletion\&. If dest is a directory, copies are put in that directory\&. If dest is a file, there can only be one source\&.
 
 .nf
@@ -706,9 +786,11 @@ fully used by merge, nor fully reported by log\&.
 .fi
 
 .nf
-Options:
-\-A, \-\-after        record a rename that has already occurred
-\-f, \-\-force        forcibly copy over an existing managed file
+options:
+\-A, \-\-after    record a rename that has already occurred
+\-f, \-\-force    forcibly copy over an existing managed file
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
 .fi
 
 .nf
@@ -716,13 +798,12 @@ aliases: mv
 .fi
 
 .TP
-revert [names ...]
-The revert command has two modes of operation\&.
+revert [\-r REV] [NAME]...
+In its default mode, it reverts any uncommitted modifications made to the named files or directories\&. This restores the contents of the affected files to an unmodified state\&.
 
 .nf
-In its default mode, it reverts any uncommitted modifications made
-to the named files or directories\&.  This restores the contents of
-the affected files to an unmodified state\&.
+Modified files are saved with a \&.orig suffix before reverting\&.
+To disable these backups, use \-\-no\-backup\&.
 .fi
 
 .nf
@@ -742,19 +823,19 @@ mode of a file was changed, it is reset\&.
 .fi
 
 .nf
-If a directory is given, all files in that directory and its
-subdirectories are reverted\&.
+If names are given, all files matching the names are reverted\&.
 .fi
 
 .nf
-If no arguments are given, all files in the current directory and
-its subdirectories are reverted\&.
+If no arguments are given, all files in the repository are reverted\&.
 .fi
 
 .nf
 options:
-\-r, \-\-rev <rev>       revision to revert to
-\-n, \-\-nonrecursive    do not recurse into subdirectories
+\-r, \-\-rev      revision to revert to
+\-\-no\-backup    do not save backup copies of files
+\-I, \-\-include  include names matching given patterns
+\-X, \-\-exclude  exclude names matching given patterns
 .fi
 
 .TP
@@ -762,7 +843,7 @@ root
 Print the root directory of the current repository\&.
 
 .TP
-serve [options]
+serve [OPTION]...
 Start a local HTTP repository browser and pull server\&.
 
 .nf
@@ -772,47 +853,54 @@ stderr\&.  Use the "\-A" and "\-E" options to log to files\&.
 
 .nf
 options:
-\-A, \-\-accesslog <file>   name of access log file to write to
-\-E, \-\-errorlog <file>    name of error log file to write to
-\-a, \-\-address <addr>     address to use
-\-p, \-\-port <n>           port to use (default: 8000)
-\-n, \-\-name <name>        name to show in web pages (default: working dir)
-\-t, \-\-templatedir <path> web templates to use
-\-6, \-\-ipv6               use IPv6 in addition to IPv4
+\-A, \-\-accesslog   name of access log file to write to
+\-d, \-\-daemon      run server in background
+\-\-daemon\-pipefds  used internally by daemon mode
+\-E, \-\-errorlog    name of error log file to write to
+\-p, \-\-port        port to use (default: 8000)
+\-a, \-\-address     address to use
+\-n, \-\-name        name to show in web pages (default: working dir)
+\-\-pid\-file        name of file to write process ID to
+\-\-stdio           for remote clients
+\-t, \-\-templates   web templates to use
+\-\-style           template style to use
+\-6, \-\-ipv6        use IPv6 in addition to IPv4
 .fi
 
 .TP
-status [options] [files]
-Show changed files in the working directory\&. If no names are given, all files are shown\&. Otherwise, only files matching the given names are shown\&.
+status [OPTION]... [FILE]...
+Show changed files in the repository\&. If names are given, only files that match are shown\&.
 
 .nf
 The codes used to show the status of files are:
-.fi
-
-.nf
-M = changed
+M = modified
 A = added
 R = removed
+! = deleted, but still tracked
 ? = not tracked
+I = ignored (not shown by default)
 .fi
 
 .nf
 options:
+\-m, \-\-modified   show only modified files
+\-a, \-\-added      show only added files
+\-r, \-\-removed    show only removed files
+\-d, \-\-deleted    show only deleted (but tracked) files
+\-u, \-\-unknown    show only unknown (not tracked) files
+\-i, \-\-ignored    show ignored files
+\-n, \-\-no\-status  hide status prefix
+\-0, \-\-print0     end filenames with NUL, for use with xargs
+\-I, \-\-include    include names matching the given patterns
+\-X, \-\-exclude    exclude names matching the given patterns
 .fi
 
 .nf
-\-m, \-\-modified       show only modified files
-\-a, \-\-added          show only added files
-\-r, \-\-removed        show only removed files
-\-u, \-\-unknown        show only unknown (not tracked) files
-\-n, \-\-no\-status      hide status prefix
-\-0, \-\-print0         end filenames with NUL, for use with xargs
-\-I, \-\-include <pat>  include names matching the given patterns
-\-X, \-\-exclude <pat>  exclude names matching the given patterns
+aliases: st
 .fi
 
 .TP
-tag [\-l \-m <text> \-d <datecode> \-u <user>] <name> [revision]
+tag [\-l] [\-m TEXT] [\-d DATE] [\-u USER] [\-r REV] NAME
 Name a particular revision using <name>\&.
 
 .nf
@@ -829,21 +917,17 @@ If no revision is given, the tip is used\&.
 To facilitate version control, distribution, and merging of tags,
 they are stored as a file named "\&.hgtags" which is managed
 similarly to other project files and can be hand\-edited if
-necessary\&.
+necessary\&.  The file '\&.hg/localtags' is used for local tags (not
+shared among repositories)\&.
 .fi
 
 .nf
 options:
-\-l, \-\-local           make the tag local
-\-m, \-\-message <text>  message for tag commit log entry
-\-d, \-\-date <datecode> datecode for commit
-\-u, \-\-user <user>     user for commit
-.fi
-
-.nf
-Note: Local tags are not version\-controlled or distributed and are
-stored in the \&.hg/localtags file\&. If there exists a local tag and
-a public tag with the same name, local tag is used\&.
+\-l, \-\-local    make the tag local
+\-m, \-\-message  message for tag commit log entry
+\-d, \-\-date     record datecode as commit date
+\-u, \-\-user     record user as commiter
+\-r, \-\-rev      revision to tag
 .fi
 
 .TP
@@ -855,26 +939,29 @@ This lists both regular and local tags\&.
 .fi
 
 .TP
-tip
+tip [\-b] [\-p]
 Show the tip revision\&.
 
+.nf
+options:
+\-b, \-\-branches  show branches
+\-\-style         display using template map file
+\-p, \-\-patch     show patch
+\-\-template      display with template
+.fi
+
 .TP
-unbundle <file>
-(EXPERIMENTAL)
+unbundle [\-u] FILE
+Apply a compressed changegroup file generated by the bundle command\&.
 
 .nf
-Apply a compressed changegroup file generated by the bundle
-command\&.
+options:
+\-u, \-\-update  update the working directory to tip after unbundle
 .fi
 
 .TP
 undo
-Undo the last commit or pull transaction\&.
-
-.nf
-Roll back the last pull or commit transaction on the
-repository, restoring the project to its earlier state\&.
-.fi
+Roll back the last pull or commit transaction on the repository, restoring the project to its earlier state\&.
 
 .nf
 This command should be used with care\&. There is only one level of
@@ -884,12 +971,28 @@ undo and there is no redo\&.
 .nf
 This command is not intended for use on public repositories\&. Once
 a change is visible for pull by other users, undoing it locally is
-ineffective\&.
+ineffective\&. Furthemore a race is possible with readers of the
+repository, for example an ongoing pull from the repository will
+fail and rollback\&.
 .fi
 
 .TP
-update [\-m \-C] [revision]
+update [\-b TAG] [\-m] [\-C] [\-f] [REV]
 Update the working directory to the specified revision\&.
+
+.nf
+If there are no outstanding changes in the working directory and
+there is a linear relationship between the current version and the
+requested version, the result is the requested version\&.
+.fi
+
+.nf
+Otherwise the result is a merge between the contents of the
+current working directory and the requested version\&. Files that
+changed between either parent are marked as changed for the next
+commit and a commit must be performed before any further updates
+are allowed\&.
+.fi
 
 .nf
 By default, update will refuse to run if doing so would require
@@ -897,17 +1000,11 @@ merging or discarding local changes\&.
 .fi
 
 .nf
-With the \-m option, a merge will be performed\&.
-.fi
-
-.nf
-With the \-C option, local changes will be lost\&.
-.fi
-
-.nf
 options:
-\-m, \-\-merge       allow merging of branches
-\-C, \-\-clean       overwrite locally modified files
+\-b, \-\-branch  checkout the head of a specific branch
+\-m, \-\-merge   allow merging of branches
+\-C, \-\-clean   overwrite locally modified files
+\-f, \-\-force   force a merge with outstanding changes
 .fi
 
 .nf
@@ -924,6 +1021,10 @@ integrity, validating the hashes and checksums of each entry in
 the changelog, manifest, and tracked files, as well as the
 integrity of their crosslinks and indices\&.
 .fi
+
+.TP
+version
+output version and copyright information
 
 .SH "FILE NAME PATTERNS"
 
@@ -1081,6 +1182,16 @@ by Mercurial with some sensible defaults\&.
 .fi
 
 .TP
+HGRCPATH
+A list of files or directories to search for hgrc files\&. Item separator is ":" on Unix, ";" on Windows\&. If HGRCPATH is not set, platform default search path is used\&. If empty, only \&.hg/hgrc of current repository is read\&.
+
+.nf
+For each element in path, if a directory, all entries in directory
+ending with "\&.rc" are added to path\&.  Else, element itself is
+added to path\&.
+.fi
+
+.TP
 HGUSER
 This is the string used for the author of a commit\&.
 
@@ -1137,9 +1248,6 @@ Written by Matt Mackall <mpm@selenic\&.com>
 
 
 Main Web Site: \fIhttp://selenic.com/mercurial\fR
-
-
-Wiki site: \fIhttp://www.serpentine.com/mercurial\fR
 
 
 Source code repository: \fIhttp://selenic.com/hg\fR

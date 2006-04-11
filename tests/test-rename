@@ -8,7 +8,7 @@ echo d1/a1 > d1/d11/a1
 echo d1/b > d1/b
 echo d2/b > d2/b
 hg add d1/a d1/b d1/ba d1/d11/a1 d2/b
-hg commit -m "1" -d "0 0"
+hg commit -m "1" -d "1000000 0"
 
 echo "# rename a single file"
 hg rename d1/d11/a1 d2/c
@@ -158,3 +158,54 @@ hg remove d1/b
 hg rename d1 d3
 hg status
 hg update -C
+
+echo "# transitive rename"
+hg rename d1/b d1/bb
+hg rename d1/bb d1/bc
+hg status
+hg update -C
+
+echo "# transitive rename --after"
+hg rename d1/b d1/bb
+mv d1/bb d1/bc
+hg rename --after d1/bb d1/bc
+hg status
+hg update -C
+
+echo "# idempotent renames (d1/b -> d1/bb followed by d1/bb -> d1/b)"
+hg rename d1/b d1/bb
+echo "some stuff added to d1/bb" >> d1/bb
+hg rename d1/bb d1/b
+hg status
+hg debugstate | grep copy
+hg update -C
+
+echo "# check illegal path components"
+
+hg rename d1/d11/a1 .hg/foo
+hg status
+hg rename d1/d11/a1 ../foo
+hg status
+
+mv d1/d11/a1 .hg/foo
+hg rename --after d1/d11/a1 .hg/foo
+hg status
+hg update -C
+rm .hg/foo
+
+hg rename d1/d11/a1 .hg
+hg status
+hg rename d1/d11/a1 ..
+hg status
+
+mv d1/d11/a1 .hg
+hg rename --after d1/d11/a1 .hg
+hg status
+hg update -C
+rm .hg/a1
+
+(cd d1/d11; hg rename ../../d2/b ../../.hg/foo)
+hg status
+(cd d1/d11; hg rename ../../d2/b ../../../foo)
+hg status
+

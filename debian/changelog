@@ -1,3 +1,38 @@
+mercurial (0.8.1-2) unstable; urgency=low
+
+  * Fix new tag syntax for hgk. Thanks Darren Salt (Closes: #361897)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 11 Apr 2006 13:25:04 +0200
+
+mercurial (0.8.1-1) unstable; urgency=low
+
+  * New upstream release
+    Major changes from 0.8 to 0.8.1:
+    - new extensions:
+      mq (manage a queue of patches, like quilt only better) (Closes: #343824)
+      email (send changes as series of email patches)
+    - new command: merge (replaces "update -m")
+    - improved commands: log (--limit option added), pull/push ("-r" works
+      on specific revisions), revert (rewritten, much better)
+    - comprehensive hook support
+    - output templating added, supporting e.g. GNU changelog style
+    - Windows, Mac OS X: prebuilt binary packages, better support
+    - many reliability, performance, and memory usage improvements
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Mon, 10 Apr 2006 22:09:16 +0200
+
+mercurial (0.8-3) unstable; urgency=low
+
+  * Fix typo in long description
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue,  4 Apr 2006 03:30:22 +0200
+
+mercurial (0.8-2) unstable; urgency=low
+
+  * Add documentation about extensions packaged for Debian.
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 31 Jan 2006 11:14:52 +0100
+
 mercurial (0.8-1) unstable; urgency=low
 
   * New upstream release

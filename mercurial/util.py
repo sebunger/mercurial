@@ -155,6 +155,13 @@ def globre(pat, head='^', tail='$'):
             group = False
         elif c == ',' and group:
             res += '|'
+        elif c == '\\':
+            p = peek()
+            if p:
+                i += 1
+                res += re.escape(p)
+            else:
+                res += re.escape(c)
         else:
             res += re.escape(c)
     return head + res + tail
@@ -179,13 +186,15 @@ def canonpath(root, cwd, myname):
     if root == os.sep:
         rootsep = os.sep
     else:
-    	rootsep = root + os.sep
+        rootsep = root + os.sep
     name = myname
     if not name.startswith(os.sep):
         name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
     if name.startswith(rootsep):
-        return pconvert(name[len(rootsep):])
+        name = name[len(rootsep):]
+        audit_path(name)
+        return pconvert(name)
     elif name == root:
         return ''
     else:
@@ -315,15 +324,42 @@ def _matcher(canonroot, cwd, names, inc, exc, head, dflt_pat, src):
                          (files and filematch(fn)))),
             (inc or exc or (pats and pats != [('glob', '**')])) and True)
 
-def system(cmd, errprefix=None):
-    """execute a shell command that must succeed"""
-    rc = os.system(cmd)
-    if rc:
-        errmsg = "%s %s" % (os.path.basename(cmd.split(None, 1)[0]),
-                            explain_exit(rc)[0])
-        if errprefix:
-            errmsg = "%s: %s" % (errprefix, errmsg)
-        raise Abort(errmsg)
+def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
+    '''enhanced shell command execution.
+    run with environment maybe modified, maybe in different dir.
+
+    if command fails and onerr is None, return status.  if ui object,
+    print error message and return status, else raise onerr object as
+    exception.'''
+    oldenv = {}
+    for k in environ:
+        oldenv[k] = os.environ.get(k)
+    if cwd is not None:
+        oldcwd = os.getcwd()
+    try:
+        for k, v in environ.iteritems():
+            os.environ[k] = str(v)
+        if cwd is not None and oldcwd != cwd:
+            os.chdir(cwd)
+        rc = os.system(cmd)
+        if rc and onerr:
+            errmsg = '%s %s' % (os.path.basename(cmd.split(None, 1)[0]),
+                                explain_exit(rc)[0])
+            if errprefix:
+                errmsg = '%s: %s' % (errprefix, errmsg)
+            try:
+                onerr.warn(errmsg + '\n')
+            except AttributeError:
+                raise onerr(errmsg)
+        return rc
+    finally:
+        for k, v in oldenv.iteritems():
+            if v is None:
+                del os.environ[k]
+            else:
+                os.environ[k] = v
+        if cwd is not None and oldcwd != cwd:
+            os.chdir(oldcwd)
 
 def rename(src, dst):
     """forcibly rename a file"""
@@ -357,13 +393,20 @@ def copyfiles(src, dst, hardlink=None):
         if hardlink:
             try:
                 os_link(src, dst)
-            except:
+            except (IOError, OSError):
                 hardlink = False
                 shutil.copy(src, dst)
         else:
             shutil.copy(src, dst)
 
-def opener(base):
+def audit_path(path):
+    """Abort if path contains dangerous components"""
+    parts = os.path.normcase(path).split(os.sep)
+    if (os.path.splitdrive(path)[0] or parts[0] in ('.hg', '')
+        or os.pardir in parts):
+        raise Abort(_("path contains illegal component: %s\n") % path)
+
+def opener(base, audit=True):
     """
     return a function that opens files relative to base
 
@@ -371,6 +414,7 @@ def opener(base):
     remote file access from higher level code.
     """
     p = base
+    audit_p = audit
 
     def mktempcopy(name):
         d, fn = os.path.split(name)
@@ -401,6 +445,8 @@ def opener(base):
             self.close()
 
     def o(path, mode="r", text=False, atomic=False):
+        if audit_p:
+            audit_path(path)
         f = os.path.join(p, path)
 
         if not text:
@@ -469,17 +515,18 @@ if os.name == 'nt':
 
     sys.stdout = winstdout(sys.stdout)
 
-    try:
-        import win32api, win32process
-        filename = win32process.GetModuleFileNameEx(win32api.GetCurrentProcess(), 0)
-        systemrc = os.path.join(os.path.dirname(filename), 'mercurial.ini')
+    def os_rcpath():
+        '''return default os-specific hgrc search path'''
+        try:
+            import win32api, win32process
+            proc = win32api.GetCurrentProcess()
+            filename = win32process.GetModuleFileNameEx(proc, 0)
+            systemrc = os.path.join(os.path.dirname(filename), 'mercurial.ini')
+        except ImportError:
+            systemrc = r'c:\mercurial\mercurial.ini'
 
-    except ImportError:
-        systemrc = r'c:\mercurial\mercurial.ini'
-        pass
-
-    rcpath = (systemrc,
-              os.path.join(os.path.expanduser('~'), 'mercurial.ini'))
+        return [systemrc,
+                os.path.join(os.path.expanduser('~'), 'mercurial.ini')]
 
     def parse_patch_output(output_line):
         """parses the output produced by patch and returns the file name"""
@@ -488,9 +535,10 @@ if os.name == 'nt':
             pf = pf[1:-1] # Remove the quotes
         return pf
 
-    try: # ActivePython can create hard links using win32file module
-        import win32file
+    try: # Mark Hammond's win32all package allows better functionality on Windows
+        import win32api, win32con, win32file, pywintypes
 
+        # create hard links using win32file module
         def os_link(src, dst): # NB will only succeed on NTFS
             win32file.CreateHardLink(dst, src)
 
@@ -506,8 +554,24 @@ if os.name == 'nt':
             except:
                 return os.stat(pathname).st_nlink
 
+        def testpid(pid):
+            '''return True if pid is still running or unable to
+            determine, False otherwise'''
+            try:
+                import win32process, winerror
+                handle = win32api.OpenProcess(
+                    win32con.PROCESS_QUERY_INFORMATION, False, pid)
+                if handle:
+                    status = win32process.GetExitCodeProcess(handle)
+                    return status == win32con.STILL_ACTIVE
+            except pywintypes.error, details:
+                return details[0] != winerror.ERROR_INVALID_PARAMETER
+            return True
+
     except ImportError:
-        pass
+        def testpid(pid):
+            '''return False if pid dead, True if running or not known'''
+            return True
 
     def is_exec(f, last):
         return last
@@ -544,12 +608,17 @@ else:
                         if f.endswith(".rc")])
         except OSError, inst: pass
         return rcs
-    rcpath = []
-    if len(sys.argv) > 0:
-        rcpath.extend(rcfiles(os.path.dirname(sys.argv[0]) + '/../etc/mercurial'))
-    rcpath.extend(rcfiles('/etc/mercurial'))
-    rcpath.append(os.path.expanduser('~/.hgrc'))
-    rcpath = [os.path.normpath(f) for f in rcpath]
+
+    def os_rcpath():
+        '''return default os-specific hgrc search path'''
+        path = []
+        if len(sys.argv) > 0:
+            path.extend(rcfiles(os.path.dirname(sys.argv[0]) +
+                                  '/../etc/mercurial'))
+        path.extend(rcfiles('/etc/mercurial'))
+        path.append(os.path.expanduser('~/.hgrc'))
+        path = [os.path.normpath(f) for f in path]
+        return path
 
     def parse_patch_output(output_line):
         """parses the output produced by patch and returns the file name"""
@@ -603,6 +672,14 @@ else:
                 return _readlock_file(pathname)
             else:
                 raise
+
+    def testpid(pid):
+        '''return False if pid dead, True if running or not sure'''
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError, inst:
+            return inst.errno != errno.ESRCH
 
     def explain_exit(code):
         """return a 2-tuple (desc, code) describing a process's status"""
@@ -681,12 +758,60 @@ def makedate():
         tz = time.timezone
     return time.mktime(lt), tz
 
-def datestr(date=None, format='%c'):
+def datestr(date=None, format='%a %b %d %H:%M:%S %Y', timezone=True):
     """represent a (unixtime, offset) tuple as a localized time.
     unixtime is seconds since the epoch, and offset is the time zone's
-    number of seconds away from UTC."""
+    number of seconds away from UTC. if timezone is false, do not
+    append time zone to string."""
     t, tz = date or makedate()
-    return ("%s %+03d%02d" %
-            (time.strftime(format, time.gmtime(float(t) - tz)),
-             -tz / 3600,
-             ((-tz % 3600) / 60)))
+    s = time.strftime(format, time.gmtime(float(t) - tz))
+    if timezone:
+        s += " %+03d%02d" % (-tz / 3600, ((-tz % 3600) / 60))
+    return s
+
+def shortuser(user):
+    """Return a short representation of a user name or email address."""
+    f = user.find('@')
+    if f >= 0:
+        user = user[:f]
+    f = user.find('<')
+    if f >= 0:
+        user = user[f+1:]
+    return user
+
+def walkrepos(path):
+    '''yield every hg repository under path, recursively.'''
+    def errhandler(err):
+        if err.filename == path:
+            raise err
+
+    for root, dirs, files in os.walk(path, onerror=errhandler):
+        for d in dirs:
+            if d == '.hg':
+                yield root
+                dirs[:] = []
+                break
+
+_rcpath = None
+
+def rcpath():
+    '''return hgrc search path. if env var HGRCPATH is set, use it.
+    for each item in path, if directory, use files ending in .rc,
+    else use item.
+    make HGRCPATH empty to only look in .hg/hgrc of current repo.
+    if no HGRCPATH, use default os-specific path.'''
+    global _rcpath
+    if _rcpath is None:
+        if 'HGRCPATH' in os.environ:
+            _rcpath = []
+            for p in os.environ['HGRCPATH'].split(os.pathsep):
+                if not p: continue
+                if os.path.isdir(p):
+                    for f in os.listdir(p):
+                        if f.endswith('.rc'):
+                            _rcpath.append(os.path.join(p, f))
+                else:
+                    _rcpath.append(p)
+        else:
+            _rcpath = os_rcpath()
+    return _rcpath

@@ -2,6 +2,8 @@
 A b
 R a
 reverting...
+undeleting a
+forgetting b
 %%% should show b unknown and a back to normal
 ? b
 merging a
@@ -11,6 +13,8 @@ foo-b
 A b
 R a
 reverting...
+undeleting a
+forgetting b
 %%% should show b unknown and a marked modified (merged)
 ? b
 %%% should show foo-b

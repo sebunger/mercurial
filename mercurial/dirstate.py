@@ -34,7 +34,11 @@ class dirstate(object):
         return cwd[len(self.root) + 1:]
 
     def hgignore(self):
-        '''return the contents of .hgignore as a list of patterns.
+        '''return the contents of .hgignore files as a list of patterns.
+
+        the files parsed for patterns include:
+        .hgignore in the repository root
+        any additional files specified in the [ui] section of ~/.hgrc
 
         trailing white space is dropped.
         the escape character is backslash.
@@ -58,39 +62,55 @@ class dirstate(object):
                     elif line[i] == '#': break
                 line = line[:i].rstrip()
                 if line: yield line
-        pats = []
-        try:
-            fp = open(self.wjoin('.hgignore'))
-            syntax = 'relre:'
-            for line in parselines(fp):
-                if line.startswith('syntax:'):
-                    s = line[7:].strip()
-                    try:
-                        syntax = syntaxes[s]
-                    except KeyError:
-                        self.ui.warn(_(".hgignore: ignoring invalid "
-                                       "syntax '%s'\n") % s)
-                    continue
-                pat = syntax + line
-                for s in syntaxes.values():
-                    if line.startswith(s):
-                        pat = line
-                        break
-                pats.append(pat)
-        except IOError: pass
+        repoignore = self.wjoin('.hgignore')
+        files = [repoignore]
+        files.extend(self.ui.hgignorefiles())
+        pats = {}
+        for f in files:
+            try:
+                pats[f] = []
+                fp = open(f)
+                syntax = 'relre:'
+                for line in parselines(fp):
+                    if line.startswith('syntax:'):
+                        s = line[7:].strip()
+                        try:
+                            syntax = syntaxes[s]
+                        except KeyError:
+                            self.ui.warn(_("%s: ignoring invalid "
+                                           "syntax '%s'\n") % (f, s))
+                        continue
+                    pat = syntax + line
+                    for s in syntaxes.values():
+                        if line.startswith(s):
+                            pat = line
+                            break
+                    pats[f].append(pat)
+            except IOError, inst:
+                if f != repoignore:
+                    self.ui.warn(_("skipping unreadable ignore file"
+                                   " '%s': %s\n") % (f, inst.strerror))
         return pats
 
     def ignore(self, fn):
-        '''default match function used by dirstate and localrepository.
-        this honours the .hgignore file, and nothing more.'''
+        '''default match function used by dirstate and
+        localrepository.  this honours the repository .hgignore file
+        and any other files specified in the [ui] section of .hgrc.'''
         if self.blockignore:
             return False
         if not self.ignorefunc:
             ignore = self.hgignore()
-            if ignore:
-                files, self.ignorefunc, anypats = util.matcher(self.root,
-                                                               inc=ignore,
-                                                               src='.hgignore')
+            allpats = []
+            [allpats.extend(patlist) for patlist in ignore.values()]
+            if allpats:
+                try:
+                    files, self.ignorefunc, anypats = (
+                        util.matcher(self.root, inc=allpats, src='.hgignore'))
+                except util.Abort:
+                    # Re-raise an exception where the src is the right file
+                    for f, patlist in ignore.items():
+                        files, self.ignorefunc, anypats = (
+                            util.matcher(self.root, inc=patlist, src=f))
             else:
                 self.ignorefunc = util.never
         return self.ignorefunc(fn)
@@ -197,9 +217,24 @@ class dirstate(object):
 
     def clear(self):
         self.map = {}
+        self.copies = {}
+        self.markdirty()
+
+    def rebuild(self, parent, files):
+        self.clear()
+        umask = os.umask(0)
+        os.umask(umask)
+        for f, mode in files:
+            if mode:
+                self.map[f] = ('n', ~umask, -1, 0)
+            else:
+                self.map[f] = ('n', ~umask & 0666, -1, 0)
+        self.pl = (parent, nullid)
         self.markdirty()
 
     def write(self):
+        if not self.dirty:
+            return
         st = self.opener("dirstate", "w", atomic=True)
         st.write("".join(self.pl))
         for f, e in self.map.items():
@@ -259,7 +294,8 @@ class dirstate(object):
                 kind))
         return False
 
-    def statwalk(self, files=None, match=util.always, dc=None):
+    def statwalk(self, files=None, match=util.always, dc=None, ignored=False,
+                 badmatch=None):
         self.lazyread()
 
         # walk all files by default
@@ -270,17 +306,18 @@ class dirstate(object):
         elif not dc:
             dc = self.filterfiles(files)
 
-        def statmatch(file, stat):
-            file = util.pconvert(file)
-            if file not in dc and self.ignore(file):
+        def statmatch(file_, stat):
+            file_ = util.pconvert(file_)
+            if not ignored and file_ not in dc and self.ignore(file_):
                 return False
-            return match(file)
+            return match(file_)
 
-        return self.walkhelper(files=files, statmatch=statmatch, dc=dc)
+        return self.walkhelper(files=files, statmatch=statmatch, dc=dc,
+                               badmatch=badmatch)
 
-    def walk(self, files=None, match=util.always, dc=None):
+    def walk(self, files=None, match=util.always, dc=None, badmatch=None):
         # filter out the stat
-        for src, f, st in self.statwalk(files, match, dc):
+        for src, f, st in self.statwalk(files, match, dc, badmatch=badmatch):
             yield src, f
 
     # walk recursively through the directory tree, finding all files
@@ -295,7 +332,7 @@ class dirstate(object):
     # dc is an optional arg for the current dirstate.  dc is not modified
     # directly by this function, but might be modified by your statmatch call.
     #
-    def walkhelper(self, files, statmatch, dc):
+    def walkhelper(self, files, statmatch, dc, badmatch=None):
         # recursion free walker, faster than os.walk.
         def findfiles(s):
             work = [s]
@@ -344,15 +381,18 @@ class dirstate(object):
                         found = True
                         break
                 if not found:
-                    self.ui.warn('%s: %s\n' % (
-                                 util.pathto(self.getcwd(), ff),
-                                 inst.strerror))
+                    if inst.errno != errno.ENOENT or not badmatch:
+                        self.ui.warn('%s: %s\n' % (
+                            util.pathto(self.getcwd(), ff),
+                            inst.strerror))
+                    elif badmatch and badmatch(ff) and statmatch(ff, None):
+                        yield 'b', ff, None
                 continue
             if stat.S_ISDIR(st.st_mode):
                 cmp1 = (lambda x, y: cmp(x[1], y[1]))
-                sorted = [ x for x in findfiles(f) ]
-                sorted.sort(cmp1)
-                for e in sorted:
+                sorted_ = [ x for x in findfiles(f) ]
+                sorted_.sort(cmp1)
+                for e in sorted_:
                     yield e
             else:
                 ff = util.normpath(ff)
@@ -374,15 +414,18 @@ class dirstate(object):
             if not seen(k) and (statmatch(k, None)):
                 yield 'm', k, None
 
-    def changes(self, files=None, match=util.always):
-        lookup, modified, added, unknown = [], [], [], []
+    def changes(self, files=None, match=util.always, show_ignored=None):
+        lookup, modified, added, unknown, ignored = [], [], [], [], []
         removed, deleted = [], []
 
-        for src, fn, st in self.statwalk(files, match):
+        for src, fn, st in self.statwalk(files, match, ignored=show_ignored):
             try:
-                type, mode, size, time = self[fn]
+                type_, mode, size, time = self[fn]
             except KeyError:
-                unknown.append(fn)
+                if show_ignored and self.ignore(fn):
+                    ignored.append(fn)
+                else:
+                    unknown.append(fn)
                 continue
             if src == 'm':
                 nonexistent = True
@@ -399,22 +442,23 @@ class dirstate(object):
                         nonexistent = False
                 # XXX: what to do with file no longer present in the fs
                 # who are not removed in the dirstate ?
-                if nonexistent and type in "nm":
+                if nonexistent and type_ in "nm":
                     deleted.append(fn)
                     continue
             # check the common case first
-            if type == 'n':
+            if type_ == 'n':
                 if not st:
                     st = os.stat(fn)
-                if size != st.st_size or (mode ^ st.st_mode) & 0100:
+                if size >= 0 and (size != st.st_size
+                                  or (mode ^ st.st_mode) & 0100):
                     modified.append(fn)
                 elif time != st.st_mtime:
                     lookup.append(fn)
-            elif type == 'm':
+            elif type_ == 'm':
                 modified.append(fn)
-            elif type == 'a':
+            elif type_ == 'a':
                 added.append(fn)
-            elif type == 'r':
+            elif type_ == 'r':
                 removed.append(fn)
 
-        return (lookup, modified, added, removed, deleted, unknown)
+        return (lookup, modified, added, removed, deleted, unknown, ignored)

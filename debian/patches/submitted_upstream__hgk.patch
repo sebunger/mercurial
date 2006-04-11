@@ -1,0 +1,13 @@
+Index: mercurial-0.8.1/contrib/hgk
+===================================================================
+--- mercurial-0.8.1.orig/contrib/hgk	2006-04-11 13:26:45.000000000 +0200
++++ mercurial-0.8.1/contrib/hgk	2006-04-11 13:28:19.000000000 +0200
+@@ -3448,7 +3448,7 @@
+ 	return
+     }
+     if {[catch {
+-	set out [exec hg tag $tag $id]
++	set out [exec hg tag -r $tag $id]
+     } err]} {
+ 	error_popup "Error creating tag: $err"
+ 	return

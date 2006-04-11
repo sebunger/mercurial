@@ -28,14 +28,9 @@ common-install-impl::
 	#
 	# Install system-wide extensions
 	install -d $(DEB_DESTDIR)/etc/mercurial/hgrc.d/
-	echo "# mercurial configuration file for upstream hg extensions" \
-		> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
-	echo "# See hgrc(5) for more information" \
-		>> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
-	echo "[extensions]" \
-		>> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
-	echo "hgext/hgk=" \
-		>> $(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
+	install -m 644 \
+		debian/hgext.rc \
+		$(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
 	# Install hgk subscript
 	install -d $(DEB_DESTDIR)/usr/share/mercurial
 	install -m 0755 contrib/hgk $(DEB_DESTDIR)/usr/share/mercurial/hgk
@@ -45,15 +40,17 @@ common-install-impl::
 	install -m 0644 \
 		contrib/mercurial.el \
 		$(DEB_DESTDIR)/usr/share/emacs/site-lisp/
-	#
+	# Move webstuff in /usr/share
+	mv $(DEB_DESTDIR)/usr/lib/python*/site-packages/mercurial/templates \
+		$(DEB_DESTDIR)/usr/share/mercurial/
+	ln -fs ../../../../share/mercurial/templates \
+		$(DEB_DESTDIR)/usr/lib/python*/site-packages/mercurial/
 
 build: build-doc
 update-config:: link_hgit
 
 link_hgit:
-	mkdir -p hgext
 	ln -fs ../contrib/hgk.py hgext/hgk.py
-	ln -fs ../contrib/hbisect.py hgext/hbisect.py
 
 build-doc:
 	$(MAKE) -C doc man
@@ -63,5 +60,3 @@ clean::
 	cd doc && $(RM) *.xml *.1 *.html
 	$(RM) -v mercurial/*.pyc
 	$(RM) -v hgext/hgk.py
-	$(RM) -v hgext/hbisect.py
-	-[ -d hgext ] && rmdir hgext

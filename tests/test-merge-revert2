@@ -7,16 +7,16 @@ echo "added file1" > file1
 echo "another line of text" >> file1
 echo "added file2" > file2
 hg add file1 file2
-hg commit -m "added file1 and file2" -d "0 0" -u user
+hg commit -m "added file1 and file2" -d "1000000 0" -u user
 echo "changed file1" >> file1
-hg commit -m "changed file1" -d "0 0" -u user
+hg commit -m "changed file1" -d "1000000 0" -u user
 hg -q log
 hg id
 hg update -C 0
 hg id
 echo "changed file1" >> file1
 hg id
-hg revert
+hg revert --no-backup
 hg diff
 hg status
 hg id
@@ -31,11 +31,11 @@ hg diff | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" -e "s/\(<<<<<<<\) .*/\1/" \
               -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/" -e "s/\(>>>>>>>\) .*/\1/"
 hg status
 hg id
-hg revert
+hg revert --no-backup
 hg diff
 hg status
 hg id
-hg revert -r tip
+hg revert -r tip --no-backup
 hg diff
 hg status
 hg id

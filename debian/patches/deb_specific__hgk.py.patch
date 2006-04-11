@@ -1,8 +1,8 @@
-Index: mercurial-0.7+20060110+0d36e3d7e2ea/contrib/hgk.py
+Index: mercurial-0.8.1/contrib/hgk.py
 ===================================================================
---- mercurial-0.7+20060110+0d36e3d7e2ea.orig/contrib/hgk.py	2005-09-29 10:51:11.000000000 +0200
-+++ mercurial-0.7+20060110+0d36e3d7e2ea/contrib/hgk.py	2006-01-10 21:42:05.000000000 +0100
-@@ -316,7 +314,7 @@
+--- mercurial-0.8.1.orig/contrib/hgk.py	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/contrib/hgk.py	2006-04-10 20:26:35.000000000 +0200
+@@ -314,7 +314,7 @@
  def view(ui, repo, *etc):
      "start interactive history viewer"
      os.chdir(repo.root)

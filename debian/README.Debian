@@ -9,15 +9,50 @@ The URL is : http://www.serpentine.com/mercurial/
 Some parts of the Wiki will be added in the package (for people not online)
 as soon as mercurial documentation stabilises enough.
 
-Extensions
-**********
+Extensions provided in this package
+***********************************
 
-hgit
+hgk
+---
+add the 'view' command. It shows the repository history graphically.
+
+hbisect
+-------
+add the 'bisect' command to allow dichotomic search in the DAG of changesets
+
+gpg
+---
+add the 'sign' and 'sigcheck' commands to manage signatures
+
+win32text
+---------
+add filters so automatically convert end-of-line between Windows and Unix
+world at check-in and check-out time.
+
+mq
+--
+add several commands to manage a queue of patches as the 'quilt' system on top
+of a mercurial repository.
+
+patchbomb
+---------
+send changes as series of email patches
+
+Extensions can be enabled system-wide, per-user and/or per repository (see
+hgrc(5) for more information). 
+  By default, this debian package enables the 'hgk', 'hbisect', 'gpg',
+'mq' and 'patchbomb' extensions (they only add new commands), but not
+the 'win32text' (some projects can be ennoyed with it).
+The system administrator can modify this by editing
+/etc/mercurial/hgrc.d/hgext.rc
+
+
+Other extensions
+****************
+hgct
 ----
-The hgit extension is enabled for all users in this package. It is harmless.
-However, if you want to disable it, remove or rename hgit.rc in
-/etc/mercurial/hgrc.d:
-mv /etc/mercurial/hgrc.d/hgit.rc /etc/mercurial/hgrc.d/hgit.norc
+add the 'ct' command that is a graphical interface for commiting changes.
+hgct is available in the 'commit-tool' debian package.
 
 Very old users of mercurial
 ***************************

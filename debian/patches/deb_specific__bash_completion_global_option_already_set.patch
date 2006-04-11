@@ -1,0 +1,13 @@
+Index: mercurial-0.8.1/contrib/bash_completion
+===================================================================
+--- mercurial-0.8.1.orig/contrib/bash_completion	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/contrib/bash_completion	2006-04-10 20:29:17.000000000 +0200
+@@ -49,8 +49,6 @@
+ #                0 otherwise
+ # 
+ 
+-shopt -s extglob
+-
+ _hg_commands()
+ {
+     local commands
