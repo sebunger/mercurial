@@ -1,3 +1,9 @@
+mercurial (0.8.1-3) unstable; urgency=low
+
+  * Really fix #361897 (Thanks Darren Salt again)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed, 12 Apr 2006 20:33:45 +0200
+
 mercurial (0.8.1-2) unstable; urgency=low
 
   * Fix new tag syntax for hgk. Thanks Darren Salt (Closes: #361897)
