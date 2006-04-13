@@ -1,3 +1,10 @@
+mercurial (0.8.1-4) unstable; urgency=low
+
+  * directory doesn't get replaced by symlink (Closes: #362487)
+    and dpkg does not say anything ! Thanks Norbert Tretkowski
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Fri, 14 Apr 2006 00:38:10 +0200
+
 mercurial (0.8.1-3) unstable; urgency=low
 
   * Really fix #361897 (Thanks Darren Salt again)
