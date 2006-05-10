@@ -1,3 +1,64 @@
+mercurial (0.9-1) unstable; urgency=low
+
+  * New upstream release
+    Major changes between Mercurial 0.8.1 and 0.9:
+     - The repository file format has been improved.
+       - This has resulted in an average 40% reduction in disk space usage.
+       - The new format (called RevlogNG) is now the default.
+       - Mercurial works perfectly with both the old and new repository
+         file formats. It can transfer changes transparently between
+         repositories of either format.
+       - To use the new repository format, simply use `hg clone --pull` to
+         clone an existing repository.
+       - Note: Versions 0.8.1 and earlier of Mercurial cannot read
+         RevlogNG repositories directly, but they can `clone`, `pull`
+         from, and `push` to servers that are serving RevlogNG
+         repositories.
+     - Memory usage has been improved by over 50% for many common operations.
+     - Substantial performance improvements on large repositories.
+     - New commands:
+       - 'archive' - generate a directory tree snapshot, tarball, or zip
+         file of a revision
+     - Deprecated commands:
+       - 'addremove' - replaced by 'add' and 'remove --after'
+       - 'forget' - replaced by 'revert'
+       - 'undo' - replaced by 'rollback'
+     - New extensions:
+       - Bugzilla integration hook
+       - Email notification hook
+     - Nested repositories are now supported. Mercurial will not recurse
+       into a subdirectory that contains a '.hg' directory. It is treated
+       as a separate repository.
+     - The standalone web server, 'hg serve', is now threaded, so it can
+       talk to multiple clients at a time.
+     - The web server can now display a "message of the day".
+     - Support added for hooks written in Python.
+     - Many improvements and clarifications to built-in help.
+  * [debian/control] set Standard-Version to 3.7.2 (no changes required) 
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Thu, 11 May 2006 01:00:03 +0200
+
+mercurial (0.8.1-6) unstable; urgency=low
+
+  * cleanup patches applied on top of upstream sources
+    send the interesting one to upstream before the 0.9 release
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Thu, 27 Apr 2006 03:20:24 +0200
+
+mercurial (0.8.1-5) unstable; urgency=low
+
+  * use python2.4 instead of standard python (2.3 for now):
+    this allows to use hglib backend with tailor
+  * several minor fixes so that tailor works with the 'hglib' backend
+    these are submitted upstream
+  * hardcode python interpreter in script instead of using /usr/bin/env
+    as suggested by the python policy
+  * remove previous hack (dpkg not replacing directory by symlink) as
+    it is no more usefull (directory was in /usr/lib/python2.3, symlink in now
+    in /usr/lib/python2.4)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Mon, 17 Apr 2006 12:21:24 +0200
+
 mercurial (0.8.1-4) unstable; urgency=low
 
   * directory doesn't get replaced by symlink (Closes: #362487)

@@ -12,12 +12,17 @@ demandload(globals(), "os re sys signal shutil imp urllib pdb")
 demandload(globals(), "fancyopts ui hg util lock revlog templater bundlerepo")
 demandload(globals(), "fnmatch hgweb mdiff random signal tempfile time")
 demandload(globals(), "traceback errno socket version struct atexit sets bz2")
-demandload(globals(), "changegroup")
+demandload(globals(), "archival changegroup")
 
 class UnknownCommand(Exception):
     """Exception raised if command is not in the command table."""
 class AmbiguousCommand(Exception):
     """Exception raised if command shortcut matches more than one command."""
+
+def bail_if_changed(repo):
+    modified, added, removed, deleted, unknown = repo.changes()
+    if modified or added or removed or deleted:
+        raise util.Abort(_("outstanding uncommitted changes"))
 
 def filterfiles(filters, files):
     l = [x for x in files if x in filters]
@@ -298,7 +303,7 @@ def write_bundle(cg, filename=None, compress=True):
                 raise util.Abort(_("file '%s' already exists"), filename)
             fh = open(filename, "wb")
         else:
-            fd, filename = tempfile.mkstemp(suffix=".hg", prefix="hg-bundle-")
+            fd, filename = tempfile.mkstemp(prefix="hg-bundle-", suffix=".hg")
             fh = os.fdopen(fd, "wb")
         cleanup = filename
 
@@ -393,194 +398,6 @@ def trimuser(ui, name, rev, revcache):
         user = revcache[rev] = ui.shortuser(name)
     return user
 
-class changeset_templater(object):
-    '''use templater module to format changeset information.'''
-
-    def __init__(self, ui, repo, mapfile):
-        self.t = templater.templater(mapfile, templater.common_filters,
-                                     cache={'parent': '{rev}:{node|short} ',
-                                            'manifest': '{rev}:{node|short}'})
-        self.ui = ui
-        self.repo = repo
-
-    def use_template(self, t):
-        '''set template string to use'''
-        self.t.cache['changeset'] = t
-
-    def write(self, thing, header=False):
-        '''write expanded template.
-        uses in-order recursive traverse of iterators.'''
-        for t in thing:
-            if hasattr(t, '__iter__'):
-                self.write(t, header=header)
-            elif header:
-                self.ui.write_header(t)
-            else:
-                self.ui.write(t)
-
-    def write_header(self, thing):
-        self.write(thing, header=True)
-
-    def show(self, rev=0, changenode=None, brinfo=None):
-        '''show a single changeset or file revision'''
-        log = self.repo.changelog
-        if changenode is None:
-            changenode = log.node(rev)
-        elif not rev:
-            rev = log.rev(changenode)
-
-        changes = log.read(changenode)
-
-        def showlist(name, values, plural=None, **args):
-            '''expand set of values.
-            name is name of key in template map.
-            values is list of strings or dicts.
-            plural is plural of name, if not simply name + 's'.
-
-            expansion works like this, given name 'foo'.
-
-            if values is empty, expand 'no_foos'.
-
-            if 'foo' not in template map, return values as a string,
-            joined by space.
-
-            expand 'start_foos'.
-
-            for each value, expand 'foo'. if 'last_foo' in template
-            map, expand it instead of 'foo' for last key.
-
-            expand 'end_foos'.
-            '''
-            if plural: names = plural
-            else: names = name + 's'
-            if not values:
-                noname = 'no_' + names
-                if noname in self.t:
-                    yield self.t(noname, **args)
-                return
-            if name not in self.t:
-                if isinstance(values[0], str):
-                    yield ' '.join(values)
-                else:
-                    for v in values:
-                        yield dict(v, **args)
-                return
-            startname = 'start_' + names
-            if startname in self.t:
-                yield self.t(startname, **args)
-            vargs = args.copy()
-            def one(v, tag=name):
-                try:
-                    vargs.update(v)
-                except (AttributeError, ValueError):
-                    try:
-                        for a, b in v:
-                            vargs[a] = b
-                    except ValueError:
-                        vargs[name] = v
-                return self.t(tag, **vargs)
-            lastname = 'last_' + name
-            if lastname in self.t:
-                last = values.pop()
-            else:
-                last = None
-            for v in values:
-                yield one(v)
-            if last is not None:
-                yield one(last, tag=lastname)
-            endname = 'end_' + names
-            if endname in self.t:
-                yield self.t(endname, **args)
-
-        if brinfo:
-            def showbranches(**args):
-                if changenode in brinfo:
-                    for x in showlist('branch', brinfo[changenode],
-                                      plural='branches', **args):
-                        yield x
-        else:
-            showbranches = ''
-
-        if self.ui.debugflag:
-            def showmanifest(**args):
-                args = args.copy()
-                args.update(dict(rev=self.repo.manifest.rev(changes[0]),
-                                 node=hex(changes[0])))
-                yield self.t('manifest', **args)
-        else:
-            showmanifest = ''
-
-        def showparents(**args):
-            parents = [[('rev', log.rev(p)), ('node', hex(p))]
-                       for p in log.parents(changenode)
-                       if self.ui.debugflag or p != nullid]
-            if (not self.ui.debugflag and len(parents) == 1 and
-                parents[0][0][1] == rev - 1):
-                return
-            for x in showlist('parent', parents, **args):
-                yield x
-
-        def showtags(**args):
-            for x in showlist('tag', self.repo.nodetags(changenode), **args):
-                yield x
-
-        if self.ui.debugflag:
-            files = self.repo.changes(log.parents(changenode)[0], changenode)
-            def showfiles(**args):
-                for x in showlist('file', files[0], **args): yield x
-            def showadds(**args):
-                for x in showlist('file_add', files[1], **args): yield x
-            def showdels(**args):
-                for x in showlist('file_del', files[2], **args): yield x
-        else:
-            def showfiles(**args):
-                for x in showlist('file', changes[3], **args): yield x
-            showadds = ''
-            showdels = ''
-
-        props = {
-            'author': changes[1],
-            'branches': showbranches,
-            'date': changes[2],
-            'desc': changes[4],
-            'file_adds': showadds,
-            'file_dels': showdels,
-            'files': showfiles,
-            'manifest': showmanifest,
-            'node': hex(changenode),
-            'parents': showparents,
-            'rev': rev,
-            'tags': showtags,
-            }
-
-        try:
-            if self.ui.debugflag and 'header_debug' in self.t:
-                key = 'header_debug'
-            elif self.ui.quiet and 'header_quiet' in self.t:
-                key = 'header_quiet'
-            elif self.ui.verbose and 'header_verbose' in self.t:
-                key = 'header_verbose'
-            elif 'header' in self.t:
-                key = 'header'
-            else:
-                key = ''
-            if key:
-                self.write_header(self.t(key, **props))
-            if self.ui.debugflag and 'changeset_debug' in self.t:
-                key = 'changeset_debug'
-            elif self.ui.quiet and 'changeset_quiet' in self.t:
-                key = 'changeset_quiet'
-            elif self.ui.verbose and 'changeset_verbose' in self.t:
-                key = 'changeset_verbose'
-            else:
-                key = 'changeset'
-            self.write(self.t(key, **props))
-        except KeyError, inst:
-            raise util.Abort(_("%s: no key named '%s'") % (self.t.mapfile,
-                                                           inst.args[0]))
-        except SyntaxError, inst:
-            raise util.Abort(_('%s: %s') % (self.t.mapfile, inst.args[0]))
-
 class changeset_printer(object):
     '''show changeset information when templating not requested.'''
 
@@ -667,7 +484,7 @@ def show_changeset(ui, repo, opts):
                 if not mapname: mapname = templater.templatepath(mapfile)
                 if mapname: mapfile = mapname
         try:
-            t = changeset_templater(ui, repo, mapfile)
+            t = templater.changeset_templater(ui, repo, mapfile)
         except SyntaxError, inst:
             raise util.Abort(inst.args[0])
         if tmpl: t.use_template(tmpl)
@@ -804,13 +621,19 @@ def add(ui, repo, *pats, **opts):
     repo.add(names)
 
 def addremove(ui, repo, *pats, **opts):
-    """add all new files, delete all missing files
+    """add all new files, delete all missing files (DEPRECATED)
 
+    (DEPRECATED)
     Add all new files and remove all missing files from the repository.
 
     New files are ignored if they match any of the patterns in .hgignore. As
     with add, these changes take effect at the next commit.
+
+    This command is now deprecated and will be removed in a future
+    release. Please use add and remove --after instead.
     """
+    ui.warn(_('(the addremove command is deprecated; use add and remove '
+              '--after instead)\n'))
     return addremove_lock(ui, repo, pats, opts)
 
 def addremove_lock(ui, repo, pats, opts, wlock=None):
@@ -889,6 +712,84 @@ def annotate(ui, repo, *pats, **opts):
         if pieces:
             for p, l in zip(zip(*pieces), lines):
                 ui.write("%s: %s" % (" ".join(p), l[1]))
+
+def archive(ui, repo, dest, **opts):
+    '''create unversioned archive of a repository revision
+
+    By default, the revision used is the parent of the working
+    directory; use "-r" to specify a different revision.
+
+    To specify the type of archive to create, use "-t".  Valid
+    types are:
+
+    "files" (default): a directory full of files
+    "tar": tar archive, uncompressed
+    "tbz2": tar archive, compressed using bzip2
+    "tgz": tar archive, compressed using gzip
+    "uzip": zip archive, uncompressed
+    "zip": zip archive, compressed using deflate
+
+    The exact name of the destination archive or directory is given
+    using a format string; see "hg help export" for details.
+
+    Each member added to an archive file has a directory prefix
+    prepended.  Use "-p" to specify a format string for the prefix.
+    The default is the basename of the archive, with suffixes removed.
+    '''
+
+    if opts['rev']:
+        node = repo.lookup(opts['rev'])
+    else:
+        node, p2 = repo.dirstate.parents()
+        if p2 != nullid:
+            raise util.Abort(_('uncommitted merge - please provide a '
+                               'specific revision'))
+
+    dest = make_filename(repo, repo.changelog, dest, node)
+    prefix = make_filename(repo, repo.changelog, opts['prefix'], node)
+    if os.path.realpath(dest) == repo.root:
+        raise util.Abort(_('repository root cannot be destination'))
+    dummy, matchfn, dummy = matchpats(repo, [], opts)
+    archival.archive(repo, dest, node, opts.get('type') or 'files',
+                    not opts['no_decode'], matchfn, prefix)
+
+def backout(ui, repo, rev, **opts):
+    '''reverse effect of earlier changeset
+
+    Commit the backed out changes as a new changeset.
+
+    If you back out a changeset other than the tip, a new head is
+    created.  The --merge option remembers the parent of the working
+    directory before starting the backout, then merges the new head
+    with it afterwards, to save you from doing this by hand.  The
+    result of this merge is not committed, as for a normal merge.'''
+
+    bail_if_changed(repo)
+    op1, op2 = repo.dirstate.parents()
+    if op2 != nullid:
+        raise util.Abort(_('outstanding uncommitted merge'))
+    node = repo.lookup(rev)
+    parent, p2 = repo.changelog.parents(node)
+    if parent == nullid:
+        raise util.Abort(_('cannot back out a change with no parents'))
+    if p2 != nullid:
+        raise util.Abort(_('cannot back out a merge'))
+    repo.update(node, force=True, show_stats=False)
+    revert_opts = opts.copy()
+    revert_opts['rev'] = hex(parent)
+    revert(ui, repo, **revert_opts)
+    commit_opts = opts.copy()
+    commit_opts['addremove'] = False
+    if not commit_opts['message'] and not commit_opts['logfile']:
+        commit_opts['message'] = _("Backed out changeset %s") % (hex(node))
+    commit(ui, repo, **commit_opts)
+    def nice(node):
+        return '%d:%s' % (repo.changelog.rev(node), short(node))
+    ui.status(_('changeset %s backs out changeset %s\n') %
+              (nice(repo.changelog.tip()), nice(node)))
+    if opts['merge'] and op1 != node:
+        ui.status(_('merging with changeset %s\n') % nice(op1))
+        update(ui, repo, hex(op1), **opts)
 
 def bundle(ui, repo, fname, dest="default-push", **opts):
     """create a changegroup file
@@ -1070,7 +971,7 @@ def commit(ui, repo, *pats, **opts):
                              (logfile, inst.strerror))
 
     if opts['addremove']:
-        addremove(ui, repo, *pats, **opts)
+        addremove_lock(ui, repo, pats, opts)
     fns, match, anypats = matchpats(repo, pats, opts)
     if pats:
         modified, added, removed, deleted, unknown = (
@@ -1268,7 +1169,7 @@ def copy(ui, repo, *pats, **opts):
 
 def debugancestor(ui, index, rev1, rev2):
     """find the ancestor revision of two revisions in a given index"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False), index, "")
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), index, "", 0)
     a = r.ancestor(r.lookup(rev1), r.lookup(rev2))
     ui.write("%d:%s\n" % (r.rev(a), hex(a)))
 
@@ -1372,7 +1273,7 @@ def debugstate(ui, repo):
 def debugdata(ui, file_, rev):
     """dump the contents of an data file revision"""
     r = revlog.revlog(util.opener(os.getcwd(), audit=False),
-                      file_[:-2] + ".i", file_)
+                      file_[:-2] + ".i", file_, 0)
     try:
         ui.write(r.revision(r.lookup(rev)))
     except KeyError:
@@ -1380,18 +1281,19 @@ def debugdata(ui, file_, rev):
 
 def debugindex(ui, file_):
     """dump the contents of an index file"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_, "")
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_, "", 0)
     ui.write("   rev    offset  length   base linkrev" +
              " nodeid       p1           p2\n")
     for i in range(r.count()):
-        e = r.index[i]
+        node = r.node(i)
+        pp = r.parents(node)
         ui.write("% 6d % 9d % 7d % 6d % 7d %s %s %s\n" % (
-                i, e[0], e[1], e[2], e[3],
-            short(e[6]), short(e[4]), short(e[5])))
+                i, r.start(i), r.length(i), r.base(i), r.linkrev(node),
+            short(node), short(pp[0]), short(pp[1])))
 
 def debugindexdot(ui, file_):
     """dump an index DAG as a .dot file"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_, "")
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_, "", 0)
     ui.write("digraph G {\n")
     for i in range(r.count()):
         e = r.index[i]
@@ -1531,10 +1433,15 @@ def export(ui, repo, *changesets, **opts):
         doexport(ui, repo, cset, seqno, total, revwidth, opts)
 
 def forget(ui, repo, *pats, **opts):
-    """don't add the specified files on the next commit
+    """don't add the specified files on the next commit (DEPRECATED)
 
+    (DEPRECATED)
     Undo an 'hg add' scheduled for the next commit.
+
+    This command is now deprecated and will be removed in a future
+    release. Please use revert instead.
     """
+    ui.warn(_("(the forget command is deprecated; use revert instead)\n"))
     forget = []
     for src, abs, rel, exact in walk(repo, pats, opts):
         if repo.dirstate.state(abs) == 'a':
@@ -1751,9 +1658,7 @@ def import_(ui, repo, patch1, *patches, **opts):
     patches = (patch1,) + patches
 
     if not opts['force']:
-        modified, added, removed, deleted, unknown = repo.changes()
-        if modified or added or removed or deleted:
-            raise util.Abort(_("outstanding uncommitted changes"))
+        bail_if_changed(repo)
 
     d = opts["base"]
     strip = opts["strip"]
@@ -1807,7 +1712,7 @@ def import_(ui, repo, patch1, *patches, **opts):
         files = util.patch(strip, pf, ui)
 
         if len(files) > 0:
-            addremove(ui, repo, *files)
+            addremove_lock(ui, repo, files, {})
         repo.commit(files, message, user)
 
 def incoming(ui, repo, source="default", **opts):
@@ -2258,9 +2163,9 @@ def recover(ui, repo):
     """
     if repo.recover():
         return repo.verify()
-    return False
+    return 1
 
-def remove(ui, repo, pat, *pats, **opts):
+def remove(ui, repo, *pats, **opts):
     """remove the specified files on the next commit
 
     Schedule the indicated files for removal from the repository.
@@ -2268,29 +2173,36 @@ def remove(ui, repo, pat, *pats, **opts):
     This command schedules the files to be removed at the next commit.
     This only removes files from the current branch, not from the
     entire project history.  If the files still exist in the working
-    directory, they will be deleted from it.
+    directory, they will be deleted from it.  If invoked with --after,
+    files that have been manually deleted are marked as removed.
     """
     names = []
+    if not opts['after'] and not pats:
+        raise util.Abort(_('no files specified'))
     def okaytoremove(abs, rel, exact):
         modified, added, removed, deleted, unknown = repo.changes(files=[abs])
         reason = None
-        if modified and not opts['force']:
+        if not deleted and opts['after']:
+            reason = _('is still present')
+        elif modified and not opts['force']:
             reason = _('is modified')
         elif added:
             reason = _('has been marked for add')
         elif unknown:
             reason = _('is not managed')
+        elif removed:
+            return False
         if reason:
             if exact:
                 ui.warn(_('not removing %s: file %s\n') % (rel, reason))
         else:
             return True
-    for src, abs, rel, exact in walk(repo, (pat,) + pats, opts):
+    for src, abs, rel, exact in walk(repo, pats, opts):
         if okaytoremove(abs, rel, exact):
             if ui.verbose or not exact:
                 ui.status(_('removing %s\n') % rel)
             names.append(abs)
-    repo.remove(names, unlink=True)
+    repo.remove(names, unlink=not opts['after'])
 
 def rename(ui, repo, *pats, **opts):
     """rename files; equivalent of copy + remove
@@ -2320,21 +2232,26 @@ def rename(ui, repo, *pats, **opts):
     return errs
 
 def revert(ui, repo, *pats, **opts):
-    """revert modified files or dirs back to their unmodified states
+    """revert files or dirs to their states as of some revision
 
-    In its default mode, it reverts any uncommitted modifications made
-    to the named files or directories.  This restores the contents of
-    the affected files to an unmodified state.
+    With no revision specified, revert the named files or directories
+    to the contents they had in the parent of the working directory.
+    This restores the contents of the affected files to an unmodified
+    state.  If the working directory has two parents, you must
+    explicitly specify the revision to revert to.
 
     Modified files are saved with a .orig suffix before reverting.
     To disable these backups, use --no-backup.
 
-    Using the -r option, it reverts the given files or directories to
-    their state as of an earlier revision.  This can be helpful to "roll
+    Using the -r option, revert the given files or directories to
+    their contents as of a specific revision.  This can be helpful to"roll
     back" some or all of a change that should not have been committed.
 
     Revert modifies the working directory.  It does not commit any
-    changes, or change the parent of the current working directory.
+    changes, or change the parent of the working directory.  If you
+    revert to a revision other than the parent of the working
+    directory, the reverted files will thus appear modified
+    afterwards.
 
     If a file has been deleted, it is recreated.  If the executable
     mode of a file was changed, it is reset.
@@ -2343,8 +2260,14 @@ def revert(ui, repo, *pats, **opts):
 
     If no arguments are given, all files in the repository are reverted.
     """
-    parent = repo.dirstate.parents()[0]
-    node = opts['rev'] and repo.lookup(opts['rev']) or parent
+    parent, p2 = repo.dirstate.parents()
+    if opts['rev']:
+        node = repo.lookup(opts['rev'])
+    elif p2 != nullid:
+        raise util.Abort(_('working dir has two parents; '
+                           'you must specify the revision to revert to'))
+    else:
+        node = parent
     mf = repo.manifest.read(repo.changelog.read(node)[0])
 
     wlock = repo.wlock()
@@ -2431,11 +2354,41 @@ def revert(ui, repo, *pats, **opts):
         update[abs] = True
 
     repo.dirstate.forget(forget[0])
-    r = repo.update(node, False, True, update.has_key, False, wlock=wlock)
+    r = repo.update(node, False, True, update.has_key, False, wlock=wlock,
+                    show_stats=False)
     repo.dirstate.update(add[0], 'a')
     repo.dirstate.update(undelete[0], 'n')
     repo.dirstate.update(remove[0], 'r')
     return r
+
+def rollback(ui, repo):
+    """roll back the last transaction in this repository
+
+    Roll back the last transaction in this repository, restoring the
+    project to its state prior to the transaction.
+
+    Transactions are used to encapsulate the effects of all commands
+    that create new changesets or propagate existing changesets into a
+    repository. For example, the following commands are transactional,
+    and their effects can be rolled back:
+
+      commit
+      import
+      pull
+      push (with this repository as destination)
+      unbundle
+
+    This command should be used with care. There is only one level of
+    rollback, and there is no way to undo a rollback.
+
+    This command is not intended for use on public repositories. Once
+    changes are visible for pull by other users, rolling a transaction
+    back locally is ineffective (someone else may already have pulled
+    the changes). Furthermore, a race is possible with readers of the
+    repository; for example an in-progress pull from the repository
+    may fail if a rollback is performed.
+    """
+    repo.undo()
 
 def root(ui, repo):
     """print the root (top) of the current working dir
@@ -2454,6 +2407,8 @@ def serve(ui, repo, **opts):
     """
 
     if opts["stdio"]:
+        if repo is None:
+            raise hg.RepoError(_('no repo found'))
         fin, fout = sys.stdin, sys.stdout
         sys.stdout = sys.stderr
 
@@ -2522,13 +2477,17 @@ def serve(ui, repo, **opts):
                     continue
                 respond("")
 
-                r = repo.addchangegroup(fin)
+                r = repo.addchangegroup(fin, 'serve')
                 respond(str(r))
 
-    optlist = "name templates style address port ipv6 accesslog errorlog"
+    optlist = ("name templates style address port ipv6"
+               " accesslog errorlog webdir_conf")
     for o in optlist.split():
         if opts[o]:
             ui.setconfig("web", o, opts[o])
+
+    if repo is None and not ui.config("web", "webdir_conf"):
+        raise hg.RepoError(_('no repo found'))
 
     if opts['daemon'] and not opts['daemon_pipefds']:
         rfd, wfd = os.pipe()
@@ -2541,7 +2500,7 @@ def serve(ui, repo, **opts):
         os._exit(0)
 
     try:
-        httpd = hgweb.create_server(repo)
+        httpd = hgweb.create_server(ui, repo)
     except socket.error, inst:
         raise util.Abort(_('cannot start server: ') + inst.args[1])
 
@@ -2742,24 +2701,18 @@ def unbundle(ui, repo, fname, **opts):
         raise util.Abort(_("%s: unknown bundle compression type")
                          % fname)
     gen = generator(util.filechunkiter(f, 4096))
-    modheads = repo.addchangegroup(util.chunkbuffer(gen))
+    modheads = repo.addchangegroup(util.chunkbuffer(gen), 'unbundle')
     return postincoming(ui, repo, modheads, opts['update'])
 
 def undo(ui, repo):
-    """undo the last commit or pull
+    """undo the last commit or pull (DEPRECATED)
 
-    Roll back the last pull or commit transaction on the
-    repository, restoring the project to its earlier state.
-
-    This command should be used with care. There is only one level of
-    undo and there is no redo.
-
-    This command is not intended for use on public repositories. Once
-    a change is visible for pull by other users, undoing it locally is
-    ineffective. Furthemore a race is possible with readers of the
-    repository, for example an ongoing pull from the repository will
-    fail and rollback.
+    (DEPRECATED)
+    This command is now deprecated and will be removed in a future
+    release. Please use the rollback command instead.  For usage
+    instructions, see the rollback command.
     """
+    ui.warn(_('(the undo command is deprecated; use rollback instead)\n'))
     repo.undo()
 
 def update(ui, repo, node=None, merge=False, clean=False, force=None,
@@ -2822,7 +2775,7 @@ table = {
          [('I', 'include', [], _('include names matching the given patterns')),
           ('X', 'exclude', [], _('exclude names matching the given patterns'))],
          _('hg add [OPTION]... [FILE]...')),
-    "addremove":
+    "debugaddremove|addremove":
         (addremove,
          [('I', 'include', [], _('include names matching the given patterns')),
           ('X', 'exclude', [], _('exclude names matching the given patterns'))],
@@ -2838,6 +2791,26 @@ table = {
           ('I', 'include', [], _('include names matching the given patterns')),
           ('X', 'exclude', [], _('exclude names matching the given patterns'))],
          _('hg annotate [-r REV] [-a] [-u] [-d] [-n] [-c] FILE...')),
+    "archive":
+        (archive,
+         [('', 'no-decode', None, _('do not pass files through decoders')),
+          ('p', 'prefix', '', _('directory prefix for files in archive')),
+          ('r', 'rev', '', _('revision to distribute')),
+          ('t', 'type', '', _('type of distribution to create')),
+          ('I', 'include', [], _('include names matching the given patterns')),
+          ('X', 'exclude', [], _('exclude names matching the given patterns'))],
+         _('hg archive [OPTION]... DEST')),
+    "backout":
+        (backout,
+         [('', 'merge', None,
+           _('merge with old dirstate parent after backout')),
+          ('m', 'message', '', _('use <text> as commit message')),
+          ('l', 'logfile', '', _('read commit message from <file>')),
+          ('d', 'date', '', _('record datecode as commit date')),
+          ('u', 'user', '', _('record user as committer')),
+          ('I', 'include', [], _('include names matching the given patterns')),
+          ('X', 'exclude', [], _('exclude names matching the given patterns'))],
+         _('hg backout [OPTION]... REV')),
     "bundle":
         (bundle,
          [('f', 'force', None,
@@ -2862,7 +2835,8 @@ table = {
          _('hg clone [OPTION]... SOURCE [DEST]')),
     "^commit|ci":
         (commit,
-         [('A', 'addremove', None, _('run addremove during commit')),
+         [('A', 'addremove', None,
+           _('mark new/missing files as added/removed before committing')),
           ('m', 'message', '', _('use <text> as commit message')),
           ('l', 'logfile', '', _('read the commit message from <file>')),
           ('d', 'date', '', _('record datecode as commit date')),
@@ -2917,7 +2891,7 @@ table = {
           ('a', 'text', None, _('treat all files as text')),
           ('', 'switch-parent', None, _('diff against the second parent'))],
          _('hg export [-a] [-o OUTFILESPEC] REV...')),
-    "forget":
+    "debugforget|forget":
         (forget,
          [('I', 'include', [], _('include names matching the given patterns')),
           ('X', 'exclude', [], _('exclude names matching the given patterns'))],
@@ -2947,8 +2921,8 @@ table = {
     "import|patch":
         (import_,
          [('p', 'strip', 1,
-           _('directory strip option for patch. This has the same\n') +
-           _('meaning as the corresponding patch option')),
+           _('directory strip option for patch. This has the same\n'
+             'meaning as the corresponding patch option')),
           ('b', 'base', '', _('base path')),
           ('f', 'force', None,
            _('skip check for outstanding uncommitted changes'))],
@@ -3047,7 +3021,8 @@ table = {
     "recover": (recover, [], _('hg recover')),
     "^remove|rm":
         (remove,
-         [('f', 'force', None, _('remove file even if modified')),
+         [('A', 'after', None, _('record remove that has already occurred')),
+          ('f', 'force', None, _('remove file even if modified')),
           ('I', 'include', [], _('include names matching the given patterns')),
           ('X', 'exclude', [], _('exclude names matching the given patterns'))],
          _('hg remove [OPTION]... FILE...')),
@@ -3066,6 +3041,7 @@ table = {
           ('I', 'include', [], _('include names matching given patterns')),
           ('X', 'exclude', [], _('exclude names matching given patterns'))],
          _('hg revert [-r REV] [NAME]...')),
+    "rollback": (rollback, [], _('hg rollback')),
     "root": (root, [], _('hg root')),
     "^serve":
         (serve,
@@ -3077,6 +3053,8 @@ table = {
           ('a', 'address', '', _('address to use')),
           ('n', 'name', '',
            _('name to show in web pages (default: working dir)')),
+          ('', 'webdir-conf', '', _('name of the webdir config file'
+                                    ' (serve more than one repo)')),
           ('', 'pid-file', '', _('name of file to write process ID to')),
           ('', 'stdio', None, _('for remote clients')),
           ('t', 'templates', '', _('web templates to use')),
@@ -3118,7 +3096,7 @@ table = {
          [('u', 'update', None,
            _('update the working directory to tip after unbundle'))],
          _('hg unbundle [-u] FILE')),
-    "undo": (undo, [], _('hg undo')),
+    "debugundo|undo": (undo, [], _('hg undo')),
     "^update|up|checkout|co":
         (update,
          [('b', 'branch', '', _('checkout the head of a specific branch')),
@@ -3149,7 +3127,7 @@ globalopts = [
 
 norepo = ("clone init version help debugancestor debugcomplete debugdata"
           " debugindex debugindexdot")
-optionalrepo = ("paths debugconfig")
+optionalrepo = ("paths serve debugconfig")
 
 def findpossible(cmd):
     """
@@ -3197,11 +3175,8 @@ def find(cmd):
 
     raise UnknownCommand(cmd)
 
-class SignalInterrupt(Exception):
-    """Exception raised on SIGTERM and SIGHUP."""
-
 def catchterm(*args):
-    raise SignalInterrupt
+    raise util.SignalInterrupt
 
 def run():
     sys.exit(dispatch(sys.argv[1:]))
@@ -3248,48 +3223,40 @@ def parse(ui, args):
     return (cmd, cmd and i[0] or None, args, options, cmdoptions)
 
 def dispatch(args):
-    signal.signal(signal.SIGTERM, catchterm)
-    try:
-        signal.signal(signal.SIGHUP, catchterm)
-    except AttributeError:
-        pass
+    for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
+        num = getattr(signal, name, None)
+        if num: signal.signal(num, catchterm)
 
     try:
-        u = ui.ui()
+        u = ui.ui(traceback='--traceback' in sys.argv[1:])
     except util.Abort, inst:
         sys.stderr.write(_("abort: %s\n") % inst)
-        sys.exit(1)
+        return -1
 
     external = []
     for x in u.extensions():
-        def on_exception(exc, inst):
-            u.warn(_("*** failed to import extension %s\n") % x[1])
-            u.warn("%s\n" % inst)
-            if "--traceback" in sys.argv[1:]:
-                traceback.print_exc()
-        if x[1]:
-            try:
+        try:
+            if x[1]:
                 mod = imp.load_source(x[0], x[1])
-            except Exception, inst:
-                on_exception(Exception, inst)
-                continue
-        else:
-            def importh(name):
-                mod = __import__(name)
-                components = name.split('.')
-                for comp in components[1:]:
-                    mod = getattr(mod, comp)
-                return mod
-            try:
+            else:
+                def importh(name):
+                    mod = __import__(name)
+                    components = name.split('.')
+                    for comp in components[1:]:
+                        mod = getattr(mod, comp)
+                    return mod
                 try:
                     mod = importh("hgext." + x[0])
                 except ImportError:
                     mod = importh(x[0])
-            except Exception, inst:
-                on_exception(Exception, inst)
-                continue
+            external.append(mod)
+        except Exception, inst:
+            u.warn(_("*** failed to import extension %s: %s\n") % (x[0], inst))
+            if u.traceback:
+                traceback.print_exc()
+                return 1
+            continue
 
-        external.append(mod)
     for x in external:
         cmdtable = getattr(x, 'cmdtable', {})
         for t in cmdtable:
@@ -3313,7 +3280,7 @@ def dispatch(args):
             atexit.register(print_time)
 
         u.updateopts(options["verbose"], options["debug"], options["quiet"],
-                not options["noninteractive"])
+                     not options["noninteractive"], options["traceback"])
 
         # enter the debugger before command execution
         if options['debugger']:
@@ -3331,14 +3298,11 @@ def dispatch(args):
             repo = path and hg.repository(u, path=path) or None
 
             if options['help']:
-                help_(u, cmd, options['version'])
-                sys.exit(0)
+                return help_(u, cmd, options['version'])
             elif options['version']:
-                show_version(u)
-                sys.exit(0)
+                return show_version(u)
             elif not cmd:
-                help_(u, 'shortlist')
-                sys.exit(0)
+                return help_(u, 'shortlist')
 
             if cmd not in norepo.split():
                 try:
@@ -3383,7 +3347,7 @@ def dispatch(args):
             # enter the debugger when we hit an exception
             if options['debugger']:
                 pdb.post_mortem(sys.exc_info()[2])
-            if options['traceback']:
+            if u.traceback:
                 traceback.print_exc()
             raise
     except ParseError, inst:
@@ -3393,17 +3357,14 @@ def dispatch(args):
         else:
             u.warn(_("hg: %s\n") % inst.args[1])
             help_(u, 'shortlist')
-        sys.exit(-1)
     except AmbiguousCommand, inst:
         u.warn(_("hg: command '%s' is ambiguous:\n    %s\n") %
                 (inst.args[0], " ".join(inst.args[1])))
-        sys.exit(1)
     except UnknownCommand, inst:
         u.warn(_("hg: unknown command '%s'\n") % inst.args[0])
         help_(u, 'shortlist')
-        sys.exit(1)
     except hg.RepoError, inst:
-        u.warn(_("abort: "), inst, "!\n")
+        u.warn(_("abort: %s!\n") % inst)
     except lock.LockHeld, inst:
         if inst.errno == errno.ETIMEDOUT:
             reason = _('timed out waiting for lock held by %s') % inst.locker
@@ -3415,7 +3376,7 @@ def dispatch(args):
                (inst.desc or inst.filename, inst.strerror))
     except revlog.RevlogError, inst:
         u.warn(_("abort: "), inst, "!\n")
-    except SignalInterrupt:
+    except util.SignalInterrupt:
         u.warn(_("killed!\n"))
     except KeyboardInterrupt:
         try:
@@ -3448,7 +3409,6 @@ def dispatch(args):
             u.warn(_("abort: %s\n") % inst.strerror)
     except util.Abort, inst:
         u.warn(_('abort: '), inst.args[0] % inst.args[1:], '\n')
-        sys.exit(1)
     except TypeError, inst:
         # was this an argument error?
         tb = traceback.extract_tb(sys.exc_info()[2])
@@ -3457,9 +3417,10 @@ def dispatch(args):
         u.debug(inst, "\n")
         u.warn(_("%s: invalid arguments\n") % cmd)
         help_(u, cmd)
-    except SystemExit:
-        # don't catch this in the catch-all below
-        raise
+    except SystemExit, inst:
+        # Commands shouldn't sys.exit directly, but give a return code.
+        # Just in case catch this and and pass exit code to caller.
+        return inst.code
     except:
         u.warn(_("** unknown exception encountered, details follow\n"))
         u.warn(_("** report bug details to mercurial@selenic.com\n"))
@@ -3467,4 +3428,4 @@ def dispatch(args):
                % version.get_version())
         raise
 
-    sys.exit(-1)
+    return -1

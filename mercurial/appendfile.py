@@ -6,7 +6,7 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 from demandload import *
-demandload(globals(), "cStringIO changelog manifest os tempfile")
+demandload(globals(), "cStringIO changelog errno manifest os tempfile util")
 
 # writes to metadata files are ordered.  reads: changelog, manifest,
 # normal files.  writes: normal files, manifest, changelog.
@@ -33,28 +33,54 @@ class appendfile(object):
     file and temp file.  readers cannot see appended data until
     writedata called.'''
 
-    def __init__(self, fp):
-        fd, self.tmpname = tempfile.mkstemp()
-        self.tmpfp = os.fdopen(fd, 'ab+')
+    def __init__(self, fp, tmpname):
+        if tmpname:
+            self.tmpname = tmpname
+            self.tmpfp = util.posixfile(self.tmpname, 'ab+')
+        else:
+            fd, self.tmpname = tempfile.mkstemp(prefix="hg-appendfile-")
+            os.close(fd)
+            self.tmpfp = util.posixfile(self.tmpname, 'ab+')
         self.realfp = fp
         self.offset = fp.tell()
         # real file is not written by anyone else. cache its size so
         # seek and read can be fast.
-        self.fpsize = os.fstat(fp.fileno()).st_size
+        self.realsize = util.fstat(fp).st_size
+        self.name = fp.name
 
-    def seek(self, offset):
+    def end(self):
+        self.tmpfp.flush() # make sure the stat is correct
+        return self.realsize + util.fstat(self.tmpfp).st_size
+
+    def tell(self):
+        return self.offset
+
+    def flush(self):
+        self.tmpfp.flush()
+
+    def close(self):
+        self.realfp.close()
+        self.tmpfp.close()
+
+    def seek(self, offset, whence=0):
         '''virtual file offset spans real file and temp file.'''
-        self.offset = offset
-        if self.offset < self.fpsize:
+        if whence == 0:
+            self.offset = offset
+        elif whence == 1:
+            self.offset += offset
+        elif whence == 2:
+            self.offset = self.end() + offset
+
+        if self.offset < self.realsize:
             self.realfp.seek(self.offset)
         else:
-            self.tmpfp.seek(self.offset - self.fpsize)
+            self.tmpfp.seek(self.offset - self.realsize)
 
     def read(self, count=-1):
         '''only trick here is reads that span real file and temp file.'''
         fp = cStringIO.StringIO()
         old_offset = self.offset
-        if self.offset < self.fpsize:
+        if self.offset < self.realsize:
             s = self.realfp.read(count)
             fp.write(s)
             self.offset += len(s)
@@ -62,7 +88,7 @@ class appendfile(object):
                 count -= len(s)
         if count != 0:
             if old_offset != self.offset:
-                self.tmpfp.seek(self.offset - self.fpsize)
+                self.tmpfp.seek(self.offset - self.realsize)
             s = self.tmpfp.read(count)
             fp.write(s)
             self.offset += len(s)
@@ -73,100 +99,64 @@ class appendfile(object):
         self.tmpfp.seek(0, 2)
         self.tmpfp.write(s)
         # all writes are appends, so offset must go to end of file.
-        self.offset = self.fpsize + self.tmpfp.tell()
-
-    def writedata(self):
-        '''copy data from temp file to real file.'''
-        self.tmpfp.seek(0)
-        s = self.tmpfp.read()
-        self.tmpfp.close()
-        self.realfp.seek(0, 2)
-        # small race here.  we write all new data in one call, but
-        # reader can see partial update due to python or os. file
-        # locking no help: slow, not portable, not reliable over nfs.
-        # only safe thing is write to temp file every time and rename,
-        # but performance bad when manifest or changelog gets big.
-        self.realfp.write(s)
-        self.realfp.close()
-
-    def __del__(self):
-        '''delete temp file even if exception raised.'''
-        try: os.unlink(self.tmpname)
-        except: pass
-
-class sharedfile(object):
-    '''let file objects share a single appendfile safely.  each
-    sharedfile has own offset, syncs up with appendfile offset before
-    read and after read and write.'''
-
-    def __init__(self, fp):
-        self.fp = fp
-        self.offset = 0
-
-    def seek(self, offset):
-        self.offset = offset
-
-    def read(self, count=-1):
-        try:
-            if self.offset != self.fp.offset:
-                self.fp.seek(self.offset)
-            return self.fp.read(count)
-        finally:
-            self.offset = self.fp.offset
-
-    def write(self, s):
-        try:
-            return self.fp.write(s)
-        finally:
-            self.offset = self.fp.offset
-
-    def close(self):
-        # revlog wants this.
-        pass
-
-    def flush(self):
-        # revlog wants this.
-        pass
-
-    def writedata(self):
-        self.fp.writedata()
+        self.offset = self.realsize + self.tmpfp.tell()
 
 class appendopener(object):
     '''special opener for files that only read or append.'''
 
     def __init__(self, opener):
         self.realopener = opener
-        # key: file name, value: appendfile object
-        self.fps = {}
+        # key: file name, value: appendfile name
+        self.tmpnames = {}
 
     def __call__(self, name, mode='r'):
-        '''open file.  return same cached appendfile object for every
-        later call.'''
+        '''open file.'''
 
-        assert mode in 'ra'
-        fp = self.fps.get(name)
-        if fp is None:
-            fp = appendfile(self.realopener(name, 'a+'))
-            self.fps[name] = fp
-        return sharedfile(fp)
+        assert mode in 'ra+'
+        try:
+            realfp = self.realopener(name, 'r')
+        except IOError, err:
+            if err.errno != errno.ENOENT: raise
+            realfp = self.realopener(name, 'w+')
+        tmpname = self.tmpnames.get(name)
+        fp = appendfile(realfp, tmpname)
+        if tmpname is None:
+            self.tmpnames[name] = fp.tmpname
+        return fp
 
     def writedata(self):
         '''copy data from temp files to real files.'''
         # write .d file before .i file.
-        fps = self.fps.items()
-        fps.sort()
-        for name, fp in fps:
-            fp.writedata()
+        tmpnames = self.tmpnames.items()
+        tmpnames.sort()
+        for name, tmpname in tmpnames:
+            ifp = open(tmpname, 'rb')
+            ofp = self.realopener(name, 'a')
+            for chunk in util.filechunkiter(ifp):
+                ofp.write(chunk)
+            ifp.close()
+            os.unlink(tmpname)
+            del self.tmpnames[name]
+            ofp.close()
+
+    def cleanup(self):
+        '''delete temp files (this discards unwritten data!)'''
+        for tmpname in self.tmpnames.values():
+            os.unlink(tmpname)
 
 # files for changelog and manifest are in different appendopeners, so
 # not mixed up together.
 
 class appendchangelog(changelog.changelog, appendopener):
-    def __init__(self, opener):
+    def __init__(self, opener, version):
         appendopener.__init__(self, opener)
-        changelog.changelog.__init__(self, self)
+        changelog.changelog.__init__(self, self, version)
+    def checkinlinesize(self, fp, tr):
+        return
 
 class appendmanifest(manifest.manifest, appendopener):
-    def __init__(self, opener):
+    def __init__(self, opener, version):
         appendopener.__init__(self, opener)
-        manifest.manifest.__init__(self, self)
+        manifest.manifest.__init__(self, self, version)
+    def checkinlinesize(self, fp, tr):
+        return

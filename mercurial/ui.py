@@ -8,11 +8,11 @@
 import ConfigParser
 from i18n import gettext as _
 from demandload import *
-demandload(globals(), "errno os re socket sys tempfile util")
+demandload(globals(), "errno os re smtplib socket sys tempfile util")
 
 class ui(object):
     def __init__(self, verbose=False, debug=False, quiet=False,
-                 interactive=True, parentui=None):
+                 interactive=True, traceback=False, parentui=None):
         self.overlay = {}
         if parentui is None:
             # this is the parent of all ui children
@@ -24,11 +24,13 @@ class ui(object):
             self.verbose = self.configbool("ui", "verbose")
             self.debugflag = self.configbool("ui", "debug")
             self.interactive = self.configbool("ui", "interactive", True)
+            self.traceback = traceback
 
             self.updateopts(verbose, debug, quiet, interactive)
             self.diffcache = None
             self.header = []
             self.prev_header = []
+            self.revlogopts = self.configrevlog()
         else:
             # parentui may point to an ui object which is already a child
             self.parentui = parentui.parentui or parentui
@@ -44,11 +46,12 @@ class ui(object):
         return getattr(self.parentui, key)
 
     def updateopts(self, verbose=False, debug=False, quiet=False,
-                 interactive=True):
+                   interactive=True, traceback=False):
         self.quiet = (self.quiet or quiet) and not verbose and not debug
         self.verbose = (self.verbose or verbose) or debug
         self.debugflag = (self.debugflag or debug)
         self.interactive = (self.interactive and interactive)
+        self.traceback = self.traceback or traceback
 
     def readconfig(self, fn, root=None):
         if isinstance(fn, basestring):
@@ -134,6 +137,12 @@ class ui(object):
                 result.append(path)
         return result
 
+    def configrevlog(self):
+        ret = {}
+        for x in self.configitems("revlog"):
+            k = x[0].lower()
+            ret[k] = x[1]
+        return ret
     def diffopts(self):
         if self.diffcache:
             return self.diffcache
@@ -233,7 +242,8 @@ class ui(object):
     def debug(self, *msg):
         if self.debugflag: self.write(*msg)
     def edit(self, text, user):
-        (fd, name) = tempfile.mkstemp(prefix="hg-editor-", suffix=".txt")
+        (fd, name) = tempfile.mkstemp(prefix="hg-editor-", suffix=".txt",
+                                      text=True)
         try:
             f = os.fdopen(fd, "w")
             f.write(text)
@@ -255,3 +265,17 @@ class ui(object):
             os.unlink(name)
 
         return t
+
+    def sendmail(self):
+        s = smtplib.SMTP()
+        s.connect(host = self.config('smtp', 'host', 'mail'),
+                  port = int(self.config('smtp', 'port', 25)))
+        if self.configbool('smtp', 'tls'):
+            s.ehlo()
+            s.starttls()
+            s.ehlo()
+        username = self.config('smtp', 'username')
+        password = self.config('smtp', 'password')
+        if username and password:
+            s.login(username, password)
+        return s

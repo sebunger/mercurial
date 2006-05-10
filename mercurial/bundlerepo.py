@@ -31,6 +31,7 @@ class bundlerevlog(revlog.revlog):
         #
         revlog.revlog.__init__(self, opener, indexfile, datafile)
         self.bundlefile = bundlefile
+        self.basemap = {}
         def chunkpositer():
             for chunk in changegroup.chunkiter(bundlefile):
                 pos = bundlefile.tell()
@@ -58,7 +59,12 @@ class bundlerevlog(revlog.revlog):
             if not prev:
                 prev = p1
             # start, size, base is not used, link, p1, p2, delta ref
-            e = (start, size, None, link, p1, p2, node, prev)
+            if self.version == 0:
+                e = (start, size, None, link, p1, p2, node)
+            else:
+                e = (self.offset_type(start, 0), size, -1, None, link,
+                     self.rev(p1), self.rev(p2), node)
+            self.basemap[n] = prev
             self.index.append(e)
             self.nodemap[node] = n
             prev = node
@@ -68,9 +74,9 @@ class bundlerevlog(revlog.revlog):
         """is rev from the bundle"""
         if rev < 0:
             return False
-        return len(self.index[rev]) > 7
-    def bundlebase(self, rev): return self.index[rev][7]
-    def chunk(self, rev):
+        return rev in self.basemap
+    def bundlebase(self, rev): return self.basemap[rev]
+    def chunk(self, rev, df=None):
         # Warning: in case of bundle, the diff is against bundlebase,
         # not against rev - 1
         # XXX: could use some caching
@@ -120,7 +126,7 @@ class bundlerevlog(revlog.revlog):
             raise RevlogError(_("integrity check failed on %s:%d")
                           % (self.datafile, self.rev(node)))
 
-        self.cache = (node, rev, text)
+        self.cache = (node, self.rev(node), text)
         return text
 
     def addrevision(self, text, transaction, link, p1=None, p2=None, d=None):
@@ -154,7 +160,7 @@ class bundlerepository(localrepo.localrepository):
     def __init__(self, ui, path, bundlename):
         localrepo.localrepository.__init__(self, ui, path)
         f = open(bundlename, "rb")
-        s = os.fstat(f.fileno())
+        s = util.fstat(f)
         self.bundlefile = f
         header = self.bundlefile.read(6)
         if not header.startswith("HG"):

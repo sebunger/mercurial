@@ -1,0 +1,34 @@
+Index: mercurial-0.9/mercurial/commands.py
+===================================================================
+--- mercurial-0.9.orig/mercurial/commands.py	2006-05-11 00:48:48.000000000 +0200
++++ mercurial-0.9/mercurial/commands.py	2006-05-11 00:50:00.000000000 +0200
+@@ -904,7 +904,8 @@
+     copy = False
+     if other.dev() != -1:
+         abspath = os.path.abspath(source)
+-        if not opts['pull'] and not opts['rev']:
++        if (    not (opts.has_key('pull') and opts['pull'])
++            and not (opts.has_key('rev')  and opts['rev'])):
+             copy = True
+ 
+     if copy:
+@@ -2086,10 +2087,15 @@
+ 
+     other = hg.repository(ui, source)
+     revs = None
+-    if opts['rev'] and not other.local():
+-        raise util.Abort(_("pull -r doesn't work for remote repositories yet"))
+-    elif opts['rev']:
+-        revs = [other.lookup(rev) for rev in opts['rev']]
++    if opts.has_key('rev'):
++        if opts['rev'] and not other.local():
++            raise util.Abort(_("pull -r doesn't work for remote repositories yet"))
++        elif opts['rev']:
++            revs = [other.lookup(rev) for rev in opts['rev']]
++    if not opts.has_key('force'):
++        opts['force']=False
++    if not opts.has_key('update'):
++        opts['update']=False
+     modheads = repo.pull(other, heads=revs, force=opts['force'])
+     return postincoming(ui, repo, modheads, opts['update'])
+ 

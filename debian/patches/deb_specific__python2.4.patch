@@ -1,0 +1,90 @@
+Index: mercurial-0.8.1/hg
+===================================================================
+--- mercurial-0.8.1.orig/hg	2006-04-15 16:13:12.000000000 +0200
++++ mercurial-0.8.1/hg	2006-04-15 16:13:23.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ #
+ # mercurial - scalable distributed SCM
+ #
+Index: mercurial-0.8.1/contrib/convert-repo
+===================================================================
+--- mercurial-0.8.1.orig/contrib/convert-repo	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/contrib/convert-repo	2006-04-15 16:17:42.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ #
+ # This is a generalized framework for converting between SCM
+ # repository formats.
+Index: mercurial-0.8.1/contrib/hg-ssh
+===================================================================
+--- mercurial-0.8.1.orig/contrib/hg-ssh	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/contrib/hg-ssh	2006-04-15 16:18:15.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ #
+ # Copyright 2005, 2006 by Intevation GmbH <intevation@intevation.de>
+ # Author(s):
+Index: mercurial-0.8.1/contrib/hgdiff
+===================================================================
+--- mercurial-0.8.1.orig/contrib/hgdiff	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/contrib/hgdiff	2006-04-15 16:17:58.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ 
+ import os, sys, struct, stat
+ import difflib
+Index: mercurial-0.8.1/hgweb.cgi
+===================================================================
+--- mercurial-0.8.1.orig/hgweb.cgi	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/hgweb.cgi	2006-04-15 16:16:42.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ #
+ # An example CGI script to use hgweb, edit as necessary
+ 
+Index: mercurial-0.8.1/hgwebdir.cgi
+===================================================================
+--- mercurial-0.8.1.orig/hgwebdir.cgi	2006-04-08 04:23:11.000000000 +0200
++++ mercurial-0.8.1/hgwebdir.cgi	2006-04-15 16:17:07.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ #
+ # An example CGI script to export multiple hgweb repos, edit as necessary
+ 
+Index: mercurial-0.8.1/rewrite-log
+===================================================================
+--- mercurial-0.8.1.orig/rewrite-log	2006-04-08 04:23:12.000000000 +0200
++++ mercurial-0.8.1/rewrite-log	2006-04-15 16:16:54.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ import sys, os
+ from mercurial import hg
+ 
+Index: mercurial-0.8.1/setup.py
+===================================================================
+--- mercurial-0.8.1.orig/setup.py	2006-04-08 04:23:12.000000000 +0200
++++ mercurial-0.8.1/setup.py	2006-04-15 16:16:28.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ #
+ # This is the mercurial setup script.
+ #
+Index: mercurial-0.8.1/tests/test-bdiff
+===================================================================
+--- mercurial-0.8.1.orig/tests/test-bdiff	2006-04-08 04:23:12.000000000 +0200
++++ mercurial-0.8.1/tests/test-bdiff	2006-04-15 16:17:26.000000000 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python2.4
+ 
+ import sys
+ from mercurial import bdiff, mpatch

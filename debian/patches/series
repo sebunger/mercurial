@@ -2,6 +2,6 @@ deb_specific__FAQ_subst.patch
 deb_specific__hgk.py.patch
 deb_specific__bash_completion_global_option_already_set.patch
 submitted_upstream__manage_import_extensions.patch
-submitted_upstream__missing_gendoc.py.patch
-submitted_upstream__hbisect_help_text.patch
-submitted_upstream__hgk.patch
+deb_specific__python2.4.patch
+#submitted_upstream__hash_keys.patch
+#submitted_upstream__dirstate_is_not_in_unicode.patch

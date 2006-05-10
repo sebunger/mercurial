@@ -1,0 +1,15 @@
+Index: mercurial-0.8.1/mercurial/dirstate.py
+===================================================================
+--- mercurial-0.8.1.orig/mercurial/dirstate.py	2006-04-17 12:19:45.000000000 +0200
++++ mercurial-0.8.1/mercurial/dirstate.py	2006-04-17 12:20:46.000000000 +0200
+@@ -241,8 +241,8 @@
+             c = self.copied(f)
+             if c:
+                 f = f + "\0" + c
+-            e = struct.pack(">cllll", e[0], e[1], e[2], e[3], len(f))
+-            st.write(e + f)
++            st.write(struct.pack(">cllll", e[0], e[1], e[2], e[3], len(f)))
++            st.write(f)
+         self.dirty = 0
+ 
+     def filterfiles(self, files):
