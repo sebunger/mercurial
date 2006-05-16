@@ -1,3 +1,18 @@
+mercurial (0.9) unstable; urgency=low
+
+  Since the 0.8.1-5 version, mercurial uses python2.4 instead of (currently the
+  default on Debian system) python2.3. This allows tailor to use the hg
+  backend (tailor requires python2.4).
+  If someone really need python2.3 version of mercurial, please tell me (with
+  reportbug for example). I will then split the package in python modules
+  (default, 2.3, 2.4, ...) and one executable.
+
+  Note: if you copied the hgwebdir.cgi or hgweb.cgi script from the examples
+  directory, do not forget to update it so that it runs /usr/bin/python2.4
+  instead of /usr/bin/python (or recopy it)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed, 17 May 2006 00:39:12 +0200
+
 mercurial (0.8) unstable; urgency=low
   Upgrade notes:
   - diff and status command are now repo-wide by default

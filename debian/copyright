@@ -26,3 +26,7 @@ License:
 On Debian systems, the complete text of the GNU General
 Public License can be found in `/usr/share/common-licenses/GPL'.
 
+The Debian packaging is licensed under the GPL, see above, and has
+the following copyright:
+
+Copyright (C) 2005-2006  Vincent Danjean <Vincent.Danjean@ens-lyon.org>
