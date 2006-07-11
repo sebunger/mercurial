@@ -11,7 +11,11 @@ mercurial (0.9) unstable; urgency=low
   directory, do not forget to update it so that it runs /usr/bin/python2.4
   instead of /usr/bin/python (or recopy it)
 
- -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed, 17 May 2006 00:39:12 +0200
+  UPDATE since 0.9-6:
+    Due to the new python policy, mercurial modules are now available for all
+  supported python versions in debian (currently 2.3 and 2.4)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue,  4 Jul 2006 00:53:21 +0200
 
 mercurial (0.8) unstable; urgency=low
   Upgrade notes:

@@ -1,3 +1,16 @@
+mercurial (0.9-7) unstable; urgency=low
+
+  * mercurial will use the default python interpreter
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 11 Jul 2006 23:12:14 +0200
+
+mercurial (0.9-6) unstable; urgency=low
+
+  * update to the new python policy
+  * reenable the fix for #362487 as python2.3 is useable again
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue,  4 Jul 2006 00:19:50 +0200
+
 mercurial (0.9-5) unstable; urgency=low
 
   * call dh_python with -V 2.4 argument

@@ -1,19 +1,14 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-# including python-distutils BEFORE debhelper.mk ...
-include /usr/share/cdbs/1/class/python-distutils.mk
+DEB_PYTHON_SYSTEM=pysupport
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/patchsys-quilt.mk
-
-# ... so that we can personnalize the call to dh_python
-$(patsubst %,binary-install/%,$(DEB_PACKAGES)) :: binary-install/%:
-	dh_python -p$(cdbs_curpkg) -V 2.4
+include /usr/share/cdbs/1/class/python-distutils.mk
 
 DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgmerge.1 doc/hgrc.5
-DEB_PYTHON_COMPILE_VERSION=2.4
 
-common-install-impl::
+binary-install/mercurial::
 	# Install bash autocompletion.
 	install -d $(DEB_DESTDIR)/etc/bash_completion.d/
 	install -m 644 \
@@ -42,10 +37,17 @@ common-install-impl::
 		contrib/mercurial.el \
 		$(DEB_DESTDIR)/usr/share/emacs/site-lisp/
 	# Move webstuff in /usr/share
-	mv $(DEB_DESTDIR)/usr/lib/python*/site-packages/mercurial/templates \
+	mv $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates \
 		$(DEB_DESTDIR)/usr/share/mercurial/
-	ln -fs ../../../../share/mercurial/templates \
-		$(DEB_DESTDIR)/usr/lib/python*/site-packages/mercurial/
+	for p in $$(pyversions -s) ; do \
+	    $(RM) -v $(DEB_DESTDIR)/usr/lib/$$p/site-packages/mercurial/templates ; \
+	    mkdir -p $(DEB_DESTDIR)/usr/lib/$$p/site-packages/mercurial ; \
+	    ln -fs ../../../../share/mercurial/templates \
+		$(DEB_DESTDIR)/usr/lib/$$p/site-packages/mercurial/ ; \
+	done
+
+	# fix bugs in cdbs/dh_python: mercurial will use python and not pythonX.Y
+	sed -i -e 's/python[0-9.]*/python/' $(DEB_DESTDIR)/usr/bin/hg
 
 build: build-doc
 update-config:: link_hgit
