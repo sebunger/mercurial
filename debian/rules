@@ -6,7 +6,7 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/patchsys-quilt.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgmerge.1 doc/hgrc.5
+DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgmerge.1 doc/hgrc.5 doc/hgignore.5
 
 binary-install/mercurial::
 	# Install bash autocompletion.
@@ -39,15 +39,18 @@ binary-install/mercurial::
 	# Move webstuff in /usr/share
 	mv $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates \
 		$(DEB_DESTDIR)/usr/share/mercurial/
-	for p in $$(pyversions -s) ; do \
-	    $(RM) -v $(DEB_DESTDIR)/usr/lib/$$p/site-packages/mercurial/templates ; \
-	    mkdir -p $(DEB_DESTDIR)/usr/lib/$$p/site-packages/mercurial ; \
-	    ln -fs ../../../../share/mercurial/templates \
-		$(DEB_DESTDIR)/usr/lib/$$p/site-packages/mercurial/ ; \
-	done
+	ln -sf ../../../mercurial/templates \
+	  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates
 
+        # Workaround a python-support bugs: it does not manage symlinks
+	for v in $$(pyversions -s); do \
+	    mkdir -p $(DEB_DESTDIR)/var/lib/python-support/$$v/mercurial/ ;\
+	    ln -s /usr/share/python-support/mercurial/mercurial/templates \
+		$(DEB_DESTDIR)/var/lib/python-support/$$v/mercurial/templates ;\
+	done
 	# fix bugs in cdbs/dh_python: mercurial will use python and not pythonX.Y
-	sed -i -e 's/python[0-9.]*/python/' $(DEB_DESTDIR)/usr/bin/hg
+	# [update]: in fact, python2.4 is better: python2.3 does not work
+	# sed -i -e 's/python[0-9.]*/python/' $(DEB_DESTDIR)/usr/bin/hg
 
 build: build-doc
 update-config:: link_hgit
