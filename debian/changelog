@@ -1,3 +1,10 @@
+mercurial (0.9-9) unstable; urgency=low
+
+  * Force the use of python2.4 with a sed command. A race condition on some
+    autobuilders makes that workaround needed. (Really closes: #378835)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Thu, 20 Jul 2006 17:59:35 +0200
+
 mercurial (0.9-8) unstable; urgency=low
 
   * do not use default python but python2.4 instead for hg :
