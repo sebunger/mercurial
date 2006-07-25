@@ -1,16 +1,3 @@
-mercurial (0.9.1-0bpo2) sarge-backports; urgency=low
-
-  * correct the templates symlink
-
- -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Wed,  2 Aug 2006 07:04:08 +0000
-
-mercurial (0.9.1-0bpo1) sarge-backports; urgency=low
-
-  * [debian/control] correct build depends
-  * [debian/rules] revert changes for new python policy
-
- -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Fri, 28 Jul 2006 09:18:02 +0000
-
 mercurial (0.9.1-1) unstable; urgency=low
 
   * New upstream release
