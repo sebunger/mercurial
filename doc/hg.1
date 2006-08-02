@@ -46,7 +46,7 @@ indicates a changeset which can be specified as a changeset revision number, a t
 
 .TP
 repository path
-either the pathname of a local repository or the URI of a remote repository\&. There are two available URI protocols, http:// which is fast and the old\-http:// protocol which is much slower but does not require a special server on the web host\&.
+either the pathname of a local repository or the URI of a remote repository\&. There are two available URI protocols, http:// which is fast and the static\-http:// protocol which is much slower but does not require a special server on the web host\&.
 
 .SH "OPTIONS"
 
@@ -71,12 +71,20 @@ suppress output
 enable additional output
 
 .TP
+\-\-config
+set/override config option
+
+.TP
 \-\-debug
 enable debugging output
 
 .TP
 \-\-debugger
 start debugger
+
+.TP
+\-\-lsprof
+print improved command execution profile
 
 .TP
 \-\-traceback
@@ -116,6 +124,7 @@ If no names are given, add all files in the repository\&.
 options:
 \-I, \-\-include  include names matching the given patterns
 \-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
 .fi
 
 .TP
@@ -186,14 +195,22 @@ options:
 
 .TP
 backout [OPTION]... REV
-Commit the backed out changes as a new changeset\&.
+Commit the backed out changes as a new changeset\&. The new changeset is a child of the backed out changeset\&.
 
 .nf
 If you back out a changeset other than the tip, a new head is
-created\&.  The \-\-merge option remembers the parent of the working
-directory before starting the backout, then merges the new head
-with it afterwards, to save you from doing this by hand\&.  The
-result of this merge is not committed, as for a normal merge\&.
+created\&.  This head is the parent of the working directory\&.  If
+you back out an old changeset, your working directory will appear
+old after the backout\&.  You should merge the backout changeset
+with another head\&.
+.fi
+
+.nf
+The \-\-merge option remembers the parent of the working directory
+before starting the backout, then merges the new head with that
+changeset afterwards\&.  This saves you from doing the merge by
+hand\&.  The result of this merge is not committed, as for a normal
+merge\&.
 .fi
 
 .nf
@@ -202,6 +219,7 @@ options:
 \-m, \-\-message  use <text> as commit message
 \-l, \-\-logfile  read commit message from <file>
 \-d, \-\-date     record datecode as commit date
+\-\-parent       parent to choose when backing out merge
 \-u, \-\-user     record user as committer
 \-I, \-\-include  include names matching the given patterns
 \-X, \-\-exclude  exclude names matching the given patterns
@@ -280,10 +298,17 @@ See pull for valid source format details\&.
 .fi
 
 .nf
+It is possible to specify an ssh:// URL as the destination, but no
+\&.hg/hgrc will be created on the remote side\&. Look at the help text
+for the pull command for important details about ssh:// URLs\&.
+.fi
+
+.nf
 options:
 \-U, \-\-noupdate  do not update the new working directory
 \-r, \-\-rev       a changeset you would like to have after cloning
 \-\-pull          use pull protocol to copy metadata
+\-\-uncompressed  use uncompressed transfer (fast over LAN)
 \-e, \-\-ssh       specify ssh command to use
 \-\-remotecmd     specify hg command to run on the remote side
 .fi
@@ -344,6 +369,7 @@ options:
 \-f, \-\-force    forcibly copy over an existing managed file
 \-I, \-\-include  include names matching the given patterns
 \-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
 .fi
 
 .nf
@@ -374,12 +400,18 @@ probably with undesirable results\&.
 
 .nf
 options:
-\-r, \-\-rev               revision
-\-a, \-\-text              treat all files as text
-\-p, \-\-show\-function     show which function each change is in
-\-w, \-\-ignore\-all\-space  ignore white space when comparing lines
-\-I, \-\-include           include names matching the given patterns
-\-X, \-\-exclude           exclude names matching the given patterns
+\-r, \-\-rev                  revision
+\-a, \-\-text                 treat all files as text
+\-p, \-\-show\-function        show which function each change is in
+\-w, \-\-ignore\-all\-space     ignore white space when comparing lines
+\-b, \-\-ignore\-space\-change  ignore changes in the amount of white
+                           space
+\-B, \-\-ignore\-blank\-lines   ignore changes whose lines are all
+                           blank
+\-I, \-\-include              include names matching the given
+                           patterns
+\-X, \-\-exclude              exclude names matching the given
+                           patterns
 .fi
 
 .TP
@@ -479,7 +511,16 @@ options:
 
 .TP
 help [COMMAND]
-show help for a given command or all commands
+With no arguments, print a list of commands and short help\&.
+
+.nf
+Given a command name, print help for that command\&.
+.fi
+
+.nf
+Given an extension name, print help for that extension, and the
+commands it provides\&.
+.fi
 
 .TP
 identify
@@ -496,7 +537,7 @@ aliases: id
 .fi
 
 .TP
-import [\-p NUM] [\-b BASE] [\-f] PATCH...
+import [\-p NUM] [\-b BASE] [\-m MESSAGE] [\-f] PATCH...
 Import a list of patches and commit them individually\&.
 
 .nf
@@ -505,20 +546,32 @@ will abort unless given the \-f flag\&.
 .fi
 
 .nf
-If a patch looks like a mail message (its first line starts with
-"From " or looks like an RFC822 header), it will not be applied
-unless the \-f option is used\&.  The importer neither parses nor
-discards mail headers, so use \-f only to override the "mailness"
-safety check, not to import a real mail message\&.
+You can import a patch straight from a mail message\&.  Even patches
+as attachments work (body part must be type text/plain or
+text/x\-patch to be used)\&.  From and Subject headers of email
+message are used as default committer and commit message\&.  All
+text/plain body parts before first diff are added to commit
+message\&.
+.fi
+
+.nf
+If imported patch was generated by hg export, user and description
+from patch override values from message headers and body\&.  Values
+given on command line with \-m and \-u override these\&.
+.fi
+
+.nf
+To read a patch from standard input, use patch name "\-"\&.
 .fi
 
 .nf
 options:
-\-p, \-\-strip  directory strip option for patch\&. This has the same
-             meaning as the corresponding patch option (default:
-             1)
-\-b, \-\-base   base path
-\-f, \-\-force  skip check for outstanding uncommitted changes
+\-p, \-\-strip    directory strip option for patch\&. This has the same
+               meaning as the corresponding patch option (default:
+               1)
+\-m, \-\-message  use <text> as commit message
+\-b, \-\-base     base path
+\-f, \-\-force    skip check for outstanding uncommitted changes
 .fi
 
 .nf
@@ -526,7 +579,7 @@ aliases: patch
 .fi
 
 .TP
-incoming [\-p] [\-n] [\-M] [\-\-bundle FILENAME] [SOURCE]
+incoming [\-p] [\-n] [\-M] [\-r REV]... [\-\-bundle FILENAME] [SOURCE]
 Show new changesets found in the specified path/URL or the default pull location\&. These are the changesets that would be pulled if a pull was requested\&.
 
 .nf
@@ -546,6 +599,7 @@ options:
 \-n, \-\-newest\-first  show newest record first
 \-\-bundle            file to store the bundles into
 \-p, \-\-patch         show patch
+\-r, \-\-rev           a specific revision you would like to pull
 \-\-template          display with template
 \-e, \-\-ssh           specify ssh command to use
 \-\-remotecmd         specify hg command to run on the remote side
@@ -556,11 +610,23 @@ aliases: in
 .fi
 
 .TP
-init [DEST]
+init [\-e FILE] [\-\-remotecmd FILE] [DEST]
 Initialize a new repository in the given directory\&. If the given directory does not exist, it is created\&.
 
 .nf
 If no directory is given, the current directory is used\&.
+.fi
+
+.nf
+It is possible to specify an ssh:// URL as the destination\&.
+Look at the help text for the pull command for important details
+about ssh:// URLs\&.
+.fi
+
+.nf
+options:
+\-e, \-\-ssh    specify ssh command to use
+\-\-remotecmd  specify hg command to run on the remote side
 .fi
 
 .TP
@@ -644,7 +710,7 @@ options:
 .fi
 
 .TP
-outgoing [\-M] [\-p] [\-n] [DEST]
+outgoing [\-M] [\-p] [\-n] [\-r REV]... [DEST]
 Show changesets not found in the specified destination repository or the default push location\&. These are the changesets that would be pushed if a push was requested\&.
 
 .nf
@@ -657,6 +723,7 @@ options:
 \-f, \-\-force         run even when remote repository is unrelated
 \-p, \-\-patch         show patch
 \-\-style             display using template map file
+\-r, \-\-rev           a specific revision you would like to push
 \-n, \-\-newest\-first  show newest record first
 \-\-template          display with template
 \-e, \-\-ssh           specify ssh command to use
@@ -668,12 +735,13 @@ aliases: out
 .fi
 
 .TP
-parents [\-b] [REV]
+parents [\-b] [\-r REV] [FILE]
 Print the working directory's parent revisions\&.
 
 .nf
 options:
 \-b, \-\-branches  show branches
+\-r, \-\-rev       show parents from the specified rev
 \-\-style         display using template map file
 \-\-template      display with template
 .fi
@@ -688,7 +756,7 @@ and $HOME/\&.hgrc\&.  If run inside a repository, \&.hg/hgrc is used, too\&.
 .fi
 
 .TP
-pull [\-u] [\-e FILE] [\-r REV]... [\-\-remotecmd FILE] [SOURCE]
+pull [\-u] [\-r REV]... [\-e FILE] [\-\-remotecmd FILE] [SOURCE]
 Pull changes from a remote repository to a local one\&.
 
 .nf
@@ -703,17 +771,18 @@ Valid URLs are of the form:
 
 .nf
 local/filesystem/path
-http://[user@]host[:port][/path]
-https://[user@]host[:port][/path]
-ssh://[user@]host[:port][/path]
+http://[user@]host[:port]/[path]
+https://[user@]host[:port]/[path]
+ssh://[user@]host[:port]/[path]
 .fi
 
 .nf
 Some notes about using SSH with Mercurial:
 \- SSH requires an accessible shell account on the destination machine
   and a copy of hg in the remote path or specified with as remotecmd\&.
-\- /path is relative to the remote user's home directory by default\&.
-  Use two slashes at the start of a path to specify an absolute path\&.
+\- path is relative to the remote user's home directory by default\&.
+  Use an extra slash at the start of a path to specify an absolute path:
+    ssh://example\&.com//tmp/repository
 \- Mercurial doesn't use its own compression via SSH; the right thing
   to do is to configure it in your ~/\&.ssh/ssh_config, e\&.g\&.:
     Host *\&.mylocalnetwork\&.example\&.com
@@ -734,7 +803,7 @@ options:
 .fi
 
 .TP
-push [\-f] [\-e FILE] [\-r REV]... [\-\-remotecmd FILE] [DEST]
+push [\-f] [\-r REV]... [\-e FILE] [\-\-remotecmd FILE] [DEST]
 Push changes from the local repository to the given destination\&.
 
 .nf
@@ -756,12 +825,17 @@ Valid URLs are of the form:
 
 .nf
 local/filesystem/path
-ssh://[user@]host[:port][/path]
+ssh://[user@]host[:port]/[path]
 .fi
 
 .nf
 Look at the help text for the pull command for important details
 about ssh:// URLs\&.
+.fi
+
+.nf
+Pushing to http:// and https:// URLs is possible, too, if this
+feature is enabled on the remote Mercurial server\&.
 .fi
 
 .nf
@@ -791,6 +865,11 @@ This only removes files from the current branch, not from the
 entire project history\&.  If the files still exist in the working
 directory, they will be deleted from it\&.  If invoked with \-\-after,
 files that have been manually deleted are marked as removed\&.
+.fi
+
+.nf
+Modified files and added files are not removed by default\&.  To
+remove them, use the \-f/\-\-force option\&.
 .fi
 
 .nf
@@ -831,6 +910,7 @@ options:
 \-f, \-\-force    forcibly copy over an existing managed file
 \-I, \-\-include  include names matching the given patterns
 \-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
 .fi
 
 .nf
@@ -879,6 +959,7 @@ options:
 \-\-no\-backup    do not save backup copies of files
 \-I, \-\-include  include names matching given patterns
 \-X, \-\-exclude  exclude names matching given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
 .fi
 
 .TP
@@ -957,6 +1038,7 @@ R = removed
 ! = deleted, but still tracked
 ? = not tracked
 I = ignored (not shown by default)
+  = the previous added file was copied from here
 .fi
 
 .nf
@@ -968,6 +1050,7 @@ options:
 \-u, \-\-unknown    show only unknown (not tracked) files
 \-i, \-\-ignored    show ignored files
 \-n, \-\-no\-status  hide status prefix
+\-C, \-\-copies     show source of copied files
 \-0, \-\-print0     end filenames with NUL, for use with xargs
 \-I, \-\-include    include names matching the given patterns
 \-X, \-\-exclude    exclude names matching the given patterns
@@ -988,7 +1071,7 @@ earlier versions or to mark branch points as releases, etc\&.
 .fi
 
 .nf
-If no revision is given, the tip is used\&.
+If no revision is given, the parent of the working directory is used\&.
 .fi
 
 .nf
@@ -1048,11 +1131,8 @@ requested version, the result is the requested version\&.
 .fi
 
 .nf
-Otherwise the result is a merge between the contents of the
-current working directory and the requested version\&. Files that
-changed between either parent are marked as changed for the next
-commit and a commit must be performed before any further updates
-are allowed\&.
+To merge the working directory with another revision, use the
+merge command\&.
 .fi
 
 .nf
@@ -1063,7 +1143,7 @@ merging or discarding local changes\&.
 .nf
 options:
 \-b, \-\-branch  checkout the head of a specific branch
-\-m, \-\-merge   allow merging of branches
+\-m, \-\-merge   allow merging of branches (DEPRECATED)
 \-C, \-\-clean   overwrite locally modified files
 \-f, \-\-force   force a merge with outstanding changes
 .fi

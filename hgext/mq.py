@@ -5,6 +5,30 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
+'''patch management and development
+
+This extension lets you work with a stack of patches in a Mercurial
+repository.  It manages two stacks of patches - all known patches, and
+applied patches (subset of known patches).
+
+Known patches are represented as patch files in the .hg/patches
+directory.  Applied patches are both patch files and changesets.
+
+Common tasks (use "hg help command" for more details):
+
+prepare repository to work with patches   qinit
+create new patch                          qnew
+import existing patch                     qimport
+
+print patch series                        qseries
+print applied patches                     qapplied
+print name of top applied patch           qtop
+
+add known patch to applied stack          qpush
+remove patch from applied stack           qpop
+refresh contents of top applied patch     qrefresh
+'''
+
 from mercurial.demandload import *
 demandload(globals(), "os sys re struct traceback errno bz2")
 from mercurial.i18n import gettext as _
@@ -102,6 +126,7 @@ class queue:
         message = []
         comments = []
         user = None
+        date = None
         format = None
         subject = None
         diffstart = 0
@@ -119,6 +144,8 @@ class queue:
                 # parse values when importing the result of an hg export
                 if line.startswith("# User "):
                     user = line[7:]
+                elif line.startswith("# Date "):
+                    date = line[7:]
                 elif not line.startswith("# ") and line:
                     message.append(line)
                     format = None
@@ -136,7 +163,7 @@ class queue:
                 # when looking for tags (subject: from: etc) they
                 # end once you find a blank line in the source
                 format = "tagdone"
-            else:
+            elif message or line:
                 message.append(line)
             comments.append(line)
 
@@ -149,7 +176,7 @@ class queue:
         if format and format.startswith("tag") and subject:
             message.insert(0, "")
             message.insert(0, subject)
-        return (message, comments, user, diffstart > 1)
+        return (message, comments, user, date, diffstart > 1)
 
     def mergeone(self, repo, mergeq, head, patch, rev, wlock):
         # first try just applying the patch
@@ -179,7 +206,7 @@ class queue:
             self.ui.warn("repo commit failed\n")
             sys.exit(1)
         try:
-            message, comments, user, patchfound = mergeq.readheaders(patch)
+            message, comments, user, date, patchfound = mergeq.readheaders(patch)
         except:
             self.ui.warn("Unable to read %s\n" % patch)
             sys.exit(1)
@@ -211,7 +238,6 @@ class queue:
                 return pp[0]
             if p1 in arevs:
                 return pp[1]
-            return None
         return pp[0]
 
     def mergepatch(self, repo, mergeq, series, wlock):
@@ -267,7 +293,7 @@ class queue:
             pf = os.path.join(patchdir, patch)
 
             try:
-                message, comments, user, patchfound = self.readheaders(patch)
+                message, comments, user, date, patchfound = self.readheaders(patch)
             except:
                 self.ui.warn("Unable to read %s\n" % pf)
                 err = 1
@@ -281,7 +307,8 @@ class queue:
                 message = '\n'.join(message)
 
             try:
-                f = os.popen("patch -p1 --no-backup-if-mismatch < '%s'" % (pf))
+                pp = util.find_in_path('gpatch', os.environ.get('PATH', ''), 'patch')
+                f = os.popen("%s -p1 --no-backup-if-mismatch < '%s'" % (pp, pf))
             except:
                 self.ui.warn("patch failed, unable to continue (try -v)\n")
                 err = 1
@@ -325,7 +352,7 @@ class queue:
             if len(files) > 0:
                 commands.addremove_lock(self.ui, repo, files,
                                         opts={}, wlock=wlock)
-            n = repo.commit(files, message, user, force=1, lock=lock,
+            n = repo.commit(files, message, user, date, force=1, lock=lock,
                             wlock=wlock)
 
             if n == None:
@@ -382,15 +409,21 @@ class queue:
             self.ui.write("Local changes found, refresh first\n")
             sys.exit(1)
     def new(self, repo, patch, msg=None, force=None):
-        if not force:
-            self.check_localchanges(repo)
+        commitfiles = []
+        (c, a, r, d, u) = repo.changes(None, None)
+        if c or a or d or r:
+            if not force:
+                raise util.Abort(_("Local changes found, refresh first"))
+            else:
+                commitfiles = c + a + r
         self.check_toppatch(repo)
         wlock = repo.wlock()
         insert = self.series_end()
         if msg:
-            n = repo.commit([], "[mq]: %s" % msg, force=True, wlock=wlock)
+            n = repo.commit(commitfiles, "[mq]: %s" % msg, force=True,
+                            wlock=wlock)
         else:
-            n = repo.commit([],
+            n = repo.commit(commitfiles,
                             "New patch: %s" % patch, force=True, wlock=wlock)
         if n == None:
             self.ui.warn("repo commit failed\n")
@@ -408,6 +441,8 @@ class queue:
         wlock = None
         r = self.qrepo()
         if r: r.add([patch])
+        if commitfiles:
+            self.refresh(repo, short=True)
 
     def strip(self, repo, rev, update=True, backup="all", wlock=None):
         def limitheads(chlog, stop):
@@ -715,7 +750,7 @@ class queue:
         top = revlog.bin(top)
         cparents = repo.changelog.parents(top)
         patchparent = self.qparents(repo, top)
-        message, comments, user, patchfound = self.readheaders(patch)
+        message, comments, user, date, patchfound = self.readheaders(patch)
 
         patchf = self.opener(patch, "w")
         if comments:
@@ -996,6 +1031,7 @@ class queue:
             self.ui.warn("-n option not valid when importing multiple files\n")
             sys.exit(1)
         i = 0
+        added = []
         for filename in files:
             if existing:
                 if not patch:
@@ -1024,8 +1060,12 @@ class queue:
             self.read_series(self.full_series)
             self.ui.warn("adding %s to series file\n" % patch)
             i += 1
+            added.append(patch)
             patch = None
         self.series_dirty = 1
+        qrepo = self.qrepo()
+        if qrepo:
+            qrepo.add(added)
 
 def delete(ui, repo, patch, **opts):
     """remove a patch from the series file"""
@@ -1067,6 +1107,7 @@ def init(ui, repo, **opts):
     return 0
 
 def commit(ui, repo, *pats, **opts):
+    """commit changes in the queue repository"""
     q = repomap[repo]
     r = q.qrepo()
     if not r: raise util.Abort('no queue repository')
@@ -1248,7 +1289,7 @@ cmdtable = {
          'hg qimport [-e] [-n NAME] [-f] FILE...'),
     "^qinit":
         (init,
-         [('c', 'create-repo', None, 'create patch repository')],
+         [('c', 'create-repo', None, 'create queue repository')],
          'hg qinit [-c]'),
     "qnew":
         (new,

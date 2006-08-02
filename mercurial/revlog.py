@@ -376,12 +376,7 @@ class revlog(object):
                 self.index = lazyindex(parser)
                 self.nodemap = lazymap(parser)
             else:
-                i = f.read()
-                self.parseindex(i)
-            if self.inlinedata():
-                # we've already got the entire data file read in, save it
-                # in the chunk data
-                self.chunkcache = (0, i)
+                self.parseindex(f, st)
             if self.version != REVLOGV0:
                 e = list(self.index[0])
                 type = self.ngtype(e[0])
@@ -392,22 +387,47 @@ class revlog(object):
             self.index = []
 
 
-    def parseindex(self, data):
+    def parseindex(self, fp, st):
         s = struct.calcsize(self.indexformat)
-        l = len(data)
         self.index = []
         self.nodemap =  {nullid: -1}
         inline = self.inlinedata()
-        off = 0
         n = 0
-        while off < l:
-            e = struct.unpack(self.indexformat, data[off:off + s])
-            self.index.append(e)
-            self.nodemap[e[-1]] = n
-            n += 1
-            off += s
-            if inline:
-                off += e[1]
+        leftover = None
+        while True:
+            if st:
+                data = fp.read(65536)
+            else:
+                # hack for httprangereader, it doesn't do partial reads well
+                data = fp.read()
+            if not data:
+                break
+            if n == 0 and self.inlinedata():
+                # cache the first chunk
+                self.chunkcache = (0, data)
+            if leftover:
+                data = leftover + data
+                leftover = None
+            off = 0
+            l = len(data)
+            while off < l:
+                if l - off < s:
+                    leftover = data[off:]
+                    break
+                cur = data[off:off + s]
+                off += s
+                e = struct.unpack(self.indexformat, cur)
+                self.index.append(e)
+                self.nodemap[e[-1]] = n
+                n += 1
+                if inline:
+                    off += e[1]
+                    if off > l:
+                        # some things don't seek well, just read it
+                        fp.read(off - l)
+            if not st:
+                break
+
 
     def ngoffset(self, q):
         if q & 0xFFFF:
@@ -449,7 +469,8 @@ class revlog(object):
             return self.nodemap[node]
         except KeyError:
             raise RevlogError(_('%s: no node %s') % (self.indexfile, hex(node)))
-    def linkrev(self, node): return self.index[self.rev(node)][-4]
+    def linkrev(self, node):
+        return (node == nullid) and -1 or self.index[self.rev(node)][-4]
     def parents(self, node):
         if node == nullid: return (nullid, nullid)
         r = self.rev(node)
@@ -457,6 +478,13 @@ class revlog(object):
         if self.version == REVLOGV0:
             return d
         return [ self.node(x) for x in d ]
+    def parentrevs(self, rev):
+        if rev == -1:
+            return (-1, -1)
+        d = self.index[rev][-3:-1]
+        if self.version == REVLOGV0:
+            return [ self.rev(x) for x in d ]
+        return d
     def start(self, rev):
         if rev < 0:
             return -1
@@ -686,19 +714,19 @@ class revlog(object):
         """
         if start is None:
             start = nullid
-        reachable = {start: 1}
-        heads = {start: 1}
         startrev = self.rev(start)
+        reachable = {startrev: 1}
+        heads = {startrev: 1}
 
+        parentrevs = self.parentrevs
         for r in xrange(startrev + 1, self.count()):
-            n = self.node(r)
-            for pn in self.parents(n):
-                if pn in reachable:
-                    reachable[n] = 1
-                    heads[n] = 1
-                if pn in heads:
-                    del heads[pn]
-        return heads.keys()
+            for p in parentrevs(r):
+                if p in reachable:
+                    reachable[r] = 1
+                    heads[r] = 1
+                if p in heads:
+                    del heads[p]
+        return [self.node(r) for r in heads]
 
     def children(self, node):
         """find the children of a given node"""
@@ -716,6 +744,10 @@ class revlog(object):
 
     def lookup(self, id):
         """locate a node based on revision number or subset of hex nodeid"""
+        if id in self.nodemap:
+            return id
+        if type(id) == type(0):
+            return self.node(id)
         try:
             rev = int(id)
             if str(rev) != id: raise ValueError
@@ -1117,7 +1149,7 @@ class revlog(object):
 
             for p in (p1, p2):
                 if not p in self.nodemap:
-                    raise RevlogError(_("unknown parent %s") % short(p1))
+                    raise RevlogError(_("unknown parent %s") % short(p))
 
             if not chain:
                 # retrieve the parent revision of the delta chain
@@ -1176,8 +1208,6 @@ class revlog(object):
             start = self.start(base)
             end = self.end(t)
 
-        if node is None:
-            raise RevlogError(_("group to be added is empty"))
         return node
 
     def strip(self, rev, minlink):

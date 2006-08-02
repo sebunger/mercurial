@@ -1,11 +1,14 @@
 hgeditor
 contrib/convert-repo
+contrib/darcs2hg.py
 contrib/favicon.ico
 contrib/git-viz
 contrib/hgdiff
-contrib/hg-menu.vim
+contrib/hgsh
 contrib/hg-ssh
+contrib/sample.hgrc
 contrib/tcsh_completion
+contrib/vim
 contrib/zsh_completion
 hgweb.cgi
 hgwebdir.cgi

@@ -12,31 +12,8 @@ as soon as mercurial documentation stabilises enough.
 Extensions provided in this package
 ***********************************
 
-hgk
----
-add the 'view' command. It shows the repository history graphically.
-
-hbisect
--------
-add the 'bisect' command to allow dichotomic search in the DAG of changesets
-
-gpg
----
-add the 'sign' and 'sigcheck' commands to manage signatures
-
-win32text
----------
-add filters so automatically convert end-of-line between Windows and Unix
-world at check-in and check-out time.
-
-mq
---
-add several commands to manage a queue of patches as the 'quilt' system on top
-of a mercurial repository.
-
-patchbomb
----------
-send changes as series of email patches
+I try to add all available upstream extensions in the Debian package.
+Look at sample.hgrc to get a few information about available extensions.
 
 Extensions can be enabled system-wide, per-user and/or per repository (see
 hgrc(5) for more information). 
@@ -45,7 +22,6 @@ hgrc(5) for more information).
 the 'win32text' (some projects can be ennoyed with it).
 The system administrator can modify this by editing
 /etc/mercurial/hgrc.d/hgext.rc
-
 
 Other extensions
 ****************

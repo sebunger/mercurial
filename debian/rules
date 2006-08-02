@@ -1,14 +1,20 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-DEB_PYTHON_SYSTEM=pysupport
-include /usr/share/cdbs/1/rules/debhelper.mk
+# including python-distutils BEFORE debhelper.mk ...
 include /usr/share/cdbs/1/rules/patchsys-quilt.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
+include /usr/share/cdbs/1/rules/debhelper.mk
+
+# ... so that we can personnalize the call to dh_python
+$(patsubst %,binary-install/%,$(DEB_PACKAGES)) :: binary-install/%:
+	dh_python -p$(cdbs_curpkg) -V 2.4
+
+DEB_PYTHON_COMPILE_VERSION=2.4
 
 DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgmerge.1 doc/hgrc.5 doc/hgignore.5
 
-binary-install/mercurial::
+common-install-impl::
 	# Install bash autocompletion.
 	install -d $(DEB_DESTDIR)/etc/bash_completion.d/
 	install -m 644 \
@@ -37,17 +43,11 @@ binary-install/mercurial::
 		contrib/mercurial.el \
 		$(DEB_DESTDIR)/usr/share/emacs/site-lisp/
 	# Move webstuff in /usr/share
-	mv $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates \
+	mv $(DEB_DESTDIR)/usr/lib/python2.4/site-packages/mercurial/templates \
 		$(DEB_DESTDIR)/usr/share/mercurial/
-	ln -sf ../../../mercurial/templates \
-	  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates
+	ln -sf ../../../../share/mercurial/templates \
+	  $(DEB_DESTDIR)/usr/lib/python2.4/site-packages/mercurial/templates
 
-        # Workaround a python-support bugs: it does not manage symlinks
-	for v in $$(pyversions -s); do \
-	    mkdir -p $(DEB_DESTDIR)/var/lib/python-support/$$v/mercurial/ ;\
-	    ln -s /usr/share/python-support/mercurial/mercurial/templates \
-		$(DEB_DESTDIR)/var/lib/python-support/$$v/mercurial/templates ;\
-	done
 	# fix bugs in cdbs/dh_python: mercurial will use python and not pythonX.Y
 	# [update]: in fact, python2.4 is better: python2.3 does not work
 	sed -i -e 's/python[0-9.]*/python2.4/' $(DEB_DESTDIR)/usr/bin/hg
@@ -57,6 +57,7 @@ update-config:: link_hgit
 
 link_hgit:
 	ln -fs ../contrib/hgk.py hgext/hgk.py
+	ln -fs ../contrib/purge/purge.py hgext/purge.py
 
 build-doc:
 	$(MAKE) -C doc man
@@ -65,4 +66,5 @@ clean::
 	#$(MAKE) -C doc clean
 	cd doc && $(RM) *.xml *.1 *.html
 	$(RM) -v mercurial/*.pyc
-	$(RM) -v hgext/hgk.py
+	$(RM) -v hgext/hgk.py hgext/purge.py
+	$(RM) -rfv build

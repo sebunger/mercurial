@@ -1,0 +1,25 @@
+Index: mercurial-0.9.1/contrib/sample.hgrc
+===================================================================
+--- mercurial-0.9.1.orig/contrib/sample.hgrc	2006-07-25 19:07:12.000000000 +0200
++++ mercurial-0.9.1/contrib/sample.hgrc	2006-07-25 19:10:38.000000000 +0200
+@@ -46,7 +46,7 @@
+ ### hgk - GUI repository browser
+ ### hg help view
+ 
+-# hgk = /home/user/hg/hg/contrib/hgk.py
++# hgext.hgk =
+ 
+ ### mq - Mercurial patch queues
+ ### hg help mq
+@@ -63,6 +63,11 @@
+ 
+ # hgext.patchbomb =
+ 
++### purge - removes files not known to Mercurial
++### hg help purge
++
++# hgext.purge =
++
+ ### win32text - line ending conversion filters for the Windows platform
+ 
+ # hgext.win32text =

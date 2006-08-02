@@ -51,7 +51,7 @@ list of commands (use "hg help -v" to show aliases and global options):
  export     dump the header and diffs for one or more changesets
  grep       search for a pattern in specified files and revisions
  heads      show current repository heads
- help       show help for a given command or all commands
+ help       show help for a command, extension, or list of commands
  identify   print information about the working copy
  import     import an ordered set of patches
  incoming   show new changesets found in source
@@ -93,7 +93,7 @@ list of commands (use "hg help -v" to show aliases and global options):
  export     dump the header and diffs for one or more changesets
  grep       search for a pattern in specified files and revisions
  heads      show current repository heads
- help       show help for a given command or all commands
+ help       show help for a command, extension, or list of commands
  identify   print information about the working copy
  import     import an ordered set of patches
  incoming   show new changesets found in source
@@ -136,6 +136,7 @@ options:
 
  -I --include  include names matching the given patterns
  -X --exclude  exclude names matching the given patterns
+ -n --dry-run  do not perform actions, just print output
 hg add: option --skjdfks not recognized
 hg add [OPTION]... [FILE]...
 
@@ -151,6 +152,7 @@ options:
 
  -I --include  include names matching the given patterns
  -X --exclude  exclude names matching the given patterns
+ -n --dry-run  do not perform actions, just print output
 hg diff [-a] [-I] [-X] [-r REV1 [-r REV2]] [FILE]...
 
 diff repository (or selected files)
@@ -171,12 +173,14 @@ diff repository (or selected files)
 
 options:
 
- -r --rev               revision
- -a --text              treat all files as text
- -p --show-function     show which function each change is in
- -w --ignore-all-space  ignore white space when comparing lines
- -I --include           include names matching the given patterns
- -X --exclude           exclude names matching the given patterns
+ -r --rev                  revision
+ -a --text                 treat all files as text
+ -p --show-function        show which function each change is in
+ -w --ignore-all-space     ignore white space when comparing lines
+ -b --ignore-space-change  ignore changes in the amount of white space
+ -B --ignore-blank-lines   ignore changes whose lines are all blank
+ -I --include              include names matching the given patterns
+ -X --exclude              exclude names matching the given patterns
 hg status [OPTION]... [FILE]...
 
 show changed files in the working directory
@@ -191,6 +195,7 @@ show changed files in the working directory
     ! = deleted, but still tracked
     ? = not tracked
     I = ignored (not shown by default)
+      = the previous added file was copied from here
 
 aliases: st
 
@@ -203,6 +208,7 @@ options:
  -u --unknown    show only unknown (not tracked) files
  -i --ignored    show ignored files
  -n --no-status  hide status prefix
+ -C --copies     show source of copied files
  -0 --print0     end filenames with NUL, for use with xargs
  -I --include    include names matching the given patterns
  -X --exclude    exclude names matching the given patterns
