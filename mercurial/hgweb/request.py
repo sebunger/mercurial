@@ -1,7 +1,7 @@
 # hgweb/request.py - An http request from either CGI or the standalone server.
 #
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
@@ -34,7 +34,7 @@ class _wsgioutputfile(object):
 class _wsgirequest(object):
     def __init__(self, destination, wsgienv, start_response):
         version = wsgienv['wsgi.version']
-        if (version < (1,0)) or (version >= (2, 0)):
+        if (version < (1, 0)) or (version >= (2, 0)):
             raise RuntimeError("Unknown and unsupported WSGI version %d.%d" \
                                % version)
         self.inp = wsgienv['wsgi.input']

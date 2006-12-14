@@ -9,3 +9,4 @@ deb_specific__bash_completion_global_option_already_set.patch
 #backport_from_upstream__update_revert_bug_fix.patch
 deb_specific__hgpurge.py.patch
 deb_specific__sample.hgrc.patch
+submitted_upstream__add_missing_version.patch

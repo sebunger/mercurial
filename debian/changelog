@@ -1,3 +1,66 @@
+mercurial (0.9.2-1) unstable; urgency=low
+
+  * New upstream release
+   + New features:
+      - merge now follows renames and copies
+      - new layout protects against case-insensitivity issues
+      - new branch and branches commands for managing named branches
+      - push command accepts -r for pushing specified heads or named
+        branches
+      - proper storage of changelog and other metadata in UTF-8
+      - log, annotate and grep '--follow' follow renames and copies
+      - date parsing is improved and log, update, and revert accept
+        --date ranges
+      - additional command options for log, status, addremove
+      - improved schema for hgweb URLs
+      - bundle can now use '-r' and '--base' removing the need of an
+        base repository
+      - support for git-style extended patches with --git option
+      - new debuginstall command to check for common installation issues
+     
+   + New contributions and extensions:
+      - mq
+        - support for quilt-style guards
+        - can import existing changesets into mq ('qimport -r') or 
+          commit mq patches as regular changesets ('qdel -f')
+        - edit the log message with 'qrefresh -e'
+        - rename patches with 'qrename'
+        - qheader to display the patch header of particular patches, 
+          and '--summary' for qseries, qapplied, qunapplied and qtop
+        - combine patches with 'qfold'
+        - qrefresh supports pattern options to import only a subset 
+          of the changes into a patch, to help split changes into
+          multiple patches
+        - patch names for applied patches act like local tags, and can
+          be used in the revision arguments of any hg command
+      - hgk
+        - browse a subset of the history with '--limit' and revision range
+          arguments
+        - shows revision numbers as well as node hashes
+      - churn: graph lines of code changed per user over a range of history
+      - patchbomb: generate inline attachments with '-a'
+     
+   + Behavior changes:
+      - hg cat defaults to the working directory revision rather than tip
+      - hg manifest no longer shows internal file revision hashes by default
+      - hg revert now requires the -a flag to revert all files
+     
+   + Developer notes:
+      - new high-level API functions in the 'hg' module
+      - new context API simplifies many operations
+      - The changelog can now include arbitrary metadata in key: value form
+  * [debian]: include the churn extension and enable it by default
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 14 Dec 2006 13:05:01 +0100
+
+mercurial (0.9.1+20061210+8c24b6fd5866-1) experimental; urgency=low
+
+  * New upstream release
+    snapshot before 0.9.2 release
+  * [debian/control] : update maintainer field : I'am DD now :-)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sun, 10 Dec 2006 22:40:30 +0100
+
 mercurial (0.9.1-1) unstable; urgency=low
 
   * New upstream release

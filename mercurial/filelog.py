@@ -1,19 +1,19 @@
 # filelog.py - file history class for mercurial
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
 from revlog import *
 from demandload import *
-demandload(globals(), "bdiff os")
+demandload(globals(), "os")
 
 class filelog(revlog):
     def __init__(self, opener, path, defversion=REVLOG_DEFAULT_VERSION):
         revlog.__init__(self, opener,
-                        os.path.join("data", self.encodedir(path + ".i")),
-                        os.path.join("data", self.encodedir(path + ".d")),
+                        "/".join(("data", self.encodedir(path + ".i"))),
+                        "/".join(("data", self.encodedir(path + ".d"))),
                         defversion)
 
     # This avoids a collision between a file named foo and a dir named
@@ -37,7 +37,7 @@ class filelog(revlog):
         s = t.index('\1\n', 2)
         return t[s+2:]
 
-    def readmeta(self, node):
+    def _readmeta(self, node):
         t = self.revision(node)
         if not t.startswith('\1\n'):
             return {}
@@ -60,48 +60,27 @@ class filelog(revlog):
     def renamed(self, node):
         if self.parents(node)[0] != nullid:
             return False
-        m = self.readmeta(node)
+        m = self._readmeta(node)
         if m and m.has_key("copy"):
             return (m["copy"], bin(m["copyrev"]))
         return False
 
-    def annotate(self, node):
+    def size(self, rev):
+        """return the size of a given revision"""
 
-        def decorate(text, rev):
-            return ([rev] * len(text.splitlines()), text)
+        # for revisions with renames, we have to go the slow way
+        node = self.node(rev)
+        if self.renamed(node):
+            return len(self.read(node))
 
-        def pair(parent, child):
-            for a1, a2, b1, b2 in bdiff.blocks(parent[1], child[1]):
-                child[0][b1:b2] = parent[0][a1:a2]
-            return child
+        return revlog.size(self, rev)
 
-        # find all ancestors
-        needed = {node:1}
-        visit = [node]
-        while visit:
-            n = visit.pop(0)
-            for p in self.parents(n):
-                if p not in needed:
-                    needed[p] = 1
-                    visit.append(p)
-                else:
-                    # count how many times we'll use this
-                    needed[p] += 1
+    def cmp(self, node, text):
+        """compare text with a given file revision"""
 
-        # sort by revision which is a topological order
-        visit = [ (self.rev(n), n) for n in needed.keys() ]
-        visit.sort()
-        hist = {}
+        # for renames, we have to go the slow way
+        if self.renamed(node):
+            t2 = self.read(node)
+            return t2 != text
 
-        for r,n in visit:
-            curr = decorate(self.read(n), self.linkrev(n))
-            for p in self.parents(n):
-                if p != nullid:
-                    curr = pair(hist[p], curr)
-                    # trim the history of unneeded revs
-                    needed[p] -= 1
-                    if not needed[p]:
-                        del hist[p]
-            hist[n] = curr
-
-        return zip(hist[n][0], hist[n][1].splitlines(1))
+        return revlog.cmp(self, node, text)

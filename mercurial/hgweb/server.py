@@ -1,7 +1,7 @@
 # hgweb/server.py - The standalone hg web server.
 #
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
@@ -30,9 +30,9 @@ class _error_logger(object):
         self.handler = handler
     def flush(self):
         pass
-    def write(str):
+    def write(self, str):
         self.writelines(str.split('\n'))
-    def writelines(seq):
+    def writelines(self, seq):
         for msg in seq:
             self.handler.log_error("HG error:  %s", msg)
 
@@ -71,7 +71,7 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
         env['REQUEST_METHOD'] = self.command
         env['SERVER_NAME'] = self.server.server_name
         env['SERVER_PORT'] = str(self.server.server_port)
-        env['REQUEST_URI'] = "/"
+        env['REQUEST_URI'] = self.path
         env['PATH_INFO'] = path_info
         if query:
             env['QUERY_STRING'] = query
@@ -186,7 +186,8 @@ def create_server(ui, repo):
         if hasattr(os, "fork"):
             _mixin = SocketServer.ForkingMixIn
         else:
-            class _mixin: pass
+            class _mixin:
+                pass
 
     class MercurialHTTPServer(object, _mixin, BaseHTTPServer.HTTPServer):
         def __init__(self, *args, **kargs):
@@ -200,6 +201,16 @@ def create_server(ui, repo):
             self.reqmaker = wsgiapplication(self.make_handler)
             self.daemon_threads = True
 
+            addr, port = self.socket.getsockname()[:2]
+            if addr in ('0.0.0.0', '::'):
+                addr = socket.gethostname()
+            else:
+                try:
+                    addr = socket.gethostbyaddr(addr)[0]
+                except socket.error:
+                    pass
+            self.addr, self.port = addr, port
+
         def make_handler(self):
             if self.webdir_conf:
                 hgwebobj = self.webdirmaker(self.webdir_conf)
@@ -207,7 +218,8 @@ def create_server(ui, repo):
                 hgwebobj = self.repoviewmaker(repo.__class__(repo.ui,
                                                              repo.origroot))
             else:
-                raise hg.RepoError(_('no repo found'))
+                raise hg.RepoError(_("There is no Mercurial repository here"
+                                     " (.hg not found)"))
             return hgwebobj
 
     class IPv6HTTPServer(MercurialHTTPServer):
@@ -218,7 +230,10 @@ def create_server(ui, repo):
                 raise hg.RepoError(_('IPv6 not available on this system'))
             super(IPv6HTTPServer, self).__init__(*args, **kwargs)
 
-    if use_ipv6:
-        return IPv6HTTPServer((address, port), _hgwebhandler)
-    else:
-        return MercurialHTTPServer((address, port), _hgwebhandler)
+    try:
+        if use_ipv6:
+            return IPv6HTTPServer((address, port), _hgwebhandler)
+        else:
+            return MercurialHTTPServer((address, port), _hgwebhandler)
+    except socket.error, inst:
+        raise util.Abort(_('cannot start server: %s') % inst.args[1])

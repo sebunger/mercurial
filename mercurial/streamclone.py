@@ -7,7 +7,7 @@
 
 from demandload import demandload
 from i18n import gettext as _
-demandload(globals(), "os stat util")
+demandload(globals(), "os stat util lock")
 
 # if server supports streaming clone, it advertises "stream"
 # capability with value that is version+flags of repo it is serving.
@@ -65,18 +65,24 @@ def stream_out(repo, fileobj):
         fileobj.write('1\n')
         return
 
-    fileobj.write('0\n')
-
     # get consistent snapshot of repo. lock during scan so lock not
     # needed while we stream, and commits can happen.
-    lock = repo.lock()
+    try:
+        repolock = repo.lock()
+    except (lock.LockHeld, lock.LockUnavailable), inst:
+        repo.ui.warn('locking the repository failed: %s\n' % (inst,))
+        fileobj.write('2\n')
+        return
+
+    fileobj.write('0\n')
     repo.ui.debug('scanning\n')
     entries = []
     total_bytes = 0
-    for name, size in walkrepo(repo.path):
+    for name, size in walkrepo(repo.spath):
+        name = util.pconvert(repo.decodefn(name))
         entries.append((name, size))
         total_bytes += size
-    lock.release()
+    repolock.release()
 
     repo.ui.debug('%d files, %d bytes to transfer\n' %
                   (len(entries), total_bytes))
@@ -84,7 +90,7 @@ def stream_out(repo, fileobj):
     for name, size in entries:
         repo.ui.debug('sending %s (%d bytes)\n' % (name, size))
         fileobj.write('%s\0%d\n' % (name, size))
-        for chunk in util.filechunkiter(repo.opener(name), limit=size):
+        for chunk in util.filechunkiter(repo.sopener(name), limit=size):
             fileobj.write(chunk)
     flush = getattr(fileobj, 'flush', None)
     if flush: flush()

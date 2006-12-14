@@ -1,7 +1,7 @@
 # hgweb/hgweb_mod.py - Web interface for a repository.
 #
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
@@ -11,9 +11,10 @@ import os.path
 import mimetypes
 from mercurial.demandload import demandload
 demandload(globals(), "re zlib ConfigParser mimetools cStringIO sys tempfile")
-demandload(globals(), "mercurial:mdiff,ui,hg,util,archival,streamclone")
-demandload(globals(), "mercurial:templater")
-demandload(globals(), "mercurial.hgweb.common:get_mtime,staticfile")
+demandload(globals(), 'urllib bz2')
+demandload(globals(), "mercurial:mdiff,ui,hg,util,archival,streamclone,patch")
+demandload(globals(), "mercurial:revlog,templater")
+demandload(globals(), "mercurial.hgweb.common:get_mtime,staticfile,style_map")
 from mercurial.node import *
 from mercurial.i18n import gettext as _
 
@@ -27,39 +28,91 @@ def _up(p):
         return "/"
     return up + "/"
 
+def revnavgen(pos, pagelen, limit, nodefunc):
+    def seq(factor, limit=None):
+        if limit:
+            yield limit
+            if limit >= 20 and limit <= 40:
+                yield 50
+        else:
+            yield 1 * factor
+            yield 3 * factor
+        for f in seq(factor * 10):
+            yield f
+
+    def nav(**map):
+        l = []
+        last = 0
+        for f in seq(1, pagelen):
+            if f < pagelen or f <= last:
+                continue
+            if f > limit:
+                break
+            last = f
+            if pos + f < limit:
+                l.append(("+%d" % f, hex(nodefunc(pos + f).node())))
+            if pos - f >= 0:
+                l.insert(0, ("-%d" % f, hex(nodefunc(pos - f).node())))
+
+        try:
+            yield {"label": "(0)", "node": hex(nodefunc('0').node())}
+
+            for label, node in l:
+                yield {"label": label, "node": node}
+
+            yield {"label": "tip", "node": "tip"}
+        except hg.RepoError:
+            pass
+
+    return nav
+
 class hgweb(object):
     def __init__(self, repo, name=None):
         if type(repo) == type(""):
-            self.repo = hg.repository(ui.ui(), repo)
+            self.repo = hg.repository(ui.ui(report_untrusted=False), repo)
         else:
             self.repo = repo
 
         self.mtime = -1
         self.reponame = name
         self.archives = 'zip', 'gz', 'bz2'
-        self.templatepath = self.repo.ui.config("web", "templates",
-                                                templater.templatepath())
+        self.stripecount = 1
+        # a repo owner may set web.templates in .hg/hgrc to get any file
+        # readable by the user running the CGI script
+        self.templatepath = self.config("web", "templates",
+                                        templater.templatepath(),
+                                        untrusted=False)
+
+    # The CGI scripts are often run by a user different from the repo owner.
+    # Trust the settings from the .hg/hgrc files by default.
+    def config(self, section, name, default=None, untrusted=True):
+        return self.repo.ui.config(section, name, default,
+                                   untrusted=untrusted)
+
+    def configbool(self, section, name, default=False, untrusted=True):
+        return self.repo.ui.configbool(section, name, default,
+                                       untrusted=untrusted)
+
+    def configlist(self, section, name, default=None, untrusted=True):
+        return self.repo.ui.configlist(section, name, default,
+                                       untrusted=untrusted)
 
     def refresh(self):
         mtime = get_mtime(self.repo.root)
         if mtime != self.mtime:
             self.mtime = mtime
             self.repo = hg.repository(self.repo.ui, self.repo.root)
-            self.maxchanges = int(self.repo.ui.config("web", "maxchanges", 10))
-            self.maxfiles = int(self.repo.ui.config("web", "maxfiles", 10))
-            self.allowpull = self.repo.ui.configbool("web", "allowpull", True)
+            self.maxchanges = int(self.config("web", "maxchanges", 10))
+            self.stripecount = int(self.config("web", "stripes", 1))
+            self.maxshortchanges = int(self.config("web", "maxshortchanges", 60))
+            self.maxfiles = int(self.config("web", "maxfiles", 10))
+            self.allowpull = self.configbool("web", "allowpull", True)
 
     def archivelist(self, nodeid):
-        allowed = self.repo.ui.configlist("web", "allow_archive")
-        for i in self.archives:
-            if i in allowed or self.repo.ui.configbool("web", "allow" + i):
-                yield {"type" : i, "node" : nodeid, "url": ""}
-
-    def listfiles(self, files, mf):
-        for f in files[:self.maxfiles]:
-            yield self.t("filenodelink", node=hex(mf[f]), file=f)
-        if len(files) > self.maxfiles:
-            yield self.t("fileellipses")
+        allowed = self.configlist("web", "allow_archive")
+        for i, spec in self.archive_specs.iteritems():
+            if i in allowed or self.configbool("web", "allow" + i):
+                yield {"type" : i, "extension" : spec[2], "node" : nodeid}
 
     def listfilediffs(self, files, changeset):
         for f in files[:self.maxfiles]:
@@ -67,14 +120,16 @@ class hgweb(object):
         if len(files) > self.maxfiles:
             yield self.t("fileellipses")
 
-    def siblings(self, siblings=[], rev=None, hiderev=None, **args):
-        if not rev:
-            rev = lambda x: ""
-        siblings = [s for s in siblings if s != nullid]
-        if len(siblings) == 1 and rev(siblings[0]) == hiderev:
+    def siblings(self, siblings=[], hiderev=None, **args):
+        siblings = [s for s in siblings if s.node() != nullid]
+        if len(siblings) == 1 and siblings[0].rev() == hiderev:
             return
         for s in siblings:
-            yield dict(node=hex(s), rev=rev(s), **args)
+            d = {'node': hex(s.node()), 'rev': s.rev()}
+            if hasattr(s, 'path'):
+                d['file'] = s.path()
+            d.update(args)
+            yield d
 
     def renamelink(self, fl, node):
         r = fl.renamed(node)
@@ -84,7 +139,7 @@ class hgweb(object):
 
     def showtag(self, t1, node=nullid, **args):
         for t in self.repo.nodetags(node):
-             yield self.t(t1, tag=t, **args)
+            yield self.t(t1, tag=t, **args)
 
     def diff(self, node1, node2, files):
         def filterfiles(filters, files):
@@ -126,109 +181,65 @@ class hgweb(object):
         date1 = util.datestr(change1[2])
         date2 = util.datestr(change2[2])
 
-        modified, added, removed, deleted, unknown = r.changes(node1, node2)
+        modified, added, removed, deleted, unknown = r.status(node1, node2)[:5]
         if files:
             modified, added, removed = map(lambda x: filterfiles(files, x),
                                            (modified, added, removed))
 
-        diffopts = self.repo.ui.diffopts()
-        showfunc = diffopts['showfunc']
-        ignorews = diffopts['ignorews']
-        ignorewsamount = diffopts['ignorewsamount']
-        ignoreblanklines = diffopts['ignoreblanklines']
+        diffopts = patch.diffopts(self.repo.ui, untrusted=True)
         for f in modified:
             to = r.file(f).read(mmap1[f])
             tn = r.file(f).read(mmap2[f])
             yield diffblock(mdiff.unidiff(to, date1, tn, date2, f,
-                            showfunc=showfunc, ignorews=ignorews,
-                            ignorewsamount=ignorewsamount,
-                            ignoreblanklines=ignoreblanklines), f, tn)
+                                          opts=diffopts), f, tn)
         for f in added:
             to = None
             tn = r.file(f).read(mmap2[f])
             yield diffblock(mdiff.unidiff(to, date1, tn, date2, f,
-                            showfunc=showfunc, ignorews=ignorews,
-                            ignorewsamount=ignorewsamount,
-                            ignoreblanklines=ignoreblanklines), f, tn)
+                                          opts=diffopts), f, tn)
         for f in removed:
             to = r.file(f).read(mmap1[f])
             tn = None
             yield diffblock(mdiff.unidiff(to, date1, tn, date2, f,
-                            showfunc=showfunc, ignorews=ignorews,
-                            ignorewsamount=ignorewsamount,
-                            ignoreblanklines=ignoreblanklines), f, tn)
+                                          opts=diffopts), f, tn)
 
-    def changelog(self, pos):
-        def changenav(**map):
-            def seq(factor, maxchanges=None):
-                if maxchanges:
-                    yield maxchanges
-                    if maxchanges >= 20 and maxchanges <= 40:
-                        yield 50
-                else:
-                    yield 1 * factor
-                    yield 3 * factor
-                for f in seq(factor * 10):
-                    yield f
-
-            l = []
-            last = 0
-            for f in seq(1, self.maxchanges):
-                if f < self.maxchanges or f <= last:
-                    continue
-                if f > count:
-                    break
-                last = f
-                r = "%d" % f
-                if pos + f < count:
-                    l.append(("+" + r, pos + f))
-                if pos - f >= 0:
-                    l.insert(0, ("-" + r, pos - f))
-
-            yield {"rev": 0, "label": "(0)"}
-
-            for label, rev in l:
-                yield {"label": label, "rev": rev}
-
-            yield {"label": "tip", "rev": "tip"}
-
+    def changelog(self, ctx, shortlog=False):
         def changelist(**map):
             parity = (start - end) & 1
             cl = self.repo.changelog
             l = [] # build a list in forward order for efficiency
-            for i in range(start, end):
-                n = cl.node(i)
-                changes = cl.read(n)
-                hn = hex(n)
+            for i in xrange(start, end):
+                ctx = self.repo.changectx(i)
+                n = ctx.node()
 
                 l.insert(0, {"parity": parity,
-                             "author": changes[1],
-                             "parent": self.siblings(cl.parents(n), cl.rev,
-                                                     cl.rev(n) - 1),
-                             "child": self.siblings(cl.children(n), cl.rev,
-                                                    cl.rev(n) + 1),
+                             "author": ctx.user(),
+                             "parent": self.siblings(ctx.parents(), i - 1),
+                             "child": self.siblings(ctx.children(), i + 1),
                              "changelogtag": self.showtag("changelogtag",n),
-                             "manifest": hex(changes[0]),
-                             "desc": changes[4],
-                             "date": changes[2],
-                             "files": self.listfilediffs(changes[3], n),
+                             "desc": ctx.description(),
+                             "date": ctx.date(),
+                             "files": self.listfilediffs(ctx.files(), n),
                              "rev": i,
-                             "node": hn})
+                             "node": hex(n)})
                 parity = 1 - parity
 
             for e in l:
                 yield e
 
+        maxchanges = shortlog and self.maxshortchanges or self.maxchanges
         cl = self.repo.changelog
-        mf = cl.read(cl.tip())[0]
         count = cl.count()
-        start = max(0, pos - self.maxchanges + 1)
-        end = min(count, start + self.maxchanges)
+        pos = ctx.rev()
+        start = max(0, pos - maxchanges + 1)
+        end = min(count, start + maxchanges)
         pos = end - 1
 
-        yield self.t('changelog',
+        changenav = revnavgen(pos, maxchanges, count, self.repo.changectx)
+
+        yield self.t(shortlog and 'shortlog' or 'changelog',
                      changenav=changenav,
-                     manifest=hex(mf),
+                     node=hex(cl.tip()),
                      rev=pos, changesets=count, entries=changelist,
                      archives=self.archivelist("tip"))
 
@@ -240,130 +251,123 @@ class hgweb(object):
             qw = query.lower().split()
 
             def revgen():
-                for i in range(cl.count() - 1, 0, -100):
+                for i in xrange(cl.count() - 1, 0, -100):
                     l = []
-                    for j in range(max(0, i - 100), i):
-                        n = cl.node(j)
-                        changes = cl.read(n)
-                        l.append((n, j, changes))
+                    for j in xrange(max(0, i - 100), i):
+                        ctx = self.repo.changectx(j)
+                        l.append(ctx)
                     l.reverse()
                     for e in l:
                         yield e
 
-            for n, i, changes in revgen():
+            for ctx in revgen():
                 miss = 0
                 for q in qw:
-                    if not (q in changes[1].lower() or
-                            q in changes[4].lower() or
-                            q in " ".join(changes[3][:20]).lower()):
+                    if not (q in ctx.user().lower() or
+                            q in ctx.description().lower() or
+                            q in " ".join(ctx.files()[:20]).lower()):
                         miss = 1
                         break
                 if miss:
                     continue
 
                 count += 1
-                hn = hex(n)
+                n = ctx.node()
 
                 yield self.t('searchentry',
-                             parity=count & 1,
-                             author=changes[1],
-                             parent=self.siblings(cl.parents(n), cl.rev),
-                             child=self.siblings(cl.children(n), cl.rev),
+                             parity=self.stripes(count),
+                             author=ctx.user(),
+                             parent=self.siblings(ctx.parents()),
+                             child=self.siblings(ctx.children()),
                              changelogtag=self.showtag("changelogtag",n),
-                             manifest=hex(changes[0]),
-                             desc=changes[4],
-                             date=changes[2],
-                             files=self.listfilediffs(changes[3], n),
-                             rev=i,
-                             node=hn)
+                             desc=ctx.description(),
+                             date=ctx.date(),
+                             files=self.listfilediffs(ctx.files(), n),
+                             rev=ctx.rev(),
+                             node=hex(n))
 
                 if count >= self.maxchanges:
                     break
 
         cl = self.repo.changelog
-        mf = cl.read(cl.tip())[0]
 
         yield self.t('search',
                      query=query,
-                     manifest=hex(mf),
+                     node=hex(cl.tip()),
                      entries=changelist)
 
-    def changeset(self, nodeid):
-        cl = self.repo.changelog
-        n = self.repo.lookup(nodeid)
-        nodeid = hex(n)
-        changes = cl.read(n)
-        p1 = cl.parents(n)[0]
+    def changeset(self, ctx):
+        n = ctx.node()
+        parents = ctx.parents()
+        p1 = parents[0].node()
 
         files = []
-        mf = self.repo.manifest.read(changes[0])
-        for f in changes[3]:
+        parity = 0
+        for f in ctx.files():
             files.append(self.t("filenodelink",
-                                filenode=hex(mf.get(f, nullid)), file=f))
+                                node=hex(n), file=f,
+                                parity=parity))
+            parity = 1 - parity
 
         def diff(**map):
             yield self.diff(p1, n, None)
 
         yield self.t('changeset',
                      diff=diff,
-                     rev=cl.rev(n),
-                     node=nodeid,
-                     parent=self.siblings(cl.parents(n), cl.rev),
-                     child=self.siblings(cl.children(n), cl.rev),
+                     rev=ctx.rev(),
+                     node=hex(n),
+                     parent=self.siblings(parents),
+                     child=self.siblings(ctx.children()),
                      changesettag=self.showtag("changesettag",n),
-                     manifest=hex(changes[0]),
-                     author=changes[1],
-                     desc=changes[4],
-                     date=changes[2],
+                     author=ctx.user(),
+                     desc=ctx.description(),
+                     date=ctx.date(),
                      files=files,
-                     archives=self.archivelist(nodeid))
+                     archives=self.archivelist(hex(n)))
 
-    def filelog(self, f, filenode):
-        cl = self.repo.changelog
-        fl = self.repo.file(f)
-        filenode = hex(fl.lookup(filenode))
+    def filelog(self, fctx):
+        f = fctx.path()
+        fl = fctx.filelog()
         count = fl.count()
+        pagelen = self.maxshortchanges
+        pos = fctx.filerev()
+        start = max(0, pos - pagelen + 1)
+        end = min(count, start + pagelen)
+        pos = end - 1
 
         def entries(**map):
             l = []
             parity = (count - 1) & 1
 
-            for i in range(count):
+            for i in xrange(start, end):
+                ctx = fctx.filectx(i)
                 n = fl.node(i)
-                lr = fl.linkrev(n)
-                cn = cl.node(lr)
-                cs = cl.read(cl.node(lr))
 
                 l.insert(0, {"parity": parity,
-                             "filenode": hex(n),
                              "filerev": i,
                              "file": f,
-                             "node": hex(cn),
-                             "author": cs[1],
-                             "date": cs[2],
+                             "node": hex(ctx.node()),
+                             "author": ctx.user(),
+                             "date": ctx.date(),
                              "rename": self.renamelink(fl, n),
-                             "parent": self.siblings(fl.parents(n),
-                                                     fl.rev, file=f),
-                             "child": self.siblings(fl.children(n),
-                                                    fl.rev, file=f),
-                             "desc": cs[4]})
+                             "parent": self.siblings(fctx.parents()),
+                             "child": self.siblings(fctx.children()),
+                             "desc": ctx.description()})
                 parity = 1 - parity
 
             for e in l:
                 yield e
 
-        yield self.t("filelog", file=f, filenode=filenode, entries=entries)
+        nodefunc = lambda x: fctx.filectx(fileid=x)
+        nav = revnavgen(pos, pagelen, count, nodefunc)
+        yield self.t("filelog", file=f, node=hex(fctx.node()), nav=nav,
+                     entries=entries)
 
-    def filerevision(self, f, node):
-        fl = self.repo.file(f)
-        n = fl.lookup(node)
-        node = hex(n)
-        text = fl.read(n)
-        changerev = fl.linkrev(n)
-        cl = self.repo.changelog
-        cn = cl.node(changerev)
-        cs = cl.read(cn)
-        mfn = cs[0]
+    def filerevision(self, fctx):
+        f = fctx.path()
+        text = fctx.data()
+        fl = fctx.filelog()
+        n = fctx.filenode()
 
         mt = mimetypes.guess_type(f)[0]
         rawtext = text
@@ -376,98 +380,74 @@ class hgweb(object):
             for l, t in enumerate(text.splitlines(1)):
                 yield {"line": t,
                        "linenumber": "% 6d" % (l + 1),
-                       "parity": l & 1}
+                       "parity": self.stripes(l)}
 
         yield self.t("filerevision",
                      file=f,
-                     filenode=node,
                      path=_up(f),
                      text=lines(),
                      raw=rawtext,
                      mimetype=mt,
-                     rev=changerev,
-                     node=hex(cn),
-                     manifest=hex(mfn),
-                     author=cs[1],
-                     date=cs[2],
-                     parent=self.siblings(fl.parents(n), fl.rev, file=f),
-                     child=self.siblings(fl.children(n), fl.rev, file=f),
+                     rev=fctx.rev(),
+                     node=hex(fctx.node()),
+                     author=fctx.user(),
+                     date=fctx.date(),
+                     desc=fctx.description(),
+                     parent=self.siblings(fctx.parents()),
+                     child=self.siblings(fctx.children()),
                      rename=self.renamelink(fl, n),
-                     permissions=self.repo.manifest.readflags(mfn)[f])
+                     permissions=fctx.manifest().execf(f))
 
-    def fileannotate(self, f, node):
-        bcache = {}
-        ncache = {}
-        fl = self.repo.file(f)
-        n = fl.lookup(node)
-        node = hex(n)
-        changerev = fl.linkrev(n)
-
-        cl = self.repo.changelog
-        cn = cl.node(changerev)
-        cs = cl.read(cn)
-        mfn = cs[0]
+    def fileannotate(self, fctx):
+        f = fctx.path()
+        n = fctx.filenode()
+        fl = fctx.filelog()
 
         def annotate(**map):
-            parity = 1
+            parity = 0
             last = None
-            for r, l in fl.annotate(n):
-                try:
-                    cnode = ncache[r]
-                except KeyError:
-                    cnode = ncache[r] = self.repo.changelog.node(r)
+            for f, l in fctx.annotate(follow=True):
+                fnode = f.filenode()
+                name = self.repo.ui.shortuser(f.user())
 
-                try:
-                    name = bcache[r]
-                except KeyError:
-                    cl = self.repo.changelog.read(cnode)
-                    bcache[r] = name = self.repo.ui.shortuser(cl[1])
-
-                if last != cnode:
+                if last != fnode:
                     parity = 1 - parity
-                    last = cnode
+                    last = fnode
 
                 yield {"parity": parity,
-                       "node": hex(cnode),
-                       "rev": r,
+                       "node": hex(f.node()),
+                       "rev": f.rev(),
                        "author": name,
-                       "file": f,
+                       "file": f.path(),
                        "line": l}
 
         yield self.t("fileannotate",
                      file=f,
-                     filenode=node,
                      annotate=annotate,
                      path=_up(f),
-                     rev=changerev,
-                     node=hex(cn),
-                     manifest=hex(mfn),
-                     author=cs[1],
-                     date=cs[2],
+                     rev=fctx.rev(),
+                     node=hex(fctx.node()),
+                     author=fctx.user(),
+                     date=fctx.date(),
+                     desc=fctx.description(),
                      rename=self.renamelink(fl, n),
-                     parent=self.siblings(fl.parents(n), fl.rev, file=f),
-                     child=self.siblings(fl.children(n), fl.rev, file=f),
-                     permissions=self.repo.manifest.readflags(mfn)[f])
+                     parent=self.siblings(fctx.parents()),
+                     child=self.siblings(fctx.children()),
+                     permissions=fctx.manifest().execf(f))
 
-    def manifest(self, mnode, path):
-        man = self.repo.manifest
-        mn = man.lookup(mnode)
-        mnode = hex(mn)
-        mf = man.read(mn)
-        rev = man.rev(mn)
-        changerev = man.linkrev(mn)
-        node = self.repo.changelog.node(changerev)
-        mff = man.readflags(mn)
+    def manifest(self, ctx, path):
+        mf = ctx.manifest()
+        node = ctx.node()
 
         files = {}
 
-        p = path[1:]
-        if p and p[-1] != "/":
-            p += "/"
-        l = len(p)
+        if path and path[-1] != "/":
+            path += "/"
+        l = len(path)
+        abspath = "/" + path
 
-        for f,n in mf.items():
-            if f[:l] != p:
+        for f, n in mf.items():
+            if f[:l] != path:
                 continue
             remain = f[l:]
             if "/" in remain:
@@ -487,12 +467,11 @@ class hgweb(object):
                     continue
 
                 yield {"file": full,
-                       "manifest": mnode,
-                       "filenode": hex(fnode),
-                       "parity": parity,
+                       "parity": self.stripes(parity),
                        "basename": f,
-                       "permissions": mff[full]}
-                parity = 1 - parity
+                       "size": ctx.filectx(full).size(),
+                       "permissions": mf.execf(full)}
+                parity += 1
 
         def dirlist(**map):
             parity = 0
@@ -503,48 +482,44 @@ class hgweb(object):
                 if fnode:
                     continue
 
-                yield {"parity": parity,
-                       "path": os.path.join(path, f),
-                       "manifest": mnode,
+                yield {"parity": self.stripes(parity),
+                       "path": os.path.join(abspath, f),
                        "basename": f[:-1]}
-                parity = 1 - parity
+                parity += 1
 
         yield self.t("manifest",
-                     manifest=mnode,
-                     rev=rev,
+                     rev=ctx.rev(),
                      node=hex(node),
-                     path=path,
-                     up=_up(path),
+                     path=abspath,
+                     up=_up(abspath),
                      fentries=filelist,
                      dentries=dirlist,
                      archives=self.archivelist(hex(node)))
 
     def tags(self):
         cl = self.repo.changelog
-        mf = cl.read(cl.tip())[0]
 
         i = self.repo.tagslist()
         i.reverse()
 
         def entries(notip=False, **map):
             parity = 0
-            for k,n in i:
-                if notip and k == "tip": continue
-                yield {"parity": parity,
+            for k, n in i:
+                if notip and k == "tip":
+                    continue
+                yield {"parity": self.stripes(parity),
                        "tag": k,
-                       "tagmanifest": hex(cl.read(n)[0]),
                        "date": cl.read(n)[2],
                        "node": hex(n)}
-                parity = 1 - parity
+                parity += 1
 
         yield self.t("tags",
-                     manifest=hex(mf),
+                     node=hex(self.repo.changelog.tip()),
                      entries=lambda **x: entries(False, **x),
                      entriesnotip=lambda **x: entries(True, **x))
 
     def summary(self):
         cl = self.repo.changelog
-        mf = cl.read(cl.tip())[0]
 
         i = self.repo.tagslist()
         i.reverse()
@@ -552,7 +527,7 @@ class hgweb(object):
         def tagentries(**map):
             parity = 0
             count = 0
-            for k,n in i:
+            for k, n in i:
                 if k == "tip": # skip tip
                     continue;
 
@@ -561,22 +536,37 @@ class hgweb(object):
                     break;
 
                 c = cl.read(n)
-                m = c[0]
                 t = c[2]
 
                 yield self.t("tagentry",
-                             parity = parity,
+                             parity = self.stripes(parity),
                              tag = k,
                              node = hex(n),
-                             date = t,
-                             tagmanifest = hex(m))
-                parity = 1 - parity
+                             date = t)
+                parity += 1
+
+        def heads(**map):
+            parity = 0
+            count = 0
+
+            for node in self.repo.heads():
+                count += 1
+                if count > 10:
+                    break;
+
+                ctx = self.repo.changectx(node)
+
+                yield {'parity': self.stripes(parity),
+                       'branch': ctx.branch(),
+                       'node': hex(node),
+                       'date': ctx.date()}
+                parity += 1
 
         def changelist(**map):
             parity = 0
             cl = self.repo.changelog
             l = [] # build a list in forward order for efficiency
-            for i in range(start, end):
+            for i in xrange(start, end):
                 n = cl.node(i)
                 changes = cl.read(n)
                 hn = hex(n)
@@ -586,7 +576,6 @@ class hgweb(object):
                     'shortlogentry',
                     parity = parity,
                     author = changes[1],
-                    manifest = hex(changes[0]),
                     desc = changes[4],
                     date = t,
                     rev = i,
@@ -595,40 +584,37 @@ class hgweb(object):
 
             yield l
 
-        cl = self.repo.changelog
-        mf = cl.read(cl.tip())[0]
         count = cl.count()
         start = max(0, count - self.maxchanges)
         end = min(count, start + self.maxchanges)
 
         yield self.t("summary",
-                 desc = self.repo.ui.config("web", "description", "unknown"),
-                 owner = (self.repo.ui.config("ui", "username") or # preferred
-                          self.repo.ui.config("web", "contact") or # deprecated
-                          self.repo.ui.config("web", "author", "unknown")), # also
-                 lastchange = (0, 0), # FIXME
-                 manifest = hex(mf),
+                 desc = self.config("web", "description", "unknown"),
+                 owner = (self.config("ui", "username") or # preferred
+                          self.config("web", "contact") or # deprecated
+                          self.config("web", "author", "unknown")), # also
+                 lastchange = cl.read(cl.tip())[2],
                  tags = tagentries,
-                 shortlog = changelist)
+                 heads = heads,
+                 shortlog = changelist,
+                 node = hex(cl.tip()),
+                 archives=self.archivelist("tip"))
 
-    def filediff(self, file, changeset):
-        cl = self.repo.changelog
-        n = self.repo.lookup(changeset)
-        changeset = hex(n)
-        p1 = cl.parents(n)[0]
-        cs = cl.read(n)
-        mf = self.repo.manifest.read(cs[0])
+    def filediff(self, fctx):
+        n = fctx.node()
+        path = fctx.path()
+        parents = fctx.parents()
+        p1 = parents and parents[0].node() or nullid
 
         def diff(**map):
-            yield self.diff(p1, n, [file])
+            yield self.diff(p1, n, [path])
 
         yield self.t("filediff",
-                     file=file,
-                     filenode=hex(mf.get(file, nullid)),
-                     node=changeset,
-                     rev=self.repo.changelog.rev(n),
-                     parent=self.siblings(cl.parents(n), cl.rev),
-                     child=self.siblings(cl.children(n), cl.rev),
+                     file=path,
+                     node=hex(n),
+                     rev=fctx.rev(),
+                     parent=self.siblings(parents),
+                     child=self.siblings(fctx.children()),
                      diff=diff)
 
     archive_specs = {
@@ -654,10 +640,8 @@ class hgweb(object):
     # find tag, changeset, file
 
     def cleanpath(self, path):
-        p = util.normpath(path)
-        if p[:2] == "..":
-            raise Exception("suspicious path")
-        return p
+        path = path.lstrip('/')
+        return util.canonpath(self.repo.root, '', path)
 
     def run(self):
         if not os.environ.get('GATEWAY_INTERFACE', '').startswith("CGI/1."):
@@ -670,7 +654,8 @@ class hgweb(object):
 
     def run_wsgi(self, req):
         def header(**map):
-            header_file = cStringIO.StringIO(''.join(self.t("header", **map)))
+            header_file = cStringIO.StringIO(
+                ''.join(self.t("header", encoding = util._encoding, **map)))
             msg = mimetools.Message(header_file, 0)
             req.header(msg.items())
             yield header_file.read()
@@ -682,13 +667,15 @@ class hgweb(object):
             yield ''
 
         def footer(**map):
-            yield self.t("footer",
-                         motd=self.repo.ui.config("web", "motd", ""),
-                         **map)
+            yield self.t("footer", **map)
+
+        def motd(**map):
+            yield self.config("web", "motd", "")
 
         def expand_form(form):
             shortcuts = {
                 'cl': [('cmd', ['changelog']), ('rev', None)],
+                'sl': [('cmd', ['shortlog']), ('rev', None)],
                 'cs': [('cmd', ['changeset']), ('node', None)],
                 'f': [('cmd', ['file']), ('filenode', None)],
                 'fl': [('cmd', ['filelog']), ('filenode', None)],
@@ -709,66 +696,215 @@ class hgweb(object):
                         form[name] = value
                     del form[k]
 
+        def rewrite_request(req):
+            '''translate new web interface to traditional format'''
+
+            def spliturl(req):
+                def firstitem(query):
+                    return query.split('&', 1)[0].split(';', 1)[0]
+
+                def normurl(url):
+                    inner = '/'.join([x for x in url.split('/') if x])
+                    tl = len(url) > 1 and url.endswith('/') and '/' or ''
+
+                    return '%s%s%s' % (url.startswith('/') and '/' or '',
+                                       inner, tl)
+
+                root = normurl(urllib.unquote(req.env.get('REQUEST_URI', '').split('?', 1)[0]))
+                pi = normurl(req.env.get('PATH_INFO', ''))
+                if pi:
+                    # strip leading /
+                    pi = pi[1:]
+                    if pi:
+                        root = root[:-len(pi)]
+                    if req.env.has_key('REPO_NAME'):
+                        rn = req.env['REPO_NAME'] + '/'
+                        root += rn
+                        query = pi[len(rn):]
+                    else:
+                        query = pi
+                else:
+                    root += '?'
+                    query = firstitem(req.env['QUERY_STRING'])
+
+                return (root, query)
+
+            req.url, query = spliturl(req)
+
+            if req.form.has_key('cmd'):
+                # old style
+                return
+
+            args = query.split('/', 2)
+            if not args or not args[0]:
+                return
+
+            cmd = args.pop(0)
+            style = cmd.rfind('-')
+            if style != -1:
+                req.form['style'] = [cmd[:style]]
+                cmd = cmd[style+1:]
+            # avoid accepting e.g. style parameter as command
+            if hasattr(self, 'do_' + cmd):
+                req.form['cmd'] = [cmd]
+
+            if args and args[0]:
+                node = args.pop(0)
+                req.form['node'] = [node]
+            if args:
+                req.form['file'] = args
+
+            if cmd == 'static':
+                req.form['file'] = req.form['node']
+            elif cmd == 'archive':
+                fn = req.form['node'][0]
+                for type_, spec in self.archive_specs.iteritems():
+                    ext = spec[2]
+                    if fn.endswith(ext):
+                        req.form['node'] = [fn[:-len(ext)]]
+                        req.form['type'] = [type_]
+
+        def sessionvars(**map):
+            fields = []
+            if req.form.has_key('style'):
+                style = req.form['style'][0]
+                if style != self.config('web', 'style', ''):
+                    fields.append(('style', style))
+
+            separator = req.url[-1] == '?' and ';' or '?'
+            for name, value in fields:
+                yield dict(name=name, value=value, separator=separator)
+                separator = ';'
+
         self.refresh()
 
         expand_form(req.form)
+        rewrite_request(req)
 
-        m = os.path.join(self.templatepath, "map")
-        style = self.repo.ui.config("web", "style", "")
+        style = self.config("web", "style", "")
         if req.form.has_key('style'):
             style = req.form['style'][0]
-        if style:
-            b = os.path.basename("map-" + style)
-            p = os.path.join(self.templatepath, b)
-            if os.path.isfile(p):
-                m = p
+        mapfile = style_map(self.templatepath, style)
 
         port = req.env["SERVER_PORT"]
         port = port != "80" and (":" + port) or ""
-        uri = req.env["REQUEST_URI"]
-        if "?" in uri:
-            uri = uri.split("?")[0]
-        url = "http://%s%s%s" % (req.env["SERVER_NAME"], port, uri)
-        if not self.reponame:
-            self.reponame = (self.repo.ui.config("web", "name")
-                             or uri.strip('/') or self.repo.root)
+        urlbase = 'http://%s%s' % (req.env['SERVER_NAME'], port)
 
-        self.t = templater.templater(m, templater.common_filters,
-                                     defaults={"url": url,
+        if not self.reponame:
+            self.reponame = (self.config("web", "name")
+                             or req.env.get('REPO_NAME')
+                             or req.url.strip('/') or self.repo.root)
+
+        self.t = templater.templater(mapfile, templater.common_filters,
+                                     defaults={"url": req.url,
+                                               "urlbase": urlbase,
                                                "repo": self.reponame,
                                                "header": header,
                                                "footer": footer,
+                                               "motd": motd,
                                                "rawfileheader": rawfileheader,
+                                               "sessionvars": sessionvars
                                                })
 
         if not req.form.has_key('cmd'):
-            req.form['cmd'] = [self.t.cache['default'],]
+            req.form['cmd'] = [self.t.cache['default']]
 
         cmd = req.form['cmd'][0]
 
         method = getattr(self, 'do_' + cmd, None)
         if method:
-            method(req)
-        else:
-            req.write(self.t("error"))
-
-    def do_changelog(self, req):
-        hi = self.repo.changelog.count() - 1
-        if req.form.has_key('rev'):
-            hi = req.form['rev'][0]
             try:
-                hi = self.repo.changelog.rev(self.repo.lookup(hi))
+                method(req)
+            except (hg.RepoError, revlog.RevlogError), inst:
+                req.write(self.t("error", error=str(inst)))
+        else:
+            req.write(self.t("error", error='No such method: ' + cmd))
+
+    def changectx(self, req):
+        if req.form.has_key('node'):
+            changeid = req.form['node'][0]
+        elif req.form.has_key('manifest'):
+            changeid = req.form['manifest'][0]
+        else:
+            changeid = self.repo.changelog.count() - 1
+
+        try:
+            ctx = self.repo.changectx(changeid)
+        except hg.RepoError:
+            man = self.repo.manifest
+            mn = man.lookup(changeid)
+            ctx = self.repo.changectx(man.linkrev(mn))
+
+        return ctx
+
+    def filectx(self, req):
+        path = self.cleanpath(req.form['file'][0])
+        if req.form.has_key('node'):
+            changeid = req.form['node'][0]
+        else:
+            changeid = req.form['filenode'][0]
+        try:
+            ctx = self.repo.changectx(changeid)
+            fctx = ctx.filectx(path)
+        except hg.RepoError:
+            fctx = self.repo.filectx(path, fileid=changeid)
+
+        return fctx
+
+    def stripes(self, parity):
+        "make horizontal stripes for easier reading"
+        if self.stripecount:
+            return (1 + parity / self.stripecount) & 1
+        else:
+            return 0
+
+    def do_log(self, req):
+        if req.form.has_key('file') and req.form['file'][0]:
+            self.do_filelog(req)
+        else:
+            self.do_changelog(req)
+
+    def do_rev(self, req):
+        self.do_changeset(req)
+
+    def do_file(self, req):
+        path = self.cleanpath(req.form.get('file', [''])[0])
+        if path:
+            try:
+                req.write(self.filerevision(self.filectx(req)))
+                return
+            except hg.RepoError:
+                pass
+
+        req.write(self.manifest(self.changectx(req), path))
+
+    def do_diff(self, req):
+        self.do_filediff(req)
+
+    def do_changelog(self, req, shortlog = False):
+        if req.form.has_key('node'):
+            ctx = self.changectx(req)
+        else:
+            if req.form.has_key('rev'):
+                hi = req.form['rev'][0]
+            else:
+                hi = self.repo.changelog.count() - 1
+            try:
+                ctx = self.repo.changectx(hi)
             except hg.RepoError:
                 req.write(self.search(hi)) # XXX redirect to 404 page?
                 return
 
-        req.write(self.changelog(hi))
+        req.write(self.changelog(ctx, shortlog = shortlog))
+
+    def do_shortlog(self, req):
+        self.do_changelog(req, shortlog = True)
 
     def do_changeset(self, req):
-        req.write(self.changeset(req.form['node'][0]))
+        req.write(self.changeset(self.changectx(req)))
 
     def do_manifest(self, req):
-        req.write(self.manifest(req.form['manifest'][0],
+        req.write(self.manifest(self.changectx(req),
                                 self.cleanpath(req.form['path'][0])))
 
     def do_tags(self, req):
@@ -778,20 +914,24 @@ class hgweb(object):
         req.write(self.summary())
 
     def do_filediff(self, req):
-        req.write(self.filediff(self.cleanpath(req.form['file'][0]),
-                                req.form['node'][0]))
-
-    def do_file(self, req):
-        req.write(self.filerevision(self.cleanpath(req.form['file'][0]),
-                                    req.form['filenode'][0]))
+        req.write(self.filediff(self.filectx(req)))
 
     def do_annotate(self, req):
-        req.write(self.fileannotate(self.cleanpath(req.form['file'][0]),
-                                    req.form['filenode'][0]))
+        req.write(self.fileannotate(self.filectx(req)))
 
     def do_filelog(self, req):
-        req.write(self.filelog(self.cleanpath(req.form['file'][0]),
-                               req.form['filenode'][0]))
+        req.write(self.filelog(self.filectx(req)))
+
+    def do_lookup(self, req):
+        try:
+            r = hex(self.repo.lookup(req.form['key'][0]))
+            success = 1
+        except Exception,inst:
+            r = str(inst)
+            success = 0
+        resp = "%s %s\n" % (success, r)
+        req.httphdr("application/mercurial-0.1", length=len(resp))
+        req.write(resp)
 
     def do_heads(self, req):
         resp = " ".join(map(hex, self.repo.heads())) + "\n"
@@ -810,7 +950,6 @@ class hgweb(object):
         req.write(resp)
 
     def do_between(self, req):
-        nodes = []
         if req.form.has_key('pairs'):
             pairs = [map(bin, p.split("-"))
                      for p in req.form['pairs'][0].split(" ")]
@@ -840,12 +979,34 @@ class hgweb(object):
 
         req.write(z.flush())
 
+    def do_changegroupsubset(self, req):
+        req.httphdr("application/mercurial-0.1")
+        bases = []
+        heads = []
+        if not self.allowpull:
+            return
+
+        if req.form.has_key('bases'):
+            bases = [bin(x) for x in req.form['bases'][0].split(' ')]
+        if req.form.has_key('heads'):
+            heads = [bin(x) for x in req.form['heads'][0].split(' ')]
+
+        z = zlib.compressobj()
+        f = self.repo.changegroupsubset(bases, heads, 'serve')
+        while 1:
+            chunk = f.read(4096)
+            if not chunk:
+                break
+            req.write(z.compress(chunk))
+
+        req.write(z.flush())
+
     def do_archive(self, req):
         changeset = self.repo.lookup(req.form['node'][0])
         type_ = req.form['type'][0]
-        allowed = self.repo.ui.configlist("web", "allow_archive")
+        allowed = self.configlist("web", "allow_archive")
         if (type_ in self.archives and (type_ in allowed or
-            self.repo.ui.configbool("web", "allow" + type_, False))):
+            self.configbool("web", "allow" + type_, False))):
             self.archive(req, changeset, type_)
             return
 
@@ -853,16 +1014,22 @@ class hgweb(object):
 
     def do_static(self, req):
         fname = req.form['file'][0]
-        static = self.repo.ui.config("web", "static",
-                                     os.path.join(self.templatepath,
-                                                  "static"))
+        # a repo owner may set web.static in .hg/hgrc to get any file
+        # readable by the user running the CGI script
+        static = self.config("web", "static",
+                             os.path.join(self.templatepath, "static"),
+                             untrusted=False)
         req.write(staticfile(static, fname, req)
                   or self.t("error", error="%r not found" % fname))
 
     def do_capabilities(self, req):
-        caps = ['unbundle']
-        if self.repo.ui.configbool('server', 'uncompressed'):
+        caps = ['lookup', 'changegroupsubset']
+        if self.configbool('server', 'uncompressed'):
             caps.append('stream=%d' % self.repo.revlogversion)
+        # XXX: make configurable and/or share code with do_unbundle:
+        unbundleversions = ['HG10GZ', 'HG10BZ', 'HG10UN']
+        if unbundleversions:
+            caps.append('unbundle=%s' % ','.join(unbundleversions))
         resp = ' '.join(caps)
         req.httphdr("application/mercurial-0.1", length=len(resp))
         req.write(resp)
@@ -874,11 +1041,11 @@ class hgweb(object):
 
         user = req.env.get('REMOTE_USER')
 
-        deny = self.repo.ui.configlist('web', 'deny_' + op)
+        deny = self.configlist('web', 'deny_' + op)
         if deny and (not user or deny == ['*'] or user in deny):
             return False
 
-        allow = self.repo.ui.configlist('web', 'allow_' + op)
+        allow = self.configlist('web', 'allow_' + op)
         return (allow and (allow == ['*'] or user in allow)) or default
 
     def do_unbundle(self, req):
@@ -894,10 +1061,14 @@ class hgweb(object):
 
         # require ssl by default, auth info cannot be sniffed and
         # replayed
-        ssl_req = self.repo.ui.configbool('web', 'push_ssl', True)
-        if ssl_req and not req.env.get('HTTPS'):
-            bail(_('ssl required\n'))
-            return
+        ssl_req = self.configbool('web', 'push_ssl', True)
+        if ssl_req:
+            if not req.env.get('HTTPS'):
+                bail(_('ssl required\n'))
+                return
+            proto = 'https'
+        else:
+            proto = 'http'
 
         # do not allow push unless explicitly allowed
         if not self.check_perm(req, 'push', False):
@@ -936,6 +1107,37 @@ class hgweb(object):
                     return
 
                 fp.seek(0)
+                header = fp.read(6)
+                if not header.startswith("HG"):
+                    # old client with uncompressed bundle
+                    def generator(f):
+                        yield header
+                        for chunk in f:
+                            yield chunk
+                elif not header.startswith("HG10"):
+                    req.write("0\n")
+                    req.write(_("unknown bundle version\n"))
+                    return
+                elif header == "HG10GZ":
+                    def generator(f):
+                        zd = zlib.decompressobj()
+                        for chunk in f:
+                            yield zd.decompress(chunk)
+                elif header == "HG10BZ":
+                    def generator(f):
+                        zd = bz2.BZ2Decompressor()
+                        zd.decompress("BZ")
+                        for chunk in f:
+                            yield zd.decompress(chunk)
+                elif header == "HG10UN":
+                    def generator(f):
+                        for chunk in f:
+                            yield chunk
+                else:
+                    req.write("0\n")
+                    req.write(_("unknown bundle compression type\n"))
+                    return
+                gen = generator(util.filechunkiter(fp, 4096))
 
                 # send addchangegroup output to client
 
@@ -943,7 +1145,10 @@ class hgweb(object):
                 sys.stdout = cStringIO.StringIO()
 
                 try:
-                    ret = self.repo.addchangegroup(fp, 'serve')
+                    url = 'remote:%s:%s' % (proto,
+                                            req.env.get('REMOTE_HOST', ''))
+                    ret = self.repo.addchangegroup(util.chunkbuffer(gen),
+                                                   'serve', url)
                 finally:
                     val = sys.stdout.getvalue()
                     sys.stdout = old_stdout

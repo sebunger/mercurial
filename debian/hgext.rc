@@ -22,3 +22,6 @@ hgext/mq=
 
 # send changes as series of email patches
 hgext/patchbomb=
+
+# create a graph showing who changed the most lines
+hgext/churn=

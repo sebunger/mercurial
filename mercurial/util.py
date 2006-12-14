@@ -2,6 +2,8 @@
 util.py - Mercurial utility functions and platform specfic implementations
 
  Copyright 2005 K. Thananchayan <thananck@yahoo.com>
+ Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
+ Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 
 This software may be used and distributed according to the terms
 of the GNU General Public License, incorporated herein by reference.
@@ -13,14 +15,128 @@ platform-specific details from the core.
 from i18n import gettext as _
 from demandload import *
 demandload(globals(), "cStringIO errno getpass popen2 re shutil sys tempfile")
-demandload(globals(), "os threading time")
+demandload(globals(), "os threading time calendar ConfigParser locale")
+
+_encoding = os.environ.get("HGENCODING") or locale.getpreferredencoding() \
+            or "ascii"
+_encodingmode = os.environ.get("HGENCODINGMODE", "strict")
+_fallbackencoding = 'ISO-8859-1'
+
+def tolocal(s):
+    """
+    Convert a string from internal UTF-8 to local encoding
+
+    All internal strings should be UTF-8 but some repos before the
+    implementation of locale support may contain latin1 or possibly
+    other character sets. We attempt to decode everything strictly
+    using UTF-8, then Latin-1, and failing that, we use UTF-8 and
+    replace unknown characters.
+    """
+    for e in ('UTF-8', _fallbackencoding):
+        try:
+            u = s.decode(e) # attempt strict decoding
+            return u.encode(_encoding, "replace")
+        except LookupError, k:
+            raise Abort(_("%s, please check your locale settings") % k)
+        except UnicodeDecodeError:
+            pass
+    u = s.decode("utf-8", "replace") # last ditch
+    return u.encode(_encoding, "replace")
+
+def fromlocal(s):
+    """
+    Convert a string from the local character encoding to UTF-8
+
+    We attempt to decode strings using the encoding mode set by
+    HG_ENCODINGMODE, which defaults to 'strict'. In this mode, unknown
+    characters will cause an error message. Other modes include
+    'replace', which replaces unknown characters with a special
+    Unicode character, and 'ignore', which drops the character.
+    """
+    try:
+        return s.decode(_encoding, _encodingmode).encode("utf-8")
+    except UnicodeDecodeError, inst:
+        sub = s[max(0, inst.start-10):inst.start+10]
+        raise Abort("decoding near '%s': %s!" % (sub, inst))
+    except LookupError, k:
+        raise Abort(_("%s, please check your locale settings") % k)
+
+def locallen(s):
+    """Find the length in characters of a local string"""
+    return len(s.decode(_encoding, "replace"))
+
+def localsub(s, a, b=None):
+    try:
+        u = s.decode(_encoding, _encodingmode)
+        if b is not None:
+            u = u[a:b]
+        else:
+            u = u[:a]
+        return u.encode(_encoding, _encodingmode)
+    except UnicodeDecodeError, inst:
+        sub = s[max(0, inst.start-10), inst.start+10]
+        raise Abort(_("decoding near '%s': %s!\n") % (sub, inst))
 
 # used by parsedate
-defaultdateformats = ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M',
-                      '%a %b %d %H:%M:%S %Y')
+defaultdateformats = (
+    '%Y-%m-%d %H:%M:%S',
+    '%Y-%m-%d %I:%M:%S%p',
+    '%Y-%m-%d %H:%M',
+    '%Y-%m-%d %I:%M%p',
+    '%Y-%m-%d',
+    '%m-%d',
+    '%m/%d',
+    '%m/%d/%y',
+    '%m/%d/%Y',
+    '%a %b %d %H:%M:%S %Y',
+    '%a %b %d %I:%M:%S%p %Y',
+    '%b %d %H:%M:%S %Y',
+    '%b %d %I:%M:%S%p %Y',
+    '%b %d %H:%M:%S',
+    '%b %d %I:%M:%S%p',
+    '%b %d %H:%M',
+    '%b %d %I:%M%p',
+    '%b %d %Y',
+    '%b %d',
+    '%H:%M:%S',
+    '%I:%M:%SP',
+    '%H:%M',
+    '%I:%M%p',
+)
+
+extendeddateformats = defaultdateformats + (
+    "%Y",
+    "%Y-%m",
+    "%b",
+    "%b %Y",
+    )
 
 class SignalInterrupt(Exception):
     """Exception raised on SIGTERM and SIGHUP."""
+
+# like SafeConfigParser but with case-sensitive keys
+class configparser(ConfigParser.SafeConfigParser):
+    def optionxform(self, optionstr):
+        return optionstr
+
+def cachefunc(func):
+    '''cache the result of function calls'''
+    # XXX doesn't handle keywords args
+    cache = {}
+    if func.func_code.co_argcount == 1:
+        # we gain a small amount of time because
+        # we don't need to pack/unpack the list
+        def f(arg):
+            if arg not in cache:
+                cache[arg] = func(arg)
+            return cache[arg]
+    else:
+        def f(*args):
+            if args not in cache:
+                cache[args] = func(*args)
+            return cache[args]
+
+    return f
 
 def pipefilter(s, cmd):
     '''filter string S through command CMD, returning its output'''
@@ -93,23 +209,6 @@ def find_in_path(name, path, default=None):
             return p_name
     return default
 
-def patch(strip, patchname, ui):
-    """apply the patch <patchname> to the working directory.
-    a list of patched files is returned"""
-    patcher = find_in_path('gpatch', os.environ.get('PATH', ''), 'patch')
-    fp = os.popen('%s -p%d < "%s"' % (patcher, strip, patchname))
-    files = {}
-    for line in fp:
-        line = line.rstrip()
-        ui.status("%s\n" % line)
-        if line.startswith('patching file '):
-            pf = parse_patch_output(line)
-            files.setdefault(pf, 1)
-    code = fp.close()
-    if code:
-        raise Abort(_("patch command failed: %s") % explain_exit(code)[0])
-    return files.keys()
-
 def binary(s):
     """return true if a string is binary data using diff's heuristic"""
     if s and '\0' in s[:4096]:
@@ -119,13 +218,18 @@ def binary(s):
 def unique(g):
     """return the uniq elements of iterable g"""
     seen = {}
+    l = []
     for f in g:
         if f not in seen:
             seen[f] = 1
-            yield f
+            l.append(f)
+    return l
 
 class Abort(Exception):
     """Raised if a command needs to print an error and exit."""
+
+class UnexpectedOutput(Abort):
+    """Raised to print an error with part of output and exit."""
 
 def always(fn): return True
 def never(fn): return False
@@ -193,9 +297,12 @@ _globchars = {'[': 1, '{': 1, '*': 1, '?': 1}
 
 def pathto(n1, n2):
     '''return the relative path from one place to another.
-    this returns a path in the form used by the local filesystem, not hg.'''
+    n1 should use os.sep to separate directories
+    n2 should use "/" to separate directories
+    returns an os.sep-separated path.
+    '''
     if not n1: return localpath(n2)
-    a, b = n1.split('/'), n2.split('/')
+    a, b = n1.split(os.sep), n2.split('/')
     a.reverse()
     b.reverse()
     while a and b and a[-1] == b[-1]:
@@ -446,6 +553,14 @@ def unlink(f):
     except OSError:
         pass
 
+def copyfile(src, dest):
+    "copy a file, preserving mode"
+    try:
+        shutil.copyfile(src, dest)
+        shutil.copymode(src, dest)
+    except shutil.Error, inst:
+        raise util.Abort(str(inst))
+
 def copyfiles(src, dst, hardlink=None):
     """Copy a directory tree using hardlinks if possible"""
 
@@ -524,6 +639,58 @@ def getuser():
     raise Abort(_('user name not available - set USERNAME '
                   'environment variable'))
 
+def username(uid=None):
+    """Return the name of the user with the given uid.
+
+    If uid is None, return the name of the current user."""
+    try:
+        import pwd
+        if uid is None:
+            uid = os.getuid()
+        try:
+            return pwd.getpwuid(uid)[0]
+        except KeyError:
+            return str(uid)
+    except ImportError:
+        return None
+
+def groupname(gid=None):
+    """Return the name of the group with the given gid.
+
+    If gid is None, return the name of the current group."""
+    try:
+        import grp
+        if gid is None:
+            gid = os.getgid()
+        try:
+            return grp.getgrgid(gid)[0]
+        except KeyError:
+            return str(gid)
+    except ImportError:
+        return None
+
+# File system features
+
+def checkfolding(path):
+    """
+    Check whether the given path is on a case-sensitive filesystem
+
+    Requires a path (like /foo/.hg) ending with a foldable final
+    directory component.
+    """
+    s1 = os.stat(path)
+    d, b = os.path.split(path)
+    p2 = os.path.join(d, b.upper())
+    if path == p2:
+        p2 = os.path.join(d, b.lower())
+    try:
+        s2 = os.stat(p2)
+        if s2 == s1:
+            return False
+        return True
+    except:
+        return True
+
 # Platform specific variants
 if os.name == 'nt':
     demandload(globals(), "msvcrt")
@@ -569,8 +736,8 @@ if os.name == 'nt':
         return path
 
     def user_rcpath():
-         '''return os-specific hgrc search path to the user dir'''
-         return os.path.join(os.path.expanduser('~'), 'mercurial.ini')
+        '''return os-specific hgrc search path to the user dir'''
+        return os.path.join(os.path.expanduser('~'), 'mercurial.ini')
 
     def parse_patch_output(output_line):
         """parses the output produced by patch and returns the file name"""
@@ -607,8 +774,16 @@ if os.name == 'nt':
     def samestat(s1, s2):
         return False
 
+    def shellquote(s):
+        return '"%s"' % s.replace('"', '\\"')
+
     def explain_exit(code):
         return _("exited with status %d") % code, code
+
+    # if you change this stub into a real check, please try to implement the
+    # username and groupname functions above, too.
+    def isowner(fp, st=None):
+        return True
 
     try:
         # override functions with win32 versions if possible
@@ -627,7 +802,8 @@ else:
         try:
             rcs.extend([os.path.join(rcdir, f) for f in os.listdir(rcdir)
                         if f.endswith(".rc")])
-        except OSError, inst: pass
+        except OSError:
+            pass
         return rcs
 
     def os_rcpath():
@@ -696,6 +872,9 @@ else:
             else:
                 raise
 
+    def shellquote(s):
+        return "'%s'" % s.replace("'", "'\\''")
+
     def testpid(pid):
         '''return False if pid dead, True if running or not sure'''
         try:
@@ -716,6 +895,48 @@ else:
             val = os.WSTOPSIG(code)
             return _("stopped by signal %d") % val, val
         raise ValueError(_("invalid exit code"))
+
+    def isowner(fp, st=None):
+        """Return True if the file object f belongs to the current user.
+
+        The return value of a util.fstat(f) may be passed as the st argument.
+        """
+        if st is None:
+            st = fstat(fp)
+        return st.st_uid == os.getuid()
+
+def _buildencodefun():
+    e = '_'
+    win_reserved = [ord(x) for x in '\\:*?"<>|']
+    cmap = dict([ (chr(x), chr(x)) for x in xrange(127) ])
+    for x in (range(32) + range(126, 256) + win_reserved):
+        cmap[chr(x)] = "~%02x" % x
+    for x in range(ord("A"), ord("Z")+1) + [ord(e)]:
+        cmap[chr(x)] = e + chr(x).lower()
+    dmap = {}
+    for k, v in cmap.iteritems():
+        dmap[v] = k
+    def decode(s):
+        i = 0
+        while i < len(s):
+            for l in xrange(1, 4):
+                try:
+                    yield dmap[s[i:i+l]]
+                    i += l
+                    break
+                except KeyError:
+                    pass
+            else:
+                raise KeyError
+    return (lambda s: "".join([cmap[c] for c in s]),
+            lambda s: "".join(list(decode(s))))
+
+encodefilename, decodefilename = _buildencodefun()
+
+def encodedopener(openerfn, fn):
+    def o(path, *args, **kw):
+        return openerfn(fn(path), *args, **kw)
+    return o
 
 def opener(base, audit=True):
     """
@@ -884,50 +1105,132 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y', timezone=True):
         s += " %+03d%02d" % (-tz / 3600, ((-tz % 3600) / 60))
     return s
 
-def strdate(string, format='%a %b %d %H:%M:%S %Y'):
+def strdate(string, format, defaults):
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
-    def hastimezone(string):
-        return (string[-4:].isdigit() and
-               (string[-5] == '+' or string[-5] == '-') and
-               string[-6].isspace())
+    def timezone(string):
+        tz = string.split()[-1]
+        if tz[0] in "+-" and len(tz) == 5 and tz[1:].isdigit():
+            tz = int(tz)
+            offset = - 3600 * (tz / 100) - 60 * (tz % 100)
+            return offset
+        if tz == "GMT" or tz == "UTC":
+            return 0
+        return None
 
-    if hastimezone(string):
-        date, tz = string[:-6], string[-5:]
-        tz = int(tz)
-        offset = - 3600 * (tz / 100) - 60 * (tz % 100)
+    # NOTE: unixtime = localunixtime + offset
+    offset, date = timezone(string), string
+    if offset != None:
+        date = " ".join(string.split()[:-1])
+
+    # add missing elements from defaults
+    for part in defaults:
+        found = [True for p in part if ("%"+p) in format]
+        if not found:
+            date += "@" + defaults[part]
+            format += "@%" + part[0]
+
+    timetuple = time.strptime(date, format)
+    localunixtime = int(calendar.timegm(timetuple))
+    if offset is None:
+        # local timezone
+        unixtime = int(time.mktime(timetuple))
+        offset = unixtime - localunixtime
     else:
-        date, offset = string, 0
-    when = int(time.mktime(time.strptime(date, format))) + offset
-    return when, offset
+        unixtime = localunixtime + offset
+    return unixtime, offset
 
-def parsedate(string, formats=None):
+def parsedate(string, formats=None, defaults=None):
     """parse a localized time string and return a (unixtime, offset) tuple.
     The date may be a "unixtime offset" string or in one of the specified
     formats."""
+    if not string:
+        return 0, 0
     if not formats:
         formats = defaultdateformats
+    string = string.strip()
     try:
         when, offset = map(int, string.split(' '))
     except ValueError:
+        # fill out defaults
+        if not defaults:
+            defaults = {}
+        now = makedate()
+        for part in "d mb yY HI M S".split():
+            if part not in defaults:
+                if part[0] in "HMS":
+                    defaults[part] = "00"
+                elif part[0] in "dm":
+                    defaults[part] = "1"
+                else:
+                    defaults[part] = datestr(now, "%" + part[0], False)
+
         for format in formats:
             try:
-                when, offset = strdate(string, format)
+                when, offset = strdate(string, format, defaults)
             except ValueError:
                 pass
             else:
                 break
         else:
-            raise ValueError(_('invalid date: %r') % string)
+            raise Abort(_('invalid date: %r ') % string)
     # validate explicit (probably user-specified) date and
     # time zone offset. values must fit in signed 32 bits for
     # current 32-bit linux runtimes. timezones go from UTC-12
     # to UTC+14
     if abs(when) > 0x7fffffff:
-        raise ValueError(_('date exceeds 32 bits: %d') % when)
+        raise Abort(_('date exceeds 32 bits: %d') % when)
     if offset < -50400 or offset > 43200:
-        raise ValueError(_('impossible time zone offset: %d') % offset)
+        raise Abort(_('impossible time zone offset: %d') % offset)
     return when, offset
+
+def matchdate(date):
+    """Return a function that matches a given date match specifier
+
+    Formats include:
+
+    '{date}' match a given date to the accuracy provided
+
+    '<{date}' on or before a given date
+
+    '>{date}' on or after a given date
+
+    """
+
+    def lower(date):
+        return parsedate(date, extendeddateformats)[0]
+
+    def upper(date):
+        d = dict(mb="12", HI="23", M="59", S="59")
+        for days in "31 30 29".split():
+            try:
+                d["d"] = days
+                return parsedate(date, extendeddateformats, d)[0]
+            except:
+                pass
+        d["d"] = "28"
+        return parsedate(date, extendeddateformats, d)[0]
+
+    if date[0] == "<":
+        when = upper(date[1:])
+        return lambda x: x <= when
+    elif date[0] == ">":
+        when = lower(date[1:])
+        return lambda x: x >= when
+    elif date[0] == "-":
+        try:
+            days = int(date[1:])
+        except ValueError:
+            raise Abort(_("invalid day spec: %s") % date[1:])
+        when = makedate()[0] - days * 3600 * 24
+        return lambda x: x >= when
+    elif " to " in date:
+        a, b = date.split(" to ")
+        start, stop = lower(a), upper(b)
+        return lambda x: x >= start and x <= stop
+    else:
+        start, stop = lower(date), upper(date)
+        return lambda x: x >= start and x <= stop
 
 def shortuser(user):
     """Return a short representation of a user name or email address."""
@@ -937,7 +1240,20 @@ def shortuser(user):
     f = user.find('<')
     if f >= 0:
         user = user[f+1:]
+    f = user.find(' ')
+    if f >= 0:
+        user = user[:f]
+    f = user.find('.')
+    if f >= 0:
+        user = user[:f]
     return user
+
+def ellipsis(text, maxlength=400):
+    """Trim string to at most maxlength (default: 400) characters."""
+    if len(text) <= maxlength:
+        return text
+    else:
+        return "%s..." % (text[:maxlength-3])
 
 def walkrepos(path):
     '''yield every hg repository under path, recursively.'''
@@ -996,3 +1312,11 @@ def bytecount(nbytes):
         if nbytes >= divisor * multiplier:
             return format % (nbytes / float(divisor))
     return units[-1][2] % nbytes
+
+def drop_scheme(scheme, path):
+    sc = scheme + ':'
+    if path.startswith(sc):
+        path = path[len(sc):]
+        if path.startswith('//'):
+            path = path[2:]
+    return path

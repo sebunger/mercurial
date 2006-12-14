@@ -58,12 +58,13 @@ update-config:: link_hgit
 link_hgit:
 	ln -fs ../contrib/hgk.py hgext/hgk.py
 	ln -fs ../contrib/purge/purge.py hgext/purge.py
+	ln -fs ../contrib/churn.py hgext/churn.py
 
 build-doc:
 	$(MAKE) -C doc man
 
 clean::
 	#$(MAKE) -C doc clean
-	cd doc && $(RM) *.xml *.1 *.html
+	cd doc && $(RM) *.xml *.1 *.html hg.1.gendoc.txt hgignore.5 hgrc.5
 	$(RM) -v mercurial/*.pyc
-	$(RM) -v hgext/hgk.py hgext/purge.py
+	$(RM) -v hgext/hgk.py hgext/purge.py hgext/churn.py

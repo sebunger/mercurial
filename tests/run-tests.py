@@ -25,13 +25,22 @@ parser = optparse.OptionParser("%prog [options] [tests]")
 parser.add_option("-v", "--verbose", action="store_true",
     help="output verbose messages")
 parser.add_option("-t", "--timeout", type="int",
-    help="output verbose messages")
+    help="kill errant tests after TIMEOUT seconds")
 parser.add_option("-c", "--cover", action="store_true",
     help="print a test coverage report")
 parser.add_option("-s", "--cover_stdlib", action="store_true",
     help="print a test coverage report inc. standard libraries")
 parser.add_option("-C", "--annotate", action="store_true",
     help="output files annotated with coverage")
+parser.add_option("-r", "--retest", action="store_true",
+    help="retest failed tests")
+parser.add_option("-f", "--first", action="store_true",
+    help="exit on the first test failure")
+parser.add_option("-R", "--restart", action="store_true",
+    help="restart at last error")
+parser.add_option("-i", "--interactive", action="store_true",
+    help="prompt to accept changed output")
+
 parser.set_defaults(timeout=180)
 (options, args) = parser.parse_args()
 verbose = options.verbose
@@ -104,7 +113,7 @@ def use_correct_python():
         # windows fallback
         shutil.copyfile(sys.executable, my_python)
         shutil.copymode(sys.executable, my_python)
-            
+
 def install_hg():
     vlog("# Performing temporary installation of HG")
     installerrs = os.path.join("tests", "install.err")
@@ -201,10 +210,19 @@ def run(cmd):
     return ret, splitnewlines(output)
 
 def run_one(test):
+    '''tristate output:
+    None -> skipped
+    True -> passed
+    False -> failed'''
+
     vlog("# Test", test)
     if not verbose:
         sys.stdout.write('.')
         sys.stdout.flush()
+
+    # create a fresh hgrc
+    hgrc = file(HGRCPATH, 'w+')
+    hgrc.close()
 
     err = os.path.join(TESTDIR, test+".err")
     ref = os.path.join(TESTDIR, test+".out")
@@ -217,15 +235,28 @@ def run_one(test):
     os.mkdir(tmpd)
     os.chdir(tmpd)
 
-    if test.endswith(".py"):
-        cmd = '%s "%s"' % (sys.executable, os.path.join(TESTDIR, test))
-    else:
-        cmd = '"%s"' % (os.path.join(TESTDIR, test))
+    lctest = test.lower()
 
-    # To reliably get the error code from batch files on WinXP,
-    # the "cmd /c call" prefix is needed. Grrr
-    if os.name == 'nt' and test.endswith(".bat"):
+    if lctest.endswith('.py'):
+        cmd = '%s "%s"' % (sys.executable, os.path.join(TESTDIR, test))
+    elif lctest.endswith('.bat'):
+        # do not run batch scripts on non-windows
+        if os.name != 'nt':
+            print '\nSkipping %s: batch script' % test
+            return None
+        # To reliably get the error code from batch files on WinXP,
+        # the "cmd /c call" prefix is needed. Grrr
         cmd = 'cmd /c call "%s"' % (os.path.join(TESTDIR, test))
+    else:
+        # do not run shell scripts on windows
+        if os.name == 'nt':
+            print '\nSkipping %s: shell script' % test
+            return None
+        # do not try to run non-executable programs
+        if not os.access(os.path.join(TESTDIR, test), os.X_OK):
+            print '\nSkipping %s: not executable' % test
+            return None
+        cmd = '"%s"' % (os.path.join(TESTDIR, test))
 
     if options.timeout > 0:
         signal.alarm(options.timeout)
@@ -244,7 +275,7 @@ def run_one(test):
         ref_out = splitnewlines(f.read())
         f.close()
     else:
-        ref_out = ['']
+        ref_out = []
     if out != ref_out:
         diffret = 1
         print "\nERROR: %s output changed" % (test)
@@ -301,11 +332,13 @@ os.environ['TZ'] = 'GMT'
 os.environ["HGEDITOR"] = sys.executable + ' -c "import sys; sys.exit(0)"'
 os.environ["HGMERGE"]  = sys.executable + ' -c "import sys; sys.exit(0)"'
 os.environ["HGUSER"]   = "test"
-os.environ["HGRCPATH"] = ""
+os.environ["HGENCODING"] = "ascii"
+os.environ["HGENCODINGMODE"] = "strict"
 
 TESTDIR = os.environ["TESTDIR"] = os.getcwd()
 HGTMP   = os.environ["HGTMP"]   = tempfile.mkdtemp("", "hgtests.")
 DAEMON_PIDS = os.environ["DAEMON_PIDS"] = os.path.join(HGTMP, 'daemon.pids')
+HGRCPATH = os.environ["HGRCPATH"] = os.path.join(HGTMP, '.hgrc')
 
 vlog("# Using TESTDIR", TESTDIR)
 vlog("# Using HGTMP", HGTMP)
@@ -328,18 +361,54 @@ try:
                 print 'WARNING: cannot run tests with timeouts'
                 options.timeout = 0
 
-        tests = 0
+        tested = 0
         failed = 0
+        skipped = 0
 
         if len(args) == 0:
             args = os.listdir(".")
-        for test in args:
-            if test.startswith("test-") and not '~' in test and not '.' in test:
-                if not run_one(test):
-                    failed += 1
-                tests += 1
+            args.sort()
 
-        print "\n# Ran %d tests, %d failed." % (tests, failed)
+
+        tests = []
+        for test in args:
+            if (test.startswith("test-") and '~' not in test and
+                ('.' not in test or test.endswith('.py') or
+                 test.endswith('.bat'))):
+                tests.append(test)
+
+        if options.restart:
+            orig = list(tests)
+            while tests:
+                if os.path.exists(tests[0] + ".err"):
+                    break
+                tests.pop(0)
+            if not tests:
+                print "running all tests"
+                tests = orig
+
+        for test in tests:
+            if options.retest and not os.path.exists(test + ".err"):
+                skipped += 1
+                continue
+            ret = run_one(test)
+            if ret is None:
+                skipped += 1
+            elif not ret:
+                if options.interactive:
+                    print "Accept this change? [n] ",
+                    answer = sys.stdin.readline().strip()
+                    if answer.lower() in "y yes".split():
+                        os.rename(test + ".err", test + ".out")
+                        tested += 1
+                        continue
+                failed += 1
+                if options.first:
+                    break
+            tested += 1
+
+        print "\n# Ran %d tests, %d skipped, %d failed." % (tested, skipped,
+                                                            failed)
         if coverage:
             output_coverage()
     except KeyboardInterrupt:

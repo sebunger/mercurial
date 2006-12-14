@@ -2,7 +2,7 @@
 # Used for the py2exe distutil.
 # This module must be the first mercurial module imported in setup.py
 #
-# Copyright 2005 Volker Kleinfeld <Volker.Kleinfeld@gmx.de>
+# Copyright 2005, 2006 Volker Kleinfeld <Volker.Kleinfeld@gmx.de>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
@@ -26,6 +26,7 @@ def demandload(scope, modules):
         foo            import foo
         foo bar        import foo, bar
         foo.bar        import foo.bar
+        foo@bar        import foo as bar
         foo:bar        from foo import bar
         foo:bar,quux   from foo import bar, quux
         foo.bar:quux   from foo.bar import quux"""
@@ -38,6 +39,9 @@ def demandload(scope, modules):
         except:
             module = m
             fromlist = []
+        as_ = None
+        if '@' in module:
+            module, as_ = module.split('@')
         mod = __import__(module, scope, scope, fromlist)
         if fromlist == []:
             # mod is only the top package, but we need all packages
@@ -46,17 +50,19 @@ def demandload(scope, modules):
             mn = comp[0]
             while True:
                 # mn and mod.__name__ might not be the same
-                scope[mn] = mod
+                if not as_:
+                    as_ = mn
+                scope[as_] = mod
                 requiredmodules[mod.__name__] = 1
                 if len(comp) == i: break
-                mod = getattr(mod,comp[i])
+                mod = getattr(mod, comp[i])
                 mn = string.join(comp[:i+1],'.')
                 i += 1
         else:
             # mod is the last package in the component list
             requiredmodules[mod.__name__] = 1
             for f in fromlist:
-                scope[f] = getattr(mod,f)
+                scope[f] = getattr(mod, f)
                 if type(scope[f]) == types.ModuleType:
                     requiredmodules[scope[f].__name__] = 1
 
@@ -66,14 +72,14 @@ class SkipPackage(Exception):
 
 scan_in_progress = False
 
-def scan(libpath,packagename):
+def scan(libpath, packagename):
     """ helper for finding all required modules of package <packagename> """
     global scan_in_progress
     scan_in_progress = True
     # Use the package in the build directory
     libpath = os.path.abspath(libpath)
-    sys.path.insert(0,libpath)
-    packdir = os.path.join(libpath,packagename.replace('.', '/'))
+    sys.path.insert(0, libpath)
+    packdir = os.path.join(libpath, packagename.replace('.', '/'))
     # A normal import would not find the package in
     # the build directory. ihook is used to force the import.
     # After the package is imported the import scope for
@@ -91,10 +97,10 @@ def scan(libpath,packagename):
     for m in pymodulefiles:
         if m == '__init__.py': continue
         tmp = {}
-        mname,ext = os.path.splitext(m)
+        mname, ext = os.path.splitext(m)
         fullname = packagename+'.'+mname
         try:
-            __import__(fullname,tmp,tmp)
+            __import__(fullname, tmp, tmp)
         except SkipPackage, inst:
             print >> sys.stderr, 'skipping %s: %s' % (fullname, inst.reason)
             continue
@@ -102,9 +108,9 @@ def scan(libpath,packagename):
     # Import all extension modules and by that run the fake demandload
     for m in extmodulefiles:
         tmp = {}
-        mname,ext = os.path.splitext(m)
+        mname, ext = os.path.splitext(m)
         fullname = packagename+'.'+mname
-        __import__(fullname,tmp,tmp)
+        __import__(fullname, tmp, tmp)
         requiredmodules[fullname] = 1
 
 def getmodules():

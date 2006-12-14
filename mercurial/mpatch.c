@@ -14,7 +14,7 @@
  allocation of intermediate Python objects. Working memory is about 2x
  the total number of hunks.
 
- Copyright 2005 Matt Mackall <mpm@selenic.com>
+ Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 
  This software may be used and distributed according to the terms
  of the GNU General Public License, incorporated herein by reference.
@@ -61,6 +61,9 @@ struct flist {
 static struct flist *lalloc(int size)
 {
 	struct flist *a = NULL;
+
+	if (size < 1)
+		size = 1;
 
 	a = (struct flist *)malloc(sizeof(struct flist));
 	if (a) {

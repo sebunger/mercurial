@@ -1,7 +1,7 @@
 """
 dirstate.py - working directory tracking for mercurial
 
-Copyright 2005 Matt Mackall <mpm@selenic.com>
+Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 
 This software may be used and distributed according to the terms
 of the GNU General Public License, incorporated herein by reference.
@@ -10,7 +10,7 @@ of the GNU General Public License, incorporated herein by reference.
 from node import *
 from i18n import gettext as _
 from demandload import *
-demandload(globals(), "struct os time bisect stat util re errno")
+demandload(globals(), "struct os time bisect stat strutil util re errno")
 
 class dirstate(object):
     format = ">cllll"
@@ -22,9 +22,9 @@ class dirstate(object):
         self.ui = ui
         self.map = None
         self.pl = None
-        self.copies = {}
+        self.dirs = None
+        self.copymap = {}
         self.ignorefunc = None
-        self.blockignore = False
 
     def wjoin(self, f):
         return os.path.join(self.root, f)
@@ -32,7 +32,11 @@ class dirstate(object):
     def getcwd(self):
         cwd = os.getcwd()
         if cwd == self.root: return ''
-        return cwd[len(self.root) + 1:]
+        # self.root ends with a path separator if self.root is '/' or 'C:\'
+        common_prefix_len = len(self.root)
+        if not self.root.endswith(os.sep):
+            common_prefix_len += 1
+        return cwd[common_prefix_len:]
 
     def hgignore(self):
         '''return the contents of .hgignore files as a list of patterns.
@@ -97,8 +101,6 @@ class dirstate(object):
         '''default match function used by dirstate and
         localrepository.  this honours the repository .hgignore file
         and any other files specified in the [ui] section of .hgrc.'''
-        if self.blockignore:
-            return False
         if not self.ignorefunc:
             ignore = self.hgignore()
             allpats = []
@@ -159,7 +161,7 @@ class dirstate(object):
 
         # deref fields so they will be local in loop
         map = self.map
-        copies = self.copies
+        copymap = self.copymap
         format = self.format
         unpack = struct.unpack
 
@@ -175,7 +177,7 @@ class dirstate(object):
             f = st[pos:newpos]
             if '\0' in f:
                 f, c = f.split('\0')
-                copies[f] = c
+                copymap[f] = c
             map[f] = e[:4]
             pos = newpos
 
@@ -192,10 +194,49 @@ class dirstate(object):
     def copy(self, source, dest):
         self.lazyread()
         self.markdirty()
-        self.copies[dest] = source
+        self.copymap[dest] = source
 
     def copied(self, file):
-        return self.copies.get(file, None)
+        return self.copymap.get(file, None)
+
+    def copies(self):
+        return self.copymap
+
+    def initdirs(self):
+        if self.dirs is None:
+            self.dirs = {}
+            for f in self.map:
+                self.updatedirs(f, 1)
+
+    def updatedirs(self, path, delta):
+        if self.dirs is not None:
+            for c in strutil.findall(path, '/'):
+                pc = path[:c]
+                self.dirs.setdefault(pc, 0)
+                self.dirs[pc] += delta
+
+    def checkinterfering(self, files):
+        def prefixes(f):
+            for c in strutil.rfindall(f, '/'):
+                yield f[:c]
+        self.lazyread()
+        self.initdirs()
+        seendirs = {}
+        for f in files:
+            # shadows
+            if self.dirs.get(f):
+                raise util.Abort(_('directory named %r already in dirstate') %
+                                 f)
+            for d in prefixes(f):
+                if d in seendirs:
+                    break
+                if d in self.map:
+                    raise util.Abort(_('file named %r already in dirstate') %
+                                     d)
+                seendirs[d] = True
+            # disallowed
+            if '\r' in f or '\n' in f:
+                raise util.Abort(_("'\\n' and '\\r' disallowed in filenames"))
 
     def update(self, files, state, **kw):
         ''' current states:
@@ -207,42 +248,49 @@ class dirstate(object):
         if not files: return
         self.lazyread()
         self.markdirty()
+        if state == "a":
+            self.initdirs()
+            self.checkinterfering(files)
         for f in files:
             if state == "r":
                 self.map[f] = ('r', 0, 0, 0)
+                self.updatedirs(f, -1)
             else:
+                if state == "a":
+                    self.updatedirs(f, 1)
                 s = os.lstat(self.wjoin(f))
                 st_size = kw.get('st_size', s.st_size)
                 st_mtime = kw.get('st_mtime', s.st_mtime)
                 self.map[f] = (state, s.st_mode, st_size, st_mtime)
-            if self.copies.has_key(f):
-                del self.copies[f]
+            if self.copymap.has_key(f):
+                del self.copymap[f]
 
     def forget(self, files):
         if not files: return
         self.lazyread()
         self.markdirty()
+        self.initdirs()
         for f in files:
             try:
                 del self.map[f]
+                self.updatedirs(f, -1)
             except KeyError:
                 self.ui.warn(_("not in dirstate: %s!\n") % f)
                 pass
 
     def clear(self):
         self.map = {}
-        self.copies = {}
+        self.copymap = {}
+        self.dirs = None
         self.markdirty()
 
     def rebuild(self, parent, files):
         self.clear()
-        umask = os.umask(0)
-        os.umask(umask)
-        for f, mode in files:
-            if mode:
-                self.map[f] = ('n', ~umask, -1, 0)
+        for f in files:
+            if files.execf(f):
+                self.map[f] = ('n', 0777, -1, 0)
             else:
-                self.map[f] = ('n', ~umask & 0666, -1, 0)
+                self.map[f] = ('n', 0666, -1, 0)
         self.pl = (parent, nullid)
         self.markdirty()
 
@@ -305,45 +353,46 @@ class dirstate(object):
                 kind))
         return False
 
-    def statwalk(self, files=None, match=util.always, dc=None, ignored=False,
+    def walk(self, files=None, match=util.always, badmatch=None):
+        # filter out the stat
+        for src, f, st in self.statwalk(files, match, badmatch=badmatch):
+            yield src, f
+
+    def statwalk(self, files=None, match=util.always, ignored=False,
                  badmatch=None):
+        '''
+        walk recursively through the directory tree, finding all files
+        matched by the match function
+
+        results are yielded in a tuple (src, filename, st), where src
+        is one of:
+        'f' the file was found in the directory tree
+        'm' the file was only in the dirstate and not in the tree
+        'b' file was not found and matched badmatch
+
+        and st is the stat result if the file was found in the directory.
+        '''
         self.lazyread()
 
         # walk all files by default
         if not files:
             files = [self.root]
-            if not dc:
-                dc = self.map.copy()
-        elif not dc:
+            dc = self.map.copy()
+        else:
+            files = util.unique(files)
             dc = self.filterfiles(files)
 
-        def statmatch(file_, stat):
-            file_ = util.pconvert(file_)
-            if not ignored and file_ not in dc and self.ignore(file_):
+        def imatch(file_):
+            if file_ not in dc and self.ignore(file_):
                 return False
             return match(file_)
 
-        return self.walkhelper(files=files, statmatch=statmatch, dc=dc,
-                               badmatch=badmatch)
+        if ignored: imatch = match
 
-    def walk(self, files=None, match=util.always, dc=None, badmatch=None):
-        # filter out the stat
-        for src, f, st in self.statwalk(files, match, dc, badmatch=badmatch):
-            yield src, f
-
-    # walk recursively through the directory tree, finding all files
-    # matched by the statmatch function
-    #
-    # results are yielded in a tuple (src, filename, st), where src
-    # is one of:
-    # 'f' the file was found in the directory tree
-    # 'm' the file was only in the dirstate and not in the tree
-    # and st is the stat result if the file was found in the directory.
-    #
-    # dc is an optional arg for the current dirstate.  dc is not modified
-    # directly by this function, but might be modified by your statmatch call.
-    #
-    def walkhelper(self, files, statmatch, dc, badmatch=None):
+        # self.root may end with a path separator when self.root == '/'
+        common_prefix_len = len(self.root)
+        if not self.root.endswith('/'):
+            common_prefix_len += 1
         # recursion free walker, faster than os.walk.
         def findfiles(s):
             work = [s]
@@ -352,7 +401,7 @@ class dirstate(object):
                 names = os.listdir(top)
                 names.sort()
                 # nd is the top of the repository dir tree
-                nd = util.normpath(top[len(self.root) + 1:])
+                nd = util.normpath(top[common_prefix_len:])
                 if nd == '.':
                     nd = ''
                 else:
@@ -371,12 +420,12 @@ class dirstate(object):
                     # don't trip over symlinks
                     st = os.lstat(p)
                     if stat.S_ISDIR(st.st_mode):
-                        ds = os.path.join(nd, f +'/')
-                        if statmatch(ds, st):
+                        ds = util.pconvert(os.path.join(nd, f +'/'))
+                        if imatch(ds):
                             work.append(p)
-                        if statmatch(np, st) and np in dc:
+                        if imatch(np) and np in dc:
                             yield 'm', np, st
-                    elif statmatch(np, st):
+                    elif imatch(np):
                         if self.supported_type(np, st):
                             yield 'f', np, st
                         elif np in dc:
@@ -389,12 +438,12 @@ class dirstate(object):
 
         # step one, find all files that match our criteria
         files.sort()
-        for ff in util.unique(files):
+        for ff in files:
+            nf = util.normpath(ff)
             f = self.wjoin(ff)
             try:
                 st = os.lstat(f)
             except OSError, inst:
-                nf = util.normpath(ff)
                 found = False
                 for fn in dc:
                     if nf == fn or (fn.startswith(nf) and fn[len(nf)] == '/'):
@@ -405,7 +454,7 @@ class dirstate(object):
                         self.ui.warn('%s: %s\n' % (
                             util.pathto(self.getcwd(), ff),
                             inst.strerror))
-                    elif badmatch and badmatch(ff) and statmatch(ff, None):
+                    elif badmatch and badmatch(ff) and imatch(nf):
                         yield 'b', ff, None
                 continue
             if stat.S_ISDIR(st.st_mode):
@@ -415,34 +464,30 @@ class dirstate(object):
                 for e in sorted_:
                     yield e
             else:
-                ff = util.normpath(ff)
-                if seen(ff):
-                    continue
-                self.blockignore = True
-                if statmatch(ff, st):
+                if not seen(nf) and match(nf):
                     if self.supported_type(ff, st, verbose=True):
-                        yield 'f', ff, st
+                        yield 'f', nf, st
                     elif ff in dc:
-                        yield 'm', ff, st
-                self.blockignore = False
+                        yield 'm', nf, st
 
         # step two run through anything left in the dc hash and yield
         # if we haven't already seen it
         ks = dc.keys()
         ks.sort()
         for k in ks:
-            if not seen(k) and (statmatch(k, None)):
+            if not seen(k) and imatch(k):
                 yield 'm', k, None
 
-    def changes(self, files=None, match=util.always, show_ignored=None):
+    def status(self, files=None, match=util.always, list_ignored=False,
+               list_clean=False):
         lookup, modified, added, unknown, ignored = [], [], [], [], []
-        removed, deleted = [], []
+        removed, deleted, clean = [], [], []
 
-        for src, fn, st in self.statwalk(files, match, ignored=show_ignored):
+        for src, fn, st in self.statwalk(files, match, ignored=list_ignored):
             try:
                 type_, mode, size, time = self[fn]
             except KeyError:
-                if show_ignored and self.ignore(fn):
+                if list_ignored and self.ignore(fn):
                     ignored.append(fn)
                 else:
                     unknown.append(fn)
@@ -471,8 +516,10 @@ class dirstate(object):
                 if size >= 0 and (size != st.st_size
                                   or (mode ^ st.st_mode) & 0100):
                     modified.append(fn)
-                elif time != st.st_mtime:
+                elif time != int(st.st_mtime):
                     lookup.append(fn)
+                elif list_clean:
+                    clean.append(fn)
             elif type_ == 'm':
                 modified.append(fn)
             elif type_ == 'a':
@@ -480,4 +527,5 @@ class dirstate(object):
             elif type_ == 'r':
                 removed.append(fn)
 
-        return (lookup, modified, added, removed, deleted, unknown, ignored)
+        return (lookup, modified, added, removed, deleted, unknown, ignored,
+                clean)

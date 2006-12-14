@@ -1,6 +1,7 @@
 # httprepo.py - HTTP repository proxy classes for mercurial
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
+# Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
@@ -10,7 +11,7 @@ from remoterepo import *
 from i18n import gettext as _
 from demandload import *
 demandload(globals(), "hg os urllib urllib2 urlparse zlib util httplib")
-demandload(globals(), "errno keepalive tempfile socket")
+demandload(globals(), "errno keepalive tempfile socket changegroup")
 
 class passwordmgr(urllib2.HTTPPasswordMgrWithDefaultRealm):
     def __init__(self, ui):
@@ -113,8 +114,18 @@ else:
     class httphandler(basehttphandler):
         pass
 
+def zgenerator(f):
+    zd = zlib.decompressobj()
+    try:
+        for chunk in util.filechunkiter(f):
+            yield zd.decompress(chunk)
+    except httplib.HTTPException, inst:
+        raise IOError(None, _('connection ended unexpectedly'))
+    yield zd.flush()
+
 class httprepository(remoterepository):
     def __init__(self, ui, path):
+        self.path = path
         self.caps = None
         scheme, netloc, urlpath, query, frag = urlparse.urlsplit(path)
         if query or frag:
@@ -124,13 +135,13 @@ class httprepository(remoterepository):
         host, port, user, passwd = netlocsplit(netloc)
 
         # urllib cannot handle URLs with embedded user or passwd
-        self.url = urlparse.urlunsplit((scheme, netlocunsplit(host, port),
-                                        urlpath, '', ''))
+        self._url = urlparse.urlunsplit((scheme, netlocunsplit(host, port),
+                                         urlpath, '', ''))
         self.ui = ui
 
         proxyurl = ui.config("http_proxy", "host") or os.getenv('http_proxy')
-        proxyauthinfo = None
-        handler = httphandler()
+        # XXX proxyauthinfo = None
+        handlers = [httphandler()]
 
         if proxyurl:
             # proxy can be proper url or host[:port]
@@ -162,8 +173,9 @@ class httprepository(remoterepository):
                     proxyscheme, netlocunsplit(proxyhost, proxyport,
                                                proxyuser, proxypasswd or ''),
                     proxypath, proxyquery, proxyfrag))
-                handler = urllib2.ProxyHandler({scheme: proxyurl})
-                ui.debug(_('proxying through %s\n') % proxyurl)
+                handlers.append(urllib2.ProxyHandler({scheme: proxyurl}))
+                ui.debug(_('proxying through http://%s:%s\n') %
+                          (proxyhost, proxyport))
 
         # urllib2 takes proxy values from the environment and those
         # will take precedence if found, so drop them
@@ -180,14 +192,16 @@ class httprepository(remoterepository):
                      (user, passwd and '*' * len(passwd) or 'not set'))
             passmgr.add_password(None, host, user, passwd or '')
 
-        opener = urllib2.build_opener(
-            handler,
-            urllib2.HTTPBasicAuthHandler(passmgr),
-            urllib2.HTTPDigestAuthHandler(passmgr))
+        handlers.extend((urllib2.HTTPBasicAuthHandler(passmgr),
+                         urllib2.HTTPDigestAuthHandler(passmgr)))
+        opener = urllib2.build_opener(*handlers)
 
         # 1.0 here is the _protocol_ version
         opener.addheaders = [('User-agent', 'mercurial/proto-1.0')]
         urllib2.install_opener(opener)
+
+    def url(self):
+        return self.path
 
     # look up capabilities only when needed
 
@@ -212,9 +226,12 @@ class httprepository(remoterepository):
         self.ui.debug(_("sending %s command\n") % cmd)
         q = {"cmd": cmd}
         q.update(args)
-        qs = urllib.urlencode(q)
-        cu = "%s?%s" % (self.url, qs)
+        qs = '?%s' % urllib.urlencode(q)
+        cu = "%s%s" % (self._url, qs)
         try:
+            if data:
+                self.ui.debug(_("sending %s bytes\n") %
+                              headers.get('content-length', 'X'))
             resp = urllib2.urlopen(urllib2.Request(cu, data, headers))
         except urllib2.HTTPError, inst:
             if inst.code == 401:
@@ -224,6 +241,16 @@ class httprepository(remoterepository):
             self.ui.debug(_('http error while sending %s command\n') % cmd)
             self.ui.print_exc()
             raise IOError(None, inst)
+        except IndexError:
+            # this only happens with Python 2.3, later versions raise URLError
+            raise util.Abort(_('http error, possibly caused by proxy setting'))
+        # record the url we got redirected to
+        resp_url = resp.geturl()
+        if resp_url.endswith(qs):
+            resp_url = resp_url[:-len(qs)]
+        if self._url != resp_url:
+            self.ui.status(_('real URL is %s\n') % resp_url)
+            self._url = resp_url
         try:
             proto = resp.getheader('content-type')
         except AttributeError:
@@ -234,13 +261,13 @@ class httprepository(remoterepository):
                not proto.startswith('text/plain') and \
                not proto.startswith('application/hg-changegroup'):
             raise hg.RepoError(_("'%s' does not appear to be an hg repository") %
-                               self.url)
+                               self._url)
 
         if proto.startswith('application/mercurial'):
             version = proto[22:]
             if float(version) > 0.1:
                 raise hg.RepoError(_("'%s' uses newer protocol %s") %
-                                   (self.url, version))
+                                   (self._url, version))
 
         return resp
 
@@ -252,13 +279,19 @@ class httprepository(remoterepository):
             # if using keepalive, allow connection to be reused
             fp.close()
 
+    def lookup(self, key):
+        d = self.do_cmd("lookup", key = key).read()
+        success, data = d[:-1].split(' ', 1)
+        if int(success):
+            return bin(data)
+        raise hg.RepoError(data)
+
     def heads(self):
         d = self.do_read("heads")
         try:
             return map(bin, d[:-1].split(" "))
         except:
-            self.ui.warn(_("unexpected response:\n") + d[:400] + "\n...\n")
-            raise
+            raise util.UnexpectedOutput(_("unexpected response:"), d)
 
     def branches(self, nodes):
         n = " ".join(map(hex, nodes))
@@ -267,8 +300,7 @@ class httprepository(remoterepository):
             br = [ tuple(map(bin, b.split(" "))) for b in d.splitlines() ]
             return br
         except:
-            self.ui.warn(_("unexpected response:\n") + d[:400] + "\n...\n")
-            raise
+            raise util.UnexpectedOutput(_("unexpected response:"), d)
 
     def between(self, pairs):
         n = "\n".join(["-".join(map(hex, p)) for p in pairs])
@@ -277,39 +309,45 @@ class httprepository(remoterepository):
             p = [ l and map(bin, l.split(" ")) or [] for l in d.splitlines() ]
             return p
         except:
-            self.ui.warn(_("unexpected response:\n") + d[:400] + "\n...\n")
-            raise
+            raise util.UnexpectedOutput(_("unexpected response:"), d)
 
     def changegroup(self, nodes, kind):
         n = " ".join(map(hex, nodes))
         f = self.do_cmd("changegroup", roots=n)
-        bytes = 0
+        return util.chunkbuffer(zgenerator(f))
 
-        def zgenerator(f):
-            zd = zlib.decompressobj()
-            try:
-                for chnk in f:
-                    yield zd.decompress(chnk)
-            except httplib.HTTPException, inst:
-                raise IOError(None, _('connection ended unexpectedly'))
-            yield zd.flush()
-
-        return util.chunkbuffer(zgenerator(util.filechunkiter(f)))
+    def changegroupsubset(self, bases, heads, source):
+        baselst = " ".join([hex(n) for n in bases])
+        headlst = " ".join([hex(n) for n in heads])
+        f = self.do_cmd("changegroupsubset", bases=baselst, heads=headlst)
+        return util.chunkbuffer(zgenerator(f))
 
     def unbundle(self, cg, heads, source):
         # have to stream bundle to a temp file because we do not have
         # http 1.1 chunked transfer.
 
-        fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
-        fp = os.fdopen(fd, 'wb+')
+        type = ""
+        types = self.capable('unbundle')
+        # servers older than d1b16a746db6 will send 'unbundle' as a
+        # boolean capability
         try:
-            for chunk in util.filechunkiter(cg):
-                fp.write(chunk)
-            length = fp.tell()
+            types = types.split(',')
+        except AttributeError:
+            types = [""]
+        if types:
+            for x in types:
+                if x in changegroup.bundletypes:
+                    type = x
+                    break
+
+        tempname = changegroup.writebundle(cg, None, type)
+        fp = file(tempname, "rb")
+        try:
+            length = os.stat(tempname).st_size
             try:
                 rfp = self.do_cmd(
                     'unbundle', data=fp,
-                    headers={'content-length': length,
+                    headers={'content-length': str(length),
                              'content-type': 'application/octet-stream'},
                     heads=' '.join(map(hex, heads)))
                 try:
@@ -320,7 +358,7 @@ class httprepository(remoterepository):
                     rfp.close()
             except socket.error, err:
                 if err[0] in (errno.ECONNRESET, errno.EPIPE):
-                    raise util.Abort(_('push failed: %s'), err[1])
+                    raise util.Abort(_('push failed: %s') % err[1])
                 raise util.Abort(err[1])
         finally:
             fp.close()
@@ -335,3 +373,13 @@ class httpsrepository(httprepository):
             raise util.Abort(_('Python support for SSL and HTTPS '
                                'is not installed'))
         httprepository.__init__(self, ui, path)
+
+def instance(ui, path, create):
+    if create:
+        raise util.Abort(_('cannot create new http repository'))
+    if path.startswith('hg:'):
+        ui.warn(_("hg:// syntax is deprecated, please use http:// instead\n"))
+        path = 'http:' + path[3:]
+    if path.startswith('https:'):
+        return httpsrepository(ui, path)
+    return httprepository(ui, path)

@@ -1,6 +1,7 @@
 # sshserver.py - ssh protocol server support for mercurial
 #
 # Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
@@ -47,6 +48,17 @@ class sshserver(object):
             else: self.respond("")
         return cmd != ''
 
+    def do_lookup(self):
+        arg, key = self.getarg()
+        assert arg == 'key'
+        try:
+            r = hex(self.repo.lookup(key))
+            success = 1
+        except Exception,inst:
+            r = str(inst)
+            success = 0
+        self.respond("%s %s\n" % (success, r))
+
     def do_heads(self):
         h = self.repo.heads()
         self.respond(" ".join(map(hex, h)) + "\n")
@@ -60,7 +72,7 @@ class sshserver(object):
         capabilities: space separated list of tokens
         '''
 
-        caps = ['unbundle']
+        caps = ['unbundle', 'lookup', 'changegroupsubset']
         if self.ui.configbool('server', 'uncompressed'):
             caps.append('stream=%d' % self.repo.revlogversion)
         self.respond("capabilities: %s\n" % (' '.join(caps),))
@@ -109,6 +121,22 @@ class sshserver(object):
 
         self.fout.flush()
 
+    def do_changegroupsubset(self):
+        bases = []
+        heads = []
+        argmap = dict([self.getarg(), self.getarg()])
+        bases = [bin(n) for n in argmap['bases'].split(' ')]
+        heads = [bin(n) for n in argmap['heads'].split(' ')]
+
+        cg = self.repo.changegroupsubset(bases, heads, 'serve')
+        while True:
+            d = cg.read(4096)
+            if not d:
+                break
+            self.fout.write(d)
+
+        self.fout.flush()
+
     def do_addchangegroup(self):
         '''DEPRECATED'''
 
@@ -117,8 +145,12 @@ class sshserver(object):
             return
 
         self.respond("")
-        r = self.repo.addchangegroup(self.fin, 'serve')
+        r = self.repo.addchangegroup(self.fin, 'serve', self.client_url())
         self.respond(str(r))
+
+    def client_url(self):
+        client = os.environ.get('SSH_CLIENT', '').split(' ', 1)[0]
+        return 'remote:ssh:' + client
 
     def do_unbundle(self):
         their_heads = self.getarg()[1].split()
@@ -159,7 +191,7 @@ class sshserver(object):
                 # push can proceed
 
                 fp.seek(0)
-                r = self.repo.addchangegroup(fp, 'serve')
+                r = self.repo.addchangegroup(fp, 'serve', self.client_url())
                 self.respond(str(r))
             finally:
                 if not was_locked:

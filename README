@@ -26,7 +26,8 @@ Setting up Mercurial:
 
  And finally:
 
- $ hg                                    # test installation, show help
+ $ hg debuginstall                       # run some basic tests
+ $ hg                                    # show help
 
  If you get complaints about missing modules, you probably haven't set
  PYTHONPATH correctly.
@@ -37,7 +38,6 @@ Setting up a Mercurial project:
  $ cd project
                        # copy files in, edit them
  $ hg add              # add all unknown files
- $ hg remove --after   # remove deleted files
  $ hg commit           # commit all changes, edit changelog entry
 
  Mercurial will look for a file named .hgignore in the root of your
@@ -46,36 +46,30 @@ Setting up a Mercurial project:
 
 Branching and merging:
 
- $ hg clone linux linux-work    # create a new branch
- $ cd linux-work
+ $ hg clone project project-work    # create a new branch
+ $ cd project-work
  $ <make changes>
  $ hg commit
- $ cd ../linux
- $ hg pull ../linux-work     # pull changesets from linux-work
- $ hg merge                  # merge the new tip from linux-work into
+ $ cd ../project
+ $ hg pull ../project-work   # pull changesets from project-work
+ $ hg merge                  # merge the new tip from project-work into
                              # our working directory
  $ hg commit                 # commit the result of the merge
 
 Importing patches:
 
- Fast:
+ Simple:
  $ patch < ../p/foo.patch
  $ hg commit -A
 
- Faster:
- $ patch < ../p/foo.patch
- $ hg commit `lsdiff -p1 ../p/foo.patch`
-
- Fastest:
+ Fast:
  $ cat ../p/patchlist | xargs hg import -p1 -b ../p
 
 Exporting a patch:
 
  (make changes)
  $ hg commit
- $ hg tip
- 28237:747a537bd090880c29eae861df4d81b245aa0190
- $ hg export 28237 > foo.patch    # export changeset 28237
+ $ hg export tip > foo.patch    # export latest change
 
 Network support:
 
@@ -83,15 +77,17 @@ Network support:
  foo$ hg clone http://selenic.com/hg/
  foo$ cd hg
 
- # export your current repo via HTTP with browsable interface
- foo$ hg serve -n "My repo" -p 80
+ # make your current repo available via http://server:8000/
+ foo$ hg serve
 
- # pushing changes to a remote repo with SSH
- foo$ hg push ssh://user@example.com/~/hg/
+ # pushing and pulling changes to/from a remote repo with SSH
+ foo$ hg push ssh://user@example.com/my/repository
+ foo$ hg pull ssh://user@example.com//home/somebody/his/repository
 
- # merge changes from a remote machine
- bar$ hg pull http://foo/
+ # merge changes from a remote machine (e.g. running 'hg serve')
+ bar$ hg pull http://foo:8000/
  bar$ hg merge   # merge changes into your working directory
+ bar$ hg commit  # commit merge in to your local repository
 
  # Set up a CGI server on your webserver
  foo$ cp hgweb.cgi ~/public_html/hg/index.cgi

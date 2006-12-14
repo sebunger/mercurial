@@ -1,17 +1,17 @@
 # hgweb/hgwebdir_mod.py - Web interface for a directory of repositories.
 #
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
 import os
 from mercurial.demandload import demandload
-demandload(globals(), "ConfigParser mimetools cStringIO")
+demandload(globals(), "mimetools cStringIO")
 demandload(globals(), "mercurial:ui,hg,util,templater")
 demandload(globals(), "mercurial.hgweb.hgweb_mod:hgweb")
-demandload(globals(), "mercurial.hgweb.common:get_mtime,staticfile")
+demandload(globals(), "mercurial.hgweb.common:get_mtime,staticfile,style_map")
 from mercurial.i18n import gettext as _
 
 # This is a stopgap
@@ -21,6 +21,7 @@ class hgwebdir(object):
             return [(name.strip(os.sep), path) for name, path in items]
 
         self.motd = ""
+        self.style = ""
         self.repos_sorted = ('name', False)
         if isinstance(config, (list, tuple)):
             self.repos = cleannames(config)
@@ -29,11 +30,14 @@ class hgwebdir(object):
             self.repos = cleannames(config.items())
             self.repos.sort()
         else:
-            cp = ConfigParser.SafeConfigParser()
+            cp = util.configparser()
             cp.read(config)
             self.repos = []
-            if cp.has_section('web') and cp.has_option('web', 'motd'):
-                self.motd = cp.get('web', 'motd')
+            if cp.has_section('web'):
+                if cp.has_option('web', 'motd'):
+                    self.motd = cp.get('web', 'motd')
+                if cp.has_option('web', 'style'):
+                    self.style = cp.get('web', 'style')
             if cp.has_section('paths'):
                 self.repos.extend(cleannames(cp.items('paths')))
             if cp.has_section('collections'):
@@ -63,32 +67,59 @@ class hgwebdir(object):
             yield header_file.read()
 
         def footer(**map):
-            yield tmpl("footer", motd=self.motd, **map)
+            yield tmpl("footer", **map)
 
-        m = os.path.join(templater.templatepath(), "map")
-        tmpl = templater.templater(m, templater.common_filters,
+        def motd(**map):
+            yield self.motd
+
+        url = req.env['REQUEST_URI'].split('?')[0]
+        if not url.endswith('/'):
+            url += '/'
+
+        style = self.style
+        if req.form.has_key('style'):
+            style = req.form['style'][0]
+        mapfile = style_map(templater.templatepath(), style)
+        tmpl = templater.templater(mapfile, templater.common_filters,
                                    defaults={"header": header,
-                                             "footer": footer})
+                                             "footer": footer,
+                                             "motd": motd,
+                                             "url": url})
 
         def archivelist(ui, nodeid, url):
-            allowed = ui.configlist("web", "allow_archive")
-            for i in ['zip', 'gz', 'bz2']:
-                if i in allowed or ui.configbool("web", "allow" + i):
-                    yield {"type" : i, "node": nodeid, "url": url}
+            allowed = ui.configlist("web", "allow_archive", untrusted=True)
+            for i in [('zip', '.zip'), ('gz', '.tar.gz'), ('bz2', '.tar.bz2')]:
+                if i[0] in allowed or ui.configbool("web", "allow" + i[0],
+                                                    untrusted=True):
+                    yield {"type" : i[0], "extension": i[1],
+                           "node": nodeid, "url": url}
 
         def entries(sortcolumn="", descending=False, **map):
+            def sessionvars(**map):
+                fields = []
+                if req.form.has_key('style'):
+                    style = req.form['style'][0]
+                    if style != get('web', 'style', ''):
+                        fields.append(('style', style))
+
+                separator = url[-1] == '?' and ';' or '?'
+                for name, value in fields:
+                    yield dict(name=name, value=value, separator=separator)
+                    separator = ';'
+
             rows = []
             parity = 0
             for name, path in self.repos:
-                u = ui.ui()
+                u = ui.ui(report_untrusted=False)
                 try:
                     u.readconfig(os.path.join(path, '.hg', 'hgrc'))
                 except IOError:
                     pass
-                get = u.config
+                def get(section, name, default=None):
+                    return u.config(section, name, default, untrusted=True)
 
                 url = ('/'.join([req.env["REQUEST_URI"].split('?')[0], name])
-                       .replace("//", "/"))
+                       .replace("//", "/")) + '/'
 
                 # update time with local timezone
                 try:
@@ -110,6 +141,7 @@ class hgwebdir(object):
                            description_sort=description.upper() or "unknown",
                            lastchange=d,
                            lastchange_sort=d[1]-d[0],
+                           sessionvars=sessionvars,
                            archives=archivelist(u, "tip", url))
                 if (not sortcolumn
                     or (sortcolumn, descending) == self.repos_sorted):
@@ -129,9 +161,22 @@ class hgwebdir(object):
                     yield row
 
         virtual = req.env.get("PATH_INFO", "").strip('/')
-        if virtual:
-            real = dict(self.repos).get(virtual)
+        if virtual.startswith('static/'):
+            static = os.path.join(templater.templatepath(), 'static')
+            fname = virtual[7:]
+            req.write(staticfile(static, fname, req) or
+                      tmpl('error', error='%r not found' % fname))
+        elif virtual:
+            while virtual:
+                real = dict(self.repos).get(virtual)
+                if real:
+                    break
+                up = virtual.rfind('/')
+                if up < 0:
+                    break
+                virtual = virtual[:up]
             if real:
+                req.env['REPO_NAME'] = virtual
                 try:
                     hgweb(real).run_wsgi(req)
                 except IOError, inst:
