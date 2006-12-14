@@ -1,3 +1,10 @@
+mercurial (0.9.2-2) unstable; urgency=low
+
+  * [debian/rules] add support for python2.5
+  * [README.Debian] update list of default extensions
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 14 Dec 2006 15:26:10 +0100
+
 mercurial (0.9.2-1) unstable; urgency=low
 
   * New upstream release
