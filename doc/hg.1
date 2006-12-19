@@ -1,0 +1,2056 @@
+.\"     Title: hg
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.71.0 <http://docbook.sf.net/>
+.\"      Date: 12/17/2006
+.\"    Manual: 
+.\"    Source: 
+.\"
+.TH "HG" "1" "12/17/2006" "" ""
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+hg \- Mercurial source code management system
+.SH "SYNOPSIS"
+\fIhg\fR [global option]\&... <command> [command/global option]\&... [argument]\&....sp
+.SH "DESCRIPTION"
+The hg(1) command provides a command line interface to the Mercurial system..sp
+.SH "COMMAND ELEMENTS"
+.PP
+files \&...
+.RS 3n
+indicates one or more filename or relative path filenames; see "FILE NAME PATTERNS" for information on pattern matching
+.RE
+.PP
+path
+.RS 3n
+indicates a path on the local machine
+.RE
+.PP
+revision
+.RS 3n
+indicates a changeset which can be specified as a changeset revision number, a tag, or a unique substring of the changeset hash value
+.RE
+.PP
+repository path
+.RS 3n
+either the pathname of a local repository or the URI of a remote repository. There are two available URI protocols, http:// which is fast and the static\-http:// protocol which is much slower but does not require a special server on the web host.
+.RE
+.SH "OPTIONS"
+.PP
+\-R, \-\-repository
+.RS 3n
+repository root directory or symbolic path name
+.RE
+.PP
+\-\-cwd
+.RS 3n
+change working directory
+.RE
+.PP
+\-y, \-\-noninteractive
+.RS 3n
+do not prompt, assume
+\fIyes\fR
+for any required answers
+.RE
+.PP
+\-q, \-\-quiet
+.RS 3n
+suppress output
+.RE
+.PP
+\-v, \-\-verbose
+.RS 3n
+enable additional output
+.RE
+.PP
+\-\-config
+.RS 3n
+set/override config option
+.RE
+.PP
+\-\-debug
+.RS 3n
+enable debugging output
+.RE
+.PP
+\-\-debugger
+.RS 3n
+start debugger
+.RE
+.PP
+\-\-encoding
+.RS 3n
+set the charset encoding (default: UTF\-8)
+.RE
+.PP
+\-\-encodingmode
+.RS 3n
+set the charset encoding mode (default: strict)
+.RE
+.PP
+\-\-lsprof
+.RS 3n
+print improved command execution profile
+.RE
+.PP
+\-\-traceback
+.RS 3n
+print traceback on exception
+.RE
+.PP
+\-\-time
+.RS 3n
+time how long the command takes
+.RE
+.PP
+\-\-profile
+.RS 3n
+print command execution profile
+.RE
+.PP
+\-\-version
+.RS 3n
+output version information and exit
+.RE
+.PP
+\-h, \-\-help
+.RS 3n
+display help and exit
+.RE
+.SH "COMMANDS"
+.PP
+add [OPTION]\&... [FILE]\&...
+.RS 3n
+Schedule files to be version controlled and added to the repository.
+.sp
+.RS 3n
+.nf
+The files will be added to the repository at the next commit. To
+undo an add before that, see hg revert.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If no names are given, add all files in the repository.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
+.fi
+.RE
+.RE
+.PP
+addremove [OPTION]\&... [FILE]\&...
+.RS 3n
+Add all new files and remove all missing files from the repository.
+.sp
+.RS 3n
+.nf
+New files are ignored if they match any of the patterns in .hgignore. As
+with add, these changes take effect at the next commit.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Use the \-s option to detect renamed files.  With a parameter > 0,
+this compares every removed file with every added file and records
+those similar enough as renames.  This option takes a percentage
+between 0 (disabled) and 100 (files must be identical) as its
+parameter.  Detecting renamed files this way can be expensive.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-s, \-\-similarity  guess renamed files by similarity (0<=s<=100)
+\-I, \-\-include     include names matching the given patterns
+\-X, \-\-exclude     exclude names matching the given patterns
+\-n, \-\-dry\-run     do not perform actions, just print output
+.fi
+.RE
+.RE
+.PP
+annotate [\-r REV] [\-f] [\-a] [\-u] [\-d] [\-n] [\-c] FILE\&...
+.RS 3n
+List changes in files, showing the revision id responsible for each line
+.sp
+.RS 3n
+.nf
+This command is useful to discover who did a change or when a change took
+place.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Without the \-a option, annotate will avoid processing files it
+detects as binary. With \-a, annotate will generate an annotation
+anyway, probably with undesirable results.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-r, \-\-rev        annotate the specified revision
+\-f, \-\-follow     follow file copies and renames
+\-a, \-\-text       treat all files as text
+\-u, \-\-user       list the author
+\-d, \-\-date       list the date
+\-n, \-\-number     list the revision number (default)
+\-c, \-\-changeset  list the changeset
+\-I, \-\-include    include names matching the given patterns
+\-X, \-\-exclude    exclude names matching the given patterns
+.fi
+.RE
+.RE
+.PP
+archive [OPTION]\&... DEST
+.RS 3n
+By default, the revision used is the parent of the working directory; use "\-r" to specify a different revision.
+.sp
+.RS 3n
+.nf
+To specify the type of archive to create, use "\-t".  Valid
+types are:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+"files" (default): a directory full of files
+"tar": tar archive, uncompressed
+"tbz2": tar archive, compressed using bzip2
+"tgz": tar archive, compressed using gzip
+"uzip": zip archive, uncompressed
+"zip": zip archive, compressed using deflate
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The exact name of the destination archive or directory is given
+using a format string; see "hg help export" for details.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Each member added to an archive file has a directory prefix
+prepended.  Use "\-p" to specify a format string for the prefix.
+The default is the basename of the archive, with suffixes removed.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-\-no\-decode    do not pass files through decoders
+\-p, \-\-prefix   directory prefix for files in archive
+\-r, \-\-rev      revision to distribute
+\-t, \-\-type     type of distribution to create
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+.fi
+.RE
+.RE
+.PP
+backout [OPTION]\&... REV
+.RS 3n
+Commit the backed out changes as a new changeset. The new changeset is a child of the backed out changeset.
+.sp
+.RS 3n
+.nf
+If you back out a changeset other than the tip, a new head is
+created.  This head is the parent of the working directory.  If
+you back out an old changeset, your working directory will appear
+old after the backout.  You should merge the backout changeset
+with another head.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The \-\-merge option remembers the parent of the working directory
+before starting the backout, then merges the new head with that
+changeset afterwards.  This saves you from doing the merge by
+hand.  The result of this merge is not committed, as for a normal
+merge.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-\-merge        merge with old dirstate parent after backout
+\-d, \-\-date     record datecode as commit date
+\-\-parent       parent to choose when backing out merge
+\-u, \-\-user     record user as committer
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+\-m, \-\-message  use <text> as commit message
+\-l, \-\-logfile  read commit message from <file>
+.fi
+.RE
+.RE
+.PP
+branch [NAME]
+.RS 3n
+With <name>, set the current branch name. Otherwise, show the current branch name.
+.RE
+.PP
+branches
+.RS 3n
+List the repository's named branches.
+.RE
+.PP
+bundle [\-f] [\-r REV]\&... [\-\-base REV]\&... FILE [DEST]
+.RS 3n
+Generate a compressed changegroup file collecting changesets not found in the other repository.
+.sp
+.RS 3n
+.nf
+If no destination repository is specified the destination is assumed
+to have all the nodes specified by one or more \-\-base parameters.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The bundle file can then be transferred using conventional means and
+applied to another repository with the unbundle or pull command.
+This is useful when direct push and pull are not available or when
+exporting an entire repository is undesirable.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Applying bundles preserves all changeset contents including
+permissions, copy/rename information, and revision history.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-f, \-\-force  run even when remote repository is unrelated
+\-r, \-\-rev    a changeset you would like to bundle
+\-\-base       a base changeset to specify instead of a destination
+\-e, \-\-ssh    specify ssh command to use
+\-\-remotecmd  specify hg command to run on the remote side
+.fi
+.RE
+.RE
+.PP
+cat [OPTION]\&... FILE\&...
+.RS 3n
+Print the specified files as they were at the given revision. If no revision is given, the parent of the working directory is used, or tip if no revision is checked out.
+.sp
+.RS 3n
+.nf
+Output may be to a file, in which case the name of the file is
+given using a format string.  The formatting rules are the same as
+for the export command, with the following additions:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+%s   basename of file being printed
+%d   dirname of file being printed, or '.' if in repo root
+%p   root\-relative path name of file being printed
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-o, \-\-output   print output to file with formatted name
+\-r, \-\-rev      print the given revision
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+.fi
+.RE
+.RE
+.PP
+clone [OPTION]\&... SOURCE [DEST]
+.RS 3n
+Create a copy of an existing repository in a new directory.
+.sp
+.RS 3n
+.nf
+If no destination directory name is specified, it defaults to the
+basename of the source.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The location of the source is added to the new repository's
+.hg/hgrc file, as the default to be used for future pulls.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+For efficiency, hardlinks are used for cloning whenever the source
+and destination are on the same filesystem (note this applies only
+to the repository data, not to the checked out files).  Some
+filesystems, such as AFS, implement hardlinking incorrectly, but
+do not report errors.  In these cases, use the \-\-pull option to
+avoid hardlinking.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+You can safely clone repositories and checked out files using full
+hardlinks with
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+$ cp \-al REPO REPOCLONE
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+which is the fastest way to clone. However, the operation is not
+atomic (making sure REPO is not modified during the operation is
+up to you) and you have to make sure your editor breaks hardlinks
+(Emacs and most Linux Kernel tools do so).
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If you use the \-r option to clone up to a specific revision, no
+subsequent revisions will be present in the cloned repository.
+This option implies \-\-pull, even on local repositories.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+See pull for valid source format details.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+It is possible to specify an ssh:// URL as the destination, but no
+.hg/hgrc and working directory will be created on the remote side.
+Look at the help text for the pull command for important details
+about ssh:// URLs.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-U, \-\-noupdate  do not update the new working directory
+\-r, \-\-rev       a changeset you would like to have after cloning
+\-\-pull          use pull protocol to copy metadata
+\-\-uncompressed  use uncompressed transfer (fast over LAN)
+\-e, \-\-ssh       specify ssh command to use
+\-\-remotecmd     specify hg command to run on the remote side
+.fi
+.RE
+.RE
+.PP
+commit [OPTION]\&... [FILE]\&...
+.RS 3n
+Commit changes to the given files into the repository.
+.sp
+.RS 3n
+.nf
+If a list of files is omitted, all changes reported by "hg status"
+will be committed.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If no commit message is specified, the editor configured in your hgrc
+or in the EDITOR environment variable is started to enter a message.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-A, \-\-addremove  mark new/missing files as added/removed before
+                 committing
+\-d, \-\-date       record datecode as commit date
+\-u, \-\-user       record user as commiter
+\-I, \-\-include    include names matching the given patterns
+\-X, \-\-exclude    exclude names matching the given patterns
+\-m, \-\-message    use <text> as commit message
+\-l, \-\-logfile    read commit message from <file>
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: ci
+.fi
+.RE
+.RE
+.PP
+copy [OPTION]\&... [SOURCE]\&... DEST
+.RS 3n
+Mark dest as having copies of source files. If dest is a directory, copies are put in that directory. If dest is a file, there can only be one source.
+.sp
+.RS 3n
+.nf
+By default, this command copies the contents of files as they
+stand in the working directory.  If invoked with \-\-after, the
+operation is recorded, but no copying is performed.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+This command takes effect in the next commit. To undo a copy
+before that, see hg revert.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-A, \-\-after    record a copy that has already occurred
+\-f, \-\-force    forcibly copy over an existing managed file
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: cp
+.fi
+.RE
+.RE
+.PP
+diff [OPTION]\&... [\-r REV1 [\-r REV2]] [FILE]\&...
+.RS 3n
+Show differences between revisions for the specified files.
+.sp
+.RS 3n
+.nf
+Differences between files are shown using the unified diff format.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+NOTE: diff may generate unexpected results for merges, as it will
+default to comparing against the working directory's first parent
+changeset if no revisions are specified.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+When two revision arguments are given, then changes are shown
+between those revisions. If only one revision is specified then
+that revision is compared to the working directory, and, when no
+revisions are specified, the working directory files are compared
+to its parent.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Without the \-a option, diff will avoid generating diffs of files
+it detects as binary. With \-a, diff will generate a diff anyway,
+probably with undesirable results.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-r, \-\-rev                  revision
+\-a, \-\-text                 treat all files as text
+\-p, \-\-show\-function        show which function each change is in
+\-g, \-\-git                  use git extended diff format
+\-\-nodates                  don't include dates in diff headers
+\-w, \-\-ignore\-all\-space     ignore white space when comparing lines
+\-b, \-\-ignore\-space\-change  ignore changes in the amount of white
+                           space
+\-B, \-\-ignore\-blank\-lines   ignore changes whose lines are all
+                           blank
+\-I, \-\-include              include names matching the given
+                           patterns
+\-X, \-\-exclude              exclude names matching the given
+                           patterns
+.fi
+.RE
+.RE
+.PP
+export [OPTION]\&... [\-o OUTFILESPEC] REV\&...
+.RS 3n
+Print the changeset header and diffs for one or more revisions.
+.sp
+.RS 3n
+.nf
+The information shown in the changeset header is: author,
+changeset hash, parent(s) and commit comment.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+NOTE: export may generate unexpected diff output for merge changesets,
+as it will compare the merge changeset against its first parent only.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Output may be to a file, in which case the name of the file is
+given using a format string.  The formatting rules are as follows:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+%%   literal "%" character
+%H   changeset hash (40 bytes of hexadecimal)
+%N   number of patches being generated
+%R   changeset revision number
+%b   basename of the exporting repository
+%h   short\-form changeset hash (12 bytes of hexadecimal)
+%n   zero\-padded sequence number, starting at 1
+%r   zero\-padded changeset revision number
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Without the \-a option, export will avoid generating diffs of files
+it detects as binary. With \-a, export will generate a diff anyway,
+probably with undesirable results.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+With the \-\-switch\-parent option, the diff will be against the second
+parent. It can be useful to review a merge.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-o, \-\-output     print output to file with formatted name
+\-a, \-\-text       treat all files as text
+\-g, \-\-git        use git extended diff format
+\-\-nodates        don't include dates in diff headers
+\-\-switch\-parent  diff against the second parent
+.fi
+.RE
+.RE
+.PP
+grep [OPTION]\&... PATTERN [FILE]\&...
+.RS 3n
+Search revisions of files for a regular expression.
+.sp
+.RS 3n
+.nf
+This command behaves differently than Unix grep.  It only accepts
+Python/Perl regexps.  It searches repository history, not the
+working directory.  It always prints the revision number in which
+a match appears.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+By default, grep only prints output for the first revision of a
+file in which it finds a match.  To get it to print every revision
+that contains a change in match status ("\-" for a match that
+becomes a non\-match, or "+" for a non\-match that becomes a match),
+use the \-\-all flag.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-0, \-\-print0              end fields with NUL
+\-\-all                     print all revisions that match
+\-f, \-\-follow              follow changeset history, or file
+                          history across copies and renames
+\-i, \-\-ignore\-case         ignore case when matching
+\-l, \-\-files\-with\-matches  print only filenames and revs that match
+\-n, \-\-line\-number         print matching line numbers
+\-r, \-\-rev                 search in given revision range
+\-u, \-\-user                print user who committed change
+\-I, \-\-include             include names matching the given
+                          patterns
+\-X, \-\-exclude             exclude names matching the given
+                          patterns
+.fi
+.RE
+.RE
+.PP
+heads [\-r REV]
+.RS 3n
+Show all repository head changesets.
+.sp
+.RS 3n
+.nf
+Repository "heads" are changesets that don't have children
+changesets. They are where development generally takes place and
+are the usual targets for update and merge operations.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-b, \-\-branches  show branches (DEPRECATED)
+\-\-style         display using template map file
+\-r, \-\-rev       show only heads which are descendants of rev
+\-\-template      display with template
+.fi
+.RE
+.RE
+.PP
+help [COMMAND]
+.RS 3n
+With no arguments, print a list of commands and short help.
+.sp
+.RS 3n
+.nf
+Given a command name, print help for that command.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Given an extension name, print help for that extension, and the
+commands it provides.
+.fi
+.RE
+.RE
+.PP
+identify
+.RS 3n
+Print a short summary of the current state of the repo.
+.sp
+.RS 3n
+.nf
+This summary identifies the repository state using one or two parent
+hash identifiers, followed by a "+" if there are uncommitted changes
+in the working directory, followed by a list of tags for this revision.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: id
+.fi
+.RE
+.RE
+.PP
+import [\-p NUM] [\-m MESSAGE] [\-f] PATCH\&...
+.RS 3n
+Import a list of patches and commit them individually.
+.sp
+.RS 3n
+.nf
+If there are outstanding changes in the working directory, import
+will abort unless given the \-f flag.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+You can import a patch straight from a mail message.  Even patches
+as attachments work (body part must be type text/plain or
+text/x\-patch to be used).  From and Subject headers of email
+message are used as default committer and commit message.  All
+text/plain body parts before first diff are added to commit
+message.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If imported patch was generated by hg export, user and description
+from patch override values from message headers and body.  Values
+given on command line with \-m and \-u override these.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+To read a patch from standard input, use patch name "\-".
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-p, \-\-strip    directory strip option for patch. This has the same
+               meaning as the corresponding patch option (default:
+               1)
+\-b, \-\-base     base path (DEPRECATED)
+\-f, \-\-force    skip check for outstanding uncommitted changes
+\-m, \-\-message  use <text> as commit message
+\-l, \-\-logfile  read commit message from <file>
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: patch
+.fi
+.RE
+.RE
+.PP
+incoming [\-p] [\-n] [\-M] [\-f] [\-r REV]\&... [\-\-bundle FILENAME] [SOURCE]
+.RS 3n
+Show new changesets found in the specified path/URL or the default pull location. These are the changesets that would be pulled if a pull was requested.
+.sp
+.RS 3n
+.nf
+For remote repository, using \-\-bundle avoids downloading the changesets
+twice if the incoming is followed by a pull.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+See pull for valid source format details.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-M, \-\-no\-merges     do not show merges
+\-f, \-\-force         run even when remote repository is unrelated
+\-\-style             display using template map file
+\-n, \-\-newest\-first  show newest record first
+\-\-bundle            file to store the bundles into
+\-p, \-\-patch         show patch
+\-r, \-\-rev           a specific revision up to which you would like
+                    to pull
+\-\-template          display with template
+\-e, \-\-ssh           specify ssh command to use
+\-\-remotecmd         specify hg command to run on the remote side
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: in
+.fi
+.RE
+.RE
+.PP
+init [\-e CMD] [\-\-remotecmd CMD] [DEST]
+.RS 3n
+Initialize a new repository in the given directory. If the given directory does not exist, it is created.
+.sp
+.RS 3n
+.nf
+If no directory is given, the current directory is used.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+It is possible to specify an ssh:// URL as the destination.
+Look at the help text for the pull command for important details
+about ssh:// URLs.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-e, \-\-ssh    specify ssh command to use
+\-\-remotecmd  specify hg command to run on the remote side
+.fi
+.RE
+.RE
+.PP
+locate [OPTION]\&... [PATTERN]\&...
+.RS 3n
+Print all files under Mercurial control whose names match the given patterns.
+.sp
+.RS 3n
+.nf
+This command searches the current directory and its
+subdirectories.  To search an entire repository, move to the root
+of the repository.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If no patterns are given to match, this command prints all file
+names.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If you want to feed the output of this command into the "xargs"
+command, use the "\-0" option to both this command and "xargs".
+This will avoid the problem of "xargs" treating single filenames
+that contain white space as multiple filenames.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-r, \-\-rev       search the repository as it stood at rev
+\-0, \-\-print0    end filenames with NUL, for use with xargs
+\-f, \-\-fullpath  print complete paths from the filesystem root
+\-I, \-\-include   include names matching the given patterns
+\-X, \-\-exclude   exclude names matching the given patterns
+.fi
+.RE
+.RE
+.PP
+log [OPTION]\&... [FILE]
+.RS 3n
+Print the revision history of the specified files or the entire project.
+.sp
+.RS 3n
+.nf
+File history is shown without following rename or copy history of
+files.  Use \-f/\-\-follow with a file name to follow history across
+renames and copies. \-\-follow without a file name will only show
+ancestors or descendants of the starting revision. \-\-follow\-first
+only follows the first parent of merge revisions.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If no revision range is specified, the default is tip:0 unless
+\-\-follow is set, in which case the working directory parent is
+used as the starting revision.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+By default this command outputs: changeset id and hash, tags,
+non\-trivial parents, user, date and time, and a summary for each
+commit. When the \-v/\-\-verbose switch is used, the list of changed
+files and full commit message is shown.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+NOTE: log \-p may generate unexpected diff output for merge
+changesets, as it will compare the merge changeset against its
+first parent only. Also, the files: list will only reflect files
+that are different from BOTH parents.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-b, \-\-branches     show branches (DEPRECATED)
+\-f, \-\-follow       follow changeset history, or file history
+                   across copies and renames
+\-\-follow\-first     only follow the first parent of merge
+                   changesets
+\-d, \-\-date         show revs matching date spec
+\-C, \-\-copies       show copied files
+\-k, \-\-keyword      search for a keyword
+\-l, \-\-limit        limit number of changes displayed
+\-r, \-\-rev          show the specified revision or range
+\-\-removed          include revs where files were removed
+\-M, \-\-no\-merges    do not show merges
+\-\-style            display using template map file
+\-m, \-\-only\-merges  show only merges
+\-p, \-\-patch        show patch
+\-P, \-\-prune        do not display revision or any of its ancestors
+\-\-template         display with template
+\-I, \-\-include      include names matching the given patterns
+\-X, \-\-exclude      exclude names matching the given patterns
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: history
+.fi
+.RE
+.RE
+.PP
+manifest [REV]
+.RS 3n
+Print a list of version controlled files for the given revision. If no revision is given, the parent of the working directory is used, or tip if no revision is checked out.
+.sp
+.RS 3n
+.nf
+The manifest is the list of files being version controlled. If no revision
+is given then the first parent of the working directory is used.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+With \-v flag, print file permissions. With \-\-debug flag, print
+file revision hashes.
+.fi
+.RE
+.RE
+.PP
+merge [\-f] [REV]
+.RS 3n
+Merge the contents of the current working directory and the requested revision. Files that changed between either parent are marked as changed for the next commit and a commit must be performed before any further updates are allowed.
+.sp
+.RS 3n
+.nf
+If no revision is specified, the working directory's parent is a
+head revision, and the repository contains exactly one other head,
+the other head is merged with by default.  Otherwise, an explicit
+revision to merge with must be provided.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-b, \-\-branch  merge with head of a specific branch (DEPRECATED)
+\-f, \-\-force   force a merge with outstanding changes
+.fi
+.RE
+.RE
+.PP
+outgoing [\-M] [\-p] [\-n] [\-f] [\-r REV]\&... [DEST]
+.RS 3n
+Show changesets not found in the specified destination repository or the default push location. These are the changesets that would be pushed if a push was requested.
+.sp
+.RS 3n
+.nf
+See pull for valid destination format details.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-M, \-\-no\-merges     do not show merges
+\-f, \-\-force         run even when remote repository is unrelated
+\-p, \-\-patch         show patch
+\-\-style             display using template map file
+\-r, \-\-rev           a specific revision you would like to push
+\-n, \-\-newest\-first  show newest record first
+\-\-template          display with template
+\-e, \-\-ssh           specify ssh command to use
+\-\-remotecmd         specify hg command to run on the remote side
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: out
+.fi
+.RE
+.RE
+.PP
+parents [\-r REV] [FILE]
+.RS 3n
+Print the working directory's parent revisions.
+.sp
+.RS 3n
+.nf
+options:
+\-b, \-\-branches  show branches (DEPRECATED)
+\-r, \-\-rev       show parents from the specified rev
+\-\-style         display using template map file
+\-\-template      display with template
+.fi
+.RE
+.RE
+.PP
+paths [NAME]
+.RS 3n
+Show definition of symbolic path name NAME. If no name is given, show definition of available names.
+.sp
+.RS 3n
+.nf
+Path names are defined in the [paths] section of /etc/mercurial/hgrc
+and $HOME/.hgrc.  If run inside a repository, .hg/hgrc is used, too.
+.fi
+.RE
+.RE
+.PP
+pull [\-u] [\-f] [\-r REV]\&... [\-e CMD] [\-\-remotecmd CMD] [SOURCE]
+.RS 3n
+Pull changes from a remote repository to a local one.
+.sp
+.RS 3n
+.nf
+This finds all changes from the repository at the specified path
+or URL and adds them to the local repository. By default, this
+does not update the copy of the project in the working directory.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Valid URLs are of the form:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+local/filesystem/path (or file://local/filesystem/path)
+http://[user@]host[:port]/[path]
+https://[user@]host[:port]/[path]
+ssh://[user@]host[:port]/[path]
+static\-http://host[:port]/[path]
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Paths in the local filesystem can either point to Mercurial
+repositories or to bundle files (as created by 'hg bundle' or
+\'hg incoming \-\-bundle'). The static\-http:// protocol, albeit slow,
+allows access to a Mercurial repository where you simply use a web
+server to publish the .hg directory as static content.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Some notes about using SSH with Mercurial:
+\- SSH requires an accessible shell account on the destination machine
+  and a copy of hg in the remote path or specified with as remotecmd.
+\- path is relative to the remote user's home directory by default.
+  Use an extra slash at the start of a path to specify an absolute path:
+    ssh://example.com//tmp/repository
+\- Mercurial doesn't use its own compression via SSH; the right thing
+  to do is to configure it in your ~/.ssh/config, e.g.:
+    Host *.mylocalnetwork.example.com
+      Compression no
+    Host *
+      Compression yes
+  Alternatively specify "ssh \-C" as your ssh command in your hgrc or
+  with the \-\-ssh command line option.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-u, \-\-update  update to new tip if changesets were pulled
+\-f, \-\-force   run even when remote repository is unrelated
+\-r, \-\-rev     a specific revision up to which you would like to
+              pull
+\-e, \-\-ssh     specify ssh command to use
+\-\-remotecmd   specify hg command to run on the remote side
+.fi
+.RE
+.RE
+.PP
+push [\-f] [\-r REV]\&... [\-e CMD] [\-\-remotecmd CMD] [DEST]
+.RS 3n
+Push changes from the local repository to the given destination.
+.sp
+.RS 3n
+.nf
+This is the symmetrical operation for pull. It helps to move
+changes from the current repository to a different one. If the
+destination is local this is identical to a pull in that directory
+from the current one.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+By default, push will refuse to run if it detects the result would
+increase the number of remote heads. This generally indicates the
+the client has forgotten to sync and merge before pushing.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Valid URLs are of the form:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+local/filesystem/path (or file://local/filesystem/path)
+ssh://[user@]host[:port]/[path]
+http://[user@]host[:port]/[path]
+https://[user@]host[:port]/[path]
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Look at the help text for the pull command for important details
+about ssh:// URLs.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Pushing to http:// and https:// URLs is only possible, if this
+feature is explicitly enabled on the remote Mercurial server.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-f, \-\-force  force push
+\-r, \-\-rev    a specific revision you would like to push
+\-e, \-\-ssh    specify ssh command to use
+\-\-remotecmd  specify hg command to run on the remote side
+.fi
+.RE
+.RE
+.PP
+recover
+.RS 3n
+Recover from an interrupted commit or pull.
+.sp
+.RS 3n
+.nf
+This command tries to fix the repository status after an interrupted
+operation. It should only be necessary when Mercurial suggests it.
+.fi
+.RE
+.RE
+.PP
+remove [OPTION]\&... FILE\&...
+.RS 3n
+Schedule the indicated files for removal from the repository.
+.sp
+.RS 3n
+.nf
+This only removes files from the current branch, not from the
+entire project history.  If the files still exist in the working
+directory, they will be deleted from it.  If invoked with \-\-after,
+files that have been manually deleted are marked as removed.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+This command schedules the files to be removed at the next commit.
+To undo a remove before that, see hg revert.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Modified files and added files are not removed by default.  To
+remove them, use the \-f/\-\-force option.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-A, \-\-after    record remove that has already occurred
+\-f, \-\-force    remove file even if modified
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: rm
+.fi
+.RE
+.RE
+.PP
+rename [OPTION]\&... SOURCE\&... DEST
+.RS 3n
+Mark dest as copies of sources; mark sources for deletion. If dest is a directory, copies are put in that directory. If dest is a file, there can only be one source.
+.sp
+.RS 3n
+.nf
+By default, this command copies the contents of files as they
+stand in the working directory.  If invoked with \-\-after, the
+operation is recorded, but no copying is performed.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+This command takes effect in the next commit. To undo a rename
+before that, see hg revert.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-A, \-\-after    record a rename that has already occurred
+\-f, \-\-force    forcibly copy over an existing managed file
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: mv
+.fi
+.RE
+.RE
+.PP
+revert [OPTION]\&... [\-r REV] [NAME]\&...
+.RS 3n
+With no revision specified, revert the named files or directories to the contents they had in the parent of the working directory. This restores the contents of the affected files to an unmodified state and unschedules adds, removes, copies, and renames. If the working directory has two parents, you must explicitly specify the revision to revert to.
+.sp
+.RS 3n
+.nf
+Modified files are saved with a .orig suffix before reverting.
+To disable these backups, use \-\-no\-backup.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Using the \-r option, revert the given files or directories to their
+contents as of a specific revision. This can be helpful to "roll
+back" some or all of a change that should not have been committed.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Revert modifies the working directory.  It does not commit any
+changes, or change the parent of the working directory.  If you
+revert to a revision other than the parent of the working
+directory, the reverted files will thus appear modified
+afterwards.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If a file has been deleted, it is recreated.  If the executable
+mode of a file was changed, it is reset.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If names are given, all files matching the names are reverted.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If no arguments are given, no files are reverted.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-a, \-\-all      revert all changes when no arguments given
+\-d, \-\-date     tipmost revision matching date
+\-r, \-\-rev      revision to revert to
+\-\-no\-backup    do not save backup copies of files
+\-I, \-\-include  include names matching the given patterns
+\-X, \-\-exclude  exclude names matching the given patterns
+\-n, \-\-dry\-run  do not perform actions, just print output
+.fi
+.RE
+.RE
+.PP
+rollback
+.RS 3n
+Roll back the last transaction in this repository, restoring the project to its state prior to the transaction.
+.sp
+.RS 3n
+.nf
+Transactions are used to encapsulate the effects of all commands
+that create new changesets or propagate existing changesets into a
+repository. For example, the following commands are transactional,
+and their effects can be rolled back:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+commit
+import
+pull
+push (with this repository as destination)
+unbundle
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+This command should be used with care. There is only one level of
+rollback, and there is no way to undo a rollback.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+This command is not intended for use on public repositories. Once
+changes are visible for pull by other users, rolling a transaction
+back locally is ineffective (someone else may already have pulled
+the changes). Furthermore, a race is possible with readers of the
+repository; for example an in\-progress pull from the repository
+may fail if a rollback is performed.
+.fi
+.RE
+.RE
+.PP
+root
+.RS 3n
+Print the root directory of the current repository.
+.RE
+.PP
+serve [OPTION]\&...
+.RS 3n
+Start a local HTTP repository browser and pull server.
+.sp
+.RS 3n
+.nf
+By default, the server logs accesses to stdout and errors to
+stderr.  Use the "\-A" and "\-E" options to log to files.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-A, \-\-accesslog   name of access log file to write to
+\-d, \-\-daemon      run server in background
+\-\-daemon\-pipefds  used internally by daemon mode
+\-E, \-\-errorlog    name of error log file to write to
+\-p, \-\-port        port to use (default: 8000)
+\-a, \-\-address     address to use
+\-n, \-\-name        name to show in web pages (default: working dir)
+\-\-webdir\-conf     name of the webdir config file (serve more than
+                  one repo)
+\-\-pid\-file        name of file to write process ID to
+\-\-stdio           for remote clients
+\-t, \-\-templates   web templates to use
+\-\-style           template style to use
+\-6, \-\-ipv6        use IPv6 in addition to IPv4
+.fi
+.RE
+.RE
+.PP
+showconfig [\-u] [NAME]\&...
+.RS 3n
+With no args, print names and values of all config items.
+.sp
+.RS 3n
+.nf
+With one arg of the form section.name, print just the value of
+that config item.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+With multiple args, print names and values of all config items
+with matching section names.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-u, \-\-untrusted  show untrusted configuration options
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: debugconfig
+.fi
+.RE
+.RE
+.PP
+status [OPTION]\&... [FILE]\&...
+.RS 3n
+Show status of files in the repository. If names are given, only files that match are shown. Files that are clean or ignored, are not listed unless \-c (clean), \-i (ignored) or \-A is given.
+.sp
+.RS 3n
+.nf
+NOTE: status may appear to disagree with diff if permissions have
+changed or a merge has occurred. The standard diff format does not
+report permission changes and diff only reports changes relative
+to one merge parent.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If one revision is given, it is used as the base revision.
+If two revisions are given, the difference between them is shown.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The codes used to show the status of files are:
+M = modified
+A = added
+R = removed
+C = clean
+! = deleted, but still tracked
+? = not tracked
+I = ignored (not shown by default)
+  = the previous added file was copied from here
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-A, \-\-all        show status of all files
+\-m, \-\-modified   show only modified files
+\-a, \-\-added      show only added files
+\-r, \-\-removed    show only removed files
+\-d, \-\-deleted    show only deleted (but tracked) files
+\-c, \-\-clean      show only files without changes
+\-u, \-\-unknown    show only unknown (not tracked) files
+\-i, \-\-ignored    show ignored files
+\-n, \-\-no\-status  hide status prefix
+\-C, \-\-copies     show source of copied files
+\-0, \-\-print0     end filenames with NUL, for use with xargs
+\-\-rev            show difference from revision
+\-I, \-\-include    include names matching the given patterns
+\-X, \-\-exclude    exclude names matching the given patterns
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: st
+.fi
+.RE
+.RE
+.PP
+tag [\-l] [\-m TEXT] [\-d DATE] [\-u USER] [\-r REV] NAME
+.RS 3n
+Name a particular revision using <name>.
+.sp
+.RS 3n
+.nf
+Tags are used to name particular revisions of the repository and are
+very useful to compare different revision, to go back to significant
+earlier versions or to mark branch points as releases, etc.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If no revision is given, the parent of the working directory is used,
+or tip if no revision is checked out.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+To facilitate version control, distribution, and merging of tags,
+they are stored as a file named ".hgtags" which is managed
+similarly to other project files and can be hand\-edited if
+necessary.  The file '.hg/localtags' is used for local tags (not
+shared among repositories).
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-l, \-\-local    make the tag local
+\-m, \-\-message  message for tag commit log entry
+\-d, \-\-date     record datecode as commit date
+\-u, \-\-user     record user as commiter
+\-r, \-\-rev      revision to tag
+.fi
+.RE
+.RE
+.PP
+tags
+.RS 3n
+List the repository tags.
+.sp
+.RS 3n
+.nf
+This lists both regular and local tags.
+.fi
+.RE
+.RE
+.PP
+tip [\-p]
+.RS 3n
+Show the tip revision.
+.sp
+.RS 3n
+.nf
+options:
+\-b, \-\-branches  show branches (DEPRECATED)
+\-\-style         display using template map file
+\-p, \-\-patch     show patch
+\-\-template      display with template
+.fi
+.RE
+.RE
+.PP
+unbundle [\-u] FILE
+.RS 3n
+Apply a compressed changegroup file generated by the bundle command.
+.sp
+.RS 3n
+.nf
+options:
+\-u, \-\-update  update to new tip if changesets were unbundled
+.fi
+.RE
+.RE
+.PP
+update [\-C] [\-d DATE] [REV]
+.RS 3n
+Update the working directory to the specified revision.
+.sp
+.RS 3n
+.nf
+If there are no outstanding changes in the working directory and
+there is a linear relationship between the current version and the
+requested version, the result is the requested version.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+To merge the working directory with another revision, use the
+merge command.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+By default, update will refuse to run if doing so would require
+merging or discarding local changes.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+options:
+\-b, \-\-branch  checkout the head of a specific branch (DEPRECATED)
+\-C, \-\-clean   overwrite locally modified files
+\-d, \-\-date    tipmost revision matching date
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+aliases: up checkout co
+.fi
+.RE
+.RE
+.PP
+verify
+.RS 3n
+Verify the integrity of the current repository.
+.sp
+.RS 3n
+.nf
+This will perform an extensive check of the repository's
+integrity, validating the hashes and checksums of each entry in
+the changelog, manifest, and tracked files, as well as the
+integrity of their crosslinks and indices.
+.fi
+.RE
+.RE
+.PP
+version
+.RS 3n
+output version and copyright information
+.RE
+.SH "DATE FORMATS"
+.sp
+.RS 3n
+.nf
+Some commands (backout, commit, tag) allow the user to specify a date.
+Many date formats are acceptible. Here are some examples:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+"Wed Dec 6 13:18:29 2006" (local timezone assumed)
+"Dec 6 13:18 \-0600" (year assumed, time offset provided)
+"Dec 6 13:18 UTC" (UTC and GMT are aliases for +0000)
+"Dec 6" (midnight)
+"13:18" (today assumed)
+"3:39" (3:39AM assumed)
+"3:39pm" (15:39)
+"2006\-12\-6 13:18:29" (ISO 8601 format)
+"2006\-12\-6 13:18"
+"2006\-12\-6"
+"12\-6"
+"12/6"
+"12/6/6" (Dec 6 2006)
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Lastly, there is Mercurial's internal format:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+"1165432709 0" (Wed Dec 6 13:18:29 2006 UTC)
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+This is the internal representation format for dates. unixtime is
+the number of seconds since the epoch (1970\-01\-01 00:00 UTC). offset
+is the offset of the local timezone, in seconds west of UTC (negative
+if the timezone is east of UTC).
+.fi
+.RE
+.SH "FILE NAME PATTERNS"
+.sp
+.RS 3n
+.nf
+Mercurial accepts several notations for identifying one or more
+files at a time.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+By default, Mercurial treats filenames as shell\-style extended
+glob patterns.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Alternate pattern notations must be specified explicitly.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+To use a plain path name without any pattern matching, start a
+name with "path:".  These path names must match completely, from
+the root of the current repository.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+To use an extended glob, start a name with "glob:".  Globs are
+rooted at the current directory; a glob such as "*.c" will match
+files ending in ".c" in the current directory only.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The supported glob syntax extensions are "**" to match any string
+across path separators, and "{a,b}" to mean "a or b".
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+To use a Perl/Python regular expression, start a name with "re:".
+Regexp pattern matching is anchored at the root of the repository.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Plain examples:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+path:foo/bar   a name bar in a directory named foo in the root of
+               the repository
+path:path:name a file or directory named "path:name"
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Glob examples:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+glob:*.c       any name ending in ".c" in the current directory
+*.c            any name ending in ".c" in the current directory
+**.c           any name ending in ".c" in the current directory, or
+               any subdirectory
+foo/*.c        any name ending in ".c" in the directory foo
+foo/**.c       any name ending in ".c" in the directory foo, or any
+               subdirectory
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Regexp examples:
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+re:.*\\.c$      any name ending in ".c", anywhere in the repository
+.fi
+.RE
+.SH "ENVIRONMENT VARIABLES"
+.PP
+HGEDITOR
+.RS 3n
+This is the name of the editor to use when committing. Defaults to the value of EDITOR.
+.sp
+.RS 3n
+.nf
+(deprecated, use .hgrc)
+.fi
+.RE
+.RE
+.PP
+HGENCODING
+.RS 3n
+This overrides the default locale setting detected by Mercurial. This setting is used to convert data including usernames, changeset descriptions, tag names, and branches. This setting can be overridden with the \-\-encoding command\-line option.
+.RE
+.PP
+HGENCODINGMODE
+.RS 3n
+This sets Mercurial's behavior for handling unknown characters while transcoding user inputs. The default is "strict", which causes Mercurial to abort if it can't translate a character. Other settings include "replace", which replaces unknown characters, and "ignore", which drops them. This setting can be overridden with the \-\-encodingmode command\-line option.
+.RE
+.PP
+HGMERGE
+.RS 3n
+An executable to use for resolving merge conflicts. The program will be executed with three arguments: local file, remote file, ancestor file.
+.sp
+.RS 3n
+.nf
+The default program is "hgmerge", which is a shell script provided
+by Mercurial with some sensible defaults.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+(deprecated, use .hgrc)
+.fi
+.RE
+.RE
+.PP
+HGRCPATH
+.RS 3n
+A list of files or directories to search for hgrc files. Item separator is ":" on Unix, ";" on Windows. If HGRCPATH is not set, platform default search path is used. If empty, only .hg/hgrc of current repository is read.
+.sp
+.RS 3n
+.nf
+For each element in path, if a directory, all entries in directory
+ending with ".rc" are added to path.  Else, element itself is
+added to path.
+.fi
+.RE
+.RE
+.PP
+HGUSER
+.RS 3n
+This is the string used for the author of a commit.
+.sp
+.RS 3n
+.nf
+(deprecated, use .hgrc)
+.fi
+.RE
+.RE
+.PP
+EMAIL
+.RS 3n
+If HGUSER is not set, this will be used as the author for a commit.
+.RE
+.PP
+LOGNAME
+.RS 3n
+If neither HGUSER nor EMAIL is set, LOGNAME will be used (with
+\fI@hostname\fR
+appended) as the author value for a commit.
+.RE
+.PP
+EDITOR
+.RS 3n
+This is the name of the editor used in the hgmerge script. It will be used for commit messages if HGEDITOR isn't set. Defaults to
+\fIvi\fR.
+.RE
+.PP
+PYTHONPATH
+.RS 3n
+This is used by Python to find imported modules and may need to be set appropriately if Mercurial is not installed system\-wide.
+.RE
+.SH "SPECIFYING SINGLE REVISIONS"
+.sp
+.RS 3n
+.nf
+Mercurial accepts several notations for identifying individual
+revisions.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+A plain integer is treated as a revision number.  Negative
+integers are treated as offsets from the tip, with \-1 denoting the
+tip.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+A 40\-digit hexadecimal string is treated as a unique revision
+identifier.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+A hexadecimal string less than 40 characters long is treated as a
+unique revision identifier, and referred to as a short\-form
+identifier.  A short\-form identifier is only valid if it is the
+prefix of one full\-length identifier.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+Any other string is treated as a tag name, which is a symbolic
+name associated with a revision identifier.  Tag names may not
+contain the ":" character.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The reserved name "tip" is a special tag that always identifies
+the most recent revision.
+.fi
+.RE
+.SH "SPECIFYING MULTIPLE REVISIONS"
+.sp
+.RS 3n
+.nf
+When Mercurial accepts more than one revision, they may be
+specified individually, or provided as a continuous range,
+separated by the ":" character.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+The syntax of range notation is [BEGIN]:[END], where BEGIN and END
+are revision identifiers.  Both BEGIN and END are optional.  If
+BEGIN is not specified, it defaults to revision number 0.  If END
+is not specified, it defaults to the tip.  The range ":" thus
+means "all revisions".
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+If BEGIN is greater than END, revisions are treated in reverse
+order.
+.fi
+.RE
+.sp
+.RS 3n
+.nf
+A range acts as a closed interval.  This means that a range of 3:5
+gives 3, 4 and 5.  Similarly, a range of 4:2 gives 4, 3, and 2.
+.fi
+.RE
+.SH "FILES"
+.PP
+.hgignore
+.RS 3n
+This file contains regular expressions (one per line) that describe file names that should be ignored by hg. For details, see hgignore(5).
+.RE
+.PP
+.hgtags
+.RS 3n
+This file contains changeset hash values and text tag names (one of each separated by spaces) that correspond to tagged versions of the repository contents.
+.RE
+.PP
+/etc/mercurial/hgrc, $HOME/.hgrc, .hg/hgrc
+.RS 3n
+This file contains defaults and configuration. Values in .hg/hgrc override those in $HOME/.hgrc, and these override settings made in the global /etc/mercurial/hgrc configuration. See hgrc(5) for details of the contents and format of these files.
+.RE
+Some commands (e.g. revert) produce backup files ending in .orig, if the .orig file already exists and is not tracked by Mercurial, it will be overwritten..sp
+.SH "BUGS"
+Probably lots, please post them to the mailing list (See Resources below) when you find them..sp
+.SH "SEE ALSO"
+hgignore(5), hgrc(5).sp
+.SH "AUTHOR"
+Written by Matt Mackall <mpm@selenic.com>.sp
+.SH "RESOURCES"
+[1]\&\fIMain Web Site\fR.sp
+[2]\&\fISource code repository\fR.sp
+[3]\&\fIMailing list\fR.sp
+.SH "COPYING"
+Copyright (C) 2005, 2006 Matt Mackall. Free use of this software is granted under the terms of the GNU General Public License (GPL)..sp
+.SH "REFERENCES"
+.TP 3
+1.\ Main Web Site
+\%http://selenic.com/mercurial
+.TP 3
+2.\ Source code repository
+\%http://selenic.com/hg
+.TP 3
+3.\ Mailing list
+\%http://selenic.com/mailman/listinfo/mercurial

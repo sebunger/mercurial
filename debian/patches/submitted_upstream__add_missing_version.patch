@@ -1,7 +1,0 @@
-Index: mercurial-0.9.2/mercurial/__version__.py
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ mercurial-0.9.2/mercurial/__version__.py	2006-12-14 13:20:36.000000000 +0100
-@@ -0,0 +1,2 @@
-+# This file is auto-generated.
-+version = '0.9.2'

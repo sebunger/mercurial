@@ -1,3 +1,32 @@
+mercurial (0.9.3-1) unstable; urgency=low
+
+  * New upstream release
+    + Bug fixes:
+       - fix a merge copy/rename corner case
+       - fix spurious new heads message with push -r
+       - fix hg export %n sequence numbers
+       - fix shell quoting on Windows
+       - fix charset encoding for hgwebdir and obfuscated addresses
+       - fix missing generated files for distribution tarball
+       - fix convert-repo tag updates and transcoding of committer
+       - add instructions for redoing failed merges
+      
+    + Documentation fixes:
+       - hg cat, manifest, and tag default to current parent revision.
+       - CGI stub comments clarified
+       - corrected synopses for many commands
+       - improve doc building and distribution
+       - convert-repo: update usage information
+      
+    + Extension fixes:
+       - mq: fix strip on Windows
+       - mq: fix some guards corner cases
+       - gpg: make 'hg sign' default to current parent
+    
+
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 19 Dec 2006 11:25:55 +0100
+
 mercurial (0.9.2-3) unstable; urgency=low
 
   * remove debian/patches/submitted_upstream__restore_hgk.py.patch
