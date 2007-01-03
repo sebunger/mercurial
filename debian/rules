@@ -42,15 +42,8 @@ binary-install/mercurial::
 	ln -sf ../../../mercurial/templates \
 	  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates
 
-        # Workaround a python-support bugs: it does not manage symlinks
-	for v in $$(pyversions -s); do \
-	    mkdir -p $(DEB_DESTDIR)/var/lib/python-support/$$v/mercurial/ ;\
-	    ln -s /usr/share/python-support/mercurial/mercurial/templates \
-		$(DEB_DESTDIR)/var/lib/python-support/$$v/mercurial/templates ;\
-	done
 	# fix bugs in cdbs/dh_python: mercurial will use python and not pythonX.Y
-	# [update]: in fact, python2.4 is better: python2.3 does not work
-	sed -i -e 's/python[0-9.]*/python2.4/' $(DEB_DESTDIR)/usr/bin/hg
+	sed -i -e 's/python[0-9.]*/python/' $(DEB_DESTDIR)/usr/bin/hg
 
 build: build-doc
 update-config:: link_hgit
