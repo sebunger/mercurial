@@ -5,9 +5,7 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from demandload import demandload
-import bdiff, mpatch
-demandload(globals(), "re struct util")
+import bdiff, mpatch, re, struct, util, md5
 
 def splitnewlines(text):
     '''like str.splitlines, but only split on newlines.'''
@@ -52,18 +50,27 @@ class diffopts(object):
 defaultopts = diffopts()
 
 def unidiff(a, ad, b, bd, fn, r=None, opts=defaultopts):
-    def datetag(date):
-        return (opts.git or opts.nodates) and '\n' or '\t%s\n' % date
+    def datetag(date, addtab=True):
+        if not opts.git and not opts.nodates:
+            return '\t%s\n' % date
+        if addtab and ' ' in fn:
+            return '\t\n'
+        return '\n'
 
     if not a and not b: return ""
     epoch = util.datestr((0, 0))
 
     if not opts.text and (util.binary(a) or util.binary(b)):
+        def h(v):
+            # md5 is used instead of sha1 because md5 is supposedly faster
+            return md5.new(v).digest()
+        if a and b and len(a) == len(b) and h(a) == h(b):
+            return ""
         l = ['Binary file %s has changed\n' % fn]
     elif not a:
         b = splitnewlines(b)
         if a is None:
-            l1 = '--- /dev/null%s' % datetag(epoch)
+            l1 = '--- /dev/null%s' % datetag(epoch, False)
         else:
             l1 = "--- %s%s" % ("a/" + fn, datetag(ad))
         l2 = "+++ %s%s" % ("b/" + fn, datetag(bd))
@@ -73,7 +80,7 @@ def unidiff(a, ad, b, bd, fn, r=None, opts=defaultopts):
         a = splitnewlines(a)
         l1 = "--- %s%s" % ("a/" + fn, datetag(ad))
         if b is None:
-            l2 = '+++ /dev/null%s' % datetag(epoch)
+            l2 = '+++ /dev/null%s' % datetag(epoch, False)
         else:
             l2 = "+++ %s%s" % ("b/" + fn, datetag(bd))
         l3 = "@@ -1,%d +0,0 @@\n" % len(a)
@@ -246,6 +253,10 @@ def patchtext(bin):
 
 def patch(a, bin):
     return mpatch.patches(a, [bin])
+
+# similar to difflib.SequenceMatcher.get_matching_blocks
+def get_matching_blocks(a, b):
+    return [(d[0], d[2], d[1] - d[0]) for d in bdiff.blocks(a, b)]
 
 patches = mpatch.patches
 patchedsize = mpatch.patchedsize

@@ -31,7 +31,6 @@ a
 a
 % rename and modify
 applying patch from stdin
-copy2: No such file or directory
 a
 a
 b
@@ -40,7 +39,6 @@ a
 % one file renamed multiple times
 applying patch from stdin
 9 rename2 rename3 rename3-2 / rename3 (rename2)rename3-2 (rename2)
-rename2: No such file or directory
 rename3
 rename3-2
 a
@@ -62,3 +60,6 @@ foo
 applying patch from stdin
 045c85ba38952325e126c70962cc0f9d9077bc67 644 mbinary1
 a874b471193996e7cb034bb301cac7bdaf3e3f46 644 mbinary2
+% filenames with spaces
+applying patch from stdin
+foo

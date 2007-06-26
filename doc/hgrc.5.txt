@@ -151,6 +151,22 @@ defaults::
   defining command defaults. The command defaults will also be
   applied to the aliases of the commands defined.
 
+diff::
+  Settings used when displaying diffs. They are all boolean and
+  defaults to False.
+  git;;
+    Use git extended diff format.
+  nodates;;
+    Don't include dates in diff headers.
+  showfunc;;
+    Show which function each change is in.
+  ignorews;;
+    Ignore white space when comparing lines.
+  ignorewsamount;;
+    Ignore changes in the amount of white space.
+  ignoreblanklines;;
+    Ignore changes whose lines are all blank.
+
 email::
   Settings for extensions that send email messages.
   from;;
@@ -199,6 +215,15 @@ extensions::
     # (this extension will get loaded from the file specified)
     myfeature = ~/.hgext/myfeature.py
 
+format::
+
+  usestore;;
+    Enable or disable the "store" repository format which improves
+    compatibility with systems that fold case or otherwise mangle
+    filenames. Enabled by default. Disabling this option will allow
+    you to store longer filenames in some situations at the expense of
+    compatibility.
+
 hooks::
   Commands or Python functions that get automatically executed by
   various actions such as starting or finishing a commit. Multiple
@@ -234,6 +259,14 @@ hooks::
     Run after sending changes from local repository to another.  ID of
     first changeset sent is in $HG_NODE.  Source of operation is in
     $HG_SOURCE; see "preoutgoing" hook for description.
+  post-<command>;;
+    Run after successful invocations of the associated command. The
+    contents of the command line are passed as $HG_ARGS and the result
+    code in $HG_RESULT. Hook failure is ignored.
+  pre-<command>;;
+    Run before executing the associated command. The contents of the
+    command line are passed as $HG_ARGS. If the hook returns failure,
+    the command doesn't execute and Mercurial returns the failure code.
   prechangegroup;;
     Run before a changegroup is added via push, pull or unbundle.
     Exit status 0 allows the changegroup to proceed.  Non-zero status
@@ -288,9 +321,16 @@ hooks::
     is in $HG_PARENT2.  If update succeeded, $HG_ERROR=0.  If update
     failed (e.g. because conflicts not resolved), $HG_ERROR=1.
 
-  Note: In earlier releases, the names of hook environment variables
-  did not have a "HG_" prefix.  The old unprefixed names are no longer
-  provided in the environment.
+  Note: it is generally better to use standard hooks rather than the
+  generic pre- and post- command hooks as they are guaranteed to be
+  called in the appropriate contexts for influencing transactions.
+  Also, hooks like "commit" will be called in all contexts that
+  generate a commit (eg. tag) and not just the commit command.
+
+  Note2: Environment variables with empty values may not be passed to
+  hooks on platforms like Windows. For instance, $HG_PARENT2 will
+  not be available under Windows for non-merge changesets while being
+  set to an empty value under Unix-like systems.
 
   The syntax for Python hooks is as follows:
 
@@ -402,20 +442,31 @@ ui::
     Allow to prompt the user.  True or False.  Default is True.
   logtemplate;;
     Template string for commands that print changesets.
-  style;;
-    Name of style to use for command output.
   merge;;
     The conflict resolution program to use during a manual merge.
     Default is "hgmerge".
+  patch;;
+    command to use to apply patches. Look for 'gpatch' or 'patch' in PATH if
+    unset.
   quiet;;
     Reduce the amount of output printed.  True or False.  Default is False.
   remotecmd;;
     remote command to use for clone/push/pull operations. Default is 'hg'.
+  report_untrusted;;
+    Warn if a .hg/hgrc file is ignored due to not being owned by a
+    trusted user or group.  True or False.  Default is True.
+  slash;;
+    Display paths using a slash ("/") as the path separator.  This only
+    makes a difference on systems where the default path separator is not
+    the slash character (e.g. Windows uses the backslash character ("\")).
+    Default is False.
   ssh;;
     command to use for SSH connections. Default is 'ssh'.
   strict;;
     Require exact command names, instead of allowing unambiguous
     abbreviations.  True or False.  Default is False.
+  style;;
+    Name of style to use for command output.
   timeout;;
     The timeout used when a lock is held (in seconds), a negative value
     means no timeout. Default is 600.
@@ -423,6 +474,9 @@ ui::
     The committer of a changeset created when running "commit".
     Typically a person's name and email address, e.g. "Fred Widget
     <fred@example.com>".  Default is $EMAIL or username@hostname.
+    If the username in hgrc is empty, it has to be specified manually or
+    in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username ="
+    in the system hgrc).
   verbose;;
     Increase the amount of output printed.  True or False.  Default is False.
 
@@ -472,8 +526,13 @@ web::
   description;;
     Textual description of the repository's purpose or contents.
     Default is "unknown".
+  encoding;;
+    Character encoding name.
+    Example: "UTF-8"
   errorlog;;
     Where to output the error log. Default is stderr.
+  hidden;;
+    Whether to hide the repository in the hgwebdir index. Default is false.
   ipv6;;
     Whether to use IPv6. Default is false.
   name;;
@@ -488,6 +547,11 @@ web::
   push_ssl;;
     Whether to require that inbound pushes be transported over SSL to
     prevent password sniffing.  Default is true.
+  staticurl;;
+    Base URL to use for static files. If unset, static files (e.g.
+    the hgicon.png favicon) will be served by the CGI script itself.
+    Use this setting to serve them directly with the HTTP server.
+    Example: "http://hgserver/static/"
   stripes;;
     How many lines a "zebra stripe" should span in multiline output.
     Default is 1; set to 0 to disable.
@@ -510,6 +574,6 @@ hg(1), hgignore(5)
 COPYING
 -------
 This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005, 2006 Matt Mackall.
+Mercurial is copyright 2005-2007 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License (GPL).

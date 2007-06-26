@@ -1,3 +1,26 @@
+mercurial (0.9.4-1) unstable; urgency=low
+
+  * New upstream release (Closes: #430714)
+    + New features:
+       * support for symlinks
+       * improved tag handling
+       * improved merge handling of file and directory renames
+       * improved named branch usability
+       * numerous improvements to commands
+       * generic pre- and post-command hooks
+       * improved Windows support
+       * basic BeOS and OpenVMS support
+       * numerous bug fixes
+
+    + New extensions and contributions:
+       * extensions can now be specified in .hg/hgrc
+       * new convert extension with CVS support
+       * new graphlog extension
+       * improved patchbomb extension
+       * example FastCGI script
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 27 Jun 2007 00:33:27 +0200
+
 mercurial (0.9.3-2) unstable; urgency=low
 
   * [debian/rule, debian/control] remove workaround for symlink support in

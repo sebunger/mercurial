@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Since it's not easy to write a test that portably deals
 # with files from different users/groups, we cheat a bit by
 # monkey-patching some functions in the util module
@@ -156,7 +155,7 @@ print 'untrusted:'
 print u2.config('foobar', 'baz', untrusted=True)
 print u2.config('paths', 'interpolated', untrusted=True)
 
-print 
+print
 print "# error handling"
 
 def assertraises(f, exc=util.Abort):

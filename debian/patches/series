@@ -1,5 +1,3 @@
 deb_specific__FAQ_subst.patch
 deb_specific__hgk.py.patch
 deb_specific__bash_completion_global_option_already_set.patch
-deb_specific__hgpurge.py.patch
-deb_specific__sample.hgrc.patch

@@ -43,7 +43,9 @@ proc getcommits {rargs} {
     }
     if [catch {
 	set parse_args [concat --default HEAD $revargs]
-	set parsed_args [split [eval exec hg debug-rev-parse $parse_args] "\n"]
+	set parse_temp [eval exec {$env(HG)} debug-rev-parse $parse_args]
+	regsub -all "\r\n" $parse_temp "\n" parse_temp
+	set parsed_args [split $parse_temp "\n"]
     } err] {
 	# if git-rev-parse failed for some reason...
 	if {$rargs == {}} {
@@ -55,7 +57,7 @@ proc getcommits {rargs} {
 	set parsed_args [concat -n $limit $parsed_args]
     }
     if [catch {
-	set commfd [open "|hg debug-rev-list --header --topo-order --parents $parsed_args" r]
+	set commfd [open "|{$env(HG)} debug-rev-list --header --topo-order --parents $parsed_args" r]
     } err] {
 	puts stderr "Error executing hg debug-rev-list: $err"
 	exit 1
@@ -108,6 +110,7 @@ to allow selection of commits to be displayed.)}
 	    set leftover {}
 	}
 	set start [expr {$i + 1}]
+	regsub -all "\r\n" $cmit "\n" cmit
 	set j [string first "\n" $cmit]
 	set ok 0
 	if {$j >= 0} {
@@ -176,7 +179,8 @@ proc doupdate {reading} {
 }
 
 proc readcommit {id} {
-    if [catch {set contents [exec hg debug-cat-file commit $id]}] return
+    global env
+    if [catch {set contents [exec $env(HG) debug-cat-file commit $id]}] return
     parsecommit $id $contents 0 {}
 }
 
@@ -209,6 +213,7 @@ proc parsecommit {id contents listed olds} {
 	    incr ncleft($p)
 	}
     }
+    regsub -all "\r\n" $contents "\n" contents
     foreach line [split $contents "\n"] {
 	if {$inhdr} {
 	    set line [split $line]
@@ -254,14 +259,14 @@ proc parsecommit {id contents listed olds} {
 }
 
 proc readrefs {} {
-    global tagids idtags headids idheads tagcontents
+    global tagids idtags headids idheads tagcontents env
 
-    set tags [exec hg tags]
-    set lines [split $tags '\n']
+    set tags [exec $env(HG) tags]
+    regsub -all "\r\n" $tags "\n" tags
+    set lines [split $tags "\n"]
     foreach f $lines {
-	set f [regexp -all -inline {\S+} $f]
-	set direct [lindex $f 0]
-	set full [lindex $f 1]
+	regexp {(\S+)$} $f full
+	regsub {\s+(\S+)$} $f "" direct
 	set sha [split $full ':']
 	set tag [lindex $sha 1]
 	lappend tagids($direct) $tag
@@ -351,15 +356,15 @@ proc makewindow {} {
     set canv .ctop.top.clist.canv
     canvas $canv -height $geometry(canvh) -width $geometry(canv1) \
 	-bg white -bd 0 \
-	-yscrollincr $linespc -yscrollcommand "$cscroll set"
+	-yscrollincr $linespc -yscrollcommand "$cscroll set" -selectbackground grey
     .ctop.top.clist add $canv
     set canv2 .ctop.top.clist.canv2
     canvas $canv2 -height $geometry(canvh) -width $geometry(canv2) \
-	-bg white -bd 0 -yscrollincr $linespc
+	-bg white -bd 0 -yscrollincr $linespc -selectbackground grey
     .ctop.top.clist add $canv2
     set canv3 .ctop.top.clist.canv3
     canvas $canv3 -height $geometry(canvh) -width $geometry(canv3) \
-	-bg white -bd 0 -yscrollincr $linespc
+	-bg white -bd 0 -yscrollincr $linespc -selectbackground grey
     .ctop.top.clist add $canv3
     bind .ctop.top.clist <Configure> {resizeclistpanes %W %w}
 
@@ -1709,6 +1714,7 @@ proc findpatches {} {
     global findprocpid findprocfile
     global finddidsel ctext lineid findinprogress
     global findinsertpos
+    global env
 
     if {$numcommits == 0} return
 
@@ -1728,7 +1734,7 @@ proc findpatches {} {
     }
 
     if {[catch {
-	set f [open [list | hg debug-diff-tree --stdin -s -r -S$findstring \
+	set f [open [list | $env(HG) debug-diff-tree --stdin -s -r -S$findstring \
 			 << $inputids] r]
     } err]} {
 	error_popup "Error starting search process: $err"
@@ -1800,6 +1806,7 @@ proc findfiles {} {
     global findinprogress findstartline findinsertpos
     global treediffs fdiffids fdiffsneeded fdiffpos
     global findmergefiles
+    global env
 
     if {$numcommits == 0} return
 
@@ -1831,7 +1838,7 @@ proc findfiles {} {
     # start off a git-diff-tree process if needed
     if {$diffsneeded ne {}} {
 	if {[catch {
-	    set df [open [list | hg debug-diff-tree -r --stdin << $diffsneeded] r]
+	    set df [open [list | $env(HG) debug-diff-tree -r --stdin << $diffsneeded] r]
 	} err ]} {
 	    error_popup "Error starting search process: $err"
 	    return
@@ -2248,13 +2255,14 @@ proc mergediff {id} {
 }
 
 proc findgca {ids} {
+    global env
     set gca {}
     foreach id $ids {
 	if {$gca eq {}} {
 	    set gca $id
 	} else {
 	    if {[catch {
-		set gca [exec hg debug-merge-base $gca $id]
+		set gca [exec $env(HG) debug-merge-base $gca $id]
 	    } err]} {
 		return {}
 	    }
@@ -2328,6 +2336,7 @@ proc showmergediff {} {
     global cflist diffmergeid mergefilelist parents
     global diffopts diffinhunk currentfile currenthunk filelines
     global diffblocked groupfilelast mergefds groupfilenum grouphunks
+    global env
 
     set files $mergefilelist($diffmergeid)
     foreach f $files {
@@ -2342,7 +2351,7 @@ proc showmergediff {} {
     catch {unset grouphunks}
     set groupfilelast -1
     foreach p $parents($diffmergeid) {
-	set cmd [list | hg debug-diff-tree -p $p $diffmergeid]
+	set cmd [list | $env(HG) debug-diff-tree -p $p $diffmergeid]
 	set cmd [concat $cmd $mergefilelist($diffmergeid)]
 	if {[catch {set f [open $cmd r]} err]} {
 	    error_popup "Error getting diffs: $err"
@@ -2781,12 +2790,12 @@ proc addtocflist {ids} {
 }
 
 proc gettreediffs {ids} {
-    global treediff parents treepending
+    global treediff parents treepending env
     set treepending $ids
     set treediff {}
     set id [lindex $ids 0]
     set p [lindex $ids 1]
-    if [catch {set gdtf [open "|hg debug-diff-tree -r $p $id" r]}] return
+    if [catch {set gdtf [open "|{$env(HG)} debug-diff-tree -r $p $id" r]}] return
     fconfigure $gdtf -blocking 0
     fileevent $gdtf readable [list gettreediffline $gdtf $ids]
 }
@@ -2822,7 +2831,7 @@ proc getblobdiffs {ids} {
     set id [lindex $ids 0]
     set p [lindex $ids 1]
     set env(GIT_DIFF_OPTS) $diffopts
-    set cmd [list | hg debug-diff-tree -r -p -C $p $id]
+    set cmd [list | $env(HG) debug-diff-tree -r -p -C $p $id]
     if {[catch {set bdf [open $cmd r]} err]} {
 	puts "error getting diffs: $err"
 	return
@@ -2856,6 +2865,7 @@ proc getblobdiffline {bdf ids} {
     if {$ids != $diffids || $bdf != $blobdifffd($ids)} {
 	return
     }
+    regsub -all "\r" $line "" line
     $ctext conf -state normal
     if {[regexp {^diff --git a/(.*) b/(.*)} $line match fname newname]} {
 	# start of a new file
@@ -2914,7 +2924,7 @@ proc getblobdiffline {bdf ids} {
 	} elseif {$diffinhdr || $x == "\\"} {
 	    # e.g. "\ No newline at end of file"
 	    $ctext insert end "$line\n" filesep
-	} else {
+	} elseif  {$line != ""} {
 	    # Something else we don't recognize
 	    if {$curdifftag != "Comments"} {
 		$ctext insert end "\n"
@@ -3404,12 +3414,12 @@ proc mkpatchrev {} {
 }
 
 proc mkpatchgo {} {
-    global patchtop
+    global patchtop env
 
     set oldid [$patchtop.fromsha1 get]
     set newid [$patchtop.tosha1 get]
     set fname [$patchtop.fname get]
-    if {[catch {exec hg debug-diff-tree -p $oldid $newid >$fname &} err]} {
+    if {[catch {exec $env(HG) debug-diff-tree -p $oldid $newid >$fname &} err]} {
 	error_popup "Error creating patch: $err"
     }
     catch {destroy $patchtop}
@@ -3468,7 +3478,7 @@ proc domktag {} {
 	return
     }
     if {[catch {
-	set out [exec hg tag -r $id $tag]
+	set out [exec $env(HG) tag -r $id $tag]
     } err]} {
 	error_popup "Error creating tag: $err"
 	return
@@ -3544,7 +3554,7 @@ proc wrcomgo {} {
     set id [$wrcomtop.sha1 get]
     set cmd "echo $id | [$wrcomtop.cmd get]"
     set fname [$wrcomtop.fname get]
-    if {[catch {exec sh -c $cmd >$fname &} err]} {
+    if {[catch {exec sh -c $cmd > $fname &} err]} {
 	error_popup "Error writing commit: $err"
     }
     catch {destroy $wrcomtop}
@@ -3630,7 +3640,7 @@ proc doquit {} {
 set datemode 0
 set boldnames 0
 set diffopts "-U 5 -p"
-set wrcomcmd "hg debug-diff-tree --stdin -p --pretty"
+set wrcomcmd "\"\$HG\" debug-diff-tree --stdin -p --pretty"
 
 set mainfont {Helvetica 9}
 set textfont {Courier 9}

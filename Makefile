@@ -7,7 +7,7 @@ help:
 	@echo '  all          - build program and documentation'
 	@echo '  install      - install program and man pages to PREFIX ($(PREFIX))'
 	@echo '  install-home - install with setup.py install --home=HOME ($(HOME))'
-	@echo '  local        - build C extensions for inplace usage'
+	@echo '  local        - build for inplace usage'
 	@echo '  tests        - run all tests in the automatic test suite'
 	@echo '  test-foo     - run only specified tests (e.g. test-merge1)'
 	@echo '  dist         - run all tests and create a source tarball in dist/'
@@ -24,6 +24,8 @@ all: build doc
 
 local:
 	$(PYTHON) setup.py build_ext -i
+	$(PYTHON) setup.py build_py -c -d .
+	$(PYTHON) hg version
 
 build:
 	$(PYTHON) setup.py build
@@ -33,7 +35,7 @@ doc:
 
 clean:
 	-$(PYTHON) setup.py clean --all # ignore errors of this command
-	find . -name '*.py[co]' -exec rm -f '{}' ';'
+	find . -name '*.py[cdo]' -exec rm -f '{}' ';'
 	rm -f MANIFEST mercurial/__version__.py mercurial/*.so tests/*.err
 	$(MAKE) -C doc clean
 
@@ -67,10 +69,10 @@ dist-notests:	doc MANIFEST
 	TAR_OPTIONS="--owner=root --group=root --mode=u+w,go-w,a+rX-s" $(PYTHON) setup.py -q sdist
 
 tests:
-	cd tests && $(PYTHON) run-tests.py
+	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS)
 
 test-%:
-	cd tests && $(PYTHON) run-tests.py $@
+	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS) $@
 
 
 .PHONY: help all local build doc clean install install-bin install-doc \

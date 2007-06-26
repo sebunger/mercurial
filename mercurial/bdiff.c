@@ -33,7 +33,11 @@ static uint32_t htonl(uint32_t x)
 }
 #else
 #include <sys/types.h>
+#ifdef __BEOS__
+#include <ByteOrder.h>
+#else
 #include <arpa/inet.h>
+#endif
 #include <inttypes.h>
 #endif
 
@@ -251,8 +255,8 @@ static struct hunklist diff(struct line *a, int an, struct line *b, int bn)
 	if (pos && l.base && t) {
 		/* generate the matching block list */
 		recurse(a, b, pos, 0, an, 0, bn, &l);
-		l.head->a1 = an;
-		l.head->b1 = bn;
+		l.head->a1 = l.head->a2 = an;
+		l.head->b1 = l.head->b2 = bn;
 		l.head++;
 	}
 

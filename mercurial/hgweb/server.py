@@ -1,16 +1,16 @@
 # hgweb/server.py - The standalone hg web server.
 #
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
-# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
+# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from mercurial.demandload import demandload
-import os, sys, errno
-demandload(globals(), "urllib BaseHTTPServer socket SocketServer")
-demandload(globals(), "mercurial:ui,hg,util,templater")
-demandload(globals(), "hgweb_mod:hgweb hgwebdir_mod:hgwebdir request:wsgiapplication")
+import os, sys, errno, urllib, BaseHTTPServer, socket, SocketServer, traceback
+from mercurial import ui, hg, util, templater
+from hgweb_mod import hgweb
+from hgwebdir_mod import hgwebdir
+from request import wsgiapplication
 from mercurial.i18n import gettext as _
 
 def _splitURI(uri):
@@ -43,22 +43,29 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
 
     def log_error(self, format, *args):
         errorlog = self.server.errorlog
-        errorlog.write("%s - - [%s] %s\n" % (self.address_string(),
+        errorlog.write("%s - - [%s] %s\n" % (self.client_address[0],
                                              self.log_date_time_string(),
                                              format % args))
 
     def log_message(self, format, *args):
         accesslog = self.server.accesslog
-        accesslog.write("%s - - [%s] %s\n" % (self.address_string(),
+        accesslog.write("%s - - [%s] %s\n" % (self.client_address[0],
                                               self.log_date_time_string(),
                                               format % args))
 
     def do_POST(self):
         try:
-            self.do_hgweb()
-        except socket.error, inst:
-            if inst[0] != errno.EPIPE:
-                raise
+            try:
+                self.do_hgweb()
+            except socket.error, inst:
+                if inst[0] != errno.EPIPE:
+                    raise
+        except StandardError, inst:
+            self._start_response("500 Internal Server Error", [])
+            self._write("Internal Server Error")
+            tb = "".join(traceback.format_exception(*sys.exc_info()))
+            self.log_error("Exception happened during processing request '%s':\n%s",
+                           self.path, tb)
 
     def do_GET(self):
         self.do_POST()
@@ -73,12 +80,10 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
         env['SERVER_PORT'] = str(self.server.server_port)
         env['REQUEST_URI'] = self.path
         env['PATH_INFO'] = path_info
+        env['REMOTE_HOST'] = self.client_address[0]
+        env['REMOTE_ADDR'] = self.client_address[0]
         if query:
             env['QUERY_STRING'] = query
-        host = self.address_string()
-        if host != self.client_address[0]:
-            env['REMOTE_HOST'] = host
-            env['REMOTE_ADDR'] = self.client_address[0]
 
         if self.headers.typeheader is None:
             env['CONTENT_TYPE'] = self.headers.type
@@ -87,7 +92,7 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
         length = self.headers.getheader('content-length')
         if length:
             env['CONTENT_LENGTH'] = length
-        for header in [h for h in self.headers.keys() \
+        for header in [h for h in self.headers.keys()
                        if h not in ('content-type', 'content-length')]:
             hkey = 'HTTP_' + header.replace('-', '_').upper()
             hval = self.headers.getheader(header)
@@ -143,8 +148,8 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
         code = int(code)
         self.saved_status = http_status
         bad_headers = ('connection', 'transfer-encoding')
-        self.saved_headers = [ h for h in headers \
-                               if h[0].lower() not in bad_headers ]
+        self.saved_headers = [h for h in headers
+                              if h[0].lower() not in bad_headers]
         return self._write
 
     def _write(self, data):
@@ -190,37 +195,32 @@ def create_server(ui, repo):
                 pass
 
     class MercurialHTTPServer(object, _mixin, BaseHTTPServer.HTTPServer):
+
+        # SO_REUSEADDR has broken semantics on windows
+        if os.name == 'nt':
+            allow_reuse_address = 0
+
         def __init__(self, *args, **kargs):
             BaseHTTPServer.HTTPServer.__init__(self, *args, **kargs)
             self.accesslog = accesslog
             self.errorlog = errorlog
-            self.repo = repo
-            self.webdir_conf = webdir_conf
-            self.webdirmaker = hgwebdir
-            self.repoviewmaker = hgweb
-            self.reqmaker = wsgiapplication(self.make_handler)
             self.daemon_threads = True
+            def make_handler():
+                if webdir_conf:
+                    hgwebobj = hgwebdir(webdir_conf, ui)
+                elif repo is not None:
+                    hgwebobj = hgweb(hg.repository(repo.ui, repo.root))
+                else:
+                    raise hg.RepoError(_("There is no Mercurial repository here"
+                                         " (.hg not found)"))
+                return hgwebobj
+            self.reqmaker = wsgiapplication(make_handler)
 
-            addr, port = self.socket.getsockname()[:2]
-            if addr in ('0.0.0.0', '::'):
+            addr = address
+            if addr in ('', '::'):
                 addr = socket.gethostname()
-            else:
-                try:
-                    addr = socket.gethostbyaddr(addr)[0]
-                except socket.error:
-                    pass
-            self.addr, self.port = addr, port
 
-        def make_handler(self):
-            if self.webdir_conf:
-                hgwebobj = self.webdirmaker(self.webdir_conf)
-            elif self.repo is not None:
-                hgwebobj = self.repoviewmaker(repo.__class__(repo.ui,
-                                                             repo.origroot))
-            else:
-                raise hg.RepoError(_("There is no Mercurial repository here"
-                                     " (.hg not found)"))
-            return hgwebobj
+            self.addr, self.port = addr, port
 
     class IPv6HTTPServer(MercurialHTTPServer):
         address_family = getattr(socket, 'AF_INET6', None)

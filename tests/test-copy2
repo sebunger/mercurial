@@ -38,4 +38,16 @@ hg debugrename bar
 echo "# should show no copies"
 hg debugstate|grep '^copy'
 
+echo "# copy --after on an added file"
+cp bar baz
+hg add baz
+hg cp -A bar baz
+hg st -C
+
+echo "# foo was clean:"
+hg st -AC foo
+echo "# but it's considered modified after a copy --after --force"
+hg copy -Af bar foo
+hg st -AC foo
+
 exit 0

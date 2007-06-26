@@ -65,11 +65,10 @@
 # if you like, you can put notify config file in repo that users can
 # push changes to, they can manage their own subscriptions.
 
-from mercurial.demandload import *
-from mercurial.i18n import gettext as _
+from mercurial.i18n import _
 from mercurial.node import *
-demandload(globals(), 'mercurial:patch,cmdutil,templater,util,mail')
-demandload(globals(), 'email.Parser fnmatch socket time')
+from mercurial import patch, cmdutil, templater, util, mail
+import email.Parser, fnmatch, socket, time
 
 # template for single changeset can include email headers.
 single_template = '''
@@ -93,7 +92,7 @@ summary: {desc|firstline}
 
 deftemplates = {
     'changegroup': multiple_template,
-    }
+}
 
 class notifier(object):
     '''email notification class.'''
@@ -113,7 +112,7 @@ class notifier(object):
         template = (self.ui.config('notify', hooktype) or
                     self.ui.config('notify', 'template'))
         self.t = cmdutil.changeset_templater(self.ui, self.repo,
-                                             False, None, mapfile, False)
+                                             False, mapfile, False)
         if not mapfile and not template:
             template = deftemplates.get(hooktype) or single_template
         if template:
@@ -137,11 +136,12 @@ class notifier(object):
         '''try to clean up email addresses.'''
 
         addr = templater.email(addr.strip())
-        a = addr.find('@localhost')
-        if a != -1:
-            addr = addr[:a]
-        if '@' not in addr:
-            return addr + '@' + self.domain
+        if self.domain:
+            a = addr.find('@localhost')
+            if a != -1:
+                addr = addr[:a]
+            if '@' not in addr:
+                return addr + '@' + self.domain
         return addr
 
     def subscribers(self):
@@ -210,6 +210,9 @@ class notifier(object):
             del msg['From']
             msg['From'] = sender
 
+        msg['Date'] = util.datestr(date=util.makedate(),
+                                   format="%a, %d %b %Y %H:%M:%S",
+                                   timezone=True)
         fix_subject()
         fix_sender()
 
@@ -227,7 +230,7 @@ class notifier(object):
                 self.ui.write('\n')
         else:
             self.ui.status(_('notify: sending %d subscribers %d changes\n') %
-                             (len(self.subs), count))
+                           (len(self.subs), count))
             mail.sendmail(self.ui, templater.email(msg['From']),
                           self.subs, msgtext)
 
@@ -241,7 +244,9 @@ class notifier(object):
         difflines = self.ui.popbuffer().splitlines(1)
         if self.ui.configbool('notify', 'diffstat', True):
             s = patch.diffstat(difflines)
-            self.ui.write('\ndiffstat:\n\n' + s)
+            # s may be nil, don't include the header if it is
+            if s:
+                self.ui.write('\ndiffstat:\n\n%s' % s)
         if maxdiff > 0 and len(difflines) > maxdiff:
             self.ui.write(_('\ndiffs (truncated from %d to %d lines):\n\n') %
                           (len(difflines), maxdiff))
@@ -261,7 +266,7 @@ def hook(ui, repo, hooktype, node=None, source=None, **kwargs):
         return
     if n.skipsource(source):
         ui.debug(_('notify: changes have source "%s" - skipping\n') %
-                  source)
+                 source)
         return
     node = bin(node)
     ui.pushbuffer()
