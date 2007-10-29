@@ -1,3 +1,73 @@
+mercurial (0.9.5-1) unstable; urgency=low
+
+  * New upstream release
+    Closes: #435636 (erroneous multiple heads after commit)
+    Closes: #427808 (hgweb/hgwebdir do not work with flup (FastCGI))
+    Closes: #418780 (partial hgweb listings)
+    Closes: #440175 (please include record extension)
+    Closes: #447663 (0.9.5 available)
+    Closes: #427851 (RSS feeds have wrong URL with https)
+    New features:
+     * Handle symlinks on systems without symlink support
+     * hg archive supports symlinks
+     * Display executable/symlink bit with "hg manifest -v" (see UpgradeNotes)
+     * Improved hg verify diagostics
+     * Faster revlog handling
+     * Faster handling of large directories
+     * Greatly improved handling of large files
+     * Atom syndication support in hgweb
+     * Improved test suite with parallel execution
+    
+    Fixes:
+     * Fixes for some file copy and rename corner cases
+     * Allow moving newly-added files before commit
+     * Improve hg diff whitespace handling
+     * Disallow fast-forward merge with an ancestor
+     * Fix adding untracked files on directory renames
+     * Fix hg archive %r format specifier
+     * Fix re: and glob: patterns in .hgignore
+     * Improve hg executable path resolution
+     * Many options and hgrc parsing improvements
+     * Better handling of VFAT filesystems on Linux
+     * Fix tgz archival on Windows
+     * Fix hg serve on Windows requiring pywin32 modules
+     * Fix --profile under Windows
+    
+    New extensions:
+     * alias - allow user-defined command aliases
+     * children - show the children of the given or working dir revision
+     * imerge - incremental interactive merging
+     * interhg - modify changelog text as in InterWiki
+     * record - darcs-style interactive change selection during commit
+    
+    New extension features:
+     * convert
+       * Now supports Subversion, Darcs and Mercurial as source SCMs
+       * Use clone's behaviour for the default destination name
+       * Force encoding to UTF-8 for converted repository
+       * Support new-style .cvspass file format
+       * Filter the files and directories to import
+       * Remap paths to new locations during import
+     * hgk
+       * Fix hgk stopping because of untrusted repository warnings
+       * Handle filenames with spaces
+       * Improved documentation
+     * mq
+       * Autodetect --git patches on qrefresh
+
+  * Improve README.Debian about Emacs
+    Closes: #446972 (mercurial.el: autoload)
+    Thanks to Trent W. Buck for its explainations added to the README.Debian
+  * Apply several patches to hgmerge:
+    - use /bin/bash for hgmerge: 'type' is not POSIX (Closes: #447094)
+    - patch hgmerge to do minimum check of its arguments (Closes: #443428)
+    - use $VISUAL and default to 'editor' instead of 'vi'
+      (Closes: #447095, #448376) [mercurial/command.py modified too]
+  * Correct wrong link to web docs in README.Debian (Closes: #425841)
+  * [debian/control] Recommends: meld (used to hgmerge) (Closes: #316347)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 29 Oct 2007 10:22:45 +0100
+
 mercurial (0.9.4-1) unstable; urgency=low
 
   * New upstream release (Closes: #430714)

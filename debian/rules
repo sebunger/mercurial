@@ -35,6 +35,7 @@ binary-install/mercurial::
 	install -d $(DEB_DESTDIR)/usr/share/emacs/site-lisp/ 
 	install -m 0644 \
 		contrib/mercurial.el \
+		contrib/mq.el \
 		$(DEB_DESTDIR)/usr/share/emacs/site-lisp/
 	# Move webstuff in /usr/share
 	mv $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates \

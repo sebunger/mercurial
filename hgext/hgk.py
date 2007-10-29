@@ -4,6 +4,46 @@
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
+#
+# The hgk extension allows browsing the history of a repository in a
+# graphical way. It requires Tcl/Tk version 8.4 or later. (Tcl/Tk is
+# not distributed with Mercurial.)
+#
+# hgk consists of two parts: a Tcl script that does the displaying and
+# querying of information, and an extension to mercurial named hgk.py,
+# which provides hooks for hgk to get information. hgk can be found in
+# the contrib directory, and hgk.py can be found in the hgext
+# directory.  
+#
+# To load the hgext.py extension, add it to your .hgrc file (you have
+# to use your global $HOME/.hgrc file, not one in a repository). You
+# can specify an absolute path:
+#
+#   [extensions]
+#   hgk=/usr/local/lib/hgk.py
+#
+# Mercurial can also scan the default python library path for a file
+# named 'hgk.py' if you set hgk empty:
+#
+#   [extensions]
+#   hgk=
+#
+# The hg view command will launch the hgk Tcl script. For this command
+# to work, hgk must be in your search path. Alternately, you can
+# specify the path to hgk in your .hgrc file:
+#
+#   [hgk]
+#   path=/location/of/hgk
+#
+# hgk can make use of the extdiff extension to visualize
+# revisions. Assuming you had already configured extdiff vdiff
+# command, just add:
+#
+#   [hgk]
+#   vdiff=vdiff
+#
+# Revisions context menu will now display additional entries to fire
+# vdiff on hovered and selected revisions.
 
 import sys, os
 from mercurial import hg, fancyopts, commands, ui, util, patch, revlog
@@ -266,6 +306,14 @@ def revlist(ui, repo, *revs, **opts):
     copy = [x for x in revs]
     revtree(copy, repo, full, opts['max_count'], opts['parents'])
 
+def config(ui, repo, **opts):
+    """print extension options"""
+    def writeopt(name, value):
+        ui.write('k=%s\nv=%s\n' % (name, value)) 
+
+    writeopt('vdiff', ui.config('hgk', 'vdiff', ''))
+    
+
 def view(ui, repo, *etc, **opts):
     "start interactive history viewer"
     os.chdir(repo.root)
@@ -275,25 +323,36 @@ def view(ui, repo, *etc, **opts):
     util.system(cmd)
 
 cmdtable = {
-    "^view": (view,
-             [('l', 'limit', '', 'limit number of changes displayed')],
-             'hg view [-l LIMIT] [REVRANGE]'),
-    "debug-diff-tree": (difftree, [('p', 'patch', None, 'generate patch'),
-                            ('r', 'recursive', None, 'recursive'),
-                            ('P', 'pretty', None, 'pretty'),
-                            ('s', 'stdin', None, 'stdin'),
-                            ('C', 'copy', None, 'detect copies'),
-                            ('S', 'search', "", 'search')],
-                            "hg git-diff-tree [options] node1 node2 [files...]"),
-    "debug-cat-file": (catfile, [('s', 'stdin', None, 'stdin')],
-                 "hg debug-cat-file [options] type file"),
-    "debug-merge-base": (base, [], "hg debug-merge-base node node"),
-    'debug-rev-parse': (revparse,
-                        [('', 'default', '', 'ignored')],
-                        "hg debug-rev-parse rev"),
-    "debug-rev-list": (revlist, [('H', 'header', None, 'header'),
-                           ('t', 'topo-order', None, 'topo-order'),
-                           ('p', 'parents', None, 'parents'),
-                           ('n', 'max-count', 0, 'max-count')],
-                 "hg debug-rev-list [options] revs"),
+    "^view":
+        (view,
+         [('l', 'limit', '', 'limit number of changes displayed')],
+         'hg view [-l LIMIT] [REVRANGE]'),
+    "debug-diff-tree":
+        (difftree,
+         [('p', 'patch', None, 'generate patch'),
+          ('r', 'recursive', None, 'recursive'),
+          ('P', 'pretty', None, 'pretty'),
+          ('s', 'stdin', None, 'stdin'),
+          ('C', 'copy', None, 'detect copies'),
+          ('S', 'search', "", 'search')],
+         'hg git-diff-tree [OPTION]... NODE1 NODE2 [FILE]...'),
+    "debug-cat-file":
+        (catfile,
+         [('s', 'stdin', None, 'stdin')],
+         'hg debug-cat-file [OPTION]... TYPE FILE'),
+    "debug-config":
+        (config, [], 'hg debug-config'),
+    "debug-merge-base":
+        (base, [], 'hg debug-merge-base node node'),
+    "debug-rev-parse":
+        (revparse,
+         [('', 'default', '', 'ignored')],
+         'hg debug-rev-parse REV'),
+    "debug-rev-list":
+        (revlist,
+         [('H', 'header', None, 'header'),
+          ('t', 'topo-order', None, 'topo-order'),
+          ('p', 'parents', None, 'parents'),
+          ('n', 'max-count', 0, 'max-count')],
+         'hg debug-rev-list [options] revs'),
 }

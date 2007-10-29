@@ -13,8 +13,8 @@ platform-specific details from the core.
 """
 
 from i18n import _
-import cStringIO, errno, getpass, popen2, re, shutil, sys, tempfile
-import os, threading, time, calendar, ConfigParser, locale, glob
+import cStringIO, errno, getpass, popen2, re, shutil, sys, tempfile, strutil
+import os, stat, threading, time, calendar, ConfigParser, locale, glob, osutil
 
 try:
     set = set
@@ -63,7 +63,7 @@ def fromlocal(s):
     Convert a string from the local character encoding to UTF-8
 
     We attempt to decode strings using the encoding mode set by
-    HG_ENCODINGMODE, which defaults to 'strict'. In this mode, unknown
+    HGENCODINGMODE, which defaults to 'strict'. In this mode, unknown
     characters will cause an error message. Other modes include
     'replace', which replaces unknown characters with a special
     Unicode character, and 'ignore', which drops the character.
@@ -366,6 +366,7 @@ def canonpath(root, cwd, myname):
     if not os.path.isabs(name):
         name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
+    audit_path = path_auditor(root)
     if name != rootsep and name.startswith(rootsep):
         name = name[len(rootsep):]
         audit_path(name)
@@ -476,6 +477,15 @@ def _matcher(canonroot, cwd, names, inc, exc, dflt_pat, src):
         try:
             pat = '(?:%s)' % '|'.join([regex(k, p, tail) for (k, p) in pats])
             return re.compile(pat).match
+        except OverflowError:
+            # We're using a Python with a tiny regex engine and we
+            # made it explode, so we'll divide the pattern list in two
+            # until it works
+            l = len(pats)
+            if l < 2:
+                raise
+            a, b = matchfn(pats[:l//2], tail), matchfn(pats[l//2:], tail)
+            return lambda s: a(s) or b(s)
         except re.error:
             for k, p in pats:
                 try:
@@ -542,14 +552,19 @@ def _matcher(canonroot, cwd, names, inc, exc, dflt_pat, src):
 
 _hgexecutable = None
 
-def set_hgexecutable(path):
-    """remember location of the 'hg' executable if easily possible
+def hgexecutable():
+    """return location of the 'hg' executable.
 
-    path might be None or empty if hg was loaded as a module,
-    fall back to 'hg' in this case.
+    Defaults to $HG or 'hg' in the search path.
     """
+    if _hgexecutable is None:
+        set_hgexecutable(os.environ.get('HG') or find_exe('hg', 'hg'))
+    return _hgexecutable
+
+def set_hgexecutable(path):
+    """set location of the 'hg' executable"""
     global _hgexecutable
-    _hgexecutable = path and os.path.abspath(path) or 'hg'
+    _hgexecutable = path
 
 def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
     '''enhanced shell command execution.
@@ -576,8 +591,7 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
     try:
         for k, v in environ.iteritems():
             os.environ[k] = py2shell(v)
-        if 'HG' not in os.environ:
-            os.environ['HG'] = _hgexecutable
+        os.environ['HG'] = hgexecutable()
         if cwd is not None and oldcwd != cwd:
             os.chdir(cwd)
         rc = os.system(cmd)
@@ -615,7 +629,7 @@ def rename(src, dst):
     """forcibly rename a file"""
     try:
         os.rename(src, dst)
-    except OSError, err:
+    except OSError, err: # FIXME: check err (EEXIST ?)
         # on windows, rename to existing file is not allowed, so we
         # must delete destination first. but if file is open, unlink
         # schedules it for delete but does not delete it. rename
@@ -662,7 +676,7 @@ def copyfiles(src, dst, hardlink=None):
 
     if os.path.isdir(src):
         os.mkdir(dst)
-        for name in os.listdir(src):
+        for name, kind in osutil.listdir(src):
             srcname = os.path.join(src, name)
             dstname = os.path.join(dst, name)
             copyfiles(srcname, dstname, hardlink)
@@ -676,12 +690,59 @@ def copyfiles(src, dst, hardlink=None):
         else:
             shutil.copy(src, dst)
 
-def audit_path(path):
-    """Abort if path contains dangerous components"""
-    parts = os.path.normcase(path).split(os.sep)
-    if (os.path.splitdrive(path)[0] or parts[0] in ('.hg', '')
-        or os.pardir in parts):
-        raise Abort(_("path contains illegal component: %s") % path)
+class path_auditor(object):
+    '''ensure that a filesystem path contains no banned components.
+    the following properties of a path are checked:
+
+    - under top-level .hg
+    - starts at the root of a windows drive
+    - contains ".."
+    - traverses a symlink (e.g. a/symlink_here/b)
+    - inside a nested repository'''
+
+    def __init__(self, root):
+        self.audited = set()
+        self.auditeddir = set()
+        self.root = root
+
+    def __call__(self, path):
+        if path in self.audited:
+            return
+        normpath = os.path.normcase(path)
+        parts = normpath.split(os.sep)
+        if (os.path.splitdrive(path)[0] or parts[0] in ('.hg', '')
+            or os.pardir in parts):
+            raise Abort(_("path contains illegal component: %s") % path)
+        def check(prefix):
+            curpath = os.path.join(self.root, prefix)
+            try:
+                st = os.lstat(curpath)
+            except OSError, err:
+                # EINVAL can be raised as invalid path syntax under win32.
+                # They must be ignored for patterns can be checked too.
+                if err.errno not in (errno.ENOENT, errno.EINVAL):
+                    raise
+            else:
+                if stat.S_ISLNK(st.st_mode):
+                    raise Abort(_('path %r traverses symbolic link %r') %
+                                (path, prefix))
+                elif (stat.S_ISDIR(st.st_mode) and
+                      os.path.isdir(os.path.join(curpath, '.hg'))):
+                    raise Abort(_('path %r is inside repo %r') %
+                                (path, prefix))
+
+        prefixes = []
+        for c in strutil.rfindall(normpath, os.sep):
+            prefix = normpath[:c]
+            if prefix in self.auditeddir:
+                break
+            check(prefix)
+            prefixes.append(prefix)
+
+        self.audited.add(path)
+        # only add prefixes to the cache after checking everything: we don't
+        # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
+        self.auditeddir.update(prefixes)
 
 def _makelock_file(info, pathname):
     ld = os.open(pathname, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
@@ -789,13 +850,21 @@ def checkexec(path):
 
     Requires a directory (like /foo/.hg)
     """
-    fh, fn = tempfile.mkstemp("", "", path)
-    os.close(fh)
-    m = os.stat(fn).st_mode
-    os.chmod(fn, m ^ 0111)
-    r = (os.stat(fn).st_mode != m)
-    os.unlink(fn)
-    return r
+    try:
+        EXECFLAGS = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        fh, fn = tempfile.mkstemp("", "", path)
+        os.close(fh)
+        m = os.stat(fn).st_mode
+        # VFAT on Linux can flip mode but it doesn't persist a FS remount.
+        # frequently we can detect it if files are created with exec bit on.
+        new_file_has_exec = m & EXECFLAGS
+        os.chmod(fn, m ^ EXECFLAGS)
+        exec_flags_cannot_flip = (os.stat(fn).st_mode == m)
+        os.unlink(fn)
+    except (IOError,OSError):
+        # we don't care, the user probably won't be able to commit anyway
+        return False
+    return not (new_file_has_exec or exec_flags_cannot_flip)
 
 def execfunc(path, fallback):
     '''return an is_exec() function with default to fallback'''
@@ -936,6 +1005,12 @@ if os.name == 'nt':
             _quotere = re.compile(r'(\\*)("|\\$)')
         return '"%s"' % _quotere.sub(r'\1\1\\\2', s)
 
+    def quotecommand(cmd):
+        """Build a command string suitable for os.popen* calls."""
+        # The extra quotes are needed because popen* runs the command
+        # through the current COMSPEC. cmd.exe suppress enclosing quotes.
+        return '"' + cmd + '"'
+
     def explain_exit(code):
         return _("exited with status %d") % code, code
 
@@ -968,6 +1043,12 @@ if os.name == 'nt':
                     return p_name_ext
         return default
 
+    def set_signal_handler():
+        try:
+            set_signal_handler_win32()
+        except NameError:
+            pass
+
     try:
         # override functions with win32 versions if possible
         from util_win32 import *
@@ -983,7 +1064,8 @@ else:
         rcs = [os.path.join(path, 'hgrc')]
         rcdir = os.path.join(path, 'hgrc.d')
         try:
-            rcs.extend([os.path.join(rcdir, f) for f in os.listdir(rcdir)
+            rcs.extend([os.path.join(rcdir, f)
+                        for f, kind in osutil.listdir(rcdir)
                         if f.endswith(".rc")])
         except OSError:
             pass
@@ -1018,7 +1100,7 @@ else:
 
     def set_exec(f, mode):
         s = os.lstat(f).st_mode
-        if (s & 0100 != 0) == mode:
+        if stat.S_ISLNK(s) or (s & 0100 != 0) == mode:
             return
         if mode:
             # Turn on +x for every +r bit when making a file executable
@@ -1082,6 +1164,9 @@ else:
             return '"%s"' % s
         else:
             return "'%s'" % s.replace("'", "'\\''")
+
+    def quotecommand(cmd):
+        return cmd
 
     def testpid(pid):
         '''return False if pid dead, True if running or not sure'''
@@ -1175,70 +1260,97 @@ def encodedopener(openerfn, fn):
         return openerfn(fn(path), *args, **kw)
     return o
 
-def opener(base, audit=True):
-    """
-    return a function that opens files relative to base
+def mktempcopy(name, emptyok=False):
+    """Create a temporary file with the same contents from name
 
-    this function is used to hide the details of COW semantics and
+    The permission bits are copied from the original file.
+
+    If the temporary file is going to be truncated immediately, you
+    can use emptyok=True as an optimization.
+
+    Returns the name of the temporary file.
+    """
+    d, fn = os.path.split(name)
+    fd, temp = tempfile.mkstemp(prefix='.%s-' % fn, dir=d)
+    os.close(fd)
+    # Temporary files are created with mode 0600, which is usually not
+    # what we want.  If the original file already exists, just copy
+    # its mode.  Otherwise, manually obey umask.
+    try:
+        st_mode = os.lstat(name).st_mode
+    except OSError, inst:
+        if inst.errno != errno.ENOENT:
+            raise
+        st_mode = 0666 & ~_umask
+    os.chmod(temp, st_mode)
+    if emptyok:
+        return temp
+    try:
+        try:
+            ifp = posixfile(name, "rb")
+        except IOError, inst:
+            if inst.errno == errno.ENOENT:
+                return temp
+            if not getattr(inst, 'filename', None):
+                inst.filename = name
+            raise
+        ofp = posixfile(temp, "wb")
+        for chunk in filechunkiter(ifp):
+            ofp.write(chunk)
+        ifp.close()
+        ofp.close()
+    except:
+        try: os.unlink(temp)
+        except: pass
+        raise
+    return temp
+
+class atomictempfile(posixfile):
+    """file-like object that atomically updates a file
+
+    All writes will be redirected to a temporary copy of the original
+    file.  When rename is called, the copy is renamed to the original
+    name, making the changes visible.
+    """
+    def __init__(self, name, mode):
+        self.__name = name
+        self.temp = mktempcopy(name, emptyok=('w' in mode))
+        posixfile.__init__(self, self.temp, mode)
+
+    def rename(self):
+        if not self.closed:
+            posixfile.close(self)
+            rename(self.temp, localpath(self.__name))
+
+    def __del__(self):
+        if not self.closed:
+            try:
+                os.unlink(self.temp)
+            except: pass
+            posixfile.close(self)
+
+class opener(object):
+    """Open files relative to a base directory
+
+    This class is used to hide the details of COW semantics and
     remote file access from higher level code.
     """
-    def mktempcopy(name, emptyok=False):
-        d, fn = os.path.split(name)
-        fd, temp = tempfile.mkstemp(prefix='.%s-' % fn, dir=d)
-        os.close(fd)
-        # Temporary files are created with mode 0600, which is usually not
-        # what we want.  If the original file already exists, just copy
-        # its mode.  Otherwise, manually obey umask.
-        try:
-            st_mode = os.lstat(name).st_mode
-        except OSError, inst:
-            if inst.errno != errno.ENOENT:
-                raise
-            st_mode = 0666 & ~_umask
-        os.chmod(temp, st_mode)
-        if emptyok:
-            return temp
-        try:
-            try:
-                ifp = posixfile(name, "rb")
-            except IOError, inst:
-                if inst.errno == errno.ENOENT:
-                    return temp
-                if not getattr(inst, 'filename', None):
-                    inst.filename = name
-                raise
-            ofp = posixfile(temp, "wb")
-            for chunk in filechunkiter(ifp):
-                ofp.write(chunk)
-            ifp.close()
-            ofp.close()
-        except:
-            try: os.unlink(temp)
-            except: pass
-            raise
-        return temp
-
-    class atomictempfile(posixfile):
-        """the file will only be copied when rename is called"""
-        def __init__(self, name, mode):
-            self.__name = name
-            self.temp = mktempcopy(name, emptyok=('w' in mode))
-            posixfile.__init__(self, self.temp, mode)
-        def rename(self):
-            if not self.closed:
-                posixfile.close(self)
-                rename(self.temp, localpath(self.__name))
-        def __del__(self):
-            if not self.closed:
-                try:
-                    os.unlink(self.temp)
-                except: pass
-                posixfile.close(self)
-
-    def o(path, mode="r", text=False, atomictemp=False):
+    def __init__(self, base, audit=True):
+        self.base = base
         if audit:
-            audit_path(path)
-        f = os.path.join(base, path)
+            self.audit_path = path_auditor(base)
+        else:
+            self.audit_path = always
+
+    def __getattr__(self, name):
+        if name == '_can_symlink':
+            self._can_symlink = checklink(self.base)
+            return self._can_symlink
+        raise AttributeError(name)
+
+    def __call__(self, path, mode="r", text=False, atomictemp=False):
+        self.audit_path(path)
+        f = os.path.join(self.base, path)
 
         if not text and "b" not in mode:
             mode += "b" # for that other OS
@@ -1257,51 +1369,61 @@ def opener(base, audit=True):
                 rename(mktempcopy(f), f)
         return posixfile(f, mode)
 
-    return o
+    def symlink(self, src, dst):
+        self.audit_path(dst)
+        linkname = os.path.join(self.base, dst)
+        try:
+            os.unlink(linkname)
+        except OSError:
+            pass
+
+        dirname = os.path.dirname(linkname)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
+        if self._can_symlink:
+            try:
+                os.symlink(src, linkname)
+            except OSError, err:
+                raise OSError(err.errno, _('could not symlink to %r: %s') %
+                              (src, err.strerror), linkname)
+        else:
+            f = self(dst, "w")
+            f.write(src)
+            f.close()
 
 class chunkbuffer(object):
     """Allow arbitrary sized chunks of data to be efficiently read from an
     iterator over chunks of arbitrary size."""
 
-    def __init__(self, in_iter, targetsize = 2**16):
+    def __init__(self, in_iter):
         """in_iter is the iterator that's iterating over the input chunks.
         targetsize is how big a buffer to try to maintain."""
-        self.in_iter = iter(in_iter)
+        self.iter = iter(in_iter)
         self.buf = ''
-        self.targetsize = int(targetsize)
-        if self.targetsize <= 0:
-            raise ValueError(_("targetsize must be greater than 0, was %d") %
-                             targetsize)
-        self.iterempty = False
-
-    def fillbuf(self):
-        """Ignore target size; read every chunk from iterator until empty."""
-        if not self.iterempty:
-            collector = cStringIO.StringIO()
-            collector.write(self.buf)
-            for ch in self.in_iter:
-                collector.write(ch)
-            self.buf = collector.getvalue()
-            self.iterempty = True
+        self.targetsize = 2**16
 
     def read(self, l):
         """Read L bytes of data from the iterator of chunks of data.
         Returns less than L bytes if the iterator runs dry."""
-        if l > len(self.buf) and not self.iterempty:
+        if l > len(self.buf) and self.iter:
             # Clamp to a multiple of self.targetsize
-            targetsize = self.targetsize * ((l // self.targetsize) + 1)
+            targetsize = max(l, self.targetsize)
             collector = cStringIO.StringIO()
             collector.write(self.buf)
             collected = len(self.buf)
-            for chunk in self.in_iter:
+            for chunk in self.iter:
                 collector.write(chunk)
                 collected += len(chunk)
                 if collected >= targetsize:
                     break
             if collected < targetsize:
-                self.iterempty = True
+                self.iter = False
             self.buf = collector.getvalue()
-        s, self.buf = self.buf[:l], buffer(self.buf, l)
+        if len(self.buf) == l:
+            s, self.buf = str(self.buf), ''
+        else:
+            s, self.buf = self.buf[:l], buffer(self.buf, l)
         return s
 
 def filechunkiter(f, size=65536, limit=None):
@@ -1329,7 +1451,7 @@ def makedate():
         tz = time.timezone
     return time.mktime(lt), tz
 
-def datestr(date=None, format='%a %b %d %H:%M:%S %Y', timezone=True):
+def datestr(date=None, format='%a %b %d %H:%M:%S %Y', timezone=True, timezone_format=" %+03d%02d"):
     """represent a (unixtime, offset) tuple as a localized time.
     unixtime is seconds since the epoch, and offset is the time zone's
     number of seconds away from UTC. if timezone is false, do not
@@ -1337,10 +1459,10 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y', timezone=True):
     t, tz = date or makedate()
     s = time.strftime(format, time.gmtime(float(t) - tz))
     if timezone:
-        s += " %+03d%02d" % (-tz / 3600, ((-tz % 3600) / 60))
+        s += timezone_format % (-tz / 3600, ((-tz % 3600) / 60))
     return s
 
-def strdate(string, format, defaults):
+def strdate(string, format, defaults=[]):
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
     def timezone(string):
@@ -1525,7 +1647,7 @@ def rcpath():
             for p in os.environ['HGRCPATH'].split(os.pathsep):
                 if not p: continue
                 if os.path.isdir(p):
-                    for f in os.listdir(p):
+                    for f, kind in osutil.listdir(p):
                         if f.endswith('.rc'):
                             _rcpath.append(os.path.join(p, f))
                 else:
@@ -1562,3 +1684,7 @@ def drop_scheme(scheme, path):
         if path.startswith('//'):
             path = path[2:]
     return path
+
+def uirepr(s):
+    # Avoid double backslash in Windows path repr()
+    return repr(s).replace('\\\\', '\\')

@@ -6,7 +6,7 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 import os, tempfile, binascii
-from mercurial import util
+from mercurial import util, commands
 from mercurial import node as hgnode
 from mercurial.i18n import _
 
@@ -240,7 +240,7 @@ def sign(ui, repo, *revs, **opts):
 
     repo.wfile(".hgsigs", "ab").write(sigmessage)
 
-    if repo.dirstate.state(".hgsigs") == '?':
+    if '.hgsigs' not in repo.dirstate:
         repo.add([".hgsigs"])
 
     if opts["no_commit"]:
@@ -266,14 +266,13 @@ def node2txt(repo, node, ver):
 cmdtable = {
     "sign":
         (sign,
-         [('l', 'local', None, _("make the signature local")),
-          ('f', 'force', None, _("sign even if the sigfile is modified")),
-          ('', 'no-commit', None, _("do not commit the sigfile after signing")),
-          ('m', 'message', "", _("commit message")),
-          ('d', 'date', "", _("date code")),
-          ('u', 'user', "", _("user")),
-          ('k', 'key', "", _("the key id to sign with"))],
-         _("hg sign [OPTION]... [REVISION]...")),
+         [('l', 'local', None, _('make the signature local')),
+          ('f', 'force', None, _('sign even if the sigfile is modified')),
+          ('', 'no-commit', None, _('do not commit the sigfile after signing')),
+          ('k', 'key', '', _('the key id to sign with')),
+          ('m', 'message', '', _('commit message')),
+         ] + commands.commitopts2,
+         _('hg sign [OPTION]... [REVISION]...')),
     "sigcheck": (check, [], _('hg sigcheck REVISION')),
     "sigs": (sigs, [], _('hg sigs')),
 }

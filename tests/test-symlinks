@@ -2,6 +2,8 @@
 #Test bug regarding symlinks that showed up in hg 0.7
 #Author: Matthew Elder <sseses@gmail.com>
 
+"$TESTDIR/hghave" symlink || exit 80
+
 #make and initialize repo
 hg init test; cd test;
 
@@ -70,3 +72,13 @@ hg commit -A -m 'add symlink in a/b/c subdir'
 echo '2. clone it'
 cd ..
 hg clone test testclone
+
+echo '# git symlink diff'
+cd testclone
+hg diff --git -r null:tip
+hg export --git tip > ../sl.diff
+echo '# import git symlink diff'
+hg rm a/b/c/demo
+hg commit -m'remove link'
+hg import ../sl.diff
+hg diff --git -r 1:tip

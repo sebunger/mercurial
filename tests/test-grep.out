@@ -1,3 +1,5 @@
+% pattern error
+grep: invalid match pattern: nothing to repeat!
 % simple
 port:4:export
 port:4:vaportight
@@ -30,3 +32,8 @@ color:3:orange
 color:3:+:orange
 color:2:-:orange
 color:1:+:orange
+% issue 685
+adding color
+color:0:octarine
+colour:1:octarine
+colour:1:octarine

@@ -6,9 +6,9 @@ from mercurial import util
 from common import NoRepo, commit, converter_source
 
 class convert_cvs(converter_source):
-    def __init__(self, ui, path):
-        self.path = path
-        self.ui = ui
+    def __init__(self, ui, path, rev=None):
+        super(convert_cvs, self).__init__(ui, path, rev=rev)
+
         cvs = os.path.join(path, "CVS")
         if not os.path.exists(cvs):
             raise NoRepo("couldn't open CVS repo %s" % path)
@@ -29,15 +29,33 @@ class convert_cvs(converter_source):
         if self.changeset:
             return
 
+        maxrev = 0
+        cmd = 'cvsps -A -u --cvs-direct -q'
+        if self.rev:
+            # TODO: handle tags
+            try:
+                # patchset number?
+                maxrev = int(self.rev)
+            except ValueError:
+                try:
+                    # date
+                    util.parsedate(self.rev, ['%Y/%m/%d %H:%M:%S'])
+                    cmd = '%s -d "1970/01/01 00:00:01" -d "%s"' % (cmd, self.rev)
+                except util.Abort:
+                    raise util.Abort('revision %s is not a patchset number or date' % self.rev)
+        cmd += " 2>&1"
+
         d = os.getcwd()
         try:
             os.chdir(self.path)
             id = None
             state = 0
-            for l in os.popen("cvsps -A -u --cvs-direct -q"):
+            for l in os.popen(cmd):
                 if state == 0: # header
                     if l.startswith("PatchSet"):
                         id = l[9:-2]
+                        if maxrev and int(id) > maxrev:
+                            state = 3
                     elif l.startswith("Date"):
                         date = util.parsedate(l[6:-1], ["%Y/%m/%d %H:%M:%S"])
                         date = util.datestr(date)
@@ -62,8 +80,6 @@ class convert_cvs(converter_source):
                     if l == "Members: \n":
                         files = {}
                         log = self.recode(log[:-1])
-                        if log.isspace():
-                            log = "*** empty log message ***\n"
                         state = 2
                     else:
                         log += l
@@ -85,6 +101,8 @@ class convert_cvs(converter_source):
                         rev = l[colon+1:-2]
                         rev = rev.split("->")[1]
                         files[file] = rev
+                elif state == 3:
+                    continue
 
             self.heads = self.lastbranch.values()
         finally:
@@ -107,23 +125,27 @@ class convert_cvs(converter_source):
                 user, passw, serv, port, root = m.groups()
                 if not user:
                     user = "anonymous"
-                rr = ":pserver:" + user + "@" + serv + ":" +  root
-                if port:
-                    rr2, port = "-", int(port)
+                if not port:
+                    port = 2401
                 else:
-                    rr2, port = rr, 2401
-                rr += str(port)
+                    port = int(port)
+                format0 = ":pserver:%s@%s:%s" % (user, serv, root)
+                format1 = ":pserver:%s@%s:%d%s" % (user, serv, port, root)
 
                 if not passw:
                     passw = "A"
                     pf = open(os.path.join(os.environ["HOME"], ".cvspass"))
-                    for l in pf:
-                        # :pserver:cvs@mea.tmt.tele.fi:/cvsroot/zmailer Ah<Z
-                        m = re.match(r'(/\d+\s+/)?(.*)', l)
-                        l = m.group(2)
-                        w, p = l.split(' ', 1)
-                        if w in [rr, rr2]:
-                            passw = p
+                    for line in pf.read().splitlines():
+                        part1, part2 = line.split(' ', 1)
+                        if part1 == '/1':
+                            # /1 :pserver:user@example.com:2401/cvsroot/foo Ah<Z
+                            part1, part2 = part2.split(' ', 1)
+                            format = format1
+                        else:
+                            # :pserver:user@example.com:/cvsroot/foo Ah<Z
+                            format = format0
+                        if part1 == format:
+                            passw = part2
                             break
                     pf.close()
 
@@ -132,7 +154,7 @@ class convert_cvs(converter_source):
                 sck.send("\n".join(["BEGIN AUTH REQUEST", root, user, passw,
                                     "END AUTH REQUEST", ""]))
                 if sck.recv(128) != "I LOVE YOU\n":
-                    raise NoRepo("CVS pserver authentication failed")
+                    raise util.Abort("CVS pserver authentication failed")
 
                 self.writep = self.readp = sck.makefile('r+')
 
@@ -145,7 +167,8 @@ class convert_cvs(converter_source):
             if root.startswith(":ext:"):
                 root = root[5:]
             m = re.match(r'(?:([^@:/]+)@)?([^:/]+):?(.*)', root)
-            if not m:
+            # Do not take Windows path "c:\foo\bar" for a connection strings
+            if os.path.isdir(root) or not m:
                 conntype = "local"
             else:
                 conntype = "rsh"
@@ -159,7 +182,10 @@ class convert_cvs(converter_source):
                 else:
                     cmd = [rsh, host] + cmd
 
-            self.writep, self.readp = os.popen2(cmd)
+            # popen2 does not support argument lists under Windows
+            cmd = [util.shellquote(arg) for arg in cmd]
+            cmd = util.quotecommand(' '.join(cmd))
+            self.writep, self.readp = os.popen2(cmd, 'b')
 
         self.realroot = root
 
@@ -185,7 +211,7 @@ class convert_cvs(converter_source):
             raise IOError
 
         args = ("-N -P -kk -r %s --" % rev).split()
-        args.append(os.path.join(self.cvsrepo, name))
+        args.append(self.cvsrepo + '/' + name)
         for x in args:
             self.writep.write("Argument %s\n" % x)
         self.writep.write("Directory .\n%s\nco\n" % self.realroot)
@@ -233,13 +259,16 @@ class convert_cvs(converter_source):
         files = self.files[rev]
         cl = files.items()
         cl.sort()
-        return cl
-
-    def recode(self, text):
-        return text.decode(self.encoding, "replace").encode("utf-8")
+        return (cl, {})
 
     def getcommit(self, rev):
         return self.changeset[rev]
 
     def gettags(self):
         return self.tags
+
+    def getchangedfiles(self, rev, i):
+        files = self.files[rev].keys()
+        files.sort()
+        return files
+

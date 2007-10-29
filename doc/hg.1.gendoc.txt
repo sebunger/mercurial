@@ -83,7 +83,7 @@ addremove [OPTION]... [FILE]...::
     -X, --exclude     exclude names matching the given patterns
     -n, --dry-run     do not perform actions, just print output
 
-annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] FILE...::
+annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] [-l] FILE...::
     List changes in files, showing the revision id responsible for each line
 
     This command is useful to discover who did a change or when a change took
@@ -94,15 +94,16 @@ annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] FILE...::
     anyway, probably with undesirable results.
 
     options:
-    -r, --rev        annotate the specified revision
-    -f, --follow     follow file copies and renames
-    -a, --text       treat all files as text
-    -u, --user       list the author
-    -d, --date       list the date
-    -n, --number     list the revision number (default)
-    -c, --changeset  list the changeset
-    -I, --include    include names matching the given patterns
-    -X, --exclude    exclude names matching the given patterns
+    -r, --rev          annotate the specified revision
+    -f, --follow       follow file copies and renames
+    -a, --text         treat all files as text
+    -u, --user         list the author
+    -d, --date         list the date
+    -n, --number       list the revision number (default)
+    -c, --changeset    list the changeset
+    -l, --line-number  show line number at the first appearance
+    -I, --include      include names matching the given patterns
+    -X, --exclude      exclude names matching the given patterns
 
 archive [OPTION]... DEST::
     By default, the revision used is the parent of the working
@@ -151,14 +152,14 @@ backout [OPTION]... [-r] REV::
 
     options:
     --merge        merge with old dirstate parent after backout
-    -d, --date     record datecode as commit date
     --parent       parent to choose when backing out merge
-    -u, --user     record user as committer
     -r, --rev      revision to backout
     -I, --include  include names matching the given patterns
     -X, --exclude  exclude names matching the given patterns
     -m, --message  use <text> as commit message
     -l, --logfile  read commit message from <file>
+    -d, --date     record datecode as commit date
+    -u, --user     record user as committer
 
 branch [NAME]::
     With no argument, show the current branch name. With one argument,
@@ -278,12 +279,12 @@ commit [OPTION]... [FILE]...::
     options:
     -A, --addremove  mark new/missing files as added/removed before
                      committing
-    -d, --date       record datecode as commit date
-    -u, --user       record user as commiter
     -I, --include    include names matching the given patterns
     -X, --exclude    exclude names matching the given patterns
     -m, --message    use <text> as commit message
     -l, --logfile    read commit message from <file>
+    -d, --date       record datecode as commit date
+    -u, --user       record user as committer
 
     aliases: ci
 
@@ -602,7 +603,7 @@ log [OPTION]... [FILE]::
 
     aliases: history
 
-manifest [REV]::
+manifest [-r REV]::
     Print a list of version controlled files for the given revision.
     If no revision is given, the parent of the working directory is used,
     or tip if no revision is checked out.
@@ -610,8 +611,11 @@ manifest [REV]::
     The manifest is the list of files being version controlled. If no revision
     is given then the first parent of the working directory is used.
 
-    With -v flag, print file permissions. With --debug flag, print
-    file revision hashes.
+    With -v flag, print file permissions, symlink and executable bits. With 
+    --debug flag, print file revision hashes.
+
+    options:
+    -r, --rev  revision to display
 
 merge [-f] [[-r] REV]::
     Merge the contents of the current working directory and the
@@ -820,7 +824,7 @@ revert [OPTION]... [-r REV] [NAME]...::
     directory, the reverted files will thus appear modified
     afterwards.
 
-    If a file has been deleted, it is recreated.  If the executable
+    If a file has been deleted, it is restored.  If the executable
     mode of a file was changed, it is reset.
 
     If names are given, all files matching the names are reverted.
@@ -887,6 +891,7 @@ serve [OPTION]...::
     -t, --templates   web templates to use
     --style           template style to use
     -6, --ipv6        use IPv6 in addition to IPv4
+    --certificate     SSL certificate file
 
 showconfig [-u] [NAME]...::
     With no args, print names and values of all config items.
@@ -962,11 +967,11 @@ tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME::
     options:
     -f, --force    replace existing tag
     -l, --local    make the tag local
-    -m, --message  message for tag commit log entry
-    -d, --date     record datecode as commit date
-    -u, --user     record user as commiter
     -r, --rev      revision to tag
     --remove       remove a tag
+    -m, --message  use <text> as commit message
+    -d, --date     record datecode as commit date
+    -u, --user     record user as committer
 
 tags::
     List the repository tags.
@@ -1102,9 +1107,9 @@ ENVIRONMENT VARIABLES
 
 
 HG::
-    Path to the 'hg' executable, automatically passed when running hooks
-    or external tools. Falls back to 'hg' if unset and the value can't be
-    autodetected, e.g. when Mercurial is run as a Python module.
+    Path to the 'hg' executable, automatically passed when running hooks,
+    extensions or external tools. If unset or empty, an executable named
+    'hg' (with com/exe/bat/cmd extension on Windows) is searched.
 
 HGEDITOR::
     This is the name of the editor to use when committing. Defaults to the

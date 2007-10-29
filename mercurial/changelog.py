@@ -42,7 +42,7 @@ class appender:
     def flush(self):
         pass
     def close(self):
-        close(self.fp)
+        self.fp.close()
 
     def seek(self, offset, whence=0):
         '''virtual file offset spans real file and data'''
@@ -58,7 +58,6 @@ class appender:
     def read(self, count=-1):
         '''only trick here is reads that span real file and data'''
         ret = ""
-        old_offset = self.offset
         if self.offset < self.size:
             s = self.fp.read(count)
             ret = s
@@ -75,7 +74,7 @@ class appender:
         return ret
 
     def write(self, s):
-        self.data.append(s)
+        self.data.append(str(s))
         self.offset += len(s)
 
 class changelog(revlog):
@@ -131,7 +130,10 @@ class changelog(revlog):
         return extra
 
     def encode_extra(self, d):
-        items = [_string_escape(":".join(t)) for t in d.iteritems()]
+        # keys must be sorted to produce a deterministic changelog entry
+        keys = d.keys()
+        keys.sort()
+        items = [_string_escape('%s:%s' % (k, d[k])) for k in keys]
         return "\0".join(items)
 
     def extract(self, text):

@@ -57,9 +57,12 @@ def ignore(root, files, warn):
                         warn(_("%s: ignoring invalid syntax '%s'\n") % (f, s))
                     continue
                 pat = syntax + line
-                for s in syntaxes.values():
-                    if line.startswith(s):
+                for s, rels in syntaxes.items():
+                    if line.startswith(rels):
                         pat = line
+                        break
+                    elif line.startswith(s+':'):
+                        pat = rels + line[len(s)+1:]
                         break
                 pats[f].append(pat)
         except IOError, inst:
@@ -82,9 +85,3 @@ def ignore(root, files, warn):
                 util.matcher(root, inc=patlist, src=f))
 
     return ignorefunc
-
-
-    '''default match function used by dirstate and
-    localrepository.  this honours the repository .hgignore file
-    and any other files specified in the [ui] section of .hgrc.'''
-

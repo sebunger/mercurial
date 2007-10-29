@@ -3,25 +3,83 @@
 
 [extensions]
 
-# add the 'view' command. It shows the repository history graphically.
-hgext/hgk=
+# changeset access control for mercurial
+# hgext.acl=
 
-# add the 'bisect' command to allow dichotomic search in the DAG of changesets
-hgext/hbisect=
+# allow user-defined command aliases
+# hgext.alias=
 
-# add the 'sign' and 'sigcheck' commands to manage signatures
-hgext/gpg=
+# bugzilla integration for mercurial
+# hgext.bugzilla=
 
-# add filters so automatically convert end-of-line between Windows and Unix
-# world. Not enabled by default since it seems better to do it per
-# repository.
-# hgext/win32text=
-
-# manage a queue of patches, like quilt only better
-hgext/mq=
-
-# send changes as series of email patches
-hgext/patchbomb=
+# show the children of the given or working dir revision
+# add the 'children' command
+hgext.children=
 
 # create a graph showing who changed the most lines
-hgext/churn=
+# add the 'churn' command
+hgext.churn=
+
+# Foreign SCM converter
+# add the 'convert' and 'debugsvnlog' commands
+hgext.convert=
+
+# external diff program support for mercurial
+# hgext.extdiff=
+
+# pull and merge remote changes
+# add the 'fetch' command
+hgext.fetch=
+
+# GnuPG signing extension for Mercurial
+# add the 'sign', 'sigcheck' and 'sigs' commands
+hgext.gpg=
+
+# ASCII graph log extension for Mercurial
+# add the 'glog' command
+hgext.graphlog=
+
+# Dichotomic search in the DAG of changesets
+# add the 'bisect' command
+hgext.hbisect=
+
+# allows browsing the history of a repository in a graphical way
+# add the 'view' command
+hgext.hgk=
+
+# lets you split a merge into pieces
+# add the 'imerge' command
+hgext.imerge=
+
+# allows you to change changelog and summary text
+# hgext.interhg=
+
+# patch queues for mercurial
+# add the 'q*' commands
+hgext.mq=
+
+# email notifications for mercurial
+# hgext.notify=
+
+# make it easy to refer to the parent of a revision
+# hgext.parentrevspec=
+
+# send changes as series of email patches
+# add the 'email' command
+hgext.patchbomb=
+
+# removes files not known to mercurial
+# add the 'purge' and 'clean' commands
+hgext.purge=
+
+# interactive change selection during commit
+# add the 'record' command
+hgext.record=
+
+# Patch transplanting extension for Mercurial
+# add the 'transplant' command
+hgext.transplant=
+
+# add filters so automatically convert end-of-line between Windows and Unix
+# world.
+# hgext.win32text=
