@@ -1,3 +1,12 @@
+mercurial (0.9.5-2) unstable; urgency=low
+
+  * Apply patch to change 'hgext/' into 'hgext.' when loading an extension
+    Current config files use the documented syntax (ie 'hgext.extname=')
+    Users can use 'hgext/extname=' in their hgrc if they want to
+    (Closes: #447088)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Fri, 02 Nov 2007 11:59:03 +0100
+
 mercurial (0.9.5-1) unstable; urgency=low
 
   * New upstream release
