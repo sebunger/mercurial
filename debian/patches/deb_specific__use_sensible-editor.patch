@@ -1,0 +1,99 @@
+Take care of $VISUAL and default to 'editor' instead of 'vi'
+fix bug #447095, #448376
+Index: mercurial-0.9.5/hgmerge
+===================================================================
+--- mercurial-0.9.5.orig/hgmerge	2008-01-21 22:13:43.000000000 +0100
++++ mercurial-0.9.5/hgmerge	2008-01-21 22:13:44.000000000 +0100
+@@ -23,7 +23,7 @@
+ OTHER="$3"
+ 
+ if [ -z "$EDITOR" ]; then
+-    EDITOR="vi"
++    EDITOR="sensible-editor"
+ fi
+ 
+ # find decent versions of our utilities, insisting on the GNU versions where we
+Index: mercurial-0.9.5/mercurial/commands.py
+===================================================================
+--- mercurial-0.9.5.orig/mercurial/commands.py	2008-01-21 22:11:18.000000000 +0100
++++ mercurial-0.9.5/mercurial/commands.py	2008-01-21 22:13:44.000000000 +0100
+@@ -942,11 +942,11 @@
+     ui.status(_("Checking commit editor...\n"))
+     editor = (os.environ.get("HGEDITOR") or
+               ui.config("ui", "editor") or
+-              os.environ.get("EDITOR", "vi"))
++              os.environ.get("EDITOR", "sensible-editor"))
+     cmdpath = util.find_exe(editor) or util.find_exe(editor.split()[0])
+     if not cmdpath:
+-        if editor == 'vi':
+-            ui.write(_(" No commit editor set and can't find vi in PATH\n"))
++        if editor == 'sensible-editor':
++            ui.write(_(" No commit editor set and can't find 'sensible-editor' in PATH\n"))
+             ui.write(_(" (specify a commit editor in your .hgrc file)\n"))
+         else:
+             ui.write(_(" Can't find editor '%s' in PATH\n") % editor)
+Index: mercurial-0.9.5/doc/hgrc.5.txt
+===================================================================
+--- mercurial-0.9.5.orig/doc/hgrc.5.txt	2008-01-21 22:11:18.000000000 +0100
++++ mercurial-0.9.5/doc/hgrc.5.txt	2008-01-21 22:13:44.000000000 +0100
+@@ -427,7 +427,7 @@
+   debug;;
+     Print debugging information.  True or False.  Default is False.
+   editor;;
+-    The editor to use during a commit.  Default is $EDITOR or "vi".
++    The editor to use during a commit.  Default is $EDITOR or "sensible-editor".
+   fallbackencoding;;
+     Encoding to try if it's not possible to decode the changelog using
+     UTF-8.  Default is ISO-8859-1.
+Index: mercurial-0.9.5/doc/ja/hgrc.5.ja.txt
+===================================================================
+--- mercurial-0.9.5.orig/doc/ja/hgrc.5.ja.txt	2008-01-21 22:11:18.000000000 +0100
++++ mercurial-0.9.5/doc/ja/hgrc.5.ja.txt	2008-01-21 22:13:44.000000000 +0100
+@@ -119,7 +119,7 @@
+     では False です。
+   editor;;
+     コミット中に使用するエディタです。デフォルトは $EDITOR か
+-    "vi" です。
++    "sensible-editor" です。
+   interactive;;
+     ユーザに対してプロンプトを出すようにします。True か False を取
+     ります。デフォルトでは True です。
+Index: mercurial-0.9.5/mercurial/help.py
+===================================================================
+--- mercurial-0.9.5.orig/mercurial/help.py	2008-01-21 22:11:18.000000000 +0100
++++ mercurial-0.9.5/mercurial/help.py	2008-01-21 22:13:44.000000000 +0100
+@@ -96,7 +96,7 @@
+ 
+ EDITOR::
+     This is the name of the editor used in the hgmerge script. It will be
+-    used for commit messages if HGEDITOR isn't set. Defaults to 'vi'.
++    used for commit messages if HGEDITOR isn't set. Defaults to 'sensible-editor'.
+ 
+ PYTHONPATH::
+     This is used by Python to find imported modules and may need to be set
+Index: mercurial-0.9.5/mercurial/ui.py
+===================================================================
+--- mercurial-0.9.5.orig/mercurial/ui.py	2008-01-21 22:11:18.000000000 +0100
++++ mercurial-0.9.5/mercurial/ui.py	2008-01-21 22:13:44.000000000 +0100
+@@ -437,7 +437,7 @@
+ 
+             editor = (os.environ.get("HGEDITOR") or
+                     self.config("ui", "editor") or
+-                    os.environ.get("EDITOR", "vi"))
++                    os.environ.get("EDITOR", "sensible-editor"))
+ 
+             util.system("%s \"%s\"" % (editor, name),
+                         environ={'HGUSER': user},
+Index: mercurial-0.9.5/doc/ja/hg.1.ja.txt
+===================================================================
+--- mercurial-0.9.5.orig/doc/ja/hg.1.ja.txt	2008-01-21 22:13:57.000000000 +0100
++++ mercurial-0.9.5/doc/ja/hg.1.ja.txt	2008-01-21 22:14:07.000000000 +0100
+@@ -813,7 +813,7 @@
+ EDITOR::
+     これは hgmerge スクリプト中で使われるエディタの名前です。もし
+     HGEDITOR が設定されていなければ、コミット時のメッセージに使わ
+-    れます。デフォルトは 'vi' です。
++    れます。デフォルトは 'sensible-editor' です。
+ 
+ PYTHONPATH::
+     これはインポートされるモジュールを見つけるために Python によっ

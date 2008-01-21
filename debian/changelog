@@ -1,3 +1,30 @@
+mercurial (0.9.5-3) unstable; urgency=low
+
+  * [debian/control]
+    + Recommends rcs first (and before kdiff3) as hgmerge
+      use it in first (and does not use another program if it exists)
+      (Closes: #460943)
+      As an additionnal value, rcs has really fewer dependencies
+    + Move Homepage: from description to source stanza
+    + Suggest qct instead of commit-tool (better developed upstream)
+    + Bump standard-version to 3.7.3 (no change needed)
+    + Add python-elementtree to suggest (needed for hg convert with darcs
+      repo) (Closes: 459353)
+      Should be removed when debian will switch to python2.5 (as it is
+      included in it)
+    + move tk8.4 | wish from recommends to suggests as it is needed by
+      an extension (hgk) and not by the core package
+  * [debian/README]
+    + document that extension dependencies are listed as Suggests:
+  * [debian/patches/deb_specific__use_VISUAL_envvar.patch]
+    Rewrite the patch using sensible-editor (Closes: 448376)
+    and rename it to deb_specific__use_sensible-editor.patch
+  * [debian/rule]
+    + rewrite the fix for cdbs/dh_python so that we depend on the
+      current python version (Closes: #456556)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 21 Jan 2008 20:57:27 +0100
+
 mercurial (0.9.5-2) unstable; urgency=low
 
   * Apply patch to change 'hgext/' into 'hgext.' when loading an extension
