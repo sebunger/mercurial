@@ -1,0 +1,65 @@
+#!/usr/bin/make -f
+# -*- mode: makefile; coding: utf-8 -*-
+
+DEB_PYTHON_SYSTEM=pysupport
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/rules/patchsys-quilt.mk
+
+# must be before including python-distutils.mk
+binary-install/mercurial::
+	# fix bugs in cdbs/dh_python: mercurial will use python and not pythonX.Y
+	sed -i -e 's/python[0-9.]*/python/' $(DEB_DESTDIR)/usr/bin/hg
+
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgmerge.1 doc/hgrc.5 doc/hgignore.5
+
+binary-install/mercurial::
+	# Install bash autocompletion.
+	install -d $(DEB_DESTDIR)/etc/bash_completion.d/
+	install -m 644 \
+		contrib/bash_completion \
+		$(DEB_DESTDIR)/etc/bash_completion.d/mercurial
+	#
+	# Install system-wide conffile
+	install -d $(DEB_DESTDIR)/etc/mercurial/
+	echo "# system-wide mercurial configuration file" \
+		> $(DEB_DESTDIR)/etc/mercurial/hgrc
+	echo "# See hgrc(5) for more information" \
+		>> $(DEB_DESTDIR)/etc/mercurial/hgrc
+	#
+	# Install system-wide extensions
+	install -d $(DEB_DESTDIR)/etc/mercurial/hgrc.d/
+	install -m 644 \
+		debian/hgext.rc \
+		$(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
+	# Install hgk subscript
+	install -d $(DEB_DESTDIR)/usr/share/mercurial
+	install -m 0755 contrib/hgk $(DEB_DESTDIR)/usr/share/mercurial/hgk
+	#
+	# Install emacs scripts.
+	install -d $(DEB_DESTDIR)/usr/share/emacs/site-lisp/ 
+	install -m 0644 \
+		contrib/mercurial.el \
+		contrib/mq.el \
+		$(DEB_DESTDIR)/usr/share/emacs/site-lisp/
+	# Move webstuff in /usr/share
+	mv $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates \
+		$(DEB_DESTDIR)/usr/share/mercurial/
+	ln -sf ../../../mercurial/templates \
+	  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates
+
+build: build-doc
+update-config:: link_hgit
+
+link_hgit:
+	ln -fs ../contrib/churn.py hgext/churn.py
+
+build-doc:
+	$(MAKE) -C doc man
+
+clean::
+	#$(MAKE) -C doc clean
+	cd doc && $(RM) *.xml *.1 *.html hg.1.gendoc.txt hgignore.5 hgrc.5
+	$(RM) -v mercurial/*.pyc
+	$(RM) -v hgext/churn.py

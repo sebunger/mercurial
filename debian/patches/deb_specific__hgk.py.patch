@@ -1,0 +1,13 @@
+Index: mercurial-0.9.5/hgext/hgk.py
+===================================================================
+--- mercurial-0.9.5.orig/hgext/hgk.py	2007-11-02 11:52:50.000000000 +0100
++++ mercurial-0.9.5/hgext/hgk.py	2008-01-21 21:37:42.000000000 +0100
+@@ -318,7 +318,7 @@
+     "start interactive history viewer"
+     os.chdir(repo.root)
+     optstr = ' '.join(['--%s %s' % (k, v) for k, v in opts.iteritems() if v])
+-    cmd = ui.config("hgk", "path", "hgk") + " %s %s" % (optstr, " ".join(etc))
++    cmd = ui.config("hgk", "path", "/usr/share/mercurial/hgk") + " %s %s" % (optstr, " ".join(etc))
+     ui.debug("running %s\n" % cmd)
+     util.system(cmd)
+ 

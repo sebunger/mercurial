@@ -1,0 +1,13 @@
+type command is not posix. See:
+http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=397601
+fix bug #447094
+Index: mercurial-0.9.5/hgmerge
+===================================================================
+--- mercurial-0.9.5.orig/hgmerge	2007-10-28 17:50:32.000000000 +0100
++++ mercurial-0.9.5/hgmerge	2007-10-28 17:50:40.000000000 +0100
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ #
+ # hgmerge - default merge helper for Mercurial
+ #

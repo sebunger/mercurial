@@ -1,0 +1,55 @@
+mercurial (0.9) unstable; urgency=low
+
+  Since the 0.8.1-5 version, mercurial uses python2.4 instead of (currently the
+  default on Debian system) python2.3. This allows tailor to use the hg
+  backend (tailor requires python2.4).
+  If someone really need python2.3 version of mercurial, please tell me (with
+  reportbug for example). I will then split the package in python modules
+  (default, 2.3, 2.4, ...) and one executable.
+
+  Note: if you copied the hgwebdir.cgi or hgweb.cgi script from the examples
+  directory, do not forget to update it so that it runs /usr/bin/python2.4
+  instead of /usr/bin/python (or recopy it)
+
+  UPDATE since 0.9-6:
+    Due to the new python policy, mercurial modules are now available for all
+  supported python versions in debian (currently 2.3 and 2.4)
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue,  4 Jul 2006 00:53:21 +0200
+
+mercurial (0.8) unstable; urgency=low
+  Upgrade notes:
+  - diff and status command are now repo-wide by default
+    (use 'hg diff .' for the old behavior)
+  - GPG signing is now done with the gpg extension
+  - the --text option for commit, rawcommit, and tag has been removed
+  - the copy/rename --parents option has been removed
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Mon, 30 Jan 2006 16:11:19 +0100
+
+mercurial (0.6c-1) unstable; urgency=low
+
+  Previous versions of mercurial can lead to conflicts for internal filenames
+  if the repo has both a file 'foo' and a directory 'foo.d'.
+  This version of mercurial solves this, however this means that some internal
+  files have been renamed.
+
+  If you want to use (commit, clone on same filesystem, ...) a repo created
+  with an old version with the new version AND this repo contains directory
+  nammed 'foo.d', then you need to deal with it. According to the upstream
+  author, something like this should do the trick:
+
+   find .hg -type d -name "*.[di]" -exec echo mv {} {}.hg ";"
+
+  Run this at the top of your working dir. Take out the 'echo' once
+  you've confirmed it's finding the right files.
+
+  Also note that 0.6c and older clients should be perfectly compatible
+  over the wire, so long as each side has the appropriate directory
+  naming.
+
+  But if you use 0.6c to pull into a repo created by 0.6b with changes
+  that touch files in an affected directory, you're likely to have
+  strange behavior.
+
+ -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>  Tue, 23 Aug 2005 09:55:35 +0200
