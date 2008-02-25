@@ -1,9 +1,17 @@
 mercurial (0.9.5-4) UNRELEASED; urgency=low
 
+  [ Vincent Danjean ]
   * import mercurial in the Python Application Packaging Team project
     [debian/control]
     + add PAPT in the Uploaders field
     + add Vcs-* fields
+
+  [ Piotr Ożarowski ]
+  * New recommended packages:
+    + python-mysqldb (hgext/bugzilla.py)
+    + python-openssl (hgweb/server.py)
+  * New suggested packages:
+    + python-flup (contrib/hgwebdir.fcgi)
 
  -- Vincent Danjean <vdanjean@debian.org>  Sun, 24 Feb 2008 17:08:30 +0100
 
