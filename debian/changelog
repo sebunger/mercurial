@@ -3,7 +3,7 @@ mercurial (0.9.5-4) UNRELEASED; urgency=low
   * import mercurial in the Python Application Packaging Team project
     [debian/control]
     + add PAPT in the Uploaders field
-    + add Scv-* fields
+    + add Vcs-* fields
 
  -- Vincent Danjean <vdanjean@debian.org>  Sun, 24 Feb 2008 17:08:30 +0100
 
