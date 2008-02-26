@@ -13,7 +13,11 @@ mercurial (0.9.5-4) UNRELEASED; urgency=low
   * New suggested packages:
     + python-flup (contrib/hgwebdir.fcgi)
 
- -- Vincent Danjean <vdanjean@debian.org>  Sun, 24 Feb 2008 17:08:30 +0100
+  [ William Pitcock ]
+  * patches/deb_specific__use_sensible-editor.patch:
+    Rediff against 1.0 branch.
+
+ -- William Pitcock <nenolod@sacredspiral.co.uk>  Tue, 26 Feb 2008 09:00:52 -0600
 
 mercurial (0.9.5-3) unstable; urgency=low
 
