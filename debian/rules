@@ -59,7 +59,5 @@ build-doc:
 	$(MAKE) -C doc man
 
 clean::
-	#$(MAKE) -C doc clean
-	cd doc && $(RM) *.xml *.1 *.html hg.1.gendoc.txt hgignore.5 hgrc.5
-	$(RM) -v mercurial/*.pyc
-	$(RM) -v hgext/churn.py
+	$(MAKE) clean
+	$(RM) -rv tmp/
