@@ -69,6 +69,14 @@ mercurial (1.0-1) UNRELEASED; urgency=low
      * also search for .hgrc if mercurial.ini cannot be found
      * major speedup of "clone --pull"
 
+     [Gerardo Curiel]
+     * Fix clean target
+     * Dropped patches:
+       patches/proposed_upstream__check_hgmerge_args.patch
+       patches/proposed_upstream__type_is_not_posix.patch
+     * patches/deb_specific__use_sensible-editor.patch:
+        Rediff against 1.0 branch
+
  -- Vincent Danjean <vdanjean@debian.org>  Thu, 27 Mar 2008 15:06:09 +0100
 
 mercurial (0.9.5-4) UNRELEASED; urgency=low
