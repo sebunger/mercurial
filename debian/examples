@@ -1,12 +1,13 @@
 hgeditor
-contrib/favicon.ico
 contrib/git-viz
 contrib/hgdiff
 contrib/hg-relink
 contrib/hgsh
 contrib/hg-ssh
 contrib/hgwebdir.fcgi
+contrib/logo-droplets.svg
 contrib/rewrite-log
+contrib/mergetools.hgrc
 contrib/sample.hgrc
 contrib/simplemerge
 contrib/tcsh_completion

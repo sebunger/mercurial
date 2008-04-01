@@ -1,4 +1,4 @@
-mercurial (1.0-1) UNRELEASED; urgency=low
+mercurial (1.0-1) unstable; urgency=low
 
   * new upstream version
     General:
@@ -48,10 +48,10 @@ mercurial (1.0-1) UNRELEASED; urgency=low
        checking
      * keyword: new extension for filewise RCS-keyword expansion in working
        directory
-     * mq: new --currentdate, --date, --currentuser, and --user options
+     * mq: new --currentdate, --date, --currentuser, and 
+       --user options
      * record: add "qrecord" command when used with mq
-     * win32mbcs: new extension dealing with problematic MBCS behavior on Windows 
-    
+     
     Web interface:
      * improved WSGI integration and compatibility
      * follow symlinks in hgwebdir collections
@@ -62,43 +62,40 @@ mercurial (1.0-1) UNRELEASED; urgency=low
     Hooks:
      * standard hook to reject text files with CRLF in win32text extension
      * redirect stdout to stderr for ssh and http servers
-    
-    Windows support:
-     * "hg" script output set to binary mode for redirecting diff, export,
-       annotate, etc.
-     * also search for .hgrc if mercurial.ini cannot be found
-     * major speedup of "clone --pull"
-
+      
      [Gerardo Curiel]
      * Fix clean target
      * Dropped patches:
        patches/proposed_upstream__check_hgmerge_args.patch
        patches/proposed_upstream__type_is_not_posix.patch
      * patches/deb_specific__use_sensible-editor.patch:
-        Rediff against 1.0 branch
+       Rediff against 1.0 branch
+     * Added patch:
+       patches/proposed_upstream__fix_man_warnings.patch
+     * The hgmerge manpage doesn't exist anymore
+     * contrib/favicon.ico doesn't exist anymore
+     * Delete obsolete link_hgit target from the debian/rules file
+     * Add logo-droplets.svg and mergetools.hgrc to the examples
+       directory
 
- -- Vincent Danjean <vdanjean@debian.org>  Thu, 27 Mar 2008 15:06:09 +0100
-
-mercurial (0.9.5-4) UNRELEASED; urgency=low
-
-  [ Vincent Danjean ]
-  * import mercurial in the Python Application Packaging Team project
-    debian/control:
-    + add PAPT in the Uploaders field
-    + add Vcs-* fields
-
-  [ Piotr Ożarowski ]
-  * New recommended packages:
-    + python-mysqldb (hgext/bugzilla.py)
-    + python-openssl (hgweb/server.py)
-  * New suggested packages:
-    + python-flup (contrib/hgwebdir.fcgi)
-
-  [ William Pitcock ]
-  * patches/deb_specific__use_sensible-editor.patch:
-    Rediff against 1.0 branch.
-
- -- William Pitcock <nenolod@sacredspiral.co.uk>  Tue, 26 Feb 2008 09:00:52 -0600
+     [Vincent Danjean ]
+     * import mercurial in the Python Application Packaging Team project
+     * debian/control:
+       + add PAPT in the Uploaders field
+       + add Vcs-* fields
+                     
+     [ Piotr Ożarowski ]
+     * New recommended packages:
+       + python-mysqldb (hgext/bugzilla.py)
+       + python-openssl (hgweb/server.py)
+     * New suggested packages:
+       + python-flup (contrib/hgwebdir.fcgi)
+    
+     [ William Pitcock ]
+     * patches/deb_specific__use_sensible-editor.patch:
+       +Rediff against 1.0 branch.
+              
+ -- Gerardo Curiel <gcuriel@debian.org.ve>  Thu, 31 Mar 2008 15:06:09 +0100
 
 mercurial (0.9.5-3) unstable; urgency=low
 

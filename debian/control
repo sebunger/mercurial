@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Vincent Danjean <vdanjean@debian.org>
 Uploaders: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25), 
- cdbs (>= 0.4.27-1), python-support (>= 0.4.3), python-all-dev, xmlto, asciidoc
+ cdbs (>= 0.4.27), python-support (>= 0.4.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.7.3
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk

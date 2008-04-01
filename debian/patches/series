@@ -1,3 +1,4 @@
+proposed_upstream__fix_man_warnings.patch
 proposed_upstream__extension_syntax.patch
 deb_specific__FAQ_subst.patch
 deb_specific__use_sensible-editor.patch
