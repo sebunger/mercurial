@@ -32,14 +32,14 @@ mercurial (1.0-1) unstable; urgency=low
     
     Extensions:
      * churn: promoted to an official extension (previously in contrib)
-     * color: new extension coloring "status" and "qseries" command outputs
+     * color: new extension coloring "status" and "qseries" command outputs    
      * convert:
        * allow synthetic history to be spliced in with --splicemap
        * support GNU Arch and Monotone sources
-       * svn: allow shallow conversions of single branches with
+       * svn: allow shallow conversions of single branches with 
          convert.svn.startrev option.
-       * svn: make trunk/branches/tags layout detection more flexible by allowing
-         either of them to be skipped.
+       * svn: make trunk/branches/tags layout detection more flexible by 
+         allowing either of them to be skipped.
        * svn: preliminary support as a conversion target
      * hgk: configuration file changed from .gitk to .hgk
      * highlight: new extension enabling syntax highlighting in hgweb file view

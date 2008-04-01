@@ -48,6 +48,7 @@ binary-install/mercurial::
 		$(DEB_DESTDIR)/usr/share/mercurial/
 	ln -sf ../../../mercurial/templates \
 	  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates
+	chmod 0755  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/lsprof.py $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/simplemerge.py 
 
 build: build-doc
 
