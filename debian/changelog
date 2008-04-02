@@ -69,14 +69,23 @@ mercurial (1.0-1) unstable; urgency=low
        patches/proposed_upstream__check_hgmerge_args.patch
        patches/proposed_upstream__type_is_not_posix.patch
      * patches/deb_specific__use_sensible-editor.patch:
-       Rediff against 1.0 branch
+       Rediff against mercurial 1.0 
      * Added patch:
        patches/proposed_upstream__fix_man_warnings.patch
-     * The hgmerge manpage doesn't exist anymore
-     * contrib/favicon.ico doesn't exist anymore
-     * Delete obsolete link_hgit target from the debian/rules file
-     * Add logo-droplets.svg and mergetools.hgrc to the examples
+     * hgmerge shell script is not provided anymore
+     * contrib/favicon.ico is not provided anymore
+     * Deleted obsolete link_hgit target from debian/rules
+     * Added logo-droplets.svg and mergetools.hgrc to the examples
        directory
+     * Added new extensions to the hgext.rc file
+       + hgext.color (not enabled by default)
+       + hgext.highlight (enabled)
+       + hgext.inotify (enabled)
+       + hgext.keyword (not enabled by default)
+     * Removed extensions from the hgext.rc file
+       + hgext.hbisect (now provided as a built-in command)
+     * Added new dependency :
+       + python-pygments (needed for hgext/highlight.py)
 
      [Vincent Danjean ]
      * import mercurial in the Python Application Packaging Team project

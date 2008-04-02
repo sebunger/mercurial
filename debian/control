@@ -12,7 +12,7 @@ Vcs-Browser: http://svn.debian.org/wsvn/python-apps/packages/mercurial/trunk/
 
 Package: mercurial
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-pygments
 Provides: ${python:Provides}
 Recommends: rcs | kdiff3 | tkdiff | meld, python-mysqldb, python-openssl
 Suggests: qct, python-elementtree, tk8.4 | wish, python-flup
