@@ -1,7 +1,7 @@
 mercurial (1.0-1) unstable; urgency=low
 
-  * new upstream version (Closes: #472185, #447094, #443428)
-
+  * new upstream version (Closes: #472185, #447094, #443428, #472943,
+    #466006, #454326, #469326, #452385 )
     General:
      * greatly improved merge tool configuration, see "hgrc.5.txt" for details
      * improved copy/rename handling in diffs, status, and merge
