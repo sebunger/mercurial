@@ -5,7 +5,6 @@ contrib/hg-relink
 contrib/hgsh
 contrib/hg-ssh
 contrib/hgwebdir.fcgi
-contrib/logo-droplets.svg
 contrib/rewrite-log
 contrib/mergetools.hgrc
 contrib/sample.hgrc

@@ -75,12 +75,13 @@ mercurial (1.0-1) unstable; urgency=low
      * hgmerge shell script is not provided anymore
      * contrib/favicon.ico is not provided anymore
      * Deleted obsolete link_hgit target from debian/rules
-     * Added logo-droplets.svg and mergetools.hgrc to the examples
+     * Added mergetools.hgrc to the examples
        directory
+     * Added logo-droplets.svg to /usr/share/mercurial
      * Added new extensions to the hgext.rc file
        + hgext.color (not enabled by default)
        + hgext.highlight (enabled)
-       + hgext.inotify (enabled)
+       + hgext.inotify (enabled, Closes: #472583)
        + hgext.keyword (not enabled by default)
      * Removed extensions from the hgext.rc file
        + hgext.hbisect (now provided as a built-in command)
@@ -98,7 +99,7 @@ mercurial (1.0-1) unstable; urgency=low
        + python-mysqldb (hgext/bugzilla.py)
        + python-openssl (hgweb/server.py)
      * New suggested packages:
-       + python-flup (contrib/hgwebdir.fcgi)
+       + python-flup (contrib/hgwebdir.fcgi, Closes: #466731)
     
      [ William Pitcock ]
      * patches/deb_specific__use_sensible-editor.patch:
@@ -133,7 +134,7 @@ mercurial (0.9.5-3) unstable; urgency=low
 
  -- Vincent Danjean <vdanjean@debian.org>  Mon, 21 Jan 2008 20:57:27 +0100
 
-mercurial (0.9.5-2) unstable; urgency=low
+m ercurial (0.9.5-2) unstable; urgency=low
 
   * Apply patch to change 'hgext/' into 'hgext.' when loading an extension
     Current config files use the documented syntax (ie 'hgext.extname=')
