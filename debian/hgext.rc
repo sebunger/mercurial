@@ -7,9 +7,10 @@
 # hgext.color =
 
 # syntax highlighting in hgweb file view (requires pygments)
-  hgext.highlight =
+hgext.highlight =
 
 # inotify-based status acceleration for Linux systems
+# add the 'inserve' command
 hgext.inotify =
 
 # CVS/RCS-like Keyword Substitution
