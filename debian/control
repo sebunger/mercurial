@@ -4,14 +4,16 @@ Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian.org.ve>
 Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25), 
- cdbs (>= 0.4.27), python-support (>= 0.4.3), python-all-dev, xmlto, asciidoc
+ cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.7.3
+XS-Python-Version: >= 2.4
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/wsvn/python-apps/packages/mercurial/trunk/
 
 Package: mercurial
 Architecture: any
+XB-Python-Version: ${python:Version}
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-pygments
 Provides: ${python:Provides}
 Recommends: rcs | kdiff3 | tkdiff | meld, python-mysqldb, python-openssl
