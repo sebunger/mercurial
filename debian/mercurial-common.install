@@ -1,0 +1,5 @@
+debian/tmp/usr/lib/python2.5/site-packages/mercurial/templates usr/share/mercurial
+contrib/mercurial.el usr/share/emacs/site-lisp
+contrib/mq.el usr/share/emacs/site-lisp
+contrib/logo-droplets.svg usr/share/mercurial
+

@@ -6,22 +6,20 @@ Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian
 Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25), 
  cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.7.3
-XS-Python-Version: >= 2.4
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/wsvn/python-apps/packages/mercurial/trunk/
 
+
 Package: mercurial
-Architecture: any
-XB-Python-Version: ${python:Version}
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-pygments
-Provides: ${python:Provides}
-Recommends: rcs | kdiff3 | tkdiff | meld, python-mysqldb, python-openssl
-Suggests: qct, python-elementtree, tk8.4 | wish, python-flup
+Architecture: any 
+Depends: ${shlibs:Depends}, ${python:Depends}, mercurial-common (= ${binary:Version}), python-pygments, python-elementtree
+Recommends: rcs | kdiff3 | tkdiff | meld 
+Suggests: qct, tk8.4 | wish, vim | emacs, python-mysqldb ,mercurial-web
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
- .
+ . 
  Its features include:
   * O(1) delta-compressed file storage and retrieval scheme
   * Complete cross-indexing of files and changesets for efficient exploration
@@ -32,3 +30,46 @@ Description: Scalable distributed version control system
   * Easy-to-use command-line interface
   * Integrated stand-alone web interface
   * Small Python codebase
+
+
+Package: mercurial-common
+Architecture: all 
+Depends: ${misc:Depends}
+Recommends: mercurial
+Description: Scalable distributed version control system (Common files)
+ Mercurial is a fast, lightweight Source Control Management system designed
+ for efficient handling of very large distributed projects.
+ . 
+ Its features include:
+  * O(1) delta-compressed file storage and retrieval scheme
+  * Complete cross-indexing of files and changesets for efficient exploration
+    of project history
+  * Robust SHA1-based integrity checking and append-only storage model
+  * Decentralized development model with arbitrary merging between trees
+  * High-speed HTTP-based network merge protocol
+  * Easy-to-use command-line interface
+  * Integrated stand-alone web interface
+  * Small Python codebase
+ .
+ 
+Package: mercurial-web 
+Architecture: all 
+Depends:  mercurial (= ${binary:Version}), python (>= 2.4), python (<< 2.6), python-flup
+Recommends: python-openssl
+Description: Scalable distributed version control system (Web interface)
+ Mercurial is a fast, lightweight Source Control Management system designed
+ for efficient handling of very large distributed projects.
+ . 
+ Its features include:
+  * O(1) delta-compressed file storage and retrieval scheme
+  * Complete cross-indexing of files and changesets for efficient exploration
+    of project history
+  * Robust SHA1-based integrity checking and append-only storage model
+  * Decentralized development model with arbitrary merging between trees
+  * High-speed HTTP-based network merge protocol
+  * Easy-to-use command-line interface
+  * Integrated stand-alone web interface
+  * Small Python codebase
+
+
+

@@ -4,60 +4,34 @@
 DEB_PYTHON_SYSTEM=pysupport
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/patchsys-quilt.mk
-
-# must be before including python-distutils.mk
-binary-install/mercurial::
-	# fix bugs in cdbs/dh_python: mercurial will use python and not pythonX.Y
-	sed -i -e 's/python[0-9.]*/python/' $(DEB_DESTDIR)/usr/bin/hg
-
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-DEB_INSTALL_MANPAGES_mercurial=doc/hg.1 doc/hgrc.5 doc/hgignore.5
+
+binary-install/mercurial-web::
+	chmod 0755 $(CURDIR)/debian/mercurial-web/usr/lib/cgi-bin/*
+
 
 binary-install/mercurial::
-	# Install bash autocompletion.
-	install -d $(DEB_DESTDIR)/etc/bash_completion.d/
-	install -m 644 \
-		contrib/bash_completion \
-		$(DEB_DESTDIR)/etc/bash_completion.d/mercurial
-	#
-	# Install system-wide conffile
-	install -d $(DEB_DESTDIR)/etc/mercurial/
+	# Install system-wide conffiles
 	echo "# system-wide mercurial configuration file" \
-		> $(DEB_DESTDIR)/etc/mercurial/hgrc
+		>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
 	echo "# See hgrc(5) for more information" \
-		>> $(DEB_DESTDIR)/etc/mercurial/hgrc
-	#
-	# Install system-wide extensions
-	install -d $(DEB_DESTDIR)/etc/mercurial/hgrc.d/
-	install -m 644 \
-		debian/hgext.rc \
-		$(DEB_DESTDIR)/etc/mercurial/hgrc.d/hgext.rc
-	# Install hgk subscript
-	install -d $(DEB_DESTDIR)/usr/share/mercurial
-	install -m 0755 contrib/hgk $(DEB_DESTDIR)/usr/share/mercurial/hgk
-	#
-	# Install emacs scripts.
-	install -d $(DEB_DESTDIR)/usr/share/emacs/site-lisp/ 
-	install -m 0644 \
-		contrib/mercurial.el \
-		contrib/mq.el \
-		$(DEB_DESTDIR)/usr/share/emacs/site-lisp/
-	# Move webstuff in /usr/share
-	mv $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates \
-		$(DEB_DESTDIR)/usr/share/mercurial/
+		>>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
+
+	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/templates
+
 	ln -sf ../../../mercurial/templates \
-	  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/templates
-	chmod 0755  $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/lsprof.py $(DEB_DESTDIR)/usr/share/python-support/mercurial/mercurial/simplemerge.py
-	#
-	# Install svg logo
-	install -m 0644 contrib/logo-droplets.svg $(DEB_DESTDIR)/usr/share/mercurial
+		$(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/templates
 
-build: build-doc
+	chmod 0755  $(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/lsprof.py \
+		$(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/simplemerge.py
 
-build-doc:
+
+build/mercurial-common::
 	$(MAKE) -C doc man
+
 
 clean::
 	$(MAKE) clean
 	$(RM) -rv tmp/
+
