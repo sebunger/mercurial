@@ -4,7 +4,7 @@ mercurial for Debian
 Table of contents
 * Documentation
 * Extensions provided in this package
-* Other extensions
+* Other extensions and dependencies
 * Emacs support
 * Very old users of mercurial
 
@@ -31,26 +31,50 @@ mercurial behaviour (such as 'win32text')
   The system administrator can modify this by editing
 /etc/mercurial/hgrc.d/hgext.rc
 
-Other extensions
-****************
-hgct
-----
+Other extensions and dependencies
+*********************************
+
+Dependencies needed for extension are listed as Suggests: as they are not 
+strickly needed to use the core of mercurial. Install them if you 
+need them.
+
+'hg serve' command / mercurial-web
+---------------------------------
+Export the repository via HTTP.
+Depends: python-openssl
+
+Extension: bugzilla
+-------------------
+Bugzilla integration for mercurial.
+Depends: python-mysqldb
+
+Extension: convert
+------------------
+Foreign SCM converter.
+Depends: git-core | darc | monotone | bzr | subversion
+
+Extension: hgk
+--------------
+add the 'view' command, allows browsing the history of a repository in 
+a graphical way.
+Depends:  tk8.4 | wish
+
+'hg serve' command / mercurial-web                                                                             
+---------------------------------
+Export the repository via HTTP.
+Depends: python-openssl
+
+hgct                   
+----                   
 add the 'ct' command that is a graphical interface for commiting changes.
 hgct is available in the 'commit-tool' debian package.
 Note: hgct is not developed anymore. Try to switch to qct.
-
-qct
----
-add the 'qct' command that is a graphical interface for commiting changes.
+                       
+qct                    
+---                    
+add the 'qct' command that is a graphical interface for commiting changes.                                     
 qct is available in the 'qct' debian package.
 
-Dependencies for extensions
-***************************
-Dependencies needed for extension are listed as Suggests: as they are not
-strickly needed to use the core of mercurial. Install them if you
-need them.
-hg convert: need python-elementtree to convert darcs repository
-hg view: need TclTk (wish) to display revisions graphicaly
 
 Emacs support
 *************

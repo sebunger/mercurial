@@ -14,8 +14,8 @@ Vcs-Browser: http://svn.debian.org/wsvn/python-apps/packages/mercurial/trunk/
 Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${python:Depends}, mercurial-common (= ${binary:Version}), python-pygments, python-elementtree
-Recommends: rcs | kdiff3 | tkdiff | meld 
-Suggests: qct, tk8.4 | wish, vim | emacs, python-mysqldb ,mercurial-web
+Recommends: kdiff3 | tkdiff | meld 
+Suggests: qct, tk8.4 | wish, vim | emacs, python-mysqldb, mercurial-web
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
@@ -54,7 +54,7 @@ Description: Scalable distributed version control system (Common files)
  
 Package: mercurial-web 
 Architecture: all 
-Depends:  mercurial (= ${binary:Version}), python (>= 2.4), python (<< 2.6), python-flup
+Depends:  mercurial (= ${binary:Version}), python (>= 2.4), python (<< 2.6), apache2 | httpd, python-flup
 Recommends: python-openssl
 Description: Scalable distributed version control system (Web interface)
  Mercurial is a fast, lightweight Source Control Management system designed

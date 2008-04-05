@@ -65,6 +65,10 @@ mercurial (1.0-1) unstable; urgency=low
      * redirect stdout to stderr for ssh and http servers
       
      [Gerardo Curiel]
+     * Package splitted to fix lintian warnings:
+       + mercurial -  main package
+       + mercurial-common - Arch-indep bits
+       + mercurial-web - cgi/fcgi scripts
      * Fix clean target
      * Dropped patches:
        patches/proposed_upstream__check_hgmerge_args.patch
@@ -88,6 +92,8 @@ mercurial (1.0-1) unstable; urgency=low
        + hgext.hbisect (now provided as a built-in command)
      * Added new dependency :
        + python-pygments (needed for hgext/highlight.py)
+       + python-elementtree (was a suggested dependency, but we're shipping
+       the 'convert' extension enabled by default)
 
      [Vincent Danjean ]
      * import mercurial in the Python Application Packaging Team project
