@@ -65,7 +65,7 @@ mercurial (1.0-1) unstable; urgency=low
      * redirect stdout to stderr for ssh and http servers
       
      [Gerardo Curiel]
-     * Package splitted to fix lintian warnings:
+     * Split package to fix lintian warnings:
        + mercurial -  main package
        + mercurial-common - Arch-indep bits
        + mercurial-web - cgi/fcgi scripts
