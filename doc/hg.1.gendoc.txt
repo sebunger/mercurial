@@ -97,13 +97,15 @@ annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] [-l] FILE...::
     -r, --rev          annotate the specified revision
     -f, --follow       follow file copies and renames
     -a, --text         treat all files as text
-    -u, --user         list the author
-    -d, --date         list the date
+    -u, --user         list the author (long with -v)
+    -d, --date         list the date (short with -q)
     -n, --number       list the revision number (default)
     -c, --changeset    list the changeset
     -l, --line-number  show line number at the first appearance
     -I, --include      include names matching the given patterns
     -X, --exclude      exclude names matching the given patterns
+
+    aliases: blame
 
 archive [OPTION]... DEST::
     By default, the revision used is the parent of the working
@@ -139,16 +141,16 @@ backout [OPTION]... [-r] REV::
     changeset is a child of the backed out changeset.
 
     If you back out a changeset other than the tip, a new head is
-    created.  This head is the parent of the working directory.  If
-    you back out an old changeset, your working directory will appear
-    old after the backout.  You should merge the backout changeset
-    with another head.
+    created.  This head will be the new tip and you should merge this
+    backout changeset with another head (current one by default).
 
     The --merge option remembers the parent of the working directory
     before starting the backout, then merges the new head with that
     changeset afterwards.  This saves you from doing the merge by
     hand.  The result of this merge is not committed, as for a normal
     merge.
+
+    See 'hg help dates' for a list of formats valid for -d/--date.
 
     options:
     --merge        merge with old dirstate parent after backout
@@ -161,13 +163,32 @@ backout [OPTION]... [-r] REV::
     -d, --date     record datecode as commit date
     -u, --user     record user as committer
 
-branch [NAME]::
+bisect [-gbsr] [REV]::
+    This command helps to find changesets which introduce problems.
+    To use, mark the earliest changeset you know exhibits the problem
+    as bad, then mark the latest changeset which is free from the
+    problem as good. Bisect will update your working directory to a
+    revision for testing. Once you have performed tests, mark the
+    working directory as bad or good and bisect will either update to
+    another candidate changeset or announce that it has found the bad
+    revision.
+
+    options:
+    -r, --reset     reset bisect state
+    -g, --good      mark changeset good
+    -b, --bad       mark changeset bad
+    -s, --skip      skip testing changeset
+    -U, --noupdate  do not update to target
+
+branch [-f] [NAME]::
     With no argument, show the current branch name. With one argument,
     set the working directory branch name (the branch does not exist in
     the repository until the next commit).
 
     Unless --force is specified, branch will not let you set a
     branch name that shadows an existing branch.
+
+    Use the command 'hg update' to switch to an existing branch.
 
     options:
     -f, --force  set branch name even if it shadows an existing branch
@@ -178,15 +199,19 @@ branches [-a]::
 
     A branch is considered active if it contains unmerged heads.
 
+    Use the command 'hg update' to switch to an existing branch.
+
     options:
     -a, --active  show only branches that have unmerged heads
 
-bundle [-f] [-r REV]... [--base REV]... FILE [DEST]::
+bundle [-f] [-a] [-r REV]... [--base REV]... FILE [DEST]::
     Generate a compressed changegroup file collecting changesets not
     found in the other repository.
 
-    If no destination repository is specified the destination is assumed
-    to have all the nodes specified by one or more --base parameters.
+    If no destination repository is specified the destination is
+    assumed to have all the nodes specified by one or more --base
+    parameters.  To create a bundle containing all changesets, use
+    --all (or --base null).
 
     The bundle file can then be transferred using conventional means and
     applied to another repository with the unbundle or pull command.
@@ -198,8 +223,9 @@ bundle [-f] [-r REV]... [--base REV]... FILE [DEST]::
 
     options:
     -f, --force  run even when remote repository is unrelated
-    -r, --rev    a changeset you would like to bundle
+    -r, --rev    a changeset up to which you would like to bundle
     --base       a base changeset to specify instead of a destination
+    -a, --all    bundle all changesets in the repository
     -e, --ssh    specify ssh command to use
     --remotecmd  specify hg command to run on the remote side
 
@@ -219,6 +245,7 @@ cat [OPTION]... FILE...::
     options:
     -o, --output   print output to file with formatted name
     -r, --rev      print the given revision
+    --decode       apply any matching decode filter
     -I, --include  include names matching the given patterns
     -X, --exclude  exclude names matching the given patterns
 
@@ -273,8 +300,13 @@ commit [OPTION]... [FILE]...::
     If a list of files is omitted, all changes reported by "hg status"
     will be committed.
 
-    If no commit message is specified, the editor configured in your hgrc
-    or in the EDITOR environment variable is started to enter a message.
+    If you are committing the result of a merge, do not provide any
+    file names or -I/-X filters.
+
+    If no commit message is specified, the configured editor is started to
+    enter a message.
+
+    See 'hg help dates' for a list of formats valid for -d/--date.
 
     options:
     -A, --addremove  mark new/missing files as added/removed before
@@ -339,6 +371,8 @@ diff [OPTION]... [-r REV1 [-r REV2]] [FILE]...::
                                space
     -B, --ignore-blank-lines   ignore changes whose lines are all
                                blank
+    -U, --unified              number of lines of context to show
+                               (default: 3)
     -I, --include              include names matching the given
                                patterns
     -X, --exclude              exclude names matching the given
@@ -402,7 +436,8 @@ grep [OPTION]... PATTERN [FILE]...::
     -l, --files-with-matches  print only filenames and revs that match
     -n, --line-number         print matching line numbers
     -r, --rev                 search in given revision range
-    -u, --user                print user who committed change
+    -u, --user                list the author (long with -v)
+    -d, --date                list the date (short with -q)
     -I, --include             include names matching the given
                               patterns
     -X, --exclude             exclude names matching the given
@@ -424,8 +459,8 @@ heads [-r REV] [REV]...::
     development on the given branch takes place.
 
     options:
-    --style     display using template map file
     -r, --rev   show only heads which are descendants of rev
+    --style     display using template map file
     --template  display with template
 
 help [COMMAND]::
@@ -455,7 +490,7 @@ identify [-nibt] [-r REV] [SOURCE]::
 
     aliases: id
 
-import [-p NUM] [-m MESSAGE] [-f] PATCH...::
+import [OPTION]... PATCH...::
     Import a list of patches and commit them individually.
 
     If there are outstanding changes in the working directory, import
@@ -479,6 +514,7 @@ import [-p NUM] [-m MESSAGE] [-f] PATCH...::
     problems or other deficiencies in the text patch format.
 
     To read a patch from standard input, use patch name "-".
+    See 'hg help dates' for a list of formats valid for -d/--date.
 
     options:
     -p, --strip      directory strip option for patch. This has the
@@ -486,12 +522,15 @@ import [-p NUM] [-m MESSAGE] [-f] PATCH...::
                      (default: 1)
     -b, --base       base path
     -f, --force      skip check for outstanding uncommitted changes
+    --no-commit      don't commit, just update the working directory
     --exact          apply patch to the nodes from which it was
                      generated
     --import-branch  Use any branch information in patch (implied by
                      --exact)
     -m, --message    use <text> as commit message
     -l, --logfile    read commit message from <file>
+    -d, --date       record datecode as commit date
+    -u, --user       record user as committer
 
     aliases: patch
 
@@ -506,14 +545,15 @@ incoming [-p] [-n] [-M] [-f] [-r REV]... [--bundle FILENAME] [SOURCE]::
     See pull for valid source format details.
 
     options:
-    -M, --no-merges     do not show merges
     -f, --force         run even when remote repository is unrelated
-    --style             display using template map file
     -n, --newest-first  show newest record first
     --bundle            file to store the bundles into
-    -p, --patch         show patch
     -r, --rev           a specific revision up to which you would like
                         to pull
+    -p, --patch         show patch
+    -l, --limit         limit number of changes displayed
+    -M, --no-merges     do not show merges
+    --style             display using template map file
     --template          display with template
     -e, --ssh           specify ssh command to use
     --remotecmd         specify hg command to run on the remote side
@@ -571,6 +611,8 @@ log [OPTION]... [FILE]::
     --follow is set, in which case the working directory parent is
     used as the starting revision.
 
+    See 'hg help dates' for a list of formats valid for -d/--date.
+
     By default this command outputs: changeset id and hash, tags,
     non-trivial parents, user, date and time, and a summary for each
     commit. When the -v/--verbose switch is used, the list of changed
@@ -589,14 +631,16 @@ log [OPTION]... [FILE]::
     -d, --date         show revs matching date spec
     -C, --copies       show copied files
     -k, --keyword      do case-insensitive search for a keyword
-    -l, --limit        limit number of changes displayed
     -r, --rev          show the specified revision or range
     --removed          include revs where files were removed
+    -m, --only-merges  show only merges
+    -b, --only-branch  show only changesets within the given named
+                       branch
+    -P, --prune        do not display revision or any of its ancestors
+    -p, --patch        show patch
+    -l, --limit        limit number of changes displayed
     -M, --no-merges    do not show merges
     --style            display using template map file
-    -m, --only-merges  show only merges
-    -p, --patch        show patch
-    -P, --prune        do not display revision or any of its ancestors
     --template         display with template
     -I, --include      include names matching the given patterns
     -X, --exclude      exclude names matching the given patterns
@@ -611,7 +655,7 @@ manifest [-r REV]::
     The manifest is the list of files being version controlled. If no revision
     is given then the first parent of the working directory is used.
 
-    With -v flag, print file permissions, symlink and executable bits. With 
+    With -v flag, print file permissions, symlink and executable bits. With
     --debug flag, print file revision hashes.
 
     options:
@@ -640,12 +684,14 @@ outgoing [-M] [-p] [-n] [-f] [-r REV]... [DEST]::
     See pull for valid destination format details.
 
     options:
-    -M, --no-merges     do not show merges
     -f, --force         run even when remote repository is unrelated
-    -p, --patch         show patch
-    --style             display using template map file
-    -r, --rev           a specific revision you would like to push
+    -r, --rev           a specific revision up to which you would like
+                        to push
     -n, --newest-first  show newest record first
+    -p, --patch         show patch
+    -l, --limit         limit number of changes displayed
+    -M, --no-merges     do not show merges
+    --style             display using template map file
     --template          display with template
     -e, --ssh           specify ssh command to use
     --remotecmd         specify hg command to run on the remote side
@@ -748,7 +794,8 @@ push [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [DEST]::
 
     options:
     -f, --force  force push
-    -r, --rev    a specific revision you would like to push
+    -r, --rev    a specific revision up to which you would like to
+                 push
     -e, --ssh    specify ssh command to use
     --remotecmd  specify hg command to run on the remote side
 
@@ -761,22 +808,28 @@ recover::
 remove [OPTION]... FILE...::
     Schedule the indicated files for removal from the repository.
 
-    This only removes files from the current branch, not from the
-    entire project history.  If the files still exist in the working
-    directory, they will be deleted from it.  If invoked with --after,
-    files are marked as removed, but not actually unlinked unless --force
-    is also given. Without exact file names, --after will only mark
-    files as removed if they are no longer in the working directory.
+    This only removes files from the current branch, not from the entire
+    project history. -A can be used to remove only files that have already
+    been deleted, -f can be used to force deletion, and -Af can be used
+    to remove files from the next revision without deleting them.
+
+    The following table details the behavior of remove for different file
+    states (columns) and option combinations (rows). The file states are
+    Added, Clean, Modified and Missing (as reported by hg status). The
+    actions are Warn, Remove (from branch) and Delete (from disk).
+
+           A  C  M  !
+    none   W  RD W  R
+    -f     R  RD RD R
+    -A     W  W  W  R
+    -Af    R  R  R  R
 
     This command schedules the files to be removed at the next commit.
     To undo a remove before that, see hg revert.
 
-    Modified files and added files are not removed by default.  To
-    remove them, use the -f/--force option.
-
     options:
-    -A, --after    record remove that has already occurred
-    -f, --force    remove file even if modified
+    -A, --after    record delete for missing files
+    -f, --force    remove (and delete) file even if added or modified
     -I, --include  include names matching the given patterns
     -X, --exclude  exclude names matching the given patterns
 
@@ -804,6 +857,9 @@ rename [OPTION]... SOURCE... DEST::
     aliases: mv
 
 revert [OPTION]... [-r REV] [NAME]...::
+    (use update -r to check out earlier revisions, revert does not
+    change the working dir parents)
+
     With no revision specified, revert the named files or directories
     to the contents they had in the parent of the working directory.
     This restores the contents of the affected files to an unmodified
@@ -811,12 +867,10 @@ revert [OPTION]... [-r REV] [NAME]...::
     working directory has two parents, you must explicitly specify the
     revision to revert to.
 
-    Modified files are saved with a .orig suffix before reverting.
-    To disable these backups, use --no-backup.
-
     Using the -r option, revert the given files or directories to their
     contents as of a specific revision. This can be helpful to "roll
-    back" some or all of a change that should not have been committed.
+    back" some or all of an earlier change.
+    See 'hg help dates' for a list of formats valid for -d/--date.
 
     Revert modifies the working directory.  It does not commit any
     changes, or change the parent of the working directory.  If you
@@ -828,8 +882,10 @@ revert [OPTION]... [-r REV] [NAME]...::
     mode of a file was changed, it is reset.
 
     If names are given, all files matching the names are reverted.
-
     If no arguments are given, no files are reverted.
+
+    Modified files are saved with a .orig suffix before reverting.
+    To disable these backups, use --no-backup.
 
     options:
     -a, --all      revert all changes when no arguments given
@@ -841,8 +897,10 @@ revert [OPTION]... [-r REV] [NAME]...::
     -n, --dry-run  do not perform actions, just print output
 
 rollback::
-    Roll back the last transaction in this repository, restoring the
-    project to its state prior to the transaction.
+    This command should be used with care. There is only one level of
+    rollback, and there is no way to undo a rollback. It will also
+    restore the dirstate at the time of the last transaction, losing
+    any dirstate changes since that time.
 
     Transactions are used to encapsulate the effects of all commands
     that create new changesets or propagate existing changesets into a
@@ -854,11 +912,6 @@ rollback::
       pull
       push (with this repository as destination)
       unbundle
-
-    This command should be used with care. There is only one level of
-    rollback, and there is no way to undo a rollback. It will also
-    restore the dirstate at the time of the last transaction, which
-    may lose subsequent dirstate changes.
 
     This command is not intended for use on public repositories. Once
     changes are visible for pull by other users, rolling a transaction
@@ -881,8 +934,9 @@ serve [OPTION]...::
     -d, --daemon      run server in background
     --daemon-pipefds  used internally by daemon mode
     -E, --errorlog    name of error log file to write to
-    -p, --port        port to use (default: 8000)
-    -a, --address     address to use
+    -p, --port        port to listen on (default: 8000)
+    -a, --address     address to listen on (default: all interfaces)
+    --prefix          prefix path to serve from (default: server root)
     -n, --name        name to show in web pages (default: working dir)
     --webdir-conf     name of the webdir config file (serve more than
                       one repo)
@@ -909,8 +963,13 @@ showconfig [-u] [NAME]...::
 
 status [OPTION]... [FILE]...::
     Show status of files in the repository.  If names are given, only
-    files that match are shown.  Files that are clean or ignored, are
-    not listed unless -c (clean), -i (ignored) or -A is given.
+    files that match are shown.  Files that are clean or ignored or
+    source of a copy/move operation, are not listed unless -c (clean),
+    -i (ignored), -C (copies) or -A is given.  Unless options described
+    with "show only ..." are given, the options -mardu are used.
+
+    Option -q/--quiet hides untracked (unknown and ignored) files
+    unless explicitly requested with -u/--unknown or -i/-ignored.
 
     NOTE: status may appear to disagree with diff if permissions have
     changed or a merge has occurred. The standard diff format does not
@@ -927,7 +986,7 @@ status [OPTION]... [FILE]...::
     C = clean
     ! = deleted, but still tracked
     ? = not tracked
-    I = ignored (not shown by default)
+    I = ignored
       = the previous added file was copied from here
 
     options:
@@ -948,11 +1007,11 @@ status [OPTION]... [FILE]...::
 
     aliases: st
 
-tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME::
+tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...::
     Name a particular revision using <name>.
 
     Tags are used to name particular revisions of the repository and are
-    very useful to compare different revision, to go back to significant
+    very useful to compare different revisions, to go back to significant
     earlier versions or to mark branch points as releases, etc.
 
     If no revision is given, the parent of the working directory is used,
@@ -963,6 +1022,8 @@ tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME::
     similarly to other project files and can be hand-edited if
     necessary.  The file '.hg/localtags' is used for local tags (not
     shared among repositories).
+
+    See 'hg help dates' for a list of formats valid for -d/--date.
 
     options:
     -f, --force    replace existing tag
@@ -976,14 +1037,22 @@ tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME::
 tags::
     List the repository tags.
 
-    This lists both regular and local tags.
+    This lists both regular and local tags. When the -v/--verbose switch
+    is used, a third column "local" is printed for local tags.
 
 tip [-p]::
-    Show the tip revision.
+    The tip revision (usually just called the tip) is the most
+    recently added changeset in the repository, the most recently
+    changed head.
+
+    If you have just made a commit, that commit will be the tip. If
+    you have just pulled changes from another repository, the tip of
+    that repository becomes the current tip. The "tip" tag is special
+    and cannot be renamed or assigned to a different changeset.
 
     options:
-    --style      display using template map file
     -p, --patch  show patch
+    --style      display using template map file
     --template   display with template
 
 unbundle [-u] FILE...::
@@ -997,15 +1066,16 @@ update [-C] [-d DATE] [[-r] REV]::
     Update the working directory to the specified revision, or the
     tip of the current branch if none is specified.
 
-    If there are no outstanding changes in the working directory and
-    there is a linear relationship between the current version and the
-    requested version, the result is the requested version.
+    If the requested revision is a descendant of the working
+    directory, any outstanding changes in the working directory will
+    be merged into the result. If it is not directly descended but is
+    on the same named branch, update aborts with a suggestion to use
+    merge or update -C instead.
 
-    To merge the working directory with another revision, use the
-    merge command.
+    If the requested revision is on a different named branch and the
+    working directory is clean, update quietly switches branches.
 
-    By default, update will refuse to run if doing so would require
-    discarding local changes.
+    See 'hg help dates' for a list of formats valid for --date.
 
     options:
     -C, --clean  overwrite locally modified files
@@ -1029,8 +1099,11 @@ DATE FORMATS
 ------------
 
 
-    Some commands (backout, commit, tag) allow the user to specify a date.
-    Many date formats are acceptible. Here are some examples:
+    Some commands allow the user to specify a date:
+    backout, commit, import, tag: Specify the commit date.
+    log, revert, update: Select revision(s) by date.
+
+    Many date formats are valid. Here are some examples:
 
     "Wed Dec 6 13:18:29 2006" (local timezone assumed)
     "Dec 6 13:18 -0600" (year assumed, time offset provided)
@@ -1054,6 +1127,13 @@ DATE FORMATS
     the number of seconds since the epoch (1970-01-01 00:00 UTC). offset
     is the offset of the local timezone, in seconds west of UTC (negative
     if the timezone is east of UTC).
+
+    The log command also accepts date ranges:
+
+    "<{date}" - on or before a given date
+    ">{date}" - on or after a given date
+    "{date} to {date}" - a date range, inclusive
+    "-{days}" - within a given number of days of today
     
 FILE NAME PATTERNS
 ------------------
@@ -1112,8 +1192,7 @@ HG::
     'hg' (with com/exe/bat/cmd extension on Windows) is searched.
 
 HGEDITOR::
-    This is the name of the editor to use when committing. Defaults to the
-    value of EDITOR.
+    This is the name of the editor to use when committing. See EDITOR.
 
     (deprecated, use .hgrc)
 
@@ -1135,9 +1214,6 @@ HGMERGE::
     An executable to use for resolving merge conflicts. The program
     will be executed with three arguments: local file, remote file,
     ancestor file.
-
-    The default program is "hgmerge", which is a shell script provided
-    by Mercurial with some sensible defaults.
 
     (deprecated, use .hgrc)
 
@@ -1163,9 +1239,16 @@ LOGNAME::
     If neither HGUSER nor EMAIL is set, LOGNAME will be used (with
     '@hostname' appended) as the author value for a commit.
 
+VISUAL::
+    This is the name of the editor to use when committing. See EDITOR.
+
 EDITOR::
-    This is the name of the editor used in the hgmerge script. It will be
-    used for commit messages if HGEDITOR isn't set. Defaults to 'vi'.
+    Sometimes Mercurial needs to open a text file in an editor
+    for a user to modify, for example when writing commit messages.
+    The editor it uses is determined by looking at the environment
+    variables HGEDITOR, VISUAL and EDITOR, in that order. The first
+    non-empty one is chosen. If all of them are empty, the editor
+    defaults to 'vi'.
 
 PYTHONPATH::
     This is used by Python to find imported modules and may need to be set

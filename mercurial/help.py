@@ -8,8 +8,11 @@
 helptable = {
     "dates|Date Formats":
     r'''
-    Some commands (backout, commit, tag) allow the user to specify a date.
-    Many date formats are acceptible. Here are some examples:
+    Some commands allow the user to specify a date:
+    backout, commit, import, tag: Specify the commit date.
+    log, revert, update: Select revision(s) by date.
+
+    Many date formats are valid. Here are some examples:
 
     "Wed Dec 6 13:18:29 2006" (local timezone assumed)
     "Dec 6 13:18 -0600" (year assumed, time offset provided)
@@ -33,6 +36,13 @@ helptable = {
     the number of seconds since the epoch (1970-01-01 00:00 UTC). offset
     is the offset of the local timezone, in seconds west of UTC (negative
     if the timezone is east of UTC).
+
+    The log command also accepts date ranges:
+
+    "<{date}" - on or before a given date
+    ">{date}" - on or after a given date
+    "{date} to {date}" - a date range, inclusive
+    "-{days}" - within a given number of days of today
     ''',
 
     'environment|env|Environment Variables':
@@ -43,8 +53,7 @@ HG::
     'hg' (with com/exe/bat/cmd extension on Windows) is searched.
 
 HGEDITOR::
-    This is the name of the editor to use when committing. Defaults to the
-    value of EDITOR.
+    This is the name of the editor to use when committing. See EDITOR.
 
     (deprecated, use .hgrc)
 
@@ -66,9 +75,6 @@ HGMERGE::
     An executable to use for resolving merge conflicts. The program
     will be executed with three arguments: local file, remote file,
     ancestor file.
-
-    The default program is "hgmerge", which is a shell script provided
-    by Mercurial with some sensible defaults.
 
     (deprecated, use .hgrc)
 
@@ -94,9 +100,16 @@ LOGNAME::
     If neither HGUSER nor EMAIL is set, LOGNAME will be used (with
     '@hostname' appended) as the author value for a commit.
 
+VISUAL::
+    This is the name of the editor to use when committing. See EDITOR.
+
 EDITOR::
-    This is the name of the editor used in the hgmerge script. It will be
-    used for commit messages if HGEDITOR isn't set. Defaults to 'vi'.
+    Sometimes Mercurial needs to open a text file in an editor
+    for a user to modify, for example when writing commit messages.
+    The editor it uses is determined by looking at the environment
+    variables HGEDITOR, VISUAL and EDITOR, in that order. The first
+    non-empty one is chosen. If all of them are empty, the editor
+    defaults to 'vi'.
 
 PYTHONPATH::
     This is used by Python to find imported modules and may need to be set

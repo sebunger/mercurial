@@ -1,7 +1,7 @@
+proposed_upstream__python-module-not-script.patch
 proposed_upstream__extension_syntax.patch
 deb_specific__FAQ_subst.patch
-proposed_upstream__type_is_not_posix.patch
-proposed_upstream__check_hgmerge_args.patch
 deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
 deb_specific__bash_completion_global_option_already_set.patch
+deb_specific__ElementTree_for_darc.patch

@@ -6,7 +6,7 @@
 # the GNU General Public License, incorporated herein by reference.
 
 from i18n import _
-from node import *
+from node import hex
 import cStringIO, os, stat, tarfile, time, util, zipfile
 import zlib, gzip
 
@@ -15,7 +15,7 @@ def tidyprefix(dest, prefix, suffixes):
     safe for consumers.'''
 
     if prefix:
-        prefix = prefix.replace('\\', '/')
+        prefix = util.normpath(prefix)
     else:
         if not isinstance(dest, str):
             raise ValueError('dest must be string if no prefix')
@@ -208,12 +208,16 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
         archiver.addfile(name, mode, islink, data)
 
     ctx = repo.changectx(node)
+    if kind not in archivers:
+        raise util.Abort(_("unknown archive type '%s'" % kind))
     archiver = archivers[kind](dest, prefix, mtime or ctx.date()[0])
     m = ctx.manifest()
     items = m.items()
     items.sort()
-    write('.hg_archival.txt', 0644, False,
-          lambda: 'repo: %s\nnode: %s\n' % (hex(repo.changelog.node(0)), hex(node)))
+    if repo.ui.configbool("ui", "archivemeta", True):
+        write('.hg_archival.txt', 0644, False,
+              lambda: 'repo: %s\nnode: %s\n' % (
+                  hex(repo.changelog.node(0)), hex(node)))
     for filename, filenode in items:
         write(filename, m.execf(filename) and 0755 or 0644, m.linkf(filename),
               lambda: repo.file(filename).read(filenode))

@@ -3,7 +3,7 @@ mercurial for Debian
 
 Table of contents
 * Documentation
-* Extensions provided in this package
+* Extensions provided in this package and their dependencies
 * Other extensions
 * Emacs support
 * Very old users of mercurial
@@ -17,40 +17,83 @@ The URL is: http://www.selenic.com/mercurial/wiki/
 Some parts of the Wiki will be added in the package (for people not online)
 as soon as mercurial documentation stabilises enough.
 
-Extensions provided in this package
-***********************************
+Extensions provided in this package and their dependencies
+**********************************************************
 
-I try to add all available upstream extensions in the Debian package.
-Look at sample.hgrc to get a few information about available extensions.
+Look at examples/sample.hgrc to get a few information about available extensions.
 
 Extensions can be enabled system-wide, per-user and/or per repository (see
-hgrc(5) for more information). 
+hgrc(5) for more information).
   By default, this debian package enables extensions that only enable new
 commands (such as 'hgk', 'gpg', ...), but not extensions that modify
 mercurial behaviour (such as 'win32text')
   The system administrator can modify this by editing
 /etc/mercurial/hgrc.d/hgext.rc
+  Some extensions are enabled only the their depending package(s) are
+installed. This auto-detection will not work if these depends are installed
+or removed after mercurial. In this case, run "dpkg-reconfigure mercurial"
+or manually edit /etc/mercurial/hgrc.d/hgext.rc 
+
+Dependencies needed for extension are listed as Suggests: as they are not
+strickly needed to use the core of mercurial. Install them if you
+need them.
+
+Extension: bugzilla
+-------------------
+Bugzilla integration for mercurial.
+Depends: python-mysqldb
+
+Extension: convert
+------------------
+Foreign SCM converter.
+Depends: git-core | darc | monotone | bzr | subversion
+Depends: python-elementtree (for darc convertion only)
+
+Extension: hgk
+--------------
+Add the 'view' command, allows browsing the history of a repository in
+a graphical way.
+Depends:  tk8.4 | wish
+
+Extension: highlight
+--------------------
+Pretty output for hgweb.
+Depends: python-pygments
+
+CGI Script: hgweb.cgi
+---------------------
+CGI script to serve one mercurial repository.
+In order to use it, you need to edit it (to set the path to you repository).
+Depends: apache2 | httpd
+
+CGI Script: hgwebdir.cgi
+------------------------
+CGI script to serve several mercurial repositories.
+In order to use it, you need to edit it (to set paths to your repositories).
+Depends: apache2 | httpd
+
+CGI Script: hgwebdir.fcgi
+-------------------------
+Experimental CGI script to serve several mercurial repositories using WSGIServer.
+In order to use it, you need to edit it (to set paths to your repositories).
+Depends: apache2 | httpd, python-flup
+
 
 Other extensions
 ****************
+
 hgct
 ----
-add the 'ct' command that is a graphical interface for commiting changes.
+Add the 'ct' command that is a graphical interface for commiting changes.
 hgct is available in the 'commit-tool' debian package.
 Note: hgct is not developed anymore. Try to switch to qct.
 
 qct
 ---
-add the 'qct' command that is a graphical interface for commiting changes.
+Add the 'qct' command that is a graphical interface for commiting changes.
+
 qct is available in the 'qct' debian package.
 
-Dependencies for extensions
-***************************
-Dependencies needed for extension are listed as Suggests: as they are not
-strickly needed to use the core of mercurial. Install them if you
-need them.
-hg convert: need python-elementtree to convert darcs repository
-hg view: need TclTk (wish) to display revisions graphicaly
 
 Emacs support
 *************
@@ -72,6 +115,7 @@ Emacs will boot faster and use less memory when not using mercurial.
 This is not done system-wide by this package because the "until needed" is a
 bit of a fallacy in this case: find-file is likely to be run at or shortly
 after boot.
+
 
 Very old users of mercurial
 ***************************

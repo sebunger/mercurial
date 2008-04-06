@@ -3,6 +3,19 @@
 
 [extensions]
 
+# add color output to the status and qseries commands
+# hgext.color =
+
+# syntax highlighting in hgweb file view (requires pygments)
+hgext.highlight =
+
+# inotify-based status acceleration for Linux systems
+# add the 'inserve' command
+hgext.inotify =
+
+# CVS/RCS-like Keyword Substitution
+# hgext.keyword =
+
 # changeset access control for mercurial
 # hgext.acl=
 
@@ -38,10 +51,6 @@ hgext.gpg=
 # ASCII graph log extension for Mercurial
 # add the 'glog' command
 hgext.graphlog=
-
-# Dichotomic search in the DAG of changesets
-# add the 'bisect' command
-hgext.hbisect=
 
 # allows browsing the history of a repository in a graphical way
 # add the 'view' command

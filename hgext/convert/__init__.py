@@ -5,307 +5,26 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from common import NoRepo, SKIPREV, converter_source, converter_sink
-from cvs import convert_cvs
-from darcs import darcs_source
-from git import convert_git
-from hg import mercurial_source, mercurial_sink
-from subversion import svn_source, debugsvnlog
-import filemap
+import convcmd
+from mercurial import commands
 
-import os, shutil
-from mercurial import hg, ui, util, commands
-from mercurial.i18n import _
-
-commands.norepo += " convert debugsvnlog"
-
-source_converters = [
-    ('cvs', convert_cvs),
-    ('git', convert_git),
-    ('svn', svn_source),
-    ('hg', mercurial_source),
-    ('darcs', darcs_source),
-    ]
-
-sink_converters = [
-    ('hg', mercurial_sink),
-    ]
-
-def convertsource(ui, path, type, rev):
-    for name, source in source_converters:
-        try:
-            if not type or name == type:
-                return source(ui, path, rev)
-        except NoRepo, inst:
-            ui.note(_("convert: %s\n") % inst)
-    raise util.Abort('%s: unknown repository type' % path)
-
-def convertsink(ui, path, type):
-    for name, sink in sink_converters:
-        try:
-            if not type or name == type:
-                return sink(ui, path)
-        except NoRepo, inst:
-            ui.note(_("convert: %s\n") % inst)
-    raise util.Abort('%s: unknown repository type' % path)
-
-class converter(object):
-    def __init__(self, ui, source, dest, revmapfile, opts):
-
-        self.source = source
-        self.dest = dest
-        self.ui = ui
-        self.opts = opts
-        self.commitcache = {}
-        self.revmapfile = revmapfile
-        self.revmapfilefd = None
-        self.authors = {}
-        self.authorfile = None
-
-        self.maporder = []
-        self.map = {}
-        try:
-            origrevmapfile = open(self.revmapfile, 'r')
-            for l in origrevmapfile:
-                sv, dv = l[:-1].split()
-                if sv not in self.map:
-                    self.maporder.append(sv)
-                self.map[sv] = dv
-            origrevmapfile.close()
-        except IOError:
-            pass
-
-        # Read first the dst author map if any
-        authorfile = self.dest.authorfile()
-        if authorfile and os.path.exists(authorfile):
-            self.readauthormap(authorfile)
-        # Extend/Override with new author map if necessary
-        if opts.get('authors'):
-            self.readauthormap(opts.get('authors'))
-            self.authorfile = self.dest.authorfile()
-
-    def walktree(self, heads):
-        '''Return a mapping that identifies the uncommitted parents of every
-        uncommitted changeset.'''
-        visit = heads
-        known = {}
-        parents = {}
-        while visit:
-            n = visit.pop(0)
-            if n in known or n in self.map: continue
-            known[n] = 1
-            commit = self.cachecommit(n)
-            parents[n] = []
-            for p in commit.parents:
-                parents[n].append(p)
-                visit.append(p)
-
-        return parents
-
-    def toposort(self, parents):
-        '''Return an ordering such that every uncommitted changeset is
-        preceeded by all its uncommitted ancestors.'''
-        visit = parents.keys()
-        seen = {}
-        children = {}
-
-        while visit:
-            n = visit.pop(0)
-            if n in seen: continue
-            seen[n] = 1
-            # Ensure that nodes without parents are present in the 'children'
-            # mapping.
-            children.setdefault(n, [])
-            for p in parents[n]:
-                if not p in self.map:
-                    visit.append(p)
-                children.setdefault(p, []).append(n)
-
-        s = []
-        removed = {}
-        visit = children.keys()
-        while visit:
-            n = visit.pop(0)
-            if n in removed: continue
-            dep = 0
-            if n in parents:
-                for p in parents[n]:
-                    if p in self.map: continue
-                    if p not in removed:
-                        # we're still dependent
-                        visit.append(n)
-                        dep = 1
-                        break
-
-            if not dep:
-                # all n's parents are in the list
-                removed[n] = 1
-                if n not in self.map:
-                    s.append(n)
-                if n in children:
-                    for c in children[n]:
-                        visit.insert(0, c)
-
-        if self.opts.get('datesort'):
-            depth = {}
-            for n in s:
-                depth[n] = 0
-                pl = [p for p in self.commitcache[n].parents
-                      if p not in self.map]
-                if pl:
-                    depth[n] = max([depth[p] for p in pl]) + 1
-
-            s = [(depth[n], self.commitcache[n].date, n) for n in s]
-            s.sort()
-            s = [e[2] for e in s]
-
-        return s
-
-    def mapentry(self, src, dst):
-        if self.revmapfilefd is None:
-            try:
-                self.revmapfilefd = open(self.revmapfile, "a")
-            except IOError, (errno, strerror):
-                raise util.Abort("Could not open map file %s: %s, %s\n" % (self.revmapfile, errno, strerror))
-        self.map[src] = dst
-        self.revmapfilefd.write("%s %s\n" % (src, dst))
-        self.revmapfilefd.flush()
-
-    def writeauthormap(self):
-        authorfile = self.authorfile
-        if authorfile:
-           self.ui.status('Writing author map file %s\n' % authorfile)
-           ofile = open(authorfile, 'w+')
-           for author in self.authors:
-               ofile.write("%s=%s\n" % (author, self.authors[author]))
-           ofile.close()
-
-    def readauthormap(self, authorfile):
-        afile = open(authorfile, 'r')
-        for line in afile:
-            try:
-                srcauthor = line.split('=')[0].strip()
-                dstauthor = line.split('=')[1].strip()
-                if srcauthor in self.authors and dstauthor != self.authors[srcauthor]:
-                    self.ui.status(
-                        'Overriding mapping for author %s, was %s, will be %s\n'
-                        % (srcauthor, self.authors[srcauthor], dstauthor))
-                else:
-                    self.ui.debug('Mapping author %s to %s\n'
-                                  % (srcauthor, dstauthor))
-                    self.authors[srcauthor] = dstauthor
-            except IndexError:
-                self.ui.warn(
-                    'Ignoring bad line in author file map %s: %s\n'
-                    % (authorfile, line))
-        afile.close()
-
-    def cachecommit(self, rev):
-        commit = self.source.getcommit(rev)
-        commit.author = self.authors.get(commit.author, commit.author)
-        self.commitcache[rev] = commit
-        return commit
-
-    def copy(self, rev):
-        commit = self.commitcache[rev]
-        do_copies = hasattr(self.dest, 'copyfile')
-        filenames = []
-
-        changes = self.source.getchanges(rev)
-        if isinstance(changes, basestring):
-            if changes == SKIPREV:
-                dest = SKIPREV
-            else:
-                dest = self.map[changes]
-            self.mapentry(rev, dest)
-            return
-        files, copies = changes
-        parents = [self.map[r] for r in commit.parents]
-        if commit.parents:
-            prev = commit.parents[0]
-            if prev not in self.commitcache:
-                self.cachecommit(prev)
-            pbranch = self.commitcache[prev].branch
-        else:
-            pbranch = None
-        self.dest.setbranch(commit.branch, pbranch, parents)
-        for f, v in files:
-            filenames.append(f)
-            try:
-                data = self.source.getfile(f, v)
-            except IOError, inst:
-                self.dest.delfile(f)
-            else:
-                e = self.source.getmode(f, v)
-                self.dest.putfile(f, e, data)
-                if do_copies:
-                    if f in copies:
-                        copyf = copies[f]
-                        # Merely marks that a copy happened.
-                        self.dest.copyfile(copyf, f)
-
-        newnode = self.dest.putcommit(filenames, parents, commit)
-        self.mapentry(rev, newnode)
-
-    def convert(self):
-        try:
-            self.source.before()
-            self.dest.before()
-            self.source.setrevmap(self.map, self.maporder)
-            self.ui.status("scanning source...\n")
-            heads = self.source.getheads()
-            parents = self.walktree(heads)
-            self.ui.status("sorting...\n")
-            t = self.toposort(parents)
-            num = len(t)
-            c = None
-
-            self.ui.status("converting...\n")
-            for c in t:
-                num -= 1
-                desc = self.commitcache[c].desc
-                if "\n" in desc:
-                    desc = desc.splitlines()[0]
-                self.ui.status("%d %s\n" % (num, desc))
-                self.copy(c)
-
-            tags = self.source.gettags()
-            ctags = {}
-            for k in tags:
-                v = tags[k]
-                if self.map.get(v, SKIPREV) != SKIPREV:
-                    ctags[k] = self.map[v]
-
-            if c and ctags:
-                nrev = self.dest.puttags(ctags)
-                # write another hash correspondence to override the previous
-                # one so we don't end up with extra tag heads
-                if nrev:
-                    self.mapentry(c, nrev)
-
-            self.writeauthormap()
-        finally:
-            self.cleanup()
-
-    def cleanup(self):
-        try:
-            self.dest.after()
-        finally:
-            self.source.after()
-        if self.revmapfilefd:
-            self.revmapfilefd.close()
+# Commands definition was moved elsewhere to ease demandload job.
 
 def convert(ui, src, dest=None, revmapfile=None, **opts):
     """Convert a foreign SCM repository to a Mercurial one.
 
     Accepted source formats:
+    - Mercurial
     - CVS
     - Darcs
     - git
     - Subversion
+    - Monotone
+    - GNU Arch
 
     Accepted destination formats:
     - Mercurial
+    - Subversion (history on branches is not preserved)
 
     If no revision is given, all revisions will be converted. Otherwise,
     convert will only import up to the named revision (given in a format
@@ -315,8 +34,8 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     basename of the source with '-hg' appended.  If the destination
     repository doesn't exist, it will be created.
 
-    If <revmapfile> isn't given, it will be put in a default location
-    (<dest>/.hg/shamap by default).  The <revmapfile> is a simple text
+    If <REVMAP> isn't given, it will be put in a default location
+    (<dest>/.hg/shamap by default).  The <REVMAP> is a simple text
     file that maps each source commit ID to the destination ID for
     that revision, like so:
     <source ID> <destination ID>
@@ -340,45 +59,77 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
       exclude path/to/file
 
       rename from/file to/file
-    
+
     The 'include' directive causes a file, or all files under a
-    directory, to be included in the destination repository.  The
-    'exclude' directive causes files or directories to be omitted.
-    The 'rename' directive renames a file or directory.  To rename
-    from a subdirectory into the root of the repository, use '.' as
-    the path to rename to.
+    directory, to be included in the destination repository, and the
+    exclusion of all other files and dirs not explicitely included.
+    The 'exclude' directive causes files or directories to be omitted.
+    The 'rename' directive renames a file or directory.  To rename from a
+    subdirectory into the root of the repository, use '.' as the path to
+    rename to.
+
+    The splicemap is a file that allows insertion of synthetic
+    history, letting you specify the parents of a revision.  This is
+    useful if you want to e.g. give a Subversion merge two parents, or
+    graft two disconnected series of history together.  Each entry
+    contains a key, followed by a space, followed by one or two
+    values, separated by spaces.  The key is the revision ID in the
+    source revision control system whose parents should be modified
+    (same format as a key in .hg/shamap).  The values are the revision
+    IDs (in either the source or destination revision control system)
+    that should be used as the new parents for that node.
+
+    Mercurial Source
+    -----------------
+
+    --config convert.hg.saverev=True          (boolean)
+        allow target to preserve source revision ID
+
+    Subversion Source
+    -----------------
+
+    Subversion source detects classical trunk/branches/tags layouts.
+    By default, the supplied "svn://repo/path/" source URL is
+    converted as a single branch. If "svn://repo/path/trunk" exists
+    it replaces the default branch. If "svn://repo/path/branches"
+    exists, its subdirectories are listed as possible branches. If
+    "svn://repo/path/tags" exists, it is looked for tags referencing
+    converted branches. Default "trunk", "branches" and "tags" values
+    can be overriden with following options. Set them to paths
+    relative to the source URL, or leave them blank to disable
+    autodetection.
+
+    --config convert.svn.branches=branches    (directory name)
+        specify the directory containing branches
+    --config convert.svn.tags=tags            (directory name)
+        specify the directory containing tags
+    --config convert.svn.trunk=trunk          (directory name)
+        specify the name of the trunk branch
+
+    Source history can be retrieved starting at a specific revision,
+    instead of being integrally converted. Only single branch
+    conversions are supported.
+
+    --config convert.svn.startrev=0           (svn revision number)
+        specify start Subversion revision.
+
+    Mercurial Destination
+    ---------------------
+
+    --config convert.hg.clonebranches=False   (boolean)
+        dispatch source branches in separate clones.
+    --config convert.hg.tagsbranch=default    (branch name)
+        tag revisions branch name
+    --config convert.hg.usebranchnames=True   (boolean)
+        preserve branch names
+
     """
+    return convcmd.convert(ui, src, dest, revmapfile, **opts)
 
-    util._encoding = 'UTF-8'
+def debugsvnlog(ui, **opts):
+    return convcmd.debugsvnlog(ui, **opts)
 
-    if not dest:
-        dest = hg.defaultdest(src) + "-hg"
-        ui.status("assuming destination %s\n" % dest)
-
-    destc = convertsink(ui, dest, opts.get('dest_type'))
-
-    try:
-        srcc = convertsource(ui, src, opts.get('source_type'),
-                             opts.get('rev'))
-    except Exception:
-        for path in destc.created:
-            shutil.rmtree(path, True)
-        raise
-
-    fmap = opts.get('filemap')
-    if fmap:
-        srcc = filemap.filemap_source(ui, srcc, fmap)
-        destc.setfilemapmode(True)
-
-    if not revmapfile:
-        try:
-            revmapfile = destc.revmapfile()
-        except:
-            revmapfile = os.path.join(destc, "map")
-
-    c = converter(ui, srcc, destc, revmapfile, opts)
-    c.convert()
-
+commands.norepo += " convert debugsvnlog"
 
 cmdtable = {
     "convert":
@@ -388,11 +139,11 @@ cmdtable = {
           ('', 'filemap', '', 'remap file names using contents of file'),
           ('r', 'rev', '', 'import up to target revision REV'),
           ('s', 'source-type', '', 'source repository type'),
+          ('', 'splicemap', '', 'splice synthesized history into place'),
           ('', 'datesort', None, 'try to sort changesets by date')],
-         'hg convert [OPTION]... SOURCE [DEST [MAPFILE]]'),
+         'hg convert [OPTION]... SOURCE [DEST [REVMAP]]'),
     "debugsvnlog":
         (debugsvnlog,
          [],
          'hg debugsvnlog'),
 }
-

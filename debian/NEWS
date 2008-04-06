@@ -1,3 +1,15 @@
+mercurial (1.0) unstable; urgency=low
+
+  Since the 1.0 version, the hbisect extension is now provided as a 
+  built-in command. If you keep an older version of the hgext.rc file
+  in /etc/mercurial/hgrc.d/ or a $HOME/.hgrc file with the extension 
+  enabled , mercurial will emit a warning: "failed to import extension 
+  hgext.hbisect: No module  named  hbisect". Just delete the  
+  hgext.hbisect entry in the hgext.rc and/or .hgrc file.
+  
+
+ -- Gerardo Curiel <gcuriel@debian.org.ve>  Wed, 02 Apr 2008 16:14:47 -0430
+
 mercurial (0.9) unstable; urgency=low
 
   Since the 0.8.1-5 version, mercurial uses python2.4 instead of (currently the

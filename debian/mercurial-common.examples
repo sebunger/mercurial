@@ -1,0 +1,17 @@
+hgeditor
+contrib/git-viz
+contrib/hgdiff
+contrib/hg-relink
+contrib/hgsh
+contrib/hg-ssh
+contrib/rewrite-log
+contrib/mergetools.hgrc
+contrib/sample.hgrc
+contrib/simplemerge
+contrib/tcsh_completion
+contrib/vim
+contrib/zsh_completion
+contrib/hgwebdir.fcgi
+hgweb.cgi
+hgwebdir.cgi
+
