@@ -3,7 +3,8 @@ mercurial (1.0-1) unstable; urgency=low
   * new upstream version
     Closes several Debian bugs:
      * "hg convert broken" (Closes: #472185)
-     * "hgmerge: uses non-POSIX syntax `type' in /bin/sh script" (Closes: #447094)
+     * "hgmerge: uses non-POSIX syntax `type' in /bin/sh script" (Closes:
+       #447094)
      * "hgmerge: --help option gives a message that ends strangely" (Closes:
        #443428)
      * "mercurial: hg/editor interaction leaves a lot of temp files around"
