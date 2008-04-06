@@ -75,7 +75,7 @@ mercurial (1.0-1) unstable; urgency=low
      * standard hook to reject text files with CRLF in win32text extension
      * redirect stdout to stderr for ssh and http servers
       
-  [Gerardo Curiel]
+  [ Gerardo Curiel ]
   * Split package to fix lintian warnings:
     + mercurial -  main package
     + mercurial-common - Arch-indep bits
@@ -105,7 +105,7 @@ mercurial (1.0-1) unstable; urgency=low
     + python-elementtree (was a suggested dependency, but we're shipping
     the 'convert' extension enabled by default)
 
-  [Vincent Danjean ]
+  [ Vincent Danjean ]
   * import mercurial in the Python Application Packaging Team project
   * debian/control:
     + add PAPT in the Uploaders field
@@ -133,7 +133,7 @@ mercurial (1.0-1) unstable; urgency=low
   * patches/deb_specific__use_sensible-editor.patch:
     +Rediff against 1.0 branch.
 
- -- Gerardo Curiel <gcuriel@debian.org.ve>  Thu, 31 Mar 2008 15:06:09 +0100
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 07 Apr 2008 00:11:40 +0200
 
 mercurial (0.9.5-3) unstable; urgency=low
 
