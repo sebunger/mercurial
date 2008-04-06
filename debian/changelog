@@ -100,6 +100,7 @@ mercurial (1.0-1) unstable; urgency=low
      * debian/control:
        + add PAPT in the Uploaders field
        + add Vcs-* fields
+       + makes the package binNUM safe
                      
      [ Piotr Ożarowski ]
      * New recommended packages:
