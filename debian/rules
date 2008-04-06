@@ -4,32 +4,48 @@
 DEB_PYTHON_SYSTEM=pysupport
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/patchsys-quilt.mk
+
+# These part must be run between dh_install and dh_pysupport
+# So, they must be defined BEFORE including python-distutils.mk
+binary-install/mercurial::
+	pysupport-movemodules debian/mercurial
+	# remove arch-independent python stuff
+	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support
+
+binary-install/mercurial-common::
+	pysupport-movemodules debian/mercurial-common
+	# remove arch-dependent python stuff
+	rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python-support
+	rmdir --ignore-fail-on-non-empty $(CURDIR)/debian/mercurial-common/usr/lib
+
 include /usr/share/cdbs/1/class/python-distutils.mk
 
 
-binary-install/mercurial-web::
-	chmod 0755 $(CURDIR)/debian/mercurial-web/usr/lib/cgi-bin/*
-
-
 binary-install/mercurial::
+	# Install bash autocompletion.
+	install -m 644 \
+		contrib/bash_completion \
+		$(CURDIR)/debian/mercurial/etc/bash_completion.d/mercurial
+	
 	# Install system-wide conffiles
 	echo "# system-wide mercurial configuration file" \
 		>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
 	echo "# See hgrc(5) for more information" \
 		>>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
 
-	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/templates
-
-	ln -sf ../../../mercurial/templates \
-		$(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/templates
-
-	chmod 0755  $(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/lsprof.py \
-		$(CURDIR)/debian/mercurial/usr/share/python-support/mercurial/mercurial/simplemerge.py
-
-
 build/mercurial-common::
 	$(MAKE) -C doc man
+	# workaround a bug in asciidoc that generates incorrect manpages
+	sed -i 's,^\([\\][.]hg/hgrc\),\\\&\1,' doc/hg.1
+	sed -i 's,^\([\\][.][*][\\][.]swp\),\\\&\1,' doc/hgignore.5
 
+binary-install/mercurial-common::
+	rm -rf $(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates
+	ln -sf ../../../mercurial/templates \
+		$(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates
+	
+	mv $(CURDIR)/debian/mercurial-common/usr/share/doc/mercurial-common/examples \
+		$(CURDIR)/debian/mercurial-common/usr/share/doc/mercurial
 
 clean::
 	$(MAKE) clean

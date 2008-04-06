@@ -17,6 +17,33 @@ set -e
 # for details, see http://www.debian.org/doc/debian-policy/ or
 # the debian-policy package
 
+check_ext() {
+    local file="$1"
+    local ext="$2"
+    local dep="$3"
+    local enable="true"
+
+    case "$dep" in
+    wish)
+	which wish > /dev/null || enable=false
+	reason="no 'wish' script found [can be found in 'tk8.4' package]"
+	;;
+    python-*)
+        test -d /usr/share/doc/$dep || enable=false
+	reason="package '$dep' is not installed"
+	;;
+    *)
+    	echo "Internal error"
+	exit 1
+	;;
+    esac
+    if [ "$enable" = true ]; then
+	echo "Enabling $ext extension"
+    	sed -i -e "s/^# \(hgext[.]$ext =\)/\1/" "$file"
+    else
+	echo "Disabling $ext extension ($reason)"
+    fi
+}
 
 case "$1" in
     configure)
@@ -27,6 +54,24 @@ case "$1" in
 	        rm -rf "$d"
 	    fi
 	done
+
+	for conffile in hgext.rc; do
+	  # Tell ucf that the file in /usr/share/mercurial is the latest
+	  # maintainer version (but we rewrite it to enable extension based
+	  # on guess on weather other packages are here or not), and let it
+	  # handle how to manage the real configuration file in
+	  # /etc/mercurial/hgrc.d.
+	  TMPFILE=`mktemp`
+	  chmod 644 "$TMPFILE"
+	  cp /usr/share/mercurial/$conffile "$TMPFILE"
+	  check_ext "$TMPFILE" hgk wish
+	  check_ext "$TMPFILE" highlight python-pygments
+	  ucf --sum-file /usr/share/mercurial/$conffile.md5sums --three-way \
+		"$TMPFILE" /etc/mercurial/hgrc.d/$conffile
+	  ucfr mercurial /etc/hgrc.d/$conffile
+	  rm -f "$TMPFILE"
+	done
+
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

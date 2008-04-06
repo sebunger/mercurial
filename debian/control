@@ -10,13 +10,19 @@ Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/wsvn/python-apps/packages/mercurial/trunk/
 
-
 Package: mercurial
 Architecture: any 
-Depends: ${shlibs:Depends}, ${python:Depends}, mercurial-common (= ${binary:Version}),
- python-pygments, python-elementtree
+Depends: ${shlibs:Depends}, ${python:Depends}, ucf,
+ mercurial-common (= ${binary:Version})
 Recommends: kdiff3 | tkdiff | meld 
-Suggests: qct, tk8.4 | wish, vim | emacs, python-mysqldb, mercurial-web
+Suggests: qct, 
+ tk8.4 | wish, 
+ vim | emacs, 
+ python-mysqldb, 
+ mercurial-web,
+ git-core | darc | monotone | bzr | subversion,
+ python-pygments,
+ python-elementtree
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
@@ -31,12 +37,16 @@ Description: Scalable distributed version control system
   * Easy-to-use command-line interface
   * Integrated stand-alone web interface
   * Small Python codebase
-
+ .
+ This package contain architecture dependent files.
 
 Package: mercurial-common
 Architecture: all 
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mercurial
+Conflicts: mercurial (<< 1.0)
+Replaces: mercurial (<< 1.0)
+Suggests: tk8.4 | wish, 
 Description: Scalable distributed version control system (Common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
@@ -52,26 +62,4 @@ Description: Scalable distributed version control system (Common files)
   * Integrated stand-alone web interface
   * Small Python codebase
  .
- 
-Package: mercurial-web
-Architecture: all 
-Depends:  mercurial (>= ${binary:Version}), mercurial-common (= ${binary:Version}),
- python (>= 2.4), python (<< 2.6), apache2 | httpd, python-flup
-Recommends: python-openssl
-Description: Scalable distributed version control system (Web interface)
- Mercurial is a fast, lightweight Source Control Management system designed
- for efficient handling of very large distributed projects.
- . 
- Its features include:
-  * O(1) delta-compressed file storage and retrieval scheme
-  * Complete cross-indexing of files and changesets for efficient exploration
-    of project history
-  * Robust SHA1-based integrity checking and append-only storage model
-  * Decentralized development model with arbitrary merging between trees
-  * High-speed HTTP-based network merge protocol
-  * Easy-to-use command-line interface
-  * Integrated stand-alone web interface
-  * Small Python codebase
-
-
-
+ This package contain architecture independent files.

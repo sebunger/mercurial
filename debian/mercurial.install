@@ -1,5 +1,5 @@
 debian/tmp/usr/bin
 debian/tmp/usr/lib
-debian/hgext.rc  etc/mercurial/hgrc.d/
-contrib/bash_completion etc/bash_completion.d/mercurial
-contrib/hgk usr/share/mercurial/
+
+debian/hgext.rc  usr/share/mercurial/
+debian/hgext.rc.md5sums  usr/share/mercurial/

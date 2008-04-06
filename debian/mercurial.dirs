@@ -1,7 +1,2 @@
-usr/bin
-usr/share/mercurial
-etc/
 etc/bash_completion.d
-etc/mercurial
 etc/mercurial/hgrc.d
-

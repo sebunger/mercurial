@@ -1,4 +1,0 @@
-contrib/hgwebdir.fcgi usr/lib/cgi-bin/
-hgweb.cgi usr/lib/cgi-bin/
-hgwebdir.cgi usr/lib/cgi-bin/
-

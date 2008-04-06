@@ -1,5 +1,1 @@
-usr/share
-usr/share/mercurial
-usr/share/emacs
-usr/share/emacs/site-lisp
-
+usr/share/doc/mercurial
