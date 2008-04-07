@@ -19,7 +19,6 @@ Suggests: qct,
  tk8.4 | wish, 
  vim | emacs, 
  python-mysqldb, 
- mercurial-web,
  git-core | darc | monotone | bzr | subversion,
  python-pygments,
  python-elementtree
@@ -46,7 +45,6 @@ Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mercurial
 Conflicts: mercurial (<< 1.0)
 Replaces: mercurial (<< 1.0)
-Suggests: tk8.4 | wish, 
 Description: Scalable distributed version control system (Common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

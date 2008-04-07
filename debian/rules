@@ -36,16 +36,22 @@ binary-install/mercurial::
 build/mercurial-common::
 	$(MAKE) -C doc man
 	# workaround a bug in asciidoc that generates incorrect manpages
-	sed -i 's,^\([\\][.]hg/hgrc\),\\\&\1,' doc/hg.1
-	sed -i 's,^\([\\][.][*][\\][.]swp\),\\\&\1,' doc/hgignore.5
+	sed -i 's,^\([\\]\?[.]hg/hgrc\),\\\&\1,' doc/hg.1
+	sed -i 's,^\([\\]\?[.][*][\\]\?[.]swp\),\\\&\1,' doc/hgignore.5
 
 binary-install/mercurial-common::
+	# web templates are symlinked from python-support to /u/s/mercurial
 	rm -rf $(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates
 	ln -sf ../../../mercurial/templates \
 		$(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates
 	
+	# Examples must go in the /usr/share/doc/mercurial directory
 	mv $(CURDIR)/debian/mercurial-common/usr/share/doc/mercurial-common/examples \
 		$(CURDIR)/debian/mercurial-common/usr/share/doc/mercurial
+	
+	# Install lintian override file
+	cp debian/mercurial-common.lintian-overrides \
+		$(CURDIR)/debian/mercurial-common/usr/share/lintian/overrides/mercurial-common
 
 clean::
 	$(MAKE) clean

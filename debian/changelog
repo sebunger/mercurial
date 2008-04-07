@@ -1,3 +1,17 @@
+mercurial (1.0-2) unstable; urgency=low
+
+  * fix typo in mercurial postinst
+  * remove Suggests to non existant mercurial-web
+  * add lintian-override for non depends on "tk8.4 | wish" in
+    mercurial-common (the Suggests: is in the mercurial package
+    as for all other extensions' dependencies)
+  * fix handling of automatic enabled extension in postinst
+    (they must be disabled in the installed template)
+  * add detection of inotify extension before enabling it (needed on
+    etch that has a too old libc)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 07 Apr 2008 09:06:04 +0200
+
 mercurial (1.0-1) unstable; urgency=low
 
   * new upstream version
@@ -86,8 +100,6 @@ mercurial (1.0-1) unstable; urgency=low
     patches/proposed_upstream__type_is_not_posix.patch
   * patches/deb_specific__use_sensible-editor.patch:
     Rediff against mercurial 1.0 
-  * Added patch:
-    patches/proposed_upstream__fix_man_warnings.patch
   * hgmerge shell script is not provided anymore
   * contrib/favicon.ico is not provided anymore
   * Deleted obsolete link_hgit target from debian/rules
@@ -96,15 +108,14 @@ mercurial (1.0-1) unstable; urgency=low
   * Added logo-droplets.svg to /usr/share/mercurial
   * Added new extensions to the hgext.rc file
     + hgext.color (not enabled by default)
-    + hgext.highlight (enabled)
+    + hgext.highlight (not enabled by default)
     + hgext.inotify (enabled, Closes: #472583)
     + hgext.keyword (not enabled by default)
   * Removed extensions from the hgext.rc file
     + hgext.hbisect (now provided as a built-in command)
-  * Added new dependency :
+  * Added new suggested dependencies :
     + python-pygments (needed for hgext/highlight.py)
-    + python-elementtree (was a suggested dependency, but we're shipping
-    the 'convert' extension enabled by default)
+    + python-elementtree (for darcs conversion)
 
   [ Vincent Danjean ]
   * import mercurial in the Python Application Packaging Team project
