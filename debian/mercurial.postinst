@@ -58,7 +58,7 @@ case "$1" in
 	for conffile in hgext.rc; do
 	  # Tell ucf that the file in /usr/share/mercurial is the latest
 	  # maintainer version (but we rewrite it to enable extension based
-	  # on guess on weather other packages are here or not), and let it
+	  # on guess on whether other packages are here or not), and let it
 	  # handle how to manage the real configuration file in
 	  # /etc/mercurial/hgrc.d.
 	  TMPFILE=`mktemp`
