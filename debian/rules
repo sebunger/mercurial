@@ -36,8 +36,8 @@ binary-install/mercurial::
 build/mercurial-common::
 	$(MAKE) -C doc man
 	# workaround a bug in asciidoc that generates incorrect manpages
-	sed -i 's,^\([\\][.]hg/hgrc\),\\\&\1,' doc/hg.1
-	sed -i 's,^\([\\][.][*][\\][.]swp\),\\\&\1,' doc/hgignore.5
+	sed -i 's,^\([\\]\?[.]hg/hgrc\),\\\&\1,' doc/hg.1
+	sed -i 's,^\([\\]\?[.][*][\\]\?[.]swp\),\\\&\1,' doc/hgignore.5
 
 binary-install/mercurial-common::
 	rm -rf $(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates

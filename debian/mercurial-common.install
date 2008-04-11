@@ -1,4 +1,4 @@
-debian/tmp/usr/lib/python2.5/site-packages/mercurial/templates usr/share/mercurial
+debian/tmp/usr/lib/python2.4/site-packages/mercurial/templates usr/share/mercurial
 debian/tmp/usr/lib
 
 contrib/mercurial.el usr/share/emacs/site-lisp
