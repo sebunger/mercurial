@@ -1,7 +1,14 @@
-mercurial (1.0-2) UNRELEASED; urgency=low
+mercurial (1.0-2) unstable; urgency=low
 
   * fix typo in mercurial postinst
   * remove Suggests to non existant mercurial-web
+  * add lintian-override for non depends on "tk8.4 | wish" in
+    mercurial-common (the Suggests: is in the mercurial package
+    as for all other extensions' dependencies)
+  * fix handling of automatic enabled extension in postinst
+    (they must be disabled in the installed template)
+  * add detection of inotify extension before enabling it (needed on
+    etch that has a too old libc)
 
  -- Vincent Danjean <vdanjean@debian.org>  Mon, 07 Apr 2008 09:06:04 +0200
 
