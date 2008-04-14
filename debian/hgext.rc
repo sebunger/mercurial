@@ -7,11 +7,11 @@
 # hgext.color =
 
 # syntax highlighting in hgweb file view (requires pygments)
-hgext.highlight =
+# hgext.highlight =
 
 # inotify-based status acceleration for Linux systems
 # add the 'inserve' command
-hgext.inotify =
+# hgext.inotify =
 
 # CVS/RCS-like Keyword Substitution
 # hgext.keyword =
@@ -54,7 +54,7 @@ hgext.graphlog=
 
 # allows browsing the history of a repository in a graphical way
 # add the 'view' command
-hgext.hgk=
+# hgext.hgk=
 
 # lets you split a merge into pieces
 # add the 'imerge' command
