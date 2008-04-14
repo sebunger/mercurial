@@ -1,20 +1,10 @@
 # mercurial configuration file for upstream hg extensions
 # See hgrc(5) for more information
 
+# Extension provided by core-mercurial listed in alphabetic order
+# See /usr/share/doc/mercurial/README.Debian.gz for more information
+# (for example, some extensions needed other Debian packages to work)
 [extensions]
-
-# add color output to the status and qseries commands
-# hgext.color =
-
-# syntax highlighting in hgweb file view (requires pygments)
-# hgext.highlight =
-
-# inotify-based status acceleration for Linux systems
-# add the 'inserve' command
-# hgext.inotify =
-
-# CVS/RCS-like Keyword Substitution
-# hgext.keyword =
 
 # changeset access control for mercurial
 # hgext.acl=
@@ -32,6 +22,9 @@ hgext.children=
 # create a graph showing who changed the most lines
 # add the 'churn' command
 hgext.churn=
+
+# add color output to the status and qseries commands
+# hgext.color =
 
 # Foreign SCM converter
 # add the 'convert' and 'debugsvnlog' commands
@@ -56,12 +49,22 @@ hgext.graphlog=
 # add the 'view' command
 # hgext.hgk=
 
+# syntax highlighting in hgweb file view
+# hgext.highlight =
+
 # lets you split a merge into pieces
 # add the 'imerge' command
 hgext.imerge=
 
+# inotify-based status acceleration for Linux systems
+# add the 'inserve' command
+# hgext.inotify =
+
 # allows you to change changelog and summary text
 # hgext.interhg=
+
+# CVS/RCS-like Keyword Substitution
+# hgext.keyword =
 
 # patch queues for mercurial
 # add the 'q*' commands
