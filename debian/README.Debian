@@ -20,7 +20,8 @@ as soon as mercurial documentation stabilises enough.
 Extensions provided in this package and their dependencies
 **********************************************************
 
-Look at examples/sample.hgrc to get a few information about available extensions.
+Look at examples/sample.hgrc to get a few information about available
+extensions.
 
 Extensions can be enabled system-wide, per-user and/or per repository (see
 hgrc(5) for more information).
@@ -74,7 +75,8 @@ Depends: apache2 | httpd
 
 CGI Script: hgwebdir.fcgi
 -------------------------
-Experimental CGI script to serve several mercurial repositories using WSGIServer.
+Experimental CGI script to serve several mercurial repositories using
+WSGIServer.
 In order to use it, you need to edit it (to set paths to your repositories).
 Depends: apache2 | httpd, python-flup
 
@@ -126,4 +128,3 @@ want to use with new version of mercurial.
 Note: these old versions of mercurial have never been officially packaged in
 Debian.
 
- -- Vincent Danjean <Vincent.Danjean@ens-lyon.org>, Fri, 29 Apr 2005 08:54:25 +0200
