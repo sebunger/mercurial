@@ -32,6 +32,13 @@ check_ext() {
         test -d /usr/share/doc/$dep || enable=false
 	reason="package '$dep' is not installed"
 	;;
+    inotify)
+        # etch does not build the inotify extension due to a too old libc
+    	if test "$(ls /usr/lib/python-support/mercurial/python*/hgext/inotify 2>/dev/null | wc -l)" = 0; then
+	    enable=false
+	    reason="not built probably due to a lack of support (old libc, ...)"
+	fi
+	;;
     *)
     	echo "Internal error"
 	exit 1
@@ -66,6 +73,7 @@ case "$1" in
 	  cp /usr/share/mercurial/$conffile "$TMPFILE"
 	  check_ext "$TMPFILE" hgk wish
 	  check_ext "$TMPFILE" highlight python-pygments
+	  check_ext "$TMPFILE" inotify inotify
 	  ucf --sum-file /usr/share/mercurial/$conffile.md5sums --three-way \
 		"$TMPFILE" /etc/mercurial/hgrc.d/$conffile
 	  ucfr mercurial /etc/hgrc.d/$conffile
