@@ -1,3 +1,11 @@
+mercurial (1.0-3) unstable; urgency=low
+
+  * really fix auto-enabling extensions at installation time
+    + be less strict with spaces
+    + reformat the hgext.rc file to be consistent
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 15 Apr 2008 10:32:38 +0200
+
 mercurial (1.0-2) unstable; urgency=low
 
   * fix typo in mercurial postinst

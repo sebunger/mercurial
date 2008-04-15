@@ -7,91 +7,91 @@
 [extensions]
 
 # changeset access control for mercurial
-# hgext.acl=
+# hgext.acl =
 
 # allow user-defined command aliases
-# hgext.alias=
+# hgext.alias =
 
 # bugzilla integration for mercurial
-# hgext.bugzilla=
+# hgext.bugzilla =
 
 # show the children of the given or working dir revision
 # add the 'children' command
-hgext.children=
+hgext.children =
 
 # create a graph showing who changed the most lines
 # add the 'churn' command
-hgext.churn=
+hgext.churn =
 
 # add color output to the status and qseries commands
 # hgext.color =
 
 # Foreign SCM converter
 # add the 'convert' and 'debugsvnlog' commands
-hgext.convert=
+hgext.convert =
 
 # external diff program support for mercurial
-# hgext.extdiff=
+# hgext.extdiff =
 
 # pull and merge remote changes
 # add the 'fetch' command
-hgext.fetch=
+hgext.fetch =
 
 # GnuPG signing extension for Mercurial
 # add the 'sign', 'sigcheck' and 'sigs' commands
-hgext.gpg=
+hgext.gpg =
 
 # ASCII graph log extension for Mercurial
 # add the 'glog' command
-hgext.graphlog=
+hgext.graphlog =
 
 # allows browsing the history of a repository in a graphical way
 # add the 'view' command
-# hgext.hgk=
+# hgext.hgk =
 
 # syntax highlighting in hgweb file view
 # hgext.highlight =
 
 # lets you split a merge into pieces
 # add the 'imerge' command
-hgext.imerge=
+hgext.imerge =
 
 # inotify-based status acceleration for Linux systems
 # add the 'inserve' command
 # hgext.inotify =
 
 # allows you to change changelog and summary text
-# hgext.interhg=
+# hgext.interhg =
 
 # CVS/RCS-like Keyword Substitution
 # hgext.keyword =
 
 # patch queues for mercurial
 # add the 'q*' commands
-hgext.mq=
+hgext.mq =
 
 # email notifications for mercurial
-# hgext.notify=
+# hgext.notify =
 
 # make it easy to refer to the parent of a revision
-# hgext.parentrevspec=
+# hgext.parentrevspec =
 
 # send changes as series of email patches
 # add the 'email' command
-hgext.patchbomb=
+hgext.patchbomb =
 
 # removes files not known to mercurial
 # add the 'purge' and 'clean' commands
-hgext.purge=
+hgext.purge =
 
 # interactive change selection during commit
 # add the 'record' command
-hgext.record=
+hgext.record =
 
 # Patch transplanting extension for Mercurial
 # add the 'transplant' command
-hgext.transplant=
+hgext.transplant =
 
 # add filters so automatically convert end-of-line between Windows and Unix
 # world.
-# hgext.win32text=
+# hgext.win32text =
