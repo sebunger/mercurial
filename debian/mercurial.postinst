@@ -46,7 +46,7 @@ check_ext() {
     esac
     if [ "$enable" = true ]; then
 	echo "Enabling $ext extension"
-    	sed -i -e "s/^# \(hgext[.]$ext =\)/\1/" "$file"
+    	sed -i -e "s/^# *\(hgext[.]$ext *=\)/\1/" "$file"
     else
 	echo "Disabling $ext extension ($reason)"
     fi
