@@ -48,7 +48,7 @@ Extension: convert
 ------------------
 Foreign SCM converter.
 Depends: git-core | darc | monotone | bzr | subversion
-Depends: python-elementtree (for darc convertion only)
+Depends: python-elementtree (for darcs convertion only)
 
 Extension: hgk
 --------------

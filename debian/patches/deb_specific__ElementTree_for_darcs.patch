@@ -7,7 +7,7 @@ Index: mercurial-git/hgext/convert/darcs.py
  
          if ElementTree is None:
 -            raise util.Abort(_("Python ElementTree module is not available"))
-+            raise util.Abort(_("Python ElementTree module is not available. Try installing the python-elementtree Debian package to convert from darc"))
++            raise util.Abort(_("Python ElementTree module is not available. Try installing the python-elementtree Debian package to convert from darcs"))
  
          if not os.path.exists(os.path.join(path, '_darcs', 'inventory')):
              raise NoRepo("%s does not look like a darcs repo" % path)
