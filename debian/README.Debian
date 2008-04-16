@@ -46,9 +46,8 @@ Depends: python-mysqldb
 
 Extension: convert
 ------------------
-Foreign SCM converter.
-Depends: git-core | darc | monotone | bzr | subversion
-Depends: python-elementtree (for darc convertion only)
+Foreign SCM converter (from darcs, git, monotone, bzr, subversion, ...).
+Depends: python-elementtree (for darcs convertion only)
 
 Extension: hgk
 --------------

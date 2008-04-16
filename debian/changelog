@@ -1,3 +1,12 @@
+mercurial (1.0-4) unstable; urgency=low
+
+  * fix build system so that "hg version" works
+  * fix typos in doc (darcs instead of darc)
+  * remove suggests: for foreign SCM. If someone needs them for the convert
+    extension, they should be already installed (Closes: #476342)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 16 Apr 2008 10:05:53 +0200
+
 mercurial (1.0-3) unstable; urgency=low
 
   * really fix auto-enabling extensions at installation time
