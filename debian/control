@@ -19,7 +19,6 @@ Suggests: qct,
  tk8.4 | wish, 
  vim | emacs, 
  python-mysqldb, 
- git-core | darc | monotone | bzr | subversion,
  python-pygments,
  python-elementtree
 Description: Scalable distributed version control system
