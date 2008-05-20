@@ -20,7 +20,8 @@ Suggests: qct,
  vim | emacs, 
  python-mysqldb, 
  python-pygments,
- python-elementtree
+ python-elementtree,
+ python-subversion
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

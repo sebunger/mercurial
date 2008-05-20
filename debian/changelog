@@ -3,7 +3,8 @@ mercurial (1.0-5) unstable; urgency=low
   * Add a note in the NEWS file about upstream change for merging conflicts.
     (Closes: #481553, )
   * install mergetools.hgrc system wide (Closes: #481089)
-
+  * add suggest and documentation for convert extension dependencies
+    (Closes: #477652)
 
  -- Vincent Danjean <vdanjean@debian.org>  Tue, 20 May 2008 22:46:57 +0200
 
