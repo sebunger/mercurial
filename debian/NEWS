@@ -1,3 +1,15 @@
+mercurial (1.0-5) unstable; urgency=low
+
+  Since the 1.0 version, mercurial handles most of the merges internaly.
+  This is an upstream decision (see upstream changeset f077815932ce)
+  that the debian package will follow. This means that :
+  - there is no hgmerge script any more
+  - programs that were invoked by hgmerge (kdiff3, ...) are not by default
+  See http://www.selenic.com/mercurial/wiki/index.cgi/MergeToolConfiguration
+  for configuring mergetools with mercurial 1.0
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 20 May 2008 22:37:24 +0200
+
 mercurial (1.0) unstable; urgency=low
 
   Since the 1.0 version, the hbisect extension is now provided as a 
@@ -7,7 +19,6 @@ mercurial (1.0) unstable; urgency=low
   hgext.hbisect: No module  named  hbisect". Just delete the  
   hgext.hbisect entry in the hgext.rc and/or .hgrc file.
   
-
  -- Gerardo Curiel <gcuriel@debian.org.ve>  Wed, 02 Apr 2008 16:14:47 -0430
 
 mercurial (0.9) unstable; urgency=low

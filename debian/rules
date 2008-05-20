@@ -32,6 +32,9 @@ binary-install/mercurial::
 		>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
 	echo "# See hgrc(5) for more information" \
 		>>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
+	install -m 644 \
+		contrib/mergetools.hgrc \
+		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
 
 build/mercurial:: mercurial/__version__.py
 
