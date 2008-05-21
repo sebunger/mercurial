@@ -1,3 +1,9 @@
+mercurial (1.0-6) unstable; urgency=low
+
+  * add versionned dependency on ucf due to the use to ucfr (Closes: #479485)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 21 May 2008 10:04:32 +0200
+
 mercurial (1.0-5) unstable; urgency=low
 
   * Add a note in the NEWS file about upstream change for merging conflicts.
