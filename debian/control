@@ -14,7 +14,7 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${python:Depends}, ucf (>= 3.006),
  mercurial-common (= ${binary:Version})
-Recommends: kdiff3 | tkdiff | meld 
+Recommends: rcs | kdiff3 | tkdiff | meld 
 Suggests: qct, 
  tk8.4 | wish, 
  vim | emacs, 
