@@ -1,3 +1,10 @@
+mercurial (1.0-7) unstable; urgency=low
+
+  * Lowering versioned dependency on ucf. Etch version of ucf is enought.
+    #479485 was using a pre etch version of ucf.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 26 May 2008 09:25:45 +0200
+
 mercurial (1.0-6) unstable; urgency=low
 
   * add versionned dependency on ucf due to the use to ucfr (Closes: #479485)
