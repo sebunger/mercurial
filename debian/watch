@@ -14,4 +14,4 @@ version=2
 #http://www.example.com/pub/mercurial-(.*)\.tar\.gz
 
 # Uncommment to examine a FTP server
-http://www.selenic.com/mercurial/release/mercurial-([^s].*)\.tar\.gz debian uupdate
+http://www.selenic.com/mercurial/release/mercurial-([^s].*)\.tar\.gz

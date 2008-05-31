@@ -1,3 +1,11 @@
+mercurial (1.0.1-1) unstable; urgency=low
+
+  * New upstream release
+    + Bugfix release
+  * debian/watch: do not call uupdate
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 31 May 2008 19:26:16 +0200
+
 mercurial (1.0-7) unstable; urgency=low
 
   * Lowering versioned dependency on ucf. Etch version of ucf is enought.
