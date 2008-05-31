@@ -6,7 +6,7 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 from node import hex, nullid, nullrev, short
-from repo import RepoError
+from repo import RepoError, NoCapability
 from i18n import _
 import os, re, sys, urllib
 import hg, util, revlog, bundlerepo, extensions, copies
@@ -227,7 +227,10 @@ def backout(ui, repo, node=None, rev=None, **opts):
             raise util.Abort(_('cannot use --parent on non-merge changeset'))
         parent = p1
 
+    # the backout should appear on the same branch
+    branch = repo.dirstate.branch()
     hg.clean(repo, node, show_stats=False)
+    repo.dirstate.setbranch(branch)
     revert_opts = opts.copy()
     revert_opts['date'] = None
     revert_opts['all'] = True
@@ -2045,7 +2048,7 @@ def pull(ui, repo, source="default", **opts):
     if revs:
         try:
             revs = [other.lookup(rev) for rev in revs]
-        except repo.NoCapability:
+        except NoCapability:
             error = _("Other repository doesn't support revision lookup, "
                       "so a rev cannot be specified.")
             raise util.Abort(error)
@@ -2065,7 +2068,7 @@ def push(ui, repo, dest=None, **opts):
 
     By default, push will refuse to run if it detects the result would
     increase the number of remote heads. This generally indicates the
-    the client has forgotten to sync and merge before pushing.
+    the client has forgotten to pull and merge before pushing.
 
     Valid URLs are of the form:
 
@@ -2075,7 +2078,8 @@ def push(ui, repo, dest=None, **opts):
       https://[user@]host[:port]/[path]
 
     An optional identifier after # indicates a particular branch, tag,
-    or changeset to push.
+    or changeset to push. If -r is used, the named changeset and all its
+    ancestors will be pushed to the remote repository.
 
     Look at the help text for the pull command for important details
     about ssh:// URLs.
@@ -3025,7 +3029,7 @@ table = {
            _('ignore changes in the amount of white space')),
           ('B', 'ignore-blank-lines', None,
            _('ignore changes whose lines are all blank')),
-          ('U', 'unified', 3,
+          ('U', 'unified', '',
            _('number of lines of context to show'))
          ] + walkopts,
          _('hg diff [OPTION]... [-r REV1 [-r REV2]] [FILE]...')),

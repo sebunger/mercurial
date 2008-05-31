@@ -709,17 +709,17 @@ class localrepository(repo.repository):
             #
             meta["copy"] = cp
             if not manifest2: # not a branch merge
-                meta["copyrev"] = hex(manifest1.get(cp, nullid))
+                meta["copyrev"] = hex(manifest1[cp])
                 fp2 = nullid
             elif fp2 != nullid: # copied on remote side
-                meta["copyrev"] = hex(manifest1.get(cp, nullid))
+                meta["copyrev"] = hex(manifest1[cp])
             elif fp1 != nullid: # copied on local side, reversed
-                meta["copyrev"] = hex(manifest2.get(cp))
+                meta["copyrev"] = hex(manifest2[cp])
                 fp2 = fp1
             elif cp in manifest2: # directory rename on local side
                 meta["copyrev"] = hex(manifest2[cp])
             else: # directory rename on remote side
-                meta["copyrev"] = hex(manifest1.get(cp, nullid))
+                meta["copyrev"] = hex(manifest1[cp])
             self.ui.debug(_(" %s: copy %s:%s\n") %
                           (fn, cp, meta["copyrev"]))
             fp1 = nullid
@@ -2075,7 +2075,7 @@ class localrepository(repo.repository):
         l = fp.readline()
         try:
             total_files, total_bytes = map(int, l.split(' ', 1))
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             raise util.UnexpectedOutput(
                 _('Unexpected response from remote server:'), l)
         self.ui.status(_('%d files to transfer, %s of data\n') %
