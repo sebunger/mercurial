@@ -5,3 +5,4 @@ deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
 deb_specific__bash_completion_global_option_already_set.patch
 deb_specific__ElementTree_for_darcs.patch
+backport__CVE-2008-2942-fix.patch

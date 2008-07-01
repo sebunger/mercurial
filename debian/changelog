@@ -1,3 +1,10 @@
+mercurial (1.0.1-2) unstable; urgency=high
+
+  * Backport from upstream: fix CVE-2008-2942 Insufficient input validation
+    (Closes: #488628)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 01 Jul 2008 18:44:19 +0200
+
 mercurial (1.0.1-1) unstable; urgency=low
 
   * New upstream release
