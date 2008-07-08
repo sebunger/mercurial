@@ -76,7 +76,9 @@ case "$1" in
 	  check_ext "$TMPFILE" inotify inotify
 	  ucf --sum-file /usr/share/mercurial/$conffile.md5sums --three-way \
 		"$TMPFILE" /etc/mercurial/hgrc.d/$conffile
-	  ucfr mercurial /etc/hgrc.d/$conffile
+	  # Fix wrong registration until 1.0.1-2 included
+	  ucfr --purge mercurial /etc/hgrc.d/$conffile
+	  ucfr mercurial /etc/mercurial/hgrc.d/$conffile
 	  rm -f "$TMPFILE"
 	done
 
