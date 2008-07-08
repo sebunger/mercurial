@@ -1,8 +1,10 @@
 mercurial (1.0.1-3) unstable; urgency=low
 
   * debian/control: update Standard-Version (no change needed)
+  * fix wrong ucf registration (/etc/hgrc.d/ vs /etc/mercurial/hgrc.d/)
+    (Closes: #487089). Thanks Max Bowsher for noticing.
 
- -- Vincent Danjean <vdanjean@debian.org>  Tue, 01 Jul 2008 19:06:41 +0200
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 01 Jul 2008 19:30:20 +0200
 
 mercurial (1.0.1-2) unstable; urgency=high
 
