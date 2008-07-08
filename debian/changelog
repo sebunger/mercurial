@@ -6,6 +6,8 @@ mercurial (1.0.1-3) unstable; urgency=low
       #486299)
   * fix wrong ucf registration (/etc/hgrc.d/ vs /etc/mercurial/hgrc.d/)
     (Closes: #487089). Thanks Max Bowsher for noticing.
+  * add a mention to "legacy Darcs 1 format" in convert documentation
+    (Closes: #485887)
 
  -- Vincent Danjean <vdanjean@debian.org>  Tue, 08 Jul 2008 20:40:05 +0200
 
