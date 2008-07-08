@@ -1,3 +1,9 @@
+mercurial (1.0.1-3) unstable; urgency=low
+
+  * debian/control: update Standard-Version (no change needed)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 01 Jul 2008 19:06:41 +0200
+
 mercurial (1.0.1-2) unstable; urgency=high
 
   * Backport from upstream: fix CVE-2008-2942 Insufficient input validation
