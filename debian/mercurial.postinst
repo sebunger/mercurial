@@ -18,10 +18,14 @@ set -e
 # the debian-policy package
 
 check_ext() {
-    local file="$1"
-    local ext="$2"
-    local dep="$3"
-    local enable="true"
+    local file
+    local ext
+    local dep
+    local enable
+    file="$1"
+    ext="$2"
+    dep="$3"
+    enable="true"
 
     case "$dep" in
     wish)
