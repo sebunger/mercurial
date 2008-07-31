@@ -1,3 +1,10 @@
+mercurial (1.0.1-4) unstable; urgency=low
+
+  * fix subversion 1.5 compatibility (Closes: #492244)
+    using upstream patch
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 31 Jul 2008 14:27:51 +0200
+
 mercurial (1.0.1-3) unstable; urgency=low
 
   * debian/control:
