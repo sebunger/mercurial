@@ -1,3 +1,9 @@
+mercurial (1.0.1-5) unstable; urgency=low
+
+  * Fix debian/copyright (GPL-2 only and not GPL-2+) (Closes: #493967)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 26 Aug 2008 15:28:20 +0200
+
 mercurial (1.0.1-4) unstable; urgency=low
 
   * fix subversion 1.5 compatibility (Closes: #492244)
