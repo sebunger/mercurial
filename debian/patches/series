@@ -1,3 +1,4 @@
+CVE-2008-4297
 proposed_upstream__python-module-not-script.patch
 proposed_upstream__extension_syntax.patch
 deb_specific__FAQ_subst.patch
