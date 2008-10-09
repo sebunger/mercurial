@@ -16,7 +16,7 @@ hg update -C 0
 hg id
 echo "changed file1" >> file1
 hg id
-hg revert --no-backup
+hg revert --no-backup --all
 hg diff
 hg status
 hg id
@@ -26,16 +26,15 @@ hg status
 hg id
 hg update -C 0
 echo "changed file1 different" >> file1
-HGMERGE=merge hg update
-hg diff | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" -e "s/\(<<<<<<<\) .*/\1/" \
-              -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/" -e "s/\(>>>>>>>\) .*/\1/"
+hg update
+hg diff --nodates
 hg status
 hg id
-hg revert --no-backup
+hg revert --no-backup --all
 hg diff
 hg status
 hg id
-hg revert -r tip --no-backup
+hg revert -r tip --no-backup --all
 hg diff
 hg status
 hg id
@@ -43,5 +42,4 @@ hg update -C
 hg diff
 hg status
 hg id
-cd ..; /bin/rm -rf t
 

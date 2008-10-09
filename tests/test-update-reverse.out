@@ -1,6 +1,7 @@
 0 files updated, 0 files merged, 1 files removed, 0 files unresolved
 Main should be gone
 a
+created new head
 changeset:   3:ded32b0db104
 tag:         tip
 user:        test
@@ -40,11 +41,11 @@ a
 side1
 side2
 resolving manifests
- force 1 allow None moddirstate True linear False
- ancestor 8515d4bfda76 local 1c0f48f8ece6 remote 0594b9004bae
-remote deleted side2, clobbering
-remote deleted side1, clobbering
-remote created main
+ overwrite True partial False
+ ancestor 537353581d3d local ded32b0db104+ remote 221226fb2bd8
+ side2: remote deleted -> r
+ side1: remote deleted -> r
+ main: remote created -> g
 getting main
 removing side1
 removing side2

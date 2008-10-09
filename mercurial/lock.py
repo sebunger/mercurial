@@ -1,12 +1,11 @@
 # lock.py - simple locking scheme for mercurial
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from demandload import *
-demandload(globals(), 'errno os socket time util')
+import errno, os, socket, time, util
 
 class LockException(IOError):
     def __init__(self, errno, strerror, filename, desc):
@@ -30,14 +29,13 @@ class lock(object):
     # old-style lock: symlink to pid
     # new-style lock: symlink to hostname:pid
 
+    _host = None
+
     def __init__(self, file, timeout=-1, releasefn=None, desc=None):
         self.f = file
         self.held = 0
         self.timeout = timeout
         self.releasefn = releasefn
-        self.id = None
-        self.host = None
-        self.pid = None
         self.desc = desc
         self.lock()
 
@@ -60,18 +58,17 @@ class lock(object):
                                inst.locker)
 
     def trylock(self):
-        if self.id is None:
-            self.host = socket.gethostname()
-            self.pid = os.getpid()
-            self.id = '%s:%s' % (self.host, self.pid)
+        if lock._host is None:
+            lock._host = socket.gethostname()
+        lockname = '%s:%s' % (lock._host, os.getpid())
         while not self.held:
             try:
-                util.makelock(self.id, self.f)
+                util.makelock(lockname, self.f)
                 self.held = 1
             except (OSError, IOError), why:
                 if why.errno == errno.EEXIST:
                     locker = self.testlock()
-                    if locker:
+                    if locker is not None:
                         raise LockHeld(errno.EAGAIN, self.f, self.desc,
                                        locker)
                 else:
@@ -79,17 +76,22 @@ class lock(object):
                                           why.filename, self.desc)
 
     def testlock(self):
-        '''return id of locker if lock is valid, else None.'''
-        # if old-style lock, we cannot tell what machine locker is on.
-        # with new-style lock, if locker is on this machine, we can
-        # see if locker is alive.  if locker is on this machine but
-        # not alive, we can safely break lock.
+        """return id of locker if lock is valid, else None.
+
+        If old-style lock, we cannot tell what machine locker is on.
+        with new-style lock, if locker is on this machine, we can
+        see if locker is alive.  If locker is on this machine but
+        not alive, we can safely break lock.
+
+        The lock file is only deleted when None is returned.
+
+        """
         locker = util.readlock(self.f)
         try:
             host, pid = locker.split(":", 1)
         except ValueError:
             return locker
-        if host != self.host:
+        if host != lock._host:
             return locker
         try:
             pid = int(pid)

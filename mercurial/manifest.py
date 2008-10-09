@@ -1,46 +1,66 @@
 # manifest.py - manifest revision class for mercurial
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from revlog import *
-from i18n import gettext as _
-from demandload import *
-demandload(globals(), "array bisect struct")
+from node import bin, hex, nullid
+from revlog import revlog, RevlogError
+from i18n import _
+import array, struct, mdiff
+
+class manifestdict(dict):
+    def __init__(self, mapping=None, flags=None):
+        if mapping is None: mapping = {}
+        if flags is None: flags = {}
+        dict.__init__(self, mapping)
+        self._flags = flags
+    def flags(self, f):
+        return self._flags.get(f, "")
+    def execf(self, f):
+        "test for executable in manifest flags"
+        return "x" in self.flags(f)
+    def linkf(self, f):
+        "test for symlink in manifest flags"
+        return "l" in self.flags(f)
+    def set(self, f, execf=False, linkf=False):
+        if linkf: self._flags[f] = "l"
+        elif execf: self._flags[f] = "x"
+        else: self._flags[f] = ""
+    def copy(self):
+        return manifestdict(dict.copy(self), dict.copy(self._flags))
 
 class manifest(revlog):
-    def __init__(self, opener, defversion=REVLOGV0):
+    def __init__(self, opener):
         self.mapcache = None
         self.listcache = None
-        revlog.__init__(self, opener, "00manifest.i", "00manifest.d",
-                        defversion)
+        revlog.__init__(self, opener, "00manifest.i")
+
+    def parse(self, lines):
+        mfdict = manifestdict()
+        fdict = mfdict._flags
+        for l in lines.splitlines():
+            f, n = l.split('\0')
+            if len(n) > 40:
+                fdict[f] = n[40:]
+                mfdict[f] = bin(n[:40])
+            else:
+                mfdict[f] = bin(n)
+        return mfdict
+
+    def readdelta(self, node):
+        return self.parse(mdiff.patchtext(self.delta(node)))
 
     def read(self, node):
-        if node == nullid: return {} # don't upset local cache
+        if node == nullid: return manifestdict() # don't upset local cache
         if self.mapcache and self.mapcache[0] == node:
             return self.mapcache[1]
         text = self.revision(node)
-        map = {}
-        flag = {}
         self.listcache = array.array('c', text)
-        lines = text.splitlines(1)
-        for l in lines:
-            (f, n) = l.split('\0')
-            map[f] = bin(n[:40])
-            flag[f] = (n[40:-1] == "x")
-        self.mapcache = (node, map, flag)
-        return map
-
-    def readflags(self, node):
-        if node == nullid: return {} # don't upset local cache
-        if not self.mapcache or self.mapcache[0] != node:
-            self.read(node)
-        return self.mapcache[2]
-
-    def diff(self, a, b):
-        return mdiff.textdiff(str(a), str(b))
+        mapping = self.parse(text)
+        self.mapcache = (node, mapping)
+        return mapping
 
     def _search(self, m, s, lo=0, hi=None):
         '''return a tuple (start, end) that says where to find s within m.
@@ -84,18 +104,18 @@ class manifest(revlog):
 
     def find(self, node, f):
         '''look up entry for a single file efficiently.
-        return (node, flag) pair if found, (None, None) if not.'''
+        return (node, flags) pair if found, (None, None) if not.'''
         if self.mapcache and node == self.mapcache[0]:
-            return self.mapcache[1].get(f), self.mapcache[2].get(f)
+            return self.mapcache[1].get(f), self.mapcache[1].flags(f)
         text = self.revision(node)
         start, end = self._search(text, f)
         if start == end:
             return None, None
         l = text[start:end]
         f, n = l.split('\0')
-        return bin(n[:40]), n[40:-1] == 'x'
+        return bin(n[:40]), n[40:-1]
 
-    def add(self, map, flags, transaction, link, p1=None, p2=None,
+    def add(self, map, transaction, link, p1=None, p2=None,
             changed=None):
         # apply the changes collected during the bisect loop to our addlist
         # return a delta suitable for addrevision
@@ -111,26 +131,33 @@ class manifest(revlog):
                     addlist[start:end] = array.array('c', x[i][2])
                 else:
                     del addlist[start:end]
-            return "".join([struct.pack(">lll", d[0], d[1], len(d[2])) + d[2] \
+            return "".join([struct.pack(">lll", d[0], d[1], len(d[2])) + d[2]
                             for d in x ])
+
+        def checkforbidden(f):
+            if '\n' in f or '\r' in f:
+                raise RevlogError(_("'\\n' and '\\r' disallowed in filenames"))
 
         # if we're using the listcache, make sure it is valid and
         # parented by the same node we're diffing against
-        if not changed or not self.listcache or not p1 or \
-               self.mapcache[0] != p1:
+        if not (changed and self.listcache and p1 and self.mapcache[0] == p1):
             files = map.keys()
             files.sort()
 
+            for f in files:
+                checkforbidden(f)
+
             # if this is changed to support newlines in filenames,
             # be sure to check the templates/ dir again (especially *-raw.tmpl)
-            text = ["%s\000%s%s\n" %
-                            (f, hex(map[f]), flags[f] and "x" or '')
-                            for f in files]
+            text = ["%s\000%s%s\n" % (f, hex(map[f]), map.flags(f))
+                    for f in files]
             self.listcache = array.array('c', "".join(text))
             cachedelta = None
         else:
             addlist = self.listcache
 
+            for f in changed[0]:
+                checkforbidden(f)
             # combine the changed lists into one list for sorting
             work = [[x, 0] for x in changed[0]]
             work[len(work):] = [[x, 1] for x in changed[1]]
@@ -151,14 +178,13 @@ class manifest(revlog):
                 # bs will either be the index of the item or the insert point
                 start, end = self._search(addbuf, f, start)
                 if w[1] == 0:
-                    l = "%s\000%s%s\n" % (f, hex(map[f]),
-                                          flags[f] and "x" or '')
+                    l = "%s\000%s%s\n" % (f, hex(map[f]), map.flags(f))
                 else:
                     l = ""
                 if start == end and w[1] == 1:
                     # item we want to delete was not found, error out
                     raise AssertionError(
-                            _("failed to remove %s from manifest\n") % f)
+                            _("failed to remove %s from manifest") % f)
                 if dstart != None and dstart <= start and dend >= start:
                     if dend < end:
                         dend = end
@@ -181,8 +207,8 @@ class manifest(revlog):
                 cachedelta = None
             self.listcache = addlist
 
-        n = self.addrevision(buffer(self.listcache), transaction, link, p1,  \
-                             p2, cachedelta)
-        self.mapcache = (n, map, flags)
+        n = self.addrevision(buffer(self.listcache), transaction, link,
+                             p1, p2, cachedelta)
+        self.mapcache = (n, map)
 
         return n

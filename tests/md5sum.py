@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 #
 # Based on python's Tools/scripts/md5sum.py
 #
@@ -7,7 +7,6 @@
 # GPL-compatible.
 
 import sys
-import os
 import md5
 
 for filename in sys.argv[1:]:
@@ -16,7 +15,7 @@ for filename in sys.argv[1:]:
     except IOError, msg:
         sys.stderr.write('%s: Can\'t open: %s\n' % (filename, msg))
         sys.exit(1)
-    
+
     m = md5.new()
     try:
         while 1:

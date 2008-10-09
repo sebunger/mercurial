@@ -9,18 +9,22 @@
 # http://www.python.org/dev/peps/pep-0333/#the-server-gateway-side
 
 import os, sys
+from mercurial import util
 
 def launch(application):
+    util.set_binary(sys.stdin)
+    util.set_binary(sys.stdout)
 
     environ = dict(os.environ.items())
-    environ['wsgi.input']        = sys.stdin
-    environ['wsgi.errors']       = sys.stderr
-    environ['wsgi.version']      = (1,0)
-    environ['wsgi.multithread']  = False
+    environ.setdefault('PATH_INFO', '')
+    environ['wsgi.input'] = sys.stdin
+    environ['wsgi.errors'] = sys.stderr
+    environ['wsgi.version'] = (1, 0)
+    environ['wsgi.multithread'] = False
     environ['wsgi.multiprocess'] = True
-    environ['wsgi.run_once']    = True
+    environ['wsgi.run_once'] = True
 
-    if environ.get('HTTPS','off') in ('on','1'):
+    if environ.get('HTTPS','off').lower() in ('on','1','yes'):
         environ['wsgi.url_scheme'] = 'https'
     else:
         environ['wsgi.url_scheme'] = 'http'
@@ -31,20 +35,20 @@ def launch(application):
 
     def write(data):
         if not headers_set:
-             raise AssertionError("write() before start_response()")
+            raise AssertionError("write() before start_response()")
 
         elif not headers_sent:
-             # Before the first output, send the stored headers
-             status, response_headers = headers_sent[:] = headers_set
-             out.write('Status: %s\r\n' % status)
-             for header in response_headers:
-                 out.write('%s: %s\r\n' % header)
-             out.write('\r\n')
+            # Before the first output, send the stored headers
+            status, response_headers = headers_sent[:] = headers_set
+            out.write('Status: %s\r\n' % status)
+            for header in response_headers:
+                out.write('%s: %s\r\n' % header)
+            out.write('\r\n')
 
         out.write(data)
         out.flush()
 
-    def start_response(status,response_headers,exc_info=None):
+    def start_response(status, response_headers, exc_info=None):
         if exc_info:
             try:
                 if headers_sent:
@@ -55,16 +59,7 @@ def launch(application):
         elif headers_set:
             raise AssertionError("Headers already set!")
 
-        headers_set[:] = [status,response_headers]
+        headers_set[:] = [status, response_headers]
         return write
 
-    result = application(environ, start_response)
-    try:
-        for data in result:
-            if data:    # don't send headers until body appears
-                write(data)
-        if not headers_sent:
-            write('')   # send headers now if body was empty
-    finally:
-        if hasattr(result,'close'):
-            result.close()
+    application(environ, start_response)

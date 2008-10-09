@@ -1,4 +1,4 @@
-# Copyright (C) 2005 by Intevation GmbH
+# Copyright (C) 2005, 2006, 2008 by Intevation GmbH
 # Author(s):
 # Thomas Arendsen Hein <thomas@intevation.de>
 #
@@ -10,18 +10,19 @@ Mercurial version
 """
 
 import os
-import os.path
 import re
 import time
-import util
 
 unknown_version = 'unknown'
 remembered_version = False
 
-def get_version():
+def get_version(doreload=False):
     """Return version information if available."""
     try:
-        from mercurial.__version__ import version
+        import mercurial.__version__
+        if doreload:
+            reload(mercurial.__version__)
+        version = mercurial.__version__.version
     except ImportError:
         version = unknown_version
     return version
@@ -40,12 +41,14 @@ def write_version(version):
     f.write("# This file is auto-generated.\n")
     f.write("version = %r\n" % version)
     f.close()
+    # reload the file we've just written
+    get_version(True)
 
 def remember_version(version=None):
     """Store version information."""
     global remembered_version
     if not version and os.path.isdir(".hg"):
-        f = os.popen("hg identify 2> %s" % util.nulldev)  # use real hg installation
+        f = os.popen("hg identify")  # use real hg installation
         ident = f.read()[:-1]
         if not f.close() and ident:
             ids = ident.split(' ', 1)

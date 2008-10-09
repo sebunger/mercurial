@@ -1,3 +1,5 @@
+% should display baz only
+? baz
 --
 A dir/b.o
 ? a.c
@@ -6,6 +8,27 @@ A dir/b.o
 ? syntax
 --
 abort: .hgignore: invalid pattern (relre): *.o
+--
+A dir/b.o
+? .hgignore
+? a.c
+? syntax
+--
+A dir/b.o
+? a.c
+? a.o
+? dir/c.o
+? syntax
+--
+A dir/b.o
+? .hgignore
+? a.c
+? syntax
+--
+A dir/b.o
+? .hgignore
+? a.c
+? syntax
 --
 A dir/b.o
 ? .hgignore

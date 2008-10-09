@@ -5,17 +5,17 @@
 # This software may be used and distributed according to the terms of
 # the GNU General Public License, incorporated herein by reference.
 
-from demandload import *
-from i18n import gettext as _
-from node import *
-demandload(globals(), 'cStringIO os stat tarfile time util zipfile')
+from i18n import _
+from node import hex
+import cStringIO, os, stat, tarfile, time, util, zipfile
+import zlib, gzip
 
 def tidyprefix(dest, prefix, suffixes):
     '''choose prefix to use for names in archive.  make sure prefix is
     safe for consumers.'''
 
     if prefix:
-        prefix = prefix.replace('\\', '/')
+        prefix = util.normpath(prefix)
     else:
         if not isinstance(dest, str):
             raise ValueError('dest must be string if no prefix')
@@ -37,21 +37,68 @@ class tarit:
     '''write archive to tar file or stream.  can write uncompressed,
     or compress with gzip or bzip2.'''
 
+    class GzipFileWithTime(gzip.GzipFile):
+
+        def __init__(self, *args, **kw):
+            timestamp = None
+            if 'timestamp' in kw:
+                timestamp = kw.pop('timestamp')
+            if timestamp == None:
+                self.timestamp = time.time()
+            else:
+                self.timestamp = timestamp
+            gzip.GzipFile.__init__(self, *args, **kw)
+
+        def _write_gzip_header(self):
+            self.fileobj.write('\037\213')             # magic header
+            self.fileobj.write('\010')                 # compression method
+            fname = self.filename[:-3]
+            flags = 0
+            if fname:
+                flags = gzip.FNAME
+            self.fileobj.write(chr(flags))
+            gzip.write32u(self.fileobj, long(self.timestamp))
+            self.fileobj.write('\002')
+            self.fileobj.write('\377')
+            if fname:
+                self.fileobj.write(fname + '\000')
+
     def __init__(self, dest, prefix, mtime, kind=''):
         self.prefix = tidyprefix(dest, prefix, ['.tar', '.tar.bz2', '.tar.gz',
-                                                '.tgz', 'tbz2'])
+                                                '.tgz', '.tbz2'])
         self.mtime = mtime
-        if isinstance(dest, str):
-            self.z = tarfile.open(dest, mode='w:'+kind)
-        else:
-            self.z = tarfile.open(mode='w|'+kind, fileobj=dest)
 
-    def addfile(self, name, mode, data):
+        def taropen(name, mode, fileobj=None):
+            if kind == 'gz':
+                mode = mode[0]
+                if not fileobj:
+                    fileobj = open(name, mode + 'b')
+                gzfileobj = self.GzipFileWithTime(name, mode + 'b',
+                                                  zlib.Z_BEST_COMPRESSION,
+                                                  fileobj, timestamp=mtime)
+                return tarfile.TarFile.taropen(name, mode, gzfileobj)
+            else:
+                return tarfile.open(name, mode + kind, fileobj)
+
+        if isinstance(dest, str):
+            self.z = taropen(dest, mode='w:')
+        else:
+            # Python 2.5-2.5.1 have a regression that requires a name arg
+            self.z = taropen(name='', mode='w|', fileobj=dest)
+
+    def addfile(self, name, mode, islink, data):
         i = tarfile.TarInfo(self.prefix + name)
         i.mtime = self.mtime
         i.size = len(data)
-        i.mode = mode
-        self.z.addfile(i, cStringIO.StringIO(data))
+        if islink:
+            i.type = tarfile.SYMTYPE
+            i.mode = 0777
+            i.linkname = data
+            data = None
+        else:
+            i.mode = mode
+            data = cStringIO.StringIO(data)
+        self.z.addfile(i, data)
 
     def done(self):
         self.z.close()
@@ -90,14 +137,17 @@ class zipit:
                                  zipfile.ZIP_STORED)
         self.date_time = time.gmtime(mtime)[:6]
 
-    def addfile(self, name, mode, data):
+    def addfile(self, name, mode, islink, data):
         i = zipfile.ZipInfo(self.prefix + name, self.date_time)
         i.compress_type = self.z.compression
-        i.flag_bits = 0x08
         # unzip will not honor unix file modes unless file creator is
         # set to unix (id 3).
         i.create_system = 3
-        i.external_attr = (mode | stat.S_IFREG) << 16L
+        ftype = stat.S_IFREG
+        if islink:
+            mode = 0777
+            ftype = stat.S_IFLNK
+        i.external_attr = (mode | ftype) << 16L
         self.z.writestr(i, data)
 
     def done(self):
@@ -110,19 +160,17 @@ class fileit:
         if prefix:
             raise util.Abort(_('cannot give prefix when archiving to files'))
         self.basedir = name
-        self.dirs = {}
-        self.oflags = (os.O_CREAT | os.O_EXCL | os.O_WRONLY |
-                       getattr(os, 'O_BINARY', 0) |
-                       getattr(os, 'O_NOFOLLOW', 0))
+        self.opener = util.opener(self.basedir)
 
-    def addfile(self, name, mode, data):
+    def addfile(self, name, mode, islink, data):
+        if islink:
+            self.opener.symlink(data, name)
+            return
+        f = self.opener(name, "w", atomictemp=True)
+        f.write(data)
+        f.rename()
         destfile = os.path.join(self.basedir, name)
-        destdir = os.path.dirname(destfile)
-        if destdir not in self.dirs:
-            if not os.path.isdir(destdir):
-                os.makedirs(destdir)
-            self.dirs[destdir] = 1
-        os.fdopen(os.open(destfile, self.oflags, mode), 'wb').write(data)
+        os.chmod(destfile, mode)
 
     def done(self):
         pass
@@ -152,23 +200,25 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
 
     prefix is name of path to put before every archive member.'''
 
-    def write(name, mode, data):
+    def write(name, mode, islink, getdata):
         if matchfn and not matchfn(name): return
+        data = getdata()
         if decode:
-            fp = cStringIO.StringIO()
-            repo.wwrite(name, data, fp)
-            data = fp.getvalue()
-        archiver.addfile(name, mode, data)
+            data = repo.wwritedata(name, data)
+        archiver.addfile(name, mode, islink, data)
 
-    change = repo.changelog.read(node)
-    mn = change[0]
-    archiver = archivers[kind](dest, prefix, mtime or change[2][0])
-    mf = repo.manifest.read(mn).items()
-    mff = repo.manifest.readflags(mn)
-    mf.sort()
-    write('.hg_archival.txt', 0644,
-          'repo: %s\nnode: %s\n' % (hex(repo.changelog.node(0)), hex(node)))
-    for filename, filenode in mf:
-        write(filename, mff[filename] and 0755 or 0644,
-              repo.file(filename).read(filenode))
+    ctx = repo.changectx(node)
+    if kind not in archivers:
+        raise util.Abort(_("unknown archive type '%s'" % kind))
+    archiver = archivers[kind](dest, prefix, mtime or ctx.date()[0])
+    m = ctx.manifest()
+    items = m.items()
+    items.sort()
+    if repo.ui.configbool("ui", "archivemeta", True):
+        write('.hg_archival.txt', 0644, False,
+              lambda: 'repo: %s\nnode: %s\n' % (
+                  hex(repo.changelog.node(0)), hex(node)))
+    for filename, filenode in items:
+        write(filename, m.execf(filename) and 0755 or 0644, m.linkf(filename),
+              lambda: repo.file(filename).read(filenode))
     archiver.done()

@@ -1,57 +1,65 @@
 # sshrepo.py - ssh repository proxy class for mercurial
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from node import *
-from remoterepo import *
-from i18n import gettext as _
-from demandload import *
-demandload(globals(), "hg os re stat util")
+from node import bin, hex
+from i18n import _
+import repo, os, re, util
 
-class sshrepository(remoterepository):
+class remotelock(object):
+    def __init__(self, repo):
+        self.repo = repo
+    def release(self):
+        self.repo.unlock()
+        self.repo = None
+    def __del__(self):
+        if self.repo:
+            self.release()
+
+class sshrepository(repo.repository):
     def __init__(self, ui, path, create=0):
-        self.url = path
+        self._url = path
         self.ui = ui
 
-        m = re.match(r'ssh://(([^@]+)@)?([^:/]+)(:(\d+))?(/(.*))?', path)
+        m = re.match(r'^ssh://(([^@]+)@)?([^:/]+)(:(\d+))?(/(.*))?$', path)
         if not m:
-            raise hg.RepoError(_("couldn't parse location %s") % path)
+            self.raise_(repo.RepoError(_("couldn't parse location %s") % path))
 
         self.user = m.group(2)
         self.host = m.group(3)
         self.port = m.group(5)
         self.path = m.group(7) or "."
 
-        args = self.user and ("%s@%s" % (self.user, self.host)) or self.host
-        args = self.port and ("%s -p %s") % (args, self.port) or args
-
         sshcmd = self.ui.config("ui", "ssh", "ssh")
         remotecmd = self.ui.config("ui", "remotecmd", "hg")
 
-        if create:
-            try:
-                self.validate_repo(ui, sshcmd, args, remotecmd)
-                return # the repo is good, nothing more to do
-            except hg.RepoError:
-                pass
+        args = util.sshargs(sshcmd, self.host, self.user, self.port)
 
+        if create:
             cmd = '%s %s "%s init %s"'
             cmd = cmd % (sshcmd, args, remotecmd, self.path)
 
             ui.note('running %s\n' % cmd)
-            res = os.system(cmd)
+            res = util.system(cmd)
             if res != 0:
-                raise hg.RepoError(_("could not create remote repo"))
+                self.raise_(repo.RepoError(_("could not create remote repo")))
 
         self.validate_repo(ui, sshcmd, args, remotecmd)
 
+    def url(self):
+        return self._url
+
     def validate_repo(self, ui, sshcmd, args, remotecmd):
+        # cleanup up previous run
+        self.cleanup()
+
         cmd = '%s %s "%s -R %s serve --stdio"'
         cmd = cmd % (sshcmd, args, remotecmd, self.path)
 
+        cmd = util.quotecommand(cmd)
         ui.note('running %s\n' % cmd)
         self.pipeo, self.pipei, self.pipee = os.popen3(cmd, 'b')
 
@@ -70,13 +78,13 @@ class sshrepository(remoterepository):
             lines.append(l)
             max_noise -= 1
         else:
-            raise hg.RepoError(_("no response from remote hg"))
+            self.raise_(repo.RepoError(_("no suitable response from remote hg")))
 
-        self.capabilities = ()
+        self.capabilities = util.set()
         lines.reverse()
         for l in lines:
             if l.startswith("capabilities:"):
-                self.capabilities = l[:-1].split(":")[1].split()
+                self.capabilities.update(l[:-1].split(":")[1].split())
                 break
 
     def readerr(self):
@@ -87,7 +95,11 @@ class sshrepository(remoterepository):
             if not l: break
             self.ui.status(_("remote: "), l)
 
-    def __del__(self):
+    def raise_(self, exception):
+        self.cleanup()
+        raise exception
+
+    def cleanup(self):
         try:
             self.pipeo.close()
             self.pipei.close()
@@ -97,6 +109,8 @@ class sshrepository(remoterepository):
             self.pipee.close()
         except:
             pass
+
+    __del__ = cleanup
 
     def do_cmd(self, cmd, **args):
         self.ui.debug(_("sending %s command\n") % cmd)
@@ -109,14 +123,25 @@ class sshrepository(remoterepository):
         return self.pipei
 
     def call(self, cmd, **args):
-        r = self.do_cmd(cmd, **args)
-        l = r.readline()
+        self.do_cmd(cmd, **args)
+        return self._recv()
+
+    def _recv(self):
+        l = self.pipei.readline()
         self.readerr()
         try:
             l = int(l)
         except:
-            raise hg.RepoError(_("unexpected response '%s'") % l)
-        return r.read(l)
+            self.raise_(util.UnexpectedOutput(_("unexpected response:"), l))
+        return self.pipei.read(l)
+
+    def _send(self, data, flush=False):
+        self.pipeo.write("%d\n" % len(data))
+        if data:
+            self.pipeo.write(data)
+        if flush:
+            self.pipeo.flush()
+        self.readerr()
 
     def lock(self):
         self.call("lock")
@@ -125,12 +150,21 @@ class sshrepository(remoterepository):
     def unlock(self):
         self.call("unlock")
 
+    def lookup(self, key):
+        self.requirecap('lookup', _('look up remote revision'))
+        d = self.call("lookup", key=key)
+        success, data = d[:-1].split(" ", 1)
+        if int(success):
+            return bin(data)
+        else:
+            self.raise_(repo.RepoError(data))
+
     def heads(self):
         d = self.call("heads")
         try:
             return map(bin, d[:-1].split(" "))
         except:
-            raise hg.RepoError(_("unexpected response '%s'") % (d[:400] + "..."))
+            self.raise_(util.UnexpectedOutput(_("unexpected response:"), d))
 
     def branches(self, nodes):
         n = " ".join(map(hex, nodes))
@@ -139,7 +173,7 @@ class sshrepository(remoterepository):
             br = [ tuple(map(bin, b.split(" "))) for b in d.splitlines() ]
             return br
         except:
-            raise hg.RepoError(_("unexpected response '%s'") % (d[:400] + "..."))
+            self.raise_(util.UnexpectedOutput(_("unexpected response:"), d))
 
     def between(self, pairs):
         n = "\n".join(["-".join(map(hex, p)) for p in pairs])
@@ -148,56 +182,66 @@ class sshrepository(remoterepository):
             p = [ l and map(bin, l.split(" ")) or [] for l in d.splitlines() ]
             return p
         except:
-            raise hg.RepoError(_("unexpected response '%s'") % (d[:400] + "..."))
+            self.raise_(util.UnexpectedOutput(_("unexpected response:"), d))
 
     def changegroup(self, nodes, kind):
         n = " ".join(map(hex, nodes))
         return self.do_cmd("changegroup", roots=n)
 
+    def changegroupsubset(self, bases, heads, kind):
+        self.requirecap('changegroupsubset', _('look up remote changes'))
+        bases = " ".join(map(hex, bases))
+        heads = " ".join(map(hex, heads))
+        return self.do_cmd("changegroupsubset", bases=bases, heads=heads)
+
     def unbundle(self, cg, heads, source):
         d = self.call("unbundle", heads=' '.join(map(hex, heads)))
         if d:
-            raise hg.RepoError(_("push refused: %s") % d)
+            # remote may send "unsynced changes"
+            self.raise_(repo.RepoError(_("push refused: %s") % d))
 
         while 1:
             d = cg.read(4096)
-            if not d: break
-            self.pipeo.write(str(len(d)) + '\n')
-            self.pipeo.write(d)
-            self.readerr()
+            if not d:
+                break
+            self._send(d)
 
-        self.pipeo.write('0\n')
-        self.pipeo.flush()
+        self._send("", flush=True)
 
-        self.readerr()
-        d = self.pipei.readline()
-        if d != '\n':
-            return 1
+        r = self._recv()
+        if r:
+            # remote may send "unsynced changes"
+            self.raise_(repo.RepoError(_("push failed: %s") % r))
 
-        l = int(self.pipei.readline())
-        r = self.pipei.read(l)
-        if not r:
-            return 1
-        return int(r)
+        r = self._recv()
+        try:
+            return int(r)
+        except:
+            self.raise_(util.UnexpectedOutput(_("unexpected response:"), r))
 
-    def addchangegroup(self, cg, source):
+    def addchangegroup(self, cg, source, url):
         d = self.call("addchangegroup")
         if d:
-            raise hg.RepoError(_("push refused: %s") % d)
+            self.raise_(repo.RepoError(_("push refused: %s") % d))
         while 1:
             d = cg.read(4096)
-            if not d: break
+            if not d:
+                break
             self.pipeo.write(d)
             self.readerr()
 
         self.pipeo.flush()
 
         self.readerr()
-        l = int(self.pipei.readline())
-        r = self.pipei.read(l)
+        r = self._recv()
         if not r:
             return 1
-        return int(r)
+        try:
+            return int(r)
+        except:
+            self.raise_(util.UnexpectedOutput(_("unexpected response:"), r))
 
     def stream_out(self):
         return self.do_cmd('stream_out')
+
+instance = sshrepository

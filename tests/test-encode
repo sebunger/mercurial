@@ -22,7 +22,7 @@ echo %% no changes
 hg status
 
 echo %% uncompressed contents in repo
-hg debugdata .hg/data/a.gz.d 0
+hg debugdata .hg/store/data/a.gz.d 0
 
 echo %% uncompress our working dir copy
 gunzip < a.gz
@@ -32,3 +32,11 @@ hg co
 
 echo %% uncompress our new working dir copy
 gunzip < a.gz
+
+echo %% check hg cat operation
+hg cat a.gz
+hg cat --decode a.gz | gunzip
+mkdir subdir
+cd subdir
+hg -R .. cat ../a.gz
+hg -R .. cat --decode ../a.gz | gunzip

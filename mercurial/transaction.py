@@ -6,22 +6,17 @@
 # effectively log-structured, this should amount to simply truncating
 # anything that isn't referenced in the changelog.
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from demandload import demandload
-from i18n import gettext as _
-demandload(globals(), 'os')
+from i18n import _
+import os
 
 class transaction(object):
-    def __init__(self, report, opener, journal, after=None):
+    def __init__(self, report, opener, journal, after=None, createmode=None):
         self.journal = None
-
-        # abort here if the journal already exists
-        if os.path.exists(journal):
-            raise AssertionError(_("journal already exists - run hg recover"))
 
         self.count = 1
         self.report = report
@@ -32,6 +27,8 @@ class transaction(object):
         self.journal = journal
 
         self.file = open(self.journal, "w")
+        if createmode is not None:
+            os.chmod(self.journal, createmode & 0666)
 
     def __del__(self):
         if self.journal:

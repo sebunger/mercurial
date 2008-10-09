@@ -1,0 +1,14 @@
+Fix bug #447088
+Index: mercurial-0.9.5/mercurial/extensions.py
+===================================================================
+--- mercurial-0.9.5.orig/mercurial/extensions.py	2007-11-02 11:49:43.000000000 +0100
++++ mercurial-0.9.5/mercurial/extensions.py	2007-11-02 11:58:15.000000000 +0100
+@@ -29,6 +29,8 @@
+         raise KeyError(name)
+ 
+ def load(ui, name, path):
++    if name.startswith('hgext/'):
++        name = 'hgext.' + name[6:]
+     if name.startswith('hgext.'):
+         shortname = name[6:]
+     else:

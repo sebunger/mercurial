@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="generator" content="AsciiDoc 7.0.2">
+<meta name="generator" content="AsciiDoc 8.2.5">
 <title>HGIGNORE(5)</title>
 </head>
 <body>
@@ -12,15 +12,15 @@
 <tt>&lt;<a href="mailto:vadim.gelfer@gmail.com">vadim.gelfer@gmail.com</a>&gt;</tt><br />
 </p>
 <hr />
-<h2>NAME</h2>
+<h2><a name="_name"></a>NAME</h2>
 <p>hgignore - syntax for Mercurial ignore files</p>
 <hr />
-<h2>SYNOPSIS</h2>
+<h2><a name="_synopsis"></a>SYNOPSIS</h2>
 <p>The Mercurial system uses a file called .hgignore in the root
 directory of a repository to control its behavior when it finds files
 that it is not currently managing.</p>
 <hr />
-<h2>DESCRIPTION</h2>
+<h2><a name="_description"></a>DESCRIPTION</h2>
 <p>Mercurial ignores every unmanaged file that matches any pattern in an
 ignore file.  The patterns in an ignore file do not apply to files
 managed by Mercurial.  To control Mercurial's handling of files that
@@ -31,7 +31,7 @@ per-user or global ignore files.  See the hgrc(5) man page for details
 of how to configure these files.  Look for the "ignore" entry in the
 "ui" section.</p>
 <hr />
-<h2>SYNTAX</h2>
+<h2><a name="_syntax"></a>SYNTAX</h2>
 <p>An ignore file is a plain text file consisting of a list of patterns,
 with one pattern per line.  Empty lines are skipped.  The "#"
 character is treated as a comment character, and the "\" character is
@@ -66,34 +66,33 @@ the form "*.c" will match a file ending in ".c" in any directory, and
 a regexp pattern of the form "\.c$" will do the same.  To root a
 regexp pattern, start it with "^".</p>
 <hr />
-<h2>EXAMPLE</h2>
+<h2><a name="_example"></a>EXAMPLE</h2>
 <p>Here is an example ignore file.</p>
 <pre># use glob syntax.
 syntax: glob</pre>
 <pre>*.elc
 *.pyc
-*~
-.*.swp</pre>
+*~</pre>
 <pre># switch to regexp syntax.
 syntax: regexp
 ^\.pc/</pre>
 <hr />
-<h2>AUTHOR</h2>
+<h2><a name="_author"></a>AUTHOR</h2>
 <p>Vadim Gelfer &lt;vadim.gelfer@gmail.com&gt;</p>
 <p>Mercurial was written by Matt Mackall &lt;mpm@selenic.com&gt;.</p>
 <hr />
-<h2>SEE ALSO</h2>
+<h2><a name="_see_also"></a>SEE ALSO</h2>
 <p>hg(1), hgrc(5)</p>
 <hr />
-<h2>COPYING</h2>
+<h2><a name="_copying"></a>COPYING</h2>
 <p>This manual page is copyright 2006 Vadim Gelfer.
-Mercurial is copyright 2005, 2006 Matt Mackall.
+Mercurial is copyright 2005-2007 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 24-Jul-2006 18:11:00 CDT
+Last updated 2008-05-22 15:49:09 CDT
 </small></p>
 </body>
 </html>

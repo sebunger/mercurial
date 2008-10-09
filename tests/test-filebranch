@@ -3,11 +3,11 @@
 # This test makes sure that we don't mark a file as merged with its ancestor
 # when we do a merge.
 
-cat <<'EOF' > merge
-#!/bin/sh
-echo merging for `basename $1`
+cat <<EOF > merge
+import sys, os
+print "merging for", os.path.basename(sys.argv[1])
 EOF
-chmod +x merge
+HGMERGE="python ../merge"; export HGMERGE
 
 echo creating base
 hg init a
@@ -37,41 +37,41 @@ echo 2b > baz
 hg commit -m "branch b" -d "1000000 0"
 
 echo "we shouldn't have anything but n state here"
-hg debugstate | cut -b 1-16,35-
+hg debugstate --nodates | grep -v "^n"
 
 echo merging
 hg pull ../a
-env HGMERGE=../merge hg merge -v
+hg merge -v
 
 echo 2m > foo
 echo 2b > baz
 echo new > quux
 
 echo "we shouldn't have anything but foo in merge state here"
-hg debugstate | cut -b 1-16,35- | grep "^m"
+hg debugstate --nodates | grep "^m"
 
 hg ci -m "merge" -d "1000000 0"
 
 echo "main: we should have a merge here"
-hg debugindex .hg/00changelog.i
+hg debugindex .hg/store/00changelog.i
 
 echo "log should show foo and quux changed"
 hg log -v -r tip
 
 echo "foo: we should have a merge here"
-hg debugindex .hg/data/foo.i
+hg debugindex .hg/store/data/foo.i
 
 echo "bar: we shouldn't have a merge here"
-hg debugindex .hg/data/bar.i
+hg debugindex .hg/store/data/bar.i
 
 echo "baz: we shouldn't have a merge here"
-hg debugindex .hg/data/baz.i
+hg debugindex .hg/store/data/baz.i
 
 echo "quux: we shouldn't have a merge here"
-hg debugindex .hg/data/quux.i
+hg debugindex .hg/store/data/quux.i
 
 echo "manifest entries should match tips of all files"
-hg manifest
+hg manifest --debug
 
 echo "everything should be clean now"
 hg status

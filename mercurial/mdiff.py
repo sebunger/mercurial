@@ -1,13 +1,12 @@
 # mdiff.py - diff and patch routines for mercurial
 #
-# Copyright 2005 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from demandload import demandload
-import bdiff, mpatch
-demandload(globals(), "re struct util")
+from i18n import _
+import bdiff, mpatch, re, struct, util, md5
 
 def splitnewlines(text):
     '''like str.splitlines, but only split on newlines.'''
@@ -19,44 +18,98 @@ def splitnewlines(text):
             lines[-1] = lines[-1][:-1]
     return lines
 
-def unidiff(a, ad, b, bd, fn, r=None, text=False,
-            showfunc=False, ignorews=False, ignorewsamount=False,
-            ignoreblanklines=False):
+class diffopts(object):
+    '''context is the number of context lines
+    text treats all files as text
+    showfunc enables diff -p output
+    git enables the git extended patch format
+    nodates removes dates from diff headers
+    ignorews ignores all whitespace changes in the diff
+    ignorewsamount ignores changes in the amount of whitespace
+    ignoreblanklines ignores changes whose lines are all blank'''
+
+    defaults = {
+        'context': 3,
+        'text': False,
+        'showfunc': False,
+        'git': False,
+        'nodates': False,
+        'ignorews': False,
+        'ignorewsamount': False,
+        'ignoreblanklines': False,
+        }
+
+    __slots__ = defaults.keys()
+
+    def __init__(self, **opts):
+        for k in self.__slots__:
+            v = opts.get(k)
+            if v is None:
+                v = self.defaults[k]
+            setattr(self, k, v)
+
+        try:
+            self.context = int(self.context)
+        except ValueError:
+            raise util.Abort(_('diff context lines count must be '
+                               'an integer, not %r') % self.context)
+
+defaultopts = diffopts()
+
+def wsclean(opts, text):
+    if opts.ignorews:
+        text = re.sub('[ \t]+', '', text)
+    elif opts.ignorewsamount:
+        text = re.sub('[ \t]+', ' ', text)
+        text = re.sub('[ \t]+\n', '\n', text)
+    if opts.ignoreblanklines:
+        text = re.sub('\n+', '', text)
+    return text
+
+def unidiff(a, ad, b, bd, fn1, fn2, r=None, opts=defaultopts):
+    def datetag(date, addtab=True):
+        if not opts.git and not opts.nodates:
+            return '\t%s\n' % date
+        if addtab and ' ' in fn1:
+            return '\t\n'
+        return '\n'
 
     if not a and not b: return ""
     epoch = util.datestr((0, 0))
 
-    if not text and (util.binary(a) or util.binary(b)):
-        l = ['Binary file %s has changed\n' % fn]
+    if not opts.text and (util.binary(a) or util.binary(b)):
+        def h(v):
+            # md5 is used instead of sha1 because md5 is supposedly faster
+            return md5.new(v).digest()
+        if a and b and len(a) == len(b) and h(a) == h(b):
+            return ""
+        l = ['Binary file %s has changed\n' % fn1]
     elif not a:
         b = splitnewlines(b)
         if a is None:
-            l1 = "--- %s\t%s\n" % ("/dev/null", epoch)
+            l1 = '--- /dev/null%s' % datetag(epoch, False)
         else:
-            l1 = "--- %s\t%s\n" % ("a/" + fn, ad)
-        l2 = "+++ %s\t%s\n" % ("b/" + fn, bd)
+            l1 = "--- %s%s" % ("a/" + fn1, datetag(ad))
+        l2 = "+++ %s%s" % ("b/" + fn2, datetag(bd))
         l3 = "@@ -0,0 +1,%d @@\n" % len(b)
         l = [l1, l2, l3] + ["+" + e for e in b]
     elif not b:
         a = splitnewlines(a)
-        l1 = "--- %s\t%s\n" % ("a/" + fn, ad)
+        l1 = "--- %s%s" % ("a/" + fn1, datetag(ad))
         if b is None:
-            l2 = "+++ %s\t%s\n" % ("/dev/null", epoch)
+            l2 = '+++ /dev/null%s' % datetag(epoch, False)
         else:
-            l2 = "+++ %s\t%s\n" % ("b/" + fn, bd)
+            l2 = "+++ %s%s" % ("b/" + fn2, datetag(bd))
         l3 = "@@ -1,%d +0,0 @@\n" % len(a)
         l = [l1, l2, l3] + ["-" + e for e in a]
     else:
         al = splitnewlines(a)
         bl = splitnewlines(b)
-        l = list(bunidiff(a, b, al, bl, "a/" + fn, "b/" + fn,
-                          showfunc=showfunc, ignorews=ignorews,
-                          ignorewsamount=ignorewsamount,
-                          ignoreblanklines=ignoreblanklines))
+        l = list(bunidiff(a, b, al, bl, "a/" + fn1, "b/" + fn2, opts=opts))
         if not l: return ""
         # difflib uses a space, rather than a tab
-        l[0] = "%s\t%s\n" % (l[0][:-2], ad)
-        l[1] = "%s\t%s\n" % (l[1][:-2], bd)
+        l[0] = "%s%s" % (l[0][:-2], datetag(ad))
+        l[1] = "%s%s" % (l[1][:-2], datetag(bd))
 
     for ln in xrange(len(l)):
         if l[ln][-1] != '\n':
@@ -64,7 +117,7 @@ def unidiff(a, ad, b, bd, fn, r=None, text=False,
 
     if r:
         l.insert(0, "diff %s %s\n" %
-                    (' '.join(["-r %s" % rev for rev in r]), fn))
+                    (' '.join(["-r %s" % rev for rev in r]), fn1))
 
     return "".join(l)
 
@@ -72,21 +125,15 @@ def unidiff(a, ad, b, bd, fn, r=None, text=False,
 # t1 and t2 are the text to be diffed
 # l1 and l2 are the text broken up into lines
 # header1 and header2 are the filenames for the diff output
-# context is the number of context lines
-# showfunc enables diff -p output
-# ignorews ignores all whitespace changes in the diff
-# ignorewsamount ignores changes in the amount of whitespace
-# ignoreblanklines ignores changes whose lines are all blank
-def bunidiff(t1, t2, l1, l2, header1, header2, context=3, showfunc=False,
-             ignorews=False, ignorewsamount=False, ignoreblanklines=False):
+def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
     def contextend(l, len):
-        ret = l + context
+        ret = l + opts.context
         if ret > len:
             ret = len
         return ret
 
     def contextstart(l):
-        ret = l - context
+        ret = l - opts.context
         if ret < 0:
             return 0
         return ret
@@ -101,7 +148,7 @@ def bunidiff(t1, t2, l1, l2, header1, header2, context=3, showfunc=False,
         blen = b2 - bstart + aend - a2
 
         func = ""
-        if showfunc:
+        if opts.showfunc:
             # walk backwards from the start of the context
             # to find a line starting with an alphanumeric char.
             for x in xrange(astart, -1, -1):
@@ -119,15 +166,8 @@ def bunidiff(t1, t2, l1, l2, header1, header2, context=3, showfunc=False,
 
     header = [ "--- %s\t\n" % header1, "+++ %s\t\n" % header2 ]
 
-    if showfunc:
+    if opts.showfunc:
         funcre = re.compile('\w')
-    if ignorewsamount:
-        wsamountre = re.compile('[ \t]+')
-        wsappendedre = re.compile(' \n')
-    if ignoreblanklines:
-        wsblanklinesre = re.compile('\n')
-    if ignorews:
-        wsre = re.compile('[ \t]')
 
     # bdiff.blocks gives us the matching sequences in the files.  The loop
     # below finds the spaces between those matching sequences and translates
@@ -159,24 +199,8 @@ def bunidiff(t1, t2, l1, l2, header1, header2, context=3, showfunc=False,
         if not old and not new:
             continue
 
-        if ignoreblanklines:
-            wsold = wsblanklinesre.sub('', "".join(old))
-            wsnew = wsblanklinesre.sub('', "".join(new))
-            if wsold == wsnew:
-                continue
-
-        if ignorewsamount:
-            wsold = wsamountre.sub(' ', "".join(old))
-            wsold = wsappendedre.sub('\n', wsold)
-            wsnew = wsamountre.sub(' ', "".join(new))
-            wsnew = wsappendedre.sub('\n', wsnew)
-            if wsold == wsnew:
-                continue
-
-        if ignorews:
-            wsold = wsre.sub('', "".join(old))
-            wsnew = wsre.sub('', "".join(new))
-            if wsold == wsnew:
+        if opts.ignorews or opts.ignorewsamount or opts.ignoreblanklines:
+            if wsclean(opts, "".join(old)) == wsclean(opts, "".join(new)):
                 continue
 
         astart = contextstart(a1)
@@ -184,7 +208,7 @@ def bunidiff(t1, t2, l1, l2, header1, header2, context=3, showfunc=False,
         prev = None
         if hunk:
             # join with the previous hunk if it falls inside the context
-            if astart < hunk[1] + context + 1:
+            if astart < hunk[1] + opts.context + 1:
                 prev = hunk
                 astart = hunk[1]
                 bstart = hunk[3]
@@ -223,6 +247,13 @@ def patchtext(bin):
 
 def patch(a, bin):
     return mpatch.patches(a, [bin])
+
+# similar to difflib.SequenceMatcher.get_matching_blocks
+def get_matching_blocks(a, b):
+    return [(d[0], d[2], d[1] - d[0]) for d in bdiff.blocks(a, b)]
+
+def trivialdiffheader(length):
+    return struct.pack(">lll", 0, 0, length)
 
 patches = mpatch.patches
 patchedsize = mpatch.patchedsize

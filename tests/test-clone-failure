@@ -23,13 +23,18 @@ hg clone . ../a
 echo $?
 cd ..
 chmod 700 a
-rm -rf a b
+rm -r a b
 
 # Source of wrong type
-mkfifo a
-hg clone a b
-echo $?
-rm a
+if "$TESTDIR/hghave" -q fifo; then
+    mkfifo a
+    hg clone a b
+    echo $?
+    rm a
+else
+    echo "abort: repository a not found!"
+    echo 255
+fi
 
 # Default destination, same directory
 mkdir q

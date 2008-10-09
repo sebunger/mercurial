@@ -1,11 +1,498 @@
-mercurial (0.9.1-1+etch1) testing-proposed-updates; urgency=low
+mercurial (1.0.1-5.1~bpo40+1) etch-backports; urgency=low
 
+  * Rebuild for etch-backports to fix CVE-2008-4297 (closes: #500781)
+
+ -- Gerfried Fuchs <rhonda@debian.at>  Thu, 09 Oct 2008 08:36:07 +0200
+
+mercurial (1.0.1-5.1) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Honor allowpull configuration setting from hgrc on a repository clone to
+    prevent information disclosure (CVE-2008-4297; Closes: #500781).
+
+ -- Nico Golde <nion@debian.org>  Fri, 03 Oct 2008 16:25:13 +0200
+
+mercurial (1.0.1-5) unstable; urgency=low
+
+  * Fix debian/copyright (GPL-2 only and not GPL-2+) (Closes: #493967)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 26 Aug 2008 15:28:20 +0200
+
+mercurial (1.0.1-4) unstable; urgency=low
+
+  * fix subversion 1.5 compatibility (Closes: #492244)
+    using upstream patch
+  * fix bashism in postinst
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 31 Jul 2008 14:27:51 +0200
+
+mercurial (1.0.1-3) unstable; urgency=low
+
+  * debian/control:
+    + update Standard-Version (no change needed)
+    + add python-beaker as recommends (needed for "hg serve") (Closes:
+      #486299)
+  * fix wrong ucf registration (/etc/hgrc.d/ vs /etc/mercurial/hgrc.d/)
+    (Closes: #487089). Thanks Max Bowsher for noticing.
+  * add a mention to "legacy Darcs 1 format" in convert documentation
+    (Closes: #485887)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 08 Jul 2008 20:40:05 +0200
+
+mercurial (1.0.1-2) unstable; urgency=high
+
+  * Backport from upstream: fix CVE-2008-2942 Insufficient input validation
+    (Closes: #488628)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 01 Jul 2008 18:44:19 +0200
+
+mercurial (1.0.1-1) unstable; urgency=low
+
+  * New upstream release
+    + Bugfix release
+  * debian/watch: do not call uupdate
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 31 May 2008 19:26:16 +0200
+
+mercurial (1.0-7) unstable; urgency=low
+
+  * Lowering versioned dependency on ucf. Etch version of ucf is enought.
+    #479485 was using a pre etch version of ucf.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 26 May 2008 09:25:45 +0200
+
+mercurial (1.0-6) unstable; urgency=low
+
+  * add versionned dependency on ucf due to the use to ucfr (Closes: #479485)
+  * re-add rcs as first alternative of recommands. Discussion about this
+    can be found in #460943 and #479077 (Closes: #479077)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 21 May 2008 10:04:32 +0200
+
+mercurial (1.0-5) unstable; urgency=low
+
+  * Add a note in the NEWS file about upstream change for merging conflicts.
+    (Closes: #481553, )
+  * install mergetools.hgrc system wide (Closes: #481089)
+  * add suggest and documentation for convert extension dependencies
+    (Closes: #477652)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 20 May 2008 22:46:57 +0200
+
+mercurial (1.0-4) unstable; urgency=low
+
+  * fix build system so that "hg version" works
+  * fix typos in doc (darcs instead of darc)
+  * remove suggests: for foreign SCM. If someone needs them for the convert
+    extension, they should be already installed (Closes: #476342)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 16 Apr 2008 10:05:53 +0200
+
+mercurial (1.0-3) unstable; urgency=low
+
+  * really fix auto-enabling extensions at installation time
+    + be less strict with spaces
+    + reformat the hgext.rc file to be consistent
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 15 Apr 2008 10:32:38 +0200
+
+mercurial (1.0-2) unstable; urgency=low
+
+  * fix typo in mercurial postinst
+  * remove Suggests to non existant mercurial-web
+  * add lintian-override for non depends on "tk8.4 | wish" in
+    mercurial-common (the Suggests: is in the mercurial package
+    as for all other extensions' dependencies)
+  * fix handling of automatic enabled extension in postinst
+    (they must be disabled in the installed template)
+  * add detection of inotify extension before enabling it (needed on
+    etch that has a too old libc)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 07 Apr 2008 09:06:04 +0200
+
+mercurial (1.0-1) unstable; urgency=low
+
+  * new upstream version
+    Closes several Debian bugs:
+     * "hg convert broken" (Closes: #472185)
+     * "hgmerge: uses non-POSIX syntax `type' in /bin/sh script" (Closes:
+       #447094)
+     * "hgmerge: --help option gives a message that ends strangely" (Closes:
+       #443428)
+     * "mercurial: hg/editor interaction leaves a lot of temp files around"
+       (Closes: #472943)
+     * "mercurial: Mercurial merge with meld needs hint" (Closes: #466006)
+     * "glog: tries to close closed fd" (Closes: #454326)
+     * "mercurial: `hg diff` can break UTF-8 encoding" (Closes: #469326)
+     * "Recording mtime after recording commit message leads to hidden (lost)
+       changes" (Closes: #452385)
+    General:
+     * greatly improved merge tool configuration, see "hgrc.5.txt" for details
+     * improved copy/rename handling in diffs, status, and merge
+     * files in .hg inherit permissions from .hg/store
+     * infer --repository when possible, so commands may be run from anywhere.
+     * easy-installable
+     * new "droplet" logo
+    
+    Commands:
+     * archive: disable ".hg_archival.txt" file addition with "ui.archivemeta"
+     * bisect: now built-in with greatly improved performance and usability
+     * bundle: new --all option to bundle the whole repository more easily.
+     * cat: apply decode filters with --decode
+     * clone: can clone from a full-history bundle
+     * commit: warn when creating a new head
+     * debugancestor: index argument is now optional
+     * diff: set the number of context line to show with -U/--unified
+     * grep: display matched revisions commit date with --date
+     * import: new --no-commit and --user options
+     * incoming/outgoing: add --limit option
+     * log: use -b/--only-branch to show revisions of a single branch
+     * remove: improve handling for --after
+     * revert: major speedup
+     * serve: prefix the served path with --prefix (also in [web] section)
+     * status: unknown files are skipped by --quiet
+     * tag: allow multiple tags to be added or removed
+     * tags: --verbose flags local tags
+     * update: switch between named branches without -C
+    
+    Extensions:
+     * churn: promoted to an official extension (previously in contrib)
+     * color: new extension coloring "status" and "qseries" command outputs    
+     * convert:
+       * allow synthetic history to be spliced in with --splicemap
+       * support GNU Arch and Monotone sources
+       * svn: allow shallow conversions of single branches with 
+         convert.svn.startrev option.
+       * svn: make trunk/branches/tags layout detection more flexible by 
+         allowing either of them to be skipped.
+       * svn: preliminary support as a conversion target
+     * hgk: configuration file changed from .gitk to .hgk
+     * highlight: new extension enabling syntax highlighting in hgweb file view
+       (requires pygments)
+     * inotify: new extension using Linux 2.6 inotify API for instant status
+       checking
+     * keyword: new extension for filewise RCS-keyword expansion in working
+       directory
+     * mq: new --currentdate, --date, --currentuser, and 
+       --user options
+     * record: add "qrecord" command when used with mq
+     
+    Web interface:
+     * improved WSGI integration and compatibility
+     * follow symlinks in hgwebdir collections
+     * show branches in most of gitweb templates
+     * add line anchors to annotate, changeset, diff and file views 
+     * support web.baseurl in hgwebdir, overriding SCRIPT_NAME
+    
+    Hooks:
+     * standard hook to reject text files with CRLF in win32text extension
+     * redirect stdout to stderr for ssh and http servers
+      
+  [ Gerardo Curiel ]
+  * Split package to fix lintian warnings:
+    + mercurial -  main package
+    + mercurial-common - Arch-indep bits
+  * Fix clean target
+  * Dropped patches:
+    patches/proposed_upstream__check_hgmerge_args.patch
+    patches/proposed_upstream__type_is_not_posix.patch
+  * patches/deb_specific__use_sensible-editor.patch:
+    Rediff against mercurial 1.0 
+  * hgmerge shell script is not provided anymore
+  * contrib/favicon.ico is not provided anymore
+  * Deleted obsolete link_hgit target from debian/rules
+  * Added mergetools.hgrc to the examples
+    directory
+  * Added logo-droplets.svg to /usr/share/mercurial
+  * Added new extensions to the hgext.rc file
+    + hgext.color (not enabled by default)
+    + hgext.highlight (not enabled by default)
+    + hgext.inotify (enabled, Closes: #472583)
+    + hgext.keyword (not enabled by default)
+  * Removed extensions from the hgext.rc file
+    + hgext.hbisect (now provided as a built-in command)
+  * Added new suggested dependencies :
+    + python-pygments (needed for hgext/highlight.py)
+    + python-elementtree (for darcs conversion)
+
+  [ Vincent Danjean ]
+  * import mercurial in the Python Application Packaging Team project
+  * debian/control:
+    + add PAPT in the Uploaders field
+    + add Vcs-* fields
+    + add conflicts/replaces fields to ensure proper upgrade for
+      mercurial-common
+  * cleanup debian/ files
+    + remove unneeded debian/*.{dirs} files 
+  * move examples/ in usr/share/doc/mercurial (in the mercurial-common
+    package)
+  * manage hgext.rc with ucf. Enabling some extensions only if their
+    dependencies are present
+  * put all usr/share/python-support/* in mercurial-common instead of
+    mercurial. This trigger a lintian warning but this is an error (see
+    #473428)
+                  
+  [ Piotr Ożarowski ]
+  * New recommended packages:
+    + python-mysqldb (hgext/bugzilla.py)
+    + python-openssl (hgweb/server.py)
+  * New suggested packages:
+    + python-flup (contrib/hgwebdir.fcgi, Closes: #466731)
+ 
+  [ William Pitcock ]
+  * patches/deb_specific__use_sensible-editor.patch:
+    +Rediff against 1.0 branch.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 07 Apr 2008 00:11:40 +0200
+
+mercurial (0.9.5-3) unstable; urgency=low
+
+  * [debian/control]
+    + Recommends rcs first (and before kdiff3) as hgmerge
+      use it in first (and does not use another program if it exists)
+      (Closes: #460943)
+      As an additionnal value, rcs has really fewer dependencies
+    + Move Homepage: from description to source stanza
+    + Suggest qct instead of commit-tool (better developed upstream)
+    + Bump standard-version to 3.7.3 (no change needed)
+    + Add python-elementtree to suggest (needed for hg convert with darcs
+      repo) (Closes: 459353)
+      Should be removed when debian will switch to python2.5 (as it is
+      included in it)
+    + move tk8.4 | wish from recommends to suggests as it is needed by
+      an extension (hgk) and not by the core package
+  * [debian/README]
+    + document that extension dependencies are listed as Suggests:
+  * [debian/patches/deb_specific__use_VISUAL_envvar.patch]
+    Rewrite the patch using sensible-editor (Closes: 448376)
+    and rename it to deb_specific__use_sensible-editor.patch
+  * [debian/rule]
+    + rewrite the fix for cdbs/dh_python so that we depend on the
+      current python version (Closes: #456556)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 21 Jan 2008 20:57:27 +0100
+
+mercurial (0.9.5-2) unstable; urgency=low
+
+  * Apply patch to change 'hgext/' into 'hgext.' when loading an extension
+    Current config files use the documented syntax (ie 'hgext.extname=')
+    Users can use 'hgext/extname=' in their hgrc if they want to
+    (Closes: #447088)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Fri, 02 Nov 2007 11:59:03 +0100
+
+mercurial (0.9.5-1) unstable; urgency=low
+
+  * New upstream release
+    Closes: #435636 (erroneous multiple heads after commit)
+    Closes: #427808 (hgweb/hgwebdir do not work with flup (FastCGI))
+    Closes: #418780 (partial hgweb listings)
+    Closes: #440175 (please include record extension)
+    Closes: #447663 (0.9.5 available)
+    Closes: #427851 (RSS feeds have wrong URL with https)
+    New features:
+     * Handle symlinks on systems without symlink support
+     * hg archive supports symlinks
+     * Display executable/symlink bit with "hg manifest -v" (see UpgradeNotes)
+     * Improved hg verify diagostics
+     * Faster revlog handling
+     * Faster handling of large directories
+     * Greatly improved handling of large files
+     * Atom syndication support in hgweb
+     * Improved test suite with parallel execution
+    
+    Fixes:
+     * Fixes for some file copy and rename corner cases
+     * Allow moving newly-added files before commit
+     * Improve hg diff whitespace handling
+     * Disallow fast-forward merge with an ancestor
+     * Fix adding untracked files on directory renames
+     * Fix hg archive %r format specifier
+     * Fix re: and glob: patterns in .hgignore
+     * Improve hg executable path resolution
+     * Many options and hgrc parsing improvements
+     * Better handling of VFAT filesystems on Linux
+     * Fix tgz archival on Windows
+     * Fix hg serve on Windows requiring pywin32 modules
+     * Fix --profile under Windows
+    
+    New extensions:
+     * alias - allow user-defined command aliases
+     * children - show the children of the given or working dir revision
+     * imerge - incremental interactive merging
+     * interhg - modify changelog text as in InterWiki
+     * record - darcs-style interactive change selection during commit
+    
+    New extension features:
+     * convert
+       * Now supports Subversion, Darcs and Mercurial as source SCMs
+       * Use clone's behaviour for the default destination name
+       * Force encoding to UTF-8 for converted repository
+       * Support new-style .cvspass file format
+       * Filter the files and directories to import
+       * Remap paths to new locations during import
+     * hgk
+       * Fix hgk stopping because of untrusted repository warnings
+       * Handle filenames with spaces
+       * Improved documentation
+     * mq
+       * Autodetect --git patches on qrefresh
+
+  * Improve README.Debian about Emacs
+    Closes: #446972 (mercurial.el: autoload)
+    Thanks to Trent W. Buck for its explainations added to the README.Debian
+  * Apply several patches to hgmerge:
+    - use /bin/bash for hgmerge: 'type' is not POSIX (Closes: #447094)
+    - patch hgmerge to do minimum check of its arguments (Closes: #443428)
+    - use $VISUAL and default to 'editor' instead of 'vi'
+      (Closes: #447095, #448376) [mercurial/command.py modified too]
+  * Correct wrong link to web docs in README.Debian (Closes: #425841)
+  * [debian/control] Recommends: meld (used to hgmerge) (Closes: #316347)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 29 Oct 2007 10:22:45 +0100
+
+mercurial (0.9.4-1) unstable; urgency=low
+
+  * New upstream release (Closes: #430714)
+    + New features:
+       * support for symlinks
+       * improved tag handling
+       * improved merge handling of file and directory renames
+       * improved named branch usability
+       * numerous improvements to commands
+       * generic pre- and post-command hooks
+       * improved Windows support
+       * basic BeOS and OpenVMS support
+       * numerous bug fixes
+
+    + New extensions and contributions:
+       * extensions can now be specified in .hg/hgrc
+       * new convert extension with CVS support
+       * new graphlog extension
+       * improved patchbomb extension
+       * example FastCGI script
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 27 Jun 2007 00:33:27 +0200
+
+mercurial (0.9.3-2) unstable; urgency=low
+
+  * [debian/rule, debian/control] remove workaround for symlink support in
+    python-support and bump dependency of python-support (>= 0.4.3)
+  * [debian/rule] use default python interpreter as 2.4 is the default now
   * [debian/mercurial.postinst] remove old
     /usr/lib/python*/site-packages/{mercurial,hgext} directories if needed
-    (Closes: #382252), backport from 0.9.3-2
-  * [debian/control] update maintainer field with my debian.org address
+    (Closes: #382252)
+  * forgot to closes: #382185 since 0.9.2 upstream release (hgrc manual does
+    not say [smtp] host is optional any more)
 
- -- Vincent Danjean <vdanjean@debian.org>  Wed,  3 Jan 2007 19:38:55 +0100
+ -- Vincent Danjean <vdanjean@debian.org>  Wed,  3 Jan 2007 14:22:10 +0100
+
+mercurial (0.9.3-1) unstable; urgency=low
+
+  * New upstream release
+    + Bug fixes:
+       - fix a merge copy/rename corner case
+       - fix spurious new heads message with push -r
+       - fix hg export %n sequence numbers
+       - fix shell quoting on Windows
+       - fix charset encoding for hgwebdir and obfuscated addresses
+       - fix missing generated files for distribution tarball
+       - fix convert-repo tag updates and transcoding of committer
+       - add instructions for redoing failed merges
+      
+    + Documentation fixes:
+       - hg cat, manifest, and tag default to current parent revision.
+       - CGI stub comments clarified
+       - corrected synopses for many commands
+       - improve doc building and distribution
+       - convert-repo: update usage information
+      
+    + Extension fixes:
+       - mq: fix strip on Windows
+       - mq: fix some guards corner cases
+       - gpg: make 'hg sign' default to current parent
+    
+
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 19 Dec 2006 11:25:55 +0100
+
+mercurial (0.9.2-3) unstable; urgency=low
+
+  * remove debian/patches/submitted_upstream__restore_hgk.py.patch
+    as it is now included in the release (and avoid to use a old hgk.py
+    with a recent hg) (Closes: #403282)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 16 Dec 2006 15:51:13 +0100
+
+mercurial (0.9.2-2) unstable; urgency=low
+
+  * [debian/rules] add support for python2.5
+  * [README.Debian] update list of default extensions
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 14 Dec 2006 15:26:10 +0100
+
+mercurial (0.9.2-1) unstable; urgency=low
+
+  * New upstream release
+   + New features:
+      - merge now follows renames and copies
+      - new layout protects against case-insensitivity issues
+      - new branch and branches commands for managing named branches
+      - push command accepts -r for pushing specified heads or named
+        branches
+      - proper storage of changelog and other metadata in UTF-8
+      - log, annotate and grep '--follow' follow renames and copies
+      - date parsing is improved and log, update, and revert accept
+        --date ranges
+      - additional command options for log, status, addremove
+      - improved schema for hgweb URLs
+      - bundle can now use '-r' and '--base' removing the need of an
+        base repository
+      - support for git-style extended patches with --git option
+      - new debuginstall command to check for common installation issues
+     
+   + New contributions and extensions:
+      - mq
+        - support for quilt-style guards
+        - can import existing changesets into mq ('qimport -r') or 
+          commit mq patches as regular changesets ('qdel -f')
+        - edit the log message with 'qrefresh -e'
+        - rename patches with 'qrename'
+        - qheader to display the patch header of particular patches, 
+          and '--summary' for qseries, qapplied, qunapplied and qtop
+        - combine patches with 'qfold'
+        - qrefresh supports pattern options to import only a subset 
+          of the changes into a patch, to help split changes into
+          multiple patches
+        - patch names for applied patches act like local tags, and can
+          be used in the revision arguments of any hg command
+      - hgk
+        - browse a subset of the history with '--limit' and revision range
+          arguments
+        - shows revision numbers as well as node hashes
+      - churn: graph lines of code changed per user over a range of history
+      - patchbomb: generate inline attachments with '-a'
+     
+   + Behavior changes:
+      - hg cat defaults to the working directory revision rather than tip
+      - hg manifest no longer shows internal file revision hashes by default
+      - hg revert now requires the -a flag to revert all files
+     
+   + Developer notes:
+      - new high-level API functions in the 'hg' module
+      - new context API simplifies many operations
+      - The changelog can now include arbitrary metadata in key: value form
+  * [debian]: include the churn extension and enable it by default
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 14 Dec 2006 13:05:01 +0100
+
+mercurial (0.9.1+20061210+8c24b6fd5866-1) experimental; urgency=low
+
+  * New upstream release
+    snapshot before 0.9.2 release
+  * [debian/control] : update maintainer field : I'am DD now :-)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sun, 10 Dec 2006 22:40:30 +0100
 
 mercurial (0.9.1-1) unstable; urgency=low
 

@@ -4,6 +4,85 @@
 # This program is free software; it may be used, copied, modified
 # and distributed under the terms of the GNU General Public Licence,
 # either version 2, or (at your option) any later version.
+#
+# See hgk.py for extension usage and configuration.
+
+
+# Modified version of Tip 171:
+# http://www.tcl.tk/cgi-bin/tct/tip/171.html
+#
+# The in_mousewheel global was added to fix strange reentrancy issues.
+# The whole snipped is activated only under windows, mouse wheel
+# bindings working already under MacOSX and Linux.
+
+if {[tk windowingsystem] eq "win32"} {
+
+set mw_classes [list Text Listbox Table TreeCtrl]
+   foreach class $mw_classes { bind $class <MouseWheel> {} }
+
+set in_mousewheel 0
+
+proc ::tk::MouseWheel {wFired X Y D {shifted 0}} {
+    global in_mousewheel
+    if { $in_mousewheel != 0 } { return }
+    # Set event to check based on call
+    set evt "<[expr {$shifted?{Shift-}:{}}]MouseWheel>"
+    # do not double-fire in case the class already has a binding
+    if {[bind [winfo class $wFired] $evt] ne ""} { return }
+    # obtain the window the mouse is over
+    set w [winfo containing $X $Y]
+    # if we are outside the app, try and scroll the focus widget
+    if {![winfo exists $w]} { catch {set w [focus]} }
+    if {[winfo exists $w]} {
+
+        if {[bind $w $evt] ne ""} {
+            # Awkward ... this widget has a MouseWheel binding, but to
+            # trigger successfully in it, we must give it focus.
+            catch {focus} old
+            if {$w ne $old} { focus $w }
+            set in_mousewheel 1
+            event generate $w $evt -rootx $X -rooty $Y -delta $D
+            set in_mousewheel 0
+            if {$w ne $old} { focus $old }
+            return
+        }
+
+        # aqua and x11/win32 have different delta handling
+        if {[tk windowingsystem] ne "aqua"} {
+            set delta [expr {- ($D / 30)}]
+        } else {
+            set delta [expr {- ($D)}]
+        }
+        # scrollbars have different call conventions
+        if {[string match "*Scrollbar" [winfo class $w]]} {
+            catch {tk::ScrollByUnits $w \
+                       [string index [$w cget -orient] 0] $delta}
+        } else {
+            set cmd [list $w [expr {$shifted ? "xview" : "yview"}] \
+                         scroll $delta units]
+            # Walking up to find the proper widget (handles cases like
+            # embedded widgets in a canvas)
+            while {[catch $cmd] && [winfo toplevel $w] ne $w} {
+                set w [winfo parent $w]
+            }
+        }
+    }
+}
+
+bind all <MouseWheel> [list ::tk::MouseWheel %W %X %Y %D 0]
+
+# end of win32 section
+}
+
+
+# Unify right mouse button handling.
+# See "mouse buttons on macintosh" thread on comp.lang.tcl
+if {[tk windowingsystem] eq "aqua"} {
+    event add <<B3>> <Control-ButtonPress-1>
+    event add <<B3>> <Button-2>
+} else {
+    event add <<B3>> <Button-3>
+}
 
 proc gitdir {} {
     global env
@@ -30,18 +109,34 @@ proc getcommits {rargs} {
     set startmsecs [clock clicks -milliseconds]
     set nextupdate [expr $startmsecs + 100]
     set ncmupdate 1
-    if [catch {
-	set parse_args [concat --default HEAD $rargs]
-	set parsed_args [split [eval exec hg debug-rev-parse $parse_args] "\n"]
-    }] {
-	# if git-rev-parse failed for some reason...
-	if {$rargs == {}} {
-	    set rargs HEAD
+    set limit 0
+    set revargs {}
+    for {set i 0} {$i < [llength $rargs]} {incr i} {
+	set opt [lindex $rargs $i]
+	if {$opt == "--limit"} {
+	    incr i
+	    set limit [lindex $rargs $i]
+	} else {
+	    lappend revargs $opt
 	}
-	set parsed_args $rargs
     }
     if [catch {
-	set commfd [open "|hg debug-rev-list --header --topo-order --parents $parsed_args" r]
+	set parse_args [concat --default HEAD $revargs]
+	set parse_temp [eval exec {$env(HG)} --config ui.report_untrusted=false debug-rev-parse $parse_args]
+	regsub -all "\r\n" $parse_temp "\n" parse_temp
+	set parsed_args [split $parse_temp "\n"]
+    } err] {
+	# if git-rev-parse failed for some reason...
+	if {$rargs == {}} {
+	    set revargs HEAD
+	}
+	set parsed_args $revargs
+    }
+    if {$limit > 0} {
+	set parsed_args [concat -n $limit $parsed_args]
+    }
+    if [catch {
+	set commfd [open "|{$env(HG)} --config ui.report_untrusted=false debug-rev-list --header --topo-order --parents $parsed_args" r]
     } err] {
 	puts stderr "Error executing hg debug-rev-list: $err"
 	exit 1
@@ -94,13 +189,14 @@ to allow selection of commits to be displayed.)}
 	    set leftover {}
 	}
 	set start [expr {$i + 1}]
+	regsub -all "\r\n" $cmit "\n" cmit
 	set j [string first "\n" $cmit]
 	set ok 0
 	if {$j >= 0} {
 	    set ids [string range $cmit 0 [expr {$j - 1}]]
 	    set ok 1
 	    foreach id $ids {
-		if {![regexp {^[0-9a-f]{40}$} $id]} {
+		if {![regexp {^[0-9a-f]{12}$} $id]} {
 		    set ok 0
 		    break
 		}
@@ -162,7 +258,8 @@ proc doupdate {reading} {
 }
 
 proc readcommit {id} {
-    if [catch {set contents [exec hg debug-cat-file commit $id]}] return
+    global env
+    if [catch {set contents [exec $env(HG) --config ui.report_untrusted=false debug-cat-file commit $id]}] return
     parsecommit $id $contents 0 {}
 }
 
@@ -176,6 +273,8 @@ proc parsecommit {id contents listed olds} {
     set audate {}
     set comname {}
     set comdate {}
+    set rev {}
+    set branch {}
     if {![info exists nchildren($id)]} {
 	set children($id) {}
 	set nchildren($id) 0
@@ -194,6 +293,7 @@ proc parsecommit {id contents listed olds} {
 	    incr ncleft($p)
 	}
     }
+    regsub -all "\r\n" $contents "\n" contents
     foreach line [split $contents "\n"] {
 	if {$inhdr} {
 	    set line [split $line]
@@ -209,6 +309,10 @@ proc parsecommit {id contents listed olds} {
 		    set x [expr {[llength $line] - 2}]
 		    set comdate [lindex $line $x]
 		    set comname [join [lrange $line 1 [expr {$x - 1}]]]
+		} elseif {$tag == "revision"} {
+		    set rev [lindex $line 1]
+        } elseif {$tag == "branch"} {
+		    set branch [join [lrange $line 1 end]]
 		}
 	    }
 	} else {
@@ -233,18 +337,34 @@ proc parsecommit {id contents listed olds} {
 	set comdate [clock format $comdate -format "%Y-%m-%d %H:%M:%S"]
     }
     set commitinfo($id) [list $headline $auname $audate \
-			     $comname $comdate $comment]
+			     $comname $comdate $comment $rev $branch]
 }
 
 proc readrefs {} {
-    global tagids idtags headids idheads tagcontents
+    global tagids idtags headids idheads tagcontents env curid
 
-    set tags [exec hg tags]
-    set lines [split $tags '\n']
+    set status [catch {exec $env(HG) --config ui.report_untrusted=false id} curid]
+    if { $status != 0 } {
+        puts $::errorInfo
+        if { ![string equal $::errorCode NONE] } {
+            exit 2
+        }
+    }
+    regexp -- {[[:xdigit:]]+} $curid curid
+
+    set status [catch {exec $env(HG) --config ui.report_untrusted=false tags} tags]
+    if { $status != 0 } {
+        puts $::errorInfo
+        if { ![string equal $::errorCode NONE] } {
+            exit 2
+        }
+    }
+    regsub -all "\r\n" $tags "\n" tags
+
+    set lines [split $tags "\n"]
     foreach f $lines {
-	set f [regexp -all -inline {\S+} $f]
-	set direct [lindex $f 0]
-	set full [lindex $f 1]
+	regexp {(\S+)$} $f full
+	regsub {\s+(\S+)$} $f "" direct
 	set sha [split $full ':']
 	set tag [lindex $sha 1]
 	lappend tagids($direct) $tag
@@ -261,7 +381,7 @@ proc readotherrefs {base dname excl} {
 	catch {
 	    set fd [open $f r]
 	    set line [read $fd 40]
-	    if {[regexp {^[0-9a-f]{40}} $line id]} {
+	    if {[regexp {^[0-9a-f]{12}} $line id]} {
 		set name "$dname[file tail $f]"
 		set otherrefids($name) $id
 		lappend idotherrefs($id) $name
@@ -275,6 +395,11 @@ proc readotherrefs {base dname excl} {
 	if {[lsearch -exact $excl $dir] >= 0} continue
 	readotherrefs [file join $base $dir] "$dname$dir/" {}
     }
+}
+
+proc allcansmousewheel {delta} {
+    set delta [expr -5*(int($delta)/abs($delta))]
+    allcanvs yview scroll $delta units
 }
 
 proc error_popup msg {
@@ -295,6 +420,7 @@ proc makewindow {} {
     global entries sha1entry sha1string sha1but
     global maincursor textcursor curtextcursor
     global rowctxmenu gaudydiff mergemax
+    global hgvdiff
 
     menu .bar
     .bar add cascade -label "File" -menu .bar.file
@@ -334,15 +460,15 @@ proc makewindow {} {
     set canv .ctop.top.clist.canv
     canvas $canv -height $geometry(canvh) -width $geometry(canv1) \
 	-bg white -bd 0 \
-	-yscrollincr $linespc -yscrollcommand "$cscroll set"
+	-yscrollincr $linespc -yscrollcommand "$cscroll set" -selectbackground grey
     .ctop.top.clist add $canv
     set canv2 .ctop.top.clist.canv2
     canvas $canv2 -height $geometry(canvh) -width $geometry(canv2) \
-	-bg white -bd 0 -yscrollincr $linespc
+	-bg white -bd 0 -yscrollincr $linespc -selectbackground grey
     .ctop.top.clist add $canv2
     set canv3 .ctop.top.clist.canv3
     canvas $canv3 -height $geometry(canvh) -width $geometry(canv3) \
-	-bg white -bd 0 -yscrollincr $linespc
+	-bg white -bd 0 -yscrollincr $linespc -selectbackground grey
     .ctop.top.clist add $canv3
     bind .ctop.top.clist <Configure> {resizeclistpanes %W %w}
 
@@ -448,6 +574,7 @@ proc makewindow {} {
 
     bindall <1> {selcanvline %W %x %y}
     #bindall <B1-Motion> {selcanvline %W %x %y}
+    bindall <MouseWheel> "allcansmousewheel %D"
     bindall <ButtonRelease-4> "allcanvs yview scroll -5 units"
     bindall <ButtonRelease-5> "allcanvs yview scroll 5 units"
     bindall <2> "allcanvs scan mark 0 %y"
@@ -497,6 +624,12 @@ proc makewindow {} {
     $rowctxmenu add command -label "Make patch" -command mkpatch
     $rowctxmenu add command -label "Create tag" -command mktag
     $rowctxmenu add command -label "Write commit to file" -command writecommit
+    if { $hgvdiff ne "" } {
+	$rowctxmenu add command -label "Visual diff with parent" \
+	    -command {vdiff 1}
+	$rowctxmenu add command -label "Visual diff with selected" \
+	    -command {vdiff 0}
+    }
 }
 
 # when we make a key binding for the toplevel, make sure
@@ -527,13 +660,14 @@ proc click {w} {
 proc savestuff {w} {
     global canv canv2 canv3 ctext cflist mainfont textfont
     global stuffsaved findmergefiles gaudydiff maxgraphpct
-    global maxwidth
+    global maxwidth authorcolors curidfont
 
     if {$stuffsaved} return
     if {![winfo viewable .]} return
     catch {
-	set f [open "~/.gitk-new" w]
+	set f [open "~/.hgk-new" w]
 	puts $f [list set mainfont $mainfont]
+	puts $f [list set curidfont $curidfont]
 	puts $f [list set textfont $textfont]
 	puts $f [list set findmergefiles $findmergefiles]
 	puts $f [list set gaudydiff $gaudydiff]
@@ -551,8 +685,25 @@ proc savestuff {w} {
 	set wid [expr {([winfo width $cflist] - 11) \
 			   / [font measure [$cflist cget -font] "0"]}]
 	puts $f "set geometry(cflistw) $wid"
+	puts $f "#"
+	puts $f "# authorcolors format:"
+	puts $f "#"
+	puts $f "# zero or more sublists of"
+	puts $f "#"
+	puts $f "#    { regex color }"
+	puts $f "#"
+	puts $f "# followed by a list of colors"
+	puts $f "#"
+	puts $f "# If the commit author matches a regex in a sublist,"
+	puts $f "# the commit will be colored by that color"
+	puts $f "# otherwise the next unused entry from the list of colors"
+	puts $f "# will be assigned to this commit and also all other commits"
+	puts $f "# of the same author.  When the list of colors is exhausted,"
+	puts $f "# the last entry will be reused."
+	puts $f "#"
+	puts $f "set authorcolors {$authorcolors}"
 	close $f
-	file rename -force "~/.gitk-new" "~/.gitk"
+	file rename -force "~/.hgk-new" "~/.hgk"
     }
     set stuffsaved 1
 }
@@ -641,6 +792,35 @@ Use and redistribute under the terms of the GNU General Public License} \
     pack $w.m -side top -fill x -padx 20 -pady 20
     button $w.ok -text Close -command "destroy $w"
     pack $w.ok -side bottom
+}
+
+set aunextcolor 0
+proc assignauthorcolor {name} {
+    global authorcolors aucolormap aunextcolor
+    if [info exists aucolormap($name)] return
+
+    set randomcolors {black}
+    for {set i 0} {$i < [llength $authorcolors]} {incr i} {
+	set col [lindex $authorcolors $i]
+	if {[llength $col] > 1} {
+	    set re [lindex $col 0]
+	    set c [lindex $col 1]
+	    if {[regexp -- $re $name]} {
+		set aucolormap($name) $c
+		return
+	    }
+	} else {
+	    set randomcolors [lrange $authorcolors $i end]
+	    break
+	}
+    }
+
+    set ncolors [llength $randomcolors]
+    set c [lindex $randomcolors $aunextcolor]
+    if {[incr aunextcolor] >= $ncolors} {
+	incr aunextcolor -1
+    }
+    set aucolormap($name) $c
 }
 
 proc assigncolor {id} {
@@ -780,6 +960,7 @@ proc drawcommitline {level} {
     global lineno lthickness mainline mainlinearrow sidelines
     global commitlisted rowtextx idpos lastuse displist
     global oldnlines olddlevel olddisplist
+    global aucolormap curid curidfont
 
     incr numcommits
     incr lineno
@@ -838,14 +1019,25 @@ proc drawcommitline {level} {
     }
     set headline [lindex $commitinfo($id) 0]
     set name [lindex $commitinfo($id) 1]
+    assignauthorcolor $name
+    set fg $aucolormap($name)
+    if {$id == $curid} {
+	set fn $curidfont
+    } else {
+	set fn $mainfont
+    }
+
     set date [lindex $commitinfo($id) 2]
     set linehtag($lineno) [$canv create text $xt $y1 -anchor w \
-			       -text $headline -font $mainfont ]
-    $canv bind $linehtag($lineno) <Button-3> "rowmenu %X %Y $id"
+			       -text $headline -font $fn \
+			       -fill $fg]
+    $canv bind $linehtag($lineno) <<B3>> "rowmenu %X %Y $id"
     set linentag($lineno) [$canv2 create text 3 $y1 -anchor w \
-			       -text $name -font $namefont]
+			       -text $name -font $namefont \
+			       -fill $fg]
     set linedtag($lineno) [$canv3 create text 3 $y1 -anchor w \
-			       -text $date -font $mainfont]
+			       -text $date -font $mainfont \
+			       -fill $fg]
 
     set olddlevel $level
     set olddisplist $displist
@@ -1692,6 +1884,7 @@ proc findpatches {} {
     global findprocpid findprocfile
     global finddidsel ctext lineid findinprogress
     global findinsertpos
+    global env
 
     if {$numcommits == 0} return
 
@@ -1711,8 +1904,7 @@ proc findpatches {} {
     }
 
     if {[catch {
-	set f [open [list | hg debug-diff-tree --stdin -s -r -S$findstring \
-			 << $inputids] r]
+	set f [open [list | $env(HG) --config ui.report_untrusted=false debug-diff-tree --stdin -s -r -S$findstring << $inputids] r]
     } err]} {
 	error_popup "Error starting search process: $err"
 	return
@@ -1743,7 +1935,7 @@ proc readfindproc {} {
 	}
 	return
     }
-    if {![regexp {^[0-9a-f]{40}} $line id]} {
+    if {![regexp {^[0-9a-f]{12}} $line id]} {
 	error_popup "Can't parse git-diff-tree output: $line"
 	stopfindproc
 	return
@@ -1783,6 +1975,7 @@ proc findfiles {} {
     global findinprogress findstartline findinsertpos
     global treediffs fdiffids fdiffsneeded fdiffpos
     global findmergefiles
+    global env
 
     if {$numcommits == 0} return
 
@@ -1814,7 +2007,7 @@ proc findfiles {} {
     # start off a git-diff-tree process if needed
     if {$diffsneeded ne {}} {
 	if {[catch {
-	    set df [open [list | hg debug-diff-tree -r --stdin << $diffsneeded] r]
+	    set df [open [list | $env(HG) --config ui.report_untrusted=false debug-diff-tree -r --stdin << $diffsneeded] r]
 	} err ]} {
 	    error_popup "Error starting search process: $err"
 	    return
@@ -1856,7 +2049,7 @@ proc readfilediffs {df} {
 	}
 	return
     }
-    if {[regexp {^([0-9a-f]{40}) \(from ([0-9a-f]{40})\)} $line match id p]} {
+    if {[regexp {^([0-9a-f]{12}) \(from ([0-9a-f]{12})\)} $line match id p]} {
 	# start of a new string of diffs
 	donefilediff
 	set fdiffids [list $id $p]
@@ -2002,8 +2195,9 @@ proc commit_descriptor {p} {
     set l "..."
     if {[info exists commitinfo($p)]} {
 	set l [lindex $commitinfo($p) 0]
+	set r [lindex $commitinfo($p) 6]
     }
-    return "$p ($l)"
+    return "$r:$p ($l)"
 }
 
 # append some text to the ctext widget, and make any SHA1 ID
@@ -2014,7 +2208,7 @@ proc appendwithlinks {text} {
     set start [$ctext index "end - 1c"]
     $ctext insert end $text
     $ctext insert end "\n"
-    set links [regexp -indices -all -inline {[0-9a-f]{40}} $text]
+    set links [regexp -indices -all -inline {[0-9a-f]{12}} $text]
     foreach l $links {
 	set s [lindex $l 0]
 	set e [lindex $l 1]
@@ -2107,6 +2301,10 @@ proc selectline {l isnew} {
     $ctext mark set fmark.0 0.0
     $ctext mark gravity fmark.0 left
     set info $commitinfo($id)
+    $ctext insert end "Revision: [lindex $info 6]\n"
+    if {[llength [lindex $info 7]] > 0} {
+        $ctext insert end "Branch: [lindex $info 7]\n"
+    }
     $ctext insert end "Author: [lindex $info 1]  [lindex $info 2]\n"
     $ctext insert end "Committer: [lindex $info 3]  [lindex $info 4]\n"
     if {[info exists idtags($id)]} {
@@ -2141,8 +2339,12 @@ proc selectline {l isnew} {
 
     $cflist delete 0 end
     $cflist insert end "Comments"
+    if {$nparents($id) <= 1} {
+    set parent "null"
     if {$nparents($id) == 1} {
-	startdiff [concat $id $parents($id)]
+        set parent $parents($id)
+    }
+	startdiff [concat $id $parent]
     } elseif {$nparents($id) > 1} {
 	mergediff $id
     }
@@ -2229,13 +2431,14 @@ proc mergediff {id} {
 }
 
 proc findgca {ids} {
+    global env
     set gca {}
     foreach id $ids {
 	if {$gca eq {}} {
 	    set gca $id
 	} else {
 	    if {[catch {
-		set gca [exec hg debug-merge-base $gca $id]
+		set gca [exec $env(HG) --config ui.report_untrusted=false debug-merge-base $gca $id]
 	    } err]} {
 		return {}
 	    }
@@ -2309,6 +2512,7 @@ proc showmergediff {} {
     global cflist diffmergeid mergefilelist parents
     global diffopts diffinhunk currentfile currenthunk filelines
     global diffblocked groupfilelast mergefds groupfilenum grouphunks
+    global env
 
     set files $mergefilelist($diffmergeid)
     foreach f $files {
@@ -2323,7 +2527,7 @@ proc showmergediff {} {
     catch {unset grouphunks}
     set groupfilelast -1
     foreach p $parents($diffmergeid) {
-	set cmd [list | hg debug-diff-tree -p $p $diffmergeid]
+	set cmd [list | $env(HG) --config ui.report_untrusted=false debug-diff-tree -p $p $diffmergeid]
 	set cmd [concat $cmd $mergefilelist($diffmergeid)]
 	if {[catch {set f [open $cmd r]} err]} {
 	    error_popup "Error getting diffs: $err"
@@ -2762,12 +2966,12 @@ proc addtocflist {ids} {
 }
 
 proc gettreediffs {ids} {
-    global treediff parents treepending
+    global treediff parents treepending env
     set treepending $ids
     set treediff {}
     set id [lindex $ids 0]
     set p [lindex $ids 1]
-    if [catch {set gdtf [open "|hg debug-diff-tree -r $p $id" r]}] return
+    if [catch {set gdtf [open "|{$env(HG)} --config ui.report_untrusted=false debug-diff-tree -r $p $id" r]}] return
     fconfigure $gdtf -blocking 0
     fileevent $gdtf readable [list gettreediffline $gdtf $ids]
 }
@@ -2792,7 +2996,9 @@ proc gettreediffline {gdtf ids} {
 	}
 	return
     }
-    set file [lindex $line 5]
+    set tab1 [expr [string first "\t" $line] + 1]
+    set tab2 [expr [string first "\t" $line $tab1] - 1]
+    set file [string range $line $tab1 $tab2]
     lappend treediff $file
 }
 
@@ -2803,7 +3009,7 @@ proc getblobdiffs {ids} {
     set id [lindex $ids 0]
     set p [lindex $ids 1]
     set env(GIT_DIFF_OPTS) $diffopts
-    set cmd [list | hg debug-diff-tree -r -p -C $p $id]
+    set cmd [list | $env(HG) --config ui.report_untrusted=false debug-diff-tree -r -p -C $p $id]
     if {[catch {set bdf [open $cmd r]} err]} {
 	puts "error getting diffs: $err"
 	return
@@ -2837,6 +3043,7 @@ proc getblobdiffline {bdf ids} {
     if {$ids != $diffids || $bdf != $blobdifffd($ids)} {
 	return
     }
+    regsub -all "\r" $line "" line
     $ctext conf -state normal
     if {[regexp {^diff --git a/(.*) b/(.*)} $line match fname newname]} {
 	# start of a new file
@@ -2895,7 +3102,7 @@ proc getblobdiffline {bdf ids} {
 	} elseif {$diffinhdr || $x == "\\"} {
 	    # e.g. "\ No newline at end of file"
 	    $ctext insert end "$line\n" filesep
-	} else {
+	} elseif  {$line != ""} {
 	    # Something else we don't recognize
 	    if {$curdifftag != "Comments"} {
 		$ctext insert end "\n"
@@ -2967,9 +3174,10 @@ proc redisplay {} {
 
 proc incrfont {inc} {
     global mainfont namefont textfont ctext canv phase
-    global stopped entries
+    global stopped entries curidfont
     unmarkmatches
     set mainfont [lreplace $mainfont 1 1 [expr {[lindex $mainfont 1] + $inc}]]
+    set curidfont [lreplace $curidfont 1 1 [expr {[lindex $curidfont 1] + $inc}]]
     set namefont [lreplace $namefont 1 1 [expr {[lindex $namefont 1] + $inc}]]
     set textfont [lreplace $textfont 1 1 [expr {[lindex $textfont 1] + $inc}]]
     setcoords
@@ -3260,7 +3468,7 @@ proc mstime {} {
 }
 
 proc rowmenu {x y id} {
-    global rowctxmenu idline selectedline rowmenuid
+    global rowctxmenu idline selectedline rowmenuid hgvdiff
 
     if {![info exists selectedline] || $idline($id) eq $selectedline} {
 	set state disabled
@@ -3270,6 +3478,9 @@ proc rowmenu {x y id} {
     $rowctxmenu entryconfigure 0 -state $state
     $rowctxmenu entryconfigure 1 -state $state
     $rowctxmenu entryconfigure 2 -state $state
+    if { $hgvdiff ne "" } {
+	$rowctxmenu entryconfigure 6 -state $state
+    }
     set rowmenuid $id
     tk_popup $rowctxmenu $x $y
 }
@@ -3385,12 +3596,12 @@ proc mkpatchrev {} {
 }
 
 proc mkpatchgo {} {
-    global patchtop
+    global patchtop env
 
     set oldid [$patchtop.fromsha1 get]
     set newid [$patchtop.tosha1 get]
     set fname [$patchtop.fname get]
-    if {[catch {exec hg debug-diff-tree -p $oldid $newid >$fname &} err]} {
+    if {[catch {exec $env(HG) --config ui.report_untrusted=false debug-diff-tree -p $oldid $newid >$fname &} err]} {
 	error_popup "Error creating patch: $err"
     }
     catch {destroy $patchtop}
@@ -3449,7 +3660,7 @@ proc domktag {} {
 	return
     }
     if {[catch {
-	set out [exec hg tag -r $id $tag]
+	set out [exec $env(HG) --config ui.report_untrusted=false tag -r $id $tag]
     } err]} {
 	error_popup "Error creating tag: $err"
 	return
@@ -3525,7 +3736,7 @@ proc wrcomgo {} {
     set id [$wrcomtop.sha1 get]
     set cmd "echo $id | [$wrcomtop.cmd get]"
     set fname [$wrcomtop.fname get]
-    if {[catch {exec sh -c $cmd >$fname &} err]} {
+    if {[catch {exec sh -c $cmd > $fname &} err]} {
 	error_popup "Error writing commit: $err"
     }
     catch {destroy $wrcomtop}
@@ -3582,6 +3793,26 @@ proc rereadrefs {} {
     }
 }
 
+proc vdiff {withparent} {
+    global env rowmenuid selectedline lineid hgvdiff
+
+    if {![info exists rowmenuid]} return
+    set curid $rowmenuid
+
+    if {$withparent} {
+	set parents [exec $env(HG) --config ui.report_untrusted=false parents --rev $curid --template "{node}\n"]
+	set firstparent [lindex [split $parents "\n"] 0]
+	set otherid $firstparent
+    } else {
+	if {![info exists selectedline]} return
+	set otherid $lineid($selectedline)
+    }
+    set range "$otherid:$curid"
+    if {[catch {exec $env(HG) --config ui.report_untrusted=false $hgvdiff -r $range} err]} {
+        # Ignore errors, this is just visualization
+    }
+}
+
 proc showtag {tag isnew} {
     global ctext cflist tagcontents tagids linknum
 
@@ -3607,13 +3838,27 @@ proc doquit {} {
     destroy .
 }
 
+proc getconfig {} {
+    global env
+
+    set lines [exec $env(HG) debug-config]
+    regsub -all "\r\n" $lines "\n" config
+    set config {}
+    foreach line [split $lines "\n"] {
+	regsub "^(k|v)=" $line "" line
+	lappend config $line
+    }
+    return $config
+}
+
 # defaults...
 set datemode 0
 set boldnames 0
 set diffopts "-U 5 -p"
-set wrcomcmd "hg debug-diff-tree --stdin -p --pretty"
+set wrcomcmd "\"\$HG\" --config ui.report_untrusted=false debug-diff-tree --stdin -p --pretty"
 
 set mainfont {Helvetica 9}
+set curidfont {}
 set textfont {Courier 9}
 set findmergefiles 0
 set gaudydiff 0
@@ -3621,8 +3866,15 @@ set maxgraphpct 50
 set maxwidth 16
 
 set colors {green red blue magenta darkgrey brown orange}
+set authorcolors {
+    black blue deeppink mediumorchid blue burlywood4 goldenrod slateblue red2 navy dimgrey
+}
 
-catch {source ~/.gitk}
+catch {source ~/.hgk}
+
+if {$curidfont == ""} {  # initialize late based on current mainfont
+    set curidfont "$mainfont bold italic underline"
+}
 
 set namefont $mainfont
 if {$boldnames} {
@@ -3648,7 +3900,12 @@ set stopped 0
 set redisplaying 0
 set stuffsaved 0
 set patchnum 0
+
+array set config [getconfig]
+set hgvdiff $config(vdiff)
 setcoords
 makewindow
 readrefs
+set hgroot [exec $env(HG) root]
+wm title . "hgk $hgroot"
 getcommits $revtreeargs

@@ -2,20 +2,55 @@
 #
 # This is the mercurial setup script.
 #
-# './setup.py install', or
-# './setup.py --help' for more options
+# 'python setup.py install', or
+# 'python setup.py --help' for more options
 
 import sys
-if not hasattr(sys, 'version_info') or sys.version_info < (2, 3):
+if not hasattr(sys, 'version_info') or sys.version_info < (2, 3, 0, 'final'):
     raise SystemExit, "Mercurial requires python 2.3 or later."
 
-import glob
+import os
+import shutil
+import tempfile
 from distutils.core import setup, Extension
 from distutils.command.install_data import install_data
+from distutils.ccompiler import new_compiler
 
-# mercurial.packagescan must be the first mercurial module imported
-import mercurial.packagescan
 import mercurial.version
+
+extra = {}
+
+# simplified version of distutils.ccompiler.CCompiler.has_function
+# that actually removes its temporary files.
+def has_function(cc, funcname):
+    tmpdir = tempfile.mkdtemp(prefix='hg-install-')
+    devnull = oldstderr = None
+    try:
+        try:
+            fname = os.path.join(tmpdir, 'funcname.c')
+            f = open(fname, 'w')
+            f.write('int main(void) {\n')
+            f.write('    %s();\n' % funcname)
+            f.write('}\n')
+            f.close()
+            # Redirect stderr to /dev/null to hide any error messages
+            # from the compiler.
+            # This will have to be changed if we ever have to check
+            # for a function on Windows.
+            devnull = open('/dev/null', 'w')
+            oldstderr = os.dup(sys.stderr.fileno())
+            os.dup2(devnull.fileno(), sys.stderr.fileno())
+            objects = cc.compile([fname])
+            cc.link_executable(objects, os.path.join(tmpdir, "a.out"))
+        except:
+            return False
+        return True
+    finally:
+        if oldstderr is not None:
+            os.dup2(oldstderr, sys.stderr.fileno())
+        if devnull is not None:
+            devnull.close()
+        shutil.rmtree(tmpdir)
 
 # py2exe needs to be installed to work
 try:
@@ -35,34 +70,10 @@ try:
     except ImportError:
         pass
 
-    # Due to the use of demandload py2exe is not finding the modules.
-    # packagescan.getmodules creates a list of modules included in
-    # the mercurial package plus depdent modules.
-    from py2exe.build_exe import py2exe as build_exe
+    extra['console'] = ['hg']
 
-    class py2exe_for_demandload(build_exe):
-        """ overwrites the py2exe command class for getting the build
-        directory and for setting the 'includes' option."""
-        def initialize_options(self):
-            self.build_lib = None
-            build_exe.initialize_options(self)
-        def finalize_options(self):
-            # Get the build directory, ie. where to search for modules.
-            self.set_undefined_options('build',
-                                       ('build_lib', 'build_lib'))
-            # Sets the 'includes' option with the list of needed modules
-            if not self.includes:
-                self.includes = []
-            else:
-                self.includes = self.includes.split(',')
-            mercurial.packagescan.scan(self.build_lib,'mercurial')
-            mercurial.packagescan.scan(self.build_lib,'mercurial.hgweb')
-            mercurial.packagescan.scan(self.build_lib,'hgext')
-            self.includes += mercurial.packagescan.getmodules()
-            build_exe.finalize_options(self)
 except ImportError:
-    py2exe_for_demandload = None
-
+    pass
 
 # specify version string, otherwise 'hg identify' will be used:
 version = ''
@@ -75,30 +86,48 @@ class install_package_data(install_data):
 
 mercurial.version.remember_version(version)
 cmdclass = {'install_data': install_package_data}
-py2exe_opts = {}
-if py2exe_for_demandload is not None:
-    cmdclass['py2exe'] = py2exe_for_demandload
-    py2exe_opts['console'] = ['hg']
+
+ext_modules=[
+    Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
+    Extension('mercurial.bdiff', ['mercurial/bdiff.c']),
+    Extension('mercurial.base85', ['mercurial/base85.c']),
+    Extension('mercurial.diffhelpers', ['mercurial/diffhelpers.c'])
+    ]
+
+packages = ['mercurial', 'mercurial.hgweb', 'hgext', 'hgext.convert']
+
+try:
+    import posix
+    ext_modules.append(Extension('mercurial.osutil', ['mercurial/osutil.c']))
+
+    if sys.platform == 'linux2' and os.uname()[2] > '2.6':
+        # The inotify extension is only usable with Linux 2.6 kernels.
+        # You also need a reasonably recent C library.
+        cc = new_compiler()
+        if has_function(cc, 'inotify_add_watch'):
+            ext_modules.append(Extension('hgext.inotify.linux._inotify',
+                                         ['hgext/inotify/linux/_inotify.c']))
+            packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
+except ImportError:
+    pass
+
 setup(name='mercurial',
-        version=mercurial.version.get_version(),
-        author='Matt Mackall',
-        author_email='mpm@selenic.com',
-        url='http://selenic.com/mercurial',
-        description='Scalable distributed SCM',
-        license='GNU GPL',
-        packages=['mercurial', 'mercurial.hgweb', 'hgext'],
-        ext_modules=[Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
-                    Extension('mercurial.bdiff', ['mercurial/bdiff.c'])],
-        data_files=[('mercurial/templates',
-                    ['templates/map'] +
-                    glob.glob('templates/map-*') +
-                    glob.glob('templates/*.tmpl')),
-                    ('mercurial/templates/static',
-                    glob.glob('templates/static/*'))],
-        cmdclass=cmdclass,
-        scripts=['hg', 'hgmerge'],
-        options=dict(bdist_mpkg=dict(zipdist=True,
-                                    license='COPYING',
-                                    readme='contrib/macosx/Readme.html',
-                                    welcome='contrib/macosx/Welcome.html')),
-        **py2exe_opts)
+      version=mercurial.version.get_version(),
+      author='Matt Mackall',
+      author_email='mpm@selenic.com',
+      url='http://selenic.com/mercurial',
+      description='Scalable distributed SCM',
+      license='GNU GPL',
+      scripts=['hg'],
+      packages=packages,
+      ext_modules=ext_modules,
+      data_files=[(os.path.join('mercurial', root),
+                   [os.path.join(root, file_) for file_ in files])
+                  for root, dirs, files in os.walk('templates')],
+      cmdclass=cmdclass,
+      options=dict(py2exe=dict(packages=['hgext']),
+                   bdist_mpkg=dict(zipdist=True,
+                                   license='COPYING',
+                                   readme='contrib/macosx/Readme.html',
+                                   welcome='contrib/macosx/Welcome.html')),
+      **extra)

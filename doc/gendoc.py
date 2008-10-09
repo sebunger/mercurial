@@ -1,8 +1,10 @@
 import sys, textwrap
 # import from the live mercurial repo
 sys.path.insert(0, "..")
+from mercurial import demandimport; demandimport.enable()
 from mercurial.commands import table, globalopts
 from mercurial.i18n import gettext as _
+from mercurial.help import helptable
 
 def get_desc(docstr):
     if not docstr:
@@ -57,36 +59,47 @@ def show_doc(ui):
     underlined(_("COMMANDS"))
     h = {}
     for c, attr in table.items():
-            f = c.split("|")[0]
-            f = f.lstrip("^")
-            h[f] = c
+        f = c.split("|")[0]
+        f = f.lstrip("^")
+        h[f] = c
     cmds = h.keys()
     cmds.sort()
 
     for f in cmds:
-            if f.startswith("debug"): continue
-            d = get_cmd(h[f])
-            # synopsis
-            ui.write("%s::\n" % d['synopsis'].replace("hg ","", 1))
-            # description
-            ui.write("%s\n\n" % d['desc'][1])
-            # options
-            opt_output = list(d['opts'])
-            if opt_output:
-                opts_len = max([len(line[0]) for line in opt_output])
-                ui.write(_("    options:\n"))
-                for optstr, desc in opt_output:
-                    if desc:
-                        s = "%-*s  %s" % (opts_len, optstr, desc)
-                    else:
-                        s = optstr
-                    s = textwrap.fill(s, initial_indent=4 * " ",
-                                      subsequent_indent=(6 + opts_len) * " ")
-                    ui.write("%s\n" % s)
-                ui.write("\n")
-            # aliases
-            if d['aliases']:
-                ui.write(_("    aliases: %s\n\n") % " ".join(d['aliases']))
+        if f.startswith("debug"): continue
+        d = get_cmd(h[f])
+        # synopsis
+        ui.write("%s::\n" % d['synopsis'].replace("hg ","", 1))
+        # description
+        ui.write("%s\n\n" % d['desc'][1])
+        # options
+        opt_output = list(d['opts'])
+        if opt_output:
+            opts_len = max([len(line[0]) for line in opt_output])
+            ui.write(_("    options:\n"))
+            for optstr, desc in opt_output:
+                if desc:
+                    s = "%-*s  %s" % (opts_len, optstr, desc)
+                else:
+                    s = optstr
+                s = textwrap.fill(s, initial_indent=4 * " ",
+                                  subsequent_indent=(6 + opts_len) * " ")
+                ui.write("%s\n" % s)
+            ui.write("\n")
+        # aliases
+        if d['aliases']:
+            ui.write(_("    aliases: %s\n\n") % " ".join(d['aliases']))
+
+    # print topics
+    for t in helptable:
+        l = t.split("|")
+        section = l[-1]
+        underlined(_(section).upper())
+        doc = helptable[t]
+        if callable(doc):
+            doc = doc()
+        ui.write(_(doc))
+        ui.write("\n")
 
 if __name__ == "__main__":
     show_doc(sys.stdout)

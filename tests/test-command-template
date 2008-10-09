@@ -17,6 +17,19 @@ hg add c
 hg commit -m 'no person' -d '1200000 0' -u 'other@place'
 echo c >> c
 hg commit -m 'no user, no domain' -d '1300000 0' -u 'person'
+echo foo > .hg/branch
+hg commit -m 'new branch' -d '1400000 0' -u 'person'
+hg co -q 3
+echo other 4 >> d
+hg add d
+hg commit -m 'new head' -d '1500000 0' -u 'person'
+hg merge -q
+hg commit -m 'merge' -d '1500001 0' -u 'person'
+# second branch starting at nullrev
+hg update null
+echo second > second
+hg add second
+hg commit -m second -d '1000000 0' -u 'User Name <user@hostname>'
 
 # make sure user/global hgrc does not affect tests
 echo '[ui]' > .hg/hgrc
@@ -24,15 +37,21 @@ echo 'logtemplate =' >> .hg/hgrc
 echo 'style =' >> .hg/hgrc
 
 echo '# default style is like normal output'
+echo '#  normal'
 hg log > log.out
 hg log --style default > style.out
 diff log.out style.out
+echo '#  verbose'
 hg log -v > log.out
 hg log -v --style default > style.out
 diff log.out style.out
+echo '#  debug'
 hg log --debug > log.out
 hg log --debug --style default > style.out
 diff log.out style.out
+
+echo '# revision with no copies (used to print a traceback)'
+hg tip -v --template '\n'
 
 echo '# compact style works'
 hg log --style compact
@@ -56,7 +75,7 @@ echo 'changeset = q' >> t
 hg log --style ./t
 
 echo '# include works'
-rm -f q
+rm q
 echo '{rev}' > q
 hg log --style ./t
 
@@ -65,9 +84,13 @@ echo '[ui]' > .hg/hgrc
 echo 'style = t' >> .hg/hgrc
 hg log
 
+echo '# issue338'
+hg log --style=changelog > changelog
+cat changelog
+
 echo "# keys work"
-for key in author branches date desc file_adds file_dels files \
-        manifest node parents rev tags; do
+for key in author branches date desc file_adds file_dels file_mods \
+        files manifest node parents rev tags; do
     for mode in '' --verbose --debug; do
         hg log $mode --template "$key$mode: {$key}\n"
     done
@@ -80,9 +103,21 @@ hg log --template '{author|user}\n'
 hg log --template '{date|age}\n' > /dev/null || exit 1
 hg log --template '{date|date}\n'
 hg log --template '{date|isodate}\n'
+hg log --template '{date|isodatesec}\n'
 hg log --template '{date|rfc822date}\n'
 hg log --template '{desc|firstline}\n'
 hg log --template '{node|short}\n'
+hg log --template '<changeset author="{author|xmlescape}"/>\n'
+
+echo '# formatnode filter works'
+echo '#  quiet'
+hg -q log -r 0 --template '#node|formatnode#\n'
+echo '#  normal'
+hg log -r 0 --template '#node|formatnode#\n'
+echo '#  verbose'
+hg -v log -r 0 --template '#node|formatnode#\n'
+echo '#  debug'
+hg --debug log -r 0 --template '#node|formatnode#\n'
 
 echo '# error on syntax'
 echo 'x = "f' >> t

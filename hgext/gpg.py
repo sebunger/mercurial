@@ -6,9 +6,9 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 import os, tempfile, binascii
-from mercurial import util
+from mercurial import util, commands
 from mercurial import node as hgnode
-from mercurial.i18n import gettext as _
+from mercurial.i18n import _
 
 class gpg:
     def __init__(self, path, key=None):
@@ -194,14 +194,32 @@ def keystr(ui, key):
         return user
 
 def sign(ui, repo, *revs, **opts):
-    """add a signature for the current tip or a given revision"""
+    """add a signature for the current or given revision
+
+    If no revision is given, the parent of the working directory is used,
+    or tip if no revision is checked out.
+
+    See 'hg help dates' for a list of formats valid for -d/--date.
+    """
+
     mygpg = newgpg(ui, **opts)
     sigver = "0"
     sigmessage = ""
+
+    date = opts.get('date')
+    if date:
+        opts['date'] = util.parsedate(date)
+
     if revs:
         nodes = [repo.lookup(n) for n in revs]
     else:
-        nodes = [repo.changelog.tip()]
+        nodes = [node for node in repo.dirstate.parents()
+                 if node != hgnode.nullid]
+        if len(nodes) > 1:
+            raise util.Abort(_('uncommitted merge - please provide a '
+                               'specific revision'))
+        if not nodes:
+            nodes = [repo.changelog.tip()]
 
     for n in nodes:
         hexnode = hgnode.hex(n)
@@ -221,7 +239,7 @@ def sign(ui, repo, *revs, **opts):
         repo.opener("localsigs", "ab").write(sigmessage)
         return
 
-    for x in repo.changes():
+    for x in repo.status()[:5]:
         if ".hgsigs" in x and not opts["force"]:
             raise util.Abort(_("working copy of .hgsigs is changed "
                                "(please commit .hgsigs manually "
@@ -229,7 +247,7 @@ def sign(ui, repo, *revs, **opts):
 
     repo.wfile(".hgsigs", "ab").write(sigmessage)
 
-    if repo.dirstate.state(".hgsigs") == '?':
+    if '.hgsigs' not in repo.dirstate:
         repo.add([".hgsigs"])
 
     if opts["no_commit"]:
@@ -238,7 +256,7 @@ def sign(ui, repo, *revs, **opts):
     message = opts['message']
     if not message:
         message = "\n".join([_("Added signature for changeset %s")
-                             % hgnode.hex(n)
+                             % hgnode.short(n)
                              for n in nodes])
     try:
         repo.commit([".hgsigs"], message, opts['user'], opts['date'])
@@ -255,14 +273,13 @@ def node2txt(repo, node, ver):
 cmdtable = {
     "sign":
         (sign,
-         [('l', 'local', None, _("make the signature local")),
-          ('f', 'force', None, _("sign even if the sigfile is modified")),
-          ('', 'no-commit', None, _("do not commit the sigfile after signing")),
-          ('m', 'message', "", _("commit message")),
-          ('d', 'date', "", _("date code")),
-          ('u', 'user', "", _("user")),
-          ('k', 'key', "", _("the key id to sign with"))],
-         _("hg sign [OPTION]... [REVISION]...")),
+         [('l', 'local', None, _('make the signature local')),
+          ('f', 'force', None, _('sign even if the sigfile is modified')),
+          ('', 'no-commit', None, _('do not commit the sigfile after signing')),
+          ('k', 'key', '', _('the key id to sign with')),
+          ('m', 'message', '', _('commit message')),
+         ] + commands.commitopts2,
+         _('hg sign [OPTION]... [REVISION]...')),
     "sigcheck": (check, [], _('hg sigcheck REVISION')),
     "sigs": (sigs, [], _('hg sigs')),
 }

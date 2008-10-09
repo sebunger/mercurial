@@ -17,7 +17,7 @@ cd ..
 hg clone a c
 cd c
 hg pull -f ../b
-HGMERGE=merge hg merge
+hg merge
 
 cd ..
 
@@ -25,8 +25,30 @@ echo %% -R/--repository
 hg -R a tip
 hg --repository b tip
 
+echo %% implicit -R
+hg ann a/a
+hg ann a/a a/a
+hg ann a/a b/b
+hg -R b ann a/a
+hg log
+
 echo %% abbrev of long option
 hg --repo c tip
+
+echo "%% earlygetopt with duplicate options (36d23de02da1)"
+hg --cwd a --cwd b --cwd c tip
+hg --repo c --repository b -R a tip
+
+echo "%% earlygetopt short option without following space"
+hg -q -Rb tip
+
+echo "%% earlygetopt with illegal abbreviations"
+hg --confi "foo.bar=baz"
+hg --cw a tip
+hg --rep a tip
+hg --repositor a tip
+hg -qR a tip
+hg -qRa tip
 
 echo %% --cwd
 hg --cwd a parents
@@ -45,7 +67,7 @@ hg --cwd c head -v
 hg --cwd b tip --verbose
 
 echo %% --config
-hg --cwd c --config paths.quuxfoo=bar paths | grep -q quuxfoo && echo quuxfoo
+hg --cwd c --config paths.quuxfoo=bar paths | grep quuxfoo > /dev/null && echo quuxfoo
 hg --cwd c --config '' tip -q
 hg --cwd c --config a.b tip -q
 hg --cwd c --config a tip -q

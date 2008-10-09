@@ -4,17 +4,19 @@
 <body>
 
 <div class="buttons">
-<a href="?cl=tip">changelog</a>
-<a href="?tags=">tags</a>
-<a href="?mf=#manifest|short#;path=/">manifest</a>
+<a href="#url#log{sessionvars%urlparameter}">changelog</a>
+<a href="#url#shortlog{sessionvars%urlparameter}">shortlog</a>
+<a href="#url#tags{sessionvars%urlparameter}">tags</a>
+<a href="#url#file/#node|short#{sessionvars%urlparameter}">files</a>
+#archives%archiveentry#
 </div>
 
 <h2>searching for #query|escape#</h2>
 
 <form>
+{sessionvars%hiddenformentry}
 <p>
 search:
-<input type="hidden" name="cmd" value="changelog">
 <input name="rev" type="text" width="30" value="#query|escape#">
 </p>
 </form>
@@ -22,9 +24,9 @@ search:
 #entries#
 
 <form>
+{sessionvars%hiddenformentry}
 <p>
 search:
-<input type="hidden" name="cmd" value="changelog">
 <input name="rev" type="text" width="30" value="#query|escape#">
 </p>
 </form>

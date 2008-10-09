@@ -1,14 +1,13 @@
-(the addremove command is deprecated; use add and remove --after instead)
 adding a
+updating working directory
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 diff -r 33aaa84a386b a
 --- a/a
 +++ b/a
-@@ -1,1 +1,1 @@ a
+@@ -1,1 +1,1 @@
 -a
 +abc
-(the addremove command is deprecated; use add and remove --after instead)
 adding b
 M a
 changeset:   0:33aaa84a386b
@@ -17,14 +16,17 @@ date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1
 
 resolving manifests
- force None allow None moddirstate True linear True
- ancestor a0c8bcbbb45c local a0c8bcbbb45c remote 1165e8bd193e
- a versions differ, resolve
-remote created b
-getting b
+ overwrite False partial False
+ ancestor 33aaa84a386b local 33aaa84a386b+ remote 802f095af299
+  searching for copies back to rev 1
+  unmatched files in other:
+   b
+ a: versions differ -> m
+ b: remote created -> g
+picked tool 'true' for a (binary False symlink False)
 merging a
-resolving a
-file a: my b789fdd96dc2 other d730145abbf9 ancestor b789fdd96dc2
+my a@33aaa84a386b+ other a@802f095af299 ancestor a@33aaa84a386b
+getting b
 1 files updated, 1 files merged, 0 files removed, 0 files unresolved
 changeset:   1:802f095af299
 tag:         tip
@@ -33,9 +35,9 @@ date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     2
 
 resolving manifests
- force None allow None moddirstate True linear True
- ancestor a0c8bcbbb45c local 1165e8bd193e remote a0c8bcbbb45c
-remote deleted b
+ overwrite False partial False
+ ancestor 33aaa84a386b local 802f095af299+ remote 33aaa84a386b
+ b: remote deleted -> r
 removing b
 0 files updated, 0 files merged, 1 files removed, 0 files unresolved
 changeset:   0:33aaa84a386b
@@ -43,7 +45,7 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1
 
-abort: there is nothing to merge, just use 'hg update' or look at 'hg heads'
+abort: there is nothing to merge - use "hg update" instead
 failed
 changeset:   0:33aaa84a386b
 user:        test
@@ -51,14 +53,17 @@ date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1
 
 resolving manifests
- force None allow None moddirstate True linear True
- ancestor a0c8bcbbb45c local a0c8bcbbb45c remote 1165e8bd193e
- a versions differ, resolve
-remote created b
-getting b
+ overwrite False partial False
+ ancestor 33aaa84a386b local 33aaa84a386b+ remote 802f095af299
+  searching for copies back to rev 1
+  unmatched files in other:
+   b
+ a: versions differ -> m
+ b: remote created -> g
+picked tool 'true' for a (binary False symlink False)
 merging a
-resolving a
-file a: my b789fdd96dc2 other d730145abbf9 ancestor b789fdd96dc2
+my a@33aaa84a386b+ other a@802f095af299 ancestor a@33aaa84a386b
+getting b
 1 files updated, 1 files merged, 0 files removed, 0 files unresolved
 changeset:   1:802f095af299
 tag:         tip
@@ -66,7 +71,7 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     2
 
-changeset:   1:802f095af299cde27a85b2f056aef3829870956c
+changeset:   1:802f095af299
 tag:         tip
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -75,7 +80,7 @@ description:
 2
 
 
-changeset:   0:33aaa84a386bd609094aeb21a97c09436c482ef1
+changeset:   0:33aaa84a386b
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 files:       a
@@ -86,42 +91,34 @@ description:
 diff -r 802f095af299 a
 --- a/a
 +++ b/a
-@@ -1,1 +1,1 @@ a2
+@@ -1,1 +1,1 @@
 -a2
 +abc
 1 files updated, 0 files merged, 1 files removed, 0 files unresolved
-(the addremove command is deprecated; use add and remove --after instead)
 adding b
+created new head
 M a
 changeset:   1:802f095af299
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     2
 
-resolving manifests
- force None allow None moddirstate True linear False
- ancestor a0c8bcbbb45c local 1165e8bd193e remote 4096f2872392
- a versions differ, resolve
- b versions differ, resolve
-this update spans a branch affecting the following files:
- a (resolve)
- b (resolve)
-aborting update spanning branches!
-(use 'hg merge' to merge across branches or 'hg update -C' to lose changes)
+abort: crosses branches (use 'hg merge' or 'hg update -C' to discard changes)
 failed
 abort: outstanding uncommitted changes
 failed
 resolving manifests
- force False allow True moddirstate True linear False
- ancestor a0c8bcbbb45c local 1165e8bd193e remote 4096f2872392
- a versions differ, resolve
- b versions differ, resolve
+ overwrite False partial False
+ ancestor 33aaa84a386b local 802f095af299+ remote 030602aee63d
+  searching for copies back to rev 1
+ a: versions differ -> m
+ b: versions differ -> m
+picked tool 'true' for a (binary False symlink False)
 merging a
-resolving a
-file a: my d730145abbf9 other 13e0d5f949fa ancestor b789fdd96dc2
+my a@802f095af299+ other a@030602aee63d ancestor a@33aaa84a386b
+picked tool 'true' for b (binary False symlink False)
 merging b
-resolving b
-file b: my 1e88685f5dde other 61de8c7723ca ancestor 000000000000
+my b@802f095af299+ other b@030602aee63d ancestor b@000000000000
 0 files updated, 2 files merged, 0 files removed, 0 files unresolved
 (branch merge, don't forget to commit)
 changeset:   1:802f095af299
@@ -139,7 +136,7 @@ summary:     3
 diff -r 802f095af299 a
 --- a/a
 +++ b/a
-@@ -1,1 +1,1 @@ a2
+@@ -1,1 +1,1 @@
 -a2
 +abc
 adding a

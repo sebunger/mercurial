@@ -52,10 +52,10 @@
 #   [usermap]
 #   committer_email = bugzilla_user_name
 
-from mercurial.demandload import *
-from mercurial.i18n import gettext as _
-from mercurial.node import *
-demandload(globals(), 'mercurial:templater,util os re time')
+from mercurial.i18n import _
+from mercurial.node import short
+from mercurial import cmdutil, templater, util
+import os, re, time
 
 MySQLdb = None
 
@@ -74,7 +74,7 @@ class bugzilla_2_16(object):
         timeout = int(self.ui.config('bugzilla', 'timeout', 5))
         usermap = self.ui.config('bugzilla', 'usermap')
         if usermap:
-            self.ui.readconfig(usermap)
+            self.ui.readsections(usermap, 'usermap')
         self.ui.note(_('connecting to %s:%s as %s, password %s\n') %
                      (host, db, user, '*' * len(passwd)))
         self.conn = MySQLdb.connect(host=host, user=user, passwd=passwd,
@@ -222,7 +222,7 @@ class bugzilla(object):
     _bug_re = None
     _split_re = None
 
-    def find_bug_ids(self, node, desc):
+    def find_bug_ids(self, ctx):
         '''find valid bug ids that are referred to in changeset
         comments and that do not already have references to this
         changeset.'''
@@ -235,7 +235,7 @@ class bugzilla(object):
         start = 0
         ids = {}
         while True:
-            m = bugzilla._bug_re.search(desc, start)
+            m = bugzilla._bug_re.search(ctx.description(), start)
             if not m:
                 break
             start = m.end()
@@ -246,10 +246,10 @@ class bugzilla(object):
         if ids:
             ids = self.filter_real_bug_ids(ids)
         if ids:
-            ids = self.filter_unknown_bug_ids(node, ids)
+            ids = self.filter_unknown_bug_ids(ctx.node(), ids)
         return ids
 
-    def update(self, bugid, node, changes):
+    def update(self, bugid, ctx):
         '''update bugzilla bug with reference to changeset.'''
 
         def webroot(root):
@@ -267,20 +267,22 @@ class bugzilla(object):
 
         mapfile = self.ui.config('bugzilla', 'style')
         tmpl = self.ui.config('bugzilla', 'template')
-        sio = templater.stringio()
-        t = templater.changeset_templater(self.ui, self.repo, mapfile, sio)
+        t = cmdutil.changeset_templater(self.ui, self.repo,
+                                        False, mapfile, False)
         if not mapfile and not tmpl:
             tmpl = _('changeset {node|short} in repo {root} refers '
                      'to bug {bug}.\ndetails:\n\t{desc|tabindent}')
         if tmpl:
             tmpl = templater.parsestring(tmpl, quoted=False)
             t.use_template(tmpl)
-        t.show(changenode=node, changes=changes,
+        self.ui.pushbuffer()
+        t.show(changenode=ctx.node(), changes=ctx.changeset(),
                bug=str(bugid),
                hgweb=self.ui.config('web', 'baseurl'),
                root=self.repo.root,
                webroot=webroot(self.repo.root))
-        self.add_comment(bugid, sio.getvalue(), templater.email(changes[1]))
+        data = self.ui.popbuffer()
+        self.add_comment(bugid, data, util.email(ctx.user()))
 
 def hook(ui, repo, hooktype, node=None, **kwargs):
     '''add comment to bugzilla for each changeset that refers to a
@@ -298,12 +300,11 @@ def hook(ui, repo, hooktype, node=None, **kwargs):
                          hooktype)
     try:
         bz = bugzilla(ui, repo)
-        bin_node = bin(node)
-        changes = repo.changelog.read(bin_node)
-        ids = bz.find_bug_ids(bin_node, changes[4])
+        ctx = repo.changectx(node)
+        ids = bz.find_bug_ids(ctx)
         if ids:
             for id in ids:
-                bz.update(id, bin_node, changes)
+                bz.update(id, ctx)
             bz.notify(ids)
     except MySQLdb.MySQLError, err:
         raise util.Abort(_('database error: %s') % err[1])

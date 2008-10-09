@@ -1,24 +1,97 @@
 # mercurial configuration file for upstream hg extensions
 # See hgrc(5) for more information
 
+# Extension provided by core-mercurial listed in alphabetic order
+# See /usr/share/doc/mercurial/README.Debian.gz for more information
+# (for example, some extensions needed other Debian packages to work)
 [extensions]
 
-# add the 'view' command. It shows the repository history graphically.
-hgext/hgk=
+# changeset access control for mercurial
+# hgext.acl =
 
-# add the 'bisect' command to allow dichotomic search in the DAG of changesets
-hgext/hbisect=
+# allow user-defined command aliases
+# hgext.alias =
 
-# add the 'sign' and 'sigcheck' commands to manage signatures
-hgext/gpg=
+# bugzilla integration for mercurial
+# hgext.bugzilla =
 
-# add filters so automatically convert end-of-line between Windows and Unix
-# world. Not enabled by default since it seems better to do it per
-# repository.
-# hgext/win32text=
+# show the children of the given or working dir revision
+# add the 'children' command
+hgext.children =
 
-# manage a queue of patches, like quilt only better
-hgext/mq=
+# create a graph showing who changed the most lines
+# add the 'churn' command
+hgext.churn =
+
+# add color output to the status and qseries commands
+# hgext.color =
+
+# Foreign SCM converter
+# add the 'convert' and 'debugsvnlog' commands
+hgext.convert =
+
+# external diff program support for mercurial
+# hgext.extdiff =
+
+# pull and merge remote changes
+# add the 'fetch' command
+hgext.fetch =
+
+# GnuPG signing extension for Mercurial
+# add the 'sign', 'sigcheck' and 'sigs' commands
+hgext.gpg =
+
+# ASCII graph log extension for Mercurial
+# add the 'glog' command
+hgext.graphlog =
+
+# allows browsing the history of a repository in a graphical way
+# add the 'view' command
+# hgext.hgk =
+
+# syntax highlighting in hgweb file view
+# hgext.highlight =
+
+# lets you split a merge into pieces
+# add the 'imerge' command
+hgext.imerge =
+
+# inotify-based status acceleration for Linux systems
+# add the 'inserve' command
+# hgext.inotify =
+
+# allows you to change changelog and summary text
+# hgext.interhg =
+
+# CVS/RCS-like Keyword Substitution
+# hgext.keyword =
+
+# patch queues for mercurial
+# add the 'q*' commands
+hgext.mq =
+
+# email notifications for mercurial
+# hgext.notify =
+
+# make it easy to refer to the parent of a revision
+# hgext.parentrevspec =
 
 # send changes as series of email patches
-hgext/patchbomb=
+# add the 'email' command
+hgext.patchbomb =
+
+# removes files not known to mercurial
+# add the 'purge' and 'clean' commands
+hgext.purge =
+
+# interactive change selection during commit
+# add the 'record' command
+hgext.record =
+
+# Patch transplanting extension for Mercurial
+# add the 'transplant' command
+hgext.transplant =
+
+# add filters so automatically convert end-of-line between Windows and Unix
+# world.
+# hgext.win32text =

@@ -4,6 +4,7 @@ checking manifests
 crosschecking files in changesets and manifests
 checking files
 1 files, 9 changesets, 9 total revisions
+comparing with http://localhost/
 changeset:   0:9cb21d99fe27
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -50,6 +51,7 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     8
 
+comparing with http://localhost/
 changeset:   0:9cb21d99fe27
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -71,10 +73,12 @@ date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     3
 
 changeset:   4:1f3a964b6022
+tag:         tip
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     4
 
+comparing with test
 changeset:   0:9cb21d99fe27
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -121,6 +125,7 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     8
 
+comparing with test
 changeset:   0:9cb21d99fe27
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -146,6 +151,19 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     4
 
+% limit to 2 changesets
+comparing with test
+changeset:   0:9cb21d99fe27
+user:        test
+date:        Mon Jan 12 13:46:40 1970 +0000
+summary:     0
+
+changeset:   1:d717f5dfad6a
+user:        test
+date:        Mon Jan 12 13:46:40 1970 +0000
+summary:     1
+
+comparing with http://localhost/
 changeset:   0:9cb21d99fe27
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -192,6 +210,7 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     8
 
+comparing with test
 changeset:   0:9cb21d99fe27
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
@@ -260,12 +279,14 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     8
 
+updating working directory
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 checking changesets
 checking manifests
 crosschecking files in changesets and manifests
 checking files
 1 files, 14 changesets, 14 total revisions
+comparing with test
 searching for changes
 changeset:   9:3741c3ad1096
 user:        test
@@ -293,6 +314,25 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     13
 
+% limit to 3 changesets
+comparing with test
+searching for changes
+changeset:   9:3741c3ad1096
+user:        test
+date:        Mon Jan 12 13:46:40 1970 +0000
+summary:     9
+
+changeset:   10:de4143c8d9a5
+user:        test
+date:        Mon Jan 12 13:46:40 1970 +0000
+summary:     10
+
+changeset:   11:0e1c188b9a7a
+user:        test
+date:        Mon Jan 12 13:46:40 1970 +0000
+summary:     11
+
+comparing with http://localhost/
 searching for changes
 changeset:   9:3741c3ad1096
 user:        test
@@ -320,6 +360,7 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     13
 
+comparing with http://localhost/
 searching for changes
 changeset:   9:3741c3ad1096
 user:        test

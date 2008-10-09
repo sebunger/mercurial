@@ -17,6 +17,9 @@
 # This file is part of urlgrabber, a high-level cross-protocol url-grabber
 # Copyright 2002-2004 Michael D. Stenner, Ryan Tomayko
 
+# Modified by Benoit Boissinot:
+#  - fix for digest auth (inspired from urllib2.py @ Python v2.4)
+
 """An HTTP handler for urllib2 that supports HTTP 1.1 and keepalive.
 
 >>> import urllib2
@@ -126,7 +129,7 @@ class ConnectionManager:
     def add(self, host, connection, ready):
         self._lock.acquire()
         try:
-            if not self._hostmap.has_key(host): self._hostmap[host] = []
+            if not host in self._hostmap: self._hostmap[host] = []
             self._hostmap[host].append(connection)
             self._connmap[connection] = host
             self._readymap[connection] = ready
@@ -156,7 +159,7 @@ class ConnectionManager:
         conn = None
         self._lock.acquire()
         try:
-            if self._hostmap.has_key(host):
+            if host in self._hostmap:
                 for c in self._hostmap[host]:
                     if self._readymap[c]:
                         self._readymap[c] = 0
@@ -172,7 +175,7 @@ class ConnectionManager:
         else:
             return dict(self._hostmap)
 
-class HTTPHandler(urllib2.HTTPHandler):
+class KeepAliveHandler:
     def __init__(self):
         self._cm = ConnectionManager()
 
@@ -302,27 +305,17 @@ class HTTPHandler(urllib2.HTTPHandler):
         return r
 
     def _start_transaction(self, h, req):
+        headers = req.headers.copy()
+        body = req.data
+        if sys.version_info >= (2, 4):
+            headers.update(req.unredirected_hdrs)
         try:
-            if req.has_data():
-                data = req.get_data()
-                h.putrequest('POST', req.get_selector())
-                if not req.headers.has_key('Content-type'):
-                    h.putheader('Content-type',
-                                'application/x-www-form-urlencoded')
-                if not req.headers.has_key('Content-length'):
-                    h.putheader('Content-length', '%d' % len(data))
-            else:
-                h.putrequest('GET', req.get_selector())
-        except (socket.error, httplib.HTTPException), err:
+            h.request(req.get_method(), req.get_selector(), body, headers)
+        except socket.error, err: # XXX what error?
             raise urllib2.URLError(err)
 
-        for args in self.parent.addheaders:
-            h.putheader(*args)
-        for k, v in req.headers.items():
-            h.putheader(k, v)
-        h.endheaders()
-        if req.has_data():
-            h.send(data)
+class HTTPHandler(KeepAliveHandler, urllib2.HTTPHandler):
+    pass
 
 class HTTPResponse(httplib.HTTPResponse):
     # we need to subclass HTTPResponse in order to
