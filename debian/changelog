@@ -1,3 +1,10 @@
+mercurial (1.0.1-6) UNRELEASED; urgency=low
+
+  * debian/control
+    - switch Vcs-Browser field to viewsvn
+
+ -- Sandro Tosi <morph@debian.org>  Mon, 03 Nov 2008 22:47:36 +0100
+
 mercurial (1.0.1-5) unstable; urgency=low
 
   * Fix debian/copyright (GPL-2 only and not GPL-2+) (Closes: #493967)

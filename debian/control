@@ -8,7 +8,7 @@ Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25),
 Standards-Version: 3.8.0
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
-Vcs-Browser: http://svn.debian.org/wsvn/python-apps/packages/mercurial/trunk/?op=log
+Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
 
 Package: mercurial
 Architecture: any 
