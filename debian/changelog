@@ -1,7 +1,13 @@
 mercurial (1.0.1-6) UNRELEASED; urgency=low
 
+  [ Sandro Tosi ]
   * debian/control
     - switch Vcs-Browser field to viewsvn
+
+  [ Marco Rodrigues ]
+  * debian/control:
+    + Add ${misc:Depends} to Depends to remove
+      lintian warning.
 
  -- Sandro Tosi <morph@debian.org>  Mon, 03 Nov 2008 22:47:36 +0100
 
