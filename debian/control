@@ -3,7 +3,7 @@ Section: devel
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian.org.ve>
-Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25), 
+Build-Depends: debhelper (>= 7), quilt, patchutils (>= 0.2.25), 
  cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.8.0
 Homepage: http://www.selenic.com/mercurial/
@@ -14,14 +14,10 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${binary:Version})
-Recommends: rcs | kdiff3 | tkdiff | meld, python-beaker
+Recommends: rcs | kdiff3 | tkdiff | meld
 Suggests: qct, 
- tk8.4 | wish, 
- vim | emacs, 
- python-mysqldb, 
- python-pygments,
- python-elementtree,
- python-subversion
+ wish, 
+ vim | emacs
 Description: Scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
@@ -37,27 +33,20 @@ Description: Scalable distributed version control system
   * Integrated stand-alone web interface
   * Small Python codebase
  .
- This package contain architecture dependent files.
+ This package contains the architecture dependent files.
 
 Package: mercurial-common
 Architecture: all 
 Depends: ${misc:Depends}, ${python:Depends}
-Recommends: mercurial
-Conflicts: mercurial (<< 1.0)
+Recommends: mercurial (= ${binary:Version})
+Suggests: wish,
+ python-mysqldb, 
+ python-pygments
+Conflicts: mercurial (<< ${binary:Version})
 Replaces: mercurial (<< 1.0)
 Description: Scalable distributed version control system (Common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
  . 
- Its features include:
-  * O(1) delta-compressed file storage and retrieval scheme
-  * Complete cross-indexing of files and changesets for efficient exploration
-    of project history
-  * Robust SHA1-based integrity checking and append-only storage model
-  * Decentralized development model with arbitrary merging between trees
-  * High-speed HTTP-based network merge protocol
-  * Easy-to-use command-line interface
-  * Integrated stand-alone web interface
-  * Small Python codebase
- .
- This package contain architecture independent files.
+ This package contains the architecture independent components of Mercurial,
+ and is generally useless without the mercurial package.

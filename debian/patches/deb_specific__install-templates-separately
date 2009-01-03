@@ -1,0 +1,29 @@
+Support installation of templates handled by mercurial-common.install.
+
+Index: mercurial-1.1.2/mercurial/templater.py
+===================================================================
+--- mercurial-1.1.2.orig/mercurial/templater.py
++++ mercurial-1.1.2/mercurial/templater.py
+@@ -9,7 +9,7 @@
+ import re, sys, os
+ from mercurial import util
+ 
+-path = ['templates', '../templates']
++path = ['templates', '../templates', '/usr/share/mercurial/templates']
+ 
+ def parsestring(s, quoted=True):
+     '''parse a string using simple c-like syntax.
+Index: mercurial-1.1.2/setup.py
+===================================================================
+--- mercurial-1.1.2.orig/setup.py
++++ mercurial-1.1.2/setup.py
+@@ -132,9 +132,6 @@
+       scripts=scripts,
+       packages=packages,
+       ext_modules=ext_modules,
+-      data_files=[(os.path.join('mercurial', root),
+-                   [os.path.join(root, file_) for file_ in files])
+-                  for root, dirs, files in os.walk('templates')],
+       cmdclass=cmdclass,
+       options=dict(py2exe=dict(packages=['hgext', 'email']),
+                    bdist_mpkg=dict(zipdist=True,

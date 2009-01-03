@@ -77,7 +77,7 @@ case "$1" in
 	  cp /usr/share/mercurial/$conffile "$TMPFILE"
 	  check_ext "$TMPFILE" hgk wish
 	  check_ext "$TMPFILE" highlight python-pygments
-	  check_ext "$TMPFILE" inotify inotify
+#	  check_ext "$TMPFILE" inotify inotify
 	  ucf --sum-file /usr/share/mercurial/$conffile.md5sums --three-way \
 		"$TMPFILE" /etc/mercurial/hgrc.d/$conffile
 	  # Fix wrong registration until 1.0.1-2 included

@@ -1,4 +1,27 @@
-mercurial (1.0.1-6) UNRELEASED; urgency=low
+mercurial (1.1.2-1) UNRELEASED; urgency=low
+
+  [ Vernon Tang ]
+  * New upstream release (closes: #499846)
+    Also resolves the following Debian bugs:
+    - mq corrupts repository on file rename (closes: #503997)
+    - failing import breaks python help (closes: #476885)
+    - hg email doesn't use correct encoding (closes: #427854)
+    - error when loading extensions twice (closes: #447088)
+    - static-http does not work with old layout repositories (closes: #494889)
+    - hgwebdir.cgi goes into endless loop when viewing moved files
+      (closes: #506694)
+
+  * Install hg-ssh (ssh login shell for an hg server) system-wide.
+  * Don't enable inotify by default.
+
+  * debian/control:
+    - Moved dependencies to mercurial-common where appropriate
+    - Removed Recommends: python-beaker (not a Mercurial dependency)
+    - Removed 'convert' extension dependencies from Suggests:
+      (convert depends on many of the other SCMs it can convert from)
+  * debian/hgext.rc: updated for 1.1.2.
+  * debian/mercurial*, debian/rules: general cleanup.
+  * debian/README.Debian: updated, proofread, and corrected.
 
   [ Sandro Tosi ]
   * debian/control
@@ -9,7 +32,15 @@ mercurial (1.0.1-6) UNRELEASED; urgency=low
     + Add ${misc:Depends} to Depends to remove
       lintian warning.
 
- -- Sandro Tosi <morph@debian.org>  Mon, 03 Nov 2008 22:47:36 +0100
+ -- Vernon Tang <vt@foilhead.net>  Sat, 03 Jan 2009 17:00:16 +0800
+
+mercurial (1.0.1-5.1) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Honor allowpull configuration setting from hgrc on a repository clone to
+    prevent information disclosure (CVE-2008-4297; Closes: #500781).
+
+ -- Nico Golde <nion@debian.org>  Fri, 03 Oct 2008 16:25:13 +0200
 
 mercurial (1.0.1-5) unstable; urgency=low
 
