@@ -6,7 +6,6 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     - mq corrupts repository on file rename (closes: #503997)
     - failing import breaks python help (closes: #476885)
     - hg email doesn't use correct encoding (closes: #427854)
-    - error when loading extensions twice (closes: #447088)
     - static-http does not work with old layout repositories (closes: #494889)
     - hgwebdir.cgi goes into endless loop when viewing moved files
       (closes: #506694)
