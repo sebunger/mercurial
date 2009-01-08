@@ -19,9 +19,30 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     - Removed Recommends: python-beaker (not a Mercurial dependency)
     - Removed 'convert' extension dependencies from Suggests:
       (convert depends on many of the other SCMs it can convert from)
+    - Added python-openssl to Suggests for "hg serve" HTTPS support.
   * debian/hgext.rc: updated for 1.1.2.
   * debian/mercurial*, debian/rules: general cleanup.
   * debian/README.Debian: updated, proofread, and corrected.
+  * debian/patches:
+    - Added headers.
+    - Added:
+      - deb_specific__install-templates-separately
+        (patch template search path to /usr/share instead of symlinking from
+        the module directory)
+      - backport__zeroconf-doc, proposed_upstream__correct-zeroconf-doc
+    - Renamed deb_specific__ElementTree_for_darcs.patch to
+      deb_specific__optional-dependencies and updated to suggest Debian
+      packages for more optional dependencies
+    - Dropped:
+      - proposed_upstream__extension_syntax.patch
+      - deb_specific__FAQ_subst.patch
+      - deb_specific__bash_completion_global_option_already_set.patch
+      - backport__CVE-2008-2942-fix.patch
+      - backport__svn1.5-fix.patch
+    - Refreshed:
+      - deb_specific__use_sensible-editor.patch
+      - deb_specific__hgk.py.patch
+      - convert-darc-doc.patch
 
   [ Sandro Tosi ]
   * debian/control
@@ -32,7 +53,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     + Add ${misc:Depends} to Depends to remove
       lintian warning.
 
- -- Vernon Tang <vt@foilhead.net>  Thu, 08 Jan 2009 09:56:09 +0800
+ -- Vernon Tang <vt@foilhead.net>  Thu, 08 Jan 2009 10:54:03 +0800
 
 mercurial (1.0.1-5.1) unstable; urgency=high
 
