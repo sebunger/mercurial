@@ -1,8 +1,8 @@
 Correct the documentation for the zeroconf extension.
 
-diff -r 487d967407ca hgext/zeroconf/__init__.py
---- a/hgext/zeroconf/__init__.py	Mon Jan 05 20:48:48 2009 +0100
-+++ b/hgext/zeroconf/__init__.py	Thu Jan 08 09:29:56 2009 +0800
+diff -r 15e292032969 hgext/zeroconf/__init__.py
+--- a/hgext/zeroconf/__init__.py
++++ b/hgext/zeroconf/__init__.py
 @@ -6,11 +6,11 @@
  # the GNU General Public License (version 2), incorporated herein by
  # reference.
