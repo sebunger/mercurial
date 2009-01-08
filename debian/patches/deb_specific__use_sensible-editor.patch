@@ -1,3 +1,5 @@
+Use sensible-editor as default instead of vi.
+
 Index: mercurial-1.1.2/doc/hgrc.5.txt
 ===================================================================
 --- mercurial-1.1.2.orig/doc/hgrc.5.txt

@@ -1,3 +1,5 @@
+Document that converting from darcs works only for the old format.
+
 Index: mercurial-1.1.2/hgext/convert/__init__.py
 ===================================================================
 --- mercurial-1.1.2.orig/hgext/convert/__init__.py

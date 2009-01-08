@@ -4,7 +4,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
   * New upstream release (closes: #499846)
     Also resolves the following Debian bugs:
     - mq corrupts repository on file rename (closes: #503997)
-    - failing import breaks python help (closes: #476885)
+    - failing import breaks Python help (closes: #476885)
     - hg email doesn't use correct encoding (closes: #427854)
     - error when loading extensions twice (closes: #447088)
     - static-http does not work with old layout repositories (closes: #494889)
@@ -32,7 +32,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     + Add ${misc:Depends} to Depends to remove
       lintian warning.
 
- -- Vernon Tang <vt@foilhead.net>  Sat, 03 Jan 2009 17:00:16 +0800
+ -- Vernon Tang <vt@foilhead.net>  Thu, 08 Jan 2009 09:56:09 +0800
 
 mercurial (1.0.1-5.1) unstable; urgency=high
 

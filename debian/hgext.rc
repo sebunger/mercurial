@@ -36,7 +36,8 @@ hgext.churn =
 # - bzr to convert from Bazaar
 # - cvs to convert from CVS
 # - python-celementtree or python-elementtree to convert from Darcs
-# - git to convert from Git
+# - git-core to convert from Git
+# - tla to convert from GNU Arch
 # - monotone to convert from Monotone
 # - python-subversion to convert from Subversion
 hgext.convert =
