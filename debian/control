@@ -2,7 +2,8 @@ Source: mercurial
 Section: devel
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
-Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian.org.ve>
+Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian.org.ve>,
+ Vernon Tang <vt@foilhead.net>
 Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25), 
  cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.8.0
