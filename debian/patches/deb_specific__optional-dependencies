@@ -163,7 +163,7 @@ diff -r 06d10c5c850e mercurial/hgweb/server.py
                  except ImportError:
 -                    raise util.Abort(_("SSL support is unavailable"))
 +                    raise util.Abort(_("SSL support is unavailable") +
-+                                     _(" (try installing the python-openssl package)"))
++                                     _(" (try installing the %s package)") % 'python-openssl')
                  ctx.use_privatekey_file(ssl_cert)
                  ctx.use_certificate_file(ssl_cert)
                  sock = socket.socket(self.address_family, self.socket_type)
