@@ -1,6 +1,6 @@
 Suggest Debian packages for some optional dependencies.
 
-diff -r f371230d1cc1 hgext/bugzilla.py
+diff -r 06d10c5c850e hgext/bugzilla.py
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
 @@ -308,7 +308,8 @@
@@ -13,7 +13,7 @@ diff -r f371230d1cc1 hgext/bugzilla.py
  
      if node is None:
          raise util.Abort(_('hook type %s does not pass a changeset id') %
-diff -r f371230d1cc1 hgext/convert/bzr.py
+diff -r 06d10c5c850e hgext/convert/bzr.py
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
 @@ -31,7 +31,8 @@
@@ -26,7 +26,7 @@ diff -r f371230d1cc1 hgext/convert/bzr.py
  
          if not os.path.exists(os.path.join(path, '.bzr')):
              raise NoRepo('%s does not look like a Bazaar repo' % path)
-diff -r f371230d1cc1 hgext/convert/common.py
+diff -r 06d10c5c850e hgext/convert/common.py
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
 @@ -20,11 +20,12 @@
@@ -44,7 +44,7 @@ diff -r f371230d1cc1 hgext/convert/common.py
  
  class NoRepo(Exception): pass
  
-diff -r f371230d1cc1 hgext/convert/cvs.py
+diff -r 06d10c5c850e hgext/convert/cvs.py
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
 @@ -16,7 +16,7 @@
@@ -56,11 +56,15 @@ diff -r f371230d1cc1 hgext/convert/cvs.py
          self.cmd = ui.config('convert', 'cvsps', 'builtin')
          cvspsexe = self.cmd.split(None, 1)[0]
          self.builtin = cvspsexe == 'builtin'
-diff -r f371230d1cc1 hgext/convert/darcs.py
+diff -r 06d10c5c850e hgext/convert/darcs.py
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
-@@ -30,7 +30,8 @@
-         checktool('darcs')
+@@ -27,10 +27,11 @@
+         if not os.path.exists(os.path.join(path, '_darcs')):
+             raise NoRepo("%s does not look like a darcs repo" % path)
+ 
+-        checktool('darcs')
++        checktool('darcs', debname='darcs')
  
          if ElementTree is None:
 -            raise util.Abort(_("Python ElementTree module is not available"))
@@ -69,7 +73,7 @@ diff -r f371230d1cc1 hgext/convert/darcs.py
  
          if not os.path.exists(os.path.join(path, '_darcs', 'inventory')):
              raise NoRepo("%s does not look like a darcs repo" % path)
-diff -r f371230d1cc1 hgext/convert/git.py
+diff -r 06d10c5c850e hgext/convert/git.py
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
 @@ -32,7 +32,7 @@
@@ -81,7 +85,7 @@ diff -r f371230d1cc1 hgext/convert/git.py
  
          self.path = path
  
-diff -r f371230d1cc1 hgext/convert/gnuarch.py
+diff -r 06d10c5c850e hgext/convert/gnuarch.py
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
 @@ -33,7 +33,8 @@
@@ -94,7 +98,7 @@ diff -r f371230d1cc1 hgext/convert/gnuarch.py
  
          commandline.__init__(self, ui, self.execmd)
  
-diff -r f371230d1cc1 hgext/convert/monotone.py
+diff -r 06d10c5c850e hgext/convert/monotone.py
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
 @@ -43,7 +43,7 @@
@@ -106,7 +110,7 @@ diff -r f371230d1cc1 hgext/convert/monotone.py
  
          # test if there are any revisions
          self.rev = None
-diff -r f371230d1cc1 hgext/convert/subversion.py
+diff -r 06d10c5c850e hgext/convert/subversion.py
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
 @@ -34,6 +34,7 @@
@@ -150,7 +154,7 @@ diff -r f371230d1cc1 hgext/convert/subversion.py
          converter_sink.__init__(self, ui, path)
          commandline.__init__(self, ui, 'svn')
          self.delete = []
-diff -r f371230d1cc1 mercurial/hgweb/server.py
+diff -r 06d10c5c850e mercurial/hgweb/server.py
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
 @@ -259,7 +259,8 @@
