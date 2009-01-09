@@ -30,6 +30,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
         (patch template search path to /usr/share instead of symlinking from
         the module directory)
       - backport__zeroconf-doc, proposed_upstream__correct-zeroconf-doc
+      - deb_specific__mergetools
     - Renamed deb_specific__ElementTree_for_darcs.patch to
       deb_specific__optional-dependencies and updated to suggest Debian
       packages for more optional dependencies
@@ -53,7 +54,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     + Add ${misc:Depends} to Depends to remove
       lintian warning.
 
- -- Vernon Tang <vt@foilhead.net>  Thu, 08 Jan 2009 10:54:03 +0800
+ -- Vernon Tang <vt@foilhead.net>  Sat, 10 Jan 2009 02:19:44 +0800
 
 mercurial (1.0.1-5.1) unstable; urgency=high
 
