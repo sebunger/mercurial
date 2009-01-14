@@ -12,7 +12,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
       (closes: #506694)
 
   * Install hg-ssh (ssh login shell for an hg server) system-wide.
-  * Don't enable inotify by default.
+  * Don't enable inotify by default. (closes: #503865)
 
   * debian/control:
     - Moved dependencies to mercurial-common where appropriate
