@@ -12,7 +12,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
       (closes: #506694)
 
   * Install hg-ssh (ssh login shell for an hg server) system-wide.
-  * Don't enable inotify by default. (closes: #503865)
+  * Don't enable extensions by default. (closes: #511872, #503865, #491109)
 
   * debian/control:
     - Moved dependencies to mercurial-common where appropriate
@@ -54,7 +54,7 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     + Add ${misc:Depends} to Depends to remove
       lintian warning.
 
- -- Vernon Tang <vt@foilhead.net>  Sat, 10 Jan 2009 02:19:44 +0800
+ -- Vernon Tang <vt@foilhead.net>  Thu, 15 Jan 2009 17:47:38 +0800
 
 mercurial (1.0.1-5.1) unstable; urgency=high
 

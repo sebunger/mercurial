@@ -19,27 +19,16 @@ Some parts of the online documentation will be added to the package (for people
 not online) as soon as the documentation stabilizes.
 
 
-Extensions provided in this package and their dependencies
-**********************************************************
+Extensions
+**********
 
 Extensions can be enabled system-wide, per-user and/or per repository (see
-hgrc(5) for more information).
+hgrc(5) for more information). Previous versions of this Debian package
+enabled some extensions by default; however, this is no longer the case.
 
-By default, this Debian package enables extensions that only enable new
-commands (such as 'hgk' and 'gpg'), but not extensions that modify Mercurial's
-behaviour (such as 'win32text').  The system administrator can modify this by
-editing /etc/mercurial/hgrc.d/hgext.rc.
-
-Some extensions (hgk and highlight) are enabled automatically only if the their
-dependencies are installed. This auto-detection will not work if these
-dependencies are installed or removed after mercurial. In this case, run
-"dpkg-reconfigure mercurial" or manually edit /etc/mercurial/hgrc.d/hgext.rc 
-
-Packages needed for extensions are listed as Suggests: as they are not strictly
-required to use Mercurial. Install them if you need them.
-
-For more information on the dependencies for each extension, please see
-/etc/mercurial/hgrc.d/hgext.rc.
+To enable extensions system-wide, you may edit the
+/etc/mercurial/hgrc.d/hgext.rc configuration file. This file also contains
+information on the dependencies of each extension.
 
 
 Emacs support

@@ -2,8 +2,6 @@
 # See hgrc(5) for more information
 
 # Extensions included in Mercurial listed in alphabetical order
-# See /usr/share/doc/mercurial/README.Debian.gz for more information
-# (for example, some extensions need other Debian packages to work)
 [extensions]
 
 # changeset access control
@@ -13,7 +11,7 @@
 # hgext.alias =
 
 # provides the 'bookmarks' command
-hgext.bookmarks =
+# hgext.bookmarks =
 
 # bugzilla integration
 # requires python-mysqldb
@@ -21,11 +19,11 @@ hgext.bookmarks =
 
 # show the children of the given or working dir revision
 # provides the 'children' command
-hgext.children =
+# hgext.children =
 
 # graph count of revisions grouped by template
 # provides the 'churn' command
-hgext.churn =
+# hgext.churn =
 
 # add color output to status, qseries, and diff-related commands
 # hgext.color =
@@ -40,23 +38,23 @@ hgext.churn =
 # - tla to convert from GNU Arch
 # - monotone to convert from Monotone
 # - python-subversion to convert from Subversion
-hgext.convert =
+# hgext.convert =
 
 # external diff program support
 # hgext.extdiff =
 
 # pull and merge remote changes
 # provides the 'fetch' command
-hgext.fetch =
+# hgext.fetch =
 
 # GnuPG signing
 # provides the 'sign', 'sigcheck' and 'sigs' commands
 # requires gnupg
-hgext.gpg =
+# hgext.gpg =
 
 # show revision graphs in terminal windows
 # provides the 'glog' command
-hgext.graphlog =
+# hgext.graphlog =
 
 # CIA notification hook
 # hgext.hgcia =
@@ -72,7 +70,7 @@ hgext.graphlog =
 
 # lets you split a merge into pieces
 # provides the 'imerge' command
-hgext.imerge =
+# hgext.imerge =
 
 # inotify-based status acceleration for Linux systems
 # provides the 'inserve' command
@@ -86,7 +84,7 @@ hgext.imerge =
 
 # quilt-like patch queues
 # provides the 'q*' commands
-hgext.mq =
+# hgext.mq =
 
 # email notifications
 # hgext.notify =
@@ -95,27 +93,27 @@ hgext.mq =
 # hgext.pager =
 
 # make it easy to refer to the parent of a revision
-hgext.parentrevspec =
+# hgext.parentrevspec =
 
 # send changes as series of email patches
 # provides the 'email' command
-hgext.patchbomb =
+# hgext.patchbomb =
 
 # removes files not known to mercurial
 # provides the 'purge' command
-hgext.purge =
+# hgext.purge =
 
 # moves sets of revisions to a different ancestor
 # provides the 'rebase' command
-hgext.rebase =
+# hgext.rebase =
 
 # interactive change selection during commit
 # provides the 'record' command
-hgext.record =
+# hgext.record =
 
 # patch transplanting tool
 # provides the 'transplant' command
-hgext.transplant =
+# hgext.transplant =
 
 # non-Unicode MBCS filename support
 # hgext.win32mbcs =
