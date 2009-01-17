@@ -1,4 +1,4 @@
-mercurial (1.1.2-1) UNRELEASED; urgency=low
+mercurial (1.1.2-1) unstable; urgency=low
 
   [ Vernon Tang ]
   * New upstream release (closes: #499846)
@@ -54,7 +54,13 @@ mercurial (1.1.2-1) UNRELEASED; urgency=low
     + Add ${misc:Depends} to Depends to remove
       lintian warning.
 
- -- Vernon Tang <vt@foilhead.net>  Thu, 15 Jan 2009 17:47:38 +0800
+  [ Vincent Danjean ]
+  * Document the fact that extensions are not enabled by default anymore
+    in the NEWS file
+  * big thanks to Vernon Tang for its work
+  * upload the package
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 17 Jan 2009 17:33:46 +0100
 
 mercurial (1.0.1-5.1) unstable; urgency=high
 

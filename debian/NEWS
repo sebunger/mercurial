@@ -1,3 +1,14 @@
+mercurial (1.1.2-1) unstable; urgency=low
+
+  Since the 1.1.2-1 version, mercurial does not enable any extension by
+  default anymore. Upstream asks us to do so because:
+  - users can easily enable any extension if they wish, however they cannot
+    disable a extension that have been enabled system-wide
+  - upstream prefers that default Mercurial installation is the plain Mercurial
+    without extension.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 17 Jan 2009 17:47:06 +0100
+
 mercurial (1.0-5) unstable; urgency=low
 
   Since the 1.0 version, mercurial handles most of the merges internaly.
