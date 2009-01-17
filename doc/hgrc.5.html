@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="generator" content="AsciiDoc 8.2.5">
+<meta name="generator" content="AsciiDoc 8.2.7">
 <title>HGRC(5)</title>
 </head>
 <body>
@@ -22,8 +22,8 @@ aspects of its behaviour.</p>
 <h2><a name="_files"></a>FILES</h2>
 <p>Mercurial reads configuration data from several files, if they exist.
 The names of these files depend on the system on which Mercurial is
-installed.  *.rc files from a single directory are read in
-alphabetical order, later ones overriding earlier ones.  Where
+installed. *.rc files from a single directory are read in
+alphabetical order, later ones overriding earlier ones. Where
 multiple paths are given below, settings from later paths override
 earlier ones.</p>
 <dl>
@@ -36,10 +36,10 @@ earlier ones.</p>
 <dd>
 <p>
     Per-installation configuration files, searched for in the
-    directory where Mercurial is installed.  &lt;install-root&gt; is the
+    directory where Mercurial is installed. &lt;install-root&gt; is the
     parent directory of the hg executable (or symlink) being run.
     For example, if installed in /shared/tools/bin/hg, Mercurial will
-    look in /shared/tools/etc/mercurial/hgrc.  Options in these files
+    look in /shared/tools/etc/mercurial/hgrc. Options in these files
     apply to all Mercurial commands executed by any user in any
     directory.
 </p>
@@ -53,8 +53,8 @@ earlier ones.</p>
 <dd>
 <p>
     Per-system configuration files, for the system on which Mercurial
-    is running.  Options in these files apply to all Mercurial
-    commands executed by any user in any directory.  Options in these
+    is running. Options in these files apply to all Mercurial
+    commands executed by any user in any directory. Options in these
     files override per-installation options.
 </p>
 </dd>
@@ -76,7 +76,7 @@ or else
 <dd>
 <p>
     Per-installation/system configuration files, for the system on
-    which Mercurial is running.  Options in these files apply to all
+    which Mercurial is running. Options in these files apply to all
     Mercurial commands executed by any user in any directory.
     Registry keys contain PATH-like strings, every part of which must
     reference a Mercurial.ini file or be a directory where *.rc files
@@ -103,7 +103,7 @@ or else
     Per-user configuration file(s), for the user running Mercurial.
     On Windows 9x, %HOME% is replaced by %APPDATA%.
     Options in these files apply to all Mercurial commands executed
-    by this user in any directory.  Options in thes files override
+    by this user in any directory. Options in thes files override
     per-installation and per-system options.
 </p>
 </dd>
@@ -113,11 +113,11 @@ or else
 <dd>
 <p>
     Per-repository configuration options that only apply in a
-    particular repository.  This file is not version-controlled, and
-    will not get transferred during a "clone" operation.  Options in
+    particular repository. This file is not version-controlled, and
+    will not get transferred during a "clone" operation. Options in
     this file override options in all other configuration files.
     On Unix, most of this file will be ignored if it doesn't belong
-    to a trusted user or to a trusted group.  See the documentation
+    to a trusted user or to a trusted group. See the documentation
     for the trusted section below for more details.
 </p>
 </dd>
@@ -130,9 +130,9 @@ and followed by "name: value" entries; "name=value" is also accepted.</p>
 eggs=ham
 green=
    eggs</pre>
-<p>Each line contains one entry.  If the lines that follow are indented,
+<p>Each line contains one entry. If the lines that follow are indented,
 they are treated as continuations of that entry.</p>
-<p>Leading whitespace is removed from values.  Empty lines are skipped.</p>
+<p>Leading whitespace is removed from values. Empty lines are skipped.</p>
 <p>The optional values can contain format strings which refer to other
 values in the same section, or values in a special DEFAULT section.</p>
 <p>Lines beginning with "#" or ";" are ignored and may be used to provide
@@ -142,7 +142,7 @@ comments.</p>
 <p>This section describes the different sections that may appear in a
 Mercurial "hgrc" file, the purpose of each section, its possible
 keys, and their possible values.</p>
-<dl>
+<a name="decode"></a><dl>
 <dt>
 decode/encode
 </dt>
@@ -154,11 +154,11 @@ decode/encode
 </p>
 <pre>Filters consist of a filter pattern followed by a filter command.
 Filter patterns are globs by default, rooted at the repository
-root.  For example, to match any file ending in ".txt" in the root
-directory only, use the pattern "*.txt".  To match any file ending
+root. For example, to match any file ending in ".txt" in the root
+directory only, use the pattern "*.txt". To match any file ending
 in ".c" anywhere in the repository, use the pattern "**.c".</pre>
 <pre>The filter command can start with a specifier, either "pipe:" or
-"tempfile:".  If no specifier is given, "pipe:" is used by default.</pre>
+"tempfile:". If no specifier is given, "pipe:" is used by default.</pre>
 <pre>A "pipe:" command must accept data on stdin and return the
 transformed data on stdout.</pre>
 <pre>Pipe example:</pre>
@@ -170,9 +170,9 @@ transformed data on stdout.</pre>
 # recompress gzip files when writing them to the working dir (we
 # can safely omit "pipe:", because it's the default)
 *.gz = gzip</pre>
-<pre>A "tempfile:" command is a template.  The string INFILE is replaced
+<pre>A "tempfile:" command is a template. The string INFILE is replaced
 with the name of a temporary file that contains the data to be
-filtered by the command.  The string OUTFILE is replaced with the
+filtered by the command. The string OUTFILE is replaced with the
 name of an empty temporary file, where the filtered data must be
 written by the command.</pre>
 <pre>NOTE: the tempfile mechanism is recommended for Windows systems,
@@ -194,6 +194,8 @@ hgext.win32text =
 [decode]
 **.txt = dumbdecode:</pre>
 </dd>
+</dl>
+<a name="defaults"></a><dl>
 <dt>
 defaults
 </dt>
@@ -211,6 +213,8 @@ status = -m</pre>
 defining command defaults. The command defaults will also be
 applied to the aliases of the commands defined.</pre>
 </dd>
+</dl>
+<a name="diff"></a><dl>
 <dt>
 diff
 </dt>
@@ -270,6 +274,8 @@ ignoreblanklines
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="email"></a><dl>
 <dt>
 email
 </dt>
@@ -283,7 +289,7 @@ from
 </dt>
 <dd>
 <p>
-    Optional.  Email address to use in "From" header and SMTP envelope
+    Optional. Email address to use in "From" header and SMTP envelope
     of outgoing messages.
 </p>
 </dd>
@@ -292,7 +298,7 @@ to
 </dt>
 <dd>
 <p>
-    Optional.  Comma-separated list of recipients' email addresses.
+    Optional. Comma-separated list of recipients' email addresses.
 </p>
 </dd>
 <dt>
@@ -300,7 +306,7 @@ cc
 </dt>
 <dd>
 <p>
-    Optional.  Comma-separated list of carbon copy recipients'
+    Optional. Comma-separated list of carbon copy recipients'
     email addresses.
 </p>
 </dd>
@@ -309,8 +315,8 @@ bcc
 </dt>
 <dd>
 <p>
-    Optional.  Comma-separated list of blind carbon copy
-    recipients' email addresses.  Cannot be set interactively.
+    Optional. Comma-separated list of blind carbon copy
+    recipients' email addresses. Cannot be set interactively.
 </p>
 </dd>
 <dt>
@@ -318,21 +324,46 @@ method
 </dt>
 <dd>
 <p>
-    Optional.  Method to use to send email messages.  If value is
+    Optional. Method to use to send email messages. If value is
     "smtp" (default), use SMTP (see section "[smtp]" for
-    configuration).  Otherwise, use as name of program to run that
+    configuration). Otherwise, use as name of program to run that
     acts like sendmail (takes "-f" option for sender, list of
-    recipients on command line, message on stdin).  Normally, setting
+    recipients on command line, message on stdin). Normally, setting
     this to "sendmail" or "/usr/sbin/sendmail" is enough to use
     sendmail to send messages.
 </p>
+</dd>
+<dt>
+charsets
+</dt>
+<dd>
+<p>
+    Optional. Comma-separated list of charsets considered
+    convenient for recipients. Addresses, headers, and parts not
+    containing patches of outgoing messages will be encoded in
+    the first charset to which conversion from local encoding
+    ($HGENCODING, ui.fallbackencoding) succeeds. If correct
+    conversion fails, the text in question is sent as is.
+    Defaults to empty (explicit) list.
+</p>
+<pre>Order of outgoing email charsets:</pre>
+<pre>us-ascii             always first, regardless of settings
+email.charsets       in order given by user
+ui.fallbackencoding  if not in email.charsets
+$HGENCODING          if not in email.charsets
+utf-8                always last, regardless of settings</pre>
 <pre>Email example:</pre>
 <pre>[email]
 from = Joseph User &lt;joe.user@example.com&gt;
-method = /usr/sbin/sendmail</pre>
+method = /usr/sbin/sendmail
+# charsets for western europeans
+# us-ascii, utf-8 omitted, as they are tried first and last
+charsets = iso-8859-1, iso-8859-15, windows-1252</pre>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="extensions"></a><dl>
 <dt>
 extensions
 </dt>
@@ -357,6 +388,8 @@ hgext.mq =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py</pre>
 </dd>
+</dl>
+<a name="format"></a><dl>
 <dt>
 format
 </dt>
@@ -371,11 +404,27 @@ usestore
     compatibility with systems that fold case or otherwise mangle
     filenames. Enabled by default. Disabling this option will allow
     you to store longer filenames in some situations at the expense of
-    compatibility.
+    compatibility and ensures that the on-disk format of newly created
+    repositories will be compatible with Mercurial before version 0.9.4.
+</p>
+</dd>
+<dt>
+usefncache
+</dt>
+<dd>
+<p>
+    Enable or disable the "fncache" repository format which enhances
+    the "store" repository format (which has to be enabled to use
+    fncache) to allow longer filenames and avoids using Windows reserved
+    names, e.g. "nul". Enabled by default. Disabling this option ensures
+    that the on-disk format of newly created repositories will be
+    compatible with Mercurial before version 1.1.
 </p>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="merge-patterns"></a><dl>
 <dt>
 merge-patterns
 </dt>
@@ -390,6 +439,8 @@ merge-patterns
 **.c = kdiff3
 **.jpg = myimgmerge</pre>
 </dd>
+</dl>
+<a name="merge-tools"></a><dl>
 <dt>
 merge-tools
 </dt>
@@ -410,52 +461,134 @@ kdiff3.priority = 1</pre>
 myHtmlTool.args = -m $local $other $base $output
 myHtmlTool.regkey = Software\FooSoftware\HtmlMerge
 myHtmlTool.priority = 1</pre>
-<pre>Supported arguments:
-priority;;
-  The priority in which to evaluate this tool.
-  Default: 0.
-executable;;
-  Either just the name of the executable or its pathname.
-  Default: the tool name.
-args;;
-  The arguments to pass to the tool executable. You can refer to the files
-  being merged as well as the output file through these variables: $base,
-  $local, $other, $output.
-  Default: $local $base $other
-premerge;;
-  Attempt to run internal non-interactive 3-way merge tool before
-  launching external tool.
-  Default: True
-binary;;
-  This tool can merge binary files.  Defaults to False, unless tool
-  was selected by file pattern match.
-symlink;;
-  This tool can merge symlinks.  Defaults to False, even if tool was
-  selected by file pattern match.
-checkconflicts;;
-  Check whether there are conflicts even though the tool reported
-  success.
-  Default: False
-checkchanged;;
-  Check whether outputs were written even though the tool reported
-  success.
-  Default: False
-fixeol;;
-  Attempt to fix up EOL changes caused by the merge tool.
-  Default: False
-gui:;
-  This tool requires a graphical interface to run. Default: False
-regkey;;
-  Windows registry key which describes install location of this tool.
-  Mercurial will search for this key first under HKEY_CURRENT_USER and
-  then under HKEY_LOCAL_MACHINE.  Default: None
-regname;;
-  Name of value to read from specified registry key.  Defaults to the
-  unnamed (default) value.
-regappend;;
-  String to append to the value read from the registry, typically the
-  executable name of the tool.  Default: None</pre>
+<pre>Supported arguments:</pre>
+<dl>
+<dt>
+priority
+</dt>
+<dd>
+<p>
+    The priority in which to evaluate this tool.
+    Default: 0.
+</p>
 </dd>
+<dt>
+executable
+</dt>
+<dd>
+<p>
+    Either just the name of the executable or its pathname.
+    Default: the tool name.
+</p>
+</dd>
+<dt>
+args
+</dt>
+<dd>
+<p>
+    The arguments to pass to the tool executable. You can refer to the files
+    being merged as well as the output file through these variables: $base,
+    $local, $other, $output.
+    Default: $local $base $other
+</p>
+</dd>
+<dt>
+premerge
+</dt>
+<dd>
+<p>
+    Attempt to run internal non-interactive 3-way merge tool before
+    launching external tool.
+    Default: True
+</p>
+</dd>
+<dt>
+binary
+</dt>
+<dd>
+<p>
+    This tool can merge binary files. Defaults to False, unless tool
+    was selected by file pattern match.
+</p>
+</dd>
+<dt>
+symlink
+</dt>
+<dd>
+<p>
+    This tool can merge symlinks. Defaults to False, even if tool was
+    selected by file pattern match.
+</p>
+</dd>
+<dt>
+checkconflicts
+</dt>
+<dd>
+<p>
+    Check whether there are conflicts even though the tool reported
+    success.
+    Default: False
+</p>
+</dd>
+<dt>
+checkchanged
+</dt>
+<dd>
+<p>
+    Check whether outputs were written even though the tool reported
+    success.
+    Default: False
+</p>
+</dd>
+<dt>
+fixeol
+</dt>
+<dd>
+<p>
+    Attempt to fix up EOL changes caused by the merge tool.
+    Default: False
+</p>
+</dd>
+<dt>
+gui
+</dt>
+<dd>
+<p>
+    This tool requires a graphical interface to run. Default: False
+</p>
+</dd>
+<dt>
+regkey
+</dt>
+<dd>
+<p>
+    Windows registry key which describes install location of this tool.
+    Mercurial will search for this key first under HKEY_CURRENT_USER and
+    then under HKEY_LOCAL_MACHINE. Default: None
+</p>
+</dd>
+<dt>
+regname
+</dt>
+<dd>
+<p>
+    Name of value to read from specified registry key. Defaults to the
+    unnamed (default) value.
+</p>
+</dd>
+<dt>
+regappend
+</dt>
+<dd>
+<p>
+    String to append to the value read from the registry, typically the
+    executable name of the tool. Default: None
+</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<a name="hooks"></a><dl>
 <dt>
 hooks
 </dt>
@@ -474,7 +607,7 @@ incoming =
 incoming.email = /my/email/hook
 incoming.autobuild = /my/build/hook</pre>
 <pre>Most hooks are run with environment variables set that give added
-useful information.  For each hook below, the environment variables
+useful information. For each hook below, the environment variables
 it is passed are listed with names of the form "$HG_foo".</pre>
 <dl>
 <dt>
@@ -483,7 +616,7 @@ changegroup
 <dd>
 <p>
     Run after a changegroup has been added via push, pull or
-    unbundle. ID of the first new changeset is in $HG_NODE.  URL from
+    unbundle. ID of the first new changeset is in $HG_NODE. URL from
     which changes came is in $HG_URL.
 </p>
 </dd>
@@ -493,7 +626,7 @@ commit
 <dd>
 <p>
     Run after a changeset has been created in the local repository.
-    ID of the newly created changeset is in $HG_NODE.  Parent
+    ID of the newly created changeset is in $HG_NODE. Parent
     changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
 </p>
 </dd>
@@ -503,8 +636,8 @@ incoming
 <dd>
 <p>
     Run after a changeset has been pulled, pushed, or unbundled into
-    the local repository.  The ID of the newly arrived changeset is in
-    $HG_NODE.  URL that was source of changes came is in $HG_URL.
+    the local repository. The ID of the newly arrived changeset is in
+    $HG_NODE. URL that was source of changes came is in $HG_URL.
 </p>
 </dd>
 <dt>
@@ -512,8 +645,8 @@ outgoing
 </dt>
 <dd>
 <p>
-    Run after sending changes from local repository to another.  ID of
-    first changeset sent is in $HG_NODE.  Source of operation is in
+    Run after sending changes from local repository to another. ID of
+    first changeset sent is in $HG_NODE. Source of operation is in
     $HG_SOURCE; see "preoutgoing" hook for description.
 </p>
 </dd>
@@ -543,8 +676,8 @@ prechangegroup
 <dd>
 <p>
     Run before a changegroup is added via push, pull or unbundle.
-    Exit status 0 allows the changegroup to proceed.  Non-zero status
-    will cause the push, pull or unbundle to fail.  URL from which
+    Exit status 0 allows the changegroup to proceed. Non-zero status
+    will cause the push, pull or unbundle to fail. URL from which
     changes will come is in $HG_URL.
 </p>
 </dd>
@@ -553,8 +686,8 @@ precommit
 </dt>
 <dd>
 <p>
-    Run before starting a local commit.  Exit status 0 allows the
-    commit to proceed.  Non-zero status will cause the commit to fail.
+    Run before starting a local commit. Exit status 0 allows the
+    commit to proceed. Non-zero status will cause the commit to fail.
     Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
 </p>
 </dd>
@@ -564,12 +697,12 @@ preoutgoing
 <dd>
 <p>
     Run before collecting changes to send from the local repository to
-    another.  Non-zero status will cause failure.  This lets you
-    prevent pull over http or ssh.  Also prevents against local pull,
+    another. Non-zero status will cause failure. This lets you
+    prevent pull over http or ssh. Also prevents against local pull,
     push (outbound) or bundle commands, but not effective, since you
-    can just copy files instead then.  Source of operation is in
-    $HG_SOURCE.  If "serve", operation is happening on behalf of
-    remote ssh or http repository.  If "push", "pull" or "bundle",
+    can just copy files instead then. Source of operation is in
+    $HG_SOURCE. If "serve", operation is happening on behalf of
+    remote ssh or http repository. If "push", "pull" or "bundle",
     operation is happening on behalf of repository on same system.
 </p>
 </dd>
@@ -578,9 +711,9 @@ pretag
 </dt>
 <dd>
 <p>
-    Run before creating a tag.  Exit status 0 allows the tag to be
-    created.  Non-zero status will cause the tag to fail.  ID of
-    changeset to tag is in $HG_NODE.  Name of tag is in $HG_TAG.  Tag
+    Run before creating a tag. Exit status 0 allows the tag to be
+    created. Non-zero status will cause the tag to fail. ID of
+    changeset to tag is in $HG_NODE. Name of tag is in $HG_TAG. Tag
     is local if $HG_LOCAL=1, in repo if $HG_LOCAL=0.
 </p>
 </dd>
@@ -590,12 +723,12 @@ pretxnchangegroup
 <dd>
 <p>
     Run after a changegroup has been added via push, pull or unbundle,
-    but before the transaction has been committed.  Changegroup is
-    visible to hook program.  This lets you validate incoming changes
-    before accepting them.  Passed the ID of the first new changeset
-    in $HG_NODE.  Exit status 0 allows the transaction to commit.
+    but before the transaction has been committed. Changegroup is
+    visible to hook program. This lets you validate incoming changes
+    before accepting them. Passed the ID of the first new changeset
+    in $HG_NODE. Exit status 0 allows the transaction to commit.
     Non-zero status will cause the transaction to be rolled back and
-    the push, pull or unbundle will fail.  URL that was source of
+    the push, pull or unbundle will fail. URL that was source of
     changes is in $HG_URL.
 </p>
 </dd>
@@ -605,10 +738,10 @@ pretxncommit
 <dd>
 <p>
     Run after a changeset has been created but the transaction not yet
-    committed.  Changeset is visible to hook program.  This lets you
-    validate commit message and changes.  Exit status 0 allows the
-    commit to proceed.  Non-zero status will cause the transaction to
-    be rolled back.  ID of changeset is in $HG_NODE.  Parent changeset
+    committed. Changeset is visible to hook program. This lets you
+    validate commit message and changes. Exit status 0 allows the
+    commit to proceed. Non-zero status will cause the transaction to
+    be rolled back. ID of changeset is in $HG_NODE. Parent changeset
     IDs are in $HG_PARENT1 and $HG_PARENT2.
 </p>
 </dd>
@@ -617,9 +750,9 @@ preupdate
 </dt>
 <dd>
 <p>
-    Run before updating the working directory.  Exit status 0 allows
-    the update to proceed.  Non-zero status will prevent the update.
-    Changeset ID of first new parent is in $HG_PARENT1.  If merge, ID
+    Run before updating the working directory. Exit status 0 allows
+    the update to proceed. Non-zero status will prevent the update.
+    Changeset ID of first new parent is in $HG_PARENT1. If merge, ID
     of second new parent is in $HG_PARENT2.
 </p>
 </dd>
@@ -628,8 +761,8 @@ tag
 </dt>
 <dd>
 <p>
-    Run after a tag is created.  ID of tagged changeset is in
-    $HG_NODE.  Name of tag is in $HG_TAG.  Tag is local if
+    Run after a tag is created. ID of tagged changeset is in
+    $HG_NODE. Name of tag is in $HG_TAG. Tag is local if
     $HG_LOCAL=1, in repo if $HG_LOCAL=0.
 </p>
 </dd>
@@ -638,9 +771,9 @@ update
 </dt>
 <dd>
 <p>
-    Run after updating the working directory.  Changeset ID of first
-    new parent is in $HG_PARENT1.  If merge, ID of second new parent
-    is in $HG_PARENT2.  If update succeeded, $HG_ERROR=0.  If update
+    Run after updating the working directory. Changeset ID of first
+    new parent is in $HG_PARENT1. If merge, ID of second new parent
+    is in $HG_PARENT2. If update succeeded, $HG_ERROR=0. If update
     failed (e.g. because conflicts not resolved), $HG_ERROR=1.
 </p>
 <pre>Note: it is generally better to use standard hooks rather than the
@@ -654,10 +787,10 @@ not be available under Windows for non-merge changesets while being
 set to an empty value under Unix-like systems.</pre>
 <pre>The syntax for Python hooks is as follows:</pre>
 <pre>hookname = python:modulename.submodule.callable</pre>
-<pre>Python hooks are run within the Mercurial process.  Each hook is
+<pre>Python hooks are run within the Mercurial process. Each hook is
 called with at least three keyword arguments: a ui object (keyword
 "ui"), a repository object (keyword "repo"), and a "hooktype"
-keyword that tells what kind of hook is used.  Arguments listed as
+keyword that tells what kind of hook is used. Arguments listed as
 environment variables above are passed as keyword arguments, with no
 "HG_" prefix, and names in lower case.</pre>
 <pre>If a Python hook returns a "true" value or raises an exception, this
@@ -665,6 +798,8 @@ is treated as failure of the hook.</pre>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="http_proxy"></a><dl>
 <dt>
 http_proxy
 </dt>
@@ -688,7 +823,7 @@ no
 </dt>
 <dd>
 <p>
-    Optional.  Comma-separated list of host names that should bypass
+    Optional. Comma-separated list of host names that should bypass
     the proxy.
 </p>
 </dd>
@@ -697,7 +832,7 @@ passwd
 </dt>
 <dd>
 <p>
-    Optional.  Password to authenticate with at the proxy server.
+    Optional. Password to authenticate with at the proxy server.
 </p>
 </dd>
 <dt>
@@ -705,11 +840,13 @@ user
 </dt>
 <dd>
 <p>
-    Optional.  User name to authenticate with at the proxy server.
+    Optional. User name to authenticate with at the proxy server.
 </p>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="smtp"></a><dl>
 <dt>
 smtp
 </dt>
@@ -731,7 +868,7 @@ port
 </dt>
 <dd>
 <p>
-    Optional.  Port to connect to on mail server.  Default: 25.
+    Optional. Port to connect to on mail server. Default: 25.
 </p>
 </dd>
 <dt>
@@ -739,8 +876,8 @@ tls
 </dt>
 <dd>
 <p>
-    Optional.  Whether to connect to mail server using TLS.  True or
-    False.  Default: False.
+    Optional. Whether to connect to mail server using TLS. True or
+    False. Default: False.
 </p>
 </dd>
 <dt>
@@ -748,7 +885,7 @@ username
 </dt>
 <dd>
 <p>
-    Optional.  User name to authenticate to SMTP server with.
+    Optional. User name to authenticate to SMTP server with.
     If username is specified, password must also be specified.
     Default: none.
 </p>
@@ -758,7 +895,7 @@ password
 </dt>
 <dd>
 <p>
-    Optional.  Password to authenticate to SMTP server with.
+    Optional. Password to authenticate to SMTP server with.
     If username is specified, password must also be specified.
     Default: none.
 </p>
@@ -768,20 +905,22 @@ local_hostname
 </dt>
 <dd>
 <p>
-    Optional.  It's the hostname that the sender can use to identify itself
+    Optional. It's the hostname that the sender can use to identify itself
     to the MTA.
 </p>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="paths"></a><dl>
 <dt>
 paths
 </dt>
 <dd>
 <p>
-  Assigns symbolic names to repositories.  The left side is the
+  Assigns symbolic names to repositories. The left side is the
   symbolic name, and the right gives the directory or URL that is the
-  location of the repository.  Default paths can be declared by
+  location of the repository. Default paths can be declared by
   setting the following entries.
 </p>
 <dl>
@@ -800,12 +939,14 @@ default-push
 </dt>
 <dd>
 <p>
-    Optional.  Directory or URL to use when pushing if no destination
+    Optional. Directory or URL to use when pushing if no destination
     is specified.
 </p>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="server"></a><dl>
 <dt>
 server
 </dt>
@@ -820,17 +961,19 @@ uncompressed
 <dd>
 <p>
     Whether to allow clients to clone a repo using the uncompressed
-    streaming protocol.  This transfers about 40% more data than a
+    streaming protocol. This transfers about 40% more data than a
     regular clone, but uses less memory and CPU on both server and
-    client.  Over a LAN (100Mbps or better) or a very fast WAN, an
+    client. Over a LAN (100Mbps or better) or a very fast WAN, an
     uncompressed streaming clone is a lot faster (~10x) than a regular
-    clone.  Over most WAN connections (anything slower than about
+    clone. Over most WAN connections (anything slower than about
     6Mbps), uncompressed streaming is slower, because of the extra
-    data transfer overhead.  Default is False.
+    data transfer overhead. Default is False.
 </p>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="trusted"></a><dl>
 <dt>
 trusted
 </dt>
@@ -838,12 +981,12 @@ trusted
 <p>
   For security reasons, Mercurial will not use the settings in
   the .hg/hgrc file from a repository if it doesn't belong to a
-  trusted user or to a trusted group.  The main exception is the
+  trusted user or to a trusted group. The main exception is the
   web interface, which automatically uses some safe settings, since
   it's common to serve repositories from different users.
 </p>
-<pre>This section specifies what users and groups are trusted.  The
-current user is always trusted.  To trust everybody, list a user
+<pre>This section specifies what users and groups are trusted. The
+current user is always trusted. To trust everybody, list a user
 or a group with name "*".</pre>
 <dl>
 <dt>
@@ -864,6 +1007,8 @@ groups
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="ui"></a><dl>
 <dt>
 ui
 </dt>
@@ -884,11 +1029,23 @@ archivemeta
 </p>
 </dd>
 <dt>
+askusername
+</dt>
+<dd>
+<p>
+    Whether to prompt for a username when committing. If True, and
+    neither $HGUSER nor $EMAIL has been specified, then the user will
+    be prompted to enter a username.  If no username is entered, the
+    default <a href="mailto:USER@HOST">USER@HOST</a> is used instead.
+    Default is False.
+</p>
+</dd>
+<dt>
 debug
 </dt>
 <dd>
 <p>
-    Print debugging information.  True or False.  Default is False.
+    Print debugging information. True or False. Default is False.
 </p>
 </dd>
 <dt>
@@ -896,7 +1053,7 @@ editor
 </dt>
 <dd>
 <p>
-    The editor to use during a commit.  Default is $EDITOR or "vi".
+    The editor to use during a commit. Default is $EDITOR or "vi".
 </p>
 </dd>
 <dt>
@@ -905,7 +1062,7 @@ fallbackencoding
 <dd>
 <p>
     Encoding to try if it's not possible to decode the changelog using
-    UTF-8.  Default is ISO-8859-1.
+    UTF-8. Default is ISO-8859-1.
 </p>
 </dd>
 <dt>
@@ -926,7 +1083,7 @@ interactive
 </dt>
 <dd>
 <p>
-    Allow to prompt the user.  True or False.  Default is True.
+    Allow to prompt the user. True or False. Default is True.
 </p>
 </dd>
 <dt>
@@ -977,44 +1134,112 @@ internal:fail
 <p>
         fail to merge
 </p>
-<pre>  See the merge-tools section for more information on configuring tools.
-patch;;
-  command to use to apply patches. Look for 'gpatch' or 'patch' in PATH if
-  unset.
-quiet;;
-  Reduce the amount of output printed.  True or False.  Default is False.
-remotecmd;;
-  remote command to use for clone/push/pull operations. Default is 'hg'.
-report_untrusted;;
-  Warn if a .hg/hgrc file is ignored due to not being owned by a
-  trusted user or group.  True or False.  Default is True.
-slash;;
-  Display paths using a slash ("/") as the path separator.  This only
-  makes a difference on systems where the default path separator is not
-  the slash character (e.g. Windows uses the backslash character ("\")).
-  Default is False.
-ssh;;
-  command to use for SSH connections. Default is 'ssh'.
-strict;;
-  Require exact command names, instead of allowing unambiguous
-  abbreviations.  True or False.  Default is False.
-style;;
-  Name of style to use for command output.
-timeout;;
-  The timeout used when a lock is held (in seconds), a negative value
-  means no timeout. Default is 600.
-username;;
-  The committer of a changeset created when running "commit".
-  Typically a person's name and email address, e.g. "Fred Widget
-  &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
-  If the username in hgrc is empty, it has to be specified manually or
-  in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username ="
-  in the system hgrc).
-verbose;;
-  Increase the amount of output printed.  True or False.  Default is False.</pre>
+<pre>See the merge-tools section for more information on configuring tools.</pre>
+</dd>
+<dt>
+patch
+</dt>
+<dd>
+<p>
+    command to use to apply patches. Look for <em>gpatch</em> or <em>patch</em> in PATH if
+    unset.
+</p>
+</dd>
+<dt>
+quiet
+</dt>
+<dd>
+<p>
+    Reduce the amount of output printed. True or False. Default is False.
+</p>
+</dd>
+<dt>
+remotecmd
+</dt>
+<dd>
+<p>
+    remote command to use for clone/push/pull operations. Default is <em>hg</em>.
+</p>
+</dd>
+<dt>
+report_untrusted
+</dt>
+<dd>
+<p>
+    Warn if a .hg/hgrc file is ignored due to not being owned by a
+    trusted user or group. True or False. Default is True.
+</p>
+</dd>
+<dt>
+slash
+</dt>
+<dd>
+<p>
+    Display paths using a slash ("/") as the path separator. This only
+    makes a difference on systems where the default path separator is not
+    the slash character (e.g. Windows uses the backslash character ("\")).
+    Default is False.
+</p>
+</dd>
+<dt>
+ssh
+</dt>
+<dd>
+<p>
+    command to use for SSH connections. Default is <em>ssh</em>.
+</p>
+</dd>
+<dt>
+strict
+</dt>
+<dd>
+<p>
+    Require exact command names, instead of allowing unambiguous
+    abbreviations. True or False. Default is False.
+</p>
+</dd>
+<dt>
+style
+</dt>
+<dd>
+<p>
+    Name of style to use for command output.
+</p>
+</dd>
+<dt>
+timeout
+</dt>
+<dd>
+<p>
+    The timeout used when a lock is held (in seconds), a negative value
+    means no timeout. Default is 600.
+</p>
+</dd>
+<dt>
+username
+</dt>
+<dd>
+<p>
+    The committer of a changeset created when running "commit".
+    Typically a person's name and email address, e.g. "Fred Widget
+    &lt;<a href="mailto:fred@example.com">fred@example.com</a>&gt;". Default is $EMAIL or username@hostname.
+    If the username in hgrc is empty, it has to be specified manually or
+    in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username ="
+    in the system hgrc).
+</p>
+</dd>
+<dt>
+verbose
+</dt>
+<dd>
+<p>
+    Increase the amount of output printed. True or False. Default is False.
+</p>
 </dd>
 </dl>
 </dd>
+</dl>
+<a name="web"></a><dl>
 <dt>
 web
 </dt>
@@ -1079,13 +1304,29 @@ allow_push
 </dt>
 <dd>
 <p>
-    Whether to allow pushing to the repository.  If empty or not set,
-    push is not allowed.  If the special value "*", any remote user
-    can push, including unauthenticated users.  Otherwise, the remote
+    Whether to allow pushing to the repository. If empty or not set,
+    push is not allowed. If the special value "*", any remote user
+    can push, including unauthenticated users. Otherwise, the remote
     user must have been authenticated, and the authenticated user name
     must be present in this list (separated by whitespace or ",").
     The contents of the allow_push list are examined after the
     deny_push list.
+</p>
+</dd>
+<dt>
+allow_read
+</dt>
+<dd>
+<p>
+    If the user has not already been denied repository access due to the
+    contents of deny_read, this list determines whether to grant repository
+    access to the user. If this list is not empty, and the user is
+    unauthenticated or not present in the list (separated by whitespace or ","),
+    then access is denied for the user.  If the list is empty or not set, then
+    access is permitted to all users by default.  Setting allow_read to the
+    special value "*" is equivalent to it not being set (i.e. access is
+    permitted to all users).  The contents of the allow_read list are examined
+    after the deny_read list.
 </p>
 </dd>
 <dt>
@@ -1121,12 +1362,30 @@ deny_push
 </dt>
 <dd>
 <p>
-    Whether to deny pushing to the repository.  If empty or not set,
-    push is not denied.  If the special value "*", all remote users
-    are denied push.  Otherwise, unauthenticated users are all denied,
+    Whether to deny pushing to the repository. If empty or not set,
+    push is not denied. If the special value "*", all remote users
+    are denied push. Otherwise, unauthenticated users are all denied,
     and any authenticated user name present in this list (separated by
-    whitespace or ",") is also denied.  The contents of the deny_push
+    whitespace or ",") is also denied. The contents of the deny_push
     list are examined before the allow_push list.
+</p>
+</dd>
+<dt>
+deny_read
+</dt>
+<dd>
+<p>
+    Whether to deny reading/viewing of the repository.  If this list is not
+    empty, unauthenticated users are all denied, and any authenticated user name
+    present in this list (separated by whitespace or ",") is also denied access
+    to the repository.  If set to the special value "*", all remote users are
+    denied access (rarely needed ;).  If deny_read is empty or not set, the
+    determination of repository access depends on the presence and content of
+    the allow_read list (see description).  If both deny_read and allow_read are
+    empty or not set, then access is permitted to all users by default.  If the
+    repository is being served via hgwebdir, denied users will not be able to
+    see it in the list of repositories.  The contents of the deny_read list have
+    priority over (are examined before) the contents of the allow_read list.
 </p>
 </dd>
 <dt>
@@ -1218,7 +1477,7 @@ push_ssl
 <dd>
 <p>
     Whether to require that inbound pushes be transported over SSL to
-    prevent password sniffing.  Default is true.
+    prevent password sniffing. Default is true.
 </p>
 </dd>
 <dt>
@@ -1262,8 +1521,8 @@ templates
 </dl>
 <hr />
 <h2><a name="_author"></a>AUTHOR</h2>
-<p>Bryan O'Sullivan &lt;bos@serpentine.com&gt;.</p>
-<p>Mercurial was written by Matt Mackall &lt;mpm@selenic.com&gt;.</p>
+<p>Bryan O'Sullivan &lt;<a href="mailto:bos@serpentine.com">bos@serpentine.com</a>&gt;.</p>
+<p>Mercurial was written by Matt Mackall &lt;<a href="mailto:mpm@selenic.com">mpm@selenic.com</a>&gt;.</p>
 <hr />
 <h2><a name="_see_also"></a>SEE ALSO</h2>
 <p>hg(1), hgignore(5)</p>
@@ -1276,7 +1535,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 2008-05-22 15:49:10 CDT
+Last updated 2008-12-31 17:38:54 CDT
 </small></p>
 </body>
 </html>

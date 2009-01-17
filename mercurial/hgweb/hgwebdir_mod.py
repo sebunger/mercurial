@@ -6,8 +6,8 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import os, mimetools, cStringIO
-from mercurial.i18n import gettext as _
+import os
+from mercurial.i18n import _
 from mercurial.repo import RepoError
 from mercurial import ui, hg, util, templater, templatefilters
 from common import ErrorResponse, get_mtime, staticfile, style_map, paritygen,\
@@ -25,7 +25,7 @@ class hgwebdir(object):
         self.parentui = parentui or ui.ui(report_untrusted=False,
                                           interactive = False)
         self.motd = None
-        self.style = None
+        self.style = 'paper'
         self.stripecount = None
         self.repos_sorted = ('name', False)
         self._baseurl = None
@@ -33,8 +33,7 @@ class hgwebdir(object):
             self.repos = cleannames(config)
             self.repos_sorted = ('', False)
         elif isinstance(config, dict):
-            self.repos = cleannames(config.items())
-            self.repos.sort()
+            self.repos = util.sort(cleannames(config.items()))
         else:
             if isinstance(config, util.configparser):
                 cp = config
@@ -52,7 +51,26 @@ class hgwebdir(object):
                 if cp.has_option('web', 'baseurl'):
                     self._baseurl = cp.get('web', 'baseurl')
             if cp.has_section('paths'):
-                self.repos.extend(cleannames(cp.items('paths')))
+                paths = cleannames(cp.items('paths'))
+                for prefix, root in paths:
+                    roothead, roottail = os.path.split(root)
+                    # "foo = /bar/*" makes every subrepo of /bar/ to be
+                    # mounted as foo/subrepo
+                    # and "foo = /bar/**" does even recurse inside the
+                    # subdirectories, remember to use it without working dir.
+                    try:
+                        recurse = {'*': False, '**': True}[roottail]
+                    except KeyError:
+                        self.repos.append((prefix, root))
+                        continue
+                    roothead = os.path.normpath(roothead)
+                    for path in util.walkrepos(roothead, followsym=True,
+                                               recurse=recurse):
+                        path = os.path.normpath(path)
+                        name = util.pconvert(path[len(roothead):]).strip('/')
+                        if prefix:
+                            name = prefix + '/' + name
+                        self.repos.append((name, path))
             if cp.has_section('collections'):
                 for prefix, root in cp.items('collections'):
                     for path in util.walkrepos(root, followsym=True):
@@ -71,8 +89,29 @@ class hgwebdir(object):
 
     def __call__(self, env, respond):
         req = wsgirequest(env, respond)
-        self.run_wsgi(req)
-        return req
+        return self.run_wsgi(req)
+
+    def read_allowed(self, ui, req):
+        """Check allow_read and deny_read config options of a repo's ui object
+        to determine user permissions.  By default, with neither option set (or
+        both empty), allow all users to read the repo.  There are two ways a
+        user can be denied read access:  (1) deny_read is not empty, and the
+        user is unauthenticated or deny_read contains user (or *), and (2)
+        allow_read is not empty and the user is not in allow_read.  Return True
+        if user is allowed to read the repo, else return False."""
+
+        user = req.env.get('REMOTE_USER')
+
+        deny_read = ui.configlist('web', 'deny_read', default=None, untrusted=True)
+        if deny_read and (not user or deny_read == ['*'] or user in deny_read):
+            return False
+
+        allow_read = ui.configlist('web', 'allow_read', default=None, untrusted=True)
+        # by default, allow reading if no allow_read option has been set
+        if (not allow_read) or (allow_read == ['*']) or (user in allow_read):
+            return True
+
+        return False
 
     def run_wsgi(self, req):
 
@@ -81,33 +120,22 @@ class hgwebdir(object):
 
                 virtual = req.env.get("PATH_INFO", "").strip('/')
                 tmpl = self.templater(req)
-                try:
-                    ctype = tmpl('mimetype', encoding=util._encoding)
-                    ctype = templater.stringify(ctype)
-                except KeyError:
-                    # old templates with inline HTTP headers?
-                    if 'mimetype' in tmpl:
-                        raise
-                    header = tmpl('header', encoding=util._encoding)
-                    header_file = cStringIO.StringIO(templater.stringify(header))
-                    msg = mimetools.Message(header_file, 0)
-                    ctype = msg['content-type']
+                ctype = tmpl('mimetype', encoding=util._encoding)
+                ctype = templater.stringify(ctype)
 
                 # a static file
                 if virtual.startswith('static/') or 'static' in req.form:
-                    static = os.path.join(templater.templatepath(), 'static')
                     if virtual.startswith('static/'):
                         fname = virtual[7:]
                     else:
                         fname = req.form['static'][0]
-                    req.write(staticfile(static, fname, req))
-                    return
+                    static = templater.templatepath('static')
+                    return staticfile(static, fname, req)
 
                 # top-level index
                 elif not virtual:
                     req.respond(HTTP_OK, ctype)
-                    req.write(self.makeindex(req, tmpl))
-                    return
+                    return self.makeindex(req, tmpl)
 
                 # nested indexes and hgwebs
 
@@ -118,8 +146,7 @@ class hgwebdir(object):
                         req.env['REPO_NAME'] = virtual
                         try:
                             repo = hg.repository(self.parentui, real)
-                            hgweb(repo).run_wsgi(req)
-                            return
+                            return hgweb(repo).run_wsgi(req)
                         except IOError, inst:
                             msg = inst.strerror
                             raise ErrorResponse(HTTP_SERVER_ERROR, msg)
@@ -130,8 +157,7 @@ class hgwebdir(object):
                     subdir = virtual + '/'
                     if [r for r in repos if r.startswith(subdir)]:
                         req.respond(HTTP_OK, ctype)
-                        req.write(self.makeindex(req, tmpl, subdir))
-                        return
+                        return self.makeindex(req, tmpl, subdir)
 
                     up = virtual.rfind('/')
                     if up < 0:
@@ -140,11 +166,11 @@ class hgwebdir(object):
 
                 # prefixes not found
                 req.respond(HTTP_NOT_FOUND, ctype)
-                req.write(tmpl("notfound", repo=virtual))
+                return tmpl("notfound", repo=virtual)
 
             except ErrorResponse, err:
                 req.respond(err.code, ctype)
-                req.write(tmpl('error', error=err.message or ''))
+                return tmpl('error', error=err.message or '')
         finally:
             tmpl = None
 
@@ -182,12 +208,15 @@ class hgwebdir(object):
                 try:
                     u.readconfig(os.path.join(path, '.hg', 'hgrc'))
                 except Exception, e:
-                    u.warn(_('error reading %s/.hg/hgrc: %s\n' % (path, e)))
+                    u.warn(_('error reading %s/.hg/hgrc: %s\n') % (path, e))
                     continue
                 def get(section, name, default=None):
                     return u.config(section, name, default, untrusted=True)
 
                 if u.configbool("web", "hidden", untrusted=True):
+                    continue
+
+                if not self.read_allowed(u, req):
                     continue
 
                 parts = [name]
@@ -257,13 +286,7 @@ class hgwebdir(object):
     def templater(self, req):
 
         def header(**map):
-            header = tmpl('header', encoding=util._encoding, **map)
-            if 'mimetype' not in tmpl:
-                # old template with inline HTTP headers
-                header_file = cStringIO.StringIO(templater.stringify(header))
-                msg = mimetools.Message(header_file, 0)
-                header = header_file.read()
-            yield header
+            yield tmpl('header', encoding=util._encoding, **map)
 
         def footer(**map):
             yield tmpl("footer", **map)

@@ -5,7 +5,7 @@
 # instance)
 #
 # Copyright (C) 2005 Steve Borho
-# Copyright (C) 2006 Brendan Cully <brendan@kublai.com>
+# Copyright (C) 2006-8 Brendan Cully <brendan@kublai.com>
 #
 # This is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free
@@ -203,10 +203,33 @@ _hg_modified() {
   _wanted files expl 'modified files' _multi_parts / status_files
 }
 
+_hg_resolve() {
+  local rstate rpah
+
+  [[ -d $PREFIX ]] || PREFIX=$PREFIX:h
+
+  _hg_cmd resolve -l ./$PREFIX 2> /dev/null | while read rstate rpath
+  do
+    [[ $rstate == 'R' ]] && resolved_files+=($rpath)
+    [[ $rstate == 'U' ]] && unresolved_files+=($rpath)
+  done
+}
+
+_hg_resolved() {
+  typeset -a resolved_files unresolved_files
+  _hg_resolve
+  _wanted files expl 'resolved files' _multi_parts / resolved_files
+}
+
+_hg_unresolved() {
+  typeset -a resolved_files unresolved_files
+  _hg_resolve
+  _wanted files expl 'unresolved files' _multi_parts / unresolved_files
+}
+
 _hg_config() {
     typeset -a items
-    local line
-    items=(${${(%f)"$(_hg_cmd showconfig)"}%%\=*})
+    items=(${${(%f)"$(_call_program hg hg showconfig)"}%%\=*})
     (( $#items )) && _describe -t config 'config item' items
 }
 
@@ -291,10 +314,14 @@ _hg_global_opts=(
     '--cwd[change working directory]:new working directory:_files -/'
     '(--noninteractive -y)'{-y,--noninteractive}'[do not prompt, assume yes for any required answers]'
     '(--verbose -v)'{-v,--verbose}'[enable additional output]'
+    '*--config[set/override config option]:defined config items:_hg_config'
     '(--quiet -q)'{-q,--quiet}'[suppress output]'
     '(--help -h)'{-h,--help}'[display help and exit]'
     '--debug[debug mode]'
     '--debugger[start debugger]'
+    '--encoding[set the charset encoding (default: UTF8)]'
+    '--encodingmode[set the charset encoding mode (default: strict)]'
+    '--lsprof[print improved command execution profile]'
     '--traceback[print traceback on exception]'
     '--time[time how long the command takes]'
     '--profile[profile]'
@@ -577,7 +604,27 @@ _hg_cmd_rename() {
   '*:file:_hg_files'
 }
 
+_hg_cmd_resolve() {
+  local context state line
+  typeset -A opt_args
+
+  _arguments -s -w : $_hg_global_opts \
+  '(--list -l --mark -m --unmark -u)'{-l,--list}'[list state of files needing merge]:*:merged files:->resolve_files' \
+  '(--mark -m --list -l --unmark -u)'{-m,--mark}'[mark files as resolved]:*:unresolved files:_hg_unresolved' \
+  '(--unmark -u --list -l --mark -m)'{-u,--unmark}'[unmark files as resolved]:*:resolved files:_hg_resolved' \
+  '*:file:_hg_unresolved'
+
+  if [[ $state == 'resolve_files' ]]
+  then
+    _alternative 'files:resolved files:_hg_resolved' \
+      'files:unresolved files:_hg_unresolved'
+  fi
+}
+
 _hg_cmd_revert() {
+  local context state line
+  typeset -A opt_args
+
   _arguments -s -w : $_hg_global_opts $_hg_pat_opts $_hg_dryrun_opts \
   '(--all -a :)'{-a,--all}'[revert all changes when no arguments given]' \
   '(--rev -r)'{-r+,--rev}'[revision to revert to]:revision:_hg_tags' \

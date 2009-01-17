@@ -1,11 +1,11 @@
 .\"     Title: hgrc
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 05/22/2008
+.\"      Date: 12/31/2008
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "HGRC" "5" "05/22/2008" "" ""
+.TH "HGRC" "5" "12/31/2008" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -73,8 +73,8 @@ Filters for transforming files on checkout/checkin\&. This would typically be us
 .nf
 Filters consist of a filter pattern followed by a filter command\&.
 Filter patterns are globs by default, rooted at the repository
-root\&.  For example, to match any file ending in "\&.txt" in the root
-directory only, use the pattern "*\&.txt"\&.  To match any file ending
+root\&. For example, to match any file ending in "\&.txt" in the root
+directory only, use the pattern "*\&.txt"\&. To match any file ending
 in "\&.c" anywhere in the repository, use the pattern "**\&.c"\&.
 .fi
 .RE
@@ -82,7 +82,7 @@ in "\&.c" anywhere in the repository, use the pattern "**\&.c"\&.
 .RS 4
 .nf
 The filter command can start with a specifier, either "pipe:" or
-"tempfile:"\&.  If no specifier is given, "pipe:" is used by default\&.
+"tempfile:"\&. If no specifier is given, "pipe:" is used by default\&.
 .fi
 .RE
 .sp
@@ -119,9 +119,9 @@ Pipe example:
 .sp
 .RS 4
 .nf
-A "tempfile:" command is a template\&.  The string INFILE is replaced
+A "tempfile:" command is a template\&. The string INFILE is replaced
 with the name of a temporary file that contains the data to be
-filtered by the command\&.  The string OUTFILE is replaced with the
+filtered by the command\&. The string OUTFILE is replaced with the
 name of an empty temporary file, where the filtered data must be
 written by the command\&.
 .fi
@@ -261,6 +261,27 @@ Optional\&. Comma\-separated list of blind carbon copy recipients\' email addres
 method
 .RS 4
 Optional\&. Method to use to send email messages\&. If value is "smtp" (default), use SMTP (see section "[smtp]" for configuration)\&. Otherwise, use as name of program to run that acts like sendmail (takes "\-f" option for sender, list of recipients on command line, message on stdin)\&. Normally, setting this to "sendmail" or "/usr/sbin/sendmail" is enough to use sendmail to send messages\&.
+.RE
+.PP
+charsets
+.RS 4
+Optional\&. Comma\-separated list of charsets considered convenient for recipients\&. Addresses, headers, and parts not containing patches of outgoing messages will be encoded in the first charset to which conversion from local encoding ($HGENCODING, ui\&.fallbackencoding) succeeds\&. If correct conversion fails, the text in question is sent as is\&. Defaults to empty (explicit) list\&.
+.sp
+.RS 4
+.nf
+Order of outgoing email charsets:
+.fi
+.RE
+.sp
+.RS 4
+.nf
+us\-ascii             always first, regardless of settings
+email\&.charsets       in order given by user
+ui\&.fallbackencoding  if not in email\&.charsets
+$HGENCODING          if not in email\&.charsets
+utf\-8                always last, regardless of settings
+.fi
+.RE
 .sp
 .RS 4
 .nf
@@ -273,6 +294,9 @@ Email example:
 [email]
 from = Joseph User <joe\&.user@example\&.com>
 method = /usr/sbin/sendmail
+# charsets for western europeans
+# us\-ascii, utf\-8 omitted, as they are tried first and last
+charsets = iso\-8859\-1, iso\-8859\-15, windows\-1252
 .fi
 .RE
 .RE
@@ -328,7 +352,12 @@ format
 .PP
 usestore
 .RS 4
-Enable or disable the "store" repository format which improves compatibility with systems that fold case or otherwise mangle filenames\&. Enabled by default\&. Disabling this option will allow you to store longer filenames in some situations at the expense of compatibility\&.
+Enable or disable the "store" repository format which improves compatibility with systems that fold case or otherwise mangle filenames\&. Enabled by default\&. Disabling this option will allow you to store longer filenames in some situations at the expense of compatibility and ensures that the on\-disk format of newly created repositories will be compatible with Mercurial before version 0\&.9\&.4\&.
+.RE
+.PP
+usefncache
+.RS 4
+Enable or disable the "fncache" repository format which enhances the "store" repository format (which has to be enabled to use fncache) to allow longer filenames and avoids using Windows reserved names, e\&.g\&. "nul"\&. Enabled by default\&. Disabling this option ensures that the on\-disk format of newly created repositories will be compatible with Mercurial before version 1\&.1\&.
 .RE
 .RE
 .PP
@@ -385,51 +414,72 @@ myHtmlTool\&.priority = 1
 .RS 4
 .nf
 Supported arguments:
-priority;;
-  The priority in which to evaluate this tool\&.
-  Default: 0\&.
-executable;;
-  Either just the name of the executable or its pathname\&.
-  Default: the tool name\&.
-args;;
-  The arguments to pass to the tool executable\&. You can refer to the files
-  being merged as well as the output file through these variables: $base,
-  $local, $other, $output\&.
-  Default: $local $base $other
-premerge;;
-  Attempt to run internal non\-interactive 3\-way merge tool before
-  launching external tool\&.
-  Default: True
-binary;;
-  This tool can merge binary files\&.  Defaults to False, unless tool
-  was selected by file pattern match\&.
-symlink;;
-  This tool can merge symlinks\&.  Defaults to False, even if tool was
-  selected by file pattern match\&.
-checkconflicts;;
-  Check whether there are conflicts even though the tool reported
-  success\&.
-  Default: False
-checkchanged;;
-  Check whether outputs were written even though the tool reported
-  success\&.
-  Default: False
-fixeol;;
-  Attempt to fix up EOL changes caused by the merge tool\&.
-  Default: False
-gui:;
-  This tool requires a graphical interface to run\&. Default: False
-regkey;;
-  Windows registry key which describes install location of this tool\&.
-  Mercurial will search for this key first under HKEY_CURRENT_USER and
-  then under HKEY_LOCAL_MACHINE\&.  Default: None
-regname;;
-  Name of value to read from specified registry key\&.  Defaults to the
-  unnamed (default) value\&.
-regappend;;
-  String to append to the value read from the registry, typically the
-  executable name of the tool\&.  Default: None
 .fi
+.RE
+.PP
+priority
+.RS 4
+The priority in which to evaluate this tool\&. Default: 0\&.
+.RE
+.PP
+executable
+.RS 4
+Either just the name of the executable or its pathname\&. Default: the tool name\&.
+.RE
+.PP
+args
+.RS 4
+The arguments to pass to the tool executable\&. You can refer to the files being merged as well as the output file through these variables: $base, $local, $other, $output\&. Default: $local $base $other
+.RE
+.PP
+premerge
+.RS 4
+Attempt to run internal non\-interactive 3\-way merge tool before launching external tool\&. Default: True
+.RE
+.PP
+binary
+.RS 4
+This tool can merge binary files\&. Defaults to False, unless tool was selected by file pattern match\&.
+.RE
+.PP
+symlink
+.RS 4
+This tool can merge symlinks\&. Defaults to False, even if tool was selected by file pattern match\&.
+.RE
+.PP
+checkconflicts
+.RS 4
+Check whether there are conflicts even though the tool reported success\&. Default: False
+.RE
+.PP
+checkchanged
+.RS 4
+Check whether outputs were written even though the tool reported success\&. Default: False
+.RE
+.PP
+fixeol
+.RS 4
+Attempt to fix up EOL changes caused by the merge tool\&. Default: False
+.RE
+.PP
+gui
+.RS 4
+This tool requires a graphical interface to run\&. Default: False
+.RE
+.PP
+regkey
+.RS 4
+Windows registry key which describes install location of this tool\&. Mercurial will search for this key first under HKEY_CURRENT_USER and then under HKEY_LOCAL_MACHINE\&. Default: None
+.RE
+.PP
+regname
+.RS 4
+Name of value to read from specified registry key\&. Defaults to the unnamed (default) value\&.
+.RE
+.PP
+regappend
+.RS 4
+String to append to the value read from the registry, typically the executable name of the tool\&. Default: None
 .RE
 .RE
 .PP
@@ -456,7 +506,7 @@ incoming\&.autobuild = /my/build/hook
 .RS 4
 .nf
 Most hooks are run with environment variables set that give added
-useful information\&.  For each hook below, the environment variables
+useful information\&. For each hook below, the environment variables
 it is passed are listed with names of the form "$HG_foo"\&.
 .fi
 .RE
@@ -568,10 +618,10 @@ hookname = python:modulename\&.submodule\&.callable
 .sp
 .RS 4
 .nf
-Python hooks are run within the Mercurial process\&.  Each hook is
+Python hooks are run within the Mercurial process\&. Each hook is
 called with at least three keyword arguments: a ui object (keyword
 "ui"), a repository object (keyword "repo"), and a "hooktype"
-keyword that tells what kind of hook is used\&.  Arguments listed as
+keyword that tells what kind of hook is used\&. Arguments listed as
 environment variables above are passed as keyword arguments, with no
 "HG_" prefix, and names in lower case\&.
 .fi
@@ -677,8 +727,8 @@ For security reasons, Mercurial will not use the settings in the \&.hg/hgrc file
 .sp
 .RS 4
 .nf
-This section specifies what users and groups are trusted\&.  The
-current user is always trusted\&.  To trust everybody, list a user
+This section specifies what users and groups are trusted\&. The
+current user is always trusted\&. To trust everybody, list a user
 or a group with name "*"\&.
 .fi
 .RE
@@ -701,6 +751,13 @@ User interface controls\&.
 archivemeta
 .RS 4
 Whether to include the \&.hg_archival\&.txt file containing metadata (hashes for the repository base and for tip) in archives created by the hg archive command or downloaded via hgweb\&. Default is true\&.
+.RE
+.PP
+askusername
+.RS 4
+Whether to prompt for a username when committing\&. If True, and neither $HGUSER nor $EMAIL has been specified, then the user will be prompted to enter a username\&. If no username is entered, the default
+\fIUSER@HOST\fR\&[1]
+is used instead\&. Default is False\&.
 .RE
 .PP
 debug
@@ -759,43 +816,70 @@ fail to merge
 .sp
 .RS 4
 .nf
-  See the merge\-tools section for more information on configuring tools\&.
-patch;;
-  command to use to apply patches\&. Look for \'gpatch\' or \'patch\' in PATH if
-  unset\&.
-quiet;;
-  Reduce the amount of output printed\&.  True or False\&.  Default is False\&.
-remotecmd;;
-  remote command to use for clone/push/pull operations\&. Default is \'hg\'\&.
-report_untrusted;;
-  Warn if a \&.hg/hgrc file is ignored due to not being owned by a
-  trusted user or group\&.  True or False\&.  Default is True\&.
-slash;;
-  Display paths using a slash ("/") as the path separator\&.  This only
-  makes a difference on systems where the default path separator is not
-  the slash character (e\&.g\&. Windows uses the backslash character ("\e"))\&.
-  Default is False\&.
-ssh;;
-  command to use for SSH connections\&. Default is \'ssh\'\&.
-strict;;
-  Require exact command names, instead of allowing unambiguous
-  abbreviations\&.  True or False\&.  Default is False\&.
-style;;
-  Name of style to use for command output\&.
-timeout;;
-  The timeout used when a lock is held (in seconds), a negative value
-  means no timeout\&. Default is 600\&.
-username;;
-  The committer of a changeset created when running "commit"\&.
-  Typically a person\'s name and email address, e\&.g\&. "Fred Widget
-  <fred@example\&.com>"\&.  Default is $EMAIL or username@hostname\&.
-  If the username in hgrc is empty, it has to be specified manually or
-  in a different hgrc file (e\&.g\&. $HOME/\&.hgrc, if the admin set "username ="
-  in the system hgrc)\&.
-verbose;;
-  Increase the amount of output printed\&.  True or False\&.  Default is False\&.
+See the merge\-tools section for more information on configuring tools\&.
 .fi
 .RE
+.RE
+.PP
+patch
+.RS 4
+command to use to apply patches\&. Look for
+\fIgpatch\fR
+or
+\fIpatch\fR
+in PATH if unset\&.
+.RE
+.PP
+quiet
+.RS 4
+Reduce the amount of output printed\&. True or False\&. Default is False\&.
+.RE
+.PP
+remotecmd
+.RS 4
+remote command to use for clone/push/pull operations\&. Default is
+\fIhg\fR\&.
+.RE
+.PP
+report_untrusted
+.RS 4
+Warn if a \&.hg/hgrc file is ignored due to not being owned by a trusted user or group\&. True or False\&. Default is True\&.
+.RE
+.PP
+slash
+.RS 4
+Display paths using a slash ("/") as the path separator\&. This only makes a difference on systems where the default path separator is not the slash character (e\&.g\&. Windows uses the backslash character ("\e"))\&. Default is False\&.
+.RE
+.PP
+ssh
+.RS 4
+command to use for SSH connections\&. Default is
+\fIssh\fR\&.
+.RE
+.PP
+strict
+.RS 4
+Require exact command names, instead of allowing unambiguous abbreviations\&. True or False\&. Default is False\&.
+.RE
+.PP
+style
+.RS 4
+Name of style to use for command output\&.
+.RE
+.PP
+timeout
+.RS 4
+The timeout used when a lock is held (in seconds), a negative value means no timeout\&. Default is 600\&.
+.RE
+.PP
+username
+.RS 4
+The committer of a changeset created when running "commit"\&. Typically a person\'s name and email address, e\&.g\&. "Fred Widget <\fIfred@example\&.com\fR\&[2]>"\&. Default is $EMAIL or username@hostname\&. If the username in hgrc is empty, it has to be specified manually or in a different hgrc file (e\&.g\&. $HOME/\&.hgrc, if the admin set "username =" in the system hgrc)\&.
+.RE
+.PP
+verbose
+.RS 4
+Increase the amount of output printed\&. True or False\&. Default is False\&.
 .RE
 .RE
 .PP
@@ -838,6 +922,11 @@ allow_push
 Whether to allow pushing to the repository\&. If empty or not set, push is not allowed\&. If the special value "*", any remote user can push, including unauthenticated users\&. Otherwise, the remote user must have been authenticated, and the authenticated user name must be present in this list (separated by whitespace or ",")\&. The contents of the allow_push list are examined after the deny_push list\&.
 .RE
 .PP
+allow_read
+.RS 4
+If the user has not already been denied repository access due to the contents of deny_read, this list determines whether to grant repository access to the user\&. If this list is not empty, and the user is unauthenticated or not present in the list (separated by whitespace or ","), then access is denied for the user\&. If the list is empty or not set, then access is permitted to all users by default\&. Setting allow_read to the special value "*" is equivalent to it not being set (i\&.e\&. access is permitted to all users)\&. The contents of the allow_read list are examined after the deny_read list\&.
+.RE
+.PP
 allowzip
 .RS 4
 (DEPRECATED) Whether to allow \&.zip downloading of repo revisions\&. Default is false\&. This feature creates temporary files\&.
@@ -856,6 +945,11 @@ Name or email address of the person in charge of the repository\&. Defaults to u
 deny_push
 .RS 4
 Whether to deny pushing to the repository\&. If empty or not set, push is not denied\&. If the special value "*", all remote users are denied push\&. Otherwise, unauthenticated users are all denied, and any authenticated user name present in this list (separated by whitespace or ",") is also denied\&. The contents of the deny_push list are examined before the allow_push list\&.
+.RE
+.PP
+deny_read
+.RS 4
+Whether to deny reading/viewing of the repository\&. If this list is not empty, unauthenticated users are all denied, and any authenticated user name present in this list (separated by whitespace or ",") is also denied access to the repository\&. If set to the special value "*", all remote users are denied access (rarely needed ;)\&. If deny_read is empty or not set, the determination of repository access depends on the presence and content of the allow_read list (see description)\&. If both deny_read and allow_read are empty or not set, then access is permitted to all users by default\&. If the repository is being served via hgwebdir, denied users will not be able to see it in the list of repositories\&. The contents of the deny_read list have priority over (are examined before) the contents of the allow_read list\&.
 .RE
 .PP
 description
@@ -934,9 +1028,9 @@ Where to find the HTML templates\&. Default is install path\&.
 .RE
 .RE
 .SH "AUTHOR"
-Bryan O\'Sullivan <bos@serpentine\&.com>\&.
+Bryan O\'Sullivan <\fIbos@serpentine\&.com\fR\&[3]>\&.
 .sp
-Mercurial was written by Matt Mackall <mpm@selenic\&.com>\&.
+Mercurial was written by Matt Mackall <\fImpm@selenic\&.com\fR\&[4]>\&.
 .sp
 .SH "SEE ALSO"
 hg(1), hgignore(5)
@@ -944,3 +1038,24 @@ hg(1), hgignore(5)
 .SH "COPYING"
 This manual page is copyright 2005 Bryan O\'Sullivan\&. Mercurial is copyright 2005\-2007 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+USER@HOST
+.RS 4
+\%mailto:USER@HOST
+.RE
+.IP " 2." 4
+fred@example.com
+.RS 4
+\%mailto:fred@example.com
+.RE
+.IP " 3." 4
+bos@serpentine.com
+.RS 4
+\%mailto:bos@serpentine.com
+.RE
+.IP " 4." 4
+mpm@selenic.com
+.RS 4
+\%mailto:mpm@selenic.com
+.RE

@@ -1,3 +1,67 @@
+mercurial (1.1.2-1) unstable; urgency=low
+
+  [ Vernon Tang ]
+  * New upstream release (closes: #499846)
+    Also resolves the following Debian bugs:
+    - mq corrupts repository on file rename (closes: #503997)
+    - failing import breaks Python help (closes: #476885)
+    - hg email doesn't use correct encoding (closes: #427854)
+    - error when loading extensions twice (closes: #447088)
+    - static-http does not work with old layout repositories (closes: #494889)
+    - hgwebdir.cgi goes into endless loop when viewing moved files
+      (closes: #506694)
+
+  * Install hg-ssh (ssh login shell for an hg server) system-wide.
+  * Don't enable extensions by default. (closes: #511872, #503865, #491109)
+
+  * debian/control:
+    - Moved dependencies to mercurial-common where appropriate
+    - Removed Recommends: python-beaker (not a Mercurial dependency)
+    - Removed 'convert' extension dependencies from Suggests:
+      (convert depends on many of the other SCMs it can convert from)
+    - Added python-openssl to Suggests for "hg serve" HTTPS support.
+  * debian/hgext.rc: updated for 1.1.2.
+  * debian/mercurial*, debian/rules: general cleanup.
+  * debian/README.Debian: updated, proofread, and corrected.
+  * debian/patches:
+    - Added headers.
+    - Added:
+      - deb_specific__install-templates-separately
+        (patch template search path to /usr/share instead of symlinking from
+        the module directory)
+      - backport__zeroconf-doc, proposed_upstream__correct-zeroconf-doc
+      - deb_specific__mergetools
+    - Renamed deb_specific__ElementTree_for_darcs.patch to
+      deb_specific__optional-dependencies and updated to suggest Debian
+      packages for more optional dependencies
+    - Dropped:
+      - proposed_upstream__extension_syntax.patch
+      - deb_specific__FAQ_subst.patch
+      - deb_specific__bash_completion_global_option_already_set.patch
+      - backport__CVE-2008-2942-fix.patch
+      - backport__svn1.5-fix.patch
+    - Refreshed:
+      - deb_specific__use_sensible-editor.patch
+      - deb_specific__hgk.py.patch
+      - convert-darc-doc.patch
+
+  [ Sandro Tosi ]
+  * debian/control
+    - switch Vcs-Browser field to viewsvn
+
+  [ Marco Rodrigues ]
+  * debian/control:
+    + Add ${misc:Depends} to Depends to remove
+      lintian warning.
+
+  [ Vincent Danjean ]
+  * Document the fact that extensions are not enabled by default anymore
+    in the NEWS file
+  * big thanks to Vernon Tang for its work
+  * upload the package
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 17 Jan 2009 17:33:46 +0100
+
 mercurial (1.0.1-5.1) unstable; urgency=high
 
   * Non-maintainer upload by the Security Team.

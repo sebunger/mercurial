@@ -4,6 +4,7 @@ HTML=$(SOURCES:%.txt=%.html)
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
 INSTALL=install -c
+PYTHON=python
 
 all: man html
 
@@ -15,7 +16,7 @@ hg.1.txt: hg.1.gendoc.txt
 	touch hg.1.txt
 
 hg.1.gendoc.txt: ../mercurial/commands.py ../mercurial/help.py
-	python gendoc.py > $@
+	${PYTHON} gendoc.py > $@
 
 %: %.xml
 	xmlto man $*.xml ; \
@@ -29,7 +30,7 @@ hg.1.gendoc.txt: ../mercurial/commands.py ../mercurial/help.py
 	asciidoc -b html4 $*.txt || asciidoc -b html $*.txt
 
 MANIFEST: man html
-	# versionned files are already in the main MANIFEST
+	# tracked files are already in the main MANIFEST
 	$(RM) $@
 	for i in $(MAN) $(HTML) hg.1.gendoc.txt; do \
 	  echo "doc/$$i" >> $@ ; \

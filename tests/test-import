@@ -20,6 +20,18 @@ echo % committer should be same
 hg --cwd b tip | grep someone
 rm -r b
 
+echo % import exported patch with external patcher
+cat > dummypatch.py <<EOF
+print 'patching file a'
+file('a', 'wb').write('line2\n')
+EOF
+chmod +x dummypatch.py
+hg clone -r0 a b
+hg --cwd a export tip > tip.patch
+hg --config ui.patch='python ../dummypatch.py' --cwd b import ../tip.patch
+cat b/a
+rm -r b
+
 echo % import of plain diff should fail without message
 hg clone -r0 a b
 hg --cwd a diff -r0:1 > tip.patch
@@ -260,4 +272,44 @@ foobar
 EOF
 hg status
 cat a
+cd ..
+
+echo % 'test paths outside repo root'
+mkdir outside
+touch outside/foo
+hg init inside
+cd inside
+hg import - <<EOF
+diff --git a/a b/b
+rename from ../outside/foo
+rename to bar
+EOF
+cd ..
+
+echo '% test import with similarity (issue295)'
+hg init sim
+cd sim
+echo 'this is a test' > a
+hg ci -Ama
+cat > ../rename.diff <<EOF
+diff --git a/a b/a
+deleted file mode 100644
+--- a/a
++++ /dev/null
+@@ -1,1 +0,0 @@
+-this is a test
+diff --git a/b b/b
+new file mode 100644
+--- /dev/null
++++ b/b
+@@ -0,0 +1,2 @@
++this is a test
++foo
+EOF
+hg import --no-commit -v -s 1 ../rename.diff
+hg st -C
+hg revert -a
+rm b
+hg import --no-commit -v -s 100 ../rename.diff
+hg st -C
 cd ..

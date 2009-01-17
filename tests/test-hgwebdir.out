@@ -1,5 +1,6 @@
 adding a
 adding b
+adding d
 adding c
 % should give a 404 - file does not exist
 404 Not Found
@@ -29,6 +30,15 @@ error: repository c not found
 
 
 /b/
+/coll/a/
+/coll/a/.hg/patches/
+/coll/b/
+/coll/c/
+/rcoll/a/
+/rcoll/a/.hg/patches/
+/rcoll/b/
+/rcoll/b/d/
+/rcoll/c/
 /t/a/
 
 200 Script output follows
@@ -102,11 +112,35 @@ error: repository c not found
 200 Script output follows
 
 a
-% should succeed
+200 Script output follows
+
+
+/coll/a/
+/coll/a/.hg/patches/
+/coll/b/
+/coll/c/
+
+200 Script output follows
+
+a
+200 Script output follows
+
+
+/rcoll/a/
+/rcoll/a/.hg/patches/
+/rcoll/b/
+/rcoll/b/d/
+/rcoll/c/
+
+200 Script output follows
+
+d
+% collections: should succeed
 200 Script output follows
 
 
 /a/
+/a/.hg/patches/
 /b/
 /c/
 

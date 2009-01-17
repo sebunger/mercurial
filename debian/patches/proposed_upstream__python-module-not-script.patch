@@ -1,3 +1,5 @@
+Remove shebang line from non-executable Python modules.
+
 Index: mercurial-git/mercurial/lsprof.py
 ===================================================================
 --- mercurial-git.orig/mercurial/lsprof.py	2008-04-06 20:12:23.000000000 +0200
