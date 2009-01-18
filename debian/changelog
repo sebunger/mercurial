@@ -1,7 +1,7 @@
 mercurial (1.1.2-2) unstable; urgency=low
 
-  * debian/mercurial.preinst: remove a leftover /usr/share/doc/mercurial
-    directory so dpkg can symlink it (closes: #512155)
+  * debian/mercurial.postinst: symlink /usr/share/doc/mercurial if dpkg didn't
+    do it when upgrading (closes: #512155)
   * debian/control: mercurial-common replaces all earlier versions of
     mercurial
 
