@@ -17,6 +17,11 @@ set -e
 
 case "$1" in
     install|upgrade)
+        # Remove a leftover doc directory so dpkg can symlink it
+        DOC=/usr/share/doc/mercurial
+        if [ -d "$DOC" -a ! -L "$DOC" ]; then
+            rmdir "$DOC"
+        fi
         # Fixing a wrong name in a config file (package 6c-1)
 	FILE=/etc/bash_completion.d/bash_completion
         if [ -f $FILE ] && grep -sq hg $FILE ; then
