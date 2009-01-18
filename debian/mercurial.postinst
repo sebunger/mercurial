@@ -19,6 +19,13 @@ set -e
 
 case "$1" in
     configure)
+        # Link mercurial doc directory if dpkg didn't do it
+        DOC=/usr/share/doc/mercurial
+        if [ -d "$DOC" -a ! -L "$DOC" ]; then
+            if rmdir "$DOC"; then
+                ln -s mercurial-common "$DOC"
+            fi
+        fi
         # Fix for old packages not managing pyc files
         for d in /usr/lib/python*/site-packages/mercurial /usr/lib/python*/site-packages/hgext ; do
 	    if [ -d "$d" ] ; then
