@@ -53,10 +53,6 @@ clean::
 	# And retore it
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
-	# if this is a git repository, restore removed files that would have been ignored by dpkg-source
-	-test -d .git && git-checkout -- $$(git-status | \
-		sed -e '/^#[[:space:]]*deleted:[[:space:]]*/s/^#[[:space:]]*deleted:[[:space:]]*//p;d' | \
-		grep -v '^debian/')
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."

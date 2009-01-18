@@ -1,3 +1,12 @@
+mercurial (1.1.2-2) unstable; urgency=low
+
+  * debian/mercurial.postinst: symlink /usr/share/doc/mercurial if dpkg didn't
+    do it when upgrading (closes: #512155)
+  * debian/control: mercurial-common replaces all earlier versions of
+    mercurial
+
+ -- Vernon Tang <vt@foilhead.net>  Sun, 18 Jan 2009 10:39:58 +0800
+
 mercurial (1.1.2-1) unstable; urgency=low
 
   [ Vernon Tang ]
