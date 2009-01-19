@@ -1,3 +1,13 @@
+mercurial (1.1.2-3) UNRELEASED; urgency=low
+
+  * swich to debhelper 7.
+    Debhelper 5.0.37.2 is not enought: 6.0.7 at least is required for
+    dh_lintian to be called.
+  TO REMOVE BEFORE UPLOAD: no need to upload for now. The only effect is
+  a lintian warning not overwritten in the backported package.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 19 Jan 2009 08:49:39 +0100
+
 mercurial (1.1.2-2) unstable; urgency=low
 
   * debian/mercurial.postinst: symlink /usr/share/doc/mercurial if dpkg didn't
