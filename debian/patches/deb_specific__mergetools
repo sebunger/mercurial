@@ -4,20 +4,18 @@ Add non-graphical vimdiff to and remove tools irrelevant to a Debian system
 diff -r 11a4eb81fb4f contrib/mergetools.hgrc
 --- a/contrib/mergetools.hgrc
 +++ b/contrib/mergetools.hgrc
-@@ -12,8 +12,11 @@
+@@ -12,8 +12,8 @@
  gvimdiff.regname=path
  gvimdiff.priority=-9
  
+-merge.checkconflicts=True
+-merge.priority=-10
 +vimdiff.args=$local $other $base
 +vimdiff.priority=-10
-+
- merge.checkconflicts=True
--merge.priority=-10
-+merge.priority=-11
  
  gpyfm.gui=True
  
-@@ -38,14 +41,6 @@
+@@ -38,14 +38,6 @@
  p4merge.gui=True
  p4merge.priority=-8
  

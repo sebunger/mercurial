@@ -15,10 +15,10 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${binary:Version})
-Recommends: rcs | kdiff3 | tkdiff | meld
 Suggests: qct, 
  wish, 
- vim | emacs
+ vim | emacs,
+ kdiff3 | tkdiff | meld | xxdiff
 Description: scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
