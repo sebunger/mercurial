@@ -1,3 +1,11 @@
+mercurial (1.0.1-5.1) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Honor allowpull configuration setting from hgrc on a repository clone to
+    prevent information disclosure (CVE-2008-4297; Closes: #500781).
+
+ -- Nico Golde <nion@debian.org>  Fri, 03 Oct 2008 16:25:13 +0200
+
 mercurial (1.0.1-5) unstable; urgency=low
 
   * Fix debian/copyright (GPL-2 only and not GPL-2+) (Closes: #493967)
