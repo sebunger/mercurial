@@ -347,7 +347,7 @@ mark revision as bad.</pre>
 -g, --good      mark changeset good
 -b, --bad       mark changeset bad
 -s, --skip      skip testing changeset
--c, --command   Use command to check changeset state
+-c, --command   use command to check changeset state
 -U, --noupdate  do not update to target</pre>
 </dd>
 </dl>
@@ -472,11 +472,10 @@ subsequent revisions will be present in the cloned repository.
 This option implies --pull, even on local repositories.</pre>
 <pre>If the -U option is used, the new clone will contain only a repository
 (.hg) and no working copy (the working copy parent is the null revision).</pre>
-<pre>See pull for valid source format details.</pre>
+<pre>See 'hg help urls' for valid source format details.</pre>
 <pre>It is possible to specify an ssh:// URL as the destination, but no
 .hg/hgrc and working directory will be created on the remote side.
-Look at the help text for the pull command for important details
-about ssh:// URLs.</pre>
+Look at the help text for urls for important details about ssh:// URLs.</pre>
 <pre>options:
 -U, --noupdate  the clone will only contain a repository (no
                 working copy)
@@ -505,6 +504,8 @@ enter a message.</pre>
 <pre>options:
 -A, --addremove  mark new/missing files as added/removed before
                  committing
+--close-branch   mark a branch as closed, hiding it from the
+                 branch list
 -I, --include    include names matching the given patterns
 -X, --exclude    exclude names matching the given patterns
 -m, --message    use &lt;text&gt; as commit message
@@ -562,6 +563,7 @@ probably with undesirable results.</pre>
 format. Read the diffs help topic for more information.</pre>
 <pre>options:
 -r, --rev                  revision
+-c, --change               change made by revision
 -a, --text                 treat all files as text
 -g, --git                  use git extended diff format
 --nodates                  don't include dates in diff headers
@@ -667,9 +669,10 @@ are the usual targets for update and merge operations.</pre>
 no child changesets with that tag. They are usually where
 development on the given branch takes place.</pre>
 <pre>options:
--r, --rev   show only heads which are descendants of rev
---style     display using template map file
---template  display with template</pre>
+-r, --rev     show only heads which are descendants of rev
+-a, --active  show only the active heads from open branches
+--style       display using template map file
+--template    display with template</pre>
 </dd>
 </dl>
 <a name="help"></a><dl>
@@ -772,6 +775,7 @@ twice if the incoming is followed by a pull.</pre>
 -r, --rev           a specific revision up to which you would like
                     to pull
 -p, --patch         show patch
+-g, --git           use git extended diff format
 -l, --limit         limit number of changes displayed
 -M, --no-merges     do not show merges
 --style             display using template map file
@@ -792,8 +796,7 @@ init[-e CMD] [&#8212;remotecmd CMD] [DEST]
 </p>
 <pre>If no directory is given, the current directory is used.</pre>
 <pre>It is possible to specify an ssh:// URL as the destination.
-Look at the help text for the pull command for important details
-about ssh:// URLs.</pre>
+See 'hg help urls' for more information.</pre>
 <pre>options:
 -e, --ssh    specify ssh command to use
 --remotecmd  specify hg command to run on the remote side</pre>
@@ -867,6 +870,7 @@ that are different from BOTH parents.</pre>
                    branch
 -P, --prune        do not display revision or any of its ancestors
 -p, --patch        show patch
+-g, --git          use git extended diff format
 -l, --limit        limit number of changes displayed
 -M, --no-merges    do not show merges
 --style            display using template map file
@@ -931,6 +935,7 @@ outgoing[-M] [-p] [-n] [-f] [-r REV]&#8230; [DEST]
                     to push
 -n, --newest-first  show newest record first
 -p, --patch         show patch
+-g, --git           use git extended diff format
 -l, --limit         limit number of changes displayed
 -M, --no-merges     do not show merges
 --style             display using template map file
@@ -969,6 +974,7 @@ paths[NAME]
 </p>
 <pre>Path names are defined in the [paths] section of /etc/mercurial/hgrc
 and $HOME/.hgrc. If run inside a repository, .hg/hgrc is used, too.</pre>
+<pre>See 'hg help urls' for more information.</pre>
 </dd>
 </dl>
 <a name="pull"></a><dl>
@@ -982,30 +988,8 @@ pull[-u] [-f] [-r REV]&#8230; [-e CMD] [&#8212;remotecmd CMD] [SOURCE]
 <pre>This finds all changes from the repository at the specified path
 or URL and adds them to the local repository. By default, this
 does not update the copy of the project in the working directory.</pre>
-<pre>Valid URLs are of the form:</pre>
-<pre>local/filesystem/path (or file://local/filesystem/path)
-http://[user[:pass]@]host[:port]/[path]
-https://[user[:pass]@]host[:port]/[path]
-ssh://[user[:pass]@]host[:port]/[path]</pre>
-<pre>Paths in the local filesystem can either point to Mercurial
-repositories or to bundle files (as created by 'hg bundle' or
-'hg incoming --bundle').</pre>
-<pre>An optional identifier after # indicates a particular branch, tag,
-or changeset to pull.</pre>
-<pre>Some notes about using SSH with Mercurial:
-- SSH requires an accessible shell account on the destination machine
-  and a copy of hg in the remote path or specified with as remotecmd.
-- path is relative to the remote user's home directory by default.
-  Use an extra slash at the start of a path to specify an absolute path:
-    ssh://example.com//tmp/repository
-- Mercurial doesn't use its own compression via SSH; the right thing
-  to do is to configure it in your ~/.ssh/config, e.g.:
-    Host *.mylocalnetwork.example.com
-      Compression no
-    Host *
-      Compression yes
-  Alternatively specify "ssh -C" as your ssh command in your hgrc or
-  with the --ssh command line option.</pre>
+<pre>If SOURCE is omitted, the 'default' path will be used.
+See 'hg help urls' for more information.</pre>
 <pre>options:
 -u, --update  update to new tip if changesets were pulled
 -f, --force   run even when remote repository is unrelated
@@ -1030,18 +1014,11 @@ from the current one.</pre>
 <pre>By default, push will refuse to run if it detects the result would
 increase the number of remote heads. This generally indicates the
 the client has forgotten to pull and merge before pushing.</pre>
-<pre>Valid URLs are of the form:</pre>
-<pre>local/filesystem/path (or file://local/filesystem/path)
-ssh://[user[:pass]@]host[:port]/[path]
-http://[user[:pass]@]host[:port]/[path]
-https://[user[:pass]@]host[:port]/[path]</pre>
-<pre>An optional identifier after # indicates a particular branch, tag,
-or changeset to push. If -r is used, the named changeset and all its
-ancestors will be pushed to the remote repository.</pre>
-<pre>Look at the help text for the pull command for important details
-about ssh:// URLs.</pre>
-<pre>Pushing to http:// and https:// URLs is only possible, if this
-feature is explicitly enabled on the remote Mercurial server.</pre>
+<pre>If -r is used, the named changeset and all its ancestors will be pushed
+to the remote repository.</pre>
+<pre>Look at the help text for urls for important details about ssh:// URLs.
+If DESTINATION is omitted, a default path will be used.
+See 'hg help urls' for more information.</pre>
 <pre>options:
 -f, --force  force push
 -r, --rev    a specific revision up to which you would like to
@@ -1133,10 +1110,12 @@ marking and unmarking files as resolved.</pre>
 U = unresolved
 R = resolved</pre>
 <pre>options:
--a, --all     remerge all unresolved files
--l, --list    list state of files needing merge
--m, --mark    mark files as resolved
--u, --unmark  unmark files as resolved</pre>
+-a, --all      remerge all unresolved files
+-l, --list     list state of files needing merge
+-m, --mark     mark files as resolved
+-u, --unmark   unmark files as resolved
+-I, --include  include names matching the given patterns
+-X, --exclude  exclude names matching the given patterns</pre>
 </dd>
 </dl>
 <a name="revert"></a><dl>
@@ -1345,10 +1324,9 @@ tags
 </dt>
 <dd>
 <p>
-    List the repository tags.
+    This lists both regular and local tags. When the -v/&#8212;verbose switch
+    is used, a third column "local" is printed for local tags.
 </p>
-<pre>This lists both regular and local tags. When the -v/--verbose switch
-is used, a third column "local" is printed for local tags.</pre>
 </dd>
 </dl>
 <a name="tip"></a><dl>
@@ -1367,6 +1345,7 @@ that repository becomes the current tip. The "tip" tag is special
 and cannot be renamed or assigned to a different changeset.</pre>
 <pre>options:
 -p, --patch  show patch
+-g, --git    use git extended diff format
 --style      display using template map file
 --template   display with template</pre>
 </dd>
@@ -1442,9 +1421,9 @@ version
 </dl>
 <hr />
 <h2><a name="_date_formats"></a>DATE FORMATS</h2>
-<pre>Some commands allow the user to specify a date:
-backout, commit, import, tag: Specify the commit date.
-log, revert, update: Select revision(s) by date.</pre>
+<pre>Some commands allow the user to specify a date, e.g.:
+* backout, commit, import, tag: Specify the commit date.
+* log, revert, update: Select revision(s) by date.</pre>
 <pre>Many date formats are valid. Here are some examples:</pre>
 <pre>"Wed Dec 6 13:18:29 2006" (local timezone assumed)
 "Dec 6 13:18 -0600" (year assumed, time offset provided)
@@ -1712,6 +1691,257 @@ importing diffs in this format or using them in the mq extension.</pre>
 </li>
 </ul>
 <hr />
+<h2><a name="_template_usage"></a>TEMPLATE USAGE</h2>
+<pre>Mercurial allows you to customize output of commands through
+templates. You can either pass in a template from the command line,
+via the --template option, or select an existing template-style (--style).</pre>
+<pre>You can customize output for any "log-like" command: log, outgoing,
+incoming, tip, parents, heads and glog are all template-enabled.</pre>
+<pre>Three styles are packaged with Mercurial: default (the style used
+when no explicit preference is passed), compact and changelog. Usage:</pre>
+<pre>$ hg log -r1 --style changelog</pre>
+<pre>A template is a piece of text, with markup to invoke variable expansion:</pre>
+<pre>$ hg log -r1 --template "{node}\n"
+b56ce7b07c52de7d5fd79fb89701ea538af65746</pre>
+<pre>Strings in curly braces are called keywords. The availability of
+keywords depends on the exact context of the templater. These keywords
+are usually available for templating a log-like command:</pre>
+<ul>
+<li>
+<p>
+author: String. The unmodified author of the changeset.
+</p>
+</li>
+<li>
+<p>
+branches: String. The name of the branch on which the changeset
+          was committed. Will be empty if the branch name was default.
+</p>
+</li>
+<li>
+<p>
+date: Date information. The date when the changeset was committed.
+</p>
+</li>
+<li>
+<p>
+desc: String. The text of the changeset description.
+</p>
+</li>
+<li>
+<p>
+files: List of strings. All files modified, added, or removed by
+          this changeset.
+</p>
+</li>
+<li>
+<p>
+file_adds: List of strings. Files added by this changeset.
+</p>
+</li>
+<li>
+<p>
+file_mods: List of strings. Files modified by this changeset.
+</p>
+</li>
+<li>
+<p>
+file_dels: List of strings. Files removed by this changeset.
+</p>
+</li>
+<li>
+<p>
+node: String. The changeset identification hash, as a 40-character
+          hexadecimal string.
+</p>
+</li>
+<li>
+<p>
+parents: List of strings. The parents of the changeset.
+</p>
+</li>
+<li>
+<p>
+rev: Integer. The repository-local changeset revision number.
+</p>
+</li>
+<li>
+<p>
+tags: List of strings. Any tags associated with the changeset.
+</p>
+<pre>The "date" keyword does not produce human-readable output. If you
+want to use a date in your output, you can use a filter to process it.
+Filters are functions which return a string based on the input variable.
+You can also use a chain of filters to get the wanted output:</pre>
+<pre>$ hg tip --template "{date|isodate}\n"
+2008-08-21 18:22 +0000</pre>
+<pre>List of filters:</pre>
+</li>
+<li>
+<p>
+addbreaks: Any text. Add an XHTML "&lt;br /&gt;" tag before the end of
+          every line except the last.
+</p>
+</li>
+<li>
+<p>
+age: Date. Returns a human-readable age for the given date.
+</p>
+</li>
+<li>
+<p>
+basename: Any text. Treats the text as a path, and returns the
+          basename. For example, "foo/bar/baz" becomes "baz".
+</p>
+</li>
+<li>
+<p>
+date: Date. Returns a date in a Unix date command format, including
+          the timezone: "Mon Sep 04 15:13:13 2006 0700".
+</p>
+</li>
+<li>
+<p>
+domain: Any text. Finds the first string that looks like an email
+          address, and extracts just the domain component.
+</p>
+</li>
+<li>
+<p>
+email: Any text. Extracts the first string that looks like an email
+          address.
+</p>
+</li>
+<li>
+<p>
+escape: Any text. Replaces the special XML/XHTML characters "&amp;",
+          "&lt;" and "&gt;" with XML entities.
+</p>
+</li>
+<li>
+<p>
+fill68: Any text. Wraps the text to fit in 68 columns.
+</p>
+</li>
+<li>
+<p>
+fill76: Any text. Wraps the text to fit in 76 columns.
+</p>
+</li>
+<li>
+<p>
+firstline: Any text. Returns the first line of text.
+</p>
+</li>
+<li>
+<p>
+hgdate: Date. Returns the date as a pair of numbers:
+          "1157407993 25200" (Unix timestamp, timezone offset).
+</p>
+</li>
+<li>
+<p>
+isodate: Date. Returns the date in ISO 8601 format.
+</p>
+</li>
+<li>
+<p>
+obfuscate: Any text. Returns the input text rendered as a sequence
+          of XML entities.
+</p>
+</li>
+<li>
+<p>
+person: Any text. Returns the text before an email address.
+</p>
+</li>
+<li>
+<p>
+rfc822date: Date. Returns a date using the same format used
+          in email headers.
+</p>
+</li>
+<li>
+<p>
+short: Changeset hash. Returns the short form of a changeset hash,
+          i.e. a 12-byte hexadecimal string.
+</p>
+</li>
+<li>
+<p>
+shortdate: Date. Returns a date like "2006-09-04".
+</p>
+</li>
+<li>
+<p>
+strip: Any text. Strips all leading and trailing whitespace.
+</p>
+</li>
+<li>
+<p>
+tabindent: Any text. Returns the text, with every line except the
+          first starting with a tab character.
+</p>
+</li>
+<li>
+<p>
+urlescape: Any text. Escapes all "special" characters. For example,
+          "foo bar" becomes "foo%20bar".
+</p>
+</li>
+<li>
+<p>
+user: Any text. Returns the user portion of an email address.
+</p>
+</li>
+</ul>
+<hr />
+<h2><a name="_url_paths"></a>URL PATHS</h2>
+<pre>Valid URLs are of the form:</pre>
+<pre>local/filesystem/path (or file://local/filesystem/path)
+http://[user[:pass]@]host[:port]/[path]
+https://[user[:pass]@]host[:port]/[path]
+ssh://[user[:pass]@]host[:port]/[path]</pre>
+<pre>Paths in the local filesystem can either point to Mercurial
+repositories or to bundle files (as created by 'hg bundle' or
+'hg incoming --bundle').</pre>
+<pre>An optional identifier after # indicates a particular branch, tag,
+or changeset to deal with in the remote repository.</pre>
+<pre>Some features, such as pushing to http:// and https:// URLs are
+only possible if the feature is explicitly enabled on the
+remote Mercurial server.</pre>
+<pre>Some notes about using SSH with Mercurial:
+- SSH requires an accessible shell account on the destination machine
+  and a copy of hg in the remote path or specified with as remotecmd.
+- path is relative to the remote user's home directory by default.
+  Use an extra slash at the start of a path to specify an absolute path:
+    ssh://example.com//tmp/repository
+- Mercurial doesn't use its own compression via SSH; the right thing
+  to do is to configure it in your ~/.ssh/config, e.g.:
+    Host *.mylocalnetwork.example.com
+      Compression no
+    Host *
+      Compression yes
+  Alternatively specify "ssh -C" as your ssh command in your hgrc or
+  with the --ssh command line option.</pre>
+<pre>These urls can all be stored in your hgrc with path aliases under the
+[paths] section like so:
+[paths]
+alias1 = URL1
+alias2 = URL2
+...</pre>
+<pre>You can then use the alias for any command that uses a url (for example
+'hg pull alias1' would pull from the 'alias1' path).</pre>
+<pre>Two path aliases are more important because they are used as defaults
+when you do not provide the url to a command:</pre>
+<pre>default:
+  When you create a repository with hg clone, the clone command saves
+  the location of the source repository as the 'default' path. This is
+  then used when you omit a path from the push and pull commands.</pre>
+<pre>default-push:
+  The push command will look for a path named 'default-push', and
+  prefer it over 'default' if both are defined.</pre>
+<hr />
 <h2><a name="_files"></a>FILES</h2>
 <dl>
 <dt>
@@ -1771,7 +2001,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 2008-12-31 17:38:51 CDT
+Last updated 2009-02-17 14:40:30 HKT
 </small></p>
 </body>
 </html>

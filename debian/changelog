@@ -1,3 +1,34 @@
+mercurial (1.1.2+hg20090217-7787-b8d750daadde-1) experimental; urgency=low
+
+  [ Vernon Tang ]
+  * New snapshot for feature freeze before next major release.
+
+  * debian/patches:
+    - deb_specific__mergetools: remove RCS merge from merge tools
+    - Added:
+      - proposed_upstream__dont-install-i18n
+    - Dropped:
+      - convert-darc-doc.patch: dropping for now to avoid fuzzing translations
+      - backport__zeroconf-doc
+    - Refreshed:
+      - deb_specific__install-templates-separately
+      - deb_specific__mergetools
+
+  * debian/control:
+    - Add gettext to build dependencies for compiling translations
+    - Remove RCS merge from Recommends
+    - Change merge tool Recommends to Suggests, add xxdiff
+
+  [ Vincent Danjean ]
+  * swich to debhelper 7.
+    Debhelper 5.0.37.2 is not enought: 6.0.7 at least is required for
+    dh_lintian to be called.
+  * Fix version to hg hash (instead of 'unknown') for this snapshot
+  * Fix upstream version in changelog
+  * Upload to experimental
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 18 Feb 2009 16:24:23 +0100
+
 mercurial (1.1.2-2) unstable; urgency=low
 
   * debian/mercurial.postinst: symlink /usr/share/doc/mercurial if dpkg didn't

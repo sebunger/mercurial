@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian.org.ve>,
  Vernon Tang <vt@foilhead.net>
-Build-Depends: debhelper (>= 5.0.37.2), quilt, patchutils (>= 0.2.25), 
+Build-Depends: debhelper (>= 7), quilt, patchutils (>= 0.2.25), gettext,
  cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.8.0
 Homepage: http://www.selenic.com/mercurial/
@@ -15,10 +15,10 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${binary:Version})
-Recommends: rcs | kdiff3 | tkdiff | meld
 Suggests: qct, 
  wish, 
- vim | emacs
+ vim | emacs,
+ kdiff3 | tkdiff | meld | xxdiff
 Description: scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
