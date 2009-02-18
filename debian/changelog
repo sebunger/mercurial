@@ -1,4 +1,4 @@
-mercurial (1.1.2+hg20090215-7774-3b8f2750efcf-1) experimental; urgency=low
+mercurial (1.1.2+hg20090217-7787-b8d750daadde-1) experimental; urgency=low
 
   [ Vernon Tang ]
   * New snapshot for feature freeze before next major release.
@@ -23,8 +23,11 @@ mercurial (1.1.2+hg20090215-7774-3b8f2750efcf-1) experimental; urgency=low
   * swich to debhelper 7.
     Debhelper 5.0.37.2 is not enought: 6.0.7 at least is required for
     dh_lintian to be called.
+  * Fix version to hg hash (instead of 'unknown') for this snapshot
+  * Fix upstream version in changelog
+  * Upload to experimental
 
- -- Vernon Tang <vt@foilhead.net>  Mon, 16 Feb 2009 15:02:06 +0800
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 18 Feb 2009 16:24:23 +0100
 
 mercurial (1.1.2-2) unstable; urgency=low
 
