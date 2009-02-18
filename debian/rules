@@ -1,6 +1,11 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
+clean::
+	# Keep current mercurial version
+	# (must be done BEFORE the *.mk includes)
+	cp -a mercurial/__version__.py mercurial/__version__.py.save
+
 DEB_PYTHON_SYSTEM=pysupport
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/rules/patchsys-quilt.mk
@@ -47,10 +52,8 @@ build/mercurial-common::
 	$(MAKE) -C doc man
 
 clean::
-	# Keep current mercurial version
-	cp -a mercurial/__version__.py mercurial/__version__.py.save
 	$(MAKE) clean
-	# And retore it
+	# Restoring the version file saved at the begining of the clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
 
