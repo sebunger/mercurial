@@ -16,12 +16,14 @@ DEB_INSTALL_DOCS_ALL=
 binary-install/mercurial::
 	pysupport-movemodules debian/mercurial
 	# remove arch-independent python stuff
-	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support
+	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support \
+		$(CURDIR)/debian/mercurial/usr/share/pyshared
 
 binary-install/mercurial-common::
 	pysupport-movemodules debian/mercurial-common
 	# remove arch-dependent python stuff
-	rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python-support
+	rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python-support \
+		$(CURDIR)/debian/mercurial-common/usr/lib/pyshared
 	rmdir --ignore-fail-on-non-empty $(CURDIR)/debian/mercurial-common/usr/lib
 
 include /usr/share/cdbs/1/class/python-distutils.mk
