@@ -1,6 +1,6 @@
 Remove merge tools irrelevant to a Debian system and RCS merge and add vimdiff
 
-diff -r 9f73bddb9d0b contrib/mergetools.hgrc
+diff -r 11efa41037e2 contrib/mergetools.hgrc
 --- a/contrib/mergetools.hgrc
 +++ b/contrib/mergetools.hgrc
 @@ -12,8 +12,8 @@
@@ -31,7 +31,7 @@ diff -r 9f73bddb9d0b contrib/mergetools.hgrc
 -filemerge.args=-left $other -right $local -ancestor $base -merge $output
 -filemerge.gui=True
 -
- beyondcompare3.args=$local $other $base $output /ro /lefttitle=local /centerfile=base /righttitle=other /automerge /reviewconflicts
+ beyondcompare3.args=$local $other $base $output /ro /lefttitle=local /centerfile=base /righttitle=other /automerge /reviewconflicts /solo
  beyondcompare3.regkey=Software\Scooter Software\Beyond Compare 3
  beyondcompare3.regname=ExePath
  beyondcompare3.gui=True
