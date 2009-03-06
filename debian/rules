@@ -14,15 +14,16 @@ DEB_INSTALL_DOCS_ALL=
 # These part must be run between dh_install and dh_pysupport
 # So, they must be defined BEFORE including python-distutils.mk
 binary-install/mercurial::
-	pysupport-movemodules debian/mercurial
 	# remove arch-independent python stuff
-	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support
+	find debian/mercurial/usr/lib \
+		! -name '*.so' ! -type d -delete , \
+		-type d -empty -delete
 
 binary-install/mercurial-common::
-	pysupport-movemodules debian/mercurial-common
 	# remove arch-dependent python stuff
-	rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python-support
-	rmdir --ignore-fail-on-non-empty $(CURDIR)/debian/mercurial-common/usr/lib
+	find debian/mercurial-common/usr/lib \
+		-name '*.so' ! -type d -delete , \
+		-type d -empty -delete
 
 include /usr/share/cdbs/1/class/python-distutils.mk
 
@@ -56,10 +57,6 @@ clean::
 	# Restoring the version file saved at the begining of the clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
-	# if this is a git repository, restore removed files that would have been ignored by dpkg-source
-	-test -d .git && git-checkout -- $$(git-status | \
-		sed -e '/^#[[:space:]]*deleted:[[:space:]]*/s/^#[[:space:]]*deleted:[[:space:]]*//p;d' | \
-		grep -v '^debian/')
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."

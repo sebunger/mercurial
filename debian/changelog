@@ -1,3 +1,12 @@
+mercurial (1.2-1) unstable; urgency=low
+
+  * New upstream release.
+
+  * Fix FTBFS with python-support 0.90 by removing dependence on
+    python-support internals. (closes: #516269)
+
+ -- Vernon Tang <vt@foilhead.net>  Fri, 06 Mar 2009 17:37:45 +0800
+
 mercurial (1.1.2+hg20090217-7787-b8d750daadde-1) experimental; urgency=low
 
   [ Vernon Tang ]

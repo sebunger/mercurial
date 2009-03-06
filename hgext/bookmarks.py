@@ -33,7 +33,7 @@ import os
 def parse(repo):
     '''Parse .hg/bookmarks file and return a dictionary
 
-    Bookmarks are stored as {HASH}\s{NAME}\n (localtags format) values
+    Bookmarks are stored as {HASH}\\s{NAME}\\n (localtags format) values
     in the .hg/bookmarks file. They are read by the parse() method and
     returned as a dictionary with name => hash values.
 
@@ -100,7 +100,7 @@ def setcurrent(repo, mark):
     refs = parse(repo)
 
     # do not update if we do update to a rev equal to the current bookmark
-    if (mark not in refs and
+    if (mark and mark not in refs and
         current(repo) and refs[current(repo)] == repo.changectx('.').node()):
         return
     if mark not in refs:
@@ -146,6 +146,8 @@ def bookmark(ui, repo, mark=None, rev=None, force=False, delete=False, rename=No
             raise util.Abort(_("bookmark name required"))
         if mark not in marks:
             raise util.Abort(_("a bookmark of this name does not exist"))
+        if mark == current(repo):
+            setcurrent(repo, None)
         del marks[mark]
         write(repo, marks)
         return
@@ -164,6 +166,7 @@ def bookmark(ui, repo, mark=None, rev=None, force=False, delete=False, rename=No
             marks[mark] = repo.lookup(rev)
         else:
             marks[mark] = repo.changectx('.').node()
+            setcurrent(repo, mark)
         write(repo, marks)
         return
 
@@ -314,5 +317,5 @@ cmdtable = {
           ('r', 'rev', '', _('revision')),
           ('d', 'delete', False, _('delete a given bookmark')),
           ('m', 'rename', '', _('rename a given bookmark'))],
-         _('hg bookmarks [-d] [-m NAME] [-r NAME] [NAME]')),
+         _('hg bookmarks [-f] [-d] [-m NAME] [-r REV] [NAME]')),
 }
