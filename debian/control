@@ -2,7 +2,8 @@ Source: mercurial
 Section: devel
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
-Uploaders: Vincent Danjean <vdanjean@debian.org>, Gerardo Curiel <gcuriel@debian.org.ve>,
+Uploaders: Vincent Danjean <vdanjean@debian.org>,
+ Gerardo Curiel <gcuriel@debian.org.ve>,
  Vernon Tang <vt@foilhead.net>
 Build-Depends: debhelper (>= 7), quilt, patchutils (>= 0.2.25), gettext,
  cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
@@ -14,7 +15,7 @@ Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
 Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
- mercurial-common (= ${binary:Version})
+ mercurial-common (= ${source:Version})
 Suggests: qct, 
  wish, 
  vim | emacs,
