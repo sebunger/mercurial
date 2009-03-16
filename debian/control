@@ -1,5 +1,5 @@
 Source: mercurial
-Section: devel
+Section: vcs
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
