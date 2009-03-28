@@ -1,8 +1,12 @@
 mercurial (1.2.1-1) unstable; urgency=low
 
+  [ Vernon Tang ]
   * New upstream release.
 
- -- Vernon Tang <vt@foilhead.net>  Sat, 21 Mar 2009 09:18:46 +0800
+  [ Vincent Danjean ]
+  * Dump Standards-Version (no change needed)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 28 Mar 2009 22:04:58 +0100
 
 mercurial (1.2-1) unstable; urgency=low
 

@@ -7,7 +7,7 @@ Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Vernon Tang <vt@foilhead.net>
 Build-Depends: debhelper (>= 7), quilt, patchutils (>= 0.2.25), gettext,
  cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
-Standards-Version: 3.8.0
+Standards-Version: 3.8.1
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
