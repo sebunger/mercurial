@@ -1,3 +1,25 @@
+mercurial (1.2.1-1) unstable; urgency=low
+
+  [ Vernon Tang ]
+  * New bugfix upstream release. (Closes: #525403)
+    - fixed version number build from tarball
+    - fix allow_read logic for hgweb
+    - improve handling of damaged revlogs in verify
+    - keep .orig files when resolving
+    - clear resolve state properly when rebasing
+    - improve --command handling with bisect
+    - fix diff against bundles
+    - improve fetch logic for inactive branches
+    - fix diffstat with notify
+    - fix 'synthetic file adds' in CVS conversion
+
+  [ Vincent Danjean ]
+  * Dump Standards-Version (no change needed)
+  * Switch to dh7 instead of cdbs (last releases of cdbs was breaking
+    the build system) (Closes: #522426, #527504)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 18 May 2009 19:43:53 +0200
+
 mercurial (1.2-1) unstable; urgency=low
 
   * New upstream release.
