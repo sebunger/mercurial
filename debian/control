@@ -5,12 +5,29 @@ Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.de
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Gerardo Curiel <gcuriel@debian.org.ve>,
  Vernon Tang <vt@foilhead.net>
-Build-Depends: debhelper (>= 7), quilt, patchutils (>= 0.2.25), gettext,
- cdbs (>= 0.4.27), python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
+Build-Depends: debhelper (>= 7.0.50), quilt, patchutils (>= 0.2.25), gettext,
+ python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.8.1
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
+
+Package: mercurial-common
+Architecture: all 
+Depends: ${misc:Depends}, ${python:Depends}
+Recommends: mercurial (= ${binary:Version})
+Suggests: wish,
+ python-mysqldb, 
+ python-pygments,
+ python-openssl
+Conflicts: mercurial (<< ${binary:Version})
+Replaces: mercurial (<< ${binary:Version})
+Description: scalable distributed version control system (common files)
+ Mercurial is a fast, lightweight Source Control Management system designed
+ for efficient handling of very large distributed projects.
+ . 
+ This package contains the architecture independent components of Mercurial,
+ and is generally useless without the mercurial package.
 
 Package: mercurial
 Architecture: any 
@@ -36,20 +53,3 @@ Description: scalable distributed version control system
   * Small Python codebase
  .
  This package contains the architecture dependent files.
-
-Package: mercurial-common
-Architecture: all 
-Depends: ${misc:Depends}, ${python:Depends}
-Recommends: mercurial (= ${binary:Version})
-Suggests: wish,
- python-mysqldb, 
- python-pygments,
- python-openssl
-Conflicts: mercurial (<< ${binary:Version})
-Replaces: mercurial (<< ${binary:Version})
-Description: scalable distributed version control system (common files)
- Mercurial is a fast, lightweight Source Control Management system designed
- for efficient handling of very large distributed projects.
- . 
- This package contains the architecture independent components of Mercurial,
- and is generally useless without the mercurial package.

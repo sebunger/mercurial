@@ -1,34 +1,27 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-clean::
-	# Keep current mercurial version
-	# (must be done BEFORE the *.mk includes)
-	cp -a mercurial/__version__.py mercurial/__version__.py.save
+%:
+	dh --with quilt $@
 
-DEB_PYTHON_SYSTEM=pysupport
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/rules/patchsys-quilt.mk
-DEB_INSTALL_DOCS_ALL=
+PYVERS=$(shell pyversions -vs)
 
-# These part must be run between dh_install and dh_pysupport
-# So, they must be defined BEFORE including python-distutils.mk
-binary-install/mercurial::
-	# remove arch-independent python stuff
-	find debian/mercurial/usr/lib \
-		! -name '*.so' ! -type d -delete , \
-		-type d -empty -delete
+override_dh_auto_build: $(PYVERS:%=build-python%)
+	$(MAKE) -C doc man
+	touch $@
 
-binary-install/mercurial-common::
-	# remove arch-dependent python stuff
-	find debian/mercurial-common/usr/lib \
-		-name '*.so' ! -type d -delete , \
-		-type d -empty -delete
+build-python%: mercurial/__version__.py
+	python$* setup.py build
+	touch $@
 
-include /usr/share/cdbs/1/class/python-distutils.mk
+override_dh_auto_install: $(PYVERS:%=install-python%)
+
+install-python%: build-python%
+	python$* setup.py install --root $(CURDIR)/debian/tmp
 
 
-binary-install/mercurial::
+override_dh_install:
+	dh_install
 	# Install bash autocompletion.
 	install -m 644 \
 		contrib/bash_completion \
@@ -46,20 +39,25 @@ binary-install/mercurial::
 	# Symlink docs
 	rm -rf $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
 	ln -s mercurial-common $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
+	# remove arch-independent python stuff
+	find debian/mercurial/usr/lib \
+		! -name '*.so' ! -type d -delete , \
+		-type d -empty -delete
+	# remove arch-dependent python stuff
+	find debian/mercurial-common/usr/lib \
+		-name '*.so' ! -type d -delete , \
+		-type d -empty -delete
 
-build/mercurial:: mercurial/__version__.py
-
-build/mercurial-common::
-	$(MAKE) -C doc man
-
-clean::
+override_dh_auto_clean:
+	cp -a mercurial/__version__.py mercurial/__version__.py.save
 	$(MAKE) clean
-	# Restoring the version file saved at the begining of the clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
+	$(RM) build-python*
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."
 	@echo "Restore it from sources before building the package"
 	@echo "Aborting."
 	exit 1
+
