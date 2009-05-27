@@ -1,3 +1,12 @@
+mercurial (1.2.1-3) unstable; urgency=low
+
+  * Only install (or remove) files in packages we are building
+    (Closes: #529803)
+    Who knows how dh_install detect if we are building arch-dep and/or
+    arch-indep packages ?
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 27 May 2009 01:46:40 +0200
+
 mercurial (1.2.1-2) unstable; urgency=low
 
   * rebuild (forgot to upload arch-all in previous upload)

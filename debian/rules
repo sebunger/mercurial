@@ -22,6 +22,14 @@ install-python%: build-python%
 
 override_dh_install:
 	dh_install
+	if test -d $(CURDIR)/debian/mercurial ; then \
+		$(MAKE) -f debian/rules install-archdep ; \
+	fi
+	if test -d $(CURDIR)/debian/mercurial-common ; then \
+		$(MAKE) -f debian/rules install-archindep ;\
+	fi
+
+install-archdep:
 	# Install bash autocompletion.
 	install -m 644 \
 		contrib/bash_completion \
@@ -43,6 +51,8 @@ override_dh_install:
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \
 		-type d -empty -delete
+
+install-archindep:
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
