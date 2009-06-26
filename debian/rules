@@ -17,7 +17,7 @@ build-python%: mercurial/__version__.py
 override_dh_auto_install: $(PYVERS:%=install-python%)
 
 install-python%: build-python%
-	python$* setup.py install --root $(CURDIR)/debian/tmp
+	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
 
 
 override_dh_install:
