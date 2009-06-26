@@ -1,7 +1,8 @@
 mercurial (1.2.1-4) UNRELEASED; urgency=low
 
   * [debian/control] add version to the quilt dependency. "dh --with quilt"
-    is only supported since quilt 0.46-7 (thanks Faheem Mitha)
+    is only supported since quilt 0.46-7 (thanks Faheem Mitha and Zed Pobre)
+    (Closes: #529700, #534589).
 
  -- Vincent Danjean <vdanjean@debian.org>  Thu, 25 Jun 2009 13:25:15 +0200
 
