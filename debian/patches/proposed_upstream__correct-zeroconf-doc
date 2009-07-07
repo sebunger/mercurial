@@ -1,25 +1,22 @@
 Correct the documentation for the zeroconf extension.
 
-diff -r 15e292032969 hgext/zeroconf/__init__.py
+diff -r 151f1e65ad7b hgext/zeroconf/__init__.py
 --- a/hgext/zeroconf/__init__.py
 +++ b/hgext/zeroconf/__init__.py
-@@ -6,11 +6,11 @@
- # the GNU General Public License (version 2), incorporated herein by
- # reference.
+@@ -7,9 +7,9 @@
  
--'''zeroconf support for mercurial repositories
-+'''Zeroconf support for Mercurial repositories
+ '''discover and advertise repositories on the local network
  
--Zeroconf enabled repositories will be announced in a network without the need
--to configure a server or a service. They can be discovered without knowing
--their actual IP address.
-+The zeroconf extension will advertise "hg serve" instances over DNS-SD such
-+that they can be discovered without knowing the server's hostname, and give
-+the "hg paths" command the ability to discover such advertised repositories.
+-Zeroconf enabled repositories will be announced in a network without
+-the need to configure a server or a service. They can be discovered
+-without knowing their actual IP address.
++The zeroconf extension will advertise "hg serve" instances over DNS-SD so
++that they can be discovered using the "hg paths" command without knowing
++the server's address.
  
- To use the zeroconf extension add the following entry to your hgrc file:
- 
-@@ -23,7 +23,7 @@
+ To allow other people to discover your repository using run "hg serve"
+ in your repository.
+@@ -17,7 +17,7 @@
   $ cd test
   $ hg serve
  
