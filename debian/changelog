@@ -16,8 +16,9 @@ mercurial (1.3-1) UNRELEASED; urgency=low
     - Fixed support for HTTPS through proxies (closes: #498711)
     - Experimental share extension
     - Updated translations and numerous small changes and bug fixes
+  * Updated Standards-Version to 3.8.2.
 
- -- Vernon Tang <vt@foilhead.net>  Wed, 08 Jul 2009 00:30:37 +0800
+ -- Vernon Tang <vt@foilhead.net>  Wed, 08 Jul 2009 23:21:46 +1000
 
 mercurial (1.2.1-3) unstable; urgency=low
 
