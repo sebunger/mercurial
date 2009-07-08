@@ -1,3 +1,4 @@
+for_upstream__force_C_locale.patch
 deb_specific__mergetools
 proposed_upstream__dont-install-i18n
 deb_specific__install-templates-separately
