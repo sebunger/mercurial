@@ -3,13 +3,14 @@
 # Copyright 2006 Josef "Jeff" Sipek <jeffpc@josefsipek.net>
 # Copyright 2008 Alexander Solovyov <piranha@piranha.org.ua>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
-'''command to show certain statistics about revision history'''
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
+'''command to display statistics about repository history'''
 
 from mercurial.i18n import _
 from mercurial import patch, cmdutil, util, templater
-import os, sys
+import sys, os
 import time, datetime
 
 def maketemplater(ui, repo, tmpl):
@@ -21,9 +22,10 @@ def maketemplater(ui, repo, tmpl):
     t.use_template(tmpl)
     return t
 
-def changedlines(ui, repo, ctx1, ctx2):
+def changedlines(ui, repo, ctx1, ctx2, fns):
     lines = 0
-    diff = ''.join(patch.diff(repo, ctx1.node(), ctx2.node()))
+    fmatch = cmdutil.match(repo, pats=fns)
+    diff = ''.join(patch.diff(repo, ctx1.node(), ctx2.node(), fmatch))
     for l in diff.split('\n'):
         if (l.startswith("+") and not l.startswith("+++ ") or
             l.startswith("-") and not l.startswith("--- ")):
@@ -71,7 +73,7 @@ def countrate(ui, repo, amap, *pats, **opts):
                 continue
 
             ctx1 = parents[0]
-            lines = changedlines(ui, repo, ctx1, ctx)
+            lines = changedlines(ui, repo, ctx1, ctx, fns)
             rate[key] = rate.get(key, 0) + lines
 
         if opts.get('progress'):
@@ -79,7 +81,7 @@ def countrate(ui, repo, amap, *pats, **opts):
             newpct = int(100.0 * count / max(len(repo), 1))
             if pct < newpct:
                 pct = newpct
-                ui.write(_("\rgenerating stats: %d%%") % pct)
+                ui.write("\r" + _("generating stats: %d%%") % pct)
                 sys.stdout.flush()
 
     if opts.get('progress'):
@@ -90,13 +92,17 @@ def countrate(ui, repo, amap, *pats, **opts):
 
 
 def churn(ui, repo, *pats, **opts):
-    '''graph count of revisions grouped by template
+    '''histogram of changes to the repository
 
-    Will graph count of changed lines or revisions grouped by template or
-    alternatively by date, if dateformat is used. In this case it will override
-    template.
+    This command will display a histogram representing the number
+    of changed lines or revisions, grouped according to the given
+    template. The default template will group changes by author.
+    The --dateformat option may be used to group the results by
+    date instead.
 
-    By default statistics are counted for number of changed lines.
+    Statistics are based on the number of changed lines, or
+    alternatively the number of matching revisions if the
+    --changesets option is specified.
 
     Examples:
 
@@ -112,14 +118,21 @@ def churn(ui, repo, *pats, **opts):
       # display count of lines changed in every year
       hg churn -f '%Y' -s
 
-    The map file format used to specify aliases is fairly simple:
+    It is possible to map alternate email addresses to a main address
+    by providing a file using the following format:
 
-    <alias email> <actual email>'''
+    <alias email> <actual email>
+
+    Such a file may be specified with the --aliases option, otherwise a
+    .hgchurn file will be looked for in the working directory root.
+    '''
     def pad(s, l):
         return (s + " " * l)[:l]
 
     amap = {}
     aliases = opts.get('aliases')
+    if not aliases and os.path.exists(repo.wjoin('.hgchurn')):
+        aliases = repo.wjoin('.hgchurn')
     if aliases:
         for l in open(aliases, "r"):
             l = l.strip()
@@ -149,7 +162,7 @@ cmdtable = {
     "churn":
         (churn,
          [('r', 'rev', [], _('count rate for the specified revision or range')),
-          ('d', 'date', '', _('count rate for revs matching date spec')),
+          ('d', 'date', '', _('count rate for revisions matching date spec')),
           ('t', 'template', '{author|email}', _('template to group changesets')),
           ('f', 'dateformat', '',
               _('strftime-compatible format for grouping by date')),

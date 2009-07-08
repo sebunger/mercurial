@@ -3,14 +3,12 @@
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-import os, mimetypes
-from mercurial.node import hex, nullid
-from mercurial import ui, hg, util, hook, error
-from mercurial import templater, templatefilters
-from common import get_mtime, style_map, ErrorResponse
+import os
+from mercurial import ui, hg, hook, error, encoding, templater
+from common import get_mtime, ErrorResponse
 from common import HTTP_OK, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
 from common import HTTP_UNAUTHORIZED, HTTP_METHOD_NOT_ALLOWED
 from request import wsgirequest
@@ -26,8 +24,10 @@ perms = {
 class hgweb(object):
     def __init__(self, repo, name=None):
         if isinstance(repo, str):
-            parentui = ui.ui(report_untrusted=False, interactive=False)
-            self.repo = hg.repository(parentui, repo)
+            u = ui.ui()
+            u.setconfig('ui', 'report_untrusted', 'off')
+            u.setconfig('ui', 'interactive', 'off')
+            self.repo = hg.repository(u, repo)
         else:
             self.repo = repo
 
@@ -38,9 +38,7 @@ class hgweb(object):
         self.stripecount = 1
         # a repo owner may set web.templates in .hg/hgrc to get any file
         # readable by the user running the CGI script
-        self.templatepath = self.config("web", "templates",
-                                        templater.templatepath(),
-                                        untrusted=False)
+        self.templatepath = self.config('web', 'templates')
 
     # The CGI scripts are often run by a user different from the repo owner.
     # Trust the settings from the .hg/hgrc files by default.
@@ -66,11 +64,13 @@ class hgweb(object):
             self.maxshortchanges = int(self.config("web", "maxshortchanges", 60))
             self.maxfiles = int(self.config("web", "maxfiles", 10))
             self.allowpull = self.configbool("web", "allowpull", True)
-            self.encoding = self.config("web", "encoding", util._encoding)
+            encoding.encoding = self.config("web", "encoding",
+                                            encoding.encoding)
 
     def run(self):
         if not os.environ.get('GATEWAY_INTERFACE', '').startswith("CGI/1."):
-            raise RuntimeError("This function is only intended to be called while running as a CGI script.")
+            raise RuntimeError("This function is only intended to be "
+                               "called while running as a CGI script.")
         import mercurial.hgweb.wsgicgi as wsgicgi
         wsgicgi.launch(self)
 
@@ -81,28 +81,6 @@ class hgweb(object):
     def run_wsgi(self, req):
 
         self.refresh()
-
-        # process this if it's a protocol request
-        # protocol bits don't need to create any URLs
-        # and the clients always use the old URL structure
-
-        cmd = req.form.get('cmd', [''])[0]
-        if cmd and cmd in protocol.__all__:
-            try:
-                if cmd in perms:
-                    try:
-                        self.check_perm(req, perms[cmd])
-                    except ErrorResponse, inst:
-                        if cmd == 'unbundle':
-                            req.drain()
-                        raise
-                method = getattr(protocol, cmd)
-                return method(self.repo, req)
-            except ErrorResponse, inst:
-                req.respond(inst, protocol.HGTYPE)
-                if not inst.message:
-                    return []
-                return '0\n%s\n' % inst.message,
 
         # work with CGI variables to create coherent structure
         # use SCRIPT_NAME, PATH_INFO and QUERY_STRING as well as our REPO_NAME
@@ -122,6 +100,30 @@ class hgweb(object):
         else:
             query = req.env['QUERY_STRING'].split('&', 1)[0]
             query = query.split(';', 1)[0]
+
+        # process this if it's a protocol request
+        # protocol bits don't need to create any URLs
+        # and the clients always use the old URL structure
+
+        cmd = req.form.get('cmd', [''])[0]
+        if cmd and cmd in protocol.__all__:
+            if query:
+                raise ErrorResponse(HTTP_NOT_FOUND)
+            try:
+                if cmd in perms:
+                    try:
+                        self.check_perm(req, perms[cmd])
+                    except ErrorResponse, inst:
+                        if cmd == 'unbundle':
+                            req.drain()
+                        raise
+                method = getattr(protocol, cmd)
+                return method(self.repo, req)
+            except ErrorResponse, inst:
+                req.respond(inst, protocol.HGTYPE)
+                if not inst.message:
+                    return []
+                return '0\n%s\n' % inst.message,
 
         # translate user-visible url structure to internal structure
 
@@ -161,7 +163,7 @@ class hgweb(object):
 
         try:
             tmpl = self.templater(req)
-            ctype = tmpl('mimetype', encoding=self.encoding)
+            ctype = tmpl('mimetype', encoding=encoding.encoding)
             ctype = templater.stringify(ctype)
 
             # check read permissions non-static content
@@ -220,7 +222,7 @@ class hgweb(object):
         # some functions for the templater
 
         def header(**map):
-            yield tmpl('header', encoding=self.encoding, **map)
+            yield tmpl('header', encoding=encoding.encoding, **map)
 
         def footer(**map):
             yield tmpl("footer", **map)
@@ -238,7 +240,7 @@ class hgweb(object):
 
         start = req.url[-1] == '?' and '&' or '?'
         sessionvars = webutil.sessionvars(vars, start)
-        mapfile = style_map(self.templatepath, style)
+        mapfile = templater.stylemap(style, self.templatepath)
 
         if not self.reponame:
             self.reponame = (self.config("web", "name")
@@ -247,7 +249,7 @@ class hgweb(object):
 
         # create the templater
 
-        tmpl = templater.templater(mapfile, templatefilters.filters,
+        tmpl = templater.templater(mapfile,
                                    defaults={"url": req.url,
                                              "staticurl": staticurl,
                                              "urlbase": urlbase,

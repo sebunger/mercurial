@@ -9,11 +9,11 @@ BASE=`pwd`
 addcommit () {
     echo $1 > $1
     hg add $1
-    hg commit -d "${2} 0" -u test -m $1
+    hg commit -d "${2} 0" -m $1
 }
 
 commit () {
-    hg commit -d "${2} 0" -u test -m $1
+    hg commit -d "${2} 0" -m $1
 }
 
 cd $BASE
@@ -51,6 +51,10 @@ echo "% Invoke pull --rebase and nothing to rebase"
 cd ../c
 hg pull --rebase 2>&1 | sed 's/\(pulling from \).*/\1/'
 hg glog --template '{rev}\n' -l 1
+
+echo
+echo "% pull --rebase --update should ignore --update"
+hg pull --rebase --update 2>&1 | sed 's/\(pulling from \).*/\1/'
 
 echo
 echo "% pull --rebase doesn't update if nothing has been pulled"

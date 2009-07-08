@@ -2,12 +2,12 @@
 #
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 import imp, os
-import util, cmdutil
-from i18n import _
+import util, cmdutil, help
+from i18n import _, gettext
 
 _extensions = {}
 _order = []
@@ -28,6 +28,17 @@ def find(name):
                 return v
         raise KeyError(name)
 
+def loadpath(path, module_name):
+    module_name = module_name.replace('.', '_')
+    path = os.path.expanduser(path)
+    if os.path.isdir(path):
+        # module/__init__.py style
+        d, f = os.path.split(path.rstrip('/'))
+        fd, fpath, desc = imp.find_module(f, [d])
+        return imp.load_module(module_name, fd, fpath, desc)
+    else:
+        return imp.load_source(module_name, path)
+
 def load(ui, name, path):
     if name.startswith('hgext.') or name.startswith('hgext/'):
         shortname = name[6:]
@@ -40,14 +51,7 @@ def load(ui, name, path):
         # the module will be loaded in sys.modules
         # choose an unique name so that it doesn't
         # conflicts with other modules
-        module_name = "hgext_%s" % name.replace('.', '_')
-        if os.path.isdir(path):
-            # module/__init__.py style
-            d, f = os.path.split(path)
-            fd, fpath, desc = imp.find_module(f, [d])
-            mod = imp.load_module(module_name, fd, fpath, desc)
-        else:
-            mod = imp.load_source(module_name, path)
+        mod = loadpath(path, 'hgext.%s' % name)
     else:
         def importh(name):
             mod = __import__(name)
@@ -68,11 +72,10 @@ def load(ui, name, path):
 
 def loadall(ui):
     result = ui.configitems("extensions")
-    for i, (name, path) in enumerate(result):
+    for (name, path) in result:
         if path:
             if path[0] == '!':
                 continue
-            path = os.path.expanduser(path)
         try:
             load(ui, name, path)
         except KeyboardInterrupt:
@@ -84,7 +87,7 @@ def loadall(ui):
             else:
                 ui.warn(_("*** failed to import extension %s: %s\n")
                         % (name, inst))
-            if ui.print_exc():
+            if ui.traceback():
                 return 1
 
 def wrapcommand(table, command, wrapper):
@@ -114,3 +117,66 @@ def wrapfunction(container, funcname, wrapper):
     origfn = getattr(container, funcname)
     setattr(container, funcname, wrap)
     return origfn
+
+def disabled():
+    '''find disabled extensions from hgext
+    returns a dict of {name: desc}, and the max name length'''
+
+    import hgext
+    extpath = os.path.dirname(os.path.abspath(hgext.__file__))
+
+    try: # might not be a filesystem path
+        files = os.listdir(extpath)
+    except OSError:
+        return None, 0
+
+    exts = {}
+    maxlength = 0
+    for e in files:
+
+        if e.endswith('.py'):
+            name = e.rsplit('.', 1)[0]
+            path = os.path.join(extpath, e)
+        else:
+            name = e
+            path = os.path.join(extpath, e, '__init__.py')
+            if not os.path.exists(path):
+                continue
+
+        if name in exts or name in _order or name == '__init__':
+            continue
+
+        try:
+            file = open(path)
+        except IOError:
+            continue
+        else:
+            doc = help.moduledoc(file)
+            file.close()
+
+        if doc: # extracting localized synopsis
+            exts[name] = gettext(doc).splitlines()[0]
+        else:
+            exts[name] = _('(no help text available)')
+
+        if len(name) > maxlength:
+            maxlength = len(name)
+
+    return exts, maxlength
+
+def enabled():
+    '''return a dict of {name: desc} of extensions, and the max name length'''
+
+    if not enabled:
+        return {}, 0
+
+    exts = {}
+    maxlength = 0
+    exthelps = []
+    for ename, ext in extensions():
+        doc = (gettext(ext.__doc__) or _('(no help text available)'))
+        ename = ename.split('.')[-1]
+        maxlength = max(len(ename), maxlength)
+        exts[ename] = doc.splitlines(0)[0].strip()
+
+    return exts, maxlength

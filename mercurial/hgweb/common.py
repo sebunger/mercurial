@@ -3,8 +3,8 @@
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 import errno, mimetypes, os
 
@@ -71,31 +71,12 @@ def staticfile(directory, fname, req):
         req.respond(HTTP_OK, ct, length = os.path.getsize(path))
         return file(path, 'rb').read()
     except TypeError:
-        raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal file name')
+        raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal filename')
     except OSError, err:
         if err.errno == errno.ENOENT:
             raise ErrorResponse(HTTP_NOT_FOUND)
         else:
             raise ErrorResponse(HTTP_SERVER_ERROR, err.strerror)
-
-def style_map(templatepath, style):
-    """Return path to mapfile for a given style.
-
-    Searches mapfile in the following locations:
-    1. templatepath/style/map
-    2. templatepath/map-style
-    3. templatepath/map
-    """
-    locations = style and [os.path.join(style, "map"), "map-"+style] or []
-    locations.append("map")
-    if isinstance(templatepath, str):
-        templatepath = [templatepath]
-    for path in templatepath:
-        for location in locations:
-            mapfile = os.path.join(path, location)
-            if os.path.isfile(mapfile):
-                return mapfile
-    raise RuntimeError("No hgweb templates found in %r" % templatepath)
 
 def paritygen(stripecount, offset=0):
     """count parity of horizontal stripes for easier reading"""

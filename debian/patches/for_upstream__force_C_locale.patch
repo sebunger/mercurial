@@ -1,0 +1,12 @@
+Force C local when generating the documentation
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -17,7 +17,7 @@
+ 	touch hg.1.txt
+ 
+ hg.1.gendoc.txt: ../mercurial/commands.py ../mercurial/help.py
+-	${PYTHON} gendoc.py > $@
++	env LC_ALL=C ${PYTHON} gendoc.py > $@
+ 
+ %: %.xml
+ 	xmlto man $*.xml && \

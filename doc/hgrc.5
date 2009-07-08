@@ -1,26 +1,39 @@
+'\" t
 .\"     Title: hgrc
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 03/20/2009
-.\"    Manual: 
-.\"    Source: 
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets v1.75.0 <http://docbook.sf.net/>
+.\"      Date: 07/01/2009
+.\"    Manual: Mercurial Manual
+.\"    Source: Mercurial
+.\"  Language: English
 .\"
-.TH "HGRC" "5" "03/20/2009" "" ""
+.TH "HGRC" "5" "07/01/2009" "Mercurial" "Mercurial Manual"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 hgrc \- configuration files for Mercurial
 .SH "SYNOPSIS"
-The Mercurial system uses a set of configuration files to control aspects of its behaviour\&.
 .sp
+The Mercurial system uses a set of configuration files to control aspects of its behavior\&.
 .SH "FILES"
+.sp
 Mercurial reads configuration data from several files, if they exist\&. The names of these files depend on the system on which Mercurial is installed\&. *\&.rc files from a single directory are read in alphabetical order, later ones overriding earlier ones\&. Where multiple paths are given below, settings from later paths override earlier ones\&.
 .PP
 (Unix) <install\-root>/etc/mercurial/hgrc\&.d/*\&.rc, (Unix) <install\-root>/etc/mercurial/hgrc
 .RS 4
-Per\-installation configuration files, searched for in the directory where Mercurial is installed\&. <install\-root> is the parent directory of the hg executable (or symlink) being run\&. For example, if installed in /shared/tools/bin/hg, Mercurial will look in /shared/tools/etc/mercurial/hgrc\&. Options in these files apply to all Mercurial commands executed by any user in any directory\&.
+Per\-installation configuration files, searched for in the directory where Mercurial is installed\&.
+<install\-root>
+is the parent directory of the hg executable (or symlink) being run\&. For example, if installed in
+/shared/tools/bin/hg, Mercurial will look in
+/shared/tools/etc/mercurial/hgrc\&. Options in these files apply to all Mercurial commands executed by any user in any directory\&.
 .RE
 .PP
 (Unix) /etc/mercurial/hgrc\&.d/*\&.rc, (Unix) /etc/mercurial/hgrc
@@ -30,119 +43,245 @@ Per\-system configuration files, for the system on which Mercurial is running\&.
 .PP
 (Windows) <install\-dir>\eMercurial\&.ini, or else, (Windows) HKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial, or else, (Windows) C:\eMercurial\eMercurial\&.ini
 .RS 4
-Per\-installation/system configuration files, for the system on which Mercurial is running\&. Options in these files apply to all Mercurial commands executed by any user in any directory\&. Registry keys contain PATH\-like strings, every part of which must reference a Mercurial\&.ini file or be a directory where *\&.rc files will be read\&.
+Per\-installation/system configuration files, for the system on which Mercurial is running\&. Options in these files apply to all Mercurial commands executed by any user in any directory\&. Registry keys contain PATH\-like strings, every part of which must reference a
+Mercurial\&.ini
+file or be a directory where
+*\&.rc
+files will be read\&.
 .RE
 .PP
 (Unix) $HOME/\&.hgrc, (Windows) %HOME%\eMercurial\&.ini, (Windows) %HOME%\e\&.hgrc, (Windows) %USERPROFILE%\eMercurial\&.ini, (Windows) %USERPROFILE%\e\&.hgrc
 .RS 4
-Per\-user configuration file(s), for the user running Mercurial\&. On Windows 9x, %HOME% is replaced by %APPDATA%\&. Options in these files apply to all Mercurial commands executed by this user in any directory\&. Options in thes files override per\-installation and per\-system options\&.
+Per\-user configuration file(s), for the user running Mercurial\&. On Windows 9x,
+%HOME%
+is replaced by
+%APPDATA%\&. Options in these files apply to all Mercurial commands executed by this user in any directory\&. Options in these files override per\-installation and per\-system options\&.
 .RE
 .PP
 (Unix, Windows) <repo>/\&.hg/hgrc
 .RS 4
-Per\-repository configuration options that only apply in a particular repository\&. This file is not version\-controlled, and will not get transferred during a "clone" operation\&. Options in this file override options in all other configuration files\&. On Unix, most of this file will be ignored if it doesn\'t belong to a trusted user or to a trusted group\&. See the documentation for the trusted section below for more details\&.
+Per\-repository configuration options that only apply in a particular repository\&. This file is not version\-controlled, and will not get transferred during a "clone" operation\&. Options in this file override options in all other configuration files\&. On Unix, most of this file will be ignored if it doesn\(cqt belong to a trusted user or to a trusted group\&. See the documentation for the trusted section below for more details\&.
 .RE
 .SH "SYNTAX"
+.sp
 A configuration file consists of sections, led by a "[section]" header and followed by "name: value" entries; "name=value" is also accepted\&.
 .sp
-.sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [spam]
 eggs=ham
 green=
    eggs
 .fi
+.if n \{\
 .RE
+.\}
+.sp
 Each line contains one entry\&. If the lines that follow are indented, they are treated as continuations of that entry\&.
 .sp
 Leading whitespace is removed from values\&. Empty lines are skipped\&.
 .sp
-The optional values can contain format strings which refer to other values in the same section, or values in a special DEFAULT section\&.
-.sp
 Lines beginning with "#" or ";" are ignored and may be used to provide comments\&.
-.sp
 .SH "SECTIONS"
+.sp
 This section describes the different sections that may appear in a Mercurial "hgrc" file, the purpose of each section, its possible keys, and their possible values\&.
+.PP
+alias
+.RS 4
+Defines command aliases\&. Aliases allow you to define your own commands in terms of other commands (or aliases), optionally including arguments\&.
+.sp
+Alias definitions consist of lines of the form:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<alias> = <command> [<argument]\&.\&.\&.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+For example, this definition:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+latest = log \-\-limit 5
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+creates a new command
+latest
+that shows only the five most recent changesets\&. You can define subsequent aliases using earlier ones:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+stable5 = latest \-b stable
+.fi
+.if n \{\
+.RE
+.\}
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+It is possible to create aliases with the same names as existing commands, which will then override the original definitions\&. This is almost always a bad idea!
+.sp .5v
+.RE
+.RE
+.PP
+auth
+.RS 4
+Authentication credentials for HTTP authentication\&. Each line has the following format:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<name>\&.<argument> = <value>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+where <name> is used to group arguments into authentication entries\&. Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+foo\&.prefix = hg\&.intevation\&.org/mercurial
+foo\&.username = foo
+foo\&.password = bar
+foo\&.schemes = http https
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+bar\&.prefix = secure\&.example\&.org
+bar\&.key = path/to/file\&.key
+bar\&.cert = path/to/file\&.cert
+bar\&.schemes = https
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Supported arguments:
+.PP
+prefix
+.RS 4
+Either "*" or a URI prefix with or without the scheme part\&. The authentication entry with the longest matching prefix is used (where "*" matches everything and counts as a match of length 1)\&. If the prefix doesn\(cqt include a scheme, the match is performed against the URI with its scheme stripped as well, and the schemes argument, q\&.v\&., is then subsequently consulted\&.
+.RE
+.PP
+username
+.RS 4
+Optional\&. Username to authenticate with\&. If not given, and the remote site requires basic or digest authentication, the user will be prompted for it\&.
+.RE
+.PP
+password
+.RS 4
+Optional\&. Password to authenticate with\&. If not given, and the remote site requires basic or digest authentication, the user will be prompted for it\&.
+.RE
+.PP
+key
+.RS 4
+Optional\&. PEM encoded client certificate key file\&.
+.RE
+.PP
+cert
+.RS 4
+Optional\&. PEM encoded client certificate chain file\&.
+.RE
+.PP
+schemes
+.RS 4
+Optional\&. Space separated list of URI schemes to use this authentication entry with\&. Only used if the prefix doesn\(cqt include a scheme\&. Supported schemes are http and https\&. They will match static\-http and static\-https respectively, as well\&. Default: https\&.
+.RE
+.sp
+If no suitable authentication entry is found, the user is prompted for credentials as usual if required by the remote\&.
+.RE
 .PP
 decode/encode
 .RS 4
 Filters for transforming files on checkout/checkin\&. This would typically be used for newline processing or other localization/canonicalization of files\&.
 .sp
-.RS 4
-.nf
-Filters consist of a filter pattern followed by a filter command\&.
-Filter patterns are globs by default, rooted at the repository
-root\&. For example, to match any file ending in "\&.txt" in the root
-directory only, use the pattern "*\&.txt"\&. To match any file ending
-in "\&.c" anywhere in the repository, use the pattern "**\&.c"\&.
-.fi
-.RE
+Filters consist of a filter pattern followed by a filter command\&. Filter patterns are globs by default, rooted at the repository root\&. For example, to match any file ending in "\&.txt" in the root directory only, use the pattern "*\&.txt"\&. To match any file ending in "\&.c" anywhere in the repository, use the pattern "**\&.c"\&.
 .sp
-.RS 4
-.nf
-The filter command can start with a specifier, either "pipe:" or
-"tempfile:"\&. If no specifier is given, "pipe:" is used by default\&.
-.fi
-.RE
+The filter command can start with a specifier, either "pipe:" or "tempfile:"\&. If no specifier is given, "pipe:" is used by default\&.
 .sp
-.RS 4
-.nf
-A "pipe:" command must accept data on stdin and return the
-transformed data on stdout\&.
-.fi
-.RE
+A "pipe:" command must accept data on stdin and return the transformed data on stdout\&.
 .sp
-.RS 4
-.nf
 Pipe example:
-.fi
-.RE
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [encode]
 # uncompress gzip files on checkin to improve delta compression
 # note: not necessarily a good idea, just an example
 *\&.gz = pipe: gunzip
 .fi
+.if n \{\
 .RE
+.\}
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [decode]
 # recompress gzip files when writing them to the working dir (we
 # can safely omit "pipe:", because it\'s the default)
 *\&.gz = gzip
 .fi
+.if n \{\
 .RE
+.\}
 .sp
+A "tempfile:" command is a template\&. The string INFILE is replaced with the name of a temporary file that contains the data to be filtered by the command\&. The string OUTFILE is replaced with the name of an empty temporary file, where the filtered data must be written by the command\&.
+.if n \{\
+.sp
+.\}
 .RS 4
-.nf
-A "tempfile:" command is a template\&. The string INFILE is replaced
-with the name of a temporary file that contains the data to be
-filtered by the command\&. The string OUTFILE is replaced with the
-name of an empty temporary file, where the filtered data must be
-written by the command\&.
-.fi
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+the tempfile mechanism is recommended for Windows systems, where the standard shell I/O redirection operators often have strange effects and may corrupt the contents of your files\&.
+.sp .5v
 .RE
+The most common usage is for LF <\(-> CRLF translation on Windows\&. For this, use the "smart" converters which check for binary files:
 .sp
+.if n \{\
 .RS 4
-.nf
-NOTE: the tempfile mechanism is recommended for Windows systems,
-where the standard shell I/O redirection operators often have
-strange effects and may corrupt the contents of your files\&.
-.fi
-.RE
-.sp
-.RS 4
-.nf
-The most common usage is for LF <\-> CRLF translation on Windows\&.
-For this, use the "smart" convertors which check for binary files:
-.fi
-.RE
-.sp
-.RS 4
+.\}
 .nf
 [extensions]
 hgext\&.win32text =
@@ -151,15 +290,15 @@ hgext\&.win32text =
 [decode]
 ** = cleverdecode:
 .fi
+.if n \{\
 .RE
+.\}
 .sp
-.RS 4
-.nf
 or if you only want to translate certain files:
-.fi
-.RE
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [extensions]
 hgext\&.win32text =
@@ -168,40 +307,39 @@ hgext\&.win32text =
 [decode]
 **\&.txt = dumbdecode:
 .fi
+.if n \{\
 .RE
+.\}
 .RE
 .PP
 defaults
 .RS 4
 Use the [defaults] section to define command defaults, i\&.e\&. the default options/arguments to pass to the specified commands\&.
 .sp
-.RS 4
-.nf
-The following example makes \'hg log\' run in verbose mode, and
-\'hg status\' show only the modified files, by default\&.
-.fi
-.RE
+The following example makes
+\fIhg log\fR
+run in verbose mode, and
+\fIhg status\fR
+show only the modified files, by default\&.
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [defaults]
 log = \-v
 status = \-m
 .fi
+.if n \{\
 .RE
+.\}
 .sp
-.RS 4
-.nf
-The actual commands, instead of their aliases, must be used when
-defining command defaults\&. The command defaults will also be
-applied to the aliases of the commands defined\&.
-.fi
-.RE
+The actual commands, instead of their aliases, must be used when defining command defaults\&. The command defaults will also be applied to the aliases of the commands defined\&.
 .RE
 .PP
 diff
 .RS 4
-Settings used when displaying diffs\&. They are all boolean and defaults to False\&.
+Settings used when displaying diffs\&. They are all Boolean and defaults to False\&.
 .PP
 git
 .RS 4
@@ -210,7 +348,7 @@ Use git extended diff format\&.
 .PP
 nodates
 .RS 4
-Don\'t include dates in diff headers\&.
+Don\(cqt include dates in diff headers\&.
 .RE
 .PP
 showfunc
@@ -265,15 +403,14 @@ Optional\&. Method to use to send email messages\&. If value is "smtp" (default)
 .PP
 charsets
 .RS 4
-Optional\&. Comma\-separated list of charsets considered convenient for recipients\&. Addresses, headers, and parts not containing patches of outgoing messages will be encoded in the first charset to which conversion from local encoding ($HGENCODING, ui\&.fallbackencoding) succeeds\&. If correct conversion fails, the text in question is sent as is\&. Defaults to empty (explicit) list\&.
+Optional\&. Comma\-separated list of character sets considered convenient for recipients\&. Addresses, headers, and parts not containing patches of outgoing messages will be encoded in the first character set to which conversion from local encoding ($HGENCODING,
+ui\&.fallbackencoding) succeeds\&. If correct conversion fails, the text in question is sent as is\&. Defaults to empty (explicit) list\&.
 .sp
-.RS 4
-.nf
-Order of outgoing email charsets:
-.fi
-.RE
+Order of outgoing email character sets:
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 us\-ascii             always first, regardless of settings
 email\&.charsets       in order given by user
@@ -281,24 +418,26 @@ ui\&.fallbackencoding  if not in email\&.charsets
 $HGENCODING          if not in email\&.charsets
 utf\-8                always last, regardless of settings
 .fi
+.if n \{\
 .RE
+.\}
 .sp
-.RS 4
-.nf
 Email example:
-.fi
-.RE
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [email]
 from = Joseph User <joe\&.user@example\&.com>
 method = /usr/sbin/sendmail
-# charsets for western europeans
+# charsets for western Europeans
 # us\-ascii, utf\-8 omitted, as they are tried first and last
 charsets = iso\-8859\-1, iso\-8859\-15, windows\-1252
 .fi
+.if n \{\
 .RE
+.\}
 .RE
 .RE
 .PP
@@ -306,45 +445,28 @@ extensions
 .RS 4
 Mercurial has an extension mechanism for adding new features\&. To enable an extension, create an entry for it in this section\&.
 .sp
-.RS 4
-.nf
-If you know that the extension is already in Python\'s search path,
-you can give the name of the module, followed by "=", with nothing
-after the "="\&.
-.fi
-.RE
+If you know that the extension is already in Python\(cqs search path, you can give the name of the module, followed by "=", with nothing after the "="\&.
 .sp
-.RS 4
-.nf
-Otherwise, give a name that you choose, followed by "=", followed by
-the path to the "\&.py" file (including the file name extension) that
-defines the extension\&.
-.fi
-.RE
+Otherwise, give a name that you choose, followed by "=", followed by the path to the "\&.py" file (including the file name extension) that defines the extension\&.
 .sp
-.RS 4
-.nf
-To explicitly disable an extension that is enabled in an hgrc of
-broader scope, prepend its path with \'!\', as in
-\'hgext\&.foo = !/ext/path\' or \'hgext\&.foo = !\' when no path is supplied\&.
-.fi
-.RE
+To explicitly disable an extension that is enabled in an hgrc of broader scope, prepend its path with "!", as in "hgext\&.foo = !/ext/path" or "hgext\&.foo = !" when path is not supplied\&.
 .sp
-.RS 4
-.nf
-Example for ~/\&.hgrc:
-.fi
-.RE
+Example for
+~/\&.hgrc:
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [extensions]
-# (the mq extension will get loaded from mercurial\'s path)
+# (the mq extension will get loaded from Mercurial\'s path)
 hgext\&.mq =
 # (this extension will get loaded from the file specified)
 myfeature = ~/\&.hgext/myfeature\&.py
 .fi
+.if n \{\
 .RE
+.\}
 .RE
 .PP
 format
@@ -365,32 +487,31 @@ merge\-patterns
 .RS 4
 This section specifies merge tools to associate with particular file patterns\&. Tools matched here will take precedence over the default merge tool\&. Patterns are globs by default, rooted at the repository root\&.
 .sp
-.RS 4
-.nf
 Example:
-.fi
-.RE
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [merge\-patterns]
 **\&.c = kdiff3
 **\&.jpg = myimgmerge
 .fi
+.if n \{\
 .RE
+.\}
 .RE
 .PP
 merge\-tools
 .RS 4
 This section configures external merge tools to use for file\-level merges\&.
 .sp
-.RS 4
-.nf
-Example ~/\&.hgrc:
-.fi
-.RE
+Example
+~/\&.hgrc:
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [merge\-tools]
 # Override stock tool location
@@ -400,22 +521,24 @@ kdiff3\&.args = $base $local $other \-o $output
 # Give higher priority
 kdiff3\&.priority = 1
 .fi
+.if n \{\
 .RE
+.\}
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 # Define new tool
 myHtmlTool\&.args = \-m $local $other $base $output
 myHtmlTool\&.regkey = Software\eFooSoftware\eHtmlMerge
 myHtmlTool\&.priority = 1
 .fi
+.if n \{\
 .RE
+.\}
 .sp
-.RS 4
-.nf
 Supported arguments:
-.fi
-.RE
 .PP
 priority
 .RS 4
@@ -429,7 +552,12 @@ Either just the name of the executable or its pathname\&. Default: the tool name
 .PP
 args
 .RS 4
-The arguments to pass to the tool executable\&. You can refer to the files being merged as well as the output file through these variables: $base, $local, $other, $output\&. Default: $local $base $other
+The arguments to pass to the tool executable\&. You can refer to the files being merged as well as the output file through these variables:
+$base,
+$local,
+$other,
+$output\&. Default:
+$local $base $other
 .RE
 .PP
 premerge
@@ -469,7 +597,10 @@ This tool requires a graphical interface to run\&. Default: False
 .PP
 regkey
 .RS 4
-Windows registry key which describes install location of this tool\&. Mercurial will search for this key first under HKEY_CURRENT_USER and then under HKEY_LOCAL_MACHINE\&. Default: None
+Windows registry key which describes install location of this tool\&. Mercurial will search for this key first under
+HKEY_CURRENT_USER
+and then under
+HKEY_LOCAL_MACHINE\&. Default: None
 .RE
 .PP
 regname
@@ -487,13 +618,12 @@ hooks
 .RS 4
 Commands or Python functions that get automatically executed by various actions such as starting or finishing a commit\&. Multiple hooks can be run for the same action by appending a suffix to the action\&. Overriding a site\-wide hook can be done by changing its value or setting it to an empty string\&.
 .sp
-.RS 4
-.nf
-Example \&.hg/hgrc:
-.fi
-.RE
+Example
+\&.hg/hgrc:
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 [hooks]
 # do not use the site\-wide hook
@@ -501,139 +631,174 @@ incoming =
 incoming\&.email = /my/email/hook
 incoming\&.autobuild = /my/build/hook
 .fi
+.if n \{\
 .RE
+.\}
 .sp
-.RS 4
-.nf
-Most hooks are run with environment variables set that give added
-useful information\&. For each hook below, the environment variables
-it is passed are listed with names of the form "$HG_foo"\&.
-.fi
-.RE
+Most hooks are run with environment variables set that give useful additional information\&. For each hook below, the environment variables it is passed are listed with names of the form "$HG_foo"\&.
 .PP
 changegroup
 .RS 4
-Run after a changegroup has been added via push, pull or unbundle\&. ID of the first new changeset is in $HG_NODE\&. URL from which changes came is in $HG_URL\&.
+Run after a changegroup has been added via push, pull or unbundle\&. ID of the first new changeset is in
+$HG_NODE\&. URL from which changes came is in
+$HG_URL\&.
 .RE
 .PP
 commit
 .RS 4
-Run after a changeset has been created in the local repository\&. ID of the newly created changeset is in $HG_NODE\&. Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2\&.
+Run after a changeset has been created in the local repository\&. ID of the newly created changeset is in
+$HG_NODE\&. Parent changeset IDs are in
+$HG_PARENT1
+and
+$HG_PARENT2\&.
 .RE
 .PP
 incoming
 .RS 4
-Run after a changeset has been pulled, pushed, or unbundled into the local repository\&. The ID of the newly arrived changeset is in $HG_NODE\&. URL that was source of changes came is in $HG_URL\&.
+Run after a changeset has been pulled, pushed, or unbundled into the local repository\&. The ID of the newly arrived changeset is in
+$HG_NODE\&. URL that was source of changes came is in
+$HG_URL\&.
 .RE
 .PP
 outgoing
 .RS 4
-Run after sending changes from local repository to another\&. ID of first changeset sent is in $HG_NODE\&. Source of operation is in $HG_SOURCE; see "preoutgoing" hook for description\&.
+Run after sending changes from local repository to another\&. ID of first changeset sent is in
+$HG_NODE\&. Source of operation is in
+$HG_SOURCE; see "preoutgoing" hook for description\&.
 .RE
 .PP
 post\-<command>
 .RS 4
-Run after successful invocations of the associated command\&. The contents of the command line are passed as $HG_ARGS and the result code in $HG_RESULT\&. Hook failure is ignored\&.
+Run after successful invocations of the associated command\&. The contents of the command line are passed as
+$HG_ARGS
+and the result code in
+$HG_RESULT\&. Hook failure is ignored\&.
 .RE
 .PP
 pre\-<command>
 .RS 4
-Run before executing the associated command\&. The contents of the command line are passed as $HG_ARGS\&. If the hook returns failure, the command doesn\'t execute and Mercurial returns the failure code\&.
+Run before executing the associated command\&. The contents of the command line are passed as
+$HG_ARGS\&. If the hook returns failure, the command doesn\(cqt execute and Mercurial returns the failure code\&.
 .RE
 .PP
 prechangegroup
 .RS 4
-Run before a changegroup is added via push, pull or unbundle\&. Exit status 0 allows the changegroup to proceed\&. Non\-zero status will cause the push, pull or unbundle to fail\&. URL from which changes will come is in $HG_URL\&.
+Run before a changegroup is added via push, pull or unbundle\&. Exit status 0 allows the changegroup to proceed\&. Non\-zero status will cause the push, pull or unbundle to fail\&. URL from which changes will come is in
+$HG_URL\&.
 .RE
 .PP
 precommit
 .RS 4
-Run before starting a local commit\&. Exit status 0 allows the commit to proceed\&. Non\-zero status will cause the commit to fail\&. Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2\&.
+Run before starting a local commit\&. Exit status 0 allows the commit to proceed\&. Non\-zero status will cause the commit to fail\&. Parent changeset IDs are in
+$HG_PARENT1
+and
+$HG_PARENT2\&.
 .RE
 .PP
 preoutgoing
 .RS 4
-Run before collecting changes to send from the local repository to another\&. Non\-zero status will cause failure\&. This lets you prevent pull over http or ssh\&. Also prevents against local pull, push (outbound) or bundle commands, but not effective, since you can just copy files instead then\&. Source of operation is in $HG_SOURCE\&. If "serve", operation is happening on behalf of remote ssh or http repository\&. If "push", "pull" or "bundle", operation is happening on behalf of repository on same system\&.
+Run before collecting changes to send from the local repository to another\&. Non\-zero status will cause failure\&. This lets you prevent pull over HTTP or SSH\&. Also prevents against local pull, push (outbound) or bundle commands, but not effective, since you can just copy files instead then\&. Source of operation is in
+$HG_SOURCE\&. If "serve", operation is happening on behalf of remote SSH or HTTP repository\&. If "push", "pull" or "bundle", operation is happening on behalf of repository on same system\&.
 .RE
 .PP
 pretag
 .RS 4
-Run before creating a tag\&. Exit status 0 allows the tag to be created\&. Non\-zero status will cause the tag to fail\&. ID of changeset to tag is in $HG_NODE\&. Name of tag is in $HG_TAG\&. Tag is local if $HG_LOCAL=1, in repo if $HG_LOCAL=0\&.
+Run before creating a tag\&. Exit status 0 allows the tag to be created\&. Non\-zero status will cause the tag to fail\&. ID of changeset to tag is in
+$HG_NODE\&. Name of tag is in
+$HG_TAG\&. Tag is local if
+$HG_LOCAL=1, in repository if
+$HG_LOCAL=0\&.
 .RE
 .PP
 pretxnchangegroup
 .RS 4
-Run after a changegroup has been added via push, pull or unbundle, but before the transaction has been committed\&. Changegroup is visible to hook program\&. This lets you validate incoming changes before accepting them\&. Passed the ID of the first new changeset in $HG_NODE\&. Exit status 0 allows the transaction to commit\&. Non\-zero status will cause the transaction to be rolled back and the push, pull or unbundle will fail\&. URL that was source of changes is in $HG_URL\&.
+Run after a changegroup has been added via push, pull or unbundle, but before the transaction has been committed\&. Changegroup is visible to hook program\&. This lets you validate incoming changes before accepting them\&. Passed the ID of the first new changeset in
+$HG_NODE\&. Exit status 0 allows the transaction to commit\&. Non\-zero status will cause the transaction to be rolled back and the push, pull or unbundle will fail\&. URL that was source of changes is in
+$HG_URL\&.
 .RE
 .PP
 pretxncommit
 .RS 4
-Run after a changeset has been created but the transaction not yet committed\&. Changeset is visible to hook program\&. This lets you validate commit message and changes\&. Exit status 0 allows the commit to proceed\&. Non\-zero status will cause the transaction to be rolled back\&. ID of changeset is in $HG_NODE\&. Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2\&.
+Run after a changeset has been created but the transaction not yet committed\&. Changeset is visible to hook program\&. This lets you validate commit message and changes\&. Exit status 0 allows the commit to proceed\&. Non\-zero status will cause the transaction to be rolled back\&. ID of changeset is in
+$HG_NODE\&. Parent changeset IDs are in
+$HG_PARENT1
+and
+$HG_PARENT2\&.
 .RE
 .PP
 preupdate
 .RS 4
-Run before updating the working directory\&. Exit status 0 allows the update to proceed\&. Non\-zero status will prevent the update\&. Changeset ID of first new parent is in $HG_PARENT1\&. If merge, ID of second new parent is in $HG_PARENT2\&.
+Run before updating the working directory\&. Exit status 0 allows the update to proceed\&. Non\-zero status will prevent the update\&. Changeset ID of first new parent is in
+$HG_PARENT1\&. If merge, ID of second new parent is in
+$HG_PARENT2\&.
 .RE
 .PP
 tag
 .RS 4
-Run after a tag is created\&. ID of tagged changeset is in $HG_NODE\&. Name of tag is in $HG_TAG\&. Tag is local if $HG_LOCAL=1, in repo if $HG_LOCAL=0\&.
+Run after a tag is created\&. ID of tagged changeset is in
+$HG_NODE\&. Name of tag is in
+$HG_TAG\&. Tag is local if
+$HG_LOCAL=1, in repository if
+$HG_LOCAL=0\&.
 .RE
 .PP
 update
 .RS 4
-Run after updating the working directory\&. Changeset ID of first new parent is in $HG_PARENT1\&. If merge, ID of second new parent is in $HG_PARENT2\&. If update succeeded, $HG_ERROR=0\&. If update failed (e\&.g\&. because conflicts not resolved), $HG_ERROR=1\&.
-.sp
-.RS 4
-.nf
-Note: it is generally better to use standard hooks rather than the
-generic pre\- and post\- command hooks as they are guaranteed to be
-called in the appropriate contexts for influencing transactions\&.
-Also, hooks like "commit" will be called in all contexts that
-generate a commit (eg\&. tag) and not just the commit command\&.
-.fi
+Run after updating the working directory\&. Changeset ID of first new parent is in
+$HG_PARENT1\&. If merge, ID of second new parent is in
+$HG_PARENT2\&. If the update succeeded,
+$HG_ERROR=0\&. If the update failed (e\&.g\&. because conflicts not resolved),
+$HG_ERROR=1\&.
 .RE
 .sp
-.RS 4
-.nf
-Note2: Environment variables with empty values may not be passed to
-hooks on platforms like Windows\&. For instance, $HG_PARENT2 will
-not be available under Windows for non\-merge changesets while being
-set to an empty value under Unix\-like systems\&.
-.fi
-.RE
+.if n \{\
 .sp
+.\}
 .RS 4
-.nf
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+it is generally better to use standard hooks rather than the generic pre\- and post\- command hooks as they are guaranteed to be called in the appropriate contexts for influencing transactions\&. Also, hooks like "commit" will be called in all contexts that generate a commit (e\&.g\&. tag) and not just the commit command\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Environment variables with empty values may not be passed to hooks on platforms such as Windows\&. As an example,
+$HG_PARENT2
+will have an empty value under Unix\-like platforms for non\-merge changesets, while it will not be available at all under Windows\&.
+.sp .5v
+.RE
 The syntax for Python hooks is as follows:
-.fi
-.RE
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 hookname = python:modulename\&.submodule\&.callable
+hookname = python:/path/to/python/module\&.py:callable
 .fi
+.if n \{\
 .RE
+.\}
 .sp
-.RS 4
-.nf
-Python hooks are run within the Mercurial process\&. Each hook is
-called with at least three keyword arguments: a ui object (keyword
-"ui"), a repository object (keyword "repo"), and a "hooktype"
-keyword that tells what kind of hook is used\&. Arguments listed as
-environment variables above are passed as keyword arguments, with no
-"HG_" prefix, and names in lower case\&.
-.fi
-.RE
+Python hooks are run within the Mercurial process\&. Each hook is called with at least three keyword arguments: a ui object (keyword "ui"), a repository object (keyword "repo"), and a "hooktype" keyword that tells what kind of hook is used\&. Arguments listed as environment variables above are passed as keyword arguments, with no "HG_" prefix, and names in lower case\&.
 .sp
-.RS 4
-.nf
-If a Python hook returns a "true" value or raises an exception, this
-is treated as failure of the hook\&.
-.fi
-.RE
-.RE
+If a Python hook returns a "true" value or raises an exception, this is treated as a failure\&.
 .RE
 .PP
 http_proxy
@@ -692,7 +857,24 @@ Optional\&. Password to authenticate to SMTP server with\&. If username is speci
 .PP
 local_hostname
 .RS 4
-Optional\&. It\'s the hostname that the sender can use to identify itself to the MTA\&.
+Optional\&. It\(cqs the hostname that the sender can use to identify itself to the MTA\&.
+.RE
+.RE
+.PP
+patch
+.RS 4
+Settings used when applying patches, for instance through the
+\fIimport\fR
+command or with Mercurial Queues extension\&.
+.PP
+eol
+.RS 4
+When set to
+\fIstrict\fR
+patch content and patched files end of lines are preserved\&. When set to
+\fIlf\fR
+or
+\fIcrlf\fR, both files end of lines are ignored when patching and the result line endings are normalized to either LF (Unix) or CRLF (Windows)\&. Default: strict\&.
 .RE
 .RE
 .PP
@@ -711,27 +893,52 @@ Optional\&. Directory or URL to use when pushing if no destination is specified\
 .RE
 .RE
 .PP
+profiling
+.RS 4
+Specifies profiling format and file output\&. In this section description,
+\fIprofiling data\fR
+stands for the raw data collected during profiling, while
+\fIprofiling report\fR
+stands for a statistical text report generated from the profiling data\&. The profiling is done using lsprof\&.
+.PP
+format
+.RS 4
+Profiling format\&. Default: text\&.
+.RE
+.PP
+text
+.RS 4
+Generate a profiling report\&. When saving to a file, it should be noted that only the report is saved, and the profiling data is not kept\&.
+.RE
+.PP
+kcachegrind
+.RS 4
+Format profiling data for kcachegrind use: when saving to a file, the generated file can directly be loaded into kcachegrind\&.
+.RE
+.PP
+output
+.RS 4
+File path where profiling data or report should be saved\&. If the file exists, it is replaced\&. Default: None, data is printed on stderr
+.RE
+.RE
+.PP
 server
 .RS 4
 Controls generic server settings\&.
 .PP
 uncompressed
 .RS 4
-Whether to allow clients to clone a repo using the uncompressed streaming protocol\&. This transfers about 40% more data than a regular clone, but uses less memory and CPU on both server and client\&. Over a LAN (100Mbps or better) or a very fast WAN, an uncompressed streaming clone is a lot faster (~10x) than a regular clone\&. Over most WAN connections (anything slower than about 6Mbps), uncompressed streaming is slower, because of the extra data transfer overhead\&. Default is False\&.
+Whether to allow clients to clone a repository using the uncompressed streaming protocol\&. This transfers about 40% more data than a regular clone, but uses less memory and CPU on both server and client\&. Over a LAN (100 Mbps or better) or a very fast WAN, an uncompressed streaming clone is a lot faster (~10x) than a regular clone\&. Over most WAN connections (anything slower than about 6 Mbps), uncompressed streaming is slower, because of the extra data transfer overhead\&. Default is False\&.
 .RE
 .RE
 .PP
 trusted
 .RS 4
-For security reasons, Mercurial will not use the settings in the \&.hg/hgrc file from a repository if it doesn\'t belong to a trusted user or to a trusted group\&. The main exception is the web interface, which automatically uses some safe settings, since it\'s common to serve repositories from different users\&.
+For security reasons, Mercurial will not use the settings in the
+\&.hg/hgrc
+file from a repository if it doesn\(cqt belong to a trusted user or to a trusted group\&. The main exception is the web interface, which automatically uses some safe settings, since it\(cqs common to serve repositories from different users\&.
 .sp
-.RS 4
-.nf
-This section specifies what users and groups are trusted\&. The
-current user is always trusted\&. To trust everybody, list a user
-or a group with name "*"\&.
-.fi
-.RE
+This section specifies what users and groups are trusted\&. The current user is always trusted\&. To trust everybody, list a user or a group with name "*"\&.
 .PP
 users
 .RS 4
@@ -750,13 +957,17 @@ User interface controls\&.
 .PP
 archivemeta
 .RS 4
-Whether to include the \&.hg_archival\&.txt file containing metadata (hashes for the repository base and for tip) in archives created by the hg archive command or downloaded via hgweb\&. Default is true\&.
+Whether to include the \&.hg_archival\&.txt file containing meta data (hashes for the repository base and for tip) in archives created by the hg archive command or downloaded via hgweb\&. Default is true\&.
 .RE
 .PP
 askusername
 .RS 4
-Whether to prompt for a username when committing\&. If True, and neither $HGUSER nor $EMAIL has been specified, then the user will be prompted to enter a username\&. If no username is entered, the default
-\fIUSER@HOST\fR\&[1]
+Whether to prompt for a username when committing\&. If True, and neither
+$HGUSER
+nor
+$EMAIL
+has been specified, then the user will be prompted to enter a username\&. If no username is entered, the default
+\m[blue]\fBUSER@HOST\fR\m[]\&\s-2\u[1]\d\s+2
 is used instead\&. Default is False\&.
 .RE
 .PP
@@ -767,12 +978,14 @@ Print debugging information\&. True or False\&. Default is False\&.
 .PP
 editor
 .RS 4
-The editor to use during a commit\&. Default is $EDITOR or "vi"\&.
+The editor to use during a commit\&. Default is
+$EDITOR
+or "vi"\&.
 .RE
 .PP
 fallbackencoding
 .RS 4
-Encoding to try if it\'s not possible to decode the changelog using UTF\-8\&. Default is ISO\-8859\-1\&.
+Encoding to try if it\(cqs not possible to decode the changelog using UTF\-8\&. Default is ISO\-8859\-1\&.
 .RE
 .PP
 ignore
@@ -814,11 +1027,7 @@ internal:fail
 .RS 4
 fail to merge
 .sp
-.RS 4
-.nf
-See the merge\-tools section for more information on configuring tools\&.
-.fi
-.RE
+For more information on configuring merge tools see the merge\-tools section\&.
 .RE
 .PP
 patch
@@ -843,7 +1052,9 @@ remote command to use for clone/push/pull operations\&. Default is
 .PP
 report_untrusted
 .RS 4
-Warn if a \&.hg/hgrc file is ignored due to not being owned by a trusted user or group\&. True or False\&. Default is True\&.
+Warn if a
+\&.hg/hgrc
+file is ignored due to not being owned by a trusted user or group\&. True or False\&. Default is True\&.
 .RE
 .PP
 slash
@@ -874,7 +1085,10 @@ The timeout used when a lock is held (in seconds), a negative value means no tim
 .PP
 username
 .RS 4
-The committer of a changeset created when running "commit"\&. Typically a person\'s name and email address, e\&.g\&. "Fred Widget <\fIfred@example\&.com\fR\&[2]>"\&. Default is $EMAIL or username@hostname\&. If the username in hgrc is empty, it has to be specified manually or in a different hgrc file (e\&.g\&. $HOME/\&.hgrc, if the admin set "username =" in the system hgrc)\&.
+The committer of a changeset created when running "commit"\&. Typically a person\(cqs name and email address, e\&.g\&. "Fred Widget <\m[blue]\fBfred@example\&.com\fR\m[]\&\s-2\u[2]\d\s+2>"\&. Default is
+$EMAIL
+or username@hostname\&. If the username in hgrc is empty, it has to be specified manually or in a different hgrc file (e\&.g\&.
+$HOME/\&.hgrc, if the admin set "username =" in the system hgrc)\&.
 .RE
 .PP
 verbose
@@ -904,12 +1118,12 @@ List of archive format (bz2, gz, zip) allowed for downloading\&. Default is empt
 .PP
 allowbz2
 .RS 4
-(DEPRECATED) Whether to allow \&.tar\&.bz2 downloading of repo revisions\&. Default is false\&.
+(DEPRECATED) Whether to allow \&.tar\&.bz2 downloading of repository revisions\&. Default is false\&.
 .RE
 .PP
 allowgz
 .RS 4
-(DEPRECATED) Whether to allow \&.tar\&.gz downloading of repo revisions\&. Default is false\&.
+(DEPRECATED) Whether to allow \&.tar\&.gz downloading of repository revisions\&. Default is false\&.
 .RE
 .PP
 allowpull
@@ -929,7 +1143,7 @@ If the user has not already been denied repository access due to the contents of
 .PP
 allowzip
 .RS 4
-(DEPRECATED) Whether to allow \&.zip downloading of repo revisions\&. Default is false\&. This feature creates temporary files\&.
+(DEPRECATED) Whether to allow \&.zip downloading of repository revisions\&. Default is false\&. This feature creates temporary files\&.
 .RE
 .PP
 baseurl
@@ -939,7 +1153,9 @@ Base URL to use when publishing URLs in other locations, so third\-party tools l
 .PP
 contact
 .RS 4
-Name or email address of the person in charge of the repository\&. Defaults to ui\&.username or $EMAIL or "unknown" if unset or empty\&.
+Name or email address of the person in charge of the repository\&. Defaults to ui\&.username or
+$EMAIL
+or "unknown" if unset or empty\&.
 .RE
 .PP
 deny_push
@@ -954,7 +1170,7 @@ Whether to deny reading/viewing of the repository\&. If this list is not empty, 
 .PP
 description
 .RS 4
-Textual description of the repository\'s purpose or contents\&. Default is "unknown"\&.
+Textual description of the repository\(cqs purpose or contents\&. Default is "unknown"\&.
 .RE
 .PP
 encoding
@@ -1028,16 +1244,16 @@ Where to find the HTML templates\&. Default is install path\&.
 .RE
 .RE
 .SH "AUTHOR"
-Bryan O\'Sullivan <\fIbos@serpentine\&.com\fR\&[3]>\&.
 .sp
-Mercurial was written by Matt Mackall <\fImpm@selenic\&.com\fR\&[4]>\&.
+Bryan O\(cqSullivan <\m[blue]\fBbos@serpentine\&.com\fR\m[]\&\s-2\u[3]\d\s+2>\&.
 .sp
+Mercurial was written by Matt Mackall <\m[blue]\fBmpm@selenic\&.com\fR\m[]\&\s-2\u[4]\d\s+2>\&.
 .SH "SEE ALSO"
+.sp
 hg(1), hgignore(5)
-.sp
 .SH "COPYING"
-This manual page is copyright 2005 Bryan O\'Sullivan\&. Mercurial is copyright 2005\-2007 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
 .sp
+This manual page is copyright 2005 Bryan O\(cqSullivan\&. Mercurial is copyright 2005\-2009 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
 .SH "NOTES"
 .IP " 1." 4
 USER@HOST

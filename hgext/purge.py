@@ -1,14 +1,10 @@
 # Copyright (C) 2006 - Marco Barisione <marco@barisione.org>
 #
-# This is a small extension for Mercurial (http://www.selenic.com/mercurial)
+# This is a small extension for Mercurial (http://mercurial.selenic.com/)
 # that removes files not known to mercurial
 #
 # This program was inspired by the "cvspurge" script contained in CVS utilities
 # (http://www.red-bean.com/cvsutils/).
-#
-# To enable the "purge" extension put these lines in your ~/.hgrc:
-#  [extensions]
-#  hgext.purge =
 #
 # For help on the usage of "hg purge" use:
 #  hg help purge
@@ -27,20 +23,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+'''command to delete untracked files from the working directory'''
+
 from mercurial import util, commands, cmdutil
 from mercurial.i18n import _
-import os
+import os, stat
 
 def purge(ui, repo, *dirs, **opts):
     '''removes files not tracked by Mercurial
 
-    Delete files not known to Mercurial. This is useful to test local and
-    uncommitted changes in an otherwise-clean source tree.
+    Delete files not known to Mercurial. This is useful to test local
+    and uncommitted changes in an otherwise-clean source tree.
 
     This means that purge will delete:
      - Unknown files: files marked with "?" by "hg status"
-     - Empty directories: in fact Mercurial ignores directories unless they
-       contain files under source control managment
+     - Empty directories: in fact Mercurial ignores directories unless
+       they contain files under source control management
     But it will leave untouched:
      - Modified and unmodified tracked files
      - Ignored files (unless --all is specified)
@@ -49,9 +47,10 @@ def purge(ui, repo, *dirs, **opts):
     If directories are given on the command line, only files in these
     directories are considered.
 
-    Be careful with purge, as you could irreversibly delete some files you
-    forgot to add to the repository. If you only want to print the list of
-    files that this program would delete, use the --print option.
+    Be careful with purge, as you could irreversibly delete some files
+    you forgot to add to the repository. If you only want to print the
+    list of files that this program would delete, use the --print
+    option.
     '''
     act = not opts['print']
     eol = '\n'
@@ -71,16 +70,27 @@ def purge(ui, repo, *dirs, **opts):
         else:
             ui.write('%s%s' % (name, eol))
 
+    def removefile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            # read-only files cannot be unlinked under Windows
+            s = os.stat(path)
+            if (s.st_mode & stat.S_IWRITE) != 0:
+                raise
+            os.chmod(path, stat.S_IMODE(s.st_mode) | stat.S_IWRITE)
+            os.remove(path)
+
     directories = []
     match = cmdutil.match(repo, dirs, opts)
     match.dir = directories.append
     status = repo.status(match=match, ignored=opts['all'], unknown=True)
 
-    for f in util.sort(status[4] + status[5]):
+    for f in sorted(status[4] + status[5]):
         ui.note(_('Removing file %s\n') % f)
-        remove(os.remove, f)
+        remove(removefile, f)
 
-    for f in util.sort(directories)[::-1]:
+    for f in sorted(directories, reverse=True):
         if match(f) and not os.listdir(repo.wjoin(f)):
             ui.note(_('Removing directory %s\n') % f)
             remove(os.rmdir, f)
@@ -90,9 +100,9 @@ cmdtable = {
         (purge,
          [('a', 'abort-on-err', None, _('abort if an error occurs')),
           ('',  'all', None, _('purge ignored files too')),
-          ('p', 'print', None, _('print the file names instead of deleting them')),
+          ('p', 'print', None, _('print filenames instead of deleting them')),
           ('0', 'print0', None, _('end filenames with NUL, for use with xargs'
-                                  ' (implies -p)')),
+                                  ' (implies -p/--print)')),
          ] + commands.walkopts,
          _('hg purge [OPTION]... [DIR]...'))
 }
