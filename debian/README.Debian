@@ -1,4 +1,4 @@
-mercurial for Debian
+Mercurial for Debian
 --------------------
 
 Table of contents
@@ -6,125 +6,48 @@ Table of contents
 * Extensions provided in this package and their dependencies
 * Other extensions
 * Emacs support
-* Very old users of mercurial
 
 
 Documentation
 *************
 
-Most of the mercurial documentation is available on the web on a Wiki.
-The URL is: http://www.selenic.com/mercurial/wiki/
-Some parts of the Wiki will be added in the package (for people not online)
-as soon as mercurial documentation stabilises enough.
+Mercurial documentation is available on the web at:
+   http://hgbook.red-bean.com/ and
+   http://www.selenic.com/mercurial/wiki/
 
-Extensions provided in this package and their dependencies
-**********************************************************
+Some parts of the online documentation will be added to the package (for people
+not online) as soon as the documentation stabilizes.
 
-Look at examples/sample.hgrc to get a few information about available
-extensions.
+
+Extensions
+**********
 
 Extensions can be enabled system-wide, per-user and/or per repository (see
-hgrc(5) for more information).
-  By default, this debian package enables extensions that only enable new
-commands (such as 'hgk', 'gpg', ...), but not extensions that modify
-mercurial behaviour (such as 'win32text')
-  The system administrator can modify this by editing
-/etc/mercurial/hgrc.d/hgext.rc
-  Some extensions are enabled only the their depending package(s) are
-installed. This auto-detection will not work if these depends are installed
-or removed after mercurial. In this case, run "dpkg-reconfigure mercurial"
-or manually edit /etc/mercurial/hgrc.d/hgext.rc 
+hgrc(5) for more information). Previous versions of this Debian package
+enabled some extensions by default; however, this is no longer the case.
 
-Dependencies needed for extension are listed as Suggests: as they are not
-strickly needed to use the core of mercurial. Install them if you
-need them.
-
-Extension: bugzilla
--------------------
-Bugzilla integration for mercurial.
-Depends: python-mysqldb
-
-Extension: convert
-------------------
-Foreign SCM converter (from darcs, git, monotone, bzr, subversion, ...).
-Depends: python-elementtree (for darcs convertion only)
-Depends: python-subversion (for subversion convertion only)
-
-Extension: hgk
---------------
-Add the 'view' command, allows browsing the history of a repository in
-a graphical way.
-Depends:  tk8.4 | wish
-
-Extension: highlight
---------------------
-Pretty output for hgweb.
-Depends: python-pygments
-
-CGI Script: hgweb.cgi
----------------------
-CGI script to serve one mercurial repository.
-In order to use it, you need to edit it (to set the path to you repository).
-Depends: apache2 | httpd
-
-CGI Script: hgwebdir.cgi
-------------------------
-CGI script to serve several mercurial repositories.
-In order to use it, you need to edit it (to set paths to your repositories).
-Depends: apache2 | httpd
-
-CGI Script: hgwebdir.fcgi
--------------------------
-Experimental CGI script to serve several mercurial repositories using
-WSGIServer.
-In order to use it, you need to edit it (to set paths to your repositories).
-Depends: apache2 | httpd, python-flup
-
-
-Other extensions
-****************
-
-hgct
-----
-Add the 'ct' command that is a graphical interface for commiting changes.
-hgct is available in the 'commit-tool' debian package.
-Note: hgct is not developed anymore. Try to switch to qct.
-
-qct
----
-Add the 'qct' command that is a graphical interface for commiting changes.
-
-qct is available in the 'qct' debian package.
+To enable extensions system-wide, you may edit the
+/etc/mercurial/hgrc.d/hgext.rc configuration file. This file also contains
+information on the dependencies of each extension.
 
 
 Emacs support
 *************
-Upstream provides a mercurial.el file that is installed by this package.
-However, it is not enabled (loaded) by default. Users that want to use it
-should at in their start-up files (such as ~/.emacs) something like:
+This package installs a mercurial.el file.  However, it is not enabled (loaded)
+by default. Users who want to use it should in their start-up files (such as
+~/.emacs) include something like:
 
   (require 'mercurial)
 
-It can be better to do instead:
+It may be better to do instead:
 
   (when (locate-library "mercurial")
     (autoload 'hg-find-file-hook "mercurial")
     (add-hook 'find-file-hooks 'hg-find-file-hook))
 
-because it defers loading mercurial until it is needed, meaning that
-Emacs will boot faster and use less memory when not using mercurial.
+because it defers loading Mercurial until it is needed, meaning that
+Emacs will boot faster and use less memory when not using Mercurial.
 
 This is not done system-wide by this package because the "until needed" is a
 bit of a fallacy in this case: find-file is likely to be run at or shortly
 after boot.
-
-
-Very old users of mercurial
-***************************
-
-For users using mercurial since a long time ;-), I added the convert-repo in
-the examples directory. It is needed if you have an old repository that you
-want to use with new version of mercurial.
-Note: these old versions of mercurial have never been officially packaged in
-Debian.
-

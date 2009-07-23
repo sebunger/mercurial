@@ -3,19 +3,18 @@
 # Copyright 2006, 2007, 2008 Bryan O'Sullivan <bos@serpentine.com>
 # Copyright 2007, 2008 Brendan Cully <brendan@kublai.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-from mercurial.i18n import gettext as _
-from mercurial import osutil, ui, util
+from mercurial.i18n import _
+from mercurial import osutil, util
 import common
-import errno, os, select, socket, stat, struct, sys, time
+import errno, os, select, socket, stat, struct, sys, tempfile, time
 
 try:
-    import hgext.inotify.linux as inotify
-    from hgext.inotify.linux import watcher
+    import linux as inotify
+    from linux import watcher
 except ImportError:
-    print >> sys.stderr, '*** native support is required for this extension'
     raise
 
 class AlreadyStartedException(Exception): pass
@@ -27,77 +26,75 @@ def join(a, b):
         return a + '/' + b
     return b
 
+def split(path):
+    c = path.rfind('/')
+    if c == -1:
+        return '', path
+    return path[:c], path[c+1:]
+
 walk_ignored_errors = (errno.ENOENT, errno.ENAMETOOLONG)
 
 def walkrepodirs(repo):
     '''Iterate over all subdirectories of this repo.
     Exclude the .hg directory, any nested repos, and ignored dirs.'''
     rootslash = repo.root + os.sep
+
     def walkit(dirname, top):
-        hginside = False
+        fullpath = rootslash + dirname
         try:
-            for name, kind in osutil.listdir(rootslash + dirname):
+            for name, kind in osutil.listdir(fullpath):
                 if kind == stat.S_IFDIR:
                     if name == '.hg':
-                        hginside = True
-                        if not top: break
+                        if not top:
+                            return
                     else:
                         d = join(dirname, name)
                         if repo.dirstate._ignore(d):
                             continue
-                        for subdir, hginsub in walkit(d, False):
-                            if not hginsub:
-                                yield subdir, False
+                        for subdir in walkit(d, False):
+                            yield subdir
         except OSError, err:
             if err.errno not in walk_ignored_errors:
                 raise
-        yield rootslash + dirname, hginside
-    for dirname, hginside in walkit('', True):
-        yield dirname
+        yield fullpath
+
+    return walkit('', True)
 
 def walk(repo, root):
     '''Like os.walk, but only yields regular files.'''
 
     # This function is critical to performance during startup.
 
-    reporoot = root == ''
     rootslash = repo.root + os.sep
 
     def walkit(root, reporoot):
         files, dirs = [], []
-        hginside = False
 
         try:
             fullpath = rootslash + root
             for name, kind in osutil.listdir(fullpath):
                 if kind == stat.S_IFDIR:
                     if name == '.hg':
-                        hginside = True
-                        if reporoot:
+                        if not reporoot:
+                            return
+                    else:
+                        dirs.append(name)
+                        path = join(root, name)
+                        if repo.dirstate._ignore(path):
                             continue
-                        else:
-                            break
-                    dirs.append(name)
+                        for result in walkit(path, False):
+                            yield result
                 elif kind in (stat.S_IFREG, stat.S_IFLNK):
-                    path = join(root, name)
-                    files.append((name, kind))
+                    files.append(name)
+            yield fullpath, dirs, files
 
-            yield hginside, fullpath, dirs, files
-
-            for subdir in dirs:
-                path = join(root, subdir)
-                if repo.dirstate._ignore(path):
-                    continue
-                for result in walkit(path, False):
-                    if not result[0]:
-                        yield result
         except OSError, err:
             if err.errno not in walk_ignored_errors:
                 raise
-    for result in walkit(root, reporoot):
-        yield result[1:]
 
-def _explain_watch_limit(ui, repo, count):
+    return walkit(root, root == '')
+
+def _explain_watch_limit(ui, repo):
     path = '/proc/sys/fs/inotify/max_user_watches'
     try:
         limit = int(file(path).read())
@@ -122,50 +119,130 @@ def _explain_watch_limit(ui, repo, count):
     raise util.Abort(_('cannot watch %s until inotify watch limit is raised')
                      % repo.root)
 
-class Watcher(object):
+class pollable(object):
+    """
+    Interface to support polling.
+    The file descriptor returned by fileno() is registered to a polling
+    object.
+    Usage:
+        Every tick, check if an event has happened since the last tick:
+        * If yes, call handle_events
+        * If no, call handle_timeout
+    """
     poll_events = select.POLLIN
-    statuskeys = 'almr!?'
+    instances = {}
+    poll = select.poll()
 
-    def __init__(self, ui, repo, master):
+    def fileno(self):
+        raise NotImplementedError
+
+    def handle_events(self, events):
+        raise NotImplementedError
+
+    def handle_timeout(self):
+        raise NotImplementedError
+
+    def shutdown(self):
+        raise NotImplementedError
+
+    def register(self, timeout):
+        fd = self.fileno()
+
+        pollable.poll.register(fd, pollable.poll_events)
+        pollable.instances[fd] = self
+
+        self.registered = True
+        self.timeout = timeout
+
+    def unregister(self):
+        pollable.poll.unregister(self)
+        self.registered = False
+
+    @classmethod
+    def run(cls):
+        while True:
+            timeout = None
+            timeobj = None
+            for obj in cls.instances.itervalues():
+                if obj.timeout is not None and (timeout is None or obj.timeout < timeout):
+                    timeout, timeobj = obj.timeout, obj
+            try:
+                events = cls.poll.poll(timeout)
+            except select.error, err:
+                if err[0] == errno.EINTR:
+                    continue
+                raise
+            if events:
+                by_fd = {}
+                for fd, event in events:
+                    by_fd.setdefault(fd, []).append(event)
+
+                for fd, events in by_fd.iteritems():
+                    cls.instances[fd].handle_pollevents(events)
+
+            elif timeobj:
+                timeobj.handle_timeout()
+
+def eventaction(code):
+    """
+    Decorator to help handle events in repowatcher
+    """
+    def decorator(f):
+        def wrapper(self, wpath):
+            if code == 'm' and wpath in self.lastevent and \
+                self.lastevent[wpath] in 'cm':
+                return
+            self.lastevent[wpath] = code
+            self.timeout = 250
+
+            f(self, wpath)
+
+        wrapper.func_name = f.func_name
+        return wrapper
+    return decorator
+
+class repowatcher(pollable):
+    """
+    Watches inotify events
+    """
+    statuskeys = 'almr!?'
+    mask = (
+        inotify.IN_ATTRIB |
+        inotify.IN_CREATE |
+        inotify.IN_DELETE |
+        inotify.IN_DELETE_SELF |
+        inotify.IN_MODIFY |
+        inotify.IN_MOVED_FROM |
+        inotify.IN_MOVED_TO |
+        inotify.IN_MOVE_SELF |
+        inotify.IN_ONLYDIR |
+        inotify.IN_UNMOUNT |
+        0)
+
+    def __init__(self, ui, repo):
         self.ui = ui
         self.repo = repo
         self.wprefix = self.repo.wjoin('')
-        self.timeout = None
-        self.master = master
-        self.mask = (
-            inotify.IN_ATTRIB |
-            inotify.IN_CREATE |
-            inotify.IN_DELETE |
-            inotify.IN_DELETE_SELF |
-            inotify.IN_MODIFY |
-            inotify.IN_MOVED_FROM |
-            inotify.IN_MOVED_TO |
-            inotify.IN_MOVE_SELF |
-            inotify.IN_ONLYDIR |
-            inotify.IN_UNMOUNT |
-            0)
         try:
-            self.watcher = watcher.Watcher()
+            self.watcher = watcher.watcher()
         except OSError, err:
             raise util.Abort(_('inotify service not available: %s') %
                              err.strerror)
-        self.threshold = watcher.Threshold(self.watcher)
-        self.registered = True
+        self.threshold = watcher.threshold(self.watcher)
         self.fileno = self.watcher.fileno
-
-        self.repo.dirstate.__class__.inotifyserver = True
 
         self.tree = {}
         self.statcache = {}
         self.statustrees = dict([(s, {}) for s in self.statuskeys])
 
-        self.watches = 0
         self.last_event = None
 
-        self.eventq = {}
-        self.deferred = 0
+        self.lastevent = {}
+
+        self.register(timeout=None)
 
         self.ds_info = self.dirstate_info()
+        self.handle_timeout()
         self.scan()
 
     def event_time(self):
@@ -199,32 +276,22 @@ class Watcher(object):
                 self.ui.note(_('watching %r\n') % path[len(self.wprefix):])
             try:
                 self.watcher.add(path, mask)
-                self.watches += 1
             except OSError, err:
                 if err.errno in (errno.ENOENT, errno.ENOTDIR):
                     return
                 if err.errno != errno.ENOSPC:
                     raise
-                _explain_watch_limit(self.ui, self.repo, self.watches)
+                _explain_watch_limit(self.ui, self.repo)
 
     def setup(self):
         self.ui.note(_('watching directories under %r\n') % self.repo.root)
         self.add_watch(self.repo.path, inotify.IN_DELETE)
         self.check_dirstate()
 
-    def wpath(self, evt):
-        path = evt.fullpath
-        if path == self.repo.root:
-            return ''
-        if path.startswith(self.wprefix):
-            return path[len(self.wprefix):]
-        raise 'wtf? ' + path
-
     def dir(self, tree, path):
         if path:
             for name in path.split('/'):
-                tree.setdefault(name, {})
-                tree = tree[name]
+                tree = tree.setdefault(name, {})
         return tree
 
     def lookup(self, path, tree):
@@ -238,72 +305,86 @@ class Watcher(object):
                 return 'd'
         return tree
 
-    def split(self, path):
-        c = path.rfind('/')
-        if c == -1:
-            return '', path
-        return path[:c], path[c+1:]
-
     def filestatus(self, fn, st):
         try:
             type_, mode, size, time = self.repo.dirstate._map[fn][:4]
         except KeyError:
             type_ = '?'
         if type_ == 'n':
-            if not st:
-                return '!'
             st_mode, st_size, st_mtime = st
+            if size == -1:
+                return 'l'
             if size and (size != st_size or (mode ^ st_mode) & 0100):
                 return 'm'
             if time != int(st_mtime):
                 return 'l'
             return 'n'
-        if type_ in 'ma' and not st:
-            return '!'
         if type_ == '?' and self.repo.dirstate._ignore(fn):
             return 'i'
         return type_
 
-    def updatestatus(self, wfn, st=None, status=None, oldstatus=None):
-        if st:
-            status = self.filestatus(wfn, st)
+    def updatefile(self, wfn, osstat):
+        '''
+        update the file entry of an existing file.
+
+        osstat: (mode, size, time) tuple, as returned by os.lstat(wfn)
+        '''
+
+        self._updatestatus(wfn, self.filestatus(wfn, osstat))
+
+    def deletefile(self, wfn, oldstatus):
+        '''
+        update the entry of a file which has been deleted.
+
+        oldstatus: char in statuskeys, status of the file before deletion
+        '''
+        if oldstatus == 'r':
+            newstatus = 'r'
+        elif oldstatus in 'almn':
+            newstatus = '!'
         else:
-            self.statcache.pop(wfn, None)
-        root, fn = self.split(wfn)
+            newstatus = None
+
+        self.statcache.pop(wfn, None)
+        self._updatestatus(wfn, newstatus)
+
+    def _updatestatus(self, wfn, newstatus):
+        '''
+        Update the stored status of a file or directory.
+
+        newstatus: - char in (statuskeys + 'ni'), new status to apply.
+                   - or None, to stop tracking wfn
+        '''
+        root, fn = split(wfn)
         d = self.dir(self.tree, root)
-        if oldstatus is None:
-            oldstatus = d.get(fn)
-        isdir = False
-        if oldstatus:
-            try:
-                if not status:
-                    if oldstatus in 'almn':
-                        status = '!'
-                    elif oldstatus == 'r':
-                        status = 'r'
-            except TypeError:
-                # oldstatus may be a dict left behind by a deleted
-                # directory
-                isdir = True
-            else:
-                if oldstatus in self.statuskeys and oldstatus != status:
-                    del self.dir(self.statustrees[oldstatus], root)[fn]
-        if self.ui.debugflag and oldstatus != status:
+
+        oldstatus = d.get(fn)
+        # oldstatus can be either:
+        # - None : fn is new
+        # - a char in statuskeys: fn is a (tracked) file
+        # - a dict: fn is a directory
+        isdir = isinstance(oldstatus, dict)
+
+        if self.ui.debugflag and oldstatus != newstatus:
             if isdir:
-                self.ui.note('status: %r dir(%d) -> %s\n' %
-                             (wfn, len(oldstatus), status))
+                self.ui.note(_('status: %r dir(%d) -> %s\n') %
+                             (wfn, len(oldstatus), newstatus))
             else:
-                self.ui.note('status: %r %s -> %s\n' %
-                             (wfn, oldstatus, status))
+                self.ui.note(_('status: %r %s -> %s\n') %
+                             (wfn, oldstatus, newstatus))
         if not isdir:
-            if status and status != 'i':
-                d[fn] = status
-                if status in self.statuskeys:
-                    dd = self.dir(self.statustrees[status], root)
-                    if oldstatus != status or fn not in dd:
-                        dd[fn] = status
+            if oldstatus and oldstatus in self.statuskeys \
+                and oldstatus != newstatus:
+                del self.dir(self.statustrees[oldstatus], root)[fn]
+            if newstatus and newstatus != 'i':
+                d[fn] = newstatus
+                if newstatus in self.statuskeys:
+                    dd = self.dir(self.statustrees[newstatus], root)
+                    if oldstatus != newstatus or fn not in dd:
+                        dd[fn] = newstatus
             else:
                 d.pop(fn, None)
+
 
     def check_deleted(self, key):
         # Files that had been deleted but were present in the dirstate
@@ -313,22 +394,20 @@ class Watcher(object):
             if wfn not in self.repo.dirstate:
                 nuke.append(wfn)
         for wfn in nuke:
-            root, fn = self.split(wfn)
+            root, fn = split(wfn)
             del self.dir(self.statustrees[key], root)[fn]
             del self.dir(self.tree, root)[fn]
 
     def scan(self, topdir=''):
-        self.handle_timeout()
         ds = self.repo.dirstate._map.copy()
         self.add_watch(join(self.repo.root, topdir), self.mask)
-        for root, dirs, entries in walk(self.repo, topdir):
+        for root, dirs, files in walk(self.repo, topdir):
             for d in dirs:
                 self.add_watch(join(root, d), self.mask)
             wroot = root[len(self.wprefix):]
-            d = self.dir(self.tree, wroot)
-            for fn, kind in entries:
+            for fn in files:
                 wfn = join(wroot, fn)
-                self.updatestatus(wfn, self.getstat(wfn))
+                self.updatefile(wfn, self.getstat(wfn))
                 ds.pop(wfn, None)
         wtopdir = topdir
         if wtopdir and wtopdir[-1] != '/':
@@ -336,12 +415,13 @@ class Watcher(object):
         for wfn, state in ds.iteritems():
             if not wfn.startswith(wtopdir):
                 continue
-            status = state[0]
-            st = self.getstat(wfn)
-            if status == 'r' and not st:
-                self.updatestatus(wfn, st, status=status)
+            try:
+                st = self.stat(wfn)
+            except OSError:
+                status = state[0]
+                self.deletefile(wfn, status)
             else:
-                self.updatestatus(wfn, st, oldstatus=status)
+                self.updatefile(wfn, st)
         self.check_deleted('!')
         self.check_deleted('r')
 
@@ -354,6 +434,7 @@ class Watcher(object):
             self.last_event = None
         self.ui.note(_('%s dirstate reload\n') % self.event_time())
         self.repo.dirstate.invalidate()
+        self.handle_timeout()
         self.scan()
         self.ui.note(_('%s end dirstate reload\n') % self.event_time())
 
@@ -380,9 +461,10 @@ class Watcher(object):
         # But it's easier to do nothing than to open that can of
         # worms.
 
-        if self.repo.dirstate.ignorefunc is not None:
-            self.repo.dirstate.ignorefunc = None
-            self.ui.note('rescanning due to .hgignore change\n')
+        if '_ignore' in self.repo.dirstate.__dict__:
+            delattr(self.repo.dirstate, '_ignore')
+            self.ui.note(_('rescanning due to .hgignore change\n'))
+            self.handle_timeout()
             self.scan()
 
     def getstat(self, wpath):
@@ -401,20 +483,22 @@ class Watcher(object):
             ret = st.st_mode, st.st_size, st.st_mtime
             self.statcache[wpath] = ret
             return ret
-        except OSError, err:
+        except OSError:
             self.statcache.pop(wpath, None)
             raise
 
+    @eventaction('c')
     def created(self, wpath):
         if wpath == '.hgignore':
             self.update_hgignore()
         try:
             st = self.stat(wpath)
             if stat.S_ISREG(st[0]):
-                self.updatestatus(wpath, st)
-        except OSError, err:
+                self.updatefile(wpath, st)
+        except OSError:
             pass
 
+    @eventaction('m')
     def modified(self, wpath):
         if wpath == '.hgignore':
             self.update_hgignore()
@@ -422,10 +506,11 @@ class Watcher(object):
             st = self.stat(wpath)
             if stat.S_ISREG(st[0]):
                 if self.repo.dirstate[wpath] in 'lmn':
-                    self.updatestatus(wpath, st)
+                    self.updatefile(wpath, st)
         except OSError:
             pass
 
+    @eventaction('d')
     def deleted(self, wpath):
         if wpath == '.hgignore':
             self.update_hgignore()
@@ -434,26 +519,7 @@ class Watcher(object):
                 self.check_dirstate()
             return
 
-        self.updatestatus(wpath, None)
-
-    def schedule_work(self, wpath, evt):
-        self.eventq.setdefault(wpath, [])
-        prev = self.eventq[wpath]
-        try:
-            if prev and evt == 'm' and prev[-1] in 'cm':
-                return
-            self.eventq[wpath].append(evt)
-        finally:
-            self.deferred += 1
-            self.timeout = 250
-
-    def deferred_event(self, wpath, evt):
-        if evt == 'c':
-            self.created(wpath)
-        elif evt == 'm':
-            self.modified(wpath)
-        elif evt == 'd':
-            self.deleted(wpath)
+        self.deletefile(wpath, self.repo.dirstate[wpath])
 
     def process_create(self, wpath, evt):
         if self.ui.debugflag:
@@ -463,17 +529,20 @@ class Watcher(object):
         if evt.mask & inotify.IN_ISDIR:
             self.scan(wpath)
         else:
-            self.schedule_work(wpath, 'c')
+            self.created(wpath)
 
     def process_delete(self, wpath, evt):
         if self.ui.debugflag:
-            self.ui.note(('%s event: deleted %s\n') %
+            self.ui.note(_('%s event: deleted %s\n') %
                          (self.event_time(), wpath))
 
         if evt.mask & inotify.IN_ISDIR:
+            tree = self.dir(self.tree, wpath).copy()
+            for wfn, ignore in self.walk('?', tree):
+                self.deletefile(join(wpath, wfn), '?')
             self.scan(wpath)
         else:
-            self.schedule_work(wpath, 'd')
+            self.deleted(wpath)
 
     def process_modify(self, wpath, evt):
         if self.ui.debugflag:
@@ -481,24 +550,23 @@ class Watcher(object):
                          (self.event_time(), wpath))
 
         if not (evt.mask & inotify.IN_ISDIR):
-            self.schedule_work(wpath, 'm')
+            self.modified(wpath)
 
     def process_unmount(self, evt):
         self.ui.warn(_('filesystem containing %s was unmounted\n') %
                      evt.fullpath)
         sys.exit(0)
 
-    def handle_event(self, fd, event):
+    def handle_pollevents(self, events):
         if self.ui.debugflag:
-            self.ui.note('%s readable: %d bytes\n' %
+            self.ui.note(_('%s readable: %d bytes\n') %
                          (self.event_time(), self.threshold.readable()))
         if not self.threshold():
             if self.registered:
                 if self.ui.debugflag:
-                    self.ui.note('%s below threshold - unhooking\n' %
+                    self.ui.note(_('%s below threshold - unhooking\n') %
                                  (self.event_time()))
-                self.master.poll.unregister(fd)
-                self.registered = False
+                self.unregister()
                 self.timeout = 250
         else:
             self.read_events()
@@ -506,10 +574,12 @@ class Watcher(object):
     def read_events(self, bufsize=None):
         events = self.watcher.read(bufsize)
         if self.ui.debugflag:
-            self.ui.note('%s reading %d events\n' %
+            self.ui.note(_('%s reading %d events\n') %
                          (self.event_time(), len(events)))
         for evt in events:
-            wpath = self.wpath(evt)
+            assert evt.fullpath.startswith(self.wprefix)
+            wpath = evt.fullpath[len(self.wprefix):]
+
             if evt.mask & inotify.IN_UNMOUNT:
                 self.process_unmount(wpath, evt)
             elif evt.mask & (inotify.IN_MODIFY | inotify.IN_ATTRIB):
@@ -520,110 +590,151 @@ class Watcher(object):
             elif evt.mask & (inotify.IN_CREATE | inotify.IN_MOVED_TO):
                 self.process_create(wpath, evt)
 
+        self.lastevent.clear()
+
     def handle_timeout(self):
         if not self.registered:
             if self.ui.debugflag:
-                self.ui.note('%s hooking back up with %d bytes readable\n' %
+                self.ui.note(_('%s hooking back up with %d bytes readable\n') %
                              (self.event_time(), self.threshold.readable()))
             self.read_events(0)
-            self.master.poll.register(self, select.POLLIN)
-            self.registered = True
+            self.register(timeout=None)
 
-        if self.eventq:
-            if self.ui.debugflag:
-                self.ui.note('%s processing %d deferred events as %d\n' %
-                             (self.event_time(), self.deferred,
-                              len(self.eventq)))
-            eventq = self.eventq.items()
-            eventq.sort()
-            for wpath, evts in eventq:
-                for evt in evts:
-                    self.deferred_event(wpath, evt)
-            self.eventq.clear()
-            self.deferred = 0
         self.timeout = None
 
     def shutdown(self):
         self.watcher.close()
 
-class Server(object):
-    poll_events = select.POLLIN
+    def debug(self):
+        """
+        Returns a sorted list of relatives paths currently watched,
+        for debugging purposes.
+        """
+        return sorted(tuple[0][len(self.wprefix):] for tuple in self.watcher)
 
-    def __init__(self, ui, repo, watcher, timeout):
+class server(pollable):
+    """
+    Listens for client queries on unix socket inotify.sock
+    """
+    def __init__(self, ui, repo, repowatcher, timeout):
         self.ui = ui
         self.repo = repo
-        self.watcher = watcher
-        self.timeout = timeout
+        self.repowatcher = repowatcher
         self.sock = socket.socket(socket.AF_UNIX)
         self.sockpath = self.repo.join('inotify.sock')
+        self.realsockpath = None
         try:
             self.sock.bind(self.sockpath)
         except socket.error, err:
             if err[0] == errno.EADDRINUSE:
-                raise AlreadyStartedException(_('could not start server: %s') \
+                raise AlreadyStartedException(_('could not start server: %s')
                                               % err[1])
-            raise
+            if err[0] == "AF_UNIX path too long":
+                tempdir = tempfile.mkdtemp(prefix="hg-inotify-")
+                self.realsockpath = os.path.join(tempdir, "inotify.sock")
+                try:
+                    self.sock.bind(self.realsockpath)
+                    os.symlink(self.realsockpath, self.sockpath)
+                except (OSError, socket.error), inst:
+                    try:
+                        os.unlink(self.realsockpath)
+                    except:
+                        pass
+                    os.rmdir(tempdir)
+                    if inst.errno == errno.EEXIST:
+                        raise AlreadyStartedException(_('could not start server: %s')
+                                                      % inst.strerror)
+                    raise
+            else:
+                raise
         self.sock.listen(5)
         self.fileno = self.sock.fileno
+        self.register(timeout=timeout)
 
     def handle_timeout(self):
         pass
 
-    def handle_event(self, fd, event):
-        sock, addr = self.sock.accept()
-
-        cs = common.recvcs(sock)
-        version = ord(cs.read(1))
-
-        sock.sendall(chr(common.version))
-
-        if version != common.version:
-            self.ui.warn(_('received query from incompatible client '
-                           'version %d\n') % version)
-            return
-
+    def answer_stat_query(self, cs):
         names = cs.read().split('\0')
 
         states = names.pop()
 
         self.ui.note(_('answering query for %r\n') % states)
 
-        if self.watcher.timeout:
+        if self.repowatcher.timeout:
             # We got a query while a rescan is pending.  Make sure we
             # rescan before responding, or we could give back a wrong
             # answer.
-            self.watcher.handle_timeout()
+            self.repowatcher.handle_timeout()
 
         if not names:
             def genresult(states, tree):
-                for fn, state in self.watcher.walk(states, tree):
+                for fn, state in self.repowatcher.walk(states, tree):
                     yield fn
         else:
             def genresult(states, tree):
                 for fn in names:
-                    l = self.watcher.lookup(fn, tree)
+                    l = self.repowatcher.lookup(fn, tree)
                     try:
                         if l in states:
                             yield fn
                     except TypeError:
-                        for f, s in self.watcher.walk(states, l, fn):
+                        for f, s in self.repowatcher.walk(states, l, fn):
                             yield f
 
-        results = ['\0'.join(r) for r in [
-            genresult('l', self.watcher.statustrees['l']),
-            genresult('m', self.watcher.statustrees['m']),
-            genresult('a', self.watcher.statustrees['a']),
-            genresult('r', self.watcher.statustrees['r']),
-            genresult('!', self.watcher.statustrees['!']),
-            '?' in states and genresult('?', self.watcher.statustrees['?']) or [],
+        return ['\0'.join(r) for r in [
+            genresult('l', self.repowatcher.statustrees['l']),
+            genresult('m', self.repowatcher.statustrees['m']),
+            genresult('a', self.repowatcher.statustrees['a']),
+            genresult('r', self.repowatcher.statustrees['r']),
+            genresult('!', self.repowatcher.statustrees['!']),
+            '?' in states
+                and genresult('?', self.repowatcher.statustrees['?'])
+                or [],
             [],
-            'c' in states and genresult('n', self.watcher.tree) or [],
+            'c' in states and genresult('n', self.repowatcher.tree) or [],
             ]]
+
+    def answer_dbug_query(self):
+        return ['\0'.join(self.repowatcher.debug())]
+
+    def handle_pollevents(self, events):
+        for e in events:
+            self.handle_pollevent()
+
+    def handle_pollevent(self):
+        sock, addr = self.sock.accept()
+
+        cs = common.recvcs(sock)
+        version = ord(cs.read(1))
+
+        if version != common.version:
+            self.ui.warn(_('received query from incompatible client '
+                           'version %d\n') % version)
+            try:
+                # try to send back our version to the client
+                # this way, the client too is informed of the mismatch
+                sock.sendall(chr(common.version))
+            except:
+                pass
+            return
+
+        type = cs.read(4)
+
+        if type == 'STAT':
+            results = self.answer_stat_query(cs)
+        elif type == 'DBUG':
+            results = self.answer_dbug_query()
+        else:
+            self.ui.warn(_('unrecognized query type: %s\n') % type)
+            return
 
         try:
             try:
-                sock.sendall(struct.pack(common.resphdrfmt,
-                                         *map(len, results)))
+                v = chr(common.version)
+
+                sock.sendall(v + type + struct.pack(common.resphdrfmts[type],
+                                            *map(len, results)))
                 sock.sendall(''.join(results))
             finally:
                 sock.shutdown(socket.SHUT_WR)
@@ -635,60 +746,53 @@ class Server(object):
         self.sock.close()
         try:
             os.unlink(self.sockpath)
+            if self.realsockpath:
+                os.unlink(self.realsockpath)
+                os.rmdir(os.path.dirname(self.realsockpath))
         except OSError, err:
             if err.errno != errno.ENOENT:
                 raise
 
-class Master(object):
+class master(object):
     def __init__(self, ui, repo, timeout=None):
         self.ui = ui
         self.repo = repo
-        self.poll = select.poll()
-        self.watcher = Watcher(ui, repo, self)
-        self.server = Server(ui, repo, self.watcher, timeout)
-        self.table = {}
-        for obj in (self.watcher, self.server):
-            fd = obj.fileno()
-            self.table[fd] = obj
-            self.poll.register(fd, obj.poll_events)
-
-    def register(self, fd, mask):
-        self.poll.register(fd, mask)
+        self.repowatcher = repowatcher(ui, repo)
+        self.server = server(ui, repo, self.repowatcher, timeout)
 
     def shutdown(self):
-        for obj in self.table.itervalues():
+        for obj in pollable.instances.itervalues():
             obj.shutdown()
 
     def run(self):
-        self.watcher.setup()
+        self.repowatcher.setup()
         self.ui.note(_('finished setup\n'))
         if os.getenv('TIME_STARTUP'):
             sys.exit(0)
-        while True:
-            timeout = None
-            timeobj = None
-            for obj in self.table.itervalues():
-                if obj.timeout is not None and (timeout is None or obj.timeout < timeout):
-                    timeout, timeobj = obj.timeout, obj
-            try:
-                if self.ui.debugflag:
-                    if timeout is None:
-                        self.ui.note('polling: no timeout\n')
-                    else:
-                        self.ui.note('polling: %sms timeout\n' % timeout)
-                events = self.poll.poll(timeout)
-            except select.error, err:
-                if err[0] == errno.EINTR:
-                    continue
-                raise
-            if events:
-                for fd, event in events:
-                    self.table[fd].handle_event(fd, event)
-            elif timeobj:
-                timeobj.handle_timeout()
+        pollable.run()
 
 def start(ui, repo):
-    m = Master(ui, repo)
+    def closefds(ignore):
+        # (from python bug #1177468)
+        # close all inherited file descriptors
+        # Python 2.4.1 and later use /dev/urandom to seed the random module's RNG
+        # a file descriptor is kept internally as os._urandomfd (created on demand
+        # the first time os.urandom() is called), and should not be closed
+        try:
+            os.urandom(4)
+            urandom_fd = getattr(os, '_urandomfd', None)
+        except AttributeError:
+            urandom_fd = None
+        ignore.append(urandom_fd)
+        for fd in range(3, 256):
+            if fd in ignore:
+                continue
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+    m = master(ui, repo)
     sys.stdout.flush()
     sys.stderr.flush()
 
@@ -696,6 +800,7 @@ def start(ui, repo):
     if pid:
         return pid
 
+    closefds(pollable.instances.keys())
     os.setsid()
 
     fd = os.open('/dev/null', os.O_RDONLY)

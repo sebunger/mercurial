@@ -19,6 +19,10 @@
 
 # Modified by Benoit Boissinot:
 #  - fix for digest auth (inspired from urllib2.py @ Python v2.4)
+# Modified by Dirkjan Ochtman:
+#  - import md5 function from a local util module
+# Modified by Martin Geisler:
+#  - moved md5 function from local util module to this module
 
 """An HTTP handler for urllib2 that supports HTTP 1.1 and keepalive.
 
@@ -195,7 +199,7 @@ class KeepAliveHandler:
 
     def close_all(self):
         """close all open connections"""
-        for host, conns in self._cm.get_all().items():
+        for host, conns in self._cm.get_all().iteritems():
             for h in conns:
                 self._cm.remove(h)
                 h.close()
@@ -305,14 +309,35 @@ class KeepAliveHandler:
         return r
 
     def _start_transaction(self, h, req):
+        # What follows mostly reimplements HTTPConnection.request()
+        # except it adds self.parent.addheaders in the mix.
         headers = req.headers.copy()
-        body = req.data
         if sys.version_info >= (2, 4):
             headers.update(req.unredirected_hdrs)
+        headers.update(self.parent.addheaders)
+        headers = dict((n.lower(), v) for n,v in headers.items())
+        skipheaders = {}
+        for n in ('host', 'accept-encoding'):
+            if n in headers:
+                skipheaders['skip_' + n.replace('-', '_')] = 1
         try:
-            h.request(req.get_method(), req.get_selector(), body, headers)
-        except socket.error, err: # XXX what error?
+            if req.has_data():
+                data = req.get_data()
+                h.putrequest('POST', req.get_selector(), **skipheaders)
+                if 'content-type' not in headers:
+                    h.putheader('Content-type',
+                                'application/x-www-form-urlencoded')
+                if 'content-length' not in headers:
+                    h.putheader('Content-length', '%d' % len(data))
+            else:
+                h.putrequest('GET', req.get_selector(), **skipheaders)
+        except (socket.error), err:
             raise urllib2.URLError(err)
+        for k, v in headers.items():
+            h.putheader(k, v)
+        h.endheaders()
+        if req.has_data():
+            h.send(data)
 
 class HTTPHandler(KeepAliveHandler, urllib2.HTTPHandler):
     pass
@@ -387,8 +412,64 @@ class HTTPResponse(httplib.HTTPResponse):
         self._rbuf = ''
         return s
 
+    # stolen from Python SVN #68532 to fix issue1088
+    def _read_chunked(self, amt):
+        chunk_left = self.chunk_left
+        value = ''
+
+        # XXX This accumulates chunks by repeated string concatenation,
+        # which is not efficient as the number or size of chunks gets big.
+        while True:
+            if chunk_left is None:
+                line = self.fp.readline()
+                i = line.find(';')
+                if i >= 0:
+                    line = line[:i] # strip chunk-extensions
+                try:
+                    chunk_left = int(line, 16)
+                except ValueError:
+                    # close the connection as protocol synchronisation is
+                    # probably lost
+                    self.close()
+                    raise httplib.IncompleteRead(value)
+                if chunk_left == 0:
+                    break
+            if amt is None:
+                value += self._safe_read(chunk_left)
+            elif amt < chunk_left:
+                value += self._safe_read(amt)
+                self.chunk_left = chunk_left - amt
+                return value
+            elif amt == chunk_left:
+                value += self._safe_read(amt)
+                self._safe_read(2)  # toss the CRLF at the end of the chunk
+                self.chunk_left = None
+                return value
+            else:
+                value += self._safe_read(chunk_left)
+                amt -= chunk_left
+
+            # we read the whole chunk, get another
+            self._safe_read(2)      # toss the CRLF at the end of the chunk
+            chunk_left = None
+
+        # read and discard trailer up to the CRLF terminator
+        ### note: we shouldn't have any trailers!
+        while True:
+            line = self.fp.readline()
+            if not line:
+                # a vanishingly small number of sites EOF without
+                # sending the trailer
+                break
+            if line == '\r\n':
+                break
+
+        # we read everything; close the "file"
+        self.close()
+
+        return value
+
     def readline(self, limit=-1):
-        data = ""
         i = self._rbuf.find('\n')
         while i < 0 and not (0 < limit <= len(self._rbuf)):
             new = self._raw_read(self._rbufsize)
@@ -435,7 +516,7 @@ def error_handler(url):
         HANDLE_ERRORS = i
         try:
             fo = urllib2.urlopen(url)
-            foo = fo.read()
+            fo.read()
             fo.close()
             try: status, reason = fo.status, fo.reason
             except AttributeError: status, reason = None, None
@@ -449,8 +530,16 @@ def error_handler(url):
     print "open connections:", hosts
     keepalive_handler.close_all()
 
+def md5(s):
+    try:
+        from hashlib import md5 as _md5
+    except ImportError:
+        from md5 import md5 as _md5
+    global md5
+    md5 = _md5
+    return _md5(s)
+
 def continuity(url):
-    import md5
     format = '%25s: %s'
 
     # first fetch the file with the normal http handler
@@ -557,7 +646,7 @@ def test_timeout(url):
 def test(url, N=10):
     print "checking error hander (do this on a non-200)"
     try: error_handler(url)
-    except IOError, e:
+    except IOError:
         print "exiting - exception will prevent further tests"
         sys.exit()
     print

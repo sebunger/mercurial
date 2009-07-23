@@ -29,7 +29,8 @@ baz add src
 cd src
 dd count=1 if=/dev/zero of=b > /dev/null 2> /dev/null
 baz add b
-baz commit -s "added a file, src and src/b (binary)"
+# HACK: hide GNU tar-1.22 "tar: The --preserve option is deprecated, use --preserve-permissions --preserve-order instead"
+baz commit -s "added a file, src and src/b (binary)" 2>&1 | grep -v ^tar
 
 echo % create link file and modify a
 ln -s ../a a-link
@@ -55,6 +56,14 @@ baz mv src/a-link-2 c
 baz mv src test
 baz commit -s "move and rename a-link-2 file and src directory"
 
+echo % move and add the moved file again
+echo e > e
+baz add e
+baz commit -s "add e"
+baz mv e f
+echo ee > e
+baz add e
+baz commit -s "move e and recreate it again"
 cd ..
 
 echo % converting baz repo to Mercurial
@@ -64,9 +73,11 @@ baz register-archive -d baz@mercurial--convert
 
 glog()
 {
-    hg glog --template '#rev# "#desc|firstline#" files: #files#\n' "$@"
+    hg glog --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
 }
 
 echo % show graph log
 glog -R baz-repo-hg
+hg up -q -R baz-repo-hg
 hg -R baz-repo-hg manifest --debug
+hg -R baz-repo-hg log -r 5 -r 7 -C --debug | grep copies

@@ -3,15 +3,14 @@
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 import os, sys, errno, urllib, BaseHTTPServer, socket, SocketServer, traceback
-from mercurial import hg, util
-from mercurial.repo import RepoError
+from mercurial import hg, util, error
 from hgweb_mod import hgweb
 from hgwebdir_mod import hgwebdir
-from mercurial.i18n import gettext as _
+from mercurial.i18n import _
 
 def _splitURI(uri):
     """ Return path and query splited from uri
@@ -66,12 +65,12 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self.do_write()
-        except StandardError, inst:
+        except StandardError:
             self._start_response("500 Internal Server Error", [])
             self._write("Internal Server Error")
             tb = "".join(traceback.format_exception(*sys.exc_info()))
-            self.log_error("Exception happened during processing request '%s':\n%s",
-                           self.path, tb)
+            self.log_error("Exception happened during processing "
+                           "request '%s':\n%s", self.path, tb)
 
     def do_GET(self):
         self.do_POST()
@@ -122,11 +121,13 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
         self.saved_headers = []
         self.sent_headers = False
         self.length = None
-        self.server.application(env, self._start_response)
+        for chunk in self.server.application(env, self._start_response):
+            self._write(chunk)
 
     def send_headers(self):
         if not self.saved_status:
-            raise AssertionError("Sending headers before start_response() called")
+            raise AssertionError("Sending headers before "
+                                 "start_response() called")
         saved_status = self.saved_status.split(None, 1)
         saved_status[0] = int(saved_status[0])
         self.send_response(*saved_status)
@@ -163,7 +164,8 @@ class _hgwebhandler(object, BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_headers()
         if self.length is not None:
             if len(data) > self.length:
-                raise AssertionError("Content-length header sent, but more bytes than specified are being written.")
+                raise AssertionError("Content-length header sent, but more "
+                                     "bytes than specified are being written.")
             self.length = self.length - len(data)
         self.wfile.write(data)
         self.wfile.flush()
@@ -248,8 +250,8 @@ def create_server(ui, repo):
                 elif repo is not None:
                     hgwebobj = hgweb(hg.repository(repo.ui, repo.root))
                 else:
-                    raise RepoError(_("There is no Mercurial repository here"
-                                      " (.hg not found)"))
+                    raise error.RepoError(_("There is no Mercurial repository"
+                                            " here (.hg not found)"))
                 return hgwebobj
             self.application = make_handler()
 
@@ -258,7 +260,7 @@ def create_server(ui, repo):
                     from OpenSSL import SSL
                     ctx = SSL.Context(SSL.SSLv23_METHOD)
                 except ImportError:
-                    raise util.Abort("SSL support is unavailable")
+                    raise util.Abort(_("SSL support is unavailable"))
                 ctx.use_privatekey_file(ssl_cert)
                 ctx.use_certificate_file(ssl_cert)
                 sock = socket.socket(self.address_family, self.socket_type)
@@ -268,25 +270,23 @@ def create_server(ui, repo):
 
             self.addr, self.port = self.socket.getsockname()[0:2]
             self.prefix = prefix
-
             self.fqaddr = socket.getfqdn(address)
-            try:
-                socket.getaddrbyhost(self.fqaddr)
-            except:
-                fqaddr = address
 
     class IPv6HTTPServer(MercurialHTTPServer):
         address_family = getattr(socket, 'AF_INET6', None)
 
         def __init__(self, *args, **kwargs):
             if self.address_family is None:
-                raise RepoError(_('IPv6 not available on this system'))
+                raise error.RepoError(_('IPv6 is not available on this system'))
             super(IPv6HTTPServer, self).__init__(*args, **kwargs)
 
     if ssl_cert:
         handler = _shgwebhandler
     else:
         handler = _hgwebhandler
+
+    # ugly hack due to python issue5853 (for threaded use)
+    import mimetypes; mimetypes.init()
 
     try:
         if use_ipv6:

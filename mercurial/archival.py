@@ -2,12 +2,13 @@
 #
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
-# This software may be used and distributed according to the terms of
-# the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from i18n import _
 from node import hex
-import cStringIO, os, stat, tarfile, time, util, zipfile
+import util
+import cStringIO, os, stat, tarfile, time, zipfile
 import zlib, gzip
 
 def tidyprefix(dest, prefix, suffixes):
@@ -33,7 +34,7 @@ def tidyprefix(dest, prefix, suffixes):
         raise util.Abort(_('archive prefix contains illegal components'))
     return prefix
 
-class tarit:
+class tarit(object):
     '''write archive to tar file or stream.  can write uncompressed,
     or compress with gzip or bzip2.'''
 
@@ -43,7 +44,7 @@ class tarit:
             timestamp = None
             if 'timestamp' in kw:
                 timestamp = kw.pop('timestamp')
-            if timestamp == None:
+            if timestamp is None:
                 self.timestamp = time.time()
             else:
                 self.timestamp = timestamp
@@ -52,7 +53,8 @@ class tarit:
         def _write_gzip_header(self):
             self.fileobj.write('\037\213')             # magic header
             self.fileobj.write('\010')                 # compression method
-            fname = self.filename[:-3]
+            # Python 2.6 deprecates self.filename
+            fname = getattr(self, 'name', None) or self.filename
             flags = 0
             if fname:
                 flags = gzip.FNAME
@@ -95,6 +97,7 @@ class tarit:
             i.mode = 0777
             i.linkname = data
             data = None
+            i.size = 0
         else:
             i.mode = mode
             data = cStringIO.StringIO(data)
@@ -103,7 +106,7 @@ class tarit:
     def done(self):
         self.z.close()
 
-class tellable:
+class tellable(object):
     '''provide tell method for zipfile.ZipFile when writing to http
     response file object.'''
 
@@ -121,7 +124,7 @@ class tellable:
     def tell(self):
         return self.offset
 
-class zipit:
+class zipit(object):
     '''write archive to zip file or stream.  can write uncompressed,
     or compressed with deflate.'''
 
@@ -153,7 +156,7 @@ class zipit:
     def done(self):
         self.z.close()
 
-class fileit:
+class fileit(object):
     '''write archive as files in directory.'''
 
     def __init__(self, name, prefix, mtime):
@@ -207,18 +210,17 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
             data = repo.wwritedata(name, data)
         archiver.addfile(name, mode, islink, data)
 
-    ctx = repo.changectx(node)
     if kind not in archivers:
-        raise util.Abort(_("unknown archive type '%s'" % kind))
+        raise util.Abort(_("unknown archive type '%s'") % kind)
+
+    ctx = repo[node]
     archiver = archivers[kind](dest, prefix, mtime or ctx.date()[0])
-    m = ctx.manifest()
-    items = m.items()
-    items.sort()
+
     if repo.ui.configbool("ui", "archivemeta", True):
         write('.hg_archival.txt', 0644, False,
               lambda: 'repo: %s\nnode: %s\n' % (
                   hex(repo.changelog.node(0)), hex(node)))
-    for filename, filenode in items:
-        write(filename, m.execf(filename) and 0755 or 0644, m.linkf(filename),
-              lambda: repo.file(filename).read(filenode))
+    for f in ctx:
+        ff = ctx.flags(f)
+        write(f, 'x' in ff and 0755 or 0644, 'l' in ff, ctx[f].data)
     archiver.done()

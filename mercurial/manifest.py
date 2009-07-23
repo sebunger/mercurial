@@ -2,13 +2,12 @@
 #
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-from node import bin, hex, nullid
-from revlog import revlog, RevlogError
 from i18n import _
-import array, struct, mdiff
+import mdiff, parsers, error, revlog
+import array, struct
 
 class manifestdict(dict):
     def __init__(self, mapping=None, flags=None):
@@ -18,42 +17,29 @@ class manifestdict(dict):
         self._flags = flags
     def flags(self, f):
         return self._flags.get(f, "")
-    def execf(self, f):
-        "test for executable in manifest flags"
-        return "x" in self.flags(f)
-    def linkf(self, f):
-        "test for symlink in manifest flags"
-        return "l" in self.flags(f)
-    def set(self, f, execf=False, linkf=False):
-        if linkf: self._flags[f] = "l"
-        elif execf: self._flags[f] = "x"
-        else: self._flags[f] = ""
+    def set(self, f, flags):
+        self._flags[f] = flags
     def copy(self):
         return manifestdict(dict.copy(self), dict.copy(self._flags))
 
-class manifest(revlog):
+class manifest(revlog.revlog):
     def __init__(self, opener):
         self.mapcache = None
         self.listcache = None
-        revlog.__init__(self, opener, "00manifest.i")
+        revlog.revlog.__init__(self, opener, "00manifest.i")
 
     def parse(self, lines):
         mfdict = manifestdict()
-        fdict = mfdict._flags
-        for l in lines.splitlines():
-            f, n = l.split('\0')
-            if len(n) > 40:
-                fdict[f] = n[40:]
-                mfdict[f] = bin(n[:40])
-            else:
-                mfdict[f] = bin(n)
+        parsers.parse_manifest(mfdict, mfdict._flags, lines)
         return mfdict
 
     def readdelta(self, node):
-        return self.parse(mdiff.patchtext(self.delta(node)))
+        r = self.rev(node)
+        return self.parse(mdiff.patchtext(self.revdiff(r - 1, r)))
 
     def read(self, node):
-        if node == nullid: return manifestdict() # don't upset local cache
+        if node == revlog.nullid:
+            return manifestdict() # don't upset local cache
         if self.mapcache and self.mapcache[0] == node:
             return self.mapcache[1]
         text = self.revision(node)
@@ -77,6 +63,8 @@ class manifest(revlog):
             while i < lenm and m[i] != c:
                 i += 1
             return i
+        if not s:
+            return (lo, lo)
         lenm = len(m)
         if not hi:
             hi = lenm
@@ -113,7 +101,7 @@ class manifest(revlog):
             return None, None
         l = text[start:end]
         f, n = l.split('\0')
-        return bin(n[:40]), n[40:-1]
+        return revlog.bin(n[:40]), n[40:-1]
 
     def add(self, map, transaction, link, p1=None, p2=None,
             changed=None):
@@ -134,30 +122,29 @@ class manifest(revlog):
             return "".join([struct.pack(">lll", d[0], d[1], len(d[2])) + d[2]
                             for d in x ])
 
-        def checkforbidden(f):
-            if '\n' in f or '\r' in f:
-                raise RevlogError(_("'\\n' and '\\r' disallowed in filenames"))
+        def checkforbidden(l):
+            for f in l:
+                if '\n' in f or '\r' in f:
+                    raise error.RevlogError(
+                        _("'\\n' and '\\r' disallowed in filenames: %r") % f)
 
         # if we're using the listcache, make sure it is valid and
         # parented by the same node we're diffing against
         if not (changed and self.listcache and p1 and self.mapcache[0] == p1):
-            files = map.keys()
-            files.sort()
-
-            for f in files:
-                checkforbidden(f)
+            files = sorted(map)
+            checkforbidden(files)
 
             # if this is changed to support newlines in filenames,
             # be sure to check the templates/ dir again (especially *-raw.tmpl)
-            text = ["%s\000%s%s\n" % (f, hex(map[f]), map.flags(f))
+            hex, flags = revlog.hex, map.flags
+            text = ["%s\000%s%s\n" % (f, hex(map[f]), flags(f))
                     for f in files]
             self.listcache = array.array('c', "".join(text))
             cachedelta = None
         else:
             addlist = self.listcache
 
-            for f in changed[0]:
-                checkforbidden(f)
+            checkforbidden(changed[0])
             # combine the changed lists into one list for sorting
             work = [[x, 0] for x in changed[0]]
             work[len(work):] = [[x, 1] for x in changed[1]]
@@ -178,7 +165,7 @@ class manifest(revlog):
                 # bs will either be the index of the item or the insert point
                 start, end = self._search(addbuf, f, start)
                 if w[1] == 0:
-                    l = "%s\000%s%s\n" % (f, hex(map[f]), map.flags(f))
+                    l = "%s\000%s%s\n" % (f, revlog.hex(map[f]), map.flags(f))
                 else:
                     l = ""
                 if start == end and w[1] == 1:

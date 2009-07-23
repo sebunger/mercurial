@@ -15,7 +15,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -42,8 +42,9 @@ pretxnchangegroup.acl = python:hgext.acl.hook
 pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
+invalidating branch cache (tip differs)
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -58,8 +59,6 @@ adding foo/file.txt revisions
 adding quux/file.py revisions
 added 3 changesets with 3 changes to 3 files
 calling hook pretxnchangegroup.acl: hgext.acl.hook
-acl: acl.allow not enabled
-acl: acl.deny not enabled
 acl: changes have source "push" - skipping
 updating the branch cache
 rolling back last transaction
@@ -76,8 +75,9 @@ sources = push
 pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
+invalidating branch cache (tip differs)
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -113,8 +113,9 @@ sources = push
 pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
+invalidating branch cache (tip differs)
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -153,7 +154,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -195,7 +196,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -236,7 +237,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -280,7 +281,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -323,7 +324,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -367,7 +368,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -410,8 +411,9 @@ foo/Bar/** = fred
 pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
+invalidating branch cache (tip differs)
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -460,7 +462,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -475,10 +477,10 @@ adding foo/file.txt revisions
 adding quux/file.py revisions
 added 3 changesets with 3 changes to 3 files
 calling hook pretxnchangegroup.acl: hgext.acl.hook
-error: pretxnchangegroup.acl hook failed: unable to open ../acl.config: No such file or directory
+error: pretxnchangegroup.acl hook raised an exception: [Errno 2] No such file or directory: '../acl.config'
 transaction abort!
 rollback completed
-abort: unable to open ../acl.config: No such file or directory
+abort: No such file or directory: ../acl.config
 no rollback information available
 0:6675d58eff77
 
@@ -508,7 +510,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955
@@ -563,7 +565,7 @@ pushing to ../b
 searching for changes
 common changesets up to 6675d58eff77
 3 changesets found
-List of changesets:
+list of changesets:
 ef1ea85a6374b77d6da9dcda9541f498f2d17df7
 f9cafe1212c8c6fa1120d14a556e18cc44ff8bdd
 911600dab2ae7a9baff75958b84fe606851ce955

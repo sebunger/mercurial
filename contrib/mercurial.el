@@ -35,8 +35,10 @@
 ;; This code has been developed under XEmacs 21.5, and may not work as
 ;; well under GNU Emacs (albeit tested under 21.4).  Patches to
 ;; enhance the portability of this code, fix bugs, and add features
-;; are most welcome.  You can clone a Mercurial repository for this
-;; package from http://www.serpentine.com/hg/hg-emacs
+;; are most welcome.
+
+;; As of version 22.3, GNU Emacs's VC mode has direct support for
+;; Mercurial, so this package may not prove as useful there.
 
 ;; Please send problem reports and suggestions to bos@serpentine.com.
 
@@ -835,11 +837,12 @@ With a prefix argument, prompt for the path to add."
   (interactive "d")
   (save-excursion
     (goto-char pos)
-    (let ((face (get-text-property pos 'face))
+    (let (face
 	  (inhibit-read-only t)
 	  bol)
       (beginning-of-line)
       (setq bol (+ (point) 4))
+      (setq face (get-text-property bol 'face))
       (end-of-line)
       (if (eq face 'bold)
 	  (progn

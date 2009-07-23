@@ -2,17 +2,17 @@
 #
 # Copyright (C) 2007 Alexis S. L. Carvalho <alexis@cecm.usp.br>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
-'''\
-use suffixes to refer to ancestor revisions
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-This extension allows you to use git-style suffixes to refer to
-the ancestors of a specific revision.
+'''interpret suffixes to refer to ancestor revisions
+
+This extension allows you to use git-style suffixes to refer to the
+ancestors of a specific revision.
 
 For example, if you can refer to a revision as "foo", then:
 
-- foo^N = Nth parent of foo:
+- foo^N = Nth parent of foo
   foo^0 = foo
   foo^1 = first parent of foo
   foo^2 = second parent of foo
@@ -23,7 +23,7 @@ For example, if you can refer to a revision as "foo", then:
   foo~1 = foo^1 = foo^ = first parent of foo
   foo~2 = foo^1^1 = foo^^ = first parent of first parent of foo
 '''
-import mercurial.repo
+from mercurial import error
 
 def reposetup(ui, repo):
     if not repo.local():
@@ -34,7 +34,7 @@ def reposetup(ui, repo):
             try:
                 _super = super(parentrevspecrepo, self)
                 return _super.lookup(key)
-            except mercurial.repo.RepoError:
+            except error.RepoError:
                 pass
 
             circ = key.find('^')
@@ -50,7 +50,7 @@ def reposetup(ui, repo):
             base = key[:end]
             try:
                 node = _super.lookup(base)
-            except mercurial.repo.RepoError:
+            except error.RepoError:
                 # eek - reraise the first error
                 return _super.lookup(key)
 

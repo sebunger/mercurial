@@ -26,14 +26,12 @@ created new head
 .hgtags@c071f74ab5eb, line 2: cannot parse entry
 .hgtags@c071f74ab5eb, line 4: node 'foo' is not well formed
 .hgtags@4ca6f1b1a68c, line 2: node 'x' is not well formed
-localtags, line 1: tag 'invalid' refers to unknown node
 tip                                8:4ca6f1b1a68c
 first                              0:0acdaf898367
 changeset:   8:4ca6f1b1a68c
 .hgtags@c071f74ab5eb, line 2: cannot parse entry
 .hgtags@c071f74ab5eb, line 4: node 'foo' is not well formed
 .hgtags@4ca6f1b1a68c, line 2: node 'x' is not well formed
-localtags, line 1: tag 'invalid' refers to unknown node
 tag:         tip
 parent:      3:b2ef3841386b
 user:        test
@@ -45,36 +43,36 @@ summary:     head
 created new head
 tip                                4:36195b728445
 bar                                1:b204a97e6e8d
-changeset:   5:57e1983b4a60
+changeset:   5:1f98c77278de
 tag:         tip
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     Removed tag bar
 
-tip                                5:57e1983b4a60
+tip                                5:1f98c77278de
 % remove nonexistent tag
 abort: tag 'foobar' does not exist
-changeset:   5:57e1983b4a60
+changeset:   5:1f98c77278de
 tag:         tip
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     Removed tag bar
 
-tip                                5:d8bb4d1eff25
+tip                                5:e86d7ed95fd3
 bar                                0:b409d9da318e
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 created new head
-tip                                6:b5ff9d142648
+tip                                6:b744fbe1f6dd
 bar                                0:b409d9da318e
 abort: tag 'bar' already exists (use -f to force)
-tip                                6:b5ff9d142648
+tip                                6:b744fbe1f6dd
 bar                                0:b409d9da318e
 adding foo
-tip                                3:ca8479b4351c
-bar                                2:72b852876a42
+tip                                3:197c21bbbf2c
+bar                                2:6fa450212aeb
 % bar should still point to rev 2
-tip                                4:40af5d225513
-bar                                2:72b852876a42
+tip                                4:3b4b14ed0202
+bar                                2:6fa450212aeb
 adding foo
 abort: tag 'localtag' is not a global tag
 abort: tag 'globaltag' is not a local tag

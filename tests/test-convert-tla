@@ -64,9 +64,10 @@ tla register-archive -d tla@mercurial--convert
 
 glog()
 {
-    hg glog --template '#rev# "#desc|firstline#" files: #files#\n' "$@"
+    hg glog --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
 }
 
 echo % show graph log
 glog -R tla-repo-hg
+hg up -q -R tla-repo-hg
 hg -R tla-repo-hg manifest --debug

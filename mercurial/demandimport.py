@@ -2,8 +2,8 @@
 #
 # Copyright 2006, 2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 '''
 demandimport - automatic demandloading of modules
@@ -24,6 +24,7 @@ These imports will not be delayed:
   b = __import__(a)
 '''
 
+import __builtin__
 _origimport = __import__
 
 class _demandmod(object):
@@ -116,6 +117,7 @@ ignore = [
     '_xmlplus',
     'fcntl',
     'win32com.gen_py',
+    'pythoncom',
     # imported by tarfile, not available under Windows
     'pwd',
     'grp',
@@ -126,9 +128,9 @@ ignore = [
 
 def enable():
     "enable global demand-loading of modules"
-    __builtins__["__import__"] = _demandimport
+    __builtin__.__import__ = _demandimport
 
 def disable():
     "disable global demand-loading of modules"
-    __builtins__["__import__"] = _origimport
+    __builtin__.__import__ = _origimport
 

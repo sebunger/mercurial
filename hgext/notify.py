@@ -2,71 +2,69 @@
 #
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
-#
-# hook extension to email notifications to people when changesets are
-# committed to a repo they subscribe to.
-#
-# default mode is to print messages to stdout, for testing and
-# configuring.
-#
-# to use, configure notify extension and enable in hgrc like this:
-#
-#   [extensions]
-#   hgext.notify =
-#
-#   [hooks]
-#   # one email for each incoming changeset
-#   incoming.notify = python:hgext.notify.hook
-#   # batch emails when many changesets incoming at one time
-#   changegroup.notify = python:hgext.notify.hook
-#
-#   [notify]
-#   # config items go in here
-#
-# config items:
-#
-# REQUIRED:
-#   config = /path/to/file # file containing subscriptions
-#
-# OPTIONAL:
-#   test = True            # print messages to stdout for testing
-#   strip = 3              # number of slashes to strip for url paths
-#   domain = example.com   # domain to use if committer missing domain
-#   style = ...            # style file to use when formatting email
-#   template = ...         # template to use when formatting email
-#   incoming = ...         # template to use when run as incoming hook
-#   changegroup = ...      # template when run as changegroup hook
-#   maxdiff = 300          # max lines of diffs to include (0=none, -1=all)
-#   maxsubject = 67        # truncate subject line longer than this
-#   diffstat = True        # add a diffstat before the diff content
-#   sources = serve        # notify if source of incoming changes in this list
-#                          # (serve == ssh or http, push, pull, bundle)
-#   [email]
-#   from = user@host.com   # email address to send as if none given
-#   [web]
-#   baseurl = http://hgserver/... # root of hg web site for browsing commits
-#
-# notify config file has same format as regular hgrc. it has two
-# sections so you can express subscriptions in whatever way is handier
-# for you.
-#
-#   [usersubs]
-#   # key is subscriber email, value is ","-separated list of glob patterns
-#   user@host = pattern
-#
-#   [reposubs]
-#   # key is glob pattern, value is ","-separated list of subscriber emails
-#   pattern = user@host
-#
-# glob patterns are matched against path to repo root.
-#
-# if you like, you can put notify config file in repo that users can
-# push changes to, they can manage their own subscriptions.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
+'''hooks for sending email notifications at commit/push time
+
+Subscriptions can be managed through hgrc. Default mode is to print
+messages to stdout, for testing and configuring.
+
+To use, configure notify extension and enable in hgrc like this:
+
+   [extensions]
+   hgext.notify =
+
+   [hooks]
+   # one email for each incoming changeset
+   incoming.notify = python:hgext.notify.hook
+   # batch emails when many changesets incoming at one time
+   changegroup.notify = python:hgext.notify.hook
+
+   [notify]
+   # config items go in here
+
+ config items:
+
+ REQUIRED:
+   config = /path/to/file # file containing subscriptions
+
+ OPTIONAL:
+   test = True            # print messages to stdout for testing
+   strip = 3              # number of slashes to strip for url paths
+   domain = example.com   # domain to use if committer missing domain
+   style = ...            # style file to use when formatting email
+   template = ...         # template to use when formatting email
+   incoming = ...         # template to use when run as incoming hook
+   changegroup = ...      # template when run as changegroup hook
+   maxdiff = 300          # max lines of diffs to include (0=none, -1=all)
+   maxsubject = 67        # truncate subject line longer than this
+   diffstat = True        # add a diffstat before the diff content
+   sources = serve        # notify if source of incoming changes in this list
+                          # (serve == ssh or http, push, pull, bundle)
+   [email]
+   from = user@host.com   # email address to send as if none given
+   [web]
+   baseurl = http://hgserver/... # root of hg web site for browsing commits
+
+ notify config file has same format as regular hgrc. it has two
+ sections so you can express subscriptions in whatever way is handier
+ for you.
+
+   [usersubs]
+   # key is subscriber email, value is ","-separated list of glob patterns
+   user@host = pattern
+
+   [reposubs]
+   # key is glob pattern, value is ","-separated list of subscriber emails
+   pattern = user@host
+
+ glob patterns are matched against path to repository root.
+
+ if you like, you can put notify config file in repository that users
+ can push changes to, they can manage their own subscriptions.'''
 
 from mercurial.i18n import _
-from mercurial.node import bin, short
 from mercurial import patch, cmdutil, templater, util, mail
 import email.Parser, fnmatch, socket, time
 
@@ -101,18 +99,20 @@ class notifier(object):
         self.ui = ui
         cfg = self.ui.config('notify', 'config')
         if cfg:
-            self.ui.readsections(cfg, 'usersubs', 'reposubs')
+            self.ui.readconfig(cfg, sections=['usersubs', 'reposubs'])
         self.repo = repo
         self.stripcount = int(self.ui.config('notify', 'strip', 0))
         self.root = self.strip(self.repo.root)
         self.domain = self.ui.config('notify', 'domain')
+        self.test = self.ui.configbool('notify', 'test', True)
+        self.charsets = mail._charsets(self.ui)
         self.subs = self.subscribers()
 
         mapfile = self.ui.config('notify', 'style')
         template = (self.ui.config('notify', hooktype) or
                     self.ui.config('notify', 'template'))
         self.t = cmdutil.changeset_templater(self.ui, self.repo,
-                                             False, mapfile, False)
+                                             False, None, mapfile, False)
         if not mapfile and not template:
             template = deftemplates.get(hooktype) or single_template
         if template:
@@ -146,83 +146,83 @@ class notifier(object):
 
     def subscribers(self):
         '''return list of email addresses of subscribers to this repo.'''
-
-        subs = {}
+        subs = set()
         for user, pats in self.ui.configitems('usersubs'):
             for pat in pats.split(','):
                 if fnmatch.fnmatch(self.repo.root, pat.strip()):
-                    subs[self.fixmail(user)] = 1
+                    subs.add(self.fixmail(user))
         for pat, users in self.ui.configitems('reposubs'):
             if fnmatch.fnmatch(self.repo.root, pat):
                 for user in users.split(','):
-                    subs[self.fixmail(user)] = 1
-        subs = subs.keys()
-        subs.sort()
-        return subs
+                    subs.add(self.fixmail(user))
+        return [mail.addressencode(self.ui, s, self.charsets, self.test)
+                for s in sorted(subs)]
 
     def url(self, path=None):
         return self.ui.config('web', 'baseurl') + (path or self.root)
 
-    def node(self, node):
+    def node(self, ctx):
         '''format one changeset.'''
-
-        self.t.show(changenode=node, changes=self.repo.changelog.read(node),
+        self.t.show(ctx, changes=ctx.changeset(),
                     baseurl=self.ui.config('web', 'baseurl'),
-                    root=self.repo.root,
-                    webroot=self.root)
+                    root=self.repo.root, webroot=self.root)
 
     def skipsource(self, source):
         '''true if incoming changes from this source should be skipped.'''
         ok_sources = self.ui.config('notify', 'sources', 'serve').split()
         return source not in ok_sources
 
-    def send(self, node, count, data):
+    def send(self, ctx, count, data):
         '''send message.'''
 
         p = email.Parser.Parser()
         msg = p.parsestr(data)
 
-        def fix_subject():
-            '''try to make subject line exist and be useful.'''
-
-            subject = msg['Subject']
-            if not subject:
-                if count > 1:
-                    subject = _('%s: %d new changesets') % (self.root, count)
-                else:
-                    changes = self.repo.changelog.read(node)
-                    s = changes[4].lstrip().split('\n', 1)[0].rstrip()
-                    subject = '%s: %s' % (self.root, s)
-            maxsubject = int(self.ui.config('notify', 'maxsubject', 67))
-            if maxsubject and len(subject) > maxsubject:
-                subject = subject[:maxsubject-3] + '...'
-            del msg['Subject']
-            msg['Subject'] = subject
-
-        def fix_sender():
-            '''try to make message have proper sender.'''
-
-            sender = msg['From']
-            if not sender:
-                sender = self.ui.config('email', 'from') or self.ui.username()
-            if '@' not in sender or '@localhost' in sender:
-                sender = self.fixmail(sender)
-            del msg['From']
-            msg['From'] = sender
+        # store sender and subject
+        sender, subject = msg['From'], msg['Subject']
+        del msg['From'], msg['Subject']
+        # store remaining headers
+        headers = msg.items()
+        # create fresh mime message from msg body
+        text = msg.get_payload()
+        # for notification prefer readability over data precision
+        msg = mail.mimeencode(self.ui, text, self.charsets, self.test)
+        # reinstate custom headers
+        for k, v in headers:
+            msg[k] = v
 
         msg['Date'] = util.datestr(format="%a, %d %b %Y %H:%M:%S %1%2")
-        fix_subject()
-        fix_sender()
 
-        msg['X-Hg-Notification'] = 'changeset ' + short(node)
+        # try to make subject line exist and be useful
+        if not subject:
+            if count > 1:
+                subject = _('%s: %d new changesets') % (self.root, count)
+            else:
+                s = ctx.description().lstrip().split('\n', 1)[0].rstrip()
+                subject = '%s: %s' % (self.root, s)
+        maxsubject = int(self.ui.config('notify', 'maxsubject', 67))
+        if maxsubject and len(subject) > maxsubject:
+            subject = subject[:maxsubject-3] + '...'
+        msg['Subject'] = mail.headencode(self.ui, subject,
+                                         self.charsets, self.test)
+
+        # try to make message have proper sender
+        if not sender:
+            sender = self.ui.config('email', 'from') or self.ui.username()
+        if '@' not in sender or '@localhost' in sender:
+            sender = self.fixmail(sender)
+        msg['From'] = mail.addressencode(self.ui, sender,
+                                         self.charsets, self.test)
+
+        msg['X-Hg-Notification'] = 'changeset %s' % ctx
         if not msg['Message-Id']:
             msg['Message-Id'] = ('<hg.%s.%s.%s@%s>' %
-                                 (short(node), int(time.time()),
+                                 (ctx, int(time.time()),
                                   hash(self.repo.root), socket.getfqdn()))
         msg['To'] = ', '.join(self.subs)
 
         msgtext = msg.as_string(0)
-        if self.ui.configbool('notify', 'test', True):
+        if self.test:
             self.ui.write(msgtext)
             if not msgtext.endswith('\n'):
                 self.ui.write('\n')
@@ -232,52 +232,58 @@ class notifier(object):
             mail.sendmail(self.ui, util.email(msg['From']),
                           self.subs, msgtext)
 
-    def diff(self, node, ref):
+    def diff(self, ctx, ref=None):
+
         maxdiff = int(self.ui.config('notify', 'maxdiff', 300))
-        prev = self.repo.changelog.parents(node)[0]
-        self.ui.pushbuffer()
-        patch.diff(self.repo, prev, ref)
-        difflines = self.ui.popbuffer().splitlines(1)
+        prev = ctx.parents()[0].node()
+        ref = ref and ref.node() or ctx.node()
+        chunks = patch.diff(self.repo, prev, ref, opts=patch.diffopts(self.ui))
+        difflines = ''.join(chunks).splitlines()
+
         if self.ui.configbool('notify', 'diffstat', True):
             s = patch.diffstat(difflines)
             # s may be nil, don't include the header if it is
             if s:
                 self.ui.write('\ndiffstat:\n\n%s' % s)
+
         if maxdiff == 0:
             return
-        if maxdiff > 0 and len(difflines) > maxdiff:
-            self.ui.write(_('\ndiffs (truncated from %d to %d lines):\n\n') %
-                          (len(difflines), maxdiff))
+        elif maxdiff > 0 and len(difflines) > maxdiff:
+            msg = _('\ndiffs (truncated from %d to %d lines):\n\n')
+            self.ui.write(msg % (len(difflines), maxdiff))
             difflines = difflines[:maxdiff]
         elif difflines:
             self.ui.write(_('\ndiffs (%d lines):\n\n') % len(difflines))
-        self.ui.write(*difflines)
+
+        self.ui.write("\n".join(difflines))
 
 def hook(ui, repo, hooktype, node=None, source=None, **kwargs):
     '''send email notifications to interested subscribers.
 
     if used as changegroup hook, send one email for all changesets in
     changegroup. else send one email per changeset.'''
+
     n = notifier(ui, repo, hooktype)
+    ctx = repo[node]
+
     if not n.subs:
-        ui.debug(_('notify: no subscribers to repo %s\n') % n.root)
+        ui.debug(_('notify: no subscribers to repository %s\n') % n.root)
         return
     if n.skipsource(source):
-        ui.debug(_('notify: changes have source "%s" - skipping\n') %
-                 source)
+        ui.debug(_('notify: changes have source "%s" - skipping\n') % source)
         return
-    node = bin(node)
+
     ui.pushbuffer()
     if hooktype == 'changegroup':
-        start = repo.changelog.rev(node)
-        end = repo.changelog.count()
+        start, end = ctx.rev(), len(repo)
         count = end - start
         for rev in xrange(start, end):
-            n.node(repo.changelog.node(rev))
-        n.diff(node, repo.changelog.tip())
+            n.node(repo[rev])
+        n.diff(ctx, repo['tip'])
     else:
         count = 1
-        n.node(node)
-        n.diff(node, node)
+        n.node(ctx)
+        n.diff(ctx)
+
     data = ui.popbuffer()
-    n.send(node, count, data)
+    n.send(ctx, count, data)

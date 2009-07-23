@@ -3,12 +3,13 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from i18n import _
 from node import bin, hex
-import os, streamclone, sys, tempfile, util, hook
+import streamclone, util, hook
+import os, sys, tempfile, urllib
 
 class sshserver(object):
     def __init__(self, ui, repo):
@@ -37,7 +38,11 @@ class sshserver(object):
         self.fout.flush()
 
     def serve_forever(self):
-        while self.serve_one(): pass
+        try:
+            while self.serve_one(): pass
+        finally:
+            if self.lock is not None:
+                self.lock.release()
         sys.exit(0)
 
     def serve_one(self):
@@ -59,6 +64,15 @@ class sshserver(object):
             success = 0
         self.respond("%s %s\n" % (success, r))
 
+    def do_branchmap(self):
+        branchmap = self.repo.branchmap()
+        heads = []
+        for branch, nodes in branchmap.iteritems():
+            branchname = urllib.quote(branch)
+            branchnodes = [hex(node) for node in nodes]
+            heads.append('%s %s' % (branchname, ' '.join(branchnodes)))
+        self.respond('\n'.join(heads))
+
     def do_heads(self):
         h = self.repo.heads()
         self.respond(" ".join(map(hex, h)) + "\n")
@@ -72,7 +86,7 @@ class sshserver(object):
         capabilities: space separated list of tokens
         '''
 
-        caps = ['unbundle', 'lookup', 'changegroupsubset']
+        caps = ['unbundle', 'lookup', 'changegroupsubset', 'branchmap']
         if self.ui.configbool('server', 'uncompressed'):
             caps.append('stream=%d' % self.repo.changelog.version)
         self.respond("capabilities: %s\n" % (' '.join(caps),))
@@ -122,8 +136,6 @@ class sshserver(object):
         self.fout.flush()
 
     def do_changegroupsubset(self):
-        bases = []
-        heads = []
         argmap = dict([self.getarg(), self.getarg()])
         bases = [bin(n) for n in argmap['bases'].split(' ')]
         heads = [bin(n) for n in argmap['heads'].split(' ')]
@@ -167,7 +179,7 @@ class sshserver(object):
         self.respond('')
 
         # write bundle data to temporary file because it can be big
-
+        tempname = fp = None
         try:
             fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
             fp = os.fdopen(fd, 'wb+')
@@ -198,8 +210,16 @@ class sshserver(object):
                     self.lock.release()
                     self.lock = None
         finally:
-            fp.close()
-            os.unlink(tempname)
+            if fp is not None:
+                fp.close()
+            if tempname is not None:
+                os.unlink(tempname)
 
     def do_stream_out(self):
-        streamclone.stream_out(self.repo, self.fout)
+        try:
+            for chunk in streamclone.stream_out(self.repo):
+                self.fout.write(chunk)
+            self.fout.flush()
+        except streamclone.StreamException, inst:
+            self.fout.write(str(inst))
+            self.fout.flush()

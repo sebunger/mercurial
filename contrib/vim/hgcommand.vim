@@ -10,6 +10,12 @@
 "                Bob Hiestand <bob.hiestand@gmail.com> for the fabulous
 "                cvscommand.vim from which this script was directly created by
 "                means of sed commands and minor tweaks.
+" Note:          
+"                For Vim7 the use of Bob Hiestand's vcscommand.vim
+"                <http://www.vim.org/scripts/script.php?script_id=90>
+"                in conjunction with Vladmir Marek's Hg backend
+"                <http://www.vim.org/scripts/script.php?script_id=1898>
+"                is recommended.
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
@@ -1220,7 +1226,7 @@ finish
 
 Author:  Mathieu Clabaut <mathieu.clabaut@gmail.com>
 Credits:  Bob Hiestand <bob.hiestand@gmail.com>
-Mercurial: http://www.selenic.com/mercurial
+Mercurial: http://mercurial.selenic.com/
    Mercurial (noted Hg) is a fast, lightweight Source Control Management
    system designed for efficient handling of very large distributed projects.
 

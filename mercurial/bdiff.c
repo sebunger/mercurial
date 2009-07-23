@@ -18,6 +18,10 @@
 # define inline
 #endif
 
+#ifdef __linux
+# define inline __inline
+#endif
+
 #ifdef _WIN32
 #ifdef _MSC_VER
 #define inline __inline
@@ -34,7 +38,7 @@ static uint32_t htonl(uint32_t x)
 }
 #else
 #include <sys/types.h>
-#ifdef __BEOS__
+#if defined __BEOS__ && !defined __HAIKU__
 #include <ByteOrder.h>
 #else
 #include <arpa/inet.h>
@@ -80,7 +84,7 @@ int splitlines(const char *a, int len, struct line **lr)
 	h = 0;
 	for (p = a; p < a + len; p++) {
 		/* Leonid Yuriev's hash */
-                h = (h * 1664525) + *p + 1013904223;
+		h = (h * 1664525) + *p + 1013904223;
 
 		if (*p == '\n' || p == plast) {
 			l->h = h;
@@ -240,6 +244,7 @@ static void recurse(struct line *a, struct line *b, struct pos *pos,
 static struct hunklist diff(struct line *a, int an, struct line *b, int bn)
 {
 	struct hunklist l;
+	struct hunk *curr;
 	struct pos *pos;
 	int t;
 
@@ -259,6 +264,31 @@ static struct hunklist diff(struct line *a, int an, struct line *b, int bn)
 	}
 
 	free(pos);
+
+	/* normalize the hunk list, try to push each hunk towards the end */
+	for (curr = l.base; curr != l.head; curr++) {
+		struct hunk *next = curr+1;
+		int shift = 0;
+
+		if (next == l.head)
+			break;
+
+		if (curr->a2 == next->a1)
+			while (curr->a2+shift < an && curr->b2+shift < bn
+			       && !cmp(a+curr->a2+shift, b+curr->b2+shift))
+				shift++;
+		else if (curr->b2 == next->b1)
+			while (curr->b2+shift < bn && curr->a2+shift < an
+			       && !cmp(b+curr->b2+shift, a+curr->a2+shift))
+				shift++;
+		if (!shift)
+			continue;
+		curr->b2 += shift;
+		next->b1 += shift;
+		curr->a2 += shift;
+		next->a1 += shift;
+	}
+
 	return l;
 }
 

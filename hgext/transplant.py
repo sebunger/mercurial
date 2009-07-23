@@ -2,28 +2,28 @@
 #
 # Copyright 2006, 2007 Brendan Cully <brendan@kublai.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-from mercurial.i18n import _
-import os, tempfile
-from mercurial import bundlerepo, changegroup, cmdutil, hg, merge
-from mercurial import patch, revlog, util
-
-'''patch transplanting tool
+'''command to transplant changesets from another branch
 
 This extension allows you to transplant patches from another branch.
 
-Transplanted patches are recorded in .hg/transplant/transplants, as a map
-from a changeset hash to its hash in the source repository.
+Transplanted patches are recorded in .hg/transplant/transplants, as a
+map from a changeset hash to its hash in the source repository.
 '''
 
-class transplantentry:
+from mercurial.i18n import _
+import os, tempfile
+from mercurial import bundlerepo, changegroup, cmdutil, hg, merge, match
+from mercurial import patch, revlog, util, error
+
+class transplantentry(object):
     def __init__(self, lnode, rnode):
         self.lnode = lnode
         self.rnode = rnode
 
-class transplants:
+class transplants(object):
     def __init__(self, path=None, transplantfile=None, opener=None):
         self.path = path
         self.transplantfile = transplantfile
@@ -64,12 +64,13 @@ class transplants:
         del self.transplants[self.transplants.index(transplant)]
         self.dirty = True
 
-class transplanter:
+class transplanter(object):
     def __init__(self, ui, repo):
         self.ui = ui
         self.path = repo.join('transplant')
         self.opener = util.opener(self.path)
-        self.transplants = transplants(self.path, 'transplants', opener=self.opener)
+        self.transplants = transplants(self.path, 'transplants',
+                                       opener=self.opener)
 
     def applied(self, repo, node, parent):
         '''returns True if a node is already an ancestor of parent
@@ -88,9 +89,7 @@ class transplanter:
 
     def apply(self, repo, source, revmap, merges, opts={}):
         '''apply the revisions in revmap one by one in revision order'''
-        revs = revmap.keys()
-        revs.sort()
-
+        revs = sorted(revmap)
         p1, p2 = repo.dirstate.parents()
         pulls = []
         diffopts = patch.diffopts(self.ui, opts)
@@ -111,8 +110,8 @@ class transplanter:
 
                 parents = source.changelog.parents(node)
                 if not opts.get('filter'):
-                    # If the changeset parent is the same as the wdir's parent,
-                    # just pull it.
+                    # If the changeset parent is the same as the
+                    # wdir's parent, just pull it.
                     if parents[0] == p1:
                         pulls.append(node)
                         p1 = node
@@ -126,9 +125,9 @@ class transplanter:
 
                 domerge = False
                 if node in merges:
-                    # pulling all the merge revs at once would mean we couldn't
-                    # transplant after the latest even if transplants before them
-                    # fail.
+                    # pulling all the merge revs at once would mean we
+                    # couldn't transplant after the latest even if
+                    # transplants before them fail.
                     domerge = True
                     if not hasnode(repo, node):
                         repo.pull(source, heads=[node])
@@ -140,7 +139,9 @@ class transplanter:
                 else:
                     fd, patchfile = tempfile.mkstemp(prefix='hg-transplant-')
                     fp = os.fdopen(fd, 'w')
-                    patch.diff(source, parents[0], node, fp=fp, opts=diffopts)
+                    gen = patch.diff(source, parents[0], node, opts=diffopts)
+                    for chunk in gen:
+                        fp.write(chunk)
                     fp.close()
 
                 del revmap[rev]
@@ -155,8 +156,9 @@ class transplanter:
                             self.ui.status(_('%s merged at %s\n') % (revstr,
                                       revlog.short(n)))
                         elif n:
-                            self.ui.status(_('%s transplanted to %s\n') % (revlog.short(node),
-                                                                       revlog.short(n)))
+                            self.ui.status(_('%s transplanted to %s\n')
+                                           % (revlog.short(node),
+                                              revlog.short(n)))
                     finally:
                         if patchfile:
                             os.unlink(patchfile)
@@ -166,12 +168,13 @@ class transplanter:
         finally:
             self.saveseries(revmap, merges)
             self.transplants.write()
-            del lock, wlock
+            lock.release()
+            wlock.release()
 
     def filter(self, filter, changelog, patchfile):
         '''arbitrarily rewrite changeset before applying it'''
 
-        self.ui.status('filtering %s\n' % patchfile)
+        self.ui.status(_('filtering %s\n') % patchfile)
         user, date, msg = (changelog[1], changelog[2], changelog[4])
 
         fd, headerfile = tempfile.mkstemp(prefix='hg-transplant-')
@@ -203,6 +206,7 @@ class transplanter:
             (user, date, message) = self.filter(filter, cl, patchfile)
 
         if log:
+            # we don't translate messages inserted into commits
             message += '\n(transplanted from %s)' % revlog.hex(node)
 
         self.ui.status(_('applying %s\n') % revlog.short(node))
@@ -214,10 +218,11 @@ class transplanter:
             try:
                 files = {}
                 try:
-                    fuzz = patch.patch(patchfile, self.ui, cwd=repo.root,
-                                       files=files)
+                    patch.patch(patchfile, self.ui, cwd=repo.root,
+                                files=files, eolmode=None)
                     if not files:
-                        self.ui.warn(_('%s: empty changeset') % revlog.hex(node))
+                        self.ui.warn(_('%s: empty changeset')
+                                     % revlog.hex(node))
                         return None
                 finally:
                     files = patch.updatedir(self.ui, repo, files)
@@ -231,14 +236,18 @@ class transplanter:
                 p2 = node
                 self.log(user, date, message, p1, p2, merge=merge)
                 self.ui.write(str(inst) + '\n')
-                raise util.Abort(_('Fix up the merge and run hg transplant --continue'))
+                raise util.Abort(_('Fix up the merge and run '
+                                   'hg transplant --continue'))
         else:
             files = None
         if merge:
             p1, p2 = repo.dirstate.parents()
             repo.dirstate.setparents(p1, node)
+            m = match.always(repo.root, '')
+        else:
+            m = match.exact(repo.root, '', files)
 
-        n = repo.commit(files, message, user, date, extra=extra)
+        n = repo.commit(message, user, date, extra=extra, match=m)
         if not merge:
             self.transplants.set(n, node)
 
@@ -280,7 +289,7 @@ class transplanter:
                                  revlog.hex(parents[0]))
             if merge:
                 repo.dirstate.setparents(p1, parents[1])
-            n = repo.commit(None, message, user, date, extra=extra)
+            n = repo.commit(message, user, date, extra=extra)
             if not n:
                 raise util.Abort(_('commit failed'))
             if not merge:
@@ -289,7 +298,7 @@ class transplanter:
 
             return n, node
         finally:
-            del wlock
+            wlock.release()
 
     def readseries(self):
         nodes = []
@@ -310,9 +319,7 @@ class transplanter:
         if not os.path.isdir(self.path):
             os.mkdir(self.path)
         series = self.opener('series', 'w')
-        revs = revmap.keys()
-        revs.sort()
-        for rev in revs:
+        for rev in sorted(revmap):
             series.write(revlog.hex(revmap[rev]) + '\n')
         if merges:
             series.write('# Merges\n')
@@ -382,7 +389,7 @@ class transplanter:
 def hasnode(repo, node):
     try:
         return repo.changelog.rev(node) != None
-    except revlog.RevlogError:
+    except error.RevlogError:
         return False
 
 def browserevs(ui, repo, nodes, opts):
@@ -400,7 +407,7 @@ def browserevs(ui, repo, nodes, opts):
     transplants = []
     merges = []
     for node in nodes:
-        displayer.show(changenode=node)
+        displayer.show(repo[node])
         action = None
         while not action:
             action = ui.prompt(_('apply changeset? [ynmpcq?]:'))
@@ -409,7 +416,8 @@ def browserevs(ui, repo, nodes, opts):
                 action = None
             elif action == 'p':
                 parent = repo.changelog.parents(node)[0]
-                patch.diff(repo, parent, node)
+                for chunk in patch.diff(repo, parent, node):
+                    ui.write(chunk)
                 action = None
             elif action not in ('y', 'n', 'm', 'c', 'q'):
                 ui.write('no such option\n')
@@ -436,47 +444,45 @@ def transplant(ui, repo, *revs, **opts):
     (transplanted from CHANGESETHASH)
 
     You can rewrite the changelog message with the --filter option.
-    Its argument will be invoked with the current changelog message
-    as $1 and the patch as $2.
+    Its argument will be invoked with the current changelog message as
+    $1 and the patch as $2.
 
-    If --source is specified, selects changesets from the named
-    repository. If --branch is specified, selects changesets from the
-    branch holding the named revision, up to that revision. If --all
-    is specified, all changesets on the branch will be transplanted,
-    otherwise you will be prompted to select the changesets you want.
+    If --source/-s is specified, selects changesets from the named
+    repository. If --branch/-b is specified, selects changesets from
+    the branch holding the named revision, up to that revision. If
+    --all/-a is specified, all changesets on the branch will be
+    transplanted, otherwise you will be prompted to select the
+    changesets you want.
 
-    hg transplant --branch REVISION --all will rebase the selected branch
-    (up to the named revision) onto your current working directory.
+    hg transplant --branch REVISION --all will rebase the selected
+    branch (up to the named revision) onto your current working
+    directory.
 
-    You can optionally mark selected transplanted changesets as
-    merge changesets. You will not be prompted to transplant any
-    ancestors of a merged transplant, and you can merge descendants
-    of them normally instead of transplanting them.
+    You can optionally mark selected transplanted changesets as merge
+    changesets. You will not be prompted to transplant any ancestors
+    of a merged transplant, and you can merge descendants of them
+    normally instead of transplanting them.
 
     If no merges or revisions are provided, hg transplant will start
     an interactive changeset browser.
 
-    If a changeset application fails, you can fix the merge by hand and
-    then resume where you left off by calling hg transplant --continue.
+    If a changeset application fails, you can fix the merge by hand
+    and then resume where you left off by calling hg transplant
+    --continue/-c.
     '''
-    def getoneitem(opts, item, errmsg):
-        val = opts.get(item)
-        if val:
-            if len(val) > 1:
-                raise util.Abort(errmsg)
-            else:
-                return val[0]
-
     def getremotechanges(repo, url):
         sourcerepo = ui.expandpath(url)
         source = hg.repository(ui, sourcerepo)
-        incoming = repo.findincoming(source, force=True)
+        common, incoming, rheads = repo.findcommonincoming(source, force=True)
         if not incoming:
             return (source, None, None)
 
         bundle = None
         if not source.local():
-            cg = source.changegroup(incoming, 'incoming')
+            if source.capable('changegroupsubset'):
+                cg = source.changegroupsubset(incoming, rheads, 'incoming')
+            else:
+                cg = source.changegroup(incoming, 'incoming')
             bundle = changegroup.writebundle(cg, None, 'HG10UN')
             source = bundlerepo.bundlerepository(ui, repo.root, bundle)
 
@@ -502,16 +508,19 @@ def transplant(ui, repo, *revs, **opts):
     def checkopts(opts, revs):
         if opts.get('continue'):
             if filter(lambda opt: opts.get(opt), ('branch', 'all', 'merge')):
-                raise util.Abort(_('--continue is incompatible with branch, all or merge'))
+                raise util.Abort(_('--continue is incompatible with '
+                                   'branch, all or merge'))
             return
         if not (opts.get('source') or revs or
                 opts.get('merge') or opts.get('branch')):
-            raise util.Abort(_('no source URL, branch tag or revision list provided'))
+            raise util.Abort(_('no source URL, branch tag or revision '
+                               'list provided'))
         if opts.get('all'):
             if not opts.get('branch'):
                 raise util.Abort(_('--all requires a branch revision'))
             if revs:
-                raise util.Abort(_('--all is incompatible with a revision list'))
+                raise util.Abort(_('--all is incompatible with a '
+                                   'revision list'))
 
     checkopts(opts, revs)
 
@@ -523,7 +532,7 @@ def transplant(ui, repo, *revs, **opts):
     tp = transplanter(ui, repo)
 
     p1, p2 = repo.dirstate.parents()
-    if p1 == revlog.nullid:
+    if len(repo) > 0 and p1 == revlog.nullid:
         raise util.Abort(_('no revision checked out'))
     if not opts.get('continue'):
         if p2 != revlog.nullid:
@@ -559,9 +568,11 @@ def transplant(ui, repo, *revs, **opts):
                 revmap[int(r)] = source.lookup(r)
         elif opts.get('all') or not merges:
             if source != repo:
-                alltransplants = incwalk(source, incoming, branches, match=matchfn)
+                alltransplants = incwalk(source, incoming, branches,
+                                         match=matchfn)
             else:
-                alltransplants = transplantwalk(source, p1, branches, match=matchfn)
+                alltransplants = transplantwalk(source, p1, branches,
+                                                match=matchfn)
             if opts.get('all'):
                 revs = alltransplants
             else:
@@ -571,10 +582,6 @@ def transplant(ui, repo, *revs, **opts):
                 revmap[source.changelog.rev(r)] = r
         for r in merges:
             revmap[source.changelog.rev(r)] = r
-
-        revs = revmap.keys()
-        revs.sort()
-        pulls = []
 
         tp.apply(repo, source, revmap, merges, opts)
     finally:
@@ -591,7 +598,9 @@ cmdtable = {
           ('p', 'prune', [], _('skip over REV')),
           ('m', 'merge', [], _('merge at REV')),
           ('', 'log', None, _('append transplant info to log message')),
-          ('c', 'continue', None, _('continue last transplant session after repair')),
+          ('c', 'continue', None, _('continue last transplant session '
+                                    'after repair')),
           ('', 'filter', '', _('filter changesets through FILTER'))],
-         _('hg transplant [-s REPOSITORY] [-b BRANCH [-a]] [-p REV] [-m REV] [REV]...'))
+         _('hg transplant [-s REPOSITORY] [-b BRANCH [-a]] [-p REV] '
+           '[-m REV] [REV]...'))
 }

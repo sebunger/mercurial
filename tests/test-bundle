@@ -34,6 +34,7 @@ hg init empty
 
 echo "====== Bundle --all"
 hg -R test bundle --all all.hg
+
 echo "====== Bundle test to full.hg"
 hg -R test bundle full.hg empty
 echo "====== Unbundle full.hg in test"
@@ -102,7 +103,7 @@ hg clone full.hg full-clone
 hg -R full-clone heads
 rm -r full-clone
 
-# test for http://www.selenic.com/mercurial/bts/issue216
+# test for http://mercurial.selenic.com/bts/issue216
 echo "====== Unbundle incremental bundles into fresh empty in one go"
 rm -r empty
 hg init empty
@@ -116,16 +117,33 @@ hg init orig
 cd orig
 echo foo > foo
 hg add foo
-hg ci -m 'add foo' -d '0 0'
+hg ci -m 'add foo'
 
 hg clone . ../copy
-hg tag -d '0 0' foo
+hg tag foo
 
 cd ../copy
 echo >> foo
-hg ci -m 'change foo' -d '0 0'
+hg ci -m 'change foo'
 hg bundle ../bundle.hg ../orig
 
 cd ../orig
 hg incoming ../bundle.hg
 cd ..
+
+# test for http://mercurial.selenic.com/bts/issue1144
+echo "===== test that verify bundle does not traceback"
+# partial history bundle, fails w/ unkown parent
+hg -R bundle.hg verify
+# full history bundle, refuses to verify non-local repo
+hg -R all.hg verify
+# but, regular verify must continue to work
+hg -R orig verify
+
+echo "====== diff against bundle"
+hg init b
+cd b
+hg -R ../all.hg diff -r tip
+cd ..
+
+

@@ -17,47 +17,15 @@ set -e
 # for details, see http://www.debian.org/doc/debian-policy/ or
 # the debian-policy package
 
-check_ext() {
-    local file
-    local ext
-    local dep
-    local enable
-    file="$1"
-    ext="$2"
-    dep="$3"
-    enable="true"
-
-    case "$dep" in
-    wish)
-	which wish > /dev/null || enable=false
-	reason="no 'wish' script found [can be found in 'tk8.4' package]"
-	;;
-    python-*)
-        test -d /usr/share/doc/$dep || enable=false
-	reason="package '$dep' is not installed"
-	;;
-    inotify)
-        # etch does not build the inotify extension due to a too old libc
-    	if test "$(ls /usr/lib/python-support/mercurial/python*/hgext/inotify 2>/dev/null | wc -l)" = 0; then
-	    enable=false
-	    reason="not built probably due to a lack of support (old libc, ...)"
-	fi
-	;;
-    *)
-    	echo "Internal error"
-	exit 1
-	;;
-    esac
-    if [ "$enable" = true ]; then
-	echo "Enabling $ext extension"
-    	sed -i -e "s/^# *\(hgext[.]$ext *=\)/\1/" "$file"
-    else
-	echo "Disabling $ext extension ($reason)"
-    fi
-}
-
 case "$1" in
     configure)
+        # Link mercurial doc directory if dpkg didn't do it
+        DOC=/usr/share/doc/mercurial
+        if [ -d "$DOC" -a ! -L "$DOC" ]; then
+            if rmdir "$DOC"; then
+                ln -s mercurial-common "$DOC"
+            fi
+        fi
         # Fix for old packages not managing pyc files
         for d in /usr/lib/python*/site-packages/mercurial /usr/lib/python*/site-packages/hgext ; do
 	    if [ -d "$d" ] ; then
@@ -67,23 +35,14 @@ case "$1" in
 	done
 
 	for conffile in hgext.rc; do
-	  # Tell ucf that the file in /usr/share/mercurial is the latest
-	  # maintainer version (but we rewrite it to enable extension based
-	  # on guess on whether other packages are here or not), and let it
-	  # handle how to manage the real configuration file in
+	  # Tell ucf that the file in /usr/share/mercurial is the latest maintainer
+	  # version, and let it handle how to manage the real configuration file in
 	  # /etc/mercurial/hgrc.d.
-	  TMPFILE=`mktemp`
-	  chmod 644 "$TMPFILE"
-	  cp /usr/share/mercurial/$conffile "$TMPFILE"
-	  check_ext "$TMPFILE" hgk wish
-	  check_ext "$TMPFILE" highlight python-pygments
-	  check_ext "$TMPFILE" inotify inotify
 	  ucf --sum-file /usr/share/mercurial/$conffile.md5sums --three-way \
-		"$TMPFILE" /etc/mercurial/hgrc.d/$conffile
+		/usr/share/mercurial/$conffile /etc/mercurial/hgrc.d/$conffile
 	  # Fix wrong registration until 1.0.1-2 included
 	  ucfr --purge mercurial /etc/hgrc.d/$conffile
 	  ucfr mercurial /etc/mercurial/hgrc.d/$conffile
-	  rm -f "$TMPFILE"
 	done
 
     ;;

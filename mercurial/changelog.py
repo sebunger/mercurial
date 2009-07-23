@@ -2,12 +2,12 @@
 #
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from node import bin, hex, nullid
-from revlog import revlog
-import util
+from i18n import _
+import util, error, revlog, encoding
 
 def _string_escape(text):
     """
@@ -23,8 +23,21 @@ def _string_escape(text):
     text = text.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r')
     return text.replace('\0', '\\0')
 
-class appender:
-    '''the changelog index must be update last on disk, so we use this class
+def decodeextra(text):
+    extra = {}
+    for l in text.split('\0'):
+        if l:
+            k, v = l.decode('string_escape').split(':', 1)
+            extra[k] = v
+    return extra
+
+def encodeextra(d):
+    # keys must be sorted to produce a deterministic changelog entry
+    items = [_string_escape('%s:%s' % (k, d[k])) for k in sorted(d)]
+    return "\0".join(items)
+
+class appender(object):
+    '''the changelog index must be updated last on disk, so we use this class
     to delay writes to it'''
     def __init__(self, fp, buf):
         self.data = buf
@@ -74,21 +87,22 @@ class appender:
         self.data.append(str(s))
         self.offset += len(s)
 
-class changelog(revlog):
+class changelog(revlog.revlog):
     def __init__(self, opener):
-        revlog.__init__(self, opener, "00changelog.i")
+        self._realopener = opener
+        self._delayed = False
+        revlog.revlog.__init__(self, self._delayopener, "00changelog.i")
 
     def delayupdate(self):
         "delay visibility of index updates to other readers"
-        self._realopener = self.opener
-        self.opener = self._delayopener
-        self._delaycount = self.count()
+        self._delayed = True
+        self._delaycount = len(self)
         self._delaybuf = []
         self._delayname = None
 
     def finalize(self, tr):
         "finalize index updates"
-        self.opener = self._realopener
+        self._delayed = False
         # move redirected index data back into place
         if self._delayname:
             util.rename(self._delayname + ".a", self._delayname)
@@ -96,44 +110,54 @@ class changelog(revlog):
             fp = self.opener(self.indexfile, 'a')
             fp.write("".join(self._delaybuf))
             fp.close()
-            del self._delaybuf
+            self._delaybuf = []
         # split when we're done
         self.checkinlinesize(tr)
 
     def _delayopener(self, name, mode='r'):
         fp = self._realopener(name, mode)
         # only divert the index
-        if not name == self.indexfile:
+        if not self._delayed or not name == self.indexfile:
             return fp
         # if we're doing an initial clone, divert to another file
         if self._delaycount == 0:
             self._delayname = fp.name
-            if not self.count():
+            if not len(self):
                 # make sure to truncate the file
                 mode = mode.replace('a', 'w')
             return self._realopener(name + ".a", mode)
         # otherwise, divert to memory
         return appender(fp, self._delaybuf)
 
+    def readpending(self, file):
+        r = revlog.revlog(self.opener, file)
+        self.index = r.index
+        self.nodemap = r.nodemap
+        self._chunkcache = r._chunkcache
+
+    def writepending(self):
+        "create a file containing the unfinalized state for pretxnchangegroup"
+        if self._delaybuf:
+            # make a temporary copy of the index
+            fp1 = self._realopener(self.indexfile)
+            fp2 = self._realopener(self.indexfile + ".a", "w")
+            fp2.write(fp1.read())
+            # add pending data
+            fp2.write("".join(self._delaybuf))
+            fp2.close()
+            # switch modes so finalize can simply rename
+            self._delaybuf = []
+            self._delayname = fp1.name
+
+        if self._delayname:
+            return True
+
+        return False
+
     def checkinlinesize(self, tr, fp=None):
         if self.opener == self._delayopener:
             return
-        return revlog.checkinlinesize(self, tr, fp)
-
-    def decode_extra(self, text):
-        extra = {}
-        for l in text.split('\0'):
-            if l:
-                k, v = l.decode('string_escape').split(':', 1)
-                extra[k] = v
-        return extra
-
-    def encode_extra(self, d):
-        # keys must be sorted to produce a deterministic changelog entry
-        keys = d.keys()
-        keys.sort()
-        items = [_string_escape('%s:%s' % (k, d[k])) for k in keys]
-        return "\0".join(items)
+        return revlog.revlog.checkinlinesize(self, tr, fp)
 
     def read(self, node):
         """
@@ -152,10 +176,10 @@ class changelog(revlog):
         if not text:
             return (nullid, "", (0, 0), [], "", {'branch': 'default'})
         last = text.index("\n\n")
-        desc = util.tolocal(text[last + 2:])
+        desc = encoding.tolocal(text[last + 2:])
         l = text[:last].split('\n')
         manifest = bin(l[0])
-        user = util.tolocal(l[1])
+        user = encoding.tolocal(l[1])
 
         extra_data = l[2].split(' ', 2)
         if len(extra_data) != 3:
@@ -169,16 +193,28 @@ class changelog(revlog):
         else:
             time, timezone, extra = extra_data
             time, timezone = float(time), int(timezone)
-            extra = self.decode_extra(extra)
+            extra = decodeextra(extra)
         if not extra.get('branch'):
             extra['branch'] = 'default'
         files = l[3:]
         return (manifest, user, (time, timezone), files, desc, extra)
 
-    def add(self, manifest, list, desc, transaction, p1=None, p2=None,
-                  user=None, date=None, extra={}):
+    def add(self, manifest, files, desc, transaction, p1, p2,
+                  user, date=None, extra={}):
+        user = user.strip()
+        # An empty username or a username with a "\n" will make the
+        # revision text contain two "\n\n" sequences -> corrupt
+        # repository since read cannot unpack the revision.
+        if not user:
+            raise error.RevlogError(_("empty username"))
+        if "\n" in user:
+            raise error.RevlogError(_("username %s contains a newline")
+                                    % repr(user))
 
-        user, desc = util.fromlocal(user), util.fromlocal(desc)
+        # strip trailing whitespace and leading and trailing empty lines
+        desc = '\n'.join([l.rstrip() for l in desc.splitlines()]).strip('\n')
+
+        user, desc = encoding.fromlocal(user), encoding.fromlocal(desc)
 
         if date:
             parseddate = "%d %d" % util.parsedate(date)
@@ -187,9 +223,8 @@ class changelog(revlog):
         if extra and extra.get("branch") in ("default", ""):
             del extra["branch"]
         if extra:
-            extra = self.encode_extra(extra)
+            extra = encodeextra(extra)
             parseddate = "%s %s" % (parseddate, extra)
-        list.sort()
-        l = [hex(manifest), user, parseddate] + list + ["", desc]
+        l = [hex(manifest), user, parseddate] + sorted(files) + ["", desc]
         text = "\n".join(l)
-        return self.addrevision(text, transaction, self.count(), p1, p2)
+        return self.addrevision(text, transaction, len(self), p1, p2)

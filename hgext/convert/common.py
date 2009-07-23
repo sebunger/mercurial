@@ -1,4 +1,10 @@
-# common code for the convert extension
+# common.py - common code for the convert extension
+#
+#  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
+#
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
 import base64, errno
 import os
 import cPickle as pickle
@@ -32,7 +38,7 @@ SKIPREV = 'SKIP'
 
 class commit(object):
     def __init__(self, author, date, desc, parents, branch=None, rev=None,
-                 extra={}):
+                 extra={}, sortkey=None):
         self.author = author or 'unknown'
         self.date = date or '0 0'
         self.desc = desc
@@ -40,6 +46,7 @@ class commit(object):
         self.branch = branch
         self.rev = rev
         self.extra = extra
+        self.sortkey = sortkey
 
 class converter_source(object):
     """Conversion source interface"""
@@ -68,17 +75,24 @@ class converter_source(object):
         raise NotImplementedError()
 
     def getfile(self, name, rev):
-        """Return file contents as a string"""
+        """Return file contents as a string. rev is the identifier returned
+        by a previous call to getchanges(). Raise IOError to indicate that
+        name was deleted in rev.
+        """
         raise NotImplementedError()
 
     def getmode(self, name, rev):
-        """Return file mode, eg. '', 'x', or 'l'"""
+        """Return file mode, eg. '', 'x', or 'l'. rev is the identifier
+        returned by a previous call to getchanges().
+        """
         raise NotImplementedError()
 
     def getchanges(self, version):
-        """Returns a tuple of (files, copies)
-        Files is a sorted list of (filename, id) tuples for all files changed
-        in version, where id is the source revision id of the file.
+        """Returns a tuple of (files, copies).
+
+        files is a sorted list of (filename, id) tuples for all files
+        changed between version and its first parent returned by
+        getcommit(). id is the source revision id of the file.
 
         copies is a dictionary of dest: source
         """
@@ -89,7 +103,10 @@ class converter_source(object):
         raise NotImplementedError()
 
     def gettags(self):
-        """Return the tags as a dictionary of name: revision"""
+        """Return the tags as a dictionary of name: revision
+
+        Tag names must be UTF-8 strings.
+        """
         raise NotImplementedError()
 
     def recode(self, s, encoding=None):
@@ -123,6 +140,19 @@ class converter_source(object):
         '''Notify the source that a revision has been converted.'''
         pass
 
+    def hasnativeorder(self):
+        """Return true if this source has a meaningful, native revision
+        order. For instance, Mercurial revisions are store sequentially
+        while there is no such global ordering with Darcs.
+        """
+        return False
+
+    def lookuprev(self, rev):
+        """If rev is a meaningful revision reference in source, return
+        the referenced identifier in the same format used by getcommit().
+        return None otherwise.
+        """
+        return None
 
 class converter_sink(object):
     """Conversion sink (target) interface"""
@@ -153,35 +183,31 @@ class converter_sink(object):
         mapping equivalent authors identifiers for each system."""
         return None
 
-    def putfile(self, f, e, data):
-        """Put file for next putcommit().
-        f: path to file
-        e: '', 'x', or 'l' (regular file, executable, or symlink)
-        data: file contents"""
-        raise NotImplementedError()
-
-    def delfile(self, f):
-        """Delete file for next putcommit().
-        f: path to file"""
-        raise NotImplementedError()
-
-    def putcommit(self, files, parents, commit):
+    def putcommit(self, files, copies, parents, commit, source, revmap):
         """Create a revision with all changed files listed in 'files'
-        and having listed parents. 'commit' is a commit object containing
-        at a minimum the author, date, and message for this changeset.
-        Called after putfile() and delfile() calls. Note that the sink
-        repository is not told to update itself to a particular revision
-        (or even what that revision would be) before it receives the
-        file data."""
+        and having listed parents. 'commit' is a commit object
+        containing at a minimum the author, date, and message for this
+        changeset.  'files' is a list of (path, version) tuples,
+        'copies' is a dictionary mapping destinations to sources,
+        'source' is the source repository, and 'revmap' is a mapfile
+        of source revisions to converted revisions. Only getfile(),
+        getmode(), and lookuprev() should be called on 'source'.
+
+        Note that the sink repository is not told to update itself to
+        a particular revision (or even what that revision would be)
+        before it receives the file data.
+        """
         raise NotImplementedError()
 
     def puttags(self, tags):
         """Put tags into sink.
-        tags: {tagname: sink_rev_id, ...}"""
+
+        tags: {tagname: sink_rev_id, ...} where tagname is an UTF-8 string.
+        """
         raise NotImplementedError()
 
     def setbranch(self, branch, pbranches):
-        """Set the current branch name. Called before the first putfile
+        """Set the current branch name. Called before the first putcommit
         on the branch.
         branch: branch name for subsequent commits
         pbranches: (converted parent revision, parent branch) tuples"""
@@ -230,13 +256,15 @@ class commandline(object):
             except TypeError:
                 pass
         cmdline = [util.shellquote(arg) for arg in cmdline]
-        cmdline += ['2>', util.nulldev, '<', util.nulldev]
+        if not self.ui.debugflag:
+            cmdline += ['2>', util.nulldev]
+        cmdline += ['<', util.nulldev]
         cmdline = ' '.join(cmdline)
-        self.ui.debug(cmdline, '\n')
         return cmdline
 
     def _run(self, cmd, *args, **kwargs):
         cmdline = self._cmdline(cmd, *args, **kwargs)
+        self.ui.debug(_('running: %s\n') % (cmdline,))
         self.prerun()
         try:
             return util.popen(cmdline)
@@ -261,7 +289,7 @@ class commandline(object):
                 self.ui.warn(_('%s error:\n') % self.command)
                 self.ui.warn(output)
             msg = util.explain_exit(status)[0]
-            raise util.Abort(_('%s %s') % (self.command, msg))
+            raise util.Abort('%s %s' % (self.command, msg))
 
     def run0(self, cmd, *args, **kwargs):
         output, status = self.run(cmd, *args, **kwargs)
@@ -325,7 +353,7 @@ class mapfile(dict):
         self._read()
 
     def _read(self):
-        if self.path is None:
+        if not self.path:
             return
         try:
             fp = open(self.path, 'r')
@@ -333,8 +361,12 @@ class mapfile(dict):
             if err.errno != errno.ENOENT:
                 raise
             return
-        for line in fp:
-            key, value = line[:-1].split(' ', 1)
+        for i, line in enumerate(fp):
+            try:
+                key, value = line[:-1].rsplit(' ', 1)
+            except ValueError:
+                raise util.Abort(_('syntax error in %s(%d): key/value pair expected')
+                                 % (self.path, i+1))
             if key not in self:
                 self.order.append(key)
             super(mapfile, self).__setitem__(key, value)

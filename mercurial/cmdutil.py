@@ -2,22 +2,18 @@
 #
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from node import hex, nullid, nullrev, short
 from i18n import _
-import os, sys, bisect, stat
-import mdiff, bdiff, util, templater, templatefilters, patch, errno
+import os, sys, errno, re, glob
+import mdiff, bdiff, util, templater, patch, error, encoding
+import match as _match
 
 revrangesep = ':'
 
-class UnknownCommand(Exception):
-    """Exception raised if command is not in the command table."""
-class AmbiguousCommand(Exception):
-    """Exception raised if command shortcut matches more than one command."""
-
-def findpossible(ui, cmd, table):
+def findpossible(cmd, table, strict=False):
     """
     Return cmd -> (aliases, command table entry)
     for each matching command.
@@ -30,7 +26,7 @@ def findpossible(ui, cmd, table):
         found = None
         if cmd in aliases:
             found = cmd
-        elif not ui.config("ui", "strict"):
+        elif not strict:
             for a in aliases:
                 if a.startswith(cmd):
                     found = a
@@ -46,9 +42,9 @@ def findpossible(ui, cmd, table):
 
     return choice
 
-def findcmd(ui, cmd, table):
+def findcmd(cmd, table, strict=True):
     """Return (aliases, command table entry) for command string."""
-    choice = findpossible(ui, cmd, table)
+    choice = findpossible(cmd, table, strict)
 
     if cmd in choice:
         return choice[cmd]
@@ -56,12 +52,12 @@ def findcmd(ui, cmd, table):
     if len(choice) > 1:
         clist = choice.keys()
         clist.sort()
-        raise AmbiguousCommand(cmd, clist)
+        raise error.AmbiguousCommand(cmd, clist)
 
     if choice:
         return choice.values()[0]
 
-    raise UnknownCommand(cmd)
+    raise error.UnknownCommand(cmd)
 
 def bail_if_changed(repo):
     if repo.dirstate.parents()[1] != nullid:
@@ -72,8 +68,8 @@ def bail_if_changed(repo):
 
 def logmessage(opts):
     """ get the log message according to -m and -l option """
-    message = opts['message']
-    logfile = opts['logfile']
+    message = opts.get('message')
+    logfile = opts.get('logfile')
 
     if message and logfile:
         raise util.Abort(_('options --message and --logfile are mutually '
@@ -102,12 +98,25 @@ def loglimit(opts):
         limit = sys.maxint
     return limit
 
-def setremoteconfig(ui, opts):
-    "copy remote options to ui tree"
-    if opts.get('ssh'):
-        ui.setconfig("ui", "ssh", opts['ssh'])
-    if opts.get('remotecmd'):
-        ui.setconfig("ui", "remotecmd", opts['remotecmd'])
+def remoteui(src, opts):
+    'build a remote ui from ui or repo and opts'
+    if hasattr(src, 'baseui'): # looks like a repository
+        dst = src.baseui.copy() # drop repo-specific config
+        src = src.ui # copy target options from repo
+    else: # assume it's a global ui object
+        dst = src.copy() # keep all global options
+
+    # copy ssh-specific options
+    for o in 'ssh', 'remotecmd':
+        v = opts.get(o) or src.config('ui', o)
+        if v:
+            dst.setconfig("ui", o, v)
+    # copy bundle-specific options
+    r = src.config('bundle', 'mainreporoot')
+    if r:
+        dst.setconfig('bundle', 'mainreporoot', r)
+
+    return dst
 
 def revpair(repo, revs):
     '''return pair of nodes, given list of revisions. second item can
@@ -125,7 +134,7 @@ def revpair(repo, revs):
         if revrangesep in revs[0]:
             start, end = revs[0].split(revrangesep, 1)
             start = revfix(repo, start, 0)
-            end = revfix(repo, end, repo.changelog.count() - 1)
+            end = revfix(repo, end, len(repo) - 1)
         else:
             start = revfix(repo, revs[0], None)
     elif len(revs) == 2:
@@ -145,23 +154,23 @@ def revrange(repo, revs):
             return defval
         return repo.changelog.rev(repo.lookup(val))
 
-    seen, l = {}, []
+    seen, l = set(), []
     for spec in revs:
         if revrangesep in spec:
             start, end = spec.split(revrangesep, 1)
             start = revfix(repo, start, 0)
-            end = revfix(repo, end, repo.changelog.count() - 1)
+            end = revfix(repo, end, len(repo) - 1)
             step = start > end and -1 or 1
             for rev in xrange(start, end+step, step):
                 if rev in seen:
                     continue
-                seen[rev] = 1
+                seen.add(rev)
                 l.append(rev)
         else:
             rev = revfix(repo, spec, None)
             if rev in seen:
                 continue
-            seen[rev] = 1
+            seen.add(rev)
             l.append(rev)
 
     return l
@@ -208,14 +217,17 @@ def make_filename(repo, pat, node,
             i += 1
         return ''.join(newname)
     except KeyError, inst:
-        raise util.Abort(_("invalid format spec '%%%s' in output file name") %
+        raise util.Abort(_("invalid format spec '%%%s' in output filename") %
                          inst.args[0])
 
 def make_file(repo, pat, node=None,
               total=None, seqno=None, revwidth=None, mode='wb', pathname=None):
+
+    writable = 'w' in mode or 'a' in mode
+
     if not pat or pat == '-':
-        return 'w' in mode and sys.stdout or sys.stdin
-    if hasattr(pat, 'write') and 'w' in mode:
+        return writable and sys.stdout or sys.stdin
+    if hasattr(pat, 'write') and writable:
         return pat
     if hasattr(pat, 'read') and 'r' in mode:
         return pat
@@ -223,31 +235,48 @@ def make_file(repo, pat, node=None,
                               pathname),
                 mode)
 
-def matchpats(repo, pats=[], opts={}, globbed=False, default=None):
-    cwd = repo.getcwd()
-    return util.cmdmatcher(repo.root, cwd, pats or [], opts.get('include'),
-                           opts.get('exclude'), globbed=globbed,
-                           default=default)
+def expandpats(pats):
+    if not util.expandglobs:
+        return list(pats)
+    ret = []
+    for p in pats:
+        kind, name = _match._patsplit(p, None)
+        if kind is None:
+            try:
+                globbed = glob.glob(name)
+            except re.error:
+                globbed = [name]
+            if globbed:
+                ret.extend(globbed)
+                continue
+        ret.append(p)
+    return ret
 
-def walk(repo, pats=[], opts={}, node=None, badmatch=None, globbed=False,
-         default=None):
-    files, matchfn, anypats = matchpats(repo, pats, opts, globbed=globbed,
-                                        default=default)
-    exact = dict.fromkeys(files)
-    cwd = repo.getcwd()
-    for src, fn in repo.walk(node=node, files=files, match=matchfn,
-                             badmatch=badmatch):
-        yield src, fn, repo.pathto(fn, cwd), fn in exact
+def match(repo, pats=[], opts={}, globbed=False, default='relpath'):
+    if not globbed and default == 'relpath':
+        pats = expandpats(pats or [])
+    m = _match.match(repo.root, repo.getcwd(), pats,
+                    opts.get('include'), opts.get('exclude'), default)
+    def badfn(f, msg):
+        repo.ui.warn("%s: %s\n" % (m.rel(f), msg))
+    m.bad = badfn
+    return m
 
-def findrenames(repo, added=None, removed=None, threshold=0.5):
+def matchall(repo):
+    return _match.always(repo.root, repo.getcwd())
+
+def matchfiles(repo, files):
+    return _match.exact(repo.root, repo.getcwd(), files)
+
+def findrenames(repo, added, removed, threshold):
     '''find renamed files -- yields (before, after, score) tuples'''
-    if added is None or removed is None:
-        added, removed = repo.status()[1:3]
-    ctx = repo.changectx()
+    ctx = repo['.']
     for a in added:
         aa = repo.wread(a)
         bestname, bestscore = None, threshold
         for r in removed:
+            if r not in ctx:
+                continue
             rr = ctx.filectx(r).data()
 
             # bdiff.blocks() returns blocks of matching lines
@@ -272,32 +301,43 @@ def addremove(repo, pats=[], opts={}, dry_run=None, similarity=None):
         dry_run = opts.get('dry_run')
     if similarity is None:
         similarity = float(opts.get('similarity') or 0)
-    add, remove = [], []
-    mapping = {}
-    for src, abs, rel, exact in walk(repo, pats, opts):
+    # we'd use status here, except handling of symlinks and ignore is tricky
+    added, unknown, deleted, removed = [], [], [], []
+    audit_path = util.path_auditor(repo.root)
+    m = match(repo, pats, opts)
+    for abs in repo.walk(m):
         target = repo.wjoin(abs)
-        if src == 'f' and abs not in repo.dirstate:
-            add.append(abs)
-            mapping[abs] = rel, exact
+        good = True
+        try:
+            audit_path(abs)
+        except:
+            good = False
+        rel = m.rel(abs)
+        exact = m.exact(abs)
+        if good and abs not in repo.dirstate:
+            unknown.append(abs)
             if repo.ui.verbose or not exact:
                 repo.ui.status(_('adding %s\n') % ((pats and rel) or abs))
-        if repo.dirstate[abs] != 'r' and (not util.lexists(target)
+        elif repo.dirstate[abs] != 'r' and (not good or not util.lexists(target)
             or (os.path.isdir(target) and not os.path.islink(target))):
-            remove.append(abs)
-            mapping[abs] = rel, exact
+            deleted.append(abs)
             if repo.ui.verbose or not exact:
                 repo.ui.status(_('removing %s\n') % ((pats and rel) or abs))
+        # for finding renames
+        elif repo.dirstate[abs] == 'r':
+            removed.append(abs)
+        elif repo.dirstate[abs] == 'a':
+            added.append(abs)
     if not dry_run:
-        repo.remove(remove)
-        repo.add(add)
+        repo.remove(deleted)
+        repo.add(unknown)
     if similarity > 0:
-        for old, new, score in findrenames(repo, add, remove, similarity):
-            oldrel, oldexact = mapping[old]
-            newrel, newexact = mapping[new]
-            if repo.ui.verbose or not oldexact or not newexact:
+        for old, new, score in findrenames(repo, added + unknown,
+                                           removed + deleted, similarity):
+            if repo.ui.verbose or not m.exact(old) or not m.exact(new):
                 repo.ui.status(_('recording removal of %s as rename to %s '
                                  '(%d%% similar)\n') %
-                               (oldrel, newrel, score * 100))
+                               (m.rel(old), m.rel(new), score * 100))
             if not dry_run:
                 repo.copy(old, new)
 
@@ -313,8 +353,11 @@ def copy(ui, repo, pats, opts, rename=False):
 
     def walkpat(pat):
         srcs = []
-        for tag, abs, rel, exact in walk(repo, [pat], opts, globbed=True):
+        m = match(repo, [pat], opts, globbed=True)
+        for abs in repo.walk(m):
             state = repo.dirstate[abs]
+            rel = m.rel(abs)
+            exact = m.exact(abs)
             if state in '?r':
                 if exact and state == '?':
                     ui.warn(_('%s: not copying - file is not managed\n') % rel)
@@ -347,7 +390,7 @@ def copy(ui, repo, pats, opts, rename=False):
 
         # check for overwrites
         exists = os.path.exists(target)
-        if (not after and exists or after and state in 'mn'):
+        if not after and exists or after and state in 'mn':
             if not opts['force']:
                 ui.warn(_('%s: not overwriting - file exists\n') %
                         reltarget)
@@ -373,8 +416,10 @@ def copy(ui, repo, pats, opts, rename=False):
                     return True # report a failure
 
         if ui.verbose or not exact:
-            action = rename and "moving" or "copying"
-            ui.status(_('%s %s to %s\n') % (action, relsrc, reltarget))
+            if rename:
+                ui.status(_('moving %s to %s\n') % (relsrc, reltarget))
+            else:
+                ui.status(_('copying %s to %s\n') % (relsrc, reltarget))
 
         targets[abstarget] = abssrc
 
@@ -384,12 +429,12 @@ def copy(ui, repo, pats, opts, rename=False):
             if state not in 'mn' and not dryrun:
                 repo.dirstate.normallookup(abstarget)
         else:
-            if repo.dirstate[origsrc] == 'a':
+            if repo.dirstate[origsrc] == 'a' and origsrc == abssrc:
                 if not ui.quiet:
                     ui.warn(_("%s has not been committed yet, so no copy "
                               "data will be stored for %s.\n")
                             % (repo.pathto(origsrc, cwd), reltarget))
-                if abstarget not in repo.dirstate and not dryrun:
+                if repo.dirstate[abstarget] in '?r' and not dryrun:
                     repo.add([abstarget])
             elif not dryrun:
                 repo.copy(origsrc, abstarget)
@@ -424,7 +469,7 @@ def copy(ui, repo, pats, opts, rename=False):
     # srcs: list of (hgsep, hgsep, ossep, bool)
     # return: function that takes hgsep and returns ossep
     def targetpathafterfn(pat, dest, srcs):
-        if util.patkind(pat, None)[0]:
+        if _match.patkind(pat):
             # a mercurial pattern
             res = lambda p: os.path.join(dest,
                                          os.path.basename(util.localpath(p)))
@@ -464,7 +509,7 @@ def copy(ui, repo, pats, opts, rename=False):
         return res
 
 
-    pats = util.expand_glob(pats)
+    pats = expandpats(pats)
     if not pats:
         raise util.Abort(_('no source or destination specified'))
     if len(pats) == 1:
@@ -472,7 +517,7 @@ def copy(ui, repo, pats, opts, rename=False):
     dest = pats.pop()
     destdirexists = os.path.isdir(dest) and not os.path.islink(dest)
     if not destdirexists:
-        if len(pats) > 1 or util.patkind(pats[0], None)[0]:
+        if len(pats) > 1 or _match.patkind(pats[0]):
             raise util.Abort(_('with multiple sources, destination must be an '
                                'existing directory'))
         if util.endswithsep(dest):
@@ -501,7 +546,7 @@ def copy(ui, repo, pats, opts, rename=False):
 
     return errors
 
-def service(opts, parentfn=None, initfn=None, runfn=None):
+def service(opts, parentfn=None, initfn=None, runfn=None, logfile=None):
     '''Run a command as a service.'''
 
     if opts['daemon'] and not opts['daemon_pipefds']:
@@ -545,11 +590,18 @@ def service(opts, parentfn=None, initfn=None, runfn=None):
         os.close(wfd)
         sys.stdout.flush()
         sys.stderr.flush()
-        fd = os.open(util.nulldev, os.O_RDWR)
-        if fd != 0: os.dup2(fd, 0)
-        if fd != 1: os.dup2(fd, 1)
-        if fd != 2: os.dup2(fd, 2)
-        if fd not in (0, 1, 2): os.close(fd)
+
+        nullfd = os.open(util.nulldev, os.O_RDWR)
+        logfilefd = nullfd
+        if logfile:
+            logfilefd = os.open(logfile, os.O_RDWR | os.O_CREAT | os.O_APPEND)
+        os.dup2(nullfd, 0)
+        os.dup2(logfilefd, 1)
+        os.dup2(logfilefd, 2)
+        if nullfd not in (0, 1, 2):
+            os.close(nullfd)
+        if logfile and logfilefd not in (0, 1, 2):
+            os.close(logfilefd)
 
     if runfn:
         return runfn()
@@ -557,11 +609,12 @@ def service(opts, parentfn=None, initfn=None, runfn=None):
 class changeset_printer(object):
     '''show changeset information when templating not requested.'''
 
-    def __init__(self, ui, repo, patch, buffered):
+    def __init__(self, ui, repo, patch, diffopts, buffered):
         self.ui = ui
         self.repo = repo
         self.buffered = buffered
         self.patch = patch
+        self.diffopts = diffopts
         self.header = {}
         self.hunk = {}
         self.lastheader = None
@@ -579,26 +632,24 @@ class changeset_printer(object):
             return 1
         return 0
 
-    def show(self, rev=0, changenode=None, copies=(), **props):
+    def show(self, ctx, copies=(), **props):
         if self.buffered:
             self.ui.pushbuffer()
-            self._show(rev, changenode, copies, props)
-            self.hunk[rev] = self.ui.popbuffer()
+            self._show(ctx, copies, props)
+            self.hunk[ctx.rev()] = self.ui.popbuffer()
         else:
-            self._show(rev, changenode, copies, props)
+            self._show(ctx, copies, props)
 
-    def _show(self, rev, changenode, copies, props):
+    def _show(self, ctx, copies, props):
         '''show a single changeset or file revision'''
-        log = self.repo.changelog
-        if changenode is None:
-            changenode = log.node(rev)
-        elif not rev:
-            rev = log.rev(changenode)
+        changenode = ctx.node()
+        rev = ctx.rev()
 
         if self.ui.quiet:
             self.ui.write("%d:%s\n" % (rev, short(changenode)))
             return
 
+        log = self.repo.changelog
         changes = log.read(changenode)
         date = util.datestr(changes[2])
         extra = changes[5]
@@ -613,7 +664,7 @@ class changeset_printer(object):
 
         # don't show the default branch name
         if branch != 'default':
-            branch = util.tolocal(branch)
+            branch = encoding.tolocal(branch)
             self.ui.write(_("branch:      %s\n") % branch)
         for tag in self.repo.nodetags(changenode):
             self.ui.write(_("tag:         %s\n") % tag)
@@ -639,9 +690,7 @@ class changeset_printer(object):
             self.ui.write(_("copies:      %s\n") % ' '.join(copies))
 
         if extra and self.ui.debugflag:
-            extraitems = extra.items()
-            extraitems.sort()
-            for key, value in extraitems:
+            for key, value in sorted(extra.items()):
                 self.ui.write(_("extra:       %s=%s\n")
                               % (key, value.encode('string_escape')))
 
@@ -661,8 +710,10 @@ class changeset_printer(object):
     def showpatch(self, node):
         if self.patch:
             prev = self.repo.changelog.parents(node)[0]
-            patch.diff(self.repo, prev, node, match=self.patch, fp=self.ui,
-                       opts=patch.diffopts(self.ui))
+            chunks = patch.diff(self.repo, prev, node, match=self.patch,
+                                opts=patch.diffopts(self.ui, self.diffopts))
+            for chunk in chunks:
+                self.ui.write(chunk)
             self.ui.write("\n")
 
     def _meaningful_parentrevs(self, log, rev):
@@ -684,12 +735,10 @@ class changeset_printer(object):
 class changeset_templater(changeset_printer):
     '''format changeset information.'''
 
-    def __init__(self, ui, repo, patch, mapfile, buffered):
-        changeset_printer.__init__(self, ui, repo, patch, buffered)
-        filters = templatefilters.filters.copy()
-        filters['formatnode'] = (ui.debugflag and (lambda x: x)
-                                 or (lambda x: x[:12]))
-        self.t = templater.templater(mapfile, filters,
+    def __init__(self, ui, repo, patch, diffopts, mapfile, buffered):
+        changeset_printer.__init__(self, ui, repo, patch, diffopts, buffered)
+        formatnode = ui.debugflag and (lambda x: x) or (lambda x: x[:12])
+        self.t = templater.templater(mapfile, {'formatnode': formatnode},
                                      cache={
                                          'parent': '{rev}:{node|formatnode} ',
                                          'manifest': '{rev}:{node|formatnode}',
@@ -699,15 +748,20 @@ class changeset_templater(changeset_printer):
         '''set template string to use'''
         self.t.cache['changeset'] = t
 
-    def _show(self, rev, changenode, copies, props):
-        '''show a single changeset or file revision'''
-        log = self.repo.changelog
-        if changenode is None:
-            changenode = log.node(rev)
-        elif not rev:
-            rev = log.rev(changenode)
+    def _meaningful_parentrevs(self, ctx):
+        """Return list of meaningful (or all if debug) parentrevs for rev.
+        """
+        parents = ctx.parents()
+        if len(parents) > 1:
+            return parents
+        if self.ui.debugflag:
+            return [parents[0], self.repo['null']]
+        if parents[0].rev() >= ctx.rev() - 1:
+            return []
+        return parents
 
-        changes = log.read(changenode)
+    def _show(self, ctx, copies, props):
+        '''show a single changeset or file revision'''
 
         def showlist(name, values, plural=None, **args):
             '''expand set of values.
@@ -771,23 +825,21 @@ class changeset_templater(changeset_printer):
                 yield self.t(endname, **args)
 
         def showbranches(**args):
-            branch = changes[5].get("branch")
+            branch = ctx.branch()
             if branch != 'default':
-                branch = util.tolocal(branch)
+                branch = encoding.tolocal(branch)
                 return showlist('branch', [branch], plural='branches', **args)
 
         def showparents(**args):
-            parents = [[('rev', p), ('node', hex(log.node(p)))]
-                       for p in self._meaningful_parentrevs(log, rev)]
+            parents = [[('rev', p.rev()), ('node', p.hex())]
+                       for p in self._meaningful_parentrevs(ctx)]
             return showlist('parent', parents, **args)
 
         def showtags(**args):
-            return showlist('tag', self.repo.nodetags(changenode), **args)
+            return showlist('tag', ctx.tags(), **args)
 
         def showextras(**args):
-            extras = changes[5].items()
-            extras.sort()
-            for key, value in extras:
+            for key, value in sorted(ctx.extra().items()):
                 args = args.copy()
                 args.update(dict(key=key, value=value))
                 yield self.t('extra', **args)
@@ -799,11 +851,11 @@ class changeset_templater(changeset_printer):
         files = []
         def getfiles():
             if not files:
-                files[:] = self.repo.status(
-                    log.parents(changenode)[0], changenode)[:3]
+                files[:] = self.repo.status(ctx.parents()[0].node(),
+                                            ctx.node())[:3]
             return files
         def showfiles(**args):
-            return showlist('file', changes[3], **args)
+            return showlist('file', ctx.files(), **args)
         def showmods(**args):
             return showlist('file_mod', getfiles()[0], **args)
         def showadds(**args):
@@ -812,60 +864,74 @@ class changeset_templater(changeset_printer):
             return showlist('file_del', getfiles()[2], **args)
         def showmanifest(**args):
             args = args.copy()
-            args.update(dict(rev=self.repo.manifest.rev(changes[0]),
-                             node=hex(changes[0])))
+            args.update(dict(rev=self.repo.manifest.rev(ctx.changeset()[0]),
+                             node=hex(ctx.changeset()[0])))
             return self.t('manifest', **args)
 
+        def showdiffstat(**args):
+            diff = patch.diff(self.repo, ctx.parents()[0].node(), ctx.node())
+            files, adds, removes = 0, 0, 0
+            for i in patch.diffstatdata(util.iterlines(diff)):
+                files += 1
+                adds += i[1]
+                removes += i[2]
+            return '%s: +%s/-%s' % (files, adds, removes)
+
         defprops = {
-            'author': changes[1],
+            'author': ctx.user(),
             'branches': showbranches,
-            'date': changes[2],
-            'desc': changes[4].strip(),
+            'date': ctx.date(),
+            'desc': ctx.description().strip(),
             'file_adds': showadds,
             'file_dels': showdels,
             'file_mods': showmods,
             'files': showfiles,
             'file_copies': showcopies,
             'manifest': showmanifest,
-            'node': hex(changenode),
+            'node': ctx.hex(),
             'parents': showparents,
-            'rev': rev,
+            'rev': ctx.rev(),
             'tags': showtags,
             'extras': showextras,
+            'diffstat': showdiffstat,
             }
         props = props.copy()
         props.update(defprops)
 
+        # find correct templates for current mode
+
+        tmplmodes = [
+            (True, None),
+            (self.ui.verbose, 'verbose'),
+            (self.ui.quiet, 'quiet'),
+            (self.ui.debugflag, 'debug'),
+        ]
+
+        types = {'header': '', 'changeset': 'changeset'}
+        for mode, postfix  in tmplmodes:
+            for type in types:
+                cur = postfix and ('%s_%s' % (type, postfix)) or type
+                if mode and cur in self.t:
+                    types[type] = cur
+
         try:
-            if self.ui.debugflag and 'header_debug' in self.t:
-                key = 'header_debug'
-            elif self.ui.quiet and 'header_quiet' in self.t:
-                key = 'header_quiet'
-            elif self.ui.verbose and 'header_verbose' in self.t:
-                key = 'header_verbose'
-            elif 'header' in self.t:
-                key = 'header'
-            else:
-                key = ''
-            if key:
-                h = templater.stringify(self.t(key, **props))
+
+            # write header
+            if types['header']:
+                h = templater.stringify(self.t(types['header'], **props))
                 if self.buffered:
-                    self.header[rev] = h
+                    self.header[ctx.rev()] = h
                 else:
                     self.ui.write(h)
-            if self.ui.debugflag and 'changeset_debug' in self.t:
-                key = 'changeset_debug'
-            elif self.ui.quiet and 'changeset_quiet' in self.t:
-                key = 'changeset_quiet'
-            elif self.ui.verbose and 'changeset_verbose' in self.t:
-                key = 'changeset_verbose'
-            else:
-                key = 'changeset'
+
+            # write changeset metadata, then patch if requested
+            key = types['changeset']
             self.ui.write(templater.stringify(self.t(key, **props)))
-            self.showpatch(changenode)
+            self.showpatch(ctx.node())
+
         except KeyError, inst:
-            raise util.Abort(_("%s: no key named '%s'") % (self.t.mapfile,
-                                                           inst.args[0]))
+            msg = _("%s: no key named '%s'")
+            raise util.Abort(msg % (self.t.mapfile, inst.args[0]))
         except SyntaxError, inst:
             raise util.Abort(_('%s: %s') % (self.t.mapfile, inst.args[0]))
 
@@ -883,40 +949,45 @@ def show_changeset(ui, repo, opts, buffered=False, matchfn=False):
     # options
     patch = False
     if opts.get('patch'):
-        patch = matchfn or util.always
+        patch = matchfn or matchall(repo)
 
     tmpl = opts.get('template')
-    mapfile = None
+    style = None
     if tmpl:
         tmpl = templater.parsestring(tmpl, quoted=False)
     else:
-        mapfile = opts.get('style')
-        # ui settings
-        if not mapfile:
-            tmpl = ui.config('ui', 'logtemplate')
-            if tmpl:
-                tmpl = templater.parsestring(tmpl)
-            else:
-                mapfile = ui.config('ui', 'style')
+        style = opts.get('style')
 
-    if tmpl or mapfile:
-        if mapfile:
-            if not os.path.split(mapfile)[0]:
-                mapname = (templater.templatepath('map-cmdline.' + mapfile)
-                           or templater.templatepath(mapfile))
-                if mapname: mapfile = mapname
-        try:
-            t = changeset_templater(ui, repo, patch, mapfile, buffered)
-        except SyntaxError, inst:
-            raise util.Abort(inst.args[0])
-        if tmpl: t.use_template(tmpl)
-        return t
-    return changeset_printer(ui, repo, patch, buffered)
+    # ui settings
+    if not (tmpl or style):
+        tmpl = ui.config('ui', 'logtemplate')
+        if tmpl:
+            tmpl = templater.parsestring(tmpl)
+        else:
+            style = ui.config('ui', 'style')
+
+    if not (tmpl or style):
+        return changeset_printer(ui, repo, patch, opts, buffered)
+
+    mapfile = None
+    if style and not tmpl:
+        mapfile = style
+        if not os.path.split(mapfile)[0]:
+            mapname = (templater.templatepath('map-cmdline.' + mapfile)
+                       or templater.templatepath(mapfile))
+            if mapname: mapfile = mapname
+
+    try:
+        t = changeset_templater(ui, repo, patch, opts, mapfile, buffered)
+    except SyntaxError, inst:
+        raise util.Abort(inst.args[0])
+    if tmpl: t.use_template(tmpl)
+    return t
 
 def finddate(ui, repo, date):
     """Find the tipmost changeset that matches the given date spec"""
     df = util.matchdate(date)
-    get = util.cachefunc(lambda r: repo.changectx(r).changeset())
+    get = util.cachefunc(lambda r: repo[r].changeset())
     changeiter, matchfn = walkchangerevs(ui, repo, [], get, {'rev':None})
     results = {}
     for st, rev, fns in changeiter:
@@ -926,17 +997,17 @@ def finddate(ui, repo, date):
                 results[rev] = d
         elif st == 'iter':
             if rev in results:
-                ui.status("Found revision %s from %s\n" %
+                ui.status(_("Found revision %s from %s\n") %
                           (rev, util.datestr(results[rev])))
                 return str(rev)
 
     raise util.Abort(_("revision matching date not found"))
 
 def walkchangerevs(ui, repo, pats, change, opts):
-    '''Iterate over files and the revs they changed in.
+    '''Iterate over files and the revs in which they changed.
 
     Callers most commonly need to iterate backwards over the history
-    it is interested in.  Doing so has awful (quadratic-looking)
+    in which they are interested. Doing so has awful (quadratic-looking)
     performance, so we use iterators in a "windowed" way.
 
     We walk a window of revisions in the desired order.  Within the
@@ -950,7 +1021,7 @@ def walkchangerevs(ui, repo, pats, change, opts):
     positive if walking forwards through revs, last rev in the
     sequence iterated over - use to reset state for the current window
 
-    "add", rev, fns: out-of-order traversal of the given file names
+    "add", rev, fns: out-of-order traversal of the given filenames
     fns, which changed during revision rev - use to gather data for
     possible display
 
@@ -971,57 +1042,58 @@ def walkchangerevs(ui, repo, pats, change, opts):
                 if windowsize < sizelimit:
                     windowsize *= 2
 
-    files, matchfn, anypats = matchpats(repo, pats, opts)
+    m = match(repo, pats, opts)
     follow = opts.get('follow') or opts.get('follow_first')
 
-    if repo.changelog.count() == 0:
-        return [], matchfn
+    if not len(repo):
+        return [], m
 
     if follow:
-        defrange = '%s:0' % repo.changectx().rev()
+        defrange = '%s:0' % repo['.'].rev()
     else:
         defrange = '-1:0'
     revs = revrange(repo, opts['rev'] or [defrange])
-    wanted = {}
-    slowpath = anypats or opts.get('removed')
+    wanted = set()
+    slowpath = m.anypats() or (m.files() and opts.get('removed'))
     fncache = {}
 
-    if not slowpath and not files:
+    if not slowpath and not m.files():
         # No files, no patterns.  Display all revs.
-        wanted = dict.fromkeys(revs)
+        wanted = set(revs)
     copies = []
     if not slowpath:
         # Only files, no patterns.  Check the history of each file.
         def filerevgen(filelog, node):
-            cl_count = repo.changelog.count()
+            cl_count = len(repo)
             if node is None:
-                last = filelog.count() - 1
+                last = len(filelog) - 1
             else:
                 last = filelog.rev(node)
             for i, window in increasing_windows(last, nullrev):
                 revs = []
                 for j in xrange(i - window, i + 1):
                     n = filelog.node(j)
-                    revs.append((filelog.linkrev(n),
+                    revs.append((filelog.linkrev(j),
                                  follow and filelog.renamed(n)))
-                revs.reverse()
-                for rev in revs:
+                for rev in reversed(revs):
                     # only yield rev for which we have the changelog, it can
                     # happen while doing "hg log" during a pull or commit
                     if rev[0] < cl_count:
                         yield rev
         def iterfiles():
-            for filename in files:
+            for filename in m.files():
                 yield filename, None
             for filename_node in copies:
                 yield filename_node
         minrev, maxrev = min(revs), max(revs)
         for file_, node in iterfiles():
             filelog = repo.file(file_)
-            if filelog.count() == 0:
+            if not len(filelog):
                 if node is None:
                     # A zero count may be a directory or deleted file, so
                     # try to find matching entries on the slow path.
+                    if follow:
+                        raise util.Abort(_('cannot follow nonexistent file: "%s"') % file_)
                     slowpath = True
                     break
                 else:
@@ -1034,28 +1106,27 @@ def walkchangerevs(ui, repo, pats, change, opts):
                         break
                     fncache.setdefault(rev, [])
                     fncache[rev].append(file_)
-                    wanted[rev] = 1
+                    wanted.add(rev)
                     if follow and copied:
                         copies.append(copied)
     if slowpath:
         if follow:
             raise util.Abort(_('can only follow copies/renames for explicit '
-                               'file names'))
+                               'filenames'))
 
         # The slow path checks files modified in every changeset.
         def changerevgen():
-            for i, window in increasing_windows(repo.changelog.count()-1,
-                                                nullrev):
+            for i, window in increasing_windows(len(repo) - 1, nullrev):
                 for j in xrange(i - window, i + 1):
                     yield j, change(j)[3]
 
         for rev, changefiles in changerevgen():
-            matches = filter(matchfn, changefiles)
+            matches = filter(m, changefiles)
             if matches:
                 fncache[rev] = matches
-                wanted[rev] = 1
+                wanted.add(rev)
 
-    class followfilter:
+    class followfilter(object):
         def __init__(self, onlyfirst=False):
             self.startrev = nullrev
             self.roots = []
@@ -1099,16 +1170,14 @@ def walkchangerevs(ui, repo, pats, change, opts):
         ff = followfilter()
         stop = min(revs[0], revs[-1])
         for x in xrange(rev, stop-1, -1):
-            if ff.match(x) and x in wanted:
-                del wanted[x]
+            if ff.match(x):
+                wanted.discard(x)
 
     def iterate():
-        if follow and not files:
+        if follow and not m.files():
             ff = followfilter(onlyfirst=opts.get('follow_first'))
             def want(rev):
-                if ff.match(rev) and rev in wanted:
-                    return True
-                return False
+                return ff.match(rev) and rev in wanted
         else:
             def want(rev):
                 return rev in wanted
@@ -1116,20 +1185,18 @@ def walkchangerevs(ui, repo, pats, change, opts):
         for i, window in increasing_windows(0, len(revs)):
             yield 'window', revs[0] < revs[-1], revs[-1]
             nrevs = [rev for rev in revs[i:i+window] if want(rev)]
-            srevs = list(nrevs)
-            srevs.sort()
-            for rev in srevs:
+            for rev in sorted(nrevs):
                 fns = fncache.get(rev)
                 if not fns:
                     def fns_generator():
                         for f in change(rev)[3]:
-                            if matchfn(f):
+                            if m(f):
                                 yield f
                     fns = fns_generator()
                 yield 'add', rev, fns
             for rev in nrevs:
                 yield 'iter', rev, None
-    return iterate(), matchfn
+    return iterate(), m
 
 def commit(ui, repo, commitfunc, pats, opts):
     '''commit the specified files or all outstanding changes'''
@@ -1143,39 +1210,45 @@ def commit(ui, repo, commitfunc, pats, opts):
     if opts.get('addremove'):
         addremove(repo, pats, opts)
 
-    fns, match, anypats = matchpats(repo, pats, opts)
-    if pats:
-        status = repo.status(files=fns, match=match)
-        modified, added, removed, deleted, unknown = status[:5]
-        files = modified + added + removed
-        slist = None
-        for f in fns:
-            if f == '.':
-                continue
-            if f not in files:
-                rf = repo.wjoin(f)
-                rel = repo.pathto(f)
-                try:
-                    mode = os.lstat(rf)[stat.ST_MODE]
-                except OSError:
-                    raise util.Abort(_("file %s not found!") % rel)
-                if stat.S_ISDIR(mode):
-                    name = f + '/'
-                    if slist is None:
-                        slist = list(files)
-                        slist.sort()
-                    i = bisect.bisect(slist, name)
-                    if i >= len(slist) or not slist[i].startswith(name):
-                        raise util.Abort(_("no match under directory %s!")
-                                         % rel)
-                elif not (stat.S_ISREG(mode) or stat.S_ISLNK(mode)):
-                    raise util.Abort(_("can't commit %s: "
-                                       "unsupported file type!") % rel)
-                elif f not in repo.dirstate:
-                    raise util.Abort(_("file %s not tracked!") % rel)
-    else:
-        files = []
-    try:
-        return commitfunc(ui, repo, files, message, match, opts)
-    except ValueError, inst:
-        raise util.Abort(str(inst))
+    return commitfunc(ui, repo, message, match(repo, pats, opts), opts)
+
+def commiteditor(repo, ctx, subs):
+    if ctx.description():
+        return ctx.description()
+    return commitforceeditor(repo, ctx, subs)
+
+def commitforceeditor(repo, ctx, subs):
+    edittext = []
+    modified, added, removed = ctx.modified(), ctx.added(), ctx.removed()
+    if ctx.description():
+        edittext.append(ctx.description())
+    edittext.append("")
+    edittext.append("") # Empty line between message and comments.
+    edittext.append(_("HG: Enter commit message."
+                      "  Lines beginning with 'HG:' are removed."))
+    edittext.append(_("HG: Leave message empty to abort commit."))
+    edittext.append("HG: --")
+    edittext.append(_("HG: user: %s") % ctx.user())
+    if ctx.p2():
+        edittext.append(_("HG: branch merge"))
+    if ctx.branch():
+        edittext.append(_("HG: branch '%s'")
+                        % encoding.tolocal(ctx.branch()))
+    edittext.extend([_("HG: subrepo %s") % s for s in subs])
+    edittext.extend([_("HG: added %s") % f for f in added])
+    edittext.extend([_("HG: changed %s") % f for f in modified])
+    edittext.extend([_("HG: removed %s") % f for f in removed])
+    if not added and not modified and not removed:
+        edittext.append(_("HG: no files changed"))
+    edittext.append("")
+    # run editor in the repository root
+    olddir = os.getcwd()
+    os.chdir(repo.root)
+    text = repo.ui.edit("\n".join(edittext), ctx.user())
+    text = re.sub("(?m)^HG:.*\n", "", text)
+    os.chdir(olddir)
+
+    if not text.strip():
+        raise util.Abort(_("empty commit message"))
+
+    return text

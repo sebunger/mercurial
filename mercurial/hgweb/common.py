@@ -3,21 +3,25 @@
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 import errno, mimetypes, os
 
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
+HTTP_UNAUTHORIZED = 401
+HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
+HTTP_METHOD_NOT_ALLOWED = 405
 HTTP_SERVER_ERROR = 500
 
 class ErrorResponse(Exception):
-    def __init__(self, code, message=None):
+    def __init__(self, code, message=None, headers=[]):
         Exception.__init__(self)
         self.code = code
-        if message:
+        self.headers = headers
+        if message is not None:
             self.message = message
         else:
             self.message = _statusmessage(code)
@@ -50,40 +54,29 @@ def staticfile(directory, fname, req):
 
     """
     parts = fname.split('/')
-    path = directory
     for part in parts:
         if (part in ('', os.curdir, os.pardir) or
             os.sep in part or os.altsep is not None and os.altsep in part):
             return ""
-        path = os.path.join(path, part)
+    fpath = os.path.join(*parts)
+    if isinstance(directory, str):
+        directory = [directory]
+    for d in directory:
+        path = os.path.join(d, fpath)
+        if os.path.exists(path):
+            break
     try:
         os.stat(path)
         ct = mimetypes.guess_type(path)[0] or "text/plain"
         req.respond(HTTP_OK, ct, length = os.path.getsize(path))
         return file(path, 'rb').read()
     except TypeError:
-        raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal file name')
+        raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal filename')
     except OSError, err:
         if err.errno == errno.ENOENT:
             raise ErrorResponse(HTTP_NOT_FOUND)
         else:
             raise ErrorResponse(HTTP_SERVER_ERROR, err.strerror)
-
-def style_map(templatepath, style):
-    """Return path to mapfile for a given style.
-
-    Searches mapfile in the following locations:
-    1. templatepath/style/map
-    2. templatepath/map-style
-    3. templatepath/map
-    """
-    locations = style and [os.path.join(style, "map"), "map-"+style] or []
-    locations.append("map")
-    for location in locations:
-        mapfile = os.path.join(templatepath, location)
-        if os.path.isfile(mapfile):
-            return mapfile
-    raise RuntimeError("No hgweb templates found in %r" % templatepath)
 
 def paritygen(stripecount, offset=0):
     """count parity of horizontal stripes for easier reading"""
@@ -100,12 +93,6 @@ def paritygen(stripecount, offset=0):
         if stripecount and count >= stripecount:
             parity = 1 - parity
             count = 0
-
-def countgen(start=0, step=1):
-    """count forever -- useful for line numbers"""
-    while True:
-        yield start
-        start += step
 
 def get_contact(config):
     """Return repo contact information or empty string.

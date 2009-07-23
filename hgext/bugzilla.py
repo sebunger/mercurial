@@ -2,60 +2,125 @@
 #
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
-#
-# hook extension to update comments of bugzilla bugs when changesets
-# that refer to bugs by id are seen.  this hook does not change bug
-# status, only comments.
-#
-# to configure, add items to '[bugzilla]' section of hgrc.
-#
-# to use, configure bugzilla extension and enable like this:
-#
-#   [extensions]
-#   hgext.bugzilla =
-#
-#   [hooks]
-#   # run bugzilla hook on every change pulled or pushed in here
-#   incoming.bugzilla = python:hgext.bugzilla.hook
-#
-# config items:
-#
-# section name is 'bugzilla'.
-#  [bugzilla]
-#
-# REQUIRED:
-#   host = bugzilla # mysql server where bugzilla database lives
-#   password = **   # user's password
-#   version = 2.16  # version of bugzilla installed
-#
-# OPTIONAL:
-#   bzuser = ...    # fallback bugzilla user name to record comments with
-#   db = bugs       # database to connect to
-#   notify = ...    # command to run to get bugzilla to send mail
-#   regexp = ...    # regexp to match bug ids (must contain one "()" group)
-#   strip = 0       # number of slashes to strip for url paths
-#   style = ...     # style file to use when formatting comments
-#   template = ...  # template to use when formatting comments
-#   timeout = 5     # database connection timeout (seconds)
-#   user = bugs     # user to connect to database as
-#   [web]
-#   baseurl = http://hgserver/... # root of hg web site for browsing commits
-#
-# if hg committer names are not same as bugzilla user names, use
-# "usermap" feature to map from committer email to bugzilla user name.
-# usermap can be in hgrc or separate config file.
-#
-#   [bugzilla]
-#   usermap = filename # cfg file with "committer"="bugzilla user" info
-#   [usermap]
-#   committer_email = bugzilla_user_name
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
+'''hooks for integrating with the Bugzilla bug tracker
+
+This hook extension adds comments on bugs in Bugzilla when changesets
+that refer to bugs by Bugzilla ID are seen. The hook does not change
+bug status.
+
+The hook updates the Bugzilla database directly. Only Bugzilla
+installations using MySQL are supported.
+
+The hook relies on a Bugzilla script to send bug change notification
+emails. That script changes between Bugzilla versions; the
+'processmail' script used prior to 2.18 is replaced in 2.18 and
+subsequent versions by 'config/sendbugmail.pl'. Note that these will
+be run by Mercurial as the user pushing the change; you will need to
+ensure the Bugzilla install file permissions are set appropriately.
+
+Configuring the extension:
+
+    [bugzilla]
+
+    host       Hostname of the MySQL server holding the Bugzilla
+               database.
+    db         Name of the Bugzilla database in MySQL. Default 'bugs'.
+    user       Username to use to access MySQL server. Default 'bugs'.
+    password   Password to use to access MySQL server.
+    timeout    Database connection timeout (seconds). Default 5.
+    version    Bugzilla version. Specify '3.0' for Bugzilla versions
+               3.0 and later, '2.18' for Bugzilla versions from 2.18
+               and '2.16' for versions prior to 2.18.
+    bzuser     Fallback Bugzilla user name to record comments with, if
+               changeset committer cannot be found as a Bugzilla user.
+    bzdir      Bugzilla install directory. Used by default notify.
+               Default '/var/www/html/bugzilla'.
+    notify     The command to run to get Bugzilla to send bug change
+               notification emails. Substitutes from a map with 3
+               keys, 'bzdir', 'id' (bug id) and 'user' (committer
+               bugzilla email). Default depends on version; from 2.18
+               it is "cd %(bzdir)s && perl -T contrib/sendbugmail.pl
+               %(id)s %(user)s".
+    regexp     Regular expression to match bug IDs in changeset commit
+               message. Must contain one "()" group. The default
+               expression matches 'Bug 1234', 'Bug no. 1234', 'Bug
+               number 1234', 'Bugs 1234,5678', 'Bug 1234 and 5678' and
+               variations thereof. Matching is case insensitive.
+    style      The style file to use when formatting comments.
+    template   Template to use when formatting comments. Overrides
+               style if specified. In addition to the usual Mercurial
+               keywords, the extension specifies:
+                   {bug}       The Bugzilla bug ID.
+                   {root}      The full pathname of the Mercurial
+                               repository.
+                   {webroot}   Stripped pathname of the Mercurial
+                               repository.
+                   {hgweb}     Base URL for browsing Mercurial
+                               repositories.
+               Default 'changeset {node|short} in repo {root} refers '
+                       'to bug {bug}.\\ndetails:\\n\\t{desc|tabindent}'
+    strip      The number of slashes to strip from the front of {root}
+               to produce {webroot}. Default 0.
+    usermap    Path of file containing Mercurial committer ID to
+               Bugzilla user ID mappings. If specified, the file
+               should contain one mapping per line,
+               "committer"="Bugzilla user". See also the [usermap]
+               section.
+
+    [usermap]
+    Any entries in this section specify mappings of Mercurial
+    committer ID to Bugzilla user ID. See also [bugzilla].usermap.
+    "committer"="Bugzilla user"
+
+    [web]
+    baseurl    Base URL for browsing Mercurial repositories. Reference
+               from templates as {hgweb}.
+
+Activating the extension:
+
+    [extensions]
+    hgext.bugzilla =
+
+    [hooks]
+    # run bugzilla hook on every change pulled or pushed in here
+    incoming.bugzilla = python:hgext.bugzilla.hook
+
+Example configuration:
+
+This example configuration is for a collection of Mercurial
+repositories in /var/local/hg/repos/ used with a local Bugzilla 3.2
+installation in /opt/bugzilla-3.2.
+
+    [bugzilla]
+    host=localhost
+    password=XYZZY
+    version=3.0
+    bzuser=unknown@domain.com
+    bzdir=/opt/bugzilla-3.2
+    template=Changeset {node|short} in {root|basename}.\\n{hgweb}/{webroot}/rev/{node|short}\\n\\n{desc}\\n
+    strip=5
+
+    [web]
+    baseurl=http://dev.domain.com/hg
+
+    [usermap]
+    user@emaildomain.com=user.name@bugzilladomain.com
+
+Commits add a comment to the Bugzilla bug record of the form:
+
+    Changeset 3b16791d6642 in repository-name.
+    http://dev.domain.com/hg/repository-name/rev/3b16791d6642
+
+    Changeset commit comment. Bug 1234.
+'''
 
 from mercurial.i18n import _
 from mercurial.node import short
 from mercurial import cmdutil, templater, util
-import os, re, time
+import re, time
 
 MySQLdb = None
 
@@ -74,34 +139,37 @@ class bugzilla_2_16(object):
         timeout = int(self.ui.config('bugzilla', 'timeout', 5))
         usermap = self.ui.config('bugzilla', 'usermap')
         if usermap:
-            self.ui.readsections(usermap, 'usermap')
+            self.ui.readconfig(usermap, sections=['usermap'])
         self.ui.note(_('connecting to %s:%s as %s, password %s\n') %
                      (host, db, user, '*' * len(passwd)))
         self.conn = MySQLdb.connect(host=host, user=user, passwd=passwd,
                                     db=db, connect_timeout=timeout)
         self.cursor = self.conn.cursor()
-        self.run('select fieldid from fielddefs where name = "longdesc"')
-        ids = self.cursor.fetchall()
-        if len(ids) != 1:
-            raise util.Abort(_('unknown database schema'))
-        self.longdesc_id = ids[0][0]
+        self.longdesc_id = self.get_longdesc_id()
         self.user_ids = {}
+        self.default_notify = "cd %(bzdir)s && ./processmail %(id)s %(user)s"
 
     def run(self, *args, **kwargs):
         '''run a query.'''
         self.ui.note(_('query: %s %s\n') % (args, kwargs))
         try:
             self.cursor.execute(*args, **kwargs)
-        except MySQLdb.MySQLError, err:
+        except MySQLdb.MySQLError:
             self.ui.note(_('failed query: %s %s\n') % (args, kwargs))
             raise
+
+    def get_longdesc_id(self):
+        '''get identity of longdesc field'''
+        self.run('select fieldid from fielddefs where name = "longdesc"')
+        ids = self.cursor.fetchall()
+        if len(ids) != 1:
+            raise util.Abort(_('unknown database schema'))
+        return ids[0][0]
 
     def filter_real_bug_ids(self, ids):
         '''filter not-existing bug ids from list.'''
         self.run('select bug_id from bugs where bug_id in %s' % buglist(ids))
-        ids = [c[0] for c in self.cursor.fetchall()]
-        ids.sort()
-        return ids
+        return sorted([c[0] for c in self.cursor.fetchall()])
 
     def filter_unknown_bug_ids(self, node, ids):
         '''filter bug ids from list that already refer to this changeset.'''
@@ -109,25 +177,31 @@ class bugzilla_2_16(object):
         self.run('''select bug_id from longdescs where
                     bug_id in %s and thetext like "%%%s%%"''' %
                  (buglist(ids), short(node)))
-        unknown = dict.fromkeys(ids)
+        unknown = set(ids)
         for (id,) in self.cursor.fetchall():
             self.ui.status(_('bug %d already knows about changeset %s\n') %
                            (id, short(node)))
-            unknown.pop(id, None)
-        ids = unknown.keys()
-        ids.sort()
-        return ids
+            unknown.discard(id)
+        return sorted(unknown)
 
-    def notify(self, ids):
+    def notify(self, ids, committer):
         '''tell bugzilla to send mail.'''
 
         self.ui.status(_('telling bugzilla to send mail:\n'))
+        (user, userid) = self.get_bugzilla_user(committer)
         for id in ids:
             self.ui.status(_('  bug %s\n') % id)
-            cmd = self.ui.config('bugzilla', 'notify',
-                               'cd /var/www/html/bugzilla && '
-                               './processmail %s nobody@nowhere.com') % id
-            fp = os.popen('(%s) 2>&1' % cmd)
+            cmdfmt = self.ui.config('bugzilla', 'notify', self.default_notify)
+            bzdir = self.ui.config('bugzilla', 'bzdir', '/var/www/html/bugzilla')
+            try:
+                # Backwards-compatible with old notify string, which
+                # took one string. This will throw with a new format
+                # string.
+                cmd = cmdfmt % id
+            except TypeError:
+                cmd = cmdfmt % {'bzdir': bzdir, 'id': id, 'user': user}
+            self.ui.note(_('running notify command %s\n') % cmd)
+            fp = util.popen('(%s) 2>&1' % cmd)
             out = fp.read()
             ret = fp.close()
             if ret:
@@ -161,9 +235,10 @@ class bugzilla_2_16(object):
                 return bzuser
         return user
 
-    def add_comment(self, bugid, text, committer):
-        '''add comment to bug. try adding comment as committer of
-        changeset, otherwise as default bugzilla user.'''
+    def get_bugzilla_user(self, committer):
+        '''see if committer is a registered bugzilla user. Return
+        bugzilla username and userid if so. If not, return default
+        bugzilla username and userid.'''
         user = self.map_committer(committer)
         try:
             userid = self.get_user_id(user)
@@ -174,9 +249,16 @@ class bugzilla_2_16(object):
                     raise util.Abort(_('cannot find bugzilla user id for %s') %
                                      user)
                 userid = self.get_user_id(defaultuser)
+                user = defaultuser
             except KeyError:
                 raise util.Abort(_('cannot find bugzilla user id for %s or %s') %
                                  (user, defaultuser))
+        return (user, userid)
+
+    def add_comment(self, bugid, text, committer):
+        '''add comment to bug. try adding comment as committer of
+        changeset, otherwise as default bugzilla user.'''
+        (user, userid) = self.get_bugzilla_user(committer)
         now = time.strftime('%Y-%m-%d %H:%M:%S')
         self.run('''insert into longdescs
                     (bug_id, who, bug_when, thetext)
@@ -185,12 +267,36 @@ class bugzilla_2_16(object):
         self.run('''insert into bugs_activity (bug_id, who, bug_when, fieldid)
                     values (%s, %s, %s, %s)''',
                  (bugid, userid, now, self.longdesc_id))
+        self.conn.commit()
+
+class bugzilla_2_18(bugzilla_2_16):
+    '''support for bugzilla 2.18 series.'''
+
+    def __init__(self, ui):
+        bugzilla_2_16.__init__(self, ui)
+        self.default_notify = "cd %(bzdir)s && perl -T contrib/sendbugmail.pl %(id)s %(user)s"
+
+class bugzilla_3_0(bugzilla_2_18):
+    '''support for bugzilla 3.0 series.'''
+
+    def __init__(self, ui):
+        bugzilla_2_18.__init__(self, ui)
+
+    def get_longdesc_id(self):
+        '''get identity of longdesc field'''
+        self.run('select id from fielddefs where name = "longdesc"')
+        ids = self.cursor.fetchall()
+        if len(ids) != 1:
+            raise util.Abort(_('unknown database schema'))
+        return ids[0][0]
 
 class bugzilla(object):
     # supported versions of bugzilla. different versions have
     # different schemas.
     _versions = {
         '2.16': bugzilla_2_16,
+        '2.18': bugzilla_2_18,
+        '3.0':  bugzilla_3_0
         }
 
     _default_bug_re = (r'bugs?\s*,?\s*(?:#|nos?\.?|num(?:ber)?s?)?\s*'
@@ -233,7 +339,7 @@ class bugzilla(object):
                 re.IGNORECASE)
             bugzilla._split_re = re.compile(r'\D+')
         start = 0
-        ids = {}
+        ids = set()
         while True:
             m = bugzilla._bug_re.search(ctx.description(), start)
             if not m:
@@ -241,8 +347,7 @@ class bugzilla(object):
             start = m.end()
             for id in bugzilla._split_re.split(m.group(1)):
                 if not id: continue
-                ids[int(id)] = 1
-        ids = ids.keys()
+                ids.add(int(id))
         if ids:
             ids = self.filter_real_bug_ids(ids)
         if ids:
@@ -268,7 +373,7 @@ class bugzilla(object):
         mapfile = self.ui.config('bugzilla', 'style')
         tmpl = self.ui.config('bugzilla', 'template')
         t = cmdutil.changeset_templater(self.ui, self.repo,
-                                        False, mapfile, False)
+                                        False, None, mapfile, False)
         if not mapfile and not tmpl:
             tmpl = _('changeset {node|short} in repo {root} refers '
                      'to bug {bug}.\ndetails:\n\t{desc|tabindent}')
@@ -276,7 +381,7 @@ class bugzilla(object):
             tmpl = templater.parsestring(tmpl, quoted=False)
             t.use_template(tmpl)
         self.ui.pushbuffer()
-        t.show(changenode=ctx.node(), changes=ctx.changeset(),
+        t.show(ctx, changes=ctx.changeset(),
                bug=str(bugid),
                hgweb=self.ui.config('web', 'baseurl'),
                root=self.repo.root,
@@ -300,12 +405,12 @@ def hook(ui, repo, hooktype, node=None, **kwargs):
                          hooktype)
     try:
         bz = bugzilla(ui, repo)
-        ctx = repo.changectx(node)
+        ctx = repo[node]
         ids = bz.find_bug_ids(ctx)
         if ids:
             for id in ids:
                 bz.update(id, ctx)
-            bz.notify(ids)
+            bz.notify(ids, util.email(ctx.user()))
     except MySQLdb.MySQLError, err:
         raise util.Abort(_('database error: %s') % err[1])
 

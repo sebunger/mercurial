@@ -53,7 +53,7 @@ commit -m 'Merge branch other'
 cd ..
 
 hg convert --datesort git-repo
-
+hg up -q -R git-repo-hg
 hg -R git-repo-hg tip -v
 
 count=10
@@ -101,7 +101,7 @@ cd ..
 
 glog()
 {
-    hg glog --template '#rev# "#desc|firstline#" files: #files#\n' "$@"
+    hg glog --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
 }
 
 splitrepo()
@@ -117,12 +117,14 @@ splitrepo()
 	echo "include $i" >> "$fmap"
     done
     hg -q convert $opts --filemap "$fmap" --datesort git-repo2 "$repo"
+    hg up -q -R "$repo"
     glog -R "$repo"
     hg -R "$repo" manifest --debug
 }
 
 echo '% full conversion'
 hg -q convert --datesort git-repo2 fullrepo
+hg up -q -R fullrepo
 glog -R fullrepo
 hg -R fullrepo manifest --debug
 
@@ -130,3 +132,42 @@ splitrepo 'octopus merge' 'foo bar baz'
 
 splitrepo 'only some parents of an octopus merge; "discard" a head' 'foo baz quux'
 
+echo
+echo '% test binary conversion (issue 1359)'
+mkdir git-repo3
+cd git-repo3
+git init-db >/dev/null 2>/dev/null
+python -c 'file("b", "wb").write("".join([chr(i) for i in range(256)])*16)'
+git add b
+commit -a -m addbinary
+cd ..
+
+echo '% convert binary file'
+hg convert git-repo3 git-repo3-hg
+
+cd git-repo3-hg
+hg up -C
+python -c 'print len(file("b", "rb").read())'
+cd ..
+
+echo
+echo '% test author vs committer'
+mkdir git-repo4
+cd git-repo4
+git init-db >/dev/null 2>/dev/null
+echo >> foo
+git add foo
+commit -a -m addfoo
+echo >> foo
+GIT_AUTHOR_NAME="nottest"
+commit -a -m addfoo2
+cd ..
+
+echo '% convert author committer'
+hg convert git-repo4 git-repo4-hg
+hg -R git-repo4-hg log -v
+
+echo '% --sourceorder should fail'
+hg convert --sourcesort git-repo4 git-repo4-sourcesort-hg
+
+true

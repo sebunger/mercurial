@@ -1,97 +1,125 @@
-# mercurial configuration file for upstream hg extensions
+# mercurial configuration file for bundled hg extensions
 # See hgrc(5) for more information
 
-# Extension provided by core-mercurial listed in alphabetic order
-# See /usr/share/doc/mercurial/README.Debian.gz for more information
-# (for example, some extensions needed other Debian packages to work)
+# Extensions included in Mercurial listed in alphabetical order
 [extensions]
 
-# changeset access control for mercurial
+# changeset access control
 # hgext.acl =
 
 # allow user-defined command aliases
 # hgext.alias =
 
-# bugzilla integration for mercurial
+# provides the 'bookmarks' command
+# hgext.bookmarks =
+
+# bugzilla integration
+# requires python-mysqldb
 # hgext.bugzilla =
 
 # show the children of the given or working dir revision
-# add the 'children' command
-hgext.children =
+# provides the 'children' command
+# hgext.children =
 
-# create a graph showing who changed the most lines
-# add the 'churn' command
-hgext.churn =
+# graph count of revisions grouped by template
+# provides the 'churn' command
+# hgext.churn =
 
-# add color output to the status and qseries commands
+# add color output to status, qseries, and diff-related commands
 # hgext.color =
 
-# Foreign SCM converter
-# add the 'convert' and 'debugsvnlog' commands
-hgext.convert =
+# converts a foreign SCM to a Mercurial one
+# provides the 'convert' and 'debugsvnlog' commands
+# requires:
+# - bzr to convert from Bazaar
+# - cvs to convert from CVS
+# - python-celementtree or python-elementtree to convert from Darcs
+# - git-core to convert from Git
+# - tla to convert from GNU Arch
+# - monotone to convert from Monotone
+# - python-subversion to convert from Subversion
+# hgext.convert =
 
-# external diff program support for mercurial
+# external diff program support
 # hgext.extdiff =
 
 # pull and merge remote changes
-# add the 'fetch' command
-hgext.fetch =
+# provides the 'fetch' command
+# hgext.fetch =
 
-# GnuPG signing extension for Mercurial
-# add the 'sign', 'sigcheck' and 'sigs' commands
-hgext.gpg =
+# GnuPG signing
+# provides the 'sign', 'sigcheck' and 'sigs' commands
+# requires gnupg
+# hgext.gpg =
 
-# ASCII graph log extension for Mercurial
-# add the 'glog' command
-hgext.graphlog =
+# show revision graphs in terminal windows
+# provides the 'glog' command
+# hgext.graphlog =
+
+# CIA notification hook
+# hgext.hgcia =
 
 # allows browsing the history of a repository in a graphical way
-# add the 'view' command
+# provides the 'view' command
+# requires wish
 # hgext.hgk =
 
-# syntax highlighting in hgweb file view
+# syntax highlighting in hgweb
+# requires python-pygments
 # hgext.highlight =
 
 # lets you split a merge into pieces
-# add the 'imerge' command
-hgext.imerge =
+# provides the 'imerge' command
+# hgext.imerge =
 
 # inotify-based status acceleration for Linux systems
-# add the 'inserve' command
+# provides the 'inserve' command
 # hgext.inotify =
 
 # allows you to change changelog and summary text
 # hgext.interhg =
 
-# CVS/RCS-like Keyword Substitution
+# CVS/RCS-like keyword expansion
 # hgext.keyword =
 
-# patch queues for mercurial
-# add the 'q*' commands
-hgext.mq =
+# quilt-like patch queues
+# provides the 'q*' commands
+# hgext.mq =
 
-# email notifications for mercurial
+# email notifications
 # hgext.notify =
+
+# display output using a pager
+# hgext.pager =
 
 # make it easy to refer to the parent of a revision
 # hgext.parentrevspec =
 
 # send changes as series of email patches
-# add the 'email' command
-hgext.patchbomb =
+# provides the 'email' command
+# hgext.patchbomb =
 
 # removes files not known to mercurial
-# add the 'purge' and 'clean' commands
-hgext.purge =
+# provides the 'purge' command
+# hgext.purge =
+
+# moves sets of revisions to a different ancestor
+# provides the 'rebase' command
+# hgext.rebase =
 
 # interactive change selection during commit
-# add the 'record' command
-hgext.record =
+# provides the 'record' command
+# hgext.record =
 
-# Patch transplanting extension for Mercurial
-# add the 'transplant' command
-hgext.transplant =
+# patch transplanting tool
+# provides the 'transplant' command
+# hgext.transplant =
 
-# add filters so automatically convert end-of-line between Windows and Unix
-# world.
+# non-Unicode MBCS filename support
+# hgext.win32mbcs =
+
+# Unix/Mac/DOS line ending conversion utilities
 # hgext.win32text =
+
+# mDNS/DNS-SD (Zeroconf) support for 'hg serve'
+# hgext.zeroconf =

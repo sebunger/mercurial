@@ -1,27 +1,37 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-DEB_PYTHON_SYSTEM=pysupport
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/rules/patchsys-quilt.mk
+%:
+	dh --with quilt $@
 
-# These part must be run between dh_install and dh_pysupport
-# So, they must be defined BEFORE including python-distutils.mk
-binary-install/mercurial::
-	pysupport-movemodules debian/mercurial
-	# remove arch-independent python stuff
-	rm -rf $(CURDIR)/debian/mercurial/usr/share/python-support
+PYVERS=$(shell pyversions -vs)
 
-binary-install/mercurial-common::
-	pysupport-movemodules debian/mercurial-common
-	# remove arch-dependent python stuff
-	rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python-support
-	rmdir --ignore-fail-on-non-empty $(CURDIR)/debian/mercurial-common/usr/lib
+override_dh_auto_build: $(PYVERS:%=build-python%)
+	$(MAKE) -C doc man
+	touch $@
 
-include /usr/share/cdbs/1/class/python-distutils.mk
+build-python%: mercurial/__version__.py
+	python$* setup.py build
+	touch $@
+
+override_dh_auto_install: $(PYVERS:%=install-python%)
+
+install-python%: build-python%
+	python$* setup.py install --root $(CURDIR)/debian/tmp
+	# Do not hardcode the python interpreter
+	sed -i '1c#!/usr/bin/python' debian/tmp/usr/bin/hg
 
 
-binary-install/mercurial::
+override_dh_install:
+	dh_install
+	if test -d $(CURDIR)/debian/mercurial ; then \
+		$(MAKE) -f debian/rules install-archdep ; \
+	fi
+	if test -d $(CURDIR)/debian/mercurial-common ; then \
+		$(MAKE) -f debian/rules install-archindep ;\
+	fi
+
+install-archdep:
 	# Install bash autocompletion.
 	install -m 644 \
 		contrib/bash_completion \
@@ -35,39 +45,35 @@ binary-install/mercurial::
 	install -m 644 \
 		contrib/mergetools.hgrc \
 		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
-
-build/mercurial:: mercurial/__version__.py
-
-build/mercurial-common::
-	$(MAKE) -C doc man
-	# workaround a bug in asciidoc that generates incorrect manpages
-	sed -i 's,^\([\\]\?[.]hg/hgrc\),\\\&\1,' doc/hg.1
-	sed -i 's,^\([\\]\?[.][*][\\]\?[.]swp\),\\\&\1,' doc/hgignore.5
-
-binary-install/mercurial-common::
-	# web templates are symlinked from python-support to /u/s/mercurial
-	rm -rf $(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates
-	ln -sf ../../../mercurial/templates \
-		$(CURDIR)/debian/mercurial-common/usr/share/python-support/mercurial-common/mercurial/templates
 	
-	# Examples must go in the /usr/share/doc/mercurial directory
-	mv $(CURDIR)/debian/mercurial-common/usr/share/doc/mercurial-common/examples \
-		$(CURDIR)/debian/mercurial-common/usr/share/doc/mercurial
-	
-	# Install lintian override file
-	cp debian/mercurial-common.lintian-overrides \
-		$(CURDIR)/debian/mercurial-common/usr/share/lintian/overrides/mercurial-common
+	# Symlink docs
+	rm -rf $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
+	ln -s mercurial-common $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
+	# remove arch-independent python stuff
+	find debian/mercurial/usr/lib \
+		! -name '*.so' ! -type d -delete , \
+		-type d -empty -delete
 
-clean::
-	# Keep current mercurial version
+install-archindep:
+	# remove arch-dependent python stuff
+	find debian/mercurial-common/usr/lib \
+		-name '*.so' ! -type d -delete , \
+		-type d -empty -delete
+
+override_dh_auto_clean:
 	cp -a mercurial/__version__.py mercurial/__version__.py.save
 	$(MAKE) clean
-	# And retore it
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
+	$(RM) build-python*
+	# if this is a git repository, restore removed files that would have been ignored by dpkg-source
+	-test -d .git && git checkout -- $$(git status | \
+		sed -e '/^#[[:space:]]*deleted:[[:space:]]*/s/^#[[:space:]]*deleted:[[:space:]]*//p;d' | \
+		grep -v '^debian/')
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."
 	@echo "Restore it from sources before building the package"
 	@echo "Aborting."
 	exit 1
+

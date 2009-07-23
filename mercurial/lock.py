@@ -2,23 +2,12 @@
 #
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-import errno, os, socket, time, util
-
-class LockException(IOError):
-    def __init__(self, errno, strerror, filename, desc):
-        IOError.__init__(self, errno, strerror, filename)
-        self.desc = desc
-
-class LockHeld(LockException):
-    def __init__(self, errno, filename, desc, locker):
-        LockException.__init__(self, errno, 'Lock held', filename, desc)
-        self.locker = locker
-
-class LockUnavailable(LockException):
-    pass
+import util, error
+import errno, os, socket, time
+import warnings
 
 class lock(object):
     # lock is symlink on platforms that support it, file on others.
@@ -40,6 +29,15 @@ class lock(object):
         self.lock()
 
     def __del__(self):
+        if self.held:
+            warnings.warn("use lock.release instead of del lock",
+                    category=DeprecationWarning,
+                    stacklevel=2)
+
+            # ensure the lock will be removed
+            # even if recursive locking did occur
+            self.held = 1
+
         self.release()
 
     def lock(self):
@@ -48,16 +46,19 @@ class lock(object):
             try:
                 self.trylock()
                 return 1
-            except LockHeld, inst:
+            except error.LockHeld, inst:
                 if timeout != 0:
                     time.sleep(1)
                     if timeout > 0:
                         timeout -= 1
                     continue
-                raise LockHeld(errno.ETIMEDOUT, inst.filename, self.desc,
-                               inst.locker)
+                raise error.LockHeld(errno.ETIMEDOUT, inst.filename, self.desc,
+                                     inst.locker)
 
     def trylock(self):
+        if self.held:
+            self.held += 1
+            return
         if lock._host is None:
             lock._host = socket.gethostname()
         lockname = '%s:%s' % (lock._host, os.getpid())
@@ -69,11 +70,11 @@ class lock(object):
                 if why.errno == errno.EEXIST:
                     locker = self.testlock()
                     if locker is not None:
-                        raise LockHeld(errno.EAGAIN, self.f, self.desc,
-                                       locker)
+                        raise error.LockHeld(errno.EAGAIN, self.f, self.desc,
+                                             locker)
                 else:
-                    raise LockUnavailable(why.errno, why.strerror,
-                                          why.filename, self.desc)
+                    raise error.LockUnavailable(why.errno, why.strerror,
+                                                why.filename, self.desc)
 
     def testlock(self):
         """return id of locker if lock is valid, else None.
@@ -106,15 +107,22 @@ class lock(object):
             l.trylock()
             os.unlink(self.f)
             l.release()
-        except (LockHeld, LockUnavailable):
+        except error.LockError:
             return locker
 
     def release(self):
-        if self.held:
+        if self.held > 1:
+            self.held -= 1
+        elif self.held is 1:
             self.held = 0
             if self.releasefn:
                 self.releasefn()
             try:
                 os.unlink(self.f)
             except: pass
+
+def release(*locks):
+    for lock in locks:
+        if lock is not None:
+            lock.release()
 

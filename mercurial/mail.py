@@ -2,11 +2,13 @@
 #
 # Copyright 2006 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from i18n import _
-import os, smtplib, util, socket
+import util, encoding
+import os, smtplib, socket, quopri
+import email.Header, email.MIMEText, email.Utils
 
 def _smtp(ui):
     '''build an smtp connection and return a function to send mail'''
@@ -53,7 +55,7 @@ def _sendmail(ui, sender, recipients, msg):
     cmdline = '%s -f %s %s' % (program, util.email(sender),
                                ' '.join(map(util.email, recipients)))
     ui.note(_('sending mail: %s\n') % cmdline)
-    fp = os.popen(cmdline, 'w')
+    fp = util.popen(cmdline, 'w')
     fp.write(msg)
     ret = fp.close()
     if ret:
@@ -83,3 +85,103 @@ def validateconfig(ui):
         if not util.find_exe(method):
             raise util.Abort(_('%r specified as email transport, '
                                'but not in PATH') % method)
+
+def mimetextpatch(s, subtype='plain', display=False):
+    '''If patch in utf-8 transfer-encode it.'''
+
+    enc = None
+    for line in s.splitlines():
+        if len(line) > 950:
+            s = quopri.encodestring(s)
+            enc = "quoted-printable"
+            break
+
+    cs = 'us-ascii'
+    if not display:
+        try:
+            s.decode('us-ascii')
+        except UnicodeDecodeError:
+            try:
+                s.decode('utf-8')
+                cs = 'utf-8'
+            except UnicodeDecodeError:
+                # We'll go with us-ascii as a fallback.
+                pass
+
+    msg = email.MIMEText.MIMEText(s, subtype, cs)
+    if enc:
+        del msg['Content-Transfer-Encoding']
+        msg['Content-Transfer-Encoding'] = enc
+    return msg
+
+def _charsets(ui):
+    '''Obtains charsets to send mail parts not containing patches.'''
+    charsets = [cs.lower() for cs in ui.configlist('email', 'charsets')]
+    fallbacks = [encoding.fallbackencoding.lower(),
+                 encoding.encoding.lower(), 'utf-8']
+    for cs in fallbacks: # find unique charsets while keeping order
+        if cs not in charsets:
+            charsets.append(cs)
+    return [cs for cs in charsets if not cs.endswith('ascii')]
+
+def _encode(ui, s, charsets):
+    '''Returns (converted) string, charset tuple.
+    Finds out best charset by cycling through sendcharsets in descending
+    order. Tries both encoding and fallbackencoding for input. Only as
+    last resort send as is in fake ascii.
+    Caveat: Do not use for mail parts containing patches!'''
+    try:
+        s.decode('ascii')
+    except UnicodeDecodeError:
+        sendcharsets = charsets or _charsets(ui)
+        for ics in (encoding.encoding, encoding.fallbackencoding):
+            try:
+                u = s.decode(ics)
+            except UnicodeDecodeError:
+                continue
+            for ocs in sendcharsets:
+                try:
+                    return u.encode(ocs), ocs
+                except UnicodeEncodeError:
+                    pass
+                except LookupError:
+                    ui.warn(_('ignoring invalid sendcharset: %s\n') % ocs)
+    # if ascii, or all conversion attempts fail, send (broken) ascii
+    return s, 'us-ascii'
+
+def headencode(ui, s, charsets=None, display=False):
+    '''Returns RFC-2047 compliant header from given string.'''
+    if not display:
+        # split into words?
+        s, cs = _encode(ui, s, charsets)
+        return str(email.Header.Header(s, cs))
+    return s
+
+def addressencode(ui, address, charsets=None, display=False):
+    '''Turns address into RFC-2047 compliant header.'''
+    if display or not address:
+        return address or ''
+    name, addr = email.Utils.parseaddr(address)
+    name = headencode(ui, name, charsets)
+    try:
+        acc, dom = addr.split('@')
+        acc = acc.encode('ascii')
+        dom = dom.encode('idna')
+        addr = '%s@%s' % (acc, dom)
+    except UnicodeDecodeError:
+        raise util.Abort(_('invalid email address: %s') % addr)
+    except ValueError:
+        try:
+            # too strict?
+            addr = addr.encode('ascii')
+        except UnicodeDecodeError:
+            raise util.Abort(_('invalid local address: %s') % addr)
+    return email.Utils.formataddr((name, addr))
+
+def mimeencode(ui, s, charsets=None, display=False):
+    '''creates mime text object, encodes it if needed, and sets
+    charset and transfer-encoding accordingly.'''
+    cs = 'us-ascii'
+    if not display:
+        s, cs = _encode(ui, s, charsets)
+    return email.MIMEText.MIMEText(s, 'plain', cs)

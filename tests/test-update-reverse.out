@@ -42,13 +42,13 @@ side1
 side2
 resolving manifests
  overwrite True partial False
- ancestor 537353581d3d local ded32b0db104+ remote 221226fb2bd8
- side2: remote deleted -> r
- side1: remote deleted -> r
+ ancestor ded32b0db104+ local ded32b0db104+ remote 221226fb2bd8
+ side2: other deleted -> r
+ side1: other deleted -> r
  main: remote created -> g
-getting main
 removing side1
 removing side2
+getting main
 1 files updated, 0 files merged, 2 files removed, 0 files unresolved
 Should only show a main
 a

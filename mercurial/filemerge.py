@@ -2,12 +2,13 @@
 #
 # Copyright 2006, 2007, 2008 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-from node import nullrev
+from node import short
 from i18n import _
-import util, os, tempfile, simplemerge, re, filecmp
+import util, simplemerge, match
+import os, tempfile, re, filecmp
 
 def _toolstr(ui, tool, part, default=""):
     return ui.config("merge-tools", tool + "." + part, default)
@@ -15,8 +16,11 @@ def _toolstr(ui, tool, part, default=""):
 def _toolbool(ui, tool, part, default=False):
     return ui.configbool("merge-tools", tool + "." + part, default)
 
+_internal = ['internal:' + s
+             for s in 'fail local other merge prompt dump'.split()]
+
 def _findtool(ui, tool):
-    if tool in ("internal:fail", "internal:local", "internal:other"):
+    if tool in _internal:
         return tool
     k = _toolstr(ui, tool, "regkey")
     if k:
@@ -32,8 +36,11 @@ def _picktool(repo, ui, path, binary, symlink):
         tmsg = tool
         if pat:
             tmsg += " specified for " + pat
-        if pat and not _findtool(ui, tool): # skip search if not matching
-            ui.warn(_("couldn't find merge tool %s\n") % tmsg)
+        if not _findtool(ui, tool):
+            if pat: # explicitly requested tool deserves a warning
+                ui.warn(_("couldn't find merge tool %s\n") % tmsg)
+            else: # configured but non-existing tools are more silent
+                ui.note(_("couldn't find merge tool %s\n") % tmsg)
         elif symlink and not _toolbool(ui, tool, "symlink"):
             ui.warn(_("tool %s can't handle symlinks\n") % tmsg)
         elif binary and not _toolbool(ui, tool, "binary"):
@@ -51,7 +58,7 @@ def _picktool(repo, ui, path, binary, symlink):
 
     # then patterns
     for pat, tool in ui.configitems("merge-patterns"):
-        mf = util.matcher(repo.root, "", [pat], [], [])[1]
+        mf = match.match(repo.root, '', [pat])
         if mf(path) and check(tool, pat, symlink, False):
                 toolpath = _findtool(ui, tool)
                 return (tool, '"' + toolpath + '"')
@@ -63,8 +70,7 @@ def _picktool(repo, ui, path, binary, symlink):
         if t not in tools:
             tools[t] = int(_toolstr(ui, t, "priority", "0"))
     names = tools.keys()
-    tools = [(-p,t) for t,p in tools.items()]
-    tools.sort()
+    tools = sorted([(-p,t) for t,p in tools.items()])
     uimerge = ui.config("ui", "merge")
     if uimerge:
         if uimerge not in names:
@@ -72,8 +78,8 @@ def _picktool(repo, ui, path, binary, symlink):
         tools.insert(0, (None, uimerge)) # highest priority
     tools.append((None, "hgmerge")) # the old default, if found
     for p,t in tools:
-        toolpath = _findtool(ui, t)
-        if toolpath and check(t, None, symlink, binary):
+        if check(t, None, symlink, binary):
+            toolpath = _findtool(ui, t)
             return (t, '"' + toolpath + '"')
     # internal merge as last resort
     return (not (symlink or binary) and "internal:merge" or None, None)
@@ -101,13 +107,14 @@ def _matcheol(file, origfile):
             if newdata != data:
                 open(file, "wb").write(newdata)
 
-def filemerge(repo, fw, fd, fo, wctx, mctx):
+def filemerge(repo, mynode, orig, fcd, fco, fca):
     """perform a 3-way merge in the working directory
 
-    fw = original filename in the working directory
-    fd = destination filename in the working directory
-    fo = filename in other parent
-    wctx, mctx = working and merge changecontexts
+    mynode = parent node before merge
+    orig = original local filename before merge
+    fco = other file context
+    fca = ancestor file context
+    fcd = local file context for current/destination file
     """
 
     def temp(prefix, ctx):
@@ -125,29 +132,27 @@ def filemerge(repo, fw, fd, fo, wctx, mctx):
         except IOError:
             return False
 
-    fco = mctx.filectx(fo)
-    if not fco.cmp(wctx.filectx(fd).data()): # files identical?
+    if not fco.cmp(fcd.data()): # files identical?
         return None
 
     ui = repo.ui
-    fcm = wctx.filectx(fw)
-    fca = fcm.ancestor(fco) or repo.filectx(fw, fileid=nullrev)
-    binary = isbin(fcm) or isbin(fco) or isbin(fca)
-    symlink = fcm.islink() or fco.islink()
-    tool, toolpath = _picktool(repo, ui, fw, binary, symlink)
+    fd = fcd.path()
+    binary = isbin(fcd) or isbin(fco) or isbin(fca)
+    symlink = 'l' in fcd.flags() + fco.flags()
+    tool, toolpath = _picktool(repo, ui, fd, binary, symlink)
     ui.debug(_("picked tool '%s' for %s (binary %s symlink %s)\n") %
-               (tool, fw, binary, symlink))
+               (tool, fd, binary, symlink))
 
-    if not tool:
+    if not tool or tool == 'internal:prompt':
         tool = "internal:local"
         if ui.prompt(_(" no tool found to merge %s\n"
-                       "keep (l)ocal or take (o)ther?") % fw,
-                     _("[lo]"), _("l")) != _("l"):
+                       "keep (l)ocal or take (o)ther?") % fd,
+                     (_("&Local"), _("&Other")), _("l")) != _("l"):
             tool = "internal:other"
     if tool == "internal:local":
         return 0
     if tool == "internal:other":
-        repo.wwrite(fd, fco.data(), fco.fileflags())
+        repo.wwrite(fd, fco.data(), fco.flags())
         return 0
     if tool == "internal:fail":
         return 1
@@ -160,15 +165,16 @@ def filemerge(repo, fw, fd, fo, wctx, mctx):
     back = a + ".orig"
     util.copyfile(a, back)
 
-    if fw != fo:
-        repo.ui.status(_("merging %s and %s\n") % (fw, fo))
+    if orig != fco.path():
+        ui.status(_("merging %s and %s to %s\n") % (orig, fco.path(), fd))
     else:
-        repo.ui.status(_("merging %s\n") % fw)
-    repo.ui.debug(_("my %s other %s ancestor %s\n") % (fcm, fco, fca))
+        ui.status(_("merging %s\n") % fd)
+
+    ui.debug(_("my %s other %s ancestor %s\n") % (fcd, fco, fca))
 
     # do we attempt to simplemerge first?
     if _toolbool(ui, tool, "premerge", not (binary or symlink)):
-        r = simplemerge.simplemerge(a, b, c, quiet=True)
+        r = simplemerge.simplemerge(ui, a, b, c, quiet=True)
         if not r:
             ui.debug(_(" premerge successful\n"))
             os.unlink(back)
@@ -178,14 +184,20 @@ def filemerge(repo, fw, fd, fo, wctx, mctx):
         util.copyfile(back, a) # restore from backup and try again
 
     env = dict(HG_FILE=fd,
-               HG_MY_NODE=str(wctx.parents()[0]),
-               HG_OTHER_NODE=str(mctx),
-               HG_MY_ISLINK=fcm.islink(),
-               HG_OTHER_ISLINK=fco.islink(),
-               HG_BASE_ISLINK=fca.islink())
+               HG_MY_NODE=short(mynode),
+               HG_OTHER_NODE=str(fco.changectx()),
+               HG_MY_ISLINK='l' in fcd.flags(),
+               HG_OTHER_ISLINK='l' in fco.flags(),
+               HG_BASE_ISLINK='l' in fca.flags())
 
     if tool == "internal:merge":
-        r = simplemerge.simplemerge(a, b, c, label=['local', 'other'])
+        r = simplemerge.simplemerge(ui, a, b, c, label=['local', 'other'])
+    elif tool == 'internal:dump':
+        a = repo.wjoin(fd)
+        util.copyfile(a, a + ".local")
+        repo.wwrite(fd + ".other", fco.data(), fco.flags())
+        repo.wwrite(fd + ".base", fca.data(), fca.flags())
+        return 1 # unresolved
     else:
         args = _toolstr(ui, tool, "args", '$local $base $other')
         if "$output" in args:
@@ -196,21 +208,21 @@ def filemerge(repo, fw, fd, fo, wctx, mctx):
         r = util.system(toolpath + ' ' + args, cwd=repo.root, environ=env)
 
     if not r and _toolbool(ui, tool, "checkconflicts"):
-        if re.match("^(<<<<<<< .*|=======|>>>>>>> .*)$", fcm.data()):
+        if re.match("^(<<<<<<< .*|=======|>>>>>>> .*)$", fcd.data()):
             r = 1
 
     if not r and _toolbool(ui, tool, "checkchanged"):
         if filecmp.cmp(repo.wjoin(fd), back):
             if ui.prompt(_(" output file %s appears unchanged\n"
                 "was merge successful (yn)?") % fd,
-                _("[yn]"), _("n")) != _("y"):
+                (_("&Yes"), _("&No")), _("n")) != _("y"):
                 r = 1
 
     if _toolbool(ui, tool, "fixeol"):
         _matcheol(repo.wjoin(fd), back)
 
     if r:
-        repo.ui.warn(_("merging %s failed!\n") % fd)
+        ui.warn(_("merging %s failed!\n") % fd)
     else:
         os.unlink(back)
 

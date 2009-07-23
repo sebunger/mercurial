@@ -1,11 +1,9 @@
-CVE-2008-4297
+for_upstream__force_C_locale.patch
+deb_specific__mergetools
+proposed_upstream__dont-install-i18n
+deb_specific__install-templates-separately
 proposed_upstream__python-module-not-script.patch
-proposed_upstream__extension_syntax.patch
-deb_specific__FAQ_subst.patch
 deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
-deb_specific__bash_completion_global_option_already_set.patch
-deb_specific__ElementTree_for_darcs.patch
-convert-darc-doc.patch
-backport__CVE-2008-2942-fix.patch
-backport__svn1.5-fix.patch
+deb_specific__optional-dependencies
+proposed_upstream__correct-zeroconf-doc

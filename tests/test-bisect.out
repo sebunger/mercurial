@@ -241,3 +241,81 @@ abort: Inconsistent state, 31:58c80a7c8a40 is good and bad
 error
 Testing changeset 15:e7fa0811edb0 (32 changesets remaining, ~5 tests)
 5cd978ea5149
+% reproduce AssertionError, issue1228 and issue1182
+Testing changeset 2:db07c04beaca (4 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Testing changeset 1:5cd978ea5149 (4 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Testing changeset 3:b53bea5e2fcb (4 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Due to skipped revisions, the first bad revision could be any of:
+changeset:   1:5cd978ea5149
+user:        test
+date:        Thu Jan 01 00:00:01 1970 +0000
+summary:     msg 1
+
+changeset:   2:db07c04beaca
+user:        test
+date:        Thu Jan 01 00:00:02 1970 +0000
+summary:     msg 2
+
+changeset:   3:b53bea5e2fcb
+user:        test
+date:        Thu Jan 01 00:00:03 1970 +0000
+summary:     msg 3
+
+changeset:   4:9b2ba8336a65
+user:        test
+date:        Thu Jan 01 00:00:04 1970 +0000
+summary:     msg 4
+
+% reproduce non converging bisect, issue1182
+Testing changeset 1:5cd978ea5149 (2 changesets remaining, ~1 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Due to skipped revisions, the first bad revision could be any of:
+changeset:   1:5cd978ea5149
+user:        test
+date:        Thu Jan 01 00:00:01 1970 +0000
+summary:     msg 1
+
+changeset:   2:db07c04beaca
+user:        test
+date:        Thu Jan 01 00:00:02 1970 +0000
+summary:     msg 2
+
+% test no action
+abort: cannot bisect (no known good revisions)
+failure
+% reproduce AssertionError, issue1445
+Testing changeset 3:b53bea5e2fcb (6 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Testing changeset 2:db07c04beaca (6 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Testing changeset 4:9b2ba8336a65 (6 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Testing changeset 1:5cd978ea5149 (6 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Testing changeset 5:7874a09ea728 (6 changesets remaining, ~2 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+The first bad revision is:
+changeset:   6:a3d5c6fdf0d3
+user:        test
+date:        Thu Jan 01 00:00:06 1970 +0000
+summary:     msg 6
+
+% test invalid command
+abort: cannot find executable: foobar
+% test bisecting command
+Testing changeset 15:e7fa0811edb0 (31 changesets remaining, ~4 tests)
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+Changeset 15:e7fa0811edb0: good
+Changeset 7:03750880c6b5: good
+Changeset 3:b53bea5e2fcb: bad
+Changeset 5:7874a09ea728: bad
+Changeset 6:a3d5c6fdf0d3: good
+The first good revision is:
+changeset:   6:a3d5c6fdf0d3
+user:        test
+date:        Thu Jan 01 00:00:06 1970 +0000
+summary:     msg 6
+

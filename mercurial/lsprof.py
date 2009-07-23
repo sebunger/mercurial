@@ -25,7 +25,7 @@ class Stats(object):
     def sort(self, crit="inlinetime"):
         """XXX docstring"""
         if crit not in profiler_entry.__dict__:
-            raise ValueError, "Can't sort by %s" % crit
+            raise ValueError("Can't sort by %s" % crit)
         self.data.sort(lambda b, a: cmp(getattr(a, crit),
                                         getattr(b, crit)))
         for e in self.data:
@@ -42,7 +42,6 @@ class Stats(object):
             d = d[:top]
         cols = "% 12s %12s %11.4f %11.4f   %s\n"
         hcols = "% 12s %12s %12s %12s %s\n"
-        cols2 = "+%12s %12s %11.4f %11.4f +  %s\n"
         file.write(hcols % ("CallCount", "Recursive", "Total(ms)",
                             "Inline(ms)", "module:lineno(function)"))
         count = 0
@@ -88,7 +87,7 @@ def label(code):
     try:
         mname = _fn2mod[code.co_filename]
     except KeyError:
-        for k, v in sys.modules.items():
+        for k, v in sys.modules.iteritems():
             if v is None:
                 continue
             if not hasattr(v, '__file__'):

@@ -5,7 +5,7 @@ mkdir a/d1
 mkdir a/d1/d2
 echo line 1 > a/a
 echo line 1 > a/d1/d2/a
-hg --cwd a ci -d '0 0' -Ama
+hg --cwd a ci -Ama
 
 echo line 2 >> a/a
 hg --cwd a ci -u someone -d '1 0' -m'second change'
@@ -18,6 +18,18 @@ echo % message should be same
 hg --cwd b tip | grep 'second change'
 echo % committer should be same
 hg --cwd b tip | grep someone
+rm -r b
+
+echo % import exported patch with external patcher
+cat > dummypatch.py <<EOF
+print 'patching file a'
+file('a', 'wb').write('line2\n')
+EOF
+chmod +x dummypatch.py
+hg clone -r0 a b
+hg --cwd a export tip > tip.patch
+hg --config ui.patch='python ../dummypatch.py' --cwd b import ../tip.patch
+cat b/a
 rm -r b
 
 echo % import of plain diff should fail without message
@@ -132,10 +144,10 @@ echo line 3 >> a/a
 hg --cwd a ci -m'third change'
 hg --cwd a export -o '../patch%R' 1 2
 hg clone -qr0 a b
-hg --cwd b parents --template 'parent: #rev#\n'
+hg --cwd b parents --template 'parent: {rev}\n'
 hg --cwd b import ../patch1 ../patch2
 hg --cwd b rollback
-hg --cwd b parents --template 'parent: #rev#\n'
+hg --cwd b parents --template 'parent: {rev}\n'
 rm -r b
 
 # bug non regression test
@@ -260,4 +272,63 @@ foobar
 EOF
 hg status
 cat a
+cd ..
+
+echo % 'test paths outside repo root'
+mkdir outside
+touch outside/foo
+hg init inside
+cd inside
+hg import - <<EOF
+diff --git a/a b/b
+rename from ../outside/foo
+rename to bar
+EOF
+cd ..
+
+echo '% test import with similarity (issue295)'
+hg init sim
+cd sim
+echo 'this is a test' > a
+hg ci -Ama
+cat > ../rename.diff <<EOF
+diff --git a/a b/a
+deleted file mode 100644
+--- a/a
++++ /dev/null
+@@ -1,1 +0,0 @@
+-this is a test
+diff --git a/b b/b
+new file mode 100644
+--- /dev/null
++++ b/b
+@@ -0,0 +1,2 @@
++this is a test
++foo
+EOF
+hg import --no-commit -v -s 1 ../rename.diff
+hg st -C
+hg revert -a
+rm b
+hg import --no-commit -v -s 100 ../rename.diff
+hg st -C
+cd ..
+
+
+echo '% add empty file from the end of patch (issue 1495)'
+hg init addemptyend
+cd addemptyend
+touch a
+hg addremove
+hg ci -m "commit"
+cat > a.patch <<EOF
+diff --git a/a b/a
+--- a/a
++++ b/a
+@@ -0,0 +1,1 @@
++a
+diff --git a/b b/b
+new file mode 100644
+EOF
+hg import --no-commit a.patch
 cd ..

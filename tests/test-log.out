@@ -5,7 +5,7 @@ date:        Thu Jan 01 00:00:01 1970 +0000
 summary:     a
 
 % -f, directory
-abort: can only follow copies/renames for explicit file names
+abort: cannot follow nonexistent file: "dir"
 % -f, but no args
 changeset:   4:b30c444c7c84
 tag:         tip
@@ -150,7 +150,6 @@ summary:     b1
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 (branch merge, don't forget to commit)
 % log -r . with two parents
-warning: working directory has two parents, tag '.' uses the first
 changeset:   3:e62f78d544b4
 parent:      1:3d5bf5654eda
 user:        test
@@ -222,5 +221,39 @@ user:        test
 date:        Thu Jan 01 00:00:01 1970 +0000
 summary:     b1
 
+% log -r tip -p --git
+changeset:   6:2404bbcab562
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:01 1970 +0000
+summary:     b1.1
+
+diff --git a/b1 b/b1
+--- a/b1
++++ b/b1
+@@ -1,1 +1,2 @@
+ b1
++postm
+
 % log -r ""
 abort: 00changelog.i@: ambiguous identifier!
+% log -r <some unknown node id>
+abort: unknown revision '1000000000000000000000000000000000000000'!
+adding a
+adding b
+changeset:   0:29a4c94f1924
+user:        User One <user1@example.org>
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     a
+
+changeset:   1:e834b5e69c0e
+tag:         tip
+user:        User Two <user2@example.org>
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     b
+
+changeset:   0:29a4c94f1924
+user:        User One <user1@example.org>
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     a
+

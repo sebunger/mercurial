@@ -1,25 +1,27 @@
-"""
-revlog.py - storage back-end for mercurial
+# revlog.py - storage back-end for mercurial
+#
+# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
+#
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
+"""Storage back-end for Mercurial.
 
 This provides efficient delta storage with O(1) retrieve and append
-and O(changes) merge between branches
-
-Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
-
-This software may be used and distributed according to the terms
-of the GNU General Public License, incorporated herein by reference.
+and O(changes) merge between branches.
 """
 
-from node import bin, hex, nullid, nullrev, short
+# import stuff from node for others to import from revlog
+from node import bin, hex, nullid, nullrev, short #@UnusedImport
 from i18n import _
-import changegroup, errno, ancestor, mdiff
-import sha, struct, util, zlib
+import changegroup, ancestor, mdiff, parsers, error, util
+import struct, zlib, errno
 
 _pack = struct.pack
 _unpack = struct.unpack
 _compress = zlib.compress
 _decompress = zlib.decompress
-_sha = sha.new
+_sha = util.sha1
 
 # revlog flags
 REVLOGV0 = 0
@@ -29,15 +31,10 @@ REVLOG_DEFAULT_FLAGS = REVLOGNGINLINEDATA
 REVLOG_DEFAULT_FORMAT = REVLOGNG
 REVLOG_DEFAULT_VERSION = REVLOG_DEFAULT_FORMAT | REVLOG_DEFAULT_FLAGS
 
-class RevlogError(Exception):
-    pass
+_prereadsize = 1048576
 
-class LookupError(RevlogError):
-    def __init__(self, name, index, message):
-        self.name = name
-        if isinstance(name, str) and len(name) == 20:
-            name = short(name)
-        RevlogError.__init__(self, _('%s@%s: %s') % (index, name, message))
+RevlogError = error.RevlogError
+LookupError = error.LookupError
 
 def getoffset(q):
     return int(q >> 16)
@@ -48,6 +45,8 @@ def gettype(q):
 def offset_type(offset, type):
     return long(long(offset) << 16 | type)
 
+nullhash = _sha(nullid)
+
 def hash(text, p1, p2):
     """generate a hash from the given text and its parent hashes
 
@@ -55,10 +54,17 @@ def hash(text, p1, p2):
     in a manner that makes it easy to distinguish nodes with the same
     content in the revision graph.
     """
-    l = [p1, p2]
-    l.sort()
-    s = _sha(l[0])
-    s.update(l[1])
+    # As of now, if one of the parent node is null, p2 is null
+    if p2 == nullid:
+        # deep copy of a hash is faster than creating one
+        s = nullhash.copy()
+        s.update(p1)
+    else:
+        # none of the parent nodes are nullid
+        l = [p1, p2]
+        l.sort()
+        s = _sha(l[0])
+        s.update(l[1])
     s.update(text)
     return s.digest()
 
@@ -113,7 +119,11 @@ class lazyparser(object):
     # available. it keeps file handle open, which make it not possible
     # to break hardlinks on local cloned repos.
 
-    def __init__(self, dataf, size):
+    def __init__(self, dataf):
+        try:
+            size = util.fstat(dataf).st_size
+        except AttributeError:
+            size = 0
         self.dataf = dataf
         self.s = struct.calcsize(indexformatng)
         self.datasize = size
@@ -169,7 +179,7 @@ class lazyparser(object):
         if lend > len(self.index) - i:
             lend = len(self.index) - i
         for x in xrange(lend):
-            if self.index[i + x] == None:
+            if self.index[i + x] is None:
                 b = data[off : off + self.s]
                 self.index[i + x] = b
                 n = b[ngshaoffset:ngshaoffset + 20]
@@ -225,7 +235,7 @@ class lazyparser(object):
         if self.all:
             return
         all = False
-        if i == None:
+        if i is None:
             blockstart = 0
             blocksize = (65536 / self.s) * self.s
             end = self.datasize
@@ -273,7 +283,7 @@ class lazymap(object):
         self.p = parser
     def load(self, key):
         n = self.p.findnode(key)
-        if n == None:
+        if n is None:
             raise KeyError(key)
     def __contains__(self, key):
         if key in self.p.map:
@@ -311,12 +321,13 @@ class revlogoldio(object):
     def __init__(self):
         self.size = struct.calcsize(indexformatv0)
 
-    def parseindex(self, fp, inline):
+    def parseindex(self, fp, data, inline):
         s = self.size
         index = []
         nodemap =  {nullid: nullrev}
         n = off = 0
-        data = fp.read()
+        if len(data) == _prereadsize:
+            data += fp.read() # read the rest
         l = len(data)
         while off + s <= l:
             cur = data[off:off + s]
@@ -354,55 +365,23 @@ class revlogio(object):
     def __init__(self):
         self.size = struct.calcsize(indexformatng)
 
-    def parseindex(self, fp, inline):
-        try:
-            size = util.fstat(fp).st_size
-        except AttributeError:
-            size = 0
+    def parseindex(self, fp, data, inline):
+        if len(data) == _prereadsize:
+            if util.openhardlinks() and not inline:
+                # big index, let's parse it on demand
+                parser = lazyparser(fp)
+                index = lazyindex(parser)
+                nodemap = lazymap(parser)
+                e = list(index[0])
+                type = gettype(e[0])
+                e[0] = offset_type(0, type)
+                index[0] = e
+                return index, nodemap, None
+            else:
+                data += fp.read()
 
-        if util.openhardlinks() and not inline and size > 1000000:
-            # big index, let's parse it on demand
-            parser = lazyparser(fp, size)
-            index = lazyindex(parser)
-            nodemap = lazymap(parser)
-            e = list(index[0])
-            type = gettype(e[0])
-            e[0] = offset_type(0, type)
-            index[0] = e
-            return index, nodemap, None
-
-        s = self.size
-        cache = None
-        index = []
-        nodemap =  {nullid: nullrev}
-        n = off = 0
-        # if we're not using lazymap, always read the whole index
-        data = fp.read()
-        l = len(data) - s
-        append = index.append
-        if inline:
-            cache = (0, data)
-            while off <= l:
-                e = _unpack(indexformatng, data[off:off + s])
-                nodemap[e[7]] = n
-                append(e)
-                n += 1
-                if e[1] < 0:
-                    break
-                off += e[1] + s
-        else:
-            while off <= l:
-                e = _unpack(indexformatng, data[off:off + s])
-                nodemap[e[7]] = n
-                append(e)
-                n += 1
-                off += s
-
-        e = list(index[0])
-        type = gettype(e[0])
-        e[0] = offset_type(0, type)
-        index[0] = e
-
+        # call the C implementation to parse the index data
+        index, nodemap, cache = parsers.parse_index(data, inline)
         return index, nodemap, cache
 
     def packentry(self, entry, node, version, rev):
@@ -418,7 +397,7 @@ class revlog(object):
     A revlog consists of two parts, an index and the revision data.
 
     The index is a file with a fixed record size containing
-    information on each revision, includings its nodeid (hash), the
+    information on each revision, including its nodeid (hash), the
     nodeids of its parents, the position and offset of its data within
     the data file, and the revision it's based on. Finally, each entry
     contains a linkrev entry that can serve as a pointer to external
@@ -447,7 +426,7 @@ class revlog(object):
         self.datafile = indexfile[:-2] + ".d"
         self.opener = opener
         self._cache = None
-        self._chunkcache = None
+        self._chunkcache = (0, '')
         self.nodemap = {nullid: nullrev}
         self.index = []
 
@@ -457,13 +436,12 @@ class revlog(object):
             if v & REVLOGNG:
                 v |= REVLOGNGINLINEDATA
 
-        i = ""
+        i = ''
         try:
             f = self.opener(self.indexfile)
-            i = f.read(4)
-            f.seek(0)
+            i = f.read(_prereadsize)
             if len(i) > 0:
-                v = struct.unpack(versionformat, i)[0]
+                v = struct.unpack(versionformat, i[:4])[0]
         except IOError, inst:
             if inst.errno != errno.ENOENT:
                 raise
@@ -486,11 +464,18 @@ class revlog(object):
         if self.version == REVLOGV0:
             self._io = revlogoldio()
         if i:
-            d = self._io.parseindex(f, self._inline)
+            try:
+                d = self._io.parseindex(f, i, self._inline)
+            except (ValueError, IndexError), e:
+                raise RevlogError(_("index %s is corrupted") % (self.indexfile))
             self.index, self.nodemap, self._chunkcache = d
+            if not self._chunkcache:
+                self._chunkclear()
 
-        # add the magic null revision at -1
-        self.index.append((0, 0, 0, -1, -1, -1, -1, nullid))
+        # add the magic null revision at -1 (if it hasn't been done already)
+        if (self.index == [] or isinstance(self.index, lazyindex) or
+            self.index[-1][7] != nullid) :
+            self.index.append((0, 0, 0, -1, -1, -1, -1, nullid))
 
     def _loadindex(self, start, end):
         """load a block of indexes all at once from the lazy parser"""
@@ -512,9 +497,11 @@ class revlog(object):
 
     def tip(self):
         return self.node(len(self.index) - 2)
-    def count(self):
+    def __len__(self):
         return len(self.index) - 1
-
+    def __iter__(self):
+        for i in xrange(len(self)):
+            yield i
     def rev(self, node):
         try:
             return self.nodemap[node]
@@ -522,11 +509,12 @@ class revlog(object):
             raise LookupError(node, self.indexfile, _('no node'))
     def node(self, rev):
         return self.index[rev][7]
-    def linkrev(self, node):
-        return self.index[self.rev(node)][4]
+    def linkrev(self, rev):
+        return self.index[rev][4]
     def parents(self, node):
-        d = self.index[self.rev(node)][5:7]
-        return (self.node(d[0]), self.node(d[1]))
+        i = self.index
+        d = i[self.rev(node)]
+        return i[d[5]][7], i[d[6]][7] # map revisions to nodes inline
     def parentrevs(self, rev):
         return self.index[rev][5:7]
     def start(self, rev):
@@ -547,32 +535,31 @@ class revlog(object):
         t = self.revision(self.node(rev))
         return len(t)
 
-        # alternate implementation, The advantage to this code is it
-        # will be faster for a single revision.  But, the results are not
-        # cached, so finding the size of every revision will be slower.
-        """
-        if self.cache and self.cache[1] == rev:
-            return len(self.cache[2])
-
-        base = self.base(rev)
-        if self.cache and self.cache[1] >= base and self.cache[1] < rev:
-            base = self.cache[1]
-            text = self.cache[2]
-        else:
-            text = self.revision(self.node(base))
-
-        l = len(text)
-        for x in xrange(base + 1, rev + 1):
-            l = mdiff.patchedsize(l, self.chunk(x))
-        return l
-        """
+        # Alternate implementation. The advantage to this code is it
+        # will be faster for a single revision. However, the results
+        # are not cached, so finding the size of every revision will
+        # be slower.
+        #
+        # if self.cache and self.cache[1] == rev:
+        #     return len(self.cache[2])
+        #
+        # base = self.base(rev)
+        # if self.cache and self.cache[1] >= base and self.cache[1] < rev:
+        #     base = self.cache[1]
+        #     text = self.cache[2]
+        # else:
+        #     text = self.revision(self.node(base))
+        #
+        # l = len(text)
+        # for x in xrange(base + 1, rev + 1):
+        #     l = mdiff.patchedsize(l, self._chunk(x))
+        # return l
 
     def reachable(self, node, stop=None):
-        """return a hash of all nodes ancestral to a given node, including
+        """return the set of all nodes ancestral to a given node, including
          the node itself, stopping when stop is matched"""
-        reachable = {}
+        reachable = set((node,))
         visit = [node]
-        reachable[node] = 1
         if stop:
             stopn = self.rev(stop)
         else:
@@ -587,9 +574,69 @@ class revlog(object):
                 if self.rev(p) < stopn:
                     continue
                 if p not in reachable:
-                    reachable[p] = 1
+                    reachable.add(p)
                     visit.append(p)
         return reachable
+
+    def ancestors(self, *revs):
+        'Generate the ancestors of revs using a breadth-first visit'
+        visit = list(revs)
+        seen = set([nullrev])
+        while visit:
+            for parent in self.parentrevs(visit.pop(0)):
+                if parent not in seen:
+                    visit.append(parent)
+                    seen.add(parent)
+                    yield parent
+
+    def descendants(self, *revs):
+        'Generate the descendants of revs in topological order'
+        seen = set(revs)
+        for i in xrange(min(revs) + 1, len(self)):
+            for x in self.parentrevs(i):
+                if x != nullrev and x in seen:
+                    seen.add(i)
+                    yield i
+                    break
+
+    def findmissing(self, common=None, heads=None):
+        '''
+        returns the topologically sorted list of nodes from the set:
+        missing = (ancestors(heads) \ ancestors(common))
+
+        where ancestors() is the set of ancestors from heads, heads included
+
+        if heads is None, the heads of the revlog are used
+        if common is None, nullid is assumed to be a common node
+        '''
+        if common is None:
+            common = [nullid]
+        if heads is None:
+            heads = self.heads()
+
+        common = [self.rev(n) for n in common]
+        heads = [self.rev(n) for n in heads]
+
+        # we want the ancestors, but inclusive
+        has = set(self.ancestors(*common))
+        has.add(nullrev)
+        has.update(common)
+
+        # take all ancestors from heads that aren't in has
+        missing = set()
+        visit = [r for r in heads if r not in has]
+        while visit:
+            r = visit.pop(0)
+            if r in missing:
+                continue
+            else:
+                missing.add(r)
+                for p in self.parentrevs(r):
+                    if p not in has:
+                        visit.append(p)
+        missing = list(missing)
+        missing.sort()
+        return [self.node(r) for r in missing]
 
     def nodesbetween(self, roots=None, heads=None):
         """Return a tuple containing three elements. Elements 1 and 2 contain
@@ -617,12 +664,11 @@ class revlog(object):
             lowestrev = nullrev
         if (lowestrev == nullrev) and (heads is None):
             # We want _all_ the nodes!
-            return ([self.node(r) for r in xrange(0, self.count())],
-                    [nullid], list(self.heads()))
+            return ([self.node(r) for r in self], [nullid], list(self.heads()))
         if heads is None:
             # All nodes are ancestors, so the latest ancestor is the last
             # node.
-            highestrev = self.count() - 1
+            highestrev = len(self) - 1
             # Set ancestors to None to signal that every node is an ancestor.
             ancestors = None
             # Set heads to an empty dictionary for later discovery of heads
@@ -631,13 +677,13 @@ class revlog(object):
             heads = list(heads)
             if not heads:
                 return nonodes
-            ancestors = {}
+            ancestors = set()
             # Turn heads into a dictionary so we can remove 'fake' heads.
             # Also, later we will be using it to filter out the heads we can't
             # find from roots.
             heads = dict.fromkeys(heads, 0)
             # Start at the top and keep marking parents until we're done.
-            nodestotag = heads.keys()
+            nodestotag = set(heads)
             # Remember where the top was so we can use it as a limit later.
             highestrev = max([self.rev(n) for n in nodestotag])
             while nodestotag:
@@ -653,9 +699,9 @@ class revlog(object):
                     if n not in ancestors:
                         # If we are possibly a descendent of one of the roots
                         # and we haven't already been marked as an ancestor
-                        ancestors[n] = 1 # Mark as ancestor
+                        ancestors.add(n) # Mark as ancestor
                         # Add non-nullid parents to list of nodes to tag.
-                        nodestotag.extend([p for p in self.parents(n) if
+                        nodestotag.update([p for p in self.parents(n) if
                                            p != nullid])
                     elif n in heads: # We've seen it before, is it a fake head?
                         # So it is, real heads should not be the ancestors of
@@ -684,9 +730,8 @@ class revlog(object):
                 # any other roots.
                 lowestrev = nullrev
                 roots = [nullid]
-        # Transform our roots list into a 'set' (i.e. a dictionary where the
-        # values don't matter.
-        descendents = dict.fromkeys(roots, 1)
+        # Transform our roots list into a set.
+        descendents = set(roots)
         # Also, keep the original roots so we can filter out roots that aren't
         # 'real' roots (i.e. are descended from other roots).
         roots = descendents.copy()
@@ -710,14 +755,14 @@ class revlog(object):
                     p = tuple(self.parents(n))
                     # If any of its parents are descendents, it's not a root.
                     if (p[0] in descendents) or (p[1] in descendents):
-                        roots.pop(n)
+                        roots.remove(n)
             else:
                 p = tuple(self.parents(n))
                 # A node is a descendent if either of its parents are
                 # descendents.  (We seeded the dependents list with the roots
                 # up there, remember?)
                 if (p[0] in descendents) or (p[1] in descendents):
-                    descendents[n] = 1
+                    descendents.add(n)
                     isdescendent = True
             if isdescendent and ((ancestors is None) or (n in ancestors)):
                 # Only include nodes that are both descendents and ancestors.
@@ -736,7 +781,7 @@ class revlog(object):
                     for p in self.parents(n):
                         heads.pop(p, None)
         heads = [n for n in heads.iterkeys() if heads[n] != 0]
-        roots = roots.keys()
+        roots = list(roots)
         assert orderedout
         assert roots
         assert heads
@@ -751,7 +796,7 @@ class revlog(object):
         as if they had no children
         """
         if start is None and stop is None:
-            count = self.count()
+            count = len(self)
             if not count:
                 return [nullid]
             ishead = [1] * (count + 1)
@@ -765,20 +810,20 @@ class revlog(object):
             start = nullid
         if stop is None:
             stop = []
-        stoprevs = dict.fromkeys([self.rev(n) for n in stop])
+        stoprevs = set([self.rev(n) for n in stop])
         startrev = self.rev(start)
-        reachable = {startrev: 1}
-        heads = {startrev: 1}
+        reachable = set((startrev,))
+        heads = set((startrev,))
 
         parentrevs = self.parentrevs
-        for r in xrange(startrev + 1, self.count()):
+        for r in xrange(startrev + 1, len(self)):
             for p in parentrevs(r):
                 if p in reachable:
                     if r not in stoprevs:
-                        reachable[r] = 1
-                    heads[r] = 1
+                        reachable.add(r)
+                    heads.add(r)
                 if p in heads and p not in stoprevs:
-                    del heads[p]
+                    heads.remove(p)
 
         return [self.node(r) for r in heads]
 
@@ -786,7 +831,7 @@ class revlog(object):
         """find the children of a given node"""
         c = []
         p = self.rev(node)
-        for r in range(p + 1, self.count()):
+        for r in range(p + 1, len(self)):
             prevs = [pr for pr in self.parentrevs(r) if pr != nullrev]
             if prevs:
                 for pr in prevs:
@@ -805,7 +850,7 @@ class revlog(object):
             # odds of a binary node being all hex in ASCII are 1 in 10**25
             try:
                 node = id
-                r = self.rev(node) # quick search the index
+                self.rev(node) # quick search the index
                 return node
             except LookupError:
                 pass # may be partial hex id
@@ -815,8 +860,8 @@ class revlog(object):
             if str(rev) != id:
                 raise ValueError
             if rev < 0:
-                rev = self.count() + rev
-            if rev < 0 or rev >= self.count():
+                rev = len(self) + rev
+            if rev < 0 or rev >= len(self):
                 raise ValueError
             return self.node(rev)
         except (ValueError, OverflowError):
@@ -825,25 +870,25 @@ class revlog(object):
             try:
                 # a full hex nodeid?
                 node = bin(id)
-                r = self.rev(node)
+                self.rev(node)
                 return node
-            except TypeError:
+            except (TypeError, LookupError):
                 pass
 
     def _partialmatch(self, id):
         if len(id) < 40:
             try:
                 # hex(node)[:...]
-                bin_id = bin(id[:len(id) & ~1]) # grab an even number of digits
-                node = None
-                for n in self.nodemap:
-                    if n.startswith(bin_id) and hex(n).startswith(id):
-                        if node is not None:
-                            raise LookupError(id, self.indexfile,
-                                              _('ambiguous identifier'))
-                        node = n
-                if node is not None:
-                    return node
+                l = len(id) / 2  # grab an even number of digits
+                bin_id = bin(id[:l*2])
+                nl = [n for n in self.nodemap if n[:l] == bin_id]
+                nl = [n for n in nl if hex(n).startswith(id)]
+                if len(nl) > 0:
+                    if len(nl) == 1:
+                        return nl[0]
+                    raise LookupError(id, self.indexfile,
+                                      _('ambiguous identifier'))
+                return None
             except TypeError:
                 pass
 
@@ -866,58 +911,65 @@ class revlog(object):
         p1, p2 = self.parents(node)
         return hash(text, p1, p2) != node
 
-    def chunk(self, rev, df=None):
-        def loadcache(df):
-            if not df:
-                if self._inline:
-                    df = self.opener(self.indexfile)
-                else:
-                    df = self.opener(self.datafile)
-            df.seek(start)
-            self._chunkcache = (start, df.read(cache_length))
-
-        start, length = self.start(rev), self.length(rev)
-        if self._inline:
-            start += (rev + 1) * self._io.size
-        end = start + length
-
-        offset = 0
-        if not self._chunkcache:
-            cache_length = max(65536, length)
-            loadcache(df)
+    def _addchunk(self, offset, data):
+        o, d = self._chunkcache
+        # try to add to existing cache
+        if o + len(d) == offset and len(d) + len(data) < _prereadsize:
+            self._chunkcache = o, d + data
         else:
-            cache_start = self._chunkcache[0]
-            cache_length = len(self._chunkcache[1])
-            cache_end = cache_start + cache_length
-            if start >= cache_start and end <= cache_end:
-                # it is cached
-                offset = start - cache_start
-            else:
-                cache_length = max(65536, length)
-                loadcache(df)
+            self._chunkcache = offset, data
 
-        # avoid copying large chunks
-        c = self._chunkcache[1]
-        if cache_length != length:
-            c = c[offset:offset + length]
+    def _loadchunk(self, offset, length):
+        if self._inline:
+            df = self.opener(self.indexfile)
+        else:
+            df = self.opener(self.datafile)
 
-        return decompress(c)
+        readahead = max(65536, length)
+        df.seek(offset)
+        d = df.read(readahead)
+        self._addchunk(offset, d)
+        if readahead > length:
+            return d[:length]
+        return d
 
-    def delta(self, node):
-        """return or calculate a delta between a node and its predecessor"""
-        r = self.rev(node)
-        return self.revdiff(r - 1, r)
+    def _getchunk(self, offset, length):
+        o, d = self._chunkcache
+        l = len(d)
+
+        # is it in the cache?
+        cachestart = offset - o
+        cacheend = cachestart + length
+        if cachestart >= 0 and cacheend <= l:
+            if cachestart == 0 and cacheend == l:
+                return d # avoid a copy
+            return d[cachestart:cacheend]
+
+        return self._loadchunk(offset, length)
+
+    def _chunkraw(self, startrev, endrev):
+        start = self.start(startrev)
+        length = self.end(endrev) - start
+        if self._inline:
+            start += (startrev + 1) * self._io.size
+        return self._getchunk(start, length)
+
+    def _chunk(self, rev):
+        return decompress(self._chunkraw(rev, rev))
+
+    def _chunkclear(self):
+        self._chunkcache = (0, '')
 
     def revdiff(self, rev1, rev2):
         """return or calculate a delta between two revisions"""
         if rev1 + 1 == rev2 and self.base(rev1) == self.base(rev2):
-            return self.chunk(rev2)
+            return self._chunk(rev2)
 
         return mdiff.textdiff(self.revision(self.node(rev1)),
                               self.revision(self.node(rev2)))
 
     def revision(self, node):
-        """return an uncompressed revision of a given"""
+        """return an uncompressed revision of a given node"""
         if node == nullid:
             return ""
         if self._cache and self._cache[0] == node:
@@ -933,42 +985,32 @@ class revlog(object):
             raise RevlogError(_('incompatible revision flag %x') %
                               (self.index[rev][0] & 0xFFFF))
 
-        df = None
-
         # do we have useful data cached?
         if self._cache and self._cache[1] >= base and self._cache[1] < rev:
             base = self._cache[1]
             text = str(self._cache[2])
-            self._loadindex(base, rev + 1)
-            if not self._inline and rev > base + 1:
-                df = self.opener(self.datafile)
-        else:
-            self._loadindex(base, rev + 1)
-            if not self._inline and rev > base:
-                df = self.opener(self.datafile)
-            text = self.chunk(base, df=df)
 
-        bins = [self.chunk(r, df) for r in xrange(base + 1, rev + 1)]
+        self._loadindex(base, rev + 1)
+        self._chunkraw(base, rev)
+        if text is None:
+            text = self._chunk(base)
+
+        bins = [self._chunk(r) for r in xrange(base + 1, rev + 1)]
         text = mdiff.patches(text, bins)
         p1, p2 = self.parents(node)
         if node != hash(text, p1, p2):
             raise RevlogError(_("integrity check failed on %s:%d")
-                              % (self.datafile, rev))
+                              % (self.indexfile, rev))
 
         self._cache = (node, rev, text)
         return text
 
     def checkinlinesize(self, tr, fp=None):
-        if not self._inline:
+        if not self._inline or (self.start(-2) + self.length(-2)) < 131072:
             return
-        if not fp:
-            fp = self.opener(self.indexfile, 'r')
-            fp.seek(0, 2)
-        size = fp.tell()
-        if size < 131072:
-            return
+
         trinfo = tr.find(self.indexfile)
-        if trinfo == None:
+        if trinfo is None:
             raise RevlogError(_("%s not found in the transaction")
                               % self.indexfile)
 
@@ -976,23 +1018,22 @@ class revlog(object):
         dataoff = self.start(trindex)
 
         tr.add(self.datafile, dataoff)
+
+        if fp:
+            fp.flush()
+            fp.close()
+
         df = self.opener(self.datafile, 'w')
         try:
-            calc = self._io.size
-            for r in xrange(self.count()):
-                start = self.start(r) + (r + 1) * calc
-                length = self.length(r)
-                fp.seek(start)
-                d = fp.read(length)
-                df.write(d)
+            for r in self:
+                df.write(self._chunkraw(r, r))
         finally:
             df.close()
 
-        fp.close()
         fp = self.opener(self.indexfile, 'w', atomictemp=True)
         self.version &= ~(REVLOGNGINLINEDATA)
         self._inline = False
-        for i in xrange(self.count()):
+        for i in self:
             e = self._io.packentry(self.index[i], self.node, self.version, i)
             fp.write(e)
 
@@ -1000,8 +1041,8 @@ class revlog(object):
         # real index
         fp.rename()
 
-        tr.replace(self.indexfile, trindex * calc)
-        self._chunkcache = None
+        tr.replace(self.indexfile, trindex * self._io.size)
+        self._chunkclear()
 
     def addrevision(self, text, transaction, link, p1, p2, d=None):
         """add a revision to the log
@@ -1028,7 +1069,7 @@ class revlog(object):
         if node in self.nodemap:
             return node
 
-        curr = self.count()
+        curr = len(self)
         prev = curr - 1
         base = self.base(prev)
         offset = self.end(prev)
@@ -1094,6 +1135,7 @@ class revlog(object):
         have this parent as it has all history before these
         changesets. parent is parent[0]
         """
+
         revs = [self.rev(n) for n in nodelist]
 
         # if we don't have any revisions touched by these changesets, bail
@@ -1102,11 +1144,11 @@ class revlog(object):
             return
 
         # add the parent of the first rev
-        p = self.parents(self.node(revs[0]))[0]
-        revs.insert(0, self.rev(p))
+        p = self.parentrevs(revs[0])[0]
+        revs.insert(0, p)
 
         # build deltas
-        for d in xrange(0, len(revs) - 1):
+        for d in xrange(len(revs) - 1):
             a, b = revs[d], revs[d + 1]
             nb = self.node(b)
 
@@ -1133,7 +1175,7 @@ class revlog(object):
 
         yield changegroup.closechunk()
 
-    def addgroup(self, revs, linkmapper, transaction, unique=0):
+    def addgroup(self, revs, linkmapper, transaction):
         """
         add a delta group
 
@@ -1143,7 +1185,7 @@ class revlog(object):
         """
 
         #track the base of the current delta log
-        r = self.count()
+        r = len(self)
         t = r - 1
         node = None
 
@@ -1170,8 +1212,6 @@ class revlog(object):
                 link = linkmapper(cs)
                 if node in self.nodemap:
                     # this can happen if two branches make the same change
-                    # if unique:
-                    #    raise RevlogError(_("already have %s") % hex(node[:4]))
                     chain = node
                     continue
                 delta = buffer(chunk, 80)
@@ -1250,7 +1290,7 @@ class revlog(object):
 
         return node
 
-    def strip(self, minlink):
+    def strip(self, minlink, transaction):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         This function is called when we're stripping revision minlink and
@@ -1264,13 +1304,13 @@ class revlog(object):
         trust that the caller has saved the revisions that shouldn't be
         removed and that it'll readd them after this truncation.
         """
-        if self.count() == 0:
+        if len(self) == 0:
             return
 
         if isinstance(self.index, lazyindex):
             self._loadindexmap()
 
-        for rev in xrange(0, self.count()):
+        for rev in self:
             if self.index[rev][4] >= minlink:
                 break
         else:
@@ -1279,27 +1319,25 @@ class revlog(object):
         # first truncate the files on disk
         end = self.start(rev)
         if not self._inline:
-            df = self.opener(self.datafile, "a")
-            df.truncate(end)
+            transaction.add(self.datafile, end)
             end = rev * self._io.size
         else:
             end += rev * self._io.size
 
-        indexf = self.opener(self.indexfile, "a")
-        indexf.truncate(end)
+        transaction.add(self.indexfile, end)
 
         # then reset internal state in memory to forget those revisions
         self._cache = None
-        self._chunkcache = None
-        for x in xrange(rev, self.count()):
+        self._chunkclear()
+        for x in xrange(rev, len(self)):
             del self.nodemap[self.node(x)]
 
         del self.index[rev:-1]
 
     def checksize(self):
         expected = 0
-        if self.count():
-            expected = max(0, self.end(self.count() - 1))
+        if len(self):
+            expected = max(0, self.end(len(self) - 1))
 
         try:
             f = self.opener(self.datafile)
@@ -1320,13 +1358,19 @@ class revlog(object):
             di = actual - (i * s)
             if self._inline:
                 databytes = 0
-                for r in xrange(self.count()):
+                for r in self:
                     databytes += max(0, self.length(r))
                 dd = 0
-                di = actual - self.count() * s - databytes
+                di = actual - len(self) * s - databytes
         except IOError, inst:
             if inst.errno != errno.ENOENT:
                 raise
             di = 0
 
         return (dd, di)
+
+    def files(self):
+        res = [ self.indexfile ]
+        if not self._inline:
+            res.append(self.datafile)
+        return res

@@ -1,6 +1,12 @@
 #!/bin/sh
 
 "$TESTDIR/hghave" darcs || exit 80
+if darcs --version 2>&1 | grep '^2\.' > /dev/null; then
+    # FIXME: darcs 2 will fail with
+    ### Abort: timeout after 180 seconds.
+    echo 'skipped: test currently disabled for darcs 2'
+    exit 80
+fi
 
 echo "[extensions]" >> $HGRCPATH
 echo "convert=" >> $HGRCPATH
@@ -47,7 +53,7 @@ cd ..
 
 glog()
 {
-    hg glog --template '#rev# "#desc|firstline#" files: #files#\n' "$@"
+    hg glog --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
 }
 
 hg convert darcs-repo darcs-repo-hg 2>&1 | grep -v hGetLine | grep -v '^$'
@@ -58,4 +64,5 @@ hg convert darcs-repo darcs-repo-hg 2>&1 | grep -v hGetLine | grep -v '^$'
 # "c" file in p1.1 patch are reverted too.
 # Just to say that manifest not listing "c" here is a bug.
 glog -R darcs-repo-hg
+hg up -q -R darcs-repo-hg
 hg -R darcs-repo-hg manifest --debug

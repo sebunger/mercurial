@@ -1,8 +1,195 @@
-mercurial (1.0.1-5.1~bpo40+1) etch-backports; urgency=low
+mercurial (1.3.1-1~bpo50+1) lenny-backports; urgency=low
 
-  * Rebuild for etch-backports to fix CVE-2008-4297 (closes: #500781)
+  * Rebuild for lenny-backports.
+  * Revert support for python2.6 so that python-all-dev from stable is
+    enought for building
 
- -- Gerfried Fuchs <rhonda@debian.at>  Thu, 09 Oct 2008 08:36:07 +0200
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 23 Jul 2009 23:07:42 +0200
+
+mercurial (1.3.1-1) unstable; urgency=low
+
+  * New Upstream Version (mostly bugfixes)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 23 Jul 2009 22:49:32 +0200
+
+mercurial (1.3-2) unstable; urgency=low
+
+  * Do not hardcode the python interpreter in the hg script
+    (ie use python and not pythonX.Y...) [thanks Vernon Tang]
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 09 Jul 2009 17:21:25 +0200
+
+mercurial (1.3-1) unstable; urgency=low
+
+  [ Vincent Danjean ]
+  * [debian/control] add version to the quilt dependency. "dh --with quilt"
+    is only supported since quilt 0.46-7 (thanks Faheem Mitha and Zed Pobre)
+    (Closes: #529700, #534589).
+
+  [ Luca Falavigna ]
+  * Changes for Python 2.6 transition (Closes: #532190):
+    - Pass --install-layout=deb option to setup.py install call.
+    - Bump python-all-dev dependency to >= 2.5.4-1~.
+
+  [ Vernon Tang ]
+  * New upstream release. (closes: #536009)
+    - Experimental support for sub-repositories
+    - Fixed support for HTTPS through proxies (closes: #498711)
+    - Experimental share extension
+    - Updated translations and numerous small changes and bug fixes
+  * Updated Standards-Version to 3.8.2.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 08 Jul 2009 17:03:39 +0200
+
+mercurial (1.2.1-3) unstable; urgency=low
+
+  * Only install (or remove) files in packages we are building
+    (Closes: #529803)
+    Who knows how dh_install detect if we are building arch-dep and/or
+    arch-indep packages ?
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 27 May 2009 01:46:40 +0200
+
+mercurial (1.2.1-2) unstable; urgency=low
+
+  * rebuild (forgot to upload arch-all in previous upload)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 19 May 2009 11:01:15 +0200
+
+mercurial (1.2.1-1) unstable; urgency=low
+
+  [ Vernon Tang ]
+  * New bugfix upstream release. (Closes: #525403)
+    - fixed version number build from tarball
+    - fix allow_read logic for hgweb
+    - improve handling of damaged revlogs in verify
+    - keep .orig files when resolving
+    - clear resolve state properly when rebasing
+    - improve --command handling with bisect
+    - fix diff against bundles
+    - improve fetch logic for inactive branches
+    - fix diffstat with notify
+    - fix 'synthetic file adds' in CVS conversion
+
+  [ Vincent Danjean ]
+  * Dump Standards-Version (no change needed)
+  * Switch to dh7 instead of cdbs (last releases of cdbs was breaking
+    the build system) (Closes: #522426, #527504)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 18 May 2009 19:43:53 +0200
+
+mercurial (1.2-1) unstable; urgency=low
+
+  * New upstream release.
+
+  * Fix FTBFS with python-support 0.90 by removing dependence on
+    python-support internals. (closes: #516269)
+
+ -- Vernon Tang <vt@foilhead.net>  Fri, 06 Mar 2009 17:37:45 +0800
+
+mercurial (1.1.2+hg20090217-7787-b8d750daadde-1) experimental; urgency=low
+
+  [ Vernon Tang ]
+  * New snapshot for feature freeze before next major release.
+
+  * debian/patches:
+    - deb_specific__mergetools: remove RCS merge from merge tools
+    - Added:
+      - proposed_upstream__dont-install-i18n
+    - Dropped:
+      - convert-darc-doc.patch: dropping for now to avoid fuzzing translations
+      - backport__zeroconf-doc
+    - Refreshed:
+      - deb_specific__install-templates-separately
+      - deb_specific__mergetools
+
+  * debian/control:
+    - Add gettext to build dependencies for compiling translations
+    - Remove RCS merge from Recommends
+    - Change merge tool Recommends to Suggests, add xxdiff
+
+  [ Vincent Danjean ]
+  * swich to debhelper 7.
+    Debhelper 5.0.37.2 is not enought: 6.0.7 at least is required for
+    dh_lintian to be called.
+  * Fix version to hg hash (instead of 'unknown') for this snapshot
+  * Fix upstream version in changelog
+  * Upload to experimental
+
+ -- Vincent Danjean <vdanjean@debian.org>  Wed, 18 Feb 2009 16:24:23 +0100
+
+mercurial (1.1.2-2) unstable; urgency=low
+
+  * debian/mercurial.postinst: symlink /usr/share/doc/mercurial if dpkg didn't
+    do it when upgrading (closes: #512155)
+  * debian/control: mercurial-common replaces all earlier versions of
+    mercurial
+
+ -- Vernon Tang <vt@foilhead.net>  Sun, 18 Jan 2009 10:39:58 +0800
+
+mercurial (1.1.2-1) unstable; urgency=low
+
+  [ Vernon Tang ]
+  * New upstream release (closes: #499846)
+    Also resolves the following Debian bugs:
+    - mq corrupts repository on file rename (closes: #503997)
+    - failing import breaks Python help (closes: #476885)
+    - hg email doesn't use correct encoding (closes: #427854)
+    - error when loading extensions twice (closes: #447088)
+    - static-http does not work with old layout repositories (closes: #494889)
+    - hgwebdir.cgi goes into endless loop when viewing moved files
+      (closes: #506694)
+
+  * Install hg-ssh (ssh login shell for an hg server) system-wide.
+  * Don't enable extensions by default. (closes: #511872, #503865, #491109)
+
+  * debian/control:
+    - Moved dependencies to mercurial-common where appropriate
+    - Removed Recommends: python-beaker (not a Mercurial dependency)
+    - Removed 'convert' extension dependencies from Suggests:
+      (convert depends on many of the other SCMs it can convert from)
+    - Added python-openssl to Suggests for "hg serve" HTTPS support.
+  * debian/hgext.rc: updated for 1.1.2.
+  * debian/mercurial*, debian/rules: general cleanup.
+  * debian/README.Debian: updated, proofread, and corrected.
+  * debian/patches:
+    - Added headers.
+    - Added:
+      - deb_specific__install-templates-separately
+        (patch template search path to /usr/share instead of symlinking from
+        the module directory)
+      - backport__zeroconf-doc, proposed_upstream__correct-zeroconf-doc
+      - deb_specific__mergetools
+    - Renamed deb_specific__ElementTree_for_darcs.patch to
+      deb_specific__optional-dependencies and updated to suggest Debian
+      packages for more optional dependencies
+    - Dropped:
+      - proposed_upstream__extension_syntax.patch
+      - deb_specific__FAQ_subst.patch
+      - deb_specific__bash_completion_global_option_already_set.patch
+      - backport__CVE-2008-2942-fix.patch
+      - backport__svn1.5-fix.patch
+    - Refreshed:
+      - deb_specific__use_sensible-editor.patch
+      - deb_specific__hgk.py.patch
+      - convert-darc-doc.patch
+
+  [ Sandro Tosi ]
+  * debian/control
+    - switch Vcs-Browser field to viewsvn
+
+  [ Marco Rodrigues ]
+  * debian/control:
+    + Add ${misc:Depends} to Depends to remove
+      lintian warning.
+
+  [ Vincent Danjean ]
+  * Document the fact that extensions are not enabled by default anymore
+    in the NEWS file
+  * big thanks to Vernon Tang for its work
+  * upload the package
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 17 Jan 2009 17:33:46 +0100
 
 mercurial (1.0.1-5.1) unstable; urgency=high
 

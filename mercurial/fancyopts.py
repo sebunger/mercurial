@@ -1,6 +1,39 @@
+# fancyopts.py - better command line parsing
+#
+#  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
+#
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
 import getopt
 
-def fancyopts(args, options, state):
+def gnugetopt(args, options, longoptions):
+    """Parse options mostly like getopt.gnu_getopt.
+
+    This is different from getopt.gnu_getopt in that an argument of - will
+    become an argument of - instead of vanishing completely.
+    """
+    extraargs = []
+    if '--' in args:
+        stopindex = args.index('--')
+        extraargs = args[stopindex+1:]
+        args = args[:stopindex]
+    opts, parseargs = getopt.getopt(args, options, longoptions)
+    args = []
+    while parseargs:
+        arg = parseargs.pop(0)
+        if arg and arg[0] == '-' and len(arg) > 1:
+            parseargs.insert(0, arg)
+            topts, newparseargs = getopt.getopt(parseargs, options, longoptions)
+            opts = opts + topts
+            parseargs = newparseargs
+        else:
+            args.append(arg)
+    args.extend(extraargs)
+    return opts, args
+
+
+def fancyopts(args, options, state, gnu=False):
     """
     read args, parse options, and store options in state
 
@@ -37,7 +70,7 @@ def fancyopts(args, options, state):
         # copy defaults to state
         if isinstance(default, list):
             state[name] = default[:]
-        elif callable(default):
+        elif hasattr(default, '__call__'):
             state[name] = None
         else:
             state[name] = default
@@ -52,7 +85,11 @@ def fancyopts(args, options, state):
             namelist.append(oname)
 
     # parse arguments
-    opts, args = getopt.getopt(args, shortlist, namelist)
+    if gnu:
+        parse = gnugetopt
+    else:
+        parse = getopt.getopt
+    opts, args = parse(args, shortlist, namelist)
 
     # transfer result to state
     for opt, val in opts:

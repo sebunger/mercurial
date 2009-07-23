@@ -16,6 +16,14 @@
 import os
 import sys
 
+try:
+    import msvcrt
+    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.stderr.fileno(), os.O_BINARY)
+except ImportError:
+    pass
+
 exitcode = 0
 out = sys.stdout
 
@@ -37,6 +45,9 @@ if url.startswith("file:"):
     os.environ["HG_URL"] = "file:"
 elif url.startswith("remote:http"):
     os.environ["HG_URL"] = "remote:http"
+
+if "HG_PENDING" in os.environ:
+    os.environ["HG_PENDING"] = os.environ["HG_PENDING"] and "true"
 
 out.write("%s hook: " % name)
 for v in env:

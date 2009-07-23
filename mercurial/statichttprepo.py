@@ -4,65 +4,113 @@
 #
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from i18n import _
-import changelog, httprangereader
-import repo, localrepo, manifest, util
+import changelog, byterange, url, error
+import localrepo, manifest, util, store
 import urllib, urllib2, errno
 
-class rangereader(httprangereader.httprangereader):
-    def read(self, size=None):
+class httprangereader(object):
+    def __init__(self, url, opener):
+        # we assume opener has HTTPRangeHandler
+        self.url = url
+        self.pos = 0
+        self.opener = opener
+    def seek(self, pos):
+        self.pos = pos
+    def read(self, bytes=None):
+        req = urllib2.Request(self.url)
+        end = ''
+        if bytes:
+            end = self.pos + bytes - 1
+        req.add_header('Range', 'bytes=%d-%s' % (self.pos, end))
+
         try:
-            return httprangereader.httprangereader.read(self, size)
+            f = self.opener.open(req)
+            data = f.read()
+            if hasattr(f, 'getcode'):
+                # python 2.6+
+                code = f.getcode()
+            elif hasattr(f, 'code'):
+                # undocumented attribute, seems to be set in 2.4 and 2.5
+                code = f.code
+            else:
+                # Don't know how to check, hope for the best.
+                code = 206
         except urllib2.HTTPError, inst:
             num = inst.code == 404 and errno.ENOENT or None
             raise IOError(num, inst)
         except urllib2.URLError, inst:
             raise IOError(None, inst.reason[1])
 
-def opener(base):
-    """return a function that opens files over http"""
-    p = base
-    def o(path, mode="r"):
-        f = "/".join((p, urllib.quote(path)))
-        return rangereader(f)
-    return o
+        if code == 200:
+            # HTTPRangeHandler does nothing if remote does not support
+            # Range headers and returns the full entity. Let's slice it.
+            if bytes:
+                data = data[self.pos:self.pos + bytes]
+            else:
+                data = data[self.pos:]
+        elif bytes:
+            data = data[:bytes]
+        self.pos += len(data)
+        return data
+
+def build_opener(ui, authinfo):
+    # urllib cannot handle URLs with embedded user or passwd
+    urlopener = url.opener(ui, authinfo)
+    urlopener.add_handler(byterange.HTTPRangeHandler())
+
+    def opener(base):
+        """return a function that opens files over http"""
+        p = base
+        def o(path, mode="r"):
+            f = "/".join((p, urllib.quote(path)))
+            return httprangereader(f, urlopener)
+        return o
+
+    return opener
 
 class statichttprepository(localrepo.localrepository):
     def __init__(self, ui, path):
         self._url = path
         self.ui = ui
 
-        self.path = path.rstrip('/') + "/.hg"
+        self.path, authinfo = url.getauthinfo(path.rstrip('/') + "/.hg")
+
+        opener = build_opener(ui, authinfo)
         self.opener = opener(self.path)
 
         # find requirements
         try:
             requirements = self.opener("requires").read().splitlines()
         except IOError, inst:
-            if inst.errno == errno.ENOENT:
+            if inst.errno != errno.ENOENT:
+                raise
+            # check if it is a non-empty old-style repository
+            try:
+                self.opener("00changelog.i").read(1)
+            except IOError, inst:
+                if inst.errno != errno.ENOENT:
+                    raise
+                # we do not care about empty old-style repositories here
                 msg = _("'%s' does not appear to be an hg repository") % path
-                raise repo.RepoError(msg)
-            else:
-                requirements = []
+                raise error.RepoError(msg)
+            requirements = []
 
         # check them
         for r in requirements:
             if r not in self.supported:
-                raise repo.RepoError(_("requirement '%s' not supported") % r)
+                raise error.RepoError(_("requirement '%s' not supported") % r)
 
         # setup store
-        if "store" in requirements:
-            self.encodefn = util.encodefilename
-            self.decodefn = util.decodefilename
-            self.spath = self.path + "/store"
-        else:
-            self.encodefn = lambda x: x
-            self.decodefn = lambda x: x
-            self.spath = self.path
-        self.sopener = util.encodedopener(opener(self.spath), self.encodefn)
+        def pjoin(a, b):
+            return a + '/' + b
+        self.store = store.store(requirements, self.path, opener, pjoin)
+        self.spath = self.store.path
+        self.sopener = self.store.opener
+        self.sjoin = self.store.join
 
         self.manifest = manifest.manifest(self.sopener)
         self.changelog = changelog.changelog(self.sopener)
@@ -72,10 +120,13 @@ class statichttprepository(localrepo.localrepository):
         self.decodepats = None
 
     def url(self):
-        return 'static-' + self._url
+        return self._url
 
     def local(self):
         return False
+
+    def lock(self, wait=True):
+        raise util.Abort(_('cannot lock static-http repository'))
 
 def instance(ui, path, create):
     if create:
