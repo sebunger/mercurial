@@ -1,6 +1,8 @@
-import sys, textwrap
+import os, sys, textwrap
 # import from the live mercurial repo
 sys.path.insert(0, "..")
+# fall back to pure modules if required C extensions are not available
+sys.path.append(os.path.join('..', 'mercurial', 'pure'))
 from mercurial import demandimport; demandimport.enable()
 from mercurial.commands import table, globalopts
 from mercurial.i18n import gettext, _
@@ -103,7 +105,9 @@ def show_doc(ui):
         underlined(gettext(section).upper())
         if callable(doc):
             doc = doc()
-        ui.write(gettext(doc))
+        else:
+            doc = gettext(doc)
+        ui.write(doc)
         ui.write("\n")
 
 if __name__ == "__main__":

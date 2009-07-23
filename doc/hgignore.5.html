@@ -17,18 +17,29 @@
 <hr>
 <h2><a name="_synopsis"></a>SYNOPSIS</h2>
 <p>The Mercurial system uses a file called <tt>.hgignore</tt> in the root
-directory of a repository to control its behavior when it finds files
-that it is not currently managing.</p>
+directory of a repository to control its behavior when it searches
+for files that it is not currently tracking.</p>
 <hr>
 <h2><a name="_description"></a>DESCRIPTION</h2>
-<p>Mercurial ignores every unmanaged file that matches any pattern in an
-ignore file. The patterns in an ignore file do not apply to files
-managed by Mercurial. To control Mercurial&#8217;s handling of files that it
-manages, see the hg(1) man page. Look for the "-I" and "-X" options.</p>
-<p>In addition, a Mercurial configuration file can point to a set of
+<p>The working directory of a Mercurial repository will often contain
+files that should not be tracked by Mercurial. These include backup
+files created by editors and build products created by compilers.
+These files can be ignored by listing them in a <tt>.hgignore</tt> file in
+the root of the working directory. The <tt>.hgignore</tt> file must be
+created manually. It is typically put under version control, so that
+the settings will propagate to other repositories with push and pull.</p>
+<p>An untracked file is ignored if its path relative to the repository
+root directory, or any prefix path of that path, is matched against
+any pattern in <tt>.hgignore</tt>.</p>
+<p>For example, say we have an an untracked file, <tt>file.c</tt>, at
+<tt>a/b/file.c</tt> inside our repository. Mercurial will ignore <tt>file.c</tt> if
+any pattern in <tt>.hgignore</tt> matches <tt>a/b/file.c</tt>, <tt>a/b</tt> or <tt>a</tt>.</p>
+<p>In addition, a Mercurial configuration file can reference a set of
 per-user or global ignore files. See the hgrc(5) man page for details
 of how to configure these files. Look for the "ignore" entry in the
 "ui" section.</p>
+<p>To control Mercurial&#8217;s handling of files that it manages, see the
+hg(1) man page. Look for the "-I" and "-X" options.</p>
 <hr>
 <h2><a name="_syntax"></a>SYNTAX</h2>
 <p>An ignore file is a plain text file consisting of a list of patterns,
@@ -91,7 +102,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr><p><small>
-Last updated 2009-07-01 16:47:40 CDT
+Last updated 2009-07-23 12:58:05 CDT
 </small></p>
 </body>
 </html>
