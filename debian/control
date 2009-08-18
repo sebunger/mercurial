@@ -5,7 +5,7 @@ Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.de
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Gerardo Curiel <gcuriel@debian.org.ve>,
  Vernon Tang <vt@foilhead.net>
-Build-Depends: debhelper (>= 7.0.50), quilt (>= 0.46-7),
+Build-Depends: debhelper (>= 7.0.50), quilt (>> 0.46-6),
  patchutils (>= 0.2.25), gettext,
  python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
 Standards-Version: 3.8.2

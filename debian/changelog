@@ -1,3 +1,11 @@
+mercurial (1.3.1-1~bpo50+2) lenny-backports; urgency=low
+
+  * Rebuild for lenny-backports
+  * adjust quilt dependency so that it works with backports
+    (ie quilt >> 0.46-6 instead of quilt >= 0.46-7)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 18 Aug 2009 12:50:49 +0200
+
 mercurial (1.3.1-1~bpo50+1) lenny-backports; urgency=low
 
   * Rebuild for lenny-backports.
