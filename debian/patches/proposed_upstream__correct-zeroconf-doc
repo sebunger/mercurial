@@ -1,6 +1,6 @@
 Correct the documentation for the zeroconf extension.
 
-diff -r 151f1e65ad7b hgext/zeroconf/__init__.py
+diff -r eeca030c4639 hgext/zeroconf/__init__.py
 --- a/hgext/zeroconf/__init__.py
 +++ b/hgext/zeroconf/__init__.py
 @@ -7,9 +7,9 @@
@@ -15,13 +15,13 @@ diff -r 151f1e65ad7b hgext/zeroconf/__init__.py
 +the server's address.
  
  To allow other people to discover your repository using run "hg serve"
- in your repository.
+ in your repository::
 @@ -17,7 +17,7 @@
-  $ cd test
-  $ hg serve
+   $ cd test
+   $ hg serve
  
--You can discover zeroconf enabled repositories by running "hg paths".
-+You can discover Zeroconf-enabled repositories by running "hg paths".
+-You can discover zeroconf enabled repositories by running "hg paths"::
++You can discover Zeroconf-enabled repositories by running "hg paths"::
  
-  $ hg paths
-  zc-test = http://example.com:8000/test
+   $ hg paths
+   zc-test = http://example.com:8000/test

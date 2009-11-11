@@ -1,9 +1,9 @@
 Suggest Debian packages for some optional dependencies.
 
-diff -r 06d10c5c850e hgext/bugzilla.py
+diff -r d29c8b10d01f hgext/bugzilla.py
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -308,7 +308,8 @@
+@@ -421,7 +421,8 @@
          global MySQLdb
          MySQLdb = mysql
      except ImportError, err:
@@ -13,10 +13,10 @@ diff -r 06d10c5c850e hgext/bugzilla.py
  
      if node is None:
          raise util.Abort(_('hook type %s does not pass a changeset id') %
-diff -r 06d10c5c850e hgext/convert/bzr.py
+diff -r d29c8b10d01f hgext/convert/bzr.py
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -31,7 +31,8 @@
+@@ -42,7 +42,8 @@
              # access bzrlib stuff
              branch
          except NameError:
@@ -24,12 +24,12 @@ diff -r 06d10c5c850e hgext/convert/bzr.py
 +            raise NoRepo('Bazaar modules could not be loaded' +
 +                         _(' (try installing the %s package)') % 'bzr')
  
-         if not os.path.exists(os.path.join(path, '.bzr')):
-             raise NoRepo('%s does not look like a Bazaar repo' % path)
-diff -r 06d10c5c850e hgext/convert/common.py
+         path = os.path.abspath(path)
+         self._checkrepotype(path)
+diff -r d29c8b10d01f hgext/convert/common.py
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -20,11 +20,12 @@
+@@ -26,11 +26,12 @@
  
  class MissingTool(Exception): pass
  
@@ -44,39 +44,43 @@ diff -r 06d10c5c850e hgext/convert/common.py
  
  class NoRepo(Exception): pass
  
-diff -r 06d10c5c850e hgext/convert/cvs.py
+diff -r d29c8b10d01f hgext/convert/cvs.py
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
-@@ -16,7 +16,7 @@
+@@ -21,7 +21,7 @@
          if not os.path.exists(cvs):
              raise NoRepo("%s does not look like a CVS checkout" % path)
  
 -        checktool('cvs')
 +        checktool('cvs', debname='cvs')
-         self.cmd = ui.config('convert', 'cvsps', 'builtin')
-         cvspsexe = self.cmd.split(None, 1)[0]
-         self.builtin = cvspsexe == 'builtin'
-diff -r 06d10c5c850e hgext/convert/darcs.py
+ 
+         self.changeset = None
+         self.files = {}
+diff -r d29c8b10d01f hgext/convert/darcs.py
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
-@@ -27,10 +27,11 @@
+@@ -35,14 +35,15 @@
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo("%s does not look like a darcs repo" % path)
  
 -        checktool('darcs')
 +        checktool('darcs', debname='darcs')
+         version = self.run0('--version').splitlines()[0].strip()
+         if version < '2.1':
+             raise util.Abort(_('darcs version 2.1 or newer needed (found %r)') %
+                              version)
  
          if ElementTree is None:
 -            raise util.Abort(_("Python ElementTree module is not available"))
 +            raise util.Abort(_("Python ElementTree module is not available") +
 +                             _(" (try installing the %s package)") % 'python-celementtree')
  
-         if not os.path.exists(os.path.join(path, '_darcs', 'inventory')):
-             raise NoRepo("%s does not look like a darcs repo" % path)
-diff -r 06d10c5c850e hgext/convert/git.py
+         self.path = os.path.realpath(path)
+ 
+diff -r d29c8b10d01f hgext/convert/git.py
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -32,7 +32,7 @@
+@@ -37,7 +37,7 @@
          if not os.path.exists(path + "/objects"):
              raise NoRepo("%s does not look like a Git repo" % path)
  
@@ -85,10 +89,10 @@ diff -r 06d10c5c850e hgext/convert/git.py
  
          self.path = path
  
-diff -r 06d10c5c850e hgext/convert/gnuarch.py
+diff -r d29c8b10d01f hgext/convert/gnuarch.py
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
-@@ -33,7 +33,8 @@
+@@ -41,7 +41,8 @@
              if util.find_exe('tla'):
                  self.execmd = 'tla'
              else:
@@ -98,22 +102,22 @@ diff -r 06d10c5c850e hgext/convert/gnuarch.py
  
          commandline.__init__(self, ui, self.execmd)
  
-diff -r 06d10c5c850e hgext/convert/monotone.py
+diff -r d29c8b10d01f hgext/convert/monotone.py
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -43,7 +43,7 @@
-         if not os.path.exists(path):
-             raise norepo
+@@ -55,7 +55,7 @@
+         self.files = None
+         self.dirs  = None
  
 -        checktool('mtn', abort=False)
 +        checktool('mtn', abort=False, debname='monotone')
  
          # test if there are any revisions
          self.rev = None
-diff -r 06d10c5c850e hgext/convert/subversion.py
+diff -r d29c8b10d01f hgext/convert/subversion.py
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -34,6 +34,7 @@
+@@ -20,6 +20,7 @@
  
  from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
  from common import commandline, converter_source, converter_sink, mapfile
@@ -121,7 +125,7 @@ diff -r 06d10c5c850e hgext/convert/subversion.py
  
  try:
      from svn.core import SubversionException, Pool
-@@ -155,16 +156,19 @@
+@@ -197,16 +198,19 @@
          try:
              SubversionException
          except NameError:
@@ -142,9 +146,9 @@ diff -r 06d10c5c850e hgext/convert/subversion.py
 +                                'or later required') +
 +                              _(' (try upgrading the %s package)') % 'python-subversion')
  
-         self.encoding = locale.getpreferredencoding()
          self.lastrevs = {}
-@@ -960,6 +964,9 @@
+ 
+@@ -937,6 +941,9 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -154,10 +158,10 @@ diff -r 06d10c5c850e hgext/convert/subversion.py
          converter_sink.__init__(self, ui, path)
          commandline.__init__(self, ui, 'svn')
          self.delete = []
-diff -r 06d10c5c850e mercurial/hgweb/server.py
+diff -r d29c8b10d01f mercurial/hgweb/server.py
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -259,7 +259,8 @@
+@@ -260,7 +260,8 @@
                      from OpenSSL import SSL
                      ctx = SSL.Context(SSL.SSLv23_METHOD)
                  except ImportError:

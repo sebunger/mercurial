@@ -1,15 +1,14 @@
 Set default hgk path for hgk outside bin.
 
-Index: mercurial-1.1.2/hgext/hgk.py
-===================================================================
---- mercurial-1.1.2.orig/hgext/hgk.py
-+++ mercurial-1.1.2/hgext/hgk.py
-@@ -318,7 +318,7 @@
+diff -r 5d6bd2f5ea7e hgext/hgk.py
+--- a/hgext/hgk.py
++++ b/hgext/hgk.py
+@@ -307,7 +307,7 @@
      "start interactive history viewer"
      os.chdir(repo.root)
      optstr = ' '.join(['--%s %s' % (k, v) for k, v in opts.iteritems() if v])
 -    cmd = ui.config("hgk", "path", "hgk") + " %s %s" % (optstr, " ".join(etc))
 +    cmd = ui.config("hgk", "path", "/usr/share/mercurial/hgk") + " %s %s" % (optstr, " ".join(etc))
-     ui.debug(_("running %s\n") % cmd)
+     ui.debug("running %s\n" % cmd)
      util.system(cmd)
  
