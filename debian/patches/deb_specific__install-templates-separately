@@ -1,6 +1,6 @@
 Support installation of templates handled by mercurial-common.install.
 
-diff -r 55fb3b7436b4 mercurial/templater.py
+diff -r 2cbbf40418af mercurial/templater.py
 --- a/mercurial/templater.py
 +++ b/mercurial/templater.py
 @@ -9,7 +9,7 @@
@@ -12,7 +12,7 @@ diff -r 55fb3b7436b4 mercurial/templater.py
  stringify = templatefilters.stringify
  
  def parsestring(s, quoted=True):
-diff -r 55fb3b7436b4 setup.py
+diff -r 2cbbf40418af setup.py
 --- a/setup.py
 +++ b/setup.py
 @@ -254,7 +254,7 @@
@@ -20,7 +20,7 @@ diff -r 55fb3b7436b4 setup.py
  
  datafiles = []
 -for root in ('templates', 'help'):
-+for root in ('help'):
++for root in ('help',):
      for dir, dirs, files in os.walk(root):
          dirs[:] = [x for x in dirs if not x.startswith('.')]
          files = [x for x in files if not x.startswith('.')]

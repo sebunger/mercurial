@@ -2,6 +2,7 @@ for_upstream__force_C_locale.patch
 deb_specific__mergetools
 proposed_upstream__dont-install-i18n
 deb_specific__install-templates-separately
+deb_specific__install-help-separately
 proposed_upstream__python-module-not-script.patch
 deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
