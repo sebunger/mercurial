@@ -1,6 +1,5 @@
 Suggest Debian packages for some optional dependencies.
 
-diff -r d29c8b10d01f hgext/bugzilla.py
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
 @@ -421,7 +421,8 @@
@@ -13,7 +12,6 @@ diff -r d29c8b10d01f hgext/bugzilla.py
  
      if node is None:
          raise util.Abort(_('hook type %s does not pass a changeset id') %
-diff -r d29c8b10d01f hgext/convert/bzr.py
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
 @@ -42,7 +42,8 @@
@@ -26,7 +24,6 @@ diff -r d29c8b10d01f hgext/convert/bzr.py
  
          path = os.path.abspath(path)
          self._checkrepotype(path)
-diff -r d29c8b10d01f hgext/convert/common.py
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
 @@ -26,11 +26,12 @@
@@ -44,7 +41,6 @@ diff -r d29c8b10d01f hgext/convert/common.py
  
  class NoRepo(Exception): pass
  
-diff -r d29c8b10d01f hgext/convert/cvs.py
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
 @@ -21,7 +21,7 @@
@@ -56,7 +52,6 @@ diff -r d29c8b10d01f hgext/convert/cvs.py
  
          self.changeset = None
          self.files = {}
-diff -r d29c8b10d01f hgext/convert/darcs.py
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
 @@ -35,14 +35,15 @@
@@ -77,7 +72,6 @@ diff -r d29c8b10d01f hgext/convert/darcs.py
  
          self.path = os.path.realpath(path)
  
-diff -r d29c8b10d01f hgext/convert/git.py
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
 @@ -37,7 +37,7 @@
@@ -89,7 +83,6 @@ diff -r d29c8b10d01f hgext/convert/git.py
  
          self.path = path
  
-diff -r d29c8b10d01f hgext/convert/gnuarch.py
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
 @@ -41,7 +41,8 @@
@@ -102,7 +95,6 @@ diff -r d29c8b10d01f hgext/convert/gnuarch.py
  
          commandline.__init__(self, ui, self.execmd)
  
-diff -r d29c8b10d01f hgext/convert/monotone.py
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
 @@ -55,7 +55,7 @@
@@ -114,10 +106,9 @@ diff -r d29c8b10d01f hgext/convert/monotone.py
  
          # test if there are any revisions
          self.rev = None
-diff -r d29c8b10d01f hgext/convert/subversion.py
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -20,6 +20,7 @@
+@@ -21,6 +21,7 @@
  
  from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
  from common import commandline, converter_source, converter_sink, mapfile
@@ -125,7 +116,7 @@ diff -r d29c8b10d01f hgext/convert/subversion.py
  
  try:
      from svn.core import SubversionException, Pool
-@@ -197,16 +198,19 @@
+@@ -212,16 +213,19 @@
          try:
              SubversionException
          except NameError:
@@ -148,7 +139,7 @@ diff -r d29c8b10d01f hgext/convert/subversion.py
  
          self.lastrevs = {}
  
-@@ -937,6 +941,9 @@
+@@ -952,6 +956,9 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -158,7 +149,6 @@ diff -r d29c8b10d01f hgext/convert/subversion.py
          converter_sink.__init__(self, ui, path)
          commandline.__init__(self, ui, 'svn')
          self.delete = []
-diff -r d29c8b10d01f mercurial/hgweb/server.py
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
 @@ -260,7 +260,8 @@

@@ -1,6 +1,5 @@
 Set default hgk path for hgk outside bin.
 
-diff -r 5d6bd2f5ea7e hgext/hgk.py
 --- a/hgext/hgk.py
 +++ b/hgext/hgk.py
 @@ -307,7 +307,7 @@

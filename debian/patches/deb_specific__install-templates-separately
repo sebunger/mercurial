@@ -1,6 +1,5 @@
 Support installation of templates handled by mercurial-common.install.
 
-diff -r 2cbbf40418af mercurial/templater.py
 --- a/mercurial/templater.py
 +++ b/mercurial/templater.py
 @@ -9,7 +9,7 @@
@@ -12,10 +11,9 @@ diff -r 2cbbf40418af mercurial/templater.py
  stringify = templatefilters.stringify
  
  def parsestring(s, quoted=True):
-diff -r 2cbbf40418af setup.py
 --- a/setup.py
 +++ b/setup.py
-@@ -254,7 +254,7 @@
+@@ -256,7 +256,7 @@
          packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
  
  datafiles = []

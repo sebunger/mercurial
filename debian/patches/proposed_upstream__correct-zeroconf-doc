@@ -1,6 +1,5 @@
 Correct the documentation for the zeroconf extension.
 
-diff -r eeca030c4639 hgext/zeroconf/__init__.py
 --- a/hgext/zeroconf/__init__.py
 +++ b/hgext/zeroconf/__init__.py
 @@ -7,9 +7,9 @@

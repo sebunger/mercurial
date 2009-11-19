@@ -1,6 +1,5 @@
 Force C local when generating the documentation
-
-diff -r dec177286deb doc/Makefile
+Without the C locale, the generated file can already have translations in the current locale...
 --- a/doc/Makefile
 +++ b/doc/Makefile
 @@ -18,7 +18,7 @@
