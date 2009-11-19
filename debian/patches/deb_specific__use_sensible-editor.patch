@@ -2,7 +2,7 @@ Use sensible-editor as default instead of vi.
 
 --- a/doc/hgrc.5.txt
 +++ b/doc/hgrc.5.txt
-@@ -745,7 +745,7 @@
+@@ -745,7 +745,8 @@
  ``debug``
      Print debugging information. True or False. Default is False.
  ``editor``
