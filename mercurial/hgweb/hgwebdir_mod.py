@@ -20,7 +20,7 @@ def cleannames(items):
     return [(util.pconvert(name).strip('/'), path) for name, path in items]
 
 def findrepos(paths):
-    repos = {}
+    repos = []
     for prefix, root in cleannames(paths):
         roothead, roottail = os.path.split(root)
         # "foo = /bar/*" makes every subrepo of /bar/ to be
@@ -30,7 +30,7 @@ def findrepos(paths):
         try:
             recurse = {'*': False, '**': True}[roottail]
         except KeyError:
-            repos[prefix] = root
+            repos.append((prefix, root))
             continue
         roothead = os.path.normpath(roothead)
         for path in util.walkrepos(roothead, followsym=True, recurse=recurse):
@@ -38,8 +38,8 @@ def findrepos(paths):
             name = util.pconvert(path[len(roothead):]).strip('/')
             if prefix:
                 name = prefix + '/' + name
-            repos[name] = path
-    return repos.items()
+            repos.append((name, path))
+    return repos
 
 class hgwebdir(object):
     refreshinterval = 20
@@ -89,7 +89,6 @@ class hgwebdir(object):
                     name = name[len(prefix):]
                 self.repos.append((name.lstrip('/'), repo))
 
-        self.repos.sort()
         self.lastrefresh = time.time()
 
     def run(self):
@@ -196,14 +195,19 @@ class hgwebdir(object):
                     yield {"type" : i[0], "extension": i[1],
                            "node": nodeid, "url": url}
 
-        sortdefault = 'name', False
+        sortdefault = None, False
         def entries(sortcolumn="", descending=False, subdir="", **map):
+
             rows = []
             parity = paritygen(self.stripecount)
+            descend = self.ui.configbool('web', 'descend', True)
             for name, path in self.repos:
+
                 if not name.startswith(subdir):
                     continue
                 name = name[len(subdir):]
+                if not descend and '/' in name:
+                    continue
 
                 u = self.ui.copy()
                 try:
@@ -311,18 +315,21 @@ class hgwebdir(object):
             url += '/'
 
         vars = {}
-        style = self.style
-        if 'style' in req.form:
-            vars['style'] = style = req.form['style'][0]
+        styles = (
+            req.form.get('style', [None])[0],
+            config('web', 'style'),
+            'paper'
+        )
+        style, mapfile = templater.stylemap(styles)
+        if style == styles[0]:
+            vars['style'] = style
+        
         start = url[-1] == '?' and '&' or '?'
         sessionvars = webutil.sessionvars(vars, start)
-
         staticurl = config('web', 'staticurl') or url + 'static/'
         if not staticurl.endswith('/'):
             staticurl += '/'
 
-        style = 'style' in req.form and req.form['style'][0] or self.style
-        mapfile = templater.stylemap(style)
         tmpl = templater.templater(mapfile,
                                    defaults={"header": header,
                                              "footer": footer,

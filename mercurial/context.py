@@ -164,7 +164,11 @@ class changectx(object):
         """
         return the ancestor context of self and c2
         """
-        n = self._repo.changelog.ancestor(self._node, c2._node)
+        # deal with workingctxs
+        n2 = c2._node
+        if n2 == None:
+            n2 = c2._parents[0]._node
+        n = self._repo.changelog.ancestor(self._node, n2)
         return changectx(self._repo, n)
 
     def walk(self, match):
@@ -199,7 +203,9 @@ class filectx(object):
 
         assert (changeid is not None
                 or fileid is not None
-                or changectx is not None)
+                or changectx is not None), \
+                ("bad args: changeid=%r, fileid=%r, changectx=%r"
+                 % (changeid, fileid, changectx))
 
         if filelog:
             self._filelog = filelog
@@ -297,6 +303,7 @@ class filectx(object):
     def files(self): return self._changectx.files()
     def description(self): return self._changectx.description()
     def branch(self): return self._changectx.branch()
+    def extra(self): return self._changectx.extra()
     def manifest(self): return self._changectx.manifest()
     def changectx(self): return self._changectx
 
@@ -441,13 +448,22 @@ class filectx(object):
                         del hist[p]
             hist[f] = curr
 
-        return zip(hist[f][0], hist[f][1].splitlines(1))
+        return zip(hist[f][0], hist[f][1].splitlines(True))
 
     def ancestor(self, fc2):
         """
         find the common ancestor file context, if any, of self, and fc2
         """
 
+        actx = self.changectx().ancestor(fc2.changectx())
+
+        # the trivial case: changesets are unrelated, files must be too
+        if not actx:
+            return None
+
+        # the easy case: no (relevant) renames
+        if fc2.path() == self.path() and self.path() in actx:
+            return actx[self.path()]
         acache = {}
 
         # prime the ancestor cache for the working directory

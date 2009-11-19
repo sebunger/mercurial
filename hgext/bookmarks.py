@@ -9,16 +9,16 @@
 
 Bookmarks are local movable markers to changesets. Every bookmark
 points to a changeset identified by its hash. If you commit a
-changeset that is based on a changeset that has a bookmark on it,
-the bookmark shifts to the new changeset.
+changeset that is based on a changeset that has a bookmark on it, the
+bookmark shifts to the new changeset.
 
-It is possible to use bookmark names in every revision lookup
-(e.g. hg merge, hg update).
+It is possible to use bookmark names in every revision lookup (e.g. hg
+merge, hg update).
 
 By default, when several bookmarks point to the same changeset, they
 will all move forward together. It is possible to obtain a more
 git-like experience by adding the following configuration option to
-your .hgrc:
+your .hgrc::
 
   [bookmarks]
   track.current = True
@@ -193,8 +193,11 @@ def bookmark(ui, repo, mark=None, rev=None, force=False, delete=False, rename=No
                 else:
                     prefix = (n == cur) and '*' or ' '
 
-                ui.write(" %s %-25s %d:%s\n" % (
-                    prefix, bmark, repo.changelog.rev(n), hexfn(n)))
+                if ui.quiet:
+                    ui.write("%s\n" % bmark)
+                else:
+                    ui.write(" %s %-25s %d:%s\n" % (
+                        prefix, bmark, repo.changelog.rev(n), hexfn(n)))
         return
 
 def _revstostrip(changelog, node):
@@ -228,7 +231,7 @@ def strip(oldstrip, ui, repo, node, backup="all"):
         write(repo, marks)
 
 def reposetup(ui, repo):
-    if not isinstance(repo, localrepo.localrepository):
+    if not repo.local():
         return
 
     # init a bookmark cache as otherwise we would get a infinite reading
@@ -249,12 +252,12 @@ def reposetup(ui, repo):
                 key = self._bookmarks[key]
             return super(bookmark_repo, self).lookup(key)
 
-        def commit(self, *k, **kw):
+        def commitctx(self, ctx, error=False):
             """Add a revision to the repository and
             move the bookmark"""
             wlock = self.wlock() # do both commit and bookmark with lock held
             try:
-                node  = super(bookmark_repo, self).commit(*k, **kw)
+                node  = super(bookmark_repo, self).commitctx(ctx, error)
                 if node is None:
                     return None
                 parents = self.changelog.parents(node)
@@ -262,12 +265,13 @@ def reposetup(ui, repo):
                     parents = (parents[0],)
                 marks = parse(self)
                 update = False
-                for mark, n in marks.items():
-                    if ui.configbool('bookmarks', 'track.current'):
-                        if mark == current(self) and n in parents:
-                            marks[mark] = node
-                            update = True
-                    else:
+                if ui.configbool('bookmarks', 'track.current'):
+                    mark = current(self)
+                    if mark and marks[mark] in parents:
+                        marks[mark] = node
+                        update = True
+                else:
+                    for mark, n in marks.items():
                         if n in parents:
                             marks[mark] = node
                             update = True
@@ -288,22 +292,25 @@ def reposetup(ui, repo):
             node = self.changelog.tip()
             marks = parse(self)
             update = False
-            for mark, n in marks.items():
-                if n in parents:
+            if ui.configbool('bookmarks', 'track.current'):
+                mark = current(self)
+                if mark and marks[mark] in parents:
                     marks[mark] = node
                     update = True
+            else:
+                for mark, n in marks.items():
+                    if n in parents:
+                        marks[mark] = node
+                        update = True
             if update:
                 write(self, marks)
             return result
 
-        def tags(self):
+        def _findtags(self):
             """Merge bookmarks with normal tags"""
-            if self.tagscache:
-                return self.tagscache
-
-            tagscache = super(bookmark_repo, self).tags()
-            tagscache.update(parse(self))
-            return tagscache
+            (tags, tagtypes) = super(bookmark_repo, self)._findtags()
+            tags.update(parse(self))
+            return (tags, tagtypes)
 
     repo.__class__ = bookmark_repo
 

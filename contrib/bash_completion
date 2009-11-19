@@ -278,6 +278,22 @@ complete -o bashdefault -o default -F _hg hg 2>/dev/null \
 
 # Completion for commands provided by extensions
 
+# bookmarks
+_hg_bookmarks()
+{
+    local bookmarks="$("$hg" bookmarks --quiet 2>/dev/null )"
+    local IFS=$'\n'
+    COMPREPLY=(${COMPREPLY[@]:-} $(compgen -W '$bookmarks' -- "$cur"))
+}
+
+_hg_cmd_bookmarks()
+{
+    if [[ "$prev" = @(-d|--delete|-m|--rename) ]]; then
+        _hg_bookmarks
+        return
+    fi
+}
+
 # mq
 _hg_ext_mq_patchlist()
 {
@@ -337,6 +353,14 @@ _hg_cmd_qdelete()
 	qcmd=qapplied
     fi
     _hg_ext_mq_patchlist $qcmd
+}
+
+_hg_cmd_qfinish()
+{
+    if [[ "$prev" = @(-a|--applied) ]]; then
+	return
+    fi
+    _hg_ext_mq_patchlist qapplied
 }
 
 _hg_cmd_qsave()
@@ -530,3 +554,20 @@ _hg_cmd_transplant()
     return
 }
 
+# shelve
+_hg_shelves()
+{
+    local shelves="$("$hg" unshelve -l . 2>/dev/null)"
+    local IFS=$'\n'
+    COMPREPLY=(${COMPREPLY[@]:-} $(compgen -W '$shelves' -- "$cur"))
+}
+
+_hg_cmd_shelve()
+{
+    _hg_status "mard"
+}
+
+_hg_cmd_unshelve()
+{
+    _hg_shelves
+}

@@ -9,9 +9,12 @@
 from i18n import _
 from node import bin, hex
 import streamclone, util, hook
-import os, sys, tempfile, urllib
+import os, sys, tempfile, urllib, copy
 
 class sshserver(object):
+
+    caps = 'unbundle lookup changegroupsubset branchmap'.split()
+
     def __init__(self, ui, repo):
         self.ui = ui
         self.repo = repo
@@ -59,7 +62,7 @@ class sshserver(object):
         try:
             r = hex(self.repo.lookup(key))
             success = 1
-        except Exception,inst:
+        except Exception, inst:
             r = str(inst)
             success = 0
         self.respond("%s %s\n" % (success, r))
@@ -85,8 +88,7 @@ class sshserver(object):
 
         capabilities: space separated list of tokens
         '''
-
-        caps = ['unbundle', 'lookup', 'changegroupsubset', 'branchmap']
+        caps = copy.copy(self.caps)
         if self.ui.configbool('server', 'uncompressed'):
             caps.append('stream=%d' % self.repo.changelog.version)
         self.respond("capabilities: %s\n" % (' '.join(caps),))
@@ -179,11 +181,9 @@ class sshserver(object):
         self.respond('')
 
         # write bundle data to temporary file because it can be big
-        tempname = fp = None
+        fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
+        fp = os.fdopen(fd, 'wb+')
         try:
-            fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
-            fp = os.fdopen(fd, 'wb+')
-
             count = int(self.fin.readline())
             while count:
                 fp.write(self.fin.read(count))
@@ -210,10 +210,8 @@ class sshserver(object):
                     self.lock.release()
                     self.lock = None
         finally:
-            if fp is not None:
-                fp.close()
-            if tempname is not None:
-                os.unlink(tempname)
+            fp.close()
+            os.unlink(tempname)
 
     def do_stream_out(self):
         try:

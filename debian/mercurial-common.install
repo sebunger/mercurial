@@ -1,3 +1,4 @@
+help usr/share/mercurial
 templates usr/share/mercurial
 debian/tmp/usr/lib
 

@@ -9,7 +9,7 @@
 from i18n import _
 from lock import release
 import localrepo, bundlerepo, httprepo, sshrepo, statichttprepo
-import lock, util, extensions, error
+import lock, util, extensions, error, encoding
 import merge as _merge
 import verify as _verify
 import errno, os, shutil
@@ -89,6 +89,8 @@ def share(ui, source, dest=None, update=True):
 
     if not dest:
         dest = os.path.basename(source)
+    else:
+        dest = ui.expandpath(dest)
 
     if isinstance(source, str):
         origsource = ui.expandpath(source)
@@ -135,10 +137,12 @@ def share(ui, source, dest=None, update=True):
         if update is not True:
             checkout = update
         for test in (checkout, 'default', 'tip'):
+            if test is None:
+                continue
             try:
                 uprev = r.lookup(test)
                 break
-            except:
+            except error.RepoLookupError:
                 continue
         _update(r, uprev)
 
@@ -189,6 +193,8 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
     if dest is None:
         dest = defaultdest(source)
         ui.status(_("destination directory: %s\n") % dest)
+    else:
+        dest = ui.expandpath(dest)
 
     dest = localpath(dest)
     source = localpath(source)
@@ -277,9 +283,9 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             revs = None
             if rev:
                 if 'lookup' not in src_repo.capabilities:
-                    raise util.Abort(_("src repository does not support revision "
-                                       "lookup and so doesn't support clone by "
-                                       "revision"))
+                    raise util.Abort(_("src repository does not support "
+                                       "revision lookup and so doesn't "
+                                       "support clone by revision"))
                 revs = [src_repo.lookup(r) for r in rev]
                 checkout = revs[0]
             if dest_repo.local():
@@ -301,15 +307,21 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             dest_repo.ui.setconfig('paths', 'default', abspath)
 
             if update:
-                dest_repo.ui.status(_("updating working directory\n"))
                 if update is not True:
                     checkout = update
+                    if src_repo.local():
+                        checkout = src_repo.lookup(update)
                 for test in (checkout, 'default', 'tip'):
+                    if test is None:
+                        continue
                     try:
                         uprev = dest_repo.lookup(test)
                         break
-                    except:
+                    except error.RepoLookupError:
                         continue
+                bn = dest_repo[uprev].branch()
+                dest_repo.ui.status(_("updating to branch %s\n")
+                                    % encoding.tolocal(bn))
                 _update(dest_repo, uprev)
 
         return src_repo, dest_repo
@@ -319,12 +331,8 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             dir_cleanup.cleanup()
 
 def _showstats(repo, stats):
-    stats = ((stats[0], _("updated")),
-             (stats[1], _("merged")),
-             (stats[2], _("removed")),
-             (stats[3], _("unresolved")))
-    note = ", ".join([_("%d files %s") % s for s in stats])
-    repo.ui.status("%s\n" % note)
+    repo.ui.status(_("%d files updated, %d files merged, "
+                     "%d files removed, %d files unresolved\n") % stats)
 
 def update(repo, node):
     """update the working directory to node, merging linear changes"""
@@ -349,7 +357,7 @@ def merge(repo, node, force=None, remind=True):
     _showstats(repo, stats)
     if stats[3]:
         repo.ui.status(_("use 'hg resolve' to retry unresolved file merges "
-                         "or 'hg up --clean' to abandon\n"))
+                         "or 'hg update -C' to abandon\n"))
     elif remind:
         repo.ui.status(_("(branch merge, don't forget to commit)\n"))
     return stats[3] > 0

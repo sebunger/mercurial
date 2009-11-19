@@ -1,19 +1,17 @@
 Use sensible-editor as default instead of vi.
 
-diff -r 84488c99c405 doc/hgrc.5.txt
 --- a/doc/hgrc.5.txt
 +++ b/doc/hgrc.5.txt
-@@ -715,7 +715,8 @@
-   debug;;
+@@ -745,7 +745,8 @@
+ ``debug``
      Print debugging information. True or False. Default is False.
-   editor;;
--    The editor to use during a commit. Default is `$EDITOR` or "vi".
-+    The editor to use during a commit. Default is `$EDITOR` or
-+    "sensible-editor".
-   fallbackencoding;;
+ ``editor``
+-    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``.
++    The editor to use during a commit. Default is ``$EDITOR`` or
++    ``sensible-editor``.
+ ``fallbackencoding``
      Encoding to try if it's not possible to decode the changelog using
      UTF-8. Default is ISO-8859-1.
-diff -r 84488c99c405 doc/ja/hg.1.ja.txt
 --- a/doc/ja/hg.1.ja.txt
 +++ b/doc/ja/hg.1.ja.txt
 @@ -813,7 +813,7 @@
@@ -25,7 +23,6 @@ diff -r 84488c99c405 doc/ja/hg.1.ja.txt
  
  PYTHONPATH::
      これはインポートされるモジュールを見つけるために Python によっ
-diff -r 84488c99c405 doc/ja/hgrc.5.ja.txt
 --- a/doc/ja/hgrc.5.ja.txt
 +++ b/doc/ja/hgrc.5.ja.txt
 @@ -119,7 +119,7 @@
@@ -37,7 +34,6 @@ diff -r 84488c99c405 doc/ja/hgrc.5.ja.txt
    interactive;;
      ユーザに対してプロンプトを出すようにします。True か False を取
      ります。デフォルトでは True です。
-diff -r 84488c99c405 hgeditor
 --- a/hgeditor
 +++ b/hgeditor
 @@ -7,7 +7,7 @@
@@ -49,10 +45,9 @@ diff -r 84488c99c405 hgeditor
          ;;
      emacs)
          EDITOR="$EDITOR -nw"
-diff -r 84488c99c405 mercurial/commands.py
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -1005,8 +1005,8 @@
+@@ -1019,8 +1019,8 @@
      editor = ui.geteditor()
      cmdpath = util.find_exe(editor) or util.find_exe(editor.split()[0])
      if not cmdpath:
@@ -63,24 +58,253 @@ diff -r 84488c99c405 mercurial/commands.py
              ui.write(_(" (specify a commit editor in your .hgrc file)\n"))
          else:
              ui.write(_(" Can't find editor '%s' in PATH\n") % editor)
-diff -r 84488c99c405 mercurial/help.py
---- a/mercurial/help.py
-+++ b/mercurial/help.py
-@@ -252,7 +252,7 @@
+--- a/mercurial/ui.py
++++ b/mercurial/ui.py
+@@ -353,7 +353,7 @@
+         return (os.environ.get("HGEDITOR") or
+                 self.config("ui", "editor") or
+                 os.environ.get("VISUAL") or
+-                os.environ.get("EDITOR", "vi"))
++                os.environ.get("EDITOR", "sensible-editor"))
+ 
+     def progress(self, topic, pos, item="", unit="", total=None):
+         '''show a progress message
+--- a/help/environment.txt
++++ b/help/environment.txt
+@@ -69,7 +69,7 @@
      editor it uses is determined by looking at the environment
      variables HGEDITOR, VISUAL and EDITOR, in that order. The first
      non-empty one is chosen. If all of them are empty, the editor
 -    defaults to 'vi'.
 +    defaults to 'sensible-editor'.
  
- PYTHONPATH::
+ PYTHONPATH
      This is used by Python to find imported modules and may need to be
-diff -r 84488c99c405 mercurial/ui.py
---- a/mercurial/ui.py
-+++ b/mercurial/ui.py
-@@ -343,4 +343,4 @@
-         return (os.environ.get("HGEDITOR") or
-                 self.config("ui", "editor") or
-                 os.environ.get("VISUAL") or
--                os.environ.get("EDITOR", "vi"))
-+                os.environ.get("EDITOR", "sensible-editor"))
+--- a/i18n/da.po
++++ b/i18n/da.po
+@@ -308,7 +308,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -6094,7 +6094,7 @@
+ msgid "Checking commit editor...\n"
+ msgstr ""
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+--- a/i18n/de.po
++++ b/i18n/de.po
+@@ -314,7 +314,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -6749,8 +6749,8 @@
+ msgid "Checking commit editor...\n"
+ msgstr "Prüfe Editor für Versionsmeldungen...\n"
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
+-msgstr " Kein Editor für Versionsmeldungen angegeben und vi nicht im PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
++msgstr " Kein Editor für Versionsmeldungen angegeben und sensible-editor nicht im PATH\n"
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+ msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
+--- a/i18n/el.po
++++ b/i18n/el.po
+@@ -222,7 +222,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -5377,7 +5377,7 @@
+ msgid "Checking commit editor...\n"
+ msgstr ""
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+--- a/i18n/fr.po
++++ b/i18n/fr.po
+@@ -260,7 +260,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -5803,7 +5803,7 @@
+ msgid "Checking commit editor...\n"
+ msgstr ""
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+--- a/i18n/it.po
++++ b/i18n/it.po
+@@ -181,7 +181,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -5553,8 +5553,8 @@
+ msgid "Checking commit editor...\n"
+ msgstr "Sto controllando l'editor per il commit...\n"
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
+-msgstr "Nessun editor per il commit trovato e non trovo vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
++msgstr "Nessun editor per il commit trovato e non trovo sensible-editor in PATH\n"
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+ msgstr " (specificare un editore per il commit nel proprio file .hgrc)\n"
+--- a/i18n/ja.po
++++ b/i18n/ja.po
+@@ -415,7 +415,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -497,7 +497,7 @@
+ "    編集を促す状況があります。そこで使用されるエディタは、HGEDITOR、VISUAL\n"
+ "    あるいは EDITOR 環境変数に設定されたものを(この順序で)使用します。\n"
+ "    最初の空で無い値に設定された環境変数の値を使用します。いずれも未設定\n"
+-"    (あるいは空)の場合は、'vi' が使用されます。\n"
++"    (あるいは空)の場合は、'sensible-editor' が使用されます。\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    Mercurial が当該システムの共有領域にインストールされていない場合、\n"
+@@ -6869,8 +6869,8 @@
+ msgid "Checking commit editor...\n"
+ msgstr "メッセージ入力用エディタの検証中...\n"
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
+-msgstr " エディタが起動できません(vi にも PATH が通っていません)\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
++msgstr " エディタが起動できません(sensible-editor にも PATH が通っていません)\n"
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+ msgstr " (コミットメッセージ用エディタを設定ファイルで設定してください)\n"
+--- a/i18n/pt_BR.po
++++ b/i18n/pt_BR.po
+@@ -358,7 +358,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -440,7 +440,7 @@
+ "    mensagens de consolidação. O editor usado é determinado pela\n"
+ "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
+ "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
+-"    estiverem vazios, o editor será o 'vi'.\n"
++"    estiverem vazios, o editor será o 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    Isto é usado pelo Python para localizar módulos importados, e\n"
+@@ -7850,10 +7850,10 @@
+ msgid "Checking commit editor...\n"
+ msgstr "Verificando editor para consolidação...\n"
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ " Nenhum editor para consolidação configurado, e não foi possível encontrar "
+-"'vi' no PATH\n"
++"'sensible-editor' no PATH\n"
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+ msgstr " (especifique um editor para consolidação em seu arquivo .hgrc)\n"
+--- a/i18n/sv.po
++++ b/i18n/sv.po
+@@ -229,7 +229,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -5476,7 +5476,7 @@
+ msgid "Checking commit editor...\n"
+ msgstr ""
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+--- a/i18n/zh_CN.po
++++ b/i18n/zh_CN.po
+@@ -5190,7 +5190,7 @@
+ msgid "Checking commit editor...\n"
+ msgstr ""
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"
+@@ -7565,7 +7565,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+--- a/i18n/zh_TW.po
++++ b/i18n/zh_TW.po
+@@ -182,7 +182,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
+@@ -5501,7 +5501,7 @@
+ msgid "Checking commit editor...\n"
+ msgstr ""
+ 
+-msgid " No commit editor set and can't find vi in PATH\n"
++msgid " No commit editor set and can't find sensible-editor in PATH\n"
+ msgstr ""
+ 
+ msgid " (specify a commit editor in your .hgrc file)\n"

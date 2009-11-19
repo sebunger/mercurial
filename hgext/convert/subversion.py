@@ -2,13 +2,13 @@
 #
 # Copyright(C) 2007 Daniel Holth et al
 
-import locale
 import os
 import re
 import sys
 import cPickle as pickle
 import tempfile
 import urllib
+import urllib2
 
 from mercurial import strutil, util, encoding
 from mercurial.i18n import _
@@ -115,7 +115,11 @@ class logstream(object):
 
     def __iter__(self):
         while True:
-            entry = pickle.load(self._stdout)
+            try:
+                entry = pickle.load(self._stdout)
+            except EOFError:
+                raise util.Abort(_('Mercurial failed to run itself, check'
+                                   ' hg executable is in PATH'))
             try:
                 orig_paths, revnum, author, date, message = entry
             except:
@@ -133,7 +137,7 @@ class logstream(object):
 # Check to see if the given path is a local Subversion repo. Verify this by
 # looking for several svn-specific files and directories in the given
 # directory.
-def filecheck(path, proto):
+def filecheck(ui, path, proto):
     for x in ('locks', 'hooks', 'format', 'db', ):
         if not os.path.exists(os.path.join(path, x)):
             return False
@@ -142,25 +146,41 @@ def filecheck(path, proto):
 # Check to see if a given path is the root of an svn repo over http. We verify
 # this by requesting a version-controlled URL we know can't exist and looking
 # for the svn-specific "not found" XML.
-def httpcheck(path, proto):
-    return ('<m:human-readable errcode="160013">' in
-            urllib.urlopen('%s://%s/!svn/ver/0/.svn' % (proto, path)).read())
+def httpcheck(ui, path, proto):
+    try:
+        opener = urllib2.build_opener()
+        rsp = opener.open('%s://%s/!svn/ver/0/.svn' % (proto, path))
+        data = rsp.read()        
+    except urllib2.HTTPError, inst:
+        if inst.code != 404:
+            # Except for 404 we cannot know for sure this is not an svn repo
+            ui.warn(_('svn: cannot probe remote repository, assume it could '
+                      'be a subversion repository. Use --source-type if you '
+                      'know better.\n'))
+            return True
+        data = inst.fp.read()
+    except:
+        # Could be urllib2.URLError if the URL is invalid or anything else.
+        return False
+    return '<m:human-readable errcode="160013">' in data
 
 protomap = {'http': httpcheck,
             'https': httpcheck,
             'file': filecheck,
             }
-def issvnurl(url):
+def issvnurl(ui, url):
     try:
         proto, path = url.split('://', 1)
-        path = urllib.url2pathname(path)
+        if proto == 'file':
+            path = urllib.url2pathname(path)
     except ValueError:
         proto = 'file'
         path = os.path.abspath(url)
-    path = path.replace(os.sep, '/')
+    if proto == 'file':
+        path = path.replace(os.sep, '/')
     check = protomap.get(proto, lambda p, p2: False)
     while '/' in path:
-        if check(path, proto):
+        if check(ui, path, proto):
             return True
         path = path.rsplit('/', 1)[0]
     return False
@@ -186,7 +206,7 @@ class svn_source(converter_source):
         if not (url.startswith('svn://') or url.startswith('svn+ssh://') or
                 (os.path.exists(url) and
                  os.path.exists(os.path.join(url, '.svn'))) or
-                issvnurl(url)):
+                issvnurl(ui, url)):
             raise NoRepo("%s does not look like a Subversion repo" % url)
 
         try:
@@ -312,7 +332,7 @@ class svn_source(converter_source):
             self.module += '/' + trunk
             self.head = self.latest(self.module, self.last_changed)
             if not self.head:
-                raise util.Abort(_('no revision found in module %s') 
+                raise util.Abort(_('no revision found in module %s')
                                  % self.module)
 
         # First head in the list is the module's head
@@ -455,8 +475,8 @@ class svn_source(converter_source):
                 # Here/tags/tag.1 discarded as well as its children.
                 # It happens with tools like cvs2svn. Such tags cannot
                 # be represented in mercurial.
-                addeds = dict((p, e.copyfrom_path) for p, e 
-                              in origpaths.iteritems() 
+                addeds = dict((p, e.copyfrom_path) for p, e
+                              in origpaths.iteritems()
                               if e.action == 'A' and e.copyfrom_path)
                 badroots = set()
                 for destroot in addeds:
@@ -532,7 +552,7 @@ class svn_source(converter_source):
         """
         if not path.startswith(self.rootmodule):
             # Requests on foreign branches may be forbidden at server level
-            self.ui.debug(_('ignoring foreign branch %r\n') % path)
+            self.ui.debug('ignoring foreign branch %r\n' % path)
             return None
 
         if not stop:
@@ -560,7 +580,7 @@ class svn_source(converter_source):
                     if not path.startswith(p) or not paths[p].copyfrom_path:
                         continue
                     newpath = paths[p].copyfrom_path + path[len(p):]
-                    self.ui.debug(_("branch renamed from %s to %s at %d\n") %
+                    self.ui.debug("branch renamed from %s to %s at %d\n" %
                                   (path, newpath, revnum))
                     path = newpath
                     break
@@ -568,7 +588,7 @@ class svn_source(converter_source):
             stream.close()
 
         if not path.startswith(self.rootmodule):
-            self.ui.debug(_('ignoring foreign branch %r\n') % path)
+            self.ui.debug('ignoring foreign branch %r\n' % path)
             return None
         return self.revid(dirent.created_rev, path)
 
@@ -580,7 +600,7 @@ class svn_source(converter_source):
         prevmodule = self.prevmodule
         if prevmodule is None:
             prevmodule = ''
-        self.ui.debug(_("reparent to %s\n") % svnurl)
+        self.ui.debug("reparent to %s\n" % svnurl)
         svn.ra.reparent(self.ra, svnurl)
         self.prevmodule = module
         return prevmodule
@@ -613,14 +633,14 @@ class svn_source(converter_source):
                 copyfrom_path = self.getrelpath(ent.copyfrom_path, pmodule)
                 if not copyfrom_path:
                     continue
-                self.ui.debug(_("copied to %s from %s@%s\n") %
+                self.ui.debug("copied to %s from %s@%s\n" %
                               (entrypath, copyfrom_path, ent.copyfrom_rev))
                 copies[self.recode(entrypath)] = self.recode(copyfrom_path)
             elif kind == 0: # gone, but had better be a deleted *file*
-                self.ui.debug(_("gone from %s\n") % ent.copyfrom_rev)
+                self.ui.debug("gone from %s\n" % ent.copyfrom_rev)
                 pmodule, prevnum = self.revsplit(parents[0])[1:]
                 parentpath = pmodule + "/" + entrypath
-                self.ui.debug(_("entry %s\n") % parentpath)
+                self.ui.debug("entry %s\n" % parentpath)
 
                 # We can avoid the reparent calls if the module has
                 # not changed but it probably does not worth the pain.
@@ -647,7 +667,7 @@ class svn_source(converter_source):
                             del copies[childpath]
                         entries.append(childpath)
                 else:
-                    self.ui.debug(_('unknown path in revision %d: %s\n') % \
+                    self.ui.debug('unknown path in revision %d: %s\n' % \
                                   (revnum, path))
             elif kind == svn.core.svn_node_dir:
                 # If the directory just had a prop change,
@@ -680,7 +700,7 @@ class svn_source(converter_source):
                 if not copyfrompath:
                     continue
                 copyfrom[path] = ent
-                self.ui.debug(_("mark %s came from %s:%d\n")
+                self.ui.debug("mark %s came from %s:%d\n"
                               % (path, copyfrompath, ent.copyfrom_rev))
                 children = self._find_children(ent.copyfrom_path, ent.copyfrom_rev)
                 children.sort()
@@ -704,7 +724,7 @@ class svn_source(converter_source):
             """Return the parsed commit object or None, and True if
             the revision is a branch root.
             """
-            self.ui.debug(_("parsing revision %d (%d changes)\n") %
+            self.ui.debug("parsing revision %d (%d changes)\n" %
                           (revnum, len(orig_paths)))
 
             branched = False
@@ -733,7 +753,7 @@ class svn_source(converter_source):
                             self.ui.note(_('found parent of branch %s at %d: %s\n') %
                                          (self.module, prevnum, prevmodule))
                 else:
-                    self.ui.debug(_("no copyfrom path, don't know what to do.\n"))
+                    self.ui.debug("no copyfrom path, don't know what to do.\n")
 
             paths = []
             # filter out unrelated paths
@@ -786,7 +806,7 @@ class svn_source(converter_source):
                         lastonbranch = True
                         break
                     if not paths:
-                        self.ui.debug(_('revision %d has no entries\n') % revnum)
+                        self.ui.debug('revision %d has no entries\n' % revnum)
                         continue
                     cset, lastonbranch = parselogentry(paths, revnum, author,
                                                        date, message)
@@ -868,7 +888,7 @@ class svn_source(converter_source):
                 return relative
 
         # The path is outside our tracked tree...
-        self.ui.debug(_('%r is not under %r, ignoring\n') % (path, module))
+        self.ui.debug('%r is not under %r, ignoring\n' % (path, module))
         return None
 
     def _checkpath(self, path, revnum):

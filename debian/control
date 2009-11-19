@@ -5,10 +5,10 @@ Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.de
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Gerardo Curiel <gcuriel@debian.org.ve>,
  Vernon Tang <vt@foilhead.net>
-Build-Depends: debhelper (>= 7.0.50), quilt (>= 0.46-7),
+Build-Depends: debhelper (>= 7.0.50), quilt (>> 0.46-6),
  patchutils (>= 0.2.25), gettext,
- python-support (>= 0.5.3), python-all-dev (>= 2.5.4-1~), xmlto, asciidoc
-Standards-Version: 3.8.2
+ python-support (>= 0.5.3), python-all-dev (>= 2.5.4-1~), python-docutils
+Standards-Version: 3.8.3
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/

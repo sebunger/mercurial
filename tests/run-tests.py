@@ -90,9 +90,16 @@ def parseargs():
     parser.add_option("-j", "--jobs", type="int",
         help="number of jobs to run in parallel"
              " (default: $%s or %d)" % defaults['jobs'])
+    parser.add_option("-k", "--keywords",
+        help="run tests matching keywords")
     parser.add_option("--keep-tmpdir", action="store_true",
-        help="keep temporary directory after running tests"
-             " (best used with --tmpdir)")
+        help="keep temporary directory after running tests")
+    parser.add_option("--tmpdir", type="string",
+        help="run tests in the given temporary directory"
+             " (implies --keep-tmpdir)")
+    parser.add_option("-d", "--debug", action="store_true",
+        help="debug mode: write output of test scripts to console"
+             " rather than capturing and diff'ing it (disables timeout)")
     parser.add_option("-R", "--restart", action="store_true",
         help="restart at last error")
     parser.add_option("-p", "--port", type="int",
@@ -102,11 +109,11 @@ def parseargs():
         help="retest failed tests")
     parser.add_option("-s", "--cover_stdlib", action="store_true",
         help="print a test coverage report inc. standard libraries")
+    parser.add_option("-S", "--noskips", action="store_true",
+        help="don't report skip tests verbosely")
     parser.add_option("-t", "--timeout", type="int",
         help="kill errant tests after TIMEOUT seconds"
              " (default: $%s or %d)" % defaults['timeout'])
-    parser.add_option("--tmpdir", type="string",
-        help="run tests in the given temporary directory")
     parser.add_option("-v", "--verbose", action="store_true",
         help="output verbose messages")
     parser.add_option("-n", "--nodiff", action="store_true",
@@ -119,6 +126,8 @@ def parseargs():
         help="shortcut for --with-hg=<testdir>/../hg")
     parser.add_option("--pure", action="store_true",
         help="use pure Python code instead of C extensions")
+    parser.add_option("-3", "--py3k-warnings", action="store_true",
+        help="enable Py3k warnings on Python 2.6+")
 
     for option, default in defaults.items():
         defaults[option] = int(os.environ.get(*default))
@@ -162,15 +171,28 @@ def parseargs():
             for m in msg:
                 print m,
             print
+            sys.stdout.flush()
     else:
         vlog = lambda *msg: None
 
+    if options.tmpdir:
+        options.tmpdir = os.path.expanduser(options.tmpdir)
+
     if options.jobs < 1:
-        print >> sys.stderr, 'ERROR: -j/--jobs must be positive'
-        sys.exit(1)
+        parser.error('--jobs must be positive')
     if options.interactive and options.jobs > 1:
         print '(--interactive overrides --jobs)'
         options.jobs = 1
+    if options.interactive and options.debug:
+        parser.error("-i/--interactive and -d/--debug are incompatible")
+    if options.debug:
+        if options.timeout != defaults['timeout']:
+            sys.stderr.write(
+                'warning: --timeout option ignored with --debug\n')
+        options.timeout = 0
+    if options.py3k_warnings:
+        if sys.version_info[:2] < (2, 6) or sys.version_info[:2] >= (3, 0):
+            parser.error('--py3k-warnings can only be used on Python 2.6+')
 
     return (options, args)
 
@@ -299,6 +321,17 @@ def installhg(options):
     f.close()
     os.chmod(os.path.join(BINDIR, 'diffstat'), 0700)
 
+    if options.py3k_warnings and not options.anycoverage:
+        vlog("# Updating hg command to enable Py3k Warnings switch")
+        f = open(os.path.join(BINDIR, 'hg'), 'r')
+        lines = [line.rstrip() for line in f]
+        lines[0] += ' -3'
+        f.close()
+        f = open(os.path.join(BINDIR, 'hg'), 'w')
+        for line in lines:
+            f.write(line + '\n')
+        f.close()
+
     if options.anycoverage:
         vlog("# Installing coverage wrapper")
         os.environ['COVERAGE_FILE'] = COVERAGE_FILE
@@ -352,8 +385,13 @@ def alarmed(signum, frame):
 
 def run(cmd, options):
     """Run command in a sub-process, capturing the output (stdout and stderr).
-    Return the exist code, and output."""
+    Return a tuple (exitcode, output).  output is None in debug mode."""
     # TODO: Use subprocess.Popen if we're running on Python 2.4
+    if options.debug:
+        proc = subprocess.Popen(cmd, shell=True)
+        ret = proc.wait()
+        return (ret, None)
+
     if os.name == 'nt' or sys.platform.startswith('java'):
         tochild, fromchild = os.popen4(cmd)
         tochild.close()
@@ -402,7 +440,7 @@ def runone(options, test, skips, fails):
     vlog("# Test", test)
 
     # create a fresh hgrc
-    hgrc = file(HGRCPATH, 'w+')
+    hgrc = open(HGRCPATH, 'w+')
     hgrc.write('[ui]\n')
     hgrc.write('slash = True\n')
     hgrc.write('[defaults]\n')
@@ -432,7 +470,8 @@ def runone(options, test, skips, fails):
     lctest = test.lower()
 
     if lctest.endswith('.py') or firstline == '#!/usr/bin/env python':
-        cmd = '%s "%s"' % (PYTHON, testpath)
+        py3kswitch = options.py3k_warnings and ' -3' or ''
+        cmd = '%s%s "%s"' % (PYTHON, py3kswitch, testpath)
     elif lctest.endswith('.bat'):
         # do not run batch scripts on non-windows
         if os.name != 'nt':
@@ -464,16 +503,24 @@ def runone(options, test, skips, fails):
     mark = '.'
 
     skipped = (ret == SKIPPED_STATUS)
-    # If reference output file exists, check test output against it
-    if os.path.exists(ref):
+    # If we're not in --debug mode and reference output file exists,
+    # check test output against it.
+    if options.debug:
+        refout = None                   # to match out == None
+    elif os.path.exists(ref):
         f = open(ref, "r")
         refout = splitnewlines(f.read())
         f.close()
     else:
         refout = []
+
     if skipped:
         mark = 's'
-        missing, failed = parsehghaveoutput(out)
+        if out is None:                 # debug mode: nothing to parse
+            missing = ['unknown']
+            failed = None
+        else:
+            missing, failed = parsehghaveoutput(out)
         if not missing:
             missing = ['irrelevant']
         if failed:
@@ -498,7 +545,7 @@ def runone(options, test, skips, fails):
         sys.stdout.write(mark)
         sys.stdout.flush()
 
-    if ret != 0 and not skipped:
+    if ret != 0 and not skipped and not options.debug:
         # Save errors to a file for diagnosis
         f = open(err, "wb")
         for line in out:
@@ -507,7 +554,7 @@ def runone(options, test, skips, fails):
 
     # Kill off any leftover daemon processes
     try:
-        fp = file(DAEMON_PIDS)
+        fp = open(DAEMON_PIDS)
         for line in fp:
             try:
                 pid = int(line)
@@ -616,8 +663,9 @@ def runchildren(options, tests):
         vlog('pid %d exited, status %d' % (pid, status))
         failures |= status
     print
-    for s in skips:
-        print "Skipped %s: %s" % (s[0], s[1])
+    if not options.noskips:
+        for s in skips:
+            print "Skipped %s: %s" % (s[0], s[1])
     for s in fails:
         print "Failed %s: %s" % (s[0], s[1])
 
@@ -661,10 +709,21 @@ def runtests(options, tests):
 
         skips = []
         fails = []
+
         for test in tests:
             if options.retest and not os.path.exists(test + ".err"):
                 skipped += 1
                 continue
+
+            if options.keywords:
+                t = open(test).read().lower() + test.lower()
+                for k in options.keywords.lower().split():
+                    if k in t:
+                        break
+                else:
+                    skipped +=1
+                    continue
+
             ret = runone(options, test, skips, fails)
             if ret is None:
                 skipped += 1
@@ -725,8 +784,24 @@ def main():
 
     global TESTDIR, HGTMP, INST, BINDIR, PYTHONDIR, COVERAGE_FILE
     TESTDIR = os.environ["TESTDIR"] = os.getcwd()
-    HGTMP = os.environ['HGTMP'] = os.path.realpath(tempfile.mkdtemp('', 'hgtests.',
-                                                   options.tmpdir))
+    if options.tmpdir:
+        options.keep_tmpdir = True
+        tmpdir = options.tmpdir
+        if os.path.exists(tmpdir):
+            # Meaning of tmpdir has changed since 1.3: we used to create
+            # HGTMP inside tmpdir; now HGTMP is tmpdir.  So fail if
+            # tmpdir already exists.
+            sys.exit("error: temp dir %r already exists" % tmpdir)
+
+            # Automatically removing tmpdir sounds convenient, but could
+            # really annoy anyone in the habit of using "--tmpdir=/tmp"
+            # or "--tmpdir=$HOME".
+            #vlog("# Removing temp dir", tmpdir)
+            #shutil.rmtree(tmpdir)
+        os.makedirs(tmpdir)
+    else:
+        tmpdir = tempfile.mkdtemp('', 'hgtests.')
+    HGTMP = os.environ['HGTMP'] = os.path.realpath(tmpdir)
     DAEMON_PIDS = None
     HGRCPATH = None
 

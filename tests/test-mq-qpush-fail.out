@@ -1,6 +1,9 @@
 adding foo
 % test qpush on empty series
 no patches in series
+popping bad-patch
+popping patch2
+popping patch1
 patch queue now empty
 applying patch1
 applying patch2
@@ -27,3 +30,9 @@ now at: patch1
 applying patch2
 unable to read patch2
 now at: patch1
+% preparing qpush of missing patch with no patch applied
+popping patch1
+patch queue now empty
+% qpush should fail the same way as below
+applying patch1
+unable to read patch1

@@ -546,24 +546,26 @@ def copy(ui, repo, pats, opts, rename=False):
 
     return errors
 
-def service(opts, parentfn=None, initfn=None, runfn=None, logfile=None):
+def service(opts, parentfn=None, initfn=None, runfn=None, logfile=None,
+    runargs=None):
     '''Run a command as a service.'''
 
     if opts['daemon'] and not opts['daemon_pipefds']:
         rfd, wfd = os.pipe()
-        args = sys.argv[:]
-        args.append('--daemon-pipefds=%d,%d' % (rfd, wfd))
+        if not runargs:
+            runargs = sys.argv[:]
+        runargs.append('--daemon-pipefds=%d,%d' % (rfd, wfd))
         # Don't pass --cwd to the child process, because we've already
         # changed directory.
-        for i in xrange(1,len(args)):
-            if args[i].startswith('--cwd='):
-                del args[i]
+        for i in xrange(1,len(runargs)):
+            if runargs[i].startswith('--cwd='):
+                del runargs[i]
                 break
-            elif args[i].startswith('--cwd'):
-                del args[i:i+2]
+            elif runargs[i].startswith('--cwd'):
+                del runargs[i:i+2]
                 break
         pid = os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0),
-                         args[0], args)
+                         runargs[0], runargs)
         os.close(wfd)
         os.read(rfd, 1)
         if parentfn:
@@ -650,10 +652,7 @@ class changeset_printer(object):
             return
 
         log = self.repo.changelog
-        changes = log.read(changenode)
-        date = util.datestr(changes[2])
-        extra = changes[5]
-        branch = extra.get("branch")
+        date = util.datestr(ctx.date())
 
         hexfunc = self.ui.debugflag and hex or short
 
@@ -662,6 +661,7 @@ class changeset_printer(object):
 
         self.ui.write(_("changeset:   %d:%s\n") % (rev, hexfunc(changenode)))
 
+        branch = ctx.branch()
         # don't show the default branch name
         if branch != 'default':
             branch = encoding.tolocal(branch)
@@ -672,9 +672,10 @@ class changeset_printer(object):
             self.ui.write(_("parent:      %d:%s\n") % parent)
 
         if self.ui.debugflag:
+            mnode = ctx.manifestnode()
             self.ui.write(_("manifest:    %d:%s\n") %
-                          (self.repo.manifest.rev(changes[0]), hex(changes[0])))
-        self.ui.write(_("user:        %s\n") % changes[1])
+                          (self.repo.manifest.rev(mnode), hex(mnode)))
+        self.ui.write(_("user:        %s\n") % ctx.user())
         self.ui.write(_("date:        %s\n") % date)
 
         if self.ui.debugflag:
@@ -683,18 +684,19 @@ class changeset_printer(object):
                                   files):
                 if value:
                     self.ui.write("%-12s %s\n" % (key, " ".join(value)))
-        elif changes[3] and self.ui.verbose:
-            self.ui.write(_("files:       %s\n") % " ".join(changes[3]))
+        elif ctx.files() and self.ui.verbose:
+            self.ui.write(_("files:       %s\n") % " ".join(ctx.files()))
         if copies and self.ui.verbose:
             copies = ['%s (%s)' % c for c in copies]
             self.ui.write(_("copies:      %s\n") % ' '.join(copies))
 
+        extra = ctx.extra()
         if extra and self.ui.debugflag:
             for key, value in sorted(extra.items()):
                 self.ui.write(_("extra:       %s=%s\n")
                               % (key, value.encode('string_escape')))
 
-        description = changes[4].strip()
+        description = ctx.description().strip()
         if description:
             if self.ui.verbose:
                 self.ui.write(_("description:\n"))
@@ -743,6 +745,9 @@ class changeset_templater(changeset_printer):
                                          'parent': '{rev}:{node|formatnode} ',
                                          'manifest': '{rev}:{node|formatnode}',
                                          'filecopy': '{name} ({source})'})
+        # Cache mapping from rev to a tuple with tag date, tag
+        # distance and tag name
+        self._latesttagcache = {-1: (0, 0, 'null')}
 
     def use_template(self, t):
         '''set template string to use'''
@@ -759,6 +764,30 @@ class changeset_templater(changeset_printer):
         if parents[0].rev() >= ctx.rev() - 1:
             return []
         return parents
+
+    def _latesttaginfo(self, rev):
+        '''return date, distance and name for the latest tag of rev'''
+        todo = [rev]
+        while todo:
+            rev = todo.pop()
+            if rev in self._latesttagcache:
+                continue
+            ctx = self.repo[rev]
+            tags = [t for t in ctx.tags() if self.repo.tagtype(t) == 'global']
+            if tags:
+                self._latesttagcache[rev] = ctx.date()[0], 0, ':'.join(sorted(tags))
+                continue
+            try:
+                # The tuples are laid out so the right one can be found by comparison.
+                pdate, pdist, ptag = max(
+                    self._latesttagcache[p.rev()] for p in ctx.parents())
+            except KeyError:
+                # Cache miss - recurse
+                todo.append(rev)
+                todo.extend(p.rev() for p in ctx.parents())
+                continue
+            self._latesttagcache[rev] = pdate, pdist + 1, ptag
+        return self._latesttagcache[rev]
 
     def _show(self, ctx, copies, props):
         '''show a single changeset or file revision'''
@@ -877,6 +906,11 @@ class changeset_templater(changeset_printer):
                 removes += i[2]
             return '%s: +%s/-%s' % (files, adds, removes)
 
+        def showlatesttag(**args):
+            return self._latesttaginfo(ctx.rev())[2]
+        def showlatesttagdistance(**args):
+            return self._latesttaginfo(ctx.rev())[1]
+
         defprops = {
             'author': ctx.user(),
             'branches': showbranches,
@@ -894,6 +928,8 @@ class changeset_templater(changeset_printer):
             'tags': showtags,
             'extras': showextras,
             'diffstat': showdiffstat,
+            'latesttag': showlatesttag,
+            'latesttagdistance': showlatesttagdistance,
             }
         props = props.copy()
         props.update(defprops)
@@ -986,24 +1022,26 @@ def show_changeset(ui, repo, opts, buffered=False, matchfn=False):
 
 def finddate(ui, repo, date):
     """Find the tipmost changeset that matches the given date spec"""
+
     df = util.matchdate(date)
-    get = util.cachefunc(lambda r: repo[r].changeset())
-    changeiter, matchfn = walkchangerevs(ui, repo, [], get, {'rev':None})
+    m = matchall(repo)
     results = {}
-    for st, rev, fns in changeiter:
-        if st == 'add':
-            d = get(rev)[2]
-            if df(d[0]):
-                results[rev] = d
-        elif st == 'iter':
-            if rev in results:
-                ui.status(_("Found revision %s from %s\n") %
-                          (rev, util.datestr(results[rev])))
-                return str(rev)
+
+    def prep(ctx, fns):
+        d = ctx.date()
+        if df(d[0]):
+            results[ctx.rev()] = d
+
+    for ctx in walkchangerevs(repo, m, {'rev': None}, prep):
+        rev = ctx.rev()
+        if rev in results:
+            ui.status(_("Found revision %s from %s\n") %
+                      (rev, util.datestr(results[rev])))
+            return str(rev)
 
     raise util.Abort(_("revision matching date not found"))
 
-def walkchangerevs(ui, repo, pats, change, opts):
+def walkchangerevs(repo, match, opts, prepare):
     '''Iterate over files and the revs in which they changed.
 
     Callers most commonly need to iterate backwards over the history
@@ -1014,19 +1052,9 @@ def walkchangerevs(ui, repo, pats, change, opts):
     window, we first walk forwards to gather data, then in the desired
     order (usually backwards) to display it.
 
-    This function returns an (iterator, matchfn) tuple. The iterator
-    yields 3-tuples. They will be of one of the following forms:
-
-    "window", incrementing, lastrev: stepping through a window,
-    positive if walking forwards through revs, last rev in the
-    sequence iterated over - use to reset state for the current window
-
-    "add", rev, fns: out-of-order traversal of the given filenames
-    fns, which changed during revision rev - use to gather data for
-    possible display
-
-    "iter", rev, None: in-order traversal of the revs earlier iterated
-    over with "add" - use to display data'''
+    This function returns an iterator yielding contexts. Before
+    yielding each context, the iterator will first call the prepare
+    function on each context in the window in forward order.'''
 
     def increasing_windows(start, end, windowsize=8, sizelimit=512):
         if start < end:
@@ -1042,11 +1070,10 @@ def walkchangerevs(ui, repo, pats, change, opts):
                 if windowsize < sizelimit:
                     windowsize *= 2
 
-    m = match(repo, pats, opts)
     follow = opts.get('follow') or opts.get('follow_first')
 
     if not len(repo):
-        return [], m
+        return []
 
     if follow:
         defrange = '%s:0' % repo['.'].rev()
@@ -1054,13 +1081,15 @@ def walkchangerevs(ui, repo, pats, change, opts):
         defrange = '-1:0'
     revs = revrange(repo, opts['rev'] or [defrange])
     wanted = set()
-    slowpath = m.anypats() or (m.files() and opts.get('removed'))
+    slowpath = match.anypats() or (match.files() and opts.get('removed'))
     fncache = {}
+    change = util.cachefunc(repo.changectx)
 
-    if not slowpath and not m.files():
+    if not slowpath and not match.files():
         # No files, no patterns.  Display all revs.
         wanted = set(revs)
     copies = []
+
     if not slowpath:
         # Only files, no patterns.  Check the history of each file.
         def filerevgen(filelog, node):
@@ -1081,7 +1110,7 @@ def walkchangerevs(ui, repo, pats, change, opts):
                     if rev[0] < cl_count:
                         yield rev
         def iterfiles():
-            for filename in m.files():
+            for filename in match.files():
                 yield filename, None
             for filename_node in copies:
                 yield filename_node
@@ -1097,8 +1126,6 @@ def walkchangerevs(ui, repo, pats, change, opts):
                     slowpath = True
                     break
                 else:
-                    ui.warn(_('%s:%s copy source revision cannot be found!\n')
-                            % (file_, short(node)))
                     continue
             for rev, copied in filerevgen(filelog, node):
                 if rev <= maxrev:
@@ -1118,13 +1145,13 @@ def walkchangerevs(ui, repo, pats, change, opts):
         def changerevgen():
             for i, window in increasing_windows(len(repo) - 1, nullrev):
                 for j in xrange(i - window, i + 1):
-                    yield j, change(j)[3]
+                    yield change(j)
 
-        for rev, changefiles in changerevgen():
-            matches = filter(m, changefiles)
+        for ctx in changerevgen():
+            matches = filter(match, ctx.files())
             if matches:
-                fncache[rev] = matches
-                wanted.add(rev)
+                fncache[ctx.rev()] = matches
+                wanted.add(ctx.rev())
 
     class followfilter(object):
         def __init__(self, onlyfirst=False):
@@ -1174,7 +1201,7 @@ def walkchangerevs(ui, repo, pats, change, opts):
                 wanted.discard(x)
 
     def iterate():
-        if follow and not m.files():
+        if follow and not match.files():
             ff = followfilter(onlyfirst=opts.get('follow_first'))
             def want(rev):
                 return ff.match(rev) and rev in wanted
@@ -1183,20 +1210,21 @@ def walkchangerevs(ui, repo, pats, change, opts):
                 return rev in wanted
 
         for i, window in increasing_windows(0, len(revs)):
-            yield 'window', revs[0] < revs[-1], revs[-1]
+            change = util.cachefunc(repo.changectx)
             nrevs = [rev for rev in revs[i:i+window] if want(rev)]
             for rev in sorted(nrevs):
                 fns = fncache.get(rev)
+                ctx = change(rev)
                 if not fns:
                     def fns_generator():
-                        for f in change(rev)[3]:
-                            if m(f):
+                        for f in ctx.files():
+                            if match(f):
                                 yield f
                     fns = fns_generator()
-                yield 'add', rev, fns
+                prepare(ctx, fns)
             for rev in nrevs:
-                yield 'iter', rev, None
-    return iterate(), m
+                yield change(rev)
+    return iterate()
 
 def commit(ui, repo, commitfunc, pats, opts):
     '''commit the specified files or all outstanding changes'''

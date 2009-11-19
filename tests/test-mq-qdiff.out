@@ -26,6 +26,7 @@ diff -r 67e992f2c4f3 base
 +patched
 % revert
 % qpop
+popping mqbase
 patch queue now empty
 % qdelete mqbase
 % commit 2
@@ -57,9 +58,8 @@ diff -r 35fb829491c1 lines
  2
  3
  4
--hello world
+ hello world
 -goodbye world
-+hello  world
 +     goodbye world
  7
  8
@@ -75,7 +75,7 @@ diff -r 35fb829491c1 lines
 +hello  world
 +     goodbye world
  7
-qdiff -w
+% qdiff -w
 diff -r 35fb829491c1 lines
 --- a/lines
 +++ b/lines
@@ -85,3 +85,21 @@ diff -r 35fb829491c1 lines
  1
  2
  3
+% qdiff --reverse
+diff -r 35fb829491c1 lines
+--- a/lines
++++ b/lines
+@@ -1,11 +1,9 @@
+-
+-
+ 1
+ 2
+ 3
+ 4
+-hello  world
+-     goodbye world
++hello world
++goodbye world
+ 7
+ 8
+ 9

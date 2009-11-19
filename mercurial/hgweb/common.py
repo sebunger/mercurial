@@ -31,8 +31,8 @@ def _statusmessage(code):
     responses = BaseHTTPRequestHandler.responses
     return responses.get(code, ('Error', 'Unknown error'))[0]
 
-def statusmessage(code):
-    return '%d %s' % (code, _statusmessage(code))
+def statusmessage(code, message=None):
+    return '%d %s' % (code, message or _statusmessage(code))
 
 def get_mtime(repo_path):
     store_path = os.path.join(repo_path, ".hg")
@@ -69,7 +69,7 @@ def staticfile(directory, fname, req):
         os.stat(path)
         ct = mimetypes.guess_type(path)[0] or "text/plain"
         req.respond(HTTP_OK, ct, length = os.path.getsize(path))
-        return file(path, 'rb').read()
+        return open(path, 'rb').read()
     except TypeError:
         raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal filename')
     except OSError, err:

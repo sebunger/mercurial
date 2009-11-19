@@ -8,7 +8,7 @@
 import errno, os
 from i18n import _
 import config, util, node, error
-localrepo = hg = None
+hg = None
 
 nullstate = ('', '')
 
@@ -27,7 +27,7 @@ def state(ctx):
     if '.hgsubstate' in ctx:
         try:
             for l in ctx['.hgsubstate'].data().splitlines():
-                revision, path = l.split()
+                revision, path = l.split(" ", 1)
                 rev[path] = revision
         except IOError, err:
             if err.errno != errno.ENOENT:
@@ -52,7 +52,16 @@ def submerge(repo, wctx, mctx, actx):
     sa = actx.substate
     sm = {}
 
+    repo.ui.debug("subrepo merge %s %s %s\n" % (wctx, mctx, actx))
+
+    def debug(s, msg, r=""):
+        if r:
+            r = "%s:%s" % r
+        repo.ui.debug("  subrepo %s: %s %s\n" % (s, msg, r))
+
     for s, l in s1.items():
+        if wctx != actx and wctx.sub(s).dirty():
+            l = (l[0], l[1] + "+")
         a = sa.get(s, nullstate)
         if s in s2:
             r = s2[s]
@@ -60,42 +69,50 @@ def submerge(repo, wctx, mctx, actx):
                 sm[s] = l
                 continue
             elif l == a: # other side changed
+                debug(s, "other changed, get", r)
                 wctx.sub(s).get(r)
                 sm[s] = r
             elif l[0] != r[0]: # sources differ
-                if repo.ui.prompt(
+                if repo.ui.promptchoice(
                     _(' subrepository sources for %s differ\n'
                       'use (l)ocal source (%s) or (r)emote source (%s)?')
                       % (s, l[0], r[0]),
-                      (_('&Local'), _('&Remote')), _('l')) == _('r'):
+                      (_('&Local'), _('&Remote')), 0):
+                    debug(s, "prompt changed, get", r)
                     wctx.sub(s).get(r)
                     sm[s] = r
             elif l[1] == a[1]: # local side is unchanged
+                debug(s, "other side changed, get", r)
                 wctx.sub(s).get(r)
                 sm[s] = r
             else:
+                debug(s, "both sides changed, merge with", r)
                 wctx.sub(s).merge(r)
                 sm[s] = l
         elif l == a: # remote removed, local unchanged
+            debug(s, "remote removed, remove")
             wctx.sub(s).remove()
         else:
-            if repo.ui.prompt(
+            if repo.ui.promptchoice(
                 _(' local changed subrepository %s which remote removed\n'
                   'use (c)hanged version or (d)elete?') % s,
-                  (_('&Changed'), _('&Delete')), _('c')) == _('d'):
+                (_('&Changed'), _('&Delete')), 0):
+                debug(s, "prompt remove")
                 wctx.sub(s).remove()
 
     for s, r in s2.items():
         if s in s1:
             continue
         elif s not in sa:
+            debug(s, "remote added, get", r)
             wctx.sub(s).get(r)
             sm[s] = r
         elif r != sa[s]:
-            if repo.ui.prompt(
+            if repo.ui.promptchoice(
                 _(' remote changed subrepository %s which local removed\n'
                   'use (c)hanged version or (d)elete?') % s,
-                  (_('&Changed'), _('&Delete')), _('c')) == _('c'):
+                (_('&Changed'), _('&Delete')), 0) == 0:
+                debug(s, "prompt recreate", r)
                 wctx.sub(s).get(r)
                 sm[s] = r
 
@@ -122,9 +139,8 @@ def subrepo(ctx, path):
     # because it wants to make repo objects from deep inside the stack
     # so we manually delay the circular imports to not break
     # scripts that don't use our demand-loading
-    global localrepo, hg
-    import localrepo as l, hg as h
-    localrepo = l
+    global hg
+    import hg as h
     hg = h
 
     util.path_auditor(ctx._repo.root)(path)
@@ -140,10 +156,10 @@ class hgsubrepo(object):
         r = ctx._repo
         root = r.wjoin(path)
         if os.path.exists(os.path.join(root, '.hg')):
-            self._repo = localrepo.localrepository(r.ui, root)
+            self._repo = hg.repository(r.ui, root)
         else:
             util.makedirs(root)
-            self._repo = localrepo.localrepository(r.ui, root, create=True)
+            self._repo = hg.repository(r.ui, root, create=True)
         self._repo._subparent = r
         self._repo._subsource = state[0]
 
@@ -157,6 +173,7 @@ class hgsubrepo(object):
         return w.dirty() # working directory changed
 
     def commit(self, text, user, date):
+        self._repo.ui.debug("committing subrepo %s\n" % self._path)
         n = self._repo.commit(text, user, date)
         if not n:
             return self._repo['.'].hex() # different version checked out
@@ -168,7 +185,7 @@ class hgsubrepo(object):
         self._repo.ui.note(_('removing subrepo %s\n') % self._path)
         hg.clean(self._repo, node.nullid, False)
 
-    def get(self, state):
+    def _get(self, state):
         source, revision = state
         try:
             self._repo.lookup(revision)
@@ -179,10 +196,22 @@ class hgsubrepo(object):
             other = hg.repository(self._repo.ui, srcurl)
             self._repo.pull(other)
 
+    def get(self, state):
+        self._get(state)
+        source, revision = state
+        self._repo.ui.debug("getting subrepo %s\n" % self._path)
         hg.clean(self._repo, revision, False)
 
     def merge(self, state):
-        hg.merge(self._repo, state[1], remind=False)
+        self._get(state)
+        cur = self._repo['.']
+        dst = self._repo[state[1]]
+        if dst.ancestor(cur) == cur:
+            self._repo.ui.debug("updating subrepo %s\n" % self._path)
+            hg.update(self._repo, state[1])
+        else:
+            self._repo.ui.debug("merging subrepo %s\n" % self._path)
+            hg.merge(self._repo, state[1], remind=False)
 
     def push(self, force):
         # push subrepos depth-first for coherent ordering
@@ -195,4 +224,3 @@ class hgsubrepo(object):
         dsturl = _abssource(self._repo, True)
         other = hg.repository(self._repo.ui, dsturl)
         self._repo.push(other, force)
-

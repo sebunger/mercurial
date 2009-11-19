@@ -1,6 +1,6 @@
 adding a
 adding b
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 pulling from ../b
 searching for changes
@@ -107,11 +107,11 @@ b
 
 %% --config
 quuxfoo
-abort: malformed --config option: 
-abort: malformed --config option: a.b
-abort: malformed --config option: a
-abort: malformed --config option: a.=
-abort: malformed --config option: .b=
+abort: malformed --config option: '' (use --config section.name=value)
+abort: malformed --config option: 'a.b' (use --config section.name=value)
+abort: malformed --config option: 'a' (use --config section.name=value)
+abort: malformed --config option: 'a.=' (use --config section.name=value)
+abort: malformed --config option: '.b=' (use --config section.name=value)
 %% --debug
 changeset:   1:b6c483daf2907ce5825c0bb50f5716226281cc1a
 tag:         tip
@@ -191,6 +191,7 @@ list of commands:
  serve        export the repository via HTTP
  showconfig   show combined config settings from all hgrc files
  status       show changed files in the working directory
+ summary      summarize working directory state
  tag          add one or more tags for the current or given revision
  tags         list repository tags
  tip          show the tip revision
@@ -201,6 +202,7 @@ list of commands:
 
 additional help topics:
 
+ config       Configuration Files
  dates        Date Formats
  patterns     File Name Patterns
  environment  Environment Variables
@@ -258,6 +260,7 @@ list of commands:
  serve        export the repository via HTTP
  showconfig   show combined config settings from all hgrc files
  status       show changed files in the working directory
+ summary      summarize working directory state
  tag          add one or more tags for the current or given revision
  tags         list repository tags
  tip          show the tip revision
@@ -268,6 +271,7 @@ list of commands:
 
 additional help topics:
 
+ config       Configuration Files
  dates        Date Formats
  patterns     File Name Patterns
  environment  Environment Variables

@@ -30,7 +30,7 @@ def find(name):
 
 def loadpath(path, module_name):
     module_name = module_name.replace('.', '_')
-    path = os.path.expanduser(path)
+    path = util.expandpath(path)
     if os.path.isdir(path):
         # module/__init__.py style
         d, f = os.path.split(path.rstrip('/'))
@@ -40,6 +40,7 @@ def loadpath(path, module_name):
         return imp.load_source(module_name, path)
 
 def load(ui, name, path):
+    # unused ui argument kept for backwards compatibility
     if name.startswith('hgext.') or name.startswith('hgext/'):
         shortname = name[6:]
     else:
@@ -66,12 +67,9 @@ def load(ui, name, path):
     _extensions[shortname] = mod
     _order.append(shortname)
 
-    uisetup = getattr(mod, 'uisetup', None)
-    if uisetup:
-        uisetup(ui)
-
 def loadall(ui):
     result = ui.configitems("extensions")
+    newindex = len(_order)
     for (name, path) in result:
         if path:
             if path[0] == '!':
@@ -89,6 +87,21 @@ def loadall(ui):
                         % (name, inst))
             if ui.traceback():
                 return 1
+
+    for name in _order[newindex:]:
+        uisetup = getattr(_extensions[name], 'uisetup', None)
+        if uisetup:
+            uisetup(ui)
+
+    for name in _order[newindex:]:
+        extsetup = getattr(_extensions[name], 'extsetup', None)
+        if extsetup:
+            try:
+                extsetup(ui)
+            except TypeError:
+                if extsetup.func_code.co_argcount != 0:
+                    raise
+                extsetup() # old extsetup with no ui argument
 
 def wrapcommand(table, command, wrapper):
     aliases, entry = cmdutil.findcmd(command, table)
@@ -166,17 +179,12 @@ def disabled():
 
 def enabled():
     '''return a dict of {name: desc} of extensions, and the max name length'''
-
-    if not enabled:
-        return {}, 0
-
     exts = {}
     maxlength = 0
-    exthelps = []
     for ename, ext in extensions():
         doc = (gettext(ext.__doc__) or _('(no help text available)'))
         ename = ename.split('.')[-1]
         maxlength = max(len(ename), maxlength)
-        exts[ename] = doc.splitlines(0)[0].strip()
+        exts[ename] = doc.splitlines()[0].strip()
 
     return exts, maxlength

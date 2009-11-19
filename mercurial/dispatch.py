@@ -24,6 +24,9 @@ def dispatch(args):
     except util.Abort, inst:
         sys.stderr.write(_("abort: %s\n") % inst)
         return -1
+    except error.ConfigError, inst:
+        sys.stderr.write(_("hg: %s\n") % inst)
+        return -1
     return _runcatch(u, args)
 
 def _runcatch(ui, args):
@@ -191,8 +194,6 @@ class cmdalias(object):
 
         args = shlex.split(self.definition)
         cmd = args.pop(0)
-        opts = []
-        help = ''
 
         try:
             self.fn, self.opts, self.help = cmdutil.findcmd(cmd, cmdtable, False)[1]
@@ -214,7 +215,7 @@ class cmdalias(object):
 
     def __call__(self, ui, *args, **opts):
         if self.shadows:
-            ui.debug(_("alias '%s' shadows command\n") % self.name)
+            ui.debug("alias '%s' shadows command\n" % self.name)
 
         return self.fn(ui, *args, **opts)
 
@@ -245,7 +246,7 @@ def _parse(ui, args):
         args = aliasargs(i[0]) + args
         defaults = ui.config("defaults", cmd)
         if defaults:
-            args = shlex.split(defaults) + args
+            args = map(util.expandpath, shlex.split(defaults)) + args
         c = list(i[1])
     else:
         cmd = None
@@ -278,7 +279,8 @@ def _parseconfig(ui, config):
                 raise IndexError
             ui.setconfig(section, name, value)
         except (IndexError, ValueError):
-            raise util.Abort(_('malformed --config option: %s') % cfg)
+            raise util.Abort(_('malformed --config option: %r '
+                               '(use --config section.name=value)') % cfg)
 
 def _earlygetopt(aliases, args):
     """Return list of values for an option (or aliases).
@@ -335,7 +337,7 @@ def _dispatch(ui, args):
     path = _findrepo(os.getcwd()) or ""
     if not path:
         lui = ui
-    if path:
+    else:
         try:
             lui = ui.copy()
             lui.readconfig(os.path.join(path, ".hg", "hgrc"))
@@ -349,19 +351,15 @@ def _dispatch(ui, args):
         lui = ui.copy()
         lui.readconfig(os.path.join(path, ".hg", "hgrc"))
 
+    # Configure extensions in phases: uisetup, extsetup, cmdtable, and
+    # reposetup. Programs like TortoiseHg will call _dispatch several
+    # times so we keep track of configured extensions in _loaded.
     extensions.loadall(lui)
-    for name, module in extensions.extensions():
-        if name in _loaded:
-            continue
+    exts = [ext for ext in extensions.extensions() if ext[0] not in _loaded]
 
-        # setup extensions
-        # TODO this should be generalized to scheme, where extensions can
-        #      redepend on other extensions.  then we should toposort them, and
-        #      do initialization in correct order
-        extsetup = getattr(module, 'extsetup', None)
-        if extsetup:
-            extsetup()
+    # (uisetup and extsetup are handled in extensions.loadall)
 
+    for name, module in exts:
         cmdtable = getattr(module, 'cmdtable', {})
         overrides = [cmd for cmd in cmdtable if cmd in commands.table]
         if overrides:
@@ -369,6 +367,8 @@ def _dispatch(ui, args):
                     % (name, " ".join(overrides)))
         commands.table.update(cmdtable)
         _loaded.add(name)
+
+    # (reposetup is handled in hg.repository)
 
     addaliases(lui, commands.table)
 
@@ -466,8 +466,7 @@ def _runcommand(ui, options, cmd, cmdfunc):
         output = ui.config('profiling', 'output')
 
         if output:
-            path = os.path.expanduser(output)
-            path = ui.expandpath(path)
+            path = ui.expandpath(output)
             ostream = open(path, 'wb')
         else:
             ostream = sys.stderr

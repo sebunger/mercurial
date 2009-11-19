@@ -29,33 +29,33 @@ also available. Effects are rendered with the ECMA-48 SGR control
 function (aka ANSI escape codes). This module also provides the
 render_text function, which can be used to add effects to any text.
 
-Default effects may be overridden from the .hgrc file:
+Default effects may be overridden from the .hgrc file::
 
-[color]
-status.modified = blue bold underline red_background
-status.added = green bold
-status.removed = red bold blue_background
-status.deleted = cyan bold underline
-status.unknown = magenta bold underline
-status.ignored = black bold
+  [color]
+  status.modified = blue bold underline red_background
+  status.added = green bold
+  status.removed = red bold blue_background
+  status.deleted = cyan bold underline
+  status.unknown = magenta bold underline
+  status.ignored = black bold
 
-# 'none' turns off all effects
-status.clean = none
-status.copied = none
+  # 'none' turns off all effects
+  status.clean = none
+  status.copied = none
 
-qseries.applied = blue bold underline
-qseries.unapplied = black bold
-qseries.missing = red bold
+  qseries.applied = blue bold underline
+  qseries.unapplied = black bold
+  qseries.missing = red bold
 
-diff.diffline = bold
-diff.extended = cyan bold
-diff.file_a = red bold
-diff.file_b = green bold
-diff.hunk = magenta
-diff.deleted = red
-diff.inserted = green
-diff.changed = white
-diff.trailingwhitespace = bold red_background
+  diff.diffline = bold
+  diff.extended = cyan bold
+  diff.file_a = red bold
+  diff.file_b = green bold
+  diff.hunk = magenta
+  diff.deleted = red
+  diff.inserted = green
+  diff.changed = white
+  diff.trailingwhitespace = bold red_background
 '''
 
 import os, sys
@@ -142,14 +142,10 @@ def colorqseries(orig, ui, repo, *dummy, **opts):
     '''run the qseries command with colored output'''
     ui.pushbuffer()
     retval = orig(ui, repo, **opts)
-    patches = ui.popbuffer().splitlines()
-    for patch in patches:
-        patchname = patch
-        if opts['summary']:
-            patchname = patchname.split(': ')[0]
-        if ui.verbose:
-            patchname = patchname.split(' ', 2)[-1]
+    patchlines = ui.popbuffer().splitlines()
+    patchnames = repo.mq.series
 
+    for patch, patchname in zip(patchlines, patchnames):
         if opts['missing']:
             effects = _patch_effects['missing']
         # Determine if patch is applied.
@@ -158,29 +154,32 @@ def colorqseries(orig, ui, repo, *dummy, **opts):
             effects = _patch_effects['applied']
         else:
             effects = _patch_effects['unapplied']
-        ui.write(render_effects(patch, effects) + '\n')
+
+        patch = patch.replace(patchname, render_effects(patchname, effects), 1)
+        ui.write(patch + '\n')
     return retval
 
 _patch_effects = { 'applied': ['blue', 'bold', 'underline'],
-                   'missing': ['red', 'bold'],
-                   'unapplied': ['black', 'bold'], }
-
-def colorwrap(orig, s):
+                    'missing': ['red', 'bold'],
+                    'unapplied': ['black', 'bold'], }
+def colorwrap(orig, *args):
     '''wrap ui.write for colored diff output'''
-    lines = s.split('\n')
-    for i, line in enumerate(lines):
-        stripline = line
-        if line and line[0] in '+-':
-            # highlight trailing whitespace, but only in changed lines
-            stripline = line.rstrip()
-        for prefix, style in _diff_prefixes:
-            if stripline.startswith(prefix):
-                lines[i] = render_effects(stripline, _diff_effects[style])
-                break
-        if line != stripline:
-            lines[i] += render_effects(
-                line[len(stripline):], _diff_effects['trailingwhitespace'])
-    orig('\n'.join(lines))
+    def _colorize(s):
+        lines = s.split('\n')
+        for i, line in enumerate(lines):
+            stripline = line
+            if line and line[0] in '+-':
+                # highlight trailing whitespace, but only in changed lines
+                stripline = line.rstrip()
+            for prefix, style in _diff_prefixes:
+                if stripline.startswith(prefix):
+                    lines[i] = render_effects(stripline, _diff_effects[style])
+                    break
+            if line != stripline:
+                lines[i] += render_effects(
+                    line[len(stripline):], _diff_effects['trailingwhitespace'])
+        return '\n'.join(lines)
+    orig(*[_colorize(s) for s in args])
 
 def colorshowpatch(orig, self, node):
     '''wrap cmdutil.changeset_printer.showpatch with colored output'''
@@ -190,9 +189,25 @@ def colorshowpatch(orig, self, node):
     finally:
         self.ui.write = oldwrite
 
+def colordiffstat(orig, s):
+    lines = s.split('\n')
+    for i, line in enumerate(lines):
+        if line and line[-1] in '+-':
+            name, graph = line.rsplit(' ', 1)
+            graph = graph.replace('-',
+                        render_effects('-', _diff_effects['deleted']))
+            graph = graph.replace('+',
+                        render_effects('+', _diff_effects['inserted']))
+            lines[i] = ' '.join([name, graph])
+    orig('\n'.join(lines))
+
 def colordiff(orig, ui, repo, *pats, **opts):
     '''run the diff command with colored output'''
-    oldwrite = extensions.wrapfunction(ui, 'write', colorwrap)
+    if opts.get('stat'):
+        wrapper = colordiffstat
+    else:
+        wrapper = colorwrap
+    oldwrite = extensions.wrapfunction(ui, 'write', wrapper)
     try:
         orig(ui, repo, *pats, **opts)
     finally:
@@ -220,12 +235,8 @@ _diff_effects = {'diffline': ['bold'],
                  'changed': ['white'],
                  'trailingwhitespace': ['bold', 'red_background']}
 
-_ui = None
-
-def uisetup(ui):
+def extsetup(ui):
     '''Initialize the extension.'''
-    global _ui
-    _ui = ui
     _setupcmd(ui, 'diff', commands.table, colordiff, _diff_effects)
     _setupcmd(ui, 'incoming', commands.table, None, _diff_effects)
     _setupcmd(ui, 'log', commands.table, None, _diff_effects)
@@ -233,20 +244,22 @@ def uisetup(ui):
     _setupcmd(ui, 'tip', commands.table, None, _diff_effects)
     _setupcmd(ui, 'status', commands.table, colorstatus, _status_effects)
 
-def extsetup():
     try:
         mq = extensions.find('mq')
-        try:
-            # If we are loaded after mq, we must wrap commands.table
-            _setupcmd(_ui, 'qdiff', commands.table, colordiff, _diff_effects)
-            _setupcmd(_ui, 'qseries', commands.table, colorqseries, _patch_effects)
-        except error.UnknownCommand:
-            # Otherwise we wrap mq.cmdtable
-            _setupcmd(_ui, 'qdiff', mq.cmdtable, colordiff, _diff_effects)
-            _setupcmd(_ui, 'qseries', mq.cmdtable, colorqseries, _patch_effects)
+        _setupcmd(ui, 'qdiff', mq.cmdtable, colordiff, _diff_effects)
+        _setupcmd(ui, 'qseries', mq.cmdtable, colorqseries, _patch_effects)
     except KeyError:
-        # The mq extension is not enabled
-        pass
+        mq = None
+
+    try:
+        rec = extensions.find('record')
+        _setupcmd(ui, 'record', rec.cmdtable, colordiff, _diff_effects)
+    except KeyError:
+        rec = None
+
+    if mq and rec:
+        _setupcmd(ui, 'qrecord', rec.cmdtable, colordiff, _diff_effects)
+
 
 def _setupcmd(ui, cmd, table, func, effectsmap):
     '''patch in command to command table and load effect map'''
@@ -269,7 +282,7 @@ def _setupcmd(ui, cmd, table, func, effectsmap):
     entry = extensions.wrapcommand(table, cmd, nocolor)
     entry[1].extend([
         ('', 'color', 'auto', _("when to colorize (always, auto, or never)")),
-        ('', 'no-color', None, _("don't colorize output")),
+        ('', 'no-color', None, _("don't colorize output (DEPRECATED)")),
     ])
 
     for status in effectsmap:

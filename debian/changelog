@@ -1,3 +1,17 @@
+mercurial (1.4-1) unstable; urgency=low
+
+  [ Vernon Tang ]
+  * New upstream release.
+    - /usr/share/doc/mercurial-common/examples/hg-relink gone
+      (replaced by the relink extension)
+  * Updated Standards-Version to 3.8.3.
+
+  [ Vincent Danjean ]
+  * adjust quilt dependency so that it works with backports
+    (ie quilt >> 0.46-6 instead of quilt >= 0.46-7)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Thu, 19 Nov 2009 22:02:54 +0100
+
 mercurial (1.3.1-1) unstable; urgency=low
 
   * New Upstream Version (mostly bugfixes)
