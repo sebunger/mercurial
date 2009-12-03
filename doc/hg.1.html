@@ -113,7 +113,7 @@ repository.</dd>
 <td>start debugger</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--encoding</span></kbd></td>
-<td>set the charset encoding (default: UTF-8)</td></tr>
+<td>set the charset encoding (default: ascii)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--encodingmode</span></kbd></td>
 <td>set the charset encoding mode (default: strict)</td></tr>
@@ -255,14 +255,24 @@ nor desirable.</p>
 directory; use -r/--rev to specify a different revision.</p>
 <p>To specify the type of archive to create, use -t/--type. Valid
 types are:</p>
-<pre class="literal-block">
-&quot;files&quot; (default): a directory full of files
-&quot;tar&quot;: tar archive, uncompressed
-&quot;tbz2&quot;: tar archive, compressed using bzip2
-&quot;tgz&quot;: tar archive, compressed using gzip
-&quot;uzip&quot;: zip archive, uncompressed
-&quot;zip&quot;: zip archive, compressed using deflate
-</pre>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">files</span></tt>:</th><td class="field-body">a directory full of files (default)</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">tar</span></tt>:</th><td class="field-body">tar archive, uncompressed</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">tbz2</span></tt>:</th><td class="field-body">tar archive, compressed using bzip2</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">tgz</span></tt>:</th><td class="field-body">tar archive, compressed using gzip</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">uzip</span></tt>:</th><td class="field-body">zip archive, uncompressed</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">zip</span></tt>:</th><td class="field-body">zip archive, compressed using deflate</td>
+</tr>
+</tbody>
+</table>
 <p>The exact name of the destination archive or directory is given
 using a format string; see 'hg help export' for details.</p>
 <p>Each member added to an archive file has a directory prefix
@@ -345,7 +355,7 @@ The result of this merge is not committed, as with a normal merge.</p>
 </dd>
 </dl>
 <dl class="docutils" id="bisect">
-<dt><tt class="docutils literal"><span class="pre">bisect</span> <span class="pre">[-gbsr]</span> <span class="pre">[-c</span> <span class="pre">CMD]</span> <span class="pre">[REV]</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">bisect</span> <span class="pre">[-gbsr]</span> <span class="pre">[-U]</span> <span class="pre">[-c</span> <span class="pre">CMD]</span> <span class="pre">[REV]</span></tt></dt>
 <dd><p class="first">This command helps to find changesets which introduce problems. To
 use, mark the earliest changeset you know exhibits the problem as
 bad, then mark the latest changeset which is free from the problem
@@ -418,7 +428,7 @@ change.</p>
 </dd>
 </dl>
 <dl class="docutils" id="branches">
-<dt><tt class="docutils literal"><span class="pre">branches</span> <span class="pre">[-a]</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">branches</span> <span class="pre">[-ac]</span></tt></dt>
 <dd><p class="first">List the repository's named branches, indicating which ones are
 inactive. If -c/--closed is specified, also list branches which have
 been marked closed (see hg commit --close-branch).</p>
@@ -441,7 +451,7 @@ is considered active if it contains repository heads.</p>
 </dd>
 </dl>
 <dl class="docutils" id="bundle">
-<dt><tt class="docutils literal"><span class="pre">bundle</span> <span class="pre">[-f]</span> <span class="pre">[-a]</span> <span class="pre">[-r</span> <span class="pre">REV]...</span> <span class="pre">[--base</span> <span class="pre">REV]...</span> <span class="pre">FILE</span> <span class="pre">[DEST]</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">bundle</span> <span class="pre">[-f]</span> <span class="pre">[-t</span> <span class="pre">TYPE]</span> <span class="pre">[-a]</span> <span class="pre">[-r</span> <span class="pre">REV]...</span> <span class="pre">[--base</span> <span class="pre">REV]...</span> <span class="pre">FILE</span> <span class="pre">[DEST]</span></tt></dt>
 <dd><p class="first">Generate a compressed changegroup file collecting changesets not
 known to be in another repository.</p>
 <p>If no destination repository is specified the destination is
@@ -495,11 +505,18 @@ or tip if no revision is checked out.</p>
 <p>Output may be to a file, in which case the name of the file is
 given using a format string. The formatting rules are the same as
 for the export command, with the following additions:</p>
-<pre class="literal-block">
-%s   basename of file being printed
-%d   dirname of file being printed, or '.' if in repository root
-%p   root-relative path name of file being printed
-</pre>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%s</span></tt>:</th><td class="field-body">basename of file being printed</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%d</span></tt>:</th><td class="field-body">dirname of file being printed, or '.' if in repository root</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%p</span></tt>:</th><td class="field-body">root-relative path name of file being printed</td>
+</tr>
+</tbody>
+</table>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -532,20 +549,18 @@ basename of the source.</p>
 <p>The location of the source is added to the new repository's
 .hg/hgrc file, as the default to be used for future pulls.</p>
 <p>See 'hg help urls' for valid source format details.</p>
-<p>It is possible to specify an <a class="reference external" href="ssh://">ssh://</a> URL as the destination, but no
+<p>It is possible to specify an <tt class="docutils literal"><span class="pre">ssh://</span></tt> URL as the destination, but no
 .hg/hgrc and working directory will be created on the remote side.
-Please see 'hg help urls' for important details about <a class="reference external" href="ssh://">ssh://</a> URLs.</p>
+Please see 'hg help urls' for important details about <tt class="docutils literal"><span class="pre">ssh://</span></tt> URLs.</p>
 <p>If the -U/--noupdate option is specified, the new clone will contain
 only a repository (.hg) and no working copy (the working copy parent
 will be the null changeset). Otherwise, clone will initially check
 out (in order of precedence):</p>
-<blockquote>
 <ol class="loweralpha simple">
 <li>the changeset, tag or branch specified with -u/--updaterev</li>
 <li>the changeset, tag or branch given with the first -r/--rev</li>
 <li>the head of the default branch</li>
 </ol>
-</blockquote>
 <p>Use 'hg clone -u . src dst' to checkout the source repository's
 parent changeset (applicable for local source repositories only).</p>
 <p>A set of changesets (tags, or branch names) to pull may be specified
@@ -589,7 +604,7 @@ metadata under the .hg directory, such as mq.</p>
 <tr><td>&nbsp;</td><td>revision, tag or branch to check out</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a changeset you would like to have after cloning</td></tr>
+<td>clone only the specified revisions and ancestors</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--pull</span></kbd></td>
 <td>use pull protocol to copy metadata</td></tr>
@@ -770,16 +785,28 @@ changesets, as it will compare the merge changeset against its
 first parent only.</p>
 <p>Output may be to a file, in which case the name of the file is
 given using a format string. The formatting rules are as follows:</p>
-<pre class="literal-block">
-%%   literal &quot;%&quot; character
-%H   changeset hash (40 bytes of hexadecimal)
-%N   number of patches being generated
-%R   changeset revision number
-%b   basename of the exporting repository
-%h   short-form changeset hash (12 bytes of hexadecimal)
-%n   zero-padded sequence number, starting at 1
-%r   zero-padded changeset revision number
-</pre>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%%</span></tt>:</th><td class="field-body">literal &quot;%&quot; character</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%H</span></tt>:</th><td class="field-body">changeset hash (40 bytes of hexadecimal)</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%N</span></tt>:</th><td class="field-body">number of patches being generated</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%R</span></tt>:</th><td class="field-body">changeset revision number</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%b</span></tt>:</th><td class="field-body">basename of the exporting repository</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%h</span></tt>:</th><td class="field-body">short-form changeset hash (12 bytes of hexadecimal)</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%n</span></tt>:</th><td class="field-body">zero-padded sequence number, starting at 1</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal"><span class="pre">%r</span></tt>:</th><td class="field-body">zero-padded changeset revision number</td>
+</tr>
+</tbody>
+</table>
 <p>Without the -a/--text option, export will avoid generating diffs
 of files it detects as binary. With -a, export will generate a
 diff anyway, probably with undesirable results.</p>
@@ -893,7 +920,7 @@ use the --all flag.</p>
 </dd>
 </dl>
 <dl class="docutils" id="heads">
-<dt><tt class="docutils literal"><span class="pre">heads</span> <span class="pre">[-r</span> <span class="pre">STARTREV]</span> <span class="pre">[REV]...</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">heads</span> <span class="pre">[-ac]</span> <span class="pre">[-r</span> <span class="pre">STARTREV]</span> <span class="pre">[REV]...</span></tt></dt>
 <dd><p class="first">With no arguments, show all repository head changesets.</p>
 <p>Repository &quot;heads&quot; are changesets with no child changesets. They are
 where development generally takes place and are the usual targets
@@ -1108,7 +1135,7 @@ changesets twice if the incoming is followed by a pull.</p>
 <dd><p class="first">Initialize a new repository in the given directory. If the given
 directory does not exist, it will be created.</p>
 <p>If no directory is given, the current directory is used.</p>
-<p>It is possible to specify an <a class="reference external" href="ssh://">ssh://</a> URL as the destination.
+<p>It is possible to specify an <tt class="docutils literal"><span class="pre">ssh://</span></tt> URL as the destination.
 See 'hg help urls' for more information.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
@@ -1273,7 +1300,7 @@ With --debug, print file revision hashes.</p>
 </dd>
 </dl>
 <dl class="docutils" id="merge">
-<dt><tt class="docutils literal"><span class="pre">merge</span> <span class="pre">[-f]</span> <span class="pre">[[-r]</span> <span class="pre">REV]</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">merge</span> <span class="pre">[-P]</span> <span class="pre">[-f]</span> <span class="pre">[[-r]</span> <span class="pre">REV]</span></tt></dt>
 <dd><p class="first">The current working directory is updated with all changes made in
 the requested revision since the last common predecessor revision.</p>
 <p>Files that changed between either parent are marked as changed for
@@ -1436,7 +1463,7 @@ increase the number of remote heads. This generally indicates the
 user forgot to pull and merge before pushing.</p>
 <p>If -r/--rev is used, the named revision and all its ancestors will
 be pushed to the remote repository.</p>
-<p>Please see 'hg help urls' for important details about <a class="reference external" href="ssh://">ssh://</a>
+<p>Please see 'hg help urls' for important details about <tt class="docutils literal"><span class="pre">ssh://</span></tt>
 URLs. If DESTINATION is omitted, a default path will be used.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
@@ -1660,13 +1687,13 @@ the working directory.</p>
 that create new changesets or propagate existing changesets into a
 repository. For example, the following commands are transactional,
 and their effects can be rolled back:</p>
-<pre class="literal-block">
-commit
-import
-pull
-push (with this repository as destination)
-unbundle
-</pre>
+<ul class="simple">
+<li>commit</li>
+<li>import</li>
+<li>pull</li>
+<li>push (with this repository as destination)</li>
+<li>unbundle</li>
+</ul>
 <p class="last">This command is not intended for use on public repositories. Once
 changes are visible for pull by other users, rolling a transaction
 back locally is ineffective (someone else may already have pulled
@@ -1866,7 +1893,7 @@ incoming and outgoing changes. This can be time-consuming.</p>
 </dd>
 </dl>
 <dl class="docutils" id="tag">
-<dt><tt class="docutils literal"><span class="pre">tag</span> <span class="pre">[-l]</span> <span class="pre">[-m</span> <span class="pre">TEXT]</span> <span class="pre">[-d</span> <span class="pre">DATE]</span> <span class="pre">[-u</span> <span class="pre">USER]</span> <span class="pre">[-r</span> <span class="pre">REV]</span> <span class="pre">NAME...</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">tag</span> <span class="pre">[-f]</span> <span class="pre">[-l]</span> <span class="pre">[-m</span> <span class="pre">TEXT]</span> <span class="pre">[-d</span> <span class="pre">DATE]</span> <span class="pre">[-u</span> <span class="pre">USER]</span> <span class="pre">[-r</span> <span class="pre">REV]</span> <span class="pre">NAME...</span></tt></dt>
 <dd><p class="first">Name a particular revision using &lt;name&gt;.</p>
 <p>Tags are used to name particular revisions of the repository and are
 very useful to compare different revisions, to go back to significant
@@ -1915,7 +1942,7 @@ shared among repositories).</p>
 switch is used, a third column &quot;local&quot; is printed for local tags.</dd>
 </dl>
 <dl class="docutils" id="tip">
-<dt><tt class="docutils literal"><span class="pre">tip</span> <span class="pre">[-p]</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">tip</span> <span class="pre">[-p]</span> <span class="pre">[-g]</span></tt></dt>
 <dd><p class="first">The tip revision (usually just called the tip) is the changeset
 most recently added to the repository (and therefore the most
 recently changed head).</p>
@@ -2071,36 +2098,36 @@ description of the possible configuration values:</p>
 <li>log, revert, update: Select revision(s) by date.</li>
 </ul>
 <p>Many date formats are valid. Here are some examples:</p>
-<pre class="literal-block">
-&quot;Wed Dec 6 13:18:29 2006&quot; (local timezone assumed)
-&quot;Dec 6 13:18 -0600&quot; (year assumed, time offset provided)
-&quot;Dec 6 13:18 UTC&quot; (UTC and GMT are aliases for +0000)
-&quot;Dec 6&quot; (midnight)
-&quot;13:18&quot; (today assumed)
-&quot;3:39&quot; (3:39AM assumed)
-&quot;3:39pm&quot; (15:39)
-&quot;2006-12-06 13:18:29&quot; (ISO 8601 format)
-&quot;2006-12-6 13:18&quot;
-&quot;2006-12-6&quot;
-&quot;12-6&quot;
-&quot;12/6&quot;
-&quot;12/6/6&quot; (Dec 6 2006)
-</pre>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">Wed</span> <span class="pre">Dec</span> <span class="pre">6</span> <span class="pre">13:18:29</span> <span class="pre">2006</span></tt> (local timezone assumed)</li>
+<li><tt class="docutils literal"><span class="pre">Dec</span> <span class="pre">6</span> <span class="pre">13:18</span> <span class="pre">-0600</span></tt> (year assumed, time offset provided)</li>
+<li><tt class="docutils literal"><span class="pre">Dec</span> <span class="pre">6</span> <span class="pre">13:18</span> <span class="pre">UTC</span></tt> (UTC and GMT are aliases for +0000)</li>
+<li><tt class="docutils literal"><span class="pre">Dec</span> <span class="pre">6</span></tt> (midnight)</li>
+<li><tt class="docutils literal"><span class="pre">13:18</span></tt> (today assumed)</li>
+<li><tt class="docutils literal"><span class="pre">3:39</span></tt> (3:39AM assumed)</li>
+<li><tt class="docutils literal"><span class="pre">3:39pm</span></tt> (15:39)</li>
+<li><tt class="docutils literal"><span class="pre">2006-12-06</span> <span class="pre">13:18:29</span></tt> (ISO 8601 format)</li>
+<li><tt class="docutils literal"><span class="pre">2006-12-6</span> <span class="pre">13:18</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">2006-12-6</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">12-6</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">12/6</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">12/6/6</span></tt> (Dec 6 2006)</li>
+</ul>
 <p>Lastly, there is Mercurial's internal format:</p>
-<pre class="literal-block">
-&quot;1165432709 0&quot; (Wed Dec 6 13:18:29 2006 UTC)
-</pre>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">1165432709</span> <span class="pre">0</span></tt> (Wed Dec 6 13:18:29 2006 UTC)</li>
+</ul>
 <p>This is the internal representation format for dates. unixtime is the
 number of seconds since the epoch (1970-01-01 00:00 UTC). offset is
 the offset of the local timezone, in seconds west of UTC (negative if
 the timezone is east of UTC).</p>
 <p>The log command also accepts date ranges:</p>
-<pre class="literal-block">
-&quot;&lt;{datetime}&quot; - at or before a given date/time
-&quot;&gt;{datetime}&quot; - on or after a given date/time
-&quot;{datetime} to {datetime}&quot; - a date range, inclusive
-&quot;-{days}&quot; - within a given number of days of today
-</pre>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;{datetime}</span></tt> - at or before a given date/time</li>
+<li><tt class="docutils literal"><span class="pre">&gt;{datetime}</span></tt> - on or after a given date/time</li>
+<li><tt class="docutils literal"><span class="pre">{datetime}</span> <span class="pre">to</span> <span class="pre">{datetime}</span></tt> - a date range, inclusive</li>
+<li><tt class="docutils literal"><span class="pre">-{days}</span></tt> - within a given number of days of today</li>
+</ul>
 </div>
 <div class="section" id="file-name-patterns">
 <span id="patterns"></span><h1><a class="toc-backref" href="#contents">File Name Patterns</a></h1>
@@ -2600,6 +2627,8 @@ hgext.baz = !
 <tr class="field"><th class="field-name">record:</th><td class="field-body">commands to interactively select changes for commit/qrefresh</td>
 </tr>
 <tr class="field"><th class="field-name">relink:</th><td class="field-body">recreates hardlinks between repository clones</td>
+</tr>
+<tr class="field"><th class="field-name">schemes:</th><td class="field-body">extend schemes with shortcuts to repository swarms</td>
 </tr>
 <tr class="field"><th class="field-name">share:</th><td class="field-body">share a common history between several working directories</td>
 </tr>

@@ -97,7 +97,7 @@ start debugger
 .TP
 .B \-\-encoding
 .
-set the charset encoding (default: UTF\-8)
+set the charset encoding (default: ascii)
 .TP
 .B \-\-encodingmode
 .
@@ -260,17 +260,32 @@ directory; use \-r/\-\-rev to specify a different revision.
 .sp
 To specify the type of archive to create, use \-t/\-\-type. Valid
 types are:
+.INDENT 7.0
+.TP
+.B \fBfiles\fP
 .sp
-.nf
-.ft C
-"files" (default): a directory full of files
-"tar": tar archive, uncompressed
-"tbz2": tar archive, compressed using bzip2
-"tgz": tar archive, compressed using gzip
-"uzip": zip archive, uncompressed
-"zip": zip archive, compressed using deflate
-.ft P
-.fi
+a directory full of files (default)
+.TP
+.B \fBtar\fP
+.sp
+tar archive, uncompressed
+.TP
+.B \fBtbz2\fP
+.sp
+tar archive, compressed using bzip2
+.TP
+.B \fBtgz\fP
+.sp
+tar archive, compressed using gzip
+.TP
+.B \fBuzip\fP
+.sp
+zip archive, uncompressed
+.TP
+.B \fBzip\fP
+.sp
+zip archive, compressed using deflate
+.UNINDENT
 .sp
 The exact name of the destination archive or directory is given
 using a format string; see \(aqhg help export\(aq for details.
@@ -368,7 +383,7 @@ record the specified user as committer
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBbisect [\-gbsr] [\-c CMD] [REV]\fP
+.B \fBbisect [\-gbsr] [\-U] [\-c CMD] [REV]\fP
 .sp
 This command helps to find changesets which introduce problems. To
 use, mark the earliest changeset you know exhibits the problem as
@@ -450,7 +465,7 @@ reset branch name to parent branch name
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBbranches [\-a]\fP
+.B \fBbranches [\-ac]\fP
 .sp
 List the repository\(aqs named branches, indicating which ones are
 inactive. If \-c/\-\-closed is specified, also list branches which have
@@ -475,7 +490,7 @@ show normal and closed branches
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBbundle [\-f] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]\fP
+.B \fBbundle [\-f] [\-t TYPE] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]\fP
 .sp
 Generate a compressed changegroup file collecting changesets not
 known to be in another repository.
@@ -540,14 +555,20 @@ or tip if no revision is checked out.
 Output may be to a file, in which case the name of the file is
 given using a format string. The formatting rules are the same as
 for the export command, with the following additions:
+.INDENT 7.0
+.TP
+.B \fB%s\fP
 .sp
-.nf
-.ft C
-%s   basename of file being printed
-%d   dirname of file being printed, or \(aq.\(aq if in repository root
-%p   root\-relative path name of file being printed
-.ft P
-.fi
+basename of file being printed
+.TP
+.B \fB%d\fP
+.sp
+dirname of file being printed, or \(aq.\(aq if in repository root
+.TP
+.B \fB%p\fP
+.sp
+root\-relative path name of file being printed
+.UNINDENT
 .sp
 options:
 .INDENT 7.0
@@ -587,17 +608,15 @@ The location of the source is added to the new repository\(aqs
 .sp
 See \(aqhg help urls\(aq for valid source format details.
 .sp
-It is possible to specify an \%ssh://\: URL as the destination, but no
+It is possible to specify an \fBssh://\fP URL as the destination, but no
 .hg/hgrc and working directory will be created on the remote side.
-Please see \(aqhg help urls\(aq for important details about \%ssh://\: URLs.
+Please see \(aqhg help urls\(aq for important details about \fBssh://\fP URLs.
 .sp
 If the \-U/\-\-noupdate option is specified, the new clone will contain
 only a repository (.hg) and no working copy (the working copy parent
 will be the null changeset). Otherwise, clone will initially check
 out (in order of precedence):
 .INDENT 7.0
-.INDENT 3.5
-.INDENT 0.0
 .IP a. 3
 .
 the changeset, tag or branch specified with \-u/\-\-updaterev
@@ -607,8 +626,6 @@ the changeset, tag or branch given with the first \-r/\-\-rev
 .IP c. 3
 .
 the head of the default branch
-.UNINDENT
-.UNINDENT
 .UNINDENT
 .sp
 Use \(aqhg clone \-u . src dst\(aq to checkout the source repository\(aqs
@@ -662,7 +679,7 @@ revision, tag or branch to check out
 .TP
 .B \-r,  \-\-rev
 .
-a changeset you would like to have after cloning
+clone only the specified revisions and ancestors
 .TP
 .B \-\-pull
 .
@@ -879,19 +896,40 @@ first parent only.
 .sp
 Output may be to a file, in which case the name of the file is
 given using a format string. The formatting rules are as follows:
+.INDENT 7.0
+.TP
+.B \fB%%\fP
 .sp
-.nf
-.ft C
-%%   literal "%" character
-%H   changeset hash (40 bytes of hexadecimal)
-%N   number of patches being generated
-%R   changeset revision number
-%b   basename of the exporting repository
-%h   short\-form changeset hash (12 bytes of hexadecimal)
-%n   zero\-padded sequence number, starting at 1
-%r   zero\-padded changeset revision number
-.ft P
-.fi
+literal "%" character
+.TP
+.B \fB%H\fP
+.sp
+changeset hash (40 bytes of hexadecimal)
+.TP
+.B \fB%N\fP
+.sp
+number of patches being generated
+.TP
+.B \fB%R\fP
+.sp
+changeset revision number
+.TP
+.B \fB%b\fP
+.sp
+basename of the exporting repository
+.TP
+.B \fB%h\fP
+.sp
+short\-form changeset hash (12 bytes of hexadecimal)
+.TP
+.B \fB%n\fP
+.sp
+zero\-padded sequence number, starting at 1
+.TP
+.B \fB%r\fP
+.sp
+zero\-padded changeset revision number
+.UNINDENT
 .sp
 Without the \-a/\-\-text option, export will avoid generating diffs
 of files it detects as binary. With \-a, export will generate a
@@ -1019,7 +1057,7 @@ exclude names matching the given patterns
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBheads [\-r STARTREV] [REV]...\fP
+.B \fBheads [\-ac] [\-r STARTREV] [REV]...\fP
 .sp
 With no arguments, show all repository head changesets.
 .sp
@@ -1278,7 +1316,7 @@ directory does not exist, it will be created.
 .sp
 If no directory is given, the current directory is used.
 .sp
-It is possible to specify an \%ssh://\: URL as the destination.
+It is possible to specify an \fBssh://\fP URL as the destination.
 See \(aqhg help urls\(aq for more information.
 .sp
 options:
@@ -1468,7 +1506,7 @@ revision to display
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBmerge [\-f] [[\-r] REV]\fP
+.B \fBmerge [\-P] [\-f] [[\-r] REV]\fP
 .sp
 The current working directory is updated with all changes made in
 the requested revision since the last common predecessor revision.
@@ -1658,7 +1696,7 @@ user forgot to pull and merge before pushing.
 If \-r/\-\-rev is used, the named revision and all its ancestors will
 be pushed to the remote repository.
 .sp
-Please see \(aqhg help urls\(aq for important details about \%ssh://\:
+Please see \(aqhg help urls\(aq for important details about \fBssh://\fP
 URLs. If DESTINATION is omitted, a default path will be used.
 .sp
 options:
@@ -1924,16 +1962,23 @@ Transactions are used to encapsulate the effects of all commands
 that create new changesets or propagate existing changesets into a
 repository. For example, the following commands are transactional,
 and their effects can be rolled back:
-.sp
-.nf
-.ft C
+.INDENT 7.0
+.IP \(bu 2
+.
 commit
+.IP \(bu 2
+.
 import
+.IP \(bu 2
+.
 pull
+.IP \(bu 2
+.
 push (with this repository as destination)
+.IP \(bu 2
+.
 unbundle
-.ft P
-.fi
+.UNINDENT
 .sp
 This command is not intended for use on public repositories. Once
 changes are visible for pull by other users, rolling a transaction
@@ -2169,7 +2214,7 @@ aliases: sum
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBtag [\-l] [\-m TEXT] [\-d DATE] [\-u USER] [\-r REV] NAME...\fP
+.B \fBtag [\-f] [\-l] [\-m TEXT] [\-d DATE] [\-u USER] [\-r REV] NAME...\fP
 .sp
 Name a particular revision using <name>.
 .sp
@@ -2229,7 +2274,7 @@ switch is used, a third column "local" is printed for local tags.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBtip [\-p]\fP
+.B \fBtip [\-p] [\-g]\fP
 .sp
 The tip revision (usually just called the tip) is the changeset
 most recently added to the repository (and therefore the most
@@ -2446,32 +2491,54 @@ log, revert, update: Select revision(s) by date.
 .UNINDENT
 .sp
 Many date formats are valid. Here are some examples:
-.sp
-.nf
-.ft C
-"Wed Dec 6 13:18:29 2006" (local timezone assumed)
-"Dec 6 13:18 \-0600" (year assumed, time offset provided)
-"Dec 6 13:18 UTC" (UTC and GMT are aliases for +0000)
-"Dec 6" (midnight)
-"13:18" (today assumed)
-"3:39" (3:39AM assumed)
-"3:39pm" (15:39)
-"2006\-12\-06 13:18:29" (ISO 8601 format)
-"2006\-12\-6 13:18"
-"2006\-12\-6"
-"12\-6"
-"12/6"
-"12/6/6" (Dec 6 2006)
-.ft P
-.fi
+.INDENT 0.0
+.IP \(bu 2
+.
+\fBWed Dec 6 13:18:29 2006\fP (local timezone assumed)
+.IP \(bu 2
+.
+\fBDec 6 13:18 \-0600\fP (year assumed, time offset provided)
+.IP \(bu 2
+.
+\fBDec 6 13:18 UTC\fP (UTC and GMT are aliases for +0000)
+.IP \(bu 2
+.
+\fBDec 6\fP (midnight)
+.IP \(bu 2
+.
+\fB13:18\fP (today assumed)
+.IP \(bu 2
+.
+\fB3:39\fP (3:39AM assumed)
+.IP \(bu 2
+.
+\fB3:39pm\fP (15:39)
+.IP \(bu 2
+.
+\fB2006\-12\-06 13:18:29\fP (ISO 8601 format)
+.IP \(bu 2
+.
+\fB2006\-12\-6 13:18\fP
+.IP \(bu 2
+.
+\fB2006\-12\-6\fP
+.IP \(bu 2
+.
+\fB12\-6\fP
+.IP \(bu 2
+.
+\fB12/6\fP
+.IP \(bu 2
+.
+\fB12/6/6\fP (Dec 6 2006)
+.UNINDENT
 .sp
 Lastly, there is Mercurial\(aqs internal format:
-.sp
-.nf
-.ft C
-"1165432709 0" (Wed Dec 6 13:18:29 2006 UTC)
-.ft P
-.fi
+.INDENT 0.0
+.IP \(bu 2
+.
+\fB1165432709 0\fP (Wed Dec 6 13:18:29 2006 UTC)
+.UNINDENT
 .sp
 This is the internal representation format for dates. unixtime is the
 number of seconds since the epoch (1970\-01\-01 00:00 UTC). offset is
@@ -2479,15 +2546,20 @@ the offset of the local timezone, in seconds west of UTC (negative if
 the timezone is east of UTC).
 .sp
 The log command also accepts date ranges:
-.sp
-.nf
-.ft C
-"<{datetime}" \- at or before a given date/time
-">{datetime}" \- on or after a given date/time
-"{datetime} to {datetime}" \- a date range, inclusive
-"\-{days}" \- within a given number of days of today
-.ft P
-.fi
+.INDENT 0.0
+.IP \(bu 2
+.
+\fB<{datetime}\fP \- at or before a given date/time
+.IP \(bu 2
+.
+\fB>{datetime}\fP \- on or after a given date/time
+.IP \(bu 2
+.
+\fB{datetime} to {datetime}\fP \- a date range, inclusive
+.IP \(bu 2
+.
+\fB\-{days}\fP \- within a given number of days of today
+.UNINDENT
 .SH FILE NAME PATTERNS
 .sp
 Mercurial accepts several notations for identifying one or more files
@@ -3236,6 +3308,10 @@ commands to interactively select changes for commit/qrefresh
 .B relink
 .
 recreates hardlinks between repository clones
+.TP
+.B schemes
+.
+extend schemes with shortcuts to repository swarms
 .TP
 .B share
 .
