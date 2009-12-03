@@ -1,4 +1,0 @@
-abort: Failed to parse .../t/.hg/hgrc
-File contains no section headers.
-file: .../t/.hg/hgrc, line: 1
-'invalid\n'
