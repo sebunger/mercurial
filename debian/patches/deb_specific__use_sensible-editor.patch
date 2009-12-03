@@ -217,7 +217,7 @@ Use sensible-editor as default instead of vi.
  msgstr " (コミットメッセージ用エディタを設定ファイルで設定してください)\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -358,7 +358,7 @@
+@@ -357,7 +357,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -226,7 +226,7 @@ Use sensible-editor as default instead of vi.
  "\n"
  "PYTHONPATH\n"
  "    This is used by Python to find imported modules and may need to be\n"
-@@ -440,7 +440,7 @@
+@@ -439,7 +439,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
