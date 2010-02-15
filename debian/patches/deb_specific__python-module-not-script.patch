@@ -1,4 +1,6 @@
 Remove shebang line from non-executable Python modules.
+Upstream do not want to apply this patch because these files come from
+another place and they do not want to modify them.
 
 Index: mercurial-git/mercurial/lsprof.py
 ===================================================================

@@ -5,7 +5,7 @@
 # Copyright 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 # Modifying this script is tricky because it has many modes:
 #   - serial (default) vs parallel (-jN, N > 1)
@@ -786,6 +786,7 @@ def main():
     os.environ["EMAIL"] = "Foo Bar <foo.bar@example.com>"
     os.environ['CDPATH'] = ''
     os.environ['COLUMNS'] = '80'
+    os.environ['http_proxy'] = ''
 
     global TESTDIR, HGTMP, INST, BINDIR, PYTHONDIR, COVERAGE_FILE
     TESTDIR = os.environ["TESTDIR"] = os.getcwd()

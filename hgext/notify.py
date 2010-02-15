@@ -3,7 +3,7 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''hooks for sending email notifications at commit/push time
 
@@ -14,7 +14,7 @@ To use, configure the notify extension and enable it in hgrc like
 this::
 
   [extensions]
-  hgext.notify =
+  notify =
 
   [hooks]
   # one email for each incoming changeset

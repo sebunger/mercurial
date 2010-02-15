@@ -3,7 +3,7 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''command to send changesets as (a series of) patch emails
 
@@ -34,6 +34,9 @@ file::
   to = recipient1, recipient2, ...
   cc = cc1, cc2, ...
   bcc = bcc1, bcc2, ...
+
+Use ``[patchbomb]`` as configuration section name if you need to
+override global ``[email]`` address settings.
 
 Then you can use the "hg email" command to mail a series of changesets
 as a patchbomb.
@@ -230,14 +233,16 @@ def patchbomb(ui, repo, *revs, **opts):
     def outgoing(dest, revs):
         '''Return the revisions present locally but not in dest'''
         dest = ui.expandpath(dest or 'default-push', dest or 'default')
-        revs = [repo.lookup(rev) for rev in revs]
+        dest, revs, checkout = hg.parseurl(dest, revs)
+        if revs:
+            revs = [repo.lookup(rev) for rev in revs]
         other = hg.repository(cmdutil.remoteui(repo, opts), dest)
         ui.status(_('comparing with %s\n') % dest)
         o = repo.findoutgoing(other)
         if not o:
             ui.status(_("no changes found\n"))
             return []
-        o = repo.changelog.nodesbetween(o, revs or None)[0]
+        o = repo.changelog.nodesbetween(o, revs)[0]
         return [str(repo.changelog.rev(r)) for r in o]
 
     def getpatches(revs):

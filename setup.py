@@ -104,9 +104,11 @@ def runcmd(cmd, env):
     # If root is executing setup.py, but the repository is owned by
     # another user (as in "sudo python setup.py install") we will get
     # trust warnings since the .hg/hgrc file is untrusted. That is
-    # fine, we don't want to load it anyway.
+    # fine, we don't want to load it anyway.  Python may warn about
+    # a missing __init__.py in mercurial/locale, we also ignore that.
     err = [e for e in err.splitlines()
-           if not e.startswith('Not trusting file')]
+           if not e.startswith('Not trusting file') \
+              and not e.startswith('warning: Not importing')]
     if err:
         return ''
     return out
@@ -143,8 +145,8 @@ if os.path.isdir('.hg'):
     if version.endswith('+'):
         version += time.strftime('%Y%m%d')
 elif os.path.exists('.hg_archival.txt'):
-    kw = dict([t.strip() for t in l.split(':', 1)]
-              for l in open('.hg_archival.txt'))
+    kw = dict([[t.strip() for t in l.split(':', 1)]
+               for l in open('.hg_archival.txt')])
     if 'tag' in kw:
         version =  kw['tag']
     elif 'latesttag' in kw:
@@ -269,7 +271,7 @@ setup(name='mercurial',
       author_email='mpm@selenic.com',
       url='http://mercurial.selenic.com/',
       description='Scalable distributed SCM',
-      license='GNU GPL',
+      license='GNU GPLv2+',
       scripts=scripts,
       packages=packages,
       ext_modules=ext_modules,

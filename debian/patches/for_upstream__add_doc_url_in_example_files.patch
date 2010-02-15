@@ -1,0 +1,11 @@
+Add a pointer (URL) on top of the hgwebdir.wsgi file for the corresponding wifi
+documentation.
+
+--- a/contrib/hgwebdir.wsgi
++++ b/contrib/hgwebdir.wsgi
+@@ -1,4 +1,5 @@
+ # An example WSGI (use with mod_wsgi) script to export multiple hgweb repos
++# See http://mercurial.selenic.com/wiki/modwsgi for more information
+ 
+ # adjust python path if not a system-wide install:
+ #import sys

@@ -1659,7 +1659,7 @@ options:
 .TP
 .B \-u,  \-\-update
 .
-update to new tip if changesets were pulled
+update to new branch head if changesets were pulled
 .TP
 .B \-f,  \-\-force
 .
@@ -1834,7 +1834,7 @@ If a conflict is resolved manually, please note that the changes
 will be overwritten if the merge is retried with resolve. The
 \-m/\-\-mark switch should be used to mark the file as resolved.
 .sp
-You can specify a set of files to operate on, or use the \-a/\-all
+You can specify a set of files to operate on, or use the \-a/\-\-all
 switch to select all unresolved files.
 .sp
 This command also allows listing resolved files and manually
@@ -2317,7 +2317,7 @@ options:
 .TP
 .B \-u,  \-\-update
 .
-update to new tip if changesets were unbundled
+update to new branch head if changesets were unbundled
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -3194,9 +3194,9 @@ scope, prepend its path with !:
 .ft C
 [extensions]
 # disabling extension bar residing in /path/to/extension/bar.py
-hgext.bar = !/path/to/extension/bar.py
+bar = !/path/to/extension/bar.py
 # ditto, but no path was supplied for extension baz
-hgext.baz = !
+baz = !
 .ft P
 .fi
 .sp
@@ -3381,9 +3381,9 @@ Source code repository: \%http://selenic.com/hg\:
 Mailing list: \%http://selenic.com/mailman/listinfo/mercurial\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2009 Matt Mackall.
+Copyright (C) 2005\-2010 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
-Public License version 2.
+Public License version 2 or any later version.
 .\" Common link and substitution definitions.
 .
 .SH AUTHOR

@@ -3,7 +3,7 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import hex, nullid, nullrev, short
 from i18n import _
@@ -111,10 +111,15 @@ def remoteui(src, opts):
         v = opts.get(o) or src.config('ui', o)
         if v:
             dst.setconfig("ui", o, v)
+
     # copy bundle-specific options
     r = src.config('bundle', 'mainreporoot')
     if r:
         dst.setconfig('bundle', 'mainreporoot', r)
+
+    # copy auth section settings
+    for key, val in src.configitems('auth'):
+        dst.setconfig('auth', key, val)
 
     return dst
 
@@ -1000,7 +1005,7 @@ def show_changeset(ui, repo, opts, buffered=False, matchfn=False):
         if tmpl:
             tmpl = templater.parsestring(tmpl)
         else:
-            style = ui.config('ui', 'style')
+            style = util.expandpath(ui.config('ui', 'style', ''))
 
     if not (tmpl or style):
         return changeset_printer(ui, repo, patch, opts, buffered)

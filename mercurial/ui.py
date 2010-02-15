@@ -3,7 +3,7 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import errno, getpass, os, socket, sys, tempfile, traceback
@@ -131,6 +131,8 @@ class ui(object):
         v = self.config(section, name, None, untrusted)
         if v is None:
             return default
+        if isinstance(v, bool):
+            return v
         if v.lower() not in _booleans:
             raise error.ConfigError(_("%s.%s not a boolean ('%s')")
                                     % (section, name, v))
@@ -380,7 +382,7 @@ class ui(object):
 
         if total:
             pct = 100.0 * pos / total
-            self.debug('%s:%s %s/%s%s (%4.2g%%)\n'
+            self.debug('%s:%s %s/%s%s (%4.2f%%)\n'
                      % (topic, item, pos, total, unit, pct))
         else:
             self.debug('%s:%s %s%s\n' % (topic, item, pos, unit))

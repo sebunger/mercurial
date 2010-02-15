@@ -4,7 +4,7 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 from lock import release
@@ -88,7 +88,7 @@ def share(ui, source, dest=None, update=True):
         raise util.Abort(_('can only share local repositories'))
 
     if not dest:
-        dest = os.path.basename(source)
+        dest = defaultdest(source)
     else:
         dest = ui.expandpath(dest)
 

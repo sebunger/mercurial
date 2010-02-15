@@ -3,14 +3,14 @@
 #  Copyright 2005, 2007-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''perform automatic newline conversion
 
 To perform automatic newline conversion, use::
 
   [extensions]
-  hgext.win32text =
+  win32text =
   [encode]
   ** = cleverencode:
   # or ** = macencode:
@@ -137,7 +137,7 @@ def forbidnewline(ui, repo, hooktype, node, newline, **kwargs):
                   'and also consider adding:\n'
                   '\n'
                   '[extensions]\n'
-                  'hgext.win32text =\n'
+                  'win32text =\n'
                   '[encode]\n'
                   '** = %sencode:\n'
                   '[decode]\n'

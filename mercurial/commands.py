@@ -3,7 +3,7 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import hex, nullid, nullrev, short
 from lock import release
@@ -2460,7 +2460,7 @@ def resolve(ui, repo, *pats, **opts):
     will be overwritten if the merge is retried with resolve. The
     -m/--mark switch should be used to mark the file as resolved.
 
-    You can specify a set of files to operate on, or use the -a/-all
+    You can specify a set of files to operate on, or use the -a/--all
     switch to select all unresolved files.
 
     This command also allows listing resolved files and manually
@@ -2949,6 +2949,7 @@ def summary(ui, repo, **opts):
             t.append(l % len(s))
 
     t = ', '.join(t)
+    cleanworkdir = False
 
     if len(parents) > 1:
         t += _(' (merge)')
@@ -2956,10 +2957,11 @@ def summary(ui, repo, **opts):
         t += _(' (new branch)')
     elif (not st[0] and not st[1] and not st[2]):
         t += _(' (clean)')
+        cleanworkdir = True
     elif pnode not in bheads:
         t += _(' (new branch head)')
 
-    if 'clean' in t:
+    if cleanworkdir:
         ui.status(_('commit: %s\n') % t.strip())
     else:
         ui.write(_('commit: %s\n') % t.strip())
@@ -3216,7 +3218,7 @@ def version_(ui):
     ui.write(_("Mercurial Distributed SCM (version %s)\n")
              % util.version())
     ui.status(_(
-        "\nCopyright (C) 2005-2009 Matt Mackall <mpm@selenic.com> and others\n"
+        "\nCopyright (C) 2005-2010 Matt Mackall <mpm@selenic.com> and others\n"
         "This is free software; see the source for copying conditions. "
         "There is NO\nwarranty; "
         "not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
@@ -3577,7 +3579,7 @@ table = {
     "^pull":
         (pull,
          [('u', 'update', None,
-           _('update to new tip if changesets were pulled')),
+           _('update to new branch head if changesets were pulled')),
           ('f', 'force', None,
            _('run even when remote repository is unrelated')),
           ('r', 'rev', [],
@@ -3689,7 +3691,7 @@ table = {
     "unbundle":
         (unbundle,
          [('u', 'update', None,
-           _('update to new tip if changesets were unbundled'))],
+           _('update to new branch head if changesets were unbundled'))],
          _('[-u] FILE...')),
     "^update|up|checkout|co":
         (update,

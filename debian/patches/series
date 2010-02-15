@@ -1,8 +1,10 @@
+for_upstream__fix_tests_output.patch
+for_upstream__add_doc_url_in_example_files.patch
 deb_specific__mergetools
 proposed_upstream__dont-install-i18n
 deb_specific__install-templates-separately
 deb_specific__install-help-separately
-proposed_upstream__python-module-not-script.patch
+deb_specific__python-module-not-script.patch
 deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
 deb_specific__optional-dependencies
