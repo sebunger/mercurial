@@ -13,11 +13,7 @@ Documentation
 
 Mercurial documentation is available on the web at:
    http://hgbook.red-bean.com/ and
-   http://www.selenic.com/mercurial/wiki/
-
-Some parts of the online documentation will be added to the package (for people
-not online) as soon as the documentation stabilizes.
-
+   http://mercurial.selenic.com/wiki/
 
 Extensions
 **********
