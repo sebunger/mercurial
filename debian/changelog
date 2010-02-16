@@ -1,3 +1,16 @@
+mercurial (1.4.3-1) unstable; urgency=low
+
+  * New upstream release. (Closes: #569612)
+  * Updated Standards-Version to 3.8.4 (no change needed)
+  * Remove Gerardo Curiel <gcuriel@debian.org.ve> in the maintainer field
+    as asked by the MIA team (Closes: #553101)
+  * Do not install mercurial.el. It is only useful with emacs21 that will
+    not be in sqeeze. (Closes: #557211)
+  * Add a note in NEWS about the disparition of the alias extension
+    (Closes: #536533)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 15 Feb 2010 18:08:57 +0100
+
 mercurial (1.4.1-1) unstable; urgency=low
 
   * New upstream release
