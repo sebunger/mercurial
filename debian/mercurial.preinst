@@ -41,6 +41,11 @@ case "$1" in
 	    echo "Purging old config file '/etc/mercurial/hgrc.d/hgit.rc'"
 	    rm -fv /etc/mercurial/hgrc.d/hgit.rc
 	fi
+	if [ -h /usr/share/doc/mercurial ] && [ "$(readlink /usr/share/doc/mercurial)" = mercurial-common ]; then
+	    # /usr/share/doc/mercurial was a symlink to mercurial-common
+	    # It is problematic in case of binary NMU
+	    rm /usr/share/doc/mercurial
+	fi
     ;;
 
     abort-upgrade)

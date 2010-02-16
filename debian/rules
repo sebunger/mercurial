@@ -47,9 +47,6 @@ install-archdep:
 		contrib/mergetools.hgrc \
 		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
 	
-	# Symlink docs
-	rm -rf $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
-	ln -s mercurial-common $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
 	# remove arch-independent python stuff
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \
