@@ -2,7 +2,6 @@ help usr/share/mercurial
 templates usr/share/mercurial
 debian/tmp/usr/lib
 
-contrib/mercurial.el usr/share/emacs/site-lisp
 contrib/mq.el usr/share/emacs/site-lisp
 
 contrib/logo-droplets.svg usr/share/mercurial

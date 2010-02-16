@@ -33,21 +33,7 @@ information on the dependencies of each extension.
 
 Emacs support
 *************
-This package installs a mercurial.el file.  However, it is not enabled (loaded)
-by default. Users who want to use it should in their start-up files (such as
-~/.emacs) include something like:
-
-  (require 'mercurial)
-
-It may be better to do instead:
-
-  (when (locate-library "mercurial")
-    (autoload 'hg-find-file-hook "mercurial")
-    (add-hook 'find-file-hooks 'hg-find-file-hook))
-
-because it defers loading Mercurial until it is needed, meaning that
-Emacs will boot faster and use less memory when not using Mercurial.
-
-This is not done system-wide by this package because the "until needed" is a
-bit of a fallacy in this case: find-file is likely to be run at or shortly
-after boot.
+This package installs a mercurial.el file in the example directory
+(/usr/share/doc/mercurial/examples/). However, with emacs22 or better,
+vc-hg.el provided directly by emacs is better. This is why mercurial.el
+is not installed by default anymore.

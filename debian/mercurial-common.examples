@@ -5,6 +5,7 @@ contrib/hgdiff
 contrib/hgsh
 contrib/hgwebdir.fcgi
 contrib/hgwebdir.wsgi
+contrib/mercurial.el
 contrib/perf.py
 contrib/python-hook-examples.py
 contrib/rewrite-log

@@ -1,3 +1,11 @@
+mercurial (1.4.3-1) unstable; urgency=low
+
+  mercurial.el (emacs mode for mercurial) is not installed anymore in emacs
+  paths. Emacs22 or newer has vc-hg.el that is better. If needed, this file
+  is still provided in the examples directory.
+
+ -- Vincent Danjean <vdanjean@debian.org>  Mon, 15 Feb 2010 18:06:52 +0100
+
 mercurial (1.1.2-1) unstable; urgency=low
 
   Since the 1.1.2-1 version, mercurial does not enable any extension by
