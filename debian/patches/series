@@ -1,7 +1,5 @@
-for_upstream__fix_tests_output.patch
 for_upstream__add_doc_url_in_example_files.patch
 deb_specific__mergetools
-proposed_upstream__dont-install-i18n
 deb_specific__install-templates-separately
 deb_specific__install-help-separately
 deb_specific__python-module-not-script.patch

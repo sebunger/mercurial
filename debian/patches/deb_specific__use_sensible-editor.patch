@@ -2,7 +2,7 @@ Use sensible-editor as default instead of vi.
 
 --- a/doc/hgrc.5.txt
 +++ b/doc/hgrc.5.txt
-@@ -745,7 +745,8 @@
+@@ -763,7 +763,8 @@
  ``debug``
      Print debugging information. True or False. Default is False.
  ``editor``
@@ -12,28 +12,6 @@ Use sensible-editor as default instead of vi.
  ``fallbackencoding``
      Encoding to try if it's not possible to decode the changelog using
      UTF-8. Default is ISO-8859-1.
---- a/doc/ja/hg.1.ja.txt
-+++ b/doc/ja/hg.1.ja.txt
-@@ -813,7 +813,7 @@
- EDITOR::
-     これは hgmerge スクリプト中で使われるエディタの名前です。もし
-     HGEDITOR が設定されていなければ、コミット時のメッセージに使わ
--    れます。デフォルトは 'vi' です。
-+    れます。デフォルトは 'sensible-editor' です。
- 
- PYTHONPATH::
-     これはインポートされるモジュールを見つけるために Python によっ
---- a/doc/ja/hgrc.5.ja.txt
-+++ b/doc/ja/hgrc.5.ja.txt
-@@ -119,7 +119,7 @@
-     では False です。
-   editor;;
-     コミット中に使用するエディタです。デフォルトは $EDITOR か
--    "vi" です。
-+    "sensible-editor" です。
-   interactive;;
-     ユーザに対してプロンプトを出すようにします。True か False を取
-     ります。デフォルトでは True です。
 --- a/hgeditor
 +++ b/hgeditor
 @@ -7,7 +7,7 @@
@@ -47,7 +25,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -1019,8 +1019,8 @@
+@@ -1050,8 +1050,8 @@
      editor = ui.geteditor()
      cmdpath = util.find_exe(editor) or util.find_exe(editor.split()[0])
      if not cmdpath:
@@ -60,7 +38,7 @@ Use sensible-editor as default instead of vi.
              ui.write(_(" Can't find editor '%s' in PATH\n") % editor)
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -353,7 +353,7 @@
+@@ -384,7 +384,7 @@
          return (os.environ.get("HGEDITOR") or
                  self.config("ui", "editor") or
                  os.environ.get("VISUAL") or
@@ -69,29 +47,9 @@ Use sensible-editor as default instead of vi.
  
      def progress(self, topic, pos, item="", unit="", total=None):
          '''show a progress message
---- a/help/environment.txt
-+++ b/help/environment.txt
-@@ -69,7 +69,7 @@
-     editor it uses is determined by looking at the environment
-     variables HGEDITOR, VISUAL and EDITOR, in that order. The first
-     non-empty one is chosen. If all of them are empty, the editor
--    defaults to 'vi'.
-+    defaults to 'sensible-editor'.
- 
- PYTHONPATH
-     This is used by Python to find imported modules and may need to be
 --- a/i18n/da.po
 +++ b/i18n/da.po
-@@ -308,7 +308,7 @@
- "    editor it uses is determined by looking at the environment\n"
- "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
- "    non-empty one is chosen. If all of them are empty, the editor\n"
--"    defaults to 'vi'.\n"
-+"    defaults to 'sensible-editor'.\n"
- "\n"
- "PYTHONPATH\n"
- "    This is used by Python to find imported modules and may need to be\n"
-@@ -6094,7 +6094,7 @@
+@@ -5701,7 +5701,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -100,6 +58,15 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
+@@ -8363,7 +8363,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
 --- a/i18n/de.po
 +++ b/i18n/de.po
 @@ -314,7 +314,7 @@
@@ -124,7 +91,7 @@ Use sensible-editor as default instead of vi.
  msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
 --- a/i18n/el.po
 +++ b/i18n/el.po
-@@ -222,7 +222,7 @@
+@@ -225,7 +225,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -133,7 +100,7 @@ Use sensible-editor as default instead of vi.
  "\n"
  "PYTHONPATH\n"
  "    This is used by Python to find imported modules and may need to be\n"
-@@ -5377,7 +5377,7 @@
+@@ -5630,7 +5630,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -186,25 +153,7 @@ Use sensible-editor as default instead of vi.
  msgstr " (specificare un editore per il commit nel proprio file .hgrc)\n"
 --- a/i18n/ja.po
 +++ b/i18n/ja.po
-@@ -415,7 +415,7 @@
- "    editor it uses is determined by looking at the environment\n"
- "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
- "    non-empty one is chosen. If all of them are empty, the editor\n"
--"    defaults to 'vi'.\n"
-+"    defaults to 'sensible-editor'.\n"
- "\n"
- "PYTHONPATH\n"
- "    This is used by Python to find imported modules and may need to be\n"
-@@ -497,7 +497,7 @@
- "    編集を促す状況があります。そこで使用されるエディタは、HGEDITOR、VISUAL\n"
- "    あるいは EDITOR 環境変数に設定されたものを(この順序で)使用します。\n"
- "    最初の空で無い値に設定された環境変数の値を使用します。いずれも未設定\n"
--"    (あるいは空)の場合は、'vi' が使用されます。\n"
-+"    (あるいは空)の場合は、'sensible-editor' が使用されます。\n"
- "\n"
- "PYTHONPATH\n"
- "    Mercurial が当該システムの共有領域にインストールされていない場合、\n"
-@@ -6869,8 +6869,8 @@
+@@ -6171,8 +6171,8 @@
  msgid "Checking commit editor...\n"
  msgstr "メッセージ入力用エディタの検証中...\n"
  
@@ -215,9 +164,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your .hgrc file)\n"
  msgstr " (コミットメッセージ用エディタを設定ファイルで設定してください)\n"
---- a/i18n/pt_BR.po
-+++ b/i18n/pt_BR.po
-@@ -357,7 +357,7 @@
+@@ -9136,7 +9136,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -226,16 +173,18 @@ Use sensible-editor as default instead of vi.
  "\n"
  "PYTHONPATH\n"
  "    This is used by Python to find imported modules and may need to be\n"
-@@ -439,7 +439,7 @@
- "    mensagens de consolidação. O editor usado é determinado pela\n"
- "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
- "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
--"    estiverem vazios, o editor será o 'vi'.\n"
-+"    estiverem vazios, o editor será o 'sensible-editor'.\n"
+@@ -9228,7 +9228,7 @@
+ "    編集を促す状況があります。そこで使用されるエディタは、HGEDITOR、VISUAL\n"
+ "    あるいは EDITOR 環境変数に設定されたものを(この順序で)使用します。\n"
+ "    最初の空で無い値に設定された環境変数の値を使用します。いずれも未設定\n"
+-"    (あるいは空)の場合は、'vi' が使用されます。\n"
++"    (あるいは空)の場合は、'sensible-editor' が使用されます。\n"
  "\n"
  "PYTHONPATH\n"
- "    Isto é usado pelo Python para localizar módulos importados, e\n"
-@@ -7850,10 +7850,10 @@
+ "    Mercurial が当該システムの共有領域にインストールされていない場合、\n"
+--- a/i18n/pt_BR.po
++++ b/i18n/pt_BR.po
+@@ -7148,10 +7148,10 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -248,9 +197,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your .hgrc file)\n"
  msgstr " (especifique um editor para consolidação em seu arquivo .hgrc)\n"
---- a/i18n/sv.po
-+++ b/i18n/sv.po
-@@ -229,7 +229,7 @@
+@@ -10198,7 +10198,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -259,7 +206,18 @@ Use sensible-editor as default instead of vi.
  "\n"
  "PYTHONPATH\n"
  "    This is used by Python to find imported modules and may need to be\n"
-@@ -5476,7 +5476,7 @@
+@@ -10290,7 +10290,7 @@
+ "    mensagens de consolidação. O editor usado é determinado pela\n"
+ "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
+ "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
+-"    estiverem vazios, o editor será o 'vi'.\n"
++"    estiverem vazios, o editor será o 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    Isto é usado pelo Python para localizar módulos importados, e\n"
+--- a/i18n/sv.po
++++ b/i18n/sv.po
+@@ -5357,7 +5357,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -268,6 +226,15 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
+@@ -8262,7 +8262,7 @@
+ "    editor it uses is determined by looking at the environment\n"
+ "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
+ "    non-empty one is chosen. If all of them are empty, the editor\n"
+-"    defaults to 'vi'.\n"
++"    defaults to 'sensible-editor'.\n"
+ "\n"
+ "PYTHONPATH\n"
+ "    This is used by Python to find imported modules and may need to be\n"
 --- a/i18n/zh_CN.po
 +++ b/i18n/zh_CN.po
 @@ -5190,7 +5190,7 @@
@@ -308,3 +275,14 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
+--- a/mercurial/help/environment.txt
++++ b/mercurial/help/environment.txt
+@@ -79,7 +79,7 @@
+     editor it uses is determined by looking at the environment
+     variables HGEDITOR, VISUAL and EDITOR, in that order. The first
+     non-empty one is chosen. If all of them are empty, the editor
+-    defaults to 'vi'.
++    defaults to 'sensible-editor'.
+ 
+ PYTHONPATH
+     This is used by Python to find imported modules and may need to be
