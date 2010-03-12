@@ -13,12 +13,18 @@ Support installation of templates handled by mercurial-common.install.
  def parsestring(s, quoted=True):
 --- a/setup.py
 +++ b/setup.py
-@@ -256,7 +256,7 @@
-         packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
+@@ -263,14 +263,6 @@
+ def ordinarypath(p):
+     return p and p[0] != '.' and p[-1] != '~'
  
+-for root in ('templates',):
+-    for curdir, dirs, files in os.walk(os.path.join('mercurial', root)):
+-        curdir = curdir.split(os.sep, 1)[1]
+-        dirs[:] = filter(ordinarypath, dirs)
+-        for f in filter(ordinarypath, files):
+-            f = os.path.join(curdir, f)
+-            packagedata['mercurial'].append(f)
+-
  datafiles = []
--for root in ('templates', 'help'):
-+for root in ('help',):
-     for dir, dirs, files in os.walk(root):
-         dirs[:] = [x for x in dirs if not x.startswith('.')]
-         files = [x for x in files if not x.startswith('.')]
+ setupversion = version
+ extra = {}

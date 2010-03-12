@@ -1,5 +1,5 @@
-help usr/share/mercurial
-templates usr/share/mercurial
+mercurial/help/*.txt usr/share/mercurial/help
+mercurial/templates usr/share/mercurial
 debian/tmp/usr/lib
 
 contrib/mq.el usr/share/emacs/site-lisp
