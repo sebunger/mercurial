@@ -1,3 +1,15 @@
+mercurial (1.5-1) unstable; urgency=low
+
+  * New upstream release
+    + Fix "Reserved revnos aren't." (Closes: #552423)
+    + Fix "Exception in zeroconf shows up in unrelated commands"
+      (Closes: #572963)
+    + Fix "/usr/bin/hg: HG(1) missing --config option syntax"
+      (Closes: #548413)
+    + Fix "A -> B, C -> A rename breaks diff --git" (Closes: #560386)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Fri, 12 Mar 2010 15:10:33 +0100
+
 mercurial (1.4.3-1) unstable; urgency=low
 
   * New upstream release. (Closes: #569612)
