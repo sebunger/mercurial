@@ -60,24 +60,24 @@ def _picktool(repo, ui, path, binary, symlink):
     for pat, tool in ui.configitems("merge-patterns"):
         mf = match.match(repo.root, '', [pat])
         if mf(path) and check(tool, pat, symlink, False):
-                toolpath = _findtool(ui, tool)
-                return (tool, '"' + toolpath + '"')
+            toolpath = _findtool(ui, tool)
+            return (tool, '"' + toolpath + '"')
 
     # then merge tools
     tools = {}
-    for k,v in ui.configitems("merge-tools"):
+    for k, v in ui.configitems("merge-tools"):
         t = k.split('.')[0]
         if t not in tools:
             tools[t] = int(_toolstr(ui, t, "priority", "0"))
     names = tools.keys()
-    tools = sorted([(-p,t) for t,p in tools.items()])
+    tools = sorted([(-p, t) for t, p in tools.items()])
     uimerge = ui.config("ui", "merge")
     if uimerge:
         if uimerge not in names:
             return (uimerge, uimerge)
         tools.insert(0, (None, uimerge)) # highest priority
     tools.append((None, "hgmerge")) # the old default, if found
-    for p,t in tools:
+    for p, t in tools:
         if check(t, None, symlink, binary):
             toolpath = _findtool(ui, t)
             return (t, '"' + toolpath + '"')
@@ -205,7 +205,7 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
             out, a = a, back # read input from backup, write to original
         replace = dict(local=a, base=b, other=c, output=out)
         args = re.sub("\$(local|base|other|output)",
-                      lambda x: '"%s"' % replace[x.group()[1:]], args)
+            lambda x: '"%s"' % util.localpath(replace[x.group()[1:]]), args)
         r = util.system(toolpath + ' ' + args, cwd=repo.root, environ=env)
 
     if not r and _toolbool(ui, tool, "checkconflicts"):

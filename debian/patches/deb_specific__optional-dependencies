@@ -2,7 +2,7 @@ Suggest Debian packages for some optional dependencies.
 
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -421,7 +421,8 @@
+@@ -423,7 +423,8 @@
          global MySQLdb
          MySQLdb = mysql
      except ImportError, err:
@@ -14,7 +14,7 @@ Suggest Debian packages for some optional dependencies.
          raise util.Abort(_('hook type %s does not pass a changeset id') %
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -42,7 +42,8 @@
+@@ -43,7 +43,8 @@
              # access bzrlib stuff
              branch
          except NameError:
@@ -26,9 +26,9 @@ Suggest Debian packages for some optional dependencies.
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -26,11 +26,12 @@
- 
- class MissingTool(Exception): pass
+@@ -27,11 +27,12 @@
+ class MissingTool(Exception):
+     pass
  
 -def checktool(exe, name=None, abort=True):
 +def checktool(exe, name=None, abort=True, debname=None):
@@ -39,8 +39,8 @@ Suggest Debian packages for some optional dependencies.
 +        raise exc(_('cannot find required "%s" tool') % name +
 +                  (debname and _(' (try installing the %s package)') % debname or ''))
  
- class NoRepo(Exception): pass
- 
+ class NoRepo(Exception):
+     pass
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
 @@ -21,7 +21,7 @@
@@ -54,7 +54,7 @@ Suggest Debian packages for some optional dependencies.
          self.files = {}
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
-@@ -35,14 +35,15 @@
+@@ -39,14 +39,15 @@
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo("%s does not look like a darcs repo" % path)
  
@@ -97,7 +97,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -55,7 +55,7 @@
+@@ -61,7 +61,7 @@
          self.files = None
          self.dirs  = None
  
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -952,6 +956,9 @@
+@@ -961,6 +965,9 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):

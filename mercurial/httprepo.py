@@ -74,10 +74,15 @@ class httprepository(repo.repository):
         q.update(args)
         qs = '?%s' % urllib.urlencode(q)
         cu = "%s%s" % (self._url, qs)
+        req = urllib2.Request(cu, data, headers)
+        if data is not None:
+            # len(data) is broken if data doesn't fit into Py_ssize_t
+            # add the header ourself to avoid OverflowError
+            size = data.__len__()
+            self.ui.debug("sending %s bytes\n" % size)
+            req.add_unredirected_header('Content-Length', '%d' % size)
         try:
-            if data:
-                self.ui.debug("sending %s bytes\n" % len(data))
-            resp = self.urlopener.open(urllib2.Request(cu, data, headers))
+            resp = self.urlopener.open(req)
         except urllib2.HTTPError, inst:
             if inst.code == 401:
                 raise util.Abort(_('authorization failed'))
@@ -93,9 +98,9 @@ class httprepository(repo.repository):
         resp_url = resp.geturl()
         if resp_url.endswith(qs):
             resp_url = resp_url[:-len(qs)]
-        if self._url != resp_url:
+        if self._url.rstrip('/') != resp_url.rstrip('/'):
             self.ui.status(_('real URL is %s\n') % resp_url)
-            self._url = resp_url
+        self._url = resp_url
         try:
             proto = resp.getheader('content-type')
         except AttributeError:
@@ -107,9 +112,10 @@ class httprepository(repo.repository):
                 proto.startswith('text/plain') or
                 proto.startswith('application/hg-changegroup')):
             self.ui.debug("requested URL: '%s'\n" % url.hidepassword(cu))
-            raise error.RepoError(_("'%s' does not appear to be an hg repository:\n"
-                                    "---%%<--- (%s)\n%s\n---%%<---\n")
-                                  % (safeurl, proto, resp.read()))
+            raise error.RepoError(
+                _("'%s' does not appear to be an hg repository:\n"
+                  "---%%<--- (%s)\n%s\n---%%<---\n")
+                % (safeurl, proto, resp.read()))
 
         if proto.startswith('application/mercurial-'):
             try:
@@ -171,7 +177,7 @@ class httprepository(repo.repository):
         n = " ".join(map(hex, nodes))
         d = self.do_read("branches", nodes=n)
         try:
-            br = [ tuple(map(bin, b.split(" "))) for b in d.splitlines() ]
+            br = [tuple(map(bin, b.split(" "))) for b in d.splitlines()]
             return br
         except:
             raise error.ResponseError(_("unexpected response:"), d)
@@ -183,7 +189,8 @@ class httprepository(repo.repository):
             n = " ".join(["-".join(map(hex, p)) for p in pairs[i:i + batch]])
             d = self.do_read("between", pairs=n)
             try:
-                r += [ l and map(bin, l.split(" ")) or [] for l in d.splitlines() ]
+                r += [l and map(bin, l.split(" ")) or []
+                      for l in d.splitlines()]
             except:
                 raise error.ResponseError(_("unexpected response:"), d)
         return r
@@ -224,7 +231,7 @@ class httprepository(repo.repository):
             try:
                 resp = self.do_read(
                      'unbundle', data=fp,
-                     headers={'Content-Type': 'application/octet-stream'},
+                     headers={'Content-Type': 'application/mercurial-0.1'},
                      heads=' '.join(map(hex, heads)))
                 resp_code, output = resp.split('\n', 1)
                 try:
@@ -232,7 +239,8 @@ class httprepository(repo.repository):
                 except ValueError, err:
                     raise error.ResponseError(
                             _('push failed (unexpected response):'), resp)
-                self.ui.write(output)
+                for l in output.splitlines(True):
+                    self.ui.status(_('remote: '), l)
                 return ret
             except socket.error, err:
                 if err[0] in (errno.ECONNRESET, errno.EPIPE):

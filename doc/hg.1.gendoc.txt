@@ -17,7 +17,7 @@ Options
     enable additional output
 
 --config
-    set/override config option
+    set/override config option (use 'section.name=value')
 
 --debug
     enable debugging output
@@ -59,6 +59,20 @@ Commands
     undo an add before that, see hg forget.
 
     If no names are given, add all files to the repository.
+
+    .. container:: verbose
+
+       An example showing how new (unknown) files are added
+       automatically by ``hg add``::
+
+         $ ls
+         foo.c
+         $ hg status
+         ? foo.c
+         $ hg add
+         adding foo.c
+         $ hg status
+         A foo.c
 
     options:
 
@@ -107,9 +121,11 @@ Commands
     options:
 
     -r, --rev          annotate the specified revision
-    -f, --follow       follow file copies and renames
+    --follow           follow copies/renames and list the filename (DEPRECATED)
+    --no-follow        don't follow copies and renames
     -a, --text         treat all files as text
     -u, --user         list the author (long with -v)
+    -f, --file         list the filename
     -d, --date         list the date (short with -q)
     -n, --number       list the revision number (default)
     -c, --changeset    list the changeset
@@ -258,8 +274,8 @@ Commands
     Generate a compressed changegroup file collecting changesets not
     known to be in another repository.
 
-    If no destination repository is specified the destination is
-    assumed to have all the nodes specified by one or more --base
+    If you omit the destination repository, then hg assumes the
+    destination will have all the nodes you specify with --base
     parameters. To create a bundle containing all changesets, use
     -a/--all (or --base null).
 
@@ -277,13 +293,14 @@ Commands
 
     options:
 
-    -f, --force  run even when remote repository is unrelated
-    -r, --rev    a changeset up to which you would like to bundle
-    --base       a base changeset to specify instead of a destination
-    -a, --all    bundle all changesets in the repository
-    -t, --type   bundle compression type to use (default: bzip2)
-    -e, --ssh    specify ssh command to use
-    --remotecmd  specify hg command to run on the remote side
+    -f, --force   run even when the destination is unrelated
+    -r, --rev     a changeset intended to be added to the destination
+    -b, --branch  a specific branch you would like to bundle
+    --base        a base changeset assumed to be available at the destination
+    -a, --all     bundle all changesets in the repository
+    -t, --type    bundle compression type to use (default: bzip2)
+    -e, --ssh     specify ssh command to use
+    --remotecmd   specify hg command to run on the remote side
 
 .. _cat:
 
@@ -332,7 +349,9 @@ Commands
 
     a) the changeset, tag or branch specified with -u/--updaterev
     b) the changeset, tag or branch given with the first -r/--rev
-    c) the head of the default branch
+    c) the branch given with the first -b/--branch
+    d) the branch given with the url#branch source syntax
+    e) the head of the default branch
 
     Use 'hg clone -u . src dst' to checkout the source repository's
     parent changeset (applicable for local source repositories only).
@@ -370,9 +389,10 @@ Commands
 
     options:
 
-    -U, --noupdate   the clone will only contain a repository (no working copy)
+    -U, --noupdate   the clone will include an empty working copy (only a repository)
     -u, --updaterev  revision, tag or branch to check out
-    -r, --rev        clone only the specified revisions and ancestors
+    -r, --rev        include the specified changeset
+    -b, --branch     clone only the specified branch
     --pull           use pull protocol to copy metadata
     --uncompressed   use uncompressed transfer (fast over LAN)
     -e, --ssh        specify ssh command to use
@@ -435,7 +455,7 @@ Commands
 
 .. _diff:
 
-``diff [OPTION]... [-r REV1 [-r REV2]] [FILE]...``
+``diff [OPTION]... ([-c REV] | [-r REV1 [-r REV2]]) [FILE]...``
     Show differences between revisions for the specified files.
 
     Differences between files are shown using the unified diff format.
@@ -450,6 +470,9 @@ Commands
     revisions are specified, the working directory files are compared
     to its parent.
 
+    Alternatively you can specify -c/--change with a revision to see
+    the changes in that changeset relative to its first parent.
+
     Without the -a/--text option, diff will avoid generating diffs of
     files it detects as binary. With -a, diff will generate a diff
     anyway, probably with undesirable results.
@@ -463,7 +486,7 @@ Commands
     -c, --change               change made by revision
     -a, --text                 treat all files as text
     -g, --git                  use git extended diff format
-    --nodates                  don't include dates in diff headers
+    --nodates                  omit dates from diff headers
     -p, --show-function        show which function each change is in
     --reverse                  produce a diff that undoes the changes
     -w, --ignore-all-space     ignore white space when comparing lines
@@ -479,8 +502,9 @@ Commands
 ``export [OPTION]... [-o OUTFILESPEC] REV...``
     Print the changeset header and diffs for one or more revisions.
 
-    The information shown in the changeset header is: author,
-    changeset hash, parent(s) and commit comment.
+    The information shown in the changeset header is: author, date,
+    branch name (if non-default), changeset hash, parent(s) and commit
+    comment.
 
     NOTE: export may generate unexpected diff output for merge
     changesets, as it will compare the merge changeset against its
@@ -512,9 +536,10 @@ Commands
 
     -o, --output     print output to file with formatted name
     --switch-parent  diff against the second parent
+    -r, --rev        revisions to export
     -a, --text       treat all files as text
     -g, --git        use git extended diff format
-    --nodates        don't include dates in diff headers
+    --nodates        omit dates from diff headers
 
 .. _forget:
 
@@ -566,21 +591,15 @@ Commands
 .. _heads:
 
 ``heads [-ac] [-r STARTREV] [REV]...``
-    With no arguments, show all repository head changesets.
+    With no arguments, show all repository branch heads.
 
     Repository "heads" are changesets with no child changesets. They are
     where development generally takes place and are the usual targets
-    for update and merge operations.
+    for update and merge operations. Branch heads are changesets that have
+    no child changeset on the same branch.
 
-    If one or more REV is given, the "branch heads" will be shown for
-    the named branch associated with the specified changeset(s).
-
-    Branch heads are changesets on a named branch with no descendants on
-    the same branch. A branch head could be a "true" (repository) head,
-    or it could be the last changeset on that branch before it was
-    merged into another branch, or it could be the last changeset on the
-    branch before a new branch was created. If none of the branch heads
-    are true heads, the branch is considered inactive.
+    If one or more REVs are given, only branch heads on the branches
+    associated with the specified changesets are shown.
 
     If -c/--closed is specified, also show branch heads marked closed
     (see hg commit --close-branch).
@@ -588,10 +607,14 @@ Commands
     If STARTREV is specified, only those heads that are descendants of
     STARTREV will be displayed.
 
+    If -t/--topo is specified, named branch mechanics will be ignored and only
+    changesets without children will be shown.
+
     options:
 
     -r, --rev     show only heads which are descendants of REV
-    -a, --active  show only the active branch heads from open branches
+    -t, --topo    show topological heads only
+    -a, --active  show active branchheads only [DEPRECATED]
     -c, --closed  show normal and closed branch heads
     --style       display using template map file
     --template    display with template
@@ -692,10 +715,11 @@ Commands
 
     options:
 
-    -f, --force         run even when remote repository is unrelated
+    -f, --force         run even if remote repository is unrelated
     -n, --newest-first  show newest record first
     --bundle            file to store the bundles into
-    -r, --rev           a specific remote revision up to which you would like to pull
+    -r, --rev           a remote changeset intended to be added
+    -b, --branch        a specific branch you would like to pull
     -p, --patch         show patch
     -g, --git           use git extended diff format
     -l, --limit         limit number of changes displayed
@@ -743,7 +767,7 @@ Commands
 
     options:
 
-    -r, --rev       search the repository as it stood at REV
+    -r, --rev       search the repository as it is in REV
     -0, --print0    end filenames with NUL, for use with xargs
     -f, --fullpath  print complete paths from the filesystem root
     -I, --include   include names matching the given patterns
@@ -844,13 +868,14 @@ Commands
     or the default push location. These are the changesets that would
     be pushed if a push was requested.
 
-    See pull for valid destination format details.
+    See pull for details of valid destination formats.
 
     options:
 
-    -f, --force         run even when remote repository is unrelated
-    -r, --rev           a specific revision up to which you would like to push
+    -f, --force         run even when the destination is unrelated
+    -r, --rev           a changeset intended to be included in the destination
     -n, --newest-first  show newest record first
+    -b, --branch        a specific branch you would like to push
     -p, --patch         show patch
     -g, --git           use git extended diff format
     -l, --limit         limit number of changes displayed
@@ -873,7 +898,7 @@ Commands
 
     options:
 
-    -r, --rev   show parents from the specified revision
+    -r, --rev   show parents of the specified revision
     --style     display using template map file
     --template  display with template
 
@@ -910,14 +935,15 @@ Commands
 
     -u, --update  update to new branch head if changesets were pulled
     -f, --force   run even when remote repository is unrelated
-    -r, --rev     a specific remote revision up to which you would like to pull
+    -r, --rev     a remote changeset intended to be added
+    -b, --branch  a specific branch you would like to pull
     -e, --ssh     specify ssh command to use
     --remotecmd   specify hg command to run on the remote side
 
 .. _push:
 
 ``push [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [DEST]``
-    Push changes from the local repository to the given destination.
+    Push changes from the local repository to the specified destination.
 
     This is the symmetrical operation for pull. It moves changes from
     the current repository to a different one. If the destination is
@@ -936,10 +962,11 @@ Commands
 
     options:
 
-    -f, --force  force push
-    -r, --rev    a specific revision up to which you would like to push
-    -e, --ssh    specify ssh command to use
-    --remotecmd  specify hg command to run on the remote side
+    -f, --force   force push
+    -r, --rev     a changeset intended to be included in the destination
+    -b, --branch  a specific branch you would like to push
+    -e, --ssh     specify ssh command to use
+    --remotecmd   specify hg command to run on the remote side
 
 .. _recover:
 
@@ -1012,24 +1039,29 @@ Commands
 .. _resolve:
 
 ``resolve [OPTION]... [FILE]...``
-    This command can cleanly retry unresolved file merges using file
-    revisions preserved from the last update or merge.
+    This command includes several actions that are often useful while
+    performing a merge, after running ``merge`` but before running
+    ``commit``.  (It is only meaningful if your working directory has
+    two parents.)  It is most relevant for merges with unresolved
+    conflicts, which are typically a result of non-interactive merging with
+    ``internal:merge`` or a command-line merge tool like ``diff3``.
 
-    If a conflict is resolved manually, please note that the changes
-    will be overwritten if the merge is retried with resolve. The
-    -m/--mark switch should be used to mark the file as resolved.
+    The available actions are:
 
-    You can specify a set of files to operate on, or use the -a/--all
-    switch to select all unresolved files.
+      1) list files that were merged with conflicts (U, for unresolved)
+         and without conflicts (R, for resolved): ``hg resolve -l``
+         (this is like ``status`` for merges)
+      2) record that you have resolved conflicts in certain files:
+         ``hg resolve -m [file ...]`` (default: mark all unresolved files)
+      3) forget that you have resolved conflicts in certain files:
+         ``hg resolve -u [file ...]`` (default: unmark all resolved files)
+      4) discard your current attempt(s) at resolving conflicts and
+         restart the merge from scratch: ``hg resolve file...``
+         (or ``-a`` for all unresolved files)
 
-    This command also allows listing resolved files and manually
-    indicating whether or not files are resolved. All files must be
-    marked as resolved before a commit is permitted.
-
-    The codes used to show the status of files are::
-
-      U = unresolved
-      R = resolved
+    Note that Mercurial will not let you commit files with unresolved merge
+    conflicts.  You must use ``hg resolve -m ...`` before you can commit
+    after a conflicting merge.
 
     options:
 
@@ -1051,8 +1083,8 @@ Commands
     to the contents they had in the parent of the working directory.
     This restores the contents of the affected files to an unmodified
     state and unschedules adds, removes, copies, and renames. If the
-    working directory has two parents, you must explicitly specify the
-    revision to revert to.
+    working directory has two parents, you must explicitly specify a
+    revision.
 
     Using the -r/--rev option, revert the given files or directories
     to their contents as of a specific revision. This can be helpful
@@ -1078,7 +1110,7 @@ Commands
 
     -a, --all      revert all changes when no arguments given
     -d, --date     tipmost revision matching date
-    -r, --rev      revision to revert to
+    -r, --rev      revert to the specified revision
     --no-backup    do not save backup copies of files
     -I, --include  include names matching the given patterns
     -X, --exclude  exclude names matching the given patterns
@@ -1101,7 +1133,7 @@ Commands
     - commit
     - import
     - pull
-    - push (with this repository as destination)
+    - push (with this repository as the destination)
     - unbundle
 
     This command is not intended for use on public repositories. Once
@@ -1183,7 +1215,8 @@ Commands
 
     If one revision is given, it is used as the base revision.
     If two revisions are given, the differences between them are
-    shown.
+    shown. The --change option can also be used as a shortcut to list
+    the changed files of a revision from its first parent.
 
     The codes used to show the status of files are::
 
@@ -1210,6 +1243,7 @@ Commands
     -C, --copies     show source of copied files
     -0, --print0     end filenames with NUL, for use with xargs
     --rev            show difference from revision
+    --change         list the changed files of a revision
     -I, --include    include names matching the given patterns
     -X, --exclude    exclude names matching the given patterns
 
@@ -1536,6 +1570,16 @@ HGRCPATH
     - if it's a directory, all files ending with .rc are added
     - otherwise, the file itself will be added
 
+HGPLAIN
+    When set, this disables any options in .hgrc that might change
+    Mercurial's default output. This includes encoding, defaults,
+    verbose mode, debug mode, quiet mode, tracebacks, and
+    localization. This can be useful when scripting against Mercurial
+    in the face of existing user configuration.
+
+    Equivalent options set via command line flags or environment
+    variables are not overridden.
+
 HGUSER
     This is the string used as the author of a commit. If not set,
     available values will be considered in this order:
@@ -1690,29 +1734,45 @@ Strings in curly braces are called keywords. The availability of
 keywords depends on the exact context of the templater. These
 keywords are usually available for templating a log-like command:
 
-:author:    String. The unmodified author of the changeset.
-:branches:  String. The name of the branch on which the changeset
-            was committed. Will be empty if the branch name was
-            default.
-:date:      Date information. The date when the changeset was
-            committed.
-:desc:      String. The text of the changeset description.
-:diffstat:  String. Statistics of changes with the following
-            format: "modified files: +added/-removed lines"
-:files:     List of strings. All files modified, added, or removed
-            by this changeset.
+:author: String. The unmodified author of the changeset.
+
+:branches: String. The name of the branch on which the changeset was
+    committed. Will be empty if the branch name was default.
+
+:date: Date information. The date when the changeset was committed.
+
+:desc: String. The text of the changeset description.
+
+:diffstat: String. Statistics of changes with the following format:
+    "modified files: +added/-removed lines"
+
+:files: List of strings. All files modified, added, or removed by this
+    changeset.
+
 :file_adds: List of strings. Files added by this changeset.
+
+:file_copies: List of strings. Files copied in this changeset with
+    their sources.
+
+:file_copies_switch: List of strings. Like "file_copies" but displayed
+    only if the --copied switch is set.
+
 :file_mods: List of strings. Files modified by this changeset.
+
 :file_dels: List of strings. Files removed by this changeset.
-:node:      String. The changeset identification hash, as a
-            40-character hexadecimal string.
-:parents:   List of strings. The parents of the changeset.
-:rev:       Integer. The repository-local changeset revision
-            number.
-:tags:      List of strings. Any tags associated with the
-            changeset.
+
+:node: String. The changeset identification hash, as a 40-character
+    hexadecimal string.
+
+:parents: List of strings. The parents of the changeset.
+
+:rev: Integer. The repository-local changeset revision number.
+
+:tags: List of strings. Any tags associated with the changeset.
+
 :latesttag: String. Most recent global tag in the ancestors of this
-            changeset.
+    changeset.
+
 :latesttagdistance: Integer. Longest path to the latest tag.
 
 The "date" keyword does not produce human-readable output. If you
@@ -1726,59 +1786,79 @@ output::
 
 List of filters:
 
-:addbreaks:   Any text. Add an XHTML "<br />" tag before the end of
-              every line except the last.
-:age:         Date. Returns a human-readable date/time difference
-              between the given date/time and the current
-              date/time.
-:basename:    Any text. Treats the text as a path, and returns the
-              last component of the path after splitting by the
-              path separator (ignoring trailing separators). For
-              example, "foo/bar/baz" becomes "baz" and "foo/bar//"
-              becomes "bar".
-:stripdir:    Treat the text as path and strip a directory level,
-              if possible. For example, "foo" and "foo/bar" becomes
-              "foo".
-:date:        Date. Returns a date in a Unix date format, including
-              the timezone: "Mon Sep 04 15:13:13 2006 0700".
-:domain:      Any text. Finds the first string that looks like an
-              email address, and extracts just the domain
-              component. Example: ``User <user@example.com>`` becomes
-              ``example.com``.
-:email:       Any text. Extracts the first string that looks like
-              an email address. Example: ``User <user@example.com>``
-              becomes ``user@example.com``.
-:escape:      Any text. Replaces the special XML/XHTML characters
-              "&", "<" and ">" with XML entities.
-:fill68:      Any text. Wraps the text to fit in 68 columns.
-:fill76:      Any text. Wraps the text to fit in 76 columns.
-:firstline:   Any text. Returns the first line of text.
-:nonempty:    Any text. Returns '(none)' if the string is empty.
-:hgdate:      Date. Returns the date as a pair of numbers:
-              "1157407993 25200" (Unix timestamp, timezone offset).
-:isodate:     Date. Returns the date in ISO 8601 format:
-              "2009-08-18 13:00 +0200".
-:isodatesec:  Date. Returns the date in ISO 8601 format, including
-              seconds: "2009-08-18 13:00:13 +0200". See also the
-              rfc3339date filter.
-:localdate:   Date. Converts a date to local date.
-:obfuscate:   Any text. Returns the input text rendered as a
-              sequence of XML entities.
-:person:      Any text. Returns the text before an email address.
-:rfc822date:  Date. Returns a date using the same format used in
-              email headers: "Tue, 18 Aug 2009 13:00:13 +0200".
+:addbreaks: Any text. Add an XHTML "<br />" tag before the end of
+    every line except the last.
+
+:age: Date. Returns a human-readable date/time difference between the
+    given date/time and the current date/time.
+
+:basename: Any text. Treats the text as a path, and returns the last
+    component of the path after splitting by the path separator
+    (ignoring trailing separators). For example, "foo/bar/baz" becomes
+    "baz" and "foo/bar//" becomes "bar".
+
+:stripdir: Treat the text as path and strip a directory level, if
+    possible. For example, "foo" and "foo/bar" becomes "foo".
+
+:date: Date. Returns a date in a Unix date format, including the
+    timezone: "Mon Sep 04 15:13:13 2006 0700".
+
+:domain: Any text. Finds the first string that looks like an email
+    address, and extracts just the domain component. Example: ``User
+    <user@example.com>`` becomes ``example.com``.
+
+:email: Any text. Extracts the first string that looks like an email
+    address. Example: ``User <user@example.com>`` becomes
+    ``user@example.com``.
+
+:escape: Any text. Replaces the special XML/XHTML characters "&", "<"
+    and ">" with XML entities.
+
+:fill68: Any text. Wraps the text to fit in 68 columns.
+
+:fill76: Any text. Wraps the text to fit in 76 columns.
+
+:firstline: Any text. Returns the first line of text.
+
+:nonempty: Any text. Returns '(none)' if the string is empty.
+
+:hgdate: Date. Returns the date as a pair of numbers: "1157407993
+    25200" (Unix timestamp, timezone offset).
+
+:isodate: Date. Returns the date in ISO 8601 format: "2009-08-18 13:00
+    +0200".
+
+:isodatesec: Date. Returns the date in ISO 8601 format, including
+    seconds: "2009-08-18 13:00:13 +0200". See also the rfc3339date
+    filter.
+
+:localdate: Date. Converts a date to local date.
+
+:obfuscate: Any text. Returns the input text rendered as a sequence of
+    XML entities.
+
+:person: Any text. Returns the text before an email address.
+
+:rfc822date: Date. Returns a date using the same format used in email
+    headers: "Tue, 18 Aug 2009 13:00:13 +0200".
+
 :rfc3339date: Date. Returns a date using the Internet date format
-              specified in RFC 3339: "2009-08-18T13:00:13+02:00".
-:short:       Changeset hash. Returns the short form of a changeset
-              hash, i.e. a 12-byte hexadecimal string.
-:shortdate:   Date. Returns a date like "2006-09-18".
-:strip:       Any text. Strips all leading and trailing whitespace.
-:tabindent:   Any text. Returns the text, with every line except
-              the first starting with a tab character.
-:urlescape:   Any text. Escapes all "special" characters. For
-              example, "foo bar" becomes "foo%20bar".
-:user:        Any text. Returns the user portion of an email
-              address.
+    specified in RFC 3339: "2009-08-18T13:00:13+02:00".
+
+:short: Changeset hash. Returns the short form of a changeset hash,
+    i.e. a 12-byte hexadecimal string.
+
+:shortdate: Date. Returns a date like "2006-09-18".
+
+:strip: Any text. Strips all leading and trailing whitespace.
+
+:tabindent: Any text. Returns the text, with every line except the
+     first starting with a tab character.
+
+:urlescape: Any text. Escapes all "special" characters. For example,
+    "foo bar" becomes "foo%20bar".
+
+:user: Any text. Returns the user portion of an email address.
 
 .. _urls:
 
@@ -1912,6 +1992,7 @@ disabled extensions:
  :pager:         browse command output with an external pager
  :parentrevspec: interpret suffixes to refer to ancestor revisions
  :patchbomb:     command to send changesets as (a series of) patch emails
+ :progress:      show progress bars for some actions
  :purge:         command to delete untracked files from the working directory
  :rebase:        command to move sets of revisions to a different ancestor
  :record:        commands to interactively select changes for commit/qrefresh

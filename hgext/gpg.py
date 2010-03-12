@@ -38,8 +38,10 @@ class gpg(object):
         finally:
             for f in (sigfile, datafile):
                 try:
-                    if f: os.unlink(f)
-                except: pass
+                    if f:
+                        os.unlink(f)
+                except:
+                    pass
         keys = []
         key, fingerprint = None, None
         err = ""
@@ -88,7 +90,7 @@ def sigwalk(repo):
             if not l:
                 continue
             yield (l.split(" ", 2), (context, ln))
-            ln +=1
+            ln += 1
 
     # read the heads
     fl = repo.file(".hgsigs")
@@ -219,8 +221,8 @@ def sign(ui, repo, *revs, **opts):
 
     for n in nodes:
         hexnode = hgnode.hex(n)
-        ui.write("Signing %d:%s\n" % (repo.changelog.rev(n),
-                                      hgnode.short(n)))
+        ui.write(_("Signing %d:%s\n") % (repo.changelog.rev(n),
+                                         hgnode.short(n)))
         # build data
         data = node2txt(repo, n, sigver)
         sig = mygpg.sign(data)
@@ -235,11 +237,12 @@ def sign(ui, repo, *revs, **opts):
         repo.opener("localsigs", "ab").write(sigmessage)
         return
 
-    for x in repo.status(unknown=True)[:5]:
-        if ".hgsigs" in x and not opts["force"]:
-            raise util.Abort(_("working copy of .hgsigs is changed "
-                               "(please commit .hgsigs manually "
-                               "or use --force)"))
+    msigs = match.exact(repo.root, '', ['.hgsigs'])
+    s = repo.status(match=msigs, unknown=True, ignored=True)[:6]
+    if util.any(s) and not opts["force"]:
+        raise util.Abort(_("working copy of .hgsigs is changed "
+                           "(please commit .hgsigs manually "
+                           "or use --force)"))
 
     repo.wfile(".hgsigs", "ab").write(sigmessage)
 
@@ -256,8 +259,7 @@ def sign(ui, repo, *revs, **opts):
                              % hgnode.short(n)
                              for n in nodes])
     try:
-        m = match.exact(repo.root, '', ['.hgsigs'])
-        repo.commit(message, opts['user'], opts['date'], match=m)
+        repo.commit(message, opts['user'], opts['date'], match=msigs)
     except ValueError, inst:
         raise util.Abort(str(inst))
 

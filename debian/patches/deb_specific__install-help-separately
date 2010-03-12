@@ -2,7 +2,7 @@ Support installation of help topics handled by mercurial-common.install.
 
 --- a/mercurial/help.py
 +++ b/mercurial/help.py
-@@ -70,9 +70,11 @@
+@@ -73,9 +73,11 @@
              module = __file__
          base = os.path.dirname(module)
  
@@ -18,12 +18,13 @@ Support installation of help topics handled by mercurial-common.install.
          path = os.path.join(docdir, topic + ".txt")
 --- a/setup.py
 +++ b/setup.py
-@@ -256,7 +256,7 @@
+@@ -257,8 +257,7 @@
+                                      ['hgext/inotify/linux/_inotify.c']))
          packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
  
- datafiles = []
--for root in ('help',):
-+for root in ():
-     for dir, dirs, files in os.walk(root):
-         dirs[:] = [x for x in dirs if not x.startswith('.')]
-         files = [x for x in files if not x.startswith('.')]
+-packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo',
+-                             'help/*.txt']}
++packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo']}
+ 
+ def ordinarypath(p):
+     return p and p[0] != '.' and p[-1] != '~'

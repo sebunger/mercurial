@@ -17,7 +17,7 @@ class filelog(revlog.revlog):
         if not t.startswith('\1\n'):
             return t
         s = t.index('\1\n', 2)
-        return t[s+2:]
+        return t[s + 2:]
 
     def _readmeta(self, node):
         t = self.revision(node)
@@ -35,7 +35,7 @@ class filelog(revlog.revlog):
         if meta or text.startswith('\1\n'):
             mt = ""
             if meta:
-                mt = ["%s: %s\n" % (k, v) for k, v in meta.iteritems()]
+                mt = ["%s: %s\n" % (k, v) for k, v in sorted(meta.iteritems())]
             text = "\1\n%s\1\n%s" % ("".join(mt), text)
         return self.addrevision(text, transaction, link, p1, p2)
 

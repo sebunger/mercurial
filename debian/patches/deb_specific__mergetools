@@ -1,43 +1,17 @@
-Remove merge tools irrelevant to a Debian system and RCS merge and add vimdiff
+Add vimdiff to mergetools
 
-diff -r 196d40e7c885 contrib/mergetools.hgrc
 --- a/contrib/mergetools.hgrc
 +++ b/contrib/mergetools.hgrc
-@@ -12,8 +12,8 @@
+@@ -12,8 +12,11 @@
  gvimdiff.regname=path
  gvimdiff.priority=-9
  
--merge.checkconflicts=True
--merge.priority=-10
 +vimdiff.args=$local $other $base
 +vimdiff.priority=-10
++
+ merge.checkconflicts=True
+-merge.priority=-10
++merge.priority=-11
  
  gpyfm.gui=True
  
-@@ -38,26 +38,11 @@
- p4merge.gui=True
- p4merge.priority=-8
- 
--tortoisemerge.args=/base:$base /mine:$local /theirs:$other /merged:$output
--tortoisemerge.regkey=Software\TortoiseSVN
--tortoisemerge.checkchanged=True
--tortoisemerge.gui=True
--
- ecmerge.args=$base $local $other --mode=merge3 --title0=base --title1=local --title2=other --to=$output
- ecmerge.regkey=Software\Elli\xc3\xa9 Computing\Merge
- ecmerge.gui=True
- 
--filemerge.executable=/Developer/Applications/Utilities/FileMerge.app/Contents/MacOS/FileMerge
--filemerge.args=-left $other -right $local -ancestor $base -merge $output
--filemerge.gui=True
--
- beyondcompare3.args=$local $other $base $output /ro /lefttitle=local /centertitle=base /righttitle=other /automerge /reviewconflicts /solo
- beyondcompare3.regkey=Software\Scooter Software\Beyond Compare 3
- beyondcompare3.regname=ExePath
- beyondcompare3.gui=True
--
--winmerge.args=/e /u /dl local /dr other /wr $local $other $output
--winmerge.regkey=Software\Thingamahoochie\WinMerge
--winmerge.regname=Executable
--winmerge.checkchanged=True
--winmerge.gui=True

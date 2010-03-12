@@ -62,13 +62,9 @@ def branches(repo, req):
     yield resp
 
 def between(repo, req):
-    if 'pairs' in req.form:
-        pairs = [map(bin, p.split("-"))
-                 for p in req.form['pairs'][0].split(" ")]
-    resp = cStringIO.StringIO()
-    for b in repo.between(pairs):
-        resp.write(" ".join(map(hex, b)) + "\n")
-    resp = resp.getvalue()
+    pairs = [map(bin, p.split("-"))
+             for p in req.form['pairs'][0].split(" ")]
+    resp = ''.join(" ".join(map(hex, b)) + "\n" for b in repo.between(pairs))
     req.respond(HTTP_OK, HGTYPE, length=len(resp))
     yield resp
 
@@ -111,7 +107,7 @@ def changegroupsubset(repo, req):
 
 def capabilities(repo, req):
     caps = copy.copy(basecaps)
-    if repo.ui.configbool('server', 'uncompressed', untrusted=True):
+    if streamclone.allowed(repo.ui):
         caps.append('stream=%d' % repo.changelog.version)
     if changegroupmod.bundlepriority:
         caps.append('unbundle=%s' % ','.join(changegroupmod.bundlepriority))
@@ -202,7 +198,7 @@ def unbundle(repo, req):
 def stream_out(repo, req):
     req.respond(HTTP_OK, HGTYPE)
     try:
-        for chunk in streamclone.stream_out(repo, untrusted=True):
+        for chunk in streamclone.stream_out(repo):
             yield chunk
     except streamclone.StreamException, inst:
         yield str(inst)

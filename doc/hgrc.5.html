@@ -119,9 +119,9 @@ example, if installed in <tt class="docutils literal"><span class="pre">/shared/
 in <tt class="docutils literal"><span class="pre">/shared/tools/etc/mercurial/hgrc</span></tt>. Options in these files apply
 to all Mercurial commands executed by any user in any directory.</blockquote>
 <div class="line-block">
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">C:\Mercurial\Mercurial.ini</span></tt></div>
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</span></tt></div>
 <div class="line">(Windows) <tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\Mercurial.ini</span></tt></div>
+<div class="line">(Windows) <tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\hgrc.d\*.rc</span></tt></div>
+<div class="line">(Windows) <tt class="docutils literal"><span class="pre">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</span></tt></div>
 </div>
 <blockquote>
 Per-installation/system configuration files, for the system on
@@ -129,7 +129,10 @@ which Mercurial is running. Options in these files apply to all
 Mercurial commands executed by any user in any directory. Registry
 keys contain PATH-like strings, every part of which must reference
 a <tt class="docutils literal"><span class="pre">Mercurial.ini</span></tt> file or be a directory where <tt class="docutils literal"><span class="pre">*.rc</span></tt> files will
-be read.</blockquote>
+be read.  Mercurial checks each of these locations in the specified
+order until one or more configuration files are detected.  If the
+pywin32 extensions are not installed, Mercurial will only look for
+site-wide configuration in <tt class="docutils literal"><span class="pre">C:\Mercurial\Mercurial.ini</span></tt>.</blockquote>
 </div>
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
@@ -456,7 +459,8 @@ myHtmlTool.priority = 1
 <dd>The priority in which to evaluate this tool.
 Default: 0.</dd>
 <dt><tt class="docutils literal"><span class="pre">executable</span></tt></dt>
-<dd>Either just the name of the executable or its pathname.
+<dd>Either just the name of the executable or its pathname.  On Windows,
+the path can use environment variables with ${ProgramFiles} syntax.
 Default: the tool name.</dd>
 <dt><tt class="docutils literal"><span class="pre">args</span></tt></dt>
 <dd>The arguments to pass to the tool executable. You can refer to the
@@ -644,6 +648,9 @@ the proxy.</dd>
 <dd>Optional. Password to authenticate with at the proxy server.</dd>
 <dt><tt class="docutils literal"><span class="pre">user</span></tt></dt>
 <dd>Optional. User name to authenticate with at the proxy server.</dd>
+<dt><tt class="docutils literal"><span class="pre">always</span></tt></dt>
+<dd>Optional. Always use the proxy, even for localhost and any entries
+in <tt class="docutils literal"><span class="pre">http_proxy.no</span></tt>. True or False. Default: False.</dd>
 </dl>
 </div>
 <div class="section" id="smtp">
@@ -677,9 +684,13 @@ command or with Mercurial Queues extension.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal"><span class="pre">eol</span></tt></dt>
 <dd>When set to 'strict' patch content and patched files end of lines
-are preserved. When set to <tt class="docutils literal"><span class="pre">lf</span></tt> or <tt class="docutils literal"><span class="pre">crlf</span></tt>, both files end of lines
-are ignored when patching and the result line endings are
-normalized to either LF (Unix) or CRLF (Windows).
+are preserved. When set to <tt class="docutils literal"><span class="pre">lf</span></tt> or <tt class="docutils literal"><span class="pre">crlf</span></tt>, both files end of
+lines are ignored when patching and the result line endings are
+normalized to either LF (Unix) or CRLF (Windows). When set to
+<tt class="docutils literal"><span class="pre">auto</span></tt>, end of lines are again ignored while patching but line
+endings in patched files are normalized to their original setting
+on a per-file basis. If target file does not exist or has no end
+of line, patch line endings are preserved.
 Default: strict.</dd>
 </dl>
 </div>
@@ -739,7 +750,13 @@ server and client. Over a LAN (100 Mbps or better) or a very fast
 WAN, an uncompressed streaming clone is a lot faster (~10x) than a
 regular clone. Over most WAN connections (anything slower than
 about 6 Mbps), uncompressed streaming is slower, because of the
-extra data transfer overhead. Default is False.</dd>
+extra data transfer overhead. This mode will also temporarily hold
+the write lock while determining what data to transfer.
+Default is True.</dd>
+<dt><tt class="docutils literal"><span class="pre">validate</span></tt></dt>
+<dd>Whether to validate the completeness of pushed changesets by
+checking that all new file revisions specified in manifests are
+present. Default is False.</dd>
 </dl>
 </div>
 <div class="section" id="trusted">
@@ -899,6 +916,26 @@ revisions. Default is False. This feature creates temporary files.</dd>
 <dd>Base URL to use when publishing URLs in other locations, so
 third-party tools like email notification hooks can construct
 URLs. Example: <tt class="docutils literal"><span class="pre">http://hgserver/repos/</span></tt>.</dd>
+<dt><tt class="docutils literal"><span class="pre">cacerts</span></tt></dt>
+<dd><p class="first">Path to file containing a list of PEM encoded certificate authorities
+that may be used to verify an SSL server's identity. The form must be
+as follows:</p>
+<pre class="literal-block">
+-----BEGIN CERTIFICATE-----
+... (certificate in base64 PEM encoding) ...
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+... (certificate in base64 PEM encoding) ...
+-----END CERTIFICATE-----
+</pre>
+<p>This feature is only supported when using Python 2.6. If you wish to
+use it with earlier versions of Python, install the backported
+version of the ssl library that is available from
+<tt class="docutils literal"><span class="pre">http://pypi.python.org</span></tt>.</p>
+<p class="last">You can use OpenSSL's CA certificate file if your platform has one.
+On most Linux systems this will be <tt class="docutils literal"><span class="pre">/etc/ssl/certs/ca-certificates.crt</span></tt>.
+Otherwise you will have to generate this file manually.</p>
+</dd>
 <dt><tt class="docutils literal"><span class="pre">contact</span></tt></dt>
 <dd>Name or email address of the person in charge of the repository.
 Defaults to ui.username or <tt class="docutils literal"><span class="pre">$EMAIL</span></tt> or &quot;unknown&quot; if unset or empty.</dd>

@@ -1,13 +1,14 @@
 SOURCES=$(wildcard *.[0-9].txt)
 MAN=$(SOURCES:%.txt=%)
 HTML=$(SOURCES:%.txt=%.html)
-GENDOC=gendoc.py ../mercurial/commands.py ../mercurial/help.py ../help/*.txt
+GENDOC=gendoc.py ../mercurial/commands.py ../mercurial/help.py ../mercurial/help/*.txt
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
 INSTALL=install -c -m 644
 PYTHON=python
 RST2HTML=$(shell which rst2html 2> /dev/null || echo rst2html.py)
 
+export LANGUAGE=C
 export LC_ALL=C
 
 all: man html

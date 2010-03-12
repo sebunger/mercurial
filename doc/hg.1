@@ -85,7 +85,7 @@ enable additional output
 .TP
 .B \-\-config
 .
-set/override config option
+set/override config option (use \(aqsection.name=value\(aq)
 .TP
 .B \-\-debug
 .
@@ -135,6 +135,22 @@ The files will be added to the repository at the next commit. To
 undo an add before that, see hg forget.
 .sp
 If no names are given, add all files to the repository.
+.sp
+An example showing how new (unknown) files are added
+automatically by \fBhg add\fP:
+.sp
+.nf
+.ft C
+$ ls
+foo.c
+$ hg status
+? foo.c
+$ hg add
+adding foo.c
+$ hg status
+A foo.c
+.ft P
+.fi
 .sp
 options:
 .INDENT 7.0
@@ -212,9 +228,13 @@ options:
 .
 annotate the specified revision
 .TP
-.B \-f,  \-\-follow
+.B \-\-follow
 .
-follow file copies and renames
+follow copies/renames and list the filename (DEPRECATED)
+.TP
+.B \-\-no\-follow
+.
+don\(aqt follow copies and renames
 .TP
 .B \-a,  \-\-text
 .
@@ -223,6 +243,10 @@ treat all files as text
 .B \-u,  \-\-user
 .
 list the author (long with \-v)
+.TP
+.B \-f,  \-\-file
+.
+list the filename
 .TP
 .B \-d,  \-\-date
 .
@@ -495,8 +519,8 @@ show normal and closed branches
 Generate a compressed changegroup file collecting changesets not
 known to be in another repository.
 .sp
-If no destination repository is specified the destination is
-assumed to have all the nodes specified by one or more \-\-base
+If you omit the destination repository, then hg assumes the
+destination will have all the nodes you specify with \-\-base
 parameters. To create a bundle containing all changesets, use
 \-a/\-\-all (or \-\-base null).
 .sp
@@ -517,15 +541,19 @@ options:
 .TP
 .B \-f,  \-\-force
 .
-run even when remote repository is unrelated
+run even when the destination is unrelated
 .TP
 .B \-r,  \-\-rev
 .
-a changeset up to which you would like to bundle
+a changeset intended to be added to the destination
+.TP
+.B \-b,  \-\-branch
+.
+a specific branch you would like to bundle
 .TP
 .B \-\-base
 .
-a base changeset to specify instead of a destination
+a base changeset assumed to be available at the destination
 .TP
 .B \-a,  \-\-all
 .
@@ -625,6 +653,12 @@ the changeset, tag or branch specified with \-u/\-\-updaterev
 the changeset, tag or branch given with the first \-r/\-\-rev
 .IP c. 3
 .
+the branch given with the first \-b/\-\-branch
+.IP d. 3
+.
+the branch given with the url#branch source syntax
+.IP e. 3
+.
 the head of the default branch
 .UNINDENT
 .sp
@@ -671,7 +705,7 @@ options:
 .TP
 .B \-U,  \-\-noupdate
 .
-the clone will only contain a repository (no working copy)
+the clone will include an empty working copy (only a repository)
 .TP
 .B \-u,  \-\-updaterev
 .
@@ -679,7 +713,11 @@ revision, tag or branch to check out
 .TP
 .B \-r,  \-\-rev
 .
-clone only the specified revisions and ancestors
+include the specified changeset
+.TP
+.B \-b,  \-\-branch
+.
+clone only the specified branch
 .TP
 .B \-\-pull
 .
@@ -798,7 +836,7 @@ aliases: cp
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \fBdiff [OPTION]... [\-r REV1 [\-r REV2]] [FILE]...\fP
+.B \fBdiff [OPTION]... ([\-c REV] | [\-r REV1 [\-r REV2]]) [FILE]...\fP
 .sp
 Show differences between revisions for the specified files.
 .sp
@@ -813,6 +851,9 @@ between those revisions. If only one revision is specified then
 that revision is compared to the working directory, and, when no
 revisions are specified, the working directory files are compared
 to its parent.
+.sp
+Alternatively you can specify \-c/\-\-change with a revision to see
+the changes in that changeset relative to its first parent.
 .sp
 Without the \-a/\-\-text option, diff will avoid generating diffs of
 files it detects as binary. With \-a, diff will generate a diff
@@ -842,7 +883,7 @@ use git extended diff format
 .TP
 .B \-\-nodates
 .
-don\(aqt include dates in diff headers
+omit dates from diff headers
 .TP
 .B \-p,  \-\-show\-function
 .
@@ -887,8 +928,9 @@ exclude names matching the given patterns
 .sp
 Print the changeset header and diffs for one or more revisions.
 .sp
-The information shown in the changeset header is: author,
-changeset hash, parent(s) and commit comment.
+The information shown in the changeset header is: author, date,
+branch name (if non\-default), changeset hash, parent(s) and commit
+comment.
 .sp
 NOTE: export may generate unexpected diff output for merge
 changesets, as it will compare the merge changeset against its
@@ -952,6 +994,10 @@ print output to file with formatted name
 .
 diff against the second parent
 .TP
+.B \-r,  \-\-rev
+.
+revisions to export
+.TP
 .B \-a,  \-\-text
 .
 treat all files as text
@@ -962,7 +1008,7 @@ use git extended diff format
 .TP
 .B \-\-nodates
 .
-don\(aqt include dates in diff headers
+omit dates from diff headers
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -1059,27 +1105,24 @@ exclude names matching the given patterns
 .TP
 .B \fBheads [\-ac] [\-r STARTREV] [REV]...\fP
 .sp
-With no arguments, show all repository head changesets.
+With no arguments, show all repository branch heads.
 .sp
 Repository "heads" are changesets with no child changesets. They are
 where development generally takes place and are the usual targets
-for update and merge operations.
+for update and merge operations. Branch heads are changesets that have
+no child changeset on the same branch.
 .sp
-If one or more REV is given, the "branch heads" will be shown for
-the named branch associated with the specified changeset(s).
-.sp
-Branch heads are changesets on a named branch with no descendants on
-the same branch. A branch head could be a "true" (repository) head,
-or it could be the last changeset on that branch before it was
-merged into another branch, or it could be the last changeset on the
-branch before a new branch was created. If none of the branch heads
-are true heads, the branch is considered inactive.
+If one or more REVs are given, only branch heads on the branches
+associated with the specified changesets are shown.
 .sp
 If \-c/\-\-closed is specified, also show branch heads marked closed
 (see hg commit \-\-close\-branch).
 .sp
 If STARTREV is specified, only those heads that are descendants of
 STARTREV will be displayed.
+.sp
+If \-t/\-\-topo is specified, named branch mechanics will be ignored and only
+changesets without children will be shown.
 .sp
 options:
 .INDENT 7.0
@@ -1088,9 +1131,13 @@ options:
 .
 show only heads which are descendants of REV
 .TP
+.B \-t,  \-\-topo
+.
+show topological heads only
+.TP
 .B \-a,  \-\-active
 .
-show only the active branch heads from open branches
+show active branchheads only [DEPRECATED]
 .TP
 .B \-c,  \-\-closed
 .
@@ -1258,7 +1305,7 @@ options:
 .TP
 .B \-f,  \-\-force
 .
-run even when remote repository is unrelated
+run even if remote repository is unrelated
 .TP
 .B \-n,  \-\-newest\-first
 .
@@ -1270,7 +1317,11 @@ file to store the bundles into
 .TP
 .B \-r,  \-\-rev
 .
-a specific remote revision up to which you would like to pull
+a remote changeset intended to be added
+.TP
+.B \-b,  \-\-branch
+.
+a specific branch you would like to pull
 .TP
 .B \-p,  \-\-patch
 .
@@ -1355,7 +1406,7 @@ options:
 .TP
 .B \-r,  \-\-rev
 .
-search the repository as it stood at REV
+search the repository as it is in REV
 .TP
 .B \-0,  \-\-print0
 .
@@ -1545,22 +1596,26 @@ Show changesets not found in the specified destination repository
 or the default push location. These are the changesets that would
 be pushed if a push was requested.
 .sp
-See pull for valid destination format details.
+See pull for details of valid destination formats.
 .sp
 options:
 .INDENT 7.0
 .TP
 .B \-f,  \-\-force
 .
-run even when remote repository is unrelated
+run even when the destination is unrelated
 .TP
 .B \-r,  \-\-rev
 .
-a specific revision up to which you would like to push
+a changeset intended to be included in the destination
 .TP
 .B \-n,  \-\-newest\-first
 .
 show newest record first
+.TP
+.B \-b,  \-\-branch
+.
+a specific branch you would like to push
 .TP
 .B \-p,  \-\-patch
 .
@@ -1612,7 +1667,7 @@ options:
 .TP
 .B \-r,  \-\-rev
 .
-show parents from the specified revision
+show parents of the specified revision
 .TP
 .B \-\-style
 .
@@ -1667,7 +1722,11 @@ run even when remote repository is unrelated
 .TP
 .B \-r,  \-\-rev
 .
-a specific remote revision up to which you would like to pull
+a remote changeset intended to be added
+.TP
+.B \-b,  \-\-branch
+.
+a specific branch you would like to pull
 .TP
 .B \-e,  \-\-ssh
 .
@@ -1682,7 +1741,7 @@ specify hg command to run on the remote side
 .TP
 .B \fBpush [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [DEST]\fP
 .sp
-Push changes from the local repository to the given destination.
+Push changes from the local repository to the specified destination.
 .sp
 This is the symmetrical operation for pull. It moves changes from
 the current repository to a different one. If the destination is
@@ -1708,7 +1767,11 @@ force push
 .TP
 .B \-r,  \-\-rev
 .
-a specific revision up to which you would like to push
+a changeset intended to be included in the destination
+.TP
+.B \-b,  \-\-branch
+.
+a specific branch you would like to push
 .TP
 .B \-e,  \-\-ssh
 .
@@ -1827,28 +1890,42 @@ aliases: mv
 .TP
 .B \fBresolve [OPTION]... [FILE]...\fP
 .sp
-This command can cleanly retry unresolved file merges using file
-revisions preserved from the last update or merge.
+This command includes several actions that are often useful while
+performing a merge, after running \fBmerge\fP but before running
+\fBcommit\fP.  (It is only meaningful if your working directory has
+two parents.)  It is most relevant for merges with unresolved
+conflicts, which are typically a result of non\-interactive merging with
+\fBinternal:merge\fP or a command\-line merge tool like \fBdiff3\fP.
 .sp
-If a conflict is resolved manually, please note that the changes
-will be overwritten if the merge is retried with resolve. The
-\-m/\-\-mark switch should be used to mark the file as resolved.
+The available actions are:
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+.
+list files that were merged with conflicts (U, for unresolved)
+and without conflicts (R, for resolved): \fBhg resolve \-l\fP
+(this is like \fBstatus\fP for merges)
+.IP 2. 3
+.
+record that you have resolved conflicts in certain files:
+\fBhg resolve \-m [file ...]\fP (default: mark all unresolved files)
+.IP 3. 3
+.
+forget that you have resolved conflicts in certain files:
+\fBhg resolve \-u [file ...]\fP (default: unmark all resolved files)
+.IP 4. 3
+.
+discard your current attempt(s) at resolving conflicts and
+restart the merge from scratch: \fBhg resolve file...\fP
+(or \fB\-a\fP for all unresolved files)
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .sp
-You can specify a set of files to operate on, or use the \-a/\-\-all
-switch to select all unresolved files.
-.sp
-This command also allows listing resolved files and manually
-indicating whether or not files are resolved. All files must be
-marked as resolved before a commit is permitted.
-.sp
-The codes used to show the status of files are:
-.sp
-.nf
-.ft C
-U = unresolved
-R = resolved
-.ft P
-.fi
+Note that Mercurial will not let you commit files with unresolved merge
+conflicts.  You must use \fBhg resolve \-m ...\fP before you can commit
+after a conflicting merge.
 .sp
 options:
 .INDENT 7.0
@@ -1893,8 +1970,8 @@ With no revision specified, revert the named files or directories
 to the contents they had in the parent of the working directory.
 This restores the contents of the affected files to an unmodified
 state and unschedules adds, removes, copies, and renames. If the
-working directory has two parents, you must explicitly specify the
-revision to revert to.
+working directory has two parents, you must explicitly specify a
+revision.
 .sp
 Using the \-r/\-\-rev option, revert the given files or directories
 to their contents as of a specific revision. This can be helpful
@@ -1929,7 +2006,7 @@ tipmost revision matching date
 .TP
 .B \-r,  \-\-rev
 .
-revision to revert to
+revert to the specified revision
 .TP
 .B \-\-no\-backup
 .
@@ -1974,7 +2051,7 @@ import
 pull
 .IP \(bu 2
 .
-push (with this repository as destination)
+push (with this repository as the destination)
 .IP \(bu 2
 .
 unbundle
@@ -2113,7 +2190,8 @@ to one merge parent.
 .sp
 If one revision is given, it is used as the base revision.
 If two revisions are given, the differences between them are
-shown.
+shown. The \-\-change option can also be used as a shortcut to list
+the changed files of a revision from its first parent.
 .sp
 The codes used to show the status of files are:
 .sp
@@ -2180,6 +2258,10 @@ end filenames with NUL, for use with xargs
 .B \-\-rev
 .
 show difference from revision
+.TP
+.B \-\-change
+.
+list the changed files of a revision
 .TP
 .B \-I,  \-\-include
 .
@@ -2673,6 +2755,17 @@ if it\(aqs a directory, all files ending with .rc are added
 otherwise, the file itself will be added
 .UNINDENT
 .TP
+.B HGPLAIN
+.
+When set, this disables any options in .hgrc that might change
+Mercurial\(aqs default output. This includes encoding, defaults,
+verbose mode, debug mode, quiet mode, tracebacks, and
+localization. This can be useful when scripting against Mercurial
+in the face of existing user configuration.
+.sp
+Equivalent options set via command line flags or environment
+variables are not overridden.
+.TP
 .B HGUSER
 .
 This is the string used as the author of a commit. If not set,
@@ -2850,14 +2943,12 @@ String. The unmodified author of the changeset.
 .TP
 .B branches
 .
-String. The name of the branch on which the changeset
-was committed. Will be empty if the branch name was
-default.
+String. The name of the branch on which the changeset was
+committed. Will be empty if the branch name was default.
 .TP
 .B date
 .
-Date information. The date when the changeset was
-committed.
+Date information. The date when the changeset was committed.
 .TP
 .B desc
 .
@@ -2865,17 +2956,27 @@ String. The text of the changeset description.
 .TP
 .B diffstat
 .
-String. Statistics of changes with the following
-format: "modified files: +added/\-removed lines"
+String. Statistics of changes with the following format:
+"modified files: +added/\-removed lines"
 .TP
 .B files
 .
-List of strings. All files modified, added, or removed
-by this changeset.
+List of strings. All files modified, added, or removed by this
+changeset.
 .TP
 .B file_adds
 .
 List of strings. Files added by this changeset.
+.TP
+.B file_copies
+.
+List of strings. Files copied in this changeset with
+their sources.
+.TP
+.B file_copies_switch
+.
+List of strings. Like "file_copies" but displayed
+only if the \-\-copied switch is set.
 .TP
 .B file_mods
 .
@@ -2887,8 +2988,8 @@ List of strings. Files removed by this changeset.
 .TP
 .B node
 .
-String. The changeset identification hash, as a
-40\-character hexadecimal string.
+String. The changeset identification hash, as a 40\-character
+hexadecimal string.
 .TP
 .B parents
 .
@@ -2896,13 +2997,11 @@ List of strings. The parents of the changeset.
 .TP
 .B rev
 .
-Integer. The repository\-local changeset revision
-number.
+Integer. The repository\-local changeset revision number.
 .TP
 .B tags
 .
-List of strings. Any tags associated with the
-changeset.
+List of strings. Any tags associated with the changeset.
 .TP
 .B latesttag
 .
@@ -2937,46 +3036,42 @@ every line except the last.
 .TP
 .B age
 .
-Date. Returns a human\-readable date/time difference
-between the given date/time and the current
-date/time.
+Date. Returns a human\-readable date/time difference between the
+given date/time and the current date/time.
 .TP
 .B basename
 .
-Any text. Treats the text as a path, and returns the
-last component of the path after splitting by the
-path separator (ignoring trailing separators). For
-example, "foo/bar/baz" becomes "baz" and "foo/bar//"
-becomes "bar".
+Any text. Treats the text as a path, and returns the last
+component of the path after splitting by the path separator
+(ignoring trailing separators). For example, "foo/bar/baz" becomes
+"baz" and "foo/bar//" becomes "bar".
 .TP
 .B stripdir
 .
-Treat the text as path and strip a directory level,
-if possible. For example, "foo" and "foo/bar" becomes
-"foo".
+Treat the text as path and strip a directory level, if
+possible. For example, "foo" and "foo/bar" becomes "foo".
 .TP
 .B date
 .
-Date. Returns a date in a Unix date format, including
-the timezone: "Mon Sep 04 15:13:13 2006 0700".
+Date. Returns a date in a Unix date format, including the
+timezone: "Mon Sep 04 15:13:13 2006 0700".
 .TP
 .B domain
 .
-Any text. Finds the first string that looks like an
-email address, and extracts just the domain
-component. Example: \fBUser <user@example.com>\fP becomes
-\fBexample.com\fP.
+Any text. Finds the first string that looks like an email
+address, and extracts just the domain component. Example: \fBUser
+<user@example.com>\fP becomes \fBexample.com\fP.
 .TP
 .B email
 .
-Any text. Extracts the first string that looks like
-an email address. Example: \fBUser <user@example.com>\fP
-becomes \fBuser@example.com\fP.
+Any text. Extracts the first string that looks like an email
+address. Example: \fBUser <user@example.com>\fP becomes
+\fBuser@example.com\fP.
 .TP
 .B escape
 .
-Any text. Replaces the special XML/XHTML characters
-"&", "<" and ">" with XML entities.
+Any text. Replaces the special XML/XHTML characters "&", "<"
+and ">" with XML entities.
 .TP
 .B fill68
 .
@@ -2996,19 +3091,19 @@ Any text. Returns \(aq(none)\(aq if the string is empty.
 .TP
 .B hgdate
 .
-Date. Returns the date as a pair of numbers:
-"1157407993 25200" (Unix timestamp, timezone offset).
+Date. Returns the date as a pair of numbers: "1157407993
+25200" (Unix timestamp, timezone offset).
 .TP
 .B isodate
 .
-Date. Returns the date in ISO 8601 format:
-"2009\-08\-18 13:00 +0200".
+Date. Returns the date in ISO 8601 format: "2009\-08\-18 13:00
++0200".
 .TP
 .B isodatesec
 .
 Date. Returns the date in ISO 8601 format, including
-seconds: "2009\-08\-18 13:00:13 +0200". See also the
-rfc3339date filter.
+seconds: "2009\-08\-18 13:00:13 +0200". See also the rfc3339date
+filter.
 .TP
 .B localdate
 .
@@ -3016,8 +3111,8 @@ Date. Converts a date to local date.
 .TP
 .B obfuscate
 .
-Any text. Returns the input text rendered as a
-sequence of XML entities.
+Any text. Returns the input text rendered as a sequence of
+XML entities.
 .TP
 .B person
 .
@@ -3025,8 +3120,8 @@ Any text. Returns the text before an email address.
 .TP
 .B rfc822date
 .
-Date. Returns a date using the same format used in
-email headers: "Tue, 18 Aug 2009 13:00:13 +0200".
+Date. Returns a date using the same format used in email
+headers: "Tue, 18 Aug 2009 13:00:13 +0200".
 .TP
 .B rfc3339date
 .
@@ -3035,8 +3130,8 @@ specified in RFC 3339: "2009\-08\-18T13:00:13+02:00".
 .TP
 .B short
 .
-Changeset hash. Returns the short form of a changeset
-hash, i.e. a 12\-byte hexadecimal string.
+Changeset hash. Returns the short form of a changeset hash,
+i.e. a 12\-byte hexadecimal string.
 .TP
 .B shortdate
 .
@@ -3048,18 +3143,17 @@ Any text. Strips all leading and trailing whitespace.
 .TP
 .B tabindent
 .
-Any text. Returns the text, with every line except
-the first starting with a tab character.
+Any text. Returns the text, with every line except the
+first starting with a tab character.
 .TP
 .B urlescape
 .
-Any text. Escapes all "special" characters. For
-example, "foo bar" becomes "foo%20bar".
+Any text. Escapes all "special" characters. For example,
+"foo bar" becomes "foo%20bar".
 .TP
 .B user
 .
-Any text. Returns the user portion of an email
-address.
+Any text. Returns the user portion of an email address.
 .UNINDENT
 .SH URL PATHS
 .sp
@@ -3292,6 +3386,10 @@ interpret suffixes to refer to ancestor revisions
 .B patchbomb
 .
 command to send changesets as (a series of) patch emails
+.TP
+.B progress
+.
+show progress bars for some actions
 .TP
 .B purge
 .
