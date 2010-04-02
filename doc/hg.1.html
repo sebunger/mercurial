@@ -575,19 +575,6 @@ basename of the source.</p>
 <p>It is possible to specify an <tt class="docutils literal"><span class="pre">ssh://</span></tt> URL as the destination, but no
 .hg/hgrc and working directory will be created on the remote side.
 Please see 'hg help urls' for important details about <tt class="docutils literal"><span class="pre">ssh://</span></tt> URLs.</p>
-<p>If the -U/--noupdate option is specified, the new clone will contain
-only a repository (.hg) and no working copy (the working copy parent
-will be the null changeset). Otherwise, clone will initially check
-out (in order of precedence):</p>
-<ol class="loweralpha simple">
-<li>the changeset, tag or branch specified with -u/--updaterev</li>
-<li>the changeset, tag or branch given with the first -r/--rev</li>
-<li>the branch given with the first -b/--branch</li>
-<li>the branch given with the url#branch source syntax</li>
-<li>the head of the default branch</li>
-</ol>
-<p>Use 'hg clone -u . src dst' to checkout the source repository's
-parent changeset (applicable for local source repositories only).</p>
 <p>A set of changesets (tags, or branch names) to pull may be specified
 by listing each changeset (tag, or branch name) with -r/--rev.
 If -r/--rev is used, the cloned repository will contain only a subset
@@ -600,11 +587,11 @@ in the destination.</p>
 local source repositories.</p>
 <p>For efficiency, hardlinks are used for cloning whenever the source
 and destination are on the same filesystem (note this applies only
-to the repository data, not to the checked out files). Some
+to the repository data, not to the working directory). Some
 filesystems, such as AFS, implement hardlinking incorrectly, but
 do not report errors. In these cases, use the --pull option to
 avoid hardlinking.</p>
-<p>In some cases, you can clone repositories and checked out files
+<p>In some cases, you can clone repositories and the working directory
 using full hardlinks with</p>
 <pre class="literal-block">
 $ cp -al REPO REPOCLONE
@@ -615,6 +602,20 @@ the operation is up to you) and you have to make sure your editor
 breaks hardlinks (Emacs and most Linux Kernel tools do so). Also,
 this is not compatible with certain extensions that place their
 metadata under the .hg directory, such as mq.</p>
+<p>Mercurial will update the working directory to the first applicable
+revision from this list:</p>
+<ol class="loweralpha simple">
+<li>null if -U or the source repository has no changesets</li>
+<li>if -u . and the source repository is local, the first parent of
+the source repository's working directory</li>
+<li>the changeset specified with -u (if a branch name, this means the
+latest head of that branch)</li>
+<li>the changeset specified with -r</li>
+<li>the tipmost head specified with -b</li>
+<li>the tipmost head specified with the url#branch source syntax</li>
+<li>the tipmost head of the default branch</li>
+<li>tip</li>
+</ol>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -2449,8 +2450,9 @@ changeset.</td>
 <p>The &quot;date&quot; keyword does not produce human-readable output. If you
 want to use a date in your output, you can use a filter to process
 it. Filters are functions which return a string based on the input
-variable. You can also use a chain of filters to get the desired
-output:</p>
+variable. Be sure to use the stringify filter first when you're
+applying a string-input filter to a list-like input variable.
+You can also use a chain of filters to get the desired output:</p>
 <pre class="literal-block">
 $ hg tip --template &quot;{date|isodate}\n&quot;
 2008-08-21 18:22 +0000

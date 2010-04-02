@@ -640,31 +640,6 @@ It is possible to specify an \fBssh://\fP URL as the destination, but no
 .hg/hgrc and working directory will be created on the remote side.
 Please see \(aqhg help urls\(aq for important details about \fBssh://\fP URLs.
 .sp
-If the \-U/\-\-noupdate option is specified, the new clone will contain
-only a repository (.hg) and no working copy (the working copy parent
-will be the null changeset). Otherwise, clone will initially check
-out (in order of precedence):
-.INDENT 7.0
-.IP a. 3
-.
-the changeset, tag or branch specified with \-u/\-\-updaterev
-.IP b. 3
-.
-the changeset, tag or branch given with the first \-r/\-\-rev
-.IP c. 3
-.
-the branch given with the first \-b/\-\-branch
-.IP d. 3
-.
-the branch given with the url#branch source syntax
-.IP e. 3
-.
-the head of the default branch
-.UNINDENT
-.sp
-Use \(aqhg clone \-u . src dst\(aq to checkout the source repository\(aqs
-parent changeset (applicable for local source repositories only).
-.sp
 A set of changesets (tags, or branch names) to pull may be specified
 by listing each changeset (tag, or branch name) with \-r/\-\-rev.
 If \-r/\-\-rev is used, the cloned repository will contain only a subset
@@ -679,12 +654,12 @@ local source repositories.
 .sp
 For efficiency, hardlinks are used for cloning whenever the source
 and destination are on the same filesystem (note this applies only
-to the repository data, not to the checked out files). Some
+to the repository data, not to the working directory). Some
 filesystems, such as AFS, implement hardlinking incorrectly, but
 do not report errors. In these cases, use the \-\-pull option to
 avoid hardlinking.
 .sp
-In some cases, you can clone repositories and checked out files
+In some cases, you can clone repositories and the working directory
 using full hardlinks with
 .sp
 .nf
@@ -699,6 +674,37 @@ the operation is up to you) and you have to make sure your editor
 breaks hardlinks (Emacs and most Linux Kernel tools do so). Also,
 this is not compatible with certain extensions that place their
 metadata under the .hg directory, such as mq.
+.sp
+Mercurial will update the working directory to the first applicable
+revision from this list:
+.INDENT 7.0
+.IP a. 3
+.
+null if \-U or the source repository has no changesets
+.IP b. 3
+.
+if \-u . and the source repository is local, the first parent of
+the source repository\(aqs working directory
+.IP c. 3
+.
+the changeset specified with \-u (if a branch name, this means the
+latest head of that branch)
+.IP d. 3
+.
+the changeset specified with \-r
+.IP e. 3
+.
+the tipmost head specified with \-b
+.IP f. 3
+.
+the tipmost head specified with the url#branch source syntax
+.IP g. 3
+.
+the tipmost head of the default branch
+.IP h. 3
+.
+tip
+.UNINDENT
 .sp
 options:
 .INDENT 7.0
@@ -3016,8 +3022,9 @@ Integer. Longest path to the latest tag.
 The "date" keyword does not produce human\-readable output. If you
 want to use a date in your output, you can use a filter to process
 it. Filters are functions which return a string based on the input
-variable. You can also use a chain of filters to get the desired
-output:
+variable. Be sure to use the stringify filter first when you\(aqre
+applying a string\-input filter to a list\-like input variable.
+You can also use a chain of filters to get the desired output:
 .sp
 .nf
 .ft C

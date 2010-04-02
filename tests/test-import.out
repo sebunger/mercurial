@@ -305,6 +305,8 @@ applying a.patch
 % create file when source is not /dev/null
 applying ../create.patch
 a
+applying ../create2.patch
+a
 % first line mistaken for email headers (issue 1859)
 applying a.patch
 changeset:   0:5a681217c0ad
@@ -316,6 +318,17 @@ description:
 module: summary
 
 description
+
+
+% --- in commit message
+applying a.patch
+changeset:   0:f34d9187897d
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+files:       a
+description:
+module: summary
 
 
 % tricky header splitting
@@ -335,3 +348,28 @@ new file mode 100644
 +++ b/foo
 @@ -0,0 +1,1 @@
 +foo
+% issue2102
+adding src/cmd/gc/mksys.bash
+applying patch from stdin
+parent: 1:d59915696727 tip
+ help management of empty pkg and lib directories in perforce
+branch: default
+commit: (clean)
+update: (current)
+diff --git a/lib/place-holder b/lib/place-holder
+new file mode 100644
+--- /dev/null
++++ b/lib/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/pkg/place-holder b/pkg/place-holder
+new file mode 100644
+--- /dev/null
++++ b/pkg/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+old mode 100644
+new mode 100755
