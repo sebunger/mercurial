@@ -25,7 +25,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -1050,8 +1050,8 @@
+@@ -1054,8 +1054,8 @@
      editor = ui.geteditor()
      cmdpath = util.find_exe(editor) or util.find_exe(editor.split()[0])
      if not cmdpath:
@@ -184,7 +184,7 @@ Use sensible-editor as default instead of vi.
  "    Mercurial が当該システムの共有領域にインストールされていない場合、\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -7148,10 +7148,10 @@
+@@ -7259,10 +7259,10 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -197,7 +197,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your .hgrc file)\n"
  msgstr " (especifique um editor para consolidação em seu arquivo .hgrc)\n"
-@@ -10198,7 +10198,7 @@
+@@ -10309,7 +10309,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -206,7 +206,7 @@ Use sensible-editor as default instead of vi.
  "\n"
  "PYTHONPATH\n"
  "    This is used by Python to find imported modules and may need to be\n"
-@@ -10290,7 +10290,7 @@
+@@ -10401,7 +10401,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
@@ -217,7 +217,7 @@ Use sensible-editor as default instead of vi.
  "    Isto é usado pelo Python para localizar módulos importados, e\n"
 --- a/i18n/sv.po
 +++ b/i18n/sv.po
-@@ -5357,7 +5357,7 @@
+@@ -5454,7 +5454,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -226,7 +226,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
-@@ -8262,7 +8262,7 @@
+@@ -8359,7 +8359,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
