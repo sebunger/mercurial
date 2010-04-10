@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -961,6 +965,9 @@
+@@ -964,6 +968,9 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):

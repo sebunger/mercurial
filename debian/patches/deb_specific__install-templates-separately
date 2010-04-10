@@ -13,7 +13,7 @@ Support installation of templates handled by mercurial-common.install.
  def parsestring(s, quoted=True):
 --- a/setup.py
 +++ b/setup.py
-@@ -263,14 +263,6 @@
+@@ -269,14 +269,6 @@
  def ordinarypath(p):
      return p and p[0] != '.' and p[-1] != '~'
  

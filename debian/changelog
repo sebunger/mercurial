@@ -1,3 +1,10 @@
+mercurial (1.5.1-2) unstable; urgency=low
+
+  * Refresh debian patches
+  * Install localization files in the right place (Closes: #577132)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sat, 10 Apr 2010 06:58:38 +0200
+
 mercurial (1.5.1-1) unstable; urgency=low
 
   * New upstream release
