@@ -1158,7 +1158,9 @@ def diff(ui, repo, *pats, **opts):
     m = cmdutil.match(repo, pats, opts)
     it = patch.diff(repo, node1, node2, match=m, opts=diffopts)
     if stat:
-        width = ui.interactive() and util.termwidth() or 80
+        width = 80
+        if not ui.plain():
+            width = util.termwidth()
         ui.write(patch.diffstat(util.iterlines(it), width=width,
                                 git=diffopts.git))
     else:
@@ -2347,6 +2349,17 @@ def paths(ui, repo, search=None):
     Path names are defined in the [paths] section of /etc/mercurial/hgrc
     and $HOME/.hgrc. If run inside a repository, .hg/hgrc is used, too.
 
+    The path names ``default`` and ``default-push`` have a special
+    meaning.  When performing a push or pull operation, they are used
+    as fallbacks if no location is specified on the command-line.
+    When ``default-push`` is set, it will be used for push and
+    ``default`` will be used for pull; otherwise ``default`` is used
+    as the fallback for both.  When cloning a repository, the clone
+    source is written as ``default`` in ``.hg/hgrc``.  Note that
+    ``default`` and ``default-push`` apply to all inbound (e.g. ``hg
+    incoming``) and outbound (e.g. ``hg outgoing``, ``hg email`` and
+    ``hg bundle``) operations.
+
     See 'hg help urls' for more information.
     """
     if search:
@@ -2440,7 +2453,8 @@ def push(ui, repo, dest=None, **opts):
     c = repo['']
     subs = c.substate # only repos that are committed
     for s in sorted(subs):
-        c.sub(s).push(opts.get('force'))
+        if not c.sub(s).push(opts.get('force')):
+            return False
 
     r = repo.push(other, opts.get('force'), revs=revs)
     return r == 0

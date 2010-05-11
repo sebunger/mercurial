@@ -14,12 +14,12 @@ Suggest Debian packages for some optional dependencies.
          raise util.Abort(_('hook type %s does not pass a changeset id') %
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -43,7 +43,8 @@
+@@ -44,7 +44,8 @@
              # access bzrlib stuff
              branch
          except NameError:
--            raise NoRepo('Bazaar modules could not be loaded')
-+            raise NoRepo('Bazaar modules could not be loaded' +
+-            raise NoRepo(_('Bazaar modules could not be loaded'))
++            raise NoRepo(_('Bazaar modules could not be loaded') +
 +                         _(' (try installing the %s package)') % 'bzr')
  
          path = os.path.abspath(path)
@@ -45,7 +45,7 @@ Suggest Debian packages for some optional dependencies.
 +++ b/hgext/convert/cvs.py
 @@ -21,7 +21,7 @@
          if not os.path.exists(cvs):
-             raise NoRepo("%s does not look like a CVS checkout" % path)
+             raise NoRepo(_("%s does not look like a CVS checkout") % path)
  
 -        checktool('cvs')
 +        checktool('cvs', debname='cvs')
@@ -56,7 +56,7 @@ Suggest Debian packages for some optional dependencies.
 +++ b/hgext/convert/darcs.py
 @@ -39,14 +39,15 @@
          if not os.path.exists(os.path.join(path, '_darcs')):
-             raise NoRepo("%s does not look like a darcs repo" % path)
+             raise NoRepo(_("%s does not look like a darcs repository") % path)
  
 -        checktool('darcs')
 +        checktool('darcs', debname='darcs')
@@ -74,9 +74,9 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -37,7 +37,7 @@
+@@ -43,7 +43,7 @@
          if not os.path.exists(path + "/objects"):
-             raise NoRepo("%s does not look like a Git repo" % path)
+             raise NoRepo(_("%s does not look like a Git repository") % path)
  
 -        checktool('git', 'git')
 +        checktool('git', 'git', debname='git-core')
@@ -85,7 +85,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
-@@ -41,7 +41,8 @@
+@@ -42,7 +42,8 @@
              if util.find_exe('tla'):
                  self.execmd = 'tla'
              else:
@@ -97,7 +97,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -61,7 +61,7 @@
+@@ -62,7 +62,7 @@
          self.files = None
          self.dirs  = None
  
@@ -116,7 +116,7 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -212,16 +213,19 @@
+@@ -213,16 +214,19 @@
          try:
              SubversionException
          except NameError:
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -964,6 +968,9 @@
+@@ -966,6 +970,9 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):

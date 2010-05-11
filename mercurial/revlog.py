@@ -31,7 +31,11 @@ REVLOG_DEFAULT_FLAGS = REVLOGNGINLINEDATA
 REVLOG_DEFAULT_FORMAT = REVLOGNG
 REVLOG_DEFAULT_VERSION = REVLOG_DEFAULT_FORMAT | REVLOG_DEFAULT_FLAGS
 
+# amount of data read unconditionally, should be >= 4
+# when not inline: threshold for using lazy index
 _prereadsize = 1048576
+# max size of revlog with inline data
+_maxinline = 131072
 
 RevlogError = error.RevlogError
 LookupError = error.LookupError
@@ -292,8 +296,7 @@ class lazymap(object):
         return key in self.p.map
     def __iter__(self):
         yield nullid
-        for i in xrange(self.p.l):
-            ret = self.p.index[i]
+        for i, ret in enumerate(self.p.index):
             if not ret:
                 self.p.loadindex(i)
                 ret = self.p.index[i]
@@ -1010,7 +1013,7 @@ class revlog(object):
         return text
 
     def checkinlinesize(self, tr, fp=None):
-        if not self._inline or (self.start(-2) + self.length(-2)) < 131072:
+        if not self._inline or (self.start(-2) + self.length(-2)) < _maxinline:
             return
 
         trinfo = tr.find(self.indexfile)

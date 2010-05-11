@@ -1,3 +1,39 @@
+mercurial (1.5.2-1) unstable; urgency=low
+
+  * New upstream release. Many minor fixes:
+    + Core
+      * clone: fix URL too long problem with many heads
+      * commands: revised documentation of 'default' and 'default-push'
+      * copies: properly visit file context ancestors on working file contexts
+      * diffstat: use ui.plain() instead of ui.interactive()
+      * dirstate: fix in memory dirstate entries for 1-second race
+      * dispatch: don't mangle ImportError abort messages
+      * filemerge: use working dir parent as ancestor for backward wdir merge
+      * hgrc.5: describe form of config values and mention lists as well
+      * hgweb: fix attribute error in error response (issue2060)
+      * log: document the new xml style
+      * merge: correctly compute the flag for noexec filesystems
+      * patch: don't look for headers in diff lines
+      * push: fix bug in warning message selection
+      * revlog: fix lazyparser.__iter__() to return all revisions (issue2137)
+      * static-http: allow clone -r (issue2164)
+      * subrepo: fix repo root path handling in svn subrepo
+      * subrepo: propagate and catch push failures
+      * templates: document missing template variables
+      * util: fix default termwidth() under Windows
+      * util: use an explicit prefix for checkexec/checklink temporary files 
+    + Extensions
+      * convert/cvs: skip bad tags
+      * convert/git: check status when reading output stream
+      * convert/subversion: fix default URL checker prototype
+      * mq: rewrite strip docstrings
+      * mq: use util.unlink instead of os.unlink and os.removedirs
+      * schemes: fix // breakage with Python 2.6.5 (issue2111) 
+  * Fix "bashism in /bin/sh hgeditor script" (changing shebang line)
+    (Closes: #581122)
+
+ -- Vincent Danjean <vdanjean@debian.org>  Tue, 11 May 2010 11:01:25 +0200
+
 mercurial (1.5.1-2) unstable; urgency=low
 
   * Refresh debian patches

@@ -157,6 +157,11 @@ the configuration file in which the \fB%include\fP directive is found.
 .sp
 A line with \fB%unset name\fP will remove \fBname\fP from the current
 section, if it has been set previously.
+.sp
+The values are either free\-form text strings, lists of text strings,
+or Boolean values. Lists are split on whitespace and commas. Boolean
+values can be set to true using any of "1", "yes", "true", or "on" and
+to false using "0", "no", "false", or "off" (all case insensitive).
 .SH SECTIONS
 .sp
 This section describes the different sections that may appear in a

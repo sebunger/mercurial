@@ -1452,6 +1452,16 @@ argument to --rev if given) is printed.</p>
 show definition of all available names.</p>
 <p>Path names are defined in the [paths] section of /etc/mercurial/hgrc
 and $HOME/.hgrc. If run inside a repository, .hg/hgrc is used, too.</p>
+<p>The path names <tt class="docutils literal"><span class="pre">default</span></tt> and <tt class="docutils literal"><span class="pre">default-push</span></tt> have a special
+meaning.  When performing a push or pull operation, they are used
+as fallbacks if no location is specified on the command-line.
+When <tt class="docutils literal"><span class="pre">default-push</span></tt> is set, it will be used for push and
+<tt class="docutils literal"><span class="pre">default</span></tt> will be used for pull; otherwise <tt class="docutils literal"><span class="pre">default</span></tt> is used
+as the fallback for both.  When cloning a repository, the clone
+source is written as <tt class="docutils literal"><span class="pre">default</span></tt> in <tt class="docutils literal"><span class="pre">.hg/hgrc</span></tt>.  Note that
+<tt class="docutils literal"><span class="pre">default</span></tt> and <tt class="docutils literal"><span class="pre">default-push</span></tt> apply to all inbound (e.g. <tt class="docutils literal"><span class="pre">hg</span>
+<span class="pre">incoming</span></tt>) and outbound (e.g. <tt class="docutils literal"><span class="pre">hg</span> <span class="pre">outgoing</span></tt>, <tt class="docutils literal"><span class="pre">hg</span> <span class="pre">email</span></tt> and
+<tt class="docutils literal"><span class="pre">hg</span> <span class="pre">bundle</span></tt>) operations.</p>
 <p class="last">See 'hg help urls' for more information.</p>
 </dd>
 </dl>
@@ -2383,8 +2393,9 @@ line, via the --template option, or select an existing
 template-style (--style).</p>
 <p>You can customize output for any &quot;log-like&quot; command: log,
 outgoing, incoming, tip, parents, heads and glog.</p>
-<p>Three styles are packaged with Mercurial: default (the style used
-when no explicit preference is passed), compact and changelog.
+<p>Four styles are packaged with Mercurial: default (the style used
+when no explicit preference is passed), compact, changelog,
+and xml.
 Usage:</p>
 <pre class="literal-block">
 $ hg log -r1 --style changelog

@@ -664,7 +664,7 @@ def checkexec(path):
 
     try:
         EXECFLAGS = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-        fh, fn = tempfile.mkstemp("", "", path)
+        fh, fn = tempfile.mkstemp(dir=path, prefix='hg-checkexec-')
         try:
             os.close(fh)
             m = os.stat(fn).st_mode & 0777
@@ -682,7 +682,7 @@ def checklink(path):
     """check whether the given path is on a symlink-capable filesystem"""
     # mktemp is not racy because symlink creation will fail if the
     # file already exists
-    name = tempfile.mktemp(dir=path)
+    name = tempfile.mktemp(dir=path, prefix='hg-checklink-')
     try:
         os.symlink(".", name)
         os.unlink(name)
@@ -1245,35 +1245,6 @@ def uirepr(s):
     # Avoid double backslash in Windows path repr()
     return repr(s).replace('\\\\', '\\')
 
-def termwidth():
-    if 'COLUMNS' in os.environ:
-        try:
-            return int(os.environ['COLUMNS'])
-        except ValueError:
-            pass
-    try:
-        import termios, array, fcntl
-        for dev in (sys.stderr, sys.stdout, sys.stdin):
-            try:
-                try:
-                    fd = dev.fileno()
-                except AttributeError:
-                    continue
-                if not os.isatty(fd):
-                    continue
-                arri = fcntl.ioctl(fd, termios.TIOCGWINSZ, '\0' * 8)
-                return array.array('h', arri)[1]
-            except ValueError:
-                pass
-            except IOError, e:
-                if e[0] == errno.EINVAL:
-                    pass
-                else:
-                    raise
-    except ImportError:
-        pass
-    return 80
-
 def wrap(line, hangindent, width=None):
     if width is None:
         width = termwidth() - 2
@@ -1357,3 +1328,11 @@ except NameError:
             if not i:
                 return False
         return True
+
+def termwidth():
+    if 'COLUMNS' in os.environ:
+        try:
+            return int(os.environ['COLUMNS'])
+        except ValueError:
+            pass
+    return termwidth_()

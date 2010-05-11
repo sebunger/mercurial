@@ -1179,12 +1179,10 @@ class queue(object):
                     raise util.Abort(_("deletions found between repo revs"))
                 for f in a:
                     try:
-                        os.unlink(repo.wjoin(f))
+                        util.unlink(repo.wjoin(f))
                     except OSError, e:
                         if e.errno != errno.ENOENT:
                             raise
-                    try: os.removedirs(os.path.dirname(repo.wjoin(f)))
-                    except: pass
                     repo.dirstate.forget(f)
                 for f in m:
                     getfile(f, mmap[f], mmap.flags(f))
@@ -1432,7 +1430,7 @@ class queue(object):
             if summary:
                 ph = patchheader(self.join(patchname), self.plainmode)
                 msg = ph.message and ph.message[0] or ''
-                if self.ui.interactive():
+                if not self.ui.plain():
                     width = util.termwidth() - len(pfx) - len(patchname) - 2
                     if width > 0:
                         msg = util.ellipsis(msg, width)
@@ -2372,11 +2370,28 @@ def save(ui, repo, **opts):
     return 0
 
 def strip(ui, repo, rev, **opts):
-    """strip a revision and all its descendants from the repository
+    """strip a changeset and all its descendants from the repository
 
-    If one of the working directory's parent revisions is stripped, the
-    working directory will be updated to the parent of the stripped
-    revision.
+    The strip command removes all changesets whose local revision
+    number is greater than or equal to REV, and then restores any
+    changesets that are not descendants of REV. If the working
+    directory has uncommitted changes, the operation is aborted unless
+    the --force flag is supplied.
+
+    If a parent of the working directory is stripped, then the working
+    directory will automatically be updated to the most recent
+    available ancestor of the stripped parent after the operation
+    completes.
+
+    Any stripped changesets are stored in ``.hg/strip-backup`` as a
+    bundle (see ``hg help bundle`` and ``hg help unbundle``). They can
+    be restored by running ``hg unbundle .hg/strip-backup/BUNDLE``,
+    where BUNDLE is the bundle file created by the strip. Note that
+    the local revision numbers will in general be different after the
+    restore.
+
+    Use the --nobackup option to discard the backup bundle once the
+    operation completes.
     """
     backup = 'all'
     if opts['backup']:
@@ -2744,7 +2759,7 @@ cmdtable = {
           ('D', 'currentdate', None, _('add "Date: <current date>" to patch')),
           ('d', 'date', '', _('add "Date: <given date>" to patch'))
           ] + commands.walkopts + commands.commitopts,
-         _('hg qnew [-e] [-m TEXT] [-l FILE] [-f] PATCH [FILE]...')),
+         _('hg qnew [-e] [-m TEXT] [-l FILE] PATCH [FILE]...')),
     "qnext": (next, [] + seriesopts, _('hg qnext [-s]')),
     "qprev": (prev, [] + seriesopts, _('hg qprev [-s]')),
     "^qpop":
@@ -2802,14 +2817,17 @@ cmdtable = {
         (series,
          [('m', 'missing', None, _('print patches not in series')),
          ] + seriesopts,
-         _('hg qseries [-ms]')),
-    "^strip":
-        (strip,
-         [('f', 'force', None, _('force removal with local changes')),
-          ('b', 'backup', None, _('bundle unrelated changesets')),
-          ('n', 'nobackup', None, _('no backups'))],
-         _('hg strip [-f] [-b] [-n] REV')),
-    "qtop": (top, [] + seriesopts, _('hg qtop [-s]')),
+          _('hg qseries [-ms]')),
+     "^strip":
+         (strip,
+         [('f', 'force', None, _('force removal of changesets even if the '
+                                 'working directory has uncommitted changes')),
+          ('b', 'backup', None, _('bundle only changesets with local revision'
+                                  ' number greater than REV which are not'
+                                  ' descendants of REV (DEPRECATED)')),
+           ('n', 'nobackup', None, _('no backups'))],
+          _('hg strip [-f] [-b] [-n] REV')),
+     "qtop": (top, [] + seriesopts, _('hg qtop [-s]')),
     "qunapplied":
         (unapplied,
          [('1', 'first', None, _('show only the first patch'))] + seriesopts,

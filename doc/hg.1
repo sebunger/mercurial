@@ -1694,6 +1694,17 @@ show definition of all available names.
 Path names are defined in the [paths] section of /etc/mercurial/hgrc
 and $HOME/.hgrc. If run inside a repository, .hg/hgrc is used, too.
 .sp
+The path names \fBdefault\fP and \fBdefault\-push\fP have a special
+meaning.  When performing a push or pull operation, they are used
+as fallbacks if no location is specified on the command\-line.
+When \fBdefault\-push\fP is set, it will be used for push and
+\fBdefault\fP will be used for pull; otherwise \fBdefault\fP is used
+as the fallback for both.  When cloning a repository, the clone
+source is written as \fBdefault\fP in \fB.hg/hgrc\fP.  Note that
+\fBdefault\fP and \fBdefault\-push\fP apply to all inbound (e.g. \fBhg
+incoming\fP) and outbound (e.g. \fBhg outgoing\fP, \fBhg email\fP and
+\fBhg bundle\fP) operations.
+.sp
 See \(aqhg help urls\(aq for more information.
 .UNINDENT
 .INDENT 0.0
@@ -2918,8 +2929,9 @@ template\-style (\-\-style).
 You can customize output for any "log\-like" command: log,
 outgoing, incoming, tip, parents, heads and glog.
 .sp
-Three styles are packaged with Mercurial: default (the style used
-when no explicit preference is passed), compact and changelog.
+Four styles are packaged with Mercurial: default (the style used
+when no explicit preference is passed), compact, changelog,
+and xml.
 Usage:
 .sp
 .nf
