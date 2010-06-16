@@ -137,7 +137,8 @@ site-wide configuration in <tt class="docutils literal"><span class="pre">C:\Mer
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
 <p>A configuration file consists of sections, led by a <tt class="docutils literal"><span class="pre">[section]</span></tt> header
-and followed by <tt class="docutils literal"><span class="pre">name</span> <span class="pre">=</span> <span class="pre">value</span></tt> entries:</p>
+and followed by <tt class="docutils literal"><span class="pre">name</span> <span class="pre">=</span> <span class="pre">value</span></tt> entries (sometimes called
+<tt class="docutils literal"><span class="pre">configuration</span> <span class="pre">keys</span></tt>):</p>
 <pre class="literal-block">
 [spam]
 eggs=ham
@@ -148,6 +149,42 @@ green=
 they are treated as continuations of that entry. Leading whitespace is
 removed from values. Empty lines are skipped. Lines beginning with
 <tt class="docutils literal"><span class="pre">#</span></tt> or <tt class="docutils literal"><span class="pre">;</span></tt> are ignored and may be used to provide comments.</p>
+<p>Configuration keys can be set multiple times, in which case mercurial
+will use the value that was configured last. As an example:</p>
+<pre class="literal-block">
+[spam]
+eggs=large
+ham=serrano
+eggs=small
+</pre>
+<p>This would set the configuration key named <tt class="docutils literal"><span class="pre">eggs</span></tt> to <tt class="docutils literal"><span class="pre">small</span></tt>.</p>
+<p>It is also possible to define a section multiple times. A section can
+be redefined on the same and/or on different hgrc files. For example:</p>
+<pre class="literal-block">
+[foo]
+eggs=large
+ham=serrano
+eggs=small
+
+[bar]
+eggs=ham
+green=
+   eggs
+
+[foo]
+ham=prosciutto
+eggs=medium
+bread=toasted
+</pre>
+<p>This would set the <tt class="docutils literal"><span class="pre">eggs</span></tt>, <tt class="docutils literal"><span class="pre">ham</span></tt>, and <tt class="docutils literal"><span class="pre">bread</span></tt> configuration keys
+of the <tt class="docutils literal"><span class="pre">foo</span></tt> section to <tt class="docutils literal"><span class="pre">medium</span></tt>, <tt class="docutils literal"><span class="pre">prosciutto</span></tt>, and <tt class="docutils literal"><span class="pre">toasted</span></tt>,
+respectively. As you can see there only thing that matters is the last
+value that was set for each of the configuration keys.</p>
+<p>If a configuration key is set multiple times in different
+configuration files the final value will depend on the order in which
+the different configuration files are read, with settings from earlier
+paths overriding later ones as described on the <tt class="docutils literal"><span class="pre">Files</span></tt> section
+above.</p>
 <p>A line of the form <tt class="docutils literal"><span class="pre">%include</span> <span class="pre">file</span></tt> will include <tt class="docutils literal"><span class="pre">file</span></tt> into the
 current configuration file. The inclusion is recursive, which means
 that included files can include other files. Filenames are relative to

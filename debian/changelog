@@ -1,3 +1,25 @@
+mercurial (1.5.4-1) unstable; urgency=low
+
+  * New upstream release (1.5.3). Fixes:
+    * fix Issue2181 (commit generates traceback on Nonetype)
+    * various improvements to SVN conversion support
+    * minor doc improvements
+  * New upstream release (1.5.4) (Closes: #586322). Fixes:
+    * dispatch: include Python version in traceback
+    * push: update help
+    * status: avoid performance regression when no .hgsub is present
+    * clone: fix performance issue with hardlinks and Windows shares
+    * hgweb: fix race in refreshing repo list (issue2188)
+    * hgrc: clarify that hgrc keys can be overridden and sections can be split
+    * eol: new extension for managing file newlines based on a version
+        controlled configuration file
+    * pager: fork and exec pager as parent process with /bin/sh -c
+    * rebase: stress that only local changesets should be rebased
+    * convert/svn: close gettags() log stream (issue2196)
+    * record: check that we are not committing a merge before patch selection
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 16 Jun 2010 09:51:21 +0200
+
 mercurial (1.5.2-1) unstable; urgency=low
 
   * New upstream release. Many minor fixes:

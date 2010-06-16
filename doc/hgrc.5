@@ -134,7 +134,8 @@ site\-wide configuration in \fBC:\eMercurial\eMercurial.ini\fP.
 .SH SYNTAX
 .sp
 A configuration file consists of sections, led by a \fB[section]\fP header
-and followed by \fBname = value\fP entries:
+and followed by \fBname = value\fP entries (sometimes called
+\fBconfiguration keys\fP):
 .sp
 .nf
 .ft C
@@ -149,6 +150,53 @@ Each line contains one entry. If the lines that follow are indented,
 they are treated as continuations of that entry. Leading whitespace is
 removed from values. Empty lines are skipped. Lines beginning with
 \fB#\fP or \fB;\fP are ignored and may be used to provide comments.
+.sp
+Configuration keys can be set multiple times, in which case mercurial
+will use the value that was configured last. As an example:
+.sp
+.nf
+.ft C
+[spam]
+eggs=large
+ham=serrano
+eggs=small
+.ft P
+.fi
+.sp
+This would set the configuration key named \fBeggs\fP to \fBsmall\fP.
+.sp
+It is also possible to define a section multiple times. A section can
+be redefined on the same and/or on different hgrc files. For example:
+.sp
+.nf
+.ft C
+[foo]
+eggs=large
+ham=serrano
+eggs=small
+
+[bar]
+eggs=ham
+green=
+   eggs
+
+[foo]
+ham=prosciutto
+eggs=medium
+bread=toasted
+.ft P
+.fi
+.sp
+This would set the \fBeggs\fP, \fBham\fP, and \fBbread\fP configuration keys
+of the \fBfoo\fP section to \fBmedium\fP, \fBprosciutto\fP, and \fBtoasted\fP,
+respectively. As you can see there only thing that matters is the last
+value that was set for each of the configuration keys.
+.sp
+If a configuration key is set multiple times in different
+configuration files the final value will depend on the order in which
+the different configuration files are read, with settings from earlier
+paths overriding later ones as described on the \fBFiles\fP section
+above.
 .sp
 A line of the form \fB%include file\fP will include \fBfile\fP into the
 current configuration file. The inclusion is recursive, which means

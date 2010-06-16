@@ -582,7 +582,7 @@ Commands
     -i, --ignore-case         ignore case when matching
     -l, --files-with-matches  print only filenames and revisions that match
     -n, --line-number         print matching line numbers
-    -r, --rev                 search in given revision range
+    -r, --rev                 only search files changed within revision range
     -u, --user                list the author (long with -v)
     -d, --date                list the date (short with -q)
     -I, --include             include names matching the given patterns
@@ -954,19 +954,22 @@ Commands
 .. _push:
 
 ``push [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [DEST]``
-    Push changes from the local repository to the specified destination.
+    Push changesets from the local repository to the specified
+    destination.
 
-    This is the symmetrical operation for pull. It moves changes from
-    the current repository to a different one. If the destination is
-    local this is identical to a pull in that directory from the
-    current one.
+    This operation is symmetrical to pull: it is identical to a pull
+    in the destination repository from the current one.
 
-    By default, push will refuse to run if it detects the result would
-    increase the number of remote heads. This generally indicates the
-    user forgot to pull and merge before pushing.
+    By default, push will not allow creation of new heads at the
+    destination, since multiple heads would make it unclear which head
+    to use. In this situation, it is recommended to pull and merge
+    before pushing.
 
-    If -r/--rev is used, the named revision and all its ancestors will
-    be pushed to the remote repository.
+    Use -f/--force to override the default behavior and push all
+    changesets on all branches.
+
+    If -r/--rev is used, the specified revision and all its ancestors
+    will be pushed to the remote repository.
 
     Please see 'hg help urls' for important details about ``ssh://``
     URLs. If DESTINATION is omitted, a default path will be used.
@@ -1162,7 +1165,16 @@ Commands
 .. _serve:
 
 ``serve [OPTION]...``
-    Start a local HTTP repository browser and pull server.
+    Start a local HTTP repository browser and pull server. You can use
+    this for ad-hoc sharing and browing of repositories. It is
+    recommended to use a real web server to serve a repository for
+    longer periods of time.
+
+    Please note that the server does not implement access control.
+    This means that, by default, anybody can read from the server and
+    nobody can write to it by default. Set the ``web.allow_push``
+    option to ``*`` to allow everybody to push to the server. You
+    should use a real web server if you need to authenticate users.
 
     By default, the server logs accesses to stdout and errors to
     stderr. Use the -A/--accesslog and -E/--errorlog options to log to
@@ -1990,6 +2002,7 @@ disabled extensions:
  :churn:         command to display statistics about repository history
  :color:         colorize output from some commands
  :convert:       import revisions from foreign VCS repositories into Mercurial
+ :eol:           automatically manage newlines in repository files
  :extdiff:       command to allow external programs to compare revisions
  :fetch:         pull, update and merge in one command
  :gpg:           commands to sign and verify changesets

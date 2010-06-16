@@ -24,7 +24,7 @@ class localrepository(repo.repository):
 
     def __init__(self, baseui, path=None, create=0):
         repo.repository.__init__(self)
-        self.root = os.path.realpath(path)
+        self.root = os.path.realpath(util.expandpath(path))
         self.path = os.path.join(self.root, ".hg")
         self.origroot = path
         self.opener = util.opener(self.path)
@@ -1010,7 +1010,9 @@ class localrepository(repo.repository):
             match.bad = bad
 
         if working: # we need to scan the working dir
-            subrepos = ctx1.substate.keys()
+            subrepos = []
+            if '.hgsub' in self.dirstate:
+                subrepos = ctx1.substate.keys()
             s = self.dirstate.status(match, subrepos, listignored,
                                      listclean, listunknown)
             cmp, modified, added, removed, deleted, unknown, ignored, clean = s

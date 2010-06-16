@@ -3,7 +3,8 @@ Section: vcs
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
- Vernon Tang <vt@foilhead.net>
+ Vernon Tang <vt@foilhead.net>,
+ Javi Merino <cibervicho@gmail.com>
 Build-Depends: debhelper (>= 7.0.50), quilt (>= 0.46-7~),
  patchutils (>= 0.2.25), gettext,
  python-support (>= 0.5.3), python-all-dev (>= 2.5.4-1~), python-docutils,

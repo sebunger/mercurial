@@ -15,8 +15,8 @@ import verify as _verify
 import errno, os, shutil
 
 def _local(path):
-    return (os.path.isfile(util.drop_scheme('file', path)) and
-            bundlerepo or localrepo)
+    path = util.expandpath(util.drop_scheme('file', path))
+    return (os.path.isfile(path) and bundlerepo or localrepo)
 
 def addbranchrevs(lrepo, repo, branches, revs):
     if not branches:
@@ -277,6 +277,7 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
                                      % dest)
                 raise
 
+            hardlink = None
             for f in src_repo.store.copylist():
                 src = os.path.join(src_repo.sharedpath, f)
                 dst = os.path.join(dest_path, f)
@@ -287,7 +288,7 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
                     if dst.endswith('data'):
                         # lock to avoid premature writing to the target
                         dest_lock = lock.lock(os.path.join(dstbase, "lock"))
-                    util.copyfiles(src, dst)
+                    hardlink = util.copyfiles(src, dst, hardlink)
 
             # we need to re-init the repo after manually copying the data
             # into it
