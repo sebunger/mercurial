@@ -2,7 +2,7 @@ Use sensible-editor as default instead of vi.
 
 --- a/doc/hgrc.5.txt
 +++ b/doc/hgrc.5.txt
-@@ -768,7 +768,8 @@
+@@ -808,7 +808,8 @@
  ``debug``
      Print debugging information. True or False. Default is False.
  ``editor``
@@ -49,7 +49,7 @@ Use sensible-editor as default instead of vi.
          '''show a progress message
 --- a/i18n/da.po
 +++ b/i18n/da.po
-@@ -5750,7 +5750,7 @@
+@@ -5817,7 +5817,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -58,7 +58,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
-@@ -8423,7 +8423,7 @@
+@@ -8518,7 +8518,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -184,7 +184,7 @@ Use sensible-editor as default instead of vi.
  "    Mercurial が当該システムの共有領域にインストールされていない場合、\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -7323,10 +7323,10 @@
+@@ -7487,10 +7487,10 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -197,7 +197,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your .hgrc file)\n"
  msgstr " (especifique um editor para consolidação em seu arquivo .hgrc)\n"
-@@ -10391,7 +10391,7 @@
+@@ -10583,7 +10583,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -206,7 +206,7 @@ Use sensible-editor as default instead of vi.
  "\n"
  "PYTHONPATH\n"
  "    This is used by Python to find imported modules and may need to be\n"
-@@ -10483,7 +10483,7 @@
+@@ -10675,7 +10675,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
