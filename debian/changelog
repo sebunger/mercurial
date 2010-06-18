@@ -4,7 +4,7 @@ mercurial (1.5.4-1) unstable; urgency=low
     * fix Issue2181 (commit generates traceback on Nonetype)
     * various improvements to SVN conversion support
     * minor doc improvements
-  * New upstream release (1.5.4). Fixes:
+  * New upstream release (1.5.4) (Closes: #586322). Fixes:
     * dispatch: include Python version in traceback
     * push: update help
     * status: avoid performance regression when no .hgsub is present
