@@ -7,6 +7,7 @@ mercurial (1.6-1) UNRELEASED; urgency=low
     - zeroconf: Don't use string exceptions (Closes: #585250)
   * Removed patch for_upstream__bashism_in_examples.patch since a fix for
       #581122 is included upstream.
+  * Updated Standards-Version to 3.9 (no change needed)
 
  -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Jul 2010 13:02:34 +0200
 
