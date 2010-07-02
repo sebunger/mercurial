@@ -5,8 +5,10 @@ mercurial (1.6-1) UNRELEASED; urgency=low
     - push: break infinite http recursion bug with Python 2.6.5
          (issue2179 and issue2255) (Closes: #586907)
     - zeroconf: Don't use string exceptions (Closes: #585250)
+  * Removed patch for_upstream__bashism_in_examples.patch since a fix for
+      #581122 is included upstream.
 
- -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Jul 2010 12:42:21 +0200
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Jul 2010 13:02:34 +0200
 
 mercurial (1.5.4-2) unstable; urgency=low
 
