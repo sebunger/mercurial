@@ -1,4 +1,4 @@
-mercurial (1.6-1) UNRELEASED; urgency=low
+mercurial (1.6-1) unstable; urgency=low
 
   * New upstream release (1.6). Many bug fixes and improvements. Among
       them:
@@ -9,7 +9,7 @@ mercurial (1.6-1) UNRELEASED; urgency=low
       #581122 is included upstream.
   * Updated Standards-Version to 3.9 (no change needed)
 
- -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Jul 2010 13:02:34 +0200
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Jul 2010 19:45:53 +0200
 
 mercurial (1.5.4-2) unstable; urgency=low
 
