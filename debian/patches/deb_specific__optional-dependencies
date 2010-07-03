@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -970,6 +974,9 @@
+@@ -953,6 +957,9 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -151,13 +151,13 @@ Suggest Debian packages for some optional dependencies.
          self.delete = []
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -260,7 +260,8 @@
-                     from OpenSSL import SSL
-                     ctx = SSL.Context(SSL.SSLv23_METHOD)
-                 except ImportError:
--                    raise util.Abort(_("SSL support is unavailable"))
-+                    raise util.Abort(_("SSL support is unavailable") +
-+                                     _(" (try installing the %s package)") % 'python-openssl')
-                 ctx.use_privatekey_file(ssl_cert)
-                 ctx.use_certificate_file(ssl_cert)
-                 sock = socket.socket(self.address_family, self.socket_type)
+@@ -225,7 +225,8 @@
+                 from OpenSSL import SSL
+                 ctx = SSL.Context(SSL.SSLv23_METHOD)
+             except ImportError:
+-                raise util.Abort(_("SSL support is unavailable"))
++                raise util.Abort(_("SSL support is unavailable") +
++                                 _(" (try installing the %s package)") % 'python-openssl')
+             ctx.use_privatekey_file(ssl_cert)
+             ctx.use_certificate_file(ssl_cert)
+             sock = socket.socket(self.address_family, self.socket_type)
