@@ -1,5 +1,6 @@
 mercurial (1.6-1) unstable; urgency=low
 
+  [ Javi Merino ]
   * New upstream release (1.6). Many bug fixes and improvements. Among
       them:
     - push: break infinite http recursion bug with Python 2.6.5
@@ -9,7 +10,14 @@ mercurial (1.6-1) unstable; urgency=low
       #581122 is included upstream.
   * Updated Standards-Version to 3.9 (no change needed)
 
- -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Jul 2010 19:45:53 +0200
+  [ Vincent Danjean ]
+  * debian/control:
+    + Use Breaks instead of Conflicts
+    + Use a fixed version in Replaces
+      I put 1.4 but it has been a long time since nothing has been moved
+      from mercurial to mercurial-common
+
+ -- Vincent Danjean <vdanjean@debian.org>  Sun, 04 Jul 2010 09:55:28 +0200
 
 mercurial (1.5.4-2) unstable; urgency=low
 

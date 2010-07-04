@@ -22,8 +22,8 @@ Suggests: wish,
  python-mysqldb, 
  python-pygments,
  python-openssl
-Conflicts: mercurial (<< ${binary:Version})
-Replaces: mercurial (<< ${binary:Version})
+Breaks: mercurial (<< ${binary:Version})
+Replaces: mercurial (<< 1.4)
 Description: scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
