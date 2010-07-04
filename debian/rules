@@ -41,7 +41,6 @@ install-archdep:
 	install -m 644 \
 		contrib/bash_completion \
 		$(CURDIR)/debian/mercurial/etc/bash_completion.d/mercurial
-	
 	# Install system-wide conffiles
 	echo "# system-wide mercurial configuration file" \
 		>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
@@ -50,7 +49,6 @@ install-archdep:
 	install -m 644 \
 		contrib/mergetools.hgrc \
 		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
-	
 	# remove arch-independent python stuff
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \
@@ -62,7 +60,7 @@ install-archindep:
 		-name '*.so' ! -type d -delete , \
 		-type d -empty -delete
 
-override_dh_auto_clean:
+override_dh_auto_clean: mercurial/__version__.py
 	cp -a mercurial/__version__.py mercurial/__version__.py.save
 	$(MAKE) clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
