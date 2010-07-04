@@ -16,7 +16,7 @@ hide platform-specific details from the core.
 from i18n import _
 import error, osutil, encoding
 import cStringIO, errno, re, shutil, sys, tempfile, traceback
-import os, stat, time, calendar, textwrap, signal
+import os, stat, time, calendar, textwrap, unicodedata, signal
 import imp
 
 # Python compatibility
@@ -35,6 +35,13 @@ def _fastsha1(s):
     global _fastsha1, sha1
     _fastsha1 = sha1 = _sha1
     return _sha1(s)
+
+import __builtin__
+
+def fakebuffer(sliceable, offset=0):
+    return sliceable[offset:]
+if not hasattr(__builtin__, 'buffer'):
+    __builtin__.buffer = fakebuffer
 
 import subprocess
 closefds = os.name == 'posix'
@@ -359,13 +366,16 @@ def set_hgexecutable(path):
     global _hgexecutable
     _hgexecutable = path
 
-def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
+def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
     '''enhanced shell command execution.
     run with environment maybe modified, maybe in different dir.
 
     if command fails and onerr is None, return status.  if ui object,
     print error message and return status, else raise onerr object as
-    exception.'''
+    exception.
+
+    if out is specified, it is assumed to be a file-like object that has a
+    write() method. stdout and stderr will be redirected to out.'''
     def py2shell(val):
         'convert python object into string that is useful to shell'
         if val is None or val is False:
@@ -379,8 +389,17 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
     env = dict(os.environ)
     env.update((k, py2shell(v)) for k, v in environ.iteritems())
     env['HG'] = hgexecutable()
-    rc = subprocess.call(cmd, shell=True, close_fds=closefds,
-                         env=env, cwd=cwd)
+    if out is None:
+        rc = subprocess.call(cmd, shell=True, close_fds=closefds,
+                             env=env, cwd=cwd)
+    else:
+        proc = subprocess.Popen(cmd, shell=True, close_fds=closefds,
+                                env=env, cwd=cwd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        for line in proc.stdout:
+            out.write(line)
+        proc.wait()
+        rc = proc.returncode
     if sys.platform == 'OpenVMS' and rc & 1:
         rc = 0
     if rc and onerr:
@@ -446,12 +465,14 @@ def copyfiles(src, dst, hardlink=None):
         hardlink = (os.stat(src).st_dev ==
                     os.stat(os.path.dirname(dst)).st_dev)
 
+    num = 0
     if os.path.isdir(src):
         os.mkdir(dst)
         for name, kind in osutil.listdir(src):
             srcname = os.path.join(src, name)
             dstname = os.path.join(dst, name)
-            hardlink = copyfiles(srcname, dstname, hardlink)
+            hardlink, n = copyfiles(srcname, dstname, hardlink)
+            num += n
     else:
         if hardlink:
             try:
@@ -461,8 +482,9 @@ def copyfiles(src, dst, hardlink=None):
                 shutil.copy(src, dst)
         else:
             shutil.copy(src, dst)
+        num += 1
 
-    return hardlink
+    return hardlink, num
 
 class path_auditor(object):
     '''ensure that a filesystem path contains no banned components.
@@ -767,7 +789,7 @@ class atomictempfile(object):
     file.  When rename is called, the copy is renamed to the original
     name, making the changes visible.
     """
-    def __init__(self, name, mode, createmode):
+    def __init__(self, name, mode='w+b', createmode=None):
         self.__name = name
         self._fp = None
         self.temp = mktempcopy(name, emptyok=('w' in mode),
@@ -1247,21 +1269,49 @@ def uirepr(s):
     # Avoid double backslash in Windows path repr()
     return repr(s).replace('\\\\', '\\')
 
-def wrap(line, hangindent, width=None):
+#### naming convention of below implementation follows 'textwrap' module
+
+class MBTextWrapper(textwrap.TextWrapper):
+    def __init__(self, **kwargs):
+        textwrap.TextWrapper.__init__(self, **kwargs)
+
+    def _cutdown(self, str, space_left):
+        l = 0
+        ucstr = unicode(str, encoding.encoding)
+        w = unicodedata.east_asian_width
+        for i in xrange(len(ucstr)):
+            l += w(ucstr[i]) in 'WFA' and 2 or 1
+            if space_left < l:
+                return (ucstr[:i].encode(encoding.encoding),
+                        ucstr[i:].encode(encoding.encoding))
+        return str, ''
+
+    # ----------------------------------------
+    # overriding of base class
+
+    def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
+        space_left = max(width - cur_len, 1)
+
+        if self.break_long_words:
+            cut, res = self._cutdown(reversed_chunks[-1], space_left)
+            cur_line.append(cut)
+            reversed_chunks[-1] = res
+        elif not cur_line:
+            cur_line.append(reversed_chunks.pop())
+
+#### naming convention of above implementation follows 'textwrap' module
+
+def wrap(line, width=None, initindent='', hangindent=''):
     if width is None:
         width = termwidth() - 2
-    if width <= hangindent:
+    maxindent = max(len(hangindent), len(initindent))
+    if width <= maxindent:
         # adjust for weird terminal size
-        width = max(78, hangindent + 1)
-    padding = '\n' + ' ' * hangindent
-    # To avoid corrupting multi-byte characters in line, we must wrap
-    # a Unicode string instead of a bytestring.
-    try:
-        u = line.decode(encoding.encoding)
-        w = padding.join(textwrap.wrap(u, width=width - hangindent))
-        return w.encode(encoding.encoding)
-    except UnicodeDecodeError:
-        return padding.join(textwrap.wrap(line, width=width - hangindent))
+        width = max(78, maxindent + 1)
+    wrapper = MBTextWrapper(width=width,
+                            initial_indent=initindent,
+                            subsequent_indent=hangindent)
+    return wrapper.fill(line)
 
 def iterlines(iterator):
     for chunk in iterator:

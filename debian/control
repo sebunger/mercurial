@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 7.0.50), quilt (>= 0.46-7~),
  patchutils (>= 0.2.25), gettext,
  python-support (>= 0.5.3), python-all-dev (>= 2.5.4-1~), python-docutils,
  zip, unzip
-Standards-Version: 3.8.4
+Standards-Version: 3.9
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
@@ -22,8 +22,8 @@ Suggests: wish,
  python-mysqldb, 
  python-pygments,
  python-openssl
-Conflicts: mercurial (<< ${binary:Version})
-Replaces: mercurial (<< ${binary:Version})
+Breaks: mercurial (<< ${binary:Version})
+Replaces: mercurial (<< 1.4)
 Description: scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

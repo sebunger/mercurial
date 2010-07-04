@@ -1,14 +1,11 @@
 hgeditor
 contrib/dumprevlog
-contrib/git-viz
-contrib/hgdiff
 contrib/hgsh
-contrib/hgwebdir.fcgi
-contrib/hgwebdir.wsgi
+contrib/hgweb.fcgi
+contrib/hgweb.wsgi
 contrib/mercurial.el
 contrib/perf.py
 contrib/python-hook-examples.py
-contrib/rewrite-log
 contrib/sample.hgrc
 contrib/shrink-revlog.py
 contrib/simplemerge
@@ -19,4 +16,3 @@ contrib/undumprevlog
 contrib/vim
 contrib/zsh_completion
 hgweb.cgi
-hgwebdir.cgi

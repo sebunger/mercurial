@@ -1,5 +1,17 @@
 Support installation of help topics handled by mercurial-common.install.
 
+--- a/setup.py
++++ b/setup.py
+@@ -280,8 +280,7 @@
+         extmodules.append(inotify)
+         packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
+ 
+-packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo',
+-                             'help/*.txt']}
++packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo']}
+ 
+ def ordinarypath(p):
+     return p and p[0] != '.' and p[-1] != '~'
 --- a/mercurial/help.py
 +++ b/mercurial/help.py
 @@ -73,9 +73,11 @@
@@ -10,21 +22,9 @@ Support installation of help topics handled by mercurial-common.install.
          for dir in ('.', '..'):
 -            docdir = os.path.join(base, dir, 'help')
 -            if os.path.isdir(docdir):
-+            path = os.path.join(base, dir, 'help')
-+            if os.path.isdir(path):
-+                docdir = path
++            tmpdocdir = os.path.join(base, dir, 'help')
++            if os.path.isdir(tmpdocdir):
++                docdir = tmpdocdir
                  break
  
          path = os.path.join(docdir, topic + ".txt")
---- a/setup.py
-+++ b/setup.py
-@@ -263,8 +263,7 @@
-                                      ['hgext/inotify/linux/_inotify.c']))
-         packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
- 
--packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo',
--                             'help/*.txt']}
-+packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo']}
- 
- def ordinarypath(p):
-     return p and p[0] != '.' and p[-1] != '~'
