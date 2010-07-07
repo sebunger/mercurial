@@ -1,3 +1,9 @@
+mercurial (1.6-2) unstable; urgency=low
+
+  * Mercurial 1.6 breaks old versions of hg-git (Closes: #588336)
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 07 Jul 2010 15:48:53 +0200
+
 mercurial (1.6-1) unstable; urgency=low
 
   [ Javi Merino ]
