@@ -3,8 +3,9 @@ mercurial (1.6-3) UNRELEASED; urgency=low
   * Dropped build-depend on quilt (Closes: #588671)
   * Added a patch from upstream that works around a bug in python 2.6.5
 	(Closes: #586907)
+  * Updated Standards-Version to 3.9.1.0 (no change needed)
 
- -- Javi Merino <cibervicho@gmail.com>  Wed, 28 Jul 2010 13:10:44 +0200
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 30 Jul 2010 17:54:54 +0200
 
 mercurial (1.6-2) unstable; urgency=low
 
