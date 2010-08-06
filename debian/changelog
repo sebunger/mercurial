@@ -5,6 +5,8 @@ mercurial (1.6.2-1) unstable; urgency=low
   * Added a patch from upstream that works around a bug in python 2.6.5
       (Closes: #586907)
   * Updated Standards-Version to 3.9.1.0 (no change needed)
+  * Deleted patch for_upstream__add_doc_url_in_example_files.patch which
+	is now in upstream.
 
  -- Javi Merino <cibervicho@gmail.com>  Fri, 06 Aug 2010 10:43:06 +0200
 
