@@ -42,6 +42,8 @@ def add(ui, repo, *pats, **opts):
          adding foo.c
          $ hg status
          A foo.c
+
+    Returns 0 if all files are successfully added.
     """
 
     bad = []
@@ -75,7 +77,8 @@ def addremove(ui, repo, *pats, **opts):
     every added file and records those similar enough as renames. This
     option takes a percentage between 0 (disabled) and 100 (files must
     be identical) as its parameter. Detecting renamed files this way
-    can be expensive.
+    can be expensive. After using this option, :hg:`status -C` can be
+    used to check which files were identified as moved or renamed.
 
     Returns 0 if all files are successfully added.
     """
@@ -149,8 +152,9 @@ def annotate(ui, repo, *pats, **opts):
         for f in funcmap:
             l = [f(n) for n, dummy in lines]
             if l:
-                ml = max(map(len, l))
-                pieces.append(["%*s" % (ml, x) for x in l])
+                sized = [(x, encoding.colwidth(x)) for x in l]
+                ml = max([w for x, w in sized])
+                pieces.append(["%s%s" % (' ' * (ml - w), x) for x, w in sized])
 
         if pieces:
             for p, l in zip(zip(*pieces), lines):
@@ -558,8 +562,6 @@ def bundle(ui, repo, fname, dest=None, **opts):
     Returns 0 on success, 1 if no changes found.
     """
     revs = opts.get('rev') or None
-    if revs:
-        revs = [repo.lookup(rev) for rev in revs]
     if opts.get('all'):
         base = ['null']
     else:
@@ -576,8 +578,9 @@ def bundle(ui, repo, fname, dest=None, **opts):
         for n in base:
             has.update(repo.changelog.reachable(n))
         if revs:
-            visit = list(revs)
-            has.difference_update(revs)
+            revs = [repo.lookup(rev) for rev in revs]
+            visit = revs[:]
+            has.difference_update(visit)
         else:
             visit = repo.changelog.heads()
         seen = {}
@@ -597,6 +600,8 @@ def bundle(ui, repo, fname, dest=None, **opts):
         dest, branches = hg.parseurl(dest, opts.get('branch'))
         other = hg.repository(hg.remoteui(repo, opts), dest)
         revs, checkout = hg.addbranchrevs(repo, other, branches, revs)
+        if revs:
+            revs = [repo.lookup(rev) for rev in revs]
         o = discovery.findoutgoing(repo, other, force=opts.get('force'))
 
     if not o:
@@ -801,7 +806,7 @@ def commit(ui, repo, *pats, **opts):
 
     if not opts.get('close_branch'):
         for r in parents:
-            if r.extra().get('close'):
+            if r.extra().get('close') and r.branch() == branch:
                 ui.status(_('reopening closed branch head %d\n') % r)
 
     if ui.debugflag:
@@ -2050,9 +2055,9 @@ def help_(ui, name=None, with_version=False, unknowncmd=False):
     if multioccur:
         msg = _("\n[+] marked option can be specified multiple times")
         if ui.verbose and name != 'shortlist':
-            opt_output.append((msg, ()))
+            opt_output.append((msg, None))
         else:
-            opt_output.insert(-1, (msg, ()))
+            opt_output.insert(-1, (msg, None))
 
     if not name:
         ui.write(_("\nadditional help topics:\n\n"))
@@ -2064,16 +2069,20 @@ def help_(ui, name=None, with_version=False, unknowncmd=False):
             ui.write(" %-*s  %s\n" % (topics_len, t, desc))
 
     if opt_output:
-        opts_len = max([len(line[0]) for line in opt_output if line[1]] or [0])
-        for first, second in opt_output:
-            if second:
-                initindent = ' %-*s  ' % (opts_len, first)
-                hangindent = ' ' * (opts_len + 3)
-                ui.write('%s\n' % (util.wrap(second,
+        colwidth = encoding.colwidth
+        # normalize: (opt or message, desc or None, width of opt)
+        entries = [desc and (opt, desc, colwidth(opt)) or (opt, None, 0)
+                   for opt, desc in opt_output]
+        hanging = max([e[2] for e in entries])
+        for opt, desc, width in entries:
+            if desc:
+                initindent = ' %s%s  ' % (opt, ' ' * (hanging - width))
+                hangindent = ' ' * (hanging + 3)
+                ui.write('%s\n' % (util.wrap(desc,
                                              initindent=initindent,
                                              hangindent=hangindent)))
             else:
-                ui.write("%s\n" % first)
+                ui.write("%s\n" % opt)
 
 def identify(ui, repo, source=None,
              rev=None, num=None, id=None, branch=None, tags=None):
@@ -2519,7 +2528,7 @@ def log(ui, repo, *pats, **opts):
 
         revmatchfn = None
         if opts.get('patch') or opts.get('stat'):
-            revmatchfn = cmdutil.match(repo, fns)
+            revmatchfn = cmdutil.match(repo, fns, default='path')
 
         displayer.show(ctx, copies=copies, matchfn=revmatchfn)
 
@@ -2732,6 +2741,8 @@ def paths(ui, repo, search=None):
     :hg:`bundle`) operations.
 
     See :hg:`help urls` for more information.
+
+    Returns 0 on success.
     """
     if search:
         for name, path in ui.configitems("paths"):
@@ -3157,7 +3168,7 @@ def revert(ui, repo, *pats, **opts):
                     ui.note(_('saving current version of %s as %s\n') %
                             (rel, bakname))
                     if not opts.get('dry_run'):
-                        util.copyfile(target, bakname)
+                        util.rename(target, bakname)
                 if ui.verbose or not exact:
                     msg = xlist[1]
                     if not isinstance(msg, basestring):
@@ -3649,6 +3660,8 @@ def tag(ui, repo, name1, *names, **opts):
     for n in names:
         if n in ['tip', '.', 'null']:
             raise util.Abort(_('the name \'%s\' is reserved') % n)
+        if not n:
+            raise util.Abort(_('tag names cannot consist entirely of whitespace'))
     if opts.get('rev') and opts.get('remove'):
         raise util.Abort(_("--rev and --remove are incompatible"))
     if opts.get('rev'):
@@ -3769,8 +3782,8 @@ def update(ui, repo, node=None, rev=None, clean=False, date=None, check=False):
     Update the repository's working directory to the specified
     changeset.
 
-    If no changeset is specified, attempt to update to the head of the
-    current branch. If this head is a descendant of the working
+    If no changeset is specified, attempt to update to the tip of the
+    current branch. If this changeset is a descendant of the working
     directory's parent, update to it, otherwise abort.
 
     The following rules apply when the working directory contains

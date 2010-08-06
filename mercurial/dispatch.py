@@ -248,7 +248,7 @@ class cmdalias(object):
         if self.shadows:
             ui.debug("alias '%s' shadows command\n" % self.name)
 
-        return self.fn(ui, *args, **opts)
+        return util.checksignature(self.fn)(ui, *args, **opts)
 
 def addaliases(ui, cmdtable):
     # aliases are processed after extensions have been loaded, so they
@@ -366,7 +366,12 @@ def _dispatch(ui, args):
         os.chdir(cwd[-1])
 
     # read the local repository .hgrc into a local ui object
-    path = cmdutil.findrepo(os.getcwd()) or ""
+    try:
+        wd = os.getcwd()
+    except OSError, e:
+        raise util.Abort(_("error getting current working directory: %s") %
+                         e.strerror)
+    path = cmdutil.findrepo(wd) or ""
     if not path:
         lui = ui
     else:
@@ -388,6 +393,8 @@ def _dispatch(ui, args):
     # times so we keep track of configured extensions in _loaded.
     extensions.loadall(lui)
     exts = [ext for ext in extensions.extensions() if ext[0] not in _loaded]
+    # Propagate any changes to lui.__class__ by extensions
+    ui.__class__ = lui.__class__
 
     # (uisetup and extsetup are handled in extensions.loadall)
 
@@ -476,7 +483,7 @@ def _dispatch(ui, args):
                 raise
         args.insert(0, repo)
     elif rpath:
-        ui.warn("warning: --repository ignored\n")
+        ui.warn(_("warning: --repository ignored\n"))
 
     d = lambda: util.checksignature(func)(ui, *args, **cmdoptions)
     return runcommand(lui, repo, cmd, fullargs, ui, options, d,

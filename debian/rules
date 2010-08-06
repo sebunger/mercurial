@@ -2,7 +2,7 @@
 # -*- mode: makefile; coding: utf-8 -*-
 
 %:
-	dh --with quilt $@
+	dh $@
 
 PYVERS=$(shell pyversions -vs)
 
