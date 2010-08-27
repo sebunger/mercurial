@@ -1,7 +1,7 @@
 mercurial (1.6.2-2) unstable; urgency=low
 
   * The patch that fixed #586907 was not being applied. Now it should
-        work. (Closes #586907)
+        work. (Closes: #586907)
 
  -- Javi Merino <cibervicho@gmail.com>  Thu, 26 Aug 2010 16:31:09 +0200
 
