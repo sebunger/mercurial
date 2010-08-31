@@ -317,8 +317,9 @@ argument, q.v., is then subsequently consulted.
 .B \fBusername\fP
 .sp
 Optional. Username to authenticate with. If not given, and the
-remote site requires basic or digest authentication, the user
-will be prompted for it.
+remote site requires basic or digest authentication, the user will
+be prompted for it. Environment variables are expanded in the
+username letting you do \fBfoo.username = $USER\fP.
 .TP
 .B \fBpassword\fP
 .sp
@@ -328,11 +329,13 @@ will be prompted for it.
 .TP
 .B \fBkey\fP
 .sp
-Optional. PEM encoded client certificate key file.
+Optional. PEM encoded client certificate key file. Environment
+variables are expanded in the filename.
 .TP
 .B \fBcert\fP
 .sp
-Optional. PEM encoded client certificate chain file.
+Optional. PEM encoded client certificate chain file. Environment
+variables are expanded in the filename.
 .TP
 .B \fBschemes\fP
 .sp
@@ -402,8 +405,8 @@ format. We suggest you use the \fBeol\fP extension for convenience.
 Use the \fB[defaults]\fP section to define command defaults, i.e. the
 default options/arguments to pass to the specified commands.
 .sp
-The following example makes \%\fBhg log\fP\: run in verbose mode, and \%\fBhg hg
-status\fP\: show only the modified files, by default:
+The following example makes \%\fBhg log\fP\: run in verbose mode, and
+\%\fBhg status\fP\: show only the modified files, by default:
 .sp
 .nf
 .ft C

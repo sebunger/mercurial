@@ -675,8 +675,10 @@ centralized RCS, this operation is a local operation. See
 will be committed.</p>
 <p>If you are committing the result of a merge, do not provide any
 filenames or -I/-X filters.</p>
-<p>If no commit message is specified, the configured editor is
-started to prompt you for a message.</p>
+<p>If no commit message is specified, Mercurial starts your
+configured editor where you can enter a message. In case your
+commit fails, you will find a backup of your message in
+<tt class="docutils literal"><span class="pre">.hg/last-message.txt</span></tt>.</p>
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
 <p>Returns 0 on success, 1 if nothing changed.</p>
 <p>options:</p>
@@ -1005,7 +1007,7 @@ changesets without children will be shown.</p>
 <td>show topological heads only</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--active</span></kbd></td>
-<td>show active branchheads only [DEPRECATED]</td></tr>
+<td>show active branchheads only (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--closed</span></kbd></td>
 <td>show normal and closed branch heads</td></tr>
@@ -1696,30 +1698,29 @@ before that, see <a class="reference external" href="hg.1.html#revert"><tt class
 </dl>
 <dl class="docutils" id="resolve">
 <dt><tt class="docutils literal">resolve <span class="pre">[OPTION]...</span> <span class="pre">[FILE]...</span></tt></dt>
-<dd><p class="first">This command includes several actions that are often useful while
-performing a merge, after running <tt class="docutils literal">merge</tt> but before running
-<tt class="docutils literal">commit</tt>.  (It is only meaningful if your working directory has
-two parents.)  It is most relevant for merges with unresolved
-conflicts, which are typically a result of non-interactive merging with
-<tt class="docutils literal">internal:merge</tt> or a command-line merge tool like <tt class="docutils literal">diff3</tt>.</p>
-<p>The available actions are:</p>
-<blockquote>
-<ol class="arabic simple">
-<li>list files that were merged with conflicts (U, for unresolved)
-and without conflicts (R, for resolved): <tt class="docutils literal">hg resolve <span class="pre">-l</span></tt>
-(this is like <tt class="docutils literal">status</tt> for merges)</li>
-<li>record that you have resolved conflicts in certain files:
-<tt class="docutils literal">hg resolve <span class="pre">-m</span> [file <span class="pre">...]</span></tt> (default: mark all unresolved files)</li>
-<li>forget that you have resolved conflicts in certain files:
-<tt class="docutils literal">hg resolve <span class="pre">-u</span> [file <span class="pre">...]</span></tt> (default: unmark all resolved files)</li>
-<li>discard your current attempt(s) at resolving conflicts and
-restart the merge from scratch: <tt class="docutils literal">hg resolve <span class="pre">file...</span></tt>
-(or <tt class="docutils literal"><span class="pre">-a</span></tt> for all unresolved files)</li>
-</ol>
-</blockquote>
-<p>Note that Mercurial will not let you commit files with unresolved merge
-conflicts.  You must use <tt class="docutils literal">hg resolve <span class="pre">-m</span> ...</tt> before you can commit
-after a conflicting merge.</p>
+<dd><p class="first">Merges with unresolved conflicts are often the result of
+non-interactive merging using the <tt class="docutils literal">internal:merge</tt> hgrc setting,
+or a command-line merge tool like <tt class="docutils literal">diff3</tt>. The resolve command
+is used to manage the files involved in a merge, after <a class="reference external" href="hg.1.html#merge"><tt class="docutils literal">hg merge</tt></a>
+has been run, and before <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> is run (i.e. the working
+directory must have two parents).</p>
+<p>The resolve command can be used in the following ways:</p>
+<ul class="simple">
+<li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">FILE...</span></tt></a>: attempt to re-merge the specified files,
+discarding any previous merge attempts. Re-merging is not
+performed for files already marked as resolved. Use <tt class="docutils literal"><span class="pre">--all/-a</span></tt>
+to selects all unresolved files.</li>
+<li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">-m</span> [FILE]</tt></a>: mark a file as having been resolved
+(e.g. after having manually fixed-up the files). The default is
+to mark all unresolved files.</li>
+<li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">-u</span> <span class="pre">[FILE]...</span></tt></a>: mark a file as unresolved. The
+default is to mark all resolved files.</li>
+<li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">-l</span></tt></a>: list files which had or still have conflicts.
+In the printed list, <tt class="docutils literal">U</tt> = unresolved and <tt class="docutils literal">R</tt> = resolved.</li>
+</ul>
+<p>Note that Mercurial will not let you commit files with unresolved
+merge conflicts. You must use <a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">-m</span> ...</tt></a> before you can
+commit after a conflicting merge.</p>
 <p>Returns 0 on success, 1 if any files fail a resolve attempt.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
@@ -1737,7 +1738,7 @@ after a conflicting merge.</p>
 <td>mark files as resolved</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--unmark</span></kbd></td>
-<td>unmark files as resolved</td></tr>
+<td>mark files as unresolved</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-n</span>, <span class="option">--no-status</span></kbd></td>
 </tr>
@@ -2797,6 +2798,9 @@ i.e. a 12-byte hexadecimal string.</td>
 </tr>
 <tr class="field"><th class="field-name">shortdate:</th><td class="field-body">Date. Returns a date like &quot;2006-09-18&quot;.</td>
 </tr>
+<tr class="field"><th class="field-name">stringify:</th><td class="field-body">Any type. Turns the value into text by converting values into
+text and concatenating them.</td>
+</tr>
 <tr class="field"><th class="field-name">strip:</th><td class="field-body">Any text. Strips all leading and trailing whitespace.</td>
 </tr>
 <tr class="field"><th class="field-name">tabindent:</th><td class="field-body">Any text. Returns the text, with every line except the
@@ -3075,6 +3079,16 @@ branch is created.</dd>
 assigned.</dd>
 <dt>Branch head</dt>
 <dd>See 'Head, branch'.</dd>
+<dt>Branch, inactive</dt>
+<dd><p class="first">If a named branch has no topological heads, it is considered to be
+inactive. As an example, a feature branch becomes inactive when it
+is merged into the default branch. The <a class="reference external" href="hg.1.html#branches"><tt class="docutils literal">hg branches</tt></a> command
+shows inactive branches by default, though they can be hidden with
+<a class="reference external" href="hg.1.html#branches"><tt class="docutils literal">hg branches <span class="pre">--active</span></tt></a>.</p>
+<p class="last">NOTE: this concept is deprecated because it is too implicit.
+Branches should now be explicitly closed using <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit
+<span class="pre">--close-branch</span></tt></a> when they are no longer needed.</p>
+</dd>
 <dt>Branch, named</dt>
 <dd><p class="first">A collection of changesets which have the same branch name. By
 default, children of a changeset in a named branch belong to the

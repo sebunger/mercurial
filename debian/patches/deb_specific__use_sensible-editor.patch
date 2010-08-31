@@ -2,7 +2,7 @@ Use sensible-editor as default instead of vi.
 
 --- a/doc/hgrc.5.txt
 +++ b/doc/hgrc.5.txt
-@@ -829,7 +829,8 @@
+@@ -832,7 +832,8 @@
  ``debug``
      Print debugging information. True or False. Default is False.
  ``editor``
@@ -25,7 +25,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -1353,8 +1353,8 @@
+@@ -1355,8 +1355,8 @@
      editor = ui.geteditor()
      cmdpath = util.find_exe(editor) or util.find_exe(editor.split()[0])
      if not cmdpath:
@@ -38,7 +38,7 @@ Use sensible-editor as default instead of vi.
              ui.write(_(" Can't find editor '%s' in PATH\n") % editor)
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -557,7 +557,7 @@
+@@ -559,7 +559,7 @@
          return (os.environ.get("HGEDITOR") or
                  self.config("ui", "editor") or
                  os.environ.get("VISUAL") or
@@ -131,7 +131,7 @@ Use sensible-editor as default instead of vi.
  msgid " (specify a commit editor in your .hgrc file)\n"
 --- a/i18n/it.po
 +++ b/i18n/it.po
-@@ -218,7 +218,7 @@
+@@ -217,7 +217,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -140,7 +140,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -6230,8 +6230,8 @@
+@@ -6210,8 +6210,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Sto controllando l'editor per il commit...\n"
  
@@ -183,7 +183,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -8192,8 +8192,8 @@
+@@ -8196,8 +8196,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -194,7 +194,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your .hgrc file)\n"
  msgstr " (especifique um editor para consolidação em seu arquivo .hgrc)\n"
-@@ -11637,7 +11637,7 @@
+@@ -11652,7 +11652,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -203,7 +203,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -11645,7 +11645,7 @@
+@@ -11660,7 +11660,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"

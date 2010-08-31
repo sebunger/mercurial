@@ -370,6 +370,11 @@ def reposetup(ui, repo):
     repo.__class__ = bookmark_repo
 
 def listbookmarks(repo):
+    # We may try to list bookmarks on a repo type that does not
+    # support it (e.g., statichttprepository).
+    if not hasattr(repo, '_bookmarks'):
+        return {}
+
     d = {}
     for k, v in repo._bookmarks.iteritems():
         d[k] = hex(v)
@@ -442,9 +447,12 @@ def push(oldpush, ui, repo, dest=None, **opts):
             if b in repo._bookmarks:
                 ui.status(_("exporting bookmark %s\n") % b)
                 new = repo[b].hex()
-            else:
+            elif b in rb:
                 ui.status(_("deleting remote bookmark %s\n") % b)
                 new = '' # delete
+            else:
+                ui.warn(_('bookmark %s does not exist on the local or remote repository!\n') % b)
+                return 2
             old = rb.get(b, '')
             r = other.pushkey('bookmarks', b, old, new)
             if not r:

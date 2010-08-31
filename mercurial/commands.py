@@ -739,8 +739,10 @@ def commit(ui, repo, *pats, **opts):
     If you are committing the result of a merge, do not provide any
     filenames or -I/-X filters.
 
-    If no commit message is specified, the configured editor is
-    started to prompt you for a message.
+    If no commit message is specified, Mercurial starts your
+    configured editor where you can enter a message. In case your
+    commit fails, you will find a backup of your message in
+    ``.hg/last-message.txt``.
 
     See :hg:`help dates` for a list of formats valid for -d/--date.
 
@@ -887,7 +889,7 @@ def debugbuilddag(ui, repo, text,
      - empty to denote the default parent.
 
     All string valued-elements are either strictly alphanumeric, or must
-    be enclosed in double quotes ("..."), with "\" as escape character.
+    be enclosed in double quotes ("..."), with "\\" as escape character.
 
     Note that the --overwritten-file and --appended-file options imply the
     use of "HGMERGE=internal:local" during DAG buildup.
@@ -2958,31 +2960,35 @@ def rename(ui, repo, *pats, **opts):
         wlock.release()
 
 def resolve(ui, repo, *pats, **opts):
-    """various operations to help finish a merge
+    """redo merges or set/view the merge status of files
 
-    This command includes several actions that are often useful while
-    performing a merge, after running ``merge`` but before running
-    ``commit``.  (It is only meaningful if your working directory has
-    two parents.)  It is most relevant for merges with unresolved
-    conflicts, which are typically a result of non-interactive merging with
-    ``internal:merge`` or a command-line merge tool like ``diff3``.
+    Merges with unresolved conflicts are often the result of
+    non-interactive merging using the ``internal:merge`` hgrc setting,
+    or a command-line merge tool like ``diff3``. The resolve command
+    is used to manage the files involved in a merge, after :hg:`merge`
+    has been run, and before :hg:`commit` is run (i.e. the working
+    directory must have two parents).
 
-    The available actions are:
+    The resolve command can be used in the following ways:
 
-      1) list files that were merged with conflicts (U, for unresolved)
-         and without conflicts (R, for resolved): ``hg resolve -l``
-         (this is like ``status`` for merges)
-      2) record that you have resolved conflicts in certain files:
-         ``hg resolve -m [file ...]`` (default: mark all unresolved files)
-      3) forget that you have resolved conflicts in certain files:
-         ``hg resolve -u [file ...]`` (default: unmark all resolved files)
-      4) discard your current attempt(s) at resolving conflicts and
-         restart the merge from scratch: ``hg resolve file...``
-         (or ``-a`` for all unresolved files)
+    - :hg:`resolve FILE...`: attempt to re-merge the specified files,
+      discarding any previous merge attempts. Re-merging is not
+      performed for files already marked as resolved. Use ``--all/-a``
+      to selects all unresolved files.
 
-    Note that Mercurial will not let you commit files with unresolved merge
-    conflicts.  You must use ``hg resolve -m ...`` before you can commit
-    after a conflicting merge.
+    - :hg:`resolve -m [FILE]`: mark a file as having been resolved
+      (e.g. after having manually fixed-up the files). The default is
+      to mark all unresolved files.
+
+    - :hg:`resolve -u [FILE]...`: mark a file as unresolved. The
+      default is to mark all resolved files.
+
+    - :hg:`resolve -l`: list files which had or still have conflicts.
+      In the printed list, ``U`` = unresolved and ``R`` = resolved.
+
+    Note that Mercurial will not let you commit files with unresolved
+    merge conflicts. You must use :hg:`resolve -m ...` before you can
+    commit after a conflicting merge.
 
     Returns 0 on success, 1 if any files fail a resolve attempt.
     """
@@ -4187,7 +4193,7 @@ table = {
            _('show only heads which are descendants of REV'), _('REV')),
           ('t', 'topo', False, _('show topological heads only')),
           ('a', 'active', False,
-           _('show active branchheads only [DEPRECATED]')),
+           _('show active branchheads only (DEPRECATED)')),
           ('c', 'closed', False,
            _('show normal and closed branch heads')),
          ] + templateopts,
@@ -4350,7 +4356,7 @@ table = {
          [('a', 'all', None, _('select all unresolved files')),
           ('l', 'list', None, _('list state of files needing merge')),
           ('m', 'mark', None, _('mark files as resolved')),
-          ('u', 'unmark', None, _('unmark files as resolved')),
+          ('u', 'unmark', None, _('mark files as unresolved')),
           ('n', 'no-status', None, _('hide status prefix'))]
           + walkopts,
           _('[OPTION]... [FILE]...')),
