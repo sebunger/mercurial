@@ -25,7 +25,7 @@ class NoHunks(PatchError):
 
 def copyfile(src, dst, basedir):
     abssrc, absdst = [util.canonpath(basedir, basedir, x) for x in [src, dst]]
-    if os.path.exists(absdst):
+    if os.path.lexists(absdst):
         raise util.Abort(_("cannot create %s: destination already exists") %
                          dst)
 
@@ -923,7 +923,7 @@ def selectfile(afile_orig, bfile_orig, hunk, strip):
     if afile == bfile:
         goodb = gooda
     else:
-        goodb = not nullb and os.path.exists(bfile)
+        goodb = not nullb and os.path.lexists(bfile)
     createfunc = hunk.createfile
     missing = not goodb and not gooda and not createfunc()
 
@@ -1184,7 +1184,9 @@ def _applydiff(ui, fp, patcher, copyfn, changed, strip=1,
                 gp.path = pathstrip(gp.path, strip - 1)[1]
                 if gp.oldpath:
                     gp.oldpath = pathstrip(gp.oldpath, strip - 1)[1]
-                if gp.op in ('COPY', 'RENAME'):
+                # Binary patches really overwrite target files, copying them
+                # will just make it fails with "target file exists"
+                if gp.op in ('COPY', 'RENAME') and not gp.binary:
                     copyfn(gp.oldpath, gp.path, cwd)
                 changed[gp.path] = gp
         else:
@@ -1230,7 +1232,7 @@ def updatedir(ui, repo, patches, similarity=0):
             islink, isexec = gp.mode
             dst = repo.wjoin(gp.path)
             # patch won't create empty files
-            if gp.op == 'ADD' and not os.path.exists(dst):
+            if gp.op == 'ADD' and not os.path.lexists(dst):
                 flags = (isexec and 'x' or '') + (islink and 'l' or '')
                 repo.wwrite(gp.path, '', flags)
             util.set_flags(dst, islink, isexec)
@@ -1284,7 +1286,7 @@ def internalpatch(patchobj, ui, strip, cwd, files=None, eolmode='strict'):
     if eolmode is None:
         eolmode = ui.config('patch', 'eol', 'strict')
     if eolmode.lower() not in eolmodes:
-        raise util.Abort(_('Unsupported line endings type: %s') % eolmode)
+        raise util.Abort(_('unsupported line endings type: %s') % eolmode)
     eolmode = eolmode.lower()
 
     try:
@@ -1567,6 +1569,9 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
                         header.append('new file mode %s\n' % mode)
                     elif ctx2.flags(f):
                         losedatafn(f)
+                # In theory, if tn was copied or renamed we should check
+                # if the source is binary too but the copy record already
+                # forces git mode.
                 if util.binary(tn):
                     if opts.git:
                         dodiff = 'binary'
@@ -1586,7 +1591,7 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
                     else:
                         header.append('deleted file mode %s\n' %
                                       gitmode[man1.flags(f)])
-                elif not to:
+                elif not to or util.binary(to):
                     # regular diffs cannot represent empty file deletion
                     losedatafn(f)
             else:

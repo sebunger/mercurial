@@ -54,7 +54,7 @@ Suggest Debian packages for some optional dependencies.
          self.files = {}
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
-@@ -39,14 +39,15 @@
+@@ -36,14 +36,15 @@
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo(_("%s does not look like a darcs repository") % path)
  

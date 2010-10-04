@@ -198,7 +198,7 @@ class changectx(object):
             if match(fn):
                 yield fn
         for fn in sorted(fset):
-            if match.bad(fn, _('No such file in rev %s') % self) and match(fn):
+            if match.bad(fn, _('no such file in rev %s') % self) and match(fn):
                 yield fn
 
     def sub(self, path):
@@ -824,7 +824,7 @@ class workingctx(changectx):
         wlock = self._repo.wlock()
         try:
             for f in list:
-                if unlink and os.path.exists(self._repo.wjoin(f)):
+                if unlink and os.path.lexists(self._repo.wjoin(f)):
                     self._repo.ui.warn(_("%s still exists!\n") % f)
                 elif self._repo.dirstate[f] == 'a':
                     self._repo.dirstate.forget(f)
@@ -843,7 +843,7 @@ class workingctx(changectx):
                 if self._repo.dirstate[f] != 'r':
                     self._repo.ui.warn(_("%s not removed!\n") % f)
                 else:
-                    fctx = f in pctxs[0] and pctxs[0] or pctxs[1]
+                    fctx = f in pctxs[0] and pctxs[0][f] or pctxs[1][f]
                     t = fctx.data()
                     self._repo.wwrite(f, t, fctx.flags())
                     self._repo.dirstate.normal(f)
@@ -852,7 +852,7 @@ class workingctx(changectx):
 
     def copy(self, source, dest):
         p = self._repo.wjoin(dest)
-        if not (os.path.exists(p) or os.path.islink(p)):
+        if not os.path.lexists(p):
             self._repo.ui.warn(_("%s does not exist!\n") % dest)
         elif not (os.path.isfile(p) or os.path.islink(p)):
             self._repo.ui.warn(_("copy failed: %s is not a file or a "

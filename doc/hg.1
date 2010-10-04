@@ -1775,8 +1775,8 @@ display with template
 Show definition of symbolic path name NAME. If no name is given,
 show definition of all available names.
 .sp
-Path names are defined in the [paths] section of
-\fB/etc/mercurial/hgrc\fP and \fB$HOME/.hgrc\fP. If run inside a
+Path names are defined in the [paths] section of your
+configuration file and in \fB/etc/mercurial/hgrc\fP. If run inside a
 repository, \fB.hg/hgrc\fP is used, too.
 .sp
 The path names \fBdefault\fP and \fBdefault\-push\fP have a special
@@ -2016,11 +2016,11 @@ aliases: mv
 .B \fBresolve [OPTION]... [FILE]...\fP
 .sp
 Merges with unresolved conflicts are often the result of
-non\-interactive merging using the \fBinternal:merge\fP hgrc setting,
-or a command\-line merge tool like \fBdiff3\fP. The resolve command
-is used to manage the files involved in a merge, after \%\fBhg merge\fP\:
-has been run, and before \%\fBhg commit\fP\: is run (i.e. the working
-directory must have two parents).
+non\-interactive merging using the \fBinternal:merge\fP configuration
+setting, or a command\-line merge tool like \fBdiff3\fP. The resolve
+command is used to manage the files involved in a merge, after
+\%\fBhg merge\fP\: has been run, and before \%\fBhg commit\fP\: is run (i.e. the
+working directory must have two parents).
 .sp
 The resolve command can be used in the following ways:
 .INDENT 7.0
@@ -2924,7 +2924,7 @@ Windows) is searched.
 .
 This is the name of the editor to run when committing. See EDITOR.
 .sp
-(deprecated, use .hgrc)
+(deprecated, use configuration file)
 .TP
 .B HGENCODING
 .
@@ -2948,14 +2948,14 @@ An executable to use for resolving merge conflicts. The program
 will be executed with three arguments: local file, remote file,
 ancestor file.
 .sp
-(deprecated, use .hgrc)
+(deprecated, use configuration file)
 .TP
 .B HGRCPATH
 .
-A list of files or directories to search for hgrc files. Item
-separator is ":" on Unix, ";" on Windows. If HGRCPATH is not set,
-platform default search path is used. If empty, only the .hg/hgrc
-from the current repository is read.
+A list of files or directories to search for configuration
+files. Item separator is ":" on Unix, ";" on Windows. If HGRCPATH
+is not set, platform default search path is used. If empty, only
+the .hg/hgrc from the current repository is read.
 .sp
 For each element in HGRCPATH:
 .INDENT 7.0
@@ -2969,9 +2969,9 @@ otherwise, the file itself will be added
 .TP
 .B HGPLAIN
 .
-When set, this disables any options in .hgrc that might change
-Mercurial\(aqs default output. This includes encoding, defaults,
-verbose mode, debug mode, quiet mode, tracebacks, and
+When set, this disables any configuration settings that might
+change Mercurial\(aqs default output. This includes encoding,
+defaults, verbose mode, debug mode, quiet mode, tracebacks, and
 localization. This can be useful when scripting against Mercurial
 in the face of existing user configuration.
 .sp
@@ -2988,7 +2988,7 @@ available values will be considered in this order:
 HGUSER (deprecated)
 .IP \(bu 2
 .
-hgrc files from the HGRCPATH
+configuration files from the HGRCPATH
 .IP \(bu 2
 .
 EMAIL
@@ -3000,7 +3000,7 @@ interactive prompt
 LOGNAME (with \fB@hostname\fP appended)
 .UNINDENT
 .sp
-(deprecated, use .hgrc)
+(deprecated, use configuration file)
 .TP
 .B EMAIL
 .
@@ -3342,8 +3342,8 @@ format for communicating changes.
 .sp
 To make Mercurial produce the git extended diff format, use the \-\-git
 option available for many commands, or set \(aqgit = True\(aq in the [diff]
-section of your hgrc. You do not need to set this option when
-importing diffs in this format or using them in the mq extension.
+section of your configuration file. You do not need to set this option
+when importing diffs in this format or using them in the mq extension.
 .SH TEMPLATE USAGE
 .sp
 Mercurial allows you to customize output of commands through
@@ -3630,6 +3630,9 @@ Some features, such as pushing to \%http://\: and \%https://\: URLs are only
 possible if the feature is explicitly enabled on the remote Mercurial
 server.
 .sp
+Note that the security of HTTPS URLs depends on proper configuration of
+web.cacerts.
+.sp
 Some notes about using SSH with Mercurial:
 .INDENT 0.0
 .IP \(bu 2
@@ -3660,12 +3663,12 @@ Host *
 .ft P
 .fi
 .sp
-Alternatively specify "ssh \-C" as your ssh command in your hgrc or
-with the \-\-ssh command line option.
+Alternatively specify "ssh \-C" as your ssh command in your
+configuration file or with the \-\-ssh command line option.
 .UNINDENT
 .sp
-These URLs can all be stored in your hgrc with path aliases under the
-[paths] section like so:
+These URLs can all be stored in your configuration file with path
+aliases under the [paths] section like so:
 .sp
 .nf
 .ft C
@@ -3710,9 +3713,9 @@ for prime time; or they may alter some usual behaviors of stock
 Mercurial. It is thus up to the user to activate extensions as
 needed.
 .sp
-To enable the "foo" extension, either shipped with Mercurial or in
-the Python search path, create an entry for it in your hgrc, like
-this:
+To enable the "foo" extension, either shipped with Mercurial or in the
+Python search path, create an entry for it in your configuration file,
+like this:
 .sp
 .nf
 .ft C
@@ -3730,8 +3733,8 @@ myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
 .sp
-To explicitly disable an extension enabled in an hgrc of broader
-scope, prepend its path with !:
+To explicitly disable an extension enabled in a configuration file of
+broader scope, prepend its path with !:
 .sp
 .nf
 .ft C

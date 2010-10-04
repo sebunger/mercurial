@@ -725,13 +725,12 @@ in <tt class="docutils literal">http_proxy.no</tt>. True or False. Default: Fals
 <dd>Optional. Whether to connect to mail server using TLS. True or
 False. Default: False.</dd>
 <dt><tt class="docutils literal">username</tt></dt>
-<dd>Optional. User name to authenticate to SMTP server with. If
-username is specified, password must also be specified.
+<dd>Optional. User name for authenticating with the SMTP server.
 Default: none.</dd>
 <dt><tt class="docutils literal">password</tt></dt>
-<dd>Optional. Password to authenticate to SMTP server with. If
-username is specified, password must also be specified.
-Default: none.</dd>
+<dd>Optional. Password for authenticating with the SMTP server. If not
+specified, interactive sessions will prompt the user for a
+password; non-interactive sessions will fail. Default: none.</dd>
 <dt><tt class="docutils literal">local_hostname</tt></dt>
 <dd>Optional. It's the hostname that the sender can use to identify
 itself to the MTA.</dd>
@@ -980,8 +979,9 @@ revisions. Default is False. This feature creates temporary files.</dd>
 third-party tools like email notification hooks can construct
 URLs. Example: <tt class="docutils literal"><span class="pre">http://hgserver/repos/</span></tt>.</dd>
 <dt><tt class="docutils literal">cacerts</tt></dt>
-<dd><p class="first">Path to file containing a list of PEM encoded certificate authorities
-that may be used to verify an SSL server's identity. The form must be
+<dd><p class="first">Path to file containing a list of PEM encoded certificate authority
+certificates. If specified on the client, then it will verify the identity
+of remote HTTPS servers with these certificates. The form must be
 as follows:</p>
 <pre class="literal-block">
 -----BEGIN CERTIFICATE-----
@@ -991,8 +991,8 @@ as follows:</p>
 ... (certificate in base64 PEM encoding) ...
 -----END CERTIFICATE-----
 </pre>
-<p>This feature is only supported when using Python 2.6. If you wish to
-use it with earlier versions of Python, install the backported
+<p>This feature is only supported when using Python 2.6 or later. If you wish
+to use it with earlier versions of Python, install the backported
 version of the ssl library that is available from
 <tt class="docutils literal"><span class="pre">http://pypi.python.org</span></tt>.</p>
 <p class="last">You can use OpenSSL's CA certificate file if your platform has one.

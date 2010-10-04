@@ -80,3 +80,5 @@ abort: unknown archive type 'bogus'
 % server errors
 % empty repo
 abort: no working directory: please specify a revision
+% old file -- date clamped to 1980
+ok

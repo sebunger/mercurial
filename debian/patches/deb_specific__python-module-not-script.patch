@@ -10,10 +10,3 @@ another place and they do not want to modify them.
  import sys
  from _lsprof import Profiler, profiler_entry
  
---- a/mercurial/simplemerge.py
-+++ b/mercurial/simplemerge.py
-@@ -1,4 +1,3 @@
--#!/usr/bin/env python
- # Copyright (C) 2004, 2005 Canonical Ltd
- #
- # This program is free software; you can redistribute it and/or modify

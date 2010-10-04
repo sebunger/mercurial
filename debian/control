@@ -5,6 +5,7 @@ Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.de
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Vernon Tang <vt@foilhead.net>,
  Javi Merino <cibervicho@gmail.com>
+DM-Upload-Allowed: yes
 Build-Depends: debhelper (>= 7.0.50),
  patchutils (>= 0.2.25), gettext,
  python-support (>= 0.5.3), python-all-dev (>= 2.5.4-1~), python-docutils,
