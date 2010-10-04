@@ -1,3 +1,9 @@
+mercurial (1.6.4-1) unstable; urgency=low
+
+  * New upstream release 1.6.4
+
+ -- Javi Merino <cibervicho@gmail.com>  Sun, 03 Oct 2010 14:25:05 -0500
+
 mercurial (1.6.3-1) experimental; urgency=low
 
   * New upstream release 1.6.3
