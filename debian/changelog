@@ -1,8 +1,9 @@
 mercurial (1.6.4-1) unstable; urgency=low
 
-  * New upstream release 1.6.4
+  * New upstream release 1.6.4 (Closes: #598850)
+  * Verify ssl validity in https connections (Closes: #598841)
 
- -- Javi Merino <cibervicho@gmail.com>  Sun, 03 Oct 2010 14:25:05 -0500
+ -- Javi Merino <cibervicho@gmail.com>  Mon, 04 Oct 2010 07:37:33 -0500
 
 mercurial (1.6.3-1) experimental; urgency=low
 
