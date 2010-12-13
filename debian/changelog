@@ -1,3 +1,9 @@
+mercurial (1.7.2) experimental; urgency=low
+
+  * New upstream release 1.7.2 (Closes: #606678)
+
+ -- Javi Merino <cibervicho@gmail.com>  Mon, 13 Dec 2010 20:36:30 +0000
+
 mercurial (1.6.4-1) unstable; urgency=low
 
   * New upstream release 1.6.4 (Closes: #598850)
