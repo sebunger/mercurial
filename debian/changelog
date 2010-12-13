@@ -1,3 +1,13 @@
+mercurial (1.7.2-1) experimental; urgency=low
+
+  * New upstream release 1.7.2 (Closes: #606678)
+  * Fix typo in NEWS (Closes: #605541)
+  * Delete deb_specific__python-module-not-script.patch and
+        deb_specific__mergetools
+  * Update dh compatibility to 8
+
+ -- Javi Merino <cibervicho@gmail.com>  Mon, 13 Dec 2010 21:34:15 +0000
+
 mercurial (1.6.4-1) unstable; urgency=low
 
   * New upstream release 1.6.4 (Closes: #598850)

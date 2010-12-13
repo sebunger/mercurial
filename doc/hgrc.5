@@ -276,8 +276,12 @@ definitions. This is almost always a bad idea!
 .RE
 .SS \fBauth\fP
 .sp
-Authentication credentials for HTTP authentication. Each line has
-the following format:
+Authentication credentials for HTTP authentication. This section
+allows you to store usernames and passwords for use when logging
+\fIinto\fP HTTP servers. See the \%web\: configuration section if you want to
+configure \fIwho\fP can login to your HTTP server.
+.sp
+Each line has the following format:
 .sp
 .nf
 .ft C
@@ -573,6 +577,15 @@ fncache) to allow longer filenames and avoids using Windows
 reserved names, e.g. "nul". Enabled by default. Disabling this
 option ensures that the on\-disk format of newly created
 repositories will be compatible with Mercurial before version 1.1.
+.TP
+.B \fBdotencode\fP
+.sp
+Enable or disable the "dotencode" repository format which enhances
+the "fncache" repository format (which has to be enabled to use
+dotencode) to avoid issues with filenames starting with ._ on
+Mac OS X and spaces on Windows. Enabled by default. Disabling this
+option ensures that the on\-disk format of newly created
+repositories will be compatible with Mercurial before version 1.7.
 .UNINDENT
 .SS \fBmerge\-patterns\fP
 .sp
@@ -1042,6 +1055,30 @@ Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.
 .UNINDENT
+.SS \fBsubpaths\fP
+.sp
+Defines subrepositories source locations rewriting rules of the form:
+.sp
+.nf
+.ft C
+<pattern> = <replacement>
+.ft P
+.fi
+.sp
+Where \fBpattern\fP is a regular expression matching the source and
+\fBreplacement\fP is the replacement string used to rewrite it. Groups
+can be matched in \fBpattern\fP and referenced in \fBreplacements\fP. For
+instance:
+.sp
+.nf
+.ft C
+http://server/(.*)\-hg/ = http://hg.server/\e1/
+.ft P
+.fi
+.sp
+rewrites \fBhttp://server/foo\-hg/\fP into \fBhttp://hg.server/foo/\fP.
+.sp
+All patterns are applied in definition order.
 .SS \fBtrusted\fP
 .sp
 Mercurial will not use the settings in the
@@ -1120,30 +1157,8 @@ Template string for commands that print changesets.
 .B \fBmerge\fP
 .sp
 The conflict resolution program to use during a manual merge.
-There are some internal tools available:
-.INDENT 7.0
-.TP
-.B \fBinternal:local\fP
-.sp
-keep the local version
-.TP
-.B \fBinternal:other\fP
-.sp
-use the other version
-.TP
-.B \fBinternal:merge\fP
-.sp
-use the internal non\-interactive merge tool
-.TP
-.B \fBinternal:fail\fP
-.sp
-fail to merge
-.UNINDENT
-.UNINDENT
-.sp
-For more information on configuring merge tools see the
-\%merge\-tools\: section.
-.INDENT 0.0
+For more information on merge tools see \%\fBhg help merge\-tools\fP\:.
+For configuring merge tools see the \%merge\-tools\: section.
 .TP
 .B \fBpatch\fP
 .sp
@@ -1212,7 +1227,32 @@ Increase the amount of output printed. True or False. Default is False.
 .UNINDENT
 .SS \fBweb\fP
 .sp
-Web interface configuration.
+Web interface configuration. The settings in this section apply to
+both the builtin webserver (started by \%\fBhg serve\fP\:) and the script you
+run through a webserver (\fBhgweb.cgi\fP and the derivatives for FastCGI
+and WSGI).
+.sp
+The Mercurial webserver does no authentication (it does not prompt for
+usernames and passwords to validate \fIwho\fP users are), but it does do
+authorization (it grants or denies access for \fIauthenticated users\fP
+based on settings in this section). You must either configure your
+webserver to do authentication for you, or disable the authorization
+checks.
+.sp
+For a quick setup in a trusted environment, e.g., a private LAN, where
+you want it to accept pushes from anybody, you can use the following
+command line:
+.sp
+.nf
+.ft C
+$ hg \-\-config web.allow_push=* \-\-config web.push_ssl=False serve
+.ft P
+.fi
+.sp
+Note that this will allow anybody to push anything to the server and
+that this should not be used for public servers.
+.sp
+The full set of options is:
 .INDENT 0.0
 .TP
 .B \fBaccesslog\fP

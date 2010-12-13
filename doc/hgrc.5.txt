@@ -203,8 +203,13 @@ changesets. You can define subsequent aliases using earlier ones::
 
 ``auth``
 """"""""
-Authentication credentials for HTTP authentication. Each line has
-the following format::
+
+Authentication credentials for HTTP authentication. This section
+allows you to store usernames and passwords for use when logging
+*into* HTTP servers. See the web_ configuration section if you want to
+configure *who* can login to your HTTP server.
+
+Each line has the following format::
 
     <name>.<argument> = <value>
 
@@ -436,6 +441,14 @@ Example for ``~/.hgrc``::
     reserved names, e.g. "nul". Enabled by default. Disabling this
     option ensures that the on-disk format of newly created
     repositories will be compatible with Mercurial before version 1.1.
+
+``dotencode``
+    Enable or disable the "dotencode" repository format which enhances
+    the "fncache" repository format (which has to be enabled to use
+    dotencode) to avoid issues with filenames starting with ._ on
+    Mac OS X and spaces on Windows. Enabled by default. Disabling this
+    option ensures that the on-disk format of newly created
+    repositories will be compatible with Mercurial before version 1.7.
 
 ``merge-patterns``
 """"""""""""""""""
@@ -789,6 +802,23 @@ Controls generic server settings.
     checking that all new file revisions specified in manifests are
     present. Default is False.
 
+``subpaths``
+""""""""""""
+Defines subrepositories source locations rewriting rules of the form::
+
+    <pattern> = <replacement>
+
+Where ``pattern`` is a regular expression matching the source and
+``replacement`` is the replacement string used to rewrite it. Groups
+can be matched in ``pattern`` and referenced in ``replacements``. For
+instance::
+
+    http://server/(.*)-hg/ = http://hg.server/\1/
+
+rewrites ``http://server/foo-hg/`` into ``http://hg.server/foo/``.
+
+All patterns are applied in definition order.
+
 ``trusted``
 """""""""""
 
@@ -848,20 +878,8 @@ User interface controls.
     Template string for commands that print changesets.
 ``merge``
     The conflict resolution program to use during a manual merge.
-    There are some internal tools available:
-
-    ``internal:local``
-        keep the local version
-    ``internal:other``
-        use the other version
-    ``internal:merge``
-        use the internal non-interactive merge tool
-    ``internal:fail``
-        fail to merge
-
-For more information on configuring merge tools see the
-merge-tools_ section.
-
+    For more information on merge tools see :hg:`help merge-tools`.
+    For configuring merge tools see the merge-tools_ section.
 ``patch``
     command to use to apply patches. Look for ``gpatch`` or ``patch`` in
     PATH if unset.
@@ -907,7 +925,29 @@ merge-tools_ section.
 
 ``web``
 """""""
-Web interface configuration.
+
+Web interface configuration. The settings in this section apply to
+both the builtin webserver (started by :hg:`serve`) and the script you
+run through a webserver (``hgweb.cgi`` and the derivatives for FastCGI
+and WSGI).
+
+The Mercurial webserver does no authentication (it does not prompt for
+usernames and passwords to validate *who* users are), but it does do
+authorization (it grants or denies access for *authenticated users*
+based on settings in this section). You must either configure your
+webserver to do authentication for you, or disable the authorization
+checks.
+
+For a quick setup in a trusted environment, e.g., a private LAN, where
+you want it to accept pushes from anybody, you can use the following
+command line::
+
+    $ hg --config web.allow_push=* --config web.push_ssl=False serve
+
+Note that this will allow anybody to push anything to the server and
+that this should not be used for public servers.
+
+The full set of options is:
 
 ``accesslog``
     Where to output the access log. Default is stdout.

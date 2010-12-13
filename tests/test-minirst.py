@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from pprint import pprint
 from mercurial import minirst
 
@@ -197,3 +195,32 @@ Markup: ``foo`` and :hg:`help`
 ------------------------------
 """
 debugformat('sections', sections, 20)
+
+
+admonitions = """
+.. note::
+   This is a note
+
+   - Bullet 1
+   - Bullet 2
+
+   .. warning:: This is a warning Second
+      input line of warning
+
+.. danger::
+   This is danger
+"""
+
+debugformat('admonitions', admonitions, 30)
+
+comments = """
+Some text.
+
+.. A comment
+
+   .. An indented comment
+
+   Some indented text.
+"""
+
+debugformat('comments', comments, 30)

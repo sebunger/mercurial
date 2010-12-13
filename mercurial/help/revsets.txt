@@ -7,8 +7,11 @@ operators. Parenthesis can be used for grouping.
 Identifiers such as branch names must be quoted with single or double
 quotes if they contain characters outside of
 ``[._a-zA-Z0-9\x80-\xff]`` or if they match one of the predefined
-predicates. Special characters can be used in quoted identifiers by
-escaping them, e.g., ``\n`` is interpreted as a newline.
+predicates.
+
+Special characters can be used in quoted identifiers by escaping them,
+e.g., ``\n`` is interpreted as a newline. To prevent them from being
+interpreted, strings can be prefixed with ``r``, e.g. ``r'...'``.
 
 There is a single prefix operator:
 
@@ -42,109 +45,7 @@ These are the supported infix operators:
 
 The following predicates are supported:
 
-``adds(pattern)``
-  Changesets that add a file matching pattern.
-
-``all()``
-  All changesets, the same as ``0:tip``.
-
-``ancestor(single, single)``
-  Greatest common ancestor of the two changesets.
-
-``ancestors(set)``
-  Changesets that are ancestors of a changeset in set.
-
-``author(string)``
-  Alias for ``user(string)``.
-
-``branch(set)``
-  The branch names are found for changesets in set, and the result is
-  all changesets belonging to one those branches.
-
-``children(set)``
-  Child changesets of changesets in set.
-
-``closed()``
-  Changeset is closed.
-
-``contains(pattern)``
-  Revision contains pattern.
-
-``date(interval)``
-  Changesets within the interval, see :hg:`help dates`.
-
-``descendants(set)``
-  Changesets which are decendants of changesets in set.
-
-``file(pattern)``
-  Changesets which manually affected files matching pattern.
-
-``follow()``
-  An alias for ``::.`` (ancestors of the working copy's first parent).
-
-``grep(regex)``
-  Like ``keyword(string)`` but accepts a regex.
-
-``head()``
-  Changeset is a head.
-
-``heads(set)``
-  Members of set with no children in set.
-
-``keyword(string)``
-  Search commit message, user name, and names of changed files for
-  string.
-
-``limit(set, n)``
-  First n members of set.
-
-``max(set)``
-  Changeset with highest revision number in set.
-
-``merge()``
-  Changeset is a merge changeset.
-
-``modifies(pattern)``
-  Changesets which modify files matching pattern.
-
-``outgoing([path])``
-  Changesets missing in path.
-
-``p1(set)``
-  First parent of changesets in set.
-
-``p2(set)``
-  Second parent of changesets in set.
-
-``parents(set)``
-  The set of all parents for all changesets in set.
-
-``removes(pattern)``
-  Changesets which remove files matching pattern.
-
-``reverse(set)``
-  Reverse order of set.
-
-``roots(set)``
-  Changesets with no parent changeset in set.
-
-``sort(set[, [-]key...])``
-  Sort set by keys. The default sort order is ascending, specify a key
-  as ``-key`` to sort in descending order.
-
-  The keys can be:
-
-  - ``rev`` for the revision number,
-  - ``branch`` for the branch name,
-  - ``desc`` for the commit message (description),
-  - ``user`` for user name (``author`` can be used as an alias),
-  - ``date`` for the commit date
-
-``tagged()``
-  Changeset is tagged.
-
-``user(string)``
-  User name is string.
+.. predicatesmarker
 
 Command line equivalents for :hg:`log`::
 
@@ -157,10 +58,30 @@ Command line equivalents for :hg:`log`::
   -P x  ->  !::x
   -l x  ->  limit(expr, x)
 
-Some sample queries::
+Some sample queries:
 
-  hg log -r 'branch(default)'
-  hg log -r 'branch(default) and 1.5:: and not merge()'
-  hg log -r '1.3::1.5 and keyword(bug) and file("hgext/*")'
-  hg log -r 'sort(date("May 2008"), user)'
-  hg log -r '(keyword(bug) or keyword(issue)) and not ancestors(tagged())'
+- Changesets on the default branch::
+
+    hg log -r "branch(default)"
+
+- Changesets on the default branch since tag 1.5 (excluding merges)::
+
+    hg log -r "branch(default) and 1.5:: and not merge()"
+
+- Open branch heads::
+
+    hg log -r "head() and not closed()"
+
+- Changesets between tags 1.3 and 1.5 mentioning "bug" that affect
+  ``hgext/*``::
+
+    hg log -r "1.3::1.5 and keyword(bug) and file('hgext/*')"
+
+- Changesets in committed May 2008, sorted by user::
+
+    hg log -r "sort(date('May 2008'), user)"
+
+- Changesets mentioning "bug" or "issue" that are not in a tagged
+  release::
+
+    hg log -r "(keyword(bug) or keyword(issue)) and not ancestors(tagged())"

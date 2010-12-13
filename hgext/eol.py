@@ -51,7 +51,7 @@ The extension uses an optional ``[eol]`` section in your hgrc file
 behavior. There are two settings:
 
 - ``eol.native`` (default ``os.linesep``) can be set to ``LF`` or
-  ``CRLF`` override the default interpretation of ``native`` for
+  ``CRLF`` to override the default interpretation of ``native`` for
   checkout. This can be used with :hg:`archive` on Unix, say, to
   generate an archive where files have line endings for Windows.
 
@@ -61,12 +61,17 @@ behavior. There are two settings:
   Such files are normally not touched under the assumption that they
   have mixed EOLs on purpose.
 
+The ``win32text.forbid*`` hooks provided by the win32text extension
+have been unified into a single hook named ``eol.hook``. The hook will
+lookup the expected line endings from the ``.hgeol`` file, which means
+you must migrate to a ``.hgeol`` file first before using the hook.
+
 See :hg:`help patterns` for more information about the glob patterns
 used.
 """
 
 from mercurial.i18n import _
-from mercurial import util, config, extensions, commands, match, cmdutil
+from mercurial import util, config, extensions, match
 import re, os
 
 # Matches a lone LF, i.e., one that is not part of CRLF.
@@ -176,6 +181,10 @@ def reposetup(ui, repo):
                 self._decode['NATIVE'] = 'to-crlf'
 
             eol = config.config()
+            # Our files should not be touched. The pattern must be
+            # inserted first override a '** = native' pattern.
+            eol.set('patterns', '.hg*', 'BIN')
+            # We can then parse the user's patterns.
             eol.parse('.hgeol', data)
 
             if eol.get('repository', 'native') == 'CRLF':
