@@ -106,6 +106,7 @@ Test server address cannot be reused
 clone via pull
 
   $ hg clone https://localhost:$HGPORT/ copy-pull
+  warning: localhost certificate not verified (check web.cacerts config setting)
   requesting all changes
   adding changesets
   adding manifests
@@ -125,12 +126,13 @@ clone via pull
   adding bar
   $ cd ..
 
-pull
+pull without cacert
 
   $ cd copy-pull
   $ echo '[hooks]' >> .hg/hgrc
   $ echo "changegroup = python '$TESTDIR'/printenv.py changegroup" >> .hg/hgrc
   $ hg pull
+  warning: localhost certificate not verified (check web.cacerts config setting)
   changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
   pulling from https://localhost:$HGPORT/
   searching for changes
@@ -141,12 +143,28 @@ pull
   (run 'hg update' to get a working copy)
   $ cd ..
 
-cacert
+cacert configured in local repo
 
-  $ hg -R copy-pull pull --config web.cacerts=pub.pem
+  $ cp copy-pull/.hg/hgrc copy-pull/.hg/hgrc.bu
+  $ echo "[web]" >> copy-pull/.hg/hgrc
+  $ echo "cacerts=`pwd`/pub.pem" >> copy-pull/.hg/hgrc
+  $ hg -R copy-pull pull --traceback
   pulling from https://localhost:$HGPORT/
   searching for changes
   no changes found
+  $ mv copy-pull/.hg/hgrc.bu copy-pull/.hg/hgrc
+
+cacert configured globally
+
+  $ echo "[web]" >> $HGRCPATH
+  $ echo "cacerts=`pwd`/pub.pem" >> $HGRCPATH
+  $ hg -R copy-pull pull
+  pulling from https://localhost:$HGPORT/
+  searching for changes
+  no changes found
+
+cacert mismatch
+
   $ hg -R copy-pull pull --config web.cacerts=pub.pem https://127.0.0.1:$HGPORT/
   abort: 127.0.0.1 certificate error: certificate is for localhost
   [255]

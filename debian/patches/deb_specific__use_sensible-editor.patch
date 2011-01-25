@@ -49,7 +49,7 @@ Use sensible-editor as default instead of vi.
          '''show a progress message
 --- a/i18n/da.po
 +++ b/i18n/da.po
-@@ -7355,7 +7355,7 @@
+@@ -7372,7 +7372,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -58,7 +58,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -10567,7 +10567,7 @@
+@@ -10587,7 +10587,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -69,7 +69,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/de.po
 +++ b/i18n/de.po
-@@ -8301,8 +8301,8 @@
+@@ -8317,8 +8317,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -80,7 +80,7 @@ Use sensible-editor as default instead of vi.
  
  #, fuzzy
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -13003,7 +13003,7 @@
+@@ -13019,7 +13019,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -89,7 +89,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -13011,7 +13011,7 @@
+@@ -13027,7 +13027,7 @@
  "    Nachricht geschrieben wird. Der verwendete Editor wird aus den drei\n"
  "    Umgebungsvariablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge)\n"
  "    ermittelt. Der erste nicht-leere wird verwendet. Wenn alle Angaben\n"
@@ -193,7 +193,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -8443,8 +8443,8 @@
+@@ -8463,8 +8463,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -204,7 +204,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (especifique um editor para consolidação em seu arquivo de configuração)\n"
-@@ -12013,7 +12013,7 @@
+@@ -12055,7 +12055,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -213,7 +213,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -12021,7 +12021,7 @@
+@@ -12063,7 +12063,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
@@ -224,7 +224,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/sv.po
 +++ b/i18n/sv.po
-@@ -7068,7 +7068,7 @@
+@@ -7097,7 +7097,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -233,7 +233,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -10460,7 +10460,7 @@
+@@ -10510,7 +10510,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"

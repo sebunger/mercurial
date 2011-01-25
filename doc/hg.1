@@ -2665,16 +2665,23 @@ Name a particular revision using <name>.
 .sp
 Tags are used to name particular revisions of the repository and are
 very useful to compare different revisions, to go back to significant
-earlier versions or to mark branch points as releases, etc.
+earlier versions or to mark branch points as releases, etc. Changing
+an existing tag is normally disallowed; use \-f/\-\-force to override.
 .sp
 If no revision is given, the parent of the working directory is
 used, or tip if no revision is checked out.
 .sp
 To facilitate version control, distribution, and merging of tags,
-they are stored as a file named ".hgtags" which is managed
-similarly to other project files and can be hand\-edited if
-necessary. The file \(aq.hg/localtags\(aq is used for local tags (not
-shared among repositories).
+they are stored as a file named ".hgtags" which is managed similarly
+to other project files and can be hand\-edited if necessary. This
+also means that tagging creates a new commit. The file
+".hg/localtags" is used for local tags (not shared among
+repositories).
+.sp
+Tag commits are usually made at the head of a branch. If the parent
+of the working directory is not a branch head, \%\fBhg tag\fP\: aborts; use
+\-f/\-\-force to force the tag commit to be based on a non\-head
+changeset.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
@@ -2688,7 +2695,7 @@ options:
 .TP
 .B \-f,  \-\-force
 .
-replace existing tag
+force tag
 .TP
 .B \-l,  \-\-local
 .
@@ -3644,8 +3651,9 @@ String. The unmodified author of the changeset.
 .TP
 .B branches
 .
-String. The name of the branch on which the changeset was
-committed. Will be empty if the branch name was default.
+List of strings. The name of the branch on which the
+changeset was committed. Will be empty if the branch name was
+default.
 .TP
 .B children
 .
@@ -5802,18 +5810,20 @@ configuration file every time you run an \fBhg\fP command. The
 configuration files. It uses two sections, \fB[patterns]\fP and
 \fB[repository]\fP.
 .sp
-The \fB[patterns]\fP section specifies the line endings used in the
-working directory. The format is specified by a file pattern. The
-first match is used, so put more specific patterns first. The
-available line endings are \fBLF\fP, \fBCRLF\fP, and \fBBIN\fP.
+The \fB[patterns]\fP section specifies how line endings should be
+converted between the working copy and the repository. The format is
+specified by a file pattern. The first match is used, so put more
+specific patterns first. The available line endings are \fBLF\fP,
+\fBCRLF\fP, and \fBBIN\fP.
 .sp
 Files with the declared format of \fBCRLF\fP or \fBLF\fP are always
-checked out in that format and files declared to be binary (\fBBIN\fP)
-are left unchanged. Additionally, \fBnative\fP is an alias for the
-platform\(aqs default line ending: \fBLF\fP on Unix (including Mac OS X)
-and \fBCRLF\fP on Windows. Note that \fBBIN\fP (do nothing to line
-endings) is Mercurial\(aqs default behaviour; it is only needed if you
-need to override a later, more general pattern.
+checked out and stored in the repository in that format and files
+declared to be binary (\fBBIN\fP) are left unchanged. Additionally,
+\fBnative\fP is an alias for checking out in the platform\(aqs default line
+ending: \fBLF\fP on Unix (including Mac OS X) and \fBCRLF\fP on
+Windows. Note that \fBBIN\fP (do nothing to line endings) is Mercurial\(aqs
+default behaviour; it is only needed if you need to override a later,
+more general pattern.
 .sp
 The optional \fB[repository]\fP section specifies the line endings to
 use for files stored in the repository. It has a single setting,
@@ -5840,6 +5850,11 @@ Makefile = LF
 native = LF
 .ft P
 .fi
+.IP Note
+.
+The rules will first apply when files are touched in the working
+copy, e.g. by updating to null and back to tip to touch all files.
+.RE
 .sp
 The extension uses an optional \fB[eol]\fP section in your hgrc file
 (not the \fB.hgeol\fP file) for settings that control the overall

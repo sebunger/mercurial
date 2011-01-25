@@ -2235,14 +2235,20 @@ hg tag [-f] [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...
 <p>Name a particular revision using &lt;name&gt;.</p>
 <p>Tags are used to name particular revisions of the repository and are
 very useful to compare different revisions, to go back to significant
-earlier versions or to mark branch points as releases, etc.</p>
+earlier versions or to mark branch points as releases, etc. Changing
+an existing tag is normally disallowed; use -f/--force to override.</p>
 <p>If no revision is given, the parent of the working directory is
 used, or tip if no revision is checked out.</p>
 <p>To facilitate version control, distribution, and merging of tags,
-they are stored as a file named &quot;.hgtags&quot; which is managed
-similarly to other project files and can be hand-edited if
-necessary. The file '.hg/localtags' is used for local tags (not
-shared among repositories).</p>
+they are stored as a file named &quot;.hgtags&quot; which is managed similarly
+to other project files and can be hand-edited if necessary. This
+also means that tagging creates a new commit. The file
+&quot;.hg/localtags&quot; is used for local tags (not shared among
+repositories).</p>
+<p>Tag commits are usually made at the head of a branch. If the parent
+of the working directory is not a branch head, <a class="reference external" href="hg.1.html#tag"><tt class="docutils literal">hg tag</tt></a> aborts; use
+-f/--force to force the tag commit to be based on a non-head
+changeset.</p>
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
 <p>Since tag names have priority over branch names during revision
 lookup, using an existing branch name as a tag name is discouraged.</p>
@@ -2254,7 +2260,7 @@ lookup, using an existing branch name as a tag name is discouraged.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
-<td>replace existing tag</td></tr>
+<td>force tag</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-l</span>, <span class="option">--local</span></kbd></td>
 <td>make the tag local</td></tr>
@@ -2915,8 +2921,9 @@ keywords are usually available for templating a log-like command:</p>
 <tbody valign="top">
 <tr class="field"><th class="field-name">author:</th><td class="field-body">String. The unmodified author of the changeset.</td>
 </tr>
-<tr class="field"><th class="field-name">branches:</th><td class="field-body">String. The name of the branch on which the changeset was
-committed. Will be empty if the branch name was default.</td>
+<tr class="field"><th class="field-name">branches:</th><td class="field-body">List of strings. The name of the branch on which the
+changeset was committed. Will be empty if the branch name was
+default.</td>
 </tr>
 <tr class="field"><th class="field-name">children:</th><td class="field-body">List of strings. The children of the changeset.</td>
 </tr>
@@ -4545,17 +4552,19 @@ configuration file every time you run an <tt class="docutils literal">hg</tt> co
 <tt class="docutils literal">.hgeol</tt> file use the same syntax as all other Mercurial
 configuration files. It uses two sections, <tt class="docutils literal">[patterns]</tt> and
 <tt class="docutils literal">[repository]</tt>.</p>
-<p>The <tt class="docutils literal">[patterns]</tt> section specifies the line endings used in the
-working directory. The format is specified by a file pattern. The
-first match is used, so put more specific patterns first. The
-available line endings are <tt class="docutils literal">LF</tt>, <tt class="docutils literal">CRLF</tt>, and <tt class="docutils literal">BIN</tt>.</p>
+<p>The <tt class="docutils literal">[patterns]</tt> section specifies how line endings should be
+converted between the working copy and the repository. The format is
+specified by a file pattern. The first match is used, so put more
+specific patterns first. The available line endings are <tt class="docutils literal">LF</tt>,
+<tt class="docutils literal">CRLF</tt>, and <tt class="docutils literal">BIN</tt>.</p>
 <p>Files with the declared format of <tt class="docutils literal">CRLF</tt> or <tt class="docutils literal">LF</tt> are always
-checked out in that format and files declared to be binary (<tt class="docutils literal">BIN</tt>)
-are left unchanged. Additionally, <tt class="docutils literal">native</tt> is an alias for the
-platform's default line ending: <tt class="docutils literal">LF</tt> on Unix (including Mac OS X)
-and <tt class="docutils literal">CRLF</tt> on Windows. Note that <tt class="docutils literal">BIN</tt> (do nothing to line
-endings) is Mercurial's default behaviour; it is only needed if you
-need to override a later, more general pattern.</p>
+checked out and stored in the repository in that format and files
+declared to be binary (<tt class="docutils literal">BIN</tt>) are left unchanged. Additionally,
+<tt class="docutils literal">native</tt> is an alias for checking out in the platform's default line
+ending: <tt class="docutils literal">LF</tt> on Unix (including Mac OS X) and <tt class="docutils literal">CRLF</tt> on
+Windows. Note that <tt class="docutils literal">BIN</tt> (do nothing to line endings) is Mercurial's
+default behaviour; it is only needed if you need to override a later,
+more general pattern.</p>
 <p>The optional <tt class="docutils literal">[repository]</tt> section specifies the line endings to
 use for files stored in the repository. It has a single setting,
 <tt class="docutils literal">native</tt>, which determines the storage line endings for files
@@ -4577,6 +4586,11 @@ Makefile = LF
 [repository]
 native = LF
 </pre>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p class="last">The rules will first apply when files are touched in the working
+copy, e.g. by updating to null and back to tip to touch all files.</p>
+</div>
 <p>The extension uses an optional <tt class="docutils literal">[eol]</tt> section in your hgrc file
 (not the <tt class="docutils literal">.hgeol</tt> file) for settings that control the overall
 behavior. There are two settings:</p>

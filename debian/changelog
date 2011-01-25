@@ -1,3 +1,10 @@
+mercurial (1.7.3-1) experimental; urgency=low
+
+  * New upstream release 1.7.3
+  * Add patch for_upstream__typo_in_manpage
+
+ -- Javi Merino <cibervicho@gmail.com>  Tue, 25 Jan 2011 22:22:56 +0000
+
 mercurial (1.7.2-1) experimental; urgency=low
 
   * New upstream release 1.7.2 (Closes: #606678)
