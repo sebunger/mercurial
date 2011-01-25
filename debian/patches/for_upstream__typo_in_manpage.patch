@@ -1,3 +1,7 @@
+s/extention/extension/
+
+I'll submit this soon to the mercurial mailing list.
+
 --- a/hgext/win32mbcs.py
 +++ b/hgext/win32mbcs.py
 @@ -34,7 +34,7 @@
