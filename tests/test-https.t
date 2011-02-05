@@ -106,7 +106,7 @@ Test server address cannot be reused
 clone via pull
 
   $ hg clone https://localhost:$HGPORT/ copy-pull
-  warning: localhost certificate not verified (check web.cacerts config setting)
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   requesting all changes
   adding changesets
   adding manifests
@@ -132,7 +132,7 @@ pull without cacert
   $ echo '[hooks]' >> .hg/hgrc
   $ echo "changegroup = python '$TESTDIR'/printenv.py changegroup" >> .hg/hgrc
   $ hg pull
-  warning: localhost certificate not verified (check web.cacerts config setting)
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
   pulling from https://localhost:$HGPORT/
   searching for changes
@@ -154,11 +154,17 @@ cacert configured in local repo
   no changes found
   $ mv copy-pull/.hg/hgrc.bu copy-pull/.hg/hgrc
 
-cacert configured globally
+cacert configured globally, also testing expansion of environment
+variables in the filename
 
   $ echo "[web]" >> $HGRCPATH
-  $ echo "cacerts=`pwd`/pub.pem" >> $HGRCPATH
-  $ hg -R copy-pull pull
+  $ echo 'cacerts=$P/pub.pem' >> $HGRCPATH
+  $ P=`pwd` hg -R copy-pull pull
+  pulling from https://localhost:$HGPORT/
+  searching for changes
+  no changes found
+  $ P=`pwd` hg -R copy-pull pull --insecure
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   pulling from https://localhost:$HGPORT/
   searching for changes
   no changes found
@@ -166,11 +172,21 @@ cacert configured globally
 cacert mismatch
 
   $ hg -R copy-pull pull --config web.cacerts=pub.pem https://127.0.0.1:$HGPORT/
-  abort: 127.0.0.1 certificate error: certificate is for localhost
+  abort: 127.0.0.1 certificate error: certificate is for localhost (use --insecure to connect insecurely)
   [255]
+  $ hg -R copy-pull pull --config web.cacerts=pub.pem https://127.0.0.1:$HGPORT/ --insecure
+  warning: 127.0.0.1 certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
+  pulling from https://127.0.0.1:$HGPORT/
+  searching for changes
+  no changes found
   $ hg -R copy-pull pull --config web.cacerts=pub-other.pem
   abort: error: *:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed (glob)
   [255]
+  $ hg -R copy-pull pull --config web.cacerts=pub-other.pem --insecure
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
+  pulling from https://localhost:$HGPORT/
+  searching for changes
+  no changes found
 
 Test server cert which isn't valid yet
 
@@ -187,3 +203,22 @@ Test server cert which no longer is valid
   $ hg -R copy-pull pull --config web.cacerts=pub-expired.pem https://localhost:$HGPORT2/
   abort: error: *:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed (glob)
   [255]
+
+Fingerprints
+
+  $ echo "[hostfingerprints]" >> copy-pull/.hg/hgrc
+  $ echo "localhost = 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca" >> copy-pull/.hg/hgrc
+  $ echo "127.0.0.1 = 914f1aff87249c09b6859b88b1906d30756491ca" >> copy-pull/.hg/hgrc
+
+- works without cacerts
+  $ hg -R copy-pull id https://localhost:$HGPORT/ --config web.cacerts=
+  5fed3813f7f5
+
+- fails when cert doesn't match hostname (port is ignored)
+  $ hg -R copy-pull id https://localhost:$HGPORT1/
+  abort: invalid certificate for localhost with fingerprint 28:ff:71:bf:65:31:14:23:ad:62:92:b4:0e:31:99:18:fc:83:e3:9b
+  [255]
+
+- ignores that certificate doesn't match hostname
+  $ hg -R copy-pull id https://127.0.0.1:$HGPORT/
+  5fed3813f7f5

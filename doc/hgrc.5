@@ -557,6 +557,25 @@ hgext.mq =
 myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
+.SS \fBhostfingerprints\fP
+.sp
+Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA\-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.
+.sp
+For example:
+.sp
+.nf
+.ft C
+[hostfingerprints]
+hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+.ft P
+.fi
+.sp
+This feature is only supported when using Python 2.6 or later.
 .SS \fBformat\fP
 .INDENT 0.0
 .TP
@@ -1318,10 +1337,11 @@ URLs. Example: \fBhttp://hgserver/repos/\fP.
 .TP
 .B \fBcacerts\fP
 .sp
-Path to file containing a list of PEM encoded certificate authority
-certificates. If specified on the client, then it will verify the identity
-of remote HTTPS servers with these certificates. The form must be
-as follows:
+Path to file containing a list of PEM encoded certificate
+authority certificates. Environment variables and \fB~user\fP
+constructs are expanded in the filename. If specified on the
+client, then it will verify the identity of remote HTTPS servers
+with these certificates. The form must be as follows:
 .sp
 .nf
 .ft C
@@ -1342,6 +1362,9 @@ version of the ssl library that is available from
 You can use OpenSSL\(aqs CA certificate file if your platform has one.
 On most Linux systems this will be \fB/etc/ssl/certs/ca\-certificates.crt\fP.
 Otherwise you will have to generate this file manually.
+.sp
+To disable SSL verification temporarily, specify \fB\-\-insecure\fP from
+command line.
 .TP
 .B \fBcontact\fP
 .sp

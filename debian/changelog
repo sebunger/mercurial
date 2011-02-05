@@ -1,3 +1,15 @@
+mercurial (1.7.5-1) unstable; urgency=low
+
+  * New upstream release 1.7.5
+  * Delete patch for_upstream__typo_in_manpage.patch which is now
+    included upstream
+  * Add patch for_upstream__add_backquote_fname.patch , proposed
+    upstream (Closes: #611419)
+  * Add patch from_upstream__fix_611420.patch which will be part of the
+    next mercurial release (Closes: #611420)
+
+ -- Javi Merino <cibervicho@gmail.com>  Sat, 05 Feb 2011 21:05:19 +0000
+
 mercurial (1.7.3-1) experimental; urgency=low
 
   * New upstream release 1.7.3

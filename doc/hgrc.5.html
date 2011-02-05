@@ -41,25 +41,26 @@
 <li><a class="reference internal" href="#diff" id="id9"><tt class="docutils literal">diff</tt></a></li>
 <li><a class="reference internal" href="#email" id="id10"><tt class="docutils literal">email</tt></a></li>
 <li><a class="reference internal" href="#extensions" id="id11"><tt class="docutils literal">extensions</tt></a></li>
-<li><a class="reference internal" href="#format" id="id12"><tt class="docutils literal">format</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id13"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id14"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#hooks" id="id15"><tt class="docutils literal">hooks</tt></a></li>
-<li><a class="reference internal" href="#http-proxy" id="id16"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id17"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#patch" id="id18"><tt class="docutils literal">patch</tt></a></li>
-<li><a class="reference internal" href="#paths" id="id19"><tt class="docutils literal">paths</tt></a></li>
-<li><a class="reference internal" href="#profiling" id="id20"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#server" id="id21"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id22"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id23"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id24"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id25"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#hostfingerprints" id="id12"><tt class="docutils literal">hostfingerprints</tt></a></li>
+<li><a class="reference internal" href="#format" id="id13"><tt class="docutils literal">format</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id14"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id15"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
+<li><a class="reference internal" href="#hooks" id="id16"><tt class="docutils literal">hooks</tt></a></li>
+<li><a class="reference internal" href="#http-proxy" id="id17"><tt class="docutils literal">http_proxy</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id18"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#patch" id="id19"><tt class="docutils literal">patch</tt></a></li>
+<li><a class="reference internal" href="#paths" id="id20"><tt class="docutils literal">paths</tt></a></li>
+<li><a class="reference internal" href="#profiling" id="id21"><tt class="docutils literal">profiling</tt></a></li>
+<li><a class="reference internal" href="#server" id="id22"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id23"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id24"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id25"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id26"><tt class="docutils literal">web</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id26">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id27">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id28">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id27">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id28">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id29">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="synopsis">
@@ -447,6 +448,21 @@ hgext.mq =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 </pre>
+</div>
+<div class="section" id="hostfingerprints">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">hostfingerprints</tt></a></h2>
+<p>Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
+<p>For example:</p>
+<pre class="literal-block">
+[hostfingerprints]
+hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+</pre>
+<p>This feature is only supported when using Python 2.6 or later.</p>
 </div>
 <div class="section" id="format">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">format</tt></a></h2>
@@ -1010,10 +1026,11 @@ revisions. Default is False. This feature creates temporary files.</dd>
 third-party tools like email notification hooks can construct
 URLs. Example: <tt class="docutils literal"><span class="pre">http://hgserver/repos/</span></tt>.</dd>
 <dt><tt class="docutils literal">cacerts</tt></dt>
-<dd><p class="first">Path to file containing a list of PEM encoded certificate authority
-certificates. If specified on the client, then it will verify the identity
-of remote HTTPS servers with these certificates. The form must be
-as follows:</p>
+<dd><p class="first">Path to file containing a list of PEM encoded certificate
+authority certificates. Environment variables and <tt class="docutils literal">~user</tt>
+constructs are expanded in the filename. If specified on the
+client, then it will verify the identity of remote HTTPS servers
+with these certificates. The form must be as follows:</p>
 <pre class="literal-block">
 -----BEGIN CERTIFICATE-----
 ... (certificate in base64 PEM encoding) ...
@@ -1026,9 +1043,11 @@ as follows:</p>
 to use it with earlier versions of Python, install the backported
 version of the ssl library that is available from
 <tt class="docutils literal"><span class="pre">http://pypi.python.org</span></tt>.</p>
-<p class="last">You can use OpenSSL's CA certificate file if your platform has one.
+<p>You can use OpenSSL's CA certificate file if your platform has one.
 On most Linux systems this will be <tt class="docutils literal"><span class="pre">/etc/ssl/certs/ca-certificates.crt</span></tt>.
 Otherwise you will have to generate this file manually.</p>
+<p class="last">To disable SSL verification temporarily, specify <tt class="docutils literal"><span class="pre">--insecure</span></tt> from
+command line.</p>
 </dd>
 <dt><tt class="docutils literal">contact</tt></dt>
 <dd>Name or email address of the person in charge of the repository.

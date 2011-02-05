@@ -1881,7 +1881,7 @@ def help_(ui, name=None, with_version=False, unknowncmd=False):
                 msg = _('use "hg help" for the full list of commands '
                         'or "hg -v" for details')
             elif aliases:
-                msg = _('use "hg -v help%s" to show aliases and '
+                msg = _('use "hg -v help%s" to show builtin aliases and '
                         'global options') % (name and " " + name or "")
             else:
                 msg = _('use "hg -v help %s" to show global options') % name
@@ -3943,6 +3943,8 @@ remoteopts = [
      _('specify ssh command to use'), _('CMD')),
     ('', 'remotecmd', '',
      _('specify hg command to run on the remote side'), _('CMD')),
+    ('', 'insecure', None,
+     _('do not verify server certificate (ignoring web.cacerts config)')),
 ]
 
 walkopts = [
