@@ -1,7 +1,7 @@
 mercurial (1.8-1) unstable; urgency=low
 
   * New upstream release 1.8. Many new features and bugfixes, among them:
-	- hgk: realize it is hgk and not gitk (Closes: #613339)
+    - hgk: realize it is hgk and not gitk (Closes: #613339)
 
  -- Javi Merino <cibervicho@gmail.com>  Sun, 06 Mar 2011 16:01:58 +0000
 
