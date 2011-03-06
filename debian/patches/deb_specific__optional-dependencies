@@ -116,12 +116,12 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -213,16 +214,19 @@
-         try:
-             SubversionException
-         except NameError:
--            raise MissingTool(_('Subversion python bindings could not be loaded'))
-+            raise MissingTool(_('Subversion python bindings could not be loaded') +
+@@ -210,16 +211,19 @@
+             raise NoRepo(_("%s does not look like a Subversion repository")
+                          % url)
+         if svn is None:
+-            raise MissingTool(_('Could not load Subversion python bindings'))
++            raise MissingTool(_('Could not load Subversion python bindings') +
 +                              _(' (try installing the %s package)') % 'python-subversion')
  
          try:
@@ -139,16 +139,15 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -960,6 +964,9 @@
+@@ -961,6 +965,8 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
 +        checktool('svn', debname='subversion')
 +        checktool('svnadmin', debname='subversion')
-+
-         converter_sink.__init__(self, ui, path)
-         commandline.__init__(self, ui, 'svn')
-         self.delete = []
+ 
+         if svn is None:
+             raise MissingTool(_('Could not load Subversion python bindings'))
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
 @@ -184,7 +184,8 @@

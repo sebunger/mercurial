@@ -1,5 +1,4 @@
   $ echo "[extensions]" >> $HGRCPATH
-  $ echo "bookmarks=" >> $HGRCPATH
   $ echo "mq=" >> $HGRCPATH
 
   $ hg init
@@ -61,7 +60,7 @@ strip to revision 1
 list bookmarks
 
   $ hg book
-   * test                      1:8cf31af87a2b
+     test                      1:8cf31af87a2b
    * test2                     1:8cf31af87a2b
 
 immediate rollback and reentrancy issue
@@ -77,7 +76,8 @@ immediate rollback and reentrancy issue
   adding b
   $ hg bookmarks markb
   $ hg rollback
-  rolling back to revision 0 (undo commit)
+  repository tip rolled back to revision 0 (undo commit)
+  working directory now based on revision 0
 
 are you there?
 
@@ -93,6 +93,8 @@ can you be added again?
 rollback dry run with rollback information
 
   $ hg rollback -n
+  no rollback information available
+  [1]
   $ hg bookmarks
    * markb                     0:07f494440405
 

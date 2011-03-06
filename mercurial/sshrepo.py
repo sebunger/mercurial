@@ -29,6 +29,8 @@ class sshrepository(wireproto.wirerepository):
             self._abort(error.RepoError(_("couldn't parse location %s") % path))
 
         self.user = m.group(2)
+        if self.user and ':' in self.user:
+            self._abort(error.RepoError(_("password in URL not supported")))
         self.host = m.group(3)
         self.port = m.group(5)
         self.path = m.group(7) or "."
@@ -91,10 +93,11 @@ class sshrepository(wireproto.wirerepository):
             size = util.fstat(self.pipee).st_size
             if size == 0:
                 break
-            l = self.pipee.readline()
-            if not l:
+            s = self.pipee.read(size)
+            if not s:
                 break
-            self.ui.status(_("remote: "), l)
+            for l in s.splitlines():
+                self.ui.status(_("remote: "), l, '\n')
 
     def _abort(self, exception):
         self.cleanup()

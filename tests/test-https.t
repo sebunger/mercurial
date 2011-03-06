@@ -112,6 +112,7 @@ clone via pull
   adding manifests
   adding file changes
   added 1 changesets with 4 changes to 4 files
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R copy-pull
@@ -133,13 +134,14 @@ pull without cacert
   $ echo "changegroup = python '$TESTDIR'/printenv.py changegroup" >> .hg/hgrc
   $ hg pull
   warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
-  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
   pulling from https://localhost:$HGPORT/
   searching for changes
   adding changesets
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
+  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -222,3 +224,46 @@ Fingerprints
 - ignores that certificate doesn't match hostname
   $ hg -R copy-pull id https://127.0.0.1:$HGPORT/
   5fed3813f7f5
+
+Prepare for connecting through proxy
+
+  $ kill `cat hg1.pid`
+  $ sleep 1
+
+  $ ("$TESTDIR/tinyproxy.py" $HGPORT1 localhost >proxy.log 2>&1 </dev/null &
+  $ echo $! > proxy.pid)
+  $ cat proxy.pid >> $DAEMON_PIDS
+  $ sleep 2
+
+  $ echo "[http_proxy]" >> copy-pull/.hg/hgrc
+  $ echo "always=True" >> copy-pull/.hg/hgrc
+  $ echo "[hostfingerprints]" >> copy-pull/.hg/hgrc
+  $ echo "localhost =" >> copy-pull/.hg/hgrc
+
+Test unvalidated https through proxy
+
+  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --insecure --traceback
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
+  pulling from https://localhost:$HGPORT/
+  searching for changes
+  no changes found
+
+Test https with cacert and fingerprint through proxy
+
+  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --config web.cacerts=pub.pem
+  pulling from https://localhost:$HGPORT/
+  searching for changes
+  no changes found
+  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull https://127.0.0.1:$HGPORT/
+  pulling from https://127.0.0.1:$HGPORT/
+  searching for changes
+  no changes found
+
+Test https with cert problems through proxy
+
+  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --config web.cacerts=pub-other.pem
+  abort: error: *:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed (glob)
+  [255]
+  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --config web.cacerts=pub-expired.pem https://localhost:$HGPORT2/
+  abort: error: *:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed (glob)
+  [255]

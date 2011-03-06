@@ -284,12 +284,12 @@ qpop
 qpush with dump of tag cache
 Dump the tag cache to ensure that it has exactly one head after qpush.
 
-  $ rm -f .hg/tags.cache
+  $ rm -f .hg/cache/tags
   $ hg tags > /dev/null
 
-.hg/tags.cache (pre qpush):
+.hg/cache/tags (pre qpush):
 
-  $ cat .hg/tags.cache
+  $ cat .hg/cache/tags
   1 [\da-f]{40} (re)
   
   $ hg qpush
@@ -297,9 +297,9 @@ Dump the tag cache to ensure that it has exactly one head after qpush.
   now at: test.patch
   $ hg tags > /dev/null
 
-.hg/tags.cache (post qpush):
+.hg/cache/tags (post qpush):
 
-  $ cat .hg/tags.cache
+  $ cat .hg/cache/tags
   2 [\da-f]{40} (re)
   
   $ checkundo qpush
@@ -915,6 +915,25 @@ bad node in status
   diff --git a/new b/copy
   copy from new
   copy to copy
+  $ cd ..
+
+empty lines in status
+
+  $ hg init emptystatus
+  $ cd emptystatus
+  $ hg qinit
+  $ printf '\n\n' > .hg/patches/status
+  $ hg qser
+  $ cd ..
+
+bad line in status (without ":")
+
+  $ hg init badstatus
+  $ cd badstatus
+  $ hg qinit
+  $ printf 'babar has no colon in this line\n' > .hg/patches/status
+  $ hg qser
+  malformated mq status line: ['babar has no colon in this line']
   $ cd ..
 
 

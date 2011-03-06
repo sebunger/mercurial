@@ -12,7 +12,7 @@ Look for *.mo files in /usr/share/locale (FHS compliant)
          break
 --- a/setup.py
 +++ b/setup.py
-@@ -340,7 +340,7 @@
+@@ -344,7 +344,7 @@
          extmodules.append(inotify)
          packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
  
