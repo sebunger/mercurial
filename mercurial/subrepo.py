@@ -702,6 +702,9 @@ class gitsubrepo(abstractsubrepo):
 
         return retdata, p.returncode
 
+    def _gitmissing(self):
+        return not os.path.exists(os.path.join(self._abspath, '.git'))
+
     def _gitstate(self):
         return self._gitcommand(['rev-parse', 'HEAD'])
 
@@ -758,7 +761,7 @@ class gitsubrepo(abstractsubrepo):
         return _abssource(self)
 
     def _fetch(self, source, revision):
-        if not os.path.exists(os.path.join(self._abspath, '.git')):
+        if self._gitmissing():
             self._ui.status(_('cloning subrepo %s\n') % self._relpath)
             self._gitnodir(['clone', self._abssource(source), self._abspath])
         if self._githavelocally(revision):
@@ -771,6 +774,8 @@ class gitsubrepo(abstractsubrepo):
                                (revision, self._relpath))
 
     def dirty(self, ignoreupdate=False):
+        if self._gitmissing():
+            return True
         if not ignoreupdate and self._state[1] != self._gitstate():
             # different version checked out
             return True
@@ -859,6 +864,8 @@ class gitsubrepo(abstractsubrepo):
             rawcheckout()
 
     def commit(self, text, user, date):
+        if self._gitmissing():
+            raise util.Abort(_("subrepo %s is missing") % self._relpath)
         cmd = ['commit', '-a', '-m', text]
         env = os.environ.copy()
         if user:
@@ -895,6 +902,8 @@ class gitsubrepo(abstractsubrepo):
             mergefunc()
 
     def push(self, force):
+        if self._gitmissing():
+            raise util.Abort(_("subrepo %s is missing") % self._relpath)
         # if a branch in origin contains the revision, nothing to do
         branch2rev, rev2branch = self._gitbranchmap()
         if self._state[1] in rev2branch:
@@ -928,6 +937,8 @@ class gitsubrepo(abstractsubrepo):
             return False
 
     def remove(self):
+        if self._gitmissing():
+            return
         if self.dirty():
             self._ui.warn(_('not removing repo %s because '
                             'it has changes.\n') % self._relpath)
@@ -971,6 +982,9 @@ class gitsubrepo(abstractsubrepo):
 
 
     def status(self, rev2, **opts):
+        if self._gitmissing():
+            # if the repo is missing, return no results
+            return [], [], [], [], [], [], []
         rev1 = self._state[1]
         modified, added, removed = [], [], []
         if rev2:
