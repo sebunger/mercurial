@@ -1,3 +1,10 @@
+mercurial (1.8.1-1) unstable; urgency=low
+
+  * New upstream release 1.8.1 backs out a behavior change for so-called
+    'fast-forward' merges on named branches.
+
+ -- Javi Merino <cibervicho@gmail.com>  Sat, 12 Mar 2011 19:01:16 +0000
+
 mercurial (1.8-1) unstable; urgency=low
 
   * New upstream release 1.8. Many new features and bugfixes, among them:
