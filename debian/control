@@ -40,7 +40,7 @@ Suggests: qct,
  wish, 
  vim | emacs,
  kdiff3 | tkdiff | meld | xxdiff
-Breaks: mercurial-git (<< 0.2.3)
+Breaks: mercurial-git (<< 0.2.6)
 Description: scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
