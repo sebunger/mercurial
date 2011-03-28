@@ -18,7 +18,7 @@ Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
 Package: mercurial-common
 Architecture: all 
 Depends: ${misc:Depends}, ${python:Depends}
-Recommends: mercurial (= ${binary:Version})
+Recommends: mercurial (= ${binary:Version}), ca-certificates
 Suggests: wish,
  python-mysqldb, 
  python-pygments,

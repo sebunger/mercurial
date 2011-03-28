@@ -49,6 +49,9 @@ install-archdep:
 	install -m 644 \
 		contrib/mergetools.hgrc \
 		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
+	install -m 644 \
+		debian/cacerts.hgrc \
+		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/cacerts.rc
 	# remove arch-independent python stuff
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \
