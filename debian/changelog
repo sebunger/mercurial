@@ -1,4 +1,4 @@
-mercurial (1.8.1-2) UNRELEASED; urgency=low
+mercurial (1.8.1-2) unstable; urgency=low
 
   [ Vincent Danjean ]
   * Set /etc/ssl/certs/ca-certificates.crt as default valid root
@@ -9,7 +9,7 @@ mercurial (1.8.1-2) UNRELEASED; urgency=low
   * Mercurial 1.8 breaks hg-git, add that info to debian/control
     (Closes: #619930)
 
- -- Javi Merino <cibervicho@gmail.com>  Mon, 28 Mar 2011 21:48:57 +0100
+ -- Javi Merino <cibervicho@gmail.com>  Mon, 28 Mar 2011 21:51:40 +0100
 
 mercurial (1.8.1-1) unstable; urgency=low
 
