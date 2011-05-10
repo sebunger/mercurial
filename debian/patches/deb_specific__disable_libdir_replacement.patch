@@ -12,7 +12,7 @@ Last-Update: 2011-03-30
  
 --- a/setup.py
 +++ b/setup.py
-@@ -310,7 +310,7 @@
+@@ -315,7 +315,7 @@
  cmdclass = {'build_mo': hgbuildmo,
              'build_ext': hgbuildext,
              'build_py': hgbuildpy,

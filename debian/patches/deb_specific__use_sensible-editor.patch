@@ -2,7 +2,7 @@ Use sensible-editor as default instead of vi.
 
 --- a/doc/hgrc.5.txt
 +++ b/doc/hgrc.5.txt
-@@ -886,7 +886,8 @@
+@@ -891,7 +891,8 @@
  ``debug``
      Print debugging information. True or False. Default is False.
  ``editor``
@@ -49,7 +49,7 @@ Use sensible-editor as default instead of vi.
          '''show a progress message
 --- a/i18n/da.po
 +++ b/i18n/da.po
-@@ -7408,7 +7408,7 @@
+@@ -7437,7 +7437,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -58,7 +58,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -10714,7 +10714,7 @@
+@@ -10749,7 +10749,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -69,7 +69,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/de.po
 +++ b/i18n/de.po
-@@ -8447,8 +8447,8 @@
+@@ -8573,8 +8573,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -80,7 +80,7 @@ Use sensible-editor as default instead of vi.
  
  #, fuzzy
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -13289,7 +13289,7 @@
+@@ -13430,7 +13430,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -89,7 +89,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -13297,7 +13297,7 @@
+@@ -13438,7 +13438,7 @@
  "    Nachricht geschrieben wird. Der verwendete Editor wird aus den drei\n"
  "    Umgebungsvariablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge)\n"
  "    ermittelt. Der erste nicht-leere wird verwendet. Wenn alle Angaben\n"
@@ -140,7 +140,7 @@ Use sensible-editor as default instead of vi.
  msgid " (specify a commit editor in your .hgrc file)\n"
 --- a/i18n/it.po
 +++ b/i18n/it.po
-@@ -6842,8 +6842,8 @@
+@@ -7154,8 +7154,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Sto controllando l'editor per il commit...\n"
  
@@ -149,9 +149,9 @@ Use sensible-editor as default instead of vi.
 +msgid " No commit editor set and can't find sensible-editor in PATH\n"
 +msgstr "Nessun editor per il commit trovato e non trovo sensible-editor in PATH\n"
  
- msgid " (specify a commit editor in your .hgrc file)\n"
- msgstr " (specificare un editore per il commit nel proprio file .hgrc)\n"
-@@ -10271,7 +10271,7 @@
+ msgid " (specify a commit editor in your configuration file)\n"
+ msgstr ""
+@@ -10459,7 +10459,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -193,7 +193,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -8484,8 +8484,8 @@
+@@ -8490,8 +8490,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -204,7 +204,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (especifique um editor para consolidação em seu arquivo de configuração)\n"
-@@ -12155,7 +12155,7 @@
+@@ -12177,7 +12177,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -213,7 +213,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -12163,7 +12163,7 @@
+@@ -12185,7 +12185,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
