@@ -487,9 +487,9 @@ def bookmark(ui, repo, mark=None, rev=None, force=False, delete=False, rename=No
         if mark is None:
             raise util.Abort(_("new bookmark name required"))
         marks[mark] = marks[rename]
-        del marks[rename]
         if repo._bookmarkcurrent == rename:
             bookmarks.setcurrent(repo, mark)
+        del marks[rename]
         bookmarks.write(repo)
         return
 
@@ -2244,16 +2244,16 @@ def identify(ui, repo, source=None, rev=None,
              num=None, id=None, branch=None, tags=None, bookmarks=None):
     """identify the working copy or specified revision
 
-    With no revision, print a summary of the current state of the
+    Print a summary identifying the repository state at REV using one or
+    two parent hash identifiers, followed by a "+" if the working
+    directory has uncommitted changes, the branch name (if not default),
+    a list of tags, and a list of bookmarks.
+
+    When REV is not given, print a summary of the current state of the
     repository.
 
     Specifying a path to a repository root or Mercurial bundle will
     cause lookup to operate on that repository/bundle.
-
-    This summary identifies the repository state using one or two
-    parent hash identifiers, followed by a "+" if there are
-    uncommitted changes in the working directory, a list of tags for
-    this revision and a branch name for non-default branches.
 
     Returns 0 if successful.
     """
@@ -2999,9 +2999,9 @@ def push(ui, repo, dest=None, **opts):
 
     dest = ui.expandpath(dest or 'default-push', dest or 'default')
     dest, branches = hg.parseurl(dest, opts.get('branch'))
+    ui.status(_('pushing to %s\n') % url.hidepassword(dest))
     revs, checkout = hg.addbranchrevs(repo, repo, branches, opts.get('rev'))
     other = hg.repository(hg.remoteui(repo, opts), dest)
-    ui.status(_('pushing to %s\n') % url.hidepassword(dest))
     if revs:
         revs = [repo.lookup(rev) for rev in revs]
 
@@ -4166,7 +4166,7 @@ commitopts = [
 
 commitopts2 = [
     ('d', 'date', '',
-     _('record datecode as commit date'), _('DATE')),
+     _('record the specified date as commit date'), _('DATE')),
     ('u', 'user', '',
      _('record the specified user as committer'), _('USER')),
 ]

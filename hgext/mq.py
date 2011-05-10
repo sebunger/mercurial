@@ -834,7 +834,7 @@ class queue(object):
                 raise util.Abort(_("local changes found"))
         return m, a, r, d
 
-    _reserved = ('series', 'status', 'guards')
+    _reserved = ('series', 'status', 'guards', '.', '..')
     def check_reserved_name(self, name):
         if (name in self._reserved or name.startswith('.hg')
             or name.startswith('.mq') or '#' in name or ':' in name):
@@ -1455,9 +1455,10 @@ class queue(object):
 
             try:
                 # might be nice to attempt to roll back strip after this
-                patchf.rename()
                 n = repo.commit(message, user, ph.date, match=match,
                                 force=True)
+                # only write patch after a successful commit
+                patchf.rename()
                 self.applied.append(statusentry(n, patchfn))
             except:
                 ctx = repo[cparents[0]]
@@ -2382,7 +2383,7 @@ def push(ui, repo, patch=None, **opts):
     When -f/--force is applied, all local changes in patched files
     will be lost.
 
-    Return 0 on succces.
+    Return 0 on success.
     """
     q = repo.mq
     mergeq = None
@@ -2622,8 +2623,8 @@ def select(ui, repo, *args, **opts):
     selected guard, but will not be pushed if any negative guards
     match the current guard. For example::
 
-        qguard foo.patch -stable    (negative guard)
-        qguard bar.patch +stable    (positive guard)
+        qguard foo.patch -- -stable    (negative guard)
+        qguard bar.patch    +stable    (positive guard)
         qselect stable
 
     This activates the "stable" guard. mq will skip foo.patch (because

@@ -546,9 +546,8 @@ the path to the \fB.py\fP file (including the file name extension) that
 defines the extension.
 .sp
 To explicitly disable an extension that is enabled in an hgrc of
-broader scope, prepend its path with \fB!\fP, as in
-\fBhgext.foo = !/ext/path\fP or \fBhgext.foo = !\fP  when path is not
-supplied.
+broader scope, prepend its path with \fB!\fP, as in \fBfoo = !/ext/path\fP
+or \fBfoo = !\fP when path is not supplied.
 .sp
 Example for \fB~/.hgrc\fP:
 .sp
@@ -556,7 +555,7 @@ Example for \fB~/.hgrc\fP:
 .ft C
 [extensions]
 # (the mq extension will get loaded from Mercurial\(aqs path)
-hgext.mq =
+mq =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 .ft P
