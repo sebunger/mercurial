@@ -1,9 +1,13 @@
 mercurial (1.8.3-1) UNRELEASED; urgency=low
 
+  [ Javi Merino ]
   * New upstream release 1.8.3
   * Upgrade Debian Policy to 3.9.2.0
 
- -- Javi Merino <cibervicho@gmail.com>  Tue, 10 May 2011 20:21:04 +0100
+  [ Jonathan Nieder ]
+  * Make mercurial-common's Recommends field binNMU-safe (Closes: #626132)
+
+ -- Javi Merino <cibervicho@gmail.com>  Tue, 10 May 2011 20:37:27 +0100
 
 mercurial (1.8.1-3) unstable; urgency=low
 
