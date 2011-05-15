@@ -1,8 +1,10 @@
 mercurial (1.8.3-2) UNRELEASED; urgency=low
 
   * Strip trailing .0 from Debian Policy
+  * Remove template warnings from debian/watch to remove a lintian
+    warning
 
- -- Javi Merino <cibervicho@gmail.com>  Wed, 11 May 2011 08:12:09 +0100
+ -- Javi Merino <cibervicho@gmail.com>  Sun, 15 May 2011 11:34:55 +0100
 
 mercurial (1.8.3-1) unstable; urgency=low
 
