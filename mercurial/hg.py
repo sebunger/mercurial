@@ -8,8 +8,10 @@
 
 from i18n import _
 from lock import release
+from node import hex, nullid, nullrev, short
 import localrepo, bundlerepo, httprepo, sshrepo, statichttprepo
 import lock, util, extensions, error, encoding, node
+import cmdutil, discovery, url
 import merge as mergemod
 import verify as verifymod
 import errno, os, shutil
@@ -30,24 +32,22 @@ def addbranchrevs(lrepo, repo, branches, revs):
         return revs, revs[0]
     branchmap = repo.branchmap()
 
-    def primary(butf8):
-        if butf8 == '.':
+    def primary(branch):
+        if branch == '.':
             if not lrepo or not lrepo.local():
                 raise util.Abort(_("dirstate branch not accessible"))
-            butf8 = lrepo.dirstate.branch()
-        if butf8 in branchmap:
-            revs.extend(node.hex(r) for r in reversed(branchmap[butf8]))
+            branch = lrepo.dirstate.branch()
+        if branch in branchmap:
+            revs.extend(node.hex(r) for r in reversed(branchmap[branch]))
             return True
         else:
             return False
 
     for branch in branches:
-        butf8 = encoding.fromlocal(branch)
-        if not primary(butf8):
+        if not primary(branch):
             raise error.RepoLookupError(_("unknown branch '%s'") % branch)
     if hashbranch:
-        butf8 = encoding.fromlocal(hashbranch)
-        if not primary(butf8):
+        if not primary(hashbranch):
             revs.append(hashbranch)
     return revs, revs[0]
 
@@ -311,7 +311,8 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             # we need to re-init the repo after manually copying the data
             # into it
             dest_repo = repository(ui, dest)
-            src_repo.hook('outgoing', source='clone', node='0'*40)
+            src_repo.hook('outgoing', source='clone',
+                          node=node.hex(node.nullid))
         else:
             try:
                 dest_repo = repository(ui, dest, create=True)
@@ -362,8 +363,7 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
                     except error.RepoLookupError:
                         continue
                 bn = dest_repo[uprev].branch()
-                dest_repo.ui.status(_("updating to branch %s\n")
-                                    % encoding.tolocal(bn))
+                dest_repo.ui.status(_("updating to branch %s\n") % bn)
                 _update(dest_repo, uprev)
 
         return src_repo, dest_repo
@@ -395,15 +395,126 @@ def clean(repo, node, show_stats=True):
     return stats[3] > 0
 
 def merge(repo, node, force=None, remind=True):
-    """branch merge with node, resolving changes"""
+    """Branch merge with node, resolving changes. Return true if any
+    unresolved conflicts."""
     stats = mergemod.update(repo, node, True, force, False)
     _showstats(repo, stats)
     if stats[3]:
         repo.ui.status(_("use 'hg resolve' to retry unresolved file merges "
-                         "or 'hg update -C' to abandon\n"))
+                         "or 'hg update -C .' to abandon\n"))
     elif remind:
         repo.ui.status(_("(branch merge, don't forget to commit)\n"))
     return stats[3] > 0
+
+def _incoming(displaychlist, subreporecurse, ui, repo, source,
+        opts, buffered=False):
+    """
+    Helper for incoming / gincoming.
+    displaychlist gets called with
+        (remoterepo, incomingchangesetlist, displayer) parameters,
+    and is supposed to contain only code that can't be unified.
+    """
+    source, branches = parseurl(ui.expandpath(source), opts.get('branch'))
+    other = repository(remoteui(repo, opts), source)
+    ui.status(_('comparing with %s\n') % url.hidepassword(source))
+    revs, checkout = addbranchrevs(repo, other, branches, opts.get('rev'))
+
+    if revs:
+        revs = [other.lookup(rev) for rev in revs]
+    other, incoming, bundle = bundlerepo.getremotechanges(ui, repo, other, revs,
+                                opts["bundle"], opts["force"])
+    if incoming is None:
+        ui.status(_("no changes found\n"))
+        return subreporecurse()
+
+    try:
+        chlist = other.changelog.nodesbetween(incoming, revs)[0]
+        displayer = cmdutil.show_changeset(ui, other, opts, buffered)
+
+        # XXX once graphlog extension makes it into core,
+        # should be replaced by a if graph/else
+        displaychlist(other, chlist, displayer)
+
+        displayer.close()
+    finally:
+        if hasattr(other, 'close'):
+            other.close()
+        if bundle:
+            os.unlink(bundle)
+    subreporecurse()
+    return 0 # exit code is zero since we found incoming changes
+
+def incoming(ui, repo, source, opts):
+    def subreporecurse():
+        ret = 1
+        if opts.get('subrepos'):
+            ctx = repo[None]
+            for subpath in sorted(ctx.substate):
+                sub = ctx.sub(subpath)
+                ret = min(ret, sub.incoming(ui, source, opts))
+        return ret
+
+    def display(other, chlist, displayer):
+        limit = cmdutil.loglimit(opts)
+        if opts.get('newest_first'):
+            chlist.reverse()
+        count = 0
+        for n in chlist:
+            if limit is not None and count >= limit:
+                break
+            parents = [p for p in other.changelog.parents(n) if p != nullid]
+            if opts.get('no_merges') and len(parents) == 2:
+                continue
+            count += 1
+            displayer.show(other[n])
+    return _incoming(display, subreporecurse, ui, repo, source, opts)
+
+def _outgoing(ui, repo, dest, opts):
+    dest = ui.expandpath(dest or 'default-push', dest or 'default')
+    dest, branches = parseurl(dest, opts.get('branch'))
+    ui.status(_('comparing with %s\n') % url.hidepassword(dest))
+    revs, checkout = addbranchrevs(repo, repo, branches, opts.get('rev'))
+    if revs:
+        revs = [repo.lookup(rev) for rev in revs]
+
+    other = repository(remoteui(repo, opts), dest)
+    o = discovery.findoutgoing(repo, other, force=opts.get('force'))
+    if not o:
+        ui.status(_("no changes found\n"))
+        return None
+
+    return repo.changelog.nodesbetween(o, revs)[0]
+
+def outgoing(ui, repo, dest, opts):
+    def recurse():
+        ret = 1
+        if opts.get('subrepos'):
+            ctx = repo[None]
+            for subpath in sorted(ctx.substate):
+                sub = ctx.sub(subpath)
+                ret = min(ret, sub.outgoing(ui, dest, opts))
+        return ret
+
+    limit = cmdutil.loglimit(opts)
+    o = _outgoing(ui, repo, dest, opts)
+    if o is None:
+        return recurse()
+
+    if opts.get('newest_first'):
+        o.reverse()
+    displayer = cmdutil.show_changeset(ui, repo, opts)
+    count = 0
+    for n in o:
+        if limit is not None and count >= limit:
+            break
+        parents = [p for p in repo.changelog.parents(n) if p != nullid]
+        if opts.get('no_merges') and len(parents) == 2:
+            continue
+        count += 1
+        displayer.show(repo[n])
+    displayer.close()
+    recurse()
+    return 0 # exit code is zero since we found outgoing changes
 
 def revert(repo, node, choose):
     """revert changes to revision in node without updating dirstate"""
@@ -432,9 +543,12 @@ def remoteui(src, opts):
     if r:
         dst.setconfig('bundle', 'mainreporoot', r)
 
-    # copy auth and http_proxy section settings
-    for sect in ('auth', 'http_proxy'):
+    # copy selected local settings to the remote ui
+    for sect in ('auth', 'hostfingerprints', 'http_proxy'):
         for key, val in src.configitems(sect):
             dst.setconfig(sect, key, val)
+    v = src.config('web', 'cacerts')
+    if v:
+        dst.setconfig('web', 'cacerts', util.expandpath(v))
 
     return dst

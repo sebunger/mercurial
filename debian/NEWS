@@ -3,7 +3,7 @@ mercurial (1.4.3-1) unstable; urgency=low
   mercurial.el (emacs mode for mercurial) is not installed anymore in emacs
   paths. Emacs22 or newer has vc-hg.el that is better. If needed, this file
   is still provided in the examples directory.
-    The alias extension does not exist anymore as its fonctionnalities are now
+    The alias extension does not exist anymore as its functionalities are now
   in mercurial core. To avoid spurious warning about failed loading of
   extension, users just have to remove it in their hgrc file.
 

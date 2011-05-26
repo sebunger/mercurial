@@ -17,7 +17,7 @@ from i18n import _
 import error, osutil, encoding
 import errno, re, shutil, sys, tempfile, traceback
 import os, stat, time, calendar, textwrap, unicodedata, signal
-import imp
+import imp, socket
 
 # Python compatibility
 
@@ -38,9 +38,15 @@ def _fastsha1(s):
 
 import __builtin__
 
-def fakebuffer(sliceable, offset=0):
-    return sliceable[offset:]
-if not hasattr(__builtin__, 'buffer'):
+if sys.version_info[0] < 3:
+    def fakebuffer(sliceable, offset=0):
+        return sliceable[offset:]
+else:
+    def fakebuffer(sliceable, offset=0):
+        return memoryview(sliceable)[offset:]
+try:
+    buffer
+except NameError:
     __builtin__.buffer = fakebuffer
 
 import subprocess
@@ -192,7 +198,10 @@ def tempfilter(s, cmd):
         if code:
             raise Abort(_("command '%s' failed: %s") %
                         (cmd, explain_exit(code)))
-        return open(outname, 'rb').read()
+        fp = open(outname, 'rb')
+        r = fp.read()
+        fp.close()
+        return r
     finally:
         try:
             if inname:
@@ -286,7 +295,7 @@ def pathto(root, n1, n2):
     b.reverse()
     return os.sep.join((['..'] * len(a)) + b) or '.'
 
-def canonpath(root, cwd, myname):
+def canonpath(root, cwd, myname, auditor=None):
     """return the canonical path of myname, given cwd and root"""
     if endswithsep(root):
         rootsep = root
@@ -296,10 +305,11 @@ def canonpath(root, cwd, myname):
     if not os.path.isabs(name):
         name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
-    audit_path = path_auditor(root)
+    if auditor is None:
+        auditor = path_auditor(root)
     if name != rootsep and name.startswith(rootsep):
         name = name[len(rootsep):]
-        audit_path(name)
+        auditor(name)
         return pconvert(name)
     elif name == root:
         return ''
@@ -323,7 +333,7 @@ def canonpath(root, cwd, myname):
                     return ''
                 rel.reverse()
                 name = os.path.join(*rel)
-                audit_path(name)
+                auditor(name)
                 return pconvert(name)
             dirname, basename = os.path.split(name)
             rel.append(basename)
@@ -376,6 +386,10 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
 
     if out is specified, it is assumed to be a file-like object that has a
     write() method. stdout and stderr will be redirected to out.'''
+    try:
+        sys.stdout.flush()
+    except Exception:
+        pass
     def py2shell(val):
         'convert python object into string that is useful to shell'
         if val is None or val is False:
@@ -384,8 +398,7 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
             return '1'
         return str(val)
     origcmd = cmd
-    if os.name == 'nt':
-        cmd = '"%s"' % cmd
+    cmd = quotecommand(cmd)
     env = dict(os.environ)
     env.update((k, py2shell(v)) for k, v in environ.iteritems())
     env['HG'] = hgexecutable()
@@ -425,16 +438,7 @@ def checksignature(func):
 
     return check
 
-# os.path.lexists is not available on python2.3
-def lexists(filename):
-    "test whether a file with this name exists. does not follow symlinks"
-    try:
-        os.lstat(filename)
-    except:
-        return False
-    return True
-
-def unlink(f):
+def unlinkpath(f):
     """unlink and remove the directory if it is empty"""
     os.unlink(f)
     # try removing directories that might now be empty
@@ -454,7 +458,7 @@ def copyfile(src, dest):
     else:
         try:
             shutil.copyfile(src, dest)
-            shutil.copystat(src, dest)
+            shutil.copymode(src, dest)
         except shutil.Error, inst:
             raise Abort(str(inst))
 
@@ -490,20 +494,27 @@ class path_auditor(object):
     '''ensure that a filesystem path contains no banned components.
     the following properties of a path are checked:
 
+    - ends with a directory separator
     - under top-level .hg
     - starts at the root of a windows drive
     - contains ".."
     - traverses a symlink (e.g. a/symlink_here/b)
-    - inside a nested repository'''
+    - inside a nested repository (a callback can be used to approve
+      some nested repositories, e.g., subrepositories)
+    '''
 
-    def __init__(self, root):
+    def __init__(self, root, callback=None):
         self.audited = set()
         self.auditeddir = set()
         self.root = root
+        self.callback = callback
 
     def __call__(self, path):
         if path in self.audited:
             return
+        # AIX ignores "/" at end of path, others raise EISDIR.
+        if endswithsep(path):
+            raise Abort(_("path ends in directory separator: %s") % path)
         normpath = os.path.normcase(path)
         parts = splitpath(normpath)
         if (os.path.splitdrive(path)[0]
@@ -532,8 +543,9 @@ class path_auditor(object):
                                 (path, prefix))
                 elif (stat.S_ISDIR(st.st_mode) and
                       os.path.isdir(os.path.join(curpath, '.hg'))):
-                    raise Abort(_('path %r is inside repo %r') %
-                                (path, prefix))
+                    if not self.callback or not self.callback(curpath):
+                        raise Abort(_('path %r is inside repo %r') %
+                                    (path, prefix))
         parts.pop()
         prefixes = []
         while parts:
@@ -548,16 +560,6 @@ class path_auditor(object):
         # only add prefixes to the cache after checking everything: we don't
         # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
         self.auditeddir.update(prefixes)
-
-def nlinks(pathname):
-    """Return number of hardlinks for the given file."""
-    return os.lstat(pathname).st_nlink
-
-if hasattr(os, 'link'):
-    os_link = os.link
-else:
-    def os_link(src, dst):
-        raise OSError(0, _("Hardlinks not supported"))
 
 def lookup_reg(key, name=None, scope=None):
     return None
@@ -596,7 +598,10 @@ def readlock(pathname):
             raise
     except AttributeError: # no symlink in os
         pass
-    return posixfile(pathname).read()
+    fp = posixfile(pathname)
+    r = fp.read()
+    fp.close()
+    return r
 
 def fstat(fp):
     '''stat file object that may not have fileno method.'''
@@ -714,9 +719,41 @@ def checklink(path):
     except (OSError, AttributeError):
         return False
 
-def needbinarypatch():
-    """return True if patches should be applied in binary mode by default."""
-    return os.name == 'nt'
+def checknlink(testfile):
+    '''check whether hardlink count reporting works properly'''
+
+    # testfile may be open, so we need a separate file for checking to
+    # work around issue2543 (or testfile may get lost on Samba shares)
+    f1 = testfile + ".hgtmp1"
+    if os.path.lexists(f1):
+        return False
+    try:
+        posixfile(f1, 'w').close()
+    except IOError:
+        return False
+
+    f2 = testfile + ".hgtmp2"
+    fd = None
+    try:
+        try:
+            os_link(f1, f2)
+        except OSError:
+            return False
+
+        # nlinks() may behave differently for files on Windows shares if
+        # the file is open.
+        fd = posixfile(f2)
+        return nlinks(f2) > 1
+    finally:
+        if fd is not None:
+            fd.close()
+        for f in (f1, f2):
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
+
+    return False
 
 def endswithsep(path):
     '''Check path ends with os.sep or os.altsep.'''
@@ -804,7 +841,7 @@ class atomictempfile(object):
             self._fp.close()
             rename(self.temp, localpath(self.__name))
 
-    def __del__(self):
+    def close(self):
         if not self._fp:
             return
         if not self._fp.closed:
@@ -813,8 +850,12 @@ class atomictempfile(object):
             except: pass
             self._fp.close()
 
+    def __del__(self):
+        self.close()
+
 def makedirs(name, mode=None):
     """recursive directory creation with parent mode inheritance"""
+    parent = os.path.abspath(os.path.dirname(name))
     try:
         os.mkdir(name)
         if mode is not None:
@@ -823,9 +864,8 @@ def makedirs(name, mode=None):
     except OSError, err:
         if err.errno == errno.EEXIST:
             return
-        if err.errno != errno.ENOENT:
+        if not name or parent == name or err.errno != errno.ENOENT:
             raise
-    parent = os.path.abspath(os.path.dirname(name))
     makedirs(parent, mode)
     makedirs(name, mode)
 
@@ -838,10 +878,11 @@ class opener(object):
     def __init__(self, base, audit=True):
         self.base = base
         if audit:
-            self.audit_path = path_auditor(base)
+            self.auditor = path_auditor(base)
         else:
-            self.audit_path = always
+            self.auditor = always
         self.createmode = None
+        self._trustnlink = None
 
     @propertycache
     def _can_symlink(self):
@@ -853,32 +894,51 @@ class opener(object):
         os.chmod(name, self.createmode & 0666)
 
     def __call__(self, path, mode="r", text=False, atomictemp=False):
-        self.audit_path(path)
+        self.auditor(path)
         f = os.path.join(self.base, path)
 
         if not text and "b" not in mode:
             mode += "b" # for that other OS
 
         nlink = -1
-        if mode not in ("r", "rb"):
-            try:
-                nlink = nlinks(f)
-            except OSError:
-                nlink = 0
-                d = os.path.dirname(f)
-                if not os.path.isdir(d):
-                    makedirs(d, self.createmode)
+        dirname, basename = os.path.split(f)
+        # If basename is empty, then the path is malformed because it points
+        # to a directory. Let the posixfile() call below raise IOError.
+        if basename and mode not in ('r', 'rb'):
             if atomictemp:
+                if not os.path.isdir(dirname):
+                    makedirs(dirname, self.createmode)
                 return atomictempfile(f, mode, self.createmode)
-            if nlink > 1:
-                rename(mktempcopy(f), f)
+            try:
+                if 'w' in mode:
+                    unlink(f)
+                    nlink = 0
+                else:
+                    # nlinks() may behave differently for files on Windows
+                    # shares if the file is open.
+                    fd = posixfile(f)
+                    nlink = nlinks(f)
+                    if nlink < 1:
+                        nlink = 2 # force mktempcopy (issue1922)
+                    fd.close()
+            except (OSError, IOError), e:
+                if e.errno != errno.ENOENT:
+                    raise
+                nlink = 0
+                if not os.path.isdir(dirname):
+                    makedirs(dirname, self.createmode)
+            if nlink > 0:
+                if self._trustnlink is None:
+                    self._trustnlink = nlink > 1 or checknlink(f)
+                if nlink > 1 or not self._trustnlink:
+                    rename(mktempcopy(f), f)
         fp = posixfile(f, mode)
         if nlink == 0:
             self._fixfilemode(f)
         return fp
 
     def symlink(self, src, dst):
-        self.audit_path(dst)
+        self.auditor(dst)
         linkname = os.path.join(self.base, dst)
         try:
             os.unlink(linkname)
@@ -908,7 +968,17 @@ class chunkbuffer(object):
     def __init__(self, in_iter):
         """in_iter is the iterator that's iterating over the input chunks.
         targetsize is how big a buffer to try to maintain."""
-        self.iter = iter(in_iter)
+        def splitbig(chunks):
+            for chunk in chunks:
+                if len(chunk) > 2**20:
+                    pos = 0
+                    while pos < len(chunk):
+                        end = pos + 2 ** 18
+                        yield chunk[pos:end]
+                        pos = end
+                else:
+                    yield chunk
+        self.iter = splitbig(in_iter)
         self._queue = []
 
     def read(self, l):
@@ -939,7 +1009,6 @@ class chunkbuffer(object):
 
         return buf
 
-
 def filechunkiter(f, size=65536, limit=None):
     """Create a generator that produces the data in the file size
     (default 65536) bytes at a time, up to optional limit (default is
@@ -967,7 +1036,11 @@ def makedate():
         tz = time.altzone
     else:
         tz = time.timezone
-    return time.mktime(lt), tz
+    t = time.mktime(lt)
+    if t < 0:
+        hint = _("check your clock")
+        raise Abort(_("negative timestamp: %d") % t, hint=hint)
+    return t, tz
 
 def datestr(date=None, format='%a %b %d %H:%M:%S %Y %1%2'):
     """represent a (unixtime, offset) tuple as a localized time.
@@ -975,6 +1048,9 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y %1%2'):
     number of seconds away from UTC. if timezone is false, do not
     append time zone to string."""
     t, tz = date or makedate()
+    if t < 0:
+        t = 0   # time.gmtime(lt) fails on Windows for lt < -43200
+        tz = 0
     if "%1" in format or "%2" in format:
         sign = (tz > 0) and "-" or "+"
         minutes = abs(tz) // 60
@@ -1003,15 +1079,20 @@ def strdate(string, format, defaults=[]):
 
     # NOTE: unixtime = localunixtime + offset
     offset, date = timezone(string), string
-    if offset != None:
+    if offset is not None:
         date = " ".join(string.split()[:-1])
 
     # add missing elements from defaults
-    for part in defaults:
+    usenow = False # default to using biased defaults
+    for part in ("S", "M", "HI", "d", "mb", "yY"): # decreasing specificity
         found = [True for p in part if ("%"+p) in format]
         if not found:
-            date += "@" + defaults[part]
+            date += "@" + defaults[part][usenow]
             format += "@%" + part[0]
+        else:
+            # We've found a specific time element, less specific time
+            # elements are relative to today
+            usenow = True
 
     timetuple = time.strptime(date, format)
     localunixtime = int(calendar.timegm(timetuple))
@@ -1023,8 +1104,8 @@ def strdate(string, format, defaults=[]):
         unixtime = localunixtime + offset
     return unixtime, offset
 
-def parsedate(date, formats=None, defaults=None):
-    """parse a localized date/time string and return a (unixtime, offset) tuple.
+def parsedate(date, formats=None, bias={}):
+    """parse a localized date/time and return a (unixtime, offset) tuple.
 
     The date may be a "unixtime offset" string or in one of the specified
     formats. If the date already is a (unixtime, offset) tuple, it is returned.
@@ -1040,15 +1121,22 @@ def parsedate(date, formats=None, defaults=None):
         when, offset = map(int, date.split(' '))
     except ValueError:
         # fill out defaults
-        if not defaults:
-            defaults = {}
         now = makedate()
-        for part in "d mb yY HI M S".split():
-            if part not in defaults:
+        defaults = {}
+        nowmap = {}
+        for part in ("d", "mb", "yY", "HI", "M", "S"):
+            # this piece is for rounding the specific end of unknowns
+            b = bias.get(part)
+            if b is None:
                 if part[0] in "HMS":
-                    defaults[part] = "00"
+                    b = "00"
                 else:
-                    defaults[part] = datestr(now, "%" + part[0])
+                    b = "0"
+
+            # this piece is for matching the generic end to today's date
+            n = datestr(now, "%" + part[0])
+
+            defaults[part] = (b, n)
 
         for format in formats:
             try:
@@ -1058,13 +1146,15 @@ def parsedate(date, formats=None, defaults=None):
             else:
                 break
         else:
-            raise Abort(_('invalid date: %r ') % date)
+            raise Abort(_('invalid date: %r') % date)
     # validate explicit (probably user-specified) date and
     # time zone offset. values must fit in signed 32 bits for
     # current 32-bit linux runtimes. timezones go from UTC-12
     # to UTC+14
     if abs(when) > 0x7fffffff:
         raise Abort(_('date exceeds 32 bits: %d') % when)
+    if when < 0:
+        raise Abort(_('negative date value: %d') % when)
     if offset < -50400 or offset > 43200:
         raise Abort(_('impossible time zone offset: %d') % offset)
     return when, offset
@@ -1080,6 +1170,22 @@ def matchdate(date):
 
     '>{date}' on or after a given date
 
+    >>> p1 = parsedate("10:29:59")
+    >>> p2 = parsedate("10:30:00")
+    >>> p3 = parsedate("10:30:59")
+    >>> p4 = parsedate("10:31:00")
+    >>> p5 = parsedate("Sep 15 10:30:00 1999")
+    >>> f = matchdate("10:30")
+    >>> f(p1[0])
+    False
+    >>> f(p2[0])
+    True
+    >>> f(p3[0])
+    True
+    >>> f(p4[0])
+    False
+    >>> f(p5[0])
+    False
     """
 
     def lower(date):
@@ -1088,7 +1194,7 @@ def matchdate(date):
 
     def upper(date):
         d = dict(mb="12", HI="23", M="59", S="59")
-        for days in "31 30 29".split():
+        for days in ("31", "30", "29"):
             try:
                 d["d"] = days
                 return parsedate(date, extendeddateformats, d)[0]
@@ -1142,12 +1248,23 @@ def email(author):
         r = None
     return author[author.find('<') + 1:r]
 
+def _ellipsis(text, maxlength):
+    if len(text) <= maxlength:
+        return text, False
+    else:
+        return "%s..." % (text[:maxlength - 3]), True
+
 def ellipsis(text, maxlength=400):
     """Trim string to at most maxlength (default: 400) characters."""
-    if len(text) <= maxlength:
-        return text
-    else:
-        return "%s..." % (text[:maxlength - 3])
+    try:
+        # use unicode not to split at intermediate multi-byte sequence
+        utext, truncated = _ellipsis(text.decode(encoding.encoding),
+                                     maxlength)
+        if not truncated:
+            return text
+        return utext.encode(encoding.encoding)
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return _ellipsis(text, maxlength)[0]
 
 def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
     '''yield every hg repository under path, recursively.'''
@@ -1274,41 +1391,50 @@ def uirepr(s):
     # Avoid double backslash in Windows path repr()
     return repr(s).replace('\\\\', '\\')
 
-#### naming convention of below implementation follows 'textwrap' module
+# delay import of textwrap
+def MBTextWrapper(**kwargs):
+    class tw(textwrap.TextWrapper):
+        """
+        Extend TextWrapper for double-width characters.
 
-class MBTextWrapper(textwrap.TextWrapper):
-    def __init__(self, **kwargs):
-        textwrap.TextWrapper.__init__(self, **kwargs)
+        Some Asian characters use two terminal columns instead of one.
+        A good example of this behavior can be seen with u'\u65e5\u672c',
+        the two Japanese characters for "Japan":
+        len() returns 2, but when printed to a terminal, they eat 4 columns.
 
-    def _cutdown(self, str, space_left):
-        l = 0
-        ucstr = unicode(str, encoding.encoding)
-        w = unicodedata.east_asian_width
-        for i in xrange(len(ucstr)):
-            l += w(ucstr[i]) in 'WFA' and 2 or 1
-            if space_left < l:
-                return (ucstr[:i].encode(encoding.encoding),
-                        ucstr[i:].encode(encoding.encoding))
-        return str, ''
+        (Note that this has nothing to do whatsoever with unicode
+        representation, or encoding of the underlying string)
+        """
+        def __init__(self, **kwargs):
+            textwrap.TextWrapper.__init__(self, **kwargs)
 
-    # ----------------------------------------
-    # overriding of base class
+        def _cutdown(self, str, space_left):
+            l = 0
+            ucstr = unicode(str, encoding.encoding)
+            colwidth = unicodedata.east_asian_width
+            for i in xrange(len(ucstr)):
+                l += colwidth(ucstr[i]) in 'WFA' and 2 or 1
+                if space_left < l:
+                    return (ucstr[:i].encode(encoding.encoding),
+                            ucstr[i:].encode(encoding.encoding))
+            return str, ''
 
-    def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
-        space_left = max(width - cur_len, 1)
+        # overriding of base class
+        def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
+            space_left = max(width - cur_len, 1)
 
-        if self.break_long_words:
-            cut, res = self._cutdown(reversed_chunks[-1], space_left)
-            cur_line.append(cut)
-            reversed_chunks[-1] = res
-        elif not cur_line:
-            cur_line.append(reversed_chunks.pop())
+            if self.break_long_words:
+                cut, res = self._cutdown(reversed_chunks[-1], space_left)
+                cur_line.append(cut)
+                reversed_chunks[-1] = res
+            elif not cur_line:
+                cur_line.append(reversed_chunks.pop())
 
-#### naming convention of above implementation follows 'textwrap' module
+    global MBTextWrapper
+    MBTextWrapper = tw
+    return tw(**kwargs)
 
-def wrap(line, width=None, initindent='', hangindent=''):
-    if width is None:
-        width = termwidth() - 2
+def wrap(line, width, initindent='', hangindent=''):
     maxindent = max(len(hangindent), len(initindent))
     if width <= maxindent:
         # adjust for weird terminal size
@@ -1386,10 +1512,55 @@ except NameError:
                 return False
         return True
 
-def termwidth():
-    if 'COLUMNS' in os.environ:
-        try:
-            return int(os.environ['COLUMNS'])
-        except ValueError:
-            pass
-    return termwidth_()
+def interpolate(prefix, mapping, s, fn=None, escape_prefix=False):
+    """Return the result of interpolating items in the mapping into string s.
+
+    prefix is a single character string, or a two character string with
+    a backslash as the first character if the prefix needs to be escaped in
+    a regular expression.
+
+    fn is an optional function that will be applied to the replacement text
+    just before replacement.
+
+    escape_prefix is an optional flag that allows using doubled prefix for
+    its escaping.
+    """
+    fn = fn or (lambda s: s)
+    patterns = '|'.join(mapping.keys())
+    if escape_prefix:
+        patterns += '|' + prefix
+        if len(prefix) > 1:
+            prefix_char = prefix[1:]
+        else:
+            prefix_char = prefix
+        mapping[prefix_char] = prefix_char
+    r = re.compile(r'%s(%s)' % (prefix, patterns))
+    return r.sub(lambda x: fn(mapping[x.group()[1:]]), s)
+
+def getport(port):
+    """Return the port for a given network service.
+
+    If port is an integer, it's returned as is. If it's a string, it's
+    looked up using socket.getservbyname(). If there's no matching
+    service, util.Abort is raised.
+    """
+    try:
+        return int(port)
+    except ValueError:
+        pass
+
+    try:
+        return socket.getservbyname(port)
+    except socket.error:
+        raise Abort(_("no port number associated with service '%s'") % port)
+
+_booleans = {'1': True, 'yes': True, 'true': True, 'on': True, 'always': True,
+             '0': False, 'no': False, 'false': False, 'off': False,
+             'never': False}
+
+def parsebool(s):
+    """Parse s into a boolean.
+
+    If s is not a valid boolean, returns None.
+    """
+    return _booleans.get(s.lower(), None)

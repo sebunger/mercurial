@@ -8,7 +8,7 @@
 
 import socket, cgi, errno
 from mercurial import util
-from common import ErrorResponse, statusmessage
+from common import ErrorResponse, statusmessage, HTTP_NOT_MODIFIED
 
 shortcuts = {
     'cl': [('cmd', ['changelog']), ('rev', None)],
@@ -66,7 +66,7 @@ class wsgirequest(object):
 
     def drain(self):
         '''need to read all data from request, httplib is half-duplex'''
-        length = int(self.env.get('CONTENT_LENGTH', 0))
+        length = int(self.env.get('CONTENT_LENGTH') or 0)
         for s in util.filechunkiter(self.inp, limit=length):
             pass
 
@@ -83,6 +83,13 @@ class wsgirequest(object):
 
             if isinstance(status, ErrorResponse):
                 self.header(status.headers)
+                if status.code == HTTP_NOT_MODIFIED:
+                    # RFC 2616 Section 10.3.5: 304 Not Modified has cases where
+                    # it MUST NOT include any headers other than these and no
+                    # body
+                    self.headers = [(k, v) for (k, v) in self.headers if
+                                    k in ('Date', 'ETag', 'Expires',
+                                          'Cache-Control', 'Vary')]
                 status = statusmessage(status.code, status.message)
             elif status == 200:
                 status = '200 Script output follows'

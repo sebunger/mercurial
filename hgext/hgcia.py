@@ -40,7 +40,7 @@ configure it, set the following options in your hgrc::
 """
 
 from mercurial.i18n import _
-from mercurial.node import *
+from mercurial.node import bin, short
 from mercurial import cmdutil, patch, templater, util, mail
 import email.Parser
 
@@ -198,7 +198,7 @@ class hgcia(object):
     def sendrpc(self, msg):
         srv = xmlrpclib.Server(self.ciaurl)
         res = srv.hub.deliver(msg)
-        if res is not True:
+        if res is not True and res != 'queued.':
             raise util.Abort(_('%s returned an error: %s') %
                              (self.ciaurl, res))
 

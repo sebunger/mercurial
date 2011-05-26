@@ -9,6 +9,10 @@ changelog = shortlog.tmpl
 shortlog = shortlog.tmpl
 shortlogentry = shortlogentry.tmpl
 graph = graph.tmpl
+help = help.tmpl
+helptopics = helptopics.tmpl
+
+helpentry = '<tr><td><a href="{url}help/{topic|escape}{sessionvars%urlparameter}">{topic|escape}</a></td><td>{summary|escape}</td></tr>'
 
 naventry = '<a href="{url}log/{node|short}{sessionvars%urlparameter}">{label|escape}</a> '
 navshortentry = '<a href="{url}shortlog/{node|short}{sessionvars%urlparameter}">{label|escape}</a> '
@@ -137,6 +141,18 @@ tagentry = '
       {node|short}
     </td>
   </tr>'
+bookmarks = bookmarks.tmpl
+bookmarkentry = '
+  <tr class="tagEntry parity{parity}">
+    <td>
+      <a href="{url}rev/{node|short}{sessionvars%urlparameter}">
+        {bookmark|escape}
+      </a>
+    </td>
+    <td class="node">
+      {node|short}
+    </td>
+  </tr>'
 branches = branches.tmpl
 branchentry = '
   <tr class="tagEntry parity{parity}">
@@ -151,6 +167,7 @@ branchentry = '
   </tr>'
 changelogtag = '<span class="tag">{name|escape}</span> '
 changesettag = '<span class="tag">{tag|escape}</span> '
+changesetbookmark = '<span class="tag">{bookmark|escape}</span> '
 changelogbranchhead = '<span class="branchhead">{name|escape}</span> '
 changelogbranchname = '<span class="branchname">{name|escape}</span> '
 

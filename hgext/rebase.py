@@ -14,7 +14,7 @@ For more information:
 http://mercurial.selenic.com/wiki/RebaseExtension
 '''
 
-from mercurial import hg, util, repair, merge, cmdutil, commands, error
+from mercurial import hg, util, repair, merge, cmdutil, commands
 from mercurial import extensions, ancestor, copies, patch
 from mercurial.commands import templateopts
 from mercurial.node import nullrev
@@ -148,9 +148,14 @@ def rebase(ui, repo, **opts):
             targetancestors = set(repo.changelog.ancestors(target))
             targetancestors.add(target)
 
-        for rev in sorted(state):
+        sortedstate = sorted(state)
+        total = len(sortedstate)
+        pos = 0
+        for rev in sortedstate:
+            pos += 1
             if state[rev] == -1:
-                ui.debug("rebasing %d:%s\n" % (rev, repo[rev]))
+                ui.progress(_("rebasing"), pos, ("%d:%s" % (rev, repo[rev])),
+                            _('changesets'), total)
                 storestatus(repo, originalwd, target, state, collapsef, keepf,
                                                     keepbranchesf, external)
                 p1, p2 = defineparents(repo, rev, target, state,
@@ -160,8 +165,8 @@ def rebase(ui, repo, **opts):
                 else:
                     stats = rebasenode(repo, rev, p1, p2, state)
                     if stats and stats[3] > 0:
-                        raise util.Abort(_('fix unresolved conflicts with hg '
-                                    'resolve then run hg rebase --continue'))
+                        raise util.Abort(_('unresolved conflicts (see hg '
+                                    'resolve, then hg rebase --continue)'))
                 updatedirstate(repo, rev, target, p2)
                 if not collapsef:
                     newrev = concludenode(repo, rev, p1, p2, extrafn=extrafn)
@@ -179,6 +184,7 @@ def rebase(ui, repo, **opts):
                         skipped.add(rev)
                     state[rev] = p1
 
+        ui.progress(_('rebasing'), None)
         ui.note(_('rebase merging completed\n'))
 
         if collapsef and not keepopen:
@@ -209,7 +215,7 @@ def rebase(ui, repo, **opts):
         clearstatus(repo)
         ui.note(_("rebase completed\n"))
         if os.path.exists(repo.sjoin('undo')):
-            util.unlink(repo.sjoin('undo'))
+            util.unlinkpath(repo.sjoin('undo'))
         if skipped:
             ui.note(_("%d revisions have been skipped\n") % len(skipped))
     finally:
@@ -264,7 +270,7 @@ def updatedirstate(repo, rev, p1, p2):
         if k in m1:
             if v in m1 or v in m2:
                 repo.dirstate.copy(v, k)
-                if v in m2 and v not in m1:
+                if v in m2 and v not in m1 and k in m2:
                     repo.dirstate.remove(v)
 
 def concludenode(repo, rev, p1, p2, commitmsg=None, extrafn=None):
@@ -387,7 +393,7 @@ def storestatus(repo, originalwd, target, state, collapse, keep, keepbranches,
 def clearstatus(repo):
     'Remove the status files'
     if os.path.exists(repo.join("rebasestate")):
-        util.unlink(repo.join("rebasestate"))
+        util.unlinkpath(repo.join("rebasestate"))
 
 def restorestatus(repo):
     'Restore a previously stored status'
@@ -445,7 +451,7 @@ def abort(repo, originalwd, target, state):
             # no backup of rebased cset versions needed
             repair.strip(repo.ui, repo, repo[strippoint].node())
         clearstatus(repo)
-        repo.ui.status(_('rebase aborted\n'))
+        repo.ui.warn(_('rebase aborted\n'))
         return 0
 
 def buildstate(repo, dest, src, base, detach):
@@ -479,7 +485,7 @@ def buildstate(repo, dest, src, base, detach):
             srcancestors = set(repo.changelog.ancestors(source))
             baseancestors = set(repo.changelog.ancestors(commonbase.rev()))
             detachset = srcancestors - baseancestors
-            detachset.remove(commonbase.rev())
+            detachset.discard(commonbase.rev())
     else:
         if base:
             cwd = repo[base].rev()

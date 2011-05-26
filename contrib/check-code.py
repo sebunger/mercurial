@@ -7,7 +7,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import re, glob
+import re, glob, os, sys
+import keyword
 import optparse
 
 def repquote(m):
@@ -63,6 +64,8 @@ testpats = [
     (r'export.*=', "don't export and assign at once"),
     ('^([^"\']|("[^"]*")|(\'[^\']*\'))*\\^', "^ must be quoted"),
     (r'^source\b', "don't use 'source', use '.'"),
+    (r'touch -d', "don't use 'touch -d', use 'touch -t' instead"),
+    (r'ls\s+[^|-]+\s+-', "options to 'ls' must come before filenames"),
 ]
 
 testfilters = [
@@ -70,21 +73,54 @@ testfilters = [
     (r"<<(\S+)((.|\n)*?\n\1)", rephere),
 ]
 
+uprefix = r"^  \$ "
+uprefixc = r"^  > "
+utestpats = [
+    (r'^(\S|  $ ).*(\S\s+|^\s+)\n', "trailing whitespace on non-output"),
+    (uprefix + r'.*\|\s*sed', "use regex test output patterns instead of sed"),
+    (uprefix + r'(true|exit 0)', "explicit zero exit unnecessary"),
+    (uprefix + r'.*\$\?', "explicit exit code checks unnecessary"),
+    (uprefix + r'.*\|\| echo.*(fail|error)',
+     "explicit exit code checks unnecessary"),
+    (uprefix + r'set -e', "don't use set -e"),
+    (uprefixc + r'( *)\t', "don't use tabs to indent"),
+]
+
+for p, m in testpats:
+    if p.startswith('^'):
+        p = uprefix + p[1:]
+    else:
+        p = uprefix + p
+    utestpats.append((p, m))
+
+utestfilters = [
+    (r"( *)(#([^\n]*\S)?)", repcomment),
+]
+
 pypats = [
+    (r'^\s*def\s*\w+\s*\(.*,\s*\(',
+     "tuple parameter unpacking not available in Python 3+"),
+    (r'lambda\s*\(.*,.*\)',
+     "tuple parameter unpacking not available in Python 3+"),
+    (r'(?<!def)\s+(cmp)\(', "cmp is not available in Python 3+"),
+    (r'\breduce\s*\(.*', "reduce is not available in Python 3+"),
+    (r'\.has_key\b', "dict.has_key is not available in Python 3+"),
     (r'^\s*\t', "don't use tabs"),
     (r'\S;\s*\n', "semicolon"),
     (r'\w,\w', "missing whitespace after ,"),
     (r'\w[+/*\-<>]\w', "missing whitespace in expression"),
     (r'^\s+\w+=\w+[^,)]$', "missing whitespace in assignment"),
     (r'.{85}', "line too long"),
+    (r'.{81}', "warning: line over 80 characters"),
     (r'[^\n]\Z', "no trailing newline"),
+    (r'(\S\s+|^\s+)\n', "trailing whitespace"),
 #    (r'^\s+[^_ ][^_. ]+_[^_]+\s*=', "don't use underbars in identifiers"),
 #    (r'\w*[a-z][A-Z]\w*\s*=', "don't use camelcase in identifiers"),
     (r'^\s*(if|while|def|class|except|try)\s[^[]*:\s*[^\]#\s]+',
      "linebreak after :"),
     (r'class\s[^(]:', "old-style class, use class foo(object)"),
-    (r'^\s+del\(', "del isn't a function"),
-    (r'^\s+except\(', "except isn't a function"),
+    (r'\b(%s)\(' % '|'.join(keyword.kwlist),
+     "Python keyword is not a function"),
     (r',]', "unneeded trailing ',' in list"),
 #    (r'class\s[A-Z][^\(]*\((?!Exception)',
 #     "don't capitalize non-exception classes"),
@@ -93,11 +129,15 @@ pypats = [
     (r'[\x80-\xff]', "non-ASCII character literal"),
     (r'("\')\.format\(', "str.format() not available in Python 2.4"),
     (r'^\s*with\s+', "with not available in Python 2.4"),
+    (r'^\s*except.* as .*:', "except as not available in Python 2.4"),
+    (r'^\s*os\.path\.relpath', "relpath not available in Python 2.4"),
     (r'(?<!def)\s+(any|all|format)\(',
      "any/all/format not available in Python 2.4"),
     (r'(?<!def)\s+(callable)\(',
      "callable not available in Python 3, use hasattr(f, '__call__')"),
     (r'if\s.*\selse', "if ... else form not available in Python 2.4"),
+    (r'^\s*(%s)\s\s' % '|'.join(keyword.kwlist),
+     "gratuitous whitespace after Python keyword"),
     (r'([\(\[]\s\S)|(\S\s[\)\]])', "gratuitous whitespace in () or []"),
 #    (r'\s\s=', "gratuitous whitespace before ="),
     (r'[^>< ](\+=|-=|!=|<>|<=|>=|<<=|>>=)\S',
@@ -111,6 +151,9 @@ pypats = [
     (r'raise Exception', "don't raise generic exceptions"),
     (r'ui\.(status|progress|write|note|warn)\([\'\"]x',
      "warning: unwrapped ui message"),
+    (r' is\s+(not\s+)?["\'0-9-]', "object comparison with literal"),
+    (r' [=!]=\s+(True|False|None)',
+     "comparison with singleton, use 'is' or 'is not' instead"),
 ]
 
 pyfilters = [
@@ -149,13 +192,14 @@ checks = [
     ('python', r'.*\.(py|cgi)$', pyfilters, pypats),
     ('test script', r'(.*/)?test-[^.~]*$', testfilters, testpats),
     ('c', r'.*\.c$', cfilters, cpats),
+    ('unified test', r'.*\.t$', utestfilters, utestpats),
 ]
 
 class norepeatlogger(object):
     def __init__(self):
         self._lastseen = None
 
-    def log(self, fname, lineno, line, msg):
+    def log(self, fname, lineno, line, msg, blame):
         """print error related a to given line of a given file.
 
         The faulty line will also be printed but only once in the case
@@ -168,14 +212,26 @@ class norepeatlogger(object):
         """
         msgid = fname, lineno, line
         if msgid != self._lastseen:
-            print "%s:%d:" % (fname, lineno)
+            if blame:
+                print "%s:%d (%s):" % (fname, lineno, blame)
+            else:
+                print "%s:%d:" % (fname, lineno)
             print " > %s" % line
             self._lastseen = msgid
         print " " + msg
 
 _defaultlogger = norepeatlogger()
 
-def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False):
+def getblame(f):
+    lines = []
+    for l in os.popen('hg annotate -un %s' % f):
+        start, line = l.split(':', 1)
+        user, rev = start.split()
+        lines.append((line[1:-1], user, rev))
+    return lines
+
+def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
+              blame=False):
     """checks style and portability of a given file
 
     :f: filepath
@@ -186,12 +242,15 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False):
 
     return True if no error is found, False otherwise.
     """
+    blamecache = None
     result = True
     for name, match, filters, pats in checks:
         fc = 0
         if not re.match(match, f):
             continue
-        pre = post = open(f).read()
+        fp = open(f)
+        pre = post = fp.read()
+        fp.close()
         if "no-" + "check-code" in pre:
             break
         for p, r in filters:
@@ -205,7 +264,16 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False):
                 if not warnings and msg.startswith("warning"):
                     continue
                 if re.search(p, l[1]):
-                    logfunc(f, n + 1, l[0], msg)
+                    bd = ""
+                    if blame:
+                        bd = 'working directory'
+                        if not blamecache:
+                            blamecache = getblame(f)
+                        if n < len(blamecache):
+                            bl, bu, br = blamecache[n]
+                            if bl == l[0]:
+                                bd = '%s@%s' % (bu, br)
+                    logfunc(f, n + 1, l[0], msg, bd)
                     fc += 1
                     result = False
             if maxerr is not None and fc >= maxerr:
@@ -214,15 +282,16 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False):
         break
     return result
 
-
 if __name__ == "__main__":
     parser = optparse.OptionParser("%prog [options] [files]")
     parser.add_option("-w", "--warnings", action="store_true",
                       help="include warning-level checks")
     parser.add_option("-p", "--per-file", type="int",
                       help="max warnings per file")
+    parser.add_option("-b", "--blame", action="store_true",
+                      help="use annotate to generate blame info")
 
-    parser.set_defaults(per_file=15, warnings=False)
+    parser.set_defaults(per_file=15, warnings=False, blame=False)
     (options, args) = parser.parse_args()
 
     if len(args) == 0:
@@ -231,4 +300,8 @@ if __name__ == "__main__":
         check = args
 
     for f in check:
-        checkfile(f, maxerr=options.per_file, warnings=options.warnings)
+        ret = 0
+        if not checkfile(f, maxerr=options.per_file, warnings=options.warnings,
+                         blame=options.blame):
+            ret = 1
+    sys.exit(ret)

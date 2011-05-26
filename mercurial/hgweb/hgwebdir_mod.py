@@ -33,13 +33,22 @@ def findrepos(paths):
             repos.append((prefix, root))
             continue
         roothead = os.path.normpath(os.path.abspath(roothead))
-        for path in util.walkrepos(roothead, followsym=True, recurse=recurse):
-            path = os.path.normpath(path)
-            name = util.pconvert(path[len(roothead):]).strip('/')
-            if prefix:
-                name = prefix + '/' + name
-            repos.append((name, path))
+        paths = util.walkrepos(roothead, followsym=True, recurse=recurse)
+        repos.extend(urlrepos(prefix, roothead, paths))
     return repos
+
+def urlrepos(prefix, roothead, paths):
+    """yield url paths and filesystem paths from a list of repo paths
+
+    >>> list(urlrepos('hg', '/opt', ['/opt/r', '/opt/r/r', '/opt']))
+    [('hg/r', '/opt/r'), ('hg/r/r', '/opt/r/r'), ('hg', '/opt')]
+    >>> list(urlrepos('', '/opt', ['/opt/r', '/opt/r/r', '/opt']))
+    [('r', '/opt/r'), ('r/r', '/opt/r/r'), ('', '/opt')]
+    """
+    for path in paths:
+        path = os.path.normpath(path)
+        yield (prefix + '/' +
+               util.pconvert(path[len(roothead):]).lstrip('/')).strip('/'), path
 
 class hgwebdir(object):
     refreshinterval = 20
@@ -64,6 +73,8 @@ class hgwebdir(object):
 
         if not isinstance(self.conf, (dict, list, tuple)):
             map = {'paths': 'hgweb-paths'}
+            if not os.path.exists(self.conf):
+                raise util.Abort(_('config file %s not found!') % self.conf)
             u.readconfig(self.conf, remap=map, trust=True)
             paths = u.configitems('hgweb-paths')
         elif isinstance(self.conf, (list, tuple)):
@@ -153,10 +164,11 @@ class hgwebdir(object):
                 # nested indexes and hgwebs
 
                 repos = dict(self.repos)
-                while virtual:
-                    real = repos.get(virtual)
+                virtualrepo = virtual
+                while virtualrepo:
+                    real = repos.get(virtualrepo)
                     if real:
-                        req.env['REPO_NAME'] = virtual
+                        req.env['REPO_NAME'] = virtualrepo
                         try:
                             repo = hg.repository(self.ui, real)
                             return hgweb(repo).run_wsgi(req)
@@ -166,16 +178,16 @@ class hgwebdir(object):
                         except error.RepoError, inst:
                             raise ErrorResponse(HTTP_SERVER_ERROR, str(inst))
 
-                    # browse subdirectories
-                    subdir = virtual + '/'
-                    if [r for r in repos if r.startswith(subdir)]:
-                        req.respond(HTTP_OK, ctype)
-                        return self.makeindex(req, tmpl, subdir)
-
-                    up = virtual.rfind('/')
+                    up = virtualrepo.rfind('/')
                     if up < 0:
                         break
-                    virtual = virtual[:up]
+                    virtualrepo = virtualrepo[:up]
+
+                # browse subdirectories
+                subdir = virtual + '/'
+                if [r for r in repos if r.startswith(subdir)]:
+                    req.respond(HTTP_OK, ctype)
+                    return self.makeindex(req, tmpl, subdir)
 
                 # prefixes not found
                 req.respond(HTTP_NOT_FOUND, ctype)
@@ -191,11 +203,13 @@ class hgwebdir(object):
 
         def archivelist(ui, nodeid, url):
             allowed = ui.configlist("web", "allow_archive", untrusted=True)
+            archives = []
             for i in [('zip', '.zip'), ('gz', '.tar.gz'), ('bz2', '.tar.bz2')]:
                 if i[0] in allowed or ui.configbool("web", "allow" + i[0],
                                                     untrusted=True):
-                    yield {"type" : i[0], "extension": i[1],
-                           "node": nodeid, "url": url}
+                    archives.append({"type" : i[0], "extension": i[1],
+                                     "node": nodeid, "url": url})
+            return archives
 
         def rawentries(subdir="", **map):
 

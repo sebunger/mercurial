@@ -62,6 +62,7 @@ def countrate(ui, repo, amap, *pats, **opts):
 
         key = getkey(ctx)
         key = amap.get(key, key) # alias remap
+        key = key.strip() # ignore leading and trailing spaces
         if opts.get('changesets'):
             rate[key] = (rate.get(key, (0,))[0] + 1, 0)
         else:
@@ -149,13 +150,14 @@ def churn(ui, repo, *pats, **opts):
     maxcount = float(max(sum(v) for k, v in rate)) or 1.0
     maxname = max(len(k) for k, v in rate)
 
-    ttywidth = util.termwidth()
+    ttywidth = ui.termwidth()
     ui.debug("assuming %i character terminal\n" % ttywidth)
     width = ttywidth - maxname - 2 - 2 - 2
 
     if opts.get('diffstat'):
         width -= 15
-        def format(name, (added, removed)):
+        def format(name, diffstat):
+            added, removed = diffstat
             return "%s %15s %s%s\n" % (pad(name, maxname),
                                        '+%d/-%d' % (added, removed),
                                        ui.label('+' * charnum(added),

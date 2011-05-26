@@ -7,9 +7,16 @@
   GNU General Public License version 2 or any later version. -->
 
   <?include guids.wxi ?>
+  <?include defines.wxi ?>
+
+  <?if $(var.Platform) = "x64" ?>
+    <?define PFolder = ProgramFiles64Folder ?>
+  <?else?>
+    <?define PFolder = ProgramFilesFolder ?>
+  <?endif?>
 
   <Product Id='*'
-    Name='Mercurial $(var.Version)' 
+    Name='Mercurial $(var.Version) ($(var.Platform))' 
     UpgradeCode='$(var.ProductUpgradeCode)'
     Language='1033' Codepage='1252' Version='$(var.Version)'
     Manufacturer='Matt Mackall and others'>
@@ -18,6 +25,7 @@
       Keywords='Installer'
       Description="Mercurial distributed SCM (version $(var.Version))"
       Comments='$(var.Comments)'
+      Platform='$(var.Platform)'
       Manufacturer='Matt Mackall and others'
       InstallerVersion='300' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
 
@@ -25,8 +33,9 @@
            CompressionLevel='high' />
     <Property Id='DiskPrompt' Value="Mercurial $(var.Version) Installation [1]" />
 
-    <Condition Message='Mercurial requires Windows XP or higher'
-      >VersionNT >= 501</Condition>
+    <Condition Message='Mercurial MSI installers require Windows XP or higher'>
+        VersionNT >= 501
+    </Condition>
 
     <Property Id="INSTALLDIR">
       <ComponentSearch Id='SearchForMainExecutableComponent'
@@ -48,39 +57,48 @@
     <Property Id='LicenseAccepted'>1</Property>
 
     <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='ProgramFilesFolder' Name='PFiles'>
+      <Directory Id='$(var.PFolder)' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='Mercurial'>
-          <Component Id='MainExecutable' Guid='$(var.ComponentMainExecutableGUID)'>
+          <Component Id='MainExecutable' Guid='$(var.ComponentMainExecutableGUID)' Win64='$(var.IsX64)'>
             <File Id='hgEXE' Name='hg.exe' Source='dist\hg.exe' KeyPath='yes' />
-            <File Id='libraryZIP' Name='library.zip' Source='dist\library.zip' />
-            <File Id='pythonDLL' Name='python26.dll' Source='dist\python26.dll' />
             <Environment Id="Environment" Name="PATH" Part="last" System="yes"
                          Permanent="no" Value="[INSTALLDIR]" Action="set" />
           </Component>
-          <Component Id='ReadMe' Guid='$(var.ReadMe.guid)'>
+          <Component Id='ReadMe' Guid='$(var.ReadMe.guid)' Win64='$(var.IsX64)'>
               <File Id='ReadMe' Name='ReadMe.html' Source='contrib\win32\ReadMe.html'
                     KeyPath='yes'/>
           </Component>
-          <Component Id='COPYING' Guid='$(var.COPYING.guid)'>
+          <Component Id='COPYING' Guid='$(var.COPYING.guid)' Win64='$(var.IsX64)'>
             <File Id='COPYING' Name='COPYING.rtf' Source='contrib\wix\COPYING.rtf'
                   KeyPath='yes'/>
           </Component>
+
           <Directory Id='HGRCD' Name='hgrc.d'>
-            <Component Id='mercurial.rc' Guid='$(var.mercurial.rc.guid)'>
+            <Component Id='mercurial.rc' Guid='$(var.mercurial.rc.guid)' Win64='$(var.IsX64)'>
               <File Id='mercurial.rc' Name='Mercurial.rc' Source='contrib\win32\mercurial.ini'
                     ReadOnly='yes' KeyPath='yes'/>
             </Component>
-            <Component Id='mergetools.rc' Guid='$(var.mergetools.rc.guid)'>
+            <Component Id='mergetools.rc' Guid='$(var.mergetools.rc.guid)' Win64='$(var.IsX64)'>
               <File Id='mergetools.rc' Name='MergeTools.rc' Source='contrib\mergetools.hgrc'
                     ReadOnly='yes' KeyPath='yes'/>
             </Component>
+            <Component Id='paths.rc' Guid='$(var.paths.rc.guid)' Win64='$(var.IsX64)'>
+              <CreateFolder/>
+              <IniFile Id="ini0" Action="createLine" Directory="HGRCD" Name="Paths.rc"
+                Section="web" Key="cacerts" Value="[INSTALLDIR]hgrc.d\cacert.pem" />
+            </Component>
+            <Component Id='cacert.pem' Guid='$(var.cacert.pem.guid)' Win64='$(var.IsX64)'>
+              <File Id='cacert.pem' Name='cacert.pem' Source='..\misc\cacert.pem'
+                    ReadOnly='yes' KeyPath='yes'/>
+            </Component>
           </Directory>
+
         </Directory>
       </Directory>
 
       <Directory Id="ProgramMenuFolder" Name="Programs">
         <Directory Id="ProgramMenuDir" Name="Mercurial $(var.Version)">
-          <Component Id="ProgramMenuDir" Guid="$(var.ProgramMenuDir.guid)">
+          <Component Id="ProgramMenuDir" Guid="$(var.ProgramMenuDir.guid)" Win64='$(var.IsX64)'>
             <RemoveFolder Id='ProgramMenuDir' On='uninstall' />
             <RegistryValue Root='HKCU' Key='Software\Mercurial\InstallDir' Type='string'
                            Value='[INSTALLDIR]' KeyPath='yes' />
@@ -90,10 +108,17 @@
         </Directory>
       </Directory>
 
-      <Merge Id='VCRuntime' DiskId='1' Language='1033'
-             SourceFile='$(var.VCRedistSrcDir)\microsoft.vcxx.crt.x86_msm.msm' />
-      <Merge Id='VCRuntimePolicy' DiskId='1' Language='1033'
-             SourceFile='$(var.VCRedistSrcDir)\policy.x.xx.microsoft.vcxx.crt.x86_msm.msm' />
+      <?if $(var.Platform) = "x86" ?>
+        <Merge Id='VCRuntime' DiskId='1' Language='1033'
+              SourceFile='$(var.VCRedistSrcDir)\microsoft.vcxx.crt.x86_msm.msm' />
+        <Merge Id='VCRuntimePolicy' DiskId='1' Language='1033'
+              SourceFile='$(var.VCRedistSrcDir)\policy.x.xx.microsoft.vcxx.crt.x86_msm.msm' />
+      <?else?>
+        <Merge Id='VCRuntime' DiskId='1' Language='1033'
+              SourceFile='$(var.VCRedistSrcDir)\microsoft.vcxx.crt.x64_msm.msm' />
+        <Merge Id='VCRuntimePolicy' DiskId='1' Language='1033'
+              SourceFile='$(var.VCRedistSrcDir)\policy.x.xx.microsoft.vcxx.crt.x64_msm.msm' />
+      <?endif?>
     </Directory>
 
     <Feature Id='Complete' Title='Mercurial' Description='The complete package'
@@ -101,11 +126,14 @@
       <Feature Id='MainProgram' Title='Program' Description='Mercurial command line app'
              Level='1' Absent='disallow' >
         <ComponentRef Id='MainExecutable' />
+        <ComponentRef Id='distOutput' />
         <ComponentRef Id='ProgramMenuDir' />
         <ComponentRef Id='ReadMe' />
         <ComponentRef Id='COPYING' />
         <ComponentRef Id='mercurial.rc' />
         <ComponentRef Id='mergetools.rc' />
+        <ComponentRef Id='paths.rc' />
+        <ComponentRef Id='cacert.pem' />
         <ComponentRef Id='helpFolder' />
         <ComponentGroupRef Id='templatesFolder' />
         <MergeRef Id='VCRuntime' />

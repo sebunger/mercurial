@@ -6,23 +6,25 @@ directory. That way you can get CRLF line endings on Windows and LF on
 Unix/Mac, thereby letting everybody use their OS native line endings.
 
 The extension reads its configuration from a versioned ``.hgeol``
-configuration file every time you run an ``hg`` command. The
+configuration file found in the root of the working copy. The
 ``.hgeol`` file use the same syntax as all other Mercurial
 configuration files. It uses two sections, ``[patterns]`` and
 ``[repository]``.
 
-The ``[patterns]`` section specifies the line endings used in the
-working directory. The format is specified by a file pattern. The
-first match is used, so put more specific patterns first. The
-available line endings are ``LF``, ``CRLF``, and ``BIN``.
+The ``[patterns]`` section specifies how line endings should be
+converted between the working copy and the repository. The format is
+specified by a file pattern. The first match is used, so put more
+specific patterns first. The available line endings are ``LF``,
+``CRLF``, and ``BIN``.
 
 Files with the declared format of ``CRLF`` or ``LF`` are always
-checked out in that format and files declared to be binary (``BIN``)
-are left unchanged. Additionally, ``native`` is an alias for the
-platform's default line ending: ``LF`` on Unix (including Mac OS X)
-and ``CRLF`` on Windows. Note that ``BIN`` (do nothing to line
-endings) is Mercurial's default behaviour; it is only needed if you
-need to override a later, more general pattern.
+checked out and stored in the repository in that format and files
+declared to be binary (``BIN``) are left unchanged. Additionally,
+``native`` is an alias for checking out in the platform's default line
+ending: ``LF`` on Unix (including Mac OS X) and ``CRLF`` on
+Windows. Note that ``BIN`` (do nothing to line endings) is Mercurial's
+default behaviour; it is only needed if you need to override a later,
+more general pattern.
 
 The optional ``[repository]`` section specifies the line endings to
 use for files stored in the repository. It has a single setting,
@@ -46,12 +48,16 @@ Example versioned ``.hgeol`` file::
   [repository]
   native = LF
 
+.. note::
+   The rules will first apply when files are touched in the working
+   copy, e.g. by updating to null and back to tip to touch all files.
+
 The extension uses an optional ``[eol]`` section in your hgrc file
 (not the ``.hgeol`` file) for settings that control the overall
 behavior. There are two settings:
 
 - ``eol.native`` (default ``os.linesep``) can be set to ``LF`` or
-  ``CRLF`` override the default interpretation of ``native`` for
+  ``CRLF`` to override the default interpretation of ``native`` for
   checkout. This can be used with :hg:`archive` on Unix, say, to
   generate an archive where files have line endings for Windows.
 
@@ -61,12 +67,24 @@ behavior. There are two settings:
   Such files are normally not touched under the assumption that they
   have mixed EOLs on purpose.
 
+The extension provides ``cleverencode:`` and ``cleverdecode:`` filters
+like the deprecated win32text extension does. This means that you can
+disable win32text and enable eol and your filters will still work. You
+only need to these filters until you have prepared a ``.hgeol`` file.
+
+The ``win32text.forbid*`` hooks provided by the win32text extension
+have been unified into a single hook named ``eol.hook``. The hook will
+lookup the expected line endings from the ``.hgeol`` file, which means
+you must migrate to a ``.hgeol`` file first before using the hook.
+Remember to enable the eol extension in the repository where you
+install the hook.
+
 See :hg:`help patterns` for more information about the glob patterns
 used.
 """
 
 from mercurial.i18n import _
-from mercurial import util, config, extensions, commands, match, cmdutil
+from mercurial import util, config, extensions, match, error
 import re, os
 
 # Matches a lone LF, i.e., one that is not part of CRLF.
@@ -104,6 +122,9 @@ filters = {
     'to-lf': tolf,
     'to-crlf': tocrlf,
     'is-binary': isbinary,
+    # The following provide backwards compatibility with win32text
+    'cleverencode:': tolf,
+    'cleverdecode:': tocrlf
 }
 
 
@@ -125,11 +146,17 @@ def hook(ui, repo, node, hooktype, **kwargs):
                 elif target == "to-crlf" and singlelf.search(data):
                     raise util.Abort(_("%s should not have LF line endings")
                                      % f)
+                # Ignore other rules for this file
+                break
 
 
 def preupdate(ui, repo, hooktype, parent1, parent2):
     #print "preupdate for %s: %s -> %s" % (repo.root, parent1, parent2)
-    repo.readhgeol(parent1)
+    try:
+        repo.readhgeol(parent1)
+    except error.ParseError, inst:
+        ui.warn(_("warning: ignoring .hgeol file due to parse error "
+                  "at %s: %s\n") % (inst.args[1], inst.args[0]))
     return False
 
 def uisetup(ui):
@@ -138,8 +165,8 @@ def uisetup(ui):
 def extsetup(ui):
     try:
         extensions.find('win32text')
-        raise util.Abort(_("the eol extension is incompatible with the "
-                           "win32text extension"))
+        ui.warn(_("the eol extension is incompatible with the "
+                  "win32text extension\n"))
     except KeyError:
         pass
 
@@ -176,6 +203,10 @@ def reposetup(ui, repo):
                 self._decode['NATIVE'] = 'to-crlf'
 
             eol = config.config()
+            # Our files should not be touched. The pattern must be
+            # inserted first override a '** = native' pattern.
+            eol.set('patterns', '.hg*', 'BIN')
+            # We can then parse the user's patterns.
             eol.parse('.hgeol', data)
 
             if eol.get('repository', 'native') == 'CRLF':
@@ -206,7 +237,12 @@ def reposetup(ui, repo):
             return match.match(self.root, '', [], include, exclude)
 
         def _hgcleardirstate(self):
-            self._eolfile = self.readhgeol() or self.readhgeol('tip')
+            try:
+                self._eolfile = self.readhgeol() or self.readhgeol('tip')
+            except error.ParseError, inst:
+                ui.warn(_("warning: ignoring .hgeol file due to parse error "
+                          "at %s: %s\n") % (inst.args[1], inst.args[0]))
+                self._eolfile = None
 
             if not self._eolfile:
                 self._eolfile = util.never
@@ -224,20 +260,25 @@ def reposetup(ui, repo):
 
             if eolmtime > cachemtime:
                 ui.debug("eol: detected change in .hgeol\n")
-                # TODO: we could introduce a method for this in dirstate.
                 wlock = None
                 try:
                     wlock = self.wlock()
-                    for f, e in self.dirstate._map.iteritems():
-                        self.dirstate._map[f] = (e[0], e[1], -1, 0)
-                    self.dirstate._dirty = True
-                    # Touch the cache to update mtime. TODO: are we sure this
-                    # always enought to update the mtime, or should we write a
-                    # bit to the file?
+                    for f in self.dirstate:
+                        if self.dirstate[f] == 'n':
+                            # all normal files need to be looked at
+                            # again since the new .hgeol file might no
+                            # longer match a file it matched before
+                            self.dirstate.normallookup(f)
+                    # Touch the cache to update mtime.
                     self.opener("eol.cache", "w").close()
-                finally:
-                    if wlock is not None:
-                        wlock.release()
+                    wlock.release()
+                except error.LockUnavailable:
+                    # If we cannot lock the repository and clear the
+                    # dirstate, then a commit might not see all files
+                    # as modified. But if we cannot lock the
+                    # repository, then we can also not make a commit,
+                    # so ignore the error.
+                    pass
 
         def commitctx(self, ctx, error=False):
             for f in sorted(ctx.added() + ctx.modified()):

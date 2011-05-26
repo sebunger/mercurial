@@ -7,7 +7,7 @@
 
 from node import nullid, nullrev, short, hex
 from i18n import _
-import ancestor, bdiff, error, util, subrepo, patch
+import ancestor, bdiff, error, util, subrepo, patch, encoding
 import os, errno, stat
 
 propertycache = util.propertycache
@@ -75,7 +75,7 @@ class changectx(object):
 
     @propertycache
     def substate(self):
-        return subrepo.state(self)
+        return subrepo.state(self, self._repo.ui)
 
     def __contains__(self, key):
         return key in self._manifest
@@ -109,11 +109,13 @@ class changectx(object):
     def description(self):
         return self._changeset[4]
     def branch(self):
-        return self._changeset[5].get("branch")
+        return encoding.tolocal(self._changeset[5].get("branch"))
     def extra(self):
         return self._changeset[5]
     def tags(self):
         return self._repo.nodetags(self._node)
+    def bookmarks(self):
+        return self._repo.nodebookmarks(self._node)
 
     def parents(self):
         """return contexts for each parent changeset"""
@@ -179,7 +181,7 @@ class changectx(object):
         """
         # deal with workingctxs
         n2 = c2._node
-        if n2 == None:
+        if n2 is None:
             n2 = c2._parents[0]._node
         n = self._repo.changelog.ancestor(self._node, n2)
         return changectx(self._repo, n)
@@ -352,12 +354,16 @@ class filectx(object):
     def size(self):
         return self._filelog.size(self._filerev)
 
-    def cmp(self, text):
-        """compare text with stored file revision
+    def cmp(self, fctx):
+        """compare with other file context
 
-        returns True if text is different than what is stored.
+        returns True if different than fctx.
         """
-        return self._filelog.cmp(self._filenode, text)
+        if (fctx._filerev is None and self._repo._encodefilterpats
+            or self.size() == fctx.size()):
+            return self._filelog.cmp(self._filenode, fctx.data())
+
+        return True
 
     def renamed(self):
         """check if file was actually renamed in this changeset revision
@@ -460,39 +466,40 @@ class filectx(object):
         else:
             base = self
 
-        # find all ancestors
-        needed = {base: 1}
+        # This algorithm would prefer to be recursive, but Python is a
+        # bit recursion-hostile. Instead we do an iterative
+        # depth-first search.
+
         visit = [base]
-        files = [base._path]
-        while visit:
-            f = visit.pop(0)
-            for p in parents(f):
-                if p not in needed:
-                    needed[p] = 1
-                    visit.append(p)
-                    if p._path not in files:
-                        files.append(p._path)
-                else:
-                    # count how many times we'll use this
-                    needed[p] += 1
-
-        # sort by revision (per file) which is a topological order
-        visit = []
-        for f in files:
-            visit.extend(n for n in needed if n._path == f)
-
         hist = {}
-        for f in sorted(visit, key=lambda x: x.rev()):
-            curr = decorate(f.data(), f)
-            for p in parents(f):
-                curr = pair(hist[p], curr)
-                # trim the history of unneeded revs
-                needed[p] -= 1
-                if not needed[p]:
-                    del hist[p]
-            hist[f] = curr
+        pcache = {}
+        needed = {base: 1}
+        while visit:
+            f = visit[-1]
+            if f not in pcache:
+                pcache[f] = parents(f)
 
-        return zip(hist[f][0], hist[f][1].splitlines(True))
+            ready = True
+            pl = pcache[f]
+            for p in pl:
+                if p not in hist:
+                    ready = False
+                    visit.append(p)
+                    needed[p] = needed.get(p, 0) + 1
+            if ready:
+                visit.pop()
+                curr = decorate(f.data(), f)
+                for p in pl:
+                    curr = pair(hist[p], curr)
+                    if needed[p] == 1:
+                        del hist[p]
+                    else:
+                        needed[p] -= 1
+
+                hist[f] = curr
+                pcache[f] = []
+
+        return zip(hist[base][0], hist[base][1].splitlines(True))
 
     def ancestor(self, fc2, actx=None):
         """
@@ -544,15 +551,15 @@ class filectx(object):
         return None
 
     def ancestors(self):
-        seen = set(str(self))
-        visit = [self]
-        while visit:
-            for parent in visit.pop(0).parents():
-                s = str(parent)
-                if s not in seen:
-                    visit.append(parent)
-                    seen.add(s)
-                    yield parent
+        visit = {}
+        c = self
+        while True:
+            for parent in c.parents():
+                visit[(parent.rev(), parent.node())] = parent
+            if not visit:
+                break
+            c = visit.pop(max(visit))
+            yield c
 
 class workingctx(changectx):
     """A workingctx object makes access to data related to
@@ -587,9 +594,8 @@ class workingctx(changectx):
         if extra:
             self._extra = extra.copy()
         if 'branch' not in self._extra:
-            branch = self._repo.dirstate.branch()
             try:
-                branch = branch.decode('UTF-8').encode('UTF-8')
+                branch = encoding.fromlocal(self._repo.dirstate.branch())
             except UnicodeDecodeError:
                 raise util.Abort(_('branch name not in UTF-8!'))
             self._extra['branch'] = branch
@@ -598,6 +604,9 @@ class workingctx(changectx):
 
     def __str__(self):
         return str(self._parents[0]) + "+"
+
+    def __repr__(self):
+        return "<workingctx %s>" % str(self)
 
     def __nonzero__(self):
         return True
@@ -708,14 +717,21 @@ class workingctx(changectx):
         assert self._clean is not None  # must call status first
         return self._clean
     def branch(self):
-        return self._extra['branch']
+        return encoding.tolocal(self._extra['branch'])
     def extra(self):
         return self._extra
 
     def tags(self):
         t = []
-        [t.extend(p.tags()) for p in self.parents()]
+        for p in self.parents():
+            t.extend(p.tags())
         return t
+
+    def bookmarks(self):
+        b = []
+        for p in self.parents():
+            b.extend(p.bookmarks())
+        return b
 
     def children(self):
         return []
@@ -769,7 +785,8 @@ class workingctx(changectx):
                 self.modified() or self.added() or self.removed() or
                 (missing and self.deleted()))
 
-    def add(self, list):
+    def add(self, list, prefix=""):
+        join = lambda f: os.path.join(prefix, f)
         wlock = self._repo.wlock()
         ui, ds = self._repo.ui, self._repo.dirstate
         try:
@@ -779,7 +796,7 @@ class workingctx(changectx):
                 try:
                     st = os.lstat(p)
                 except:
-                    ui.warn(_("%s does not exist!\n") % f)
+                    ui.warn(_("%s does not exist!\n") % join(f))
                     rejected.append(f)
                     continue
                 if st.st_size > 10000000:
@@ -787,13 +804,13 @@ class workingctx(changectx):
                               "to manage this file\n"
                               "(use 'hg revert %s' to cancel the "
                               "pending addition)\n")
-                              % (f, 3 * st.st_size // 1000000, f))
+                              % (f, 3 * st.st_size // 1000000, join(f)))
                 if not (stat.S_ISREG(st.st_mode) or stat.S_ISLNK(st.st_mode)):
                     ui.warn(_("%s not added: only files and symlinks "
-                              "supported currently\n") % f)
+                              "supported currently\n") % join(f))
                     rejected.append(p)
                 elif ds[f] in 'amn':
-                    ui.warn(_("%s already tracked!\n") % f)
+                    ui.warn(_("%s already tracked!\n") % join(f))
                 elif ds[f] == 'r':
                     ds.normallookup(f)
                 else:
@@ -813,11 +830,16 @@ class workingctx(changectx):
         finally:
             wlock.release()
 
+    def ancestors(self):
+        for a in self._repo.changelog.ancestors(
+            *[p.rev() for p in self._parents]):
+            yield changectx(self._repo, a)
+
     def remove(self, list, unlink=False):
         if unlink:
             for f in list:
                 try:
-                    util.unlink(self._repo.wjoin(f))
+                    util.unlinkpath(self._repo.wjoin(f))
                 except OSError, inst:
                     if inst.errno != errno.ENOENT:
                         raise
@@ -892,6 +914,9 @@ class workingfilectx(filectx):
     def __str__(self):
         return "%s@%s" % (self.path(), self._changectx)
 
+    def __repr__(self):
+        return "<workingfilectx %s>" % str(self)
+
     def data(self):
         return self._repo.wread(self._path)
     def renamed(self):
@@ -935,12 +960,14 @@ class workingfilectx(filectx):
                 raise
             return (t, tz)
 
-    def cmp(self, text):
-        """compare text with disk content
+    def cmp(self, fctx):
+        """compare with other file context
 
-        returns True if text is different than what is on disk.
+        returns True if different than fctx.
         """
-        return self._repo.wread(self._path) != text
+        # fctx should be a filectx (not a wfctx)
+        # invert comparison to reuse the same code path
+        return fctx.cmp(self)
 
 class memctx(object):
     """Use memctx to perform in-memory commits via localrepo.commitctx().
@@ -1030,7 +1057,7 @@ class memctx(object):
     def clean(self):
         return self._status[6]
     def branch(self):
-        return self._extra['branch']
+        return encoding.tolocal(self._extra['branch'])
     def extra(self):
         return self._extra
     def flags(self, f):

@@ -36,7 +36,7 @@ try:
             category=DeprecationWarning)
 
 except ImportError:
-    pass
+    svn = None
 
 class SvnPathNotFound(Exception):
     pass
@@ -209,11 +209,8 @@ class svn_source(converter_source):
                 issvnurl(ui, url)):
             raise NoRepo(_("%s does not look like a Subversion repository")
                          % url)
-
-        try:
-            SubversionException
-        except NameError:
-            raise MissingTool(_('Subversion python bindings could not be loaded'))
+        if svn is None:
+            raise MissingTool(_('Could not load Subversion python bindings'))
 
         try:
             version = svn.core.SVN_VER_MAJOR, svn.core.SVN_VER_MINOR
@@ -314,6 +311,9 @@ class svn_source(converter_source):
                 return None
             path = (cfgpath or name).strip('/')
             if not self.exists(path, rev):
+                if self.module.endswith(path) and name == 'trunk':
+                    # we are converting from inside this directory
+                    return None
                 if cfgpath:
                     raise util.Abort(_('expected %s to be at %r, but not found')
                                  % (name, path))
@@ -651,18 +651,25 @@ class svn_source(converter_source):
                 else:
                     self.ui.debug('unknown path in revision %d: %s\n' % \
                                   (revnum, path))
-            elif kind == svn.core.svn_node_dir:                
+            elif kind == svn.core.svn_node_dir:
                 if ent.action == 'M':
                     # If the directory just had a prop change,
                     # then we shouldn't need to look for its children.
                     continue
-                elif ent.action == 'R' and parents:
+                if ent.action == 'R' and parents:
                     # If a directory is replacing a file, mark the previous
                     # file as deleted
                     pmodule, prevnum = self.revsplit(parents[0])[1:]
                     pkind = self._checkpath(entrypath, prevnum, pmodule)
                     if pkind == svn.core.svn_node_file:
                         removed.add(self.recode(entrypath))
+                    elif pkind == svn.core.svn_node_dir:
+                        # We do not know what files were kept or removed,
+                        # mark them all as changed.
+                        for childpath in self._iterfiles(pmodule, prevnum):
+                            childpath = self.getrelpath("/" + childpath)
+                            if childpath:
+                                changed.add(self.recode(childpath))
 
                 for childpath in self._iterfiles(path, revnum):
                     childpath = self.getrelpath("/" + childpath)
@@ -754,7 +761,8 @@ class svn_source(converter_source):
             author = author and self.recode(author) or ''
             try:
                 branch = self.module.split("/")[-1]
-                if branch == 'trunk':
+                trunkname = self.ui.config('convert', 'svn.trunk', 'trunk')
+                if branch == trunkname.strip('/'):
                     branch = ''
             except IndexError:
                 branch = None
@@ -823,7 +831,7 @@ class svn_source(converter_source):
     def getfile(self, file, rev):
         # TODO: ra.get_file transmits the whole file instead of diffs.
         if file in self.removed:
-            raise IOError()         
+            raise IOError()
         mode = ''
         try:
             new_module, revnum = self.revsplit(rev)[1:]
@@ -858,7 +866,9 @@ class svn_source(converter_source):
         pool = Pool()
         rpath = '/'.join([self.baseurl, urllib.quote(path)]).strip('/')
         entries = svn.client.ls(rpath, optrev(revnum), True, self.ctx, pool)
-        return ((path + '/' + p) for p, e in entries.iteritems()
+        if path:
+            path += '/'
+        return ((path + p) for p, e in entries.iteritems()
                 if e.kind == svn.core.svn_node_file)
 
     def getrelpath(self, path, module=None):
@@ -892,7 +902,7 @@ class svn_source(converter_source):
         finally:
             if module is not None:
                 self.reparent(prevmodule)
-    
+
     def _getlog(self, paths, start, end, limit=0, discover_changed_paths=True,
                 strict_node_history=False):
         # Normalize path names, svn >= 1.5 only wants paths relative to
@@ -907,7 +917,7 @@ class svn_source(converter_source):
         arg = encodeargs(args)
         hgexe = util.hgexecutable()
         cmd = '%s debugsvnlog' % util.shellquote(hgexe)
-        stdin, stdout = util.popen2(cmd)
+        stdin, stdout = util.popen2(util.quotecommand(cmd))
         stdin.write(arg)
         try:
             stdin.close()
@@ -953,6 +963,9 @@ class svn_sink(converter_sink, commandline):
         return self.join('hg-authormap')
 
     def __init__(self, ui, path):
+
+        if svn is None:
+            raise MissingTool(_('Could not load Subversion python bindings'))
         converter_sink.__init__(self, ui, path)
         commandline.__init__(self, ui, 'svn')
         self.delete = []

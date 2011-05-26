@@ -276,8 +276,12 @@ definitions. This is almost always a bad idea!
 .RE
 .SS \fBauth\fP
 .sp
-Authentication credentials for HTTP authentication. Each line has
-the following format:
+Authentication credentials for HTTP authentication. This section
+allows you to store usernames and passwords for use when logging
+\fIinto\fP HTTP servers. See the \%web\: configuration section if you want to
+configure \fIwho\fP can login to your HTTP server.
+.sp
+Each line has the following format:
 .sp
 .nf
 .ft C
@@ -421,8 +425,8 @@ defining command defaults. The command defaults will also be applied
 to the aliases of the commands defined.
 .SS \fBdiff\fP
 .sp
-Settings used when displaying diffs. They are all Boolean and
-defaults to False.
+Settings used when displaying diffs. Everything except for \fBunified\fP is a
+Boolean and defaults to False.
 .INDENT 0.0
 .TP
 .B \fBgit\fP
@@ -448,6 +452,10 @@ Ignore changes in the amount of white space.
 .B \fBignoreblanklines\fP
 .sp
 Ignore changes whose lines are all blank.
+.TP
+.B \fBunified\fP
+.sp
+Number of lines of context to show.
 .UNINDENT
 .SS \fBemail\fP
 .sp
@@ -538,9 +546,8 @@ the path to the \fB.py\fP file (including the file name extension) that
 defines the extension.
 .sp
 To explicitly disable an extension that is enabled in an hgrc of
-broader scope, prepend its path with \fB!\fP, as in
-\fBhgext.foo = !/ext/path\fP or \fBhgext.foo = !\fP  when path is not
-supplied.
+broader scope, prepend its path with \fB!\fP, as in \fBfoo = !/ext/path\fP
+or \fBfoo = !\fP when path is not supplied.
 .sp
 Example for \fB~/.hgrc\fP:
 .sp
@@ -548,11 +555,30 @@ Example for \fB~/.hgrc\fP:
 .ft C
 [extensions]
 # (the mq extension will get loaded from Mercurial\(aqs path)
-hgext.mq =
+mq =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
+.SS \fBhostfingerprints\fP
+.sp
+Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA\-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.
+.sp
+For example:
+.sp
+.nf
+.ft C
+[hostfingerprints]
+hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+.ft P
+.fi
+.sp
+This feature is only supported when using Python 2.6 or later.
 .SS \fBformat\fP
 .INDENT 0.0
 .TP
@@ -573,6 +599,15 @@ fncache) to allow longer filenames and avoids using Windows
 reserved names, e.g. "nul". Enabled by default. Disabling this
 option ensures that the on\-disk format of newly created
 repositories will be compatible with Mercurial before version 1.1.
+.TP
+.B \fBdotencode\fP
+.sp
+Enable or disable the "dotencode" repository format which enhances
+the "fncache" repository format (which has to be enabled to use
+dotencode) to avoid issues with filenames starting with ._ on
+Mac OS X and spaces on Windows. Enabled by default. Disabling this
+option ensures that the on\-disk format of newly created
+repositories will be compatible with Mercurial before version 1.7.
 .UNINDENT
 .SS \fBmerge\-patterns\fP
 .sp
@@ -694,6 +729,14 @@ This tool requires a graphical interface to run. Default: False
 Windows registry key which describes install location of this
 tool. Mercurial will search for this key first under
 \fBHKEY_CURRENT_USER\fP and then under \fBHKEY_LOCAL_MACHINE\fP.
+Default: None
+.TP
+.B \fBregkeyalt\fP
+.sp
+An alternate Windows registry key to try if the first key is not
+found.  The alternate key uses the same \fBregname\fP and \fBregappend\fP
+semantics of the primary key.  The most common use for this key
+is to search for 32bit applications on 64bit operating systems.
 Default: None
 .TP
 .B \fBregname\fP
@@ -928,8 +971,8 @@ Optional. Port to connect to on mail server. Default: 25.
 .TP
 .B \fBtls\fP
 .sp
-Optional. Whether to connect to mail server using TLS. True or
-False. Default: False.
+Optional. Method to enable TLS when connecting to mail server: starttls,
+smtps or none. Default: none.
 .TP
 .B \fBusername\fP
 .sp
@@ -1042,6 +1085,30 @@ Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.
 .UNINDENT
+.SS \fBsubpaths\fP
+.sp
+Defines subrepositories source locations rewriting rules of the form:
+.sp
+.nf
+.ft C
+<pattern> = <replacement>
+.ft P
+.fi
+.sp
+Where \fBpattern\fP is a regular expression matching the source and
+\fBreplacement\fP is the replacement string used to rewrite it. Groups
+can be matched in \fBpattern\fP and referenced in \fBreplacements\fP. For
+instance:
+.sp
+.nf
+.ft C
+http://server/(.*)\-hg/ = http://hg.server/\e1/
+.ft P
+.fi
+.sp
+rewrites \fBhttp://server/foo\-hg/\fP into \fBhttp://hg.server/foo/\fP.
+.sp
+All patterns are applied in definition order.
 .SS \fBtrusted\fP
 .sp
 Mercurial will not use the settings in the
@@ -1087,6 +1154,13 @@ be prompted to enter a username. If no username is entered, the
 default \fBUSER@HOST\fP is used instead.
 Default is False.
 .TP
+.B \fBcommitsubrepos\fP
+.sp
+Whether to commit modified subrepositories when committing the
+parent repository. If False and one subrepository has uncommitted
+changes, abort the commit.
+Default is True.
+.TP
 .B \fBdebug\fP
 .sp
 Print debugging information. True or False. Default is False.
@@ -1120,30 +1194,8 @@ Template string for commands that print changesets.
 .B \fBmerge\fP
 .sp
 The conflict resolution program to use during a manual merge.
-There are some internal tools available:
-.INDENT 7.0
-.TP
-.B \fBinternal:local\fP
-.sp
-keep the local version
-.TP
-.B \fBinternal:other\fP
-.sp
-use the other version
-.TP
-.B \fBinternal:merge\fP
-.sp
-use the internal non\-interactive merge tool
-.TP
-.B \fBinternal:fail\fP
-.sp
-fail to merge
-.UNINDENT
-.UNINDENT
-.sp
-For more information on configuring merge tools see the
-\%merge\-tools\: section.
-.INDENT 0.0
+For more information on merge tools see \%\fBhg help merge\-tools\fP\:.
+For configuring merge tools see the \%merge\-tools\: section.
 .TP
 .B \fBpatch\fP
 .sp
@@ -1212,7 +1264,32 @@ Increase the amount of output printed. True or False. Default is False.
 .UNINDENT
 .SS \fBweb\fP
 .sp
-Web interface configuration.
+Web interface configuration. The settings in this section apply to
+both the builtin webserver (started by \%\fBhg serve\fP\:) and the script you
+run through a webserver (\fBhgweb.cgi\fP and the derivatives for FastCGI
+and WSGI).
+.sp
+The Mercurial webserver does no authentication (it does not prompt for
+usernames and passwords to validate \fIwho\fP users are), but it does do
+authorization (it grants or denies access for \fIauthenticated users\fP
+based on settings in this section). You must either configure your
+webserver to do authentication for you, or disable the authorization
+checks.
+.sp
+For a quick setup in a trusted environment, e.g., a private LAN, where
+you want it to accept pushes from anybody, you can use the following
+command line:
+.sp
+.nf
+.ft C
+$ hg \-\-config web.allow_push=* \-\-config web.push_ssl=False serve
+.ft P
+.fi
+.sp
+Note that this will allow anybody to push anything to the server and
+that this should not be used for public servers.
+.sp
+The full set of options is:
 .INDENT 0.0
 .TP
 .B \fBaccesslog\fP
@@ -1278,10 +1355,11 @@ URLs. Example: \fBhttp://hgserver/repos/\fP.
 .TP
 .B \fBcacerts\fP
 .sp
-Path to file containing a list of PEM encoded certificate authority
-certificates. If specified on the client, then it will verify the identity
-of remote HTTPS servers with these certificates. The form must be
-as follows:
+Path to file containing a list of PEM encoded certificate
+authority certificates. Environment variables and \fB~user\fP
+constructs are expanded in the filename. If specified on the
+client, then it will verify the identity of remote HTTPS servers
+with these certificates. The form must be as follows:
 .sp
 .nf
 .ft C
@@ -1302,6 +1380,9 @@ version of the ssl library that is available from
 You can use OpenSSL\(aqs CA certificate file if your platform has one.
 On most Linux systems this will be \fB/etc/ssl/certs/ca\-certificates.crt\fP.
 Otherwise you will have to generate this file manually.
+.sp
+To disable SSL verification temporarily, specify \fB\-\-insecure\fP from
+command line.
 .TP
 .B \fBcontact\fP
 .sp

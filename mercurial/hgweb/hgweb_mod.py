@@ -8,8 +8,9 @@
 
 import os
 from mercurial import ui, hg, hook, error, encoding, templater
-from common import get_mtime, ErrorResponse, permhooks
-from common import HTTP_OK, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
+from common import get_stat, ErrorResponse, permhooks, caching
+from common import HTTP_OK, HTTP_NOT_MODIFIED, HTTP_BAD_REQUEST
+from common import HTTP_NOT_FOUND, HTTP_SERVER_ERROR
 from request import wsgirequest
 import webcommands, protocol, webutil
 
@@ -37,6 +38,7 @@ class hgweb(object):
         self.repo.ui.setconfig('ui', 'interactive', 'off')
         hook.redirect(True)
         self.mtime = -1
+        self.size = -1
         self.reponame = name
         self.archives = 'zip', 'gz', 'bz2'
         self.stripecount = 1
@@ -61,9 +63,12 @@ class hgweb(object):
     def refresh(self, request=None):
         if request:
             self.repo.ui.environ = request.env
-        mtime = get_mtime(self.repo.spath)
-        if mtime != self.mtime:
-            self.mtime = mtime
+        st = get_stat(self.repo.spath)
+        # compare changelog size in addition to mtime to catch
+        # rollbacks made less than a second ago
+        if st.st_mtime != self.mtime or st.st_size != self.size:
+            self.mtime = st.st_mtime
+            self.size = st.st_size
             self.repo = hg.repository(self.repo.ui, self.repo.root)
             self.maxchanges = int(self.config("web", "maxchanges", 10))
             self.stripecount = int(self.config("web", "stripes", 1))
@@ -112,24 +117,18 @@ class hgweb(object):
         # and the clients always use the old URL structure
 
         cmd = req.form.get('cmd', [''])[0]
-        if cmd and cmd in protocol.__all__:
-            if query:
-                raise ErrorResponse(HTTP_NOT_FOUND)
+        if protocol.iscmd(cmd):
             try:
+                if query:
+                    raise ErrorResponse(HTTP_NOT_FOUND)
                 if cmd in perms:
-                    try:
-                        self.check_perm(req, perms[cmd])
-                    except ErrorResponse, inst:
-                        if cmd == 'unbundle':
-                            req.drain()
-                        raise
-                method = getattr(protocol, cmd)
-                return method(self.repo, req)
+                    self.check_perm(req, perms[cmd])
+                return protocol.call(self.repo, req, cmd)
             except ErrorResponse, inst:
+                if cmd == 'unbundle':
+                    req.drain()
                 req.respond(inst, protocol.HGTYPE)
-                if not inst.message:
-                    return []
-                return '0\n%s\n' % inst.message,
+                return '0\n%s\n' % inst.message
 
         # translate user-visible url structure to internal structure
 
@@ -184,6 +183,7 @@ class hgweb(object):
                 req.form['cmd'] = [tmpl.cache['default']]
                 cmd = req.form['cmd'][0]
 
+            caching(self, req) # sets ETag header or raises NOT_MODIFIED
             if cmd not in webcommands.__all__:
                 msg = 'no such method: %s' % cmd
                 raise ErrorResponse(HTTP_BAD_REQUEST, msg)
@@ -207,6 +207,9 @@ class hgweb(object):
             return tmpl('error', error=str(inst))
         except ErrorResponse, inst:
             req.respond(inst, ctype)
+            if inst.code == HTTP_NOT_MODIFIED:
+                # Not allowed to return a body on a 304
+                return ['']
             return tmpl('error', error=inst.message)
 
     def templater(self, req):

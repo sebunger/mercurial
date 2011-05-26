@@ -101,21 +101,15 @@ def has_inotify():
 def has_fifo():
     return hasattr(os, "mkfifo")
 
-def has_hotshot():
-    try:
-        # hotshot.stats tests hotshot and many problematic dependencies
-        # like profile.
-        import hotshot.stats
-        return True
-    except ImportError:
-        return False
-
 def has_lsprof():
     try:
         import _lsprof
         return True
     except ImportError:
         return False
+
+def has_gettext():
+    return matchoutput('msgfmt --version', 'GNU gettext-tools')
 
 def has_git():
     return matchoutput('git --version 2>&1', r'^git version')
@@ -126,6 +120,15 @@ def has_docutils():
         return True
     except ImportError:
         return False
+
+def getsvnversion():
+    m = matchoutput('svn --version 2>&1', r'^svn,\s+version\s+(\d+)\.(\d+)')
+    if not m:
+        return (0, 0)
+    return (int(m.group(1)), int(m.group(2)))
+
+def has_svn15():
+    return getsvnversion() >= (1, 5)
 
 def has_svn():
     return matchoutput('svn --version 2>&1', r'^svn, version') and \
@@ -179,18 +182,28 @@ def has_pygments():
 def has_outer_repo():
     return matchoutput('hg root 2>&1', r'')
 
+def has_ssl():
+    try:
+        import ssl
+        import OpenSSL
+        OpenSSL.SSL.Context
+        return True
+    except ImportError:
+        return False
+
 checks = {
     "baz": (has_baz, "GNU Arch baz client"),
     "bzr": (has_bzr, "Canonical's Bazaar client"),
     "bzr114": (has_bzr114, "Canonical's Bazaar client >= 1.14"),
     "cvs": (has_cvs, "cvs client/server"),
     "darcs": (has_darcs, "darcs client"),
+    "docutils": (has_docutils, "Docutils text processing library"),
     "eol-in-paths": (has_eol_in_paths, "end-of-lines in paths"),
     "execbit": (has_executablebit, "executable bit"),
     "fifo": (has_fifo, "named pipes"),
+    "gettext": (has_gettext, "GNU Gettext (msgfmt)"),
     "git": (has_git, "git command line client"),
     "gpg": (has_gpg, "gpg client"),
-    "hotshot": (has_hotshot, "python hotshot module"),
     "icasefs": (has_icasefs, "case insensitive file system"),
     "inotify": (has_inotify, "inotify extension support"),
     "lsprof": (has_lsprof, "python lsprof module"),
@@ -198,8 +211,9 @@ checks = {
     "outer-repo": (has_outer_repo, "outer repo"),
     "p4": (has_p4, "Perforce server and client"),
     "pygments": (has_pygments, "Pygments source highlighting library"),
-    "docutils": (has_docutils, "Docutils text processing library"),
+    "ssl": (has_ssl, "python >= 2.6 ssl module and python OpenSSL"),
     "svn": (has_svn, "subversion client and admin tools"),
+    "svn15": (has_svn15, "subversion client and admin tools >= 1.5"),
     "svn-bindings": (has_svn_bindings, "subversion python bindings"),
     "symlink": (has_symlink, "symbolic links"),
     "tla": (has_tla, "GNU Arch tla client"),
@@ -272,5 +286,3 @@ if __name__ == '__main__':
 
     if failures != 0:
         sys.exit(1)
-
-

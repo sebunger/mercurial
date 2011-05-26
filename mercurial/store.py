@@ -22,7 +22,7 @@ def encodedir(path):
             .replace(".d/", ".d.hg/"))
 
 def decodedir(path):
-    if not path.startswith('data/'):
+    if not path.startswith('data/') or ".hg/" not in path:
         return path
     return (path
             .replace(".d.hg/", ".d/")
@@ -71,7 +71,7 @@ lowerencode = _build_lower_encodefun()
 _windows_reserved_filenames = '''con prn aux nul
     com1 com2 com3 com4 com5 com6 com7 com8 com9
     lpt1 lpt2 lpt3 lpt4 lpt5 lpt6 lpt7 lpt8 lpt9'''.split()
-def auxencode(path):
+def _auxencode(path, dotencode):
     res = []
     for n in path.split('/'):
         if n:
@@ -83,13 +83,15 @@ def auxencode(path):
             if n[-1] in '. ':
                 # encode last period or space ('foo...' -> 'foo..~2e')
                 n = n[:-1] + "~%02x" % ord(n[-1])
+            if dotencode and n[0] in '. ':
+                n = "~%02x" % ord(n[0]) + n[1:]
         res.append(n)
     return '/'.join(res)
 
 MAX_PATH_LEN_IN_HGSTORE = 120
 DIR_PREFIX_LEN = 8
 _MAX_SHORTENED_DIRS_LEN = 8 * (DIR_PREFIX_LEN + 1) - 4
-def hybridencode(path):
+def _hybridencode(path, auxencode):
     '''encodes path with a length limit
 
     Encodes all paths that begin with 'data/', according to the following.
@@ -163,12 +165,11 @@ def _calcmode(path):
         mode = None
     return mode
 
-_data = 'data 00manifest.d 00manifest.i 00changelog.d  00changelog.i'
+_data = 'data 00manifest.d 00manifest.i 00changelog.d 00changelog.i'
 
 class basicstore(object):
     '''base class for local repository stores'''
-    def __init__(self, path, opener, pathjoiner):
-        self.pathjoiner = pathjoiner
+    def __init__(self, path, opener):
         self.path = path
         self.createmode = _calcmode(path)
         op = opener(self.path)
@@ -176,19 +177,21 @@ class basicstore(object):
         self.opener = lambda f, *args, **kw: op(encodedir(f), *args, **kw)
 
     def join(self, f):
-        return self.pathjoiner(self.path, encodedir(f))
+        return self.path + '/' + encodedir(f)
 
     def _walk(self, relpath, recurse):
         '''yields (unencoded, encoded, size)'''
-        path = self.pathjoiner(self.path, relpath)
-        striplen = len(self.path) + len(os.sep)
+        path = self.path
+        if relpath:
+            path += '/' + relpath
+        striplen = len(self.path) + 1
         l = []
         if os.path.isdir(path):
             visit = [path]
             while visit:
                 p = visit.pop()
                 for f, kind, st in osutil.listdir(p, stat=True):
-                    fp = self.pathjoiner(p, f)
+                    fp = p + '/' + f
                     if kind == stat.S_IFREG and f[-2:] in ('.d', '.i'):
                         n = util.pconvert(fp[striplen:])
                         l.append((decodedir(n), n, st.st_size))
@@ -211,10 +214,12 @@ class basicstore(object):
     def copylist(self):
         return ['requires'] + _data.split()
 
+    def write(self):
+        pass
+
 class encodedstore(basicstore):
-    def __init__(self, path, opener, pathjoiner):
-        self.pathjoiner = pathjoiner
-        self.path = self.pathjoiner(path, 'store')
+    def __init__(self, path, opener):
+        self.path = path + '/store'
         self.createmode = _calcmode(self.path)
         op = opener(self.path)
         op.createmode = self.createmode
@@ -229,11 +234,11 @@ class encodedstore(basicstore):
             yield a, b, size
 
     def join(self, f):
-        return self.pathjoiner(self.path, encodefilename(f))
+        return self.path + '/' + encodefilename(f)
 
     def copylist(self):
         return (['requires', '00changelog.i'] +
-                [self.pathjoiner('store', f) for f in _data.split()])
+                ['store/' + f for f in _data.split()])
 
 class fncache(object):
     # the filename used to be partially encoded
@@ -241,10 +246,12 @@ class fncache(object):
     def __init__(self, opener):
         self.opener = opener
         self.entries = None
+        self._dirty = False
 
     def _load(self):
         '''fill the entries from the fncache file'''
         self.entries = set()
+        self._dirty = False
         try:
             fp = self.opener('fncache', mode='rb')
         except IOError:
@@ -263,12 +270,22 @@ class fncache(object):
             fp.write(encodedir(p) + '\n')
         fp.close()
         self.entries = set(files)
+        self._dirty = False
+
+    def write(self):
+        if not self._dirty:
+            return
+        fp = self.opener('fncache', mode='wb', atomictemp=True)
+        for p in self.entries:
+            fp.write(encodedir(p) + '\n')
+        fp.rename()
+        self._dirty = False
 
     def add(self, fn):
         if self.entries is None:
             self._load()
         if fn not in self.entries:
-            self.opener('fncache', 'ab').write(encodedir(fn) + '\n')
+            self._dirty = True
             self.entries.add(fn)
 
     def __contains__(self, fn):
@@ -282,9 +299,9 @@ class fncache(object):
         return iter(self.entries)
 
 class fncachestore(basicstore):
-    def __init__(self, path, opener, pathjoiner):
-        self.pathjoiner = pathjoiner
-        self.path = self.pathjoiner(path, 'store')
+    def __init__(self, path, opener, encode):
+        self.encode = encode
+        self.path = path + '/store'
         self.createmode = _calcmode(self.path)
         op = opener(self.path)
         op.createmode = self.createmode
@@ -294,21 +311,20 @@ class fncachestore(basicstore):
         def fncacheopener(path, mode='r', *args, **kw):
             if mode not in ('r', 'rb') and path.startswith('data/'):
                 fnc.add(path)
-            return op(hybridencode(path), mode, *args, **kw)
+            return op(self.encode(path), mode, *args, **kw)
         self.opener = fncacheopener
 
     def join(self, f):
-        return self.pathjoiner(self.path, hybridencode(f))
+        return self.path + '/' + self.encode(f)
 
     def datafiles(self):
         rewrite = False
         existing = []
-        pjoin = self.pathjoiner
         spath = self.path
         for f in self.fncache:
-            ef = hybridencode(f)
+            ef = self.encode(f)
             try:
-                st = os.stat(pjoin(spath, ef))
+                st = os.stat(spath + '/' + ef)
                 yield f, ef, st.st_size
                 existing.append(f)
             except OSError:
@@ -320,14 +336,19 @@ class fncachestore(basicstore):
             self.fncache.rewrite(existing)
 
     def copylist(self):
-        d = _data + ' dh fncache'
+        d = ('data dh fncache'
+             ' 00manifest.d 00manifest.i 00changelog.d 00changelog.i')
         return (['requires', '00changelog.i'] +
-                [self.pathjoiner('store', f) for f in d.split()])
+                ['store/' + f for f in d.split()])
 
-def store(requirements, path, opener, pathjoiner=None):
-    pathjoiner = pathjoiner or os.path.join
+    def write(self):
+        self.fncache.write()
+
+def store(requirements, path, opener):
     if 'store' in requirements:
         if 'fncache' in requirements:
-            return fncachestore(path, opener, pathjoiner)
-        return encodedstore(path, opener, pathjoiner)
-    return basicstore(path, opener, pathjoiner)
+            auxencode = lambda f: _auxencode(f, 'dotencode' in requirements)
+            encode = lambda f: _hybridencode(f, auxencode)
+            return fncachestore(path, opener, encode)
+        return encodedstore(path, opener)
+    return basicstore(path, opener)

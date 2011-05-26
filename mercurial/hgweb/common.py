@@ -9,6 +9,7 @@
 import errno, mimetypes, os
 
 HTTP_OK = 200
+HTTP_NOT_MODIFIED = 304
 HTTP_BAD_REQUEST = 400
 HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
@@ -70,13 +71,12 @@ permhooks.append(checkauthz)
 
 class ErrorResponse(Exception):
     def __init__(self, code, message=None, headers=[]):
-        Exception.__init__(self)
+        if message is None:
+            message = _statusmessage(code)
+        Exception.__init__(self, code, message)
         self.code = code
+        self.message = message
         self.headers = headers
-        if message is not None:
-            self.message = message
-        else:
-            self.message = _statusmessage(code)
 
 def _statusmessage(code):
     from BaseHTTPServer import BaseHTTPRequestHandler
@@ -86,12 +86,16 @@ def _statusmessage(code):
 def statusmessage(code, message=None):
     return '%d %s' % (code, message or _statusmessage(code))
 
-def get_mtime(spath):
+def get_stat(spath):
+    """stat changelog if it exists, spath otherwise"""
     cl_path = os.path.join(spath, "00changelog.i")
     if os.path.exists(cl_path):
-        return os.stat(cl_path).st_mtime
+        return os.stat(cl_path)
     else:
-        return os.stat(spath).st_mtime
+        return os.stat(spath)
+
+def get_mtime(spath):
+    return get_stat(spath).st_mtime
 
 def staticfile(directory, fname, req):
     """return a file inside directory with guessed Content-Type header
@@ -118,7 +122,10 @@ def staticfile(directory, fname, req):
         os.stat(path)
         ct = mimetypes.guess_type(path)[0] or "text/plain"
         req.respond(HTTP_OK, ct, length = os.path.getsize(path))
-        return open(path, 'rb').read()
+        fp = open(path, 'rb')
+        data = fp.read()
+        fp.close()
+        return data
     except TypeError:
         raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal filename')
     except OSError, err:
@@ -152,3 +159,9 @@ def get_contact(config):
     return (config("web", "contact") or
             config("ui", "username") or
             os.environ.get("EMAIL") or "")
+
+def caching(web, req):
+    tag = str(web.mtime)
+    if req.env.get('HTTP_IF_NONE_MATCH') == tag:
+        raise ErrorResponse(HTTP_NOT_MODIFIED)
+    req.headers.append(('ETag', tag))

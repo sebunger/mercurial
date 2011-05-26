@@ -74,7 +74,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -43,7 +43,7 @@
+@@ -44,7 +44,7 @@
          if not os.path.exists(path + "/objects"):
              raise NoRepo(_("%s does not look like a Git repository") % path)
  
@@ -116,12 +116,12 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -213,16 +214,19 @@
-         try:
-             SubversionException
-         except NameError:
--            raise MissingTool(_('Subversion python bindings could not be loaded'))
-+            raise MissingTool(_('Subversion python bindings could not be loaded') +
+@@ -210,16 +211,19 @@
+             raise NoRepo(_("%s does not look like a Subversion repository")
+                          % url)
+         if svn is None:
+-            raise MissingTool(_('Could not load Subversion python bindings'))
++            raise MissingTool(_('Could not load Subversion python bindings') +
 +                              _(' (try installing the %s package)') % 'python-subversion')
  
          try:
@@ -139,25 +139,34 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -953,6 +957,9 @@
+@@ -963,6 +967,8 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
 +        checktool('svn', debname='subversion')
 +        checktool('svnadmin', debname='subversion')
-+
-         converter_sink.__init__(self, ui, path)
-         commandline.__init__(self, ui, 'svn')
-         self.delete = []
+ 
+         if svn is None:
+             raise MissingTool(_('Could not load Subversion python bindings'))
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -225,7 +225,8 @@
-                 from OpenSSL import SSL
-                 ctx = SSL.Context(SSL.SSLv23_METHOD)
-             except ImportError:
--                raise util.Abort(_("SSL support is unavailable"))
-+                raise util.Abort(_("SSL support is unavailable") +
-+                                 _(" (try installing the %s package)") % 'python-openssl')
-             ctx.use_privatekey_file(ssl_cert)
-             ctx.use_certificate_file(ssl_cert)
-             sock = socket.socket(self.address_family, self.socket_type)
+@@ -184,7 +184,8 @@
+             import OpenSSL
+             OpenSSL.SSL.Context
+         except ImportError:
+-            raise util.Abort(_("SSL support is unavailable"))
++            raise util.Abort(_("SSL support is unavailable") +
++                             _(" (try installing the %s package)") % 'python-openssl')
+         ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
+         ctx.use_privatekey_file(ssl_cert)
+         ctx.use_certificate_file(ssl_cert)
+@@ -225,7 +226,8 @@
+             import ssl
+             ssl.wrap_socket
+         except ImportError:
+-            raise util.Abort(_("SSL support is unavailable"))
++            raise util.Abort(_("SSL support is unavailable") +
++                             _(" (try installing the %s package)") % 'python-openssl')
+         httpserver.socket = ssl.wrap_socket(httpserver.socket, server_side=True,
+             certfile=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
+ 

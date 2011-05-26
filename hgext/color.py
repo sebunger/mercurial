@@ -26,8 +26,7 @@ whitespace.
 
 Other effects in addition to color, like bold and underlined text, are
 also available. Effects are rendered with the ECMA-48 SGR control
-function (aka ANSI escape codes). This module also provides the
-render_text function, which can be used to add effects to any text.
+function (aka ANSI escape codes).
 
 Default effects may be overridden from your configuration file::
 
@@ -62,6 +61,11 @@ Default effects may be overridden from your configuration file::
 
   bookmarks.current = green
 
+  branches.active = none
+  branches.closed = black bold
+  branches.current = green
+  branches.inactive = none
+
 The color extension will try to detect whether to use ANSI codes or
 Win32 console APIs, unless it is made explicit::
 
@@ -72,9 +76,9 @@ Any value other than 'ansi', 'win32', or 'auto' will disable color.
 
 '''
 
-import os, sys
+import os
 
-from mercurial import commands, dispatch, extensions, ui as uimod
+from mercurial import commands, dispatch, extensions, ui as uimod, util
 from mercurial.i18n import _
 
 # start and stop parameters for effects
@@ -87,6 +91,11 @@ _effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
             'cyan_background': 46, 'white_background': 47}
 
 _styles = {'grep.match': 'red bold',
+           'bookmarks.current': 'green',
+           'branches.active': 'none',
+           'branches.closed': 'black bold',
+           'branches.current': 'green',
+           'branches.inactive': 'none',
            'diff.changed': 'white',
            'diff.deleted': 'red',
            'diff.diffline': 'bold',
@@ -194,15 +203,18 @@ def uisetup(ui):
     if mode == 'win32':
         if w32effects is None:
             # only warn if color.mode is explicitly set to win32
-            ui.warn(_('win32console not found, please install pywin32\n'))
+            ui.warn(_('warning: failed to set color mode to %s\n') % mode)
             return
         _effects.update(w32effects)
     elif mode != 'ansi':
         return
     def colorcmd(orig, ui_, opts, cmd, cmdfunc):
-        if (opts['color'] == 'always' or
-            (opts['color'] == 'auto' and (os.environ.get('TERM') != 'dumb'
-                                          and ui_.formatted()))):
+        coloropt = opts['color']
+        auto = coloropt == 'auto'
+        always = util.parsebool(coloropt)
+        if (always or
+            (always is None and
+             (auto and (os.environ.get('TERM') != 'dumb' and ui_.formatted())))):
             colorui._colormode = mode
             colorui.__bases__ = (ui_.__class__,)
             ui_.__class__ = colorui
@@ -211,51 +223,104 @@ def uisetup(ui):
         return orig(ui_, opts, cmd, cmdfunc)
     extensions.wrapfunction(dispatch, '_runcommand', colorcmd)
 
-commands.globalopts.append(('', 'color', 'auto',
-                            _("when to colorize (always, auto, or never)"),
-                            _('TYPE')))
+def extsetup(ui):
+    commands.globalopts.append(
+        ('', 'color', 'auto',
+         # i18n: 'always', 'auto', and 'never' are keywords and should
+         # not be translated
+         _("when to colorize (boolean, always, auto, or never)"),
+         _('TYPE')))
 
-try:
-    import re, pywintypes
-    from win32console import *
+if os.name != 'nt':
+    w32effects = None
+else:
+    import re, ctypes
+
+    _kernel32 = ctypes.windll.kernel32
+
+    _WORD = ctypes.c_ushort
+
+    _INVALID_HANDLE_VALUE = -1
+
+    class _COORD(ctypes.Structure):
+        _fields_ = [('X', ctypes.c_short),
+                    ('Y', ctypes.c_short)]
+
+    class _SMALL_RECT(ctypes.Structure):
+        _fields_ = [('Left', ctypes.c_short),
+                    ('Top', ctypes.c_short),
+                    ('Right', ctypes.c_short),
+                    ('Bottom', ctypes.c_short)]
+
+    class _CONSOLE_SCREEN_BUFFER_INFO(ctypes.Structure):
+        _fields_ = [('dwSize', _COORD),
+                    ('dwCursorPosition', _COORD),
+                    ('wAttributes', _WORD),
+                    ('srWindow', _SMALL_RECT),
+                    ('dwMaximumWindowSize', _COORD)]
+
+    _STD_OUTPUT_HANDLE = 0xfffffff5L # (DWORD)-11
+    _STD_ERROR_HANDLE = 0xfffffff4L  # (DWORD)-12
+
+    _FOREGROUND_BLUE = 0x0001
+    _FOREGROUND_GREEN = 0x0002
+    _FOREGROUND_RED = 0x0004
+    _FOREGROUND_INTENSITY = 0x0008
+
+    _BACKGROUND_BLUE = 0x0010
+    _BACKGROUND_GREEN = 0x0020
+    _BACKGROUND_RED = 0x0040
+    _BACKGROUND_INTENSITY = 0x0080
+
+    _COMMON_LVB_REVERSE_VIDEO = 0x4000
+    _COMMON_LVB_UNDERSCORE = 0x8000
 
     # http://msdn.microsoft.com/en-us/library/ms682088%28VS.85%29.aspx
     w32effects = {
         'none': -1,
         'black': 0,
-        'red': FOREGROUND_RED,
-        'green': FOREGROUND_GREEN,
-        'yellow': FOREGROUND_RED | FOREGROUND_GREEN,
-        'blue': FOREGROUND_BLUE,
-        'magenta': FOREGROUND_BLUE | FOREGROUND_RED,
-        'cyan': FOREGROUND_BLUE | FOREGROUND_GREEN,
-        'white': FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
-        'bold': FOREGROUND_INTENSITY,
-        'black_background': 0x100,              # unused value > 0x0f
-        'red_background': BACKGROUND_RED,
-        'green_background': BACKGROUND_GREEN,
-        'yellow_background': BACKGROUND_RED | BACKGROUND_GREEN,
-        'blue_background': BACKGROUND_BLUE,
-        'purple_background': BACKGROUND_BLUE | BACKGROUND_RED,
-        'cyan_background': BACKGROUND_BLUE | BACKGROUND_GREEN,
-        'white_background': BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE,
-        'bold_background': BACKGROUND_INTENSITY,
-        'underline': COMMON_LVB_UNDERSCORE,     # double-byte charsets only
-        'inverse': COMMON_LVB_REVERSE_VIDEO,    # double-byte charsets only
+        'red': _FOREGROUND_RED,
+        'green': _FOREGROUND_GREEN,
+        'yellow': _FOREGROUND_RED | _FOREGROUND_GREEN,
+        'blue': _FOREGROUND_BLUE,
+        'magenta': _FOREGROUND_BLUE | _FOREGROUND_RED,
+        'cyan': _FOREGROUND_BLUE | _FOREGROUND_GREEN,
+        'white': _FOREGROUND_RED | _FOREGROUND_GREEN | _FOREGROUND_BLUE,
+        'bold': _FOREGROUND_INTENSITY,
+        'black_background': 0x100,                  # unused value > 0x0f
+        'red_background': _BACKGROUND_RED,
+        'green_background': _BACKGROUND_GREEN,
+        'yellow_background': _BACKGROUND_RED | _BACKGROUND_GREEN,
+        'blue_background': _BACKGROUND_BLUE,
+        'purple_background': _BACKGROUND_BLUE | _BACKGROUND_RED,
+        'cyan_background': _BACKGROUND_BLUE | _BACKGROUND_GREEN,
+        'white_background': (_BACKGROUND_RED | _BACKGROUND_GREEN |
+                             _BACKGROUND_BLUE),
+        'bold_background': _BACKGROUND_INTENSITY,
+        'underline': _COMMON_LVB_UNDERSCORE,  # double-byte charsets only
+        'inverse': _COMMON_LVB_REVERSE_VIDEO, # double-byte charsets only
     }
 
-    passthrough = set([FOREGROUND_INTENSITY, BACKGROUND_INTENSITY,
-                       COMMON_LVB_UNDERSCORE, COMMON_LVB_REVERSE_VIDEO])
+    passthrough = set([_FOREGROUND_INTENSITY,
+                       _BACKGROUND_INTENSITY,
+                       _COMMON_LVB_UNDERSCORE,
+                       _COMMON_LVB_REVERSE_VIDEO])
 
-    stdout = GetStdHandle(STD_OUTPUT_HANDLE)
-    try:
-        origattr = stdout.GetConsoleScreenBufferInfo()['Attributes']
-    except pywintypes.error:
-        # stdout may be defined but not support
-        # GetConsoleScreenBufferInfo(), when called from subprocess or
-        # redirected.
-        raise ImportError()
-    ansire = re.compile('\033\[([^m]*)m([^\033]*)(.*)', re.MULTILINE | re.DOTALL)
+    stdout = _kernel32.GetStdHandle(
+                  _STD_OUTPUT_HANDLE)  # don't close the handle returned
+    if stdout is None or stdout == _INVALID_HANDLE_VALUE:
+        w32effects = None
+    else:
+        csbi = _CONSOLE_SCREEN_BUFFER_INFO()
+        if not _kernel32.GetConsoleScreenBufferInfo(
+                    stdout, ctypes.byref(csbi)):
+            # stdout may not support GetConsoleScreenBufferInfo()
+            # when called from subprocess or redirected
+            w32effects = None
+        else:
+            origattr = csbi.wAttributes
+            ansire = re.compile('\033\[([^m]*)m([^\033]*)(.*)',
+                                re.MULTILINE | re.DOTALL)
 
     def win32print(text, orig, **opts):
         label = opts.get('label', '')
@@ -287,12 +352,9 @@ try:
             for sattr in m.group(1).split(';'):
                 if sattr:
                     attr = mapcolor(int(sattr), attr)
-            stdout.SetConsoleTextAttribute(attr)
+            _kernel32.SetConsoleTextAttribute(stdout, attr)
             orig(m.group(2), **opts)
             m = re.match(ansire, m.group(3))
 
         # Explicity reset original attributes
-        stdout.SetConsoleTextAttribute(origattr)
-
-except ImportError:
-    w32effects = None
+        _kernel32.SetConsoleTextAttribute(stdout, origattr)

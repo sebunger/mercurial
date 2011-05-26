@@ -8,7 +8,8 @@ PREFIX=/usr/local
 export PREFIX
 PYTHON=python
 PURE=
-PYTHON_FILES:=$(shell find mercurial hgext doc -name '*.py')
+PYFILES:=$(shell find mercurial hgext doc -name '*.py')
+DOCFILES=mercurial/help/*.txt
 
 help:
 	@echo 'Commonly used make targets:'
@@ -43,9 +44,9 @@ doc:
 
 clean:
 	-$(PYTHON) setup.py clean --all # ignore errors from this command
-	find . -name '*.py[cdo]' -exec rm -f '{}' ';'
-	rm -f MANIFEST mercurial/__version__.py mercurial/*.so tests/*.err
-	rm -rf mercurial/locale
+	find . \( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
+	rm -f MANIFEST tests/*.err
+	rm -rf build mercurial/locale
 	$(MAKE) -C doc clean
 
 install: install-bin install-doc
@@ -85,20 +86,21 @@ test-%:
 
 update-pot: i18n/hg.pot
 
-i18n/hg.pot: $(PYTHON_FILES) mercurial/help/*.txt
+i18n/hg.pot: $(PYFILES) $(DOCFILES)
 	$(PYTHON) i18n/hggettext mercurial/commands.py \
-	  hgext/*.py hgext/*/__init__.py mercurial/help/*.txt > i18n/hg.pot
+	  hgext/*.py hgext/*/__init__.py mercurial/revset.py \
+	  $(DOCFILES) > i18n/hg.pot
         # All strings marked for translation in Mercurial contain
         # ASCII characters only. But some files contain string
         # literals like this '\037\213'. xgettext thinks it has to
         # parse them even though they are not marked for translation.
         # Extracting with an explicit encoding of ISO-8859-1 will make
         # xgettext "parse" and ignore them.
-	echo $(PYTHON_FILES) | xargs \
+	echo $(PYFILES) | xargs \
 	  xgettext --package-name "Mercurial" \
 	  --msgid-bugs-address "<mercurial-devel@selenic.com>" \
 	  --copyright-holder "Matt Mackall <mpm@selenic.com> and others" \
-	  --from-code ISO-8859-1 --join --sort-by-file \
+	  --from-code ISO-8859-1 --join --sort-by-file --add-comments=i18n: \
 	  -d hg -p i18n -o hg.pot
 	$(PYTHON) i18n/posplit i18n/hg.pot
 

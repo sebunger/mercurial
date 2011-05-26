@@ -203,8 +203,13 @@ changesets. You can define subsequent aliases using earlier ones::
 
 ``auth``
 """"""""
-Authentication credentials for HTTP authentication. Each line has
-the following format::
+
+Authentication credentials for HTTP authentication. This section
+allows you to store usernames and passwords for use when logging
+*into* HTTP servers. See the web_ configuration section if you want to
+configure *who* can login to your HTTP server.
+
+Each line has the following format::
 
     <name>.<argument> = <value>
 
@@ -325,8 +330,8 @@ to the aliases of the commands defined.
 ``diff``
 """"""""
 
-Settings used when displaying diffs. They are all Boolean and
-defaults to False.
+Settings used when displaying diffs. Everything except for ``unified`` is a
+Boolean and defaults to False.
 
 ``git``
     Use git extended diff format.
@@ -340,6 +345,8 @@ defaults to False.
     Ignore changes in the amount of white space.
 ``ignoreblanklines``
     Ignore changes whose lines are all blank.
+``unified``
+    Number of lines of context to show.
 
 ``email``
 """""""""
@@ -405,17 +412,34 @@ the path to the ``.py`` file (including the file name extension) that
 defines the extension.
 
 To explicitly disable an extension that is enabled in an hgrc of
-broader scope, prepend its path with ``!``, as in
-``hgext.foo = !/ext/path`` or ``hgext.foo = !``  when path is not
-supplied.
+broader scope, prepend its path with ``!``, as in ``foo = !/ext/path``
+or ``foo = !`` when path is not supplied.
 
 Example for ``~/.hgrc``::
 
   [extensions]
   # (the mq extension will get loaded from Mercurial's path)
-  hgext.mq =
+  mq =
   # (this extension will get loaded from the file specified)
   myfeature = ~/.hgext/myfeature.py
+
+
+``hostfingerprints``
+""""""""""""""""""""
+
+Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.
+
+For example::
+
+    [hostfingerprints]
+    hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+
+This feature is only supported when using Python 2.6 or later.
 
 
 ``format``
@@ -436,6 +460,14 @@ Example for ``~/.hgrc``::
     reserved names, e.g. "nul". Enabled by default. Disabling this
     option ensures that the on-disk format of newly created
     repositories will be compatible with Mercurial before version 1.1.
+
+``dotencode``
+    Enable or disable the "dotencode" repository format which enhances
+    the "fncache" repository format (which has to be enabled to use
+    dotencode) to avoid issues with filenames starting with ._ on
+    Mac OS X and spaces on Windows. Enabled by default. Disabling this
+    option ensures that the on-disk format of newly created
+    repositories will be compatible with Mercurial before version 1.7.
 
 ``merge-patterns``
 """"""""""""""""""
@@ -522,6 +554,12 @@ Supported arguments:
   Windows registry key which describes install location of this
   tool. Mercurial will search for this key first under
   ``HKEY_CURRENT_USER`` and then under ``HKEY_LOCAL_MACHINE``.
+  Default: None
+``regkeyalt``
+  An alternate Windows registry key to try if the first key is not
+  found.  The alternate key uses the same ``regname`` and ``regappend``
+  semantics of the primary key.  The most common use for this key
+  is to search for 32bit applications on 64bit operating systems.
   Default: None
 ``regname``
   Name of value to read from specified registry key. Defaults to the
@@ -696,8 +734,8 @@ Configuration for extensions that need to send email messages.
 ``port``
     Optional. Port to connect to on mail server. Default: 25.
 ``tls``
-    Optional. Whether to connect to mail server using TLS. True or
-    False. Default: False.
+    Optional. Method to enable TLS when connecting to mail server: starttls,
+    smtps or none. Default: none.
 ``username``
     Optional. User name for authenticating with the SMTP server.
     Default: none.
@@ -789,6 +827,23 @@ Controls generic server settings.
     checking that all new file revisions specified in manifests are
     present. Default is False.
 
+``subpaths``
+""""""""""""
+Defines subrepositories source locations rewriting rules of the form::
+
+    <pattern> = <replacement>
+
+Where ``pattern`` is a regular expression matching the source and
+``replacement`` is the replacement string used to rewrite it. Groups
+can be matched in ``pattern`` and referenced in ``replacements``. For
+instance::
+
+    http://server/(.*)-hg/ = http://hg.server/\1/
+
+rewrites ``http://server/foo-hg/`` into ``http://hg.server/foo/``.
+
+All patterns are applied in definition order.
+
 ``trusted``
 """""""""""
 
@@ -828,6 +883,11 @@ User interface controls.
     be prompted to enter a username. If no username is entered, the
     default ``USER@HOST`` is used instead.
     Default is False.
+``commitsubrepos``
+    Whether to commit modified subrepositories when committing the
+    parent repository. If False and one subrepository has uncommitted
+    changes, abort the commit.
+    Default is True.
 ``debug``
     Print debugging information. True or False. Default is False.
 ``editor``
@@ -848,20 +908,8 @@ User interface controls.
     Template string for commands that print changesets.
 ``merge``
     The conflict resolution program to use during a manual merge.
-    There are some internal tools available:
-
-    ``internal:local``
-        keep the local version
-    ``internal:other``
-        use the other version
-    ``internal:merge``
-        use the internal non-interactive merge tool
-    ``internal:fail``
-        fail to merge
-
-For more information on configuring merge tools see the
-merge-tools_ section.
-
+    For more information on merge tools see :hg:`help merge-tools`.
+    For configuring merge tools see the merge-tools_ section.
 ``patch``
     command to use to apply patches. Look for ``gpatch`` or ``patch`` in
     PATH if unset.
@@ -907,7 +955,29 @@ merge-tools_ section.
 
 ``web``
 """""""
-Web interface configuration.
+
+Web interface configuration. The settings in this section apply to
+both the builtin webserver (started by :hg:`serve`) and the script you
+run through a webserver (``hgweb.cgi`` and the derivatives for FastCGI
+and WSGI).
+
+The Mercurial webserver does no authentication (it does not prompt for
+usernames and passwords to validate *who* users are), but it does do
+authorization (it grants or denies access for *authenticated users*
+based on settings in this section). You must either configure your
+webserver to do authentication for you, or disable the authorization
+checks.
+
+For a quick setup in a trusted environment, e.g., a private LAN, where
+you want it to accept pushes from anybody, you can use the following
+command line::
+
+    $ hg --config web.allow_push=* --config web.push_ssl=False serve
+
+Note that this will allow anybody to push anything to the server and
+that this should not be used for public servers.
+
+The full set of options is:
 
 ``accesslog``
     Where to output the access log. Default is stdout.
@@ -951,10 +1021,11 @@ Web interface configuration.
     third-party tools like email notification hooks can construct
     URLs. Example: ``http://hgserver/repos/``.
 ``cacerts``
-    Path to file containing a list of PEM encoded certificate authority
-    certificates. If specified on the client, then it will verify the identity
-    of remote HTTPS servers with these certificates. The form must be
-    as follows::
+    Path to file containing a list of PEM encoded certificate
+    authority certificates. Environment variables and ``~user``
+    constructs are expanded in the filename. If specified on the
+    client, then it will verify the identity of remote HTTPS servers
+    with these certificates. The form must be as follows::
 
         -----BEGIN CERTIFICATE-----
         ... (certificate in base64 PEM encoding) ...
@@ -971,6 +1042,9 @@ Web interface configuration.
     You can use OpenSSL's CA certificate file if your platform has one.
     On most Linux systems this will be ``/etc/ssl/certs/ca-certificates.crt``.
     Otherwise you will have to generate this file manually.
+
+    To disable SSL verification temporarily, specify ``--insecure`` from
+    command line.
 ``contact``
     Name or email address of the person in charge of the repository.
     Defaults to ui.username or ``$EMAIL`` or "unknown" if unset or empty.

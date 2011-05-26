@@ -11,6 +11,7 @@ from i18n import _, gettext
 
 _extensions = {}
 _order = []
+_ignore = ['hbisect', 'bookmarks']
 
 def extensions():
     for name in _order:
@@ -45,8 +46,10 @@ def load(ui, name, path):
         shortname = name[6:]
     else:
         shortname = name
+    if shortname in _ignore:
+        return None
     if shortname in _extensions:
-        return
+        return _extensions[shortname]
     _extensions[shortname] = None
     if path:
         # the module will be loaded in sys.modules
@@ -66,6 +69,7 @@ def load(ui, name, path):
             mod = importh(name)
     _extensions[shortname] = mod
     _order.append(shortname)
+    return mod
 
 def loadall(ui):
     result = ui.configitems("extensions")
@@ -247,7 +251,7 @@ def disabledext(name):
     if name in paths:
         return _disabledhelp(paths[name])
 
-def disabledcmd(cmd, strict=False):
+def disabledcmd(ui, cmd, strict=False):
     '''import disabled extensions until cmd is found.
     returns (cmdname, extname, doc)'''
 
@@ -264,6 +268,10 @@ def disabledcmd(cmd, strict=False):
             aliases, entry = cmdutil.findcmd(cmd,
                 getattr(mod, 'cmdtable', {}), strict)
         except (error.AmbiguousCommand, error.UnknownCommand):
+            return
+        except Exception:
+            ui.warn(_('warning: error finding commands in %s\n') % path)
+            ui.traceback()
             return
         for c in aliases:
             if c.startswith(cmd):

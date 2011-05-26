@@ -7,7 +7,7 @@
 
 from node import nullid
 from i18n import _
-import util, ignore, osutil, parsers
+import util, ignore, osutil, parsers, encoding
 import struct, os, stat, errno
 import cStringIO
 
@@ -36,7 +36,7 @@ def _decdirs(dirs, path):
 
 class dirstate(object):
 
-    def __init__(self, opener, ui, root):
+    def __init__(self, opener, ui, root, validate):
         '''Create a new dirstate object.
 
         opener is an open()-like callable that can be used to open the
@@ -44,6 +44,7 @@ class dirstate(object):
         the dirstate.
         '''
         self._opener = opener
+        self._validate = validate
         self._root = root
         self._rootdir = os.path.join(root, '')
         self._dirty = False
@@ -79,7 +80,9 @@ class dirstate(object):
     @propertycache
     def _pl(self):
         try:
-            st = self._opener("dirstate").read(40)
+            fp = self._opener("dirstate")
+            st = fp.read(40)
+            fp.close()
             l = len(st)
             if l == 40:
                 return st[:20], st[20:40]
@@ -197,10 +200,10 @@ class dirstate(object):
             yield x
 
     def parents(self):
-        return self._pl
+        return [self._validate(p) for p in self._pl]
 
     def branch(self):
-        return self._branch
+        return encoding.tolocal(self._branch)
 
     def setparents(self, p1, p2=nullid):
         self._dirty = self._dirtypl = True
@@ -209,8 +212,8 @@ class dirstate(object):
     def setbranch(self, branch):
         if branch in ['tip', '.', 'null']:
             raise util.Abort(_('the name \'%s\' is reserved') % branch)
-        self._branch = branch
-        self._opener("branch", "w").write(branch + '\n')
+        self._branch = encoding.fromlocal(branch)
+        self._opener("branch", "w").write(self._branch + '\n')
 
     def _read(self):
         self._map = {}
@@ -229,7 +232,8 @@ class dirstate(object):
             self._pl = p
 
     def invalidate(self):
-        for a in "_map _copymap _foldmap _branch _pl _dirs _ignore".split():
+        for a in ("_map", "_copymap", "_foldmap", "_branch", "_pl", "_dirs",
+                "_ignore"):
             if a in self.__dict__:
                 delattr(self, a)
         self._dirty = False
@@ -358,16 +362,34 @@ class dirstate(object):
         except KeyError:
             self._ui.warn(_("not in dirstate: %s\n") % f)
 
-    def _normalize(self, path, knownpath):
-        norm_path = os.path.normcase(path)
-        fold_path = self._foldmap.get(norm_path, None)
-        if fold_path is None:
-            if knownpath or not os.path.lexists(os.path.join(self._root, path)):
-                fold_path = path
+    def _normalize(self, path, isknown):
+        normed = os.path.normcase(path)
+        folded = self._foldmap.get(normed, None)
+        if folded is None:
+            if isknown or not os.path.lexists(os.path.join(self._root, path)):
+                folded = path
             else:
-                fold_path = self._foldmap.setdefault(norm_path,
+                folded = self._foldmap.setdefault(normed,
                                 util.fspath(path, self._root))
-        return fold_path
+        return folded
+
+    def normalize(self, path, isknown=False):
+        '''
+        normalize the case of a pathname when on a casefolding filesystem
+
+        isknown specifies whether the filename came from walking the
+        disk, to avoid extra filesystem access
+
+        The normalized case is determined based on the following precedence:
+
+        - version of name already stored in the dirstate
+        - version of name stored on disk
+        - version provided via command arguments
+        '''
+
+        if self._checkcase:
+            return self._normalize(path, isknown)
+        return path
 
     def clear(self):
         self._map = {}
@@ -485,11 +507,6 @@ class dirstate(object):
         work = []
         wadd = work.append
 
-        if self._checkcase:
-            normalize = self._normalize
-        else:
-            normalize = lambda x, y: x
-
         exact = skipstep3 = False
         if matchfn == match.exact: # match.exact
             exact = True
@@ -497,14 +514,31 @@ class dirstate(object):
         elif match.files() and not match.anypats(): # match.match, no patterns
             skipstep3 = True
 
-        files = set(match.files())
+        if self._checkcase:
+            normalize = self._normalize
+            skipstep3 = False
+        else:
+            normalize = lambda x, y: x
+
+        files = sorted(match.files())
+        subrepos.sort()
+        i, j = 0, 0
+        while i < len(files) and j < len(subrepos):
+            subpath = subrepos[j] + "/"
+            if files[i] < subpath:
+                i += 1
+                continue
+            while i < len(files) and files[i].startswith(subpath):
+                del files[i]
+            j += 1
+
         if not files or '.' in files:
             files = ['']
         results = dict.fromkeys(subrepos)
         results['.hg'] = None
 
         # step 1: find all explicit files
-        for ff in sorted(files):
+        for ff in files:
             nf = normalize(normpath(ff), False)
             if nf in results:
                 continue

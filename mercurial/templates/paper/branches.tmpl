@@ -17,7 +17,11 @@
 <li><a href="{url}shortlog{sessionvars%urlparameter}">log</a></li>
 <li><a href="{url}graph{sessionvars%urlparameter}">graph</a></li>
 <li><a href="{url}tags{sessionvars%urlparameter}">tags</a></li>
+<li><a href="{url}bookmarks{sessionvars%urlparameter}">bookmarks</a></li>
 <li class="active">branches</li>
+</ul>
+<ul>
+ <li><a href="{url}help{sessionvars%urlparameter}">help</a></li>
 </ul>
 </div>
 
@@ -37,7 +41,18 @@ files, or words in the commit message</div>
  <th>branch</th>
  <th>node</th>
 </tr>
-{entries%branchentry}
+{entries %
+' <tr class="tagEntry parity{parity}">
+    <td>
+      <a href="{url}shortlog/{node|short}{sessionvars%urlparameter}" class="{status}">
+        {branch|escape}
+      </a>
+    </td>
+    <td class="node">
+      {node|short}
+    </td>
+  </tr>'
+}
 </table>
 </div>
 </div>

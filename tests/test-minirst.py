@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from pprint import pprint
 from mercurial import minirst
 
@@ -122,16 +120,19 @@ options = """
 There is support for simple option lists,
 but only with long options:
 
---all      Output all.
---both     Output both (this description is
-           quite long).
---long     Output all day long.
+-X, --exclude  filter  an option with a short and long option with an argument
+-I, --include          an option with both a short option and a long option
+--all                  Output all.
+--both                 Output both (this description is
+                       quite long).
+--long                 Output all day long.
 
---par      This option has two paragraphs in its description.
-           This is the first.
+--par                 This option has two paragraphs in its description.
+                      This is the first.
 
-           This is the second.  Blank lines may be omitted between
-           options (as above) or left in (as here).
+                      This is the second.  Blank lines may be omitted between
+                      options (as above) or left in (as here).
+
 
 The next paragraph looks like an option list, but lacks the two-space
 marker after the option. It is treated as a normal paragraph:
@@ -197,3 +198,36 @@ Markup: ``foo`` and :hg:`help`
 ------------------------------
 """
 debugformat('sections', sections, 20)
+
+
+admonitions = """
+.. note::
+   This is a note
+
+   - Bullet 1
+   - Bullet 2
+
+   .. warning:: This is a warning Second
+      input line of warning
+
+.. danger::
+   This is danger
+"""
+
+debugformat('admonitions', admonitions, 30)
+
+comments = """
+Some text.
+
+.. A comment
+
+   .. An indented comment
+
+   Some indented text.
+
+..
+
+Empty comment above
+"""
+
+debugformat('comments', comments, 30)

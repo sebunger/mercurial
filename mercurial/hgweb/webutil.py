@@ -7,7 +7,7 @@
 # GNU General Public License version 2 or any later version.
 
 import os, copy
-from mercurial import match, patch, util, error
+from mercurial import match, patch, util, error, ui
 from mercurial.node import hex, nullid
 
 def up(p):
@@ -90,6 +90,9 @@ def renamelink(fctx):
 def nodetagsdict(repo, node):
     return [{"name": i} for i in repo.nodetags(node)]
 
+def nodebookmarksdict(repo, node):
+    return [{"name": i} for i in repo.nodebookmarks(node)]
+
 def nodebranchdict(repo, ctx):
     branches = []
     branch = ctx.branch()
@@ -117,6 +120,10 @@ def nodebranchnodefault(ctx):
 def showtag(repo, tmpl, t1, node=nullid, **args):
     for t in repo.nodetags(node):
         yield tmpl(t1, tag=t, **args)
+
+def showbookmark(repo, tmpl, t1, node=nullid, **args):
+    for t in repo.nodebookmarks(node):
+        yield tmpl(t1, bookmark=t, **args)
 
 def cleanpath(repo, path):
     path = path.lstrip('/')
@@ -219,3 +226,8 @@ class sessionvars(object):
         for key, value in self.vars.iteritems():
             yield {'name': key, 'value': str(value), 'separator': separator}
             separator = '&'
+
+class wsgiui(ui.ui):
+    # default termwidth breaks under mod_wsgi
+    def termwidth(self):
+        return 80

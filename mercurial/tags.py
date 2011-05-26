@@ -12,6 +12,7 @@
 
 from node import nullid, bin, hex, short
 from i18n import _
+import os.path
 import encoding
 import error
 
@@ -99,9 +100,6 @@ def _readtags(ui, repo, lines, fn, recode=None):
         except TypeError:
             warn(_("node '%s' is not well formed") % nodehex)
             continue
-        if nodebin not in repo.changelog.nodemap:
-            # silently ignore as pull -r might cause this
-            continue
 
         # update filetags
         hist = []
@@ -154,7 +152,7 @@ def _readtagcache(ui, repo):
     set, caller is responsible for reading tag info from each head.'''
 
     try:
-        cachefile = repo.opener('tags.cache', 'r')
+        cachefile = repo.opener('cache/tags', 'r')
         # force reading the file for static-http
         cachelines = iter(cachefile)
     except IOError:
@@ -176,16 +174,23 @@ def _readtagcache(ui, repo):
     cacheheads = []                     # list of headnode
     cachefnode = {}                     # map headnode to filenode
     if cachefile:
-        for line in cachelines:
-            if line == "\n":
-                break
-            line = line.rstrip().split()
-            cacherevs.append(int(line[0]))
-            headnode = bin(line[1])
-            cacheheads.append(headnode)
-            if len(line) == 3:
-                fnode = bin(line[2])
-                cachefnode[headnode] = fnode
+        try:
+            for line in cachelines:
+                if line == "\n":
+                    break
+                line = line.rstrip().split()
+                cacherevs.append(int(line[0]))
+                headnode = bin(line[1])
+                cacheheads.append(headnode)
+                if len(line) == 3:
+                    fnode = bin(line[2])
+                    cachefnode[headnode] = fnode
+        except (ValueError, TypeError):
+            # corruption of the tags cache, just recompute it
+            ui.warn(_('.hg/cache/tags is corrupt, rebuilding it\n'))
+            cacheheads = []
+            cacherevs = []
+            cachefnode = {}
 
     tipnode = repo.changelog.tip()
     tiprev = len(repo.changelog) - 1
@@ -244,7 +249,7 @@ def _readtagcache(ui, repo):
 def _writetagcache(ui, repo, heads, tagfnode, cachetags):
 
     try:
-        cachefile = repo.opener('tags.cache', 'w', atomictemp=True)
+        cachefile = repo.opener('cache/tags', 'w', atomictemp=True)
     except (OSError, IOError):
         return
 

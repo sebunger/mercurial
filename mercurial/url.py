@@ -7,7 +7,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import urllib, urllib2, urlparse, httplib, os, re, socket, cStringIO, time
+import urllib, urllib2, urlparse, httplib, os, re, socket, cStringIO
+import __builtin__
 from i18n import _
 import keepalive, util
 
@@ -24,6 +25,9 @@ def _urlunparse(scheme, netloc, path, params, query, fragment, url):
 
 def hidepassword(url):
     '''hide user credential in a url string'''
+    if url.startswith("ssh://"):
+        # urllib doesn't know about ssh urls
+        return re.sub(r'(ssh://[^/]+):[^/]+(@.*)', r'\1:***\2', url)
     scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
     netloc = re.sub('([^:]*):([^@]*)@(.*)', r'\1:***@\3', netloc)
     return _urlunparse(scheme, netloc, path, params, query, fragment, url)
@@ -69,6 +73,38 @@ def netlocunsplit(host, port, user=None, passwd=None):
             userpass = quote(user)
         return userpass + '@' + hostport
     return hostport
+
+def readauthforuri(ui, uri):
+    # Read configuration
+    config = dict()
+    for key, val in ui.configitems('auth'):
+        if '.' not in key:
+            ui.warn(_("ignoring invalid [auth] key '%s'\n") % key)
+            continue
+        group, setting = key.rsplit('.', 1)
+        gdict = config.setdefault(group, dict())
+        if setting in ('username', 'cert', 'key'):
+            val = util.expandpath(val)
+        gdict[setting] = val
+
+    # Find the best match
+    scheme, hostpath = uri.split('://', 1)
+    bestlen = 0
+    bestauth = None
+    for group, auth in config.iteritems():
+        prefix = auth.get('prefix')
+        if not prefix:
+            continue
+        p = prefix.split('://', 1)
+        if len(p) > 1:
+            schemes, prefix = [p[0]], p[1]
+        else:
+            schemes = (auth.get('schemes') or 'https').split()
+        if (prefix == '*' or hostpath.startswith(prefix)) and \
+            len(prefix) > bestlen and scheme in schemes:
+            bestlen = len(prefix)
+            bestauth = group, auth
+    return bestauth
 
 _safe = ('abcdefghijklmnopqrstuvwxyz'
          'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -122,17 +158,19 @@ class passwordmgr(urllib2.HTTPPasswordMgrWithDefaultRealm):
             return (user, passwd)
 
         if not user:
-            auth = self.readauthtoken(authuri)
-            if auth:
+            res = readauthforuri(self.ui, authuri)
+            if res:
+                group, auth = res
                 user, passwd = auth.get('username'), auth.get('password')
+                self.ui.debug("using auth.%s.* for authentication\n" % group)
         if not user or not passwd:
             if not self.ui.interactive():
                 raise util.Abort(_('http authorization required'))
 
             self.ui.write(_("http authorization required\n"))
-            self.ui.status(_("realm: %s\n") % realm)
+            self.ui.write(_("realm: %s\n") % realm)
             if user:
-                self.ui.status(_("user: %s\n") % user)
+                self.ui.write(_("user: %s\n") % user)
             else:
                 user = self.ui.prompt(_("user:"), default=None)
 
@@ -146,38 +184,6 @@ class passwordmgr(urllib2.HTTPPasswordMgrWithDefaultRealm):
     def _writedebug(self, user, passwd):
         msg = _('http auth: user %s, password %s\n')
         self.ui.debug(msg % (user, passwd and '*' * len(passwd) or 'not set'))
-
-    def readauthtoken(self, uri):
-        # Read configuration
-        config = dict()
-        for key, val in self.ui.configitems('auth'):
-            if '.' not in key:
-                self.ui.warn(_("ignoring invalid [auth] key '%s'\n") % key)
-                continue
-            group, setting = key.split('.', 1)
-            gdict = config.setdefault(group, dict())
-            if setting in ('username', 'cert', 'key'):
-                val = util.expandpath(val)
-            gdict[setting] = val
-
-        # Find the best match
-        scheme, hostpath = uri.split('://', 1)
-        bestlen = 0
-        bestauth = None
-        for auth in config.itervalues():
-            prefix = auth.get('prefix')
-            if not prefix:
-                continue
-            p = prefix.split('://', 1)
-            if len(p) > 1:
-                schemes, prefix = [p[0]], p[1]
-            else:
-                schemes = (auth.get('schemes') or 'https').split()
-            if (prefix == '*' or hostpath.startswith(prefix)) and \
-                len(prefix) > bestlen and scheme in schemes:
-                bestlen = len(prefix)
-                bestauth = auth
-        return bestauth
 
 class proxyhandler(urllib2.ProxyHandler):
     def __init__(self, ui):
@@ -250,20 +256,54 @@ class proxyhandler(urllib2.ProxyHandler):
 
         return urllib2.ProxyHandler.proxy_open(self, req, proxy, type_)
 
-class httpsendfile(file):
-    def __len__(self):
-        return os.fstat(self.fileno()).st_size
+class httpsendfile(object):
+    """This is a wrapper around the objects returned by python's "open".
 
-def _gen_sendfile(connection):
+    Its purpose is to send file-like objects via HTTP and, to do so, it
+    defines a __len__ attribute to feed the Content-Length header.
+    """
+
+    def __init__(self, ui, *args, **kwargs):
+        # We can't just "self._data = open(*args, **kwargs)" here because there
+        # is an "open" function defined in this module that shadows the global
+        # one
+        self.ui = ui
+        self._data = __builtin__.open(*args, **kwargs)
+        self.seek = self._data.seek
+        self.close = self._data.close
+        self.write = self._data.write
+        self._len = os.fstat(self._data.fileno()).st_size
+        self._pos = 0
+        self._total = len(self) / 1024 * 2
+
+    def read(self, *args, **kwargs):
+        try:
+            ret = self._data.read(*args, **kwargs)
+        except EOFError:
+            self.ui.progress(_('sending'), None)
+        self._pos += len(ret)
+        # We pass double the max for total because we currently have
+        # to send the bundle twice in the case of a server that
+        # requires authentication. Since we can't know until we try
+        # once whether authentication will be required, just lie to
+        # the user and maybe the push succeeds suddenly at 50%.
+        self.ui.progress(_('sending'), self._pos / 1024,
+                         unit=_('kb'), total=self._total)
+        return ret
+
+    def __len__(self):
+        return self._len
+
+def _gen_sendfile(orgsend):
     def _sendfile(self, data):
         # send a file
         if isinstance(data, httpsendfile):
             # if auth required, some data sent twice, so rewind here
             data.seek(0)
             for chunk in util.filechunkiter(data):
-                connection.send(self, chunk)
+                orgsend(self, chunk)
         else:
-            connection.send(self, data)
+            orgsend(self, data)
     return _sendfile
 
 has_https = hasattr(urllib2, 'HTTPSHandler')
@@ -316,7 +356,7 @@ if has_https:
 
 class httpconnection(keepalive.HTTPConnection):
     # must be able to send big bundle as stream.
-    send = _gen_sendfile(keepalive.HTTPConnection)
+    send = _gen_sendfile(keepalive.HTTPConnection.send)
 
     def connect(self):
         if has_https and self.realhostport: # use CONNECT proxy
@@ -470,69 +510,101 @@ class httphandler(keepalive.HTTPHandler):
         return keepalive.HTTPHandler._start_transaction(self, h, req)
 
 def _verifycert(cert, hostname):
-    '''Verify that cert (in socket.getpeercert() format) matches hostname and is 
-    valid at this time. CRLs and subjectAltName are not handled.
-    
+    '''Verify that cert (in socket.getpeercert() format) matches hostname.
+    CRLs is not handled.
+
     Returns error message if any problems are found and None on success.
     '''
     if not cert:
         return _('no certificate received')
-    notafter = cert.get('notAfter')
-    if notafter and time.time() > ssl.cert_time_to_seconds(notafter):
-        return _('certificate expired %s') % notafter
-    notbefore = cert.get('notBefore')
-    if notbefore and time.time() < ssl.cert_time_to_seconds(notbefore):
-        return _('certificate not valid before %s') % notbefore
     dnsname = hostname.lower()
+    def matchdnsname(certname):
+        return (certname == dnsname or
+                '.' in dnsname and certname == '*.' + dnsname.split('.', 1)[1])
+
+    san = cert.get('subjectAltName', [])
+    if san:
+        certnames = [value.lower() for key, value in san if key == 'DNS']
+        for name in certnames:
+            if matchdnsname(name):
+                return None
+        return _('certificate is for %s') % ', '.join(certnames)
+
+    # subject is only checked when subjectAltName is empty
     for s in cert.get('subject', []):
         key, value = s[0]
         if key == 'commonName':
-            certname = value.lower()
-            if (certname == dnsname or
-                '.' in dnsname and certname == '*.' + dnsname.split('.', 1)[1]):
+            try:
+                # 'subject' entries are unicode
+                certname = value.lower().encode('ascii')
+            except UnicodeEncodeError:
+                return _('IDN in certificate not supported')
+            if matchdnsname(certname):
                 return None
             return _('certificate is for %s') % certname
-    return _('no commonName found in certificate')
+    return _('no commonName or subjectAltName found in certificate')
 
 if has_https:
-    class BetterHTTPS(httplib.HTTPSConnection):
-        send = keepalive.safesend
-
-        def connect(self):
-            if hasattr(self, 'ui'):
-                cacerts = self.ui.config('web', 'cacerts')
-            else:
-                cacerts = None
-
-            if cacerts:
-                sock = _create_connection((self.host, self.port))
-                self.sock = _ssl_wrap_socket(sock, self.key_file,
-                        self.cert_file, cert_reqs=CERT_REQUIRED,
-                        ca_certs=cacerts)
-                msg = _verifycert(self.sock.getpeercert(), self.host)
-                if msg:
-                    raise util.Abort(_('%s certificate error: %s') %
-                                     (self.host, msg))
-                self.ui.debug('%s certificate successfully verified\n' %
-                              self.host)
-            else:
-                httplib.HTTPSConnection.connect(self)
-
-    class httpsconnection(BetterHTTPS):
+    class httpsconnection(httplib.HTTPSConnection):
         response_class = keepalive.HTTPResponse
         # must be able to send big bundle as stream.
-        send = _gen_sendfile(BetterHTTPS)
+        send = _gen_sendfile(keepalive.safesend)
         getresponse = keepalive.wrapgetresponse(httplib.HTTPSConnection)
 
         def connect(self):
+            self.sock = _create_connection((self.host, self.port))
+
+            host = self.host
             if self.realhostport: # use CONNECT proxy
-                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.connect((self.host, self.port))
-                if _generic_proxytunnel(self):
-                    self.sock = _ssl_wrap_socket(self.sock, self.cert_file,
-                                                 self.key_file)
+                something = _generic_proxytunnel(self)
+                host = self.realhostport.rsplit(':', 1)[0]
+
+            cacerts = self.ui.config('web', 'cacerts')
+            hostfingerprint = self.ui.config('hostfingerprints', host)
+
+            if cacerts and not hostfingerprint:
+                cacerts = util.expandpath(cacerts)
+                if not os.path.exists(cacerts):
+                    raise util.Abort(_('could not find '
+                                       'web.cacerts: %s') % cacerts)
+                self.sock = _ssl_wrap_socket(self.sock, self.key_file,
+                    self.cert_file, cert_reqs=CERT_REQUIRED,
+                    ca_certs=cacerts)
+                msg = _verifycert(self.sock.getpeercert(), host)
+                if msg:
+                    raise util.Abort(_('%s certificate error: %s '
+                                       '(use --insecure to connect '
+                                       'insecurely)') % (host, msg))
+                self.ui.debug('%s certificate successfully verified\n' % host)
             else:
-                BetterHTTPS.connect(self)
+                self.sock = _ssl_wrap_socket(self.sock, self.key_file,
+                    self.cert_file)
+                if hasattr(self.sock, 'getpeercert'):
+                    peercert = self.sock.getpeercert(True)
+                    peerfingerprint = util.sha1(peercert).hexdigest()
+                    nicefingerprint = ":".join([peerfingerprint[x:x + 2]
+                        for x in xrange(0, len(peerfingerprint), 2)])
+                    if hostfingerprint:
+                        if peerfingerprint.lower() != \
+                                hostfingerprint.replace(':', '').lower():
+                            raise util.Abort(_('invalid certificate for %s '
+                                               'with fingerprint %s') %
+                                             (host, nicefingerprint))
+                        self.ui.debug('%s certificate matched fingerprint %s\n' %
+                                      (host, nicefingerprint))
+                    else:
+                        self.ui.warn(_('warning: %s certificate '
+                                       'with fingerprint %s not verified '
+                                       '(check hostfingerprints or web.cacerts '
+                                       'config setting)\n') %
+                                     (host, nicefingerprint))
+                else: # python 2.5 ?
+                    if hostfingerprint:
+                        raise util.Abort(_('no certificate for %s with '
+                                           'configured hostfingerprint') % host)
+                    self.ui.warn(_('warning: %s certificate not verified '
+                                   '(check web.cacerts config setting)\n') %
+                                 host)
 
     class httpshandler(keepalive.KeepAliveHandler, urllib2.HTTPSHandler):
         def __init__(self, ui):
@@ -546,7 +618,13 @@ if has_https:
             return keepalive.KeepAliveHandler._start_transaction(self, h, req)
 
         def https_open(self, req):
-            self.auth = self.pwmgr.readauthtoken(req.get_full_url())
+            res = readauthforuri(self.ui, req.get_full_url())
+            if res:
+                group, auth = res
+                self.auth = auth
+                self.ui.debug("using auth.%s.* for authentication\n" % group)
+            else:
+                self.auth = None
             return self.do_open(self._makeconnection, req)
 
         def _makeconnection(self, host, port=None, *args, **kwargs):

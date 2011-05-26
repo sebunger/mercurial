@@ -7,7 +7,7 @@
 
 """recreates hardlinks between repository clones"""
 
-from mercurial import cmdutil, hg, util
+from mercurial import hg, util
 from mercurial.i18n import _
 import os, stat
 
@@ -42,8 +42,12 @@ def relink(ui, repo, origin=None, **opts):
         hg.remoteui(repo, opts),
         ui.expandpath(origin or 'default-relink', origin or 'default'))
     if not src.local():
-        raise util.Abort('must specify local origin repository')
+        raise util.Abort(_('must specify local origin repository'))
     ui.status(_('relinking %s to %s\n') % (src.store.path, repo.store.path))
+    if repo.root == src.root:
+        ui.status(_('there is nothing to relink\n'))
+        return
+
     locallock = repo.lock()
     try:
         remotelock = src.lock()
@@ -117,7 +121,7 @@ def prune(candidates, src, dst, ui):
             ui.debug(_('not linkable: %s\n') % fn)
             continue
         targets.append((fn, ts.st_size))
-        ui.progress(_('pruning'), pos, fn, _(' files'), total)
+        ui.progress(_('pruning'), pos, fn, _('files'), total)
 
     ui.progress(_('pruning'), None)
     ui.status(_('pruned down to %d probably relinkable files\n') % len(targets))
@@ -160,7 +164,7 @@ def do_relink(src, dst, files, ui):
             continue
         try:
             relinkfile(source, tgt)
-            ui.progress(_('relinking'), pos, f, _(' files'), total)
+            ui.progress(_('relinking'), pos, f, _('files'), total)
             relinked += 1
             savedbytes += sz
         except OSError, inst:

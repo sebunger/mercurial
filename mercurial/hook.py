@@ -92,6 +92,12 @@ def _exthook(ui, repo, name, cmd, args, throw):
     for k, v in args.iteritems():
         if hasattr(v, '__call__'):
             v = v()
+        if isinstance(v, dict):
+            # make the dictionary element order stable across Python
+            # implementations
+            v = ('{' +
+                 ', '.join('%r: %r' % i for i in sorted(v.iteritems())) +
+                 '}')
         env['HG_' + k.upper()] = v
 
     if repo:
@@ -135,6 +141,9 @@ def hook(ui, repo, name, throw=False, **args):
             elif cmd.startswith('python:'):
                 if cmd.count(':') >= 2:
                     path, cmd = cmd[7:].rsplit(':', 1)
+                    path = util.expandpath(path)
+                    if repo:
+                        path = os.path.join(repo.root, path)
                     mod = extensions.loadpath(path, 'hghook.%s' % hname)
                     hookfn = getattr(mod, cmd)
                 else:

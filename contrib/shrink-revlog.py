@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """\
 reorder a revlog (the manifest by default) to save space
 
@@ -117,8 +115,8 @@ def writerevs(ui, r1, r2, order, tr):
 
     try:
         group = util.chunkbuffer(r1.group(order, lookup, progress))
-        chunkiter = changegroup.chunkiter(group)
-        r2.addgroup(chunkiter, unlookup, tr)
+        group = changegroup.unbundle10(group, "UN")
+        r2.addgroup(group, unlookup, tr)
     finally:
         ui.progress(_('writing'), None)
 

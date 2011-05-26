@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from mercurial import demandimport
 demandimport.enable()
 
@@ -10,6 +8,7 @@ def f(obj):
     l = repr(obj)
     l = rsub("0x[0-9a-fA-F]+", "0x?", l)
     l = rsub("from '.*'", "from '?'", l)
+    l = rsub("'<[a-z]*>'", "'<whatever>'", l)
     return l
 
 import os
