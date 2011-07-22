@@ -26,7 +26,14 @@ make some patches with a parent: 1:d7fe2034f71b -> p0 -> p1
 
   $ echo cp0 >> fp0
   $ hg add fp0
-  $ hg qnew p0 -d "0 0"
+  $ hg ci -m p0 -d "0 0"
+  $ hg export -r. > p0
+  $ hg strip -qn .
+  $ hg qimport p0
+  adding p0 to series file
+  $ hg qpush
+  applying p0
+  now at: p0
 
   $ echo cp1 >> fp1
   $ hg add fp1
@@ -55,15 +62,6 @@ qpush --exact when at the parent
   patch queue now empty
 
   $ hg qpush -e p1
-  applying p0
-  applying p1
-  now at: p1
-  $ hg parents -qr qbase
-  1:d7fe2034f71b
-  $ hg qpop -aq
-  patch queue now empty
-
-  $ hg qpush -ea
   applying p0
   applying p1
   now at: p1
@@ -165,7 +163,7 @@ qpush --exact --force with changes to an unpatched file
   $ hg update 1 -q
   $ echo c0 >> f0
   $ hg qpush -e
-  abort: local changes found, refresh first
+  abort: local changes found
   [255]
   $ hg qpush -ef
   applying p0
@@ -180,7 +178,7 @@ qpush --exact --force with changes to an unpatched file
   $ hg update 1 -q
   $ echo c0 >> f0
   $ hg qpush -e p1
-  abort: local changes found, refresh first
+  abort: local changes found
   [255]
   $ hg qpush -e p1 -f
   applying p0
@@ -199,7 +197,7 @@ qpush --exact --force with changes to a patched file
   $ echo cp0-bad >> fp0
   $ hg add fp0
   $ hg qpush -e
-  abort: local changes found, refresh first
+  abort: local changes found
   [255]
   $ hg qpush -ef
   applying p0
@@ -225,7 +223,7 @@ qpush --exact --force with changes to a patched file
   $ echo cp1-bad >> fp1
   $ hg add fp1
   $ hg qpush -e p1
-  abort: local changes found, refresh first
+  abort: local changes found
   [255]
   $ hg qpush -e p1 -f
   applying p0

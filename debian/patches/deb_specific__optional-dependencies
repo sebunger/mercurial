@@ -2,16 +2,16 @@ Suggest Debian packages for some optional dependencies.
 
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -423,7 +423,8 @@
-         global MySQLdb
-         MySQLdb = mysql
-     except ImportError, err:
--        raise util.Abort(_('python mysql support not available: %s') % err)
-+        raise util.Abort(_('python mysql support not available: %s') % err +
-+                         _(' (try installing the %s package)') % 'python-mysqldb')
+@@ -316,7 +316,8 @@
+             import MySQLdb as mysql
+             bzmysql._MySQLdb = mysql
+         except ImportError, err:
+-            raise util.Abort(_('python mysql support not available: %s') % err)
++            raise util.Abort(_('python mysql support not available: %s') % err +
++                             _(' (try installing the %s package)') % 'python-mysqldb')
  
-     if node is None:
-         raise util.Abort(_('hook type %s does not pass a changeset id') %
+         bzaccess.__init__(self, ui)
+ 
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
 @@ -44,7 +44,8 @@
@@ -33,7 +33,7 @@ Suggest Debian packages for some optional dependencies.
 -def checktool(exe, name=None, abort=True):
 +def checktool(exe, name=None, abort=True, debname=None):
      name = name or exe
-     if not util.find_exe(exe):
+     if not util.findexe(exe):
          exc = abort and util.Abort or MissingTool
 -        raise exc(_('cannot find required "%s" tool') % name)
 +        raise exc(_('cannot find required "%s" tool') % name +
@@ -74,7 +74,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -44,7 +44,7 @@
+@@ -52,7 +52,7 @@
          if not os.path.exists(path + "/objects"):
              raise NoRepo(_("%s does not look like a Git repository") % path)
  
@@ -86,7 +86,7 @@ Suggest Debian packages for some optional dependencies.
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
 @@ -42,7 +42,8 @@
-             if util.find_exe('tla'):
+             if util.findexe('tla'):
                  self.execmd = 'tla'
              else:
 -                raise util.Abort(_('cannot find a GNU Arch tool'))
@@ -97,15 +97,15 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -62,7 +62,7 @@
+@@ -66,7 +66,7 @@
          self.files = None
          self.dirs  = None
  
 -        checktool('mtn', abort=False)
 +        checktool('mtn', abort=False, debname='monotone')
  
-         # test if there are any revisions
-         self.rev = None
+     def mtnrun(self, *args, **kwargs):
+         if self.automatestdio:
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
 @@ -21,6 +21,7 @@
@@ -116,7 +116,7 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -210,16 +211,19 @@
+@@ -219,16 +220,19 @@
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -139,18 +139,18 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -963,6 +967,8 @@
+@@ -966,6 +970,8 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
 +        checktool('svn', debname='subversion')
 +        checktool('svnadmin', debname='subversion')
  
-         if svn is None:
-             raise MissingTool(_('Could not load Subversion python bindings'))
+         converter_sink.__init__(self, ui, path)
+         commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -184,7 +184,8 @@
+@@ -194,7 +194,8 @@
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
@@ -160,7 +160,7 @@ Suggest Debian packages for some optional dependencies.
          ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
-@@ -225,7 +226,8 @@
+@@ -235,7 +236,8 @@
              import ssl
              ssl.wrap_socket
          except ImportError:

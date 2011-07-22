@@ -225,14 +225,6 @@ clone
   $ cd ..
   $ hg clone t tc | fix_path
   updating to branch default
-  A    tc/subdir/s/alpha
-   U   tc/subdir/s
-  
-  Fetching external item into 'tc/subdir/s/externals'
-  A    tc/subdir/s/externals/other
-  Checked out external at revision 1.
-  
-  Checked out revision 2.
   A    tc/s/alpha
    U   tc/s
   
@@ -241,6 +233,14 @@ clone
   Checked out external at revision 1.
   
   Checked out revision 3.
+  A    tc/subdir/s/alpha
+   U   tc/subdir/s
+  
+  Fetching external item into 'tc/subdir/s/externals'
+  A    tc/subdir/s/externals/other
+  Checked out external at revision 1.
+  
+  Checked out revision 2.
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd tc
 
@@ -489,3 +489,97 @@ are unknown directories being replaced by tracked ones (happens with rebase).
   $ if "$TESTDIR/hghave" -q svn15; then
   > hg up 2 >/dev/null 2>&1 || echo update failed
   > fi
+
+Modify one of the externals to point to a different path so we can
+test having obstructions when switching branches on checkout:
+  $ hg checkout tip
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo "obstruct =        [svn]       $SVNREPO/externals" >> .hgsub
+  $ svn co -r5 --quiet "$SVNREPO"/externals obstruct
+  $ hg commit -m 'Start making obstructed wc'
+  committing subrepository obstruct
+  $ hg book other
+  $ hg co -r 'p1(tip)'
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo "obstruct =        [svn]       $SVNREPO/src" >> .hgsub
+  $ svn co -r5 --quiet "$SVNREPO"/src obstruct
+  $ hg commit -m 'Other branch which will be obstructed'
+  committing subrepository obstruct
+  created new head
+
+Switching back to the head where we have another path mapped to the
+same subrepo should work if the subrepo is clean.
+  $ hg co other
+  A    $TESTTMP/rebaserepo/obstruct/other
+  Checked out revision 1.
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+This is surprising, but is also correct based on the current code:
+  $ echo "updating should (maybe) fail" > obstruct/other
+  $ hg co tip
+  abort: crosses branches (merge branches or use --clean to discard changes)
+  [255]
+
+Point to a Subversion branch which has since been deleted and recreated
+First, create that condition in the repository.
+
+  $ hg ci -m cleanup
+  committing subrepository obstruct
+  Sending        obstruct/other
+  Transmitting file data .
+  Committed revision 7.
+  At revision 7.
+  $ svn mkdir -m "baseline" $SVNREPO/trunk
+  
+  Committed revision 8.
+  $ svn copy -m "initial branch" $SVNREPO/trunk $SVNREPO/branch
+  
+  Committed revision 9.
+  $ svn co --quiet "$SVNREPO"/branch tempwc
+  $ cd tempwc
+  $ echo "something old" > somethingold
+  $ svn add somethingold
+  A         somethingold
+  $ svn ci -m 'Something old'
+  Adding         somethingold
+  Transmitting file data .
+  Committed revision 10.
+  $ svn rm -m "remove branch" $SVNREPO/branch
+  
+  Committed revision 11.
+  $ svn copy -m "recreate branch" $SVNREPO/trunk $SVNREPO/branch
+  
+  Committed revision 12.
+  $ svn up
+  D    somethingold
+  Updated to revision 12.
+  $ echo "something new" > somethingnew
+  $ svn add somethingnew
+  A         somethingnew
+  $ svn ci -m 'Something new'
+  Adding         somethingnew
+  Transmitting file data .
+  Committed revision 13.
+  $ cd ..
+  $ rm -rf tempwc
+  $ svn co "$SVNREPO/branch"@10 recreated
+  A    recreated/somethingold
+  Checked out revision 10.
+  $ echo "recreated =        [svn]       $SVNREPO/branch" >> .hgsub
+  $ hg ci -m addsub
+  committing subrepository recreated
+  $ cd recreated
+  $ svn up
+  D    somethingold
+  A    somethingnew
+  Updated to revision 13.
+  $ cd ..
+  $ hg ci -m updatesub
+  committing subrepository recreated
+  $ hg up -r-2
+  D    $TESTTMP/rebaserepo/recreated/somethingnew
+  A    $TESTTMP/rebaserepo/recreated/somethingold
+  Checked out revision 10.
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ test -e recreated/somethingold
+

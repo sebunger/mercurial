@@ -18,7 +18,7 @@
 # s: "i hate that."
 
 from i18n import _
-import util, mdiff
+import scmutil, util, mdiff
 import sys, os
 
 class CantReprocessAndShowBase(Exception):
@@ -211,7 +211,7 @@ class Merge3Text(object):
         Method is as follows:
 
         The two sequences align only on regions which match the base
-        and both descendents.  These are found by doing a two-way diff
+        and both descendants.  These are found by doing a two-way diff
         of each one against the base, and then finding the
         intersections between those regions.  These "sync regions"
         are by definition unchanged in both and easily dealt with.
@@ -315,7 +315,7 @@ class Merge3Text(object):
     mismatch_region = staticmethod(mismatch_region)
 
     def find_sync_regions(self):
-        """Return a list of sync regions, where both descendents match the base.
+        """Return a list of sync regions, where both descendants match the base.
 
         Generates a list of (base1, base2, a1, a2, b1, b2).  There is
         always a zero-length sync region at the end of all the files.
@@ -407,10 +407,10 @@ def simplemerge(ui, local, base, other, **opts):
         f.close()
         if util.binary(text):
             msg = _("%s looks like a binary file.") % filename
+            if not opts.get('quiet'):
+                ui.warn(_('warning: %s\n') % msg)
             if not opts.get('text'):
                 raise util.Abort(msg)
-            elif not opts.get('quiet'):
-                ui.warn(_('warning: %s\n') % msg)
         return text
 
     name_a = local
@@ -423,13 +423,16 @@ def simplemerge(ui, local, base, other, **opts):
     if labels:
         raise util.Abort(_("can only specify two labels."))
 
-    localtext = readfile(local)
-    basetext = readfile(base)
-    othertext = readfile(other)
+    try:
+        localtext = readfile(local)
+        basetext = readfile(base)
+        othertext = readfile(other)
+    except util.Abort:
+        return 1
 
     local = os.path.realpath(local)
     if not opts.get('print'):
-        opener = util.opener(os.path.dirname(local))
+        opener = scmutil.opener(os.path.dirname(local))
         out = opener(os.path.basename(local), "w", atomictemp=True)
     else:
         out = sys.stdout

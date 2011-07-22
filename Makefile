@@ -45,7 +45,8 @@ doc:
 clean:
 	-$(PYTHON) setup.py clean --all # ignore errors from this command
 	find . \( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
-	rm -f MANIFEST tests/*.err
+	rm -f $(addprefix mercurial/,$(notdir $(wildcard mercurial/pure/*.py)))
+	rm -f MANIFEST MANIFEST.in tests/*.err
 	rm -rf build mercurial/locale
 	$(MAKE) -C doc clean
 
@@ -68,15 +69,17 @@ install-home-doc: doc
 MANIFEST-doc:
 	$(MAKE) -C doc MANIFEST
 
-MANIFEST: MANIFEST-doc
-	hg manifest > MANIFEST
-	echo mercurial/__version__.py >> MANIFEST
-	cat doc/MANIFEST >> MANIFEST
+MANIFEST.in: MANIFEST-doc
+	hg manifest | sed -e 's/^/include /' > MANIFEST.in
+	echo include mercurial/__version__.py >> MANIFEST.in
+	sed -e 's/^/include /' < doc/MANIFEST >> MANIFEST.in
 
 dist:	tests dist-notests
 
-dist-notests:	doc MANIFEST
+dist-notests:	doc MANIFEST.in
 	TAR_OPTIONS="--owner=root --group=root --mode=u+w,go-w,a+rX-s" $(PYTHON) setup.py -q sdist
+
+check: tests
 
 tests:
 	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS)
@@ -88,7 +91,8 @@ update-pot: i18n/hg.pot
 
 i18n/hg.pot: $(PYFILES) $(DOCFILES)
 	$(PYTHON) i18n/hggettext mercurial/commands.py \
-	  hgext/*.py hgext/*/__init__.py mercurial/revset.py \
+	  hgext/*.py hgext/*/__init__.py mercurial/fileset.py mercurial/revset.py \
+	  mercurial/templatefilters.py mercurial/templatekw.py \
 	  $(DOCFILES) > i18n/hg.pot
         # All strings marked for translation in Mercurial contain
         # ASCII characters only. But some files contain string
