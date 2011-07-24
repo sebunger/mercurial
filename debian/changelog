@@ -1,10 +1,11 @@
-mercurial (1.8.3-2) UNRELEASED; urgency=low
+mercurial (1.9-1) unstable; urgency=low
 
+  * New upstream release 1.9 (Closes: #632250)
   * Strip trailing .0 from Debian Policy
   * Remove template warnings from debian/watch to remove a lintian
     warning
 
- -- Javi Merino <cibervicho@gmail.com>  Sun, 15 May 2011 11:34:55 +0100
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 22 Jul 2011 19:44:26 +0200
 
 mercurial (1.8.3-1) unstable; urgency=low
 
