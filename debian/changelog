@@ -1,8 +1,9 @@
 mercurial (1.9-2) UNRELEASED; urgency=low
 
   * Remove unneeded binary-without-manpage lintian override.
+  * Convert to dh_python2
 
- -- Javi Merino <cibervicho@gmail.com>  Fri, 29 Jul 2011 14:31:47 +0200
+ -- Javi Merino <cibervicho@gmail.com>  Sat, 30 Jul 2011 10:36:26 +0200
 
 mercurial (1.9-1) unstable; urgency=low
 
