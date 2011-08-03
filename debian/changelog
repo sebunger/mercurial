@@ -1,3 +1,12 @@
+mercurial (1.9.1-1) unstable; urgency=low
+
+  * Convert to dh_python2
+  * New upstream release 1.9.1 fixes "cannot import mercurial.httpclient
+    with Python 2.7: 'module' object has no attribute 'PROTOCOL_SSLv2'"
+    (Closes: #635496)
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 03 Aug 2011 08:00:03 +0100
+
 mercurial (1.9-1) unstable; urgency=low
 
   * New upstream release 1.9 (Closes: #632250)

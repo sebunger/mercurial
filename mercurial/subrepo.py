@@ -420,6 +420,10 @@ class hgsubrepo(abstractsubrepo):
         return self._repo._checknested(self._repo.wjoin(path))
 
     def commit(self, text, user, date):
+        # don't bother committing in the subrepo if it's only been
+        # updated
+        if not self.dirty(True):
+            return self._repo['.'].hex()
         self._repo.ui.debug("committing subrepo %s\n" % subrelpath(self))
         n = self._repo.commit(text, user, date)
         if not n:
@@ -602,7 +606,7 @@ class svnsubrepo(abstractsubrepo):
             if item == 'external':
                 externals.append(path)
             if (item not in ('', 'normal', 'unversioned', 'external')
-                or props not in ('', 'none')):
+                or props not in ('', 'none', 'normal')):
                 changes.append(path)
         for path in changes:
             for ext in externals:

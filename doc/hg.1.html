@@ -111,7 +111,7 @@ repository.</dd>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-y</span>, <span class="option">--noninteractive</span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>do not prompt, assume 'yes' for any required answers</td></tr>
+<tr><td>&nbsp;</td><td>do not prompt, automatically pick the first choice for all prompts</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-q</span>, <span class="option">--quiet</span></kbd></td>
 <td>suppress output</td></tr>
@@ -2026,9 +2026,11 @@ hg revert [OPTION]... [-r REV] [NAME]...
 To cancel a merge (and lose your changes), use <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update <span class="pre">--clean</span> .</tt></a>.</p>
 </div>
 <p>With no revision specified, revert the specified files or directories
-to the state they had in the first parent of the working directory.
+to the contents they had in the parent of the working directory.
 This restores the contents of files to an unmodified
-state and unschedules adds, removes, copies, and renames.</p>
+state and unschedules adds, removes, copies, and renames. If the
+working directory has two parents, you must explicitly specify a
+revision.</p>
 <p>Using the -r/--rev or -d/--date options, revert the given files or
 directories to their states as of a specific revision. Because
 revert does not change the working directory parents, this will
@@ -2846,7 +2848,7 @@ forms: <tt class="docutils literal">x | y</tt> and <tt class="docutils literal">
 <dt><tt class="docutils literal">added()</tt></dt>
 <dd>File that is added according to status.</dd>
 <dt><tt class="docutils literal">binary()</tt></dt>
-<dd>File that appears to be binary (contails NUL bytes).</dd>
+<dd>File that appears to be binary (contains NUL bytes).</dd>
 <dt><tt class="docutils literal">clean()</tt></dt>
 <dd>File that is clean according to status.</dd>
 <dt><tt class="docutils literal">copied()</tt></dt>
@@ -2916,7 +2918,7 @@ hg locate &quot;set:**.c and not encoding(ascii)&quot;
 hg revert &quot;set:copied() and binary() and size('&gt;1M')&quot;
 </pre>
 </li>
-<li><p class="first">Remove files listed in files.lst that contain the letter a or b:</p>
+<li><p class="first">Remove files listed in foo.lst that contain the letter a or b:</p>
 <pre class="literal-block">
 hg remove &quot;set: 'listfile:foo.lst' and (**a* or **b*)&quot;
 </pre>
