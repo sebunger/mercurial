@@ -1,3 +1,10 @@
+mercurial (1.9.1-2) unstable; urgency=low
+
+  * Update breaks to include all the packages that mercurial-1.9.1-1 broke
+    because of the uncoordinated transition to dh_python2.
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 10 Aug 2011 21:37:37 +0100
+
 mercurial (1.9.1-1) unstable; urgency=low
 
   * Convert to dh_python2
