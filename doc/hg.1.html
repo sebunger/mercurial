@@ -1119,7 +1119,9 @@ where development generally takes place and are the usual targets
 for update and merge operations. Branch heads are changesets that have
 no child changeset on the same branch.</p>
 <p>If one or more REVs are given, only branch heads on the branches
-associated with the specified changesets are shown.</p>
+associated with the specified changesets are shown. This means
+that you can use <a class="reference external" href="hg.1.html#heads"><tt class="docutils literal">hg heads foo</tt></a> to see the heads on a branch
+named <tt class="docutils literal">foo</tt>.</p>
 <p>If -c/--closed is specified, also show branch heads marked closed
 (see <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--close-branch</span></tt></a>).</p>
 <p>If STARTREV is specified, only those heads that are descendants of
@@ -1967,7 +1969,7 @@ working directory must have two parents).</p>
 <li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">[--tool</span> TOOL] <span class="pre">FILE...</span></tt></a>: attempt to re-merge the specified
 files, discarding any previous merge attempts. Re-merging is not
 performed for files already marked as resolved. Use <tt class="docutils literal"><span class="pre">--all/-a</span></tt>
-to selects all unresolved files. <tt class="docutils literal"><span class="pre">--tool</span></tt> can be used to specify
+to select all unresolved files. <tt class="docutils literal"><span class="pre">--tool</span></tt> can be used to specify
 the merge tool used for the given files. It overrides the HGMERGE
 environment variable and your configuration files.</li>
 <li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">-m</span> [FILE]</tt></a>: mark a file as having been resolved

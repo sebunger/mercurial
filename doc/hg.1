@@ -1306,7 +1306,9 @@ for update and merge operations. Branch heads are changesets that have
 no child changeset on the same branch.
 .sp
 If one or more REVs are given, only branch heads on the branches
-associated with the specified changesets are shown.
+associated with the specified changesets are shown. This means
+that you can use \%\fBhg heads foo\fP\: to see the heads on a branch
+named \fBfoo\fP.
 .sp
 If \-c/\-\-closed is specified, also show branch heads marked closed
 (see \%\fBhg commit \-\-close\-branch\fP\:).
@@ -2329,7 +2331,7 @@ The resolve command can be used in the following ways:
 \%\fBhg resolve [\-\-tool TOOL] FILE...\fP\:: attempt to re\-merge the specified
 files, discarding any previous merge attempts. Re\-merging is not
 performed for files already marked as resolved. Use \fB\-\-all/\-a\fP
-to selects all unresolved files. \fB\-\-tool\fP can be used to specify
+to select all unresolved files. \fB\-\-tool\fP can be used to specify
 the merge tool used for the given files. It overrides the HGMERGE
 environment variable and your configuration files.
 .IP \(bu 2

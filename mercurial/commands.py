@@ -2518,7 +2518,9 @@ def heads(ui, repo, *branchrevs, **opts):
     no child changeset on the same branch.
 
     If one or more REVs are given, only branch heads on the branches
-    associated with the specified changesets are shown.
+    associated with the specified changesets are shown. This means
+    that you can use :hg:`heads foo` to see the heads on a branch
+    named ``foo``.
 
     If -c/--closed is specified, also show branch heads marked closed
     (see :hg:`commit --close-branch`).
@@ -4068,7 +4070,7 @@ def resolve(ui, repo, *pats, **opts):
     - :hg:`resolve [--tool TOOL] FILE...`: attempt to re-merge the specified
       files, discarding any previous merge attempts. Re-merging is not
       performed for files already marked as resolved. Use ``--all/-a``
-      to selects all unresolved files. ``--tool`` can be used to specify
+      to select all unresolved files. ``--tool`` can be used to specify
       the merge tool used for the given files. It overrides the HGMERGE
       environment variable and your configuration files.
 
