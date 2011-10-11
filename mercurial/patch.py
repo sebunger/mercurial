@@ -188,7 +188,7 @@ def extract(ui, fileobj):
                 pend = subject.find(']')
                 if pend >= 0:
                     subject = subject[pend + 1:].lstrip()
-            subject = subject.replace('\n\t', ' ')
+            subject = re.sub(r'\n[ \t]+', ' ', subject)
             ui.debug('Subject: %s\n' % subject)
         if user:
             ui.debug('From: %s\n' % user)
@@ -1199,7 +1199,7 @@ def iterhunks(fp):
             m = gitre.match(x)
             if not m:
                 continue
-            if gitpatches is None:
+            if not gitpatches:
                 # scan whole input for git metadata
                 gitpatches = [('a/' + gp.path, 'b/' + gp.path, gp) for gp
                               in scangitpatch(lr, x)]
