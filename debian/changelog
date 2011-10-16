@@ -1,3 +1,10 @@
+mercurial (1.9.3-2) UNRELEASED; urgency=low
+
+  * Cover more uses of "defaults to sensible-editor" in the
+    documentation and support ru and ro translations.
+
+ -- Javi Merino <cibervicho@gmail.com>  Sun, 16 Oct 2011 16:07:31 +0100
+
 mercurial (1.9.3-1) unstable; urgency=low
 
   * New upstream release 1.9.3.
