@@ -166,7 +166,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
  "``editor``\n"
 -"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
-+"    The editor to use during a commit. Default is ``$EDITOR`` or\n
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
 +"    ``sensible-editor``."
  msgstr ""
  
@@ -207,12 +207,12 @@ Use sensible-editor as default instead of vi.
  msgid ""
  "``editor``\n"
 -"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
-+"    The editor to use during a commit. Default is ``$EDITOR`` or
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
 +"    ``sensible-editor``."
  msgstr ""
  "``editor``\n"
 -"    O editor usado durante um commit. O padrão é ``$EDITOR`` ou ``vi``."
-+"    O editor usado durante um commit. O padrão é ``$EDITOR`` ou
++"    O editor usado durante um commit. O padrão é ``$EDITOR`` ou\n"
 +"    ``sensible-editor``."
  
  msgid ""
@@ -251,7 +251,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
  "``editor``\n"
 -"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
-+"    The editor to use during a commit. Default is ``$EDITOR`` or
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
 +"    ``sensible-editor``."
  msgstr ""
  
@@ -346,7 +346,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
  "``editor``\n"
 -"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
-+"    The editor to use during a commit. Default is ``$EDITOR`` or
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
 +"    ``sensible-editor``."
  msgstr ""
  
@@ -371,20 +371,22 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -13231,10 +13231,10 @@
+@@ -13231,10 +13231,12 @@
  
  msgid ""
  "``editor``\n"
 -"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
-+"    The editor to use during a commit. Default is ``$EDITOR`` or ``sensible-editor``."
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
++"    ``sensible-editor``."
  msgstr ""
  "``editor``\n"
 -"    Редактор, вызываетмый при коммите. По умолчанию ``$EDITOR`` or ``vi``."
-+"    Редактор, вызываетмый при коммите. По умолчанию ``$EDITOR`` or ``sensible-editor``."
++"    Редактор, вызываетмый при коммите. По умолчанию ``$EDITOR`` or\n"
++"    ``sensible-editor``."
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -14204,14 +14204,14 @@
+@@ -14204,14 +14206,14 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
