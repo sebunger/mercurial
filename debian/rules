@@ -64,7 +64,7 @@ install-archindep:
 
 override_dh_auto_clean: mercurial/__version__.py
 	cp -a mercurial/__version__.py mercurial/__version__.py.save
-	$(MAKE) clean
+	dh_auto_clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
 	$(RM) build-python*

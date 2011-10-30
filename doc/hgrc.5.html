@@ -281,6 +281,12 @@ useful when you want to call further Mercurial commands in a shell
 alias, as was done above for the purge alias. In addition,
 <tt class="docutils literal">$HG_ARGS</tt> expand to the arguments given to Mercurial. In the <tt class="docutils literal">hg
 echo foo</tt> call above, <tt class="docutils literal">$HG_ARGS</tt> would expand to <tt class="docutils literal">echo foo</tt>.</p>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p class="last">Some global configuration options such as <tt class="docutils literal"><span class="pre">-R</span></tt> are
+processed before shell aliases and will thus not be passed to
+aliases.</p>
+</div>
 </div>
 <div class="section" id="auth">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">auth</tt></a></h2>
@@ -1182,6 +1188,11 @@ Example: &quot;UTF-8&quot;</dd>
 Default is False.</dd>
 <dt><tt class="docutils literal">ipv6</tt></dt>
 <dd>Whether to use IPv6. Default is False.</dd>
+<dt><tt class="docutils literal">logoimg</tt></dt>
+<dd>File name of the logo image that some templates display on each page.
+The file name is relative to <tt class="docutils literal">staticurl</tt>. That is, the full path to
+the logo image is &quot;staticurl/logoimg&quot;.
+If unset, <tt class="docutils literal">hglogo.png</tt> will be used.</dd>
 <dt><tt class="docutils literal">logourl</tt></dt>
 <dd>Base URL to use for logos. If unset, <tt class="docutils literal"><span class="pre">http://mercurial.selenic.com/</span></tt>
 will be used.</dd>

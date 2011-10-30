@@ -329,6 +329,12 @@ useful when you want to call further Mercurial commands in a shell
 alias, as was done above for the purge alias. In addition,
 \fB$HG_ARGS\fP expand to the arguments given to Mercurial. In the \fBhg
 echo foo\fP call above, \fB$HG_ARGS\fP would expand to \fBecho foo\fP.
+.IP Note
+.
+Some global configuration options such as \fB\-R\fP are
+processed before shell aliases and will thus not be passed to
+aliases.
+.RE
 .SS \fBauth\fP
 .sp
 Authentication credentials for HTTP authentication. This section
@@ -1548,6 +1554,13 @@ Default is False.
 .B \fBipv6\fP
 .sp
 Whether to use IPv6. Default is False.
+.TP
+.B \fBlogoimg\fP
+.sp
+File name of the logo image that some templates display on each page.
+The file name is relative to \fBstaticurl\fP. That is, the full path to
+the logo image is "staticurl/logoimg".
+If unset, \fBhglogo.png\fP will be used.
 .TP
 .B \fBlogourl\fP
 .sp

@@ -1,3 +1,11 @@
+mercurial (1.9.999+2.0rc1-1) experimental; urgency=low
+
+  * Upstream 2.0 Release Candidate 1
+  * Cover more uses of "defaults to sensible-editor" in the
+    documentation and support ru and ro translations.
+
+ -- Javi Merino <cibervicho@gmail.com>  Sun, 30 Oct 2011 13:20:38 +0000
+
 mercurial (1.9.3-1) unstable; urgency=low
 
   * New upstream release 1.9.3.
