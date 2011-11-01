@@ -1115,6 +1115,10 @@ record the specified date as commit date
 .B \-u,  \-\-user
 .
 record the specified user as committer
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .sp
 aliases: ci
 .UNINDENT
@@ -7030,8 +7034,8 @@ converting from and to Mercurial. Default is False.
 .B convert.hg.saverev
 .
 store original revision ID in changeset
-(forces target IDs to change). It takes and boolean argument
-and defaults to False.
+(forces target IDs to change). It takes a boolean argument and
+defaults to False.
 .TP
 .B convert.hg.startrev
 .
@@ -8025,7 +8029,7 @@ bandwidth, since you don\(aqt need to retrieve all historical revisions
 of large files when you clone or pull.
 .sp
 To start a new repository or add new large binary files, just add
-\-\-large to your \fBhg add\fP command. For example:
+\-\-large to your \%\fBhg add\fP\: command. For example:
 .sp
 .nf
 .ft C
@@ -8049,8 +8053,8 @@ not previously updated to.
 .sp
 If you already have large files tracked by Mercurial without the
 largefiles extension, you will need to convert your repository in
-order to benefit from largefiles. This is done with the \(aqhg lfconvert\(aq
-command:
+order to benefit from largefiles. This is done with the
+\%\fBhg lfconvert\fP\: command:
 .sp
 .nf
 .ft C
@@ -8060,21 +8064,21 @@ $ hg lfconvert \-\-size 10 oldrepo newrepo
 .sp
 In repositories that already have largefiles in them, any new file
 over 10MB will automatically be added as a largefile. To change this
-threshhold, set \fBlargefiles.size\fP in your Mercurial config file to
-the minimum size in megabytes to track as a largefile, or use the
+threshold, set \fBlargefiles.minsize\fP in your Mercurial config file
+to the minimum size in megabytes to track as a largefile, or use the
 \-\-lfsize option to the add command (also in megabytes):
 .sp
 .nf
 .ft C
 [largefiles]
-size = 2           XXX wouldn\(aqt minsize be a better name?
+minsize = 2
 
 $ hg add \-\-lfsize 2
 .ft P
 .fi
 .sp
 The \fBlargefiles.patterns\fP config option allows you to specify a list
-of filename patterns (see \fBhg help patterns\fP) that should always be
+of filename patterns (see \%\fBhg help patterns\fP\:) that should always be
 tracked as largefiles:
 .sp
 .nf
@@ -8112,7 +8116,7 @@ After running this command you will need to make sure that
 largefiles is enabled anywhere you intend to push the new
 repository.
 .sp
-Use \-\-tonormal to convert largefiles back to normal files; after
+Use \-\-to\-normal to convert largefiles back to normal files; after
 this, the DEST repository can be used without largefiles at all.
 .sp
 Options:
@@ -8122,7 +8126,7 @@ Options:
 .
 minimum size (MB) for files to be converted as largefiles
 .TP
-.B \-\-tonormal
+.B \-\-to\-normal
 .
 convert from a largefiles repo to a normal repo
 .UNINDENT
@@ -8290,6 +8294,10 @@ record the specified date as commit date
 .B \-u,  \-\-user
 .
 record the specified user as committer
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .sp
 aliases: qci
 .UNINDENT
@@ -9961,6 +9969,10 @@ record the specified date as commit date
 .B \-u,  \-\-user
 .
 record the specified user as committer
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .TP
 .B \-w,  \-\-ignore\-all\-space
 .

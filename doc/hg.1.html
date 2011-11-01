@@ -930,7 +930,10 @@ commit fails, you will find a backup of your message in
 <td>record the specified date as commit date</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td><p class="first">record the specified user as committer</p>
+<td>record the specified user as committer</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
+<td><p class="first">recurse into subrepositories</p>
 <p class="last">aliases: ci</p>
 </td></tr>
 </tbody>
@@ -5368,8 +5371,8 @@ converting from and to Mercurial. Default is False.</td>
 </tr>
 <tr class="field"><th class="field-name" colspan="2">convert.hg.saverev:</th></tr>
 <tr><td>&nbsp;</td><td class="field-body">store original revision ID in changeset
-(forces target IDs to change). It takes and boolean argument
-and defaults to False.</td>
+(forces target IDs to change). It takes a boolean argument and
+defaults to False.</td>
 </tr>
 <tr class="field"><th class="field-name" colspan="2">convert.hg.startrev:</th></tr>
 <tr><td>&nbsp;</td><td class="field-body">convert start revision and its descendants.
@@ -6258,7 +6261,7 @@ revisions from/to the central store. This saves both disk space and
 bandwidth, since you don't need to retrieve all historical revisions
 of large files when you clone or pull.</p>
 <p>To start a new repository or add new large binary files, just add
---large to your <tt class="docutils literal">hg add</tt> command. For example:</p>
+--large to your <a class="reference external" href="hg.1.html#add"><tt class="docutils literal">hg add</tt></a> command. For example:</p>
 <pre class="literal-block">
 $ dd if=/dev/urandom of=randomdata count=2000
 $ hg add --large randomdata
@@ -6276,24 +6279,24 @@ that network access may be required to update to changesets you have
 not previously updated to.</p>
 <p>If you already have large files tracked by Mercurial without the
 largefiles extension, you will need to convert your repository in
-order to benefit from largefiles. This is done with the 'hg lfconvert'
-command:</p>
+order to benefit from largefiles. This is done with the
+<a class="reference external" href="hg.1.html#lfconvert"><tt class="docutils literal">hg lfconvert</tt></a> command:</p>
 <pre class="literal-block">
 $ hg lfconvert --size 10 oldrepo newrepo
 </pre>
 <p>In repositories that already have largefiles in them, any new file
 over 10MB will automatically be added as a largefile. To change this
-threshhold, set <tt class="docutils literal">largefiles.size</tt> in your Mercurial config file to
-the minimum size in megabytes to track as a largefile, or use the
+threshold, set <tt class="docutils literal">largefiles.minsize</tt> in your Mercurial config file
+to the minimum size in megabytes to track as a largefile, or use the
 --lfsize option to the add command (also in megabytes):</p>
 <pre class="literal-block">
 [largefiles]
-size = 2           XXX wouldn't minsize be a better name?
+minsize = 2
 
 $ hg add --lfsize 2
 </pre>
 <p>The <tt class="docutils literal">largefiles.patterns</tt> config option allows you to specify a list
-of filename patterns (see <tt class="docutils literal">hg help patterns</tt>) that should always be
+of filename patterns (see <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a>) that should always be
 tracked as largefiles:</p>
 <pre class="literal-block">
 [largefiles]
@@ -6323,7 +6326,7 @@ configuration as <tt class="docutils literal">largefiles.size</tt>.</p>
 <p>After running this command you will need to make sure that
 largefiles is enabled anywhere you intend to push the new
 repository.</p>
-<p>Use --tonormal to convert largefiles back to normal files; after
+<p>Use --to-normal to convert largefiles back to normal files; after
 this, the DEST repository can be used without largefiles at all.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -6334,7 +6337,7 @@ this, the DEST repository can be used without largefiles at all.</p>
 <kbd><span class="option">-s</span>, <span class="option">--size</span></kbd></td>
 <td>minimum size (MB) for files to be converted as largefiles</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--tonormal</span></kbd></td>
+<kbd><span class="option">--to-normal</span></kbd></td>
 <td>convert from a largefiles repo to a normal repo</td></tr>
 </tbody>
 </table>
@@ -6475,7 +6478,10 @@ hg qcommit [OPTION]... [FILE]...
 <td>record the specified date as commit date</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td><p class="first">record the specified user as committer</p>
+<td>record the specified user as committer</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
+<td><p class="first">recurse into subrepositories</p>
 <p class="last">aliases: qci</p>
 </td></tr>
 </tbody>
@@ -7853,6 +7859,9 @@ q - quit, recording no changes
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
 <td>record the specified user as committer</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
+<td>recurse into subrepositories</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-w</span>, <span class="option">--ignore-all-space</span></kbd></td>
 </tr>
