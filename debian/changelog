@@ -1,3 +1,12 @@
+mercurial (2.0-2) unstable; urgency=low
+
+  * Fix "Cloning fails with: mpatch.mpatchError: patch cannot be decoded"
+    by not compiling bdiff.c with optimizations in armel.  This is
+    probably a bug in gcc-4.6 (gcc 4.5 works fine) but while it's solved,
+    at least mercurial works again in armel (Closes: #636396)
+
+ -- Javi Merino <cibervicho@gmail.com>  Thu, 03 Nov 2011 23:00:43 +0000
+
 mercurial (2.0-1) unstable; urgency=low
 
   * New upstream release 2.0
