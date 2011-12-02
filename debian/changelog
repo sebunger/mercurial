@@ -1,3 +1,9 @@
+mercurial (2.0.1-1) unstable; urgency=low
+
+  * New upstream revision (Closes: #650727).
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Dec 2011 21:34:18 +0000
+
 mercurial (2.0-2) unstable; urgency=low
 
   * Fix "Cloning fails with: mpatch.mpatchError: patch cannot be decoded"
