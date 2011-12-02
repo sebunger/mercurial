@@ -6,4 +6,5 @@ version=2
 #http://www.example.com/downloads.php mercurial-(.*)\.tar\.gz
 
 # Uncomment to examine a Webserver directory
-http://www.selenic.com/mercurial/release/mercurial-([^s].*)\.tar\.gz
+opts="uversionmangle=s/-rc/~rc/" \
+  http://www.selenic.com/mercurial/release/mercurial-([^s].*)\.tar\.gz

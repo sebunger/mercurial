@@ -1,8 +1,11 @@
 mercurial (2.0.1-1) unstable; urgency=low
 
   * New upstream revision (Closes: #650727).
+  * Fix "new -rc release are not properly parsed by watch" with a patch
+    from Pierre-Yves David <pierre-yves.david@logilab.fr> (Closes:
+    #650728)
 
- -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Dec 2011 21:34:18 +0000
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Dec 2011 21:35:31 +0000
 
 mercurial (2.0-2) unstable; urgency=low
 
