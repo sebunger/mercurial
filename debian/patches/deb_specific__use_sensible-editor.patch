@@ -26,7 +26,7 @@ Use sensible-editor as default instead of vi.
          else:
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -677,7 +677,7 @@
+@@ -678,7 +678,7 @@
          return (os.environ.get("HGEDITOR") or
                  self.config("ui", "editor") or
                  os.environ.get("VISUAL") or
@@ -37,7 +37,7 @@ Use sensible-editor as default instead of vi.
          '''show a progress message
 --- a/i18n/da.po
 +++ b/i18n/da.po
-@@ -7706,7 +7706,7 @@
+@@ -8752,7 +8752,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -46,7 +46,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -11058,7 +11058,7 @@
+@@ -14194,7 +14194,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -57,7 +57,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/de.po
 +++ b/i18n/de.po
-@@ -8573,8 +8573,8 @@
+@@ -8576,8 +8576,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -68,7 +68,7 @@ Use sensible-editor as default instead of vi.
  
  #, fuzzy
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -13430,7 +13430,7 @@
+@@ -13433,7 +13433,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -77,7 +77,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -13438,7 +13438,7 @@
+@@ -13441,7 +13441,7 @@
  "    Nachricht geschrieben wird. Der verwendete Editor wird aus den drei\n"
  "    Umgebungsvariablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge)\n"
  "    ermittelt. Der erste nicht-leere wird verwendet. Wenn alle Angaben\n"
@@ -128,7 +128,7 @@ Use sensible-editor as default instead of vi.
  msgid " (specify a commit editor in your .hgrc file)\n"
 --- a/i18n/it.po
 +++ b/i18n/it.po
-@@ -7154,8 +7154,8 @@
+@@ -7157,8 +7157,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Sto controllando l'editor per il commit...\n"
  
@@ -139,7 +139,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr ""
-@@ -10459,7 +10459,7 @@
+@@ -10462,7 +10462,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -191,7 +191,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -10217,10 +10217,10 @@
+@@ -10216,10 +10216,10 @@
  msgid "Checking commit editor...\n"
  msgstr "Verificando editor para consolidação...\n"
  
@@ -204,7 +204,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr ""
-@@ -16212,10 +16212,12 @@
+@@ -16234,10 +16234,12 @@
  
  msgid ""
  "``editor``\n"
@@ -219,7 +219,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -17235,7 +17237,7 @@
+@@ -17257,7 +17259,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -228,7 +228,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -17243,7 +17245,7 @@
+@@ -17265,7 +17267,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
@@ -334,7 +334,7 @@ Use sensible-editor as default instead of vi.
      Encoding to try if it's not possible to decode the changelog using
 --- a/i18n/ro.po
 +++ b/i18n/ro.po
-@@ -7720,7 +7720,7 @@
+@@ -7722,7 +7722,7 @@
  msgid "Checking commit editor...\n"
  msgstr "Se verifică editorul pentru commit...\n"
  
@@ -343,7 +343,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -11923,7 +11923,8 @@
+@@ -11925,7 +11925,8 @@
  
  msgid ""
  "``editor``\n"
@@ -353,7 +353,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -12568,7 +12569,7 @@
+@@ -12570,7 +12571,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"

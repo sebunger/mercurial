@@ -68,7 +68,7 @@ class dirstate(object):
     def _foldmap(self):
         f = {}
         for name in self._map:
-            f[os.path.normcase(name)] = name
+            f[util.normcase(name)] = name
         return f
 
     @propertycache
@@ -376,7 +376,7 @@ class dirstate(object):
             del self._map[f]
 
     def _normalize(self, path, isknown):
-        normed = os.path.normcase(path)
+        normed = util.normcase(path)
         folded = self._foldmap.get(normed, None)
         if folded is None:
             if isknown or not os.path.lexists(os.path.join(self._root, path)):

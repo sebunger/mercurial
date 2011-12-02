@@ -51,10 +51,13 @@ Remove both largefiles and normal files.
   $ ls
   sub
 
-Copy both largefiles and normal files.
+Copy both largefiles and normal files (testing that status output is correct).
 
   $ hg cp sub/normal2 normal1
   $ hg cp sub/large2 large1
+  $ hg st
+  A large1
+  A normal1
   $ hg commit -m "copy files"
   $ cat normal1
   normal22
@@ -252,13 +255,12 @@ dir after a purge.
 
 Clone a largefiles repo.
 
-  $ cd ..
-  $ hg clone a b
+  $ hg clone . ../b
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
   getting changed largefiles
   3 largefiles updated, 0 removed
-  $ cd b
+  $ cd ../b
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   7:daea875e9014  add/edit more largefiles
   6:4355d653f84f  edit files yet again
@@ -694,7 +696,22 @@ Test that transplanting a largefile change works correctly.
   large6-modified
   $ cat sub2/large7
   large7
-  $ cd ..
+
+Test that renaming a largefile results in correct output for status
+
+  $ hg rename sub/large4 large4-renamed
+  $ hg st
+  A large4-renamed
+  R sub/large4
+  $ hg commit -m "test rename output"
+  $ cat large4-renamed
+  large4-modified
+  $ cd sub2
+  $ hg rename large6 large6-renamed
+  $ hg st
+  A sub2/large6-renamed
+  R sub2/large6
+  $ cd ../..
 
 vanilla clients not locked out from largefiles servers on vanilla repos
   $ mkdir r1
@@ -784,8 +801,6 @@ largefiles clients refuse to push largefiles repos to vanilla servers
   searching for changes
   abort: http://localhost:$HGPORT/ does not appear to be a largefile store
   [255]
-  $ cd ..
-
   $ cd ..
 
 Clone a local repository owned by another user

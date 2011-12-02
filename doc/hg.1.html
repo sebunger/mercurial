@@ -4292,32 +4292,33 @@ reference from <tt class="docutils literal">.hgsub</tt>, then remove its files.<
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">add:</th><td class="field-body">add does not recurse in subrepos unless -S/--subrepos is
-specified. Subversion subrepositories are currently silently
-ignored.</td>
+specified. Git and Subversion subrepositories are currently
+silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">archive:</th><td class="field-body">archive does not recurse in subrepositories unless
 -S/--subrepos is specified.</td>
 </tr>
 <tr class="field"><th class="field-name">commit:</th><td class="field-body">commit creates a consistent snapshot of the state of the
-entire project and its subrepositories. It does this by first
-attempting to commit all modified subrepositories, then recording
-their state and finally committing it in the parent
-repository. Mercurial can be made to abort if any subrepository
-content is modified by setting &quot;ui.commitsubrepos=no&quot; in a
-configuration file (see <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a>).</td>
+entire project and its subrepositories. If any subrepositories
+have been modified, Mercurial will abort.  Mercurial can be made
+to instead commit all modified subrepositories by specifying
+-S/--subrepos, or setting &quot;ui.commitsubrepos=True&quot; in a
+configuration file (see <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a>).  After there are no
+longer any modified subrepositories, it records their state and
+finally commits it in the parent repository.</td>
 </tr>
 <tr class="field"><th class="field-name">diff:</th><td class="field-body">diff does not recurse in subrepos unless -S/--subrepos is
 specified. Changes are displayed as usual, on the subrepositories
-elements. Subversion subrepositories are currently silently
-ignored.</td>
+elements. Git and Subversion subrepositories are currently
+silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">incoming:</th><td class="field-body">incoming does not recurse in subrepos unless -S/--subrepos
-is specified. Subversion subrepositories are currently silently
-ignored.</td>
+is specified. Git and Subversion subrepositories are currently
+silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">outgoing:</th><td class="field-body">outgoing does not recurse in subrepos unless -S/--subrepos
-is specified. Subversion subrepositories are currently silently
-ignored.</td>
+is specified. Git and Subversion subrepositories are currently
+silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">pull:</th><td class="field-body">pull is not recursive since it is not clear what to pull prior
 to running <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a>. Listing and retrieving all
@@ -4328,7 +4329,7 @@ case.</td>
 <tr class="field"><th class="field-name">push:</th><td class="field-body">Mercurial will automatically push all subrepositories first
 when the parent repository is being pushed. This ensures new
 subrepository changes are available when referenced by top-level
-repositories.</td>
+repositories.  Push is a no-op for Subversion subrepositories.</td>
 </tr>
 <tr class="field"><th class="field-name">status:</th><td class="field-body">status does not recurse into subrepositories unless
 -S/--subrepos is specified. Subrepository changes are displayed as

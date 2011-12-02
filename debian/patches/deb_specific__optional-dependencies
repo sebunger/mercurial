@@ -116,7 +116,7 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -219,16 +220,19 @@
+@@ -230,16 +231,19 @@
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -966,6 +970,8 @@
+@@ -977,6 +981,8 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):

@@ -77,8 +77,11 @@ def link(src, dest):
     try:
         util.oslink(src, dest)
     except OSError:
-        # if hardlinks fail, fallback on copy
-        shutil.copyfile(src, dest)
+        # if hardlinks fail, fallback on atomic copy
+        dst = util.atomictempfile(dest)
+        for chunk in util.filechunkiter(open(src)):
+            dst.write(chunk)
+        dst.close()
         os.chmod(dest, os.stat(src).st_mode)
 
 def usercachepath(ui, hash):
@@ -110,7 +113,9 @@ def findfile(repo, hash):
         repo.ui.note(_('Found %s in store\n') % hash)
     elif inusercache(repo.ui, hash):
         repo.ui.note(_('Found %s in system cache\n') % hash)
-        link(usercachepath(repo.ui, hash), storepath(repo, hash))
+        path = storepath(repo, hash)
+        util.makedirs(os.path.dirname(path))
+        link(usercachepath(repo.ui, hash), path)
     else:
         return None
     return storepath(repo, hash)
@@ -154,9 +159,9 @@ def openlfdirstate(ui, repo):
             hash = readstandin(repo, lfile)
             lfdirstate.normallookup(lfile)
             try:
-                if hash == hashfile(lfile):
+                if hash == hashfile(repo.wjoin(lfile)):
                     lfdirstate.normal(lfile)
-            except IOError, err:
+            except OSError, err:
                 if err.errno != errno.ENOENT:
                     raise
 
@@ -210,6 +215,8 @@ def copyfromcache(repo, hash, filename):
     if path is None:
         return False
     util.makedirs(os.path.dirname(repo.wjoin(filename)))
+    # The write may fail before the file is fully written, but we
+    # don't use atomic writes in the working copy.
     shutil.copy(path, repo.wjoin(filename))
     return True
 
@@ -224,8 +231,11 @@ def copytostoreabsolute(repo, file, hash):
     if inusercache(repo.ui, hash):
         link(usercachepath(repo.ui, hash), storepath(repo, hash))
     else:
-        shutil.copyfile(file, storepath(repo, hash))
-        os.chmod(storepath(repo, hash), os.stat(file).st_mode)
+        dst = util.atomictempfile(storepath(repo, hash))
+        for chunk in util.filechunkiter(open(file)):
+            dst.write(chunk)
+        dst.close()
+        util.copymode(file, storepath(repo, hash))
         linktousercache(repo, hash)
 
 def linktousercache(repo, hash):

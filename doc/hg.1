@@ -5657,8 +5657,8 @@ reference from \fB.hgsub\fP, then remove its files.
 .B add
 .
 add does not recurse in subrepos unless \-S/\-\-subrepos is
-specified. Subversion subrepositories are currently silently
-ignored.
+specified. Git and Subversion subrepositories are currently
+silently ignored.
 .TP
 .B archive
 .
@@ -5668,31 +5668,32 @@ archive does not recurse in subrepositories unless
 .B commit
 .
 commit creates a consistent snapshot of the state of the
-entire project and its subrepositories. It does this by first
-attempting to commit all modified subrepositories, then recording
-their state and finally committing it in the parent
-repository. Mercurial can be made to abort if any subrepository
-content is modified by setting "ui.commitsubrepos=no" in a
-configuration file (see \%\fBhg help config\fP\:).
+entire project and its subrepositories. If any subrepositories
+have been modified, Mercurial will abort.  Mercurial can be made
+to instead commit all modified subrepositories by specifying
+\-S/\-\-subrepos, or setting "ui.commitsubrepos=True" in a
+configuration file (see \%\fBhg help config\fP\:).  After there are no
+longer any modified subrepositories, it records their state and
+finally commits it in the parent repository.
 .TP
 .B diff
 .
 diff does not recurse in subrepos unless \-S/\-\-subrepos is
 specified. Changes are displayed as usual, on the subrepositories
-elements. Subversion subrepositories are currently silently
-ignored.
+elements. Git and Subversion subrepositories are currently
+silently ignored.
 .TP
 .B incoming
 .
 incoming does not recurse in subrepos unless \-S/\-\-subrepos
-is specified. Subversion subrepositories are currently silently
-ignored.
+is specified. Git and Subversion subrepositories are currently
+silently ignored.
 .TP
 .B outgoing
 .
 outgoing does not recurse in subrepos unless \-S/\-\-subrepos
-is specified. Subversion subrepositories are currently silently
-ignored.
+is specified. Git and Subversion subrepositories are currently
+silently ignored.
 .TP
 .B pull
 .
@@ -5707,7 +5708,7 @@ case.
 Mercurial will automatically push all subrepositories first
 when the parent repository is being pushed. This ensures new
 subrepository changes are available when referenced by top\-level
-repositories.
+repositories.  Push is a no\-op for Subversion subrepositories.
 .TP
 .B status
 .
