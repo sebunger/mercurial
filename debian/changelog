@@ -1,3 +1,11 @@
+mercurial (2.0.1-2) unstable; urgency=low
+
+  * Team Upload  
+  * Update Breaks for hgsubversion (see bug #646946), hg-git (see bug
+    #645037), hgview (see bug #637400), and qct (see bug #637401).
+
+ -- Jakub Wilk <jwilk@debian.org>  Sun, 11 Dec 2011 23:47:26 +0100
+
 mercurial (2.0.1-1) unstable; urgency=low
 
   * New upstream revision (Closes: #650727).
