@@ -19,14 +19,6 @@ set -e
 
 case "$1" in
     configure)
-        # Fix for old packages not managing pyc files
-        for d in /usr/lib/python*/site-packages/mercurial /usr/lib/python*/site-packages/hgext ; do
-	    if [ -d "$d" ] ; then
-	        echo "Removing old python byte-compiled files in $d"
-	        rm -rf "$d"
-	    fi
-	done
-
 	for conffile in hgext.rc; do
 	  # Tell ucf that the file in /usr/share/mercurial is the latest maintainer
 	  # version, and let it handle how to manage the real configuration file in
