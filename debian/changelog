@@ -1,3 +1,9 @@
+mercurial (1.8.3-1~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 26 May 2011 15:08:27 +0200
+
 mercurial (1.8.3-1) unstable; urgency=low
 
   [ Javi Merino ]
