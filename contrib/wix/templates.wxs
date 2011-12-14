@@ -45,6 +45,8 @@
             <File Id="atom.map"                 Name="map" />
             <File Id="atom.tagentry.tmpl"       Name="tagentry.tmpl" />
             <File Id="atom.tags.tmpl"           Name="tags.tmpl" />
+            <File Id="atom.bookmarks.tmpl"      Name="bookmarks.tmpl" />
+            <File Id="atom.bookmarkentry.tmpl"  Name="bookmarkentry.tmpl" />
           </Component>
         </Directory>
 
@@ -58,6 +60,7 @@
         <Directory Id="templates.gitwebdir" Name="gitweb">
           <Component Id="templates.gitweb" Guid="$(var.templates.gitweb.guid)" Win64='$(var.IsX64)'>
             <File Id="gitweb.branches.tmpl"       Name="branches.tmpl" KeyPath="yes" />
+            <File Id="gitweb.bookmarks.tmpl"      Name="bookmarks.tmpl" />
             <File Id="gitweb.changelog.tmpl"      Name="changelog.tmpl" />
             <File Id="gitweb.changelogentry.tmpl" Name="changelogentry.tmpl" />
             <File Id="gitweb.changeset.tmpl"      Name="changeset.tmpl" />
@@ -85,6 +88,7 @@
         <Directory Id="templates.monobluedir" Name="monoblue">
           <Component Id="templates.monoblue" Guid="$(var.templates.monoblue.guid)" Win64='$(var.IsX64)'>
             <File Id="monoblue.branches.tmpl"       Name="branches.tmpl" KeyPath="yes" />
+            <File Id="monoblue.bookmarks.tmpl"      Name="bookmarks.tmpl" />
             <File Id="monoblue.changelog.tmpl"      Name="changelog.tmpl" />
             <File Id="monoblue.changelogentry.tmpl" Name="changelogentry.tmpl" />
             <File Id="monoblue.changeset.tmpl"      Name="changeset.tmpl" />
@@ -114,6 +118,7 @@
             <File Id="paper.branches.tmpl"      Name="branches.tmpl" KeyPath="yes" />
             <File Id="paper.bookmarks.tmpl"     Name="bookmarks.tmpl" />
             <File Id="paper.changeset.tmpl"     Name="changeset.tmpl" />
+            <File Id="paper.diffstat.tmpl"      Name="diffstat.tmpl" />
             <File Id="paper.error.tmpl"         Name="error.tmpl" />
             <File Id="paper.fileannotate.tmpl"  Name="fileannotate.tmpl" />
             <File Id="paper.filediff.tmpl"      Name="filediff.tmpl" />
@@ -160,6 +165,8 @@
             <File Id="rss.map"                 Name="map" />
             <File Id="rss.tagentry.tmpl"       Name="tagentry.tmpl" />
             <File Id="rss.tags.tmpl"           Name="tags.tmpl" />
+            <File Id="rss.bookmarks.tmpl"      Name="bookmarks.tmpl" />
+            <File Id="rss.bookmarkentry.tmpl"  Name="bookmarkentry.tmpl" />
           </Component>
         </Directory>
 
@@ -195,7 +202,7 @@
             <File Id="static.coal.file.png"      Name="coal-file.png" />
             <File Id="static.coal.folder.png"    Name="coal-folder.png" />
             <File Id="static.excanvas.js"        Name="excanvas.js" />
-            <File Id="static.graph.js"           Name="graph.js" />
+            <File Id="static.mercurial.js"       Name="mercurial.js" />
             <File Id="static.hgicon.png"         Name="hgicon.png" />
             <File Id="static.hglogo.png"         Name="hglogo.png" />
             <File Id="static.style.coal.css"     Name="style-coal.css" />

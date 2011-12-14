@@ -1,26 +1,5 @@
 This test tries to exercise the ssh functionality with a dummy script
 
-  $ cat <<EOF > dummyssh
-  > import sys
-  > import os
-  > 
-  > os.chdir(os.path.dirname(sys.argv[0]))
-  > if sys.argv[1] != "user@dummy":
-  >     sys.exit(-1)
-  > 
-  > if not os.path.exists("dummyssh"):
-  >     sys.exit(-1)
-  > 
-  > log = open("dummylog", "ab")
-  > log.write("Got arguments")
-  > for i, arg in enumerate(sys.argv[1:]):
-  >     log.write(" %d:%s" % (i+1, arg))
-  > log.write("\n")
-  > log.close()
-  > r = os.system(sys.argv[2])
-  > sys.exit(bool(r))
-  > EOF
-
   $ checknewrepo()
   > {
   >    name=$1
@@ -40,8 +19,8 @@ creating 'local'
   store created
   00changelog.i created
   revlogv1
-  store
   fncache
+  store
   dotencode
   $ echo this > local/foo
   $ hg ci --cwd local -A -m "init"
@@ -69,8 +48,8 @@ creating repo with format.dotencode=false
   store created
   00changelog.i created
   revlogv1
-  store
   fncache
+  store
 
 test failure
 
@@ -80,7 +59,7 @@ test failure
 
 init+push to remote2
 
-  $ hg init -e "python ./dummyssh" ssh://user@dummy/remote2
+  $ hg init -e "python $TESTDIR/dummyssh" ssh://user@dummy/remote2
   $ hg incoming -R remote2 local
   comparing with local
   changeset:   0:08b9e9f63b32
@@ -90,7 +69,7 @@ init+push to remote2
   summary:     init
   
 
-  $ hg push -R local -e "python ./dummyssh" ssh://user@dummy/remote2
+  $ hg push -R local -e "python $TESTDIR/dummyssh" ssh://user@dummy/remote2
   pushing to ssh://user@dummy/remote2
   searching for changes
   remote: adding changesets
@@ -100,7 +79,7 @@ init+push to remote2
 
 clone to remote1
 
-  $ hg clone -e "python ./dummyssh" local ssh://user@dummy/remote1
+  $ hg clone -e "python $TESTDIR/dummyssh" local ssh://user@dummy/remote1
   searching for changes
   remote: adding changesets
   remote: adding manifests
@@ -109,14 +88,14 @@ clone to remote1
 
 init to existing repo
 
-  $ hg init -e "python ./dummyssh" ssh://user@dummy/remote1
+  $ hg init -e "python $TESTDIR/dummyssh" ssh://user@dummy/remote1
   abort: repository remote1 already exists!
   abort: could not create remote repo!
   [255]
 
 clone to existing repo
 
-  $ hg clone -e "python ./dummyssh" local ssh://user@dummy/remote1
+  $ hg clone -e "python $TESTDIR/dummyssh" local ssh://user@dummy/remote1
   abort: repository remote1 already exists!
   abort: could not create remote repo!
   [255]
@@ -166,8 +145,8 @@ creating 'local/sub/repo'
   store created
   00changelog.i created
   revlogv1
-  store
   fncache
+  store
   dotencode
 
 prepare test of init of url configured from paths
@@ -183,8 +162,8 @@ init should (for consistency with clone) expand the url
   store created
   00changelog.i created
   revlogv1
-  store
   fncache
+  store
   dotencode
 
 verify that clone also expand urls
@@ -196,6 +175,20 @@ verify that clone also expand urls
   store created
   00changelog.i created
   revlogv1
-  store
   fncache
+  store
   dotencode
+
+clone bookmarks
+
+  $ hg -R local bookmark test
+  $ hg -R local bookmarks
+   * test                      0:08b9e9f63b32
+  $ hg clone -e "python $TESTDIR/dummyssh" local ssh://user@dummy/remote-bookmarks
+  searching for changes
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 1 changesets with 1 changes to 1 files
+  $ hg -R remote-bookmarks bookmarks
+     test                      0:08b9e9f63b32

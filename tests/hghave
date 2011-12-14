@@ -52,7 +52,7 @@ def has_darcs():
 
 def has_mtn():
     return matchoutput('mtn --version', r'monotone', True) and not matchoutput(
-        'mtn --version', r'monotone 0\.(\d|[12]\d|3[01])[^\d]', True)
+        'mtn --version', r'monotone 0\.', True)
 
 def has_eol_in_paths():
     try:
@@ -101,6 +101,16 @@ def has_inotify():
 def has_fifo():
     return hasattr(os, "mkfifo")
 
+def has_cacheable_fs():
+    from mercurial import util
+
+    fd, path = tempfile.mkstemp(prefix=tempprefix)
+    os.close(fd)
+    try:
+        return util.cachestat(path).cacheable()
+    finally:
+        os.remove(path)
+
 def has_lsprof():
     try:
         import _lsprof
@@ -129,6 +139,9 @@ def getsvnversion():
 
 def has_svn15():
     return getsvnversion() >= (1, 5)
+
+def has_svn13():
+    return getsvnversion() >= (1, 3)
 
 def has_svn():
     return matchoutput('svn --version 2>&1', r'^svn, version') and \
@@ -172,6 +185,11 @@ def has_unix_permissions():
     finally:
         os.rmdir(d)
 
+def has_pyflakes():
+    return matchoutput('echo "import re" 2>&1 | pyflakes',
+                       r"<stdin>:1: 're' imported but unused",
+                       True)
+
 def has_pygments():
     try:
         import pygments
@@ -195,6 +213,7 @@ checks = {
     "baz": (has_baz, "GNU Arch baz client"),
     "bzr": (has_bzr, "Canonical's Bazaar client"),
     "bzr114": (has_bzr114, "Canonical's Bazaar client >= 1.14"),
+    "cacheable": (has_cacheable_fs, "cacheable filesystem"),
     "cvs": (has_cvs, "cvs client/server"),
     "darcs": (has_darcs, "darcs client"),
     "docutils": (has_docutils, "Docutils text processing library"),
@@ -207,12 +226,14 @@ checks = {
     "icasefs": (has_icasefs, "case insensitive file system"),
     "inotify": (has_inotify, "inotify extension support"),
     "lsprof": (has_lsprof, "python lsprof module"),
-    "mtn": (has_mtn, "monotone client (> 0.31)"),
+    "mtn": (has_mtn, "monotone client (>= 1.0)"),
     "outer-repo": (has_outer_repo, "outer repo"),
     "p4": (has_p4, "Perforce server and client"),
+    "pyflakes": (has_pyflakes, "Pyflakes python linter"),
     "pygments": (has_pygments, "Pygments source highlighting library"),
     "ssl": (has_ssl, "python >= 2.6 ssl module and python OpenSSL"),
     "svn": (has_svn, "subversion client and admin tools"),
+    "svn13": (has_svn13, "subversion client and admin tools >= 1.3"),
     "svn15": (has_svn15, "subversion client and admin tools >= 1.5"),
     "svn-bindings": (has_svn_bindings, "subversion python bindings"),
     "symlink": (has_symlink, "symbolic links"),

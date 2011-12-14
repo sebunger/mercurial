@@ -1,3 +1,82 @@
+mercurial (2.0.1-1~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+  * Update breaks to cover the transition of the extensions to
+    dh_python2
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 14 Dec 2011 23:37:06 +0000
+
+mercurial (2.0.1-1) unstable; urgency=low
+
+  * New upstream revision (Closes: #650727).
+  * Fix "new -rc release are not properly parsed by watch" with a patch
+    from Pierre-Yves David <pierre-yves.david@logilab.fr> (Closes:
+    #650728)
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 02 Dec 2011 21:35:31 +0000
+
+mercurial (2.0-2) unstable; urgency=low
+
+  * Fix "Cloning fails with: mpatch.mpatchError: patch cannot be decoded"
+    by not compiling bdiff.c with optimizations in armel.  This is
+    probably a bug in gcc-4.6 (gcc 4.5 works fine) but while it's solved,
+    at least mercurial works again in armel (Closes: #636396)
+
+ -- Javi Merino <cibervicho@gmail.com>  Thu, 03 Nov 2011 23:00:43 +0000
+
+mercurial (2.0-1) unstable; urgency=low
+
+  * New upstream release 2.0
+  * Don't include empty directories in the package
+
+ -- Javi Merino <cibervicho@gmail.com>  Tue, 01 Nov 2011 22:40:40 +0000
+
+mercurial (1.9.999+2.0rc1-1) experimental; urgency=low
+
+  * Upstream 2.0 Release Candidate 1
+  * Cover more uses of "defaults to sensible-editor" in the
+    documentation and support ru and ro translations.
+
+ -- Javi Merino <cibervicho@gmail.com>  Sun, 30 Oct 2011 13:20:38 +0000
+
+mercurial (1.9.3-1) unstable; urgency=low
+
+  * New upstream release 1.9.3.
+
+ -- Javi Merino <cibervicho@gmail.com>  Tue, 11 Oct 2011 22:31:33 +0100
+
+mercurial (1.9.2-1) unstable; urgency=low
+
+  * New upstream release 1.9.2.
+  * Remove old code that removed cruft from site-packages
+
+ -- Javi Merino <cibervicho@gmail.com>  Mon, 12 Sep 2011 20:55:12 +0100
+
+mercurial (1.9.1-2) unstable; urgency=low
+
+  * Update breaks to include all the packages that mercurial-1.9.1-1 broke
+    because of the uncoordinated transition to dh_python2.
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 10 Aug 2011 21:37:37 +0100
+
+mercurial (1.9.1-1) unstable; urgency=low
+
+  * Convert to dh_python2
+  * New upstream release 1.9.1 fixes "cannot import mercurial.httpclient
+    with Python 2.7: 'module' object has no attribute 'PROTOCOL_SSLv2'"
+    (Closes: #635496)
+
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 03 Aug 2011 08:00:03 +0100
+
+mercurial (1.9-1) unstable; urgency=low
+
+  * New upstream release 1.9 (Closes: #632250)
+  * Strip trailing .0 from Debian Policy
+  * Remove template warnings from debian/watch to remove a lintian
+    warning
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 22 Jul 2011 19:44:26 +0200
+
 mercurial (1.8.3-1~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.

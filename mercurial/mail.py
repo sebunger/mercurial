@@ -37,7 +37,7 @@ def _smtp(ui):
     # backward compatible: when tls = true, we use starttls.
     starttls = tls == 'starttls' or util.parsebool(tls)
     smtps = tls == 'smtps'
-    if (starttls or smtps) and not hasattr(socket, 'ssl'):
+    if (starttls or smtps) and not util.safehasattr(socket, 'ssl'):
         raise util.Abort(_("can't use TLS: Python SSL support not installed"))
     if smtps:
         ui.note(_('(using smtps)\n'))
@@ -91,7 +91,7 @@ def _sendmail(ui, sender, recipients, msg):
     if ret:
         raise util.Abort('%s %s' % (
             os.path.basename(program.split(None, 1)[0]),
-            util.explain_exit(ret)[0]))
+            util.explainexit(ret)[0]))
 
 def connect(ui):
     '''make a mail connection. return a function to send mail.
@@ -112,7 +112,7 @@ def validateconfig(ui):
             raise util.Abort(_('smtp specified as email transport, '
                                'but no smtp host configured'))
     else:
-        if not util.find_exe(method):
+        if not util.findexe(method):
             raise util.Abort(_('%r specified as email transport, '
                                'but not in PATH') % method)
 

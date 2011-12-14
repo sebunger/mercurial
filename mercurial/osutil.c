@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -288,7 +289,8 @@ static PyObject *_listdir(char *path, int pathlen, int keepstat, char *skip)
 #endif
 
 	if (pathlen >= PATH_MAX) {
-		PyErr_SetString(PyExc_ValueError, "path too long");
+		errno = ENAMETOOLONG;
+		PyErr_SetFromErrnoWithFilename(PyExc_OSError, path);
 		goto error_value;
 	}
 	strncpy(fullpath, path, PATH_MAX);
@@ -514,6 +516,22 @@ bail:
 }
 #endif
 
+#ifdef __APPLE__
+#include <ApplicationServices/ApplicationServices.h>
+
+static PyObject *isgui(PyObject *self)
+{
+	CFDictionaryRef dict = CGSessionCopyCurrentDictionary();
+
+	if (dict != NULL) {
+		CFRelease(dict);
+		Py_RETURN_TRUE;
+	} else {
+		Py_RETURN_FALSE;
+	}
+}
+#endif
+
 static char osutil_doc[] = "Native operating system services.";
 
 static PyMethodDef methods[] = {
@@ -523,6 +541,12 @@ static PyMethodDef methods[] = {
 	{"posixfile", (PyCFunction)posixfile, METH_VARARGS | METH_KEYWORDS,
 	 "Open a file with POSIX-like semantics.\n"
 "On error, this function may raise either a WindowsError or an IOError."},
+#endif
+#ifdef __APPLE__
+	{
+		"isgui", (PyCFunction)isgui, METH_NOARGS,
+		"Is a CoreGraphics session available?"
+	},
 #endif
 	{NULL, NULL}
 };

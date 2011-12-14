@@ -4,6 +4,8 @@
   > graphlog=
   > 
   > [alias]
+  > # should clobber ci but not commit (issue2993)
+  > ci = version
   > myinit = init
   > cleanstatus = status -c
   > unknown = bargle
@@ -17,6 +19,7 @@
   > mylog = log
   > lognull = log -r null
   > shortlog = log --template '{rev} {node|short} | {date|isodate}\n'
+  > positional = log --template '{\$2} {\$1} | {date|isodate}\n'
   > dln = lognull --debug
   > nousage = rollback
   > put = export -r 0 -o "\$FOO/%R.diff"
@@ -112,7 +115,7 @@ no usage
   no rollback information available
 
   $ echo foo > foo
-  $ hg ci -Amfoo
+  $ hg commit -Amfoo
   adding foo
 
 
@@ -127,6 +130,10 @@ with opts and whitespace
   $ hg shortlog
   0 e63c23eaa88a | 1970-01-01 00:00 +0000
 
+positional arguments
+
+  $ hg positional 'node|short' rev
+  0 e63c23eaa88a | 1970-01-01 00:00 +0000
 
 interaction with defaults
 
@@ -190,7 +197,7 @@ simple shell aliases
   $ hg echo2 foo
   
   $ echo bar > bar
-  $ hg ci -qA -m bar
+  $ hg commit -qA -m bar
   $ hg count .
   1
   $ hg count 'branch(default)'
@@ -246,7 +253,7 @@ shell aliases with global options
   $ hg --cwd .. count 'branch(default)'
   2
   $ hg echo --cwd ..
-  --cwd ..
+  
 
 
 repo specific shell aliases
@@ -300,17 +307,11 @@ invalid arguments
 
   $ hg rt foo
   hg rt: invalid arguments
-  hg rt 
+  hg rt
   
   alias for: hg root
   
-  print the root (top) of the current working directory
-  
-      Print the root directory of the current repository.
-  
-      Returns 0 on success.
-  
-  use "hg -v help rt" to show global options
+  use "hg help rt" to show the full help text
   [255]
 
 invalid global arguments for normal commands, aliases, and shell aliases
@@ -394,3 +395,11 @@ invalid global arguments for normal commands, aliases, and shell aliases
   use "hg help" for the full list of commands or "hg -v" for details
   [255]
 
+This should show id:
+
+  $ hg --config alias.log='id' log
+  000000000000 tip
+
+This shouldn't:
+
+  $ hg --config alias.log='id' history

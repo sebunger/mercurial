@@ -12,9 +12,8 @@
   > EOF
   $ HGMERGE="python ../merge"; export HGMERGE
 
-  $ mkdir t
+  $ hg init t
   $ cd t
-  $ hg init
   $ echo This is file a1 > a
   $ hg add a
   $ hg commit -m "commit #0"
@@ -49,9 +48,8 @@ no merges expected
   M b
   $ cd ..; rm -r t
 
-  $ mkdir t
+  $ hg init t
   $ cd t
-  $ hg init
   $ echo This is file a1 > a
   $ hg add a
   $ hg commit -m "commit #0"
@@ -86,9 +84,8 @@ merge of b expected
   M b
   $ cd ..; rm -r t
 
-  $ mkdir t
+  $ hg init t
   $ cd t
-  $ hg init
   $ echo This is file a1 > a
   $ hg add a
   $ hg commit -m "commit #0"
@@ -113,8 +110,7 @@ merge fails
   $ hg merge 2
   abort: outstanding uncommitted changes (use 'hg status' to list changes)
   [255]
-  $ echo %% merge expected!
-  %% merge expected!
+merge expected!
   $ hg merge -f 2
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -129,9 +125,8 @@ merge fails
   M b
   $ cd ..; rm -r t
 
-  $ mkdir t
+  $ hg init t
   $ cd t
-  $ hg init
   $ echo This is file a1 > a
   $ hg add a
   $ hg commit -m "commit #0"

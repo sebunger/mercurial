@@ -6,9 +6,9 @@
 # GNU General Public License version 2 or any later version.
 
 from mercurial.i18n import _
-from mercurial.node import nullid, nullrev, bin, hex, short
-from mercurial import encoding, util
-import os
+from mercurial.node import hex
+from mercurial import encoding, error, util
+import errno, os
 
 def valid(mark):
     for c in (':', '\0', '\n', '\r'):
@@ -23,14 +23,24 @@ def read(repo):
     in the .hg/bookmarks file.
     Read the file and return a (name=>nodeid) dictionary
     '''
+    bookmarks = {}
     try:
-        bookmarks = {}
         for line in repo.opener('bookmarks'):
-            sha, refspec = line.strip().split(' ', 1)
+            line = line.strip()
+            if not line:
+                continue
+            if ' ' not in line:
+                repo.ui.warn(_('malformed line in .hg/bookmarks: %r\n') % line)
+                continue
+            sha, refspec = line.split(' ', 1)
             refspec = encoding.tolocal(refspec)
-            bookmarks[refspec] = repo.changelog.lookup(sha)
-    except:
-        pass
+            try:
+                bookmarks[refspec] = repo.changelog.lookup(sha)
+            except error.RepoLookupError:
+                pass
+    except IOError, inst:
+        if inst.errno != errno.ENOENT:
+            raise
     return bookmarks
 
 def readcurrent(repo):
@@ -41,12 +51,18 @@ def readcurrent(repo):
     is stored in .hg/bookmarks.current
     '''
     mark = None
-    if os.path.exists(repo.join('bookmarks.current')):
+    try:
         file = repo.opener('bookmarks.current')
+    except IOError, inst:
+        if inst.errno != errno.ENOENT:
+            raise
+        return None
+    try:
         # No readline() in posixfile_nt, reading everything is cheap
         mark = encoding.tolocal((file.readlines() or [''])[0])
         if mark == '' or mark not in repo._bookmarks:
             mark = None
+    finally:
         file.close()
     return mark
 
@@ -61,12 +77,6 @@ def write(repo):
     '''
     refs = repo._bookmarks
 
-    try:
-        bms = repo.opener('bookmarks').read()
-    except IOError:
-        bms = ''
-    repo.opener('undo.bookmarks', 'w').write(bms)
-
     if repo._bookmarkcurrent not in refs:
         setcurrent(repo, None)
     for mark in refs.keys():
@@ -80,7 +90,7 @@ def write(repo):
         file = repo.opener('bookmarks', 'w', atomictemp=True)
         for refspec, node in refs.iteritems():
             file.write("%s %s\n" % (hex(node), encoding.fromlocal(refspec)))
-        file.rename()
+        file.close()
 
         # touch 00changelog.i so hgweb reloads bookmarks (no lock needed)
         try:
@@ -101,13 +111,7 @@ def setcurrent(repo, mark):
     if current == mark:
         return
 
-    refs = repo._bookmarks
-
-    # do not update if we do update to a rev equal to the current bookmark
-    if (mark and mark not in refs and
-        current and refs[current] == repo.changectx('.').node()):
-        return
-    if mark not in refs:
+    if mark not in repo._bookmarks:
         mark = ''
     if not valid(mark):
         raise util.Abort(_("bookmark '%s' contains illegal "
@@ -116,11 +120,20 @@ def setcurrent(repo, mark):
     wlock = repo.wlock()
     try:
         file = repo.opener('bookmarks.current', 'w', atomictemp=True)
-        file.write(mark)
-        file.rename()
+        file.write(encoding.fromlocal(mark))
+        file.close()
     finally:
         wlock.release()
     repo._bookmarkcurrent = mark
+
+def updatecurrentbookmark(repo, oldnode, curbranch):
+    try:
+        update(repo, oldnode, repo.branchtags()[curbranch])
+    except KeyError:
+        if curbranch == "default": # no default branch!
+            update(repo, oldnode, repo.lookup("tip"))
+        else:
+            raise util.Abort(_("branch %s not found") % curbranch)
 
 def update(repo, parents, node):
     marks = repo._bookmarks
@@ -133,16 +146,15 @@ def update(repo, parents, node):
             marks[mark] = new.node()
             update = True
     if update:
-        write(repo)
+        repo._writebookmarks(marks)
 
 def listbookmarks(repo):
     # We may try to list bookmarks on a repo type that does not
     # support it (e.g., statichttprepository).
-    if not hasattr(repo, '_bookmarks'):
-        return {}
+    marks = getattr(repo, '_bookmarks', {})
 
     d = {}
-    for k, v in repo._bookmarks.iteritems():
+    for k, v in marks.iteritems():
         d[k] = hex(v)
     return d
 
@@ -162,6 +174,28 @@ def pushbookmark(repo, key, old, new):
         return True
     finally:
         w.release()
+
+def updatefromremote(ui, repo, remote):
+    ui.debug("checking for updated bookmarks\n")
+    rb = remote.listkeys('bookmarks')
+    changed = False
+    for k in rb.keys():
+        if k in repo._bookmarks:
+            nr, nl = rb[k], repo._bookmarks[k]
+            if nr in repo:
+                cr = repo[nr]
+                cl = repo[nl]
+                if cl.rev() >= cr.rev():
+                    continue
+                if cr in cl.descendants():
+                    repo._bookmarks[k] = cr.node()
+                    changed = True
+                    ui.status(_("updating bookmark %s\n") % k)
+                else:
+                    ui.warn(_("not updating divergent"
+                                   " bookmark %s\n") % k)
+    if changed:
+        write(repo)
 
 def diff(ui, repo, remote):
     ui.status(_("searching for changed bookmarks\n"))

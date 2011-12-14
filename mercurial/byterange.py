@@ -64,7 +64,7 @@ class HTTPRangeHandler(urllib2.BaseHandler):
         # HTTP's Range Not Satisfiable error
         raise RangeError('Requested Range Not Satisfiable')
 
-class RangeableFileObject:
+class RangeableFileObject(object):
     """File object wrapper to enable raw range handling.
     This was implemented primarilary for handling range
     specifications for file:// urls. This object effectively makes
@@ -103,9 +103,7 @@ class RangeableFileObject:
         """This effectively allows us to wrap at the instance level.
         Any attribute not found in _this_ object will be searched for
         in self.fo.  This includes methods."""
-        if hasattr(self.fo, name):
-            return getattr(self.fo, name)
-        raise AttributeError(name)
+        return getattr(self.fo, name)
 
     def tell(self):
         """Return the position within the range.
@@ -170,10 +168,8 @@ class RangeableFileObject:
         offset is relative to the current position (self.realpos).
         """
         assert offset >= 0
-        if not hasattr(self.fo, 'seek'):
-            self._poor_mans_seek(offset)
-        else:
-            self.fo.seek(self.realpos + offset)
+        seek = getattr(self.fo, 'seek', self._poor_mans_seek)
+        seek(self.realpos + offset)
         self.realpos += offset
 
     def _poor_mans_seek(self, offset):

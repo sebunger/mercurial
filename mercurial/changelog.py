@@ -100,9 +100,15 @@ def delayopener(opener, target, divert, buf):
 class changelog(revlog.revlog):
     def __init__(self, opener):
         revlog.revlog.__init__(self, opener, "00changelog.i")
+        if self._initempty:
+            # changelogs don't benefit from generaldelta
+            self.version &= ~revlog.REVLOGGENERALDELTA
+            self._generaldelta = False
         self._realopener = opener
         self._delayed = False
         self._divert = False
+        # hiddenrevs: revs that should be hidden by command and tools
+        self.hiddenrevs = set()
 
     def delayupdate(self):
         "delay visibility of index updates to other readers"
@@ -118,7 +124,9 @@ class changelog(revlog.revlog):
         self.opener = self._realopener
         # move redirected index data back into place
         if self._divert:
-            n = self.opener(self.indexfile + ".a").name
+            nfile = self.opener(self.indexfile + ".a")
+            n = nfile.name
+            nfile.close()
             util.rename(n, n[:-2])
         elif self._delaybuf:
             fp = self.opener(self.indexfile, 'a')
@@ -185,7 +193,7 @@ class changelog(revlog.revlog):
             try:
                 # various tools did silly things with the time zone field.
                 timezone = int(extra_data[0])
-            except:
+            except ValueError:
                 timezone = 0
             extra = {}
         else:
@@ -199,6 +207,11 @@ class changelog(revlog.revlog):
 
     def add(self, manifest, files, desc, transaction, p1, p2,
                   user, date=None, extra=None):
+        # Convert to UTF-8 encoded bytestrings as the very first
+        # thing: calling any method on a localstr object will turn it
+        # into a str object and the cached UTF-8 string is thus lost.
+        user, desc = encoding.fromlocal(user), encoding.fromlocal(desc)
+
         user = user.strip()
         # An empty username or a username with a "\n" will make the
         # revision text contain two "\n\n" sequences -> corrupt
@@ -211,8 +224,6 @@ class changelog(revlog.revlog):
 
         # strip trailing whitespace and leading and trailing empty lines
         desc = '\n'.join([l.rstrip() for l in desc.splitlines()]).strip('\n')
-
-        user, desc = encoding.fromlocal(user), encoding.fromlocal(desc)
 
         if date:
             parseddate = "%d %d" % util.parsedate(date)

@@ -7,7 +7,7 @@
 
 from node import nullid
 from i18n import _
-import util, ignore, osutil, parsers, encoding
+import scmutil, util, ignore, osutil, parsers, encoding
 import struct, os, stat, errno
 import cStringIO
 
@@ -49,6 +49,7 @@ class dirstate(object):
         self._rootdir = os.path.join(root, '')
         self._dirty = False
         self._dirtypl = False
+        self._lastnormaltime = None
         self._ui = ui
 
     @propertycache
@@ -67,13 +68,13 @@ class dirstate(object):
     def _foldmap(self):
         f = {}
         for name in self._map:
-            f[os.path.normcase(name)] = name
+            f[util.normcase(name)] = name
         return f
 
     @propertycache
     def _branch(self):
         try:
-            return self._opener("branch").read().strip() or "default"
+            return self._opener.read("branch").strip() or "default"
         except IOError:
             return "default"
 
@@ -130,17 +131,19 @@ class dirstate(object):
         # it's safe because f is always a relative path
         return self._rootdir + f
 
-    def flagfunc(self, fallback):
+    def flagfunc(self, buildfallback):
+        if self._checklink and self._checkexec:
+            def f(x):
+                p = self._join(x)
+                if os.path.islink(p):
+                    return 'l'
+                if util.isexec(p):
+                    return 'x'
+                return ''
+            return f
+
+        fallback = buildfallback()
         if self._checklink:
-            if self._checkexec:
-                def f(x):
-                    p = self._join(x)
-                    if os.path.islink(p):
-                        return 'l'
-                    if util.is_exec(p):
-                        return 'x'
-                    return ''
-                return f
             def f(x):
                 if os.path.islink(self._join(x)):
                     return 'l'
@@ -152,11 +155,12 @@ class dirstate(object):
             def f(x):
                 if 'l' in fallback(x):
                     return 'l'
-                if util.is_exec(self._join(x)):
+                if util.isexec(self._join(x)):
                     return 'x'
                 return ''
             return f
-        return fallback
+        else:
+            return fallback
 
     def getcwd(self):
         cwd = os.getcwd()
@@ -202,6 +206,12 @@ class dirstate(object):
     def parents(self):
         return [self._validate(p) for p in self._pl]
 
+    def p1(self):
+        return self._validate(self._pl[0])
+
+    def p2(self):
+        return self._validate(self._pl[1])
+
     def branch(self):
         return encoding.tolocal(self._branch)
 
@@ -213,13 +223,13 @@ class dirstate(object):
         if branch in ['tip', '.', 'null']:
             raise util.Abort(_('the name \'%s\' is reserved') % branch)
         self._branch = encoding.fromlocal(branch)
-        self._opener("branch", "w").write(self._branch + '\n')
+        self._opener.write("branch", self._branch + '\n')
 
     def _read(self):
         self._map = {}
         self._copymap = {}
         try:
-            st = self._opener("dirstate").read()
+            st = self._opener.read("dirstate")
         except IOError, err:
             if err.errno != errno.ENOENT:
                 raise
@@ -236,6 +246,7 @@ class dirstate(object):
                 "_ignore"):
             if a in self.__dict__:
                 delattr(self, a)
+        self._lastnormaltime = None
         self._dirty = False
 
     def copy(self, source, dest):
@@ -261,9 +272,7 @@ class dirstate(object):
     def _addpath(self, f, check=False):
         oldstate = self[f]
         if check or oldstate == "r":
-            if '\r' in f or '\n' in f:
-                raise util.Abort(
-                    _("'\\n' and '\\r' disallowed in filenames: %r") % f)
+            scmutil.checkfilename(f)
             if f in self._dirs:
                 raise util.Abort(_('directory %r already in dirstate') % f)
             # shadows
@@ -281,9 +290,15 @@ class dirstate(object):
         self._dirty = True
         self._addpath(f)
         s = os.lstat(self._join(f))
-        self._map[f] = ('n', s.st_mode, s.st_size, int(s.st_mtime))
+        mtime = int(s.st_mtime)
+        self._map[f] = ('n', s.st_mode, s.st_size, mtime)
         if f in self._copymap:
             del self._copymap[f]
+        if mtime > self._lastnormaltime:
+            # Remember the most recent modification timeslot for status(),
+            # to make sure we won't miss future size-preserving file content
+            # modifications that happen within the same timeslot.
+            self._lastnormaltime = mtime
 
     def normallookup(self, f):
         '''Mark a file normal, but possibly dirty.'''
@@ -353,17 +368,15 @@ class dirstate(object):
         if f in self._copymap:
             del self._copymap[f]
 
-    def forget(self, f):
-        '''Forget a file.'''
-        self._dirty = True
-        try:
+    def drop(self, f):
+        '''Drop a file from the dirstate'''
+        if f in self._map:
+            self._dirty = True
             self._droppath(f)
             del self._map[f]
-        except KeyError:
-            self._ui.warn(_("not in dirstate: %s\n") % f)
 
     def _normalize(self, path, isknown):
-        normed = os.path.normcase(path)
+        normed = util.normcase(path)
         folded = self._foldmap.get(normed, None)
         if folded is None:
             if isknown or not os.path.lexists(os.path.join(self._root, path)):
@@ -397,6 +410,7 @@ class dirstate(object):
             delattr(self, "_dirs")
         self._copymap = {}
         self._pl = [nullid, nullid]
+        self._lastnormaltime = None
         self._dirty = True
 
     def rebuild(self, parent, files):
@@ -443,7 +457,8 @@ class dirstate(object):
             write(e)
             write(f)
         st.write(cs.getvalue())
-        st.rename()
+        st.close()
+        self._lastnormaltime = None
         self._dirty = self._dirtypl = False
 
     def _dirignore(self, f):
@@ -680,6 +695,7 @@ class dirstate(object):
                 # lines are an expansion of "islink => checklink"
                 # where islink means "is this a link?" and checklink
                 # means "can we check links?".
+                mtime = int(st.st_mtime)
                 if (size >= 0 and
                     (size != st.st_size
                      or ((mode ^ st.st_mode) & 0100 and self._checkexec))
@@ -687,8 +703,14 @@ class dirstate(object):
                     or size == -2 # other parent
                     or fn in self._copymap):
                     madd(fn)
-                elif (time != int(st.st_mtime)
+                elif (mtime != time
                       and (mode & lnkkind != lnkkind or self._checklink)):
+                    ladd(fn)
+                elif mtime == self._lastnormaltime:
+                    # fn may have been changed in the same timeslot without
+                    # changing its size. This can happen if we quickly do
+                    # multiple commits in a single transaction.
+                    # Force lookup, so we don't miss such a racy file change.
                     ladd(fn)
                 elif listclean:
                     cadd(fn)

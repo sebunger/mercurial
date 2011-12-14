@@ -1,0 +1,30 @@
+From: Javi Merino <cibervicho@gmail.com>
+Description: gcc-4.6 -O2 miscompiles bdiff in armel
+ This patch disables optimizations for bdiff in -O0 so that mercurial
+ works in armel while we fix it in gcc.
+ .
+ Mercurial says it's not their problem so they won't accept the patch.
+ In any case, this has to be a temporal hack.
+Bug-Debian: http://bugs.debian.org/636396
+Bug-Mercurial: http://mercurial.selenic.com/bts/issue2877
+
+--- a/setup.py
++++ b/setup.py
+@@ -349,12 +349,16 @@
+ 
+ extmodules = [
+     Extension('mercurial.base85', ['mercurial/base85.c']),
+-    Extension('mercurial.bdiff', ['mercurial/bdiff.c']),
+     Extension('mercurial.diffhelpers', ['mercurial/diffhelpers.c']),
+     Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
+     Extension('mercurial.parsers', ['mercurial/parsers.c']),
+     ]
+ 
++if platform.machine() == 'armv5tel':
++    extmodules.append(Extension('mercurial.bdiff', ['mercurial/bdiff.c'], extra_compile_args=['-O0']))
++else:
++    extmodules.append(Extension('mercurial.bdiff', ['mercurial/bdiff.c']))
++
+ osutil_ldflags = []
+ 
+ if sys.platform == 'darwin':

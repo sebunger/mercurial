@@ -7,7 +7,7 @@
 
 from i18n import _
 import errno, getpass, os, socket, sys, tempfile, traceback
-import config, util, error
+import config, scmutil, util, error
 
 class ui(object):
     def __init__(self, src=None):
@@ -21,6 +21,10 @@ class ui(object):
         self._trustgroups = set()
 
         if src:
+            self.fout = src.fout
+            self.ferr = src.ferr
+            self.fin = src.fin
+
             self._tcfg = src._tcfg.copy()
             self._ucfg = src._ucfg.copy()
             self._ocfg = src._ocfg.copy()
@@ -29,16 +33,20 @@ class ui(object):
             self.environ = src.environ
             self.fixconfig()
         else:
+            self.fout = sys.stdout
+            self.ferr = sys.stderr
+            self.fin = sys.stdin
+
             # shared read-only environment
             self.environ = os.environ
             # we always trust global config files
-            for f in util.rcpath():
+            for f in scmutil.rcpath():
                 self.readconfig(f, trust=True)
 
     def copy(self):
         return self.__class__(self)
 
-    def _is_trusted(self, fp, f):
+    def _trusted(self, fp, f):
         st = util.fstat(fp)
         if util.isowner(st):
             return True
@@ -67,10 +75,11 @@ class ui(object):
             raise
 
         cfg = config.config()
-        trusted = sections or trust or self._is_trusted(fp, filename)
+        trusted = sections or trust or self._trusted(fp, filename)
 
         try:
             cfg.read(filename, fp, sections=sections, remap=remap)
+            fp.close()
         except error.ConfigError, inst:
             if trusted:
                 raise
@@ -82,10 +91,12 @@ class ui(object):
                       'traceback', 'verbose'):
                 if k in cfg['ui']:
                     del cfg['ui'][k]
-            for k, v in cfg.items('alias'):
-                del cfg['alias'][k]
             for k, v in cfg.items('defaults'):
                 del cfg['defaults'][k]
+        # Don't remove aliases from the configuration if in the exceptionlist
+        if self.plain('alias'):
+            for k, v in cfg.items('alias'):
+                del cfg['alias'][k]
 
         if trusted:
             self._tcfg.update(cfg)
@@ -111,7 +122,7 @@ class ui(object):
                                   % (n, p, self.configsource('paths', n)))
                         p = p.replace('%%', '%')
                     p = util.expandpath(p)
-                    if '://' not in p and not os.path.isabs(p):
+                    if not util.hasscheme(p) and not os.path.isabs(p):
                         p = os.path.normpath(os.path.join(root, p))
                     c.set("paths", n, p)
 
@@ -145,25 +156,59 @@ class ui(object):
         return self._data(untrusted).source(section, name) or 'none'
 
     def config(self, section, name, default=None, untrusted=False):
-        value = self._data(untrusted).get(section, name, default)
+        if isinstance(name, list):
+            alternates = name
+        else:
+            alternates = [name]
+
+        for n in alternates:
+            value = self._data(untrusted).get(section, name, None)
+            if value is not None:
+                name = n
+                break
+        else:
+            value = default
+
         if self.debugflag and not untrusted and self._reportuntrusted:
             uvalue = self._ucfg.get(section, name)
             if uvalue is not None and uvalue != value:
-                self.debug(_("ignoring untrusted configuration option "
-                             "%s.%s = %s\n") % (section, name, uvalue))
+                self.debug("ignoring untrusted configuration option "
+                           "%s.%s = %s\n" % (section, name, uvalue))
         return value
 
     def configpath(self, section, name, default=None, untrusted=False):
-        'get a path config item, expanded relative to config file'
+        'get a path config item, expanded relative to repo root or config file'
         v = self.config(section, name, default, untrusted)
+        if v is None:
+            return None
         if not os.path.isabs(v) or "://" not in v:
             src = self.configsource(section, name, untrusted)
             if ':' in src:
-                base = os.path.dirname(src.rsplit(':'))
+                base = os.path.dirname(src.rsplit(':')[0])
                 v = os.path.join(base, os.path.expanduser(v))
         return v
 
     def configbool(self, section, name, default=False, untrusted=False):
+        """parse a configuration element as a boolean
+
+        >>> u = ui(); s = 'foo'
+        >>> u.setconfig(s, 'true', 'yes')
+        >>> u.configbool(s, 'true')
+        True
+        >>> u.setconfig(s, 'false', 'no')
+        >>> u.configbool(s, 'false')
+        False
+        >>> u.configbool(s, 'unknown')
+        False
+        >>> u.configbool(s, 'unknown', True)
+        True
+        >>> u.setconfig(s, 'invalid', 'somevalue')
+        >>> u.configbool(s, 'invalid')
+        Traceback (most recent call last):
+            ...
+        ConfigError: foo.invalid is not a boolean ('somevalue')
+        """
+
         v = self.config(section, name, None, untrusted)
         if v is None:
             return default
@@ -171,12 +216,47 @@ class ui(object):
             return v
         b = util.parsebool(v)
         if b is None:
-            raise error.ConfigError(_("%s.%s not a boolean ('%s')")
+            raise error.ConfigError(_("%s.%s is not a boolean ('%s')")
                                     % (section, name, v))
         return b
 
+    def configint(self, section, name, default=None, untrusted=False):
+        """parse a configuration element as an integer
+
+        >>> u = ui(); s = 'foo'
+        >>> u.setconfig(s, 'int1', '42')
+        >>> u.configint(s, 'int1')
+        42
+        >>> u.setconfig(s, 'int2', '-42')
+        >>> u.configint(s, 'int2')
+        -42
+        >>> u.configint(s, 'unknown', 7)
+        7
+        >>> u.setconfig(s, 'invalid', 'somevalue')
+        >>> u.configint(s, 'invalid')
+        Traceback (most recent call last):
+            ...
+        ConfigError: foo.invalid is not an integer ('somevalue')
+        """
+
+        v = self.config(section, name, None, untrusted)
+        if v is None:
+            return default
+        try:
+            return int(v)
+        except ValueError:
+            raise error.ConfigError(_("%s.%s is not an integer ('%s')")
+                                    % (section, name, v))
+
     def configlist(self, section, name, default=None, untrusted=False):
-        """Return a list of comma/space separated strings"""
+        """parse a configuration element as a list of comma/space separated
+        strings
+
+        >>> u = ui(); s = 'foo'
+        >>> u.setconfig(s, 'list1', 'this,is "a small" ,test')
+        >>> u.configlist(s, 'list1')
+        ['this', 'is', 'a small', 'test']
+        """
 
         def _parse_plain(parts, s, offset):
             whitespace = False
@@ -265,28 +345,37 @@ class ui(object):
         if self.debugflag and not untrusted and self._reportuntrusted:
             for k, v in self._ucfg.items(section):
                 if self._tcfg.get(section, k) != v:
-                    self.debug(_("ignoring untrusted configuration option "
-                                "%s.%s = %s\n") % (section, k, v))
+                    self.debug("ignoring untrusted configuration option "
+                               "%s.%s = %s\n" % (section, k, v))
         return items
 
     def walkconfig(self, untrusted=False):
         cfg = self._data(untrusted)
         for section in cfg.sections():
             for name, value in self.configitems(section, untrusted):
-                yield section, name, str(value).replace('\n', '\\n')
+                yield section, name, value
 
-    def plain(self):
+    def plain(self, feature=None):
         '''is plain mode active?
 
-        Plain mode means that all configuration variables which affect the
-        behavior and output of Mercurial should be ignored. Additionally, the
-        output should be stable, reproducible and suitable for use in scripts or
-        applications.
+        Plain mode means that all configuration variables which affect
+        the behavior and output of Mercurial should be
+        ignored. Additionally, the output should be stable,
+        reproducible and suitable for use in scripts or applications.
 
-        The only way to trigger plain mode is by setting the `HGPLAIN'
-        environment variable.
+        The only way to trigger plain mode is by setting either the
+        `HGPLAIN' or `HGPLAINEXCEPT' environment variables.
+
+        The return value can either be
+        - False if HGPLAIN is not set, or feature is in HGPLAINEXCEPT
+        - True otherwise
         '''
-        return 'HGPLAIN' in os.environ
+        if 'HGPLAIN' not in os.environ and 'HGPLAINEXCEPT' not in os.environ:
+            return False
+        exceptions = os.environ.get('HGPLAINEXCEPT', '').strip().split(',')
+        if feature and exceptions:
+            return feature not in exceptions
+        return True
 
     def username(self):
         """Return default username to be used in commits.
@@ -325,7 +414,7 @@ class ui(object):
 
     def expandpath(self, loc, default=None):
         """Return repository location relative to cwd or from [paths]"""
-        if "://" in loc or os.path.isdir(os.path.join(loc, '.hg')):
+        if util.hasscheme(loc) or os.path.isdir(os.path.join(loc, '.hg')):
             return loc
 
         path = self.config('paths', loc)
@@ -369,26 +458,26 @@ class ui(object):
             self._buffers[-1].extend([str(a) for a in args])
         else:
             for a in args:
-                sys.stdout.write(str(a))
+                self.fout.write(str(a))
 
     def write_err(self, *args, **opts):
         try:
-            if not getattr(sys.stdout, 'closed', False):
-                sys.stdout.flush()
+            if not getattr(self.fout, 'closed', False):
+                self.fout.flush()
             for a in args:
-                sys.stderr.write(str(a))
+                self.ferr.write(str(a))
             # stderr may be buffered under win32 when redirected to files,
             # including stdout.
-            if not getattr(sys.stderr, 'closed', False):
-                sys.stderr.flush()
+            if not getattr(self.ferr, 'closed', False):
+                self.ferr.flush()
         except IOError, inst:
             if inst.errno not in (errno.EPIPE, errno.EIO):
                 raise
 
     def flush(self):
-        try: sys.stdout.flush()
+        try: self.fout.flush()
         except: pass
-        try: sys.stderr.flush()
+        try: self.ferr.flush()
         except: pass
 
     def interactive(self):
@@ -407,12 +496,9 @@ class ui(object):
         '''
         i = self.configbool("ui", "interactive", None)
         if i is None:
-            try:
-                return sys.stdin.isatty()
-            except AttributeError:
-                # some environments replace stdin without implementing isatty
-                # usually those are non-interactive
-                return False
+            # some environments replace stdin without implementing isatty
+            # usually those are non-interactive
+            return util.isatty(self.fin)
 
         return i
 
@@ -448,17 +534,14 @@ class ui(object):
 
         i = self.configbool("ui", "formatted", None)
         if i is None:
-            try:
-                return sys.stdout.isatty()
-            except AttributeError:
-                # some environments replace stdout without implementing isatty
-                # usually those are non-interactive
-                return False
+            # some environments replace stdout without implementing isatty
+            # usually those are non-interactive
+            return util.isatty(self.fout)
 
         return i
 
     def _readline(self, prompt=''):
-        if sys.stdin.isatty():
+        if util.isatty(self.fin):
             try:
                 # magically add command line editing support, where
                 # available
@@ -468,7 +551,21 @@ class ui(object):
                 # windows sometimes raises something other than ImportError
             except Exception:
                 pass
-        line = raw_input(prompt)
+
+        # call write() so output goes through subclassed implementation
+        # e.g. color extension on Windows
+        self.write(prompt)
+
+        # instead of trying to emulate raw_input, swap (self.fin,
+        # self.fout) with (sys.stdin, sys.stdout)
+        oldin = sys.stdin
+        oldout = sys.stdout
+        sys.stdin = self.fin
+        sys.stdout = self.fout
+        line = raw_input(' ')
+        sys.stdin = oldin
+        sys.stdout = oldout
+
         # When stdin is in binary mode on Windows, it can cause
         # raw_input() to emit an extra trailing carriage return
         if os.linesep == '\r\n' and line and line[-1] == '\r':
@@ -483,7 +580,7 @@ class ui(object):
             self.write(msg, ' ', default, "\n")
             return default
         try:
-            r = self._readline(msg + ' ')
+            r = self._readline(self.label(msg, 'ui.prompt'))
             if not r:
                 return default
             return r
@@ -554,7 +651,8 @@ class ui(object):
 
             util.system("%s \"%s\"" % (editor, name),
                         environ={'HGUSER': user},
-                        onerr=util.Abort, errprefix=_("edit failed"))
+                        onerr=util.Abort, errprefix=_("edit failed"),
+                        out=self.fout)
 
             f = open(name)
             t = f.read()
@@ -570,9 +668,9 @@ class ui(object):
         printed.'''
         if self.tracebackflag:
             if exc:
-                traceback.print_exception(exc[0], exc[1], exc[2])
+                traceback.print_exception(exc[0], exc[1], exc[2], file=self.ferr)
             else:
-                traceback.print_exc()
+                traceback.print_exc(file=self.ferr)
         return self.tracebackflag
 
     def geteditor(self):

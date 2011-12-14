@@ -73,7 +73,7 @@ clone root
   $ cd t
   $ hg clone . ../tc
   updating to branch default
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd ../tc
   $ hg debugsub
@@ -96,14 +96,14 @@ clone root, make local change
   $ cd ../t
   $ hg clone . ../ta
   updating to branch default
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ cd ../ta
   $ echo ggg >> s/g
   $ hg status --subrepos
   M s/g
-  $ hg commit -m ggg
+  $ hg commit --subrepos -m ggg
   committing subrepository s
   $ hg debugsub
   path s
@@ -115,7 +115,7 @@ clone root separately, make different local change
   $ cd ../t
   $ hg clone . ../tb
   updating to branch default
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ cd ../tb/s
@@ -125,7 +125,7 @@ clone root separately, make different local change
 
   $ hg status --subrepos
   A s/f
-  $ hg commit -m f
+  $ hg commit --subrepos -m f
   committing subrepository s
   $ hg debugsub
   path s
@@ -155,7 +155,7 @@ user a pulls, merges, commits
   added 1 changesets with 1 changes to 1 files (+1 heads)
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg merge 2>/dev/null
-  pulling subrepo s
+  pulling subrepo s from $TESTTMP/gitroot
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ cat s/f
@@ -164,7 +164,7 @@ user a pulls, merges, commits
   g
   gg
   ggg
-  $ hg commit -m 'merge'
+  $ hg commit --subrepos -m 'merge'
   committing subrepository s
   $ hg status --subrepos --rev 1:5
   M .hgsubstate
@@ -199,7 +199,7 @@ make and push changes to hg without updating the subrepo
   $ cd ../t
   $ hg clone . ../td
   updating to branch default
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   checking out detached HEAD in subrepo s
   check out a git branch if you intend to make changes
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -232,7 +232,7 @@ sync to upstream git, distribute changes
   $ cd ../tb
   $ hg pull -q
   $ hg update 2>/dev/null
-  pulling subrepo s
+  pulling subrepo s from $TESTTMP/gitroot
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg debugsub
   path s
@@ -262,7 +262,7 @@ archive subrepos
   $ cd ../tc
   $ hg pull -q
   $ hg archive --subrepos -r 5 ../archive 2>/dev/null
-  pulling subrepo s
+  pulling subrepo s from $TESTTMP/gitroot
   $ cd ../archive
   $ cat s/f
   f
@@ -282,7 +282,7 @@ create nested repo
 
   $ hg clone ../t inner
   updating to branch default
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ echo inner = inner > .hgsub
   $ hg add .hgsub
@@ -294,7 +294,7 @@ nested commit
   $ echo ffff >> inner/s/f
   $ hg status --subrepos
   M inner/s/f
-  $ hg commit -m nested
+  $ hg commit --subrepos -m nested
   committing subrepository inner
   committing subrepository inner/s
 
@@ -311,7 +311,7 @@ relative source expansion
   $ mkdir d
   $ hg clone t d/t
   updating to branch default
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 Don't crash if the subrepo is missing
@@ -325,12 +325,48 @@ Don't crash if the subrepo is missing
   $ hg push -q
   abort: subrepo s is missing
   [255]
-  $ hg commit -qm missing
+  $ hg commit --subrepos -qm missing
   abort: subrepo s is missing
   [255]
   $ hg update -C
-  cloning subrepo s
+  cloning subrepo s from $TESTTMP/gitroot
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg sum | grep commit
+  commit: (clean)
+
+Don't crash if the .hgsubstate entry is missing
+
+  $ hg update 1 -q
+  $ hg rm .hgsubstate
+  $ hg commit .hgsubstate -m 'no substate'
+  created new head
+  $ hg tag -l nosubstate
+  $ hg manifest
+  .hgsub
+  a
+
+  $ hg status -S
+  $ hg sum | grep commit
+  commit: 1 subrepos
+
+  $ hg commit -m 'restore substate'
+  committing subrepository s
+  $ hg manifest
+  .hgsub
+  .hgsubstate
+  a
+  $ hg sum | grep commit
+  commit: (clean)
+
+  $ hg update -qC nosubstate
+  $ ls s
+
+issue3109: false positives in git diff-index
+
+  $ hg update -q
+  $ touch -t 200001010000 s/g
+  $ hg status --subrepos
+  $ touch -t 200001010000 s/g
   $ hg sum | grep commit
   commit: (clean)
 

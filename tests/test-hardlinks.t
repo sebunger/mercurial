@@ -25,9 +25,8 @@ Some implementations of cp can't create hardlinks (replaces 'cp -al' on Linux):
 
 Prepare repo r1:
 
-  $ mkdir r1
+  $ hg init r1
   $ cd r1
-  $ hg init
 
   $ echo c1 > f1
   $ hg add f1
@@ -195,6 +194,7 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/store/data/f1.i
   2 r4/.hg/store/fncache
   2 r4/.hg/store/undo
+  2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
   2 r4/.hg/undo.dirstate
@@ -223,6 +223,7 @@ Update back to revision 11 in r4 should break hardlink of file f1:
   2 r4/.hg/store/data/f1.i
   2 r4/.hg/store/fncache
   2 r4/.hg/store/undo
+  2 r4/.hg/undo.bookmarks
   2 r4/.hg/undo.branch
   2 r4/.hg/undo.desc
   2 r4/.hg/undo.dirstate

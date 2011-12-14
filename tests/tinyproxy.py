@@ -23,12 +23,19 @@ class ProxyHandler (BaseHTTPServer.BaseHTTPRequestHandler):
 
     def handle(self):
         (ip, port) =  self.client_address
-        if hasattr(self, 'allowed_clients') and ip not in self.allowed_clients:
+        allowed = getattr(self, 'allowed_clients', None)
+        if allowed is not None and ip not in allowed:
             self.raw_requestline = self.rfile.readline()
             if self.parse_request():
                 self.send_error(403)
         else:
             self.__base_handle()
+
+    def log_request(self, code='-', size='-'):
+        xheaders = [h for h in self.headers.items() if h[0].startswith('x-')]
+        self.log_message('"%s" %s %s%s',
+                         self.requestline, str(code), str(size),
+                         ''.join([' %s:%s' % h for h in sorted(xheaders)]))
 
     def _connect_to(self, netloc, soc):
         i = netloc.find(':')
@@ -89,7 +96,7 @@ class ProxyHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         iw = [self.connection, soc]
         ow = []
         count = 0
-        while 1:
+        while True:
             count += 1
             (ins, _, exs) = select.select(iw, ow, iw, 3)
             if exs:

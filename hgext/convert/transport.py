@@ -18,6 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+from mercurial import util
 from svn.core import SubversionException, Pool
 import svn.ra
 import svn.client
@@ -54,7 +55,7 @@ def _create_auth_baton(pool):
                 if p:
                     providers.append(p)
     else:
-        if hasattr(svn.client, 'get_windows_simple_provider'):
+        if util.safehasattr(svn.client, 'get_windows_simple_provider'):
             providers.append(svn.client.get_windows_simple_provider(pool))
 
     return svn.core.svn_auth_open(providers, pool)
@@ -73,7 +74,7 @@ class SvnRaTransport(object):
         self.password = ''
 
         # Only Subversion 1.4 has reparent()
-        if ra is None or not hasattr(svn.ra, 'reparent'):
+        if ra is None or not util.safehasattr(svn.ra, 'reparent'):
             self.client = svn.client.create_context(self.pool)
             ab = _create_auth_baton(self.pool)
             if False:
@@ -85,7 +86,7 @@ class SvnRaTransport(object):
             self.client.config = svn_config
             try:
                 self.ra = svn.client.open_ra_session(
-                    self.svn_url.encode('utf8'),
+                    self.svn_url,
                     self.client, self.pool)
             except SubversionException, (inst, num):
                 if num in (svn.core.SVN_ERR_RA_ILLEGAL_URL,

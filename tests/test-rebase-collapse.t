@@ -11,45 +11,14 @@ Create repo a:
 
   $ hg init a
   $ cd a
-
-  $ echo A > A
-  $ hg ci -Am A
-  adding A
-  $ echo B > B
-  $ hg ci -Am B
-  adding B
-  $ echo C > C
-  $ hg ci -Am C
-  adding C
-  $ echo D > D
-  $ hg ci -Am D
-  adding D
-
-  $ hg up -q -C 0
-
-  $ echo E > E
-  $ hg ci -Am E
-  adding E
-  created new head
-
-  $ hg up -q -C 0
-
-  $ echo F > F
-  $ hg ci -Am F
-  adding F
-  created new head
-
-  $ hg merge -r 4
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
-  $ hg ci -m G
-
-  $ hg up -q -C 5
-
-  $ echo H > H
-  $ hg ci -Am H
-  adding H
-  created new head
+  $ hg unbundle $TESTDIR/bundles/rebase.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 8 changesets with 7 changes to 7 files (+2 heads)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  $ hg up tip
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ hg tglog
   @  7: 'H'
@@ -105,12 +74,12 @@ Rebasing B onto H:
   $ cd ..
 
 
-Rebasing G onto H:
+Rebasing E onto H:
 
   $ hg clone -q -u . a a2
   $ cd a2
 
-  $ hg rebase --base 6 --collapse
+  $ hg rebase --source 4 --collapse
   saved backup bundle to $TESTTMP/a2/.hg/strip-backup/*-backup.hg (glob)
 
   $ hg tglog
@@ -137,6 +106,40 @@ Rebasing G onto H:
 
   $ cd ..
 
+Rebasing G onto H with custom message:
+
+  $ hg clone -q -u . a a3
+  $ cd a3
+
+  $ hg rebase --base 6 -m 'custom message'
+  abort: message can only be specified with collapse
+  [255]
+
+  $ hg rebase --source 4 --collapse -m 'custom message'
+  saved backup bundle to $TESTTMP/a3/.hg/strip-backup/*-backup.hg (glob)
+
+  $ hg tglog
+  @  6: 'custom message'
+  |
+  o  5: 'H'
+  |
+  o  4: 'F'
+  |
+  | o  3: 'D'
+  | |
+  | o  2: 'C'
+  | |
+  | o  1: 'B'
+  |/
+  o  0: 'A'
+  
+  $ hg manifest
+  A
+  E
+  F
+  H
+
+  $ cd ..
 
 Create repo b:
 
@@ -438,4 +441,42 @@ Rebase and collapse - B onto F:
   C
   D
   F
+
+Interactions between collapse and keepbranches
+  $ cd ..
+  $ hg init e
+  $ cd e
+  $ echo 'a' > a
+  $ hg ci -Am 'A'
+  adding a
+
+  $ hg branch '1'
+  marked working directory as branch 1
+  $ echo 'b' > b
+  $ hg ci -Am 'B'
+  adding b
+
+  $ hg branch '2'
+  marked working directory as branch 2
+  $ echo 'c' > c
+  $ hg ci -Am 'C'
+  adding c
+
+  $ hg up -q 0
+  $ echo 'd' > d
+  $ hg ci -Am 'D'
+  adding d
+
+  $ hg tglog
+  @  3: 'D'
+  |
+  | o  2: 'C' 2
+  | |
+  | o  1: 'B' 1
+  |/
+  o  0: 'A'
+  
+  $ hg rebase --keepbranches --collapse -s 1 -d 3
+  abort: cannot collapse multiple named branches
+  [255]
 

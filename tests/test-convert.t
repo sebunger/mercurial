@@ -132,7 +132,7 @@
                   Mercurial. Default is False.
       convert.hg.saverev
                   store original revision ID in changeset (forces target IDs to
-                  change). It takes and boolean argument and defaults to False.
+                  change). It takes a boolean argument and defaults to False.
       convert.hg.startrev
                   convert start revision and its descendants. It takes a hg
                   revision identifier and defaults to 0.
@@ -249,18 +249,18 @@
   
   options:
   
-   -s --source-type TYPE  source repository type
-   -d --dest-type TYPE    destination repository type
-   -r --rev REV           import up to target revision REV
-   -A --authormap FILE    remap usernames using this file
-      --filemap FILE      remap file names using contents of file
-      --splicemap FILE    splice synthesized history into place
-      --branchmap FILE    change branch names while converting
-      --branchsort        try to sort changesets by branches
-      --datesort          try to sort changesets by date
-      --sourcesort        preserve source changesets order
+   -s --source-type TYPE source repository type
+   -d --dest-type TYPE   destination repository type
+   -r --rev REV          import up to target revision REV
+   -A --authormap FILE   remap usernames using this file
+      --filemap FILE     remap file names using contents of file
+      --splicemap FILE   splice synthesized history into place
+      --branchmap FILE   change branch names while converting
+      --branchsort       try to sort changesets by branches
+      --datesort         try to sort changesets by date
+      --sourcesort       preserve source changesets order
   
-  use "hg -v help convert" to show global options
+  use "hg -v help convert" to show more info
   $ hg init a
   $ cd a
   $ echo a > a

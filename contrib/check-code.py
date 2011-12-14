@@ -13,7 +13,7 @@ import optparse
 
 def repquote(m):
     t = re.sub(r"\w", "x", m.group('text'))
-    t = re.sub(r"[^\sx]", "o", t)
+    t = re.sub(r"[^\s\nx]", "o", t)
     return m.group('quote') + t + m.group('quote')
 
 def reppython(m):
@@ -42,15 +42,17 @@ def rephere(m):
 
 
 testpats = [
+  [
     (r'(pushd|popd)', "don't use 'pushd' or 'popd', use 'cd'"),
-    (r'\W\$?\(\([^\)]*\)\)', "don't use (()) or $(()), use 'expr'"),
+    (r'\W\$?\(\([^\)\n]*\)\)', "don't use (()) or $(()), use 'expr'"),
     (r'^function', "don't use 'function', use old style"),
     (r'grep.*-q', "don't use 'grep -q', redirect to /dev/null"),
     (r'echo.*\\n', "don't use 'echo \\n', use printf"),
     (r'echo -n', "don't use 'echo -n', use printf"),
     (r'^diff.*-\w*N', "don't use 'diff -N'"),
-    (r'(^| )wc[^|]*$', "filter wc output"),
+    (r'(^| )wc[^|]*$\n(?!.*\(re\))', "filter wc output"),
     (r'head -c', "don't use 'head -c', use 'dd'"),
+    (r'sha1sum', "don't use sha1sum, use $TESTDIR/md5sum.py"),
     (r'ls.*-\w*R', "don't use 'ls -R', use 'find'"),
     (r'printf.*\\\d\d\d', "don't use 'printf \NNN', use Python"),
     (r'printf.*\\x', "don't use printf \\x, use Python"),
@@ -62,10 +64,16 @@ testpats = [
     (r'\$PWD', "don't use $PWD, use `pwd`"),
     (r'[^\n]\Z', "no trailing newline"),
     (r'export.*=', "don't export and assign at once"),
-    ('^([^"\']|("[^"]*")|(\'[^\']*\'))*\\^', "^ must be quoted"),
+    (r'^([^"\'\n]|("[^"\n]*")|(\'[^\'\n]*\'))*\\^', "^ must be quoted"),
     (r'^source\b', "don't use 'source', use '.'"),
     (r'touch -d', "don't use 'touch -d', use 'touch -t' instead"),
-    (r'ls\s+[^|-]+\s+-', "options to 'ls' must come before filenames"),
+    (r'ls +[^|\n-]+ +-', "options to 'ls' must come before filenames"),
+    (r'[^>\n]>\s*\$HGRCPATH', "don't overwrite $HGRCPATH, append to it"),
+    (r'^stop\(\)', "don't use 'stop' as a shell function name"),
+    (r'(\[|\btest\b).*-e ', "don't use 'test -e', use 'test -f'"),
+  ],
+  # warnings
+  []
 ]
 
 testfilters = [
@@ -76,7 +84,8 @@ testfilters = [
 uprefix = r"^  \$ "
 uprefixc = r"^  > "
 utestpats = [
-    (r'^(\S|  $ ).*(\S\s+|^\s+)\n', "trailing whitespace on non-output"),
+  [
+    (r'^(\S|  $ ).*(\S[ \t]+|^[ \t]+)\n', "trailing whitespace on non-output"),
     (uprefix + r'.*\|\s*sed', "use regex test output patterns instead of sed"),
     (uprefix + r'(true|exit 0)', "explicit zero exit unnecessary"),
     (uprefix + r'.*\$\?', "explicit exit code checks unnecessary"),
@@ -84,20 +93,25 @@ utestpats = [
      "explicit exit code checks unnecessary"),
     (uprefix + r'set -e', "don't use set -e"),
     (uprefixc + r'( *)\t', "don't use tabs to indent"),
+  ],
+  # warnings
+  []
 ]
 
-for p, m in testpats:
-    if p.startswith('^'):
-        p = uprefix + p[1:]
-    else:
-        p = uprefix + p
-    utestpats.append((p, m))
+for i in [0, 1]:
+    for p, m in testpats[i]:
+        if p.startswith(r'^'):
+            p = uprefix + p[1:]
+        else:
+            p = uprefix + ".*" + p
+        utestpats[i].append((p, m))
 
 utestfilters = [
     (r"( *)(#([^\n]*\S)?)", repcomment),
 ]
 
 pypats = [
+  [
     (r'^\s*def\s*\w+\s*\(.*,\s*\(',
      "tuple parameter unpacking not available in Python 3+"),
     (r'lambda\s*\(.*,.*\)',
@@ -109,16 +123,20 @@ pypats = [
     (r'\S;\s*\n', "semicolon"),
     (r'\w,\w', "missing whitespace after ,"),
     (r'\w[+/*\-<>]\w', "missing whitespace in expression"),
-    (r'^\s+\w+=\w+[^,)]$', "missing whitespace in assignment"),
+    (r'^\s+\w+=\w+[^,)\n]$', "missing whitespace in assignment"),
+    (r'(\s+)try:\n((?:\n|\1\s.*\n)+?)\1except.*?:\n'
+     r'((?:\n|\1\s.*\n)+?)\1finally:', 'no try/except/finally in Py2.4'),
     (r'.{85}', "line too long"),
-    (r'.{81}', "warning: line over 80 characters"),
+    (r' x+[xo][\'"]\n\s+[\'"]x', 'string join across lines with no space'),
     (r'[^\n]\Z', "no trailing newline"),
-    (r'(\S\s+|^\s+)\n', "trailing whitespace"),
-#    (r'^\s+[^_ ][^_. ]+_[^_]+\s*=', "don't use underbars in identifiers"),
+    (r'(\S[ \t]+|^[ \t]+)\n', "trailing whitespace"),
+#    (r'^\s+[^_ \n][^_. \n]+_[^_\n]+\s*=', "don't use underbars in identifiers"),
 #    (r'\w*[a-z][A-Z]\w*\s*=', "don't use camelcase in identifiers"),
-    (r'^\s*(if|while|def|class|except|try)\s[^[]*:\s*[^\]#\s]+',
+    (r'^\s*(if|while|def|class|except|try)\s[^[\n]*:\s*[^\\n]#\s]+',
      "linebreak after :"),
-    (r'class\s[^(]:', "old-style class, use class foo(object)"),
+    (r'class\s[^( \n]+:', "old-style class, use class foo(object)"),
+    (r'class\s[^( \n]+\(\):',
+     "class foo() not available in Python 2.4, use class foo(object)"),
     (r'\b(%s)\(' % '|'.join(keyword.kwlist),
      "Python keyword is not a function"),
     (r',]', "unneeded trailing ',' in list"),
@@ -129,16 +147,17 @@ pypats = [
     (r'[\x80-\xff]', "non-ASCII character literal"),
     (r'("\')\.format\(', "str.format() not available in Python 2.4"),
     (r'^\s*with\s+', "with not available in Python 2.4"),
+    (r'\.isdisjoint\(', "set.isdisjoint not available in Python 2.4"),
     (r'^\s*except.* as .*:', "except as not available in Python 2.4"),
     (r'^\s*os\.path\.relpath', "relpath not available in Python 2.4"),
     (r'(?<!def)\s+(any|all|format)\(',
      "any/all/format not available in Python 2.4"),
     (r'(?<!def)\s+(callable)\(',
-     "callable not available in Python 3, use hasattr(f, '__call__')"),
+     "callable not available in Python 3, use getattr(f, '__call__', None)"),
     (r'if\s.*\selse', "if ... else form not available in Python 2.4"),
     (r'^\s*(%s)\s\s' % '|'.join(keyword.kwlist),
      "gratuitous whitespace after Python keyword"),
-    (r'([\(\[]\s\S)|(\S\s[\)\]])', "gratuitous whitespace in () or []"),
+    (r'([\(\[][ \t]\S)|(\S[ \t][\)\]])', "gratuitous whitespace in () or []"),
 #    (r'\s\s=', "gratuitous whitespace before ="),
     (r'[^>< ](\+=|-=|!=|<>|<=|>=|<<=|>>=)\S',
      "missing whitespace around operator"),
@@ -146,14 +165,40 @@ pypats = [
      "missing whitespace around operator"),
     (r'\s(\+=|-=|!=|<>|<=|>=|<<=|>>=)\S',
      "missing whitespace around operator"),
-    (r'[^+=*!<>&| -](\s=|=\s)[^= ]',
+    (r'[^+=*/!<>&| -](\s=|=\s)[^= ]',
      "wrong whitespace around ="),
     (r'raise Exception', "don't raise generic exceptions"),
-    (r'ui\.(status|progress|write|note|warn)\([\'\"]x',
-     "warning: unwrapped ui message"),
     (r' is\s+(not\s+)?["\'0-9-]', "object comparison with literal"),
     (r' [=!]=\s+(True|False|None)',
      "comparison with singleton, use 'is' or 'is not' instead"),
+    (r'^\s*(while|if) [01]:',
+     "use True/False for constant Boolean expression"),
+    (r'(?<!def)\s+hasattr',
+     'hasattr(foo, bar) is broken, use util.safehasattr(foo, bar) instead'),
+    (r'opener\([^)]*\).read\(',
+     "use opener.read() instead"),
+    (r'BaseException', 'not in Py2.4, use Exception'),
+    (r'os\.path\.relpath', 'os.path.relpath is not in Py2.5'),
+    (r'opener\([^)]*\).write\(',
+     "use opener.write() instead"),
+    (r'[\s\(](open|file)\([^)]*\)\.read\(',
+     "use util.readfile() instead"),
+    (r'[\s\(](open|file)\([^)]*\)\.write\(',
+     "use util.readfile() instead"),
+    (r'^[\s\(]*(open(er)?|file)\([^)]*\)',
+     "always assign an opened file to a variable, and close it afterwards"),
+    (r'[\s\(](open|file)\([^)]*\)\.',
+     "always assign an opened file to a variable, and close it afterwards"),
+    (r'(?i)descendent', "the proper spelling is descendAnt"),
+    (r'\.debug\(\_', "don't mark debug messages for translation"),
+  ],
+  # warnings
+  [
+    (r'.{81}', "warning: line over 80 characters"),
+    (r'^\s*except:$', "warning: naked except clause"),
+    (r'ui\.(status|progress|write|note|warn)\([\'\"]x',
+     "warning: unwrapped ui message"),
+  ]
 ]
 
 pyfilters = [
@@ -164,10 +209,11 @@ pyfilters = [
 ]
 
 cpats = [
+  [
     (r'//', "don't use //-style comments"),
     (r'^  ', "don't use spaces to indent"),
     (r'\S\t', "don't use tabs except for indent"),
-    (r'(\S\s+|^\s+)\n', "trailing whitespace"),
+    (r'(\S[ \t]+|^[ \t]+)\n', "trailing whitespace"),
     (r'.{85}', "line too long"),
     (r'(while|if|do|for)\(', "use space after while/if/do/for"),
     (r'return\(', "return is not a function"),
@@ -176,9 +222,13 @@ cpats = [
     (r'\([^\)]+\) \w+', "use (int)foo, not (int) foo"),
     (r'\S+ (\+\+|--)', "use foo++, not foo ++"),
     (r'\w,\w', "missing whitespace after ,"),
-    (r'\w[+/*]\w', "missing whitespace in expression"),
+    (r'^[^#]\w[+/*]\w', "missing whitespace in expression"),
     (r'^#\s+\w', "use #foo, not # foo"),
     (r'[^\n]\Z', "no trailing newline"),
+    (r'^\s*#import\b', "use only #include in standard C code"),
+  ],
+  # warnings
+  []
 ]
 
 cfilters = [
@@ -188,11 +238,31 @@ cfilters = [
     (r'(\()([^)]+\))', repcallspaces),
 ]
 
+inutilpats = [
+  [
+    (r'\bui\.', "don't use ui in util"),
+  ],
+  # warnings
+  []
+]
+
+inrevlogpats = [
+  [
+    (r'\brepo\.', "don't use repo in revlog"),
+  ],
+  # warnings
+  []
+]
+
 checks = [
     ('python', r'.*\.(py|cgi)$', pyfilters, pypats),
     ('test script', r'(.*/)?test-[^.~]*$', testfilters, testpats),
     ('c', r'.*\.c$', cfilters, cpats),
     ('unified test', r'.*\.t$', utestfilters, utestpats),
+    ('layering violation repo in revlog', r'mercurial/revlog\.py', pyfilters,
+     inrevlogpats),
+    ('layering violation ui in util', r'mercurial/util\.py', pyfilters,
+     inutilpats),
 ]
 
 class norepeatlogger(object):
@@ -231,7 +301,7 @@ def getblame(f):
     return lines
 
 def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
-              blame=False):
+              blame=False, debug=False):
     """checks style and portability of a given file
 
     :f: filepath
@@ -245,41 +315,86 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
     blamecache = None
     result = True
     for name, match, filters, pats in checks:
+        if debug:
+            print name, f
         fc = 0
         if not re.match(match, f):
+            if debug:
+                print "Skipping %s for %s it doesn't match %s" % (
+                       name, match, f)
             continue
         fp = open(f)
         pre = post = fp.read()
         fp.close()
         if "no-" + "check-code" in pre:
+            if debug:
+                print "Skipping %s for %s it has no- and check-code" % (
+                       name, f)
             break
         for p, r in filters:
             post = re.sub(p, r, post)
+        if warnings:
+            pats = pats[0] + pats[1]
+        else:
+            pats = pats[0]
         # print post # uncomment to show filtered version
-        z = enumerate(zip(pre.splitlines(), post.splitlines(True)))
-        for n, l in z:
-            if "check-code" + "-ignore" in l[0]:
-                continue
-            for p, msg in pats:
-                if not warnings and msg.startswith("warning"):
+
+        if debug:
+            print "Checking %s for %s" % (name, f)
+
+        prelines = None
+        errors = []
+        for p, msg in pats:
+            # fix-up regexes for multiline searches
+            po = p
+            # \s doesn't match \n
+            p = re.sub(r'(?<!\\)\\s', r'[ \\t]', p)
+            # [^...] doesn't match newline
+            p = re.sub(r'(?<!\\)\[\^', r'[^\\n', p)
+
+            #print po, '=>', p
+
+            pos = 0
+            n = 0
+            for m in re.finditer(p, post, re.MULTILINE):
+                if prelines is None:
+                    prelines = pre.splitlines()
+                    postlines = post.splitlines(True)
+
+                start = m.start()
+                while n < len(postlines):
+                    step = len(postlines[n])
+                    if pos + step > start:
+                        break
+                    pos += step
+                    n += 1
+                l = prelines[n]
+
+                if "check-code" + "-ignore" in l:
+                    if debug:
+                        print "Skipping %s for %s:%s (check-code -ignore)" % (
+                            name, f, n)
                     continue
-                if re.search(p, l[1]):
-                    bd = ""
-                    if blame:
-                        bd = 'working directory'
-                        if not blamecache:
-                            blamecache = getblame(f)
-                        if n < len(blamecache):
-                            bl, bu, br = blamecache[n]
-                            if bl == l[0]:
-                                bd = '%s@%s' % (bu, br)
-                    logfunc(f, n + 1, l[0], msg, bd)
-                    fc += 1
-                    result = False
+                bd = ""
+                if blame:
+                    bd = 'working directory'
+                    if not blamecache:
+                        blamecache = getblame(f)
+                    if n < len(blamecache):
+                        bl, bu, br = blamecache[n]
+                        if bl == l:
+                            bd = '%s@%s' % (bu, br)
+                errors.append((f, n + 1, l, msg, bd))
+                result = False
+
+        errors.sort()
+        for e in errors:
+            logfunc(*e)
+            fc += 1
             if maxerr is not None and fc >= maxerr:
                 print " (too many errors, giving up)"
                 break
-        break
+
     return result
 
 if __name__ == "__main__":
@@ -290,8 +405,10 @@ if __name__ == "__main__":
                       help="max warnings per file")
     parser.add_option("-b", "--blame", action="store_true",
                       help="use annotate to generate blame info")
+    parser.add_option("", "--debug", action="store_true",
+                      help="show debug information")
 
-    parser.set_defaults(per_file=15, warnings=False, blame=False)
+    parser.set_defaults(per_file=15, warnings=False, blame=False, debug=False)
     (options, args) = parser.parse_args()
 
     if len(args) == 0:
@@ -302,6 +419,6 @@ if __name__ == "__main__":
     for f in check:
         ret = 0
         if not checkfile(f, maxerr=options.per_file, warnings=options.warnings,
-                         blame=options.blame):
+                         blame=options.blame, debug=options.debug):
             ret = 1
     sys.exit(ret)

@@ -5,7 +5,7 @@
   > {
   >     tr '\\' /
   > }
-  $ cat > $HGRCPATH <<EOF
+  $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > convert = 
   > graphlog =
@@ -167,6 +167,7 @@ Test convert progress bar'
   > [progress]
   > assume-tty = 1
   > delay = 0
+  > changedelay = 0
   > format = topic bar number
   > refresh = 0
   > width = 60

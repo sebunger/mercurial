@@ -4,8 +4,8 @@
 # 'python setup.py install', or
 # 'python setup.py --help' for more options
 
-import sys
-if not hasattr(sys, 'version_info') or sys.version_info < (2, 4, 0, 'final'):
+import sys, platform
+if getattr(sys, 'version_info', (0, 0, 0)) < (2, 4, 0, 'final'):
     raise SystemExit("Mercurial requires Python 2.4 or later.")
 
 if sys.version_info[0] >= 3:
@@ -36,17 +36,27 @@ except:
     raise SystemExit(
         "Couldn't import standard zlib (incomplete Python install).")
 
+# The base IronPython distribution (as of 2.7.1) doesn't support bz2
+isironpython = False
 try:
-    import bz2
+    isironpython = platform.python_implementation().lower().find("ironpython") != -1
 except:
-    raise SystemExit(
-        "Couldn't import standard bz2 (incomplete Python install).")
+    pass
+
+if isironpython:
+    print "warning: IronPython detected (no bz2 support)"
+else:
+    try:
+        import bz2
+    except:
+        raise SystemExit(
+            "Couldn't import standard bz2 (incomplete Python install).")
 
 import os, subprocess, time
 import shutil
 import tempfile
 from distutils import log
-from distutils.core import setup, Extension
+from distutils.core import setup, Command, Extension
 from distutils.dist import Distribution
 from distutils.command.build import build
 from distutils.command.build_ext import build_ext
@@ -54,7 +64,7 @@ from distutils.command.build_py import build_py
 from distutils.command.install_scripts import install_scripts
 from distutils.spawn import spawn, find_executable
 from distutils.ccompiler import new_compiler
-from distutils.errors import CCompilerError
+from distutils.errors import CCompilerError, DistutilsExecError
 from distutils.sysconfig import get_python_inc
 from distutils.version import StrictVersion
 
@@ -98,24 +108,8 @@ def hasfunction(cc, funcname):
 try:
     import py2exe
     py2exeloaded = True
-
-    # Help py2exe to find win32com.shell
-    try:
-        import modulefinder
-        import win32com
-        for p in win32com.__path__[1:]: # Take the path to win32comext
-            modulefinder.AddPackagePath("win32com", p)
-        pn = "win32com.shell"
-        __import__(pn)
-        m = sys.modules[pn]
-        for p in m.__path__[1:]:
-            modulefinder.AddPackagePath(pn, p)
-    except ImportError:
-        pass
-
 except ImportError:
     py2exeloaded = False
-    pass
 
 def runcmd(cmd, env):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
@@ -139,21 +133,22 @@ def runhg(cmd, env):
 
 version = ''
 
+# Execute hg out of this directory with a custom environment which
+# includes the pure Python modules in mercurial/pure. We also take
+# care to not use any hgrc files and do no localization.
+pypath = ['mercurial', os.path.join('mercurial', 'pure')]
+env = {'PYTHONPATH': os.pathsep.join(pypath),
+       'HGRCPATH': '',
+       'LANGUAGE': 'C'}
+if 'LD_LIBRARY_PATH' in os.environ:
+    env['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
+if 'SystemRoot' in os.environ:
+    # Copy SystemRoot into the custom environment for Python 2.6
+    # under Windows. Otherwise, the subprocess will fail with
+    # error 0xc0150004. See: http://bugs.python.org/issue3440
+    env['SystemRoot'] = os.environ['SystemRoot']
+
 if os.path.isdir('.hg'):
-    # Execute hg out of this directory with a custom environment which
-    # includes the pure Python modules in mercurial/pure. We also take
-    # care to not use any hgrc files and do no localization.
-    pypath = ['mercurial', os.path.join('mercurial', 'pure')]
-    env = {'PYTHONPATH': os.pathsep.join(pypath),
-           'HGRCPATH': '',
-           'LANGUAGE': 'C'}
-    if 'LD_LIBRARY_PATH' in os.environ:
-        env['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
-    if 'SystemRoot' in os.environ:
-        # Copy SystemRoot into the custom environment for Python 2.6
-        # under Windows. Otherwise, the subprocess will fail with
-        # error 0xc0150004. See: http://bugs.python.org/issue3440
-        env['SystemRoot'] = os.environ['SystemRoot']
     cmd = [sys.executable, 'hg', 'id', '-i', '-t']
     l = runhg(cmd, env).split()
     while len(l) > 1 and l[-1][0].isalpha(): # remove non-numbered tags
@@ -266,6 +261,34 @@ class hgbuildpy(build_py):
             else:
                 yield module
 
+class buildhgextindex(Command):
+    description = 'generate prebuilt index of hgext (for frozen package)'
+    user_options = []
+    _indexfilename = 'hgext/__index__.py'
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        if os.path.exists(self._indexfilename):
+            os.unlink(self._indexfilename)
+
+        # here no extension enabled, disabled() lists up everything
+        code = ('import pprint; from mercurial import extensions; '
+                'pprint.pprint(extensions.disabled())')
+        out, err = runcmd([sys.executable, '-c', code], env)
+        if err:
+            raise DistutilsExecError(err)
+
+        f = open(self._indexfilename, 'w')
+        f.write('# this file is autogenerated by setup.py\n')
+        f.write('docs = ')
+        f.write(out)
+        f.close()
+
 class hginstallscripts(install_scripts):
     '''
     This is a specialization of install_scripts that replaces the @LIBDIR@ with
@@ -315,10 +338,13 @@ class hginstallscripts(install_scripts):
 cmdclass = {'build_mo': hgbuildmo,
             'build_ext': hgbuildext,
             'build_py': hgbuildpy,
+            'build_hgextindex': buildhgextindex,
             'install_scripts': hginstallscripts}
 
-packages = ['mercurial', 'mercurial.hgweb', 'hgext', 'hgext.convert',
-            'hgext.highlight', 'hgext.zeroconf']
+packages = ['mercurial', 'mercurial.hgweb',
+            'mercurial.httpclient', 'mercurial.httpclient.tests',
+            'hgext', 'hgext.convert', 'hgext.highlight', 'hgext.zeroconf',
+            'hgext.largefiles']
 
 pymodules = []
 
@@ -330,13 +356,19 @@ extmodules = [
     Extension('mercurial.parsers', ['mercurial/parsers.c']),
     ]
 
+osutil_ldflags = []
+
+if sys.platform == 'darwin':
+    osutil_ldflags += ['-framework', 'ApplicationServices']
+
 # disable osutil.c under windows + python 2.4 (issue1364)
 if sys.platform == 'win32' and sys.version_info < (2, 5, 0, 'final'):
     pymodules.append('mercurial.pure.osutil')
 else:
-    extmodules.append(Extension('mercurial.osutil', ['mercurial/osutil.c']))
+    extmodules.append(Extension('mercurial.osutil', ['mercurial/osutil.c'],
+                                extra_link_args=osutil_ldflags))
 
-if sys.platform == 'linux2' and os.uname()[2] > '2.6':
+if sys.platform.startswith('linux') and os.uname()[2] > '2.6':
     # The inotify extension is only usable with Linux 2.6 kernels.
     # You also need a reasonably recent C library.
     # In any case, if it fails to build the error will be skipped ('optional').
@@ -372,6 +404,8 @@ if py2exeloaded:
         {'script':'hg',
          'copyright':'Copyright (C) 2005-2010 Matt Mackall and others',
          'product_version':version}]
+    # sub command of 'build' because 'py2exe' does not handle sub_commands
+    build.sub_commands.insert(0, ('build_hgextindex', None))
 
 if os.name == 'nt':
     # Windows binary file versions for exe/dll files must have the
@@ -385,7 +419,7 @@ if sys.platform == 'darwin' and os.path.exists('/usr/bin/xcodebuild'):
     # Also parse only first digit, because 3.2.1 can't be parsed nicely
     if (version.startswith('Xcode') and
         StrictVersion(version.split()[1]) >= StrictVersion('4.0')):
-        os.environ['ARCHFLAGS'] = '-arch i386 -arch x86_64'
+        os.environ['ARCHFLAGS'] = ''
 
 setup(name='mercurial',
       version=setupversion,

@@ -1,6 +1,5 @@
-  $ mkdir t
+  $ hg init t
   $ cd t
-  $ hg init
   $ echo import > port
   $ hg add port
   $ hg commit -m 0 -u spam -d '0 0'
@@ -107,12 +106,8 @@ match in last "line" without newline
   $ python -c 'fp = open("noeol", "wb"); fp.write("no infinite loop"); fp.close();'
   $ hg ci -Amnoeol
   adding noeol
-
-last character omitted in output to avoid infinite loop
-
   $ hg grep loop
-  noeol:4:no infinite loo
-
+  noeol:4:no infinite loop
 
   $ cd ..
 
@@ -166,3 +161,11 @@ of just using revision numbers.
   $ hg grep --all red
   color:3:-:red
   color:1:+:red
+
+  $ hg init a
+  $ cd a
+  $ cp $TESTDIR/binfile.bin .
+  $ hg add binfile.bin
+  $ hg ci -m 'add binfile.bin'
+  $ hg grep "MaCam" --all
+  binfile.bin:0:+: Binary file matches

@@ -11,8 +11,8 @@
 <div class="container">
 <div class="menu">
 <div class="logo">
-<a href="http://mercurial.selenic.com/">
-<img src="{staticurl}hglogo.png" alt="mercurial" /></a>
+<a href="{logourl}">
+<img src="{staticurl}{logoimg}" alt="mercurial" /></a>
 </div>
 <ul>
 <li><a href="{url}shortlog/{node|short}{sessionvars%urlparameter}">log</a></li>
@@ -55,7 +55,6 @@ files, or words in the commit message</div>
 <ul id="graphnodes"></ul>
 </div>
 
-<script type="text/javascript" src="{staticurl}graph.js"></script>
 <script type="text/javascript">
 <!-- hide script content
 
@@ -96,7 +95,7 @@ graph.vertex = function(x, y, color, parity, cur) \{
 	item = item.replace(/_DATE/, cur[5]);
 
 	var tagspan = '';
-	if (cur[7].length || (cur[6][0] != 'default' || cur[6][1])) \{
+	if (cur[7].length || cur[8].length || (cur[6][0] != 'default' || cur[6][1])) \{
 		tagspan = '<span class="logtags">';
 		if (cur[6][1]) \{
 			tagspan += '<span class="branchhead" title="' + cur[6][0] + '">';

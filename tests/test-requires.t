@@ -1,6 +1,5 @@
-  $ mkdir t
+  $ hg init t
   $ cd t
-  $ hg init
   $ echo a > a
   $ hg add a
   $ hg commit -m test
@@ -10,5 +9,9 @@
   [255]
   $ echo indoor-pool > .hg/requires
   $ hg tip
-  abort: requirement 'indoor-pool' not supported!
+  abort: unknown repository format: requires features 'indoor-pool' (upgrade Mercurial)!
+  [255]
+  $ echo outdoor-pool >> .hg/requires
+  $ hg tip
+  abort: unknown repository format: requires features 'indoor-pool', 'outdoor-pool' (upgrade Mercurial)!
   [255]

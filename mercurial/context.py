@@ -7,7 +7,8 @@
 
 from node import nullid, nullrev, short, hex
 from i18n import _
-import ancestor, bdiff, error, util, subrepo, patch, encoding
+import ancestor, bdiff, error, util, scmutil, subrepo, patch, encoding
+import match as matchmod
 import os, errno, stat
 
 propertycache = util.propertycache
@@ -116,6 +117,8 @@ class changectx(object):
         return self._repo.nodetags(self._node)
     def bookmarks(self):
         return self._repo.nodebookmarks(self._node)
+    def hidden(self):
+        return self._rev in self._repo.changelog.hiddenrevs
 
     def parents(self):
         """return contexts for each parent changeset"""
@@ -205,6 +208,12 @@ class changectx(object):
 
     def sub(self, path):
         return subrepo.subrepo(self, path)
+
+    def match(self, pats=[], include=None, exclude=None, default='glob'):
+        r = self._repo
+        return matchmod.match(r.root, r.getcwd(), pats,
+                              include, exclude, default,
+                              auditor=r.auditor, ctx=self)
 
     def diff(self, ctx2=None, match=None, **opts):
         """Returns a diff generator for the given contexts and matcher"""
@@ -401,6 +410,15 @@ class filectx(object):
 
         return [filectx(self._repo, p, fileid=n, filelog=l)
                 for p, n, l in pl if n != nullid]
+
+    def p1(self):
+        return self.parents()[0]
+
+    def p2(self):
+        p = self.parents()
+        if len(p) == 2:
+            return p[1]
+        return filectx(self._repo, self._path, fileid=-1, filelog=self._filelog)
 
     def children(self):
         # hard for renames
@@ -614,6 +632,42 @@ class workingctx(changectx):
     def __contains__(self, key):
         return self._repo.dirstate[key] not in "?r"
 
+    def _buildflagfunc(self):
+        # Create a fallback function for getting file flags when the
+        # filesystem doesn't support them
+
+        copiesget = self._repo.dirstate.copies().get
+
+        if len(self._parents) < 2:
+            # when we have one parent, it's easy: copy from parent
+            man = self._parents[0].manifest()
+            def func(f):
+                f = copiesget(f, f)
+                return man.flags(f)
+        else:
+            # merges are tricky: we try to reconstruct the unstored
+            # result from the merge (issue1802)
+            p1, p2 = self._parents
+            pa = p1.ancestor(p2)
+            m1, m2, ma = p1.manifest(), p2.manifest(), pa.manifest()
+
+            def func(f):
+                f = copiesget(f, f) # may be wrong for merges with copies
+                fl1, fl2, fla = m1.flags(f), m2.flags(f), ma.flags(f)
+                if fl1 == fl2:
+                    return fl1
+                if fl1 == fla:
+                    return fl2
+                if fl2 == fla:
+                    return fl1
+                return '' # punt for conflicts
+
+        return func
+
+    @propertycache
+    def _flagfunc(self):
+        return self._repo.dirstate.flagfunc(self._buildflagfunc)
+
     @propertycache
     def _manifest(self):
         """generate a manifest corresponding to the working directory"""
@@ -622,7 +676,6 @@ class workingctx(changectx):
             self.status(unknown=True)
 
         man = self._parents[0].manifest().copy()
-        copied = self._repo.dirstate.copies()
         if len(self._parents) > 1:
             man2 = self.p2().manifest()
             def getman(f):
@@ -631,10 +684,9 @@ class workingctx(changectx):
                 return man2
         else:
             getman = lambda f: man
-        def cf(f):
-            f = copied.get(f, f)
-            return getman(f).flags(f)
-        ff = self._repo.dirstate.flagfunc(cf)
+
+        copied = self._repo.dirstate.copies()
+        ff = self._flagfunc
         modified, added, removed, deleted = self._status
         unknown = self._unknown
         for i, l in (("a", added), ("m", modified), ("u", unknown)):
@@ -651,6 +703,12 @@ class workingctx(changectx):
                 del man[f]
 
         return man
+
+    def __iter__(self):
+        d = self._repo.dirstate
+        for f in d:
+            if d[f] != 'r':
+                yield f
 
     @propertycache
     def _status(self):
@@ -743,23 +801,10 @@ class workingctx(changectx):
             except KeyError:
                 return ''
 
-        orig = self._repo.dirstate.copies().get(path, path)
-
-        def findflag(ctx):
-            mnode = ctx.changeset()[0]
-            node, flag = self._repo.manifest.find(mnode, orig)
-            ff = self._repo.dirstate.flagfunc(lambda x: flag or '')
-            try:
-                return ff(path)
-            except OSError:
-                pass
-
-        flag = findflag(self._parents[0])
-        if flag is None and len(self.parents()) > 1:
-            flag = findflag(self._parents[1])
-        if flag is None or self._repo.dirstate[path] == 'r':
+        try:
+            return self._flagfunc(path)
+        except OSError:
             return ''
-        return flag
 
     def filectx(self, path, filelog=None):
         """get a file context from the working directory"""
@@ -792,10 +837,11 @@ class workingctx(changectx):
         try:
             rejected = []
             for f in list:
+                scmutil.checkportable(ui, join(f))
                 p = self._repo.wjoin(f)
                 try:
                     st = os.lstat(p)
-                except:
+                except OSError:
                     ui.warn(_("%s does not exist!\n") % join(f))
                     rejected.append(f)
                     continue
@@ -819,14 +865,16 @@ class workingctx(changectx):
         finally:
             wlock.release()
 
-    def forget(self, list):
+    def forget(self, files):
         wlock = self._repo.wlock()
         try:
-            for f in list:
+            for f in files:
                 if self._repo.dirstate[f] != 'a':
-                    self._repo.ui.warn(_("%s not added!\n") % f)
+                    self._repo.dirstate.remove(f)
+                elif f not in self._repo.dirstate:
+                    self._repo.ui.warn(_("%s not tracked!\n") % f)
                 else:
-                    self._repo.dirstate.forget(f)
+                    self._repo.dirstate.drop(f)
         finally:
             wlock.release()
 
@@ -834,28 +882,6 @@ class workingctx(changectx):
         for a in self._repo.changelog.ancestors(
             *[p.rev() for p in self._parents]):
             yield changectx(self._repo, a)
-
-    def remove(self, list, unlink=False):
-        if unlink:
-            for f in list:
-                try:
-                    util.unlinkpath(self._repo.wjoin(f))
-                except OSError, inst:
-                    if inst.errno != errno.ENOENT:
-                        raise
-        wlock = self._repo.wlock()
-        try:
-            for f in list:
-                if unlink and os.path.lexists(self._repo.wjoin(f)):
-                    self._repo.ui.warn(_("%s still exists!\n") % f)
-                elif self._repo.dirstate[f] == 'a':
-                    self._repo.dirstate.forget(f)
-                elif f not in self._repo.dirstate:
-                    self._repo.ui.warn(_("%s not tracked!\n") % f)
-                else:
-                    self._repo.dirstate.remove(f)
-        finally:
-            wlock.release()
 
     def undelete(self, list):
         pctxs = self.parents()
@@ -1012,9 +1038,7 @@ class memctx(object):
         self._filectxfn = filectxfn
 
         self._extra = extra and extra.copy() or {}
-        if 'branch' not in self._extra:
-            self._extra['branch'] = 'default'
-        elif self._extra.get('branch') == '':
+        if self._extra.get('branch', '') == '':
             self._extra['branch'] = 'default'
 
     def __str__(self):

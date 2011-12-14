@@ -5,7 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from mercurial.node import bin, nullid, nullrev
+from mercurial.node import bin, nullid
 from mercurial import util
 import struct, zlib
 
@@ -36,7 +36,7 @@ def parse_index2(data, inline):
     s = struct.calcsize(indexformatng)
     index = []
     cache = None
-    n = off = 0
+    off = 0
 
     l = len(data) - s
     append = index.append
@@ -45,7 +45,6 @@ def parse_index2(data, inline):
         while off <= l:
             e = _unpack(indexformatng, data[off:off + s])
             append(e)
-            n += 1
             if e[1] < 0:
                 break
             off += e[1] + s
@@ -53,8 +52,10 @@ def parse_index2(data, inline):
         while off <= l:
             e = _unpack(indexformatng, data[off:off + s])
             append(e)
-            n += 1
             off += s
+
+    if off != len(data):
+        raise ValueError('corrupt index file')
 
     if index:
         e = list(index[0])

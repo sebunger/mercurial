@@ -21,14 +21,14 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
 
     ui.note(_("calling hook %s: %s\n") % (hname, funcname))
     obj = funcname
-    if not hasattr(obj, '__call__'):
+    if not util.safehasattr(obj, '__call__'):
         d = funcname.rfind('.')
         if d == -1:
             raise util.Abort(_('%s hook is invalid ("%s" not in '
                                'a module)') % (hname, funcname))
         modname = funcname[:d]
         oldpaths = sys.path
-        if hasattr(sys, "frozen"):
+        if util.mainfrozen():
             # binary installs require sys.path manipulation
             modpath, modfile = os.path.split(modname)
             if modpath and modfile:
@@ -60,25 +60,34 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
             raise util.Abort(_('%s hook is invalid '
                                '("%s" is not defined)') %
                              (hname, funcname))
-        if not hasattr(obj, '__call__'):
+        if not util.safehasattr(obj, '__call__'):
             raise util.Abort(_('%s hook is invalid '
                                '("%s" is not callable)') %
                              (hname, funcname))
     try:
-        r = obj(ui=ui, repo=repo, hooktype=name, **args)
-    except KeyboardInterrupt:
-        raise
-    except Exception, exc:
-        if isinstance(exc, util.Abort):
-            ui.warn(_('error: %s hook failed: %s\n') %
-                         (hname, exc.args[0]))
-        else:
-            ui.warn(_('error: %s hook raised an exception: '
-                           '%s\n') % (hname, exc))
-        if throw:
+        try:
+            # redirect IO descriptors the the ui descriptors so hooks
+            # that write directly to these don't mess up the command
+            # protocol when running through the command server
+            old = sys.stdout, sys.stderr, sys.stdin
+            sys.stdout, sys.stderr, sys.stdin = ui.fout, ui.ferr, ui.fin
+
+            r = obj(ui=ui, repo=repo, hooktype=name, **args)
+        except KeyboardInterrupt:
             raise
-        ui.traceback()
-        return True
+        except Exception, exc:
+            if isinstance(exc, util.Abort):
+                ui.warn(_('error: %s hook failed: %s\n') %
+                             (hname, exc.args[0]))
+            else:
+                ui.warn(_('error: %s hook raised an exception: '
+                               '%s\n') % (hname, exc))
+            if throw:
+                raise
+            ui.traceback()
+            return True
+    finally:
+        sys.stdout, sys.stderr, sys.stdin = old
     if r:
         if throw:
             raise util.Abort(_('%s hook failed') % hname)
@@ -90,7 +99,7 @@ def _exthook(ui, repo, name, cmd, args, throw):
 
     env = {}
     for k, v in args.iteritems():
-        if hasattr(v, '__call__'):
+        if util.safehasattr(v, '__call__'):
             v = v()
         if isinstance(v, dict):
             # make the dictionary element order stable across Python
@@ -107,9 +116,9 @@ def _exthook(ui, repo, name, cmd, args, throw):
     if 'HG_URL' in env and env['HG_URL'].startswith('remote:http'):
         r = util.system(cmd, environ=env, cwd=cwd, out=ui)
     else:
-        r = util.system(cmd, environ=env, cwd=cwd)
+        r = util.system(cmd, environ=env, cwd=cwd, out=ui.fout)
     if r:
-        desc, r = util.explain_exit(r)
+        desc, r = util.explainexit(r)
         if throw:
             raise util.Abort(_('%s hook %s') % (name, desc))
         ui.warn(_('warning: %s hook %s\n') % (name, desc))
@@ -125,18 +134,23 @@ def hook(ui, repo, name, throw=False, **args):
 
     oldstdout = -1
     if _redirect:
-        stdoutno = sys.__stdout__.fileno()
-        stderrno = sys.__stderr__.fileno()
-        # temporarily redirect stdout to stderr, if possible
-        if stdoutno >= 0 and stderrno >= 0:
-            oldstdout = os.dup(stdoutno)
-            os.dup2(stderrno, stdoutno)
+        try:
+            stdoutno = sys.__stdout__.fileno()
+            stderrno = sys.__stderr__.fileno()
+            # temporarily redirect stdout to stderr, if possible
+            if stdoutno >= 0 and stderrno >= 0:
+                sys.__stdout__.flush()
+                oldstdout = os.dup(stdoutno)
+                os.dup2(stderrno, stdoutno)
+        except AttributeError:
+            # __stdout/err__ doesn't have fileno(), it's not a real file
+            pass
 
     try:
         for hname, cmd in ui.configitems('hooks'):
             if hname.split('.')[0] != name or not cmd:
                 continue
-            if hasattr(cmd, '__call__'):
+            if util.safehasattr(cmd, '__call__'):
                 r = _pythonhook(ui, repo, name, hname, cmd, args, throw) or r
             elif cmd.startswith('python:'):
                 if cmd.count(':') >= 2:

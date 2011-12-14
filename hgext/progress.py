@@ -27,6 +27,9 @@ The following settings are available::
 
   [progress]
   delay = 3 # number of seconds (float) before showing the progress bar
+  changedelay = 1 # changedelay: minimum delay before showing a new topic.
+                  # If set to less than 3 * refresh, that value will
+                  # be used instead.
   refresh = 0.1 # time in seconds between refreshes of the progress bar
   format = topic bar number estimate # format of the progress bar
   width = <none> # if set, the maximum width of the progress information
@@ -37,24 +40,23 @@ The following settings are available::
                      # disable is given
 
 Valid entries for the format field are topic, bar, number, unit,
-estimate, and item. item defaults to the last 20 characters of the
-item, but this can be changed by adding either ``-<num>`` which would
-take the last num characters, or ``+<num>`` for the first num
+estimate, speed, and item. item defaults to the last 20 characters of
+the item, but this can be changed by adding either ``-<num>`` which
+would take the last num characters, or ``+<num>`` for the first num
 characters.
 """
 
 import sys
 import time
 
-from mercurial.i18n import _
 from mercurial import util
+from mercurial.i18n import _
 
 def spacejoin(*args):
     return ' '.join(s for s in args if s)
 
 def shouldprint(ui):
-    return (getattr(sys.stderr, 'isatty', None) and
-            (sys.stderr.isatty() or ui.configbool('progress', 'assume-tty')))
+    return util.isatty(sys.stderr) or ui.configbool('progress', 'assume-tty')
 
 def fmtremaining(seconds):
     if seconds < 60:
@@ -106,9 +108,13 @@ class progbar(object):
         self.printed = False
         self.lastprint = time.time() + float(self.ui.config(
             'progress', 'delay', default=3))
+        self.lasttopic = None
         self.indetcount = 0
         self.refresh = float(self.ui.config(
             'progress', 'refresh', default=0.1))
+        self.changedelay = max(3 * self.refresh,
+                               float(self.ui.config(
+                                   'progress', 'changedelay', default=1)))
         self.order = self.ui.configlist(
             'progress', 'format',
             default=['topic', 'bar', 'number', 'estimate'])
@@ -152,6 +158,8 @@ class progbar(object):
                 add = unit
             elif indicator == 'estimate':
                 add = self.estimate(topic, pos, total, now)
+            elif indicator == 'speed':
+                add = self.speed(topic, pos, unit, now)
             if not needprogress:
                 head = spacejoin(head, add)
             else:
@@ -183,6 +191,7 @@ class progbar(object):
         else:
             out = spacejoin(head, tail)
         sys.stderr.write('\r' + out[:termwidth])
+        self.lasttopic = topic
         sys.stderr.flush()
 
     def clear(self):
@@ -217,6 +226,15 @@ class progbar(object):
                 return fmtremaining(seconds)
         return ''
 
+    def speed(self, topic, pos, unit, now):
+        initialpos = self.startvals[topic]
+        delta = pos - initialpos
+        elapsed = now - self.starttimes[topic]
+        if elapsed > float(
+            self.ui.config('progress', 'estimate', default=2)):
+            return _('%d %s/sec') % (delta / elapsed, unit)
+        return ''
+
     def progress(self, topic, pos, item='', unit='', total=None):
         now = time.time()
         if pos is None:
@@ -238,11 +256,18 @@ class progbar(object):
                 self.topics.append(topic)
             self.topicstates[topic] = pos, item, unit, total
             if now - self.lastprint >= self.refresh and self.topics:
-                self.lastprint = now
-                current = self.topics[-1]
-                self.show(now, topic, *self.topicstates[topic])
+                if (self.lasttopic is None # first time we printed
+                    # not a topic change
+                    or topic == self.lasttopic
+                    # it's been long enough we should print anyway
+                    or now - self.lastprint >= self.changedelay):
+                    self.lastprint = now
+                    self.show(now, topic, *self.topicstates[topic])
+
+_singleton = None
 
 def uisetup(ui):
+    global _singleton
     class progressui(ui.__class__):
         _progbar = None
 
@@ -269,7 +294,9 @@ def uisetup(ui):
         # we instantiate one globally shared progress bar to avoid
         # competing progress bars when multiple UI objects get created
         if not progressui._progbar:
-            progressui._progbar = progbar(ui)
+            if _singleton is None:
+                _singleton = progbar(ui)
+            progressui._progbar = _singleton
 
 def reposetup(ui, repo):
     uisetup(repo.ui)

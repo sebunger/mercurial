@@ -124,7 +124,7 @@ if sys.version_info < (2, 4):
     HANDLE_ERRORS = 1
 else: HANDLE_ERRORS = 0
 
-class ConnectionManager:
+class ConnectionManager(object):
     """
     The connection manager must be able to:
       * keep track of all existing
@@ -187,7 +187,7 @@ class ConnectionManager:
         else:
             return dict(self._hostmap)
 
-class KeepAliveHandler:
+class KeepAliveHandler(object):
     def __init__(self):
         self._cm = ConnectionManager()
 
@@ -507,7 +507,7 @@ class HTTPResponse(httplib.HTTPResponse):
     def readlines(self, sizehint = 0):
         total = 0
         list = []
-        while 1:
+        while True:
             line = self.readline()
             if not line:
                 break
@@ -547,13 +547,14 @@ def safesend(self, str):
         print "send:", repr(str)
     try:
         blocksize = 8192
-        if hasattr(str,'read') :
+        read = getattr(str, 'read', None)
+        if read is not None:
             if self.debuglevel > 0:
                 print "sendIng a read()able"
-            data = str.read(blocksize)
+            data = read(blocksize)
             while data:
                 self.sock.sendall(data)
-                data = str.read(blocksize)
+                data = read(blocksize)
         else:
             self.sock.sendall(str)
     except socket.error, v:
@@ -654,7 +655,7 @@ def continuity(url):
 
     fo = urllib2.urlopen(url)
     foo = ''
-    while 1:
+    while True:
         f = fo.readline()
         if f:
             foo = foo + f
@@ -705,7 +706,7 @@ def fetch(N, url, delay=0):
 def test_timeout(url):
     global DEBUG
     dbbackup = DEBUG
-    class FakeLogger:
+    class FakeLogger(object):
         def debug(self, msg, *args):
             print msg % args
         info = warning = error = debug

@@ -1,5 +1,5 @@
 
-  $ "$TESTDIR/hghave" svn svn-bindings no-outer-repo || exit 80
+  $ "$TESTDIR/hghave" svn13 no-outer-repo || exit 80
 
   $ fixpath()
   > {
@@ -22,7 +22,7 @@
   >     )
   > }
 
-  $ cat > $HGRCPATH <<EOF
+  $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > convert = 
   > graphlog =
@@ -219,8 +219,9 @@ Copy
   newlink
 
   $ hg --cwd a rm b
-  $ echo % remove
-  % remove
+
+Remove
+
   $ hg --cwd a ci -d '4 0' -m 'remove a file'
   $ hg --cwd a tip -q
   4:07b2e34a5b17
