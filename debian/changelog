@@ -1,8 +1,10 @@
 mercurial (2.0.1-1~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.
+  * Update breaks to cover the transition of the extensions to
+    dh_python2
 
- -- Javi Merino <cibervicho@gmail.com>  Sun, 11 Dec 2011 16:06:57 +0000
+ -- Javi Merino <cibervicho@gmail.com>  Wed, 14 Dec 2011 23:37:06 +0000
 
 mercurial (2.0.1-1) unstable; urgency=low
 
