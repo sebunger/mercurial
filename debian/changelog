@@ -1,5 +1,6 @@
-mercurial (2.0.1-2) UNRELEASED; urgency=low
+mercurial (2.0.1-2) unstable; urgency=low
 
+  * Team Upload  
   * Update Breaks for hgsubversion (see bug #646946), hg-git (see bug
     #645037), hgview (see bug #637400), and qct (see bug #637401).
 
