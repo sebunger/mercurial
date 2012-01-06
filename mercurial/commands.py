@@ -819,6 +819,11 @@ def bookmark(ui, repo, mark=None, rev=None, force=False, delete=False,
 def branch(ui, repo, label=None, **opts):
     """set or show the current branch name
 
+    .. note::
+       Branch names are permanent and global. Use :hg:`bookmark` to create a
+       light-weight bookmark instead. See :hg:`help glossary` for more
+       information about named branches and bookmarks.
+
     With no argument, show the current branch name. With one argument,
     set the working directory branch name (the branch will not exist
     in the repository until the next commit). Standard practice
@@ -835,11 +840,6 @@ def branch(ui, repo, label=None, **opts):
     Use the command :hg:`update` to switch to an existing branch. Use
     :hg:`commit --close-branch` to mark this branch as closed.
 
-    .. note::
-       Branch names are permanent. Use :hg:`bookmark` to create a
-       light-weight bookmark instead. See :hg:`help glossary` for more
-       information about named branches and bookmarks.
-
     Returns 0 on success.
     """
 
@@ -855,6 +855,8 @@ def branch(ui, repo, label=None, **opts):
                                  hint=_("use 'hg update' to switch to it"))
         repo.dirstate.setbranch(label)
         ui.status(_('marked working directory as branch %s\n') % label)
+        ui.status(_('(branches are permanent and global, '
+                    'did you want a bookmark?)\n'))
     else:
         ui.write("%s\n" % repo.dirstate.branch())
 
@@ -2474,9 +2476,9 @@ def graft(ui, repo, *revs, **opts):
     already been grafted, or that are merges will be skipped.
 
     If a graft merge results in conflicts, the graft process is
-    aborted so that the current merge can be manually resolved. Once
-    all conflicts are addressed, the graft process can be continued
-    with the -c/--continue option.
+    interrupted so that the current merge can be manually resolved.
+    Once all conflicts are addressed, the graft process can be
+    continued with the -c/--continue option.
 
     .. note::
       The -c/--continue option does not reapply earlier options.
@@ -4861,11 +4863,9 @@ def rollback(ui, repo, **opts):
     - push (with this repository as the destination)
     - unbundle
 
-    It's possible to lose data with rollback: commit, update back to
-    an older changeset, and then rollback. The update removes the
-    changes you committed from the working directory, and rollback
-    removes them from history. To avoid data loss, you must pass
-    --force in this case.
+    To avoid permanent data loss, rollback will refuse to rollback a
+    commit transaction if it isn't checked out. Use --force to
+    override this protection.
 
     This command is not intended for use on public repositories. Once
     changes are visible for pull by other users, rolling a transaction
@@ -5123,7 +5123,8 @@ def status(ui, repo, *pats, **opts):
 
       Examples:
 
-      - show changes in the working directory relative to a changeset:
+      - show changes in the working directory relative to a
+        changeset::
 
           hg status --rev 9353
 

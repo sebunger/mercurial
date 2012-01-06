@@ -1,3 +1,12 @@
+mercurial (2.0.2-1) unstable; urgency=low
+
+  * New upstream revision
+  * Fix "hg-ssh is installed system-wide but uses "/usr/bin/env python"
+    as the python interpreter" with a patch that fixes the interpreter
+    (Closes: #654925)
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 06 Jan 2012 22:09:32 +0000
+
 mercurial (2.0.1-2) unstable; urgency=low
 
   * Team Upload  

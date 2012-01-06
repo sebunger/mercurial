@@ -79,7 +79,7 @@ def link(src, dest):
     except OSError:
         # if hardlinks fail, fallback on atomic copy
         dst = util.atomictempfile(dest)
-        for chunk in util.filechunkiter(open(src)):
+        for chunk in util.filechunkiter(open(src, 'rb')):
             dst.write(chunk)
         dst.close()
         os.chmod(dest, os.stat(src).st_mode)
@@ -91,22 +91,28 @@ def usercachepath(ui, hash):
     else:
         if os.name == 'nt':
             appdata = os.getenv('LOCALAPPDATA', os.getenv('APPDATA'))
-            path = os.path.join(appdata, longname, hash)
+            if appdata:
+                path = os.path.join(appdata, longname, hash)
         elif platform.system() == 'Darwin':
-            path = os.path.join(os.getenv('HOME'), 'Library', 'Caches',
-                                longname, hash)
+            home = os.getenv('HOME')
+            if home:
+                path = os.path.join(home, 'Library', 'Caches',
+                                    longname, hash)
         elif os.name == 'posix':
             path = os.getenv('XDG_CACHE_HOME')
             if path:
                 path = os.path.join(path, longname, hash)
             else:
-                path = os.path.join(os.getenv('HOME'), '.cache', longname, hash)
+                home = os.getenv('HOME')
+                if home:
+                    path = os.path.join(home, '.cache', longname, hash)
         else:
             raise util.Abort(_('unknown operating system: %s\n') % os.name)
     return path
 
 def inusercache(ui, hash):
-    return os.path.exists(usercachepath(ui, hash))
+    path = usercachepath(ui, hash)
+    return path and os.path.exists(path)
 
 def findfile(repo, hash):
     if instore(repo, hash):
@@ -232,15 +238,17 @@ def copytostoreabsolute(repo, file, hash):
         link(usercachepath(repo.ui, hash), storepath(repo, hash))
     else:
         dst = util.atomictempfile(storepath(repo, hash))
-        for chunk in util.filechunkiter(open(file)):
+        for chunk in util.filechunkiter(open(file, 'rb')):
             dst.write(chunk)
         dst.close()
         util.copymode(file, storepath(repo, hash))
         linktousercache(repo, hash)
 
 def linktousercache(repo, hash):
-    util.makedirs(os.path.dirname(usercachepath(repo.ui, hash)))
-    link(storepath(repo, hash), usercachepath(repo.ui, hash))
+    path = usercachepath(repo.ui, hash)
+    if path:
+        util.makedirs(os.path.dirname(path))
+        link(storepath(repo, hash), path)
 
 def getstandinmatcher(repo, pats=[], opts={}):
     '''Return a match object that applies pats to the standin directory'''

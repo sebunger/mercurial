@@ -156,7 +156,11 @@ def reposetup(ui, repo):
                                 ignored, clean) = s
                         if parentworking:
                             for lfile in unsure:
-                                if ctx1[lfutil.standin(lfile)].data().strip() \
+                                standin = lfutil.standin(lfile)
+                                if standin not in ctx1:
+                                    # from second parent
+                                    modified.append(lfile)
+                                elif ctx1[standin].data().strip() \
                                         != lfutil.hashfile(self.wjoin(lfile)):
                                     modified.append(lfile)
                                 else:
@@ -188,9 +192,18 @@ def reposetup(ui, repo):
                             continue
                         if lfile not in lfdirstate:
                             removed.append(lfile)
-                    # Handle unknown and ignored differently
-                    lfiles = (modified, added, removed, missing, [], [], clean)
+
+                    # Filter result lists
                     result = list(result)
+
+                    # Largefiles are not really removed when they're
+                    # still in the normal dirstate. Likewise, normal
+                    # files are not really removed if it's still in
+                    # lfdirstate. This happens in merges where files
+                    # change type.
+                    removed = [f for f in removed if f not in repo.dirstate]
+                    result[2] = [f for f in result[2] if f not in lfdirstate]
+
                     # Unknown files
                     result[4] = [f for f in unknown
                                  if (repo.dirstate[f] == '?' and
@@ -202,6 +215,7 @@ def reposetup(ui, repo):
                     normals = [[fn for fn in filelist
                                 if not lfutil.isstandin(fn)]
                                for filelist in result]
+                    lfiles = (modified, added, removed, missing, [], [], clean)
                     result = [sorted(list1 + list2)
                               for (list1, list2) in zip(normals, lfiles)]
                 else:
