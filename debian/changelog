@@ -1,3 +1,9 @@
+mercurial (2.1-1) unstable; urgency=low
+
+  * New upstream revision
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 03 Feb 2012 18:38:19 +0100
+
 mercurial (2.0.2-1) unstable; urgency=low
 
   * New upstream revision

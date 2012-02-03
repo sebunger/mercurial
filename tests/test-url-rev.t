@@ -42,7 +42,7 @@ Test basic functionality of url#rev syntax
   
   $ cat clone/.hg/hgrc
   [paths]
-  default = $TESTTMP/repo#foo
+  default = $TESTTMP/repo#foo (glob)
 
 Changing original repo:
 
@@ -141,6 +141,7 @@ Going back to the default branch:
 No new revs, no update:
 
   $ hg pull -qu
+  [1]
 
   $ hg parents -q
   0:1f0dee641bb7

@@ -335,6 +335,25 @@ Some global configuration options such as \fB\-R\fP are
 processed before shell aliases and will thus not be passed to
 aliases.
 .RE
+.SS \fBannotate\fP
+.sp
+Settings used when displaying file annotations. All values are
+Booleans and default to False. See \fBdiff\fP section for related
+options for the diff command.
+.INDENT 0.0
+.TP
+.B \fBignorews\fP
+.sp
+Ignore white space when comparing lines.
+.TP
+.B \fBignorewsamount\fP
+.sp
+Ignore changes in the amount of white space.
+.TP
+.B \fBignoreblanklines\fP
+.sp
+Ignore changes whose lines are all blank.
+.UNINDENT
 .SS \fBauth\fP
 .sp
 Authentication credentials for HTTP authentication. This section
@@ -488,8 +507,9 @@ defining command defaults. The command defaults will also be applied
 to the aliases of the commands defined.
 .SS \fBdiff\fP
 .sp
-Settings used when displaying diffs. Everything except for \fBunified\fP is a
-Boolean and defaults to False.
+Settings used when displaying diffs. Everything except for \fBunified\fP
+is a Boolean and defaults to False. See \fBannotate\fP section for
+related options for the annotate command.
 .INDENT 0.0
 .TP
 .B \fBgit\fP
@@ -819,7 +839,10 @@ Commands or Python functions that get automatically executed by
 various actions such as starting or finishing a commit. Multiple
 hooks can be run for the same action by appending a suffix to the
 action. Overriding a site\-wide hook can be done by changing its
-value or setting it to an empty string.
+value or setting it to an empty string.  Hooks can be prioritized
+by adding a prefix of \fBpriority\fP to the hook name on a new line
+and setting the priority.  The default priority is 0 if
+not specified.
 .sp
 Example \fB.hg/hgrc\fP:
 .sp
@@ -832,6 +855,8 @@ changegroup.update = hg update
 incoming =
 incoming.email = /my/email/hook
 incoming.autobuild = /my/build/hook
+# force autobuild hook to run before other incoming hooks
+priority.incoming.autobuild = 1
 .ft P
 .fi
 .sp
@@ -1116,6 +1141,24 @@ cloned.
 .sp
 Optional. Directory or URL to use when pushing if no destination
 is specified.
+.UNINDENT
+.SS \fBphases\fP
+.sp
+Specifies default handling of phases. See \%\fBhg help phases\fP\: for more
+information about working with phases.
+.INDENT 0.0
+.TP
+.B \fBpublish\fP
+.sp
+Controls draft phase behavior when working as a server. When true,
+pushed changesets are set to public in both client and server and
+pulled or cloned changesets are set to public in the client.
+Default: True
+.TP
+.B \fBnew\-commit\fP
+.sp
+Phase of newly\-created commits.
+Default: draft
 .UNINDENT
 .SS \fBprofiling\fP
 .sp

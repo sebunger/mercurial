@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" no-msys || exit 80 # MSYS will translate /a/b/c/ as if it was a real file path
+
   $ HGENCODING=utf-8
   $ export HGENCODING
 
@@ -473,3 +475,79 @@ issue2549 - correct optimizations
   $ log 'max(1 or 2) and not 2'
   $ log 'min(1 or 2) and not 1'
   $ log 'last(1 or 2, 1) and not 2'
+
+tests for 'remote()' predicate:
+#.  (csets in remote) (id)            (remote)
+1.  less than local   current branch  "default"
+2.  same with local   specified       "default"
+3.  more than local   specified       specified
+
+  $ hg clone --quiet -U . ../remote3
+  $ cd ../remote3
+  $ hg update -q 7
+  $ echo r > r
+  $ hg ci -Aqm 10
+  $ log 'remote()'
+  7
+  $ log 'remote("a-b-c-")'
+  2
+  $ cd ../repo
+  $ log 'remote(".a.b.c.", "../remote3")'
+
+  $ cd ..
+
+test author/desc/keyword in problematic encoding
+# unicode: cp932:
+# u30A2    0x83 0x41(= 'A')
+# u30C2    0x83 0x61(= 'a')
+
+  $ hg init problematicencoding
+  $ cd problematicencoding
+
+  $ python > setup.sh <<EOF
+  > print u'''
+  > echo a > text
+  > hg add text
+  > hg --encoding utf-8 commit -u '\u30A2' -m none
+  > echo b > text
+  > hg --encoding utf-8 commit -u '\u30C2' -m none
+  > echo c > text
+  > hg --encoding utf-8 commit -u none -m '\u30A2'
+  > echo d > text
+  > hg --encoding utf-8 commit -u none -m '\u30C2'
+  > '''.encode('utf-8')
+  > EOF
+  $ sh < setup.sh
+
+test in problematic encoding
+  $ python > test.sh <<EOF
+  > print u'''
+  > hg --encoding cp932 log --template '{rev}\\n' -r 'author(\u30A2)'
+  > echo ====
+  > hg --encoding cp932 log --template '{rev}\\n' -r 'author(\u30C2)'
+  > echo ====
+  > hg --encoding cp932 log --template '{rev}\\n' -r 'desc(\u30A2)'
+  > echo ====
+  > hg --encoding cp932 log --template '{rev}\\n' -r 'desc(\u30C2)'
+  > echo ====
+  > hg --encoding cp932 log --template '{rev}\\n' -r 'keyword(\u30A2)'
+  > echo ====
+  > hg --encoding cp932 log --template '{rev}\\n' -r 'keyword(\u30C2)'
+  > '''.encode('cp932')
+  > EOF
+  $ sh < test.sh
+  0
+  ====
+  1
+  ====
+  2
+  ====
+  3
+  ====
+  0
+  2
+  ====
+  1
+  3
+
+  $ cd ..

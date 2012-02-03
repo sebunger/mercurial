@@ -10,7 +10,7 @@ Bug-Mercurial: http://mercurial.selenic.com/bts/issue2877
 
 --- a/setup.py
 +++ b/setup.py
-@@ -349,12 +349,16 @@
+@@ -386,12 +386,16 @@
  
  extmodules = [
      Extension('mercurial.base85', ['mercurial/base85.c']),

@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" system-sh || exit 80
+
 Verify that pending changesets are seen by pretxn* hooks but not by other
 processes that access the destination repo while the hooks are running.
 
@@ -100,6 +102,7 @@ test python hook
   rollback completed
   abort: pretxnchangegroup hook failed
   pull 0000000000000000000000000000000000000000
+  [1]
 
 test external hook
 
@@ -115,3 +118,4 @@ test external hook
   rollback completed
   abort: pretxnchangegroup hook exited with status 1
   pull 0000000000000000000000000000000000000000
+  [1]
