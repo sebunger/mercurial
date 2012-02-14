@@ -37,6 +37,7 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
+Recommends: openssh-client
 Suggests: qct, 
  wish, 
  vim | emacs,
