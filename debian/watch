@@ -1,5 +1,5 @@
-# Compulsory line, this is a version 2 file
-version=2
+# format version number, currently 3; this line is compulsory!
+version=3
 
 # Uncomment to examine a Webpage 
 # <Webpage URL> <string match>

@@ -1,8 +1,9 @@
 mercurial (2.1-2) UNRELEASED; urgency=low
 
   * Recommend ssh
+  * Bump watch version to 3 since we are using version mangling
 
- -- Javi Merino <cibervicho@gmail.com>  Tue, 14 Feb 2012 21:17:39 +0000
+ -- Javi Merino <cibervicho@gmail.com>  Tue, 14 Feb 2012 21:42:32 +0000
 
 mercurial (2.1-1) unstable; urgency=low
 
