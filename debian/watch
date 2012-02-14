@@ -7,4 +7,4 @@ version=2
 
 # Uncomment to examine a Webserver directory
 opts="uversionmangle=s/-rc/~rc/" \
-  http://www.selenic.com/mercurial/release/mercurial-([^s].*)\.tar\.gz
+  http://www.selenic.com/mercurial/release/mercurial-(.*)\.tar\.gz
