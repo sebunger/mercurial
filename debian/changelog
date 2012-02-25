@@ -1,3 +1,12 @@
+mercurial (2.1-2) experimental; urgency=low
+
+  * Recommend ssh
+  * Bump watch version to 3 since we are using version mangling
+  * Run tests in the buildds
+  * Added my new DD account
+
+ -- Javi Merino <vicho@debian.org>  Sat, 25 Feb 2012 18:12:14 +0000
+
 mercurial (2.1-1) unstable; urgency=low
 
   * New upstream revision

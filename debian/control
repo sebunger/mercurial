@@ -4,8 +4,7 @@ Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Vernon Tang <vt@foilhead.net>,
- Javi Merino <cibervicho@gmail.com>
-DM-Upload-Allowed: yes
+ Javi Merino <vicho@debian.org>
 Build-Depends: debhelper (>= 8.0.0),
  patchutils (>= 0.2.25), gettext,
  python-all-dev (>= 2.6.6-3~), python-docutils,
@@ -37,6 +36,7 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
+Recommends: openssh-client
 Suggests: qct, 
  wish, 
  vim | emacs,
