@@ -11,7 +11,7 @@ override_dh_auto_build: $(PYVERS:%=build-python%)
 	# Do not start a line with a word with a dot in a manpage
 	sed -i -e 's,^[.]\(hgignore\|hg/hgrc\),\\fP\1,' doc/hg.1
 
-PARALLEL_TEST_JOBS=$(shell printenv DEB_BUILD_OPTIONS | awk -F= 'BEGIN {RS=" "} /parallel/ {print "--jobs " $$2}')
+PARALLEL_TEST_JOBS := $(shell printenv DEB_BUILD_OPTIONS | awk -F= 'BEGIN {RS=" "} /parallel/ {print "--jobs " $$2}')
 
 override_dh_auto_test:
 	dh_auto_test -- TESTFLAGS="--timeout 360 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
