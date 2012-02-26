@@ -14,7 +14,7 @@ override_dh_auto_build: $(PYVERS:%=build-python%)
 PARALLEL_TEST_JOBS := $(shell printenv DEB_BUILD_OPTIONS | awk -F= 'BEGIN {RS=" "} /parallel/ {print "--jobs " $$2}')
 
 override_dh_auto_test:
-	dh_auto_test -- TESTFLAGS="--timeout 360 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+	dh_auto_test -- TESTFLAGS="--timeout 480 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
 
 build-python%: mercurial/__version__.py
 	python$* setup.py build
