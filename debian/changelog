@@ -4,8 +4,9 @@ mercurial (2.1-3) UNRELEASED; urgency=low
   * Bump standards-version to 3.9.3 (no change needed)
   * Suggest tkcvs instead of tkdiff.  tkdiff has been removed from
     wheezy as tkcvs provides tkdiff (see bug #483362).
+  * Suggest more visual diff commands
 
- -- Javi Merino <vicho@debian.org>  Sun, 26 Feb 2012 15:44:04 +0000
+ -- Javi Merino <vicho@debian.org>  Sun, 26 Feb 2012 15:56:11 +0000
 
 mercurial (2.1-2) experimental; urgency=low
 
