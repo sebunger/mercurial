@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 8.0.0),
  patchutils (>= 0.2.25), gettext,
  python-all-dev (>= 2.6.6-3~), python-docutils,
  zip, unzip
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 Homepage: http://mercurial.selenic.com/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/

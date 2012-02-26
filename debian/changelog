@@ -1,8 +1,9 @@
 mercurial (2.1-3) UNRELEASED; urgency=low
 
   * Remove unused lintian override binary-without-manpage
+  * Bump standards-version to 3.9.3 (no change needed)
 
- -- Javi Merino <vicho@debian.org>  Sat, 25 Feb 2012 18:23:45 +0000
+ -- Javi Merino <vicho@debian.org>  Sun, 26 Feb 2012 15:17:13 +0000
 
 mercurial (2.1-2) experimental; urgency=low
 
