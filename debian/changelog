@@ -6,8 +6,10 @@ mercurial (2.1-3) UNRELEASED; urgency=low
     wheezy as tkcvs provides tkdiff (see bug #483362).
   * Suggest more visual diff commands
   * Increment test timeout.  test-bisect2.t timed out on mips.
+  * Increment the sleeps in the testsuite in mips so that the test
+    produces the same output than in faster architectures
 
- -- Javi Merino <vicho@debian.org>  Sun, 26 Feb 2012 16:16:30 +0000
+ -- Javi Merino <vicho@debian.org>  Mon, 27 Feb 2012 23:13:57 +0000
 
 mercurial (2.1-2) experimental; urgency=low
 
