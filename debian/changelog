@@ -1,3 +1,21 @@
+mercurial (2.1-3) experimental; urgency=low
+
+  * Remove unused lintian override binary-without-manpage
+  * Bump standards-version to 3.9.3 (no change needed)
+  * Suggest tkcvs instead of tkdiff.  tkdiff has been removed from
+    wheezy as tkcvs provides tkdiff (see bug #483362).
+  * Suggest more visual diff commands
+  * Increment test timeout.  test-bisect2.t timed out on mips.
+  * Increment the sleeps in the testsuite in mips so that the test
+    produces the same output than in faster architectures
+  * Ignore the output of chmod in a test so that the testsuite doesn't
+    fail in kfreebsd-*
+  * Add patch
+    from_upstream__test_check_code_hg_skip_test_if_not_wd.patch to skip
+    test_check_code_hg instead of having to blacklist it
+
+ -- Javi Merino <vicho@debian.org>  Wed, 29 Feb 2012 08:51:26 +0000
+
 mercurial (2.1-2) experimental; urgency=low
 
   * Recommend ssh

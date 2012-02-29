@@ -45,7 +45,3 @@ test-gendoc.t
 
 # I'm missing some locales or something (?)
 test-i18n.t
-
-# test-check-code-hg.t doesn't work if the directory is not a hg clone
-# http://mercurial.selenic.com/bts/issue3248
-test-check-code-hg.t

@@ -1,0 +1,18 @@
+From: Greg Ward <greg@gerg.ca>
+Origin: upstream, http://selenic.com/repo/hg/rev/be6ac2ecc7f8
+Description: test-check-code-hg: skip test if not in a working dir (issue3248)
+Bug-mercurial: http://mercurial.selenic.com/bts/issue3248
+
+--- a/tests/test-check-code-hg.t
++++ b/tests/test-check-code-hg.t
+@@ -1,6 +1,9 @@
+   $ check_code="$TESTDIR"/../contrib/check-code.py
+   $ cd "$TESTDIR"/..
+-
++  $ if ! hg identify -q > /dev/null; then
++  >     echo "skipped: not a Mercurial working dir" >&2
++  >     exit 80
++  > fi
+   $ "$check_code" `hg manifest` || echo 'FAILURE IS NOT AN OPTION!!!'
+ 
+   $ "$check_code" --warnings --nolineno --per-file=0 `hg manifest`

@@ -1,0 +1,17 @@
+Author: Javi Merino <vicho@debian.org>
+Description: Fix a false positive fail in a test on kfreebsd-*
+ test-inherit-mode fails on kfreebsd-* because of differences in the
+ output of chmod.  This is not a real failure, so don't flag it as
+ such.
+Forwarded: No
+--- a/tests/test-inherit-mode.t
++++ b/tests/test-inherit-mode.t
+@@ -138,7 +138,7 @@
+   $ hg init setgid
+   $ cd setgid
+   $ chmod g+rwx .hg/store
+-  $ chmod g+s .hg/store 2> /dev/null
++  $ chmod g+s .hg/store > /dev/null 2> /dev/null
+   $ mkdir dir
+   $ touch dir/file
+   $ hg ci -qAm 'add dir/file'
