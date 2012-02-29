@@ -8,8 +8,10 @@ mercurial (2.1-3) UNRELEASED; urgency=low
   * Increment test timeout.  test-bisect2.t timed out on mips.
   * Increment the sleeps in the testsuite in mips so that the test
     produces the same output than in faster architectures
+  * Ignore the output of chmod in a test so that the testsuite doesn't
+    fail in kfreebsd-*
 
- -- Javi Merino <vicho@debian.org>  Mon, 27 Feb 2012 23:13:57 +0000
+ -- Javi Merino <vicho@debian.org>  Wed, 29 Feb 2012 08:29:18 +0000
 
 mercurial (2.1-2) experimental; urgency=low
 
