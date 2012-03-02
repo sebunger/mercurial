@@ -8,5 +8,4 @@ deb_specific__install-mo-fhs.patch
 deb_specific__disable_libdir_replacement.patch
 deb_specific__no_optim_bdiff_armel.patch
 deb_specific__fix_hg-ssh_interpreter.patch
-from_upstream__test_check_code_hg_skip_test_if_not_wd.patch
 for_upstream__chgrp_test_inherit.patch

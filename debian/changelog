@@ -3,8 +3,10 @@ mercurial (2.1.1-1) UNRELEASED; urgency=low
   * New upstream version 2.1.1-1
   * Change the group of the test dir in test-inherit-mode.t so that the
     testsuite doesn't fail in kfreebsd-*
+  * Drop from_upstream__test_check_code_hg_skip_test_if_not_wd.patch
+    which is now included upstream
 
- -- Javi Merino <vicho@debian.org>  Fri, 02 Mar 2012 22:53:43 +0000
+ -- Javi Merino <vicho@debian.org>  Fri, 02 Mar 2012 23:16:10 +0000
 
 mercurial (2.1-3) experimental; urgency=low
 
