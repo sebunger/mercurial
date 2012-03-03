@@ -27,10 +27,12 @@ override_dh_auto_test:
 # hack by incrementing the sleep time in those slow
 # architectures.
 ifeq ($(DEB_HOST_ARCH),mips)
-		sed -i -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t $(CURDIR)/tests/test-pull-pull-corruption2.t
+		sed -i.deb-backup -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t $(CURDIR)/tests/test-pull-pull-corruption2.t
 endif
 
 	dh_auto_test -- TESTFLAGS="--timeout 480 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+
+	rename.ul .deb-backup '' $(CURDIR)/tests/*
 
 build-python%: mercurial/__version__.py
 	python$* setup.py build
