@@ -136,7 +136,6 @@ update must update phase of common changeset too
   pulling from ../alpha
   searching for changes
   no changes found
-  [1]
   $ hgph
   o  4 public a-D - b555f63b6063
   |
@@ -344,7 +343,6 @@ pulling back into original repo
   pulling from ../alpha
   searching for changes
   no changes found
-  [1]
   $ hgph
   @  6 public n-B - 145e75495359
   |
@@ -443,6 +441,38 @@ initial setup
   $ hg up d6bcb4f74035 -q
   $ mkcommit a-H
   created new head
+  $ hgph
+  @  10 draft a-H - 967b449fbc94
+  |
+  | o  9 draft a-G - 3e27b6f1eee1
+  | |
+  | o  8 draft a-F - b740e3e5c05d
+  | |
+  | o  7 draft a-E - e9f537e46dea
+  | |
+  +---o  6 public n-B - 145e75495359
+  | |
+  o |  5 public n-A - d6bcb4f74035
+  | |
+  o |  4 public b-A - f54f1bb90ff3
+  | |
+  | o  3 public a-D - b555f63b6063
+  | |
+  | o  2 public a-C - 54acac6f23ab
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+
+Pulling from bundle does not alter phases of changeset not present in the bundle
+
+  $ hg bundle  --base 1 -r 6 -r 3 ../partial-bundle.hg
+  5 changesets found
+  $ hg pull ../partial-bundle.hg
+  pulling from ../partial-bundle.hg
+  searching for changes
+  no changes found
   $ hgph
   @  10 draft a-H - 967b449fbc94
   |
@@ -777,7 +807,6 @@ Discovery locally secret changeset on a remote repository:
   pulling from ../mu
   searching for changes
   no changes found
-  [1]
   $ hgph
   @  11 draft A-secret - 435b5d83910c
   |
@@ -930,7 +959,6 @@ same over the wire
   pulling from http://localhost:$HGPORT/
   searching for changes
   no changes found
-  [1]
   $ hg phase f54f1bb90ff3
   2: draft
 

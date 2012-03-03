@@ -63,13 +63,21 @@ def reposetup(ui, repo):
                         return man1
                     def filectx(self, path, fileid=None, filelog=None):
                         try:
-                            result = super(lfiles_ctx, self).filectx(path,
-                                fileid, filelog)
+                            if filelog is not None:
+                                result = super(lfiles_ctx, self).filectx(
+                                    path, fileid, filelog)
+                            else:
+                                result = super(lfiles_ctx, self).filectx(
+                                    path, fileid)
                         except error.LookupError:
                             # Adding a null character will cause Mercurial to
                             # identify this as a binary file.
-                            result = super(lfiles_ctx, self).filectx(
-                                lfutil.standin(path), fileid, filelog)
+                            if filelog is not None:
+                                result = super(lfiles_ctx, self).filectx(
+                                    lfutil.standin(path), fileid, filelog)
+                            else:
+                                result = super(lfiles_ctx, self).filectx(
+                                    lfutil.standin(path), fileid)
                             olddata = result.data
                             result.data = lambda: olddata() + '\0'
                         return result
@@ -118,8 +126,10 @@ def reposetup(ui, repo):
                 # handle it -- thus gaining a big performance boost.
                 lfdirstate = lfutil.openlfdirstate(ui, self)
                 if match.files() and not match.anypats():
-                    matchedfiles = [f for f in match.files() if f in lfdirstate]
-                    if not matchedfiles:
+                    for f in lfdirstate:
+                        if match(f):
+                            break
+                    else:
                         return super(lfiles_repo, self).status(node1, node2,
                                 match, listignored, listclean,
                                 listunknown, listsubrepos)

@@ -257,21 +257,27 @@ class patchheader(object):
                 ci += 1
             del self.comments[ci]
 
-def secretcommit(repo, *args, **kwargs):
+def secretcommit(repo, phase, *args, **kwargs):
     """helper dedicated to ensure a commit are secret
 
     It should be used instead of repo.commit inside the mq source
     """
-    if not repo.ui.configbool('mq', 'secret', False):
-        return repo.commit(*args, **kwargs)
-
-    backup = repo.ui.backupconfig('phases', 'new-commit')
+    if phase is None:
+        if repo.ui.configbool('mq', 'secret', False):
+            phase = phases.secret
+    if phase is not None:
+        backup = repo.ui.backupconfig('phases', 'new-commit')
+    # Marking the repository as committing an mq patch can be used
+    # to optimize operations like _branchtags().
+    repo._committingpatch = True
     try:
-        # ensure we create a secret changeset
-        repo.ui.setconfig('phases', 'new-commit', phases.secret)
+        if phase is not None:
+            repo.ui.setconfig('phases', 'new-commit', phase)
         return repo.commit(*args, **kwargs)
     finally:
-        repo.ui.restoreconfig(backup)
+        repo._committingpatch = False
+        if phase is not None:
+            repo.ui.restoreconfig(backup)
 
 class queue(object):
     def __init__(self, ui, path, patchdir=None):
@@ -575,7 +581,7 @@ class queue(object):
         ret = hg.merge(repo, rev)
         if ret:
             raise util.Abort(_("update returned %d") % ret)
-        n = secretcommit(repo, ctx.description(), ctx.user(), force=True)
+        n = secretcommit(repo, None, ctx.description(), ctx.user(), force=True)
         if n is None:
             raise util.Abort(_("repo commit failed"))
         try:
@@ -615,7 +621,7 @@ class queue(object):
             # the first patch in the queue is never a merge patch
             #
             pname = ".hg.patches.merge.marker"
-            n = repo.commit('[mq]: merge marker', force=True)
+            n = secretcommit(repo, None, '[mq]: merge marker', force=True)
             self.removeundo(repo)
             self.applied.append(statusentry(n, pname))
             self.applieddirty = True
@@ -746,7 +752,7 @@ class queue(object):
 
             match = scmutil.matchfiles(repo, files or [])
             oldtip = repo['tip']
-            n = secretcommit(repo, message, ph.user, ph.date, match=match,
+            n = secretcommit(repo, None, message, ph.user, ph.date, match=match,
                              force=True)
             if repo['tip'] == oldtip:
                 raise util.Abort(_("qpush exactly duplicates child changeset"))
@@ -987,7 +993,7 @@ class queue(object):
                 if util.safehasattr(msg, '__call__'):
                     msg = msg()
                 commitmsg = msg and msg or ("[mq]: %s" % patchfn)
-                n = secretcommit(repo, commitmsg, user, date, match=match,
+                n = secretcommit(repo, None, commitmsg, user, date, match=match,
                                  force=True)
                 if n is None:
                     raise util.Abort(_("repo commit failed"))
@@ -1539,15 +1545,11 @@ class queue(object):
 
             try:
                 # might be nice to attempt to roll back strip after this
-                backup = repo.ui.backupconfig('phases', 'new-commit')
-                try:
-                    # Ensure we create a new changeset in the same phase than
-                    # the old one.
-                    repo.ui.setconfig('phases', 'new-commit', oldphase)
-                    n = repo.commit(message, user, ph.date, match=match,
-                                    force=True)
-                finally:
-                    repo.ui.restoreconfig(backup)
+
+                # Ensure we create a new changeset in the same phase than
+                # the old one.
+                n = secretcommit(repo, oldphase, message, user, ph.date,
+                                 match=match, force=True)
                 # only write patch after a successful commit
                 patchf.close()
                 self.applied.append(statusentry(n, patchfn))
@@ -1757,9 +1759,9 @@ class queue(object):
             for i in xrange(start, len(self.series)):
                 p, reason = self.pushable(i)
                 if p:
-                    break
+                    return i
                 self.explainpushable(i)
-            return i
+            return len(self.series)
         if self.applied:
             p = self.applied[-1].name
             try:
@@ -1793,6 +1795,7 @@ class queue(object):
         if (len(files) > 1 or len(rev) > 1) and patchname:
             raise util.Abort(_('option "-n" not valid when importing multiple '
                                'patches'))
+        imported = []
         if rev:
             # If mq patches are applied, we can only import revisions
             # that form a linear path to qbase.
@@ -1845,6 +1848,7 @@ class queue(object):
                 self.applied.insert(0, se)
 
                 self.added.append(patchname)
+                imported.append(patchname)
                 patchname = None
             if rev and repo.ui.configbool('mq', 'secret', False):
                 # if we added anything with --rev, we must move the secret root
@@ -1899,9 +1903,11 @@ class queue(object):
             self.seriesdirty = True
             self.ui.warn(_("adding %s to series file\n") % patchname)
             self.added.append(patchname)
+            imported.append(patchname)
             patchname = None
 
         self.removeundo(repo)
+        return imported
 
 @command("qdelete|qremove|qrm",
          [('k', 'keep', None, _('keep patch file')),
@@ -1923,7 +1929,7 @@ def delete(ui, repo, *patches, **opts):
     return 0
 
 @command("qapplied",
-         [('1', 'last', None, _('show only the last patch'))
+         [('1', 'last', None, _('show only the preceding applied patch'))
           ] + seriesopts,
          _('hg qapplied [-1] [-s] [PATCH]'))
 def applied(ui, repo, patch=None, **opts):
@@ -2027,15 +2033,16 @@ def qimport(ui, repo, *filename, **opts):
     try:
         q = repo.mq
         try:
-            q.qimport(repo, filename, patchname=opts.get('name'),
-                  existing=opts.get('existing'), force=opts.get('force'),
-                  rev=opts.get('rev'), git=opts.get('git'))
+            imported = q.qimport(
+                repo, filename, patchname=opts.get('name'),
+                existing=opts.get('existing'), force=opts.get('force'),
+                rev=opts.get('rev'), git=opts.get('git'))
         finally:
             q.savedirty()
 
 
-        if opts.get('push') and not opts.get('rev'):
-            return q.push(repo, None)
+        if imported and opts.get('push') and not opts.get('rev'):
+            return q.push(repo, imported[-1])
     finally:
         lock.release()
     return 0
@@ -2205,7 +2212,7 @@ def top(ui, repo, **opts):
 
 @command("qnext", seriesopts, _('hg qnext [-s]'))
 def next(ui, repo, **opts):
-    """print the name of the next patch
+    """print the name of the next pushable patch
 
     Returns 0 on success."""
     q = repo.mq
@@ -2217,7 +2224,7 @@ def next(ui, repo, **opts):
 
 @command("qprev", seriesopts, _('hg qprev [-s]'))
 def prev(ui, repo, **opts):
-    """print the name of the previous patch
+    """print the name of the preceding applied patch
 
     Returns 0 on success."""
     q = repo.mq
@@ -2228,7 +2235,8 @@ def prev(ui, repo, **opts):
     if not l:
         ui.write(_("no patches applied\n"))
         return 1
-    q.qseries(repo, start=l - 2, length=1, status='A',
+    idx = q.series.index(q.applied[-2].name)
+    q.qseries(repo, start=idx, length=1, status='A',
               summary=opts.get('summary'))
 
 def setupheaderopts(ui, opts):
@@ -3255,16 +3263,20 @@ def reposetup(ui, repo):
 
         def _branchtags(self, partial, lrev):
             q = self.mq
-            if not q.applied:
-                return super(mqrepo, self)._branchtags(partial, lrev)
-
             cl = self.changelog
-            qbasenode = q.applied[0].node
-            try:
-                qbase = cl.rev(qbasenode)
-            except error.LookupError:
-                self.ui.warn(_('mq status file refers to unknown node %s\n')
-                             % short(qbasenode))
+            qbase = None
+            if not q.applied:
+                if getattr(self, '_committingpatch', False):
+                    # Committing a new patch, must be tip
+                    qbase = len(cl) - 1
+            else:
+                qbasenode = q.applied[0].node
+                try:
+                    qbase = cl.rev(qbasenode)
+                except error.LookupError:
+                    self.ui.warn(_('mq status file refers to unknown node %s\n')
+                                 % short(qbasenode))
+            if qbase is None:
                 return super(mqrepo, self)._branchtags(partial, lrev)
 
             start = lrev + 1

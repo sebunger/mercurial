@@ -2204,8 +2204,7 @@ to add those changes to the repository, you should use <a class="reference exter
 <span class="pre">-r</span> X</tt></a> where <tt class="docutils literal">X</tt> is the last changeset listed by <a class="reference external" href="hg.1.html#incoming"><tt class="docutils literal">hg incoming</tt></a>.</p>
 <p>If SOURCE is omitted, the 'default' path will be used.
 See <a class="reference external" href="hg.1.html#urls"><tt class="docutils literal">hg help urls</tt></a> for more information.</p>
-<p>Returns 0 on success, 1 if no changes found or an update had
-unresolved files.</p>
+<p>Returns 0 on success, 1 if an update had unresolved files.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -6600,7 +6599,7 @@ hg qapplied [-1] [-s] [PATCH]
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-1</span>, <span class="option">--last</span></kbd></td>
-<td>show only the last patch</td></tr>
+<td>show only the preceding applied patch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--summary</span></kbd></td>
 <td>print first line of patch header</td></tr>

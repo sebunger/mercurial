@@ -211,7 +211,7 @@ class opener(abstractopener):
             if r:
                 raise util.Abort("%s: %r" % (r, path))
         self.auditor(path)
-        f = os.path.join(self.base, path)
+        f = self.join(path)
 
         if not text and "b" not in mode:
             mode += "b" # for that other OS
@@ -255,7 +255,7 @@ class opener(abstractopener):
 
     def symlink(self, src, dst):
         self.auditor(dst)
-        linkname = os.path.join(self.base, dst)
+        linkname = self.join(dst)
         try:
             os.unlink(linkname)
         except OSError:
@@ -279,6 +279,9 @@ class opener(abstractopener):
 
     def audit(self, path):
         self.auditor(path)
+
+    def join(self, path):
+        return os.path.join(self.base, path)
 
 class filteropener(abstractopener):
     '''Wrapper opener for filtering filenames with a function.'''
@@ -468,7 +471,7 @@ else:
                                _HKEY_LOCAL_MACHINE)
         if not isinstance(value, str) or not value:
             return rcpath
-        value = value.replace('/', os.sep)
+        value = util.localpath(value)
         for p in value.split(os.pathsep):
             if p.lower().endswith('mercurial.ini'):
                 rcpath.append(p)
@@ -793,9 +796,17 @@ class filecache(object):
     to tell us if a file has been replaced. If it can't, we fallback to
     recreating the object on every call (essentially the same behaviour as
     propertycache).'''
-    def __init__(self, path, instore=False):
+    def __init__(self, path):
         self.path = path
-        self.instore = instore
+
+    def join(self, obj, fname):
+        """Used to compute the runtime path of the cached file.
+
+        Users should subclass filecache and provide their own version of this
+        function to call the appropriate join function on 'obj' (an instance
+        of the class that its member function was decorated).
+        """
+        return obj.join(fname)
 
     def __call__(self, func):
         self.func = func
@@ -803,13 +814,17 @@ class filecache(object):
         return self
 
     def __get__(self, obj, type=None):
+        # do we need to check if the file changed?
+        if self.name in obj.__dict__:
+            return obj.__dict__[self.name]
+
         entry = obj._filecache.get(self.name)
 
         if entry:
             if entry.changed():
                 entry.obj = self.func(obj)
         else:
-            path = self.instore and obj.sjoin(self.path) or obj.join(self.path)
+            path = self.join(obj, self.path)
 
             # We stat -before- creating the object so our cache doesn't lie if
             # a writer modified between the time we read and stat
@@ -818,5 +833,16 @@ class filecache(object):
 
             obj._filecache[self.name] = entry
 
-        setattr(obj, self.name, entry.obj)
+        obj.__dict__[self.name] = entry.obj
         return entry.obj
+
+    def __set__(self, obj, value):
+        if self.name in obj._filecache:
+            obj._filecache[self.name].obj = value # update cached copy
+        obj.__dict__[self.name] = value # update copy returned by obj.x
+
+    def __delete__(self, obj):
+        try:
+            del obj.__dict__[self.name]
+        except KeyError:
+            raise AttributeError, self.name

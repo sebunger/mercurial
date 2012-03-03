@@ -18,14 +18,14 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 
 override_dh_auto_test:
-	# Some tests try to execute two hg commands at the same time
-	# to test for corruption.  They do so by running an hg command
-	# in the background, sleeping one second and running the
-	# second command.  In slow architectures, one second is not
-	# enough and the second test starts before the first one has
-	# started printing.  This is hacky and we just enhance the
-	# hack by incrementing the sleep time in those slow
-	# architectures.
+# Some tests try to execute two hg commands at the same time
+# to test for corruption.  They do so by running an hg command
+# in the background, sleeping one second and running the
+# second command.  In slow architectures, one second is not
+# enough and the second test starts before the first one has
+# started printing.  This is hacky and we just enhance the
+# hack by incrementing the sleep time in those slow
+# architectures.
 ifeq ($(DEB_HOST_ARCH),mips)
 		sed -i -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t $(CURDIR)/tests/test-pull-pull-corruption2.t
 endif
