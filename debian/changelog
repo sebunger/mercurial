@@ -1,8 +1,10 @@
 mercurial (2.1.1-2) UNRELEASED; urgency=low
 
   * Add kfreebsd-i386 to the list of slow architectures for the test suite.
+  * Improve the fix for the test-inherit-mode.t patch based on
+    suggestions from upstream
 
- -- Javi Merino <vicho@debian.org>  Sat, 03 Mar 2012 13:48:03 +0000
+ -- Javi Merino <vicho@debian.org>  Sun, 04 Mar 2012 22:19:16 +0000
 
 mercurial (2.1.1-1) unstable; urgency=low
 
