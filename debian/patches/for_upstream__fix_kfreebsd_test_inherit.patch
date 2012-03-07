@@ -5,7 +5,7 @@ Description: Ignore the return code of chmod in test-inherit-mode
  test-inherit-mode.t is owned by root's group, so "chmod g+s .hg/store"
  fails to set the SGID bit and returns 1.  If we ignore chmod's return
  code, the testsuite passes again.
-Forwarded: http://selenic.com/pipermail/mercurial-devel/2012-March/038464.html
+Origin: upstream, http://selenic.com/hg/rev/7cf8de5a82d8
 
 --- a/tests/test-inherit-mode.t
 +++ b/tests/test-inherit-mode.t
@@ -14,7 +14,7 @@ Forwarded: http://selenic.com/pipermail/mercurial-devel/2012-March/038464.html
    $ cd setgid
    $ chmod g+rwx .hg/store
 -  $ chmod g+s .hg/store 2> /dev/null
-+  $ chmod g+s .hg/store 2> /dev/null || /bin/true
++  $ chmod g+s .hg/store 2> /dev/null || true
    $ mkdir dir
    $ touch dir/file
    $ hg ci -qAm 'add dir/file'
