@@ -1,0 +1,31 @@
+Author: Javi Merino <vicho@debian.org>
+Description: update: don't translate the abort message twice
+ The string representation of util.Abort() is translated when
+ merge.update() raises the exception.  For languages with characters
+ out of the valid ascii range, if we feed them again to i18n.gettext()
+ mercurial dies with:
+ .
+ [...]
+  File "/home/javi/src/mercurial/mercurial/hg-mpm/mercurial/commands.py", line 4287, in postincoming
+    ui.warn(_("not updating: %s\n" % str(inst)))
+  File "/home/javi/src/mercurial/mercurial/hg-mpm/mercurial/i18n.py", line 42, in gettext
+    u = u'\n\n'.join([p and t.ugettext(p) or '' for p in paragraphs])
+  File "/usr/lib/python2.7/gettext.py", line 404, in ugettext
+    return unicode(message)
+ UnicodeDecodeError: 'ascii' codec can't decode byte 0xd0 in position 14: ordinal not in range(128)
+Origin: upstream, http://selenic.com/hg/rev/d4d35fd0889d
+Bug-Debian: https://bugs.debian.org/662207
+
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -4269,7 +4269,7 @@ def postincoming(ui, repo, modheads, opt
+         try:
+             ret = hg.update(repo, checkout)
+         except util.Abort, inst:
+-            ui.warn(_("not updating: %s\n" % str(inst)))
++            ui.warn(_("not updating: %s\n") % str(inst))
+             return 0
+         if not ret and not checkout:
+             if bookmarks.update(repo, [movemarkfrom], repo['.'].node()):
+

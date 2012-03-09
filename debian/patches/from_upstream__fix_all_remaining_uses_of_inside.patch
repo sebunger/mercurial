@@ -1,0 +1,109 @@
+Author: Matt Mackall <mpm@selenic.com>
+Description: i18n: fix all remaining uses of % inside _()
+Origin: upstream, http://selenic.com/hg/rev/ce292f1379ba
+
+diff --git a/hgext/churn.py b/hgext/churn.py
+--- a/hgext/churn.py
++++ b/hgext/churn.py
+@@ -135,7 +135,7 @@ def churn(ui, repo, *pats, **opts):
+             except ValueError:
+                 l = l.strip()
+                 if l:
+-                    ui.warn(_("skipping malformed alias: %s\n" % l))
++                    ui.warn(_("skipping malformed alias: %s\n") % l)
+                 continue
+ 
+     rate = countrate(ui, repo, amap, *pats, **opts).items()
+diff --git a/hgext/convert/monotone.py b/hgext/convert/monotone.py
+--- a/hgext/convert/monotone.py
++++ b/hgext/convert/monotone.py
+@@ -113,7 +113,7 @@ class monotone_source(converter_source, 
+ 
+         stream = self.mtnreadfp.read(1)
+         if stream not in 'mewptl':
+-            raise util.Abort(_('bad mtn packet - bad stream type %s' % stream))
++            raise util.Abort(_('bad mtn packet - bad stream type %s') % stream)
+ 
+         read = self.mtnreadfp.read(1)
+         if read != ':':
+diff --git a/hgext/largefiles/lfcommands.py b/hgext/largefiles/lfcommands.py
+--- a/hgext/largefiles/lfcommands.py
++++ b/hgext/largefiles/lfcommands.py
+@@ -309,7 +309,7 @@ def _converttags(ui, revmap, data):
+             newdata.append('%s %s\n' % (node.hex(revmap[newid]),
+                 name))
+         except KeyError:
+-            ui.warn(_('no mapping for id %s\n' % id))
++            ui.warn(_('no mapping for id %s\n') % id)
+             continue
+     return ''.join(newdata)
+ 
+diff --git a/hgext/largefiles/overrides.py b/hgext/largefiles/overrides.py
+--- a/hgext/largefiles/overrides.py
++++ b/hgext/largefiles/overrides.py
+@@ -157,7 +157,7 @@ def remove_largefiles(ui, repo, *pats, *
+                 # If this is being called by addremove, notify the user that we
+                 # are removing the file.
+                 if getattr(repo, "_isaddremove", False):
+-                    ui.status(_('removing %s\n' % f))
++                    ui.status(_('removing %s\n') % f)
+                 if os.path.exists(repo.wjoin(f)):
+                     util.unlinkpath(repo.wjoin(f))
+             lfdirstate.remove(f)
+@@ -673,7 +673,7 @@ def override_pull(orig, ui, repo, source
+         for head in newheads:
+             (cached, missing) = lfcommands.cachelfiles(ui, repo, head)
+             numcached += len(cached)
+-        ui.status(_("%d largefiles cached\n" % numcached))
++        ui.status(_("%d largefiles cached\n") % numcached)
+     return result
+ 
+ def override_rebase(orig, ui, repo, **opts):
+diff --git a/hgext/mq.py b/hgext/mq.py
+--- a/hgext/mq.py
++++ b/hgext/mq.py
+@@ -1192,7 +1192,8 @@ class queue(object):
+                 root = self.series[start]
+                 target = patchheader(self.join(root), self.plainmode).parent
+                 if not target:
+-                    raise util.Abort(_("%s does not have a parent recorded" % root))
++                    raise util.Abort(
++                        _("%s does not have a parent recorded") % root)
+                 if not repo[target] == repo['.']:
+                     hg.update(repo, target)
+ 
+diff --git a/mercurial/commands.py b/mercurial/commands.py
+--- a/mercurial/commands.py
++++ b/mercurial/commands.py
+@@ -2904,7 +2904,7 @@ def heads(ui, repo, *branchrevs, **opts)
+             headless = ', '.join(b for b in branches - haveheads)
+             msg = _('no open branch heads found on branches %s')
+             if opts.get('rev'):
+-                msg += _(' (started at %s)' % opts['rev'])
++                msg += _(' (started at %s)') % opts['rev']
+             ui.warn((msg + '\n') % headless)
+ 
+     if not heads:
+@@ -2997,7 +2997,7 @@ def help_(ui, name=None, unknowncmd=Fals
+                 msg = _('use "hg help" for the full list of commands '
+                         'or "hg -v" for details')
+             elif name and not full:
+-                msg = _('use "hg help %s" to show the full help text' % name)
++                msg = _('use "hg help %s" to show the full help text') % name
+             elif aliases:
+                 msg = _('use "hg -v help%s" to show builtin aliases and '
+                         'global options') % (name and " " + name or "")
+diff --git a/tests/test-check-code-hg.t b/tests/test-check-code-hg.t
+--- a/tests/test-check-code-hg.t
++++ b/tests/test-check-code-hg.t
+@@ -209,9 +209,6 @@
+    >                             if os.path.exists(self.wjoin(lfutil.standin(lfile))):
+    warning: line over 80 characters
+   hgext/mq.py:0:
+-   >                     raise util.Abort(_("%s does not have a parent recorded" % root))
+-   warning: line over 80 characters
+-  hgext/mq.py:0:
+    >                     raise util.Abort(_("cannot push --exact with applied patches"))
+    warning: line over 80 characters
+   hgext/mq.py:0:
+
