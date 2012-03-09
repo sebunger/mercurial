@@ -17,6 +17,8 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
          PARALLEL_TEST_JOBS := --jobs $(NJOBS)
 endif
 
+ARCH_IS_MIPS := $(if $(subst mips,,$(DEB_HOST_ARCH)),,T)
+ARCH_IS_KFREEBSD-i386 := $(if $(subst kfreebsd-i386,,$(DEB_HOST_ARCH)),,T)
 override_dh_auto_test:
 # Some tests try to execute two hg commands at the same time
 # to test for corruption.  They do so by running an hg command
@@ -25,12 +27,14 @@ override_dh_auto_test:
 # enough and the second test starts before the first one has
 # started printing.  This is hacky and we just enhance the
 # hack by incrementing the sleep time in those slow
-# architectures.
-ifeq ($(DEB_HOST_ARCH),mips)
-		sed -i -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t $(CURDIR)/tests/test-pull-pull-corruption2.t
+# architectures (mips and kfreebsd-i386 at the moment).
+ifneq ($(or $(ARCH_IS_MIPS), $(ARCH_IS_KFREEBSD-i386)),)
+		sed -i.deb-backup -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t $(CURDIR)/tests/test-pull-pull-corruption2.t
 endif
 
-	dh_auto_test -- TESTFLAGS="--timeout 480 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+	dh_auto_test -- TESTFLAGS="--verbose --timeout 480 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+
+	rename.ul .deb-backup '' $(CURDIR)/tests/*
 
 build-python%: mercurial/__version__.py
 	python$* setup.py build

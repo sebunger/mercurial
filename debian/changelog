@@ -1,3 +1,14 @@
+mercurial (2.1.1-2) unstable; urgency=low
+
+  * Add kfreebsd-i386 to the list of slow architectures for the test suite.
+  * Improve the fix for the test-inherit-mode.t patch based on
+    suggestions from upstream
+  * Fix "UnicodeDecodeError when refusing to update" by adding patches
+    from_upstream__dont_translate_the_abort_message_twice.patch and
+    from_upstream__fix_all_remaining_uses_of_inside.patch  (Closes: #662207)
+
+ -- Javi Merino <vicho@debian.org>  Fri, 09 Mar 2012 00:14:13 +0000
+
 mercurial (2.1.1-1) unstable; urgency=low
 
   * New upstream version 2.1.1-1
