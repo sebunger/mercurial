@@ -2,10 +2,9 @@ Author: Matt Mackall <mpm@selenic.com>
 Description: i18n: fix all remaining uses of % inside _()
 Origin: upstream, http://selenic.com/hg/rev/ce292f1379ba
 
-diff --git a/hgext/churn.py b/hgext/churn.py
 --- a/hgext/churn.py
 +++ b/hgext/churn.py
-@@ -135,7 +135,7 @@ def churn(ui, repo, *pats, **opts):
+@@ -135,7 +135,7 @@
              except ValueError:
                  l = l.strip()
                  if l:
@@ -14,10 +13,9 @@ diff --git a/hgext/churn.py b/hgext/churn.py
                  continue
  
      rate = countrate(ui, repo, amap, *pats, **opts).items()
-diff --git a/hgext/convert/monotone.py b/hgext/convert/monotone.py
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -113,7 +113,7 @@ class monotone_source(converter_source, 
+@@ -113,7 +113,7 @@
  
          stream = self.mtnreadfp.read(1)
          if stream not in 'mewptl':
@@ -26,10 +24,9 @@ diff --git a/hgext/convert/monotone.py b/hgext/convert/monotone.py
  
          read = self.mtnreadfp.read(1)
          if read != ':':
-diff --git a/hgext/largefiles/lfcommands.py b/hgext/largefiles/lfcommands.py
 --- a/hgext/largefiles/lfcommands.py
 +++ b/hgext/largefiles/lfcommands.py
-@@ -309,7 +309,7 @@ def _converttags(ui, revmap, data):
+@@ -309,7 +309,7 @@
              newdata.append('%s %s\n' % (node.hex(revmap[newid]),
                  name))
          except KeyError:
@@ -38,10 +35,9 @@ diff --git a/hgext/largefiles/lfcommands.py b/hgext/largefiles/lfcommands.py
              continue
      return ''.join(newdata)
  
-diff --git a/hgext/largefiles/overrides.py b/hgext/largefiles/overrides.py
 --- a/hgext/largefiles/overrides.py
 +++ b/hgext/largefiles/overrides.py
-@@ -157,7 +157,7 @@ def remove_largefiles(ui, repo, *pats, *
+@@ -157,7 +157,7 @@
                  # If this is being called by addremove, notify the user that we
                  # are removing the file.
                  if getattr(repo, "_isaddremove", False):
@@ -50,7 +46,7 @@ diff --git a/hgext/largefiles/overrides.py b/hgext/largefiles/overrides.py
                  if os.path.exists(repo.wjoin(f)):
                      util.unlinkpath(repo.wjoin(f))
              lfdirstate.remove(f)
-@@ -673,7 +673,7 @@ def override_pull(orig, ui, repo, source
+@@ -673,7 +673,7 @@
          for head in newheads:
              (cached, missing) = lfcommands.cachelfiles(ui, repo, head)
              numcached += len(cached)
@@ -59,10 +55,9 @@ diff --git a/hgext/largefiles/overrides.py b/hgext/largefiles/overrides.py
      return result
  
  def override_rebase(orig, ui, repo, **opts):
-diff --git a/hgext/mq.py b/hgext/mq.py
 --- a/hgext/mq.py
 +++ b/hgext/mq.py
-@@ -1192,7 +1192,8 @@ class queue(object):
+@@ -1192,7 +1192,8 @@
                  root = self.series[start]
                  target = patchheader(self.join(root), self.plainmode).parent
                  if not target:
@@ -72,10 +67,9 @@ diff --git a/hgext/mq.py b/hgext/mq.py
                  if not repo[target] == repo['.']:
                      hg.update(repo, target)
  
-diff --git a/mercurial/commands.py b/mercurial/commands.py
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2904,7 +2904,7 @@ def heads(ui, repo, *branchrevs, **opts)
+@@ -2903,7 +2903,7 @@
              headless = ', '.join(b for b in branches - haveheads)
              msg = _('no open branch heads found on branches %s')
              if opts.get('rev'):
@@ -84,7 +78,7 @@ diff --git a/mercurial/commands.py b/mercurial/commands.py
              ui.warn((msg + '\n') % headless)
  
      if not heads:
-@@ -2997,7 +2997,7 @@ def help_(ui, name=None, unknowncmd=Fals
+@@ -2996,7 +2996,7 @@
                  msg = _('use "hg help" for the full list of commands '
                          'or "hg -v" for details')
              elif name and not full:
@@ -93,7 +87,6 @@ diff --git a/mercurial/commands.py b/mercurial/commands.py
              elif aliases:
                  msg = _('use "hg -v help%s" to show builtin aliases and '
                          'global options') % (name and " " + name or "")
-diff --git a/tests/test-check-code-hg.t b/tests/test-check-code-hg.t
 --- a/tests/test-check-code-hg.t
 +++ b/tests/test-check-code-hg.t
 @@ -209,9 +209,6 @@
@@ -106,4 +99,3 @@ diff --git a/tests/test-check-code-hg.t b/tests/test-check-code-hg.t
     >                     raise util.Abort(_("cannot push --exact with applied patches"))
     warning: line over 80 characters
    hgext/mq.py:0:
-

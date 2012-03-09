@@ -16,10 +16,9 @@ Description: update: don't translate the abort message twice
 Origin: upstream, http://selenic.com/hg/rev/d4d35fd0889d
 Bug-Debian: https://bugs.debian.org/662207
 
-diff --git a/mercurial/commands.py b/mercurial/commands.py
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -4269,7 +4269,7 @@ def postincoming(ui, repo, modheads, opt
+@@ -4268,7 +4268,7 @@
          try:
              ret = hg.update(repo, checkout)
          except util.Abort, inst:
@@ -28,4 +27,3 @@ diff --git a/mercurial/commands.py b/mercurial/commands.py
              return 0
          if not ret and not checkout:
              if bookmarks.update(repo, [movemarkfrom], repo['.'].node()):
-
