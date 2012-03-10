@@ -1,3 +1,9 @@
+mercurial (2.1.1-3) UNRELEASED; urgency=low
+
+  * Add armel to the list of architectures with slow buildds
+
+ -- Javi Merino <vicho@debian.org>  Sat, 10 Mar 2012 15:19:24 +0000
+
 mercurial (2.1.1-2) unstable; urgency=low
 
   * Add kfreebsd-i386 to the list of slow architectures for the test suite.
