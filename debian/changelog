@@ -3,8 +3,9 @@ mercurial (2.1.1-3) UNRELEASED; urgency=low
   * Add armel to the list of architectures with slow buildds
   * Drop patch "deb_specific__no_optim_bdiff_armel.patch" as gcc no
     longer miscompiles bdiff in armel
+  * Remove confusing entry in Debian.NEWS (Closes: #666549)
 
- -- Javi Merino <vicho@debian.org>  Sat, 10 Mar 2012 16:22:01 +0000
+ -- Javi Merino <vicho@debian.org>  Mon, 02 Apr 2012 21:24:06 +0100
 
 mercurial (2.1.1-2) unstable; urgency=low
 
