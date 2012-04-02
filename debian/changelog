@@ -5,8 +5,12 @@ mercurial (2.1.2-1) UNRELEASED; urgency=low
   * Drop patch "deb_specific__no_optim_bdiff_armel.patch" as gcc no
     longer miscompiles bdiff in armel
   * Remove confusing entry in Debian.NEWS (Closes: #666549)
+  * Remove patches for_upstream__fix_kfreebsd_test_inherit.patch,
+    from_upstream__dont_translate_the_abort_message_twice.patch and
+    from_upstream__fix_all_remaining_uses_of_inside.patch which are now
+    included upstream
 
- -- Javi Merino <vicho@debian.org>  Mon, 02 Apr 2012 21:28:18 +0100
+ -- Javi Merino <vicho@debian.org>  Mon, 02 Apr 2012 21:38:52 +0100
 
 mercurial (2.1.1-2) unstable; urgency=low
 
