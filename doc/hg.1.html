@@ -4066,7 +4066,7 @@ be shared. This helps prevent common mistakes when modifying history
 <p>These phases are ordered (public &lt; draft &lt; secret) and no changeset
 can be in a lower phase than its ancestors. For instance, if a
 changeset is public, all its ancestors are also public. Lastly,
-changeset phases only be changed towards the public phase.</p>
+changeset phases should only be changed towards the public phase.</p>
 </div>
 <div class="section" id="how-are-phases-managed">
 <h1><a class="toc-backref" href="#contents">How are phases managed?</a></h1>
@@ -5883,7 +5883,8 @@ meld =
 # (see http://www.vim.org/scripts/script.php?script_id=102) Non
 # English user, be sure to put &quot;let g:DirDiffDynamicDiffText = 1&quot; in
 # your .vimrc
-vimdiff = gvim -f '+next' '+execute &quot;DirDiff&quot; argv(0) argv(1)'
+vimdiff = gvim -f &quot;+next&quot; \
+          &quot;+execute 'DirDiff' fnameescape(argv(0)) fnameescape(argv(1))&quot;
 </pre>
 <p>Tool arguments can include variables that are expanded at runtime:</p>
 <pre class="literal-block">
@@ -7454,13 +7455,15 @@ operation completes.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-b</span>, <span class="option">--backup</span></kbd></td>
 <td>bundle only changesets with local revision number greater than REV which are not descendants of REV (DEPRECATED)</td></tr>
-<tr><td class="option-group" colspan="2">
-<kbd><span class="option">-n</span>, <span class="option">--no-backup</span></kbd></td>
-</tr>
-<tr><td>&nbsp;</td><td>no backups</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--no-backup</span></kbd></td>
+<td>no backups</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--nobackup</span></kbd></td>
 <td>no backups (DEPRECATED)</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-n</span></kbd></td>
+<td>ignored  (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-k</span>, <span class="option">--keep</span></kbd></td>
 <td>do not modify working copy during strip</td></tr>

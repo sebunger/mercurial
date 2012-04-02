@@ -1,9 +1,3 @@
-mercurial (2.1.1-1) unstable; urgency=low
-
-  - pull return code now matches its pre-2.1 behavior
-
- -- Javi Merino <vicho@debian.org>  Fri, 02 Mar 2012 22:56:45 +0000
-
 mercurial (1.4.3-1) unstable; urgency=low
 
   mercurial.el (emacs mode for mercurial) is not installed anymore in emacs

@@ -2089,6 +2089,10 @@ msgid "could not open map file %r: %s"
 msgstr "não foi possível abrir arquivo de mapeamento %r: %s"
 
 #, python-format
+msgid "syntax error in %s(%d): child parent1[,parent2] expected"
+msgstr "erro de sintaxe em %s(%d): \"filho pai1[,pai2]\" esperado"
+
+#, python-format
 msgid "%s: invalid source repository type"
 msgstr "%s: tipo de repositório de origem inválido"
 
@@ -2116,6 +2120,14 @@ msgstr "revisões"
 
 msgid "scanning"
 msgstr "varrendo"
+
+#, python-format
+msgid "splice map revision %s is not being converted, ignoring\n"
+msgstr "revisão %s no splicemap não está sendo convertida, ignorando\n"
+
+#, python-format
+msgid "unknown splice map parent: %s"
+msgstr "pai desconhecido no splicemap: %s"
 
 #, python-format
 msgid "unknown sort mode: %s"
@@ -2387,6 +2399,14 @@ msgid "updating bookmarks\n"
 msgstr "atualizando marcadores\n"
 
 #, python-format
+msgid ""
+"revision %s not found in destination repository (lookups with "
+"clonebranches=true are not implemented)"
+msgstr ""
+"revisão %s não encontrada no repositório de destino (buscas com "
+"clonebranches=true não foram implementadas)"
+
+#, python-format
 msgid "%s is not a valid start revision"
 msgstr "%s não é uma revisão inicial válida"
 
@@ -2555,6 +2575,14 @@ msgstr "incapaz de lidar com saída do svn"
 
 msgid "writing Subversion tags is not yet implemented\n"
 msgstr "a escrita de tags do Subversion ainda não foi implementada\n"
+
+#, python-format
+msgid ""
+"splice map revision %s not found in subversion child map (revision lookups "
+"are not implemented)"
+msgstr ""
+"revisão %s no splicemap não encontrada no mapa de filhos do subversion "
+"(buscas por revisão não foram implementadas)"
 
 msgid "automatically manage newlines in repository files"
 msgstr "gerencia automaticamente quebras de linha em arquivos no repositório"
@@ -2842,14 +2870,16 @@ msgid ""
 "  # (see http://www.vim.org/scripts/script.php?script_id=102) Non\n"
 "  # English user, be sure to put \"let g:DirDiffDynamicDiffText = 1\" in\n"
 "  # your .vimrc\n"
-"  vimdiff = gvim -f '+next' '+execute \"DirDiff\" argv(0) argv(1)'"
+"  vimdiff = gvim -f \"+next\" \\\n"
+"            \"+execute 'DirDiff' fnameescape(argv(0)) fnameescape(argv(1))\""
 msgstr ""
 "  # adiciona um novo comando chamado vimdiff, executa gvimdiff\n"
 "  # com o plugin DirDiff\n"
 "  #(veja http://www.vim.org/scripts/script.php?script_id=102)\n"
 "  # Esteja certo de colocar \"let g:DirDiffDynamicDiffText = 1\"\n"
 "  # em seu .vimrc\n"
-"  vimdiff = gvim -f '+next' '+execute \"DirDiff\" argv(0) argv(1)'"
+"  vimdiff = gvim -f \"+next\" \\\n"
+"            \"+execute 'DirDiff' fnameescape(argv(0)) fnameescape(argv(1))\""
 
 msgid "Tool arguments can include variables that are expanded at runtime::"
 msgstr ""
@@ -5143,8 +5173,8 @@ msgstr ""
 "    Para parar de gerenciar um patch e movê-lo para o histórico\n"
 "    permanente, use o comando :hg:`qfinish` ."
 
-msgid "show only the last patch"
-msgstr "mostra apenas o último patch"
+msgid "show only the preceding applied patch"
+msgstr "mostra apenas o patch aplicado anterior"
 
 msgid "hg qapplied [-1] [-s] [PATCH]"
 msgstr "hg qapplied [-1] [-s] [PATCH]"
@@ -5393,14 +5423,14 @@ msgstr "imprime o nome do patch atual"
 msgid "hg qnext [-s]"
 msgstr "hg qnext [-s]"
 
-msgid "print the name of the next patch"
-msgstr "imprime o nome do próximo patch"
+msgid "print the name of the next pushable patch"
+msgstr "imprime o nome do próximo patch que pode ser aplicado"
 
 msgid "hg qprev [-s]"
 msgstr "hg qprev [-s]"
 
-msgid "print the name of the previous patch"
-msgstr "imprime o nome do patch anterior"
+msgid "print the name of the preceding applied patch"
+msgstr "imprime o nome do patch aplicado anterior"
 
 msgid "import uncommitted changes (DEPRECATED)"
 msgstr "importa mudanças não consolidadas (OBSOLETO)"
@@ -5841,6 +5871,9 @@ msgstr "nenhuma cópia de segurança"
 
 msgid "no backups (DEPRECATED)"
 msgstr "sem cópias de segurança (OBSOLETO)"
+
+msgid "ignored  (DEPRECATED)"
+msgstr "ignorado (OBSOLETO)"
 
 msgid "do not modify working copy during strip"
 msgstr "não modifica a cópia de trabalho durante o strip"
@@ -7487,6 +7520,10 @@ msgstr "não é possível rebasear múltiplas raízes"
 msgid "source is ancestor of destination"
 msgstr "origem é ancestral do destino"
 
+#, python-format
+msgid "updating bookmark %s\n"
+msgstr "atualizando marcador %s\n"
+
 msgid "--tool can only be used with --rebase"
 msgstr "--tool só pode ser usada em conjunto com --rebase"
 
@@ -8420,10 +8457,6 @@ msgid "branch %s not found"
 msgstr "ramo %s não encontrado"
 
 #, python-format
-msgid "updating bookmark %s\n"
-msgstr "atualizando marcador %s\n"
-
-#, python-format
 msgid "divergent bookmark %s stored as %s\n"
 msgstr "marcador divergente %s guardado como %s\n"
 
@@ -8521,6 +8554,10 @@ msgstr "%s: não copiado - o arquivo foi marcado para remoção\n"
 #, python-format
 msgid "%s: not overwriting - %s collides with %s\n"
 msgstr "%s: não sobrescrito - %s colide com %s\n"
+
+#, python-format
+msgid "%s: can't copy - same file\n"
+msgstr "%s: impossível copiar - é o mesmo arquivo\n"
 
 #, python-format
 msgid "%s: not overwriting - file exists\n"
@@ -8643,6 +8680,10 @@ msgstr "Encontrada revisão %s de %s\n"
 
 msgid "revision matching date not found"
 msgstr "revisão com data equivalente não encontrada"
+
+#, python-format
+msgid "cannot follow file not in parent revision: \"%s\""
+msgstr "não é possível seguir arquivo não presente na revisão pai: \"%s\""
 
 #, python-format
 msgid "cannot follow nonexistent file: \"%s\""
@@ -12166,12 +12207,11 @@ msgstr ""
 "    :hg:`help urls` para mais informações."
 
 msgid ""
-"    Returns 0 on success, 1 if no changes found or an update had\n"
-"    unresolved files.\n"
+"    Returns 0 on success, 1 if an update had unresolved files.\n"
 "    "
 msgstr ""
-"    Devolve 0 para indicar sucesso, 1 se nenhuma mudança for encontrada\n"
-"    ou se uma atualização tiver arquivos não resolvidos.\n"
+"    Devolve 0 para indicar sucesso, 1 se uma atualização resultar\n"
+"    em arquivos não resolvidos.\n"
 "    "
 
 #, python-format
@@ -13737,6 +13777,9 @@ msgstr "** Mercurial SCM Distribuído (versão %s)\n"
 #, python-format
 msgid "** Extensions loaded: %s\n"
 msgstr "** Extensões carregadas: %s\n"
+
+msgid "too few arguments for command alias"
+msgstr "faltam argumentos para o apelido de comando"
 
 #, python-format
 msgid "no definition for alias '%s'\n"
@@ -15365,8 +15408,8 @@ msgid ""
 "    option ensures that the on-disk format of newly created\n"
 "    repositories will be compatible with Mercurial before version 1.7."
 msgstr ""
-"``usefncache``\n"
-"    Habilita ou desabilita o formato de repositório \"fncache\", que\n"
+"``dotencode``\n"
+"    Habilita ou desabilita o formato de repositório \"dotencode\", que\n"
 "    aprimora o formato \"fncache\" (que deve ser habilitado para o uso de\n"
 "    dotencode) para evitar problemas com nomes de arquivo iniciados por\n"
 "    ._ no Mac OS X e espaços no Windows. Habilitado por padrão.\n"
@@ -16371,7 +16414,7 @@ msgstr ""
 "    rápido (~10x) que um clone comum. Na maior parte de conexões WAN\n"
 "    (ou qualquer conexão mais lenta que cerca de 6 Mbps), streaming\n"
 "    não comprimido é mais lento, por causa dos dados extras\n"
-"    transferidos. Este modo também temporariamente usará\n"
+"    transferidos. Este modo também usará\n"
 "    temporariamente o bloqueio de escrita no repositório enquanto\n"
 "    forem determinados os dados a serem transmitidos.\n"
 "    O padrão é True."
@@ -19449,13 +19492,13 @@ msgid ""
 "These phases are ordered (public < draft < secret) and no changeset\n"
 "can be in a lower phase than its ancestors. For instance, if a\n"
 "changeset is public, all its ancestors are also public. Lastly,\n"
-"changeset phases only be changed towards the public phase."
+"changeset phases should only be changed towards the public phase."
 msgstr ""
 "Estas fases são ordenadas (pública < rascunho < secreta) e\n"
 "nenhuma revisão pode estar em uma fase menor que as de seus\n"
 "ancestrais. Por exemplo, se uma revisão é pública, todos os\n"
-"seus ancestrais também serão públicos. Por fim, a fase de\n"
-"revisões só pode ser modificada em direção à fase pública."
+"seus ancestrais também serão públicos. Por fim, as fases de\n"
+"revisões só devem ser modificadas em direção à fase pública."
 
 msgid ""
 "How are phases managed?\n"

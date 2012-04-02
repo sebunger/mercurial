@@ -1381,7 +1381,8 @@ def debugbuilddag(ui, repo, text=None,
         at = -1
         atbranch = 'default'
         nodeids = []
-        ui.progress(_('building'), 0, unit=_('revisions'), total=total)
+        id = 0
+        ui.progress(_('building'), id, unit=_('revisions'), total=total)
         for type, data in dagparser.parsedag(text):
             if type == 'n':
                 ui.note('node %s\n' % str(data))
@@ -2903,7 +2904,7 @@ def heads(ui, repo, *branchrevs, **opts):
             headless = ', '.join(b for b in branches - haveheads)
             msg = _('no open branch heads found on branches %s')
             if opts.get('rev'):
-                msg += _(' (started at %s)' % opts['rev'])
+                msg += _(' (started at %s)') % opts['rev']
             ui.warn((msg + '\n') % headless)
 
     if not heads:
@@ -2996,7 +2997,7 @@ def help_(ui, name=None, unknowncmd=False, full=True, **opts):
                 msg = _('use "hg help" for the full list of commands '
                         'or "hg -v" for details')
             elif name and not full:
-                msg = _('use "hg help %s" to show the full help text' % name)
+                msg = _('use "hg help %s" to show the full help text') % name
             elif aliases:
                 msg = _('use "hg -v help%s" to show builtin aliases and '
                         'global options') % (name and " " + name or "")
@@ -4268,7 +4269,7 @@ def postincoming(ui, repo, modheads, optupdate, checkout):
         try:
             ret = hg.update(repo, checkout)
         except util.Abort, inst:
-            ui.warn(_("not updating: %s\n" % str(inst)))
+            ui.warn(_("not updating: %s\n") % str(inst))
             return 0
         if not ret and not checkout:
             if bookmarks.update(repo, [movemarkfrom], repo['.'].node()):

@@ -97,8 +97,11 @@ def _picktool(repo, ui, path, binary, symlink):
         if check(t, None, symlink, binary):
             toolpath = _findtool(ui, t)
             return (t, '"' + toolpath + '"')
-    # internal merge as last resort
-    return (not (symlink or binary) and "internal:merge" or None, None)
+
+    # internal merge or prompt as last resort
+    if symlink or binary:
+        return "internal:prompt", None
+    return "internal:merge", None
 
 def _eoltype(data):
     "Guess the EOL type of a file"
@@ -220,6 +223,8 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
         util.copyfile(a, a + ".local")
         repo.wwrite(fd + ".other", fco.data(), fco.flags())
         repo.wwrite(fd + ".base", fca.data(), fca.flags())
+        os.unlink(b)
+        os.unlink(c)
         return 1 # unresolved
     else:
         args = _toolstr(ui, tool, "args", '$local $base $other')
