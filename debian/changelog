@@ -1,4 +1,4 @@
-mercurial (2.1.2-1) UNRELEASED; urgency=low
+mercurial (2.1.2-1) unstable; urgency=low
 
   * New upstream release 2.1.2
   * Add armel to the list of architectures with slow buildds
@@ -12,7 +12,7 @@ mercurial (2.1.2-1) UNRELEASED; urgency=low
   * Add patch for_upstream__skip_test_gpg_if_not_mercurial_wd.patch to
     skip test-gpg when the testsuite is not run in a hg checkout
 
- -- Javi Merino <vicho@debian.org>  Mon, 02 Apr 2012 22:41:49 +0100
+ -- Javi Merino <vicho@debian.org>  Mon, 02 Apr 2012 22:50:29 +0100
 
 mercurial (2.1.1-2) unstable; urgency=low
 
