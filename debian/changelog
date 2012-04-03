@@ -1,3 +1,11 @@
+mercurial (2.1.2-2) unstable; urgency=low
+
+  * Add sparc to the list of architectures with slow buildds
+  * Import 91eec29dd7de from upstream to fix the test-suite failures in
+    mips and sparc
+
+ -- Javi Merino <vicho@debian.org>  Tue, 03 Apr 2012 21:54:05 +0100
+
 mercurial (2.1.2-1) unstable; urgency=low
 
   * New upstream release 2.1.2
