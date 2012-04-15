@@ -14,7 +14,7 @@ were part of the actual repository.
 from node import nullid
 from i18n import _
 import os, tempfile, shutil
-import changegroup, util, mdiff, discovery
+import changegroup, util, mdiff, discovery, cmdutil
 import localrepo, changelog, manifest, filelog, revlog, error
 
 class bundlerevlog(revlog.revlog):
@@ -168,6 +168,7 @@ class bundlerepository(localrepo.localrepository):
             self._tempparent = tempfile.mkdtemp()
             localrepo.instance(ui, self._tempparent, 1)
             localrepo.localrepository.__init__(self, ui, self._tempparent)
+        self.ui.setconfig('phases', 'publish', False)
 
         if path:
             self._url = 'bundle:' + util.expandpath(path) + '+' + bundlename
@@ -274,6 +275,11 @@ def instance(ui, path, create):
     if create:
         raise util.Abort(_('cannot create new bundle repository'))
     parentpath = ui.config("bundle", "mainreporoot", "")
+    if not parentpath:
+        # try to find the correct path to the working directory repo
+        parentpath = cmdutil.findrepo(os.getcwd())
+        if parentpath is None:
+            parentpath = ''
     if parentpath:
         # Try to make the full path relative so we get a nice, short URL.
         # In particular, we don't want temp dir names in test outputs.

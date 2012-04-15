@@ -24,7 +24,7 @@ class request(object):
 
 def run():
     "run the command in sys.argv"
-    sys.exit(dispatch(request(sys.argv[1:])))
+    sys.exit((dispatch(request(sys.argv[1:])) or 0) & 255)
 
 def dispatch(req):
     "run the command specified in req.args"
@@ -218,14 +218,16 @@ def _runcatch(req):
 
 def aliasargs(fn, givenargs):
     args = getattr(fn, 'args', [])
-    if args and givenargs:
+    if args:
         cmd = ' '.join(map(util.shellquote, args))
 
         nums = []
         def replacer(m):
             num = int(m.group(1)) - 1
             nums.append(num)
-            return givenargs[num]
+            if num < len(givenargs):
+                return givenargs[num]
+            raise util.Abort(_('too few arguments for command alias'))
         cmd = re.sub(r'\$(\d+|\$)', replacer, cmd)
         givenargs = [x for i, x in enumerate(givenargs)
                      if i not in nums]
@@ -259,7 +261,6 @@ class cmdalias(object):
                 return 1
             self.fn = fn
             self.badalias = True
-
             return
 
         if self.definition.startswith('!'):
@@ -584,7 +585,7 @@ def _dispatch(req):
         raise util.Abort(_("option --cwd may not be abbreviated!"))
     if options["repository"]:
         raise util.Abort(_(
-            "Option -R has to be separated from other options (e.g. not -qR) "
+            "option -R has to be separated from other options (e.g. not -qR) "
             "and --repository may only be abbreviated as --repo!"))
 
     if options["encoding"]:

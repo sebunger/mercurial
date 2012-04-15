@@ -26,7 +26,7 @@ Suggest Debian packages for some optional dependencies.
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -27,11 +27,12 @@
+@@ -29,11 +29,12 @@
  class MissingTool(Exception):
      pass
  
@@ -65,7 +65,7 @@ Suggest Debian packages for some optional dependencies.
              raise util.Abort(_('darcs version 2.1 or newer needed (found %r)') %
                               version)
  
-         if ElementTree is None:
+         if "ElementTree" not in globals():
 -            raise util.Abort(_("Python ElementTree module is not available"))
 +            raise util.Abort(_("Python ElementTree module is not available") +
 +                             _(" (try installing the %s package)") % 'python-celementtree')
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -977,6 +981,8 @@
+@@ -979,6 +983,8 @@
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):

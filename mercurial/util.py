@@ -24,6 +24,9 @@ if os.name == 'nt':
 else:
     import posix as platform
 
+platform.encodinglower = encoding.lower
+platform.encodingupper = encoding.upper
+
 cachestat = platform.cachestat
 checkexec = platform.checkexec
 checklink = platform.checklink
@@ -74,6 +77,11 @@ username = platform.username
 
 # Python compatibility
 
+_notset = object()
+
+def safehasattr(thing, attr):
+    return getattr(thing, attr, _notset) is not _notset
+
 def sha1(s=''):
     '''
     Low-overhead wrapper around Python's SHA support
@@ -87,10 +95,6 @@ def sha1(s=''):
 
     return _fastsha1(s)
 
-_notset = object()
-def safehasattr(thing, attr):
-    return getattr(thing, attr, _notset) is not _notset
-
 def _fastsha1(s=''):
     # This function will import sha1 from hashlib or sha (whichever is
     # available) and overwrite itself with it on the first call.
@@ -103,18 +107,15 @@ def _fastsha1(s=''):
     _fastsha1 = sha1 = _sha1
     return _sha1(s)
 
-import __builtin__
-
-if sys.version_info[0] < 3:
-    def fakebuffer(sliceable, offset=0):
-        return sliceable[offset:]
-else:
-    def fakebuffer(sliceable, offset=0):
-        return memoryview(sliceable)[offset:]
 try:
-    buffer
+    buffer = buffer
 except NameError:
-    __builtin__.buffer = fakebuffer
+    if sys.version_info[0] < 3:
+        def buffer(sliceable, offset=0):
+            return sliceable[offset:]
+    else:
+        def buffer(sliceable, offset=0):
+            return memoryview(sliceable)[offset:]
 
 import subprocess
 closefds = os.name == 'posix'
@@ -595,9 +596,12 @@ def checkcase(path):
     """
     s1 = os.stat(path)
     d, b = os.path.split(path)
-    p2 = os.path.join(d, b.upper())
-    if path == p2:
-        p2 = os.path.join(d, b.lower())
+    b2 = b.upper()
+    if b == b2:
+        b2 = b.lower()
+        if b == b2:
+            return True # no evidence against case sensitivity
+    p2 = os.path.join(d, b2)
     try:
         s2 = os.stat(p2)
         if s2 == s1:
@@ -610,18 +614,17 @@ _fspathcache = {}
 def fspath(name, root):
     '''Get name in the case stored in the filesystem
 
-    The name is either relative to root, or it is an absolute path starting
-    with root. Note that this function is unnecessary, and should not be
-    called, for case-sensitive filesystems (simply because it's expensive).
-    '''
-    # If name is absolute, make it relative
-    if name.lower().startswith(root.lower()):
-        l = len(root)
-        if name[l] == os.sep or name[l] == os.altsep:
-            l = l + 1
-        name = name[l:]
+    The name should be relative to root, and be normcase-ed for efficiency.
 
-    if not os.path.lexists(os.path.join(root, name)):
+    Note that this function is unnecessary, and should not be
+    called, for case-sensitive filesystems (simply because it's expensive).
+
+    The root should be normcase-ed, too.
+    '''
+    def find(p, contents):
+        for n in contents:
+            if normcase(n) == p:
+                return n
         return None
 
     seps = os.sep
@@ -630,7 +633,7 @@ def fspath(name, root):
     # Protect backslashes. This gets silly very quickly.
     seps.replace('\\','\\\\')
     pattern = re.compile(r'([^%s]+)|([%s]+)' % (seps, seps))
-    dir = os.path.normcase(os.path.normpath(root))
+    dir = os.path.normpath(root)
     result = []
     for part, sep in pattern.findall(name):
         if sep:
@@ -641,16 +644,16 @@ def fspath(name, root):
             _fspathcache[dir] = os.listdir(dir)
         contents = _fspathcache[dir]
 
-        lpart = part.lower()
-        lenp = len(part)
-        for n in contents:
-            if lenp == len(n) and n.lower() == lpart:
-                result.append(n)
-                break
-        else:
-            # Cannot happen, as the file exists!
-            result.append(part)
-        dir = os.path.join(dir, lpart)
+        found = find(part, contents)
+        if not found:
+            # retry "once per directory" per "dirstate.walk" which
+            # may take place for each patches of "hg qpush", for example
+            contents = os.listdir(dir)
+            _fspathcache[dir] = contents
+            found = find(part, contents)
+
+        result.append(found or part)
+        dir = os.path.join(dir, part)
 
     return ''.join(result)
 
@@ -1495,7 +1498,7 @@ class url(object):
     """
 
     _safechars = "!~*'()+"
-    _safepchars = "/!~*'()+"
+    _safepchars = "/!~*'()+:"
     _matchscheme = re.compile(r'^[a-zA-Z0-9+.\-]+:').match
 
     def __init__(self, path, parsequery=True, parsefragment=True):
@@ -1607,8 +1610,8 @@ class url(object):
 
         Examples:
 
-        >>> str(url('http://user:pw@host:80/?foo#bar'))
-        'http://user:pw@host:80/?foo#bar'
+        >>> str(url('http://user:pw@host:80/c:/bob?fo:oo#ba:ar'))
+        'http://user:pw@host:80/c:/bob?fo:oo#ba:ar'
         >>> str(url('http://user:pw@host:80/?foo=bar&baz=42'))
         'http://user:pw@host:80/?foo=bar&baz=42'
         >>> str(url('http://user:pw@host:80/?foo=bar%3dbaz'))
@@ -1629,6 +1632,8 @@ class url(object):
         'path'
         >>> str(url('file:///tmp/foo/bar'))
         'file:///tmp/foo/bar'
+        >>> str(url('file:///c:/tmp/foo/bar'))
+        'file:///c:/tmp/foo/bar'
         >>> print url(r'bundle:foo\bar')
         bundle:foo\bar
         """
@@ -1643,8 +1648,11 @@ class url(object):
         s = self.scheme + ':'
         if self.user or self.passwd or self.host:
             s += '//'
-        elif self.scheme and (not self.path or self.path.startswith('/')):
+        elif self.scheme and (not self.path or self.path.startswith('/')
+                              or hasdriveletter(self.path)):
             s += '//'
+            if hasdriveletter(self.path):
+                s += '/'
         if self.user:
             s += urllib.quote(self.user, safe=self._safechars)
         if self.passwd:
@@ -1716,7 +1724,7 @@ def hasscheme(path):
     return bool(url(path).scheme)
 
 def hasdriveletter(path):
-    return path[1:2] == ':' and path[0:1].isalpha()
+    return path and path[1:2] == ':' and path[0:1].isalpha()
 
 def urllocalpath(path):
     return url(path, parsequery=False, parsefragment=False).localpath()

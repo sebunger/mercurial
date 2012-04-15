@@ -13,7 +13,6 @@ import errno
 import platform
 import shutil
 import stat
-import tempfile
 
 from mercurial import dirstate, httpconnection, match as match_, util, scmutil
 from mercurial.i18n import _
@@ -79,7 +78,7 @@ def link(src, dest):
     except OSError:
         # if hardlinks fail, fallback on atomic copy
         dst = util.atomictempfile(dest)
-        for chunk in util.filechunkiter(open(src)):
+        for chunk in util.filechunkiter(open(src, 'rb')):
             dst.write(chunk)
         dst.close()
         os.chmod(dest, os.stat(src).st_mode)
@@ -91,34 +90,40 @@ def usercachepath(ui, hash):
     else:
         if os.name == 'nt':
             appdata = os.getenv('LOCALAPPDATA', os.getenv('APPDATA'))
-            path = os.path.join(appdata, longname, hash)
+            if appdata:
+                path = os.path.join(appdata, longname, hash)
         elif platform.system() == 'Darwin':
-            path = os.path.join(os.getenv('HOME'), 'Library', 'Caches',
-                                longname, hash)
+            home = os.getenv('HOME')
+            if home:
+                path = os.path.join(home, 'Library', 'Caches',
+                                    longname, hash)
         elif os.name == 'posix':
             path = os.getenv('XDG_CACHE_HOME')
             if path:
                 path = os.path.join(path, longname, hash)
             else:
-                path = os.path.join(os.getenv('HOME'), '.cache', longname, hash)
+                home = os.getenv('HOME')
+                if home:
+                    path = os.path.join(home, '.cache', longname, hash)
         else:
             raise util.Abort(_('unknown operating system: %s\n') % os.name)
     return path
 
 def inusercache(ui, hash):
-    return os.path.exists(usercachepath(ui, hash))
+    path = usercachepath(ui, hash)
+    return path and os.path.exists(path)
 
 def findfile(repo, hash):
     if instore(repo, hash):
         repo.ui.note(_('Found %s in store\n') % hash)
+        return storepath(repo, hash)
     elif inusercache(repo.ui, hash):
         repo.ui.note(_('Found %s in system cache\n') % hash)
         path = storepath(repo, hash)
         util.makedirs(os.path.dirname(path))
         link(usercachepath(repo.ui, hash), path)
-    else:
-        return None
-    return storepath(repo, hash)
+        return path
+    return None
 
 class largefiles_dirstate(dirstate.dirstate):
     def __getitem__(self, key):
@@ -133,6 +138,8 @@ class largefiles_dirstate(dirstate.dirstate):
         return super(largefiles_dirstate, self).drop(unixpath(f))
     def forget(self, f):
         return super(largefiles_dirstate, self).forget(unixpath(f))
+    def normallookup(self, f):
+        return super(largefiles_dirstate, self).normallookup(unixpath(f))
 
 def openlfdirstate(ui, repo):
     '''
@@ -146,11 +153,7 @@ def openlfdirstate(ui, repo):
 
     # If the largefiles dirstate does not exist, populate and create
     # it. This ensures that we create it on the first meaningful
-    # largefiles operation in a new clone. It also gives us an easy
-    # way to forcibly rebuild largefiles state:
-    #   rm .hg/largefiles/dirstate && hg status
-    # Or even, if things are really messed up:
-    #   rm -rf .hg/largefiles && hg status
+    # largefiles operation in a new clone.
     if not os.path.exists(os.path.join(admin, 'dirstate')):
         util.makedirs(admin)
         matcher = getstandinmatcher(repo)
@@ -164,27 +167,19 @@ def openlfdirstate(ui, repo):
             except OSError, err:
                 if err.errno != errno.ENOENT:
                     raise
-
-        lfdirstate.write()
-
     return lfdirstate
 
 def lfdirstate_status(lfdirstate, repo, rev):
-    wlock = repo.wlock()
-    try:
-        match = match_.always(repo.root, repo.getcwd())
-        s = lfdirstate.status(match, [], False, False, False)
-        unsure, modified, added, removed, missing, unknown, ignored, clean = s
-        for lfile in unsure:
-            if repo[rev][standin(lfile)].data().strip() != \
-                    hashfile(repo.wjoin(lfile)):
-                modified.append(lfile)
-            else:
-                clean.append(lfile)
-                lfdirstate.normal(lfile)
-        lfdirstate.write()
-    finally:
-        wlock.release()
+    match = match_.always(repo.root, repo.getcwd())
+    s = lfdirstate.status(match, [], False, False, False)
+    unsure, modified, added, removed, missing, unknown, ignored, clean = s
+    for lfile in unsure:
+        if repo[rev][standin(lfile)].data().strip() != \
+                hashfile(repo.wjoin(lfile)):
+            modified.append(lfile)
+        else:
+            clean.append(lfile)
+            lfdirstate.normal(lfile)
     return (modified, added, removed, missing, unknown, ignored, clean)
 
 def listlfiles(repo, rev=None, matcher=None):
@@ -226,21 +221,33 @@ def copytostore(repo, rev, file, uploaded=False):
         return
     copytostoreabsolute(repo, repo.wjoin(file), hash)
 
+def copyalltostore(repo, node):
+    '''Copy all largefiles in a given revision to the store'''
+
+    ctx = repo[node]
+    for filename in ctx.files():
+        if isstandin(filename) and filename in ctx.manifest():
+            realfile = splitstandin(filename)
+            copytostore(repo, ctx.node(), realfile)
+
+
 def copytostoreabsolute(repo, file, hash):
     util.makedirs(os.path.dirname(storepath(repo, hash)))
     if inusercache(repo.ui, hash):
         link(usercachepath(repo.ui, hash), storepath(repo, hash))
     else:
-        dst = util.atomictempfile(storepath(repo, hash))
-        for chunk in util.filechunkiter(open(file)):
+        dst = util.atomictempfile(storepath(repo, hash),
+                                  createmode=repo.store.createmode)
+        for chunk in util.filechunkiter(open(file, 'rb')):
             dst.write(chunk)
         dst.close()
-        util.copymode(file, storepath(repo, hash))
         linktousercache(repo, hash)
 
 def linktousercache(repo, hash):
-    util.makedirs(os.path.dirname(usercachepath(repo.ui, hash)))
-    link(storepath(repo, hash), usercachepath(repo.ui, hash))
+    path = usercachepath(repo.ui, hash)
+    if path:
+        util.makedirs(os.path.dirname(path))
+        link(storepath(repo, hash), path)
 
 def getstandinmatcher(repo, pats=[], opts={}):
     '''Return a match object that applies pats to the standin directory'''
@@ -295,7 +302,7 @@ def standin(filename):
     # 2) Join with '/' because that's what dirstate always uses, even on
     #    Windows. Change existing separator to '/' first in case we are
     #    passed filenames from an external source (like the command line).
-    return shortname + '/' + filename.replace(os.sep, '/')
+    return shortname + '/' + util.pconvert(filename)
 
 def isstandin(filename):
     '''Return true if filename is a big file standin. filename must be
@@ -306,7 +313,7 @@ def splitstandin(filename):
     # Split on / because that's what dirstate always uses, even on Windows.
     # Change local separator to / first just in case we are passed filenames
     # from an external source (like the command line).
-    bits = filename.replace(os.sep, '/').split('/', 1)
+    bits = util.pconvert(filename).split('/', 1)
     if len(bits) == 2 and bits[0] == shortname:
         return bits[1]
     else:
@@ -382,28 +389,10 @@ def blockstream(infile, blocksize=128 * 1024):
     # same blecch as copyandhash() above
     infile.close()
 
-def readhash(filename):
-    rfile = open(filename, 'rb')
-    hash = rfile.read(40)
-    rfile.close()
-    if len(hash) < 40:
-        raise util.Abort(_('bad hash in \'%s\' (only %d bytes long)')
-                         % (filename, len(hash)))
-    return hash
-
 def writehash(hash, filename, executable):
     util.makedirs(os.path.dirname(filename))
-    if os.path.exists(filename):
-        os.unlink(filename)
-    wfile = open(filename, 'wb')
-
-    try:
-        wfile.write(hash)
-        wfile.write('\n')
-    finally:
-        wfile.close()
-    if os.path.exists(filename):
-        os.chmod(filename, getmode(executable))
+    util.writefile(filename, hash + '\n')
+    os.chmod(filename, getmode(executable))
 
 def getexecutable(filename):
     mode = os.stat(filename).st_mode
@@ -443,19 +432,20 @@ def httpsendfile(ui, filename):
 
 def unixpath(path):
     '''Return a version of path normalized for use with the lfdirstate.'''
-    return os.path.normpath(path).replace(os.sep, '/')
+    return util.pconvert(os.path.normpath(path))
 
 def islfilesrepo(repo):
     return ('largefiles' in repo.requirements and
             util.any(shortname + '/' in f[0] for f in repo.store.datafiles()))
 
-def mkstemp(repo, prefix):
-    '''Returns a file descriptor and a filename corresponding to a temporary
-    file in the repo's largefiles store.'''
-    path = repo.join(longname)
-    util.makedirs(path)
-    return tempfile.mkstemp(prefix=prefix, dir=path)
-
 class storeprotonotcapable(Exception):
     def __init__(self, storetypes):
         self.storetypes = storetypes
+
+def getcurrentheads(repo):
+    branches = repo.branchmap()
+    heads = []
+    for branch in branches:
+        newheads = repo.branchheads(branch)
+        heads = heads + newheads
+    return heads

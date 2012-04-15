@@ -6,6 +6,7 @@ Test basic functionality of url#rev syntax
   $ hg ci -qAm 'add a'
   $ hg branch foo
   marked working directory as branch foo
+  (branches are permanent and global, did you want a bookmark?)
   $ echo >> a
   $ hg ci -m 'change a'
   $ cd ..
@@ -41,7 +42,7 @@ Test basic functionality of url#rev syntax
   
   $ cat clone/.hg/hgrc
   [paths]
-  default = $TESTTMP/repo#foo
+  default = $TESTTMP/repo#foo (glob)
 
 Changing original repo:
 

@@ -1,3 +1,105 @@
+mercurial (2.1.2-2~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Javi Merino <vicho@debian.org>  Sun, 15 Apr 2012 18:31:58 +0100
+
+mercurial (2.1.2-2) unstable; urgency=low
+
+  * Add sparc to the list of architectures with slow buildds
+  * Import 91eec29dd7de from upstream to fix the test-suite failures in
+    mips and sparc
+
+ -- Javi Merino <vicho@debian.org>  Tue, 03 Apr 2012 21:54:05 +0100
+
+mercurial (2.1.2-1) unstable; urgency=low
+
+  * New upstream release 2.1.2
+  * Add armel to the list of architectures with slow buildds
+  * Drop patch "deb_specific__no_optim_bdiff_armel.patch" as gcc no
+    longer miscompiles bdiff in armel
+  * Remove confusing entry in Debian.NEWS (Closes: #666549)
+  * Remove patches for_upstream__fix_kfreebsd_test_inherit.patch,
+    from_upstream__dont_translate_the_abort_message_twice.patch and
+    from_upstream__fix_all_remaining_uses_of_inside.patch which are now
+    included upstream
+  * Add patch for_upstream__skip_test_gpg_if_not_mercurial_wd.patch to
+    skip test-gpg when the testsuite is not run in a hg checkout
+
+ -- Javi Merino <vicho@debian.org>  Mon, 02 Apr 2012 22:50:29 +0100
+
+mercurial (2.1.1-2) unstable; urgency=low
+
+  * Add kfreebsd-i386 to the list of slow architectures for the test suite.
+  * Improve the fix for the test-inherit-mode.t patch based on
+    suggestions from upstream
+  * Fix "UnicodeDecodeError when refusing to update" by adding patches
+    from_upstream__dont_translate_the_abort_message_twice.patch and
+    from_upstream__fix_all_remaining_uses_of_inside.patch  (Closes: #662207)
+
+ -- Javi Merino <vicho@debian.org>  Fri, 09 Mar 2012 00:14:13 +0000
+
+mercurial (2.1.1-1) unstable; urgency=low
+
+  * New upstream version 2.1.1-1
+  * Change the group of the test dir in test-inherit-mode.t so that the
+    testsuite doesn't fail in kfreebsd-*
+  * Drop from_upstream__test_check_code_hg_skip_test_if_not_wd.patch
+    which is now included upstream
+  * Upload to unstable
+
+ -- Javi Merino <vicho@debian.org>  Sat, 03 Mar 2012 08:03:18 +0000
+
+mercurial (2.1-3) experimental; urgency=low
+
+  * Remove unused lintian override binary-without-manpage
+  * Bump standards-version to 3.9.3 (no change needed)
+  * Suggest tkcvs instead of tkdiff.  tkdiff has been removed from
+    wheezy as tkcvs provides tkdiff (see bug #483362).
+  * Suggest more visual diff commands
+  * Increment test timeout.  test-bisect2.t timed out on mips.
+  * Increment the sleeps in the testsuite in mips so that the test
+    produces the same output than in faster architectures
+  * Ignore the output of chmod in a test so that the testsuite doesn't
+    fail in kfreebsd-*
+  * Add patch
+    from_upstream__test_check_code_hg_skip_test_if_not_wd.patch to skip
+    test_check_code_hg instead of having to blacklist it
+
+ -- Javi Merino <vicho@debian.org>  Wed, 29 Feb 2012 08:51:26 +0000
+
+mercurial (2.1-2) experimental; urgency=low
+
+  * Recommend ssh
+  * Bump watch version to 3 since we are using version mangling
+  * Run tests in the buildds
+  * Added my new DD account
+
+ -- Javi Merino <vicho@debian.org>  Sat, 25 Feb 2012 18:12:14 +0000
+
+mercurial (2.1-1) unstable; urgency=low
+
+  * New upstream revision
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 03 Feb 2012 18:38:19 +0100
+
+mercurial (2.0.2-1) unstable; urgency=low
+
+  * New upstream revision
+  * Fix "hg-ssh is installed system-wide but uses "/usr/bin/env python"
+    as the python interpreter" with a patch that fixes the interpreter
+    (Closes: #654925)
+
+ -- Javi Merino <cibervicho@gmail.com>  Fri, 06 Jan 2012 22:09:32 +0000
+
+mercurial (2.0.1-2) unstable; urgency=low
+
+  * Team Upload  
+  * Update Breaks for hgsubversion (see bug #646946), hg-git (see bug
+    #645037), hgview (see bug #637400), and qct (see bug #637401).
+
+ -- Jakub Wilk <jwilk@debian.org>  Sun, 11 Dec 2011 23:47:26 +0100
+
 mercurial (2.0.1-1~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.

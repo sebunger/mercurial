@@ -10,6 +10,14 @@ import util, error, osutil, revset, similar, encoding
 import match as matchmod
 import os, errno, re, stat, sys, glob
 
+def nochangesfound(ui, secretlist=None):
+    '''report no changes for push/pull'''
+    if secretlist:
+        ui.status(_("no changes found (ignored %d secret changesets)\n")
+                  % len(secretlist))
+    else:
+        ui.status(_("no changes found\n"))
+
 def checkfilename(f):
     '''Check that the filename f is an acceptable filename for a tracked file'''
     if '\r' in f or '\n' in f:
@@ -76,18 +84,23 @@ class pathauditor(object):
         self.auditeddir = set()
         self.root = root
         self.callback = callback
+        if os.path.lexists(root) and not util.checkcase(root):
+            self.normcase = util.normcase
+        else:
+            self.normcase = lambda x: x
 
     def __call__(self, path):
         '''Check the relative path.
         path may contain a pattern (e.g. foodir/**.txt)'''
 
-        if path in self.audited:
+        path = util.localpath(path)
+        normpath = self.normcase(path)
+        if normpath in self.audited:
             return
         # AIX ignores "/" at end of path, others raise EISDIR.
         if util.endswithsep(path):
             raise util.Abort(_("path ends in directory separator: %s") % path)
-        normpath = os.path.normcase(path)
-        parts = util.splitpath(normpath)
+        parts = util.splitpath(path)
         if (os.path.splitdrive(path)[0]
             or parts[0].lower() in ('.hg', '.hg.', '')
             or os.pardir in parts):
@@ -98,14 +111,19 @@ class pathauditor(object):
                 if p in lparts[1:]:
                     pos = lparts.index(p)
                     base = os.path.join(*parts[:pos])
-                    raise util.Abort(_('path %r is inside nested repo %r')
+                    raise util.Abort(_("path '%s' is inside nested repo %r")
                                      % (path, base))
 
+        normparts = util.splitpath(normpath)
+        assert len(parts) == len(normparts)
+
         parts.pop()
+        normparts.pop()
         prefixes = []
         while parts:
             prefix = os.sep.join(parts)
-            if prefix in self.auditeddir:
+            normprefix = os.sep.join(normparts)
+            if normprefix in self.auditeddir:
                 break
             curpath = os.path.join(self.root, prefix)
             try:
@@ -123,12 +141,13 @@ class pathauditor(object):
                 elif (stat.S_ISDIR(st.st_mode) and
                       os.path.isdir(os.path.join(curpath, '.hg'))):
                     if not self.callback or not self.callback(curpath):
-                        raise util.Abort(_('path %r is inside nested repo %r') %
+                        raise util.Abort(_("path '%s' is inside nested repo %r") %
                                          (path, prefix))
-            prefixes.append(prefix)
+            prefixes.append(normprefix)
             parts.pop()
+            normparts.pop()
 
-        self.audited.add(path)
+        self.audited.add(normpath)
         # only add prefixes to the cache after checking everything: we don't
         # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
         self.auditeddir.update(prefixes)
@@ -192,7 +211,7 @@ class opener(abstractopener):
             if r:
                 raise util.Abort("%s: %r" % (r, path))
         self.auditor(path)
-        f = os.path.join(self.base, path)
+        f = self.join(path)
 
         if not text and "b" not in mode:
             mode += "b" # for that other OS
@@ -236,7 +255,7 @@ class opener(abstractopener):
 
     def symlink(self, src, dst):
         self.auditor(dst)
-        linkname = os.path.join(self.base, dst)
+        linkname = self.join(dst)
         try:
             os.unlink(linkname)
         except OSError:
@@ -260,6 +279,9 @@ class opener(abstractopener):
 
     def audit(self, path):
         self.auditor(path)
+
+    def join(self, path):
+        return os.path.join(self.base, path)
 
 class filteropener(abstractopener):
     '''Wrapper opener for filtering filenames with a function.'''
@@ -302,8 +324,8 @@ def canonpath(root, cwd, myname, auditor=None):
             try:
                 name_st = os.stat(name)
             except OSError:
-                break
-            if util.samestat(name_st, root_st):
+                name_st = None
+            if name_st and util.samestat(name_st, root_st):
                 if not rel:
                     # name was actually the same as root (maybe a symlink)
                     return ''
@@ -449,7 +471,7 @@ else:
                                _HKEY_LOCAL_MACHINE)
         if not isinstance(value, str) or not value:
             return rcpath
-        value = value.replace('/', os.sep)
+        value = util.localpath(value)
         for p in value.split(os.pathsep):
             if p.lower().endswith('mercurial.ini'):
                 rcpath.append(p)
@@ -774,9 +796,17 @@ class filecache(object):
     to tell us if a file has been replaced. If it can't, we fallback to
     recreating the object on every call (essentially the same behaviour as
     propertycache).'''
-    def __init__(self, path, instore=False):
+    def __init__(self, path):
         self.path = path
-        self.instore = instore
+
+    def join(self, obj, fname):
+        """Used to compute the runtime path of the cached file.
+
+        Users should subclass filecache and provide their own version of this
+        function to call the appropriate join function on 'obj' (an instance
+        of the class that its member function was decorated).
+        """
+        return obj.join(fname)
 
     def __call__(self, func):
         self.func = func
@@ -784,13 +814,17 @@ class filecache(object):
         return self
 
     def __get__(self, obj, type=None):
+        # do we need to check if the file changed?
+        if self.name in obj.__dict__:
+            return obj.__dict__[self.name]
+
         entry = obj._filecache.get(self.name)
 
         if entry:
             if entry.changed():
                 entry.obj = self.func(obj)
         else:
-            path = self.instore and obj.sjoin(self.path) or obj.join(self.path)
+            path = self.join(obj, self.path)
 
             # We stat -before- creating the object so our cache doesn't lie if
             # a writer modified between the time we read and stat
@@ -799,5 +833,16 @@ class filecache(object):
 
             obj._filecache[self.name] = entry
 
-        setattr(obj, self.name, entry.obj)
+        obj.__dict__[self.name] = entry.obj
         return entry.obj
+
+    def __set__(self, obj, value):
+        if self.name in obj._filecache:
+            obj._filecache[self.name].obj = value # update cached copy
+        obj.__dict__[self.name] = value # update copy returned by obj.x
+
+    def __delete__(self, obj):
+        try:
+            del obj.__dict__[self.name]
+        except KeyError:
+            raise AttributeError, self.name

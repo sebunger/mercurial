@@ -97,8 +97,11 @@ def _picktool(repo, ui, path, binary, symlink):
         if check(t, None, symlink, binary):
             toolpath = _findtool(ui, t)
             return (t, '"' + toolpath + '"')
-    # internal merge as last resort
-    return (not (symlink or binary) and "internal:merge" or None, None)
+
+    # internal merge or prompt as last resort
+    if symlink or binary:
+        return "internal:prompt", None
+    return "internal:merge", None
 
 def _eoltype(data):
     "Guess the EOL type of a file"
@@ -142,18 +145,12 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
         f.close()
         return name
 
-    def isbin(ctx):
-        try:
-            return util.binary(ctx.data())
-        except IOError:
-            return False
-
     if not fco.cmp(fcd): # files identical?
         return None
 
     ui = repo.ui
     fd = fcd.path()
-    binary = isbin(fcd) or isbin(fco) or isbin(fca)
+    binary = fcd.isbinary() or fco.isbinary() or fca.isbinary()
     symlink = 'l' in fcd.flags() + fco.flags()
     tool, toolpath = _picktool(repo, ui, fd, binary, symlink)
     ui.debug("picked tool '%s' for %s (binary %s symlink %s)\n" %
@@ -226,6 +223,8 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
         util.copyfile(a, a + ".local")
         repo.wwrite(fd + ".other", fco.data(), fco.flags())
         repo.wwrite(fd + ".base", fca.data(), fca.flags())
+        os.unlink(b)
+        os.unlink(c)
         return 1 # unresolved
     else:
         args = _toolstr(ui, tool, "args", '$local $base $other')
@@ -262,7 +261,11 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
         _matcheol(repo.wjoin(fd), back)
 
     if r:
-        ui.warn(_("merging %s failed!\n") % fd)
+        if tool == "internal:merge":
+            ui.warn(_("merging %s incomplete! "
+                      "(edit conflicts, then use 'hg resolve --mark')\n") % fd)
+        else:
+            ui.warn(_("merging %s failed!\n") % fd)
     else:
         os.unlink(back)
 

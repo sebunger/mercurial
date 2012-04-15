@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" execbit || exit 80
+
 Set up a repo
 
   $ echo "[ui]" >> $HGRCPATH
@@ -894,6 +896,7 @@ Abort early when a merge is in progress
 
   $ hg branch thatbranch
   marked working directory as branch thatbranch
+  (branches are permanent and global, did you want a bookmark?)
 
   $ hg ci -m'new head'
 

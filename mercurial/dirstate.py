@@ -4,6 +4,7 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
+import errno
 
 from node import nullid
 from i18n import _
@@ -13,6 +14,17 @@ import cStringIO
 
 _format = ">cllll"
 propertycache = util.propertycache
+filecache = scmutil.filecache
+
+class repocache(filecache):
+    """filecache for files in .hg/"""
+    def join(self, obj, fname):
+        return obj._opener.join(fname)
+
+class rootcache(filecache):
+    """filecache for files in the repository root"""
+    def join(self, obj, fname):
+        return obj._join(fname)
 
 def _finddirs(path):
     pos = path.rfind('/')
@@ -49,8 +61,9 @@ class dirstate(object):
         self._rootdir = os.path.join(root, '')
         self._dirty = False
         self._dirtypl = False
-        self._lastnormaltime = None
+        self._lastnormaltime = 0
         self._ui = ui
+        self._filecache = {}
 
     @propertycache
     def _map(self):
@@ -69,13 +82,18 @@ class dirstate(object):
         f = {}
         for name in self._map:
             f[util.normcase(name)] = name
+        for name in self._dirs:
+            f[util.normcase(name)] = name
+        f['.'] = '.' # prevents useless util.fspath() invocation
         return f
 
-    @propertycache
+    @repocache('branch')
     def _branch(self):
         try:
             return self._opener.read("branch").strip() or "default"
-        except IOError:
+        except IOError, inst:
+            if inst.errno != errno.ENOENT:
+                raise
             return "default"
 
     @propertycache
@@ -102,7 +120,10 @@ class dirstate(object):
                 _incdirs(dirs, f)
         return dirs
 
-    @propertycache
+    def dirs(self):
+        return self._dirs
+
+    @rootcache('.hgignore')
     def _ignore(self):
         files = [self._join('.hgignore')]
         for name, path in self._ui.configitems("ui"):
@@ -246,7 +267,7 @@ class dirstate(object):
                 "_ignore"):
             if a in self.__dict__:
                 delattr(self, a)
-        self._lastnormaltime = None
+        self._lastnormaltime = 0
         self._dirty = False
 
     def copy(self, source, dest):
@@ -382,8 +403,17 @@ class dirstate(object):
             if isknown or not os.path.lexists(os.path.join(self._root, path)):
                 folded = path
             else:
-                folded = self._foldmap.setdefault(normed,
-                                util.fspath(path, self._root))
+                # recursively normalize leading directory components
+                # against dirstate
+                if '/' in normed:
+                    d, f = normed.rsplit('/', 1)
+                    d = self._normalize(d, isknown)
+                    r = self._root + "/" + d
+                    folded = d + "/" + util.fspath(f, r)
+                else:
+                    folded = util.fspath(normed, self._root)
+                self._foldmap[normed] = folded
+
         return folded
 
     def normalize(self, path, isknown=False):
@@ -410,7 +440,7 @@ class dirstate(object):
             delattr(self, "_dirs")
         self._copymap = {}
         self._pl = [nullid, nullid]
-        self._lastnormaltime = None
+        self._lastnormaltime = 0
         self._dirty = True
 
     def rebuild(self, parent, files):
@@ -458,7 +488,7 @@ class dirstate(object):
             write(f)
         st.write(cs.getvalue())
         st.close()
-        self._lastnormaltime = None
+        self._lastnormaltime = 0
         self._dirty = self._dirtypl = False
 
     def _dirignore(self, f):
@@ -529,7 +559,7 @@ class dirstate(object):
         elif match.files() and not match.anypats(): # match.match, no patterns
             skipstep3 = True
 
-        if self._checkcase:
+        if not exact and self._checkcase:
             normalize = self._normalize
             skipstep3 = False
         else:

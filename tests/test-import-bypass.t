@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" symlink execbit || exit 80
+
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "purge=" >> $HGRCPATH
   $ echo "graphlog=" >> $HGRCPATH
@@ -16,6 +18,7 @@ Test --bypass with other options
   $ echo a >> a
   $ hg branch foo
   marked working directory as branch foo
+  (branches are permanent and global, did you want a bookmark?)
   $ hg ci -Am changea
   $ hg export . > ../test.diff
   $ hg up null
@@ -108,7 +111,15 @@ Test unsupported combinations
 
 Test commit editor
 
-  $ hg diff -c 1 > ../test.diff
+  $ cat > ../test.diff <<EOF
+  > diff -r 07f494440405 -r 4e322f7ce8e3 a
+  > --- a/a	Thu Jan 01 00:00:00 1970 +0000
+  > +++ b/a	Thu Jan 01 00:00:00 1970 +0000
+  > @@ -1,1 +1,2 @@
+  > -a
+  > +b
+  > +c
+  > EOF
   $ HGEDITOR=cat hg import --bypass ../test.diff
   applying ../test.diff
   
@@ -135,7 +146,7 @@ Test patch.eol is handled
   $ hg --config patch.eol=auto import -d '0 0' -m 'test patch.eol' --bypass ../test.diff
   applying ../test.diff
   $ shortlog
-  o  3:d7805b4d2cb3 test 0 0 - default - test patch.eol
+  o  3:c606edafba99 test 0 0 - default - test patch.eol
   |
   @  2:872023de769d test 0 0 - default - makeacrlf
   |

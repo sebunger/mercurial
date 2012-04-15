@@ -1,3 +1,4 @@
+  $ "$TESTDIR/hghave" symlink || exit 80
 
   $ hg init
 
@@ -395,6 +396,23 @@ Renames and strip
   > diff --git a/foo/a b/foo/b
   > rename from foo/a
   > rename to foo/b
+  > EOF
+  applying patch from stdin
+  $ hg st --copies
+  A b
+    a
+  R a
+
+Renames, similarity and git diff
+
+  $ hg revert -aC
+  undeleting a
+  forgetting b
+  $ rm b
+  $ hg import --similarity 90 --no-commit - <<EOF
+  > diff --git a/a b/b
+  > rename from a
+  > rename to b
   > EOF
   applying patch from stdin
   $ hg st --copies

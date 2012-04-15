@@ -127,7 +127,7 @@ hg status:
 hg status modified added removed deleted unknown never-existed ignored:
 
   $ hg status modified added removed deleted unknown never-existed ignored
-  never-existed: No such file or directory
+  never-existed: * (glob)
   A added
   R removed
   ! deleted
@@ -263,12 +263,71 @@ hg status -C --change 1 added modified copied removed deleted:
     modified
   R removed
 
-hg status -A --change 1:
+hg status -A --change 1 and revset:
 
-  $ hg status -A --change 1
+  $ hg status -A --change '1|1'
   M modified
   A added
   A copied
     modified
   R removed
   C deleted
+
+  $ cd ..
+
+hg status of binary file starting with '\1\n', a separator for metadata:
+
+  $ hg init repo5
+  $ cd repo5
+  >>> open("010a", "wb").write("\1\nfoo")
+  $ hg ci -q -A -m 'initial checkin'
+  $ hg status -A
+  C 010a
+
+  >>> open("010a", "wb").write("\1\nbar")
+  $ hg status -A
+  M 010a
+  $ hg ci -q -m 'modify 010a'
+  $ hg status -A --rev 0:1
+  M 010a
+
+  $ touch empty
+  $ hg ci -q -A -m 'add another file'
+  $ hg status -A --rev 1:2 010a
+  C 010a
+
+  $ cd ..
+
+test "hg status" with "directory pattern" which matches against files
+only known on target revision.
+
+  $ hg init repo6
+  $ cd repo6
+
+  $ echo a > a.txt
+  $ hg add a.txt
+  $ hg commit -m '#0'
+  $ mkdir -p 1/2/3/4/5
+  $ echo b > 1/2/3/4/5/b.txt
+  $ hg add 1/2/3/4/5/b.txt
+  $ hg commit -m '#1'
+
+  $ hg update -C 0 > /dev/null
+  $ hg status -A
+  C a.txt
+
+the directory matching against specified pattern should be removed,
+because directory existence prevents 'dirstate.walk()' from showing
+warning message about such pattern.
+
+  $ test ! -d 1
+  $ hg status -A --rev 1 1/2/3/4/5/b.txt
+  R 1/2/3/4/5/b.txt
+  $ hg status -A --rev 1 1/2/3/4/5
+  R 1/2/3/4/5/b.txt
+  $ hg status -A --rev 1 1/2/3
+  R 1/2/3/4/5/b.txt
+  $ hg status -A --rev 1 1
+  R 1/2/3/4/5/b.txt
+
+  $ cd ..

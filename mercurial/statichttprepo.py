@@ -86,6 +86,7 @@ class statichttprepository(localrepo.localrepository):
 
         opener = build_opener(ui, authinfo)
         self.opener = opener(self.path)
+        self._phasedefaults = []
 
         try:
             requirements = scmutil.readrequires(self.opener, self.supported)
@@ -111,6 +112,7 @@ class statichttprepository(localrepo.localrepository):
         self.spath = self.store.path
         self.sopener = self.store.opener
         self.sjoin = self.store.join
+        self._filecache = {}
 
         self.manifest = manifest.manifest(self.sopener)
         self.changelog = changelog.changelog(self.sopener)
@@ -121,7 +123,6 @@ class statichttprepository(localrepo.localrepository):
         self.encodepats = None
         self.decodepats = None
         self.capabilities.difference_update(["pushkey"])
-        self._filecache = {}
 
     def url(self):
         return self._url

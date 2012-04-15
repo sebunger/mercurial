@@ -285,6 +285,16 @@ def copy(ui, repo, pats, opts, rename=False):
 
         # check for overwrites
         exists = os.path.lexists(target)
+        samefile = False
+        if exists and abssrc != abstarget:
+            if (repo.dirstate.normalize(abssrc) ==
+                repo.dirstate.normalize(abstarget)):
+                if not rename:
+                    ui.warn(_("%s: can't copy - same file\n") % reltarget)
+                    return
+                exists = False
+                samefile = True
+
         if not after and exists or after and state in 'mn':
             if not opts['force']:
                 ui.warn(_('%s: not overwriting - file exists\n') %
@@ -307,7 +317,12 @@ def copy(ui, repo, pats, opts, rename=False):
                 targetdir = os.path.dirname(target) or '.'
                 if not os.path.isdir(targetdir):
                     os.makedirs(targetdir)
-                util.copyfile(src, target)
+                if samefile:
+                    tmp = target + "~hgrename"
+                    os.rename(src, tmp)
+                    os.rename(tmp, target)
+                else:
+                    util.copyfile(src, target)
                 srcexists = True
             except IOError, inst:
                 if inst.errno == errno.ENOENT:
@@ -330,7 +345,7 @@ def copy(ui, repo, pats, opts, rename=False):
         scmutil.dirstatecopy(ui, repo, wctx, abssrc, abstarget,
                              dryrun=dryrun, cwd=cwd)
         if rename and not dryrun:
-            if not after and srcexists:
+            if not after and srcexists and not samefile:
                 util.unlinkpath(repo.wjoin(abssrc))
             wctx.forget([abssrc])
 
@@ -588,10 +603,17 @@ def diffordiffstat(ui, repo, diffopts, node1, node2, match,
         ctx1 = repo[node1]
         ctx2 = repo[node2]
         for subpath, sub in subrepo.itersubrepos(ctx1, ctx2):
-            if node2 is not None:
-                node2 = ctx2.substate[subpath][1]
+            tempnode2 = node2
+            try:
+                if node2 is not None:
+                    tempnode2 = ctx2.substate[subpath][1]
+            except KeyError:
+                # A subrepo that existed in node1 was deleted between node1 and
+                # node2 (inclusive). Thus, ctx2's substate won't contain that
+                # subpath. The best we can do is to ignore it.
+                tempnode2 = None
             submatch = matchmod.narrowmatcher(subpath, match)
-            sub.diff(diffopts, node2, submatch, changes=changes,
+            sub.diff(diffopts, tempnode2, submatch, changes=changes,
                      stat=stat, fp=fp, prefix=prefix)
 
 class changeset_printer(object):
@@ -665,6 +687,9 @@ class changeset_printer(object):
         for tag in self.repo.nodetags(changenode):
             self.ui.write(_("tag:         %s\n") % tag,
                           label='log.tag')
+        if self.ui.debugflag and ctx.phase():
+            self.ui.write(_("phase:       %s\n") % _(ctx.phasestr()),
+                          label='log.phase')
         for parent in parents:
             self.ui.write(_("parent:      %d:%s\n") % parent,
                           label='log.parent')
@@ -969,7 +994,7 @@ def walkchangerevs(repo, match, opts, prepare):
     wanted = set()
     slowpath = match.anypats() or (match.files() and opts.get('removed'))
     fncache = {}
-    change = util.cachefunc(repo.changectx)
+    change = repo.changectx
 
     # First step is to fill wanted, the set of revisions that we want to yield.
     # When it does not induce extra cost, we also fill fncache for revisions in
@@ -1014,8 +1039,15 @@ def walkchangerevs(repo, match, opts, prepare):
 
             return reversed(revs)
         def iterfiles():
+            pctx = repo['.']
             for filename in match.files():
-                yield filename, None
+                if follow:
+                    if filename not in pctx:
+                        raise util.Abort(_('cannot follow file not in parent '
+                                           'revision: "%s"') % filename)
+                    yield filename, pctx[filename].filenode()
+                else:
+                    yield filename, None
             for filename_node in copies:
                 yield filename_node
         for file_, node in iterfiles():
@@ -1152,7 +1184,7 @@ def walkchangerevs(repo, match, opts, prepare):
                 yield change(rev)
     return iterate()
 
-def add(ui, repo, match, dryrun, listsubrepos, prefix):
+def add(ui, repo, match, dryrun, listsubrepos, prefix, explicitonly):
     join = lambda f: os.path.join(prefix, f)
     bad = []
     oldbad = match.bad
@@ -1165,40 +1197,78 @@ def add(ui, repo, match, dryrun, listsubrepos, prefix):
         cca = scmutil.casecollisionauditor(ui, abort, wctx)
     for f in repo.walk(match):
         exact = match.exact(f)
-        if exact or f not in repo.dirstate:
+        if exact or not explicitonly and f not in repo.dirstate:
             if cca:
                 cca(f)
             names.append(f)
             if ui.verbose or not exact:
                 ui.status(_('adding %s\n') % match.rel(join(f)))
 
-    if listsubrepos:
-        for subpath in wctx.substate:
-            sub = wctx.sub(subpath)
-            try:
-                submatch = matchmod.narrowmatcher(subpath, match)
-                bad.extend(sub.add(ui, submatch, dryrun, prefix))
-            except error.LookupError:
-                ui.status(_("skipping missing subrepository: %s\n")
-                               % join(subpath))
+    for subpath in wctx.substate:
+        sub = wctx.sub(subpath)
+        try:
+            submatch = matchmod.narrowmatcher(subpath, match)
+            if listsubrepos:
+                bad.extend(sub.add(ui, submatch, dryrun, listsubrepos, prefix,
+                                   False))
+            else:
+                bad.extend(sub.add(ui, submatch, dryrun, listsubrepos, prefix,
+                                   True))
+        except error.LookupError:
+            ui.status(_("skipping missing subrepository: %s\n")
+                           % join(subpath))
 
     if not dryrun:
         rejected = wctx.add(names, prefix)
         bad.extend(f for f in rejected if f in match.files())
     return bad
 
-def duplicatecopies(repo, rev, p1, p2):
+def forget(ui, repo, match, prefix, explicitonly):
+    join = lambda f: os.path.join(prefix, f)
+    bad = []
+    oldbad = match.bad
+    match.bad = lambda x, y: bad.append(x) or oldbad(x, y)
+    wctx = repo[None]
+    forgot = []
+    s = repo.status(match=match, clean=True)
+    forget = sorted(s[0] + s[1] + s[3] + s[6])
+    if explicitonly:
+        forget = [f for f in forget if match.exact(f)]
+
+    for subpath in wctx.substate:
+        sub = wctx.sub(subpath)
+        try:
+            submatch = matchmod.narrowmatcher(subpath, match)
+            subbad, subforgot = sub.forget(ui, submatch, prefix)
+            bad.extend([subpath + '/' + f for f in subbad])
+            forgot.extend([subpath + '/' + f for f in subforgot])
+        except error.LookupError:
+            ui.status(_("skipping missing subrepository: %s\n")
+                           % join(subpath))
+
+    if not explicitonly:
+        for f in match.files():
+            if f not in repo.dirstate and not os.path.isdir(match.rel(join(f))):
+                if f not in forgot:
+                    if os.path.exists(match.rel(join(f))):
+                        ui.warn(_('not removing %s: '
+                                  'file is already untracked\n')
+                                % match.rel(join(f)))
+                    bad.append(f)
+
+    for f in forget:
+        if ui.verbose or not match.exact(f):
+            ui.status(_('removing %s\n') % match.rel(join(f)))
+
+    rejected = wctx.forget(forget, prefix)
+    bad.extend(f for f in rejected if f in match.files())
+    forgot.extend(forget)
+    return bad, forgot
+
+def duplicatecopies(repo, rev, p1):
     "Reproduce copies found in the source revision in the dirstate for grafts"
-    # Here we simulate the copies and renames in the source changeset
-    cop, diver = copies.copies(repo, repo[rev], repo[p1], repo[p2], True)
-    m1 = repo[rev].manifest()
-    m2 = repo[p1].manifest()
-    for k, v in cop.iteritems():
-        if k in m1:
-            if v in m1 or v in m2:
-                repo.dirstate.copy(v, k)
-                if v in m2 and v not in m1 and k in m2:
-                    repo.dirstate.remove(v)
+    for dst, src in copies.pathcopies(repo[p1], repo[rev]).iteritems():
+        repo.dirstate.copy(src, dst)
 
 def commit(ui, repo, commitfunc, pats, opts):
     '''commit the specified files or all outstanding changes'''

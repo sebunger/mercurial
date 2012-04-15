@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" execbit || exit 80
+
   $ checkundo()
   > {
   >     if [ -f .hg/store/undo ]; then
@@ -48,34 +50,40 @@ help
   will override the [diff] section and always generate git or regular patches,
   possibly losing data in the second case.
   
+  It may be desirable for mq changesets to be kept in the secret phase (see "hg
+  help phases"), which can be enabled with the following setting:
+  
+    [mq]
+    secret = True
+  
   You will by default be managing a patch queue named "patches". You can create
   other, independent patch queues with the "hg qqueue" command.
   
   list of commands:
   
-   qapplied     print the patches already applied
-   qclone       clone main and patch repository at same time
-   qdelete      remove patches from queue
-   qdiff        diff of the current patch and subsequent modifications
-   qfinish      move applied patches into repository history
-   qfold        fold the named patches into the current patch
-   qgoto        push or pop patches until named patch is at top of stack
-   qguard       set or print guards for a patch
-   qheader      print the header of the topmost or specified patch
-   qimport      import a patch
-   qnew         create a new patch
-   qnext        print the name of the next patch
-   qpop         pop the current patch off the stack
-   qprev        print the name of the previous patch
-   qpush        push the next patch onto the stack
-   qqueue       manage multiple patch queues
-   qrefresh     update the current patch
-   qrename      rename a patch
-   qselect      set or print guarded patches to push
-   qseries      print the entire series file
-   qtop         print the name of the current patch
-   qunapplied   print the patches not yet applied
-   strip        strip changesets and all their descendants from the repository
+   qapplied      print the patches already applied
+   qclone        clone main and patch repository at same time
+   qdelete       remove patches from queue
+   qdiff         diff of the current patch and subsequent modifications
+   qfinish       move applied patches into repository history
+   qfold         fold the named patches into the current patch
+   qgoto         push or pop patches until named patch is at top of stack
+   qguard        set or print guards for a patch
+   qheader       print the header of the topmost or specified patch
+   qimport       import a patch
+   qnew          create a new patch
+   qnext         print the name of the next pushable patch
+   qpop          pop the current patch off the stack
+   qprev         print the name of the preceding applied patch
+   qpush         push the next patch onto the stack
+   qqueue        manage multiple patch queues
+   qrefresh      update the current patch
+   qrename       rename a patch
+   qselect       set or print guarded patches to push
+   qseries       print the entire series file
+   qtop          print the name of the current patch
+   qunapplied    print the patches not yet applied
+   strip         strip changesets and all their descendants from the repository
   
   use "hg -v help mq" to show builtin aliases and global options
 
@@ -135,7 +143,7 @@ qinit -c should create both files if they don't exist
   guards
   $ cat .hg/patches/series
   $ hg qinit -c
-  abort: repository $TESTTMP/d/.hg/patches already exists!
+  abort: repository $TESTTMP/d/.hg/patches already exists! (glob)
   [255]
   $ cd ..
 
@@ -146,16 +154,20 @@ qinit -c should create both files if they don't exist
   $ hg qnew A
   $ checkundo qnew
   $ echo foo > foo
+  $ hg phase -r qbase
+  0: draft
   $ hg add foo
   $ hg qrefresh
+  $ hg phase -r qbase
+  0: draft
   $ hg qnew B
   $ echo >> foo
   $ hg qrefresh
   $ echo status >> .hg/patches/.hgignore
   $ echo bleh >> .hg/patches/.hgignore
   $ hg qinit -c
-  adding .hg/patches/A
-  adding .hg/patches/B
+  adding .hg/patches/A (glob)
+  adding .hg/patches/B (glob)
   $ hg -R .hg/patches status
   A .hgignore
   A A
@@ -295,6 +307,8 @@ Dump the tag cache to ensure that it has exactly one head after qpush.
   $ hg qpush
   applying test.patch
   now at: test.patch
+  $ hg phase -r qbase
+  2: draft
   $ hg tags > /dev/null
 
 .hg/cache/tags (post qpush):
@@ -385,7 +399,7 @@ commit should fail
   abort: cannot commit over an applied mq patch
   [255]
 
-push should fail
+push should fail if draft
 
   $ hg push ../../k
   pushing to ../../k
@@ -505,7 +519,18 @@ cleaning up
   $ hg qpush --move test.patch # already applied
   abort: cannot push to a previous patch: test.patch
   [255]
-  $ hg qpush
+  $ sed '2i\
+  > # make qtip index different in series and fullseries
+  > ' `hg root`/.hg/patches/series > $TESTTMP/sedtmp
+  $ cp $TESTTMP/sedtmp `hg root`/.hg/patches/series
+  $ cat `hg root`/.hg/patches/series
+  # comment
+  # make qtip index different in series and fullseries
+  
+  test.patch
+  test1b.patch
+  test2.patch
+  $ hg qpush --move test2.patch
   applying test2.patch
   now at: test2.patch
 
@@ -513,11 +538,12 @@ cleaning up
 series after move
 
   $ cat `hg root`/.hg/patches/series
+  # comment
+  # make qtip index different in series and fullseries
+  
   test.patch
   test1b.patch
   test2.patch
-  # comment
-  
 
 
 pop, qapplied, qunapplied
@@ -1191,7 +1217,7 @@ repo with unversioned patch dir
 
   $ cd qclonesource
   $ hg qinit -c
-  adding .hg/patches/patch1
+  adding .hg/patches/patch1 (glob)
   $ hg qci -m checkpoint
   $ qlog
   main repo:
@@ -1392,3 +1418,98 @@ test popping must remove files added in subdirectories first
   patch queue now empty
   $ cd ..
 
+
+test case preservation through patch pushing especially on case
+insensitive filesystem
+
+  $ hg init casepreserve
+  $ cd casepreserve
+
+  $ hg qnew add-file1
+  $ echo a > TeXtFiLe.TxT
+  $ hg add TeXtFiLe.TxT
+  $ hg qrefresh
+
+  $ hg qnew add-file2
+  $ echo b > AnOtHeRFiLe.TxT
+  $ hg add AnOtHeRFiLe.TxT
+  $ hg qrefresh
+
+  $ hg qnew modify-file
+  $ echo c >> AnOtHeRFiLe.TxT
+  $ hg qrefresh
+
+  $ hg qapplied
+  add-file1
+  add-file2
+  modify-file
+  $ hg qpop -a
+  popping modify-file
+  popping add-file2
+  popping add-file1
+  patch queue now empty
+
+this qpush causes problems below, if case preservation on case
+insensitive filesystem is not enough:
+(1) unexpected "adding ..." messages are shown
+(2) patching fails in modification of (1) files
+
+  $ hg qpush -a
+  applying add-file1
+  applying add-file2
+  applying modify-file
+  now at: modify-file
+
+Proper phase default with mq:
+
+1. mq.secret=false
+
+  $ rm .hg/store/phaseroots
+  $ hg phase 'qparent::'
+  0: draft
+  1: draft
+  2: draft
+  $ echo '[mq]' >> $HGRCPATH
+  $ echo 'secret=true' >> $HGRCPATH
+  $ rm -f .hg/store/phaseroots
+  $ hg phase 'qparent::'
+  0: secret
+  1: secret
+  2: secret
+
+Test that qfinish change phase when mq.secret=true
+
+  $ hg qfinish qbase
+  patch add-file1 finalized without changeset message
+  $ hg phase 'all()'
+  0: draft
+  1: secret
+  2: secret
+
+Test that qfinish respect phases.new-commit setting
+
+  $ echo '[phases]' >> $HGRCPATH
+  $ echo 'new-commit=secret' >> $HGRCPATH
+  $ hg qfinish qbase
+  patch add-file2 finalized without changeset message
+  $ hg phase 'all()'
+  0: draft
+  1: secret
+  2: secret
+
+(restore env for next test)
+
+  $ sed -e 's/new-commit=secret//' $HGRCPATH > $TESTTMP/sedtmp
+  $ cp $TESTTMP/sedtmp $HGRCPATH
+  $ hg qimport -r 1 --name  add-file2
+
+Test that qfinish preserve phase when mq.secret=false
+
+  $ sed -e 's/secret=true/secret=false/' $HGRCPATH > $TESTTMP/sedtmp
+  $ cp $TESTTMP/sedtmp $HGRCPATH
+  $ hg qfinish qbase
+  patch add-file2 finalized without changeset message
+  $ hg phase 'all()'
+  0: draft
+  1: secret
+  2: secret

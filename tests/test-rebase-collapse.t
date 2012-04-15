@@ -3,8 +3,12 @@
   > graphlog=
   > rebase=
   > 
+  > [phases]
+  > publish=False
+  > 
   > [alias]
   > tglog = log -G --template "{rev}: '{desc}' {branches}\n"
+  > tglogp = log -G --template "{rev}:{phase} '{desc}' {branches}\n"
   > EOF
 
 Create repo a:
@@ -40,28 +44,31 @@ Create repo a:
   $ cd ..
 
 
-Rebasing B onto H:
+Rebasing B onto H and collapsing changesets with different phases:
+
 
   $ hg clone -q -u 3 a a1
   $ cd a1
 
+  $ hg phase --force --secret 3
+
   $ hg rebase --collapse --keepbranches
   saved backup bundle to $TESTTMP/a1/.hg/strip-backup/*-backup.hg (glob)
 
-  $ hg tglog
-  @  5: 'Collapsed revision
+  $ hg tglogp
+  @  5:secret 'Collapsed revision
   |  * B
   |  * C
   |  * D'
-  o  4: 'H'
+  o  4:draft 'H'
   |
-  | o  3: 'G'
+  | o  3:draft 'G'
   |/|
-  o |  2: 'F'
+  o |  2:draft 'F'
   | |
-  | o  1: 'E'
+  | o  1:draft 'E'
   |/
-  o  0: 'A'
+  o  0:draft 'A'
   
   $ hg manifest
   A
@@ -79,6 +86,7 @@ Rebasing E onto H:
   $ hg clone -q -u . a a2
   $ cd a2
 
+  $ hg phase --force --secret 6
   $ hg rebase --source 4 --collapse
   saved backup bundle to $TESTTMP/a2/.hg/strip-backup/*-backup.hg (glob)
 
@@ -452,12 +460,14 @@ Interactions between collapse and keepbranches
 
   $ hg branch '1'
   marked working directory as branch 1
+  (branches are permanent and global, did you want a bookmark?)
   $ echo 'b' > b
   $ hg ci -Am 'B'
   adding b
 
   $ hg branch '2'
   marked working directory as branch 2
+  (branches are permanent and global, did you want a bookmark?)
   $ echo 'c' > c
   $ hg ci -Am 'C'
   adding c
@@ -480,3 +490,54 @@ Interactions between collapse and keepbranches
   abort: cannot collapse multiple named branches
   [255]
 
+  $ repeatchange() {
+  >   hg checkout $1
+  >   hg cp d z
+  >   echo blah >> z
+  >   hg commit -Am "$2" --user "$3"
+  > }
+  $ repeatchange 3 "E" "user1"
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ repeatchange 3 "E" "user2"
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  created new head
+  $ hg tglog
+  @  5: 'E'
+  |
+  | o  4: 'E'
+  |/
+  o  3: 'D'
+  |
+  | o  2: 'C' 2
+  | |
+  | o  1: 'B' 1
+  |/
+  o  0: 'A'
+  
+  $ hg rebase -s 5 -d 4
+  saved backup bundle to $TESTTMP/e/.hg/strip-backup/*-backup.hg (glob)
+  $ hg tglog
+  @  4: 'E'
+  |
+  o  3: 'D'
+  |
+  | o  2: 'C' 2
+  | |
+  | o  1: 'B' 1
+  |/
+  o  0: 'A'
+  
+  $ hg export tip
+  # HG changeset patch
+  # User user1
+  # Date 0 0
+  # Node ID f338eb3c2c7cc5b5915676a2376ba7ac558c5213
+  # Parent  41acb9dca9eb976e84cd21fcb756b4afa5a35c09
+  E
+  
+  diff -r 41acb9dca9eb -r f338eb3c2c7c z
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/z	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,2 @@
+  +d
+  +blah

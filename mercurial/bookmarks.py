@@ -126,12 +126,24 @@ def setcurrent(repo, mark):
         wlock.release()
     repo._bookmarkcurrent = mark
 
+def unsetcurrent(repo):
+    wlock = repo.wlock()
+    try:
+        try:
+            util.unlink(repo.join('bookmarks.current'))
+            repo._bookmarkcurrent = None
+        except OSError, inst:
+            if inst.errno != errno.ENOENT:
+                raise
+    finally:
+        wlock.release()
+
 def updatecurrentbookmark(repo, oldnode, curbranch):
     try:
-        update(repo, oldnode, repo.branchtags()[curbranch])
+        return update(repo, oldnode, repo.branchtags()[curbranch])
     except KeyError:
         if curbranch == "default": # no default branch!
-            update(repo, oldnode, repo.lookup("tip"))
+            return update(repo, oldnode, repo.lookup("tip"))
         else:
             raise util.Abort(_("branch %s not found") % curbranch)
 
@@ -147,6 +159,7 @@ def update(repo, parents, node):
             update = True
     if update:
         repo._writebookmarks(marks)
+    return update
 
 def listbookmarks(repo):
     # We may try to list bookmarks on a repo type that does not
@@ -155,7 +168,9 @@ def listbookmarks(repo):
 
     d = {}
     for k, v in marks.iteritems():
-        d[k] = hex(v)
+        # don't expose local divergent bookmarks
+        if '@' not in k or k.endswith('@'):
+            d[k] = hex(v)
     return d
 
 def pushbookmark(repo, key, old, new):
@@ -175,7 +190,7 @@ def pushbookmark(repo, key, old, new):
     finally:
         w.release()
 
-def updatefromremote(ui, repo, remote):
+def updatefromremote(ui, repo, remote, path):
     ui.debug("checking for updated bookmarks\n")
     rb = remote.listkeys('bookmarks')
     changed = False
@@ -192,8 +207,21 @@ def updatefromremote(ui, repo, remote):
                     changed = True
                     ui.status(_("updating bookmark %s\n") % k)
                 else:
-                    ui.warn(_("not updating divergent"
-                                   " bookmark %s\n") % k)
+                    # find a unique @ suffix
+                    for x in range(1, 100):
+                        n = '%s@%d' % (k, x)
+                        if n not in repo._bookmarks:
+                            break
+                    # try to use an @pathalias suffix
+                    # if an @pathalias already exists, we overwrite (update) it
+                    for p, u in ui.configitems("paths"):
+                        if path == u:
+                            n = '%s@%s' % (k, p)
+
+                    repo._bookmarks[n] = cr.node()
+                    changed = True
+                    ui.warn(_("divergent bookmark %s stored as %s\n") % (k, n))
+
     if changed:
         write(repo)
 
@@ -205,7 +233,8 @@ def diff(ui, repo, remote):
 
     diff = sorted(set(rmarks) - set(lmarks))
     for k in diff:
-        ui.write("   %-25s %s\n" % (k, rmarks[k][:12]))
+        mark = ui.debugflag and rmarks[k] or rmarks[k][:12]
+        ui.write("   %-25s %s\n" % (k, mark))
 
     if len(diff) <= 0:
         ui.status(_("no changed bookmarks found\n"))

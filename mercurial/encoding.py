@@ -105,7 +105,7 @@ def tolocal(s):
                 return localstr(u.encode('UTF-8'), r)
 
         except LookupError, k:
-            raise error.Abort("%s, please check your locale settings" % k)
+            raise error.Abort(k, hint="please check your locale settings")
         except UnicodeDecodeError:
             pass
     u = s.decode("utf-8", "replace") # last ditch
@@ -132,7 +132,7 @@ def fromlocal(s):
         sub = s[max(0, inst.start - 10):inst.start + 10]
         raise error.Abort("decoding near '%s': %s!" % (sub, inst))
     except LookupError, k:
-        raise error.Abort("%s, please check your locale settings" % k)
+        raise error.Abort(k, hint="please check your locale settings")
 
 # How to treat ambiguous-width characters. Set to 'wide' to treat as wide.
 wide = (os.environ.get("HGENCODINGAMBIGUOUS", "narrow") == "wide"
@@ -171,3 +171,22 @@ def lower(s):
         return lu.encode(encoding)
     except UnicodeError:
         return s.lower() # we don't know how to fold this except in ASCII
+    except LookupError, k:
+        raise error.Abort(k, hint="please check your locale settings")
+
+def upper(s):
+    "best-effort encoding-aware case-folding of local string s"
+    try:
+        if isinstance(s, localstr):
+            u = s._utf8.decode("utf-8")
+        else:
+            u = s.decode(encoding, encodingmode)
+
+        uu = u.upper()
+        if u == uu:
+            return s # preserve localstring
+        return uu.encode(encoding)
+    except UnicodeError:
+        return s.upper() # we don't know how to fold this except in ASCII
+    except LookupError, k:
+        raise error.Abort(k, hint="please check your locale settings")

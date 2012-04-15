@@ -301,7 +301,8 @@ Extension module help vs command help:
     # (see http://www.vim.org/scripts/script.php?script_id=102) Non
     # English user, be sure to put "let g:DirDiffDynamicDiffText = 1" in
     # your .vimrc
-    vimdiff = gvim -f '+next' '+execute "DirDiff" argv(0) argv(1)'
+    vimdiff = gvim -f "+next" \
+              "+execute 'DirDiff' fnameescape(argv(0)) fnameescape(argv(1))"
   
   Tool arguments can include variables that are expanded at runtime:
   
@@ -327,7 +328,7 @@ Extension module help vs command help:
   
   list of commands:
   
-   extdiff   use external program to diff repository (or selected files)
+   extdiff    use external program to diff repository (or selected files)
   
   use "hg -v help extdiff" to show builtin aliases and global options
 
@@ -419,14 +420,14 @@ Disabled extension commands:
   $ hg help email
   'email' is provided by the following extension:
   
-      patchbomb  command to send changesets as (a series of) patch emails
+      patchbomb     command to send changesets as (a series of) patch emails
   
   use "hg help extensions" for information on enabling extensions
   $ hg qdel
   hg: unknown command 'qdel'
   'qdelete' is provided by the following extension:
   
-      mq  manage a stack of patches
+      mq            manage a stack of patches
   
   use "hg help extensions" for information on enabling extensions
   [255]
@@ -434,7 +435,7 @@ Disabled extension commands:
   hg: unknown command 'churn'
   'churn' is provided by the following extension:
   
-      churn  command to display statistics about repository history
+      churn         command to display statistics about repository history
   
   use "hg help extensions" for information on enabling extensions
   [255]
@@ -473,7 +474,7 @@ Broken disabled extension and command:
   > cmdtable = None
   > EOF
   $ hg --config extensions.path=./path.py help foo > /dev/null
-  warning: error finding commands in $TESTTMP/hgext/forest.py
+  warning: error finding commands in $TESTTMP/hgext/forest.py (glob)
   hg: unknown command 'foo'
-  warning: error finding commands in $TESTTMP/hgext/forest.py
+  warning: error finding commands in $TESTTMP/hgext/forest.py (glob)
   [255]

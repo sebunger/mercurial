@@ -165,6 +165,7 @@ test pushkeys and bookmarks
   $ cd ../local
   $ hg debugpushkey --config ui.ssh="python $TESTDIR/dummyssh" ssh://user@dummy/remote namespaces
   bookmarks	
+  phases	
   namespaces	
   $ hg book foo -r 0
   $ hg out -B
@@ -176,6 +177,7 @@ test pushkeys and bookmarks
   searching for changes
   no changes found
   exporting bookmark foo
+  [1]
   $ hg debugpushkey --config ui.ssh="python $TESTDIR/dummyssh" ssh://user@dummy/remote bookmarks
   foo	1160648e36cec0054048a7edc4110c6f84fde594
   $ hg book -f foo
@@ -184,6 +186,7 @@ test pushkeys and bookmarks
   searching for changes
   no changes found
   updating bookmark foo
+  [1]
   $ hg book -d foo
   $ hg in -B
   comparing with ssh://user@dummy/remote
@@ -201,6 +204,7 @@ test pushkeys and bookmarks
   searching for changes
   no changes found
   deleting remote bookmark foo
+  [1]
 
 a bad, evil hook that prints to stdout
 
@@ -266,6 +270,27 @@ results here)
   [255]
 
   $ cd ..
+
+Test remote paths with spaces (issue2983):
+
+  $ hg init --ssh "python $TESTDIR/dummyssh" "ssh://user@dummy/a repo"
+  $ hg -R 'a repo' tag tag
+  $ hg id --ssh "python $TESTDIR/dummyssh" "ssh://user@dummy/a repo"
+  3fb238f49e8c
+
+Test hg-ssh:
+
+  $ SSH_ORIGINAL_COMMAND="'hg' -R 'a repo' serve --stdio" hg id --ssh "python \"$TESTDIR\"/../contrib/hg-ssh \"$TESTTMP/a repo\"" "ssh://user@dummy/a repo"
+  3fb238f49e8c
+  $ SSH_ORIGINAL_COMMAND="'hg' -R 'a repo' serve --stdio" hg id --ssh "python \"$TESTDIR\"/../contrib/hg-ssh \"$TESTTMP\"" "ssh://user@dummy/a repo"
+  remote: Illegal repository '$TESTTMP/a repo'
+  abort: no suitable response from remote hg!
+  [255]
+  $ SSH_ORIGINAL_COMMAND="'hg' -R 'a'repo' serve --stdio" hg id --ssh "python \"$TESTDIR\"/../contrib/hg-ssh \"$TESTTMP\"" "ssh://user@dummy/a repo"
+  remote: Illegal command "'hg' -R 'a'repo' serve --stdio": No closing quotation
+  abort: no suitable response from remote hg!
+  [255]
+
   $ cat dummylog
   Got arguments 1:user@dummy 2:hg -R nonexistent serve --stdio
   Got arguments 1:user@dummy 2:hg -R /$TESTTMP/nonexistent serve --stdio
@@ -288,3 +313,6 @@ results here)
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   changegroup-in-remote hook: HG_NODE=1383141674ec756a6056f6a9097618482fe0f4a6 HG_SOURCE=serve HG_URL=remote:ssh:127.0.0.1 
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+  Got arguments 1:user@dummy 2:hg init 'a repo'
+  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
+  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio

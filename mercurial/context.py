@@ -7,7 +7,7 @@
 
 from node import nullid, nullrev, short, hex
 from i18n import _
-import ancestor, bdiff, error, util, scmutil, subrepo, patch, encoding
+import ancestor, mdiff, error, util, scmutil, subrepo, patch, encoding, phases
 import match as matchmod
 import os, errno, stat
 
@@ -117,6 +117,17 @@ class changectx(object):
         return self._repo.nodetags(self._node)
     def bookmarks(self):
         return self._repo.nodebookmarks(self._node)
+    def phase(self):
+        if self._rev == -1:
+            return phases.public
+        if self._rev >= len(self._repo._phaserev):
+            # outdated cache
+            del self._repo._phaserev
+        return self._repo._phaserev[self._rev]
+    def phasestr(self):
+        return phases.phasenames[self.phase()]
+    def mutable(self):
+        return self._repo._phaserev[self._rev] > phases.public
     def hidden(self):
         return self._rev in self._repo.changelog.hiddenrevs
 
@@ -195,14 +206,15 @@ class changectx(object):
         # follow that here, too
         fset.discard('.')
         for fn in self:
-            for ffn in fset:
-                # match if the file is the exact name or a directory
-                if ffn == fn or fn.startswith("%s/" % ffn):
-                    fset.remove(ffn)
-                    break
+            if fn in fset:
+                # specified pattern is the exact name
+                fset.remove(fn)
             if match(fn):
                 yield fn
         for fn in sorted(fset):
+            if fn in self._dirs:
+                # specified pattern is a directory
+                continue
             if match.bad(fn, _('no such file in rev %s') % self) and match(fn):
                 yield fn
 
@@ -224,6 +236,22 @@ class changectx(object):
         diffopts = patch.diffopts(self._repo.ui, opts)
         return patch.diff(self._repo, ctx2.node(), self.node(),
                           match=match, opts=diffopts)
+
+    @propertycache
+    def _dirs(self):
+        dirs = set()
+        for f in self._manifest:
+            pos = f.rfind('/')
+            while pos != -1:
+                f = f[:pos]
+                if f in dirs:
+                    break # dirs already contains this and above
+                dirs.add(f)
+                pos = f.rfind('/')
+        return dirs
+
+    def dirs(self):
+        return self._dirs
 
 class filectx(object):
     """A filecontext object makes access to data related to a particular
@@ -363,12 +391,22 @@ class filectx(object):
     def size(self):
         return self._filelog.size(self._filerev)
 
+    def isbinary(self):
+        try:
+            return util.binary(self.data())
+        except IOError:
+            return False
+
     def cmp(self, fctx):
         """compare with other file context
 
         returns True if different than fctx.
         """
-        if (fctx._filerev is None and self._repo._encodefilterpats
+        if (fctx._filerev is None
+            and (self._repo._encodefilterpats
+                 # if file data starts with '\1\n', empty metadata block is
+                 # prepended, which adds 4 bytes to filelog.size().
+                 or self.size() - 4 == fctx.size())
             or self.size() == fctx.size()):
             return self._filelog.cmp(self._filenode, fctx.data())
 
@@ -426,7 +464,7 @@ class filectx(object):
         return [filectx(self._repo, self._path, fileid=x,
                         filelog=self._filelog) for x in c]
 
-    def annotate(self, follow=False, linenumber=None):
+    def annotate(self, follow=False, linenumber=None, diffopts=None):
         '''returns a list of tuples of (ctx, line) for each line
         in the file, where ctx is the filectx of the node where
         that line was last changed.
@@ -453,8 +491,13 @@ class filectx(object):
                     without_linenumber)
 
         def pair(parent, child):
-            for a1, a2, b1, b2 in bdiff.blocks(parent[1], child[1]):
-                child[0][b1:b2] = parent[0][a1:a2]
+            blocks = mdiff.allblocks(parent[1], child[1], opts=diffopts,
+                                     refine=True)
+            for (a1, a2, b1, b2), t in blocks:
+                # Changed blocks ('!') or blocks made only of blank lines ('~')
+                # belong to the child.
+                if t == '=':
+                    child[0][b1:b2] = parent[0][a1:a2]
             return child
 
         getlog = util.lrucachefunc(lambda x: self._repo.file(x))
@@ -791,6 +834,15 @@ class workingctx(changectx):
             b.extend(p.bookmarks())
         return b
 
+    def phase(self):
+        phase = phases.draft # default phase to draft
+        for p in self.parents():
+            phase = max(phase, p.phase())
+        return phase
+
+    def hidden(self):
+        return False
+
     def children(self):
         return []
 
@@ -865,16 +917,20 @@ class workingctx(changectx):
         finally:
             wlock.release()
 
-    def forget(self, files):
+    def forget(self, files, prefix=""):
+        join = lambda f: os.path.join(prefix, f)
         wlock = self._repo.wlock()
         try:
+            rejected = []
             for f in files:
-                if self._repo.dirstate[f] != 'a':
+                if f not in self._repo.dirstate:
+                    self._repo.ui.warn(_("%s not tracked!\n") % join(f))
+                    rejected.append(f)
+                elif self._repo.dirstate[f] != 'a':
                     self._repo.dirstate.remove(f)
-                elif f not in self._repo.dirstate:
-                    self._repo.ui.warn(_("%s not tracked!\n") % f)
                 else:
                     self._repo.dirstate.drop(f)
+            return rejected
         finally:
             wlock.release()
 
@@ -913,6 +969,9 @@ class workingctx(changectx):
                 self._repo.dirstate.copy(source, dest)
             finally:
                 wlock.release()
+
+    def dirs(self):
+        return self._repo.dirstate.dirs()
 
 class workingfilectx(filectx):
     """A workingfilectx object makes access to data related to a particular

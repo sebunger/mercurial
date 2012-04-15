@@ -83,9 +83,9 @@ def fetch(ui, repo, source='default', **opts):
         # Is this a simple fast-forward along the current branch?
         newheads = repo.branchheads(branch)
         newchildren = repo.changelog.nodesbetween([parent], newheads)[2]
-        if len(newheads) == 1:
+        if len(newheads) == 1 and len(newchildren):
             if newchildren[0] != parent:
-                return hg.clean(repo, newchildren[0])
+                return hg.update(repo, newchildren[0])
             else:
                 return 0
 
@@ -101,6 +101,9 @@ def fetch(ui, repo, source='default', **opts):
                         '(use "hg heads ." and "hg merge" to merge them)\n') %
                       (len(newheads) - 1))
             return 1
+
+        if not newheads:
+            return 0
 
         # Otherwise, let's merge.
         err = False

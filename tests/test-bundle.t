@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" system-sh || exit 80
+
 Setting up test
 
   $ hg init test
@@ -36,6 +38,15 @@ Setting up test
   4 files, 9 changesets, 7 total revisions
   $ cd ..
   $ hg init empty
+
+Bundle and phase
+
+  $ hg -R test phase --force --secret 0
+  $ hg -R test bundle phase.hg empty
+  searching for changes
+  no changes found (ignored 9 secret changesets)
+  [1]
+  $ hg -R test phase --draft -r 'head()'
 
 Bundle --all
 
@@ -375,7 +386,7 @@ Outgoing -R full.hg vs partial2 in partial
 Outgoing -R does-not-exist.hg vs partial2 in partial
 
   $ hg -R bundle://../does-not-exist.hg outgoing ../partial2
-  abort: No such file or directory: ../does-not-exist.hg
+  abort: *: ../does-not-exist.hg (glob)
   [255]
   $ cd ..
 
@@ -408,7 +419,7 @@ When cloning from a non-copiable repository into '', do not
 recurse infinitely (issue 2528)
 
   $ hg clone full.hg ''
-  abort: No such file or directory
+  abort: * (glob)
   [255]
 
 test for http://mercurial.selenic.com/bts/issue216

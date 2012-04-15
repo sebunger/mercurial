@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" serve || exit 80
+
 An attempt at more fully testing the hgweb web interface.
 The following things are tested elsewhere and are therefore omitted:
 - archive, tested in test-archive
@@ -20,6 +22,7 @@ Set up the repo
   $ echo another > foo
   $ hg branch stable
   marked working directory as branch stable
+  (branches are permanent and global, did you want a bookmark?)
   $ hg ci -Ambranch
   $ hg serve --config server.uncompressed=False -n test -p $HGPORT -d --pid-file=hg.pid -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS

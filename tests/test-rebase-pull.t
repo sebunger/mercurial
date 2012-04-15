@@ -48,7 +48,7 @@
 Now b has one revision to be pulled from a:
 
   $ hg pull --rebase
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/a (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -68,7 +68,7 @@ Now b has one revision to be pulled from a:
 Re-run:
 
   $ hg pull --rebase
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/a (glob)
   searching for changes
   no changes found
 
@@ -77,8 +77,9 @@ Invoke pull --rebase and nothing to rebase:
 
   $ cd ../c
 
+  $ hg book norebase
   $ hg pull --rebase
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/a (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -86,6 +87,7 @@ Invoke pull --rebase and nothing to rebase:
   added 1 changesets with 1 changes to 1 files
   nothing to rebase
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updating bookmark norebase
 
   $ hg tglog -l 1
   @  2: 'R1'
@@ -94,7 +96,7 @@ Invoke pull --rebase and nothing to rebase:
 pull --rebase --update should ignore --update:
 
   $ hg pull --rebase --update
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/a (glob)
   searching for changes
   no changes found
 
@@ -103,7 +105,7 @@ pull --rebase doesn't update if nothing has been pulled:
   $ hg up -q 1
 
   $ hg pull --rebase
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/a (glob)
   searching for changes
   no changes found
 

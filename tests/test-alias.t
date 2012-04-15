@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" system-sh || exit 80
+
   $ HGFOO=BAR; export HGFOO
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
@@ -132,6 +134,12 @@ with opts and whitespace
 
 positional arguments
 
+  $ hg positional
+  abort: too few arguments for command alias
+  [255]
+  $ hg positional a
+  abort: too few arguments for command alias
+  [255]
   $ hg positional 'node|short' rev
   0 e63c23eaa88a | 1970-01-01 00:00 +0000
 
@@ -322,23 +330,24 @@ invalid global arguments for normal commands, aliases, and shell aliases
   
   basic commands:
   
-   add        add the specified files on the next commit
-   annotate   show changeset information by line for each file
-   clone      make a copy of an existing repository
-   commit     commit the specified files or all outstanding changes
-   diff       diff repository (or selected files)
-   export     dump the header and diffs for one or more changesets
-   forget     forget the specified files on the next commit
-   init       create a new repository in the given directory
-   log        show revision history of entire repository or files
-   merge      merge working directory with another revision
-   pull       pull changes from the specified source
-   push       push changes to the specified destination
-   remove     remove the specified files on the next commit
-   serve      start stand-alone webserver
-   status     show changed files in the working directory
-   summary    summarize working directory state
-   update     update working directory (or switch revisions)
+   add         add the specified files on the next commit
+   annotate    show changeset information by line for each file
+   clone       make a copy of an existing repository
+   commit      commit the specified files or all outstanding changes
+   diff        diff repository (or selected files)
+   export      dump the header and diffs for one or more changesets
+   forget      forget the specified files on the next commit
+   init        create a new repository in the given directory
+   log         show revision history of entire repository or files
+   merge       merge working directory with another revision
+   phase       set or show the current phase name
+   pull        pull changes from the specified source
+   push        push changes to the specified destination
+   remove      remove the specified files on the next commit
+   serve       start stand-alone webserver
+   status      show changed files in the working directory
+   summary     summarize working directory state
+   update      update working directory (or switch revisions)
   
   use "hg help" for the full list of commands or "hg -v" for details
   [255]
@@ -348,23 +357,24 @@ invalid global arguments for normal commands, aliases, and shell aliases
   
   basic commands:
   
-   add        add the specified files on the next commit
-   annotate   show changeset information by line for each file
-   clone      make a copy of an existing repository
-   commit     commit the specified files or all outstanding changes
-   diff       diff repository (or selected files)
-   export     dump the header and diffs for one or more changesets
-   forget     forget the specified files on the next commit
-   init       create a new repository in the given directory
-   log        show revision history of entire repository or files
-   merge      merge working directory with another revision
-   pull       pull changes from the specified source
-   push       push changes to the specified destination
-   remove     remove the specified files on the next commit
-   serve      start stand-alone webserver
-   status     show changed files in the working directory
-   summary    summarize working directory state
-   update     update working directory (or switch revisions)
+   add         add the specified files on the next commit
+   annotate    show changeset information by line for each file
+   clone       make a copy of an existing repository
+   commit      commit the specified files or all outstanding changes
+   diff        diff repository (or selected files)
+   export      dump the header and diffs for one or more changesets
+   forget      forget the specified files on the next commit
+   init        create a new repository in the given directory
+   log         show revision history of entire repository or files
+   merge       merge working directory with another revision
+   phase       set or show the current phase name
+   pull        pull changes from the specified source
+   push        push changes to the specified destination
+   remove      remove the specified files on the next commit
+   serve       start stand-alone webserver
+   status      show changed files in the working directory
+   summary     summarize working directory state
+   update      update working directory (or switch revisions)
   
   use "hg help" for the full list of commands or "hg -v" for details
   [255]
@@ -374,23 +384,24 @@ invalid global arguments for normal commands, aliases, and shell aliases
   
   basic commands:
   
-   add        add the specified files on the next commit
-   annotate   show changeset information by line for each file
-   clone      make a copy of an existing repository
-   commit     commit the specified files or all outstanding changes
-   diff       diff repository (or selected files)
-   export     dump the header and diffs for one or more changesets
-   forget     forget the specified files on the next commit
-   init       create a new repository in the given directory
-   log        show revision history of entire repository or files
-   merge      merge working directory with another revision
-   pull       pull changes from the specified source
-   push       push changes to the specified destination
-   remove     remove the specified files on the next commit
-   serve      start stand-alone webserver
-   status     show changed files in the working directory
-   summary    summarize working directory state
-   update     update working directory (or switch revisions)
+   add         add the specified files on the next commit
+   annotate    show changeset information by line for each file
+   clone       make a copy of an existing repository
+   commit      commit the specified files or all outstanding changes
+   diff        diff repository (or selected files)
+   export      dump the header and diffs for one or more changesets
+   forget      forget the specified files on the next commit
+   init        create a new repository in the given directory
+   log         show revision history of entire repository or files
+   merge       merge working directory with another revision
+   phase       set or show the current phase name
+   pull        pull changes from the specified source
+   push        push changes to the specified destination
+   remove      remove the specified files on the next commit
+   serve       start stand-alone webserver
+   status      show changed files in the working directory
+   summary     summarize working directory state
+   update      update working directory (or switch revisions)
   
   use "hg help" for the full list of commands or "hg -v" for details
   [255]

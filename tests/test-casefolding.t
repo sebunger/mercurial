@@ -26,12 +26,11 @@ test case collision on rename (issue750)
   adding a
   a
   committed changeset 0:07f4944404050f47db2e5c5071e0e84e7a27bba9
+
+Case-changing renames should work:
+
   $ hg mv a A
-  A: not overwriting - file exists
-
-'a' used to be removed under windows
-
-  $ test -f a || echo 'a is missing'
+  $ hg mv A a
   $ hg st
   $ cd ..
 
@@ -66,9 +65,63 @@ no clobbering of untracked files with wrong casing
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ echo gold > a
   $ hg up
-  abort: untracked file in working directory differs from file in requested revision: 'a'
+  a: untracked file differs
+  abort: untracked files in working directory differ from files in requested revision
   [255]
   $ cat a
   gold
+
+  $ cd ..
+
+issue 3342: file in nested directory causes unexpected abort
+
+  $ hg init issue3342
+  $ cd issue3342
+
+  $ mkdir -p a/B/c/D
+  $ echo e > a/B/c/D/e
+  $ hg add a/B/c/D/e
+
+  $ cd ..
+
+issue 3340: mq does not handle case changes correctly
+
+in addition to reported case, 'hg qrefresh' is also tested against
+case changes.
+
+  $ echo "[extensions]" >> $HGRCPATH
+  $ echo "mq=" >> $HGRCPATH
+
+  $ hg init issue3340
+  $ cd issue3340
+
+  $ echo a > mIxEdCaSe
+  $ hg add mIxEdCaSe
+  $ hg commit -m '#0'
+  $ hg rename mIxEdCaSe tmp
+  $ hg rename tmp MiXeDcAsE
+  $ hg status -A
+  A MiXeDcAsE
+    mIxEdCaSe
+  R mIxEdCaSe
+  $ hg qnew changecase
+  $ hg status -A
+  C MiXeDcAsE
+
+  $ hg qpop -a
+  popping changecase
+  patch queue now empty
+  $ hg qnew refresh-casechange
+  $ hg status -A
+  C mIxEdCaSe
+  $ hg rename mIxEdCaSe tmp
+  $ hg rename tmp MiXeDcAsE
+  $ hg status -A
+  A MiXeDcAsE
+    mIxEdCaSe
+  R mIxEdCaSe
+  $ hg qrefresh
+  $ hg status -A
+  C MiXeDcAsE
 
   $ cd ..

@@ -106,11 +106,11 @@ def get_log_child(fp, url, paths, start, end, limit=0, discover_changed_paths=Tr
                        discover_changed_paths,
                        strict_node_history,
                        receiver)
-    except SubversionException, (inst, num):
-        pickle.dump(num, fp, protocol)
     except IOError:
         # Caller may interrupt the iteration
         pickle.dump(None, fp, protocol)
+    except Exception, inst:
+        pickle.dump(str(inst), fp, protocol)
     else:
         pickle.dump(None, fp, protocol)
     fp.close()
@@ -145,7 +145,7 @@ class logstream(object):
             except:
                 if entry is None:
                     break
-                raise SubversionException("child raised exception", entry)
+                raise util.Abort(_("log stream exception '%s'") % entry)
             yield entry
 
     def close(self):
@@ -197,7 +197,7 @@ def issvnurl(ui, url):
         proto = 'file'
         path = os.path.abspath(url)
     if proto == 'file':
-        path = path.replace(os.sep, '/')
+        path = util.pconvert(path)
     check = protomap.get(proto, lambda *args: False)
     while '/' in path:
         if check(ui, path, proto):
@@ -439,6 +439,8 @@ class svn_source(converter_source):
             if revnum < stop:
                 stop = revnum + 1
             self._fetch_revisions(revnum, stop)
+            if rev not in self.commits:
+                raise util.Abort(_('svn: revision %s not found') % revnum)
         commit = self.commits[rev]
         # caller caches the result, so free it here to release memory
         del self.commits[rev]
@@ -1116,6 +1118,12 @@ class svn_sink(converter_sink, commandline):
         return u"svn:%s@%s" % (self.uuid, rev)
 
     def putcommit(self, files, copies, parents, commit, source, revmap):
+        for parent in parents:
+            try:
+                return self.revid(self.childmap[parent])
+            except KeyError:
+                pass
+
         # Apply changes to working copy
         for f, v in files:
             try:
@@ -1128,11 +1136,6 @@ class svn_sink(converter_sink, commandline):
                     self.copies.append([copies[f], f])
         files = [f[0] for f in files]
 
-        for parent in parents:
-            try:
-                return self.revid(self.childmap[parent])
-            except KeyError:
-                pass
         entries = set(self.delete)
         files = frozenset(files)
         entries.update(self.add_dirs(files.difference(entries)))
@@ -1184,3 +1187,12 @@ class svn_sink(converter_sink, commandline):
     def puttags(self, tags):
         self.ui.warn(_('writing Subversion tags is not yet implemented\n'))
         return None, None
+
+    def hascommit(self, rev):
+        # This is not correct as one can convert to an existing subversion
+        # repository and childmap would not list all revisions. Too bad.
+        if rev in self.childmap:
+            return True
+        raise util.Abort(_('splice map revision %s not found in subversion '
+                           'child map (revision lookups are not implemented)')
+                         % rev)

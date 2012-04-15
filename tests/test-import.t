@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" unix-permissions || exit 80
+
   $ hg init a
   $ mkdir a/d1
   $ mkdir a/d1/d2
@@ -233,7 +235,7 @@ override commit message
   > msg.set_payload('email commit message\n' + patch)
   > msg['Subject'] = 'email patch'
   > msg['From'] = 'email patcher'
-  > sys.stdout.write(msg.as_string())
+  > file(sys.argv[2], 'wb').write(msg.as_string())
   > EOF
 
 
@@ -246,7 +248,7 @@ plain diff in email, subject, message body
   added 1 changesets with 2 changes to 2 files
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ python mkmsg.py diffed-tip.patch > msg.patch
+  $ python mkmsg.py diffed-tip.patch msg.patch
   $ hg --cwd b import ../msg.patch
   applying ../msg.patch
   $ hg --cwd b tip | grep email
@@ -308,7 +310,8 @@ hg export in email, should use patch header
   added 1 changesets with 2 changes to 2 files
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ python mkmsg.py exported-tip.patch | hg --cwd b import -
+  $ python mkmsg.py exported-tip.patch msg.patch
+  $ cat msg.patch | hg --cwd b import -
   applying patch from stdin
   $ hg --cwd b tip | grep second
   summary:     second change
@@ -325,7 +328,7 @@ The '---' tests the gitsendmail handling without proper mail headers
   > msg.set_payload('email patch\n\nnext line\n---\n' + patch)
   > msg['Subject'] = '[PATCH] email patch'
   > msg['From'] = 'email patcher'
-  > sys.stdout.write(msg.as_string())
+  > file(sys.argv[2], 'wb').write(msg.as_string())
   > EOF
 
 
@@ -338,7 +341,8 @@ plain diff in email, [PATCH] subject, message body with subject
   added 1 changesets with 2 changes to 2 files
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ python mkmsg2.py diffed-tip.patch | hg --cwd b import -
+  $ python mkmsg2.py diffed-tip.patch msg.patch
+  $ cat msg.patch | hg --cwd b import -
   applying patch from stdin
   $ hg --cwd b tip --template '{desc}\n'
   email patch
@@ -441,7 +445,7 @@ Test fuzziness (ambiguous patch location, fuzz=2)
   $ hg import --no-commit -v fuzzy-tip.patch
   applying fuzzy-tip.patch
   patching file a
-  Hunk #1 succeeded at 1 with fuzz 2 (offset -2 lines).
+  Hunk #1 succeeded at 2 with fuzz 1 (offset 0 lines).
   applied to working directory
   $ hg revert -a
   reverting a
@@ -458,7 +462,7 @@ test fuzziness with eol=auto
   $ hg --config patch.eol=auto import --no-commit -v fuzzy-tip.patch
   applying fuzzy-tip.patch
   patching file a
-  Hunk #1 succeeded at 1 with fuzz 2 (offset -2 lines).
+  Hunk #1 succeeded at 2 with fuzz 1 (offset 0 lines).
   applied to working directory
   $ cd ..
 
@@ -659,7 +663,6 @@ test import with similarity and git and strip (issue295 et al.)
   applying ../rename.diff
   patching file a
   patching file b
-  removing a
   adding b
   recording removal of a as rename to b (88% similar)
   applied to working directory
@@ -675,7 +678,6 @@ test import with similarity and git and strip (issue295 et al.)
   applying ../rename.diff
   patching file a
   patching file b
-  removing a
   adding b
   applied to working directory
   $ hg st -C
@@ -994,3 +996,102 @@ import a unified diff with no lines of context (diff -U0)
   c2
   c3
   c4
+
+Test corner case involving fuzz and skew
+
+  $ hg init morecornercases
+  $ cd morecornercases
+
+  $ cat > 01-no-context-beginning-of-file.diff <<EOF
+  > diff --git a/a b/a
+  > --- a/a
+  > +++ b/a
+  > @@ -1,0 +1,1 @@
+  > +line
+  > EOF
+
+  $ cat > 02-no-context-middle-of-file.diff <<EOF
+  > diff --git a/a b/a
+  > --- a/a
+  > +++ b/a
+  > @@ -1,1 +1,1 @@
+  > -2
+  > +add some skew
+  > @@ -2,0 +2,1 @@
+  > +line
+  > EOF
+
+  $ cat > 03-no-context-end-of-file.diff <<EOF
+  > diff --git a/a b/a
+  > --- a/a
+  > +++ b/a
+  > @@ -10,0 +10,1 @@
+  > +line
+  > EOF
+
+  $ cat > 04-middle-of-file-completely-fuzzed.diff <<EOF
+  > diff --git a/a b/a
+  > --- a/a
+  > +++ b/a
+  > @@ -1,1 +1,1 @@
+  > -2
+  > +add some skew
+  > @@ -2,2 +2,3 @@
+  >  not matching, should fuzz
+  >  ... a bit
+  > +line
+  > EOF
+
+  $ cat > a <<EOF
+  > 1
+  > 2
+  > 3
+  > 4
+  > EOF
+  $ hg ci -Am adda a
+  $ for p in *.diff; do
+  >   hg import -v --no-commit $p
+  >   cat a
+  >   hg revert -aqC a
+  >   # patch -p1 < $p
+  >   # cat a
+  >   # hg revert -aC a
+  > done
+  applying 01-no-context-beginning-of-file.diff
+  patching file a
+  applied to working directory
+  1
+  line
+  2
+  3
+  4
+  applying 02-no-context-middle-of-file.diff
+  patching file a
+  Hunk #1 succeeded at 2 (offset 1 lines).
+  Hunk #2 succeeded at 4 (offset 1 lines).
+  applied to working directory
+  1
+  add some skew
+  3
+  line
+  4
+  applying 03-no-context-end-of-file.diff
+  patching file a
+  Hunk #1 succeeded at 5 (offset -6 lines).
+  applied to working directory
+  1
+  2
+  3
+  4
+  line
+  applying 04-middle-of-file-completely-fuzzed.diff
+  patching file a
+  Hunk #1 succeeded at 2 (offset 1 lines).
+  Hunk #2 succeeded at 5 with fuzz 2 (offset 1 lines).
+  applied to working directory
+  1
+  add some skew
+  3
+  4
+  line
+

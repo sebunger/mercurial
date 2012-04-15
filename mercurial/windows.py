@@ -26,7 +26,7 @@ testpid = win32.testpid
 unlink = win32.unlink
 
 nulldev = 'NUL:'
-umask = 002
+umask = 0022
 
 # wrap osutil.posixfile to provide friendlier exceptions
 def posixfile(name, mode='r', buffering=-1):
@@ -131,7 +131,11 @@ def localpath(path):
 def normpath(path):
     return pconvert(os.path.normpath(path))
 
-normcase = os.path.normcase
+encodinglower = None
+encodingupper = None
+
+def normcase(path):
+    return encodingupper(path)
 
 def realpath(path):
     '''
@@ -140,7 +144,7 @@ def realpath(path):
     '''
     # TODO: There may be a more clever way to do this that also handles other,
     # less common file systems.
-    return os.path.normpath(os.path.normcase(os.path.realpath(path)))
+    return os.path.normpath(normcase(os.path.realpath(path)))
 
 def samestat(s1, s2):
     return False
@@ -216,17 +220,16 @@ def findexe(command):
 def statfiles(files):
     '''Stat each file in files and yield stat or None if file does not exist.
     Cluster and cache stat per directory to minimize number of OS stat calls.'''
-    ncase = os.path.normcase
     dircache = {} # dirname -> filename -> status | None if file does not exist
     for nf in files:
-        nf  = ncase(nf)
+        nf  = normcase(nf)
         dir, base = os.path.split(nf)
         if not dir:
             dir = '.'
         cache = dircache.get(dir, None)
         if cache is None:
             try:
-                dmap = dict([(ncase(n), s)
+                dmap = dict([(normcase(n), s)
                     for n, k, s in osutil.listdir(dir, True)])
             except OSError, err:
                 # handle directory not found in Python version prior to 2.5

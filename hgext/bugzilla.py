@@ -255,7 +255,7 @@ All the above add a comment to the Bugzilla bug record of the form::
 from mercurial.i18n import _
 from mercurial.node import short
 from mercurial import cmdutil, mail, templater, util
-import re, time, xmlrpclib
+import re, time, urlparse, xmlrpclib
 
 class bzaccess(object):
     '''Base class for access to Bugzilla.'''
@@ -300,7 +300,7 @@ class bzmysql(bzaccess):
 
     The earliest Bugzilla version this is tested with is version 2.16.
 
-    If your Bugzilla is version 3.2 or above, you are strongly
+    If your Bugzilla is version 3.4 or above, you are strongly
     recommended to use the XMLRPC access method instead.
     '''
 
@@ -473,17 +473,16 @@ class bzmysql_3_0(bzmysql_2_18):
 
 # Buzgilla via XMLRPC interface.
 
-class CookieSafeTransport(xmlrpclib.SafeTransport):
-    """A SafeTransport that retains cookies over its lifetime.
+class cookietransportrequest(object):
+    """A Transport request method that retains cookies over its lifetime.
 
     The regular xmlrpclib transports ignore cookies. Which causes
     a bit of a problem when you need a cookie-based login, as with
     the Bugzilla XMLRPC interface.
 
-    So this is a SafeTransport which looks for cookies being set
-    in responses and saves them to add to all future requests.
-    It appears a SafeTransport can do both HTTP and HTTPS sessions,
-    which saves us having to do a CookieTransport too.
+    So this is a helper for defining a Transport which looks for
+    cookies being set in responses and saves them to add to all future
+    requests.
     """
 
     # Inspiration drawn from
@@ -498,6 +497,7 @@ class CookieSafeTransport(xmlrpclib.SafeTransport):
 
     def request(self, host, handler, request_body, verbose=0):
         self.verbose = verbose
+        self.accept_gzip_encoding = False
 
         # issue XML-RPC request
         h = self.make_connection(host)
@@ -537,6 +537,18 @@ class CookieSafeTransport(xmlrpclib.SafeTransport):
 
         return unmarshaller.close()
 
+# The explicit calls to the underlying xmlrpclib __init__() methods are
+# necessary. The xmlrpclib.Transport classes are old-style classes, and
+# it turns out their __init__() doesn't get called when doing multiple
+# inheritance with a new-style class.
+class cookietransport(cookietransportrequest, xmlrpclib.Transport):
+    def __init__(self, use_datetime=0):
+        xmlrpclib.Transport.__init__(self, use_datetime)
+
+class cookiesafetransport(cookietransportrequest, xmlrpclib.SafeTransport):
+    def __init__(self, use_datetime=0):
+        xmlrpclib.SafeTransport.__init__(self, use_datetime)
+
 class bzxmlrpc(bzaccess):
     """Support for access to Bugzilla via the Bugzilla XMLRPC API.
 
@@ -553,8 +565,14 @@ class bzxmlrpc(bzaccess):
         user = self.ui.config('bugzilla', 'user', 'bugs')
         passwd = self.ui.config('bugzilla', 'password')
 
-        self.bzproxy = xmlrpclib.ServerProxy(bzweb, CookieSafeTransport())
+        self.bzproxy = xmlrpclib.ServerProxy(bzweb, self.transport(bzweb))
         self.bzproxy.User.login(dict(login=user, password=passwd))
+
+    def transport(self, uri):
+        if urlparse.urlparse(uri, "http")[0] == "https":
+            return cookiesafetransport()
+        else:
+            return cookietransport()
 
     def get_bug_comments(self, id):
         """Return a string with all comment text for a bug."""

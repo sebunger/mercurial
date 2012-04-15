@@ -164,6 +164,9 @@ def samedevice(fpath1, fpath2):
     st2 = os.lstat(fpath2)
     return st1.st_dev == st2.st_dev
 
+encodinglower = None
+encodingupper = None
+
 # os.path.normcase is a no-op, which doesn't help us on non-native filesystems
 def normcase(path):
     return path.lower()
@@ -234,6 +237,38 @@ elif sys.version_info < (2, 4, 2, 'final'):
 else:
     # Fallback to the likely inadequate Python builtin function.
     realpath = os.path.realpath
+
+if sys.platform == 'cygwin':
+    # workaround for cygwin, in which mount point part of path is
+    # treated as case sensitive, even though underlying NTFS is case
+    # insensitive.
+
+    # default mount points
+    cygwinmountpoints = sorted([
+            "/usr/bin",
+            "/usr/lib",
+            "/cygdrive",
+            ], reverse=True)
+
+    # use upper-ing as normcase as same as NTFS workaround
+    def normcase(path):
+        pathlen = len(path)
+        if (pathlen == 0) or (path[0] != os.sep):
+            # treat as relative
+            return encodingupper(path)
+
+        # to preserve case of mountpoint part
+        for mp in cygwinmountpoints:
+            if not path.startswith(mp):
+                continue
+
+            mplen = len(mp)
+            if mplen == pathlen: # mount point itself
+                return mp
+            if path[mplen] == os.sep:
+                return mp + encodingupper(path[mplen:])
+
+        return encodingupper(path)
 
 def shellquote(s):
     if os.sys.platform == 'OpenVMS':
@@ -402,6 +437,8 @@ class cachestat(object):
 
     def cacheable(self):
         return bool(self.stat.st_ino)
+
+    __hash__ = object.__hash__
 
     def __eq__(self, other):
         try:

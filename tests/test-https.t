@@ -1,6 +1,6 @@
 Proper https client requires the built-in ssl from Python 2.6.
 
-  $ "$TESTDIR/hghave" ssl || exit 80
+  $ "$TESTDIR/hghave" serve ssl || exit 80
 
 Certificates created with:
  printf '.\n.\n.\n.\n.\nlocalhost\nhg@localhost\n' | \
@@ -118,9 +118,9 @@ clone via pull
   adding manifests
   adding file changes
   added 1 changesets with 4 changes to 4 files
+  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   $ hg verify -R copy-pull
   checking changesets
   checking manifests
@@ -146,8 +146,8 @@ pull without cacert
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
   warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
+  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -180,7 +180,8 @@ variables in the filename
 cacert mismatch
 
   $ hg -R copy-pull pull --config web.cacerts=pub.pem https://127.0.0.1:$HGPORT/
-  abort: 127.0.0.1 certificate error: certificate is for localhost (use --insecure to connect insecurely)
+  abort: 127.0.0.1 certificate error: certificate is for localhost
+  (configure hostfingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca or use --insecure to connect insecurely)
   [255]
   $ hg -R copy-pull pull --config web.cacerts=pub.pem https://127.0.0.1:$HGPORT/ --insecure
   warning: 127.0.0.1 certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
@@ -224,22 +225,21 @@ Fingerprints
 
 - fails when cert doesn't match hostname (port is ignored)
   $ hg -R copy-pull id https://localhost:$HGPORT1/
-  abort: invalid certificate for localhost with fingerprint 28:ff:71:bf:65:31:14:23:ad:62:92:b4:0e:31:99:18:fc:83:e3:9b
+  abort: certificate for localhost has unexpected fingerprint 28:ff:71:bf:65:31:14:23:ad:62:92:b4:0e:31:99:18:fc:83:e3:9b
+  (check hostfingerprint configuration)
   [255]
 
 - ignores that certificate doesn't match hostname
   $ hg -R copy-pull id https://127.0.0.1:$HGPORT/
   5fed3813f7f5
 
+  $ while kill `cat hg1.pid` 2>/dev/null; do true; done
+
 Prepare for connecting through proxy
 
-  $ kill `cat hg1.pid`
-  $ sleep 1
-
-  $ ("$TESTDIR/tinyproxy.py" $HGPORT1 localhost >proxy.log 2>&1 </dev/null &
-  $ echo $! > proxy.pid)
+  $ "$TESTDIR/tinyproxy.py" $HGPORT1 localhost >proxy.log </dev/null 2>&1 &
+  $ while [ ! -f proxy.pid ]; do true; done
   $ cat proxy.pid >> $DAEMON_PIDS
-  $ sleep 2
 
   $ echo "[http_proxy]" >> copy-pull/.hg/hgrc
   $ echo "always=True" >> copy-pull/.hg/hgrc

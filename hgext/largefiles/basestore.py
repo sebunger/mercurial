@@ -8,8 +8,6 @@
 
 '''base class for store implementations and store-related utility code'''
 
-import os
-import tempfile
 import binascii
 import re
 
@@ -75,13 +73,8 @@ class basestore(object):
             ui.note(_('getting %s:%s\n') % (filename, hash))
 
             storefilename = lfutil.storepath(self.repo, hash)
-            storedir = os.path.dirname(storefilename)
-
-            # No need to pass mode='wb' to fdopen(), since mkstemp() already
-            # opened the file in binary mode.
-            (tmpfd, tmpfilename) = tempfile.mkstemp(
-                dir=storedir, prefix=os.path.basename(filename))
-            tmpfile = os.fdopen(tmpfd, 'w')
+            tmpfile = util.atomictempfile(storefilename,
+                                          createmode=self.repo.store.createmode)
 
             try:
                 hhash = binascii.hexlify(self._getfile(tmpfile, filename, hash))
@@ -93,14 +86,11 @@ class basestore(object):
                 if hhash != "":
                     ui.warn(_('%s: data corruption (expected %s, got %s)\n')
                             % (filename, hash, hhash))
-                tmpfile.close() # no-op if it's already closed
-                os.remove(tmpfilename)
+                tmpfile.discard() # no-op if it's already closed
                 missing.append(filename)
                 continue
 
-            if os.path.exists(storefilename): # Windows
-                os.remove(storefilename)
-            os.rename(tmpfilename, storefilename)
+            tmpfile.close()
             lfutil.linktousercache(self.repo, hash)
             success.append((filename, hhash))
 
@@ -166,8 +156,11 @@ def _openstore(repo, remote=None, put=False):
     ui = repo.ui
 
     if not remote:
-        path = (getattr(repo, 'lfpullsource', None) or
-                ui.expandpath('default-push', 'default'))
+        lfpullsource = getattr(repo, 'lfpullsource', None)
+        if lfpullsource:
+            path = ui.expandpath(lfpullsource)
+        else:
+            path = ui.expandpath('default-push', 'default')
 
         # ui.expandpath() leaves 'default-push' and 'default' alone if
         # they cannot be expanded: fallback to the empty string,
