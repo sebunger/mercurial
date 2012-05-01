@@ -17,6 +17,7 @@ test-hgwebdir.t
 test-hgwebdirsym.t
 test-interhg.t
 test-keyword.t
+test-largefiles.t
 test-mq-qclone-http.t
 test-mq-qimport.t
 test-newcgi.t
