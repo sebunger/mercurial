@@ -69,8 +69,6 @@ add first svn sub with leading whitespaces
   $ svn co --quiet "$SVNREPO"/src subdir/s
   $ hg add .hgsub
   $ hg ci -m1
-  committing subrepository s
-  committing subrepository subdir/s
 
 make sure we avoid empty commits (issue2445)
 
@@ -121,6 +119,15 @@ change file in svn and hg, commit
   path subdir/s
    source   file://*/svn-repo/src (glob)
    revision 2
+
+missing svn file, commit should fail
+
+  $ rm s/alpha
+  $ hg commit --subrepos -m 'abort on missing file'
+  committing subrepository s
+  abort: cannot commit missing svn entries
+  [255]
+  $ svn revert s/alpha > /dev/null
 
 add an unrelated revision in svn and update the subrepo to without
 bringing any changes.
@@ -274,13 +281,13 @@ Check hg update --clean
   Checked out revision 3.
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd t/s
-  $ svn status
+  $ svn status | sort
+  
   ? *    a (glob)
-  X *    externals (glob)
   ? *    f1 (glob)
   ? *    f2 (glob)
-  
   Performing status on external item at 'externals'* (glob)
+  X *    externals (glob)
 
 Sticky subrepositories, no changes
   $ cd $TESTTMP/sub/t
@@ -432,7 +439,6 @@ are unknown directories being replaced by tracked ones (happens with rebase).
   $ echo "s =        [svn]       $SVNREPO/src" >> .hgsub
   $ hg add .hgsub
   $ hg ci -m addsub
-  committing subrepository s
   $ echo a > a
   $ hg ci -Am adda
   adding a
@@ -440,7 +446,6 @@ are unknown directories being replaced by tracked ones (happens with rebase).
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ svn up -qr6 s
   $ hg ci -m updatesub
-  committing subrepository s
   created new head
   $ echo pyc > s/dir/epsilon.pyc
   $ hg up 1
@@ -462,14 +467,12 @@ test having obstructions when switching branches on checkout:
   $ echo "obstruct =        [svn]       $SVNREPO/externals" >> .hgsub
   $ svn co -r5 --quiet "$SVNREPO"/externals obstruct
   $ hg commit -m 'Start making obstructed working copy'
-  committing subrepository obstruct
   $ hg book other
   $ hg co -r 'p1(tip)'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ echo "obstruct =        [svn]       $SVNREPO/src" >> .hgsub
   $ svn co -r5 --quiet "$SVNREPO"/src obstruct
   $ hg commit -m 'Other branch which will be obstructed'
-  committing subrepository obstruct
   created new head
 
 Switching back to the head where we have another path mapped to the
@@ -530,12 +533,10 @@ First, create that condition in the repository.
   Checked out revision 10.
   $ echo "recreated =        [svn]       $SVNREPO/branch" >> .hgsub
   $ hg ci -m addsub
-  committing subrepository recreated
   $ cd recreated
   $ svn up -q
   $ cd ..
   $ hg ci -m updatesub
-  committing subrepository recreated
   $ hg up -r-2
   D    *recreated/somethingnew (glob)
   A    *recreated/somethingold (glob)
@@ -543,3 +544,62 @@ First, create that condition in the repository.
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ test -f recreated/somethingold
 
+Test archive
+
+  $ hg archive -S ../archive-all --debug
+  archiving: 0/2 files (0.00%)
+  archiving: .hgsub 1/2 files (50.00%)
+  archiving: .hgsubstate 2/2 files (100.00%)
+  archiving (obstruct): 0/1 files (0.00%)
+  archiving (obstruct): 1/1 files (100.00%)
+  archiving (s): 0/2 files (0.00%)
+  archiving (s): 1/2 files (50.00%)
+  archiving (s): 2/2 files (100.00%)
+  archiving (recreated): 0/1 files (0.00%)
+  archiving (recreated): 1/1 files (100.00%)
+
+Test forgetting files, not implemented in svn subrepo, used to
+traceback
+
+  $ hg forget 'notafile*'
+  notafile*: No such file or directory
+  [1]
+
+Test a subrepo referencing a just moved svn path. Last commit rev will
+be different from the revision, and the path will be different as
+well.
+
+  $ cd $WCROOT
+  $ svn up > /dev/null
+  $ mkdir trunk/subdir branches
+  $ echo a > trunk/subdir/a
+  $ svn add trunk/subdir branches
+  A         trunk/subdir
+  A         trunk/subdir/a
+  A         branches
+  $ svn ci -m addsubdir
+  Adding         branches
+  Adding         trunk/subdir
+  Adding         trunk/subdir/a
+  Transmitting file data .
+  Committed revision 14.
+  $ svn cp -m branchtrunk $SVNREPO/trunk $SVNREPO/branches/somebranch
+  
+  Committed revision 15.
+  $ cd ..
+
+  $ hg init repo2
+  $ cd repo2
+  $ svn co $SVNREPO/branches/somebranch/subdir
+  A    subdir/a
+  Checked out revision 15.
+  $ echo "subdir = [svn] $SVNREPO/branches/somebranch/subdir" > .hgsub
+  $ hg add .hgsub
+  $ hg ci -m addsub
+  $ hg up null
+  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  $ hg up
+  A    *subdir/a (glob)
+  Checked out revision 15.
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd ..

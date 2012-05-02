@@ -45,7 +45,7 @@ doc:
 clean:
 	-$(PYTHON) setup.py clean --all # ignore errors from this command
 	find . \( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
-	rm -f $(addprefix mercurial/,$(notdir $(wildcard mercurial/pure/*.py)))
+	rm -f $(addprefix mercurial/,$(notdir $(wildcard mercurial/pure/[a-z]*.py)))
 	rm -f MANIFEST MANIFEST.in tests/*.err
 	rm -rf build mercurial/locale
 	$(MAKE) -C doc clean
@@ -91,8 +91,10 @@ update-pot: i18n/hg.pot
 
 i18n/hg.pot: $(PYFILES) $(DOCFILES)
 	$(PYTHON) i18n/hggettext mercurial/commands.py \
-	  hgext/*.py hgext/*/__init__.py mercurial/fileset.py mercurial/revset.py \
+	  hgext/*.py hgext/*/__init__.py \
+	  mercurial/fileset.py mercurial/revset.py \
 	  mercurial/templatefilters.py mercurial/templatekw.py \
+	  mercurial/filemerge.py \
 	  $(DOCFILES) > i18n/hg.pot
         # All strings marked for translation in Mercurial contain
         # ASCII characters only. But some files contain string

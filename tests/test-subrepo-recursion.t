@@ -79,11 +79,9 @@ The --subrepos flag overwrite the config setting:
 
   $ cd ..
   $ hg commit -m 0-2-1
-  committing subrepository bar
 
   $ cd ..
   $ hg commit -m 1-2-1
-  committing subrepository foo
 
 Change working directory:
 
@@ -199,7 +197,7 @@ Test explicit path commands within subrepos: add/forget
   $ hg status -S
   ? foo/bar/z2.txt
   $ hg forget foo/bar/z2.txt
-  not removing foo/bar/z2.txt: file is already untracked
+  not removing foo/bar/z2.txt: file is already untracked (glob)
   [1]
   $ hg status -S
   ? foo/bar/z2.txt
@@ -262,7 +260,7 @@ Enable progress extension for archive tests:
 Test archiving to a directory tree (the doubled lines in the output
 only show up in the test output, not in real usage):
 
-  $ hg archive --subrepos ../archive 2>&1 | $TESTDIR/filtercr.py
+  $ hg archive --subrepos ../archive 2>&1 | "$TESTDIR/filtercr.py"
   
   archiving [                                           ] 0/3
   archiving [                                           ] 0/3
@@ -302,7 +300,7 @@ only show up in the test output, not in real usage):
 
 Test archiving to zip file (unzip output is unstable):
 
-  $ hg archive --subrepos ../archive.zip 2>&1 | $TESTDIR/filtercr.py
+  $ hg archive --subrepos ../archive.zip 2>&1 | "$TESTDIR/filtercr.py"
   
   archiving [                                           ] 0/3
   archiving [                                           ] 0/3
@@ -333,7 +331,7 @@ cloned:
 
   $ hg clone -U . ../empty
   $ cd ../empty
-  $ hg archive --subrepos -r tip ../archive.tar.gz 2>&1 | $TESTDIR/filtercr.py
+  $ hg archive --subrepos -r tip ../archive.tar.gz 2>&1 | "$TESTDIR/filtercr.py"
   
   archiving [                                           ] 0/3
   archiving [                                           ] 0/3

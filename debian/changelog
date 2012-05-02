@@ -1,3 +1,13 @@
+mercurial (2.2-1) unstable; urgency=low
+
+  * New upstream release 2.2
+  * Delete patches for_upstream__skip_test_gpg_if_not_mercurial_wd.patch
+    and from_upstream__tests_re_silence_test_bad_pull_log_messages.patch
+    which are now included upstream
+  * Refresh patches
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 May 2012 08:08:32 +0100
+
 mercurial (2.1.2-2) unstable; urgency=low
 
   * Add sparc to the list of architectures with slow buildds

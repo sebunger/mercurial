@@ -7,8 +7,9 @@ plain
   $ hg debugbuilddag '+2:f +3:p2 @temp <f+4 @default /p2 +2' \
   > --config extensions.progress= --config progress.assume-tty=1 \
   > --config progress.delay=0 --config progress.refresh=0 \
+  > --config progress.format=topic,bar,number \
   > --config progress.width=60 2>&1 | \
-  > python $TESTDIR/filtercr.py
+  > python "$TESTDIR/filtercr.py"
   
   building [                                          ]  0/12
   building [                                          ]  0/12

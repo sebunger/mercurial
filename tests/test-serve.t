@@ -14,7 +14,7 @@
   >    else
   >        kill `cat hg.pid`
   >    fi
-  >    while kill -0 `cat hg.pid` 2>/dev/null; do true; done
+  >    while kill -0 `cat hg.pid` 2>/dev/null; do sleep 0; done
   > }
 
   $ hg init test
@@ -28,9 +28,9 @@ Without -v
   $ hg serve -a localhost -p $HGPORT -d --pid-file=hg.pid -E errors.log
   $ cat hg.pid >> "$DAEMON_PIDS"
   $ if [ -f access.log ]; then
-  $     echo 'access log created - .hg/hgrc respected'
+  >     echo 'access log created - .hg/hgrc respected'
+  > fi
   access log created - .hg/hgrc respected
-  $ fi
 
 errors
 

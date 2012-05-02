@@ -32,6 +32,42 @@ Case-changing renames should work:
   $ hg mv a A
   $ hg mv A a
   $ hg st
+
+test changing case of path components
+
+  $ mkdir D
+  $ echo b > D/b
+  $ hg ci -Am addb D/b
+  $ hg mv D/b d/b
+  D/b: not overwriting - file exists
+  $ hg mv D/b d/c
+  $ hg st
+  A D/c
+  R D/b
+  $ mv D temp
+  $ mv temp d
+  $ hg st
+  A D/c
+  R D/b
+  $ hg revert -aq
+  $ rm d/c
+  $ echo c > D/c
+  $ hg add D/c
+  $ hg st
+  A D/c
+  $ hg ci -m addc D/c
+  $ hg mv d/b d/e
+  moving D/b to D/e
+  $ hg st
+  A D/e
+  R D/b
+  $ hg revert -aq
+  $ rm d/e
+  $ hg mv d/b D/B
+  moving D/b to D/B
+  $ hg st
+  A D/B
+  R D/b
   $ cd ..
 
 test case collision between revisions (issue912)
@@ -65,7 +101,7 @@ no clobbering of untracked files with wrong casing
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ echo gold > a
   $ hg up
-  a: untracked file differs
+  A: untracked file differs
   abort: untracked files in working directory differ from files in requested revision
   [255]
   $ cat a
