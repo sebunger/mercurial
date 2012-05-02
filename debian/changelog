@@ -1,3 +1,10 @@
+mercurial (2.2-2) unstable; urgency=low
+
+  * Don't patch test-pull-pull-corruption2.t in kfreebsd-i386, armel,
+    sparc or mips, it's now integrated into test-pull-pull-corruption.t
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 May 2012 19:21:40 +0100
+
 mercurial (2.2-1) unstable; urgency=low
 
   * New upstream release 2.2
