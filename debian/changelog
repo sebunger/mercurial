@@ -1,3 +1,11 @@
+mercurial (2.2.1-1) unstable; urgency=low
+
+  * New upstream release that fixes a memory leak in hgweb
+  * Refresh i18n/{de,da,ja}.po translations in
+    deb_specific__use_sensible-editor.patch
+
+ -- Javi Merino <vicho@debian.org>  Fri, 04 May 2012 21:57:42 +0100
+
 mercurial (2.2-2) unstable; urgency=low
 
   * Don't patch test-pull-pull-corruption2.t in kfreebsd-i386, armel,

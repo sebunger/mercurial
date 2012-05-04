@@ -1632,6 +1632,16 @@ generate this file manually. The form must be as follows:
 .sp
 Whether to support caching in hgweb. Defaults to True.
 .TP
+.B \fBcollapse\fP
+.sp
+With \fBdescend\fP enabled, repositories in subdirectories are shown at
+a single level alongside repositories in the current path. With
+\fBcollapse\fP also enabled, repositories residing at a deeper level than
+the current path are grouped behind navigable directory entries that
+lead to the locations of these repositories. In effect, this setting
+collapses each collection of repositories found within a subdirectory
+into a single entry for that subdirectory. Default is False.
+.TP
 .B \fBcontact\fP
 .sp
 Name or email address of the person in charge of the repository.
