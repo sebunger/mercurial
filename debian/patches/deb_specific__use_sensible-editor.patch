@@ -46,7 +46,17 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -14194,7 +14194,7 @@
+@@ -13521,7 +13521,8 @@
+ 
+ msgid ""
+ "``editor``\n"
+-"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
++"    ``sensible-editor``."
+ msgstr ""
+ 
+ msgid ""
+@@ -14194,7 +14195,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -68,7 +78,17 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
-@@ -16050,7 +16050,7 @@
+@@ -15292,7 +15292,8 @@
+ 
+ msgid ""
+ "``editor``\n"
+-"    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``."
++"    The editor to use during a commit. Default is ``$EDITOR`` or\n"
++"    ``sensible-editor``."
+ msgstr ""
+ 
+ msgid ""
+@@ -16050,7 +16051,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -77,7 +97,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -16059,7 +16059,7 @@
+@@ -16059,7 +16060,7 @@
  "    variablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge) "
  "ermittelt.\n"
  "    Der erste nicht-leere wird verwendet. Wenn alle Angaben leer sind, wird\n"
@@ -161,7 +181,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (コミットメッセージ用エディタを設定ファイルで設定してください)\n"
-@@ -16823,7 +16823,8 @@
+@@ -16823,11 +16823,12 @@
  
  msgid ""
  "``editor``\n"
@@ -171,6 +191,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "``editor``\n"
  "    コミットログ入力用エディタ。 無指定の場合、 ``$EDITOR`` ないし\n"
+-"    ``vi`` が使用されます。"
++"    ``sensible-editor`` が使用されます。"
+ 
+ msgid ""
+ "``fallbackencoding``\n"
 @@ -17832,7 +17833,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
