@@ -46,3 +46,8 @@ test-gendoc.t
 
 # I'm missing some locales or something (?)
 test-i18n.t
+
+# test-convert-git.t fails with git 1.7.10
+# (http://mercurial.selenic.com/bts/issue3427) and some buildds (such
+# as ancina) have git installed and run this test
+test-convert-git.t
