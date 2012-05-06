@@ -1,9 +1,10 @@
-mercurial (2.2.1-2) UNRELEASED; urgency=low
+mercurial (2.2.1-2) unstable; urgency=low
 
   * Blacklist test-convert-git.t as it is known to fail with git 1.7.10
+    and it's making it fail to build in armel.
   * Build-depend on python-roman (Closes: #671611)
 
- -- Javi Merino <vicho@debian.org>  Sat, 05 May 2012 12:55:04 +0100
+ -- Javi Merino <vicho@debian.org>  Sun, 06 May 2012 17:31:51 +0100
 
 mercurial (2.2.1-1) unstable; urgency=low
 
