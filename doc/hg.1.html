@@ -219,7 +219,9 @@ every added file and records those similar enough as renames. This
 option takes a percentage between 0 (disabled) and 100 (files must
 be identical) as its parameter. Detecting renamed files this way
 can be expensive. After using this option, <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status <span class="pre">-C</span></tt></a> can be
-used to check which files were identified as moved or renamed.</p>
+used to check which files were identified as moved or renamed.
+If this option is not specified, only renames of identical files
+are detected.</p>
 <p>Returns 0 if all files are successfully added.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -4334,7 +4336,7 @@ by spaces (e.g. <tt class="docutils literal">author description</tt>).</p>
 Note that <tt class="docutils literal">author</tt> and <tt class="docutils literal">user</tt> are synonyms.</p>
 <p>Special fields are <tt class="docutils literal">summary</tt> and <tt class="docutils literal">metadata</tt>:
 <tt class="docutils literal">summary</tt> matches the first line of the description.
-<tt class="docutils literal">metatadata</tt> is equivalent to matching <tt class="docutils literal">description user date</tt>
+<tt class="docutils literal">metadata</tt> is equivalent to matching <tt class="docutils literal">description user date</tt>
 (i.e. it matches the main metadata fields).</p>
 <p class="last"><tt class="docutils literal">metadata</tt> is the default field which is used when no fields are
 specified. You can match more than one field at a time.</p>
@@ -4357,8 +4359,12 @@ default push location.</dd>
 <dt><tt class="docutils literal"><span class="pre">parents([set])</span></tt></dt>
 <dd>The set of all parents for all changesets in set, or the working directory.</dd>
 <dt><tt class="docutils literal">present(set)</tt></dt>
-<dd>An empty set, if any revision in set isn't found; otherwise,
-all revisions in set.</dd>
+<dd><p class="first">An empty set, if any revision in set isn't found; otherwise,
+all revisions in set.</p>
+<p class="last">If any of specified revisions is not present in the local repository,
+the query is normally aborted. But this predicate allows the query
+to continue even in such cases.</p>
+</dd>
 <dt><tt class="docutils literal">public()</tt></dt>
 <dd>Changeset in public phase.</dd>
 <dt><tt class="docutils literal"><span class="pre">remote([id</span> <span class="pre">[,path]])</span></tt></dt>
@@ -6039,11 +6045,11 @@ to its parent.</p>
 <div class="section" id="factotum">
 <h2><a class="toc-backref" href="#id87">factotum</a></h2>
 <p>http authentication with factotum</p>
-<p>This extension allows the factotum facility on Plan 9 from Bell Labs platforms
-to provide authentication information for HTTP access. Configuration entries
-specified in the auth section as well as authentication information provided
-in the repository URL are fully supported. If no prefix is specified, a value
-of <tt class="docutils literal">*</tt> will be assumed.</p>
+<p>This extension allows the factotum(4) facility on Plan 9 from Bell Labs
+platforms to provide authentication information for HTTP access. Configuration
+entries specified in the auth section as well as authentication information
+provided in the repository URL are fully supported. If no prefix is specified,
+a value of &quot;*&quot; will be assumed.</p>
 <p>By default, keys are specified as:</p>
 <pre class="literal-block">
 proto=pass service=hg prefix=&lt;prefix&gt; user=&lt;username&gt; !password=&lt;password&gt;
@@ -7021,6 +7027,9 @@ hg qgoto [OPTION]... PATCH
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>overwrite any local changes</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--no-backup</span></kbd></td>
+<td>do not save backup copies of files</td></tr>
 </tbody>
 </table>
 </div>
@@ -7249,6 +7258,9 @@ top of the stack.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>forget any local changes to patched files</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--no-backup</span></kbd></td>
+<td>do not save backup copies of files</td></tr>
 </tbody>
 </table>
 </div>
@@ -7303,6 +7315,9 @@ will be lost.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--move</span></kbd></td>
 <td>reorder patch series and apply only the patch</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--no-backup</span></kbd></td>
+<td>do not save backup copies of files</td></tr>
 </tbody>
 </table>
 </div>
@@ -7746,12 +7761,6 @@ pager = less -FRSX
 </pre>
 <p>If no pager is set, the pager extensions uses the environment variable
 $PAGER. If neither pager.pager, nor $PAGER is set, no pager is used.</p>
-<p>If you notice &quot;BROKEN PIPE&quot; error messages, you can disable them by
-setting:</p>
-<pre class="literal-block">
-[pager]
-quiet = True
-</pre>
 <p>You can disable the pager for certain commands by adding them to the
 pager.ignore list:</p>
 <pre class="literal-block">

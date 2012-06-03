@@ -220,9 +220,6 @@
    >             raise util.Abort(_('qfold cannot fold already applied patch %s') % p)
    warning: line over 80 characters
   hgext/mq.py:0:
-   >           ('', 'move', None, _('reorder patch series and apply only the patch'))],
-   warning: line over 80 characters
-  hgext/mq.py:0:
    >           ('U', 'noupdate', None, _('do not update the new working directories')),
    warning: line over 80 characters
   hgext/mq.py:0:
@@ -336,9 +333,6 @@
    >             ui.write('deltas against p2    : ' + fmt % pcfmt(nump2, numdeltas))
    warning: unwrapped ui message
   mercurial/commands.py:0:
-   >         cmd, ext, mod = extensions.disabledcmd(ui, name, ui.config('ui', 'strict'))
-   warning: line over 80 characters
-  mercurial/commands.py:0:
    >         except:
    warning: naked except clause
   mercurial/commands.py:0:
@@ -426,14 +420,8 @@
   mercurial/discovery.py:0:
    >     If onlyheads is given, only nodes ancestral to nodes in onlyheads (inclusive)
    warning: line over 80 characters
-  mercurial/discovery.py:0:
-   > def findcommonoutgoing(repo, other, onlyheads=None, force=False, commoninc=None):
-   warning: line over 80 characters
   mercurial/dispatch.py:0:
    >                                                 " (.hg not found)") % os.getcwd())
-   warning: line over 80 characters
-  mercurial/dispatch.py:0:
-   >         aliases, entry = cmdutil.findcmd(cmd, cmdtable, lui.config("ui", "strict"))
    warning: line over 80 characters
   mercurial/dispatch.py:0:
    >         except:
@@ -502,9 +490,6 @@
   mercurial/patch.py:0:
    >     except:
    warning: naked except clause
-  mercurial/pure/base85.py:0:
-   >             raise OverflowError('Base85 overflow in hunk starting at byte %d' % i)
-   warning: line over 80 characters
   mercurial/pure/mpatch.py:0:
    >         frags.extend(reversed(new))                    # what was left at the end
    warning: line over 80 characters

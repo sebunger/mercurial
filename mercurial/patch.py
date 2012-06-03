@@ -1014,9 +1014,9 @@ class hunk(object):
         oldstart = self.starta + top
         newstart = self.startb + top
         # zero length hunk ranges already have their start decremented
-        if self.lena:
+        if self.lena and oldstart > 0:
             oldstart -= 1
-        if self.lenb:
+        if self.lenb and newstart > 0:
             newstart -= 1
         return old, oldstart, new, newstart
 
@@ -1343,8 +1343,17 @@ def _applydiff(ui, fp, patcher, backend, store, strip=1,
         elif state == 'git':
             for gp in values:
                 path = pstrip(gp.oldpath)
-                data, mode = backend.getfile(path)
-                store.setfile(path, data, mode)
+                try:
+                    data, mode = backend.getfile(path)
+                except IOError, e:
+                    if e.errno != errno.ENOENT:
+                        raise
+                    # The error ignored here will trigger a getfile()
+                    # error in a place more appropriate for error
+                    # handling, and will not interrupt the patching
+                    # process.
+                else:
+                    store.setfile(path, data, mode)
         else:
             raise util.Abort(_('unsupported parser state: %s') % state)
 
