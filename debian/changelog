@@ -1,3 +1,42 @@
+mercurial (2.2.2-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Sun, 03 Jun 2012 09:17:36 +0100
+
+mercurial (2.2.1-2) unstable; urgency=low
+
+  * Blacklist test-convert-git.t as it is known to fail with git 1.7.10
+    and it's making it fail to build in armel.
+  * Build-depend on python-roman (Closes: #671611)
+
+ -- Javi Merino <vicho@debian.org>  Sun, 06 May 2012 17:31:51 +0100
+
+mercurial (2.2.1-1) unstable; urgency=low
+
+  * New upstream release that fixes a memory leak in hgweb
+  * Refresh i18n/{de,da,ja}.po translations in
+    deb_specific__use_sensible-editor.patch
+
+ -- Javi Merino <vicho@debian.org>  Fri, 04 May 2012 21:57:42 +0100
+
+mercurial (2.2-2) unstable; urgency=low
+
+  * Don't patch test-pull-pull-corruption2.t in kfreebsd-i386, armel,
+    sparc or mips, it's now integrated into test-pull-pull-corruption.t
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 May 2012 19:21:40 +0100
+
+mercurial (2.2-1) unstable; urgency=low
+
+  * New upstream release 2.2
+  * Delete patches for_upstream__skip_test_gpg_if_not_mercurial_wd.patch
+    and from_upstream__tests_re_silence_test_bad_pull_log_messages.patch
+    which are now included upstream
+  * Refresh patches
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 May 2012 08:08:32 +0100
+
 mercurial (2.1.2-2~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.
