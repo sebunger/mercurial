@@ -1,9 +1,3 @@
-mercurial (2.2.2-1) unstable; urgency=low
-
-  * New upstream release
-
- -- Javi Merino <vicho@debian.org>  Sun, 03 Jun 2012 09:17:36 +0100
-
 mercurial (2.2.1-2) unstable; urgency=low
 
   * Blacklist test-convert-git.t as it is known to fail with git 1.7.10
