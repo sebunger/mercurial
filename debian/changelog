@@ -1,3 +1,9 @@
+mercurial (2.2.1-2~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Javi Merino <vicho@debian.org>  Tue, 05 Jun 2012 09:54:09 +0100
+
 mercurial (2.2.1-2) unstable; urgency=low
 
   * Blacklist test-convert-git.t as it is known to fail with git 1.7.10
