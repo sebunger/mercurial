@@ -7,7 +7,7 @@
 
 from i18n import gettext, _
 import sys, os
-import extensions, revset, fileset, templatekw, templatefilters
+import extensions, revset, fileset, templatekw, templatefilters, filemerge
 import util
 
 def listexts(header, exts, indent=1):
@@ -64,14 +64,14 @@ helptable = sorted([
     (['fileset', 'filesets'], _("Specifying File Sets"), loaddoc('filesets')),
     (['diffs'], _('Diff Formats'), loaddoc('diffs')),
     (['merge-tools'], _('Merge Tools'), loaddoc('merge-tools')),
-    (['templating', 'templates'], _('Template Usage'),
+    (['templating', 'templates', 'template', 'style'], _('Template Usage'),
      loaddoc('templates')),
     (['urls'], _('URL Paths'), loaddoc('urls')),
-    (["extensions"], _("Using additional features"), extshelp),
+    (["extensions"], _("Using Additional Features"), extshelp),
    (["subrepo", "subrepos"], _("Subrepositories"), loaddoc('subrepos')),
    (["hgweb"], _("Configuring hgweb"), loaddoc('hgweb')),
    (["glossary"], _("Glossary"), loaddoc('glossary')),
-   (["hgignore", "ignore"], _("syntax for Mercurial ignore files"),
+   (["hgignore", "ignore"], _("Syntax for Mercurial Ignore Files"),
     loaddoc('hgignore')),
    (["phases"], _("Working with Phases"), loaddoc('phases')),
 ])
@@ -94,8 +94,13 @@ def makeitemsdoc(topic, doc, marker, items):
             continue
         text = gettext(text)
         lines = text.splitlines()
-        lines[1:] = [('  ' + l.strip()) for l in lines[1:]]
-        entries.append('\n'.join(lines))
+        doclines = [(lines[0])]
+        for l in lines[1:]:
+            # Stop once we find some Python doctest
+            if l.strip().startswith('>>>'):
+                break
+            doclines.append('  ' + l.strip())
+        entries.append('\n'.join(doclines))
     entries = '\n\n'.join(entries)
     return doc.replace(marker, entries)
 
@@ -105,6 +110,7 @@ def addtopicsymbols(topic, marker, symbols):
     addtopichook(topic, add)
 
 addtopicsymbols('filesets', '.. predicatesmarker', fileset.symbols)
+addtopicsymbols('merge-tools', '.. internaltoolsmarker', filemerge.internals)
 addtopicsymbols('revsets', '.. predicatesmarker', revset.symbols)
 addtopicsymbols('templates', '.. keywordsmarker', templatekw.keywords)
 addtopicsymbols('templates', '.. filtersmarker', templatefilters.filters)

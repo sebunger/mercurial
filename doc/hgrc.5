@@ -65,7 +65,7 @@ paths are given below, settings from earlier paths override later
 ones.
 .sp
 .nf
-(Unix, Windows) \fB<repo>/.hg/hgrc\fP
+(All) \fB<repo>/.hg/hgrc\fP
 .fi
 .sp
 .INDENT 0.0
@@ -75,13 +75,14 @@ Per\-repository configuration options that only apply in a
 particular repository. This file is not version\-controlled, and
 will not get transferred during a "clone" operation. Options in
 this file override options in all other configuration files. On
-Unix, most of this file will be ignored if it doesn\(aqt belong to a
-trusted user or to a trusted group. See the documentation for the
-\fB[trusted]\fP section below for more details.
+Plan 9 and Unix, most of this file will be ignored if it doesn\(aqt
+belong to a trusted user or to a trusted group. See the documentation
+for the \fB[trusted]\fP section below for more details.
 .UNINDENT
 .UNINDENT
 .sp
 .nf
+(Plan 9) \fB$home/lib/hgrc\fP
 (Unix) \fB$HOME/.hgrc\fP
 (Windows) \fB%USERPROFILE%\e.hgrc\fP
 (Windows) \fB%USERPROFILE%\eMercurial.ini\fP
@@ -101,6 +102,8 @@ options.
 .UNINDENT
 .sp
 .nf
+(Plan 9) \fB/lib/mercurial/hgrc\fP
+(Plan 9) \fB/lib/mercurial/hgrc.d/*.rc\fP
 (Unix) \fB/etc/mercurial/hgrc\fP
 (Unix) \fB/etc/mercurial/hgrc.d/*.rc\fP
 .fi
@@ -116,6 +119,8 @@ override per\-installation options.
 .UNINDENT
 .sp
 .nf
+(Plan 9) \fB<install\-root>/lib/mercurial/hgrc\fP
+(Plan 9) \fB<install\-root>/lib/mercurial/hgrc.d/*.rc\fP
 (Unix) \fB<install\-root>/etc/mercurial/hgrc\fP
 (Unix) \fB<install\-root>/etc/mercurial/hgrc.d/*.rc\fP
 .fi
@@ -307,7 +312,7 @@ run arbitrary commands. As an example,
 .sp
 .nf
 .ft C
-echo = !echo
+echo = !echo $@
 .ft P
 .fi
 .sp
@@ -323,11 +328,17 @@ purge = !$HG status \-\-no\-status \-\-unknown \-0 | xargs \-0 rm
 which will make \fBhg purge\fP delete all unknown files in the
 repository in the same manner as the purge extension.
 .sp
-Shell aliases are executed in an environment where \fB$HG\fP expand to
+Positional arguments like \fB$1\fP, \fB$2\fP, etc. in the alias definition
+expand to the command arguments. Unmatched arguments are
+removed. \fB$0\fP expands to the alias name and \fB$@\fP expands to all
+arguments separated by a space. These expansions happen before the
+command is passed to the shell.
+.sp
+Shell aliases are executed in an environment where \fB$HG\fP expands to
 the path of the Mercurial that was used to execute the alias. This is
 useful when you want to call further Mercurial commands in a shell
 alias, as was done above for the purge alias. In addition,
-\fB$HG_ARGS\fP expand to the arguments given to Mercurial. In the \fBhg
+\fB$HG_ARGS\fP expands to the arguments given to Mercurial. In the \fBhg
 echo foo\fP call above, \fB$HG_ARGS\fP would expand to \fBecho foo\fP.
 .IP Note
 .
@@ -643,25 +654,6 @@ mq =
 myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
-.SS \fBhostfingerprints\fP
-.sp
-Fingerprints of the certificates of known HTTPS servers.
-A HTTPS connection to a server with a fingerprint configured here will
-only succeed if the servers certificate matches the fingerprint.
-This is very similar to how ssh known hosts works.
-The fingerprint is the SHA\-1 hash value of the DER encoded certificate.
-The CA chain and web.cacerts is not used for servers with a fingerprint.
-.sp
-For example:
-.sp
-.nf
-.ft C
-[hostfingerprints]
-hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
-.ft P
-.fi
-.sp
-This feature is only supported when using Python 2.6 or later.
 .SS \fBformat\fP
 .INDENT 0.0
 .TP
@@ -692,146 +684,43 @@ Mac OS X and spaces on Windows. Enabled by default. Disabling this
 option ensures that the on\-disk format of newly created
 repositories will be compatible with Mercurial before version 1.7.
 .UNINDENT
-.SS \fBmerge\-patterns\fP
+.SS \fBgraph\fP
 .sp
-This section specifies merge tools to associate with particular file
-patterns. Tools matched here will take precedence over the default
-merge tool. Patterns are globs by default, rooted at the repository
-root.
+Web graph view configuration. This section let you change graph
+elements display properties by branches, for instance to make the
+\fBdefault\fP branch stand out.
 .sp
-Example:
+Each line has the following format:
 .sp
 .nf
 .ft C
-[merge\-patterns]
-**.c = kdiff3
-**.jpg = myimgmerge
+<branch>.<argument> = <value>
 .ft P
 .fi
-.SS \fBmerge\-tools\fP
 .sp
-This section configures external merge tools to use for file\-level
-merges.
-.sp
-Example \fB~/.hgrc\fP:
+where \fB<branch>\fP is the name of the branch being
+customized. Example:
 .sp
 .nf
 .ft C
-[merge\-tools]
-# Override stock tool location
-kdiff3.executable = ~/bin/kdiff3
-# Specify command line
-kdiff3.args = $base $local $other \-o $output
-# Give higher priority
-kdiff3.priority = 1
-
-# Define new tool
-myHtmlTool.args = \-m $local $other $base $output
-myHtmlTool.regkey = Software\eFooSoftware\eHtmlMerge
-myHtmlTool.priority = 1
+[graph]
+# 2px width
+default.width = 2
+# red color
+default.color = FF0000
 .ft P
 .fi
 .sp
 Supported arguments:
 .INDENT 0.0
 .TP
-.B \fBpriority\fP
+.B \fBwidth\fP
 .sp
-The priority in which to evaluate this tool.
-Default: 0.
+Set branch edges width in pixels.
 .TP
-.B \fBexecutable\fP
+.B \fBcolor\fP
 .sp
-Either just the name of the executable or its pathname.  On Windows,
-the path can use environment variables with ${ProgramFiles} syntax.
-Default: the tool name.
-.TP
-.B \fBargs\fP
-.sp
-The arguments to pass to the tool executable. You can refer to the
-files being merged as well as the output file through these
-variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP.
-Default: \fB$local $base $other\fP
-.TP
-.B \fBpremerge\fP
-.sp
-Attempt to run internal non\-interactive 3\-way merge tool before
-launching external tool.  Options are \fBtrue\fP, \fBfalse\fP, or \fBkeep\fP
-to leave markers in the file if the premerge fails.
-Default: True
-.TP
-.B \fBbinary\fP
-.sp
-This tool can merge binary files. Defaults to False, unless tool
-was selected by file pattern match.
-.TP
-.B \fBsymlink\fP
-.sp
-This tool can merge symlinks. Defaults to False, even if tool was
-selected by file pattern match.
-.TP
-.B \fBcheck\fP
-.sp
-A list of merge success\-checking options:
-.INDENT 7.0
-.TP
-.B \fBchanged\fP
-.sp
-Ask whether merge was successful when the merged file shows no changes.
-.TP
-.B \fBconflicts\fP
-.sp
-Check whether there are conflicts even though the tool reported success.
-.TP
-.B \fBprompt\fP
-.sp
-Always prompt for merge success, regardless of success reported by tool.
-.UNINDENT
-.TP
-.B \fBcheckchanged\fP
-.sp
-True is equivalent to \fBcheck = changed\fP.
-Default: False
-.TP
-.B \fBcheckconflicts\fP
-.sp
-True is equivalent to \fBcheck = conflicts\fP.
-Default: False
-.TP
-.B \fBfixeol\fP
-.sp
-Attempt to fix up EOL changes caused by the merge tool.
-Default: False
-.TP
-.B \fBgui\fP
-.sp
-This tool requires a graphical interface to run. Default: False
-.TP
-.B \fBregkey\fP
-.sp
-Windows registry key which describes install location of this
-tool. Mercurial will search for this key first under
-\fBHKEY_CURRENT_USER\fP and then under \fBHKEY_LOCAL_MACHINE\fP.
-Default: None
-.TP
-.B \fBregkeyalt\fP
-.sp
-An alternate Windows registry key to try if the first key is not
-found.  The alternate key uses the same \fBregname\fP and \fBregappend\fP
-semantics of the primary key.  The most common use for this key
-is to search for 32bit applications on 64bit operating systems.
-Default: None
-.TP
-.B \fBregname\fP
-.sp
-Name of value to read from specified registry key. Defaults to the
-unnamed (default) value.
-.TP
-.B \fBregappend\fP
-.sp
-String to append to the value read from the registry, typically
-the executable name of the tool.
-Default: None
+Set branch edges color in hexadecimal RGB notation.
 .UNINDENT
 .SS \fBhooks\fP
 .sp
@@ -1042,6 +931,25 @@ environment variables above are passed as keyword arguments, with no
 .sp
 If a Python hook returns a "true" value or raises an exception, this
 is treated as a failure.
+.SS \fBhostfingerprints\fP
+.sp
+Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA\-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.
+.sp
+For example:
+.sp
+.nf
+.ft C
+[hostfingerprints]
+hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+.ft P
+.fi
+.sp
+This feature is only supported when using Python 2.6 or later.
 .SS \fBhttp_proxy\fP
 .sp
 Used to access web\-based Mercurial repositories through a HTTP
@@ -1071,39 +979,146 @@ Optional. User name to authenticate with at the proxy server.
 Optional. Always use the proxy, even for localhost and any entries
 in \fBhttp_proxy.no\fP. True or False. Default: False.
 .UNINDENT
-.SS \fBsmtp\fP
+.SS \fBmerge\-patterns\fP
 .sp
-Configuration for extensions that need to send email messages.
+This section specifies merge tools to associate with particular file
+patterns. Tools matched here will take precedence over the default
+merge tool. Patterns are globs by default, rooted at the repository
+root.
+.sp
+Example:
+.sp
+.nf
+.ft C
+[merge\-patterns]
+**.c = kdiff3
+**.jpg = myimgmerge
+.ft P
+.fi
+.SS \fBmerge\-tools\fP
+.sp
+This section configures external merge tools to use for file\-level
+merges.
+.sp
+Example \fB~/.hgrc\fP:
+.sp
+.nf
+.ft C
+[merge\-tools]
+# Override stock tool location
+kdiff3.executable = ~/bin/kdiff3
+# Specify command line
+kdiff3.args = $base $local $other \-o $output
+# Give higher priority
+kdiff3.priority = 1
+
+# Define new tool
+myHtmlTool.args = \-m $local $other $base $output
+myHtmlTool.regkey = Software\eFooSoftware\eHtmlMerge
+myHtmlTool.priority = 1
+.ft P
+.fi
+.sp
+Supported arguments:
 .INDENT 0.0
 .TP
-.B \fBhost\fP
+.B \fBpriority\fP
 .sp
-Host name of mail server, e.g. "mail.example.com".
+The priority in which to evaluate this tool.
+Default: 0.
 .TP
-.B \fBport\fP
+.B \fBexecutable\fP
 .sp
-Optional. Port to connect to on mail server. Default: 25.
+Either just the name of the executable or its pathname.  On Windows,
+the path can use environment variables with ${ProgramFiles} syntax.
+Default: the tool name.
 .TP
-.B \fBtls\fP
+.B \fBargs\fP
 .sp
-Optional. Method to enable TLS when connecting to mail server: starttls,
-smtps or none. Default: none.
+The arguments to pass to the tool executable. You can refer to the
+files being merged as well as the output file through these
+variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP.
+Default: \fB$local $base $other\fP
 .TP
-.B \fBusername\fP
+.B \fBpremerge\fP
 .sp
-Optional. User name for authenticating with the SMTP server.
-Default: none.
+Attempt to run internal non\-interactive 3\-way merge tool before
+launching external tool.  Options are \fBtrue\fP, \fBfalse\fP, or \fBkeep\fP
+to leave markers in the file if the premerge fails.
+Default: True
 .TP
-.B \fBpassword\fP
+.B \fBbinary\fP
 .sp
-Optional. Password for authenticating with the SMTP server. If not
-specified, interactive sessions will prompt the user for a
-password; non\-interactive sessions will fail. Default: none.
+This tool can merge binary files. Defaults to False, unless tool
+was selected by file pattern match.
 .TP
-.B \fBlocal_hostname\fP
+.B \fBsymlink\fP
 .sp
-Optional. It\(aqs the hostname that the sender can use to identify
-itself to the MTA.
+This tool can merge symlinks. Defaults to False, even if tool was
+selected by file pattern match.
+.TP
+.B \fBcheck\fP
+.sp
+A list of merge success\-checking options:
+.INDENT 7.0
+.TP
+.B \fBchanged\fP
+.sp
+Ask whether merge was successful when the merged file shows no changes.
+.TP
+.B \fBconflicts\fP
+.sp
+Check whether there are conflicts even though the tool reported success.
+.TP
+.B \fBprompt\fP
+.sp
+Always prompt for merge success, regardless of success reported by tool.
+.UNINDENT
+.TP
+.B \fBcheckchanged\fP
+.sp
+True is equivalent to \fBcheck = changed\fP.
+Default: False
+.TP
+.B \fBcheckconflicts\fP
+.sp
+True is equivalent to \fBcheck = conflicts\fP.
+Default: False
+.TP
+.B \fBfixeol\fP
+.sp
+Attempt to fix up EOL changes caused by the merge tool.
+Default: False
+.TP
+.B \fBgui\fP
+.sp
+This tool requires a graphical interface to run. Default: False
+.TP
+.B \fBregkey\fP
+.sp
+Windows registry key which describes install location of this
+tool. Mercurial will search for this key first under
+\fBHKEY_CURRENT_USER\fP and then under \fBHKEY_LOCAL_MACHINE\fP.
+Default: None
+.TP
+.B \fBregkeyalt\fP
+.sp
+An alternate Windows registry key to try if the first key is not
+found.  The alternate key uses the same \fBregname\fP and \fBregappend\fP
+semantics of the primary key.  The most common use for this key
+is to search for 32bit applications on 64bit operating systems.
+Default: None
+.TP
+.B \fBregname\fP
+.sp
+Name of value to read from specified registry key. Defaults to the
+unnamed (default) value.
+.TP
+.B \fBregappend\fP
+.sp
+String to append to the value read from the registry, typically
+the executable name of the tool.
+Default: None
 .UNINDENT
 .SS \fBpatch\fP
 .sp
@@ -1162,16 +1177,39 @@ Default: draft
 .UNINDENT
 .SS \fBprofiling\fP
 .sp
-Specifies profiling format and file output. In this section
-description, \(aqprofiling data\(aq stands for the raw data collected
-during profiling, while \(aqprofiling report\(aq stands for a statistical
-text report generated from the profiling data. The profiling is done
-using lsprof.
+Specifies profiling type, format, and file output. Two profilers are
+supported: an instrumenting profiler (named \fBls\fP), and a sampling
+profiler (named \fBstat\fP).
+.sp
+In this section description, \(aqprofiling data\(aq stands for the raw data
+collected during profiling, while \(aqprofiling report\(aq stands for a
+statistical text report generated from the profiling data. The
+profiling is done using lsprof.
 .INDENT 0.0
+.TP
+.B \fBtype\fP
+.sp
+The type of profiler to use.
+Default: ls.
+.INDENT 7.0
+.TP
+.B \fBls\fP
+.sp
+Use Python\(aqs built\-in instrumenting profiler. This profiler
+works on all platforms, but each line number it reports is the
+first line of a function. This restriction makes it difficult to
+identify the expensive parts of a non\-trivial function.
+.TP
+.B \fBstat\fP
+.sp
+Use a third\-party statistical profiler, statprof. This profiler
+currently runs only on Unix systems, and is most useful for
+profiling commands that run for longer than about 0.1 seconds.
+.UNINDENT
 .TP
 .B \fBformat\fP
 .sp
-Profiling format.
+Profiling format.  Specific to the \fBls\fP instrumenting profiler.
 Default: text.
 .INDENT 7.0
 .TP
@@ -1187,6 +1225,11 @@ Format profiling data for kcachegrind use: when saving to a
 file, the generated file can directly be loaded into
 kcachegrind.
 .UNINDENT
+.TP
+.B \fBfrequency\fP
+.sp
+Sampling frequency.  Specific to the \fBstat\fP sampling profiler.
+Default: 1000.
 .TP
 .B \fBoutput\fP
 .sp
@@ -1215,15 +1258,56 @@ extra data transfer overhead. This mode will also temporarily hold
 the write lock while determining what data to transfer.
 Default is True.
 .TP
+.B \fBpreferuncompressed\fP
+.sp
+When set, clients will try to use the uncompressed streaming
+protocol. Default is False.
+.TP
 .B \fBvalidate\fP
 .sp
 Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.
 .UNINDENT
+.SS \fBsmtp\fP
+.sp
+Configuration for extensions that need to send email messages.
+.INDENT 0.0
+.TP
+.B \fBhost\fP
+.sp
+Host name of mail server, e.g. "mail.example.com".
+.TP
+.B \fBport\fP
+.sp
+Optional. Port to connect to on mail server. Default: 25.
+.TP
+.B \fBtls\fP
+.sp
+Optional. Method to enable TLS when connecting to mail server: starttls,
+smtps or none. Default: none.
+.TP
+.B \fBusername\fP
+.sp
+Optional. User name for authenticating with the SMTP server.
+Default: none.
+.TP
+.B \fBpassword\fP
+.sp
+Optional. Password for authenticating with the SMTP server. If not
+specified, interactive sessions will prompt the user for a
+password; non\-interactive sessions will fail. Default: none.
+.TP
+.B \fBlocal_hostname\fP
+.sp
+Optional. It\(aqs the hostname that the sender can use to identify
+itself to the MTA.
+.UNINDENT
 .SS \fBsubpaths\fP
 .sp
-Defines subrepositories source locations rewriting rules of the form:
+Subrepository source URLs can go stale if a remote server changes name
+or becomes temporarily unavailable. This section lets you define
+rewrite rules of the form:
 .sp
 .nf
 .ft C
@@ -1231,10 +1315,10 @@ Defines subrepositories source locations rewriting rules of the form:
 .ft P
 .fi
 .sp
-Where \fBpattern\fP is a regular expression matching the source and
-\fBreplacement\fP is the replacement string used to rewrite it. Groups
-can be matched in \fBpattern\fP and referenced in \fBreplacements\fP. For
-instance:
+where \fBpattern\fP is a regular expression matching a subrepository
+source URL and \fBreplacement\fP is the replacement string used to
+rewrite it. Groups can be matched in \fBpattern\fP and referenced in
+\fBreplacements\fP. For instance:
 .sp
 .nf
 .ft C
@@ -1244,7 +1328,9 @@ http://server/(.*)\-hg/ = http://hg.server/\e1/
 .sp
 rewrites \fBhttp://server/foo\-hg/\fP into \fBhttp://hg.server/foo/\fP.
 .sp
-All patterns are applied in definition order.
+Relative subrepository paths are first made absolute, and the the
+rewrite rules are then applied on the full (absolute) path. The rules
+are applied in definition order.
 .SS \fBtrusted\fP
 .sp
 Mercurial will not use the settings in the
@@ -1353,6 +1439,11 @@ Reduce the amount of output printed. True or False. Default is False.
 .B \fBremotecmd\fP
 .sp
 remote command to use for clone/push/pull operations. Default is \fBhg\fP.
+.TP
+.B \fBreportoldssl\fP
+.sp
+Warn if an SSL certificate is unable to be due to using Python
+2.5 or earlier. True or False. Default is True.
 .TP
 .B \fBreport_untrusted\fP
 .sp
@@ -1511,7 +1602,20 @@ Path to file containing a list of PEM encoded certificate
 authority certificates. Environment variables and \fB~user\fP
 constructs are expanded in the filename. If specified on the
 client, then it will verify the identity of remote HTTPS servers
-with these certificates. The form must be as follows:
+with these certificates.
+.sp
+This feature is only supported when using Python 2.6 or later. If you wish
+to use it with earlier versions of Python, install the backported
+version of the ssl library that is available from
+\fBhttp://pypi.python.org\fP.
+.sp
+To disable SSL verification temporarily, specify \fB\-\-insecure\fP from
+command line.
+.sp
+You can use OpenSSL\(aqs CA certificate file if your platform has
+one. On most Linux systems this will be
+\fB/etc/ssl/certs/ca\-certificates.crt\fP. Otherwise you will have to
+generate this file manually. The form must be as follows:
 .sp
 .nf
 .ft C
@@ -1523,22 +1627,20 @@ with these certificates. The form must be as follows:
 \-\-\-\-\-END CERTIFICATE\-\-\-\-\-
 .ft P
 .fi
-.sp
-This feature is only supported when using Python 2.6 or later. If you wish
-to use it with earlier versions of Python, install the backported
-version of the ssl library that is available from
-\fBhttp://pypi.python.org\fP.
-.sp
-You can use OpenSSL\(aqs CA certificate file if your platform has one.
-On most Linux systems this will be \fB/etc/ssl/certs/ca\-certificates.crt\fP.
-Otherwise you will have to generate this file manually.
-.sp
-To disable SSL verification temporarily, specify \fB\-\-insecure\fP from
-command line.
 .TP
 .B \fBcache\fP
 .sp
 Whether to support caching in hgweb. Defaults to True.
+.TP
+.B \fBcollapse\fP
+.sp
+With \fBdescend\fP enabled, repositories in subdirectories are shown at
+a single level alongside repositories in the current path. With
+\fBcollapse\fP also enabled, repositories residing at a deeper level than
+the current path are grouped behind navigable directory entries that
+lead to the locations of these repositories. In effect, this setting
+collapses each collection of repositories found within a subdirectory
+into a single entry for that subdirectory. Default is False.
 .TP
 .B \fBcontact\fP
 .sp
@@ -1667,7 +1769,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2010 Matt Mackall.
+Mercurial is copyright 2005\-2012 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

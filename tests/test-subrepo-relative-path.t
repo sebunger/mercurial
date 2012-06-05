@@ -20,7 +20,6 @@ Preparing the 'main' repo which depends on the subrepo 'sub'
   adding main/.hgsub (glob)
   adding main/main (glob)
   $ hg commit -R main -m "main import"
-  committing subrepository sub
 
 Cleaning both repositories, just as a clone -U
 
@@ -72,7 +71,7 @@ subrepo debug for 'main' clone
 
 subrepo paths with ssh urls
 
-  $ cp $TESTDIR/dummyssh $BINDIR/ssh
+  $ cp "$TESTDIR/dummyssh" "$BINDIR/ssh"
 
   $ hg clone ssh://user@dummy/cloned sshclone
   requesting all changes
@@ -103,4 +102,4 @@ subrepo paths with ssh urls
   Got arguments 1:user@dummy 2:hg -R sub serve --stdio
   Got arguments 1:user@dummy 2:hg -R $TESTTMP/cloned serve --stdio
   Got arguments 1:user@dummy 2:hg -R $TESTTMP/sub serve --stdio
-  $ rm $BINDIR/ssh
+  $ rm "$BINDIR/ssh"

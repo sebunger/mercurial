@@ -20,11 +20,8 @@
 
   $ python dumb.py 2> log &
   $ P=$!
-  $ while [ ! -f listening ]; do true; done
+  $ while [ ! -f listening ]; do sleep 0; done
   $ hg clone http://localhost:$HGPORT/foo copy2
   abort: HTTP Error 404: * (glob)
   [255]
   $ wait $P
-  $ cat log
-  localhost - - [*] code 404, message File not found (glob)
-  localhost - - [*] "GET /foo?cmd=capabilities HTTP/1.1" 404 - (glob)

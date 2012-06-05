@@ -6,7 +6,7 @@ Test the GPG extension
   > gpg=
   > 
   > [gpg]
-  > cmd=gpg --no-permission-warning --no-secmem-warning --no-auto-check-trustdb --homedir $TESTDIR/gpg
+  > cmd=gpg --no-permission-warning --no-secmem-warning --no-auto-check-trustdb --homedir "$TESTDIR/gpg"
   > EOF
   $ hg init r
   $ cd r
@@ -28,4 +28,5 @@ Test the GPG extension
 
 verify that this test has not modified the trustdb.gpg file back in
 the main hg working dir
-  $ hg --cwd $TESTDIR status gpg
+  $ "$TESTDIR/md5sum.py" "$TESTDIR/gpg/trustdb.gpg"
+  f6b9c78c65fa9536e7512bb2ceb338ae  */gpg/trustdb.gpg (glob)

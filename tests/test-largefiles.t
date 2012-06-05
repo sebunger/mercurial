@@ -127,6 +127,29 @@ Test moving largefiles and verify that normal files are also unaffected.
   $ cat sub/large4
   large22
 
+Test display of largefiles in hgweb
+
+  $ hg serve -d -p $HGPORT --pid-file ../hg.pid
+  $ cat ../hg.pid >> $DAEMON_PIDS
+  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/file/tip/?style=raw'
+  200 Script output follows
+  
+  
+  drwxr-xr-x sub
+  -rw-r--r-- 41 large3
+  -rw-r--r-- 9 normal3
+  
+  
+  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/file/tip/sub/?style=raw'
+  200 Script output follows
+  
+  
+  -rw-r--r-- 41 large4
+  -rw-r--r-- 9 normal4
+  
+  
+  $ "$TESTDIR/killdaemons.py"
+
 Test archiving the various revisions.  These hit corner cases known with
 archiving.
 
@@ -737,6 +760,8 @@ Test that transplanting a largefile change works correctly.
   adding manifests
   adding file changes
   added 1 changesets with 2 changes to 2 files
+  getting changed largefiles
+  1 largefiles updated, 0 removed
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
   8:a381d2c8c80e  modify normal file and largefile in repo b
@@ -759,6 +784,19 @@ Test that transplanting a largefile change works correctly.
   $ cat sub2/large7
   large7
 
+Cat a largefile
+  $ hg cat normal3
+  normal3-modified
+  $ hg cat sub/large4
+  large4-modified
+  $ rm ${USERCACHE}/*
+  $ hg cat -r a381d2c8c80e -o cat.out sub/large4
+  $ cat cat.out
+  large4-modified
+  $ rm cat.out
+  $ hg cat -r a381d2c8c80e normal3
+  normal3-modified
+
 Test that renaming a largefile results in correct output for status
 
   $ hg rename sub/large4 large4-renamed
@@ -777,7 +815,7 @@ Test that renaming a largefile results in correct output for status
 
 Test --normal flag
 
-  $ dd if=/dev/urandom bs=2k count=11k > new-largefile 2> /dev/null
+  $ dd if=/dev/zero bs=2k count=11k > new-largefile 2> /dev/null
   $ hg add --normal --large new-largefile
   abort: --normal cannot be used with --large
   [255]
@@ -843,7 +881,7 @@ used all HGPORTs, kill all daemons
   $ "$TESTDIR/killdaemons.py"
 
 vanilla clients locked out from largefiles ssh repos
-  $ hg --config extensions.largefiles=! clone -e "python $TESTDIR/dummyssh" ssh://user@dummy/r4 r5
+  $ hg --config extensions.largefiles=! clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/r4 r5
   abort: remote error:
   
   This repository uses the largefiles extension.
@@ -907,7 +945,7 @@ We have to simulate that here by setting $HOME and removing write permissions
   $ cd alice
   $ hg init pubrepo
   $ cd pubrepo
-  $ dd if=/dev/urandom bs=1k count=11k > a-large-file 2> /dev/null
+  $ dd if=/dev/zero bs=1k count=11k > a-large-file 2> /dev/null
   $ hg add --large a-large-file
   $ hg commit -m "Add a large file"
   Invoking status precommit hook
@@ -1012,5 +1050,50 @@ verify that largefiles doesn't break filesets
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     add files
   
-
+verify that large files in subrepos handled properly
+  $ hg init subrepo
+  $ echo "subrepo = subrepo" > .hgsub
+  $ hg add .hgsub
+  $ hg ci -m "add subrepo"
+  Invoking status precommit hook
+  A .hgsub
+  ? .hgsubstate
+  $ echo "rev 1" > subrepo/large.txt
+  $ hg -R subrepo add --large subrepo/large.txt
+  $ hg sum
+  parent: 1:8ee150ea2e9c tip
+   add subrepo
+  branch: default
+  commit: 1 subrepos
+  update: (current)
+  $ hg st
+  $ hg st -S
+  A subrepo/large.txt
+  $ hg ci -S -m "commit top repo"
+  committing subrepository subrepo
+  Invoking status precommit hook
+  A large.txt
+  Invoking status precommit hook
+  M .hgsubstate
+# No differences
+  $ hg st -S
+  $ hg sum
+  parent: 2:ce4cd0c527a6 tip
+   commit top repo
+  branch: default
+  commit: (clean)
+  update: (current)
+  $ echo "rev 2" > subrepo/large.txt
+  $ hg st -S
+  M subrepo/large.txt
+  $ hg sum
+  parent: 2:ce4cd0c527a6 tip
+   commit top repo
+  branch: default
+  commit: 1 subrepos
+  update: (current)
+  $ hg ci -m "this commit should fail without -S"
+  abort: uncommitted changes in subrepo subrepo
+  (use --subrepos for recursive commit)
+  [255]
   $ cd ..

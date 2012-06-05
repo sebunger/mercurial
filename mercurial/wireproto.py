@@ -396,7 +396,7 @@ def between(repo, proto, pairs):
     return "".join(r)
 
 def branchmap(repo, proto):
-    branchmap = repo.branchmap()
+    branchmap = phases.visiblebranchmap(repo)
     heads = []
     for branch, nodes in branchmap.iteritems():
         branchname = urllib.quote(encoding.fromlocal(branch))
@@ -415,6 +415,8 @@ def capabilities(repo, proto):
     caps = ('lookup changegroupsubset branchmap pushkey known getbundle '
             'unbundlehash batch').split()
     if _allowstream(repo.ui):
+        if repo.ui.configbool('server', 'preferuncompressed', False):
+            caps.append('stream-preferred')
         requiredformats = repo.requirements & repo.supportedformats
         # if our local revlogs are just revlogv1, add 'stream' cap
         if not requiredformats - set(('revlogv1',)):
@@ -553,7 +555,7 @@ def unbundle(repo, proto, heads):
     their_heads = decodelist(heads)
 
     def check_heads():
-        heads = repo.heads()
+        heads = phases.visibleheads(repo)
         heads_hash = util.sha1(''.join(sorted(heads))).digest()
         return (their_heads == ['force'] or their_heads == heads or
                 their_heads == ['hashed', heads_hash])

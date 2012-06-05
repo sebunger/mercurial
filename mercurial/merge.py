@@ -81,22 +81,20 @@ class mergestate(object):
             self.mark(dfile, 'r')
         return r
 
-def _checkunknown(wctx, mctx, folding):
+def _checkunknownfile(repo, wctx, mctx, f):
+    return (not repo.dirstate._ignore(f)
+        and os.path.isfile(repo.wjoin(f))
+        and repo.dirstate.normalize(f) not in repo.dirstate
+        and mctx[f].cmp(wctx[f]))
+
+def _checkunknown(repo, wctx, mctx):
     "check for collisions between unknown files and files in mctx"
-    if folding:
-        foldf = util.normcase
-    else:
-        foldf = lambda fn: fn
-    folded = {}
-    for fn in mctx:
-        folded[foldf(fn)] = fn
 
     error = False
-    for fn in wctx.unknown():
-        f = foldf(fn)
-        if f in folded and mctx[folded[f]].cmp(wctx[f]):
+    for f in mctx:
+        if f not in wctx and _checkunknownfile(repo, wctx, mctx, f):
             error = True
-            wctx._repo.ui.warn(_("%s: untracked file differs\n") % fn)
+            wctx._repo.ui.warn(_("%s: untracked file differs\n") % f)
     if error:
         raise util.Abort(_("untracked files in working directory differ "
                            "from files in requested revision"))
@@ -112,10 +110,18 @@ def _checkcollision(mctx, wctx):
         folded[fold] = fn
 
     if wctx:
+        # class to delay looking up copy mapping
+        class pathcopies(object):
+            @util.propertycache
+            def map(self):
+                # {dst@mctx: src@wctx} copy mapping
+                return copies.pathcopies(wctx, mctx)
+        pc = pathcopies()
+
         for fn in wctx:
             fold = util.normcase(fn)
             mfn = folded.get(fold, None)
-            if mfn and (mfn != fn):
+            if mfn and mfn != fn and pc.map.get(mfn) != fn:
                 raise util.Abort(_("case-folding collision between %s and %s")
                                  % (mfn, fn))
 
@@ -192,8 +198,7 @@ def manifestmerge(repo, p1, p2, pa, overwrite, partial):
     elif pa == p2: # backwards
         pa = p1.p1()
     elif pa and repo.ui.configbool("merge", "followcopies", True):
-        dirs = repo.ui.configbool("merge", "followdirs", True)
-        copy, diverge = copies.mergecopies(repo, p1, p2, pa, dirs)
+        copy, diverge = copies.mergecopies(repo, p1, p2, pa)
         for of, fl in diverge.iteritems():
             act("divergent renames", "dr", of, fl)
 
@@ -249,7 +254,7 @@ def manifestmerge(repo, p1, p2, pa, overwrite, partial):
                     act("prompt keep", "a", f)
             elif n[20:] == "a": # added, no remote
                 act("remote deleted", "f", f)
-            elif n[20:] != "u":
+            else:
                 act("other deleted", "r", f)
 
     for f, n in m2.iteritems():
@@ -269,7 +274,13 @@ def manifestmerge(repo, p1, p2, pa, overwrite, partial):
                 act("remote moved to " + f, "m",
                     f2, f, f, fmerge(f2, f, f2), True)
         elif f not in ma:
-            act("remote created", "g", f, m2.flags(f))
+            if (not overwrite
+                and _checkunknownfile(repo, p1, p2, f)):
+                rflags = fmerge(f, f, f)
+                act("remote differs from untracked local",
+                    "m", f, f, f, rflags, False)
+            else:
+                act("remote created", "g", f, m2.flags(f))
         elif n != ma[f]:
             if repo.ui.promptchoice(
                 _("remote changed %s which local deleted\n"
@@ -559,16 +570,20 @@ def update(repo, node, branchmerge, force, partial, ancestor=None):
                                    " --check to force update)"))
             else:
                 # Allow jumping branches if clean and specific rev given
-                overwrite = True
+                pa = p1
 
         ### calculate phase
         action = []
-        wc.status(unknown=True) # prime cache
         folding = not util.checkcase(repo.path)
-        if not force:
-            _checkunknown(wc, p2, folding)
         if folding:
-            _checkcollision(p2, branchmerge and p1)
+            # collision check is not needed for clean update
+            if (not branchmerge and
+                (force or not wc.dirty(missing=True, branch=False))):
+                _checkcollision(p2, None)
+            else:
+                _checkcollision(p2, wc)
+        if not force:
+            _checkunknown(repo, wc, p2)
         action += _forgetremoved(wc, p2, branchmerge)
         action += manifestmerge(repo, wc, p2, pa, overwrite, partial)
 
@@ -581,7 +596,7 @@ def update(repo, node, branchmerge, force, partial, ancestor=None):
         stats = applyupdates(repo, action, wc, p2, pa, overwrite)
 
         if not partial:
-            repo.dirstate.setparents(fp1, fp2)
+            repo.setparents(fp1, fp2)
             recordupdates(repo, action, branchmerge)
             if not branchmerge:
                 repo.dirstate.setbranch(p2.branch())
