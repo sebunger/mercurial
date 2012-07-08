@@ -243,6 +243,7 @@ class cmdalias(object):
         self.opts = []
         self.help = ''
         self.norepo = True
+        self.optionalrepo = False
         self.badalias = False
 
         try:
@@ -312,6 +313,8 @@ class cmdalias(object):
             self.args = aliasargs(self.fn, args)
             if cmd not in commands.norepo.split(' '):
                 self.norepo = False
+            if cmd in commands.optionalrepo.split(' '):
+                self.optionalrepo = True
             if self.help.startswith("hg " + cmd):
                 # drop prefix in old-style help lines so hg shows the alias
                 self.help = self.help[4 + len(cmd):]
@@ -370,6 +373,8 @@ def addaliases(ui, cmdtable):
         cmdtable[aliasdef.name] = (aliasdef, aliasdef.opts, aliasdef.help)
         if aliasdef.norepo:
             commands.norepo += ' %s' % alias
+        if aliasdef.optionalrepo:
+            commands.optionalrepo += ' %s' % alias
 
 def _parse(ui, args):
     options = {}
@@ -383,7 +388,7 @@ def _parse(ui, args):
     if args:
         cmd, args = args[0], args[1:]
         aliases, entry = cmdutil.findcmd(cmd, commands.table,
-                                     ui.config("ui", "strict"))
+                                         ui.configbool("ui", "strict"))
         cmd = aliases[0]
         args = aliasargs(entry[0], args)
         defaults = ui.config("defaults", cmd)
@@ -495,7 +500,6 @@ def _getlocal(ui, rpath):
     return path, lui
 
 def _checkshellalias(lui, ui, args):
-    norepo = commands.norepo
     options = {}
 
     try:
@@ -506,14 +510,21 @@ def _checkshellalias(lui, ui, args):
     if not args:
         return
 
+    norepo = commands.norepo
+    optionalrepo = commands.optionalrepo
+    def restorecommands():
+        commands.norepo = norepo
+        commands.optionalrepo = optionalrepo
+
     cmdtable = commands.table.copy()
     addaliases(lui, cmdtable)
 
     cmd = args[0]
     try:
-        aliases, entry = cmdutil.findcmd(cmd, cmdtable, lui.config("ui", "strict"))
+        aliases, entry = cmdutil.findcmd(cmd, cmdtable,
+                                         lui.configbool("ui", "strict"))
     except (error.AmbiguousCommand, error.UnknownCommand):
-        commands.norepo = norepo
+        restorecommands()
         return
 
     cmd = aliases[0]
@@ -523,7 +534,7 @@ def _checkshellalias(lui, ui, args):
         d = lambda: fn(ui, *args[1:])
         return lambda: runcommand(lui, None, cmd, args[:1], ui, options, d, [], {})
 
-    commands.norepo = norepo
+    restorecommands()
 
 _loaded = set()
 def _dispatch(req):

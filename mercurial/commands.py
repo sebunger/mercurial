@@ -196,6 +196,8 @@ def addremove(ui, repo, *pats, **opts):
     be identical) as its parameter. Detecting renamed files this way
     can be expensive. After using this option, :hg:`status -C` can be
     used to check which files were identified as moved or renamed.
+    If this option is not specified, only renames of identical files
+    are detected.
 
     Returns 0 if all files are successfully added.
     """
@@ -647,6 +649,7 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
         try:
             while changesets:
                 # update state
+                hbisect.save_state(repo, state)
                 status = util.system(command, out=ui.fout)
                 if status == 125:
                     transition = "skip"
@@ -1008,7 +1011,8 @@ def bundle(ui, repo, fname, dest=None, **opts):
         heads = revs and map(repo.lookup, revs) or revs
         outgoing = discovery.findcommonoutgoing(repo, other,
                                                 onlyheads=heads,
-                                                force=opts.get('force'))
+                                                force=opts.get('force'),
+                                                portable=True)
         cg = repo.getlocalbundle('bundle', outgoing)
     if not cg:
         scmutil.nochangesfound(ui, outgoing and outgoing.excluded)
@@ -3299,7 +3303,8 @@ def help_(ui, name=None, unknowncmd=False, full=True, **opts):
                        'extensions\n'))
 
     def helpextcmd(name):
-        cmd, ext, mod = extensions.disabledcmd(ui, name, ui.config('ui', 'strict'))
+        cmd, ext, mod = extensions.disabledcmd(ui, name,
+                                               ui.configbool('ui', 'strict'))
         doc = gettext(mod.__doc__).splitlines()[0]
 
         msg = help.listexts(_("'%s' is provided by the following "
