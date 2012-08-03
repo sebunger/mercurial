@@ -1,6 +1,5 @@
-  $ "$TESTDIR/hghave" symlink unix-permissions serve || exit 80
-  $ USERCACHE=`pwd`/cache; export USERCACHE
-  $ mkdir -p ${USERCACHE}
+  $ USERCACHE="$TESTTMP/cache"; export USERCACHE
+  $ mkdir "${USERCACHE}"
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > largefiles=
@@ -14,7 +13,7 @@
   > patterns=glob:**.dat
   > usercache=${USERCACHE}
   > [hooks]
-  > precommit=echo "Invoking status precommit hook"; hg status
+  > precommit=sh -c "echo \"Invoking status precommit hook\"; hg status"
   > EOF
 
 Create the repo with a couple of revisions of both large and normal
@@ -142,11 +141,49 @@ Test moving largefiles and verify that normal files are also unaffected.
   $ cat sub/large4
   large22
 
+Test copies and moves from a directory other than root (issue3516)
+
+  $ cd ..
+  $ hg init lf_cpmv
+  $ cd lf_cpmv
+  $ mkdir dira
+  $ mkdir dira/dirb
+  $ touch dira/dirb/largefile
+  $ hg add --large dira/dirb/largefile
+  $ hg commit -m "added"
+  Invoking status precommit hook
+  A dira/dirb/largefile
+  $ cd dira
+  $ hg cp dirb/largefile foo/largefile
+  $ hg ci -m "deep copy"
+  Invoking status precommit hook
+  A dira/foo/largefile
+  $ find . | sort
+  .
+  ./dirb
+  ./dirb/largefile
+  ./foo
+  ./foo/largefile
+  $ hg mv foo/largefile baz/largefile
+  $ hg ci -m "moved"
+  Invoking status precommit hook
+  A dira/baz/largefile
+  R dira/foo/largefile
+  $ find . | sort
+  .
+  ./baz
+  ./baz/largefile
+  ./dirb
+  ./dirb/largefile
+  ./foo
+  $ cd ../../a
+
+#if hgweb
 Test display of largefiles in hgweb
 
   $ hg serve -d -p $HGPORT --pid-file ../hg.pid
   $ cat ../hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/file/tip/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT 'file/tip/?style=raw'
   200 Script output follows
   
   
@@ -155,7 +192,7 @@ Test display of largefiles in hgweb
   -rw-r--r-- 9 normal3
   
   
-  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/file/tip/sub/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT 'file/tip/sub/?style=raw'
   200 Script output follows
   
   
@@ -164,6 +201,7 @@ Test display of largefiles in hgweb
   
   
   $ "$TESTDIR/killdaemons.py"
+#endif
 
 Test archiving the various revisions.  These hit corner cases known with
 archiving.
@@ -369,6 +407,176 @@ accident.
   removing normal3
   adding normaladdremove
 
+Test addremove with -R
+
+  $ hg up -C
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  1 largefiles updated, 0 removed
+  $ rm normal3
+  $ rm sub/large4
+  $ echo "testing addremove with patterns" > testaddremove.dat
+  $ echo "normaladdremove" > normaladdremove
+  $ cd ..
+  $ hg -R a addremove
+  removing sub/large4
+  adding a/testaddremove.dat as a largefile (glob)
+  removing normal3
+  adding normaladdremove
+  $ cd a
+
+Test 3364
+  $ hg clone . ../addrm
+  updating to branch default
+  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  3 largefiles updated, 0 removed
+  $ cd ../addrm
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > post-commit.stat=sh -c "echo \"Invoking status postcommit hook\"; hg status -A"
+  > EOF
+  $ touch foo
+  $ hg add --large foo
+  $ hg ci -m "add foo"
+  Invoking status precommit hook
+  A foo
+  Invoking status postcommit hook
+  C foo
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  $ rm foo
+  $ hg st
+  ! foo
+hmm.. no precommit invoked, but there is a postcommit??
+  $ hg ci -m "will not checkin"
+  nothing changed
+  Invoking status postcommit hook
+  ! foo
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  [1]
+  $ hg addremove
+  removing foo
+  $ hg st
+  R foo
+  $ hg ci -m "used to say nothing changed"
+  Invoking status precommit hook
+  R foo
+  Invoking status postcommit hook
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  $ hg st
+
+Test 3507 (both normal files and largefiles were a problem)
+
+  $ touch normal
+  $ touch large
+  $ hg add normal
+  $ hg add --large large
+  $ hg ci -m "added"
+  Invoking status precommit hook
+  A large
+  A normal
+  Invoking status postcommit hook
+  C large
+  C normal
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  $ hg remove normal
+  $ hg addremove --traceback
+  $ hg ci -m "addremoved normal"
+  Invoking status precommit hook
+  R normal
+  Invoking status postcommit hook
+  C large
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  $ hg up -C '.^'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  0 largefiles updated, 0 removed
+  $ hg remove large
+  $ hg addremove --traceback
+  $ hg ci -m "removed large"
+  Invoking status precommit hook
+  R large
+  created new head
+  Invoking status postcommit hook
+  C normal
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+
+Test that a standin can't be added as a large file
+
+  $ touch large
+  $ hg add --large large
+  $ hg ci -m "add"
+  Invoking status precommit hook
+  A large
+  Invoking status postcommit hook
+  C large
+  C normal
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  $ hg remove large
+  $ touch large
+  $ hg addremove --config largefiles.patterns=**large --traceback
+  adding large as a largefile
+
+Test that outgoing --large works (with revsets too)
+  $ hg outgoing --rev '.^' --large
+  comparing with $TESTTMP/a (glob)
+  searching for changes
+  changeset:   8:c02fd3b77ec4
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     add foo
+  
+  changeset:   9:289dd08c9bbb
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     used to say nothing changed
+  
+  changeset:   10:34f23ac6ac12
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     added
+  
+  changeset:   12:710c1b2f523c
+  parent:      10:34f23ac6ac12
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     removed large
+  
+  searching for changes
+  largefiles to upload:
+  large
+  foo
+  
+  $ cd ../a
+
 Clone a largefiles repo.
 
   $ hg clone . ../b
@@ -432,11 +640,52 @@ tests update).
   large11
   $ cat sub/large2
   large22
+  $ cd ..
+
+Test cloning with --all-largefiles flag
+
+  $ rm "${USERCACHE}"/*
+  $ hg clone --all-largefiles a a-backup
+  updating to branch default
+  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  3 largefiles updated, 0 removed
+  8 additional largefiles cached
+
+  $ hg clone --all-largefiles a ssh://localhost/a
+  abort: --all-largefiles is incompatible with non-local destination ssh://localhost/a
+  [255]
+
+Test pulling with --all-largefiles flag
+
+  $ rm -Rf a-backup
+  $ hg clone -r 1 a a-backup
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 8 changes to 4 files
+  updating to branch default
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  2 largefiles updated, 0 removed
+  $ rm "${USERCACHE}"/*
+  $ cd a-backup
+  $ hg pull --all-largefiles
+  pulling from $TESTTMP/a (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 6 changesets with 16 changes to 8 files
+  (run 'hg update' to get a working copy)
+  caching new largefiles
+  3 largefiles cached
+  3 additional largefiles cached
+  $ cd ..
 
 Rebasing between two repositories does not revert largefiles to old
 revisions (this was a very bad bug that took a lot of work to fix).
 
-  $ cd ..
   $ hg clone a d
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -473,7 +722,7 @@ revisions (this was a very bad bug that took a lot of work to fix).
   Invoking status precommit hook
   M sub/normal4
   M sub2/large6
-  saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-backup.hg
+  saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-backup.hg (glob)
   nothing to rebase
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
@@ -511,7 +760,7 @@ revisions (this was a very bad bug that took a lot of work to fix).
   Invoking status precommit hook
   M sub/normal4
   M sub2/large6
-  saved backup bundle to $TESTTMP/e/.hg/strip-backup/f574fb32bb45-backup.hg
+  saved backup bundle to $TESTTMP/e/.hg/strip-backup/f574fb32bb45-backup.hg (glob)
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
   8:a381d2c8c80e  modify normal file and largefile in repo b
@@ -650,6 +899,8 @@ revert some files to an older revision
   reverting .hglf/sub2/large6 (glob)
   $ cat sub2/large6
   large6
+  $ hg revert --no-backup -C -r '.^' sub2
+  reverting .hglf/sub2/large6 (glob)
   $ hg revert --no-backup sub2
   reverting .hglf/sub2/large6 (glob)
   $ hg status
@@ -686,7 +937,7 @@ correctly.
   3 largefiles updated, 0 removed
 # Delete the largefiles in the largefiles system cache so that we have an
 # opportunity to test that caching after a pull works.
-  $ rm ${USERCACHE}/*
+  $ rm "${USERCACHE}"/*
   $ cd f
   $ echo "large4-merge-test" > sub/large4
   $ hg commit -m "Modify large4 to test merge"
@@ -804,13 +1055,17 @@ Cat a largefile
   normal3-modified
   $ hg cat sub/large4
   large4-modified
-  $ rm ${USERCACHE}/*
+  $ rm "${USERCACHE}"/*
   $ hg cat -r a381d2c8c80e -o cat.out sub/large4
   $ cat cat.out
   large4-modified
   $ rm cat.out
   $ hg cat -r a381d2c8c80e normal3
   normal3-modified
+  $ hg cat -r '.^' normal3
+  normal3-modified
+  $ hg cat -r '.^' sub/large4
+  large4-modified
 
 Test that renaming a largefile results in correct output for status
 
@@ -839,6 +1094,7 @@ Test --normal flag
   (use 'hg revert new-largefile' to cancel the pending addition)
   $ cd ..
 
+#if serve
 vanilla clients not locked out from largefiles servers on vanilla repos
   $ mkdir r1
   $ cd r1
@@ -871,6 +1127,8 @@ largefiles clients still work with vanilla servers
   added 1 changesets with 1 changes to 1 files
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#endif
+
 
 vanilla clients locked out from largefiles http repos
   $ mkdir r4
@@ -882,6 +1140,8 @@ vanilla clients locked out from largefiles http repos
   Invoking status precommit hook
   A f1
   $ cd ..
+
+#if serve
   $ hg serve -R r4 -d -p $HGPORT2 --pid-file hg.pid
   $ cat hg.pid >> $DAEMON_PIDS
   $ hg --config extensions.largefiles=! clone http://localhost:$HGPORT2 r5
@@ -894,6 +1154,7 @@ vanilla clients locked out from largefiles http repos
 
 used all HGPORTs, kill all daemons
   $ "$TESTDIR/killdaemons.py"
+#endif
 
 vanilla clients locked out from largefiles ssh repos
   $ hg --config extensions.largefiles=! clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/r4 r5
@@ -903,6 +1164,8 @@ vanilla clients locked out from largefiles ssh repos
   
   Please enable it in your Mercurial config file.
   [255]
+
+#if serve
 
 largefiles clients refuse to push largefiles repos to vanilla servers
   $ mkdir r6
@@ -938,8 +1201,9 @@ largefiles clients refuse to push largefiles repos to vanilla servers
   $ cd ..
 
 putlfile errors are shown (issue3123)
-Corrupt the cached largefile in r7
-  $ echo corruption > $USERCACHE/4cdac4d8b084d0b599525cf732437fb337d422a8
+Corrupt the cached largefile in r7 and in the usercache (required for testing on vfat)
+  $ echo corruption > "$TESTTMP/r7/.hg/largefiles/4cdac4d8b084d0b599525cf732437fb337d422a8"
+  $ echo corruption > "$USERCACHE/4cdac4d8b084d0b599525cf732437fb337d422a8"
   $ hg init empty
   $ hg serve -R empty -d -p $HGPORT1 --pid-file hg.pid \
   >   --config 'web.allow_push=*' --config web.push_ssl=False
@@ -948,7 +1212,7 @@ Corrupt the cached largefile in r7
   pushing to http://localhost:$HGPORT1/
   searching for changes
   remote: largefiles: failed to put 4cdac4d8b084d0b599525cf732437fb337d422a8 into store: largefile contents do not match hash
-  abort: remotestore: could not put $TESTTMP/r7/.hg/largefiles/4cdac4d8b084d0b599525cf732437fb337d422a8 to remote store http://localhost:$HGPORT1/
+  abort: remotestore: could not put $TESTTMP/r7/.hg/largefiles/4cdac4d8b084d0b599525cf732437fb337d422a8 to remote store http://localhost:$HGPORT1/ (glob)
   [255]
   $ rm -rf empty
 
@@ -963,7 +1227,7 @@ Push a largefiles repository to a served empty repository
   $ hg serve -R empty -d -p $HGPORT2 --pid-file hg.pid \
   >   --config 'web.allow_push=*' --config web.push_ssl=False
   $ cat hg.pid >> $DAEMON_PIDS
-  $ rm ${USERCACHE}/*
+  $ rm "${USERCACHE}"/*
   $ hg push -R r8 http://localhost:$HGPORT2
   pushing to http://localhost:$HGPORT2/
   searching for changes
@@ -976,6 +1240,11 @@ Push a largefiles repository to a served empty repository
 
 used all HGPORTs, kill all daemons
   $ "$TESTDIR/killdaemons.py"
+
+#endif
+
+
+#if unix-permissions
 
 Clone a local repository owned by another user
 We have to simulate that here by setting $HOME and removing write permissions
@@ -1010,6 +1279,10 @@ We have to simulate that here by setting $HOME and removing write permissions
   $ chmod -R u+w alice/pubrepo
   $ HOME="$ORIGHOME"
 
+#endif
+
+#if symlink
+
 Symlink to a large largefile should behave the same as a symlink to a normal file
   $ hg init largesymlink
   $ cd largesymlink
@@ -1034,6 +1307,8 @@ Symlink to a large largefile should behave the same as a symlink to a normal fil
   $ test -f largelink
   $ test -L largelink
   $ cd ..
+
+#endif
 
 test for pattern matching on 'hg status':
 to boost performance, largefiles checks whether specified patterns are
@@ -1136,4 +1411,37 @@ verify that large files in subrepos handled properly
   abort: uncommitted changes in subrepo subrepo
   (use --subrepos for recursive commit)
   [255]
+
+Add a normal file to the subrepo, then test archiving
+
+  $ echo 'normal file' > subrepo/normal.txt
+  $ hg -R subrepo add subrepo/normal.txt
+
+Lock in subrepo, otherwise the change isn't archived
+
+  $ hg ci -S -m "add normal file to top level"
+  committing subrepository subrepo
+  Invoking status precommit hook
+  M large.txt
+  A normal.txt
+  Invoking status precommit hook
+  M .hgsubstate
+  $ hg archive -S lf_subrepo_archive
+  $ find lf_subrepo_archive | sort
+  lf_subrepo_archive
+  lf_subrepo_archive/.hg_archival.txt
+  lf_subrepo_archive/.hgsub
+  lf_subrepo_archive/.hgsubstate
+  lf_subrepo_archive/a
+  lf_subrepo_archive/a/b
+  lf_subrepo_archive/a/b/c
+  lf_subrepo_archive/a/b/c/d
+  lf_subrepo_archive/a/b/c/d/e.large.txt
+  lf_subrepo_archive/a/b/c/d/e.normal.txt
+  lf_subrepo_archive/a/b/c/x
+  lf_subrepo_archive/a/b/c/x/y.normal.txt
+  lf_subrepo_archive/subrepo
+  lf_subrepo_archive/subrepo/large.txt
+  lf_subrepo_archive/subrepo/normal.txt
+
   $ cd ..

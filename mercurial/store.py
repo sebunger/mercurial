@@ -232,7 +232,8 @@ def _calcmode(path):
         mode = None
     return mode
 
-_data = 'data 00manifest.d 00manifest.i 00changelog.d 00changelog.i phaseroots'
+_data = ('data 00manifest.d 00manifest.i 00changelog.d 00changelog.i'
+         ' phaseroots obsstore')
 
 class basicstore(object):
     '''base class for local repository stores'''
@@ -264,7 +265,8 @@ class basicstore(object):
                         l.append((decodedir(n), n, st.st_size))
                     elif kind == stat.S_IFDIR and recurse:
                         visit.append(fp)
-        return sorted(l)
+        l.sort()
+        return l
 
     def datafiles(self):
         return self._walk('data', True)
@@ -390,15 +392,16 @@ class fncachestore(basicstore):
     def join(self, f):
         return self.path + '/' + self.encode(f)
 
+    def getsize(self, path):
+        return os.stat(self.path + '/' + path).st_size
+
     def datafiles(self):
         rewrite = False
         existing = []
-        spath = self.path
         for f in self.fncache:
             ef = self.encode(f)
             try:
-                st = os.stat(spath + '/' + ef)
-                yield f, ef, st.st_size
+                yield f, ef, self.getsize(ef)
                 existing.append(f)
             except OSError:
                 # nonexistent entry
@@ -409,7 +412,7 @@ class fncachestore(basicstore):
             self.fncache.rewrite(existing)
 
     def copylist(self):
-        d = ('data dh fncache phaseroots'
+        d = ('data dh fncache phaseroots obsstore'
              ' 00manifest.d 00manifest.i 00changelog.d 00changelog.i')
         return (['requires', '00changelog.i'] +
                 ['store/' + f for f in d.split()])

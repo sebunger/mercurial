@@ -23,6 +23,7 @@ ARCH_IS_ARMEL := $(if $(subst armel,,$(DEB_HOST_ARCH)),,T)
 ARCH_IS_SPARC := $(if $(subst sparc,,$(DEB_HOST_ARCH)),,T)
 
 override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 # test-pull-pull-corruption tries to execute two hg commands at the
 # same time to test for corruption.  It does so by running an hg
 # command in the background, sleeping one second and running the
@@ -37,6 +38,7 @@ endif
 	dh_auto_test -- TESTFLAGS="--verbose --timeout 480 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
 
 	rename.ul .deb-backup '' $(CURDIR)/tests/*
+endif
 
 build-python%: mercurial/__version__.py
 	python$* setup.py build

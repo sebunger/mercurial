@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" symlink execbit || exit 80
-
   $ . "$TESTDIR/bzr-definitions"
 
 create and rename on the same file in the same step
@@ -157,6 +155,8 @@ merge
   
   $ cd ..
 
+#if symlink execbit
+
 symlinks and executable files
 
   $ mkdir test-symlinks
@@ -199,14 +199,17 @@ symlinks and executable files
   755 * newprog
   644   program
   644 @ syma
-  $ cd source-hg
 
 test the symlinks can be recreated
 
+  $ cd source-hg
   $ hg up
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg cat syma; echo
   a
+  $ cd ../..
+
+#endif
 
 Multiple branches
 
@@ -215,25 +218,25 @@ Multiple branches
   $ bzr co repo/trunk repo-trunk
   $ cd repo-trunk
   $ echo a > a
-  $ bzr add a
-  adding a
-  $ bzr ci -qm adda --commit-time '2012-01-01 00:00:01 +0000'
+  $ bzr add -q a
+  $ bzr ci -qm adda
   $ bzr tag trunk-tag
   Created tag trunk-tag.
   $ bzr switch -b branch
   Tree is up to date at revision 1.
   Switched to branch: *repo/branch/ (glob)
+  $ sleep 1
   $ echo b > b
-  $ bzr add b
-  adding b
-  $ bzr ci -qm addb --commit-time '2012-01-01 00:00:02 +0000'
+  $ bzr add -q b
+  $ bzr ci -qm addb
   $ bzr tag branch-tag
   Created tag branch-tag.
   $ bzr switch --force ../repo/trunk
   Updated to revision 1.
   Switched to branch: */repo/trunk/ (glob)
+  $ sleep 1
   $ echo a >> a
-  $ bzr ci -qm changea --commit-time '2012-01-01 00:00:03 +0000'
+  $ bzr ci -qm changea
   $ cd ..
   $ hg convert --datesort repo repo-bzr
   initializing destination repo-bzr repository
@@ -269,8 +272,7 @@ Nested repositories (issue3254)
   $ bzr co repo/inner/trunk inner-trunk
   $ cd inner-trunk
   $ echo b > b
-  $ bzr add b
-  adding b
+  $ bzr add -q b
   $ bzr ci -qm addb
   $ cd ..
   $ hg convert --datesort repo noinner-bzr

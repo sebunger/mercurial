@@ -2,6 +2,8 @@
 
 make git commits repeatable
 
+  $ echo "[core]" >> $HOME/.gitconfig
+  $ echo "autocrlf = false" >> $HOME/.gitconfig
   $ GIT_AUTHOR_NAME='test'; export GIT_AUTHOR_NAME
   $ GIT_AUTHOR_EMAIL='test@example.org'; export GIT_AUTHOR_EMAIL
   $ GIT_AUTHOR_DATE='1234567891 +0000'; export GIT_AUTHOR_DATE
@@ -133,7 +135,7 @@ clone root separately, make different local change
 user b push changes
 
   $ hg push 2>/dev/null
-  pushing to $TESTTMP/t
+  pushing to $TESTTMP/t (glob)
   pushing branch testing of subrepo s
   searching for changes
   adding changesets
@@ -145,7 +147,7 @@ user a pulls, merges, commits
 
   $ cd ../ta
   $ hg pull
-  pulling from $TESTTMP/t
+  pulling from $TESTTMP/t (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -173,7 +175,7 @@ user a pulls, merges, commits
    source   ../gitroot
    revision f47b465e1bce645dbf37232a00574aa1546ca8d3
   $ hg push 2>/dev/null
-  pushing to $TESTTMP/t
+  pushing to $TESTTMP/t (glob)
   pushing branch testing of subrepo s
   searching for changes
   adding changesets
@@ -205,7 +207,7 @@ make and push changes to hg without updating the subrepo
   $ echo aa >> a
   $ hg commit -m aa
   $ hg push
-  pushing to $TESTTMP/t
+  pushing to $TESTTMP/t (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -268,6 +270,16 @@ archive subrepos
   gg
   ggg
 
+  $ hg -R ../tc archive --subrepo -r 5 -X ../tc/**f ../archive_x 2>/dev/null
+  $ find ../archive_x | sort | grep -v pax_global_header
+  ../archive_x
+  ../archive_x/.hg_archival.txt
+  ../archive_x/.hgsub
+  ../archive_x/.hgsubstate
+  ../archive_x/a
+  ../archive_x/s
+  ../archive_x/s/g
+
 create nested repo
 
   $ cd ..
@@ -292,7 +304,7 @@ nested commit
   M inner/s/f
   $ hg commit --subrepos -m nested
   committing subrepository inner
-  committing subrepository inner/s
+  committing subrepository inner/s (glob)
 
 nested archive
 
@@ -418,7 +430,7 @@ Sticky subrepositorys, file changes
   $ git add f1
   $ cd ..
   $ hg id -n
-  1
+  1+
   $ cd s
   $ git rev-parse HEAD
   da5f5b1d8ffcf62fb8327bcd3c89a4367a6018e7
@@ -475,7 +487,7 @@ Sticky subrepository, file changes and revision updates
    l
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id -n
-  7
+  7+
   $ cd s
   $ git rev-parse HEAD
   aa84837ccfbdfedcdcdeeedc309d73e6eb069edc
@@ -509,6 +521,14 @@ Test subrepo already at intended revision:
 
 Test forgetting files, not implemented in git subrepo, used to
 traceback
+#if no-windows
   $ hg forget 'notafile*'
   notafile*: No such file or directory
   [1]
+#else
+  $ hg forget 'notafile'
+  notafile: * (glob)
+  [1]
+#endif
+
+  $ cd ..

@@ -1,10 +1,11 @@
-  $ "$TESTDIR/hghave" no-windows || exit 80
+  $ "$TESTDIR/hghave" hardlink || exit 80
 
   $ cat > nlinks.py <<EOF
-  > import os, sys
+  > import sys
+  > from mercurial import util
   > for f in sorted(sys.stdin.readlines()):
   >     f = f[:-1]
-  >     print os.lstat(f).st_nlink, f
+  >     print util.nlinks(f), f
   > EOF
 
   $ nlinksdir()
@@ -56,6 +57,7 @@ Create hardlinked clone r2:
 
   $ hg clone -U --debug r1 r2
   linked 7 files
+  listing keys for "bookmarks"
 
 Create non-hardlinked clone r3:
 
@@ -104,7 +106,10 @@ Repo r3 should not be hardlinked:
 Create a non-inlined filelog in r3:
 
   $ cd r3/d1
-  $ python -c 'for x in range(10000): print x' >> data1
+  >>> f = open('data1', 'wb')
+  >>> for x in range(10000):
+  ...     f.write("%s\n" % str(x))
+  >>> f.close()
   $ for j in 0 1 2 3 4 5 6 7 8 9; do
   >   cat data1 >> f2
   >   hg commit -m$j
@@ -133,7 +138,7 @@ Push to repo r1 should break up most hardlinks in r2:
 
   $ cd r3
   $ hg push
-  pushing to $TESTTMP/r1
+  pushing to $TESTTMP/r1 (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -344,3 +349,4 @@ Test tags hardlinking:
   $ cat ../b/.hg/localtags
   4e7abb4840c46a910f6d7b4d3c3fc7e5209e684c lfoo
 
+  $ cd ..

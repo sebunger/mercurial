@@ -1326,7 +1326,7 @@ http://server/(.*)\-hg/ = http://hg.server/\e1/
 .sp
 rewrites \fBhttp://server/foo\-hg/\fP into \fBhttp://hg.server/foo/\fP.
 .sp
-Relative subrepository paths are first made absolute, and the the
+Relative subrepository paths are first made absolute, and the
 rewrite rules are then applied on the full (absolute) path. The rules
 are applied in definition order.
 .SS \fBtrusted\fP
@@ -1563,14 +1563,6 @@ must have been authenticated, and the authenticated user name must
 be present in this list. The contents of the allow_push list are
 examined after the deny_push list.
 .TP
-.B \fBguessmime\fP
-.sp
-Control MIME types for raw download of file content.
-Set to True to let hgweb guess the content type from the file
-extension. This will serve HTML files as \fBtext/html\fP and might
-allow cross\-site scripting attacks when serving untrusted
-repositories. Default is False.
-.TP
 .B \fBallow_read\fP
 .sp
 If the user has not already been denied repository access due to
@@ -1640,6 +1632,13 @@ lead to the locations of these repositories. In effect, this setting
 collapses each collection of repositories found within a subdirectory
 into a single entry for that subdirectory. Default is False.
 .TP
+.B \fBcomparisoncontext\fP
+.sp
+Number of lines of context to show in side\-by\-side file comparison. If
+negative or the value \fBfull\fP, whole files are shown. Default is 5.
+This setting can be overridden by a \fBcontext\fP request parameter to the
+\fBcomparison\fP command, taking the same values.
+.TP
 .B \fBcontact\fP
 .sp
 Name or email address of the person in charge of the repository.
@@ -1689,6 +1688,14 @@ Example: "UTF\-8"
 .sp
 Where to output the error log. Default is stderr.
 .TP
+.B \fBguessmime\fP
+.sp
+Control MIME types for raw download of file content.
+Set to True to let hgweb guess the content type from the file
+extension. This will serve HTML files as \fBtext/html\fP and might
+allow cross\-site scripting attacks when serving untrusted
+repositories. Default is False.
+.TP
 .B \fBhidden\fP
 .sp
 Whether to hide the repository in the hgwebdir index.
@@ -1710,11 +1717,6 @@ If unset, \fBhglogo.png\fP will be used.
 Base URL to use for logos. If unset, \fBhttp://mercurial.selenic.com/\fP
 will be used.
 .TP
-.B \fBname\fP
-.sp
-Repository name to use in the web interface. Default is current
-working directory.
-.TP
 .B \fBmaxchanges\fP
 .sp
 Maximum number of changes to list on the changelog. Default is 10.
@@ -1722,6 +1724,16 @@ Maximum number of changes to list on the changelog. Default is 10.
 .B \fBmaxfiles\fP
 .sp
 Maximum number of files to list per changeset. Default is 10.
+.TP
+.B \fBmaxshortchanges\fP
+.sp
+Maximum number of changes to list on the shortlog, graph or filelog
+pages. Default is 60.
+.TP
+.B \fBname\fP
+.sp
+Repository name to use in the web interface. Default is current
+working directory.
 .TP
 .B \fBport\fP
 .sp

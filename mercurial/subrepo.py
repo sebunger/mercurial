@@ -8,7 +8,7 @@
 import errno, os, re, xml.dom.minidom, shutil, posixpath
 import stat, subprocess, tarfile
 from i18n import _
-import config, scmutil, util, node, error, cmdutil, bookmarks
+import config, scmutil, util, node, error, cmdutil, bookmarks, match as matchmod
 hg = None
 propertycache = util.propertycache
 
@@ -200,7 +200,8 @@ def _updateprompt(ui, sub, dirty, local, remote):
                  'use (l)ocal source (%s) or (r)emote source (%s)?\n')
                % (subrelpath(sub), local, remote))
     else:
-        msg = (_(' subrepository sources for %s differ (in checked out version)\n'
+        msg = (_(' subrepository sources for %s differ (in checked out '
+                 'version)\n'
                  'use (l)ocal source (%s) or (r)emote source (%s)?\n')
                % (subrelpath(sub), local, remote))
     return ui.promptchoice(msg, (_('&Local'), _('&Remote')), 0)
@@ -267,7 +268,7 @@ def subrepo(ctx, path):
     hg = h
 
     scmutil.pathauditor(ctx._repo.root)(path)
-    state = ctx.substate.get(path, nullstate)
+    state = ctx.substate[path]
     if state[2] not in types:
         raise util.Abort(_('unknown subrepo type %s') % state[2])
     return types[state[2]](ctx, path, state[:2])
@@ -350,8 +351,11 @@ class abstractsubrepo(object):
         """return file flags"""
         return ''
 
-    def archive(self, ui, archiver, prefix):
-        files = self.files()
+    def archive(self, ui, archiver, prefix, match=None):
+        if match is not None:
+            files = [f for f in self.files() if match(f)]
+        else:
+            files = self.files()
         total = len(files)
         relpath = subrelpath(self)
         ui.progress(_('archiving (%s)') % relpath, 0,
@@ -444,15 +448,16 @@ class hgsubrepo(abstractsubrepo):
             self._repo.ui.warn(_('warning: error "%s" in subrepository "%s"\n')
                                % (inst, subrelpath(self)))
 
-    def archive(self, ui, archiver, prefix):
+    def archive(self, ui, archiver, prefix, match=None):
         self._get(self._state + ('hg',))
-        abstractsubrepo.archive(self, ui, archiver, prefix)
+        abstractsubrepo.archive(self, ui, archiver, prefix, match)
 
         rev = self._state[1]
         ctx = self._repo[rev]
         for subpath in ctx.substate:
             s = subrepo(ctx, subpath)
-            s.archive(ui, archiver, os.path.join(prefix, self._path))
+            submatch = matchmod.narrowmatcher(subpath, match)
+            s.archive(ui, archiver, os.path.join(prefix, self._path), submatch)
 
     def dirty(self, ignoreupdate=False):
         r = self._state[1]
@@ -498,8 +503,10 @@ class hgsubrepo(abstractsubrepo):
                                      % (subrelpath(self), srcurl))
                 parentrepo = self._repo._subparent
                 shutil.rmtree(self._repo.path)
-                other, self._repo = hg.clone(self._repo._subparent.ui, {}, other,
-                                         self._repo.root, update=False)
+                other, cloned = hg.clone(self._repo._subparent.ui, {},
+                                         other, self._repo.root,
+                                         update=False)
+                self._repo = cloned.local()
                 self._initrepo(parentrepo, source, create=True)
             else:
                 self._repo.ui.status(_('pulling subrepo %s from %s\n')
@@ -730,7 +737,7 @@ class svnsubrepo(abstractsubrepo):
             # URL exists at lastrev.  Test it and fallback to rev it
             # is not there.
             try:
-                self._svncommand(['info', '%s@%s' % (self._state[0], lastrev)])
+                self._svncommand(['list', '%s@%s' % (self._state[0], lastrev)])
                 return lastrev
             except error.Abort:
                 pass
@@ -840,7 +847,6 @@ class svnsubrepo(abstractsubrepo):
 
 class gitsubrepo(abstractsubrepo):
     def __init__(self, ctx, path, state):
-        # TODO add git version check.
         self._state = state
         self._ctx = ctx
         self._path = path
@@ -848,6 +854,29 @@ class gitsubrepo(abstractsubrepo):
         self._abspath = ctx._repo.wjoin(path)
         self._subparent = ctx._repo
         self._ui = ctx._repo.ui
+        self._ensuregit()
+
+    def _ensuregit(self):
+        try:
+            self._gitexecutable = 'git'
+            out, err = self._gitnodir(['--version'])
+        except OSError, e:
+            if e.errno != 2 or os.name != 'nt':
+                raise
+            self._gitexecutable = 'git.cmd'
+            out, err = self._gitnodir(['--version'])
+        m = re.search(r'^git version (\d+)\.(\d+)\.(\d+)', out)
+        if not m:
+            self._ui.warn(_('cannot retrieve git version'))
+            return
+        version = (int(m.group(1)), m.group(2), m.group(3))
+        # git 1.4.0 can't work at all, but 1.5.X can in at least some cases,
+        # despite the docstring comment.  For now, error on 1.4.0, warn on
+        # 1.5.0 but attempt to continue.
+        if version < (1, 5, 0):
+            raise util.Abort(_('git subrepo requires at least 1.6.0 or later'))
+        elif version < (1, 6, 0):
+            self._ui.warn(_('git subrepo requires at least 1.6.0 or later'))
 
     def _gitcommand(self, commands, env=None, stream=False):
         return self._gitdir(commands, env=env, stream=stream)[0]
@@ -868,8 +897,8 @@ class gitsubrepo(abstractsubrepo):
         errpipe = None
         if self._ui.quiet:
             errpipe = open(os.devnull, 'w')
-        p = subprocess.Popen(['git'] + commands, bufsize=-1, cwd=cwd, env=env,
-                             close_fds=util.closefds,
+        p = subprocess.Popen([self._gitexecutable] + commands, bufsize=-1,
+                             cwd=cwd, env=env, close_fds=util.closefds,
                              stdout=subprocess.PIPE, stderr=errpipe)
         if stream:
             return p.stdout, None
@@ -1157,7 +1186,7 @@ class gitsubrepo(abstractsubrepo):
             return True
         else:
             self._ui.warn(_('no branch checked out in subrepo %s\n'
-                            'cannot push revision %s') %
+                            'cannot push revision %s\n') %
                           (self._relpath, self._state[1]))
             return False
 
@@ -1181,7 +1210,7 @@ class gitsubrepo(abstractsubrepo):
             else:
                 os.remove(path)
 
-    def archive(self, ui, archiver, prefix):
+    def archive(self, ui, archiver, prefix, match=None):
         source, revision = self._state
         if not revision:
             return
@@ -1196,6 +1225,8 @@ class gitsubrepo(abstractsubrepo):
         ui.progress(_('archiving (%s)') % relpath, 0, unit=_('files'))
         for i, info in enumerate(tar):
             if info.isdir():
+                continue
+            if match and not match(info.name):
                 continue
             if info.issym():
                 data = info.linkname

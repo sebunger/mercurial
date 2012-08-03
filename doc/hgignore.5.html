@@ -55,6 +55,10 @@ configure these files.</p>
 <p>To control Mercurial's handling of files that it manages, many
 commands support the <tt class="docutils literal"><span class="pre">-I</span></tt> and <tt class="docutils literal"><span class="pre">-X</span></tt> options; see
 <a class="reference external" href="hg.1.html#&lt;command&gt;"><tt class="docutils literal">hg help &lt;command&gt;</tt></a> and <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for details.</p>
+<p>Files that are already tracked are not affected by .hgignore, even
+if they appear in .hgignore. An untracked file X can be explicitly
+added with <a class="reference external" href="hg.1.html#add"><tt class="docutils literal">hg add X</tt></a>, even if X would be excluded by a pattern
+in .hgignore.</p>
 </div>
 <div class="section" id="syntax">
 <h1>Syntax</h1>

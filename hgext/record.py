@@ -14,6 +14,7 @@ import copy, cStringIO, errno, os, re, shutil, tempfile
 
 cmdtable = {}
 command = cmdutil.command(cmdtable)
+testedwith = 'internal'
 
 lines_re = re.compile(r'@@ -(\d+),(\d+) \+(\d+),(\d+) @@\s*(.*)')
 
@@ -380,7 +381,7 @@ the hunk is left unchanged.
         if skipall is None:
             h.pretty(ui)
         msg = (_('examine changes to %s?') %
-               _(' and ').join(map(repr, h.files())))
+               _(' and ').join("'%s'" % f for f in h.files()))
         r, skipfile, skipall, np = prompt(skipfile, skipall, msg, None)
         if not r:
             continue
@@ -516,10 +517,11 @@ def dorecord(ui, repo, commitfunc, cmdsuggest, backupall, *pats, **opts):
                                '(use "hg commit" instead)'))
 
         changes = repo.status(match=match)[:3]
-        diffopts = mdiff.diffopts(git=True, nodates=True,
-                                  ignorews=opts.get('ignore_all_space'),
-                                  ignorewsamount=opts.get('ignore_space_change'),
-                                  ignoreblanklines=opts.get('ignore_blank_lines'))
+        diffopts = mdiff.diffopts(
+            git=True, nodates=True,
+            ignorews=opts.get('ignore_all_space'),
+            ignorewsamount=opts.get('ignore_space_change'),
+            ignoreblanklines=opts.get('ignore_blank_lines'))
         chunks = patch.diff(repo, changes=changes, opts=diffopts)
         fp = cStringIO.StringIO()
         fp.write(''.join(chunks))

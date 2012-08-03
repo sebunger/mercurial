@@ -15,7 +15,7 @@ Some tests for hgweb. Tests static files, plain files and different 404's.
 
 manifest
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/?style=raw')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/?style=raw')
   200 Script output follows
   
   
@@ -23,7 +23,7 @@ manifest
   -rw-r--r-- 4 foo
   
   
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/da?style=raw')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/da?style=raw')
   200 Script output follows
   
   
@@ -33,14 +33,14 @@ manifest
 
 plain file
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/foo?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/foo?style=raw'
   200 Script output follows
   
   foo
 
 should give a 404 - static file that does not exist
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/static/bogus'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'static/bogus'
   404 Not Found
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -67,6 +67,8 @@ should give a 404 - static file that does not exist
   <li><a href="/tags">tags</a></li>
   <li><a href="/bookmarks">bookmarks</a></li>
   <li><a href="/branches">branches</a></li>
+  </ul>
+  <ul>
   <li><a href="/help">help</a></li>
   </ul>
   </div>
@@ -104,7 +106,7 @@ should give a 404 - static file that does not exist
 
 should give a 404 - bad revision
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/spam/foo?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/spam/foo?style=raw'
   404 Not Found
   
   
@@ -113,7 +115,7 @@ should give a 404 - bad revision
 
 should give a 400 - bad command
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/foo?cmd=spam&style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/foo?cmd=spam&style=raw'
   400* (glob)
   
   
@@ -122,13 +124,13 @@ should give a 400 - bad command
 
 should give a 404 - file does not exist
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/bork?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/bork?style=raw'
   404 Not Found
   
   
   error: bork@2ef0ac749a14: not found in manifest
   [1]
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/bork'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/bork'
   404 Not Found
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -155,6 +157,8 @@ should give a 404 - file does not exist
   <li><a href="/tags">tags</a></li>
   <li><a href="/bookmarks">bookmarks</a></li>
   <li><a href="/branches">branches</a></li>
+  </ul>
+  <ul>
   <li><a href="/help">help</a></li>
   </ul>
   </div>
@@ -189,7 +193,7 @@ should give a 404 - file does not exist
   </html>
   
   [1]
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/diff/tip/bork?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'diff/tip/bork?style=raw'
   404 Not Found
   
   
@@ -198,7 +202,7 @@ should give a 404 - file does not exist
 
 try bad style
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/?style=foobar')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/?style=foobar')
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -306,7 +310,7 @@ Test the access/error files are opened in append mode
 
 static file
 
-  $ "$TESTDIR/get-with-headers.py" --twice localhost:$HGPORT '/static/style-gitweb.css'
+  $ "$TESTDIR/get-with-headers.py" --twice localhost:$HGPORT 'static/style-gitweb.css'
   200 Script output follows
   
   body { font-family: sans-serif; font-size: 12px; margin:0px; border:solid #d9d8d1; border-width:1px; margin:10px; }
@@ -437,9 +441,52 @@ static file
   	top: -3px;
   	font-style: italic;
   }
+  
+  /* Comparison */
+  .legend {
+      padding: 1.5% 0 1.5% 0;
+  }
+  
+  .legendinfo {
+      border: 1px solid #d9d8d1;
+      font-size: 80%;
+      text-align: center;
+      padding: 0.5%;
+  }
+  
+  .equal {
+      background-color: #ffffff;
+  }
+  
+  .delete {
+      background-color: #faa;
+      color: #333;
+  }
+  
+  .insert {
+      background-color: #ffa;
+  }
+  
+  .replace {
+      background-color: #e8e8e8;
+  }
+  
+  .comparison {
+      overflow-x: auto;
+  }
+  
+  .header th {
+      text-align: center;
+  }
+  
+  .block {
+      border-top: 1px solid #d9d8d1;
+  }
   304 Not Modified
   
 
 errors
 
   $ cat errors.log
+
+  $ cd ..

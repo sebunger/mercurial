@@ -3,9 +3,6 @@ Let commit recurse into subrepos by default to match pre-2.0 behavior:
   $ echo "[ui]" >> $HGRCPATH
   $ echo "commitsubrepos = Yes" >> $HGRCPATH
 
-  $ rm -rf sub
-  $ mkdir sub
-  $ cd sub
   $ hg init t
   $ cd t
 
@@ -115,10 +112,16 @@ leave sub dirty (and check ui.commitsubrepos=no aborts the commit)
   abort: uncommitted changes in subrepo s
   (use --subrepos for recursive commit)
   [255]
+  $ hg id
+  f6affe3fbfaa+ tip
+  $ hg -R s ci -mc
+  $ hg id
+  f6affe3fbfaa+ tip
+  $ echo d > s/a
   $ hg ci -m4
   committing subrepository s
   $ hg tip -R s
-  changeset:   3:1c833a7a9e3a
+  changeset:   4:02dcf1d70411
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -138,7 +141,7 @@ restore
   $ hg debugsub
   path s
    source   s
-   revision 1c833a7a9e3a4445c711aaf0f012379cd0d4034e
+   revision 02dcf1d704118aee3ee306ccfa1910850d5b05ef
 
 new branch for merge tests
 
@@ -266,9 +269,9 @@ clone
   $ cd ..
   $ hg clone t tc
   updating to branch default
-  cloning subrepo s from $TESTTMP/sub/t/s (glob)
-  cloning subrepo s/ss from $TESTTMP/sub/t/s/ss (glob)
-  cloning subrepo t from $TESTTMP/sub/t/t (glob)
+  cloning subrepo s from $TESTTMP/t/s (glob)
+  cloning subrepo s/ss from $TESTTMP/t/s/ss (glob)
+  cloning subrepo t from $TESTTMP/t/t (glob)
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd tc
   $ hg debugsub
@@ -285,14 +288,14 @@ push
   $ hg ci -m11
   committing subrepository t
   $ hg push
-  pushing to $TESTTMP/sub/t (glob)
-  pushing subrepo s/ss to $TESTTMP/sub/t/s/ss (glob)
+  pushing to $TESTTMP/t (glob)
+  pushing subrepo s/ss to $TESTTMP/t/s/ss (glob)
   searching for changes
   no changes found
-  pushing subrepo s to $TESTTMP/sub/t/s (glob)
+  pushing subrepo s to $TESTTMP/t/s (glob)
   searching for changes
   no changes found
-  pushing subrepo t to $TESTTMP/sub/t/t (glob)
+  pushing subrepo t to $TESTTMP/t/t (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -310,27 +313,27 @@ push -f
   $ hg ci -m12
   committing subrepository s
   $ hg push
-  pushing to $TESTTMP/sub/t (glob)
-  pushing subrepo s/ss to $TESTTMP/sub/t/s/ss (glob)
+  pushing to $TESTTMP/t (glob)
+  pushing subrepo s/ss to $TESTTMP/t/s/ss (glob)
   searching for changes
   no changes found
-  pushing subrepo s to $TESTTMP/sub/t/s (glob)
+  pushing subrepo s to $TESTTMP/t/s (glob)
   searching for changes
   abort: push creates new remote head 12a213df6fa9!
   (did you forget to merge? use push -f to force)
   [255]
   $ hg push -f
-  pushing to $TESTTMP/sub/t (glob)
-  pushing subrepo s/ss to $TESTTMP/sub/t/s/ss (glob)
+  pushing to $TESTTMP/t (glob)
+  pushing subrepo s/ss to $TESTTMP/t/s/ss (glob)
   searching for changes
   no changes found
-  pushing subrepo s to $TESTTMP/sub/t/s (glob)
+  pushing subrepo s to $TESTTMP/t/s (glob)
   searching for changes
   adding changesets
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
-  pushing subrepo t to $TESTTMP/sub/t/t (glob)
+  pushing subrepo t to $TESTTMP/t/t (glob)
   searching for changes
   no changes found
   searching for changes
@@ -352,7 +355,7 @@ pull
 
   $ cd ../tc
   $ hg pull
-  pulling from $TESTTMP/sub/t (glob)
+  pulling from $TESTTMP/t (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -363,7 +366,7 @@ pull
 should pull t
 
   $ hg up
-  pulling subrepo t from $TESTTMP/sub/t/t (glob)
+  pulling subrepo t from $TESTTMP/t/t (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -552,9 +555,9 @@ test repository cloning
   $ cat mercurial2/main/nested_absolute/.hg/hgrc \
   >     mercurial2/main/nested_relative/.hg/hgrc
   [paths]
-  default = $TESTTMP/sub/mercurial/nested_absolute
+  default = $TESTTMP/mercurial/nested_absolute
   [paths]
-  default = $TESTTMP/sub/mercurial/nested_relative
+  default = $TESTTMP/mercurial/nested_relative
   $ rm -rf mercurial mercurial2
 
 Issue1977: multirepo push should fail if subrepo push fails
@@ -569,7 +572,7 @@ Issue1977: multirepo push should fail if subrepo push fails
   adding .hgsub
   $ hg clone repo repo2
   updating to branch default
-  cloning subrepo s from $TESTTMP/sub/repo/s (glob)
+  cloning subrepo s from $TESTTMP/repo/s (glob)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -q -R repo2 pull -u
   $ echo 1 > repo2/s/a
@@ -645,8 +648,8 @@ Try the same, but with pull -u
 Try to push from the other side
 
   $ hg -R issue1852a push `pwd`/issue1852c
-  pushing to $TESTTMP/sub/issue1852c
-  pushing subrepo sub/repo to $TESTTMP/sub/issue1852c/sub/repo (glob)
+  pushing to $TESTTMP/issue1852c
+  pushing subrepo sub/repo to $TESTTMP/issue1852c/sub/repo (glob)
   searching for changes
   no changes found
   searching for changes
@@ -694,7 +697,7 @@ subrepository:
   $ hg st subrepo-2/file
 
 Check hg update --clean
-  $ cd $TESTTMP/sub/t
+  $ cd $TESTTMP/t
   $ rm -r t/t.orig
   $ hg status -S --all
   C .hgsub
@@ -722,7 +725,7 @@ Check hg update --clean
   ? s/c
 
 Sticky subrepositories, no changes
-  $ cd $TESTTMP/sub/t
+  $ cd $TESTTMP/t
   $ hg id
   925c17564ef8 tip
   $ hg -R s id
@@ -744,7 +747,7 @@ Sticky subrepositorys, file changes
   $ hg add -S s/f1
   $ hg add -S t/f1
   $ hg id
-  365661e5936a
+  365661e5936a+
   $ hg -R s id
   fc627a69481f+
   $ hg -R t id  
@@ -788,7 +791,7 @@ Sticky subrepository, revision updates
   $ hg id
   e45c8b14af55+
   $ hg -R s id
-  1c833a7a9e3a
+  02dcf1d70411
   $ hg -R t id  
   7af322bc1198
 
@@ -800,21 +803,21 @@ Sticky subrepository, file changes and revision updates
   $ hg id
   e45c8b14af55+
   $ hg -R s id
-  1c833a7a9e3a+
+  02dcf1d70411+
   $ hg -R t id  
   7af322bc1198+
   $ hg update tip
    subrepository sources for s differ
-  use (l)ocal source (1c833a7a9e3a) or (r)emote source (12a213df6fa9)?
+  use (l)ocal source (02dcf1d70411) or (r)emote source (12a213df6fa9)?
    l
    subrepository sources for t differ
   use (l)ocal source (7af322bc1198) or (r)emote source (52c0adc0515a)?
    l
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id
-  925c17564ef8 tip
+  925c17564ef8+ tip
   $ hg -R s id
-  1c833a7a9e3a+
+  02dcf1d70411+
   $ hg -R t id  
   7af322bc1198+
 
@@ -1017,3 +1020,4 @@ Forgetting an explicit path in a subrepo untracks the file
   $ hg st -S
   ? s/f19
   $ rm s/f19
+  $ cd ..

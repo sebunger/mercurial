@@ -5,17 +5,20 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import bookmarks, phases
+import bookmarks, phases, obsolete
 
 def _nslist(repo):
     n = {}
     for k in _namespaces:
         n[k] = ""
+    if not obsolete._enabled:
+        n.pop('obsolete')
     return n
 
 _namespaces = {"namespaces": (lambda *x: False, _nslist),
                "bookmarks": (bookmarks.pushbookmark, bookmarks.listbookmarks),
                "phases": (phases.pushphase, phases.listphases),
+               "obsolete": (obsolete.pushmarker, obsolete.listmarkers),
               }
 
 def register(namespace, pushkey, listkeys):

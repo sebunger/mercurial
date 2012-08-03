@@ -1,26 +1,13 @@
-mercurial (2.2.2-4) stable; urgency=high
+mercurial (2.3-1) experimental; urgency=low
 
-  * Security update for CVE-2014-9390: errors in handling case-sensitive
-    directories allow for remote code execution on pull.
+  * Don't run the testsuite if nocheck is in DEB_BUILD_OPTIONS
+  * Move to dh v9 to automatically get the Hardening buildflags
+  * Don't Suggest xxdiff, as it's been removed from the archive
+  * New upstream release
+  * Add patch for_upstream__hgweb_fix_spelling_error.patch to fix a
+    spelling error in a manpage
 
- -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 12:42:20 +0100
-
-mercurial (2.2.2-3) unstable; urgency=low
-
-  * Fix "Backport improvement to vimdiff configuration" by adding
-    from_upstream__set_vimdiff_to_check_changed.patch,
-    from_upstream__mergetools_vimdiff_issue_warning.patch and
-    from_upstream__mergetools_refine_vimdiff_warning_message.patch
-    backported from upstream (Closes: #701168)
-
- -- Javi Merino <vicho@debian.org>  Sat, 23 Feb 2013 19:52:22 +0000
-
-mercurial (2.2.2-2) unstable; urgency=low
-
-  * Fix "Please add patch from http://bz.selenic.com/show_bug.cgi?id=3511"
-    by adding it (Closes: #698634)
-
- -- Javi Merino <vicho@debian.org>  Mon, 21 Jan 2013 23:33:20 +0000
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Aug 2012 20:53:44 +0200
 
 mercurial (2.2.2-1) unstable; urgency=low
 

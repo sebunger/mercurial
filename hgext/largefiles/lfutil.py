@@ -53,7 +53,7 @@ def repoforget(repo, list):
 def findoutgoing(repo, remote, force):
     from mercurial import discovery
     common, _anyinc, _heads = discovery.findcommonincoming(repo,
-        remote, force=force)
+        remote.peer(), force=force)
     return repo.changelog.findmissing(common)
 
 # -- Private worker functions ------------------------------------------
@@ -115,10 +115,10 @@ def inusercache(ui, hash):
 
 def findfile(repo, hash):
     if instore(repo, hash):
-        repo.ui.note(_('Found %s in store\n') % hash)
+        repo.ui.note(_('found %s in store\n') % hash)
         return storepath(repo, hash)
     elif inusercache(repo.ui, hash):
-        repo.ui.note(_('Found %s in system cache\n') % hash)
+        repo.ui.note(_('found %s in system cache\n') % hash)
         path = storepath(repo, hash)
         util.makedirs(os.path.dirname(path))
         link(usercachepath(repo.ui, hash), path)

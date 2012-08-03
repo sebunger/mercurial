@@ -17,7 +17,7 @@
 To set the pager that should be used, set the application variable::
 
   [pager]
-  pager = less -FRSX
+  pager = less -FRX
 
 If no pager is set, the pager extensions uses the environment variable
 $PAGER. If neither pager.pager, nor $PAGER is set, no pager is used.
@@ -51,7 +51,37 @@ import atexit, sys, os, signal, subprocess
 from mercurial import commands, dispatch, util, extensions
 from mercurial.i18n import _
 
-def _runpager(p):
+testedwith = 'internal'
+
+def _pagerfork(ui, p):
+    if not util.safehasattr(os, 'fork'):
+        sys.stdout = util.popen(p, 'wb')
+        if ui._isatty(sys.stderr):
+            sys.stderr = sys.stdout
+        return
+    fdin, fdout = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(fdin)
+        os.dup2(fdout, sys.stdout.fileno())
+        if ui._isatty(sys.stderr):
+            os.dup2(fdout, sys.stderr.fileno())
+        os.close(fdout)
+        return
+    os.dup2(fdin, sys.stdin.fileno())
+    os.close(fdin)
+    os.close(fdout)
+    try:
+        os.execvp('/bin/sh', ['/bin/sh', '-c', p])
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            # no /bin/sh, try executing the pager directly
+            args = shlex.split(p)
+            os.execvp(args[0], args)
+        else:
+            raise
+
+def _pagersubprocess(ui, p):
     pager = subprocess.Popen(p, shell=True, bufsize=-1,
                              close_fds=util.closefds, stdin=subprocess.PIPE,
                              stdout=sys.stdout, stderr=sys.stderr)
@@ -59,7 +89,7 @@ def _runpager(p):
     stdout = os.dup(sys.stdout.fileno())
     stderr = os.dup(sys.stderr.fileno())
     os.dup2(pager.stdin.fileno(), sys.stdout.fileno())
-    if util.isatty(sys.stderr):
+    if ui._isatty(sys.stderr):
         os.dup2(pager.stdin.fileno(), sys.stderr.fileno())
 
     @atexit.register
@@ -69,8 +99,17 @@ def _runpager(p):
         os.dup2(stderr, sys.stderr.fileno())
         pager.wait()
 
+def _runpager(ui, p):
+    # The subprocess module shipped with Python <= 2.4 is buggy (issue3533).
+    # The compat version is buggy on Windows (issue3225), but has been shipping
+    # with hg for a long time.  Preserve existing functionality.
+    if sys.version_info >= (2, 5):
+        _pagersubprocess(ui, p)
+    else:
+        _pagerfork(ui, p)
+
 def uisetup(ui):
-    if ui.plain() or '--debugger' in sys.argv or not util.isatty(sys.stdout):
+    if '--debugger' in sys.argv or not ui.formatted():
         return
 
     def pagecmd(orig, ui, options, cmd, cmdfunc):
@@ -87,7 +126,7 @@ def uisetup(ui):
                 ui.setconfig('ui', 'interactive', False)
                 if util.safehasattr(signal, "SIGPIPE"):
                     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-                _runpager(p)
+                _runpager(ui, p)
         return orig(ui, options, cmd, cmdfunc)
 
     extensions.wrapfunction(dispatch, '_runcommand', pagecmd)
