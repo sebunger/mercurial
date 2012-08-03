@@ -1,8 +1,9 @@
-mercurial (2.2.2-2) UNRELEASED; urgency=low
+mercurial (2.3-1) UNRELEASED; urgency=low
 
   * Don't run the testsuite if nocheck is in DEB_BUILD_OPTIONS
   * Move to dh v9 to automatically get the Hardening buildflags
   * Don't Suggest xxdiff, as it's been removed from the archive
+  * New upstream release
 
  -- Javi Merino <vicho@debian.org>  Tue, 05 Jun 2012 16:43:55 +0100
 
