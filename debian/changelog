@@ -4,6 +4,8 @@ mercurial (2.3-1) UNRELEASED; urgency=low
   * Move to dh v9 to automatically get the Hardening buildflags
   * Don't Suggest xxdiff, as it's been removed from the archive
   * New upstream release
+  * Add patch for_upstream__hgweb_fix_spelling_error.patch to fix a
+    spelling error in a manpage
 
  -- Javi Merino <vicho@debian.org>  Tue, 05 Jun 2012 16:43:55 +0100
 
