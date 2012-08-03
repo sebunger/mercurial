@@ -2,7 +2,7 @@ Suggest Debian packages for some optional dependencies.
 
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -352,7 +352,8 @@
+@@ -354,7 +354,8 @@ class bzmysql(bzaccess):
              import MySQLdb as mysql
              bzmysql._MySQLdb = mysql
          except ImportError, err:
@@ -14,7 +14,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -44,7 +44,8 @@
+@@ -44,7 +44,8 @@ class bzr_source(converter_source):
              # access bzrlib stuff
              bzrdir
          except NameError:
@@ -26,7 +26,7 @@ Suggest Debian packages for some optional dependencies.
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -29,11 +29,12 @@
+@@ -29,11 +29,12 @@ def decodeargs(s):
  class MissingTool(Exception):
      pass
  
@@ -43,7 +43,7 @@ Suggest Debian packages for some optional dependencies.
      pass
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
-@@ -21,7 +21,7 @@
+@@ -21,7 +21,7 @@ class convert_cvs(converter_source):
          if not os.path.exists(cvs):
              raise NoRepo(_("%s does not look like a CVS checkout") % path)
  
@@ -54,7 +54,7 @@ Suggest Debian packages for some optional dependencies.
          self.files = {}
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
-@@ -36,14 +36,15 @@
+@@ -36,14 +36,15 @@ class darcs_source(converter_source, com
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo(_("%s does not look like a darcs repository") % path)
  
@@ -74,7 +74,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -52,7 +52,7 @@
+@@ -52,7 +52,7 @@ class convert_git(converter_source):
          if not os.path.exists(path + "/objects"):
              raise NoRepo(_("%s does not look like a Git repository") % path)
  
@@ -85,7 +85,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
-@@ -42,7 +42,8 @@
+@@ -42,7 +42,8 @@ class gnuarch_source(converter_source, c
              if util.findexe('tla'):
                  self.execmd = 'tla'
              else:
@@ -97,7 +97,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -66,7 +66,7 @@
+@@ -66,7 +66,7 @@ class monotone_source(converter_source,
          self.files = None
          self.dirs  = None
  
@@ -108,7 +108,7 @@ Suggest Debian packages for some optional dependencies.
          if self.automatestdio:
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -18,6 +18,7 @@
+@@ -18,6 +18,7 @@ from cStringIO import StringIO
  
  from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
  from common import commandline, converter_source, converter_sink, mapfile
@@ -116,12 +116,12 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -227,16 +228,19 @@
+@@ -234,16 +235,19 @@ class svn_source(converter_source):
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
--            raise MissingTool(_('Could not load Subversion python bindings'))
-+            raise MissingTool(_('Could not load Subversion python bindings') +
+-            raise MissingTool(_('could not load Subversion python bindings'))
++            raise MissingTool(_('could not load Subversion python bindings') +
 +                              _(' (try installing the %s package)') % 'python-subversion')
  
          try:
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1001,6 +1005,8 @@
+@@ -1010,6 +1014,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -150,7 +150,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -194,7 +194,8 @@
+@@ -194,7 +194,8 @@ class _httprequesthandleropenssl(_httpre
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
@@ -160,7 +160,7 @@ Suggest Debian packages for some optional dependencies.
          ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
-@@ -235,7 +236,8 @@
+@@ -235,7 +236,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:
