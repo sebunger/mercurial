@@ -1,4 +1,4 @@
-mercurial (2.3-1) UNRELEASED; urgency=low
+mercurial (2.3-1) experimental; urgency=low
 
   * Don't run the testsuite if nocheck is in DEB_BUILD_OPTIONS
   * Move to dh v9 to automatically get the Hardening buildflags
@@ -7,7 +7,7 @@ mercurial (2.3-1) UNRELEASED; urgency=low
   * Add patch for_upstream__hgweb_fix_spelling_error.patch to fix a
     spelling error in a manpage
 
- -- Javi Merino <vicho@debian.org>  Tue, 05 Jun 2012 16:43:55 +0100
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Aug 2012 20:53:44 +0200
 
 mercurial (2.2.2-1) unstable; urgency=low
 
