@@ -31,6 +31,7 @@ test-subrepo-relative-path.t
 test-bisect3.t
 test-command-template.t
 test-glog.t
+test-histedit-revspec.t
 test-install.t
 test-log.t
 test-tag.t

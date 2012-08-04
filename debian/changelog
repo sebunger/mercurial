@@ -1,3 +1,9 @@
+mercurial (2.3-2) experimental; urgency=low
+
+  * Blacklist test-histedit-revspec as it needs styles
+
+ -- Javi Merino <vicho@debian.org>  Sat, 04 Aug 2012 20:56:38 +0200
+
 mercurial (2.3-1) experimental; urgency=low
 
   * Don't run the testsuite if nocheck is in DEB_BUILD_OPTIONS
