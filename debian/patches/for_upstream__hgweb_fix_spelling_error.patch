@@ -1,6 +1,6 @@
 Author: Javi Merino <vicho@debian.org>
 Description: help/hgweb: fix spelling error
-Forwarded: no
+Forwarded: http://www.selenic.com/pipermail/mercurial-devel/2012-August/043344.html
 
 diff --git a/mercurial/help/hgweb.txt b/mercurial/help/hgweb.txt
 --- a/mercurial/help/hgweb.txt
