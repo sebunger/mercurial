@@ -1,3 +1,9 @@
+mercurial (2.3.1-1) UNRELEASED; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Sun, 16 Sep 2012 12:34:14 +0100
+
 mercurial (2.3-2) experimental; urgency=low
 
   * Blacklist test-histedit-revspec as it needs styles
