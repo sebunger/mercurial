@@ -1,10 +1,10 @@
-mercurial (2.3.1-1) UNRELEASED; urgency=low
+mercurial (2.3.1-1) experimental; urgency=low
 
   * New upstream release
   * Delete patch for_upstream__hgweb_fix_spelling_error.patch which is
     now included upstream
 
- -- Javi Merino <vicho@debian.org>  Sun, 16 Sep 2012 12:34:14 +0100
+ -- Javi Merino <vicho@debian.org>  Sun, 16 Sep 2012 16:05:55 +0100
 
 mercurial (2.3-2) experimental; urgency=low
 
