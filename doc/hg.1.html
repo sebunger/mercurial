@@ -3029,7 +3029,7 @@ hg update [-c] [-C] [-d DATE] [[-r] REV]
 changeset. If no changeset is specified, update to the tip of the
 current named branch and move the current bookmark (see <a class="reference external" href="hg.1.html#bookmarks"><tt class="docutils literal">hg help
 bookmarks</tt></a>).</p>
-<p>Update sets the working directory's parent revison to the specified
+<p>Update sets the working directory's parent revision to the specified
 changeset (see <a class="reference external" href="hg.1.html#parents"><tt class="docutils literal">hg help parents</tt></a>).</p>
 <p>If the changeset is not a descendant or ancestor of the working
 directory's parent, the update is aborted. With the -c/--check
@@ -3957,7 +3957,7 @@ will appear as <tt class="docutils literal"><span class="pre">http://server/quux
 <li>The fourth entry will publish both <tt class="docutils literal"><span class="pre">http://server/user/bob/quux/</span></tt>
 and <tt class="docutils literal"><span class="pre">http://server/user/bob/quux/testsubrepo/</span></tt></li>
 </ul>
-<p>The <tt class="docutils literal">collections</tt> section is deprecated and has been superseeded by
+<p>The <tt class="docutils literal">collections</tt> section is deprecated and has been superseded by
 <tt class="docutils literal">paths</tt>.</p>
 </div>
 <div class="section" id="id4">
@@ -6546,7 +6546,7 @@ pick 7c2fd3b9020c Add delta
 # Commands:
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
-#  f, fold = use commit, but fold into previous commit
+#  f, fold = use commit, but fold into previous commit (combines N and N-1)
 #  d, drop = remove commit from history
 #  m, mess = edit message without changing commit content
 #
@@ -6565,7 +6565,7 @@ fold 7c2fd3b9020c Add delta
 # Commands:
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
-#  f, fold = use commit, but fold into previous commit
+#  f, fold = use commit, but fold into previous commit (combines N and N-1)
 #  d, drop = remove commit from history
 #  m, mess = edit message without changing commit content
 #
