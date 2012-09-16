@@ -26,7 +26,7 @@ Suggest Debian packages for some optional dependencies.
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -29,11 +29,12 @@ def decodeargs(s):
+@@ -28,11 +28,12 @@ def decodeargs(s):
  class MissingTool(Exception):
      pass
  
