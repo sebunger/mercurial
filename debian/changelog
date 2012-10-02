@@ -1,6 +1,8 @@
 mercurial (2.3.2-1) UNRELEASED; urgency=low
 
   * New upstream release
+  * mercurial 2.3.1 is not compatible with the versions of hgsubversion
+    and mercurial-git currently in sid
 
  -- Javi Merino <vicho@debian.org>  Tue, 02 Oct 2012 22:46:58 +0100
 
