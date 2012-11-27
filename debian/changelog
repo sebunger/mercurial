@@ -1,4 +1,4 @@
-mercurial (2.4-1) UNRELEASED; urgency=low
+mercurial (2.4-1) experimental; urgency=low
 
   * New upstream release
   * mercurial 2.3.1 was not compatible with hgsubversion 1.4 and
@@ -7,7 +7,7 @@ mercurial (2.4-1) UNRELEASED; urgency=low
   * Add test-commit-amend to the blacklisted tests as it needs styles
     now
 
- -- Javi Merino <vicho@debian.org>  Tue, 27 Nov 2012 21:02:09 +0000
+ -- Javi Merino <vicho@debian.org>  Tue, 27 Nov 2012 22:35:33 +0000
 
 mercurial (2.3.1-1) experimental; urgency=low
 
