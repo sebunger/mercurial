@@ -13,7 +13,7 @@
   > patterns=glob:**.dat
   > usercache=${USERCACHE}
   > [hooks]
-  > precommit=sh -c "echo \"Invoking status precommit hook\"; hg status"
+  > precommit=sh -c "echo \\"Invoking status precommit hook\\"; hg status"
   > EOF
 
 Create the repo with a couple of revisions of both large and normal
@@ -51,7 +51,7 @@ is correct.
   branch: default
   commit: (clean)
   update: (current)
-  largefiles: No remote repo
+  largefiles: (no remote repo)
 
 Commit preserved largefile contents.
 
@@ -79,8 +79,19 @@ Test status, subdir and unknown files
   C sub/normal2
   $ rm sub/unknown
 
+Test exit codes for remove warning cases (modified and still exiting)
+
+  $ hg remove -A large1
+  not removing large1: file still exists (use forget to undo)
+  [1]
+  $ echo 'modified' > large1
+  $ hg remove large1
+  not removing large1: file is modified (use forget to undo)
+  [1]
+  $ hg up -Cq
+
 Remove both largefiles and normal files.
- 
+
   $ hg remove normal1 large1
   $ hg status large1
   R large1
@@ -96,11 +107,18 @@ Remove both largefiles and normal files.
   A large1-test
   $ hg rm large1-test
   not removing large1-test: file has been marked for add (use forget to undo)
+  [1]
   $ hg st
   A large1-test
   $ hg forget large1-test
   $ hg st
   ? large1-test
+  $ hg remove large1-test
+  not removing large1-test: file is untracked
+  [1]
+  $ hg forget large1-test
+  not removing large1-test: file is already untracked
+  [1]
   $ rm large1-test
 
 Copy both largefiles and normal files (testing that status output is correct).
@@ -185,22 +203,22 @@ Test display of largefiles in hgweb
   $ cat ../hg.pid >> $DAEMON_PIDS
   $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT 'file/tip/?style=raw'
   200 Script output follows
-  
-  
+
+
   drwxr-xr-x sub
   -rw-r--r-- 41 large3
   -rw-r--r-- 9 normal3
-  
-  
+
+
   $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT 'file/tip/sub/?style=raw'
   200 Script output follows
-  
-  
+
+
   -rw-r--r-- 41 large4
   -rw-r--r-- 9 normal4
-  
-  
-  $ "$TESTDIR/killdaemons.py"
+
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 #endif
 
 Test archiving the various revisions.  These hit corner cases known with
@@ -212,7 +230,7 @@ archiving.
   $ hg archive -r 3 ../archive3
   $ hg archive -r 4 ../archive4
   $ cd ../archive0
-  $ cat normal1 
+  $ cat normal1
   normal1
   $ cat large1
   large1
@@ -434,7 +452,7 @@ Test 3364
   $ cd ../addrm
   $ cat >> .hg/hgrc <<EOF
   > [hooks]
-  > post-commit.stat=sh -c "echo \"Invoking status postcommit hook\"; hg status -A"
+  > post-commit.stat=sh -c "echo \\"Invoking status postcommit hook\\"; hg status -A"
   > EOF
   $ touch foo
   $ hg add --large foo
@@ -525,6 +543,33 @@ Test 3507 (both normal files and largefiles were a problem)
   C sub2/large6
   C sub2/large7
 
+Test commit -A (issue 3542)
+  $ echo large8 > large8
+  $ hg add --large large8
+  $ hg ci -Am 'this used to add large8 as normal and commit both'
+  Invoking status precommit hook
+  A large8
+  Invoking status postcommit hook
+  C large8
+  C normal
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+  $ rm large8
+  $ hg ci -Am 'this used to not notice the rm'
+  removing large8
+  Invoking status precommit hook
+  R large8
+  Invoking status postcommit hook
+  C normal
+  C normal3
+  C sub/large4
+  C sub/normal4
+  C sub2/large6
+  C sub2/large7
+
 Test that a standin can't be added as a large file
 
   $ touch large
@@ -570,8 +615,19 @@ Test that outgoing --large works (with revsets too)
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     removed large
   
+  changeset:   13:0a3e75774479
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     this used to add large8 as normal and commit both
+  
+  changeset:   14:84f3d378175c
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     this used to not notice the rm
+  
   searching for changes
   largefiles to upload:
+  large8
   large
   foo
   
@@ -632,7 +688,7 @@ Clone a largefiles repo.
 Old revisions of a clone have correct largefiles content (this also
 tests update).
 
-  $ hg update -r 1 
+  $ hg update -r 1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   getting changed largefiles
   1 largefiles updated, 0 removed
@@ -652,11 +708,66 @@ Test cloning with --all-largefiles flag
   3 largefiles updated, 0 removed
   8 additional largefiles cached
 
+  $ rm "${USERCACHE}"/*
+  $ hg clone --all-largefiles -u 0 a a-clone0
+  updating to branch default
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  2 largefiles updated, 0 removed
+  9 additional largefiles cached
+  $ hg -R a-clone0 sum
+  parent: 0:30d30fe6a5be 
+   add files
+  branch: default
+  commit: (clean)
+  update: 7 new changesets (update)
+
+  $ rm "${USERCACHE}"/*
+  $ hg clone --all-largefiles -u 1 a a-clone1
+  updating to branch default
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  2 largefiles updated, 0 removed
+  8 additional largefiles cached
+  $ hg -R a-clone1 sum
+  parent: 1:ce8896473775 
+   edit files
+  branch: default
+  commit: (clean)
+  update: 6 new changesets (update)
+
+  $ rm "${USERCACHE}"/*
+  $ hg clone --all-largefiles -U a a-clone-u
+  11 additional largefiles cached
+  $ hg -R a-clone-u sum
+  parent: -1:000000000000  (no revision checked out)
+  branch: default
+  commit: (clean)
+  update: 8 new changesets (update)
+
+  $ mkdir xyz
+  $ cd xyz
+  $ hg clone ../a
+  destination directory: a
+  updating to branch default
+  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  getting changed largefiles
+  3 largefiles updated, 0 removed
+  $ cd ..
+
+Ensure base clone command argument validation
+
+  $ hg clone -U -u 0 a a-clone-failure
+  abort: cannot specify both --noupdate and --updaterev
+  [255]
+
   $ hg clone --all-largefiles a ssh://localhost/a
   abort: --all-largefiles is incompatible with non-local destination ssh://localhost/a
   [255]
 
-Test pulling with --all-largefiles flag
+Test pulling with --all-largefiles flag.  Also test that the largefiles are
+downloaded from 'default' instead of 'default-push' when no source is specified
+(issue3584)
 
   $ rm -Rf a-backup
   $ hg clone -r 1 a a-backup
@@ -670,7 +781,7 @@ Test pulling with --all-largefiles flag
   2 largefiles updated, 0 removed
   $ rm "${USERCACHE}"/*
   $ cd a-backup
-  $ hg pull --all-largefiles
+  $ hg pull --all-largefiles --config paths.default-push=bogus/path
   pulling from $TESTTMP/a (glob)
   searching for changes
   adding changesets
@@ -712,8 +823,12 @@ revisions (this was a very bad bug that took a lot of work to fix).
   getting changed largefiles
   3 largefiles updated, 0 removed
   $ cd d
-  $ hg pull --rebase ../b
-  pulling from ../b
+
+More rebase testing, but also test that the largefiles are downloaded from
+'default' instead of 'default-push' when no source is specified (issue3584).
+The error messages go away if repo 'b' is created with --all-largefiles.
+  $ hg pull --rebase --all-largefiles --config paths.default-push=bogus/path --config paths.default=../b
+  pulling from $TESTTMP/b (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -723,6 +838,26 @@ revisions (this was a very bad bug that took a lot of work to fix).
   M sub/normal4
   M sub2/large6
   saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-backup.hg (glob)
+  large3: can't get file locally
+  (no default or default-push path set in hgrc)
+  sub/large4: can't get file locally
+  (no default or default-push path set in hgrc)
+  large1: can't get file locally
+  (no default or default-push path set in hgrc)
+  sub/large2: can't get file locally
+  (no default or default-push path set in hgrc)
+  sub/large2: can't get file locally
+  (no default or default-push path set in hgrc)
+  large1: can't get file locally
+  (no default or default-push path set in hgrc)
+  sub/large2: can't get file locally
+  (no default or default-push path set in hgrc)
+  large1: can't get file locally
+  (no default or default-push path set in hgrc)
+  sub/large2: can't get file locally
+  (no default or default-push path set in hgrc)
+  0 additional largefiles cached
+  9 largefiles failed to download
   nothing to rebase
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
@@ -785,7 +920,7 @@ revisions (this was a very bad bug that took a lot of work to fix).
 
 Rollback on largefiles.
 
-  $ echo large4-modified-again > sub/large4 
+  $ echo large4-modified-again > sub/large4
   $ hg commit -m "Modify large4 again"
   Invoking status precommit hook
   M sub/large4
@@ -815,7 +950,7 @@ Rollback on largefiles.
 
 "update --clean" leaves correct largefiles in working copy.
 
-  $ hg update --clean 
+  $ hg update --clean
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   getting changed largefiles
   1 largefiles updated, 0 removed
@@ -1019,7 +1154,7 @@ Test that transplanting a largefile change works correctly.
   getting changed largefiles
   3 largefiles updated, 0 removed
   $ cd g
-  $ hg transplant -s ../d 598410d3eb9a 
+  $ hg transplant -s ../d 598410d3eb9a
   searching for changes
   searching for changes
   adding changesets
@@ -1144,6 +1279,15 @@ vanilla clients locked out from largefiles http repos
 largefiles can be pushed locally (issue3583)
   $ hg init dest
   $ cd r4
+  $ hg outgoing ../dest
+  comparing with ../dest
+  searching for changes
+  changeset:   0:639881c12b4c
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     m1
+  
   $ hg push ../dest
   pushing to ../dest
   searching for changes
@@ -1152,6 +1296,13 @@ largefiles can be pushed locally (issue3583)
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
+
+exit code with nothing outgoing (issue3611)
+  $ hg outgoing ../dest
+  comparing with ../dest
+  searching for changes
+  no changes found
+  [1]
   $ cd ..
 
 #if serve
@@ -1166,7 +1317,7 @@ largefiles can be pushed locally (issue3583)
   [255]
 
 used all HGPORTs, kill all daemons
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 #endif
 
 vanilla clients locked out from largefiles ssh repos
@@ -1252,7 +1403,7 @@ Push a largefiles repository to a served empty repository
   $ rm -rf empty
 
 used all HGPORTs, kill all daemons
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 
 #endif
 
@@ -1456,5 +1607,133 @@ Lock in subrepo, otherwise the change isn't archived
   lf_subrepo_archive/subrepo
   lf_subrepo_archive/subrepo/large.txt
   lf_subrepo_archive/subrepo/normal.txt
+
+Test archiving a revision that references a subrepo that is not yet
+cloned (see test-subrepo-recursion.t):
+
+  $ hg clone -U . ../empty
+  $ cd ../empty
+  $ hg archive --subrepos -r tip ../archive.tar.gz
+  cloning subrepo subrepo from $TESTTMP/statusmatch/subrepo
+  $ cd ..
+
+Test that addremove picks up largefiles prior to the initial commit (issue3541)
+
+  $ hg init addrm2
+  $ cd addrm2
+  $ touch large.dat
+  $ touch large2.dat
+  $ touch normal
+  $ hg add --large large.dat
+  $ hg addremove -v
+  adding large2.dat as a largefile
+  adding normal
+
+Test that forgetting all largefiles reverts to islfilesrepo() == False
+(addremove will add *.dat as normal files now)
+  $ hg forget large.dat
+  $ hg forget large2.dat
+  $ hg addremove -v
+  adding large.dat
+  adding large2.dat
+
+Test commit's addremove option prior to the first commit
+  $ hg forget large.dat
+  $ hg forget large2.dat
+  $ hg add --large large.dat
+  $ hg ci -Am "commit"
+  adding large2.dat as a largefile
+  Invoking status precommit hook
+  A large.dat
+  A large2.dat
+  A normal
+  $ find .hglf | sort
+  .hglf
+  .hglf/large.dat
+  .hglf/large2.dat
+
+  $ cd ..
+
+issue3651: summary/outgoing with largefiles shows "no remote repo"
+unexpectedly
+
+  $ mkdir issue3651
+  $ cd issue3651
+
+  $ hg init src
+  $ echo a > src/a
+  $ hg -R src add --large src/a
+  $ hg -R src commit -m '#0'
+  Invoking status precommit hook
+  A a
+
+check messages when no remote repository is specified:
+"no remote repo" route for "hg outgoing --large" is not tested here,
+because it can't be reproduced easily.
+
+  $ hg init clone1
+  $ hg -R clone1 -q pull src
+  $ hg -R clone1 -q update
+  $ hg -R clone1 paths | grep default
+  [1]
+
+  $ hg -R clone1 summary --large
+  parent: 0:fc0bd45326d3 tip
+   #0
+  branch: default
+  commit: (clean)
+  update: (current)
+  largefiles: (no remote repo)
+
+check messages when there is no files to upload:
+
+  $ hg -q clone src clone2
+  $ hg -R clone2 paths | grep default
+  default = $TESTTMP/issue3651/src (glob)
+
+  $ hg -R clone2 summary --large
+  parent: 0:fc0bd45326d3 tip
+   #0
+  branch: default
+  commit: (clean)
+  update: (current)
+  searching for changes
+  largefiles: (no files to upload)
+  $ hg -R clone2 outgoing --large
+  comparing with $TESTTMP/issue3651/src (glob)
+  searching for changes
+  no changes found
+  searching for changes
+  largefiles: no files to upload
+  [1]
+
+check messages when there are files to upload:
+
+  $ echo b > clone2/b
+  $ hg -R clone2 add --large clone2/b
+  $ hg -R clone2 commit -m '#1'
+  Invoking status precommit hook
+  A b
+  $ hg -R clone2 summary --large
+  parent: 1:1acbe71ce432 tip
+   #1
+  branch: default
+  commit: (clean)
+  update: (current)
+  searching for changes
+  largefiles: 1 to upload
+  $ hg -R clone2 outgoing --large
+  comparing with $TESTTMP/issue3651/src (glob)
+  searching for changes
+  changeset:   1:1acbe71ce432
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     #1
+  
+  searching for changes
+  largefiles to upload:
+  b
+  
 
   $ cd ..

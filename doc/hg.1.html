@@ -487,7 +487,7 @@ hg bisect --good
 hg bisect --bad
 </pre>
 </li>
-<li><p class="first">mark the current revision, or a known revision, to be skipped (eg. if
+<li><p class="first">mark the current revision, or a known revision, to be skipped (e.g. if
 that revision is not usable because of another issue):</p>
 <pre class="literal-block">
 hg bisect --skip
@@ -3094,6 +3094,9 @@ hg verify
 integrity, validating the hashes and checksums of each entry in
 the changelog, manifest, and tracked files, as well as the
 integrity of their crosslinks and indices.</p>
+<p>Please see <a class="reference external" href="http://mercurial.selenic.com/wiki/RepositoryCorruption">http://mercurial.selenic.com/wiki/RepositoryCorruption</a>
+for more information about recovery from corruption of the
+repository.</p>
 <p>Returns 0 on success, 1 if errors are encountered.</p>
 </div>
 <div class="section" id="version">
@@ -3925,7 +3928,7 @@ but recognizes only the following sections:</p>
 <li>collections</li>
 </ul>
 </blockquote>
-<p>The <tt class="docutils literal">web</tt> options are thorougly described in <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a>.</p>
+<p>The <tt class="docutils literal">web</tt> options are thoroughly described in <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a>.</p>
 <p>The <tt class="docutils literal">paths</tt> section maps URL paths to paths of repositories in the
 filesystem. hgweb will not expose the filesystem directly - only
 Mercurial repositories can be published and only according to the
@@ -4306,7 +4309,7 @@ for n == 2, the second parent of changeset in x.</dd>
 <dd><p class="first">Changesets marked in the specified bisect status:</p>
 <ul class="last simple">
 <li><tt class="docutils literal">good</tt>, <tt class="docutils literal">bad</tt>, <tt class="docutils literal">skip</tt>: csets explicitly marked as good/bad/skip</li>
-<li><tt class="docutils literal">goods</tt>, <tt class="docutils literal">bads</tt>      : csets topologicaly good/bad</li>
+<li><tt class="docutils literal">goods</tt>, <tt class="docutils literal">bads</tt>      : csets topologically good/bad</li>
 <li><tt class="docutils literal">range</tt>              : csets taking part in the bisection</li>
 <li><tt class="docutils literal">pruned</tt>             : csets that are goods, bads or skipped</li>
 <li><tt class="docutils literal">untested</tt>           : csets whose fate is yet unknown</li>
@@ -4326,6 +4329,12 @@ changesets.</p>
 <p class="last">If <cite>string</cite> starts with <cite>re:</cite>, the remainder of the name is treated as
 a regular expression. To match a branch that actually starts with <cite>re:</cite>,
 use the prefix <cite>literal:</cite>.</p>
+</dd>
+<dt><tt class="docutils literal">branchpoint()</tt></dt>
+<dd>Changesets with more than one child.</dd>
+<dt><tt class="docutils literal">bumped()</tt></dt>
+<dd><p class="first">Mutable changesets marked as successors of public changesets.</p>
+<p class="last">Only non-public and non-obsolete changesets can be <cite>bumped</cite>.</p>
 </dd>
 <dt><tt class="docutils literal">children(set)</tt></dt>
 <dd>Child changesets of changesets in set.</dd>
@@ -4383,6 +4392,8 @@ to ensure special escape characters are handled correctly. Unlike
 <dd>Changeset is a named branch head.</dd>
 <dt><tt class="docutils literal">heads(set)</tt></dt>
 <dd>Members of set with no children in set.</dd>
+<dt><tt class="docutils literal">hidden()</tt></dt>
+<dd>Hidden changesets.</dd>
 <dt><tt class="docutils literal">id(string)</tt></dt>
 <dd>Revision non-ambiguously specified by the given hex string prefix.</dd>
 <dt><tt class="docutils literal">keyword(string)</tt></dt>
@@ -4562,14 +4573,14 @@ parent working directory.</p>
 should be placed in the root of working directory, and
 tell where the subrepository checkouts come from. Mercurial
 subrepositories are referenced like:</p>
-<blockquote>
-<p>path/to/nested = <a class="reference external" href="https://example.com/nested/repo/path">https://example.com/nested/repo/path</a></p>
-</blockquote>
+<pre class="literal-block">
+path/to/nested = https://example.com/nested/repo/path
+</pre>
 <p>Git and Subversion subrepos are also supported:</p>
-<blockquote>
-<p>path/to/nested = [git]git://example.com/nested/repo/path
-path/to/nested = [svn]https://example.com/nested/trunk/path</p>
-</blockquote>
+<pre class="literal-block">
+path/to/nested = [git]git://example.com/nested/repo/path
+path/to/nested = [svn]https://example.com/nested/trunk/path
+</pre>
 <p>where <tt class="docutils literal">path/to/nested</tt> is the checkout location relatively to the
 parent Mercurial root, and <tt class="docutils literal"><span class="pre">https://example.com/nested/repo/path</span></tt>
 is the source repository path. The source can also reference a
@@ -4766,6 +4777,20 @@ changeset.</td>
 <tr class="field"><th class="field-name">node:</th><td class="field-body">String. The changeset identification hash, as a 40 hexadecimal
 digit string.</td>
 </tr>
+<tr class="field"><th class="field-name">p1node:</th><td class="field-body">String. The identification hash of the changeset's first parent,
+as a 40 digit hexadecimal string. If the changeset has no parents, all
+digits are 0.</td>
+</tr>
+<tr class="field"><th class="field-name">p1rev:</th><td class="field-body">Integer. The repository-local revision number of the changeset's
+first parent, or -1 if the changeset has no parents.</td>
+</tr>
+<tr class="field"><th class="field-name">p2node:</th><td class="field-body">String. The identification hash of the changeset's second
+parent, as a 40 digit hexadecimal string. If the changeset has no second
+parent, all digits are 0.</td>
+</tr>
+<tr class="field"><th class="field-name">p2rev:</th><td class="field-body">Integer. The repository-local revision number of the changeset's
+second parent, or -1 if the changeset has no second parent.</td>
+</tr>
 <tr class="field"><th class="field-name">parents:</th><td class="field-body">List of strings. The parents of the changeset in &quot;rev:node&quot;
 format. If the changeset has only one &quot;natural&quot; parent (the predecessor
 revision) nothing is shown.</td>
@@ -4820,7 +4845,7 @@ address. Example: <tt class="docutils literal">User &lt;user&#64;example.com&gt;
 <tr class="field"><th class="field-name">emailuser:</th><td class="field-body">Any text. Returns the user portion of an email address.</td>
 </tr>
 <tr class="field"><th class="field-name">escape:</th><td class="field-body">Any text. Replaces the special XML/XHTML characters &quot;&amp;&quot;, &quot;&lt;&quot;
-and &quot;&gt;&quot; with XML entities.</td>
+and &quot;&gt;&quot; with XML entities, and filters out NUL characters.</td>
 </tr>
 <tr class="field"><th class="field-name">fill68:</th><td class="field-body">Any text. Wraps the text to fit in 68 columns.</td>
 </tr>
@@ -5203,14 +5228,14 @@ necessary to add comments. Marking bugs fixed requires Bugzilla 4.0 and later.</
 email to the Bugzilla email interface to submit comments to bugs.
 The From: address in the email is set to the email address of the Mercurial
 user, so the comment appears to come from the Mercurial user. In the event
-that the Mercurial user email is not recognised by Bugzilla as a Bugzilla
+that the Mercurial user email is not recognized by Bugzilla as a Bugzilla
 user, the email associated with the Bugzilla username used to log into
 Bugzilla is used instead as the source of the comment. Marking bugs fixed
 works on all supported Bugzilla versions.</p>
 <p>Configuration items common to all access modes:</p>
 <dl class="docutils">
 <dt>bugzilla.version</dt>
-<dd><p class="first">This access type to use. Values recognised are:</p>
+<dd><p class="first">The access type to use. Values recognized are:</p>
 <table class="last docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -5711,7 +5736,7 @@ updated on each commit copied, so <a class="reference external" href="hg.1.html#
 and can be run repeatedly to copy new commits.</p>
 <p>The authormap is a simple text file that maps each source commit
 author to a destination commit author. It is handy for source SCMs
-that use unix logins to identify authors (eg: CVS). One line per
+that use unix logins to identify authors (e.g.: CVS). One line per
 author mapping and the line format is:</p>
 <pre class="literal-block">
 source author = destination author
@@ -6438,7 +6463,7 @@ project = foo
 # Style to use (optional)
 #style = foo
 # The URL of the CIA notification service (optional)
-# You can use mailto: URLs to send by email, eg
+# You can use mailto: URLs to send by email, e.g.
 # mailto:cia&#64;cia.vc
 # Make sure to set email.from if you do this.
 #url = http://cia.vc/
@@ -8006,17 +8031,22 @@ repositories to a given recipient. The <tt class="docutils literal">[reposubs]</
 multiple recipients to a single repository:</p>
 <pre class="literal-block">
 [usersubs]
-# key is subscriber email, value is a comma-separated list of repo glob
-# patterns
+# key is subscriber email, value is a comma-separated list of repo patterns
 user&#64;host = pattern
 
 [reposubs]
-# key is glob pattern, value is a comma-separated list of subscriber
-# emails
+# key is repo pattern, value is a comma-separated list of subscriber emails
 pattern = user&#64;host
 </pre>
-<p>Glob patterns are matched against absolute path to repository
-root.</p>
+<p>A <tt class="docutils literal">pattern</tt> is a <tt class="docutils literal">glob</tt> matching the absolute path to a repository,
+optionally combined with a revset expression. A revset expression, if
+present, is separated from the glob by a hash. Example:</p>
+<pre class="literal-block">
+[reposubs]
+*/widgets#branch(release) = qa-team&#64;example.com
+</pre>
+<p>This sends to <tt class="docutils literal"><span class="pre">qa-team&#64;example.com</span></tt> whenever a changeset on the <tt class="docutils literal">release</tt>
+branch triggers a notification in any repository ending in <tt class="docutils literal">widgets</tt>.</p>
 <p>In order to place them under direct user management, <tt class="docutils literal">[usersubs]</tt> and
 <tt class="docutils literal">[reposubs]</tt> sections may be placed in a separate <tt class="docutils literal">hgrc</tt> file and
 incorporated by reference:</p>
@@ -8179,7 +8209,7 @@ description.</p>
 <p>With the -d/--diffstat option, if the diffstat program is
 installed, the result of running diffstat on the patch is inserted.</p>
 <p>Finally, the patch itself, as generated by <a class="reference external" href="hg.1.html#export"><tt class="docutils literal">hg export</tt></a>.</p>
-<p>With the -d/--diffstat or -c/--confirm options, you will be presented
+<p>With the -d/--diffstat or --confirm options, you will be presented
 with a final summary of all messages and asked for confirmation before
 the messages are sent.</p>
 <p>By default the patch is included as text in the email body for

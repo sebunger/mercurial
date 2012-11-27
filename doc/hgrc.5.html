@@ -903,6 +903,16 @@ cloned.</dd>
 <dd>Optional. Directory or URL to use when pushing if no destination
 is specified.</dd>
 </dl>
+<p>Custom paths can be defined by assigning the path to a name that later can be
+used from the command line. Example:</p>
+<pre class="literal-block">
+[paths]
+my_path = http://example.com/path
+</pre>
+<p>To push to the path defined in <tt class="docutils literal">my_path</tt> run the command:</p>
+<pre class="literal-block">
+hg push my_path
+</pre>
 </div>
 <div class="section" id="phases">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">phases</tt></a></h2>
@@ -1335,7 +1345,7 @@ hgicon.png favicon) will be served by the CGI script itself. Use
 this setting to serve them directly with the HTTP server.
 Example: <tt class="docutils literal"><span class="pre">http://hgserver/static/</span></tt>.</dd>
 <dt><tt class="docutils literal">stripes</tt></dt>
-<dd>How many lines a &quot;zebra stripe&quot; should span in multiline output.
+<dd>How many lines a &quot;zebra stripe&quot; should span in multi-line output.
 Default is 1; set to 0 to disable.</dd>
 <dt><tt class="docutils literal">style</tt></dt>
 <dd>Which template map style to use.</dd>

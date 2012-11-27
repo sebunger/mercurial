@@ -1,4 +1,4 @@
-.\" Man page generated from reStructeredText.
+.\" Man page generated from reStructuredText.
 .
 .TH HGRC 5 "" "" "Mercurial Manual"
 .SH NAME
@@ -1155,6 +1155,24 @@ cloned.
 Optional. Directory or URL to use when pushing if no destination
 is specified.
 .UNINDENT
+.sp
+Custom paths can be defined by assigning the path to a name that later can be
+used from the command line. Example:
+.sp
+.nf
+.ft C
+[paths]
+my_path = http://example.com/path
+.ft P
+.fi
+.sp
+To push to the path defined in \fBmy_path\fP run the command:
+.sp
+.nf
+.ft C
+hg push my_path
+.ft P
+.fi
 .SS \fBphases\fP
 .sp
 Specifies default handling of phases. See \%\fBhg help phases\fP\: for more
@@ -1757,7 +1775,7 @@ Example: \fBhttp://hgserver/static/\fP.
 .TP
 .B \fBstripes\fP
 .sp
-How many lines a "zebra stripe" should span in multiline output.
+How many lines a "zebra stripe" should span in multi\-line output.
 Default is 1; set to 0 to disable.
 .TP
 .B \fBstyle\fP

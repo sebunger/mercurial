@@ -12,7 +12,7 @@ Last-Update: 2011-03-30
  
 --- a/setup.py
 +++ b/setup.py
-@@ -406,7 +406,6 @@ cmdclass = {'build': hgbuild,
+@@ -409,7 +409,6 @@ cmdclass = {'build': hgbuild,
              'build_ext': hgbuildext,
              'build_py': hgbuildpy,
              'build_hgextindex': buildhgextindex,
