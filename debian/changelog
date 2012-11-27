@@ -4,6 +4,8 @@ mercurial (2.4-1) UNRELEASED; urgency=low
   * mercurial 2.3.1 is not compatible with the versions of hgsubversion
     and mercurial-git currently in sid
   * Bump standards-version to 3.9.4 (no change needed)
+  * Add test-commit-amend to the blacklisted tests as it needs styles
+    now
 
  -- Javi Merino <vicho@debian.org>  Tue, 27 Nov 2012 21:02:09 +0000
 
