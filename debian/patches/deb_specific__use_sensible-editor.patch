@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2044,8 +2044,8 @@ def debuginstall(ui):
+@@ -2045,8 +2045,8 @@ def debuginstall(ui):
      editor = ui.geteditor()
      cmdpath = util.findexe(editor) or util.findexe(editor.split()[0])
      if not cmdpath:
