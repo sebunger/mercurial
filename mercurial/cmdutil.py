@@ -627,7 +627,7 @@ def diffordiffstat(ui, repo, diffopts, node1, node2, match,
                 # subpath. The best we can do is to ignore it.
                 tempnode2 = None
             submatch = matchmod.narrowmatcher(subpath, match)
-            sub.diff(diffopts, tempnode2, submatch, changes=changes,
+            sub.diff(ui, diffopts, tempnode2, submatch, changes=changes,
                      stat=stat, fp=fp, prefix=prefix)
 
 class changeset_printer(object):
@@ -1715,7 +1715,9 @@ def amend(ui, repo, commitfunc, old, extra, pats, opts):
 
                 user = opts.get('user') or old.user()
                 date = opts.get('date') or old.date()
+            editmsg = False
             if not message:
+                editmsg = True
                 message = old.description()
 
             pureextra = extra.copy()
@@ -1729,7 +1731,8 @@ def amend(ui, repo, commitfunc, old, extra, pats, opts):
                                  user=user,
                                  date=date,
                                  extra=extra)
-            new._text = commitforceeditor(repo, new, [])
+            if editmsg:
+                new._text = commitforceeditor(repo, new, [])
 
             newdesc =  changelog.stripdesc(new.description())
             if ((not node)
