@@ -164,10 +164,8 @@ def reposetup(ui, repo):
                 m = copy.copy(match)
                 m._files = tostandins(m._files)
 
-                # Get ignored files here even if we weren't asked for them; we
-                # must use the result here for filtering later
                 result = super(lfilesrepo, self).status(node1, node2, m,
-                    True, clean, unknown, listsubrepos)
+                    ignored, clean, unknown, listsubrepos)
                 if working:
                     try:
                         # Any non-largefiles that were explicitly listed must be
@@ -269,6 +267,8 @@ def reposetup(ui, repo):
                         return f
                     result = [[toname(f) for f in items] for items in result]
 
+                lfdirstate.write()
+
                 if not listunknown:
                     result[4] = []
                 if not listignored:
@@ -355,11 +355,8 @@ def reposetup(ui, repo):
                     lfdirstate.write()
                     return result
 
-                for f in match.files():
-                    if lfutil.isstandin(f):
-                        raise util.Abort(
-                            _('file "%s" is a largefile standin') % f,
-                            hint=('commit the largefile itself instead'))
+                lfiles = lfutil.listlfiles(self)
+                match._files = self._subdirlfs(match.files(), lfiles)
 
                 # Case 2: user calls commit with specified patterns: refresh
                 # any matching big files.
@@ -390,7 +387,6 @@ def reposetup(ui, repo):
                 # standins corresponding to the big files requested by the
                 # user.  Have to modify _files to prevent commit() from
                 # complaining "not tracked" for big files.
-                lfiles = lfutil.listlfiles(self)
                 match = copy.copy(match)
                 origmatchfn = match.matchfn
 
@@ -462,6 +458,60 @@ def reposetup(ui, repo):
                 lfcommands.uploadlfiles(ui, self, remote, toupload)
             return super(lfilesrepo, self).push(remote, force, revs,
                 newbranch)
+
+        def _subdirlfs(self, files, lfiles):
+            '''
+            Adjust matched file list
+            If we pass a directory to commit whose only commitable files
+            are largefiles, the core commit code aborts before finding
+            the largefiles.
+            So we do the following:
+            For directories that only have largefiles as matches,
+            we explicitly add the largefiles to the matchlist and remove
+            the directory.
+            In other cases, we leave the match list unmodified.
+            '''
+            actualfiles = []
+            dirs = []
+            regulars = []
+
+            for f in files:
+                if lfutil.isstandin(f + '/'):
+                    raise util.Abort(
+                        _('file "%s" is a largefile standin') % f,
+                        hint=('commit the largefile itself instead'))
+                # Scan directories
+                if os.path.isdir(self.wjoin(f)):
+                    dirs.append(f)
+                else:
+                    regulars.append(f)
+
+            for f in dirs:
+                matcheddir = False
+                d = self.dirstate.normalize(f) + '/'
+                # Check for matched normal files
+                for mf in regulars:
+                    if self.dirstate.normalize(mf).startswith(d):
+                        actualfiles.append(f)
+                        matcheddir = True
+                        break
+                if not matcheddir:
+                    # If no normal match, manually append
+                    # any matching largefiles
+                    for lf in lfiles:
+                        if self.dirstate.normalize(lf).startswith(d):
+                            actualfiles.append(lf)
+                            if not matcheddir:
+                                actualfiles.append(lfutil.standin(f))
+                                matcheddir = True
+                # Nothing in dir, so readd it
+                # and let commit reject it
+                if not matcheddir:
+                    actualfiles.append(f)
+
+            # Always add normal files
+            actualfiles += regulars
+            return actualfiles
 
     repo.__class__ = lfilesrepo
 

@@ -1,3 +1,9 @@
+mercurial (2.4.2-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Jan 2013 13:01:27 +0100
+
 mercurial (2.4.1-1) experimental; urgency=low
 
   * New upstream release
