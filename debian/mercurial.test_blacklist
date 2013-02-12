@@ -22,6 +22,7 @@ test-mq-qclone-http.t
 test-mq-qimport.t
 test-newcgi.t
 test-newercgi.t
+test-obsolete.t
 test-oldcgi.t
 test-serve.t
 test-share.t
