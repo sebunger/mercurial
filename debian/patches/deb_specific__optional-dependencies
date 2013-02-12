@@ -43,7 +43,7 @@ Suggest Debian packages for some optional dependencies.
      pass
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
-@@ -21,7 +21,7 @@ class convert_cvs(converter_source):
+@@ -22,7 +22,7 @@ class convert_cvs(converter_source):
          if not os.path.exists(cvs):
              raise NoRepo(_("%s does not look like a CVS checkout") % path)
  
@@ -74,7 +74,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -52,7 +52,7 @@ class convert_git(converter_source):
+@@ -64,7 +64,7 @@ class convert_git(converter_source):
          if not os.path.exists(path + "/objects"):
              raise NoRepo(_("%s does not look like a Git repository") % path)
  
@@ -82,7 +82,7 @@ Suggest Debian packages for some optional dependencies.
 +        checktool('git', 'git', debname='git-core')
  
          self.path = path
- 
+         self.submodules = []
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
 @@ -42,7 +42,8 @@ class gnuarch_source(converter_source, c
@@ -108,15 +108,15 @@ Suggest Debian packages for some optional dependencies.
          if self.automatestdio:
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -18,6 +18,7 @@ from cStringIO import StringIO
- 
+@@ -19,6 +19,7 @@ from cStringIO import StringIO
  from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
  from common import commandline, converter_source, converter_sink, mapfile
+ from common import makedatetimestamp
 +from common import checktool
  
  try:
      from svn.core import SubversionException, Pool
-@@ -234,16 +235,19 @@ class svn_source(converter_source):
+@@ -235,16 +236,19 @@ class svn_source(converter_source):
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1010,6 +1014,8 @@ class svn_sink(converter_sink, commandli
+@@ -1013,6 +1017,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -150,7 +150,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -194,7 +194,8 @@ class _httprequesthandleropenssl(_httpre
+@@ -204,7 +204,8 @@ class _httprequesthandleropenssl(_httpre
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
@@ -160,7 +160,7 @@ Suggest Debian packages for some optional dependencies.
          ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
-@@ -235,7 +236,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -245,7 +246,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:

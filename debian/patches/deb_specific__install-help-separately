@@ -2,7 +2,7 @@ Support installation of help topics handled by mercurial-common.install.
 
 --- a/setup.py
 +++ b/setup.py
-@@ -467,8 +467,7 @@ if sys.platform.startswith('linux') and
+@@ -469,8 +469,7 @@ if sys.platform.startswith('linux') and
          extmodules.append(inotify)
          packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
  
