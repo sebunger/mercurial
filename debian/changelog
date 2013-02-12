@@ -1,9 +1,9 @@
-mercurial (2.5.1-1) UNRELEASED; urgency=low
+mercurial (2.5.1-1) experimental; urgency=low
 
   * New upstream release
   * Add test-obsolete.t to the blacklisted tests
 
- -- Javi Merino <vicho@debian.org>  Sun, 27 Jan 2013 17:00:52 +0000
+ -- Javi Merino <vicho@debian.org>  Tue, 12 Feb 2013 21:13:06 +0000
 
 mercurial (2.4.2-1) experimental; urgency=low
 
