@@ -40,9 +40,9 @@ look up bookmark
   summary:     0
   
 
-second bookmark for rev 0
+second bookmark for rev 0, command should work even with ui.strict on
 
-  $ hg bookmark X2
+  $ hg --config ui.strict=1 bookmark X2
 
 bookmark rev -1 again
 
@@ -458,7 +458,11 @@ create bundle with two heads
   adding file changes
   added 2 changesets with 2 changes to 2 files (+1 heads)
   (run 'hg heads' to see heads, 'hg merge' to merge)
+
+update to current bookmark if it's not the parent
+
   $ hg update
+  updating to active bookmark Z
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg bookmarks
      X2                        1:925d80f479bb

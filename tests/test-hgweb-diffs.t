@@ -78,7 +78,7 @@ revision
   
   <div class="main">
   
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>changeset 0:0cd96de13884   </h3>
   
   <form class="search" action="/log">
@@ -238,7 +238,7 @@ diff removed file
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>diff b @ 1:559edbd9ed20</h3>
   
   <form class="search" action="/log">
@@ -339,7 +339,7 @@ revision
   
   <div class="main">
   
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>changeset 0:0cd96de13884   </h3>
   
   <form class="search" action="/log">
@@ -503,7 +503,7 @@ diff removed file
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>diff a @ 1:559edbd9ed20</h3>
   
   <form class="search" action="/log">
@@ -601,7 +601,7 @@ comparison new file
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>comparison a @ 0:0cd96de13884</h3>
   
   <form class="search" action="/log">
@@ -673,7 +673,7 @@ comparison new file
 comparison existing file
 
   $ hg up
-  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ echo a >> a
   $ hg ci -mc
   $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'comparison/tip/a'
@@ -723,7 +723,7 @@ comparison existing file
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>comparison a @ 2:d73db4d812ff</h3>
   
   <form class="search" action="/log">
@@ -847,7 +847,7 @@ comparison removed file
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>comparison a @ 3:20e80271eb7a</h3>
   
   <form class="search" action="/log">

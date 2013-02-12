@@ -1234,8 +1234,14 @@ static int index_slice_del(indexObject *self, PyObject *item)
 				self->ntrev = (int)start;
 		}
 		self->length = start + 1;
-		if (start < self->raw_length)
+		if (start < self->raw_length) {
+			if (self->cache) {
+				Py_ssize_t i;
+				for (i = start; i < self->raw_length; i++)
+					Py_CLEAR(self->cache[i]);
+			}
 			self->raw_length = start;
+		}
 		goto done;
 	}
 
@@ -1508,6 +1514,7 @@ static char parsers_doc[] = "Efficient content parsing.";
 
 PyObject *encodedir(PyObject *self, PyObject *args);
 PyObject *pathencode(PyObject *self, PyObject *args);
+PyObject *lowerencode(PyObject *self, PyObject *args);
 
 static PyMethodDef methods[] = {
 	{"pack_dirstate", pack_dirstate, METH_VARARGS, "pack a dirstate\n"},
@@ -1516,6 +1523,7 @@ static PyMethodDef methods[] = {
 	{"parse_index2", parse_index2, METH_VARARGS, "parse a revlog index\n"},
 	{"encodedir", encodedir, METH_VARARGS, "encodedir a path\n"},
 	{"pathencode", pathencode, METH_VARARGS, "fncache-encode a path\n"},
+	{"lowerencode", lowerencode, METH_VARARGS, "lower-encode a path\n"},
 	{NULL, NULL}
 };
 

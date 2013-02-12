@@ -41,22 +41,22 @@ import bookmark by name
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  updating bookmark Y
   adding remote bookmark X
+  updating bookmark Y
   adding remote bookmark Z
   (run 'hg update' to get a working copy)
   $ hg bookmarks
      X                         0:4e3505fd9583
-     Y                         0:4e3505fd9583
+   * Y                         0:4e3505fd9583
      Z                         0:4e3505fd9583
   $ hg debugpushkey ../a namespaces
   bookmarks	
-  phases	
   namespaces	
   obsolete	
+  phases	
   $ hg debugpushkey ../a bookmarks
-  Y	4e3505fd95835d721066b76e75dbb8cc554d7f77
   X	4e3505fd95835d721066b76e75dbb8cc554d7f77
+  Y	4e3505fd95835d721066b76e75dbb8cc554d7f77
   Z	4e3505fd95835d721066b76e75dbb8cc554d7f77
   $ hg pull -B X ../a
   pulling from ../a
@@ -64,7 +64,7 @@ import bookmark by name
   importing bookmark X
   $ hg bookmark
      X                         0:4e3505fd9583
-     Y                         0:4e3505fd9583
+   * Y                         0:4e3505fd9583
      Z                         0:4e3505fd9583
 
 export bookmark by name
@@ -128,15 +128,15 @@ divergent bookmarks
   $ echo c2 > f2
   $ hg ci -Am2
   adding f2
-  $ hg book -f @
-  $ hg book -f X
+  $ hg book -if @
+  $ hg book -if X
   $ hg book
      @                         1:9b140be10808
-   * X                         1:9b140be10808
+     X                         1:9b140be10808
      Y                         0:4e3505fd9583
      Z                         0:4e3505fd9583
      foo                       -1:000000000000
-     foobar                    1:9b140be10808
+   * foobar                    1:9b140be10808
 
   $ hg pull --config paths.foo=../a foo
   pulling from $TESTTMP/a (glob)
@@ -145,19 +145,19 @@ divergent bookmarks
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
+  divergent bookmark @ stored as @foo
   divergent bookmark X stored as X@foo
   updating bookmark Z
-  divergent bookmark @ stored as @foo
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg book
      @                         1:9b140be10808
      @foo                      2:0d2164f0ce0d
-   * X                         1:9b140be10808
+     X                         1:9b140be10808
      X@foo                     2:0d2164f0ce0d
      Y                         0:4e3505fd9583
      Z                         2:0d2164f0ce0d
      foo                       -1:000000000000
-     foobar                    1:9b140be10808
+   * foobar                    1:9b140be10808
   $ hg push -f ../a
   pushing to ../a
   searching for changes
@@ -170,6 +170,18 @@ divergent bookmarks
    * X                         1:0d2164f0ce0d
      Y                         0:4e3505fd9583
      Z                         1:0d2164f0ce0d
+
+revsets should not ignore divergent bookmarks
+
+  $ hg bookmark -fr 1 Z
+  $ hg log -r 'bookmark()' --template '{rev}:{node|short} {bookmarks}\n'
+  0:4e3505fd9583 Y
+  1:9b140be10808 @ X Z foobar
+  2:0d2164f0ce0d @foo X@foo
+  $ hg log -r 'bookmark("X@foo")' --template '{rev}:{node|short} {bookmarks}\n'
+  2:0d2164f0ce0d @foo X@foo
+  $ hg log -r 'bookmark("re:X@foo")' --template '{rev}:{node|short} {bookmarks}\n'
+  2:0d2164f0ce0d @foo X@foo
 
 update a remote bookmark from a non-head to a head
 
@@ -292,16 +304,16 @@ hgweb
 
   $ hg debugpushkey http://localhost:$HGPORT/ namespaces
   bookmarks	
-  phases	
   namespaces	
   obsolete	
+  phases	
   $ hg debugpushkey http://localhost:$HGPORT/ bookmarks
   @	9b140be1080824d768c5a4691a564088eede71f9
+  X	9b140be1080824d768c5a4691a564088eede71f9
+  Y	c922c0139ca03858f655e4a2af4dd02796a63969
+  Z	9b140be1080824d768c5a4691a564088eede71f9
   foo	0000000000000000000000000000000000000000
   foobar	9b140be1080824d768c5a4691a564088eede71f9
-  Y	c922c0139ca03858f655e4a2af4dd02796a63969
-  X	9b140be1080824d768c5a4691a564088eede71f9
-  Z	0d2164f0ce0d8f1d6f94351eba04b794909be66c
   $ hg out -B http://localhost:$HGPORT/
   comparing with http://localhost:$HGPORT/
   searching for changed bookmarks
@@ -324,10 +336,10 @@ hgweb
   pulling from http://localhost:$HGPORT/
   no changes found
   divergent bookmark @ stored as @1
-  adding remote bookmark foo
-  adding remote bookmark foobar
   divergent bookmark X stored as X@1
   adding remote bookmark Z
+  adding remote bookmark foo
+  adding remote bookmark foobar
   importing bookmark Z
   $ hg clone http://localhost:$HGPORT/ cloned-bookmarks
   requesting all changes

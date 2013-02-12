@@ -1073,16 +1073,6 @@ Check whether there are conflicts even though the tool reported success.
 Always prompt for merge success, regardless of success reported by tool.
 .UNINDENT
 .TP
-.B \fBcheckchanged\fP
-.sp
-True is equivalent to \fBcheck = changed\fP.
-Default: False
-.TP
-.B \fBcheckconflicts\fP
-.sp
-True is equivalent to \fBcheck = conflicts\fP.
-Default: False
-.TP
 .B \fBfixeol\fP
 .sp
 Attempt to fix up EOL changes caused by the merge tool.
@@ -1252,6 +1242,21 @@ Default: 1000.
 File path where profiling data or report should be saved. If the
 file exists, it is replaced. Default: None, data is printed on
 stderr
+.TP
+.B \fBsort\fP
+.sp
+Sort field.  Specific to the \fBls\fP instrumenting profiler.
+One of \fBcallcount\fP, \fBreccallcount\fP, \fBtotaltime\fP and
+\fBinlinetime\fP.
+Default: inlinetime.
+.TP
+.B \fBnested\fP
+.sp
+Show at most this number of lines of drill\-down info in a tree structure
+after each main entry. This can help explain the difference between Total
+and Inline.
+Specific to the \fBls\fP instrumenting profiler.
+Default: 5.
 .UNINDENT
 .SS \fBrevsetalias\fP
 .sp
@@ -1597,6 +1602,11 @@ examined after the deny_read list.
 .sp
 (DEPRECATED) Whether to allow .zip downloading of repository
 revisions. Default is False. This feature creates temporary files.
+.TP
+.B \fBarchivesubrepos\fP
+.sp
+Whether to recurse into subrepositories when archiving. Default is
+False.
 .TP
 .B \fBbaseurl\fP
 .sp

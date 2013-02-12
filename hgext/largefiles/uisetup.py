@@ -9,9 +9,9 @@
 '''setup for largefiles extension: uisetup'''
 
 from mercurial import archival, cmdutil, commands, extensions, filemerge, hg, \
-    httppeer, localrepo, merge, scmutil, sshpeer, sshserver, wireproto
+    httppeer, localrepo, merge, scmutil, sshpeer, wireproto
 from mercurial.i18n import _
-from mercurial.hgweb import hgweb_mod, protocol, webcommands
+from mercurial.hgweb import hgweb_mod, webcommands
 from mercurial.subrepo import hgsubrepo
 
 import overrides
@@ -59,6 +59,11 @@ def uisetup(ui):
                      _('verify largefile contents not just existence'))]
     entry[1].extend(verifyopt)
 
+    entry = extensions.wrapcommand(commands.table, 'debugstate',
+                                   overrides.overridedebugstate)
+    debugstateopt = [('', 'large', None, _('display largefiles dirstate'))]
+    entry[1].extend(debugstateopt)
+
     entry = extensions.wrapcommand(commands.table, 'outgoing',
         overrides.overrideoutgoing)
     outgoingopt = [('', 'large', None, _('display outgoing largefiles'))]
@@ -104,11 +109,7 @@ def uisetup(ui):
     entry = extensions.wrapfunction(commands, 'revert',
                                     overrides.overriderevert)
 
-    # clone uses hg._update instead of hg.update even though they are the
-    # same function... so wrap both of them)
-    extensions.wrapfunction(hg, 'update', overrides.hgupdate)
-    extensions.wrapfunction(hg, '_update', overrides.hgupdate)
-    extensions.wrapfunction(hg, 'clean', overrides.hgclean)
+    extensions.wrapfunction(hg, 'updaterepo', overrides.hgupdaterepo)
     extensions.wrapfunction(hg, 'merge', overrides.hgmerge)
 
     extensions.wrapfunction(archival, 'archive', overrides.overridearchive)
@@ -138,11 +139,6 @@ def uisetup(ui):
     # our largefiles capability unless we replace the actual function as well.
     proto.capabilitiesorig = wireproto.capabilities
     wireproto.capabilities = proto.capabilities
-
-    # these let us reject non-largefiles clients and make them display
-    # our error messages
-    protocol.webproto.refuseclient = proto.webprotorefuseclient
-    sshserver.sshserver.refuseclient = proto.sshprotorefuseclient
 
     # can't do this in reposetup because it needs to have happened before
     # wirerepo.__init__ is called

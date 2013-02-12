@@ -1,3 +1,11 @@
+mercurial (2.5.1-1) experimental; urgency=low
+
+  * New upstream release
+  * Add test-obsolete.t to the blacklisted tests
+  * hgview 1.5.0-4 doesn't work with mercurial 2.5.1
+
+ -- Javi Merino <vicho@debian.org>  Tue, 12 Feb 2013 21:13:06 +0000
+
 mercurial (2.4.2-1) experimental; urgency=low
 
   * New upstream release
