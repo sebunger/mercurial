@@ -1,3 +1,16 @@
+mercurial (2.2.2-2~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Javi Merino <vicho@debian.org>  Sun, 17 Feb 2013 11:23:41 +0000
+
+mercurial (2.2.2-2) unstable; urgency=low
+
+  * Fix "Please add patch from http://bz.selenic.com/show_bug.cgi?id=3511"
+    by adding it (Closes: #698634)
+
+ -- Javi Merino <vicho@debian.org>  Mon, 21 Jan 2013 23:33:20 +0000
+
 mercurial (2.2.2-1~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.
