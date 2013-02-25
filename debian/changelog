@@ -1,3 +1,9 @@
+mercurial (2.5.1-2) UNRELEASED; urgency=low
+
+  * Update hgview breaks.  hgview works with mercurial 2.5 starting from 1.7.1-1.
+
+ -- Javi Merino <vicho@debian.org>  Mon, 25 Feb 2013 14:10:04 +0000
+
 mercurial (2.5.1-1) experimental; urgency=low
 
   * New upstream release
