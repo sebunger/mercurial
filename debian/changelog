@@ -1,3 +1,13 @@
+mercurial (2.2.2-3) unstable; urgency=low
+
+  * Fix "Backport improvement to vimdiff configuration" by adding
+    from_upstream__set_vimdiff_to_check_changed.patch,
+    from_upstream__mergetools_vimdiff_issue_warning.patch and
+    from_upstream__mergetools_refine_vimdiff_warning_message.patch
+    backported from upstream (Closes: #701168)
+
+ -- Javi Merino <vicho@debian.org>  Sat, 23 Feb 2013 19:52:22 +0000
+
 mercurial (2.2.2-2~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.
