@@ -1,3 +1,9 @@
+mercurial (2.2.2-3~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+
+ -- Javi Merino <vicho@debian.org>  Sat, 16 Mar 2013 20:06:29 +0100
+
 mercurial (2.2.2-3) unstable; urgency=low
 
   * Fix "Backport improvement to vimdiff configuration" by adding
