@@ -816,7 +816,7 @@ This test issue 3805
      summary:     A
   
   $ hg incoming
-  comparing with $TESTTMP/tmpe/repo-issue3805
+  comparing with $TESTTMP/tmpe/repo-issue3805 (glob)
   searching for changes
   changeset:   2:3816541e5485
   tag:         tip
@@ -826,7 +826,7 @@ This test issue 3805
   summary:     A
   
   $ hg incoming --bundle ../issue3805.hg
-  comparing with $TESTTMP/tmpe/repo-issue3805
+  comparing with $TESTTMP/tmpe/repo-issue3805 (glob)
   searching for changes
   changeset:   2:3816541e5485
   tag:         tip
@@ -836,7 +836,7 @@ This test issue 3805
   summary:     A
   
   $ hg outgoing
-  comparing with $TESTTMP/tmpe/repo-issue3805
+  comparing with $TESTTMP/tmpe/repo-issue3805 (glob)
   searching for changes
   no changes found
   [1]
@@ -865,3 +865,25 @@ This test issue 3805
   $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 
 #endif
+
+This test issue 3814
+
+(nothing to push but locally hidden changeset)
+
+  $ cd ..
+  $ hg init repo-issue3814
+  $ cd repo-issue3805
+  $ hg push -r 3816541e5485 ../repo-issue3814
+  pushing to ../repo-issue3814
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  $ hg out ../repo-issue3814
+  comparing with ../repo-issue3814
+  searching for changes
+  no changes found
+  [1]
+
+

@@ -1,3 +1,13 @@
+mercurial (2.5.2-1) experimental; urgency=low
+
+  * New upstream release
+  * Update hgview breaks.  hgview works with mercurial 2.5 starting from
+    1.7.1-1.
+  * test-convert-git.t works again so add it back to the test-suite we
+    run when building the package
+
+ -- Javi Merino <vicho@debian.org>  Tue, 19 Mar 2013 22:53:20 +0000
+
 mercurial (2.5.1-1) experimental; urgency=low
 
   * New upstream release
