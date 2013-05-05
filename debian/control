@@ -14,8 +14,8 @@ Build-Depends: debhelper (>= 9),
  unzip
 Standards-Version: 3.9.4
 Homepage: http://mercurial.selenic.com/
-Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
-Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
+Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
+Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
 
 Package: mercurial-common
