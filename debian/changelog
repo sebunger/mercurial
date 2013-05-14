@@ -1,8 +1,12 @@
-mercurial (2.5.2-2) UNRELEASED; urgency=low
+mercurial (2.6-1) UNRELEASED; urgency=low
 
+  [ Jakub Wilk ]
   * Use canonical URIs for Vcs-* fields.
 
- -- Jakub Wilk <jwilk@debian.org>  Sun, 05 May 2013 18:05:18 +0200
+  [ Javi Merino ]
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Tue, 14 May 2013 17:39:51 +0100
 
 mercurial (2.5.2-1) experimental; urgency=low
 
