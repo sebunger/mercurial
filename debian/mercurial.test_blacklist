@@ -27,12 +27,14 @@ test-oldcgi.t
 test-serve.t
 test-share.t
 test-subrepo-relative-path.t
+test-websub.t
 
 # Failed to locate styles (?)
 test-bisect3.t
 test-command-template.t
 test-commit-amend.t
 test-glog.t
+test-histedit-arguments.t
 test-histedit-revspec.t
 test-install.t
 test-log.t

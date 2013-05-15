@@ -155,6 +155,11 @@ be read.  Mercurial checks each of these locations in the specified
 order until one or more configuration files are detected.
 .UNINDENT
 .UNINDENT
+.IP Note
+.
+The registry key \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eWow6432Node\eMercurial\fP
+is used when running 32\-bit Python on 64\-bit Windows.
+.RE
 .SH SYNTAX
 .sp
 A configuration file consists of sections, led by a \fB[section]\fP header
@@ -943,7 +948,7 @@ For example:
 .nf
 .ft C
 [hostfingerprints]
-hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+hg.intevation.org = 44:ed:af:1f:97:11:b6:01:7a:48:45:fc:10:3c:b7:f9:d4:89:2a:9d
 .ft P
 .fi
 .sp
@@ -1250,11 +1255,15 @@ One of \fBcallcount\fP, \fBreccallcount\fP, \fBtotaltime\fP and
 \fBinlinetime\fP.
 Default: inlinetime.
 .TP
+.B \fBlimit\fP
+.sp
+Number of lines to show. Specific to the \fBls\fP instrumenting profiler.
+Default: 30.
+.TP
 .B \fBnested\fP
 .sp
-Show at most this number of lines of drill\-down info in a tree structure
-after each main entry. This can help explain the difference between Total
-and Inline.
+Show at most this number of lines of drill\-down info after each main entry.
+This can help explain the difference between Total and Inline.
 Specific to the \fBls\fP instrumenting profiler.
 Default: 5.
 .UNINDENT
@@ -1301,12 +1310,24 @@ Host name of mail server, e.g. "mail.example.com".
 .TP
 .B \fBport\fP
 .sp
-Optional. Port to connect to on mail server. Default: 25.
+Optional. Port to connect to on mail server. Default: 465 (if
+\fBtls\fP is smtps) or 25 (otherwise).
 .TP
 .B \fBtls\fP
 .sp
 Optional. Method to enable TLS when connecting to mail server: starttls,
 smtps or none. Default: none.
+.TP
+.B \fBverifycert\fP
+.sp
+Optional. Verification for the certificate of mail server, when
+\fBtls\fP is starttls or smtps. "strict", "loose" or False. For
+"strict" or "loose", the certificate is verified as same as the
+verification for HTTPS connections (see \fB[hostfingerprints]\fP and
+\fB[web] cacerts\fP also). For "strict", sending email is also
+aborted, if there is no configuration for mail server in
+\fB[hostfingerprints]\fP and \fB[web] cacerts\fP.  \-\-insecure for
+\%\fBhg email\fP\: overwrites this as "loose". Default: "strict".
 .TP
 .B \fBusername\fP
 .sp
@@ -1795,6 +1816,58 @@ Which template map style to use.
 .B \fBtemplates\fP
 .sp
 Where to find the HTML templates. Default is install path.
+.UNINDENT
+.SS \fBwebsub\fP
+.sp
+Web substitution filter definition. You can use this section to
+define a set of regular expression substitution patterns which
+let you automatically modify the hgweb server output.
+.sp
+The default hgweb templates only apply these substitution patterns
+on the revision description fields. You can apply them anywhere
+you want when you create your own templates by adding calls to the
+"websub" filter (usually after calling the "escape" filter).
+.sp
+This can be used, for example, to convert issue references to links
+to your issue tracker, or to convert "markdown\-like" syntax into
+HTML (see the examples below).
+.sp
+Each entry in this section names a substitution filter.
+The value of each entry defines the substitution expression itself.
+The websub expressions follow the old interhg extension syntax,
+which in turn imitates the Unix sed replacement syntax:
+.sp
+.nf
+.ft C
+patternname = s/SEARCH_REGEX/REPLACE_EXPRESSION/[i]
+.ft P
+.fi
+.sp
+You can use any separator other than "/". The final "i" is optional
+and indicates that the search must be case insensitive.
+.sp
+Examples:
+.sp
+.nf
+.ft C
+[websub]
+issues = s|issue(\ed+)|<a href="http://bts.example.org/issue\e1">issue\e1</a>|i
+italic = s/\eb_(\eS+)_\eb/<i>\e1<\e/i>/
+bold = s/\e*\eb(\eS+)\eb\e*/<b>\e1<\e/b>/
+.ft P
+.fi
+.SS \fBworker\fP
+.sp
+Parallel master/worker configuration. We currently perform working
+directory updates in parallel on Unix\-like systems, which greatly
+helps performance.
+.INDENT 0.0
+.TP
+.B \fBnumcpus\fP
+.sp
+Number of CPUs to use for parallel operations. Default is 4 or the
+number of CPUs on the system, whichever is larger. A zero or
+negative value is treated as \fBuse the default\fP.
 .UNINDENT
 .SH AUTHOR
 .sp

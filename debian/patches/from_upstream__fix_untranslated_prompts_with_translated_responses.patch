@@ -1,0 +1,26 @@
+Origin: http://selenic.com/repo/hg/rev/15aef461facd
+Description: i18n: fix untranslated prompts with translated responses (issue3936)
+Bug: http://bz.selenic.com/show_bug.cgi?id=3936
+Bug-Debian: http://bugs.debian.org/701168
+
+diff --git a/i18n/de.po b/i18n/de.po
+--- a/i18n/de.po
++++ b/i18n/de.po
+@@ -14078,13 +14078,14 @@ msgstr ""
+ 
+ #, python-format
+ msgid "was merge of '%s' successful (yn)?"
+-msgstr ""
++msgstr "ist die Zusammenführung von '%s' gelungen (jn)?"
+ 
+ #, python-format
+ msgid ""
+ " output file %s appears unchanged\n"
+ "was merge successful (yn)?"
+-msgstr ""
++msgstr "Ausgabedatei %s scheint unverändert\n"
++"ist die Zusammenführung gelungen (jn)?"
+ 
+ msgid "unterminated string"
+ msgstr "nicht abgeschlossene Zeichenkette"
+

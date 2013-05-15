@@ -12,7 +12,7 @@ Look for *.mo files in /usr/share/locale (FHS compliant)
          break
 --- a/setup.py
 +++ b/setup.py
-@@ -469,7 +469,7 @@ if sys.platform.startswith('linux') and
+@@ -472,7 +472,7 @@ if sys.platform.startswith('linux') and
          extmodules.append(inotify)
          packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
  

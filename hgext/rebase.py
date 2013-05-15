@@ -15,7 +15,7 @@ http://mercurial.selenic.com/wiki/RebaseExtension
 '''
 
 from mercurial import hg, util, repair, merge, cmdutil, commands, bookmarks
-from mercurial import extensions, patch, scmutil, phases, obsolete
+from mercurial import extensions, patch, scmutil, phases, obsolete, error
 from mercurial.commands import templateopts
 from mercurial.node import nullrev
 from mercurial.lock import release
@@ -112,6 +112,7 @@ def rebase(ui, repo, **opts):
     Returns 0 on success, 1 if nothing to rebase.
     """
     originalwd = target = None
+    activebookmark = None
     external = nullrev
     state = {}
     skipped = set()
@@ -159,7 +160,7 @@ def rebase(ui, repo, **opts):
                 ui.warn(_('tool option will be ignored\n'))
 
             (originalwd, target, state, skipped, collapsef, keepf,
-                                keepbranchesf, external) = restorestatus(repo)
+                keepbranchesf, external, activebookmark) = restorestatus(repo)
             if abortf:
                 return abort(repo, originalwd, target, state)
         else:
@@ -208,10 +209,6 @@ def rebase(ui, repo, **opts):
                     _("can't remove original changesets with"
                       " unrebased descendants"),
                     hint=_('use --keep to keep original changesets'))
-            elif not keepf and not repo[root].mutable():
-                raise util.Abort(_("can't rebase immutable changeset %s")
-                                 % repo[root],
-                                 hint=_('see hg help phases for details'))
             else:
                 result = buildstate(repo, dest, rebaseset, collapsef)
 
@@ -219,6 +216,10 @@ def rebase(ui, repo, **opts):
                 # Empty state built, nothing to rebase
                 ui.status(_('nothing to rebase\n'))
                 return 1
+            elif not keepf and not repo[root].mutable():
+                raise util.Abort(_("can't rebase immutable changeset %s")
+                                 % repo[root],
+                                 hint=_('see hg help phases for details'))
             else:
                 originalwd, target, state = result
                 if collapsef:
@@ -245,7 +246,7 @@ def rebase(ui, repo, **opts):
 
         # Keep track of the current bookmarks in order to reset them later
         currentbookmarks = repo._bookmarks.copy()
-        activebookmark = repo._bookmarkcurrent
+        activebookmark = activebookmark or repo._bookmarkcurrent
         if activebookmark:
             bookmarks.unsetcurrent(repo)
 
@@ -258,7 +259,7 @@ def rebase(ui, repo, **opts):
                 ui.progress(_("rebasing"), pos, ("%d:%s" % (rev, repo[rev])),
                             _('changesets'), total)
                 storestatus(repo, originalwd, target, state, collapsef, keepf,
-                                                    keepbranchesf, external)
+                            keepbranchesf, external, activebookmark)
                 p1, p2 = defineparents(repo, rev, target, state,
                                                         targetancestors)
                 if len(repo.parents()) == 2:
@@ -268,8 +269,9 @@ def rebase(ui, repo, **opts):
                         ui.setconfig('ui', 'forcemerge', opts.get('tool', ''))
                         stats = rebasenode(repo, rev, p1, state, collapsef)
                         if stats and stats[3] > 0:
-                            raise util.Abort(_('unresolved conflicts (see hg '
-                                        'resolve, then hg rebase --continue)'))
+                            raise error.InterventionRequired(
+                                _('unresolved conflicts (see hg '
+                                  'resolve, then hg rebase --continue)'))
                     finally:
                         ui.setconfig('ui', 'forcemerge', '')
                 cmdutil.duplicatecopies(repo, rev, target)
@@ -516,7 +518,7 @@ def updatebookmarks(repo, targetnode, nstate, originalbookmarks):
     marks.write()
 
 def storestatus(repo, originalwd, target, state, collapse, keep, keepbranches,
-                                                                external):
+                external, activebookmark):
     'Store the current status to allow recovery'
     f = repo.opener("rebasestate", "w")
     f.write(repo[originalwd].hex() + '\n')
@@ -525,6 +527,7 @@ def storestatus(repo, originalwd, target, state, collapse, keep, keepbranches,
     f.write('%d\n' % int(collapse))
     f.write('%d\n' % int(keep))
     f.write('%d\n' % int(keepbranches))
+    f.write('%s\n' % (activebookmark or ''))
     for d, v in state.iteritems():
         oldrev = repo[d].hex()
         if v > nullmerge:
@@ -545,6 +548,7 @@ def restorestatus(repo):
         target = None
         collapse = False
         external = nullrev
+        activebookmark = None
         state = {}
         f = repo.opener("rebasestate")
         for i, l in enumerate(f.read().splitlines()):
@@ -560,6 +564,10 @@ def restorestatus(repo):
                 keep = bool(int(l))
             elif i == 5:
                 keepbranches = bool(int(l))
+            elif i == 6 and not (len(l) == 81 and ':' in l):
+                # line 6 is a recent addition, so for backwards compatibility
+                # check that the line doesn't look like the oldrev:newrev lines
+                activebookmark = l
             else:
                 oldrev, newrev = l.split(':')
                 if newrev in (str(nullmerge), str(revignored)):
@@ -577,7 +585,7 @@ def restorestatus(repo):
         repo.ui.debug('computed skipped revs: %s\n' % skipped)
         repo.ui.debug('rebase status resumed\n')
         return (originalwd, target, state, skipped,
-                collapse, keep, keepbranches, external)
+                collapse, keep, keepbranches, external, activebookmark)
     except IOError, err:
         if err.errno != errno.ENOENT:
             raise
@@ -692,8 +700,8 @@ def buildstate(repo, dest, rebaseset, collapse):
         # If we have multiple roots, we may have "hole" in the rebase set.
         # Rebase roots that descend from those "hole" should not be detached as
         # other root are. We use the special `revignored` to inform rebase that
-        # the revision should be ignored but that `defineparent` should search
-        # a rebase destination that make sense regarding rebaset topology.
+        # the revision should be ignored but that `defineparents` should search
+        # a rebase destination that make sense regarding rebased topology.
         rebasedomain = set(repo.revs('%ld::%ld', rebaseset, rebaseset))
         for ignored in set(rebasedomain) - set(rebaseset):
             state[ignored] = revignored
