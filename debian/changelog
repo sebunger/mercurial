@@ -5,6 +5,7 @@ mercurial (2.6.1-1) unstable; urgency=low
 
   [ Javi Merino ]
   * New upstream release
+  * Blacklist test-websub.t as it needs networking
 
  -- Javi Merino <vicho@debian.org>  Wed, 15 May 2013 22:16:29 +0100
 

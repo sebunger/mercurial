@@ -27,6 +27,7 @@ test-oldcgi.t
 test-serve.t
 test-share.t
 test-subrepo-relative-path.t
+test-websub.t
 
 # Failed to locate styles (?)
 test-bisect3.t
