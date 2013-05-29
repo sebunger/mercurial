@@ -6,6 +6,10 @@ mercurial (2.6.1-1) unstable; urgency=low
   [ Javi Merino ]
   * New upstream release (Closes: #709815)
   * Blacklist test-histedit-arguments.t and test-websub.t
+  * Fix "Translation missing for yes/no question, but requires translated
+    input from user" by adding patch
+    from_upstream__fix_untranslated_prompts_with_translated_responses.patch
+    (Closes: #707703)
 
  -- Javi Merino <vicho@debian.org>  Wed, 15 May 2013 22:16:29 +0100
 
