@@ -4,7 +4,7 @@ mercurial (2.6.1-1) unstable; urgency=low
   * Use canonical URIs for Vcs-* fields.
 
   [ Javi Merino ]
-  * New upstream release
+  * New upstream release (Closes: #709815)
   * Blacklist test-histedit-arguments.t and test-websub.t
 
  -- Javi Merino <vicho@debian.org>  Wed, 15 May 2013 22:16:29 +0100
