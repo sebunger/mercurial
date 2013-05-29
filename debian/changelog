@@ -10,6 +10,7 @@ mercurial (2.6.1-1) unstable; urgency=low
     input from user" by adding patch
     from_upstream__fix_untranslated_prompts_with_translated_responses.patch
     (Closes: #707703)
+  * Upload to unstable
 
  -- Javi Merino <vicho@debian.org>  Wed, 15 May 2013 22:16:29 +0100
 
