@@ -1,6 +1,9 @@
 mercurial (2.6.2-1) UNRELEASED; urgency=low
 
   * New upstream release
+  * Delete patch
+    from_upstream__fix_untranslated_prompts_with_translated_responses.patch
+    which is now included upstream
 
  -- Javi Merino <vicho@debian.org>  Sun, 09 Jun 2013 08:30:59 +0100
 
