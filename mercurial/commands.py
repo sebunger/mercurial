@@ -1310,8 +1310,14 @@ def commit(ui, repo, *pats, **opts):
     Returns 0 on success, 1 if nothing changed.
     """
     if opts.get('subrepos'):
+        if opts.get('amend'):
+            raise util.Abort(_('cannot amend with --subrepos'))
         # Let --subrepos on the command line override config setting.
         ui.setconfig('ui', 'commitsubrepos', True)
+
+    if repo.vfs.exists('graftstate'):
+        raise util.Abort(_('cannot commit an interrupted graft operation'),
+                         hint=_('use "hg graft -c" to continue graft'))
 
     extra = {}
     if opts.get('close_branch'):
@@ -1322,7 +1328,7 @@ def commit(ui, repo, *pats, **opts):
 
     if opts.get('amend'):
         if ui.configbool('ui', 'commitsubrepos'):
-            raise util.Abort(_('cannot amend recursively'))
+            raise util.Abort(_('cannot amend with ui.commitsubrepos enabled'))
 
         old = repo['.']
         if old.phase() == phases.public:
@@ -4917,10 +4923,9 @@ def revert(ui, repo, *pats, **opts):
     """restore files to their checkout state
 
     .. note::
-
        To check out earlier revisions, you should use :hg:`update REV`.
-       To cancel an uncommitted merge (and lose your changes), use
-       :hg:`update --clean .`.
+       To cancel an uncommitted merge (and lose your changes),
+       use :hg:`update --clean .`.
 
     With no revision specified, revert the specified files or directories
     to the contents they had in the parent of the working directory.
