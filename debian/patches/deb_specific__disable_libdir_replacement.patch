@@ -12,13 +12,11 @@ Last-Update: 2011-03-30
  
 --- a/setup.py
 +++ b/setup.py
-@@ -381,8 +381,7 @@
-             'build_mo': hgbuildmo,
+@@ -413,7 +413,6 @@ cmdclass = {'build': hgbuild,
              'build_ext': hgbuildext,
              'build_py': hgbuildpy,
--            'build_hgextindex': buildhgextindex,
--            'install_scripts': hginstallscripts}
-+            'build_hgextindex': buildhgextindex}
+             'build_hgextindex': buildhgextindex,
+-            'install_scripts': hginstallscripts,
+             'build_hgexe': buildhgexe,
+             }
  
- packages = ['mercurial', 'mercurial.hgweb',
-             'mercurial.httpclient', 'mercurial.httpclient.tests',

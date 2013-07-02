@@ -1,7 +1,7 @@
 Look for *.mo files in /usr/share/locale (FHS compliant)
 --- a/mercurial/i18n.py
 +++ b/mercurial/i18n.py
-@@ -15,7 +15,7 @@
+@@ -15,7 +15,7 @@ else:
      module = __file__
  
  base = os.path.dirname(module)
@@ -12,7 +12,7 @@ Look for *.mo files in /usr/share/locale (FHS compliant)
          break
 --- a/setup.py
 +++ b/setup.py
-@@ -424,7 +424,7 @@
+@@ -472,7 +472,7 @@ if sys.platform.startswith('linux') and
          extmodules.append(inotify)
          packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
  

@@ -1,3 +1,94 @@
+mercurial (2.6.2-1) unstable; urgency=low
+
+  * New upstream release
+  * Delete patch
+    from_upstream__fix_untranslated_prompts_with_translated_responses.patch
+    which is now included upstream
+
+ -- Javi Merino <vicho@debian.org>  Sun, 09 Jun 2013 10:36:59 +0100
+
+mercurial (2.6.1-1) unstable; urgency=low
+
+  [ Jakub Wilk ]
+  * Use canonical URIs for Vcs-* fields.
+
+  [ Javi Merino ]
+  * New upstream release (Closes: #709815)
+  * Blacklist test-histedit-arguments.t and test-websub.t
+  * Fix "Translation missing for yes/no question, but requires translated
+    input from user" by adding patch
+    from_upstream__fix_untranslated_prompts_with_translated_responses.patch
+    (Closes: #707703)
+  * Upload to unstable
+
+ -- Javi Merino <vicho@debian.org>  Wed, 15 May 2013 22:16:29 +0100
+
+mercurial (2.5.2-1) experimental; urgency=low
+
+  * New upstream release
+  * Update hgview breaks.  hgview works with mercurial 2.5 starting from
+    1.7.1-1.
+  * test-convert-git.t works again so add it back to the test-suite we
+    run when building the package
+
+ -- Javi Merino <vicho@debian.org>  Tue, 19 Mar 2013 22:53:20 +0000
+
+mercurial (2.5.1-1) experimental; urgency=low
+
+  * New upstream release
+  * Add test-obsolete.t to the blacklisted tests
+  * hgview 1.5.0-4 doesn't work with mercurial 2.5.1
+
+ -- Javi Merino <vicho@debian.org>  Tue, 12 Feb 2013 21:13:06 +0000
+
+mercurial (2.4.2-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Jan 2013 13:01:27 +0100
+
+mercurial (2.4.1-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 19 Dec 2012 21:10:25 +0000
+
+mercurial (2.4-1) experimental; urgency=low
+
+  * New upstream release
+  * mercurial 2.3.1 was not compatible with hgsubversion 1.4 and
+    mercurial-git 0.3.3
+  * Bump standards-version to 3.9.4 (no change needed)
+  * Add test-commit-amend to the blacklisted tests as it needs styles
+    now
+
+ -- Javi Merino <vicho@debian.org>  Tue, 27 Nov 2012 22:35:33 +0000
+
+mercurial (2.3.1-1) experimental; urgency=low
+
+  * New upstream release
+  * Delete patch for_upstream__hgweb_fix_spelling_error.patch which is
+    now included upstream
+
+ -- Javi Merino <vicho@debian.org>  Sun, 16 Sep 2012 16:05:55 +0100
+
+mercurial (2.3-2) experimental; urgency=low
+
+  * Blacklist test-histedit-revspec as it needs styles
+
+ -- Javi Merino <vicho@debian.org>  Sat, 04 Aug 2012 20:56:38 +0200
+
+mercurial (2.3-1) experimental; urgency=low
+
+  * Don't run the testsuite if nocheck is in DEB_BUILD_OPTIONS
+  * Move to dh v9 to automatically get the Hardening buildflags
+  * Don't Suggest xxdiff, as it's been removed from the archive
+  * New upstream release
+  * Add patch for_upstream__hgweb_fix_spelling_error.patch to fix a
+    spelling error in a manpage
+
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Aug 2012 20:53:44 +0200
+
 mercurial (2.2.2-3) unstable; urgency=low
 
   * Fix "Backport improvement to vimdiff configuration" by adding
