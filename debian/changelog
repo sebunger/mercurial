@@ -1,6 +1,12 @@
 mercurial (2.6.2-1~bpo70+1) wheezy-backports; urgency=low
 
   * Rebuild for wheezy-backports.
+  * Delete patches
+    from_upstream__reinclude_root_directory_in_directory_rename_detectio
+    n.patch, from_upstream__set_vimdiff_to_check_changed.patch,
+    from_upstream__mergetools_vimdiff_issue_warning.patch and
+    from_upstream__mergetools_refine_vimdiff_warning_message.patch which
+    were backported to wheezy and are now included upstream
 
  -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 21:57:41 +0100
 
