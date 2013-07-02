@@ -309,16 +309,16 @@ after strip of merge parent
 2 different branches: 2 strips
 
   $ hg strip 2 4
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
   $ hg glog
-  @  changeset:   2:65bd5f99a4a3
+  o  changeset:   2:65bd5f99a4a3
   |  tag:         tip
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     d
   |
-  o  changeset:   1:ef3a871183d7
+  @  changeset:   1:ef3a871183d7
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     b
@@ -420,6 +420,41 @@ Verify strip protects against stripping wc parent when there are uncommited mods
   $ hg status
   M bar
   ? b
+
+Strip adds, removes, modifies with --keep
+
+  $ touch b
+  $ hg add b
+  $ hg commit -mb
+  $ touch c
+
+... with a clean working dir
+
+  $ hg add c
+  $ hg rm bar
+  $ hg commit -mc
+  $ hg status
+  $ hg strip --keep tip
+  saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
+  $ hg status
+  ! bar
+  ? c
+
+... with a dirty working dir
+
+  $ hg add c
+  $ hg rm bar
+  $ hg commit -mc
+  $ hg status
+  $ echo b > b
+  $ echo d > d
+  $ hg strip --keep tip
+  saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
+  $ hg status
+  M b
+  ! bar
+  ? c
+  ? d
   $ cd ..
 
 stripping many nodes on a complex graph (issue3299)
@@ -430,3 +465,39 @@ stripping many nodes on a complex graph (issue3299)
   $ hg strip 'not ancestors(x)'
   saved backup bundle to $TESTTMP/issue3299/.hg/strip-backup/*-backup.hg (glob)
 
+test hg strip -B bookmark
+
+  $ cd ..
+  $ hg init bookmarks
+  $ cd bookmarks
+  $ hg debugbuilddag '..<2.*1/2:m<2+3:c<m+3:a<2.:b'
+  $ hg bookmark -r 'a' 'todelete'
+  $ hg bookmark -r 'b' 'B'
+  $ hg bookmark -r 'b' 'nostrip'
+  $ hg bookmark -r 'c' 'delete'
+  $ hg up -C todelete
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg strip -B nostrip
+  bookmark 'nostrip' deleted
+  abort: empty revision set
+  [255]
+  $ hg strip -B todelete
+  bookmark 'todelete' deleted
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/bookmarks/.hg/strip-backup/*-backup.hg (glob)
+  $ hg id -ir dcbb326fdec2
+  abort: unknown revision 'dcbb326fdec2'!
+  [255]
+  $ hg id -ir d62d843c9a01
+  d62d843c9a01
+  $ hg bookmarks
+     B                         9:ff43616e5d0f
+     delete                    6:2702dd0c91e7
+  $ hg strip -B delete
+  bookmark 'delete' deleted
+  saved backup bundle to $TESTTMP/bookmarks/.hg/strip-backup/*-backup.hg (glob)
+  $ hg id -ir 6:2702dd0c91e7
+  abort: unknown revision '2702dd0c91e7'!
+  [255]
+
+  $ cd ..

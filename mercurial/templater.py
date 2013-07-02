@@ -6,8 +6,10 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import sys, os
+import sys, os, re
 import util, config, templatefilters, parser, error
+import types
+import minirst
 
 # template parsing
 
@@ -36,18 +38,21 @@ def tokenizer(data):
             if c == 'r':
                 pos += 1
                 c = program[pos]
-                decode = lambda x: x
+                decode = False
             else:
-                decode = lambda x: x.decode('string-escape')
+                decode = True
             pos += 1
             s = pos
             while pos < end: # find closing quote
                 d = program[pos]
-                if d == '\\': # skip over escaped characters
+                if decode and d == '\\': # skip over escaped characters
                     pos += 2
                     continue
                 if d == c:
-                    yield ('string', decode(program[s:pos]), s)
+                    if not decode:
+                        yield ('string', program[s:pos].replace('\\', r'\\'), s)
+                        break
+                    yield ('string', program[s:pos].decode('string-escape'), s)
                     break
                 pos += 1
             else:
@@ -137,6 +142,10 @@ def runsymbol(context, mapping, key):
         v = context._defaults.get(key, '')
     if util.safehasattr(v, '__call__'):
         return v(**mapping)
+    if isinstance(v, types.GeneratorType):
+        v = list(v)
+        mapping[key] = v
+        return v
     return v
 
 def buildfilter(exp, context):
@@ -146,23 +155,38 @@ def buildfilter(exp, context):
 
 def runfilter(context, mapping, data):
     func, data, filt = data
-    return filt(func(context, mapping, data))
+    try:
+        return filt(func(context, mapping, data))
+    except (ValueError, AttributeError, TypeError):
+        if isinstance(data, tuple):
+            dt = data[1]
+        else:
+            dt = data
+        raise util.Abort(_("template filter '%s' is not compatible with "
+                           "keyword '%s'") % (filt.func_name, dt))
 
 def buildmap(exp, context):
     func, data = compileexp(exp[1], context)
     ctmpl = gettemplate(exp[2], context)
     return (runmap, (func, data, ctmpl))
 
+def runtemplate(context, mapping, template):
+    for func, data in template:
+        yield func(context, mapping, data)
+
 def runmap(context, mapping, data):
     func, data, ctmpl = data
     d = func(context, mapping, data)
+    if util.safehasattr(d, '__call__'):
+        d = d()
+
     lm = mapping.copy()
 
     for i in d:
         if isinstance(i, dict):
             lm.update(i)
-            for f, d in ctmpl:
-                yield f(context, lm, d)
+            lm['originalnode'] = mapping.get('node')
+            yield runtemplate(context, lm, ctmpl)
         else:
             # v is not an iterable of dicts, this happen when 'key'
             # has been fully expanded already and format is useless.
@@ -175,11 +199,107 @@ def buildfunc(exp, context):
     if n in funcs:
         f = funcs[n]
         return (f, args)
+    if n in templatefilters.funcs:
+        f = templatefilters.funcs[n]
+        return (f, args)
     if n in context._filters:
         if len(args) != 1:
             raise error.ParseError(_("filter %s expects one argument") % n)
         f = context._filters[n]
         return (runfilter, (args[0][0], args[0][1], f))
+
+def get(context, mapping, args):
+    if len(args) != 2:
+        # i18n: "get" is a keyword
+        raise error.ParseError(_("get() expects two arguments"))
+
+    dictarg = args[0][0](context, mapping, args[0][1])
+    if not util.safehasattr(dictarg, 'get'):
+        # i18n: "get" is a keyword
+        raise error.ParseError(_("get() expects a dict as first argument"))
+
+    key = args[1][0](context, mapping, args[1][1])
+    yield dictarg.get(key)
+
+def join(context, mapping, args):
+    if not (1 <= len(args) <= 2):
+        # i18n: "join" is a keyword
+        raise error.ParseError(_("join expects one or two arguments"))
+
+    joinset = args[0][0](context, mapping, args[0][1])
+    if util.safehasattr(joinset, '__call__'):
+        jf = joinset.joinfmt
+        joinset = [jf(x) for x in joinset()]
+
+    joiner = " "
+    if len(args) > 1:
+        joiner = args[1][0](context, mapping, args[1][1])
+
+    first = True
+    for x in joinset:
+        if first:
+            first = False
+        else:
+            yield joiner
+        yield x
+
+def sub(context, mapping, args):
+    if len(args) != 3:
+        # i18n: "sub" is a keyword
+        raise error.ParseError(_("sub expects three arguments"))
+
+    pat = stringify(args[0][0](context, mapping, args[0][1]))
+    rpl = stringify(args[1][0](context, mapping, args[1][1]))
+    src = stringify(args[2][0](context, mapping, args[2][1]))
+    src = stringify(runtemplate(context, mapping,
+                                compiletemplate(src, context)))
+    yield re.sub(pat, rpl, src)
+
+def if_(context, mapping, args):
+    if not (2 <= len(args) <= 3):
+        # i18n: "if" is a keyword
+        raise error.ParseError(_("if expects two or three arguments"))
+
+    test = stringify(args[0][0](context, mapping, args[0][1]))
+    if test:
+        t = stringify(args[1][0](context, mapping, args[1][1]))
+        yield runtemplate(context, mapping, compiletemplate(t, context))
+    elif len(args) == 3:
+        t = stringify(args[2][0](context, mapping, args[2][1]))
+        yield runtemplate(context, mapping, compiletemplate(t, context))
+
+def ifeq(context, mapping, args):
+    if not (3 <= len(args) <= 4):
+        # i18n: "ifeq" is a keyword
+        raise error.ParseError(_("ifeq expects three or four arguments"))
+
+    test = stringify(args[0][0](context, mapping, args[0][1]))
+    match = stringify(args[1][0](context, mapping, args[1][1]))
+    if test == match:
+        t = stringify(args[2][0](context, mapping, args[2][1]))
+        yield runtemplate(context, mapping, compiletemplate(t, context))
+    elif len(args) == 4:
+        t = stringify(args[3][0](context, mapping, args[3][1]))
+        yield runtemplate(context, mapping, compiletemplate(t, context))
+
+def label(context, mapping, args):
+    if len(args) != 2:
+        # i18n: "label" is a keyword
+        raise error.ParseError(_("label expects two arguments"))
+
+    # ignore args[0] (the label string) since this is supposed to be a a no-op
+    t = stringify(args[1][0](context, mapping, args[1][1]))
+    yield runtemplate(context, mapping, compiletemplate(t, context))
+
+def rstdoc(context, mapping, args):
+    if len(args) != 2:
+        # i18n: "rstdoc" is a keyword
+        raise error.ParseError(_("rstdoc expects two arguments"))
+
+    text = stringify(args[0][0](context, mapping, args[0][1]))
+    style = stringify(args[1][0](context, mapping, args[1][1]))
+
+    return minirst.format(text, style=style, keep=['verbose'])
 
 methods = {
     "string": lambda e, c: (runstring, e[1]),
@@ -192,6 +312,13 @@ methods = {
     }
 
 funcs = {
+    "get": get,
+    "if": if_,
+    "ifeq": ifeq,
+    "join": join,
+    "label": label,
+    "rstdoc": rstdoc,
+    "sub": sub,
 }
 
 # template engine
@@ -263,8 +390,7 @@ class engine(object):
         '''Perform expansion. t is name of map element to expand.
         mapping contains added elements for use during expansion. Is a
         generator.'''
-        return _flatten(func(self, mapping, data) for func, data in
-                         self._load(t))
+        return _flatten(runtemplate(self, mapping, self._load(t)))
 
 engines = {'default': engine}
 
@@ -295,6 +421,8 @@ class templater(object):
         conf.read(mapfile)
 
         for key, val in conf[''].items():
+            if not val:
+                raise SyntaxError(_('%s: missing value') % conf.source('', key))
             if val[0] in "'\"":
                 try:
                     self.cache[key] = parsestring(val)
@@ -312,7 +440,7 @@ class templater(object):
 
     def load(self, t):
         '''Get the template for the given template name. Use a local cache.'''
-        if not t in self.cache:
+        if t not in self.cache:
             try:
                 self.cache[t] = util.readfile(self.map[t][1])
             except KeyError, inst:

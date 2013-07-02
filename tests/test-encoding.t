@@ -44,6 +44,10 @@ these should work
   marked working directory as branch \xe9 (esc)
   (branches are permanent and global, did you want a bookmark?)
   $ HGENCODING=latin-1 hg ci -m 'latin1 branch'
+  $ hg -q rollback
+  $ HGENCODING=latin-1 hg branch
+  \xe9 (esc)
+  $ HGENCODING=latin-1 hg ci -m 'latin1 branch'
   $ rm .hg/branch
 
 hg log (ascii)
@@ -248,4 +252,5 @@ Test roundtrip encoding of lookup tables when not using UTF-8 (issue2763)
 
   $ HGENCODING=latin-1 hg up `cat latin-1-tag`
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
- 
+
+  $ cd ..

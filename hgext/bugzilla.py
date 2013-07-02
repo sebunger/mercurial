@@ -45,7 +45,7 @@ Access via XMLRPC/email uses XMLRPC to query Bugzilla, but sends
 email to the Bugzilla email interface to submit comments to bugs.
 The From: address in the email is set to the email address of the Mercurial
 user, so the comment appears to come from the Mercurial user. In the event
-that the Mercurial user email is not recognised by Bugzilla as a Bugzilla
+that the Mercurial user email is not recognized by Bugzilla as a Bugzilla
 user, the email associated with the Bugzilla username used to log into
 Bugzilla is used instead as the source of the comment. Marking bugs fixed
 works on all supported Bugzilla versions.
@@ -53,7 +53,7 @@ works on all supported Bugzilla versions.
 Configuration items common to all access modes:
 
 bugzilla.version
-  This access type to use. Values recognised are:
+  The access type to use. Values recognized are:
 
   :``xmlrpc``:       Bugzilla XMLRPC interface.
   :``xmlrpc+email``: Bugzilla XMLRPC and email interfaces.
@@ -282,6 +282,8 @@ from mercurial.node import short
 from mercurial import cmdutil, mail, templater, util
 import re, time, urlparse, xmlrpclib
 
+testedwith = 'internal'
+
 class bzaccess(object):
     '''Base class for access to Bugzilla.'''
 
@@ -301,7 +303,7 @@ class bzaccess(object):
     # Methods to be implemented by access classes.
     #
     # 'bugs' is a dict keyed on bug id, where values are a dict holding
-    # updates to bug state. Recognised dict keys are:
+    # updates to bug state. Recognized dict keys are:
     #
     # 'hours': Value, float containing work hours to be updated.
     # 'fix':   If key present, bug is to be marked fixed. Value ignored.
@@ -416,7 +418,8 @@ class bzmysql(bzaccess):
         for id in bugs.keys():
             self.ui.status(_('  bug %s\n') % id)
             cmdfmt = self.ui.config('bugzilla', 'notify', self.default_notify)
-            bzdir = self.ui.config('bugzilla', 'bzdir', '/var/www/html/bugzilla')
+            bzdir = self.ui.config('bugzilla', 'bzdir',
+                                   '/var/www/html/bugzilla')
             try:
                 # Backwards-compatible with old notify string, which
                 # took one string. This will throw with a new format
@@ -468,8 +471,8 @@ class bzmysql(bzaccess):
                 userid = self.get_user_id(defaultuser)
                 user = defaultuser
             except KeyError:
-                raise util.Abort(_('cannot find bugzilla user id for %s or %s') %
-                                 (user, defaultuser))
+                raise util.Abort(_('cannot find bugzilla user id for %s or %s')
+                                 % (user, defaultuser))
         return (user, userid)
 
     def updatebug(self, bugid, newstate, text, committer):
@@ -513,7 +516,7 @@ class bzmysql_3_0(bzmysql_2_18):
             raise util.Abort(_('unknown database schema'))
         return ids[0][0]
 
-# Buzgilla via XMLRPC interface.
+# Bugzilla via XMLRPC interface.
 
 class cookietransportrequest(object):
     """A Transport request method that retains cookies over its lifetime.
@@ -654,8 +657,9 @@ class bzxmlrpc(bzaccess):
         if self.bzvermajor >= 4:
             args['ids'] = [bugid]
             args['comment'] = {'body' : text}
-            args['status'] = self.fixstatus
-            args['resolution'] = self.fixresolution
+            if 'fix' in newstate:
+                args['status'] = self.fixstatus
+                args['resolution'] = self.fixresolution
             self.bzproxy.Bug.update(args)
         else:
             if 'fix' in newstate:
@@ -909,4 +913,3 @@ def hook(ui, repo, hooktype, node=None, **kwargs):
             bz.notify(bugs, util.email(ctx.user()))
     except Exception, e:
         raise util.Abort(_('Bugzilla error: %s') % e)
-

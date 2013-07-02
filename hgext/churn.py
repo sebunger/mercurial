@@ -13,6 +13,8 @@ from mercurial import patch, cmdutil, scmutil, util, templater, commands
 import os
 import time, datetime
 
+testedwith = 'internal'
+
 def maketemplater(ui, repo, tmpl):
     tmpl = templater.parsestring(tmpl, quoted=False)
     try:
@@ -67,7 +69,7 @@ def countrate(ui, repo, amap, *pats, **opts):
         else:
             parents = ctx.parents()
             if len(parents) > 1:
-                ui.note(_('Revision %d is a merge, ignoring...\n') % (rev,))
+                ui.note(_('revision %d is a merge, ignoring...\n') % (rev,))
                 return
 
             ctx1 = parents[0]
@@ -142,8 +144,10 @@ def churn(ui, repo, *pats, **opts):
     if not rate:
         return
 
-    sortkey = ((not opts.get('sort')) and (lambda x: -sum(x[1])) or None)
-    rate.sort(key=sortkey)
+    if opts.get('sort'):
+        rate.sort()
+    else:
+        rate.sort(key=lambda x: (-sum(x[1]), x))
 
     # Be careful not to have a zero maxcount (issue833)
     maxcount = float(max(sum(v) for k, v in rate)) or 1.0
@@ -195,3 +199,5 @@ cmdtable = {
           ] + commands.walkopts,
          _("hg churn [-d DATE] [-r REV] [--aliases FILE] [FILE]")),
 }
+
+commands.inferrepo += " churn"

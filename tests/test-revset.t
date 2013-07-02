@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" no-msys || exit 80 # MSYS will translate /a/b/c/ as if it was a real file path
-
   $ HGENCODING=utf-8
   $ export HGENCODING
 
@@ -32,6 +30,16 @@
   (branches are permanent and global, did you want a bookmark?)
   $ hg ci -Aqm2 -u Bob
 
+  $ hg log -r "extra('branch', 'a-b-c-')" --template '{rev}\n'
+  2
+  $ hg log -r "extra('branch')" --template '{rev}\n'
+  0
+  1
+  2
+  $ hg log -r "extra('branch', 're:a')" --template '{rev} {branch}\n'
+  0 a
+  2 a-b-c-
+
   $ hg co 1
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg branch +a+b+c+
@@ -49,8 +57,8 @@
 
   $ hg co 3
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg branch /a/b/c/
-  marked working directory as branch /a/b/c/
+  $ hg branch !a/b/c/
+  marked working directory as branch !a/b/c/
   (branches are permanent and global, did you want a bookmark?)
   $ hg ci -Aqm"5 bug"
 
@@ -70,9 +78,6 @@
   $ hg branch all
   marked working directory as branch all
   (branches are permanent and global, did you want a bookmark?)
-  $ hg ci --close-branch -Aqm8
-  abort: can only close branch heads
-  [255]
 
   $ hg co 4
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -210,22 +215,55 @@ quoting needed
   $ log 'date(2005) and 1::'
   4
 
+ancestor can accept 0 or more arguments
+
+  $ log 'ancestor()'
   $ log 'ancestor(1)'
-  hg: parse error: ancestor requires two arguments
-  [255]
+  1
   $ log 'ancestor(4,5)'
   1
   $ log 'ancestor(4,5) and 4'
+  $ log 'ancestor(0,0,1,3)'
+  0
+  $ log 'ancestor(3,1,5,3,5,1)'
+  1
+  $ log 'ancestor(0,1,3,5)'
+  0
+  $ log 'ancestor(1,2,3,4,5)'
+  1
   $ log 'ancestors(5)'
   0
   1
   3
   5
+  $ log 'ancestor(ancestors(5))'
+  0
   $ log 'author(bob)'
   2
+  $ log 'author("re:bob|test")'
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
   $ log 'branch(é)'
   8
   9
+  $ log 'branch(a)'
+  0
+  $ hg log -r 'branch("re:a")' --template '{rev} {branch}\n'
+  0 a
+  2 a-b-c-
+  3 +a+b+c+
+  4 -a-b-c-
+  5 !a/b/c/
+  6 _a_b_c_
+  7 .a.b.c.
   $ log 'children(ancestor(4,5))'
   2
   3
@@ -303,6 +341,9 @@ quoting needed
   0
   $ log 'merge()'
   6
+  $ log 'branchpoint()'
+  1
+  4
   $ log 'modifies(b)'
   4
   $ log 'modifies("path:b")'
@@ -333,6 +374,13 @@ quoting needed
   $ log 'parents(merge())'
   4
   5
+  $ log 'p1(branchpoint())'
+  0
+  2
+  $ log 'p2(branchpoint())'
+  $ log 'parents(branchpoint())'
+  0
+  2
   $ log 'removes(a)'
   2
   6
@@ -343,6 +391,17 @@ quoting needed
   4
   3
   2
+  $ log 'reverse(all())'
+  9
+  8
+  7
+  6
+  5
+  4
+  3
+  2
+  1
+  0
   $ log 'rev(5)'
   5
   $ log 'sort(limit(reverse(all()), 3))'
@@ -362,6 +421,20 @@ quoting needed
   6
   $ log 'tag(tip)'
   9
+
+we can use patterns when searching for tags
+
+  $ log 'tag("1..*")'
+  abort: tag '1..*' does not exist
+  [255]
+  $ log 'tag("re:1..*")'
+  6
+  $ log 'tag("re:[0-9].[0-9]")'
+  6
+  $ log 'tag("literal:1.0")'
+  6
+  $ log 'tag("re:0..*")'
+
   $ log 'tag(unknown)'
   abort: tag 'unknown' does not exist
   [255]
@@ -683,6 +756,45 @@ issue2549 - correct optimizations
   $ log 'max(1 or 2) and not 2'
   $ log 'min(1 or 2) and not 1'
   $ log 'last(1 or 2, 1) and not 2'
+
+test revsets started with 40-chars hash (issue3669)
+
+  $ ISSUE3669_TIP=`hg tip --template '{node}'`
+  $ hg log -r "${ISSUE3669_TIP}" --template '{rev}\n'
+  9
+  $ hg log -r "${ISSUE3669_TIP}^" --template '{rev}\n'
+  8
+
+test or-ed indirect predicates (issue3775)
+
+  $ log '6 or 6^1' | sort
+  5
+  6
+  $ log '6^1 or 6' | sort
+  5
+  6
+  $ log '4 or 4~1' | sort
+  2
+  4
+  $ log '4~1 or 4' | sort
+  2
+  4
+  $ log '(0 or 2):(4 or 6) or 0 or 6' | sort
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  $ log '0 or 6 or (0 or 2):(4 or 6)' | sort
+  0
+  1
+  2
+  3
+  4
+  5
+  6
 
 tests for 'remote()' predicate:
 #.  (csets in remote) (id)            (remote)

@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+  $ "$TESTDIR/hghave" killdaemons || exit 80
 
 Preparing the subrepository 'sub'
 
@@ -28,6 +28,9 @@ Cleaning both repositories, just as a clone -U
   $ hg up -C -R main null
   0 files updated, 0 files merged, 3 files removed, 0 files unresolved
   $ rm -rf main/sub
+
+hide outer repo
+  $ hg init
 
 Serving them both using hgweb
 
@@ -67,13 +70,11 @@ subrepo debug for 'main' clone
    source   ../sub
    revision 863c1745b441bd97a8c4a096e87793073f4fb215
 
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 
 subrepo paths with ssh urls
 
-  $ cp "$TESTDIR/dummyssh" "$BINDIR/ssh"
-
-  $ hg clone ssh://user@dummy/cloned sshclone
+  $ hg clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/cloned sshclone
   requesting all changes
   adding changesets
   adding manifests
@@ -88,7 +89,7 @@ subrepo paths with ssh urls
   added 1 changesets with 1 changes to 1 files
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-  $ hg -R sshclone push ssh://user@dummy/$TESTTMP/cloned
+  $ hg -R sshclone push -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/`pwd`/cloned
   pushing to ssh://user@dummy/$TESTTMP/cloned
   pushing subrepo sub to ssh://user@dummy/$TESTTMP/sub
   searching for changes
@@ -102,4 +103,3 @@ subrepo paths with ssh urls
   Got arguments 1:user@dummy 2:hg -R sub serve --stdio
   Got arguments 1:user@dummy 2:hg -R $TESTTMP/cloned serve --stdio
   Got arguments 1:user@dummy 2:hg -R $TESTTMP/sub serve --stdio
-  $ rm "$BINDIR/ssh"

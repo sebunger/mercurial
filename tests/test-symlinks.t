@@ -46,7 +46,7 @@ test what happens if we want to trick hg
   $ rm dir/a.o
   $ rm dir/b.o
   $ mkdir dir/a.o
-  $ ln -s nonexist dir/b.o
+  $ ln -s nonexistent dir/b.o
   $ mkfifo a.c
 
 it should show a.c, dir/a.o and dir/b.o deleted
@@ -82,7 +82,7 @@ try symlink outside repo to file inside
 this should fail
 
   $ hg status ../z && { echo hg mistakenly exited with status 0; exit 1; } || :
-  abort: ../z not under root
+  abort: ../z not under root '$TESTTMP/x'
   $ cd ..
 
 
@@ -149,6 +149,10 @@ directory moved and symlinked
   adding foo/a
   $ mv foo bar
   $ ln -s bar foo
+  $ hg status
+  ! foo/a
+  ? bar/a
+  ? foo
 
 now addremove should remove old files
 
@@ -253,3 +257,4 @@ Issue995: hg copy -A incorrectly handles symbolic links
   $ mv dirlink newdir/dirlink
   $ hg mv -A dirlink newdir/dirlink
 
+  $ cd ..

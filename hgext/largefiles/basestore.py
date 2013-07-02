@@ -8,7 +8,6 @@
 
 '''base class for store implementations and store-related utility code'''
 
-import binascii
 import re
 
 from mercurial import util, node, hg
@@ -26,14 +25,8 @@ class StoreError(Exception):
         self.detail = detail
 
     def longmessage(self):
-        if self.url:
-            return ('%s: %s\n'
-                    '(failed URL: %s)\n'
-                    % (self.filename, self.detail, self.url))
-        else:
-            return ('%s: %s\n'
-                    '(no default or default-push path set in hgrc)\n'
-                    % (self.filename, self.detail))
+        return (_("error getting id %s from url %s for file %s: %s\n") %
+                 (self.hash, self.url, self.filename, self.detail))
 
     def __str__(self):
         return "%s: %s" % (self.url, self.detail)
@@ -45,17 +38,18 @@ class basestore(object):
         self.url = url
 
     def put(self, source, hash):
-        '''Put source file into the store under <filename>/<hash>.'''
+        '''Put source file into the store so it can be retrieved by hash.'''
         raise NotImplementedError('abstract method')
 
-    def exists(self, hash):
-        '''Check to see if the store contains the given hash.'''
+    def exists(self, hashes):
+        '''Check to see if the store contains the given hashes. Given an
+        iterable of hashes it returns a mapping from hash to bool.'''
         raise NotImplementedError('abstract method')
 
     def get(self, files):
         '''Get the specified largefiles from the store and write to local
         files under repo.root.  files is a list of (filename, hash)
-        tuples.  Return (success, missing), lists of files successfuly
+        tuples.  Return (success, missing), lists of files successfully
         downloaded and those not found in the store.  success is a list
         of (filename, hash) tuples; missing is a list of filenames that
         we could not get.  (The detailed error message will already have
@@ -65,32 +59,42 @@ class basestore(object):
         missing = []
         ui = self.ui
 
+        util.makedirs(lfutil.storepath(self.repo, ''))
+
         at = 0
+        available = self.exists(set(hash for (_filename, hash) in files))
         for filename, hash in files:
             ui.progress(_('getting largefiles'), at, unit='lfile',
                 total=len(files))
             at += 1
             ui.note(_('getting %s:%s\n') % (filename, hash))
 
+            if not available.get(hash):
+                ui.warn(_('%s: largefile %s not available from %s\n')
+                        % (filename, hash, self.url))
+                missing.append(filename)
+                continue
+
             storefilename = lfutil.storepath(self.repo, hash)
-            tmpfile = util.atomictempfile(storefilename,
+            tmpfile = util.atomictempfile(storefilename + '.tmp',
                                           createmode=self.repo.store.createmode)
 
             try:
-                hhash = binascii.hexlify(self._getfile(tmpfile, filename, hash))
+                hhash = self._getfile(tmpfile, filename, hash)
             except StoreError, err:
                 ui.warn(err.longmessage())
                 hhash = ""
+            tmpfile.close()
 
             if hhash != hash:
                 if hhash != "":
                     ui.warn(_('%s: data corruption (expected %s, got %s)\n')
                             % (filename, hash, hhash))
-                tmpfile.discard() # no-op if it's already closed
+                util.unlink(storefilename + '.tmp')
                 missing.append(filename)
                 continue
 
-            tmpfile.close()
+            util.rename(storefilename + '.tmp', storefilename)
             lfutil.linktousercache(self.repo, hash)
             success.append((filename, hhash))
 
@@ -101,40 +105,47 @@ class basestore(object):
         '''Verify the existence (and, optionally, contents) of every big
         file revision referenced by every changeset in revs.
         Return 0 if all is well, non-zero on any errors.'''
-        write = self.ui.write
         failed = False
 
-        write(_('searching %d changesets for largefiles\n') % len(revs))
+        self.ui.status(_('searching %d changesets for largefiles\n') %
+                       len(revs))
         verified = set()                # set of (filename, filenode) tuples
 
         for rev in revs:
             cctx = self.repo[rev]
             cset = "%d:%s" % (cctx.rev(), node.short(cctx.node()))
 
-            failed = util.any(self._verifyfile(
-                cctx, cset, contents, standin, verified) for standin in cctx)
+            for standin in cctx:
+                if self._verifyfile(cctx, cset, contents, standin, verified):
+                    failed = True
 
         numrevs = len(verified)
         numlfiles = len(set([fname for (fname, fnode) in verified]))
         if contents:
-            write(_('verified contents of %d revisions of %d largefiles\n')
-                  % (numrevs, numlfiles))
+            self.ui.status(
+                _('verified contents of %d revisions of %d largefiles\n')
+                % (numrevs, numlfiles))
         else:
-            write(_('verified existence of %d revisions of %d largefiles\n')
-                  % (numrevs, numlfiles))
-
+            self.ui.status(
+                _('verified existence of %d revisions of %d largefiles\n')
+                % (numrevs, numlfiles))
         return int(failed)
 
     def _getfile(self, tmpfile, filename, hash):
         '''Fetch one revision of one file from the store and write it
         to tmpfile.  Compute the hash of the file on-the-fly as it
-        downloads and return the binary hash.  Close tmpfile.  Raise
+        downloads and return the hash.  Close tmpfile.  Raise
         StoreError if unable to download the file (e.g. it does not
         exist in the store).'''
         raise NotImplementedError('abstract method')
 
     def _verifyfile(self, cctx, cset, contents, standin, verified):
         '''Perform the actual verification of a file in the store.
+        'cset' is only used in warnings.
+        'contents' controls verification of content hash.
+        'standin' is the standin path of the largefile to verify.
+        'verified' is maintained as a set of already verified files.
+        Returns _true_ if it is a standin and any problems are found!
         '''
         raise NotImplementedError('abstract method')
 
@@ -169,6 +180,7 @@ def _openstore(repo, remote=None, put=False):
             path = ''
             remote = repo
         else:
+            path, _branches = hg.parseurl(path)
             remote = hg.peer(repo, {}, path)
 
     # The path could be a scheme so use Mercurial's normal functionality

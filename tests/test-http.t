@@ -17,9 +17,15 @@
 
 Test server address cannot be reused
 
+#if windows
+  $ hg serve -p $HGPORT1 2>&1
+  abort: cannot start server at ':$HGPORT1': * (glob)
+  [255]
+#else
   $ hg serve -p $HGPORT1 2>&1
   abort: cannot start server at ':$HGPORT1': Address already in use
   [255]
+#endif
   $ cd ..
   $ cat hg1.pid hg2.pid >> $DAEMON_PIDS
 
@@ -71,6 +77,24 @@ clone via pull
   adding bar
   $ cd ..
 
+clone over http with --update
+
+  $ hg clone http://localhost:$HGPORT1/ updated --update 0
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 5 changes to 5 files
+  updating to branch default
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg log -r . -R updated
+  changeset:   0:8b6053c928fe
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     1
+  
+  $ rm -rf updated
+
 incoming via HTTP
 
   $ hg clone http://localhost:$HGPORT1/ --rev 0 partial
@@ -93,7 +117,7 @@ pull
 
   $ cd copy-pull
   $ echo '[hooks]' >> .hg/hgrc
-  $ echo 'changegroup = python "$TESTDIR"/printenv.py changegroup' >> .hg/hgrc
+  $ echo "changegroup = python \"$TESTDIR/printenv.py\" changegroup" >> .hg/hgrc
   $ hg pull
   pulling from http://localhost:$HGPORT1/
   searching for changes
@@ -101,7 +125,7 @@ pull
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=http://localhost:$HGPORT1/ 
+  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=http://localhost:$HGPORT1/
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -123,7 +147,7 @@ test http authentication
   >     if not auth:
   >         raise common.ErrorResponse(common.HTTP_UNAUTHORIZED, 'who',
   >                 [('WWW-Authenticate', 'Basic Realm="mercurial"')])
-  >     if base64.b64decode(auth.split()[1]).split(':', 1) != ['user', 'pass']: 
+  >     if base64.b64decode(auth.split()[1]).split(':', 1) != ['user', 'pass']:
   >         raise common.ErrorResponse(common.HTTP_FORBIDDEN, 'no')
   > def extsetup():
   >     common.permhooks.insert(0, perform_authentication)
@@ -132,24 +156,24 @@ test http authentication
   >    --config server.preferuncompressed=True
   $ cat pid >> $DAEMON_PIDS
 
-  $ hg id http://localhost:$HGPORT2/  
+  $ hg id http://localhost:$HGPORT2/
   abort: http authorization required
   [255]
-  $ hg id http://user@localhost:$HGPORT2/ 
+  $ hg id http://user@localhost:$HGPORT2/
   abort: http authorization required
   [255]
   $ hg id http://user:pass@localhost:$HGPORT2/
   5fed3813f7f5
-  $ echo '[auth]' >> .hg/hgrc 
+  $ echo '[auth]' >> .hg/hgrc
   $ echo 'l.schemes=http' >> .hg/hgrc
   $ echo 'l.prefix=lo' >> .hg/hgrc
   $ echo 'l.username=user' >> .hg/hgrc
   $ echo 'l.password=pass' >> .hg/hgrc
-  $ hg id http://localhost:$HGPORT2/ 
+  $ hg id http://localhost:$HGPORT2/
   5fed3813f7f5
-  $ hg id http://localhost:$HGPORT2/  
+  $ hg id http://localhost:$HGPORT2/
   5fed3813f7f5
-  $ hg id http://user@localhost:$HGPORT2/ 
+  $ hg id http://user@localhost:$HGPORT2/
   5fed3813f7f5
   $ hg clone http://user:pass@localhost:$HGPORT2/ dest 2>&1
   streaming all changes
@@ -158,7 +182,7 @@ test http authentication
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-  $ hg id http://user2@localhost:$HGPORT2/ 
+  $ hg id http://user2@localhost:$HGPORT2/
   abort: http authorization required
   [255]
   $ hg id http://user:pass2@localhost:$HGPORT2/
@@ -170,7 +194,10 @@ test http authentication
 clone of serve with repo in root and unserved subrepo (issue2970)
 
   $ hg --cwd test init sub
-  $ hg --cwd test/sub tag something
+  $ echo empty > test/sub/empty
+  $ hg --cwd test/sub add empty
+  $ hg --cwd test/sub commit -qm 'add empty'
+  $ hg --cwd test/sub tag -r 0 something
   $ echo sub = sub > test/.hgsub
   $ hg --cwd test add .hgsub
   $ hg --cwd test commit -qm 'add subrepo'

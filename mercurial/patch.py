@@ -6,7 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import cStringIO, email.Parser, os, errno, re
+import cStringIO, email.Parser, os, errno, re, posixpath
 import tempfile, zlib, shutil
 
 from i18n import _
@@ -245,7 +245,7 @@ def extract(ui, fileobj):
                         tmpfp.write('\n')
             elif not diffs_seen and message and content_type == 'text/plain':
                 message += '\n' + payload
-    except:
+    except: # re-raises
         tmpfp.close()
         os.unlink(tmpname)
         raise
@@ -314,7 +314,7 @@ def readgitpatch(lr):
     gitpatches = []
     for line in lr:
         line = line.rstrip(' \r\n')
-        if line.startswith('diff --git'):
+        if line.startswith('diff --git a/'):
             m = gitre.match(line)
             if m:
                 if gp:
@@ -439,11 +439,7 @@ class fsbackend(abstractbackend):
                 util.setflags(self._join(fname), False, True)
 
     def unlink(self, fname):
-        try:
-            util.unlinkpath(self._join(fname))
-        except OSError, inst:
-            if inst.errno != errno.ENOENT:
-                raise
+        util.unlinkpath(self._join(fname), ignoremissing=True)
 
     def writerej(self, fname, failed, total, lines):
         fname = fname + ".rej"
@@ -534,7 +530,7 @@ class filestore(object):
         if fname in self.data:
             return self.data[fname]
         if not self.opener or fname not in self.files:
-            raise IOError()
+            raise IOError
         fn, mode, copied = self.files[fname]
         return self.opener.read(fn), mode, copied
 
@@ -560,7 +556,7 @@ class repobackend(abstractbackend):
         try:
             fctx = self.ctx[fname]
         except error.LookupError:
-            raise IOError()
+            raise IOError
         flags = fctx.flags()
         return fctx.data(), ('l' in flags, 'x' in flags)
 
@@ -634,7 +630,7 @@ class patchfile(object):
             if self.mode is None:
                 self.mode = (False, False)
         if self.missing:
-             self.ui.warn(_("unable to find '%s' for patching\n") % self.fname)
+            self.ui.warn(_("unable to find '%s' for patching\n") % self.fname)
 
         self.hash = {}
         self.dirty = 0
@@ -858,7 +854,8 @@ class hunk(object):
             self.lenb = int(self.lenb)
         self.starta = int(self.starta)
         self.startb = int(self.startb)
-        diffhelpers.addlines(lr, self.hunk, self.lena, self.lenb, self.a, self.b)
+        diffhelpers.addlines(lr, self.hunk, self.lena, self.lenb, self.a,
+                             self.b)
         # if we hit eof before finishing out the hunk, the last line will
         # be zero length.  Lets try to fix it up.
         while len(self.hunk[-1]) == 0:
@@ -1006,7 +1003,7 @@ class hunk(object):
 
             bot = min(fuzz, bot)
             top = min(fuzz, top)
-            return old[top:len(old)-bot], new[top:len(new)-bot], top
+            return old[top:len(old) - bot], new[top:len(new) - bot], top
         return old, new, 0
 
     def fuzzit(self, fuzz, toponly):
@@ -1040,12 +1037,13 @@ class binhunk(object):
             hunk.append(l)
             return l.rstrip('\r\n')
 
-        line = getline(lr, self.hunk)
-        while line and not line.startswith('literal '):
+        while True:
             line = getline(lr, self.hunk)
-        if not line:
-            raise PatchError(_('could not extract "%s" binary data')
-                             % self._fname)
+            if not line:
+                raise PatchError(_('could not extract "%s" binary data')
+                                 % self._fname)
+            if line.startswith('literal '):
+                break
         size = int(line[8:].rstrip())
         dec = []
         line = getline(lr, self.hunk)
@@ -1213,7 +1211,7 @@ def iterhunks(fp):
                 emitfile = False
                 yield 'file', (afile, bfile, h, gp and gp.copy() or None)
             yield 'hunk', h
-        elif x.startswith('diff --git'):
+        elif x.startswith('diff --git a/'):
             m = gitre.match(x.rstrip(' \r\n'))
             if not m:
                 continue
@@ -1512,44 +1510,6 @@ def changedfiles(ui, repo, patchpath, strip=1):
     finally:
         fp.close()
 
-def b85diff(to, tn):
-    '''print base85-encoded binary diff'''
-    def gitindex(text):
-        if not text:
-            return hex(nullid)
-        l = len(text)
-        s = util.sha1('blob %d\0' % l)
-        s.update(text)
-        return s.hexdigest()
-
-    def fmtline(line):
-        l = len(line)
-        if l <= 26:
-            l = chr(ord('A') + l - 1)
-        else:
-            l = chr(l - 26 + ord('a') - 1)
-        return '%c%s\n' % (l, base85.b85encode(line, True))
-
-    def chunk(text, csize=52):
-        l = len(text)
-        i = 0
-        while i < l:
-            yield text[i:i + csize]
-            i += csize
-
-    tohash = gitindex(to)
-    tnhash = gitindex(tn)
-    if tohash == tnhash:
-        return ""
-
-    # TODO: deltas
-    ret = ['index %s..%s\nGIT binary patch\nliteral %s\n' %
-           (tohash, tnhash, len(tn))]
-    for l in chunk(zlib.compress(tn)):
-        ret.append(fmtline(l))
-    ret.append('\n')
-    return ''.join(ret)
-
 class GitDiffRequired(Exception):
     pass
 
@@ -1595,12 +1555,12 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None,
 
     def lrugetfilectx():
         cache = {}
-        order = []
+        order = util.deque()
         def getfilectx(f, ctx):
             fctx = ctx.filectx(f, filelog=cache.get(f))
             if f not in cache:
                 if len(cache) > 20:
-                    del cache[order.pop(0)]
+                    del cache[order.popleft()]
                 cache[f] = fctx.filelog()
             else:
                 order.remove(f)
@@ -1620,21 +1580,21 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None,
         return []
 
     revs = None
-    if not repo.ui.quiet:
-        hexfunc = repo.ui.debugflag and hex or short
-        revs = [hexfunc(node) for node in [node1, node2] if node]
+    hexfunc = repo.ui.debugflag and hex or short
+    revs = [hexfunc(node) for node in [node1, node2] if node]
 
     copy = {}
     if opts.git or opts.upgrade:
         copy = copies.pathcopies(ctx1, ctx2)
 
-    difffn = lambda opts, losedata: trydiff(repo, revs, ctx1, ctx2,
-                 modified, added, removed, copy, getfilectx, opts, losedata, prefix)
+    def difffn(opts, losedata):
+        return trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
+                       copy, getfilectx, opts, losedata, prefix)
     if opts.upgrade and not opts.git:
         try:
             def losedata(fn):
                 if not losedatafn or not losedatafn(fn=fn):
-                    raise GitDiffRequired()
+                    raise GitDiffRequired
             # Buffer the whole output until we are sure it can be generated
             return list(difffn(opts.copy(git=False), losedata))
         except GitDiffRequired:
@@ -1665,7 +1625,7 @@ def difflabel(func, *args, **kw):
                 if line.startswith('@'):
                     head = False
             else:
-                if line and not line[0] in ' +-@\\':
+                if line and line[0] not in ' +-@\\':
                     head = True
             stripline = line
             if not head and line and line[0] in '+-':
@@ -1687,17 +1647,45 @@ def diffui(*args, **kw):
     '''like diff(), but yields 2-tuples of (output, label) for ui.write()'''
     return difflabel(diff, *args, **kw)
 
-
-def _addmodehdr(header, omode, nmode):
-    if omode != nmode:
-        header.append('old mode %s\n' % omode)
-        header.append('new mode %s\n' % nmode)
-
 def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
             copy, getfilectx, opts, losedatafn, prefix):
 
     def join(f):
-        return os.path.join(prefix, f)
+        return posixpath.join(prefix, f)
+
+    def addmodehdr(header, omode, nmode):
+        if omode != nmode:
+            header.append('old mode %s\n' % omode)
+            header.append('new mode %s\n' % nmode)
+
+    def addindexmeta(meta, revs):
+        if opts.git:
+            i = len(revs)
+            if i==2:
+                meta.append('index %s..%s\n' % tuple(revs))
+            elif i==3:
+                meta.append('index %s,%s..%s\n' % tuple(revs))
+
+    def gitindex(text):
+        if not text:
+            return hex(nullid)
+        l = len(text)
+        s = util.sha1('blob %d\0' % l)
+        s.update(text)
+        return s.hexdigest()
+
+    def diffline(a, b, revs):
+        if opts.git:
+            line = 'diff --git a/%s b/%s\n' % (a, b)
+        elif not repo.ui.quiet:
+            if revs:
+                revinfo = ' '.join(["-r %s" % rev for rev in revs])
+                line = 'diff %s %s\n' % (revinfo, a)
+            else:
+                line = 'diff %s\n' % a
+        else:
+            line = ''
+        return line
 
     date1 = util.datestr(ctx1.date())
     man1 = ctx1.manifest()
@@ -1730,7 +1718,7 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
                         else:
                             a = copyto[f]
                         omode = gitmode[man1.flags(a)]
-                        _addmodehdr(header, omode, mode)
+                        addmodehdr(header, omode, mode)
                         if a in removed and a not in gone:
                             op = 'rename'
                             gone.add(a)
@@ -1768,6 +1756,8 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
                     else:
                         header.append('deleted file mode %s\n' %
                                       gitmode[man1.flags(f)])
+                        if util.binary(to):
+                            dodiff = 'binary'
                 elif not to or util.binary(to):
                     # regular diffs cannot represent empty file deletion
                     losedatafn(f)
@@ -1776,22 +1766,24 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
                 nflag = ctx2.flags(f)
                 binary = util.binary(to) or util.binary(tn)
                 if opts.git:
-                    _addmodehdr(header, gitmode[oflag], gitmode[nflag])
+                    addmodehdr(header, gitmode[oflag], gitmode[nflag])
                     if binary:
                         dodiff = 'binary'
                 elif binary or nflag != oflag:
                     losedatafn(f)
-            if opts.git:
-                header.insert(0, mdiff.diffline(revs, join(a), join(b), opts))
 
         if dodiff:
+            if opts.git or revs:
+                header.insert(0, diffline(join(a), join(b), revs))
             if dodiff == 'binary':
-                text = b85diff(to, tn)
+                text = mdiff.b85diff(to, tn)
+                if text:
+                    addindexmeta(header, [gitindex(to), gitindex(tn)])
             else:
                 text = mdiff.unidiff(to, date1,
                                     # ctx2 date may be dynamic
                                     tn, util.datestr(ctx2.date()),
-                                    join(a), join(b), revs, opts=opts)
+                                    join(a), join(b), opts=opts)
             if header and (text or len(header) > 1):
                 yield ''.join(header)
             if text:
@@ -1823,7 +1815,7 @@ def diffstatdata(lines):
             addresult()
             # set numbers to 0 anyway when starting new file
             adds, removes, isbinary = 0, 0, False
-            if line.startswith('diff --git'):
+            if line.startswith('diff --git a/'):
                 filename = gitre.search(line).group(1)
             elif line.startswith('diff -r'):
                 # format: "diff -r ... -r ... filename"
@@ -1870,7 +1862,8 @@ def diffstat(lines, width=80, git=False):
                        countwidth, count, pluses, minuses))
 
     if stats:
-        output.append(_(' %d files changed, %d insertions(+), %d deletions(-)\n')
+        output.append(_(' %d files changed, %d insertions(+), '
+                        '%d deletions(-)\n')
                       % (len(stats), totaladds, totalremoves))
 
     return ''.join(output)

@@ -1,4 +1,19 @@
-  $ "$TESTDIR/hghave" execbit || exit 80
+Log on empty repository: checking consistency
+
+  $ hg init empty
+  $ cd empty
+  $ hg log
+  $ hg log -r 1
+  abort: unknown revision '1'!
+  [255]
+  $ hg log -r -1:0
+  abort: unknown revision '-1'!
+  [255]
+  $ hg log -r 'branch(name)'
+  abort: unknown revision 'name'!
+  [255]
+  $ hg log -r null -q
+  -1:000000000000
 
 The g is crafted to have 2 filelog topological heads in a linear
 changeset graph
@@ -35,6 +50,32 @@ changeset graph
   user:        test
   date:        Thu Jan 01 00:00:01 1970 +0000
   summary:     a
+  
+log on directory
+
+  $ hg log dir
+  changeset:   4:7e4639b4691b
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:05 1970 +0000
+  summary:     e
+  
+  changeset:   2:f8954cd4dc1f
+  user:        test
+  date:        Thu Jan 01 00:00:03 1970 +0000
+  summary:     c
+  
+  $ hg log somethingthatdoesntexist dir
+  changeset:   4:7e4639b4691b
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:05 1970 +0000
+  summary:     e
+  
+  changeset:   2:f8954cd4dc1f
+  user:        test
+  date:        Thu Jan 01 00:00:03 1970 +0000
+  summary:     c
   
 
 -f, directory
@@ -275,10 +316,12 @@ log copies, non-linear manifest
 
 log copies, execute bit set
 
+#if execbit
   $ chmod +x e
   $ hg ci -me3 -d '7 0'
   $ hg log -v --template '{rev} {file_copies}\n' -r 6
   6 
+#endif
 
 
 log -p d
@@ -331,12 +374,12 @@ log --removed revrange file
   a
   
   
-
+  $ cd ..
 
 log --follow tests
 
-  $ hg init ../follow
-  $ cd ../follow
+  $ hg init follow
+  $ cd follow
 
   $ echo base > base
   $ hg ci -Ambase -d '1 0'
@@ -539,34 +582,6 @@ log -k r1
   date:        Thu Jan 01 00:00:01 1970 +0000
   summary:     r1
   
-log -d " " (whitespaces only)
-
-  $ hg log -d " "
-  abort: dates cannot consist entirely of whitespace
-  [255]
-
-log -d -1
-
-  $ hg log -d -1
-
-log -d ">"
-
-  $ hg log -d ">"
-  abort: invalid day spec, use '>DATE'
-  [255]
-
-log -d "<"
-
-  $ hg log -d "<"
-  abort: invalid day spec, use '<DATE'
-  [255]
-
-Negative ranges
-  $ hg log -d "--2"
-  abort: -2 must be nonnegative (see 'hg help dates')
-  [255]
-
-
 log -p -l2 --color=always
 
   $ hg --config extensions.color= --config color.mode=ansi \
@@ -613,6 +628,9 @@ log -r tip --stat
   
 
   $ cd ..
+
+
+User
 
   $ hg init usertest
   $ cd usertest
@@ -898,11 +916,10 @@ log -p -R repo
   +a
   
 
+  $ cd ../..
 
-  $ cd ..
   $ hg init follow2
   $ cd follow2
-
 
 # Build the following history:
 # tip - o - x - o - x - x
@@ -967,7 +984,7 @@ log -p -R repo
   $ hg resolve -m foo
   $ hg ci -m "Last merge, related"
 
-  $ hg --config "extensions.graphlog=" glog
+  $ hg log --graph
   @    changeset:   10:4dae8563d2c5
   |\   tag:         tip
   | |  parent:      9:7b35701b003e
@@ -1077,6 +1094,7 @@ Also check when maxrev < lastrevfilelog
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     add foo, related
   
+  $ cd ..
 
 Issue2383: hg log showing _less_ differences than hg diff
 
@@ -1153,7 +1171,8 @@ Diff here should be the same:
 
 'hg log -r rev fn' when last(filelog(fn)) != rev
 
-  $ hg init simplelog; cd simplelog
+  $ hg init simplelog
+  $ cd simplelog
   $ echo f > a
   $ hg ci -Am'a' -d '0 0'
   adding a
@@ -1166,28 +1185,60 @@ Diff here should be the same:
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     a
   
-  $ cat > $HGTMP/testhidden.py << EOF
-  > def reposetup(ui, repo):
-  >     for line in repo.opener('hidden'):
-  >         ctx = repo[line.strip()]
-  >         repo.changelog.hiddenrevs.add(ctx.rev())
+enable obsolete to test hidden feature
+
+  $ cat > ${TESTTMP}/obs.py << EOF
+  > import mercurial.obsolete
+  > mercurial.obsolete._enabled = True
   > EOF
   $ echo '[extensions]' >> $HGRCPATH
-  $ echo "hidden=$HGTMP/testhidden.py" >> $HGRCPATH
-  $ touch .hg/hidden
+  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
+
   $ hg log --template='{rev}:{node}\n'
   1:a765632148dc55d38c35c4f247c618701886cb2f
   0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
-  $ echo a765632148dc55d38c35c4f247c618701886cb2f > .hg/hidden
+  $ hg debugobsolete a765632148dc55d38c35c4f247c618701886cb2f
+  $ hg up null -q
   $ hg log --template='{rev}:{node}\n'
   0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
   $ hg log --template='{rev}:{node}\n' --hidden
   1:a765632148dc55d38c35c4f247c618701886cb2f
   0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
 
+test that parent prevent a changeset to be hidden
+
+  $ hg up 1 -q --hidden
+  $ hg log --template='{rev}:{node}\n'
+  1:a765632148dc55d38c35c4f247c618701886cb2f
+  0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
+
+test that second parent prevent a changeset to be hidden too
+
+  $ hg debugsetparents 0 1 # nothing suitable to merge here
+  $ hg log --template='{rev}:{node}\n'
+  1:a765632148dc55d38c35c4f247c618701886cb2f
+  0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
+  $ hg debugsetparents 1
+  $ hg up -q null
+
+bookmarks prevent a changeset being hidden
+
+  $ hg bookmark --hidden -r 1 X
+  $ hg log --template '{rev}:{node}\n'
+  1:a765632148dc55d38c35c4f247c618701886cb2f
+  0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
+  $ hg bookmark -d X
+
+divergent bookmarks are not hidden
+
+  $ hg bookmark --hidden -r 1 X@foo
+  $ hg log --template '{rev}:{node}\n'
+  1:a765632148dc55d38c35c4f247c618701886cb2f
+  0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
+
 clear extensions configuration
   $ echo '[extensions]' >> $HGRCPATH
-  $ echo "hidden=!" >> $HGRCPATH
+  $ echo "obs=!" >> $HGRCPATH
   $ cd ..
 
 test -u/-k for problematic encoding
@@ -1235,5 +1286,62 @@ test in problematic encoding
   ====
   3
   1
+
+  $ cd ..
+
+test hg log on non-existent files and on directories
+  $ hg init issue1340
+  $ cd issue1340
+  $ mkdir d1; mkdir D2; mkdir D3.i; mkdir d4.hg; mkdir d5.d; mkdir .d6
+  $ echo 1 > d1/f1
+  $ echo 1 > D2/f1
+  $ echo 1 > D3.i/f1
+  $ echo 1 > d4.hg/f1
+  $ echo 1 > d5.d/f1
+  $ echo 1 > .d6/f1
+  $ hg -q add .
+  $ hg commit -m "a bunch of weird directories"
+  $ hg log -l1 d1/f1 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 f1
+  $ hg log -l1 . | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 ./ | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 d1 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 D2 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 D2/f1 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 D3.i | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 D3.i/f1 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 d4.hg | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 d4.hg/f1 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 d5.d | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 d5.d/f1 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 .d6 | grep changeset
+  changeset:   0:65624cd9070a
+  $ hg log -l1 .d6/f1 | grep changeset
+  changeset:   0:65624cd9070a
+
+issue3772: hg log -r :null showing revision 0 as well
+
+  $ hg log -r :null
+  changeset:   -1:000000000000
+  user:        
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  
+  $ hg log -r null:null
+  changeset:   -1:000000000000
+  user:        
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  
 
   $ cd ..

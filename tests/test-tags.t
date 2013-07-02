@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" unix-permissions || exit 80
-
 Helper functions:
 
   $ cacheexists() {
@@ -77,11 +75,13 @@ Repeat with cold tag cache:
 
 And again, but now unable to write tag cache:
 
+#if unix-permissions
   $ rm -f .hg/cache/tags
   $ chmod 555 .hg
   $ hg identify
   b9154636be93 tip
   $ chmod 755 .hg
+#endif
 
 Create a branch:
 
@@ -137,7 +137,7 @@ Add invalid tags:
   $ echo >> .hgtags
   $ echo "foo bar" >> .hgtags
   $ echo "a5a5 invalid" >> .hg/localtags
-  $ cat .hgtags 
+  $ cat .hgtags
   acb14030fe0a21b60322c440ad2d20cf7685a376 first
   spam
   
@@ -380,3 +380,27 @@ to remove a tag of type X which actually only exists as a type Y:
   tip                                1:a0b6fe111088
   localtag                           0:bbd179dfa0a7 local
   globaltag                          0:bbd179dfa0a7
+
+Test for issue3911
+
+  $ hg tag -r 0 -l localtag2
+  $ hg tag -l --remove localtag2
+  $ hg tags -v
+  tip                                1:a0b6fe111088
+  localtag                           0:bbd179dfa0a7 local
+  globaltag                          0:bbd179dfa0a7
+
+  $ hg tag -r 1 -f localtag
+  $ hg tags -v
+  tip                                2:5c70a037bb37
+  localtag                           1:a0b6fe111088
+  globaltag                          0:bbd179dfa0a7
+
+  $ hg tag -r 1 localtag2
+  $ hg tags -v
+  tip                                3:bbfb8cd42be2
+  localtag2                          1:a0b6fe111088
+  localtag                           1:a0b6fe111088
+  globaltag                          0:bbd179dfa0a7
+
+  $ cd ..

@@ -43,7 +43,7 @@ checkout #1: add foo.txt
   $ cvscall -Q add foo
   $ cd foo
   $ echo foo > foo.txt
-  $ cvscall -Q add foo.txt 
+  $ cvscall -Q add foo.txt
   $ cvsci -m "add foo.txt" foo.txt
   $ cd ../..
   $ rm -rf cvsworktmp
@@ -91,6 +91,8 @@ script)
   $ echo xyzzy > foo.txt
   $ cvsci -m "merge1+clobber" foo.txt
 
+#if unix-permissions
+
 return to trunk and merge MYBRANCH1_2
 
   $ cvscall -Q update -P -A
@@ -114,7 +116,7 @@ return to trunk and merge MYBRANCH1_2
   Author: user
   Branch: HEAD
   Tag: (none) 
-  Branchpoints: MYBRANCH1_1, MYBRANCH1 
+  Branchpoints: MYBRANCH1, MYBRANCH1_1 
   Log:
   foo.txt
   
@@ -200,3 +202,6 @@ return to trunk and merge MYBRANCH1_2
   Members: 
   	foo.txt:1.1.4.1->1.1.4.2 
   
+#endif
+
+  $ cd ..

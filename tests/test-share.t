@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+  $ "$TESTDIR/hghave" killdaemons || exit 80
 
   $ echo "[extensions]"      >> $HGRCPATH
   $ echo "share = "          >> $HGRCPATH
@@ -99,7 +99,7 @@ hg serve shared clone
 
   $ hg serve -n test -p $HGPORT -d --pid-file=hg.pid
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/raw-file/'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'raw-file/'
   200 Script output follows
   
   
@@ -125,3 +125,10 @@ check that a change does not propagate
   $ cd ../repo1
   $ hg id -r tip
   c2e0ac586386 tip
+
+  $ cd ..
+
+Explicitly kill daemons to let the test exit on Windows
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+

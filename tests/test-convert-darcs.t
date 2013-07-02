@@ -5,21 +5,6 @@
   $ echo 'graphlog =' >> $HGRCPATH
   $ DARCS_EMAIL='test@example.org'; export DARCS_EMAIL
 
-skip if we can't import elementtree
-
-  $ mkdir dummy
-  $ mkdir dummy/_darcs
-  $ if hg convert dummy 2>&1 | grep ElementTree > /dev/null; then
-  >     echo 'skipped: missing feature: elementtree module'
-  >     exit 80
-  > fi
-
-try converting darcs1 repository
-
-  $ hg clone -q "$TESTDIR/bundles/darcs1.hg" darcs
-  $ hg convert -s darcs darcs/darcs1 2>&1 | grep darcs-1.0
-  darcs-1.0 repository format is unsupported, please upgrade
-
 initialize darcs repo
 
   $ mkdir darcs-repo
@@ -32,13 +17,20 @@ initialize darcs repo
 
 branch and update
 
-  $ darcs get darcs-repo darcs-clone >/dev/null
+  $ darcs get -q darcs-repo darcs-clone >/dev/null
   $ cd darcs-clone
   $ echo c >> a
   $ echo c > c
   $ darcs record -a -l -m p1.1
   Finished recording patch 'p1.1'
   $ cd ..
+
+skip if we can't import elementtree
+
+  $ if hg convert darcs-repo darcs-dummy 2>&1 | grep ElementTree > /dev/null; then
+  >     echo 'skipped: missing feature: elementtree module'
+  >     exit 80
+  > fi
 
 update source
 
@@ -48,11 +40,10 @@ update source
   $ darcs record -a -l -m p1.2
   Finished recording patch 'p1.2'
 
-  $ darcs pull -a --no-set-default ../darcs-clone
-  Backing up ./a(-darcs-backup0)
+  $ darcs pull -q -a --no-set-default ../darcs-clone
+  Backing up ./a(*) (glob)
   We have conflicts in the following files:
   ./a
-  Finished pulling and applying.
   $ sleep 1
   $ echo e > a
   $ echo f > f
@@ -105,3 +96,13 @@ Just to say that manifest not listing "c" here is a bug.
   1e88685f5ddec574a34c70af492f95b6debc8741 644   b
   37406831adc447ec2385014019599dfec953c806 644   dir2/d
   b783a337463792a5c7d548ad85a7d3253c16ba8c 644   ff
+
+#if no-outer-repo
+
+try converting darcs1 repository
+
+  $ hg clone -q "$TESTDIR/bundles/darcs1.hg" darcs
+  $ hg convert -s darcs darcs/darcs1 2>&1 | grep darcs-1.0
+  darcs-1.0 repository format is unsupported, please upgrade
+
+#endif

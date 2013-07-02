@@ -48,6 +48,7 @@ It is useful for the users who want to commit with UTF-8 log message.
 import os, sys
 from mercurial.i18n import _
 from mercurial import util, encoding
+testedwith = 'internal'
 
 _encoding = None                                # see extsetup
 
@@ -88,18 +89,27 @@ def appendsep(s):
         s += os.sep
     return s
 
-def wrapper(func, args, kwds):
-    # check argument is unicode, then call original
+
+def basewrapper(func, argtype, enc, dec, args, kwds):
+    # check check already converted, then call original
     for arg in args:
-        if isinstance(arg, unicode):
+        if isinstance(arg, argtype):
             return func(*args, **kwds)
 
     try:
-        # convert arguments to unicode, call func, then convert back
-        return encode(func(*decode(args), **decode(kwds)))
+        # convert string arguments, call func, then convert back the
+        # return value.
+        return enc(func(*dec(args), **dec(kwds)))
     except UnicodeError:
         raise util.Abort(_("[win32mbcs] filename conversion failed with"
                          " %s encoding\n") % (_encoding))
+
+def wrapper(func, args, kwds):
+    return basewrapper(func, unicode, encode, decode, args, kwds)
+
+
+def reversewrapper(func, args, kwds):
+    return basewrapper(func, str, decode, encode, args, kwds)
 
 def wrapperforlistdir(func, args, kwds):
     # Ensure 'path' argument ends with os.sep to avoids
@@ -118,7 +128,7 @@ def wrapname(name, wrapper):
     def f(*args, **kwds):
         return wrapper(func, args, kwds)
     try:
-        f.__name__ = func.__name__                # fail with python23
+        f.__name__ = func.__name__ # fails with Python 2.3
     except Exception:
         pass
     setattr(module, name, f)
@@ -131,6 +141,11 @@ funcs = '''os.path.join os.path.split os.path.splitext
  mercurial.util.endswithsep mercurial.util.splitpath mercurial.util.checkcase
  mercurial.util.fspath mercurial.util.pconvert mercurial.util.normpath
  mercurial.util.checkwinfilename mercurial.util.checkosfilename'''
+
+# These functions are required to be called with local encoded string
+# because they expects argument is local encoded string and cause
+# problem with unicode string.
+rfuncs = '''mercurial.encoding.upper mercurial.encoding.lower'''
 
 # List of Windows specific functions to be wrapped.
 winfuncs = '''os.path.splitunc'''
@@ -158,10 +173,12 @@ def extsetup(ui):
             for f in winfuncs.split():
                 wrapname(f, wrapper)
         wrapname("mercurial.osutil.listdir", wrapperforlistdir)
+        # wrap functions to be called with local byte string arguments
+        for f in rfuncs.split():
+            wrapname(f, reversewrapper)
         # Check sys.args manually instead of using ui.debug() because
         # command line options is not yet applied when
         # extensions.loadall() is called.
         if '--debug' in sys.argv:
             ui.write("[win32mbcs] activated with encoding: %s\n"
                      % _encoding)
-

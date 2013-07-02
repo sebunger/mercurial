@@ -9,6 +9,15 @@
 
   $ hg init initialrepo
   $ cd initialrepo
+
+Cannot change null revision phase
+
+  $ hg phase --force --secret null
+  abort: cannot change null revision phase
+  [255]
+  $ hg phase null
+  -1: public
+
   $ mkcommit A
 
 New commit are draft by default
@@ -103,7 +112,7 @@ Test secret changeset are not pushed
   2 draft C
   3 draft D
   6 draft B'
-  $ hg outgoing -r default ../push-dest --template='{rev} {phase} {desc|firstline}\n'
+  $ hg outgoing -r 'branch(default)' ../push-dest --template='{rev} {phase} {desc|firstline}\n'
   comparing with ../push-dest
   searching for changes
   0 public A
@@ -163,6 +172,31 @@ visible shared between the initial repo and the push destination.
   added 1 changesets with 1 changes to 1 files (+1 heads)
 
 :note: The "(+1 heads)" is wrong as we do not had any visible head
+
+check that branch cache with "served" filter are properly computed and stored
+
+  $ ls ../push-dest/.hg/cache/branchheads*
+  ../push-dest/.hg/cache/branchheads-served
+  $ cat ../push-dest/.hg/cache/branchheads-served
+  6d6770faffce199f1fddd1cf87f6f026138cf061 6 465891ffab3c47a3c23792f7dc84156e19a90722
+  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e default
+  6d6770faffce199f1fddd1cf87f6f026138cf061 default
+  $ hg heads -R ../push-dest --template '{rev}:{node} {phase}\n'  #update visible cache too
+  6:6d6770faffce199f1fddd1cf87f6f026138cf061 draft
+  5:2713879da13d6eea1ff22b442a5a87cb31a7ce6a secret
+  3:b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e draft
+  $ ls ../push-dest/.hg/cache/branchheads*
+  ../push-dest/.hg/cache/branchheads-served
+  ../push-dest/.hg/cache/branchheads-visible
+  $ cat ../push-dest/.hg/cache/branchheads-served
+  6d6770faffce199f1fddd1cf87f6f026138cf061 6 465891ffab3c47a3c23792f7dc84156e19a90722
+  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e default
+  6d6770faffce199f1fddd1cf87f6f026138cf061 default
+  $ cat ../push-dest/.hg/cache/branchheads-visible
+  6d6770faffce199f1fddd1cf87f6f026138cf061 6
+  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e default
+  2713879da13d6eea1ff22b442a5a87cb31a7ce6a default
+  6d6770faffce199f1fddd1cf87f6f026138cf061 default
 
 
 Restore condition prior extra insertion.
@@ -330,6 +364,15 @@ test that phase are displayed in log at debug level
   
   
 
+
+(Issue3707)
+test invalid phase name
+
+  $ mkcommit I --config phases.new-commit='babar'
+  transaction abort!
+  rollback completed
+  abort: phases.new-commit: not a valid phase name ('babar')
+  [255]
 Test phase command
 ===================
 
@@ -466,3 +509,5 @@ test complete failure
   cannot move 1 changesets to a more permissive phase, use --force
   no phases changed
   [1]
+
+  $ cd ..

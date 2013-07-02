@@ -6,7 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import errno, getpass, os, socket, sys, tempfile, traceback
+import errno, getpass, os, re, socket, sys, tempfile, traceback
 import config, scmutil, util, error, formatter
 
 class ui(object):
@@ -19,6 +19,7 @@ class ui(object):
         self._ucfg = config.config() # untrusted
         self._trustusers = set()
         self._trustgroups = set()
+        self.callhooks = True
 
         if src:
             self.fout = src.fout
@@ -31,6 +32,7 @@ class ui(object):
             self._trustusers = src._trustusers.copy()
             self._trustgroups = src._trustgroups.copy()
             self.environ = src.environ
+            self.callhooks = src.callhooks
             self.fixconfig()
         else:
             self.fout = sys.stdout
@@ -64,7 +66,7 @@ class ui(object):
             return True
 
         if self._reportuntrusted:
-            self.warn(_('Not trusting file %s from untrusted '
+            self.warn(_('not trusting file %s from untrusted '
                         'user %s, group %s\n') % (f, user, group))
         return False
 
@@ -86,7 +88,7 @@ class ui(object):
         except error.ConfigError, inst:
             if trusted:
                 raise
-            self.warn(_("Ignored: %s\n") % str(inst))
+            self.warn(_("ignored: %s\n") % str(inst))
 
         if self.plain():
             for k in ('debug', 'fallbackencoding', 'quiet', 'slash',
@@ -260,6 +262,45 @@ class ui(object):
             raise error.ConfigError(_("%s.%s is not an integer ('%s')")
                                     % (section, name, v))
 
+    def configbytes(self, section, name, default=0, untrusted=False):
+        """parse a configuration element as a quantity in bytes
+
+        Units can be specified as b (bytes), k or kb (kilobytes), m or
+        mb (megabytes), g or gb (gigabytes).
+
+        >>> u = ui(); s = 'foo'
+        >>> u.setconfig(s, 'val1', '42')
+        >>> u.configbytes(s, 'val1')
+        42
+        >>> u.setconfig(s, 'val2', '42.5 kb')
+        >>> u.configbytes(s, 'val2')
+        43520
+        >>> u.configbytes(s, 'unknown', '7 MB')
+        7340032
+        >>> u.setconfig(s, 'invalid', 'somevalue')
+        >>> u.configbytes(s, 'invalid')
+        Traceback (most recent call last):
+            ...
+        ConfigError: foo.invalid is not a byte quantity ('somevalue')
+        """
+
+        orig = string = self.config(section, name)
+        if orig is None:
+            if not isinstance(default, str):
+                return default
+            orig = string = default
+        multiple = 1
+        m = re.match(r'([^kmbg]+?)\s*([kmg]?)b?$', string, re.I)
+        if m:
+            string, key = m.groups()
+            key = key.lower()
+            multiple = dict(k=1024, m=1048576, g=1073741824).get(key, 1)
+        try:
+            return int(float(string) * multiple)
+        except ValueError:
+            raise error.ConfigError(_("%s.%s is not a byte quantity ('%s')")
+                                    % (section, name, orig))
+
     def configlist(self, section, name, default=None, untrusted=False):
         """parse a configuration element as a list of comma/space separated
         strings
@@ -409,7 +450,7 @@ class ui(object):
         if user is None and not self.interactive():
             try:
                 user = '%s@%s' % (util.getuser(), socket.getfqdn())
-                self.warn(_("No username found, using '%s' instead\n") % user)
+                self.warn(_("no username found, using '%s' instead\n") % user)
             except KeyError:
                 pass
         if not user:
@@ -488,9 +529,14 @@ class ui(object):
 
     def flush(self):
         try: self.fout.flush()
-        except: pass
+        except (IOError, ValueError): pass
         try: self.ferr.flush()
-        except: pass
+        except (IOError, ValueError): pass
+
+    def _isatty(self, fh):
+        if self.configbool('ui', 'nontty', False):
+            return False
+        return util.isatty(fh)
 
     def interactive(self):
         '''is interactive input allowed?
@@ -510,7 +556,7 @@ class ui(object):
         if i is None:
             # some environments replace stdin without implementing isatty
             # usually those are non-interactive
-            return util.isatty(self.fin)
+            return self._isatty(self.fin)
 
         return i
 
@@ -548,12 +594,12 @@ class ui(object):
         if i is None:
             # some environments replace stdout without implementing isatty
             # usually those are non-interactive
-            return util.isatty(self.fout)
+            return self._isatty(self.fout)
 
         return i
 
     def _readline(self, prompt=''):
-        if util.isatty(self.fin):
+        if self._isatty(self.fin):
             try:
                 # magically add command line editing support, where
                 # available
@@ -606,7 +652,7 @@ class ui(object):
         ('&None', 'E&xec', 'Sym&link') Responses are case insensitive.
         If ui is not interactive, the default is returned.
         """
-        resps = [s[s.index('&')+1].lower() for s in choices]
+        resps = [s[s.index('&') + 1].lower() for s in choices]
         while True:
             r = self.prompt(msg, resps[default])
             if r.lower() in resps:
@@ -617,7 +663,8 @@ class ui(object):
         if not self.interactive():
             return default
         try:
-            return getpass.getpass(prompt or _('password: '))
+            self.write(self.label(prompt or _('password: '), 'ui.prompt'))
+            return getpass.getpass('')
         except EOFError:
             raise util.Abort(_('response expected'))
     def status(self, *msg, **opts):
@@ -674,16 +721,29 @@ class ui(object):
 
         return t
 
-    def traceback(self, exc=None):
-        '''print exception traceback if traceback printing enabled.
+    def traceback(self, exc=None, force=False):
+        '''print exception traceback if traceback printing enabled or forced.
         only to call in exception handler. returns true if traceback
         printed.'''
-        if self.tracebackflag:
-            if exc:
-                traceback.print_exception(exc[0], exc[1], exc[2], file=self.ferr)
+        if self.tracebackflag or force:
+            if exc is None:
+                exc = sys.exc_info()
+            cause = getattr(exc[1], 'cause', None)
+
+            if cause is not None:
+                causetb = traceback.format_tb(cause[2])
+                exctb = traceback.format_tb(exc[2])
+                exconly = traceback.format_exception_only(cause[0], cause[1])
+
+                # exclude frame where 'exc' was chained and rethrown from exctb
+                self.write_err('Traceback (most recent call last):\n',
+                               ''.join(exctb[:-1]),
+                               ''.join(causetb),
+                               ''.join(exconly))
             else:
-                traceback.print_exc(file=self.ferr)
-        return self.tracebackflag
+                traceback.print_exception(exc[0], exc[1], exc[2],
+                                          file=self.ferr)
+        return self.tracebackflag or force
 
     def geteditor(self):
         '''return editor to use'''
@@ -705,8 +765,8 @@ class ui(object):
         With stock hg, this is simply a debug message that is hidden
         by default, but with extensions or GUI tools it may be
         visible. 'topic' is the current operation, 'item' is a
-        non-numeric marker of the current position (ie the currently
-        in-process file), 'pos' is the current numeric position (ie
+        non-numeric marker of the current position (i.e. the currently
+        in-process file), 'pos' is the current numeric position (i.e.
         revision, bytes, etc.), unit is a corresponding unit label,
         and total is the highest expected pos.
 
@@ -731,7 +791,7 @@ class ui(object):
         else:
             self.debug('%s:%s %s%s\n' % (topic, item, pos, unit))
 
-    def log(self, service, message):
+    def log(self, service, *msg, **opts):
         '''hook for logging facility extensions
 
         service should be a readily-identifiable subsystem, which will

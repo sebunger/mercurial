@@ -18,7 +18,7 @@ def writeblock(server, data):
 def readchannel(server):
     data = server.stdout.read(5)
     if not data:
-        raise EOFError()
+        raise EOFError
     channel, length = struct.unpack('>cI', data)
     if channel in 'IL':
         return channel, length
@@ -71,7 +71,8 @@ def unknowncommand(server):
 def hellomessage(server):
     ch, data = readchannel(server)
     # escaping python tests output not supported
-    print '%c, %r' % (ch, re.sub('encoding: [a-zA-Z0-9-]+', 'encoding: ***', data))
+    print '%c, %r' % (ch, re.sub('encoding: [a-zA-Z0-9-]+', 'encoding: ***',
+                                 data))
 
     # run an arbitrary command to make sure the next thing the server sends
     # isn't part of the hello message
@@ -142,7 +143,8 @@ def localhgrc(server):
     is used """
     readchannel(server)
 
-    # the cached repo local hgrc contains ui.foo=bar, so showconfig should show it
+    # the cached repo local hgrc contains ui.foo=bar, so showconfig should
+    # show it
     runcommand(server, ['showconfig'])
 
     # but not for this repo
@@ -157,7 +159,8 @@ def hook(**args):
 def hookoutput(server):
     readchannel(server)
     runcommand(server, ['--config',
-                        'hooks.pre-identify=python:test-commandserver.hook', 'id'],
+                        'hooks.pre-identify=python:test-commandserver.hook',
+                        'id'],
                input=cStringIO.StringIO('some input'))
 
 def outsidechanges(server):
@@ -233,6 +236,27 @@ def hgignore(server):
     f.close()
     runcommand(server, ['status', '-i', '-u'])
 
+def phasecacheafterstrip(server):
+    readchannel(server)
+
+    # create new head, 5:731265503d86
+    runcommand(server, ['update', '-C', '0'])
+    f = open('a', 'ab')
+    f.write('a\n')
+    f.close()
+    runcommand(server, ['commit', '-Am.', 'a'])
+    runcommand(server, ['log', '-Gq'])
+
+    # make it public; draft marker moves to 4:7966c8e3734d
+    runcommand(server, ['phase', '-p', '.'])
+    runcommand(server, ['phase', '.'])  # load _phasecache.phaseroots
+
+    # strip 1::4 outside server
+    os.system('hg -q --config extensions.mq= strip 1')
+
+    # shouldn't raise "7966c8e3734d: no node!"
+    runcommand(server, ['branches'])
+
 if __name__ == '__main__':
     os.system('hg init')
 
@@ -255,3 +279,4 @@ if __name__ == '__main__':
     check(rollback)
     check(branch)
     check(hgignore)
+    check(phasecacheafterstrip)

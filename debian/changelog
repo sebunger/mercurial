@@ -1,68 +1,105 @@
-mercurial (2.2.2-4+deb7u6) wheezy-security; urgency=high
+mercurial (2.6.2-1~bpo70+1) wheezy-backports; urgency=low
 
-  * Non-maintainer upload by the LTS Security Team.
-  * CVE-2017-17458: arbitrary code execution via craft subrepository
+  * Rebuild for wheezy-backports.
+  * Delete patches
+    from_upstream__reinclude_root_directory_in_directory_rename_detectio
+    n.patch, from_upstream__set_vimdiff_to_check_changed.patch,
+    from_upstream__mergetools_vimdiff_issue_warning.patch and
+    from_upstream__mergetools_refine_vimdiff_warning_message.patch which
+    were backported to wheezy and are now included upstream
 
- -- Roberto C. Sanchez <roberto@debian.org>  Thu, 28 Dec 2017 11:36:50 -0500
+ -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 21:57:41 +0100
 
-mercurial (2.2.2-4+deb7u5) wheezy-security; urgency=high
+mercurial (2.6.2-1) unstable; urgency=low
 
-  * Non-maintainer upload by the LTS Security Team.
-  * CVE-2017-1000115: path traversal via symlink (Closes: #871709)
-  * CVE-2017-1000116: command injection on clients through malicious ssh
-    URLs (Closes: #871710)
+  * New upstream release
+  * Delete patch
+    from_upstream__fix_untranslated_prompts_with_translated_responses.patch
+    which is now included upstream
 
- -- Antoine Beaupré <anarcat@debian.org>  Mon, 28 Aug 2017 13:52:40 -0400
+ -- Javi Merino <vicho@debian.org>  Sun, 09 Jun 2013 10:36:59 +0100
 
-mercurial (2.2.2-4+deb7u4) wheezy-security; urgency=high
+mercurial (2.6.1-1) unstable; urgency=low
 
-  * Non-maintainer upload by the LTS Security Team.
-  * CVE-2017-9462: "hg serve --stdio" allows remote authenticated users to
-    launch the Python debugger, and consequently execute arbitrary code,
-    by using --debugger as a repository name. (Closes: #861243)
+  [ Jakub Wilk ]
+  * Use canonical URIs for Vcs-* fields.
 
- -- Antoine Beaupré <anarcat@debian.org>  Tue, 27 Jun 2017 14:57:43 -0400
+  [ Javi Merino ]
+  * New upstream release (Closes: #709815)
+  * Blacklist test-histedit-arguments.t and test-websub.t
+  * Fix "Translation missing for yes/no question, but requires translated
+    input from user" by adding patch
+    from_upstream__fix_untranslated_prompts_with_translated_responses.patch
+    (Closes: #707703)
+  * Upload to unstable
 
-mercurial (2.2.2-4+deb7u3) wheezy-security; urgency=high
+ -- Javi Merino <vicho@debian.org>  Wed, 15 May 2013 22:16:29 +0100
 
-  * Non-maintainer upload by the Wheezy LTS Team. 
-  * CVE-2016-3105:
-    + convert: pass absolute paths to git
- 
- -- Thorsten Alteholz <debian@alteholz.de>  Fri, 06 May 2016 10:03:02 +0200
+mercurial (2.5.2-1) experimental; urgency=low
 
-mercurial (2.2.2-4+deb7u2) wheezy-security; urgency=high
+  * New upstream release
+  * Update hgview breaks.  hgview works with mercurial 2.5 starting from
+    1.7.1-1.
+  * test-convert-git.t works again so add it back to the test-suite we
+    run when building the package
 
-  * CVE-2016-3630:
-    + mpatch: rewrite pointer overflow checks (prerequisite for the following)
-    + parsers: fix list sizing rounding error
-    + parsers: detect short records
-  * CVE-2016-3068:
-    + subrepo: set GIT_ALLOW_PROTOCOL to limit git clone protocols
-  * CVE-2016-3069:
-    + convert: add new, non-clowny interface for shelling out to git
-    + convert: rewrite calls to Git to use the new shelling mechanism
-    + convert: dead code removal - old git calling functions
-    + convert: rewrite gitpipe to use common.commandline
-    + convert: test for shell injection in git calls
-  Closes: #819504
+ -- Javi Merino <vicho@debian.org>  Tue, 19 Mar 2013 22:53:20 +0000
 
- -- Julien Cristau <jcristau@debian.org>  Fri, 01 Apr 2016 22:51:48 +0200
+mercurial (2.5.1-1) experimental; urgency=low
 
-mercurial (2.2.2-4+deb7u1) wheezy-security; urgency=high
+  * New upstream release
+  * Add test-obsolete.t to the blacklisted tests
+  * hgview 1.5.0-4 doesn't work with mercurial 2.5.1
 
-  * Fix "CVE-2014-9462" by adding patch
-    from_upstream__sshpeer_more_thorough_shell_quoting.patch (Closes:
-    #783237)
+ -- Javi Merino <vicho@debian.org>  Tue, 12 Feb 2013 21:13:06 +0000
 
- -- Javi Merino <vicho@debian.org>  Wed, 06 May 2015 08:09:26 +0100
+mercurial (2.4.2-1) experimental; urgency=low
 
-mercurial (2.2.2-4) stable; urgency=high
+  * New upstream release
 
-  * Security update for CVE-2014-9390: errors in handling case-sensitive
-    directories allow for remote code execution on pull.
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Jan 2013 13:01:27 +0100
 
- -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 12:42:20 +0100
+mercurial (2.4.1-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 19 Dec 2012 21:10:25 +0000
+
+mercurial (2.4-1) experimental; urgency=low
+
+  * New upstream release
+  * mercurial 2.3.1 was not compatible with hgsubversion 1.4 and
+    mercurial-git 0.3.3
+  * Bump standards-version to 3.9.4 (no change needed)
+  * Add test-commit-amend to the blacklisted tests as it needs styles
+    now
+
+ -- Javi Merino <vicho@debian.org>  Tue, 27 Nov 2012 22:35:33 +0000
+
+mercurial (2.3.1-1) experimental; urgency=low
+
+  * New upstream release
+  * Delete patch for_upstream__hgweb_fix_spelling_error.patch which is
+    now included upstream
+
+ -- Javi Merino <vicho@debian.org>  Sun, 16 Sep 2012 16:05:55 +0100
+
+mercurial (2.3-2) experimental; urgency=low
+
+  * Blacklist test-histedit-revspec as it needs styles
+
+ -- Javi Merino <vicho@debian.org>  Sat, 04 Aug 2012 20:56:38 +0200
+
+mercurial (2.3-1) experimental; urgency=low
+
+  * Don't run the testsuite if nocheck is in DEB_BUILD_OPTIONS
+  * Move to dh v9 to automatically get the Hardening buildflags
+  * Don't Suggest xxdiff, as it's been removed from the archive
+  * New upstream release
+  * Add patch for_upstream__hgweb_fix_spelling_error.patch to fix a
+    spelling error in a manpage
+
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Aug 2012 20:53:44 +0200
 
 mercurial (2.2.2-3) unstable; urgency=low
 

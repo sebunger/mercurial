@@ -32,7 +32,7 @@ and make sure that inotify.pidfile works
 
 make sure that pidfile worked. Output should be silent.
 
-  $ kill `cat ../hg2.pid`
+  $ "$TESTDIR/killdaemons.py" ../hg2.pid
   $ cd ../repo1
 
 inserve
@@ -157,4 +157,26 @@ Now, lets add some build products...
 build/x & build/y shouldn't appear in "hg st"
 
   $ hg st
-  $ kill `cat hg.pid`
+  $ "$TESTDIR/killdaemons.py" hg.pid
+
+  $ cd ..
+
+Ensure that if the repo is in a directory whose name is too long, the
+unix domain socket is reached through a symlink (issue1208).
+
+  $ mkdir 0_3456789_10_456789_20_456789_30_456789_40_456789_50_45678_
+  $ cd 0_3456789_10_456789_20_456789_30_456789_40_456789_50_45678_
+  $ mkdir 60_456789_70_456789_80_456789_90_456789_100_56789_
+  $ cd 60_456789_70_456789_80_456789_90_456789_100_56789_
+
+  $ hg --config inotify.pidfile=hg3.pid clone -q ../../repo1
+  $ readlink repo1/.hg/inotify.sock
+  */inotify.sock (glob)
+
+Trying to start the server a second time should fail as usual.
+
+  $ hg --cwd repo1 inserve
+  abort: inotify-server: cannot start: socket is already bound
+  [255]
+
+  $ "$TESTDIR/killdaemons.py" hg3.pid

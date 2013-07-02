@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" execbit || exit 80
-
   $ hg init
   $ echo start > start
   $ hg ci -Amstart
@@ -58,6 +56,8 @@ Delete:
   $ hg ci -Amsrc
   adding src
 
+#if execbit
+
 chmod 644:
 
   $ chmod +x src
@@ -93,6 +93,17 @@ Nonexistent in tip+chmod:
   diff --git a/src b/src
   old mode 100644
   new mode 100755
+
+#else
+
+Dummy changes when no exec bit, mocking the execbit commit structure
+
+  $ echo change >> src
+  $ hg ci -munexec
+  $ hg mv src dst
+  $ hg ci -mrenamemod
+
+#endif
 
 Binary diff:
 
@@ -326,12 +337,12 @@ One file is copied to many destinations and removed:
 Reversed:
 
   $ hg diff --git -r -1 -r -2
-  diff --git a/brand-new3 b/brand-new2
-  rename from brand-new3
+  diff --git a/brand-new3-2 b/brand-new2
+  rename from brand-new3-2
   rename to brand-new2
-  diff --git a/brand-new3-2 b/brand-new3-2
+  diff --git a/brand-new3 b/brand-new3
   deleted file mode 100644
-  --- a/brand-new3-2
+  --- a/brand-new3
   +++ /dev/null
   @@ -1,1 +0,0 @@
   -

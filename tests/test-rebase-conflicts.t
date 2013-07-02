@@ -7,7 +7,7 @@
   > publish=False
   > 
   > [alias]
-  > tglog = log -G --template "{rev}:{phase} '{desc}' {branches}\n"
+  > tglog = log -G --template "{rev}:{phase} '{desc}' {branches} {bookmarks}\n"
   > EOF
 
   $ hg init a
@@ -36,11 +36,12 @@
   $ echo l3 >> extra2
   $ hg add extra2
   $ hg ci -m L3
+  $ hg bookmark mybook
 
   $ hg phase --force --secret 4
 
   $ hg tglog
-  @  5:secret 'L3'
+  @  5:secret 'L3'  mybook
   |
   o  4:secret 'L2'
   |
@@ -64,12 +65,12 @@ Conflicting rebase:
   merging common
   warning: conflicts during merge.
   merging common incomplete! (edit conflicts, then use 'hg resolve --mark')
-  abort: unresolved conflicts (see hg resolve, then hg rebase --continue)
-  [255]
+  unresolved conflicts (see hg resolve, then hg rebase --continue)
+  [1]
 
 Try to continue without solving the conflict:
 
-  $ hg rebase --continue 
+  $ hg rebase --continue
   abort: unresolved merge conflicts (see hg help resolve)
   [255]
 
@@ -81,7 +82,7 @@ Conclude rebase:
   saved backup bundle to $TESTTMP/a/.hg/strip-backup/*-backup.hg (glob)
 
   $ hg tglog
-  @  5:secret 'L3'
+  @  5:secret 'L3'  mybook
   |
   o  4:secret 'L2'
   |
@@ -118,3 +119,8 @@ Check correctness:
   $ hg cat -r 5 common
   resolved merge
 
+Bookmark stays active after --continue
+  $ hg bookmarks
+   * mybook                    5:d67b21408fc0
+
+  $ cd ..

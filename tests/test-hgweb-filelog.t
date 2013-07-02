@@ -109,7 +109,7 @@
 
 tip - two revisions
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/log/tip/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'log/tip/a')
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -148,6 +148,7 @@ tip - two revisions
   <ul>
   <li><a href="/file/01de2d66a28d/a">file</a></li>
   <li><a href="/diff/01de2d66a28d/a">diff</a></li>
+  <li><a href="/comparison/01de2d66a28d/a">comparison</a></li>
   <li><a href="/annotate/01de2d66a28d/a">annotate</a></li>
   <li class="active">file log</li>
   <li><a href="/raw-file/01de2d66a28d/a">raw</a></li>
@@ -155,10 +156,15 @@ tip - two revisions
   <ul>
   <li><a href="/help">help</a></li>
   </ul>
+  <p>
+  <div class="atom-logo">
+  <a href="/atom-log/01de2d66a28d/a" title="subscribe to atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed"></a>
+  </div>
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>log a</h3>
   
   <form class="search" action="/log">
@@ -210,7 +216,7 @@ tip - two revisions
 
 second version - two revisions
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/log/3/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'log/3/a')
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -249,6 +255,7 @@ second version - two revisions
   <ul>
   <li><a href="/file/01de2d66a28d/a">file</a></li>
   <li><a href="/diff/01de2d66a28d/a">diff</a></li>
+  <li><a href="/comparison/01de2d66a28d/a">comparison</a></li>
   <li><a href="/annotate/01de2d66a28d/a">annotate</a></li>
   <li class="active">file log</li>
   <li><a href="/raw-file/01de2d66a28d/a">raw</a></li>
@@ -256,10 +263,15 @@ second version - two revisions
   <ul>
   <li><a href="/help">help</a></li>
   </ul>
+  <p>
+  <div class="atom-logo">
+  <a href="/atom-log/01de2d66a28d/a" title="subscribe to atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed"></a>
+  </div>
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>log a</h3>
   
   <form class="search" action="/log">
@@ -311,7 +323,7 @@ second version - two revisions
 
 first deleted - one revision
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/log/2/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'log/2/a')
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -350,6 +362,7 @@ first deleted - one revision
   <ul>
   <li><a href="/file/5ed941583260/a">file</a></li>
   <li><a href="/diff/5ed941583260/a">diff</a></li>
+  <li><a href="/comparison/5ed941583260/a">comparison</a></li>
   <li><a href="/annotate/5ed941583260/a">annotate</a></li>
   <li class="active">file log</li>
   <li><a href="/raw-file/5ed941583260/a">raw</a></li>
@@ -357,10 +370,15 @@ first deleted - one revision
   <ul>
   <li><a href="/help">help</a></li>
   </ul>
+  <p>
+  <div class="atom-logo">
+  <a href="/atom-log/5ed941583260/a" title="subscribe to atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed"></a>
+  </div>
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>log a</h3>
   
   <form class="search" action="/log">
@@ -407,7 +425,7 @@ first deleted - one revision
 
 first version - one revision
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/log/1/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'log/1/a')
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -446,6 +464,7 @@ first version - one revision
   <ul>
   <li><a href="/file/5ed941583260/a">file</a></li>
   <li><a href="/diff/5ed941583260/a">diff</a></li>
+  <li><a href="/comparison/5ed941583260/a">comparison</a></li>
   <li><a href="/annotate/5ed941583260/a">annotate</a></li>
   <li class="active">file log</li>
   <li><a href="/raw-file/5ed941583260/a">raw</a></li>
@@ -453,10 +472,15 @@ first version - one revision
   <ul>
   <li><a href="/help">help</a></li>
   </ul>
+  <p>
+  <div class="atom-logo">
+  <a href="/atom-log/5ed941583260/a" title="subscribe to atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed"></a>
+  </div>
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>log a</h3>
   
   <form class="search" action="/log">
@@ -503,7 +527,7 @@ first version - one revision
 
 before addition - error
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/log/0/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'log/0/a')
   404 Not Found
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -530,13 +554,15 @@ before addition - error
   <li><a href="/tags">tags</a></li>
   <li><a href="/bookmarks">bookmarks</a></li>
   <li><a href="/branches">branches</a></li>
+  </ul>
+  <ul>
   <li><a href="/help">help</a></li>
   </ul>
   </div>
   
   <div class="main">
   
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>error</h3>
   
   <form class="search" action="/log">
@@ -567,7 +593,7 @@ before addition - error
 
 should show base link, use spartan because it shows it
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/log/tip/c?style=spartan')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'log/tip/c?style=spartan')
   200 Script output follows
   
   <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
@@ -599,7 +625,7 @@ should show base link, use spartan because it shows it
   <a type="application/atom+xml" href="/atom-log/tip/c" title="Atom feed for test:c">atom</a>
   </div>
   
-  <h2>c revision history</h2>
+  <h2><a href="/">Mercurial</a>  / c revision history</h2>
   
   <p>navigate: <small class="navigate"><a href="/log/1a6696706df2/c?style=spartan">(0)</a> <a href="/log/tip/c?style=spartan">tip</a> </small></p>
   
@@ -676,7 +702,7 @@ should show base link, use spartan because it shows it
 
 rss log
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/rss-log/tip/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'rss-log/tip/a')
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -707,7 +733,7 @@ rss log
 
 atom log
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/atom-log/tip/a')
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'atom-log/tip/a')
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -755,3 +781,5 @@ atom log
 errors
 
   $ cat errors.log
+
+  $ cd ..

@@ -4,12 +4,13 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-'''remote largefile store; the base class for servestore'''
+'''remote largefile store; the base class for wirestore'''
 
 import urllib2
 
 from mercurial import util
 from mercurial.i18n import _
+from mercurial.wireproto import remotebatch
 
 import lfutil
 import basestore
@@ -20,8 +21,6 @@ class remotestore(basestore.basestore):
         super(remotestore, self).__init__(ui, repo, url)
 
     def put(self, source, hash):
-        if self._verify(hash):
-            return
         if self.sendfile(source, hash):
             raise util.Abort(
                 _('remotestore: could not put %s to remote store %s')
@@ -29,8 +28,8 @@ class remotestore(basestore.basestore):
         self.ui.debug(
             _('remotestore: put %s to remote store %s') % (source, self.url))
 
-    def exists(self, hash):
-        return self._verify(hash)
+    def exists(self, hashes):
+        return dict((h, s == 0) for (h, s) in self._stat(hashes).iteritems())
 
     def sendfile(self, filename, hash):
         self.ui.debug('remotestore: sendfile(%s, %s)\n' % (filename, hash))
@@ -48,15 +47,8 @@ class remotestore(basestore.basestore):
                 fd.close()
 
     def _getfile(self, tmpfile, filename, hash):
-        # quit if the largefile isn't there
-        stat = self._stat(hash)
-        if stat == 1:
-            raise util.Abort(_('remotestore: largefile %s is invalid') % hash)
-        elif stat == 2:
-            raise util.Abort(_('remotestore: largefile %s is missing') % hash)
-
         try:
-            length, infile = self._get(hash)
+            chunks = self._get(hash)
         except urllib2.HTTPError, e:
             # 401s get converted to util.Aborts; everything else is fine being
             # turned into a StoreError
@@ -69,13 +61,7 @@ class remotestore(basestore.basestore):
         except IOError, e:
             raise basestore.StoreError(filename, hash, self.url, str(e))
 
-        # Mercurial does not close its SSH connections after writing a stream
-        if length is not None:
-            infile = lfutil.limitreader(infile, length)
-        return lfutil.copyandhash(lfutil.blockstream(infile), tmpfile)
-
-    def _verify(self, hash):
-        return not self._stat(hash)
+        return lfutil.copyandhash(chunks, tmpfile)
 
     def _verifyfile(self, cctx, cset, contents, standin, verified):
         filename = lfutil.splitstandin(standin)
@@ -88,7 +74,8 @@ class remotestore(basestore.basestore):
 
         verified.add(key)
 
-        stat = self._stat(hash)
+        expecthash = fctx.data()[0:40]
+        stat = self._stat([expecthash])[expecthash]
         if not stat:
             return False
         elif stat == 1:
@@ -104,3 +91,8 @@ class remotestore(basestore.basestore):
         else:
             raise RuntimeError('verify failed: unexpected response from '
                                'statlfile (%r)' % stat)
+
+    def batch(self):
+        '''Support for remote batching.'''
+        return remotebatch(self)
+

@@ -55,7 +55,7 @@ hg serve
 
 hgweb filerevision, html
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/primes.py') \
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/primes.py') \
   >     | sed "s/class=\"k\"/class=\"kn\"/g" | sed "s/class=\"mf\"/class=\"mi\"/g"
   200 Script output follows
   
@@ -92,6 +92,7 @@ hgweb filerevision, html
   <li class="active">file</li>
   <li><a href="/file/tip/primes.py">latest</a></li>
   <li><a href="/diff/853dcd4de2a6/primes.py">diff</a></li>
+  <li><a href="/comparison/853dcd4de2a6/primes.py">comparison</a></li>
   <li><a href="/annotate/853dcd4de2a6/primes.py">annotate</a></li>
   <li><a href="/log/853dcd4de2a6/primes.py">file log</a></li>
   <li><a href="/raw-file/853dcd4de2a6/primes.py">raw</a></li>
@@ -102,7 +103,7 @@ hgweb filerevision, html
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>view primes.py @ 0:853dcd4de2a6</h3>
   
   <form class="search" action="/log">
@@ -183,7 +184,7 @@ hgweb filerevision, html
 
 hgweb fileannotate, html
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/annotate/tip/primes.py') \
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'annotate/tip/primes.py') \
   >     | sed "s/class=\"k\"/class=\"kn\"/g" | sed "s/class=\"mi\"/class=\"mf\"/g"
   200 Script output follows
   
@@ -222,6 +223,7 @@ hgweb fileannotate, html
   <li><a href="/file/853dcd4de2a6/primes.py">file</a></li>
   <li><a href="/file/tip/primes.py">latest</a></li>
   <li><a href="/diff/853dcd4de2a6/primes.py">diff</a></li>
+  <li><a href="/comparison/853dcd4de2a6/primes.py">comparison</a></li>
   <li class="active">annotate</li>
   <li><a href="/log/853dcd4de2a6/primes.py">file log</a></li>
   <li><a href="/raw-annotate/853dcd4de2a6/primes.py">raw</a></li>
@@ -232,7 +234,7 @@ hgweb fileannotate, html
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>annotate primes.py @ 0:853dcd4de2a6</h3>
   
   <form class="search" action="/log">
@@ -509,7 +511,7 @@ hgweb fileannotate, html
 
 hgweb fileannotate, raw
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/annotate/tip/primes.py?style=raw') \
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'annotate/tip/primes.py?style=raw') \
   >     | sed "s/test@//" > a
   $ echo "200 Script output follows" > b
   $ echo "" >> b
@@ -523,7 +525,7 @@ hgweb fileannotate, raw
 
 hgweb filerevision, raw
 
-  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/primes.py?style=raw') \
+  $ ("$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/primes.py?style=raw') \
   >     > a
   $ echo "200 Script output follows" > b
   $ echo "" >> b
@@ -532,7 +534,7 @@ hgweb filerevision, raw
 
 hgweb highlightcss friendly
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/highlightcss' > out
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'highlightcss' > out
   $ head -n 4 out
   200 Script output follows
   
@@ -543,7 +545,7 @@ hgweb highlightcss friendly
 errors encountered
 
   $ cat errors.log
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 
 Change the pygments style
 
@@ -559,7 +561,7 @@ hg serve again
 
 hgweb highlightcss fruity
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/highlightcss' > out
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'highlightcss' > out
   $ head -n 4 out
   200 Script output follows
   
@@ -577,13 +579,13 @@ errors encountered
   $ hg ci -Ama
   adding eucjp.txt
   $ hgserveget () {
-  >     "$TESTDIR/killdaemons.py"
+  >     "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   >     echo % HGENCODING="$1" hg serve
   >     HGENCODING="$1" hg serve -p $HGPORT -d -n test --pid-file=hg.pid -E errors.log
   >     cat hg.pid >> $DAEMON_PIDS
   > 
   >     echo % hgweb filerevision, html
-  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "/file/tip/$2" \
+  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "file/tip/$2" \
   >         | grep '<div class="parity0 source">'
   >     echo % errors encountered
   >     cat errors.log
@@ -603,3 +605,5 @@ errors encountered
   % hgweb filerevision, html
   <div class="parity0 source"><a href="#l1" id="l1">     1</a> ??</div>
   % errors encountered
+
+  $ cd ..

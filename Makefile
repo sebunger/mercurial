@@ -11,6 +11,9 @@ PURE=
 PYFILES:=$(shell find mercurial hgext doc -name '*.py')
 DOCFILES=mercurial/help/*.txt
 
+# Set this to e.g. "mingw32" to use a non-default compiler.
+COMPILER=
+
 help:
 	@echo 'Commonly used make targets:'
 	@echo '  all          - build program and documentation'
@@ -33,11 +36,15 @@ help:
 all: build doc
 
 local:
-	$(PYTHON) setup.py $(PURE) build_py -c -d . build_ext -i build_mo
-	$(PYTHON) hg version
+	$(PYTHON) setup.py $(PURE) \
+	  build_py -c -d . \
+	  build_ext $(COMPILER:%=-c %) -i \
+	  build_hgexe $(COMPILER:%=-c %) -i \
+	  build_mo
+	env HGRCPATH= $(PYTHON) hg version
 
 build:
-	$(PYTHON) setup.py $(PURE) build
+	$(PYTHON) setup.py $(PURE) build $(COMPILER:%=-c %)
 
 doc:
 	$(MAKE) -C doc
@@ -86,6 +93,9 @@ tests:
 
 test-%:
 	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS) $@
+
+check-code:
+	hg manifest | xargs python contrib/check-code.py
 
 update-pot: i18n/hg.pot
 

@@ -1,4 +1,4 @@
-.\" Man page generated from reStructeredText.
+.\" Man page generated from reStructuredText.
 .
 .TH HGIGNORE 5 "" "" "Mercurial Manual"
 .SH NAME
@@ -61,6 +61,11 @@ configure these files.
 To control Mercurial\(aqs handling of files that it manages, many
 commands support the \fB\-I\fP and \fB\-X\fP options; see
 \%\fBhg help <command>\fP\: and \%\fBhg help patterns\fP\: for details.
+.sp
+Files that are already tracked are not affected by .hgignore, even
+if they appear in .hgignore. An untracked file X can be explicitly
+added with \%\fBhg add X\fP\:, even if X would be excluded by a pattern
+in .hgignore.
 .SH SYNTAX
 .sp
 An ignore file is a plain text file consisting of a list of patterns,

@@ -124,17 +124,18 @@ def _updatetags(filetags, tagtype, alltags, tagtypes):
             continue
 
         # we prefer alltags[name] if:
-        #  it supercedes us OR
-        #  mutual supercedes and it has a higher rank
+        #  it supersedes us OR
+        #  mutual supersedes and it has a higher rank
         # otherwise we win because we're tip-most
         anode, ahist = nodehist
         bnode, bhist = alltags[name]
         if (bnode != anode and anode in bhist and
             (bnode not in ahist or len(bhist) > len(ahist))):
             anode = bnode
+        else:
+            tagtypes[name] = tagtype
         ahist.extend([n for n in bhist if n not in ahist])
         alltags[name] = anode, ahist
-        tagtypes[name] = tagtype
 
 
 # The tag cache only stores info about heads, not the tag contents
@@ -181,7 +182,7 @@ def _readtagcache(ui, repo):
             for line in cachelines:
                 if line == "\n":
                     break
-                line = line.rstrip().split()
+                line = line.split()
                 cacherevs.append(int(line[0]))
                 headnode = bin(line[1])
                 cacheheads.append(headnode)
@@ -228,6 +229,11 @@ def _readtagcache(ui, repo):
 
     # N.B. in case 4 (nodes destroyed), "new head" really means "newly
     # exposed".
+    if not len(repo.file('.hgtags')):
+        # No tags have ever been committed, so we can avoid a
+        # potentially expensive search.
+        return (repoheads, cachefnode, None, True)
+
     newheads = [head
                 for head in repoheads
                 if head not in set(cacheheads)]
@@ -236,7 +242,7 @@ def _readtagcache(ui, repo):
     # This is the most expensive part of finding tags, so performance
     # depends primarily on the size of newheads.  Worst case: no cache
     # file, so newheads == repoheads.
-    for head in newheads:
+    for head in reversed(newheads):
         cctx = repo[head]
         try:
             fnode = cctx.filenode('.hgtags')

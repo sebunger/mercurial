@@ -8,6 +8,8 @@
 from mercurial.i18n import _
 from mercurial import hg, commands, util
 
+testedwith = 'internal'
+
 def share(ui, source, dest=None, noupdate=False):
     """create a new shared repository
 
@@ -57,7 +59,7 @@ def unshare(ui, repo):
         lock and lock.release()
 
     # update store, spath, sopener and sjoin of repo
-    repo.__init__(ui, repo.root)
+    repo.__init__(repo.baseui, repo.root)
 
 cmdtable = {
     "share":

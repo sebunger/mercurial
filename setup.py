@@ -23,24 +23,25 @@ else:
 try:
     import hashlib
     sha = hashlib.sha1()
-except:
+except ImportError:
     try:
         import sha
-    except:
+    except ImportError:
         raise SystemExit(
             "Couldn't import standard hashlib (incomplete Python install).")
 
 try:
     import zlib
-except:
+except ImportError:
     raise SystemExit(
         "Couldn't import standard zlib (incomplete Python install).")
 
 # The base IronPython distribution (as of 2.7.1) doesn't support bz2
 isironpython = False
 try:
-    isironpython = platform.python_implementation().lower().find("ironpython") != -1
-except:
+    isironpython = (platform.python_implementation()
+                    .lower().find("ironpython") != -1)
+except AttributeError:
     pass
 
 if isironpython:
@@ -48,7 +49,7 @@ if isironpython:
 else:
     try:
         import bz2
-    except:
+    except ImportError:
         raise SystemExit(
             "Couldn't import standard bz2 (incomplete Python install).")
 
@@ -64,6 +65,7 @@ from distutils.command.build_py import build_py
 from distutils.command.install_scripts import install_scripts
 from distutils.spawn import spawn, find_executable
 from distutils.ccompiler import new_compiler
+from distutils import cygwinccompiler
 from distutils.errors import CCompilerError, DistutilsExecError
 from distutils.sysconfig import get_python_inc
 from distutils.version import StrictVersion
@@ -107,7 +109,7 @@ def hasfunction(cc, funcname):
             os.dup2(devnull.fileno(), sys.stderr.fileno())
             objects = cc.compile([fname], output_dir=tmpdir)
             cc.link_executable(objects, os.path.join(tmpdir, "a.out"))
-        except:
+        except Exception:
             return False
         return True
     finally:
@@ -146,9 +148,12 @@ def runhg(cmd, env):
     # fine, we don't want to load it anyway.  Python may warn about
     # a missing __init__.py in mercurial/locale, we also ignore that.
     err = [e for e in err.splitlines()
-           if not e.startswith(b('Not trusting file')) \
-              and not e.startswith(b('warning: Not importing'))]
+           if not e.startswith(b('not trusting file')) \
+              and not e.startswith(b('warning: Not importing')) \
+              and not e.startswith(b('obsolete feature not enabled'))]
     if err:
+        print >> sys.stderr, "stderr from '%s':" % (' '.join(cmd))
+        print >> sys.stderr, '\n'.join(['  ' + e for e in err])
         return ''
     return out
 
@@ -170,18 +175,17 @@ if 'SystemRoot' in os.environ:
     env['SystemRoot'] = os.environ['SystemRoot']
 
 if os.path.isdir('.hg'):
-    cmd = [sys.executable, 'hg', 'id', '-i', '-t']
-    l = runhg(cmd, env).split()
-    while len(l) > 1 and l[-1][0].isalpha(): # remove non-numbered tags
-        l.pop()
-    if len(l) > 1: # tag found
-        version = l[-1]
-        if l[0].endswith('+'): # propagate the dirty status to the tag
+    cmd = [sys.executable, 'hg', 'log', '-r', '.', '--template', '{tags}\n']
+    numerictags = [t for t in runhg(cmd, env).split() if t[0].isdigit()]
+    hgid = runhg([sys.executable, 'hg', 'id', '-i'], env).strip()
+    if numerictags: # tag(s) found
+        version = numerictags[-1]
+        if hgid.endswith('+'): # propagate the dirty status to the tag
             version += '+'
-    elif len(l) == 1: # no tag found
+    else: # no tag found
         cmd = [sys.executable, 'hg', 'parents', '--template',
                '{latesttag}+{latesttagdistance}-']
-        version = runhg(cmd, env) + l[0]
+        version = runhg(cmd, env) + hgid
     if version.endswith('+'):
         version += time.strftime('%Y%m%d')
 elif os.path.exists('.hg_archival.txt'):
@@ -211,10 +215,12 @@ class hgbuild(build):
     # Insert hgbuildmo first so that files in mercurial/locale/ are found
     # when build_py is run next.
     sub_commands = [('build_mo', None),
-    # We also need build_ext before build_py. Otherwise, when 2to3 is called (in
-    # build_py), it will not find osutil & friends, thinking that those modules are
-    # global and, consequently, making a mess, now that all module imports are
-    # global.
+
+    # We also need build_ext before build_py. Otherwise, when 2to3 is
+    # called (in build_py), it will not find osutil & friends,
+    # thinking that those modules are global and, consequently, making
+    # a mess, now that all module imports are global.
+
                     ('build_ext', build.has_ext_modules),
                    ] + build.sub_commands
 
@@ -291,8 +297,10 @@ class hgbuildpy(build_py):
                     self.py_modules.append("mercurial.pure.%s" % ext.name[10:])
             self.distribution.ext_modules = []
         else:
-            if not os.path.exists(os.path.join(get_python_inc(), 'Python.h')):
-                raise SystemExit("Python headers are required to build Mercurial")
+            h = os.path.join(get_python_inc(), 'Python.h')
+            if not os.path.exists(h):
+                raise SystemExit('Python headers are required to build '
+                                 'Mercurial but weren\'t found in %s' % h)
 
     def find_modules(self):
         modules = build_py.find_modules(self)
@@ -330,6 +338,29 @@ class buildhgextindex(Command):
         f.write('docs = ')
         f.write(out)
         f.close()
+
+class buildhgexe(build_ext):
+    description = 'compile hg.exe from mercurial/exewrapper.c'
+
+    def build_extensions(self):
+        if os.name != 'nt':
+            return
+        if isinstance(self.compiler, HackedMingw32CCompiler):
+            self.compiler.compiler_so = self.compiler.compiler # no -mdll
+            self.compiler.dll_libraries = [] # no -lmsrvc90
+        hv = sys.hexversion
+        pythonlib = 'python%d%d' % (hv >> 24, (hv >> 16) & 0xff)
+        f = open('mercurial/hgpythonlib.h', 'wb')
+        f.write('/* this file is autogenerated by setup.py */\n')
+        f.write('#define HGPYTHONLIB "%s"\n' % pythonlib)
+        f.close()
+        objects = self.compiler.compile(['mercurial/exewrapper.c'],
+                                         output_dir=self.build_temp)
+        dir = os.path.dirname(self.get_ext_fullpath('dummy'))
+        target = os.path.join(dir, 'hg')
+        self.compiler.link_executable(objects, target,
+                                      libraries=[],
+                                      output_dir=self.build_temp)
 
 class hginstallscripts(install_scripts):
     '''
@@ -382,10 +413,11 @@ cmdclass = {'build': hgbuild,
             'build_ext': hgbuildext,
             'build_py': hgbuildpy,
             'build_hgextindex': buildhgextindex,
-            'install_scripts': hginstallscripts}
+            'install_scripts': hginstallscripts,
+            'build_hgexe': buildhgexe,
+            }
 
-packages = ['mercurial', 'mercurial.hgweb',
-            'mercurial.httpclient', 'mercurial.httpclient.tests',
+packages = ['mercurial', 'mercurial.hgweb', 'mercurial.httpclient',
             'hgext', 'hgext.convert', 'hgext.highlight', 'hgext.zeroconf',
             'hgext.largefiles']
 
@@ -396,7 +428,9 @@ extmodules = [
     Extension('mercurial.bdiff', ['mercurial/bdiff.c']),
     Extension('mercurial.diffhelpers', ['mercurial/diffhelpers.c']),
     Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
-    Extension('mercurial.parsers', ['mercurial/parsers.c']),
+    Extension('mercurial.parsers', ['mercurial/dirs.c',
+                                    'mercurial/parsers.c',
+                                    'mercurial/pathencode.c']),
     ]
 
 osutil_ldflags = []
@@ -410,6 +444,20 @@ if sys.platform == 'win32' and sys.version_info < (2, 5, 0, 'final'):
 else:
     extmodules.append(Extension('mercurial.osutil', ['mercurial/osutil.c'],
                                 extra_link_args=osutil_ldflags))
+
+# the -mno-cygwin option has been deprecated for years
+Mingw32CCompiler = cygwinccompiler.Mingw32CCompiler
+
+class HackedMingw32CCompiler(cygwinccompiler.Mingw32CCompiler):
+    def __init__(self, *args, **kwargs):
+        Mingw32CCompiler.__init__(self, *args, **kwargs)
+        for i in 'compiler compiler_so linker_exe linker_so'.split():
+            try:
+                getattr(self, i).remove('-mno-cygwin')
+            except ValueError:
+                pass
+
+cygwinccompiler.Mingw32CCompiler = HackedMingw32CCompiler
 
 if sys.platform.startswith('linux') and os.uname()[2] > '2.6':
     # The inotify extension is only usable with Linux 2.6 kernels.
@@ -474,11 +522,36 @@ if sys.platform == 'darwin' and os.path.exists('/usr/bin/xcodebuild'):
 
 setup(name='mercurial',
       version=setupversion,
-      author='Matt Mackall',
-      author_email='mpm@selenic.com',
+      author='Matt Mackall and many others',
+      author_email='mercurial@selenic.com',
       url='http://mercurial.selenic.com/',
-      description='Scalable distributed SCM',
-      license='GNU GPLv2+',
+      download_url='http://mercurial.selenic.com/release/',
+      description=('Fast scalable distributed SCM (revision control, version '
+                   'control) system'),
+      long_description=('Mercurial is a distributed SCM tool written in Python.'
+                        ' It is used by a number of large projects that require'
+                        ' fast, reliable distributed revision control, such as '
+                        'Mozilla.'),
+      license='GNU GPLv2 or any later version',
+      classifiers=[
+          'Development Status :: 6 - Mature',
+          'Environment :: Console',
+          'Intended Audience :: Developers',
+          'Intended Audience :: System Administrators',
+          'License :: OSI Approved :: GNU General Public License (GPL)',
+          'Natural Language :: Danish',
+          'Natural Language :: English',
+          'Natural Language :: German',
+          'Natural Language :: Italian',
+          'Natural Language :: Japanese',
+          'Natural Language :: Portuguese (Brazilian)',
+          'Operating System :: Microsoft :: Windows',
+          'Operating System :: OS Independent',
+          'Operating System :: POSIX',
+          'Programming Language :: C',
+          'Programming Language :: Python',
+          'Topic :: Software Development :: Version Control',
+      ],
       scripts=scripts,
       packages=packages,
       py_modules=pymodules,

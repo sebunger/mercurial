@@ -22,7 +22,7 @@ configure it, set the following options in your hgrc::
   # Style to use (optional)
   #style = foo
   # The URL of the CIA notification service (optional)
-  # You can use mailto: URLs to send by email, eg
+  # You can use mailto: URLs to send by email, e.g.
   # mailto:cia@cia.vc
   # Make sure to set email.from if you do this.
   #url = http://cia.vc/
@@ -46,17 +46,15 @@ from mercurial.node import bin, short
 from mercurial import cmdutil, patch, templater, util, mail
 import email.Parser
 
-import xmlrpclib
+import socket, xmlrpclib
 from xml.sax import saxutils
+testedwith = 'internal'
 
 socket_timeout = 30 # seconds
-try:
+if util.safehasattr(socket, 'setdefaulttimeout'):
     # set a timeout for the socket so you don't have to wait so looooong
     # when cia.vc is having problems. requires python >= 2.3:
-    import socket
     socket.setdefaulttimeout(socket_timeout)
-except:
-    pass
 
 HGCIA_VERSION = '0.1'
 HGCIA_URL = 'http://hg.kublai.com/mercurial/hgcia'

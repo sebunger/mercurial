@@ -11,6 +11,8 @@ from mercurial import hg, util
 from mercurial.i18n import _
 import os, stat
 
+testedwith = 'internal'
+
 def relink(ui, repo, origin=None, **opts):
     """recreate hardlinks between two repositories
 
@@ -39,10 +41,8 @@ def relink(ui, repo, origin=None, **opts):
     if (not util.safehasattr(util, 'samefile') or
         not util.safehasattr(util, 'samedevice')):
         raise util.Abort(_('hardlinks are not supported on this system'))
-    src = hg.repository(ui, ui.expandpath(origin or 'default-relink',
+    src = hg.repository(repo.baseui, ui.expandpath(origin or 'default-relink',
                                           origin or 'default'))
-    if not src.local():
-        raise util.Abort(_('must specify local origin repository'))
     ui.status(_('relinking %s to %s\n') % (src.store.path, repo.store.path))
     if repo.root == src.root:
         ui.status(_('there is nothing to relink\n'))
@@ -79,7 +79,7 @@ def collect(src, ui):
         dirnames.sort()
         relpath = dirpath[len(src) + seplen:]
         for filename in sorted(filenames):
-            if not filename[-2:] in ('.d', '.i'):
+            if filename[-2:] not in ('.d', '.i'):
                 continue
             st = os.stat(os.path.join(dirpath, filename))
             if not stat.S_ISREG(st.st_mode):

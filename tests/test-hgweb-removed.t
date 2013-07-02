@@ -17,7 +17,7 @@ set up hgweb
 
 revision
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/rev/tip'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'rev/tip'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -59,7 +59,7 @@ revision
   
   <div class="main">
   
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>changeset 1:c78f6c5cbea9  <span class="tag">tip</span>  </h3>
   
   <form class="search" action="/log">
@@ -135,7 +135,7 @@ revision
 
 diff removed file
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/diff/tip/a'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'diff/tip/a'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -171,6 +171,7 @@ diff removed file
   <li><a href="/file/c78f6c5cbea9/a">file</a></li>
   <li><a href="/file/tip/a">latest</a></li>
   <li class="active">diff</li>
+  <li><a href="/comparison/c78f6c5cbea9/a">comparison</a></li>
   <li><a href="/annotate/c78f6c5cbea9/a">annotate</a></li>
   <li><a href="/log/c78f6c5cbea9/a">file log</a></li>
   <li><a href="/raw-file/c78f6c5cbea9/a">raw</a></li>
@@ -181,7 +182,7 @@ diff removed file
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>diff a @ 1:c78f6c5cbea9</h3>
   
   <form class="search" action="/log">
@@ -231,3 +232,5 @@ diff removed file
   </body>
   </html>
   
+
+  $ cd ..

@@ -69,8 +69,6 @@ o /  (1) collapse
 o  (0) root
 
 
-  $ "$TESTDIR/hghave" no-outer-repo || exit 80
-
   $ commit()
   > {
   >   rev=$1
@@ -84,13 +82,12 @@ o  (0) root
   > }
 
   $ cat > printrevset.py <<EOF
-  > from mercurial import extensions, revset, commands
-  > from hgext import graphlog
-  >  
+  > from mercurial import extensions, revset, commands, cmdutil
+  > 
   > def uisetup(ui):
   >     def printrevset(orig, ui, repo, *pats, **opts):
   >         if opts.get('print_revset'):
-  >             expr = graphlog.getlogrevs(repo, pats, opts)[1]
+  >             expr = cmdutil.getgraphlogrevs(repo, pats, opts)[1]
   >             if expr:
   >                 tree = revset.parse(expr)[0]
   >             else:
@@ -1136,8 +1133,11 @@ File glog per revset (only merges):
 Empty revision range - display nothing:
   $ hg glog -r 1..0
 
-From outer space:
   $ cd ..
+
+#if no-outer-repo
+
+From outer space:
   $ hg glog -l1 repo
   @  changeset:   34:fea3ac5810e0
   |  tag:         tip
@@ -1155,6 +1155,8 @@ From outer space:
   |  summary:     (34) head
   |
   $ hg glog -l1 repo/missing
+
+#endif
 
 File log with revs != cset revs:
   $ hg init flog
@@ -2040,19 +2042,84 @@ Test subdir
   $ cd ..
 
 Test --hidden
+ (enable obsolete)
 
-  $ cat > $HGTMP/testhidden.py << EOF
-  > def reposetup(ui, repo):
-  >     for line in repo.opener('hidden'):
-  >         ctx = repo[line.strip()]
-  >         repo.changelog.hiddenrevs.add(ctx.rev())
+  $ cat > ${TESTTMP}/obs.py << EOF
+  > import mercurial.obsolete
+  > mercurial.obsolete._enabled = True
   > EOF
-  $ echo '[extensions]' >> .hg/hgrc
-  $ echo "hidden=$HGTMP/testhidden.py" >> .hg/hgrc
-  $ hg id --debug -i -r 0 > .hg/hidden
+  $ echo '[extensions]' >> $HGRCPATH
+  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
+
+  $ hg debugobsolete `hg id --debug -i -r 8`
   $ testlog
   []
   []
   $ testlog --hidden
   []
   []
+  $ hg glog --template '{rev} {desc}\n'
+  o  7 Added tag foo-bar for changeset fc281d8ff18d
+  |
+  o    6 merge 5 and 4
+  |\
+  | o  5 add another e
+  | |
+  o |  4 mv dir/b e
+  |/
+  @  3 mv a b; add d
+  |
+  o  2 mv b dir/b
+  |
+  o  1 copy a b
+  |
+  o  0 add a
+  
+
+A template without trailing newline should do something sane
+
+  $ hg glog -r ::2 --template '{rev} {desc}'
+  o  2 mv b dir/b
+  |
+  o  1 copy a b
+  |
+  o  0 add a
+  
+
+Extra newlines must be preserved
+
+  $ hg glog -r ::2 --template '\n{rev} {desc}\n\n'
+  o
+  |  2 mv b dir/b
+  |
+  o
+  |  1 copy a b
+  |
+  o
+     0 add a
+  
+
+The almost-empty template should do something sane too ...
+
+  $ hg glog -r ::2 --template '\n'
+  o
+  |
+  o
+  |
+  o
+  
+
+issue3772
+
+  $ hg glog -r :null
+  o  changeset:   -1:000000000000
+     user:
+     date:        Thu Jan 01 00:00:00 1970 +0000
+  
+  $ hg glog -r null:null
+  o  changeset:   -1:000000000000
+     user:
+     date:        Thu Jan 01 00:00:00 1970 +0000
+  
+
+  $ cd ..

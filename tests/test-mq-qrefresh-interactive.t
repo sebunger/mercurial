@@ -46,7 +46,7 @@ help qrefresh (no record)
   
   [+] marked option can be specified multiple times
   
-  use "hg -v help qrefresh" to show more info
+  use "hg -v help qrefresh" to show the global options
 
 help qrefresh (record)
 
@@ -91,7 +91,7 @@ help qrefresh (record)
   
   [+] marked option can be specified multiple times
   
-  use "hg -v help qrefresh" to show more info
+  use "hg -v help qrefresh" to show the global options
 
   $ hg init a
   $ cd a
@@ -346,3 +346,5 @@ After final qrefresh 'tip'
 After qrefresh 'diff'
 
   $ hg diff --nodates
+
+  $ cd ..

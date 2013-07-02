@@ -60,11 +60,13 @@
 <li><a class="reference internal" href="#trusted" id="id28"><tt class="docutils literal">trusted</tt></a></li>
 <li><a class="reference internal" href="#ui" id="id29"><tt class="docutils literal">ui</tt></a></li>
 <li><a class="reference internal" href="#web" id="id30"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id31"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id32"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id31">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id32">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id33">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id33">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id34">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id35">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="synopsis">
@@ -157,6 +159,11 @@ keys contain PATH-like strings, every part of which must reference
 a <tt class="docutils literal">Mercurial.ini</tt> file or be a directory where <tt class="docutils literal">*.rc</tt> files will
 be read.  Mercurial checks each of these locations in the specified
 order until one or more configuration files are detected.</blockquote>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p class="last">The registry key <tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial</tt>
+is used when running 32-bit Python on 64-bit Windows.</p>
+</div>
 </div>
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
@@ -748,7 +755,7 @@ The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
 <p>For example:</p>
 <pre class="literal-block">
 [hostfingerprints]
-hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+hg.intevation.org = 44:ed:af:1f:97:11:b6:01:7a:48:45:fc:10:3c:b7:f9:d4:89:2a:9d
 </pre>
 <p>This feature is only supported when using Python 2.6 or later.</p>
 </div>
@@ -840,12 +847,6 @@ selected by file pattern match.</dd>
 <dd>Always prompt for merge success, regardless of success reported by tool.</dd>
 </dl>
 </dd>
-<dt><tt class="docutils literal">checkchanged</tt></dt>
-<dd>True is equivalent to <tt class="docutils literal">check = changed</tt>.
-Default: False</dd>
-<dt><tt class="docutils literal">checkconflicts</tt></dt>
-<dd>True is equivalent to <tt class="docutils literal">check = conflicts</tt>.
-Default: False</dd>
 <dt><tt class="docutils literal">fixeol</tt></dt>
 <dd>Attempt to fix up EOL changes caused by the merge tool.
 Default: False</dd>
@@ -903,6 +904,16 @@ cloned.</dd>
 <dd>Optional. Directory or URL to use when pushing if no destination
 is specified.</dd>
 </dl>
+<p>Custom paths can be defined by assigning the path to a name that later can be
+used from the command line. Example:</p>
+<pre class="literal-block">
+[paths]
+my_path = http://example.com/path
+</pre>
+<p>To push to the path defined in <tt class="docutils literal">my_path</tt> run the command:</p>
+<pre class="literal-block">
+hg push my_path
+</pre>
 </div>
 <div class="section" id="phases">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">phases</tt></a></h2>
@@ -965,6 +976,19 @@ Default: 1000.</dd>
 <dd>File path where profiling data or report should be saved. If the
 file exists, it is replaced. Default: None, data is printed on
 stderr</dd>
+<dt><tt class="docutils literal">sort</tt></dt>
+<dd>Sort field.  Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
+One of <tt class="docutils literal">callcount</tt>, <tt class="docutils literal">reccallcount</tt>, <tt class="docutils literal">totaltime</tt> and
+<tt class="docutils literal">inlinetime</tt>.
+Default: inlinetime.</dd>
+<dt><tt class="docutils literal">limit</tt></dt>
+<dd>Number of lines to show. Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
+Default: 30.</dd>
+<dt><tt class="docutils literal">nested</tt></dt>
+<dd>Show at most this number of lines of drill-down info after each main entry.
+This can help explain the difference between Total and Inline.
+Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
+Default: 5.</dd>
 </dl>
 </div>
 <div class="section" id="revsetalias">
@@ -1002,10 +1026,20 @@ present. Default is False.</dd>
 <dt><tt class="docutils literal">host</tt></dt>
 <dd>Host name of mail server, e.g. &quot;mail.example.com&quot;.</dd>
 <dt><tt class="docutils literal">port</tt></dt>
-<dd>Optional. Port to connect to on mail server. Default: 25.</dd>
+<dd>Optional. Port to connect to on mail server. Default: 465 (if
+<tt class="docutils literal">tls</tt> is smtps) or 25 (otherwise).</dd>
 <dt><tt class="docutils literal">tls</tt></dt>
 <dd>Optional. Method to enable TLS when connecting to mail server: starttls,
 smtps or none. Default: none.</dd>
+<dt><tt class="docutils literal">verifycert</tt></dt>
+<dd>Optional. Verification for the certificate of mail server, when
+<tt class="docutils literal">tls</tt> is starttls or smtps. &quot;strict&quot;, &quot;loose&quot; or False. For
+&quot;strict&quot; or &quot;loose&quot;, the certificate is verified as same as the
+verification for HTTPS connections (see <tt class="docutils literal">[hostfingerprints]</tt> and
+<tt class="docutils literal">[web] cacerts</tt> also). For &quot;strict&quot;, sending email is also
+aborted, if there is no configuration for mail server in
+<tt class="docutils literal">[hostfingerprints]</tt> and <tt class="docutils literal">[web] cacerts</tt>.  --insecure for
+<a class="reference external" href="hg.1.html#email"><tt class="docutils literal">hg email</tt></a> overwrites this as &quot;loose&quot;. Default: &quot;strict&quot;.</dd>
 <dt><tt class="docutils literal">username</tt></dt>
 <dd>Optional. User name for authenticating with the SMTP server.
 Default: none.</dd>
@@ -1034,7 +1068,7 @@ rewrite it. Groups can be matched in <tt class="docutils literal">pattern</tt> a
 http://server/(.*)-hg/ = http://hg.server/\1/
 </pre>
 <p>rewrites <tt class="docutils literal"><span class="pre">http://server/foo-hg/</span></tt> into <tt class="docutils literal"><span class="pre">http://hg.server/foo/</span></tt>.</p>
-<p>Relative subrepository paths are first made absolute, and the the
+<p>Relative subrepository paths are first made absolute, and the
 rewrite rules are then applied on the full (absolute) path. The rules
 are applied in definition order.</p>
 </div>
@@ -1201,12 +1235,6 @@ push, including unauthenticated users. Otherwise, the remote user
 must have been authenticated, and the authenticated user name must
 be present in this list. The contents of the allow_push list are
 examined after the deny_push list.</dd>
-<dt><tt class="docutils literal">guessmime</tt></dt>
-<dd>Control MIME types for raw download of file content.
-Set to True to let hgweb guess the content type from the file
-extension. This will serve HTML files as <tt class="docutils literal">text/html</tt> and might
-allow cross-site scripting attacks when serving untrusted
-repositories. Default is False.</dd>
 <dt><tt class="docutils literal">allow_read</tt></dt>
 <dd>If the user has not already been denied repository access due to
 the contents of deny_read, this list determines whether to grant
@@ -1220,6 +1248,9 @@ examined after the deny_read list.</dd>
 <dt><tt class="docutils literal">allowzip</tt></dt>
 <dd>(DEPRECATED) Whether to allow .zip downloading of repository
 revisions. Default is False. This feature creates temporary files.</dd>
+<dt><tt class="docutils literal">archivesubrepos</tt></dt>
+<dd>Whether to recurse into subrepositories when archiving. Default is
+False.</dd>
 <dt><tt class="docutils literal">baseurl</tt></dt>
 <dd>Base URL to use when publishing URLs in other locations, so
 third-party tools like email notification hooks can construct
@@ -1259,6 +1290,11 @@ the current path are grouped behind navigable directory entries that
 lead to the locations of these repositories. In effect, this setting
 collapses each collection of repositories found within a subdirectory
 into a single entry for that subdirectory. Default is False.</dd>
+<dt><tt class="docutils literal">comparisoncontext</tt></dt>
+<dd>Number of lines of context to show in side-by-side file comparison. If
+negative or the value <tt class="docutils literal">full</tt>, whole files are shown. Default is 5.
+This setting can be overridden by a <tt class="docutils literal">context</tt> request parameter to the
+<tt class="docutils literal">comparison</tt> command, taking the same values.</dd>
 <dt><tt class="docutils literal">contact</tt></dt>
 <dd>Name or email address of the person in charge of the repository.
 Defaults to ui.username or <tt class="docutils literal">$EMAIL</tt> or &quot;unknown&quot; if unset or empty.</dd>
@@ -1294,6 +1330,12 @@ Default is &quot;unknown&quot;.</dd>
 Example: &quot;UTF-8&quot;</dd>
 <dt><tt class="docutils literal">errorlog</tt></dt>
 <dd>Where to output the error log. Default is stderr.</dd>
+<dt><tt class="docutils literal">guessmime</tt></dt>
+<dd>Control MIME types for raw download of file content.
+Set to True to let hgweb guess the content type from the file
+extension. This will serve HTML files as <tt class="docutils literal">text/html</tt> and might
+allow cross-site scripting attacks when serving untrusted
+repositories. Default is False.</dd>
 <dt><tt class="docutils literal">hidden</tt></dt>
 <dd>Whether to hide the repository in the hgwebdir index.
 Default is False.</dd>
@@ -1307,13 +1349,16 @@ If unset, <tt class="docutils literal">hglogo.png</tt> will be used.</dd>
 <dt><tt class="docutils literal">logourl</tt></dt>
 <dd>Base URL to use for logos. If unset, <tt class="docutils literal"><span class="pre">http://mercurial.selenic.com/</span></tt>
 will be used.</dd>
-<dt><tt class="docutils literal">name</tt></dt>
-<dd>Repository name to use in the web interface. Default is current
-working directory.</dd>
 <dt><tt class="docutils literal">maxchanges</tt></dt>
 <dd>Maximum number of changes to list on the changelog. Default is 10.</dd>
 <dt><tt class="docutils literal">maxfiles</tt></dt>
 <dd>Maximum number of files to list per changeset. Default is 10.</dd>
+<dt><tt class="docutils literal">maxshortchanges</tt></dt>
+<dd>Maximum number of changes to list on the shortlog, graph or filelog
+pages. Default is 60.</dd>
+<dt><tt class="docutils literal">name</tt></dt>
+<dd>Repository name to use in the web interface. Default is current
+working directory.</dd>
 <dt><tt class="docutils literal">port</tt></dt>
 <dd>Port to listen on. Default is 8000.</dd>
 <dt><tt class="docutils literal">prefix</tt></dt>
@@ -1327,12 +1372,53 @@ hgicon.png favicon) will be served by the CGI script itself. Use
 this setting to serve them directly with the HTTP server.
 Example: <tt class="docutils literal"><span class="pre">http://hgserver/static/</span></tt>.</dd>
 <dt><tt class="docutils literal">stripes</tt></dt>
-<dd>How many lines a &quot;zebra stripe&quot; should span in multiline output.
+<dd>How many lines a &quot;zebra stripe&quot; should span in multi-line output.
 Default is 1; set to 0 to disable.</dd>
 <dt><tt class="docutils literal">style</tt></dt>
 <dd>Which template map style to use.</dd>
 <dt><tt class="docutils literal">templates</tt></dt>
 <dd>Where to find the HTML templates. Default is install path.</dd>
+</dl>
+</div>
+<div class="section" id="websub">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">websub</tt></a></h2>
+<p>Web substitution filter definition. You can use this section to
+define a set of regular expression substitution patterns which
+let you automatically modify the hgweb server output.</p>
+<p>The default hgweb templates only apply these substitution patterns
+on the revision description fields. You can apply them anywhere
+you want when you create your own templates by adding calls to the
+&quot;websub&quot; filter (usually after calling the &quot;escape&quot; filter).</p>
+<p>This can be used, for example, to convert issue references to links
+to your issue tracker, or to convert &quot;markdown-like&quot; syntax into
+HTML (see the examples below).</p>
+<p>Each entry in this section names a substitution filter.
+The value of each entry defines the substitution expression itself.
+The websub expressions follow the old interhg extension syntax,
+which in turn imitates the Unix sed replacement syntax:</p>
+<pre class="literal-block">
+patternname = s/SEARCH_REGEX/REPLACE_EXPRESSION/[i]
+</pre>
+<p>You can use any separator other than &quot;/&quot;. The final &quot;i&quot; is optional
+and indicates that the search must be case insensitive.</p>
+<p>Examples:</p>
+<pre class="literal-block">
+[websub]
+issues = s|issue(\d+)|&lt;a href=&quot;http://bts.example.org/issue\1&quot;&gt;issue\1&lt;/a&gt;|i
+italic = s/\b_(\S+)_\b/&lt;i&gt;\1&lt;\/i&gt;/
+bold = s/\*\b(\S+)\b\*/&lt;b&gt;\1&lt;\/b&gt;/
+</pre>
+</div>
+<div class="section" id="worker">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">worker</tt></a></h2>
+<p>Parallel master/worker configuration. We currently perform working
+directory updates in parallel on Unix-like systems, which greatly
+helps performance.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">numcpus</tt></dt>
+<dd>Number of CPUs to use for parallel operations. Default is 4 or the
+number of CPUs on the system, whichever is larger. A zero or
+negative value is treated as <tt class="docutils literal">use the default</tt>.</dd>
 </dl>
 </div>
 </div>

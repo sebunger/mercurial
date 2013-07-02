@@ -66,6 +66,8 @@ from mercurial.node import short, nullid
 from mercurial import scmutil, scmutil, util, commands, encoding
 import os, shlex, shutil, tempfile, re
 
+testedwith = 'internal'
+
 def snapshot(ui, repo, files, node, tmproot):
     '''snapshot files as of some revision
     if not using snapshot, -I/-X does not work and recursive diff
@@ -88,7 +90,7 @@ def snapshot(ui, repo, files, node, tmproot):
     ctx = repo[node]
     for fn in files:
         wfn = util.pconvert(fn)
-        if not wfn in ctx:
+        if wfn not in ctx:
             # File doesn't exist; could be a bogus modify
             continue
         ui.note('  %s\n' % wfn)
@@ -107,7 +109,7 @@ def snapshot(ui, repo, files, node, tmproot):
     return dirname, fns_and_mtime
 
 def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
-    '''Do the actuall diff:
+    '''Do the actual diff:
 
     - copy to a temp structure if diffing 2 internal revisions
     - copy to a temp structure if diffing working revision with
@@ -327,3 +329,5 @@ use %(path)s to diff repository (or selected files)
         cmdtable[cmd] = (save(cmd, path, diffopts),
                          cmdtable['extdiff'][1][1:],
                          _('hg %s [OPTION]... [FILE]...') % cmd)
+
+commands.inferrepo += " extdiff"

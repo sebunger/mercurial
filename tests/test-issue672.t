@@ -28,18 +28,18 @@ http://mercurial.selenic.com/bts/issue672
     searching for copies back to rev 1
     unmatched files in other:
      1a
-    all copies found (* = to merge, ! = divergent):
-     1a -> 1 
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: '1' -> dst: '1a' 
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 81f4b099af3d, local: c64f439569a9+, remote: c12dcd37c90a
    1: other deleted -> r
    1a: remote created -> g
-  updating: 1 1/2 files (50.00%)
   removing 1
-  updating: 1a 2/2 files (100.00%)
+  updating: 1 1/2 files (50.00%)
   getting 1a
+  updating: 1a 2/2 files (100.00%)
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
 
@@ -59,14 +59,14 @@ http://mercurial.selenic.com/bts/issue672
     searching for copies back to rev 1
     unmatched files in local:
      1a
-    all copies found (* = to merge, ! = divergent):
-     1a -> 1 *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: '1' -> dst: '1a' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: c64f439569a9, local: e327dca35ac8+, remote: 746e9549ea96
    1a: local copied/moved to 1 -> m
-  preserving 1a for resolve of 1a
+    preserving 1a for resolve of 1a
   updating: 1a 1/1 files (100.00%)
   picked tool 'internal:merge' for 1a (binary False symlink False)
   merging 1a and 1 to 1a
@@ -82,14 +82,14 @@ http://mercurial.selenic.com/bts/issue672
     searching for copies back to rev 1
     unmatched files in other:
      1a
-    all copies found (* = to merge, ! = divergent):
-     1a -> 1 *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: '1' -> dst: '1a' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: c64f439569a9, local: 746e9549ea96+, remote: e327dca35ac8
    1: remote moved to 1a -> m
-  preserving 1 for resolve of 1a
+    preserving 1 for resolve of 1a
   removing 1
   updating: 1 1/1 files (100.00%)
   picked tool 'internal:merge' for 1a (binary False symlink False)

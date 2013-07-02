@@ -38,8 +38,8 @@ class Stats(object):
             d = d[:top]
         cols = "% 12s %12s %11.4f %11.4f   %s\n"
         hcols = "% 12s %12s %12s %12s %s\n"
-        file.write(hcols % ("CallCount", "Recursive", "Total(ms)",
-                            "Inline(ms)", "module:lineno(function)"))
+        file.write(hcols % ("CallCount", "Recursive", "Total(s)",
+                            "Inline(s)", "module:lineno(function)"))
         count = 0
         for e in d:
             file.write(cols % (e.callcount, e.reccallcount, e.totaltime,
@@ -50,9 +50,9 @@ class Stats(object):
             ccount = 0
             if climit and e.calls:
                 for se in e.calls:
-                    file.write(cols % ("+%s" % se.callcount, se.reccallcount,
+                    file.write(cols % (se.callcount, se.reccallcount,
                                        se.totaltime, se.inlinetime,
-                                       "+%s" % label(se.code)))
+                                       "    %s" % label(se.code)))
                     count += 1
                     ccount += 1
                     if limit is not None and count == limit:

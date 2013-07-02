@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" symlink || exit 80
-
   $ hg init
   $ mkdir d1 d1/d11 d2
   $ echo d1/a > d1/a
@@ -68,7 +66,7 @@ rename --after a single file when src and tgt already tracked
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ rm d2/c
 
-rename --after a single file to a nonexistant target filename
+rename --after a single file to a nonexistent target filename
 
   $ hg rename --after d1/a dummy
   d1/a: not recording move - dummy does not exist (glob)
@@ -390,6 +388,7 @@ forced overwrite of an existing file
 
 attempt to overwrite an existing broken symlink
 
+#if symlink
   $ ln -s ba d1/ca
   $ hg rename --traceback d1/ba d1/ca
   d1/ca: not overwriting - file exists
@@ -410,6 +409,7 @@ replace a symlink with a file
   $ hg update -C
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ rm d1/ca
+#endif
 
 do not copy more than one source file to the same destination file
 
@@ -593,7 +593,7 @@ check illegal path components
   [255]
   $ hg status -C
   $ hg rename d1/d11/a1 ../foo
-  abort: ../foo not under root
+  abort: ../foo not under root '$TESTTMP'
   [255]
   $ hg status -C
 
@@ -612,7 +612,7 @@ check illegal path components
   [255]
   $ hg status -C
   $ hg rename d1/d11/a1 ..
-  abort: ../a1 not under root (glob)
+  abort: ../a1 not under root '$TESTTMP' (glob)
   [255]
   $ hg status -C
 
@@ -631,7 +631,7 @@ check illegal path components
   [255]
   $ hg status -C
   $ (cd d1/d11; hg rename ../../d2/b ../../../foo)
-  abort: ../../../foo not under root
+  abort: ../../../foo not under root '$TESTTMP'
   [255]
   $ hg status -C
 

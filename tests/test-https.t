@@ -104,9 +104,15 @@ cacert not found
 
 Test server address cannot be reused
 
+#if windows
+  $ hg serve -p $HGPORT --certificate=$PRIV 2>&1
+  abort: cannot start server at ':$HGPORT':
+  [255]
+#else
   $ hg serve -p $HGPORT --certificate=$PRIV 2>&1
   abort: cannot start server at ':$HGPORT': Address already in use
   [255]
+#endif
   $ cd ..
 
 clone via pull
@@ -118,7 +124,6 @@ clone via pull
   adding manifests
   adding file changes
   added 1 changesets with 4 changes to 4 files
-  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R copy-pull
@@ -137,7 +142,7 @@ pull without cacert
 
   $ cd copy-pull
   $ echo '[hooks]' >> .hg/hgrc
-  $ echo "changegroup = python '$TESTDIR'/printenv.py changegroup" >> .hg/hgrc
+  $ echo "changegroup = python \"$TESTDIR/printenv.py\" changegroup" >> .hg/hgrc
   $ hg pull
   warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
   pulling from https://localhost:$HGPORT/
@@ -146,8 +151,7 @@ pull without cacert
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  warning: localhost certificate with fingerprint 91:4f:1a:ff:87:24:9c:09:b6:85:9b:88:b1:90:6d:30:75:64:91:ca not verified (check hostfingerprints or web.cacerts config setting)
-  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/ 
+  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=https://localhost:$HGPORT/
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -229,11 +233,13 @@ Fingerprints
   (check hostfingerprint configuration)
   [255]
 
+
 - ignores that certificate doesn't match hostname
   $ hg -R copy-pull id https://127.0.0.1:$HGPORT/
   5fed3813f7f5
 
-  $ while kill `cat hg1.pid` 2>/dev/null; do sleep 0; done
+HGPORT1 is reused below for tinyproxy tests. Kill that server.
+  $ "$TESTDIR/killdaemons.py" hg1.pid
 
 Prepare for connecting through proxy
 

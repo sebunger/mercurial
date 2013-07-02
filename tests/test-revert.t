@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" execbit || exit 80
-
   $ hg init repo
   $ cd repo
   $ echo 123 > a
@@ -155,6 +153,7 @@ should silently keep d removed
 
   $ hg update -C
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+#if execbit
   $ chmod +x c
   $ hg revert --all
   reverting c
@@ -175,6 +174,7 @@ should print executable
 
   $ test -x c && echo executable
   executable
+#endif
 
   $ cd ..
 
@@ -274,3 +274,29 @@ should silently revert the named files
 
   $ hg revert --no-backup ignored removed
   $ hg st -mardi
+
+someone set up us the copies
+
+  $ rm .hgignore
+  $ hg update -C
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg mv ignored allyour
+  $ hg copy removed base
+  $ hg commit -m rename
+
+copies and renames, you have no chance to survive make your time (issue3920)
+
+  $ hg update '.^'
+  1 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  $ hg revert -rtip -a
+  adding allyour
+  adding base
+  removing ignored
+  $ hg status -C
+  A allyour
+    ignored
+  A base
+    removed
+  R ignored
+
+  $ cd ..

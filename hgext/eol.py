@@ -94,10 +94,12 @@ from mercurial.i18n import _
 from mercurial import util, config, extensions, match, error
 import re, os
 
+testedwith = 'internal'
+
 # Matches a lone LF, i.e., one that is not part of CRLF.
 singlelf = re.compile('(^|[^\r])\n')
 # Matches a single EOL which can either be a CRLF where repeated CR
-# are removed or a LF. We do not care about old Machintosh files, so a
+# are removed or a LF. We do not care about old Macintosh files, so a
 # stray CR is an error.
 eolre = re.compile('\r*\n')
 
@@ -111,7 +113,8 @@ def tolf(s, params, ui, **kwargs):
         return s
     if ui.configbool('eol', 'only-consistent', True) and inconsistenteol(s):
         return s
-    if ui.configbool('eol', 'fix-trailing-newline', False) and s and s[-1] != '\n':
+    if (ui.configbool('eol', 'fix-trailing-newline', False)
+        and s and s[-1] != '\n'):
         s = s + '\n'
     return eolre.sub('\n', s)
 
@@ -121,7 +124,8 @@ def tocrlf(s, params, ui, **kwargs):
         return s
     if ui.configbool('eol', 'only-consistent', True) and inconsistenteol(s):
         return s
-    if ui.configbool('eol', 'fix-trailing-newline', False) and s and s[-1] != '\n':
+    if (ui.configbool('eol', 'fix-trailing-newline', False)
+        and s and s[-1] != '\n'):
         s = s + '\n'
     return eolre.sub('\r\n', s)
 
@@ -303,7 +307,7 @@ def reposetup(ui, repo):
                 eolmtime = 0
 
             if eolmtime > cachemtime:
-                ui.debug("eol: detected change in .hgeol\n")
+                self.ui.debug("eol: detected change in .hgeol\n")
                 wlock = None
                 try:
                     wlock = self.wlock()

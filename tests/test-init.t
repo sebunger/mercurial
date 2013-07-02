@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" no-windows || exit 80
-
 This test tries to exercise the ssh functionality with a dummy script
 
   $ checknewrepo()
@@ -20,10 +18,10 @@ creating 'local'
   $ checknewrepo local
   store created
   00changelog.i created
-  revlogv1
-  fncache
-  store
   dotencode
+  fncache
+  revlogv1
+  store
   $ echo this > local/foo
   $ hg ci --cwd local -A -m "init"
   adding foo
@@ -49,8 +47,8 @@ creating repo with format.dotencode=false
   $ checknewrepo old3
   store created
   00changelog.i created
-  revlogv1
   fncache
+  revlogv1
   store
 
 test failure
@@ -124,7 +122,7 @@ comparing repositories
 
 check names for repositories (clashes with URL schemes, special chars)
 
-  $ for i in bundle file hg http https old-http ssh static-http " " "with space"; do
+  $ for i in bundle file hg http https old-http ssh static-http "with space"; do
   >   printf "hg init \"$i\"... "
   >   hg init "$i"
   >   test -d "$i" -a -d "$i/.hg" && echo "ok" || echo "failed"
@@ -137,8 +135,13 @@ check names for repositories (clashes with URL schemes, special chars)
   hg init "old-http"... ok
   hg init "ssh"... ok
   hg init "static-http"... ok
-  hg init " "... ok
   hg init "with space"... ok
+#if eol-in-paths
+/* " " is not a valid name for a directory on Windows */
+  $ hg init " "
+  $ test -d " "
+  $ test -d " /.hg"
+#endif
 
 creating 'local/sub/repo'
 
@@ -146,10 +149,10 @@ creating 'local/sub/repo'
   $ checknewrepo local/sub/repo
   store created
   00changelog.i created
-  revlogv1
-  fncache
-  store
   dotencode
+  fncache
+  revlogv1
+  store
 
 prepare test of init of url configured from paths
 
@@ -163,10 +166,10 @@ init should (for consistency with clone) expand the url
   $ checknewrepo "url from paths"
   store created
   00changelog.i created
-  revlogv1
-  fncache
-  store
   dotencode
+  fncache
+  revlogv1
+  store
 
 verify that clone also expand urls
 
@@ -176,10 +179,10 @@ verify that clone also expand urls
   $ checknewrepo "another paths url"
   store created
   00changelog.i created
-  revlogv1
-  fncache
-  store
   dotencode
+  fncache
+  revlogv1
+  store
 
 clone bookmarks
 

@@ -7,13 +7,13 @@
 
 '''hooks for sending email push notifications
 
-This extension let you run hooks sending email notifications when
-changesets are being pushed, from the sending or receiving side.
+This extension implements hooks to send email notifications when
+changesets are sent from or received by the local repository.
 
 First, enable the extension as explained in :hg:`help extensions`, and
 register the hook you want to run. ``incoming`` and ``changegroup`` hooks
-are run by the changesets receiver while the ``outgoing`` one is for
-the sender::
+are run when changesets are received, while ``outgoing`` hooks are for
+changesets sent to another repository::
 
   [hooks]
   # one email for each incoming changeset
@@ -24,33 +24,38 @@ the sender::
   # one email for all outgoing changesets
   outgoing.notify = python:hgext.notify.hook
 
-Now the hooks are running, subscribers must be assigned to
-repositories. Use the ``[usersubs]`` section to map repositories to a
-given email or the ``[reposubs]`` section to map emails to a single
-repository::
+This registers the hooks. To enable notification, subscribers must
+be assigned to repositories. The ``[usersubs]`` section maps multiple
+repositories to a given recipient. The ``[reposubs]`` section maps
+multiple recipients to a single repository::
 
   [usersubs]
-  # key is subscriber email, value is a comma-separated list of glob
-  # patterns
+  # key is subscriber email, value is a comma-separated list of repo patterns
   user@host = pattern
 
   [reposubs]
-  # key is glob pattern, value is a comma-separated list of subscriber
-  # emails
+  # key is repo pattern, value is a comma-separated list of subscriber emails
   pattern = user@host
 
-Glob patterns are matched against absolute path to repository
-root. The subscriptions can be defined in their own file and
-referenced with::
+A ``pattern`` is a ``glob`` matching the absolute path to a repository,
+optionally combined with a revset expression. A revset expression, if
+present, is separated from the glob by a hash. Example::
+
+  [reposubs]
+  */widgets#branch(release) = qa-team@example.com
+
+This sends to ``qa-team@example.com`` whenever a changeset on the ``release``
+branch triggers a notification in any repository ending in ``widgets``.
+
+In order to place them under direct user management, ``[usersubs]`` and
+``[reposubs]`` sections may be placed in a separate ``hgrc`` file and
+incorporated by reference::
 
   [notify]
   config = /path/to/subscriptionsfile
 
-Alternatively, they can be added to Mercurial configuration files by
-setting the previous entry to an empty value.
-
-At this point, notifications should be generated but will not be sent until you
-set the ``notify.test`` entry to ``False``.
+Notifications will not be sent until the ``notify.test`` value is set
+to ``False``; see below.
 
 Notifications content can be tweaked with the following configuration entries:
 
@@ -58,23 +63,25 @@ notify.test
   If ``True``, print messages to stdout instead of sending them. Default: True.
 
 notify.sources
-  Space separated list of change sources. Notifications are sent only
-  if it includes the incoming or outgoing changes source. Incoming
-  sources can be ``serve`` for changes coming from http or ssh,
-  ``pull`` for pulled changes, ``unbundle`` for changes added by
-  :hg:`unbundle` or ``push`` for changes being pushed
-  locally. Outgoing sources are the same except for ``unbundle`` which
-  is replaced by ``bundle``. Default: serve.
+  Space-separated list of change sources. Notifications are activated only
+  when a changeset's source is in this list. Sources may be:
+
+  :``serve``: changesets received via http or ssh
+  :``pull``: changesets received via ``hg pull``
+  :``unbundle``: changesets received via ``hg unbundle``
+  :``push``: changesets sent or received via ``hg push``
+  :``bundle``: changesets sent via ``hg unbundle``
+
+  Default: serve.
 
 notify.strip
   Number of leading slashes to strip from url paths. By default, notifications
-  references repositories with their absolute path. ``notify.strip`` let you
+  reference repositories with their absolute path. ``notify.strip`` lets you
   turn them into relative paths. For example, ``notify.strip=3`` will change
   ``/long/path/repository`` into ``repository``. Default: 0.
 
 notify.domain
-  If subscribers emails or the from email have no domain set, complete them
-  with this value.
+  Default email domain for sender or recipients with no explicit domain.
 
 notify.style
   Style file to use when formatting emails.
@@ -83,21 +90,21 @@ notify.template
   Template to use when formatting emails.
 
 notify.incoming
-  Template to use when run as incoming hook, override ``notify.template``.
+  Template to use when run as an incoming hook, overriding ``notify.template``.
 
 notify.outgoing
-  Template to use when run as outgoing hook, override ``notify.template``.
+  Template to use when run as an outgoing hook, overriding ``notify.template``.
 
 notify.changegroup
-  Template to use when running as changegroup hook, override
+  Template to use when running as a changegroup hook, overriding
   ``notify.template``.
 
 notify.maxdiff
   Maximum number of diff lines to include in notification email. Set to 0
-  to disable the diff, -1 to include all of it. Default: 300.
+  to disable the diff, or -1 to include all of it. Default: 300.
 
 notify.maxsubject
-  Maximum number of characters in emails subject line. Default: 67.
+  Maximum number of characters in email's subject line. Default: 67.
 
 notify.diffstat
   Set to True to include a diffstat before diff content. Default: True.
@@ -109,17 +116,19 @@ notify.mbox
   If set, append mails to this mbox file instead of sending. Default: None.
 
 notify.fromauthor
-  If set, use the first committer of the changegroup for the "From" field of
-  the notification mail. If not set, take the user from the pushing repo.
-  Default: False.
+  If set, use the committer of the first changeset in a changegroup for
+  the "From" field of the notification mail. If not set, take the user
+  from the pushing repo.  Default: False.
 
-If set, the following entries will also be used to customize the notifications:
+If set, the following entries will also be used to customize the
+notifications:
 
 email.from
-  Email ``From`` address to use if none can be found in generated email content.
+  Email ``From`` address to use if none can be found in the generated
+  email content.
 
 web.baseurl
-  Root repository browsing URL to combine with repository paths when making
+  Root repository URL to combine with repository paths when making
   references. See also ``notify.strip``.
 
 '''
@@ -127,6 +136,8 @@ web.baseurl
 from mercurial.i18n import _
 from mercurial import patch, cmdutil, templater, util, mail
 import email.Parser, email.Errors, fnmatch, socket, time
+
+testedwith = 'internal'
 
 # template for single changeset can include email headers.
 single_template = '''
@@ -211,14 +222,22 @@ class notifier(object):
         subs = set()
         for user, pats in self.ui.configitems('usersubs'):
             for pat in pats.split(','):
+                if '#' in pat:
+                    pat, revs = pat.split('#', 1)
+                else:
+                    revs = None
                 if fnmatch.fnmatch(self.repo.root, pat.strip()):
-                    subs.add(self.fixmail(user))
+                    subs.add((self.fixmail(user), revs))
         for pat, users in self.ui.configitems('reposubs'):
+            if '#' in pat:
+                pat, revs = pat.split('#', 1)
+            else:
+                revs = None
             if fnmatch.fnmatch(self.repo.root, pat):
                 for user in users.split(','):
-                    subs.add(self.fixmail(user))
-        return [mail.addressencode(self.ui, s, self.charsets, self.test)
-                for s in sorted(subs)]
+                    subs.add((self.fixmail(user), revs))
+        return [(mail.addressencode(self.ui, s, self.charsets, self.test), r)
+                for s, r in sorted(subs)]
 
     def node(self, ctx, **props):
         '''format one changeset, unless it is a suppressed merge.'''
@@ -236,6 +255,21 @@ class notifier(object):
 
     def send(self, ctx, count, data):
         '''send message.'''
+
+        # Select subscribers by revset
+        subs = set()
+        for sub, spec in self.subs:
+            if spec is None:
+                subs.add(sub)
+                continue
+            revs = self.repo.revs('%r and %d:', spec, ctx.rev())
+            if len(revs):
+                subs.add(sub)
+                continue
+        if len(subs) == 0:
+            self.ui.debug('notify: no subscribers to selected repo '
+                          'and revset\n')
+            return
 
         p = email.Parser.Parser()
         try:
@@ -286,7 +320,7 @@ class notifier(object):
             msg['Message-Id'] = ('<hg.%s.%s.%s@%s>' %
                                  (ctx, int(time.time()),
                                   hash(self.repo.root), socket.getfqdn()))
-        msg['To'] = ', '.join(self.subs)
+        msg['To'] = ', '.join(sorted(subs))
 
         msgtext = msg.as_string()
         if self.test:
@@ -295,9 +329,9 @@ class notifier(object):
                 self.ui.write('\n')
         else:
             self.ui.status(_('notify: sending %d subscribers %d changes\n') %
-                           (len(self.subs), count))
+                           (len(subs), count))
             mail.sendmail(self.ui, util.email(msg['From']),
-                          self.subs, msgtext, mbox=self.mbox)
+                          subs, msgtext, mbox=self.mbox)
 
     def diff(self, ctx, ref=None):
 
@@ -353,8 +387,8 @@ def hook(ui, repo, hooktype, node=None, source=None, **kwargs):
                     author = repo[rev].user()
             else:
                 data += ui.popbuffer()
-                ui.note(_('notify: suppressing notification for merge %d:%s\n') %
-                        (rev, repo[rev].hex()[:12]))
+                ui.note(_('notify: suppressing notification for merge %d:%s\n')
+                        % (rev, repo[rev].hex()[:12]))
                 ui.pushbuffer()
         if count:
             n.diff(ctx, repo['tip'])

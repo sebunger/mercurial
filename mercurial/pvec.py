@@ -57,7 +57,7 @@ _depthbits = 24
 _depthbytes = _depthbits / 8
 _vecbytes = _bytes - _depthbytes
 _vecbits = _vecbytes * 8
-_radius = (_vecbits - 30) / 2 # high probability vecs are related
+_radius = (_vecbits - 30) / 2 # high probability vectors are related
 
 def _bin(bs):
     '''convert a bytestring to a long'''
@@ -169,7 +169,7 @@ class pvec(object):
             self._bs = hashorctx
             self._depth, self._vec = _split(base85.b85decode(hashorctx))
         else:
-            self._vec = ctxpvec(ctx)
+            self._vec = ctxpvec(hashorctx)
 
     def __str__(self):
         return self._bs

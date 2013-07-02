@@ -80,16 +80,16 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in other:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: e300d1c794ec+, remote: 4ce40f5aca24
-   rev: versions differ -> m
    a: remote copied to b -> m
-  preserving a for resolve of b
-  preserving rev for resolve of rev
+    preserving a for resolve of b
+   rev: versions differ -> m
+    preserving rev for resolve of rev
   updating: a 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging a and b to b
@@ -115,19 +115,19 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in local:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 86a2aa42fc76+, remote: f4db7e329e71
    a: remote is newer -> g
    b: local copied/moved to a -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+    preserving rev for resolve of rev
   getting a
+  updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b and a to b
@@ -153,16 +153,16 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in other:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: e300d1c794ec+, remote: bdb19105162a
-   rev: versions differ -> m
    a: remote moved to b -> m
-  preserving a for resolve of b
-  preserving rev for resolve of rev
+    preserving a for resolve of b
+   rev: versions differ -> m
+    preserving rev for resolve of rev
   removing a
   updating: a 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
@@ -188,16 +188,16 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in local:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 02963e448370+, remote: f4db7e329e71
    b: local copied/moved to a -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: b 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b and a to b
@@ -222,17 +222,17 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in other:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a 
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' 
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 94b33a1b7f2d+, remote: 4ce40f5aca24
-   rev: versions differ -> m
    b: remote created -> g
-  preserving rev for resolve of rev
-  updating: b 1/2 files (50.00%)
+   rev: versions differ -> m
+    preserving rev for resolve of rev
   getting b
+  updating: b 1/2 files (50.00%)
   updating: rev 2/2 files (100.00%)
   picked tool 'python ../merge' for rev (binary False symlink False)
   merging rev
@@ -252,14 +252,14 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in local:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a 
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' 
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 86a2aa42fc76+, remote: 97c705ade336
    rev: versions differ -> m
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: rev 1/1 files (100.00%)
   picked tool 'python ../merge' for rev (binary False symlink False)
   merging rev
@@ -279,20 +279,20 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in other:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a 
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' 
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 94b33a1b7f2d+, remote: bdb19105162a
    a: other deleted -> r
-   rev: versions differ -> m
    b: remote created -> g
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+   rev: versions differ -> m
+    preserving rev for resolve of rev
   removing a
-  updating: b 2/3 files (66.67%)
+  updating: a 1/3 files (33.33%)
   getting b
+  updating: b 2/3 files (66.67%)
   updating: rev 3/3 files (100.00%)
   picked tool 'python ../merge' for rev (binary False symlink False)
   merging rev
@@ -311,14 +311,14 @@ $4 = expected result
     searching for copies back to rev 1
     unmatched files in local:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a 
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' 
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 02963e448370+, remote: 97c705ade336
    rev: versions differ -> m
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: rev 1/1 files (100.00%)
   picked tool 'python ../merge' for rev (binary False symlink False)
   merging rev
@@ -336,12 +336,12 @@ $4 = expected result
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 62e7bf090eba+, remote: 49b6d8032493
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: b 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -369,23 +369,23 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
      b
     unmatched files in other:
      c
-    all copies found (* = to merge, ! = divergent):
-     c -> a !
-     b -> a !
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' !
+     src: 'a' -> dst: 'c' !
     checking for directory renames
-   a: divergent renames -> dr
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 02963e448370+, remote: fe905ef2c33e
-   rev: versions differ -> m
+   a: divergent renames -> dr
    c: remote created -> g
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+   rev: versions differ -> m
+    preserving rev for resolve of rev
+  getting c
+  updating: c 1/3 files (33.33%)
+  updating: a 2/3 files (66.67%)
   note: possible conflict - a was renamed multiple times to:
    b
    c
-  updating: c 2/3 files (66.67%)
-  getting c
   updating: rev 3/3 files (100.00%)
   picked tool 'python ../merge' for rev (binary False symlink False)
   merging rev
@@ -404,12 +404,12 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 86a2aa42fc76+, remote: af30c7647fc7
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: b 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -432,15 +432,15 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 59318016310c+, remote: bdb19105162a
    a: other deleted -> r
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+    preserving rev for resolve of rev
   removing a
+  updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -462,15 +462,15 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 86a2aa42fc76+, remote: 8dbce441892a
    a: remote is newer -> g
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+    preserving rev for resolve of rev
   getting a
+  updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -493,15 +493,15 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 59318016310c+, remote: bdb19105162a
    a: other deleted -> r
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+    preserving rev for resolve of rev
   removing a
+  updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -523,15 +523,15 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 86a2aa42fc76+, remote: 8dbce441892a
    a: remote is newer -> g
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+    preserving rev for resolve of rev
   getting a
+  updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -554,12 +554,12 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 0b76e65c8289+, remote: 4ce40f5aca24
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: b 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -582,17 +582,17 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 02963e448370+, remote: 8dbce441892a
-   b: versions differ -> m
-   rev: versions differ -> m
   remote changed a which local deleted
   use (c)hanged version or leave (d)eleted? c
    a: prompt recreating -> g
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: a 1/3 files (33.33%)
+   b: versions differ -> m
+    preserving b for resolve of b
+   rev: versions differ -> m
+    preserving rev for resolve of rev
   getting a
+  updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b
@@ -615,15 +615,15 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
   --------------
     searching for copies back to rev 1
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 0b76e65c8289+, remote: bdb19105162a
-   local changed a which remote deleted
+  local changed a which remote deleted
   use (c)hanged version or (d)elete? c
    a: prompt keep -> a
    b: versions differ -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: a 1/3 files (33.33%)
   updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
@@ -648,16 +648,16 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
     searching for copies back to rev 1
     unmatched files in other:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: e300d1c794ec+, remote: 49b6d8032493
-   rev: versions differ -> m
    a: remote moved to b -> m
-  preserving a for resolve of b
-  preserving rev for resolve of rev
+    preserving a for resolve of b
+   rev: versions differ -> m
+    preserving rev for resolve of rev
   removing a
   updating: a 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
@@ -682,16 +682,16 @@ m "um a c" "um x c" "      " "10 do merge with no ancestor"
     searching for copies back to rev 1
     unmatched files in local:
      b
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 62e7bf090eba+, remote: f4db7e329e71
    b: local copied/moved to a -> m
+    preserving b for resolve of b
    rev: versions differ -> m
-  preserving b for resolve of b
-  preserving rev for resolve of rev
+    preserving rev for resolve of rev
   updating: b 1/2 files (50.00%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b and a to b
@@ -720,24 +720,24 @@ m "nm a b" "um x a" "      " "22 get a, keep b"
      b
     unmatched files in other:
      c
-    all copies found (* = to merge, ! = divergent):
-     b -> a *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'a' -> dst: 'b' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 924404dff337, local: 02963e448370+, remote: 2b958612230f
    b: local copied/moved to a -> m
-   rev: versions differ -> m
+    preserving b for resolve of b
    c: remote created -> g
-  preserving b for resolve of b
-  preserving rev for resolve of rev
-  updating: b 1/3 files (33.33%)
+   rev: versions differ -> m
+    preserving rev for resolve of rev
+  getting c
+  updating: c 1/3 files (33.33%)
+  updating: b 2/3 files (66.67%)
   picked tool 'python ../merge' for b (binary False symlink False)
   merging b and a to b
   my b@02963e448370+ other a@2b958612230f ancestor a@924404dff337
    premerge successful
-  updating: c 2/3 files (66.67%)
-  getting c
   updating: rev 3/3 files (100.00%)
   picked tool 'python ../merge' for rev (binary False symlink False)
   merging rev
@@ -750,3 +750,5 @@ m "nm a b" "um x a" "      " "22 get a, keep b"
   M c
   --------------
   
+
+  $ cd ..

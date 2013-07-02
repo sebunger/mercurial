@@ -1,15 +1,17 @@
-  $ "$TESTDIR/hghave" symlink || exit 80
-
+  $ USERCACHE="$TESTTMP/cache"; export USERCACHE
+  $ mkdir "${USERCACHE}"
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > largefiles =
   > share =
   > graphlog =
   > mq =
+  > convert =
   > [largefiles]
   > minsize = 0.5
   > patterns = **.other
   >     **.dat
+  > usercache=${USERCACHE}
   > EOF
 
 "lfconvert" works
@@ -33,6 +35,7 @@
   adding sub/normal2
   $ hg commit -m"add large, normal1" large normal1
   $ hg commit -m"add sub/*" sub
+
 Test tag parsing
   $ cat >> .hgtags <<EOF
   > IncorrectlyFormattedTag!
@@ -41,10 +44,8 @@ Test tag parsing
   > EOF
   $ hg add .hgtags
   $ hg commit -m"add large2" large2 .hgtags
-  $ hg rename large2 large3
+
 Test link+rename largefile codepath
-  $ ln -sf large large3
-  $ hg commit -m"make large2 a symlink" large2 large3
   $ [ -d .hg/largefiles ] && echo fail || echo pass
   pass
   $ cd ..
@@ -53,22 +54,33 @@ Test link+rename largefile codepath
   skipping incorrectly formatted tag IncorrectlyFormattedTag!
   skipping incorrectly formatted id invalidhash
   no mapping for id 0123456789abcdef
+#if symlink
+  $ hg --cwd bigfile-repo rename large2 large3
+  $ ln -sf large bigfile-repo/large3
+  $ hg --cwd bigfile-repo commit -m"make large2 a symlink" large2 large3
+  $ hg lfconvert --size 0.2 bigfile-repo largefiles-repo-symlink
+  initializing destination largefiles-repo-symlink
+  skipping incorrectly formatted tag IncorrectlyFormattedTag!
+  skipping incorrectly formatted id invalidhash
+  no mapping for id 0123456789abcdef
   abort: renamed/copied largefile large3 becomes symlink
   [255]
+#endif
   $ cd bigfile-repo
   $ hg strip --no-backup 2
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ cd ..
-  $ rm -rf largefiles-repo
+  $ rm -rf largefiles-repo largefiles-repo-symlink
+
   $ hg lfconvert --size 0.2 bigfile-repo largefiles-repo
   initializing destination largefiles-repo
 
 "lfconvert" converts content correctly
   $ cd largefiles-repo
   $ hg up
-  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   getting changed largefiles
   2 largefiles updated, 0 removed
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg locate
   .hglf/large
   .hglf/sub/maybelarge.dat
@@ -84,11 +96,11 @@ Test link+rename largefile codepath
 
 "lfconvert" adds 'largefiles' to .hg/requires.
   $ cat .hg/requires
+  dotencode
+  fncache
   largefiles
   revlogv1
-  fncache
   store
-  dotencode
 
 "lfconvert" includes a newline at the end of the standin files.
   $ cat .hglf/large .hglf/sub/maybelarge.dat
@@ -175,9 +187,9 @@ lfconvert with rename, merge, and remove
   normal1
   stuff/normal2
   $ hg update
-  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   getting changed largefiles
   1 largefiles updated, 0 removed
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat stuff/normal2
   alsonormal
   blah
@@ -260,3 +272,79 @@ round-trip: converting back to a normal (non-largefiles) repo with
   stuff/normal2
   $ [ -d .hg/largefiles ] && echo fail || echo pass
   pass
+
+  $ cd ..
+
+Clearing the usercache ensures that commitctx doesn't try to cache largefiles
+from the working dir on a convert.
+  $ rm "${USERCACHE}"/*
+  $ hg convert largefiles-repo
+  assuming destination largefiles-repo-hg
+  initializing destination largefiles-repo-hg repository
+  scanning source...
+  sorting...
+  converting...
+  6 add large, normal1
+  5 add sub/*
+  4 rename sub/ to stuff/
+  3 add normal3, modify sub/*
+  2 remove large, normal3
+  1 merge
+  0 add anotherlarge (should be a largefile)
+
+  $ hg -R largefiles-repo-hg glog --template "{rev}:{node|short}  {desc|firstline}\n"
+  o  6:17126745edfd  add anotherlarge (should be a largefile)
+  |
+  o    5:9cc5aa7204f0  merge
+  |\
+  | o  4:a5a02de7a8e4  remove large, normal3
+  | |
+  | o  3:55759520c76f  add normal3, modify sub/*
+  | |
+  o |  2:261ad3f3f037  rename sub/ to stuff/
+  |/
+  o  1:334e5237836d  add sub/*
+  |
+  o  0:d4892ec57ce2  add large, normal1
+  
+Verify will fail (for now) if the usercache is purged before converting, since
+largefiles are not cached in the converted repo's local store by the conversion
+process.
+  $ hg -R largefiles-repo-hg verify --large --lfa
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  8 files, 7 changesets, 12 total revisions
+  searching 7 changesets for largefiles
+  changeset 0:d4892ec57ce2: large references missing $TESTTMP/largefiles-repo-hg/.hg/largefiles/2e000fa7e85759c7f4c254d4d9c33ef481e459a7 (glob)
+  changeset 1:334e5237836d: sub/maybelarge.dat references missing $TESTTMP/largefiles-repo-hg/.hg/largefiles/34e163be8e43c5631d8b92e9c43ab0bf0fa62b9c (glob)
+  changeset 2:261ad3f3f037: stuff/maybelarge.dat references missing $TESTTMP/largefiles-repo-hg/.hg/largefiles/34e163be8e43c5631d8b92e9c43ab0bf0fa62b9c (glob)
+  changeset 3:55759520c76f: sub/maybelarge.dat references missing $TESTTMP/largefiles-repo-hg/.hg/largefiles/76236b6a2c6102826c61af4297dd738fb3b1de38 (glob)
+  changeset 5:9cc5aa7204f0: stuff/maybelarge.dat references missing $TESTTMP/largefiles-repo-hg/.hg/largefiles/76236b6a2c6102826c61af4297dd738fb3b1de38 (glob)
+  changeset 6:17126745edfd: anotherlarge references missing $TESTTMP/largefiles-repo-hg/.hg/largefiles/3b71f43ff30f4b15b5cd85dd9e95ebc7e84eb5a3 (glob)
+  verified existence of 6 revisions of 4 largefiles
+  [1]
+  $ hg -R largefiles-repo-hg showconfig paths
+
+
+Avoid a traceback if a largefile isn't available (issue3519)
+
+Ensure the largefile can be cached in the source if necessary
+  $ hg clone -U largefiles-repo issue3519
+  $ rm -f "${USERCACHE}"/*
+  $ hg lfconvert --to-normal issue3519 normalized3519
+  initializing destination normalized3519
+
+Ensure the abort message is useful if a largefile is entirely unavailable
+  $ rm -rf normalized3519
+  $ rm "${USERCACHE}"/*
+  $ rm issue3519/.hg/largefiles/*
+  $ rm largefiles-repo/.hg/largefiles/*
+  $ hg lfconvert --to-normal issue3519 normalized3519
+  initializing destination normalized3519
+  large: largefile 2e000fa7e85759c7f4c254d4d9c33ef481e459a7 not available from file:$TESTTMP/largefiles-repo (glob)
+  abort: missing largefile 'large' from revision d4892ec57ce212905215fad1d9018f56b99202ad
+  [255]
+
+

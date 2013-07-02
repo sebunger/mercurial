@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" symlink execbit || exit 80
-
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "extdiff=" >> $HGRCPATH
 
@@ -49,7 +47,7 @@ Should diff cloned directories:
   
   [+] marked option can be specified multiple times
   
-  use "hg -v help falabala" to show more info
+  use "hg -v help falabala" to show the global options
 
   $ hg ci -d '0 0' -mtest1
 
@@ -93,6 +91,8 @@ Check diff are made from the first parent:
   $ hg falabala -c 3 || echo "diff-like tools yield a non-zero exit code"
   diffing */extdiff.*/a.2a13a4d2da36/a a.46c0e4daeb72/a (glob)
   diff-like tools yield a non-zero exit code
+
+#if execbit
 
 Test extdiff of multiple files in tmp dir:
 
@@ -182,6 +182,10 @@ Test with revsets:
 
   $ cd ..
 
+#endif
+
+#if symlink
+
 Test symlinks handling (issue1909)
 
   $ hg init testsymlinks
@@ -196,3 +200,5 @@ Test symlinks handling (issue1909)
   diffing testsymlinks.07f494440405 testsymlinks
   [1]
   $ cd ..
+
+#endif

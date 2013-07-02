@@ -6,6 +6,8 @@ import doctest
 
 import mercurial.util
 doctest.testmod(mercurial.util)
+# Only run doctests for the current platform
+doctest.testmod(mercurial.util.platform)
 
 import mercurial.changelog
 doctest.testmod(mercurial.changelog)
@@ -24,6 +26,9 @@ doctest.testmod(mercurial.ui)
 
 import mercurial.url
 doctest.testmod(mercurial.url)
+
+import mercurial.dispatch
+doctest.testmod(mercurial.dispatch)
 
 import mercurial.encoding
 doctest.testmod(mercurial.encoding)

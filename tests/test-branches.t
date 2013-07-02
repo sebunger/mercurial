@@ -45,6 +45,8 @@
   (branches are permanent and global, did you want a bookmark?)
   $ hg commit -d '5 0' -m "Adding c branch"
 
+reserved names
+
   $ hg branch tip
   abort: the name 'tip' is reserved
   [255]
@@ -54,6 +56,46 @@
   $ hg branch .
   abort: the name '.' is reserved
   [255]
+
+invalid characters
+
+  $ hg branch 'foo:bar'
+  abort: ':' cannot be used in a name
+  [255]
+
+  $ hg branch 'foo
+  > bar'
+  abort: '\n' cannot be used in a name
+  [255]
+
+trailing or leading spaces should be stripped before testing duplicates
+
+  $ hg branch 'b '
+  abort: a branch of the same name already exists
+  (use 'hg update' to switch to it)
+  [255]
+
+  $ hg branch ' b'
+  abort: a branch of the same name already exists
+  (use 'hg update' to switch to it)
+  [255]
+
+verify update will accept invalid legacy branch names
+
+  $ hg init test-invalid-branch-name
+  $ cd test-invalid-branch-name
+  $ hg pull -u "$TESTDIR"/bundles/test-invalid-branch-name.hg
+  pulling from *test-invalid-branch-name.hg (glob)
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 3 changes to 2 files
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ hg update '"colon:test"'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd ..
 
   $ echo 'd' >d
   $ hg add d
@@ -226,6 +268,27 @@
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg commit -d '9 0' --close-branch -m 'close this part branch too'
 
+  $ hg commit -d '9 0' --close-branch -m 're-closing this branch'
+  $ hg log -r tip --debug
+  changeset:   13:c2601d54b1427e99506bee25a566ef3a5963af0b
+  branch:      b
+  tag:         tip
+  phase:       draft
+  parent:      12:e3d49c0575d8fc2cb1cd6859c747c14f5f6d499f
+  parent:      -1:0000000000000000000000000000000000000000
+  manifest:    8:6f9ed32d2b310e391a4f107d5f0f071df785bfee
+  user:        test
+  date:        Thu Jan 01 00:00:09 1970 +0000
+  extra:       branch=b
+  extra:       close=1
+  description:
+  re-closing this branch
+  
+  
+  $ hg rollback
+  repository tip rolled back to revision 12 (undo commit)
+  working directory now based on revision 12
+
 --- b branch should be inactive
 
   $ hg branches
@@ -241,6 +304,11 @@
   default                        0:19709c5a4e75 (inactive)
   $ hg branches -a
   a branch name much longer than the default justification used by branches 7:10ff5895aa57
+  $ hg branches -q
+  a branch name much longer than the default justification used by branches
+  c
+  a
+  default
   $ hg heads b
   no open branch heads found on branches b
   [1]
@@ -403,3 +471,5 @@ custom closed branch color:
   \x1b[0;34mc\x1b[0m \x1b[0;36m                            14:f894c25619d3\x1b[0m (closed) (esc)
   \x1b[0;35ma\x1b[0m \x1b[0;36m                             5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
   \x1b[0;35mdefault\x1b[0m \x1b[0;36m                       0:19709c5a4e75\x1b[0m (inactive) (esc)
+
+  $ cd ..

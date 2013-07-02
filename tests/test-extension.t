@@ -1,7 +1,5 @@
 Test basic extension support
 
-  $ "$TESTDIR/hghave" no-outer-repo || exit 80
-
   $ cat > foobar.py <<EOF
   > import os
   > from mercurial import commands
@@ -114,7 +112,8 @@ Check hgweb's load order:
   > wsgicgi.launch(application)
   > EOF
 
-  $ SCRIPT_NAME='/' SERVER_PORT='80' SERVER_NAME='localhost' python hgweb.cgi \
+  $ REQUEST_METHOD='GET' PATH_INFO='/' SCRIPT_NAME='' QUERY_STRING='' \
+  >    SERVER_PORT='80' SERVER_NAME='localhost' python hgweb.cgi \
   >    | grep '^[0-9]) ' # ignores HTML output
   1) foo imported
   1) bar imported
@@ -131,6 +130,9 @@ Check hgweb's load order:
   $ echo 'bar = !' >> $HGRCPATH
 
   $ cd ..
+
+hide outer repo
+  $ hg init
 
   $ cat > empty.py <<EOF
   > '''empty cmdtable
@@ -178,8 +180,7 @@ Check hgweb's load order:
   
   list of commands:
   
-   foo:
-        yet another foo command
+   foo           yet another foo command
   
   global options:
   
@@ -200,6 +201,7 @@ Check hgweb's load order:
       --profile           print command execution profile
       --version           output version information and exit
    -h --help              display help and exit
+      --hidden            consider hidden changesets
   
   [+] marked option can be specified multiple times
 
@@ -208,10 +210,8 @@ Check hgweb's load order:
   
   list of commands:
   
-   debugfoobar:
-        yet another debug command
-   foo:
-        yet another foo command
+   debugfoobar   yet another debug command
+   foo           yet another foo command
   
   global options:
   
@@ -232,6 +232,7 @@ Check hgweb's load order:
       --profile           print command execution profile
       --version           output version information and exit
    -h --help              display help and exit
+      --hidden            consider hidden changesets
   
   [+] marked option can be specified multiple times
   $ echo 'debugextension = !' >> $HGRCPATH
@@ -271,7 +272,7 @@ Extension module help vs command help:
   
   [+] marked option can be specified multiple times
   
-  use "hg -v help extdiff" to show more info
+  use "hg -v help extdiff" to show the global options
 
   $ hg help --extension extdiff
   extdiff extension - command to allow external programs to compare revisions
@@ -328,7 +329,7 @@ Extension module help vs command help:
   
   list of commands:
   
-   extdiff    use external program to diff repository (or selected files)
+   extdiff       use external program to diff repository (or selected files)
   
   use "hg -v help extdiff" to show builtin aliases and global options
 
@@ -352,6 +353,7 @@ Test help topic with same name as extension
 
   $ hg help multirevs
   Specifying Multiple Revisions
+  """""""""""""""""""""""""""""
   
       When Mercurial accepts more than one revision, they may be specified
       individually, or provided as a topologically continuous range, separated
@@ -374,7 +376,7 @@ Test help topic with same name as extension
   
   multirevs command
   
-  use "hg -v help multirevs" to show more info
+  use "hg -v help multirevs" to show the global options
 
   $ hg multirevs
   hg multirevs: invalid arguments
@@ -478,3 +480,96 @@ Broken disabled extension and command:
   hg: unknown command 'foo'
   warning: error finding commands in $TESTTMP/hgext/forest.py (glob)
   [255]
+
+  $ cat > throw.py <<EOF
+  > from mercurial import cmdutil, commands
+  > cmdtable = {}
+  > command = cmdutil.command(cmdtable)
+  > class Bogon(Exception): pass
+  > 
+  > @command('throw', [], 'hg throw')
+  > def throw(ui, **opts):
+  >     """throws an exception"""
+  >     raise Bogon()
+  > commands.norepo += " throw"
+  > EOF
+No declared supported version, extension complains:
+  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension throw
+  ** which supports versions unknown of Mercurial.
+  ** Please disable throw and try your action again.
+  ** If that fixes the bug please report it to the extension author.
+  ** Python * (glob)
+  ** Mercurial Distributed SCM * (glob)
+  ** Extensions loaded: throw
+empty declaration of supported version, extension complains:
+  $ echo "testedwith = ''" >> throw.py
+  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension throw
+  ** which supports versions unknown of Mercurial.
+  ** Please disable throw and try your action again.
+  ** If that fixes the bug please report it to the extension author.
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: throw
+If the extension specifies a buglink, show that:
+  $ echo 'buglink = "http://example.com/bts"' >> throw.py
+  $ rm -f throw.pyc throw.pyo
+  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension throw
+  ** which supports versions unknown of Mercurial.
+  ** Please disable throw and try your action again.
+  ** If that fixes the bug please report it to http://example.com/bts
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: throw
+If the extensions declare outdated versions, accuse the older extension first:
+  $ echo "from mercurial import util" >> older.py
+  $ echo "util.version = lambda:'2.2'" >> older.py
+  $ echo "testedwith = '1.9.3'" >> older.py
+  $ echo "testedwith = '2.1.1'" >> throw.py
+  $ rm -f throw.pyc throw.pyo
+  $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
+  >   throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension older
+  ** which supports versions 1.9.3 of Mercurial.
+  ** Please disable older and try your action again.
+  ** If that fixes the bug please report it to the extension author.
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (version 2.2)
+  ** Extensions loaded: throw, older
+One extension only tested with older, one only with newer versions:
+  $ echo "util.version = lambda:'2.1.0'" >> older.py
+  $ rm -f older.pyc older.pyo
+  $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
+  >   throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension older
+  ** which supports versions 1.9.3 of Mercurial.
+  ** Please disable older and try your action again.
+  ** If that fixes the bug please report it to the extension author.
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (version 2.1.0)
+  ** Extensions loaded: throw, older
+Older extension is tested with current version, the other only with newer:
+  $ echo "util.version = lambda:'1.9.3'" >> older.py
+  $ rm -f older.pyc older.pyo
+  $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
+  >   throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension throw
+  ** which supports versions 2.1.1 of Mercurial.
+  ** Please disable throw and try your action again.
+  ** If that fixes the bug please report it to http://example.com/bts
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (version 1.9.3)
+  ** Extensions loaded: throw, older
+
+Declare the version as supporting this hg version, show regular bts link:
+  $ hgver=`python -c 'from mercurial import util; print util.version().split("+")[0]'`
+  $ echo 'testedwith = """'"$hgver"'"""' >> throw.py
+  $ rm -f throw.pyc throw.pyo
+  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  ** unknown exception encountered, please report by visiting
+  ** http://mercurial.selenic.com/wiki/BugTracker
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: throw

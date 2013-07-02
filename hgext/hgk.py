@@ -39,6 +39,8 @@ from mercurial import commands, util, patch, revlog, scmutil
 from mercurial.node import nullid, nullrev, short
 from mercurial.i18n import _
 
+testedwith = 'internal'
+
 def difftree(ui, repo, node1=None, node2=None, *files, **opts):
     """diff trees from two commits"""
     def __difftree(repo, node1, node2, files=[]):
@@ -95,9 +97,10 @@ def catcommit(ui, repo, n, prefix, ctx=None):
     nlprefix = '\n' + prefix
     if ctx is None:
         ctx = repo[n]
-    ui.write("tree %s\n" % short(ctx.changeset()[0])) # use ctx.node() instead ??
+    # use ctx.node() instead ??
+    ui.write(("tree %s\n" % short(ctx.changeset()[0])))
     for p in ctx.parents():
-        ui.write("parent %s\n" % p)
+        ui.write(("parent %s\n" % p))
 
     date = ctx.date()
     description = ctx.description().replace("\0", "")
@@ -105,15 +108,18 @@ def catcommit(ui, repo, n, prefix, ctx=None):
     if lines and lines[-1].startswith('committer:'):
         committer = lines[-1].split(': ')[1].rstrip()
     else:
-        committer = ctx.user()
+        committer = ""
 
-    ui.write("author %s %s %s\n" % (ctx.user(), int(date[0]), date[1]))
-    ui.write("committer %s %s %s\n" % (committer, int(date[0]), date[1]))
-    ui.write("revision %d\n" % ctx.rev())
-    ui.write("branch %s\n\n" % ctx.branch())
+    ui.write(("author %s %s %s\n" % (ctx.user(), int(date[0]), date[1])))
+    if committer != '':
+        ui.write(("committer %s %s %s\n" % (committer, int(date[0]), date[1])))
+    ui.write(("revision %d\n" % ctx.rev()))
+    ui.write(("branch %s\n" % ctx.branch()))
+    ui.write(("phase %s\n\n" % ctx.phasestr()))
 
     if prefix != "":
-        ui.write("%s%s\n" % (prefix, description.replace('\n', nlprefix).strip()))
+        ui.write("%s%s\n" % (prefix,
+                             description.replace('\n', nlprefix).strip()))
     else:
         ui.write(description + "\n")
     if prefix:
@@ -298,7 +304,7 @@ def revlist(ui, repo, *revs, **opts):
 def config(ui, repo, **opts):
     """print extension options"""
     def writeopt(name, value):
-        ui.write('k=%s\nv=%s\n' % (name, value))
+        ui.write(('k=%s\nv=%s\n' % (name, value)))
 
     writeopt('vdiff', ui.config('hgk', 'vdiff', ''))
 
@@ -346,3 +352,5 @@ cmdtable = {
           ('n', 'max-count', 0, _('max-count'))],
          _('hg debug-rev-list [OPTION]... REV...')),
 }
+
+commands.inferrepo += " debug-diff-tree debug-cat-file"

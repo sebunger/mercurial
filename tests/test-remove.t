@@ -107,7 +107,7 @@ the table cases
   $ echo b > bar
   $ hg add bar
   $ remove -A bar
-  not removing bar: file still exists (use -f to force removal)
+  not removing bar: file still exists
   exit code: 1
   A bar
   ./bar
@@ -117,7 +117,7 @@ the table cases
 21 state clean, options -A
 
   $ remove -A foo
-  not removing foo: file still exists (use -f to force removal)
+  not removing foo: file still exists
   exit code: 1
   ? bar
   ./bar
@@ -128,7 +128,7 @@ the table cases
 
   $ echo b >> foo
   $ remove -A foo
-  not removing foo: file still exists (use -f to force removal)
+  not removing foo: file still exists
   exit code: 1
   M foo
   ? bar
@@ -220,7 +220,7 @@ dir, options -A
 
   $ rm test/bar
   $ remove -A test
-  not removing test/foo: file still exists (use -f to force removal) (glob)
+  not removing test/foo: file still exists (glob)
   removing test/bar (glob)
   exit code: 1
   R test/bar
@@ -254,3 +254,34 @@ test remove dropping empty trees (issue1861)
   $ hg ci -m remove
   $ ls issue1861
   x
+
+test that commit does not crash if the user removes a newly added file
+
+  $ touch f1
+  $ hg add f1
+  $ rm f1
+  $ hg ci -A -mx
+  removing f1
+  nothing changed
+  [1]
+
+handling of untracked directories and missing files
+
+  $ mkdir d1
+  $ echo a > d1/a
+  $ hg rm --after d1
+  not removing d1: no tracked files
+  [1]
+  $ hg add d1/a
+  $ rm d1/a
+  $ hg rm --after d1
+  removing d1/a (glob)
+#if windows
+  $ hg rm --after nosuch
+  nosuch: * (glob)
+  [1]
+#else
+  $ hg rm --after nosuch
+  nosuch: No such file or directory
+  [1]
+#endif

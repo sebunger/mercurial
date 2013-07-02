@@ -10,7 +10,10 @@ from i18n import _
 import os, sys, errno, re, tempfile
 import util, scmutil, templater, patch, error, templatekw, revlog, copies
 import match as matchmod
-import subrepo, context, repair, bookmarks
+import subrepo, context, repair, graphmod, revset, phases, obsolete
+import changelog
+import bookmarks
+import lock as lockmod
 
 def parsealiases(cmd):
     return cmd.lstrip("^").split("|")
@@ -83,7 +86,7 @@ def bailifchanged(repo):
     if modified or added or removed or deleted:
         raise util.Abort(_("outstanding uncommitted changes"))
     ctx = repo[None]
-    for s in ctx.substate:
+    for s in sorted(ctx.substate):
         if ctx.sub(s).dirty():
             raise util.Abort(_("uncommitted changes in subrepo %s") % s)
 
@@ -167,7 +170,8 @@ def makefilename(repo, pat, node, desc=None,
                          inst.args[0])
 
 def makefileobj(repo, pat, node=None, desc=None, total=None,
-                seqno=None, revwidth=None, mode='wb', pathname=None):
+                seqno=None, revwidth=None, mode='wb', modemap={},
+                pathname=None):
 
     writable = mode not in ('r', 'rb')
 
@@ -193,9 +197,11 @@ def makefileobj(repo, pat, node=None, desc=None, total=None,
         return pat
     if util.safehasattr(pat, 'read') and 'r' in mode:
         return pat
-    return open(makefilename(repo, pat, node, desc, total, seqno, revwidth,
-                              pathname),
-                mode)
+    fn = makefilename(repo, pat, node, desc, total, seqno, revwidth, pathname)
+    mode = modemap.get(fn, mode)
+    if mode == 'wb':
+        modemap[fn] = 'ab'
+    return open(fn, mode)
 
 def openrevlog(repo, cmd, file_, opts):
     """opens the changelog, manifest, a filelog or a given revlog"""
@@ -515,7 +521,7 @@ def service(opts, parentfn=None, initfn=None, runfn=None, logfile=None,
         sys.stdout.flush()
         sys.stderr.flush()
 
-        nullfd = os.open(util.nulldev, os.O_RDWR)
+        nullfd = os.open(os.devnull, os.O_RDWR)
         logfilefd = nullfd
         if logfile:
             logfilefd = os.open(logfile, os.O_RDWR | os.O_CREAT | os.O_APPEND)
@@ -536,6 +542,7 @@ def export(repo, revs, template='hg-%h.patch', fp=None, switch_parent=False,
 
     total = len(revs)
     revwidth = max([len(str(rev)) for rev in revs])
+    filemode = {}
 
     def single(rev, seqno, fp):
         ctx = repo[rev]
@@ -547,30 +554,39 @@ def export(repo, revs, template='hg-%h.patch', fp=None, switch_parent=False,
         prev = (parents and parents[0]) or nullid
 
         shouldclose = False
-        if not fp:
+        if not fp and len(template) > 0:
             desc_lines = ctx.description().rstrip().split('\n')
             desc = desc_lines[0]    #Commit always has a first line.
             fp = makefileobj(repo, template, node, desc=desc, total=total,
-                             seqno=seqno, revwidth=revwidth, mode='ab')
+                             seqno=seqno, revwidth=revwidth, mode='wb',
+                             modemap=filemode)
             if fp != template:
                 shouldclose = True
-        if fp != sys.stdout and util.safehasattr(fp, 'name'):
+        if fp and fp != sys.stdout and util.safehasattr(fp, 'name'):
             repo.ui.note("%s\n" % fp.name)
 
-        fp.write("# HG changeset patch\n")
-        fp.write("# User %s\n" % ctx.user())
-        fp.write("# Date %d %d\n" % ctx.date())
-        if branch and branch != 'default':
-            fp.write("# Branch %s\n" % branch)
-        fp.write("# Node ID %s\n" % hex(node))
-        fp.write("# Parent  %s\n" % hex(prev))
-        if len(parents) > 1:
-            fp.write("# Parent  %s\n" % hex(parents[1]))
-        fp.write(ctx.description().rstrip())
-        fp.write("\n\n")
+        if not fp:
+            write = repo.ui.write
+        else:
+            def write(s, **kw):
+                fp.write(s)
 
-        for chunk in patch.diff(repo, prev, node, opts=opts):
-            fp.write(chunk)
+
+        write("# HG changeset patch\n")
+        write("# User %s\n" % ctx.user())
+        write("# Date %d %d\n" % ctx.date())
+        write("#      %s\n" % util.datestr(ctx.date()))
+        if branch and branch != 'default':
+            write("# Branch %s\n" % branch)
+        write("# Node ID %s\n" % hex(node))
+        write("# Parent  %s\n" % hex(prev))
+        if len(parents) > 1:
+            write("# Parent  %s\n" % hex(parents[1]))
+        write(ctx.description().rstrip())
+        write("\n\n")
+
+        for chunk, label in patch.diffui(repo, prev, node, opts=opts):
+            write(chunk, label=label)
 
         if shouldclose:
             fp.close()
@@ -618,7 +634,7 @@ def diffordiffstat(ui, repo, diffopts, node1, node2, match,
                 # subpath. The best we can do is to ignore it.
                 tempnode2 = None
             submatch = matchmod.narrowmatcher(subpath, match)
-            sub.diff(diffopts, tempnode2, submatch, changes=changes,
+            sub.diff(ui, diffopts, tempnode2, submatch, changes=changes,
                      stat=stat, fp=fp, prefix=prefix)
 
 class changeset_printer(object):
@@ -678,55 +694,71 @@ class changeset_printer(object):
         parents = [(p, hexfunc(log.node(p)))
                    for p in self._meaningful_parentrevs(log, rev)]
 
+        # i18n: column positioning for "hg log"
         self.ui.write(_("changeset:   %d:%s\n") % (rev, hexfunc(changenode)),
-                      label='log.changeset')
+                      label='log.changeset changeset.%s' % ctx.phasestr())
 
         branch = ctx.branch()
         # don't show the default branch name
         if branch != 'default':
+            # i18n: column positioning for "hg log"
             self.ui.write(_("branch:      %s\n") % branch,
                           label='log.branch')
         for bookmark in self.repo.nodebookmarks(changenode):
+            # i18n: column positioning for "hg log"
             self.ui.write(_("bookmark:    %s\n") % bookmark,
                     label='log.bookmark')
         for tag in self.repo.nodetags(changenode):
+            # i18n: column positioning for "hg log"
             self.ui.write(_("tag:         %s\n") % tag,
                           label='log.tag')
         if self.ui.debugflag and ctx.phase():
+            # i18n: column positioning for "hg log"
             self.ui.write(_("phase:       %s\n") % _(ctx.phasestr()),
                           label='log.phase')
         for parent in parents:
+            # i18n: column positioning for "hg log"
             self.ui.write(_("parent:      %d:%s\n") % parent,
-                          label='log.parent')
+                          label='log.parent changeset.%s' % ctx.phasestr())
 
         if self.ui.debugflag:
             mnode = ctx.manifestnode()
+            # i18n: column positioning for "hg log"
             self.ui.write(_("manifest:    %d:%s\n") %
                           (self.repo.manifest.rev(mnode), hex(mnode)),
                           label='ui.debug log.manifest')
+        # i18n: column positioning for "hg log"
         self.ui.write(_("user:        %s\n") % ctx.user(),
                       label='log.user')
+        # i18n: column positioning for "hg log"
         self.ui.write(_("date:        %s\n") % date,
                       label='log.date')
 
         if self.ui.debugflag:
             files = self.repo.status(log.parents(changenode)[0], changenode)[:3]
-            for key, value in zip([_("files:"), _("files+:"), _("files-:")],
-                                  files):
+            for key, value in zip([# i18n: column positioning for "hg log"
+                                   _("files:"),
+                                   # i18n: column positioning for "hg log"
+                                   _("files+:"),
+                                   # i18n: column positioning for "hg log"
+                                   _("files-:")], files):
                 if value:
                     self.ui.write("%-12s %s\n" % (key, " ".join(value)),
                                   label='ui.debug log.files')
         elif ctx.files() and self.ui.verbose:
+            # i18n: column positioning for "hg log"
             self.ui.write(_("files:       %s\n") % " ".join(ctx.files()),
                           label='ui.note log.files')
         if copies and self.ui.verbose:
             copies = ['%s (%s)' % c for c in copies]
+            # i18n: column positioning for "hg log"
             self.ui.write(_("copies:      %s\n") % ' '.join(copies),
                           label='ui.note log.copies')
 
         extra = ctx.extra()
         if extra and self.ui.debugflag:
             for key, value in sorted(extra.items()):
+                # i18n: column positioning for "hg log"
                 self.ui.write(_("extra:       %s=%s\n")
                               % (key, value.encode('string_escape')),
                               label='ui.debug log.extra')
@@ -740,6 +772,7 @@ class changeset_printer(object):
                               label='ui.note log.description')
                 self.ui.write("\n\n")
             else:
+                # i18n: column positioning for "hg log"
                 self.ui.write(_("summary:     %s\n") %
                               description.splitlines()[0],
                               label='log.summary')
@@ -952,11 +985,25 @@ def finddate(ui, repo, date):
     for ctx in walkchangerevs(repo, m, {'rev': None}, prep):
         rev = ctx.rev()
         if rev in results:
-            ui.status(_("Found revision %s from %s\n") %
+            ui.status(_("found revision %s from %s\n") %
                       (rev, util.datestr(results[rev])))
             return str(rev)
 
     raise util.Abort(_("revision matching date not found"))
+
+def increasingwindows(start, end, windowsize=8, sizelimit=512):
+    if start < end:
+        while start < end:
+            yield start, min(windowsize, end - start)
+            start += windowsize
+            if windowsize < sizelimit:
+                windowsize *= 2
+    else:
+        while start > end:
+            yield start, min(windowsize, start - end - 1)
+            start -= windowsize
+            if windowsize < sizelimit:
+                windowsize *= 2
 
 def walkchangerevs(repo, match, opts, prepare):
     '''Iterate over files and the revs in which they changed.
@@ -973,30 +1020,15 @@ def walkchangerevs(repo, match, opts, prepare):
     yielding each context, the iterator will first call the prepare
     function on each context in the window in forward order.'''
 
-    def increasing_windows(start, end, windowsize=8, sizelimit=512):
-        if start < end:
-            while start < end:
-                yield start, min(windowsize, end - start)
-                start += windowsize
-                if windowsize < sizelimit:
-                    windowsize *= 2
-        else:
-            while start > end:
-                yield start, min(windowsize, start - end - 1)
-                start -= windowsize
-                if windowsize < sizelimit:
-                    windowsize *= 2
-
     follow = opts.get('follow') or opts.get('follow_first')
 
-    if not len(repo):
-        return []
-
-    if follow:
-        defrange = '%s:0' % repo['.'].rev()
+    if opts.get('rev'):
+        revs = scmutil.revrange(repo, opts.get('rev'))
+    elif follow:
+        revs = repo.revs('reverse(:.)')
     else:
-        defrange = '-1:0'
-    revs = scmutil.revrange(repo, opts['rev'] or [defrange])
+        revs = list(repo)
+        revs.reverse()
     if not revs:
         return []
     wanted = set()
@@ -1102,6 +1134,17 @@ def walkchangerevs(repo, match, opts, prepare):
                 wanted.add(rev)
                 if copied:
                     copies.append(copied)
+
+        # We decided to fall back to the slowpath because at least one
+        # of the paths was not a file. Check to see if at least one of them
+        # existed in history, otherwise simply return
+        if slowpath:
+            for path in match.files():
+                if path == '.' or path in repo.store:
+                    break
+            else:
+                return []
+
     if slowpath:
         # We have to read the changelog to match filenames against
         # changed files
@@ -1165,6 +1208,13 @@ def walkchangerevs(repo, match, opts, prepare):
             if ff.match(x):
                 wanted.discard(x)
 
+    # Choose a small initial window if we will probably only visit a
+    # few commits.
+    limit = loglimit(opts)
+    windowsize = 8
+    if limit:
+        windowsize = min(limit, windowsize)
+
     # Now that wanted is correctly initialized, we can iterate over the
     # revision range, yielding only revisions in wanted.
     def iterate():
@@ -1176,7 +1226,7 @@ def walkchangerevs(repo, match, opts, prepare):
             def want(rev):
                 return rev in wanted
 
-        for i, window in increasing_windows(0, len(revs)):
+        for i, window in increasingwindows(0, len(revs), windowsize):
             nrevs = [rev for rev in revs[i:i + window] if want(rev)]
             for rev in sorted(nrevs):
                 fns = fncache.get(rev)
@@ -1192,6 +1242,271 @@ def walkchangerevs(repo, match, opts, prepare):
                 yield change(rev)
     return iterate()
 
+def _makegraphfilematcher(repo, pats, followfirst):
+    # When displaying a revision with --patch --follow FILE, we have
+    # to know which file of the revision must be diffed. With
+    # --follow, we want the names of the ancestors of FILE in the
+    # revision, stored in "fcache". "fcache" is populated by
+    # reproducing the graph traversal already done by --follow revset
+    # and relating linkrevs to file names (which is not "correct" but
+    # good enough).
+    fcache = {}
+    fcacheready = [False]
+    pctx = repo['.']
+    wctx = repo[None]
+
+    def populate():
+        for fn in pats:
+            for i in ((pctx[fn],), pctx[fn].ancestors(followfirst=followfirst)):
+                for c in i:
+                    fcache.setdefault(c.linkrev(), set()).add(c.path())
+
+    def filematcher(rev):
+        if not fcacheready[0]:
+            # Lazy initialization
+            fcacheready[0] = True
+            populate()
+        return scmutil.match(wctx, fcache.get(rev, []), default='path')
+
+    return filematcher
+
+def _makegraphlogrevset(repo, pats, opts, revs):
+    """Return (expr, filematcher) where expr is a revset string built
+    from log options and file patterns or None. If --stat or --patch
+    are not passed filematcher is None. Otherwise it is a callable
+    taking a revision number and returning a match objects filtering
+    the files to be detailed when displaying the revision.
+    """
+    opt2revset = {
+        'no_merges':        ('not merge()', None),
+        'only_merges':      ('merge()', None),
+        '_ancestors':       ('ancestors(%(val)s)', None),
+        '_fancestors':      ('_firstancestors(%(val)s)', None),
+        '_descendants':     ('descendants(%(val)s)', None),
+        '_fdescendants':    ('_firstdescendants(%(val)s)', None),
+        '_matchfiles':      ('_matchfiles(%(val)s)', None),
+        'date':             ('date(%(val)r)', None),
+        'branch':           ('branch(%(val)r)', ' or '),
+        '_patslog':         ('filelog(%(val)r)', ' or '),
+        '_patsfollow':      ('follow(%(val)r)', ' or '),
+        '_patsfollowfirst': ('_followfirst(%(val)r)', ' or '),
+        'keyword':          ('keyword(%(val)r)', ' or '),
+        'prune':            ('not (%(val)r or ancestors(%(val)r))', ' and '),
+        'user':             ('user(%(val)r)', ' or '),
+        }
+
+    opts = dict(opts)
+    # follow or not follow?
+    follow = opts.get('follow') or opts.get('follow_first')
+    followfirst = opts.get('follow_first') and 1 or 0
+    # --follow with FILE behaviour depends on revs...
+    startrev = revs[0]
+    followdescendants = (len(revs) > 1 and revs[0] < revs[1]) and 1 or 0
+
+    # branch and only_branch are really aliases and must be handled at
+    # the same time
+    opts['branch'] = opts.get('branch', []) + opts.get('only_branch', [])
+    opts['branch'] = [repo.lookupbranch(b) for b in opts['branch']]
+    # pats/include/exclude are passed to match.match() directly in
+    # _matchfiles() revset but walkchangerevs() builds its matcher with
+    # scmutil.match(). The difference is input pats are globbed on
+    # platforms without shell expansion (windows).
+    pctx = repo[None]
+    match, pats = scmutil.matchandpats(pctx, pats, opts)
+    slowpath = match.anypats() or (match.files() and opts.get('removed'))
+    if not slowpath:
+        for f in match.files():
+            if follow and f not in pctx:
+                raise util.Abort(_('cannot follow file not in parent '
+                                   'revision: "%s"') % f)
+            filelog = repo.file(f)
+            if not len(filelog):
+                # A zero count may be a directory or deleted file, so
+                # try to find matching entries on the slow path.
+                if follow:
+                    raise util.Abort(
+                        _('cannot follow nonexistent file: "%s"') % f)
+                slowpath = True
+
+        # We decided to fall back to the slowpath because at least one
+        # of the paths was not a file. Check to see if at least one of them
+        # existed in history - in that case, we'll continue down the
+        # slowpath; otherwise, we can turn off the slowpath
+        if slowpath:
+            for path in match.files():
+                if path == '.' or path in repo.store:
+                    break
+            else:
+                slowpath = False
+
+    if slowpath:
+        # See walkchangerevs() slow path.
+        #
+        if follow:
+            raise util.Abort(_('can only follow copies/renames for explicit '
+                               'filenames'))
+        # pats/include/exclude cannot be represented as separate
+        # revset expressions as their filtering logic applies at file
+        # level. For instance "-I a -X a" matches a revision touching
+        # "a" and "b" while "file(a) and not file(b)" does
+        # not. Besides, filesets are evaluated against the working
+        # directory.
+        matchargs = ['r:', 'd:relpath']
+        for p in pats:
+            matchargs.append('p:' + p)
+        for p in opts.get('include', []):
+            matchargs.append('i:' + p)
+        for p in opts.get('exclude', []):
+            matchargs.append('x:' + p)
+        matchargs = ','.join(('%r' % p) for p in matchargs)
+        opts['_matchfiles'] = matchargs
+    else:
+        if follow:
+            fpats = ('_patsfollow', '_patsfollowfirst')
+            fnopats = (('_ancestors', '_fancestors'),
+                       ('_descendants', '_fdescendants'))
+            if pats:
+                # follow() revset interprets its file argument as a
+                # manifest entry, so use match.files(), not pats.
+                opts[fpats[followfirst]] = list(match.files())
+            else:
+                opts[fnopats[followdescendants][followfirst]] = str(startrev)
+        else:
+            opts['_patslog'] = list(pats)
+
+    filematcher = None
+    if opts.get('patch') or opts.get('stat'):
+        if follow:
+            filematcher = _makegraphfilematcher(repo, pats, followfirst)
+        else:
+            filematcher = lambda rev: match
+
+    expr = []
+    for op, val in opts.iteritems():
+        if not val:
+            continue
+        if op not in opt2revset:
+            continue
+        revop, andor = opt2revset[op]
+        if '%(val)' not in revop:
+            expr.append(revop)
+        else:
+            if not isinstance(val, list):
+                e = revop % {'val': val}
+            else:
+                e = '(' + andor.join((revop % {'val': v}) for v in val) + ')'
+            expr.append(e)
+
+    if expr:
+        expr = '(' + ' and '.join(expr) + ')'
+    else:
+        expr = None
+    return expr, filematcher
+
+def getgraphlogrevs(repo, pats, opts):
+    """Return (revs, expr, filematcher) where revs is an iterable of
+    revision numbers, expr is a revset string built from log options
+    and file patterns or None, and used to filter 'revs'. If --stat or
+    --patch are not passed filematcher is None. Otherwise it is a
+    callable taking a revision number and returning a match objects
+    filtering the files to be detailed when displaying the revision.
+    """
+    if not len(repo):
+        return [], None, None
+    limit = loglimit(opts)
+    # Default --rev value depends on --follow but --follow behaviour
+    # depends on revisions resolved from --rev...
+    follow = opts.get('follow') or opts.get('follow_first')
+    possiblyunsorted = False # whether revs might need sorting
+    if opts.get('rev'):
+        revs = scmutil.revrange(repo, opts['rev'])
+        # Don't sort here because _makegraphlogrevset might depend on the
+        # order of revs
+        possiblyunsorted = True
+    else:
+        if follow and len(repo) > 0:
+            revs = repo.revs('reverse(:.)')
+        else:
+            revs = list(repo.changelog)
+            revs.reverse()
+    if not revs:
+        return [], None, None
+    expr, filematcher = _makegraphlogrevset(repo, pats, opts, revs)
+    if possiblyunsorted:
+        revs.sort(reverse=True)
+    if expr:
+        # Revset matchers often operate faster on revisions in changelog
+        # order, because most filters deal with the changelog.
+        revs.reverse()
+        matcher = revset.match(repo.ui, expr)
+        # Revset matches can reorder revisions. "A or B" typically returns
+        # returns the revision matching A then the revision matching B. Sort
+        # again to fix that.
+        revs = matcher(repo, revs)
+        revs.sort(reverse=True)
+    if limit is not None:
+        revs = revs[:limit]
+
+    return revs, expr, filematcher
+
+def displaygraph(ui, dag, displayer, showparents, edgefn, getrenamed=None,
+                 filematcher=None):
+    seen, state = [], graphmod.asciistate()
+    for rev, type, ctx, parents in dag:
+        char = 'o'
+        if ctx.node() in showparents:
+            char = '@'
+        elif ctx.obsolete():
+            char = 'x'
+        copies = None
+        if getrenamed and ctx.rev():
+            copies = []
+            for fn in ctx.files():
+                rename = getrenamed(fn, ctx.rev())
+                if rename:
+                    copies.append((fn, rename[0]))
+        revmatchfn = None
+        if filematcher is not None:
+            revmatchfn = filematcher(ctx.rev())
+        displayer.show(ctx, copies=copies, matchfn=revmatchfn)
+        lines = displayer.hunk.pop(rev).split('\n')
+        if not lines[-1]:
+            del lines[-1]
+        displayer.flush(rev)
+        edges = edgefn(type, char, lines, seen, rev, parents)
+        for type, char, lines, coldata in edges:
+            graphmod.ascii(ui, state, type, char, lines, coldata)
+    displayer.close()
+
+def graphlog(ui, repo, *pats, **opts):
+    # Parameters are identical to log command ones
+    revs, expr, filematcher = getgraphlogrevs(repo, pats, opts)
+    revdag = graphmod.dagwalker(repo, revs)
+
+    getrenamed = None
+    if opts.get('copies'):
+        endrev = None
+        if opts.get('rev'):
+            endrev = max(scmutil.revrange(repo, opts.get('rev'))) + 1
+        getrenamed = templatekw.getrenamedfn(repo, endrev=endrev)
+    displayer = show_changeset(ui, repo, opts, buffered=True)
+    showparents = [ctx.node() for ctx in repo[None].parents()]
+    displaygraph(ui, revdag, displayer, showparents,
+                 graphmod.asciiedges, getrenamed, filematcher)
+
+def checkunsupportedgraphflags(pats, opts):
+    for op in ["newest_first"]:
+        if op in opts and opts[op]:
+            raise util.Abort(_("-G/--graph option is incompatible with --%s")
+                             % op.replace("_", "-"))
+
+def graphrevs(repo, nodes, opts):
+    limit = loglimit(opts)
+    nodes.reverse()
+    if limit is not None:
+        nodes = nodes[:limit]
+    return graphmod.nodes(repo, nodes)
+
 def add(ui, repo, match, dryrun, listsubrepos, prefix, explicitonly):
     join = lambda f: os.path.join(prefix, f)
     bad = []
@@ -1202,7 +1517,7 @@ def add(ui, repo, match, dryrun, listsubrepos, prefix, explicitonly):
     cca = None
     abort, warn = scmutil.checkportabilityalert(ui)
     if abort or warn:
-        cca = scmutil.casecollisionauditor(ui, abort, wctx)
+        cca = scmutil.casecollisionauditor(ui, abort, repo.dirstate)
     for f in repo.walk(match):
         exact = match.exact(f)
         if exact or not explicitonly and f not in repo.dirstate:
@@ -1212,7 +1527,7 @@ def add(ui, repo, match, dryrun, listsubrepos, prefix, explicitonly):
             if ui.verbose or not exact:
                 ui.status(_('adding %s\n') % match.rel(join(f)))
 
-    for subpath in wctx.substate:
+    for subpath in sorted(wctx.substate):
         sub = wctx.sub(subpath)
         try:
             submatch = matchmod.narrowmatcher(subpath, match)
@@ -1243,7 +1558,7 @@ def forget(ui, repo, match, prefix, explicitonly):
     if explicitonly:
         forget = [f for f in forget if match.exact(f)]
 
-    for subpath in wctx.substate:
+    for subpath in sorted(wctx.substate):
         sub = wctx.sub(subpath)
         try:
             submatch = matchmod.narrowmatcher(subpath, match)
@@ -1273,10 +1588,13 @@ def forget(ui, repo, match, prefix, explicitonly):
     forgot.extend(forget)
     return bad, forgot
 
-def duplicatecopies(repo, rev, p1):
-    "Reproduce copies found in the source revision in the dirstate for grafts"
-    for dst, src in copies.pathcopies(repo[p1], repo[rev]).iteritems():
-        repo.dirstate.copy(src, dst)
+def duplicatecopies(repo, rev, fromrev):
+    '''reproduce copies from fromrev to rev in the dirstate'''
+    for dst, src in copies.pathcopies(repo[fromrev], repo[rev]).iteritems():
+        # copies.pathcopies returns backward renames, so dst might not
+        # actually be in the dirstate
+        if repo.dirstate[dst] in "nma":
+            repo.dirstate.copy(src, dst)
 
 def commit(ui, repo, commitfunc, pats, opts):
     '''commit the specified files or all outstanding changes'''
@@ -1297,126 +1615,182 @@ def amend(ui, repo, commitfunc, old, extra, pats, opts):
     ui.note(_('amending changeset %s\n') % old)
     base = old.p1()
 
-    wlock = repo.wlock()
+    wlock = lock = newid = None
     try:
-        # First, do a regular commit to record all changes in the working
-        # directory (if there are any)
-        node = commit(ui, repo, commitfunc, pats, opts)
-        ctx = repo[node]
-
-        # Participating changesets:
-        #
-        # node/ctx o - new (intermediate) commit that contains changes from
-        #          |   working dir to go into amending commit (or a workingctx
-        #          |   if there were no changes)
-        #          |
-        # old      o - changeset to amend
-        #          |
-        # base     o - parent of amending changeset
-
-        # Update extra dict from amended commit (e.g. to preserve graft source)
-        extra.update(old.extra())
-
-        # Also update it from the intermediate commit or from the wctx
-        extra.update(ctx.extra())
-
-        files = set(old.files())
-
-        # Second, we use either the commit we just did, or if there were no
-        # changes the parent of the working directory as the version of the
-        # files in the final amend commit
-        if node:
-            ui.note(_('copying changeset %s to %s\n') % (ctx, base))
-
-            user = ctx.user()
-            date = ctx.date()
-            message = ctx.description()
-            # Recompute copies (avoid recording a -> b -> a)
-            copied = copies.pathcopies(base, ctx)
-
-            # Prune files which were reverted by the updates: if old introduced
-            # file X and our intermediate commit, node, renamed that file, then
-            # those two files are the same and we can discard X from our list
-            # of files. Likewise if X was deleted, it's no longer relevant
-            files.update(ctx.files())
-
-            def samefile(f):
-                if f in ctx.manifest():
-                    a = ctx.filectx(f)
-                    if f in base.manifest():
-                        b = base.filectx(f)
-                        return (a.data() == b.data()
-                                and a.flags() == b.flags())
-                    else:
-                        return False
-                else:
-                    return f not in base.manifest()
-            files = [f for f in files if not samefile(f)]
-
-            def filectxfn(repo, ctx_, path):
-                try:
-                    fctx = ctx[path]
-                    flags = fctx.flags()
-                    mctx = context.memfilectx(fctx.path(), fctx.data(),
-                                              islink='l' in flags,
-                                              isexec='x' in flags,
-                                              copied=copied.get(path))
-                    return mctx
-                except KeyError:
-                    raise IOError()
-        else:
-            ui.note(_('copying changeset %s to %s\n') % (old, base))
-
-            # Use version of files as in the old cset
-            def filectxfn(repo, ctx_, path):
-                try:
-                    return old.filectx(path)
-                except KeyError:
-                    raise IOError()
-
+        wlock = repo.wlock()
+        lock = repo.lock()
+        tr = repo.transaction('amend')
+        try:
             # See if we got a message from -m or -l, if not, open the editor
             # with the message of the changeset to amend
-            user = opts.get('user') or old.user()
-            date = opts.get('date') or old.date()
             message = logmessage(ui, opts)
+            # ensure logfile does not conflict with later enforcement of the
+            # message. potential logfile content has been processed by
+            # `logmessage` anyway.
+            opts.pop('logfile')
+            # First, do a regular commit to record all changes in the working
+            # directory (if there are any)
+            ui.callhooks = False
+            currentbookmark = repo._bookmarkcurrent
+            try:
+                repo._bookmarkcurrent = None
+                opts['message'] = 'temporary amend commit for %s' % old
+                node = commit(ui, repo, commitfunc, pats, opts)
+            finally:
+                repo._bookmarkcurrent = currentbookmark
+                ui.callhooks = True
+            ctx = repo[node]
+
+            # Participating changesets:
+            #
+            # node/ctx o - new (intermediate) commit that contains changes
+            #          |   from working dir to go into amending commit
+            #          |   (or a workingctx if there were no changes)
+            #          |
+            # old      o - changeset to amend
+            #          |
+            # base     o - parent of amending changeset
+
+            # Update extra dict from amended commit (e.g. to preserve graft
+            # source)
+            extra.update(old.extra())
+
+            # Also update it from the intermediate commit or from the wctx
+            extra.update(ctx.extra())
+
+            if len(old.parents()) > 1:
+                # ctx.files() isn't reliable for merges, so fall back to the
+                # slower repo.status() method
+                files = set([fn for st in repo.status(base, old)[:3]
+                             for fn in st])
+            else:
+                files = set(old.files())
+
+            # Second, we use either the commit we just did, or if there were no
+            # changes the parent of the working directory as the version of the
+            # files in the final amend commit
+            if node:
+                ui.note(_('copying changeset %s to %s\n') % (ctx, base))
+
+                user = ctx.user()
+                date = ctx.date()
+                # Recompute copies (avoid recording a -> b -> a)
+                copied = copies.pathcopies(base, ctx)
+
+                # Prune files which were reverted by the updates: if old
+                # introduced file X and our intermediate commit, node,
+                # renamed that file, then those two files are the same and
+                # we can discard X from our list of files. Likewise if X
+                # was deleted, it's no longer relevant
+                files.update(ctx.files())
+
+                def samefile(f):
+                    if f in ctx.manifest():
+                        a = ctx.filectx(f)
+                        if f in base.manifest():
+                            b = base.filectx(f)
+                            return (not a.cmp(b)
+                                    and a.flags() == b.flags())
+                        else:
+                            return False
+                    else:
+                        return f not in base.manifest()
+                files = [f for f in files if not samefile(f)]
+
+                def filectxfn(repo, ctx_, path):
+                    try:
+                        fctx = ctx[path]
+                        flags = fctx.flags()
+                        mctx = context.memfilectx(fctx.path(), fctx.data(),
+                                                  islink='l' in flags,
+                                                  isexec='x' in flags,
+                                                  copied=copied.get(path))
+                        return mctx
+                    except KeyError:
+                        raise IOError
+            else:
+                ui.note(_('copying changeset %s to %s\n') % (old, base))
+
+                # Use version of files as in the old cset
+                def filectxfn(repo, ctx_, path):
+                    try:
+                        return old.filectx(path)
+                    except KeyError:
+                        raise IOError
+
+                user = opts.get('user') or old.user()
+                date = opts.get('date') or old.date()
+            editmsg = False
             if not message:
-                cctx = context.workingctx(repo, old.description(), user, date,
-                                          extra,
-                                          repo.status(base.node(), old.node()))
-                message = commitforceeditor(repo, cctx, [])
+                editmsg = True
+                message = old.description()
 
-        new = context.memctx(repo,
-                             parents=[base.node(), nullid],
-                             text=message,
-                             files=files,
-                             filectxfn=filectxfn,
-                             user=user,
-                             date=date,
-                             extra=extra)
-        newid = repo.commitctx(new)
-        if newid != old.node():
-            # Reroute the working copy parent to the new changeset
-            repo.setparents(newid, nullid)
+            pureextra = extra.copy()
+            extra['amend_source'] = old.hex()
 
-            # Move bookmarks from old parent to amend commit
-            bms = repo.nodebookmarks(old.node())
-            if bms:
-                for bm in bms:
-                    repo._bookmarks[bm] = newid
-                bookmarks.write(repo)
+            new = context.memctx(repo,
+                                 parents=[base.node(), old.p2().node()],
+                                 text=message,
+                                 files=files,
+                                 filectxfn=filectxfn,
+                                 user=user,
+                                 date=date,
+                                 extra=extra)
+            if editmsg:
+                new._text = commitforceeditor(repo, new, [])
 
+            newdesc =  changelog.stripdesc(new.description())
+            if ((not node)
+                and newdesc == old.description()
+                and user == old.user()
+                and date == old.date()
+                and pureextra == old.extra()):
+                # nothing changed. continuing here would create a new node
+                # anyway because of the amend_source noise.
+                #
+                # This not what we expect from amend.
+                return old.node()
+
+            ph = repo.ui.config('phases', 'new-commit', phases.draft)
+            try:
+                repo.ui.setconfig('phases', 'new-commit', old.phase())
+                newid = repo.commitctx(new)
+            finally:
+                repo.ui.setconfig('phases', 'new-commit', ph)
+            if newid != old.node():
+                # Reroute the working copy parent to the new changeset
+                repo.setparents(newid, nullid)
+
+                # Move bookmarks from old parent to amend commit
+                bms = repo.nodebookmarks(old.node())
+                if bms:
+                    marks = repo._bookmarks
+                    for bm in bms:
+                        marks[bm] = newid
+                    marks.write()
+            #commit the whole amend process
+            if obsolete._enabled and newid != old.node():
+                # mark the new changeset as successor of the rewritten one
+                new = repo[newid]
+                obs = [(old, (new,))]
+                if node:
+                    obs.append((ctx, ()))
+
+                obsolete.createmarkers(repo, obs)
+            tr.close()
+        finally:
+            tr.release()
+        if (not obsolete._enabled) and newid != old.node():
             # Strip the intermediate commit (if there was one) and the amended
             # commit
-            lock = repo.lock()
-            try:
-                if node:
-                    ui.note(_('stripping intermediate changeset %s\n') % ctx)
-                ui.note(_('stripping amended changeset %s\n') % old)
-                repair.strip(ui, repo, old.node(), topic='amend-backup')
-            finally:
-                lock.release()
+            if node:
+                ui.note(_('stripping intermediate changeset %s\n') % ctx)
+            ui.note(_('stripping amended changeset %s\n') % old)
+            repair.strip(ui, repo, old.node(), topic='amend-backup')
     finally:
-        wlock.release()
+        if newid is None:
+            repo.dirstate.invalidate()
+        lockmod.release(lock, wlock)
     return newid
 
 def commiteditor(repo, ctx, subs):
@@ -1440,6 +1814,8 @@ def commitforceeditor(repo, ctx, subs):
         edittext.append(_("HG: branch merge"))
     if ctx.branch():
         edittext.append(_("HG: branch '%s'") % ctx.branch())
+    if bookmarks.iscurrent(repo):
+        edittext.append(_("HG: bookmark '%s'") % repo._bookmarkcurrent)
     edittext.extend([_("HG: subrepo %s") % s for s in subs])
     edittext.extend([_("HG: added %s") % f for f in added])
     edittext.extend([_("HG: changed %s") % f for f in modified])
@@ -1458,6 +1834,52 @@ def commitforceeditor(repo, ctx, subs):
         raise util.Abort(_("empty commit message"))
 
     return text
+
+def commitstatus(repo, node, branch, bheads=None, opts={}):
+    ctx = repo[node]
+    parents = ctx.parents()
+
+    if (not opts.get('amend') and bheads and node not in bheads and not
+        [x for x in parents if x.node() in bheads and x.branch() == branch]):
+        repo.ui.status(_('created new head\n'))
+        # The message is not printed for initial roots. For the other
+        # changesets, it is printed in the following situations:
+        #
+        # Par column: for the 2 parents with ...
+        #   N: null or no parent
+        #   B: parent is on another named branch
+        #   C: parent is a regular non head changeset
+        #   H: parent was a branch head of the current branch
+        # Msg column: whether we print "created new head" message
+        # In the following, it is assumed that there already exists some
+        # initial branch heads of the current branch, otherwise nothing is
+        # printed anyway.
+        #
+        # Par Msg Comment
+        # N N  y  additional topo root
+        #
+        # B N  y  additional branch root
+        # C N  y  additional topo head
+        # H N  n  usual case
+        #
+        # B B  y  weird additional branch root
+        # C B  y  branch merge
+        # H B  n  merge with named branch
+        #
+        # C C  y  additional head from merge
+        # C H  n  merge with a head
+        #
+        # H H  n  head merge: head count decreases
+
+    if not opts.get('close_branch'):
+        for r in parents:
+            if r.closesbranch() and r.branch() == branch:
+                repo.ui.status(_('reopening closed branch head %d\n') % r)
+
+    if repo.ui.debugflag:
+        repo.ui.write(_('committed changeset %d:%s\n') % (int(ctx), ctx.hex()))
+    elif repo.ui.verbose:
+        repo.ui.write(_('committed changeset %d:%s\n') % (int(ctx), ctx))
 
 def revert(ui, repo, ctx, parents, *pats, **opts):
     parent, p2 = parents
@@ -1489,7 +1911,7 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
         def badfn(path, msg):
             if path in names:
                 return
-            if path in repo[node].substate:
+            if path in ctx.substate:
                 return
             path_ = path + '/'
             for f in names:
@@ -1497,14 +1919,14 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
                     return
             ui.warn("%s: %s\n" % (m.rel(path), msg))
 
-        m = scmutil.match(repo[node], pats, opts)
+        m = scmutil.match(ctx, pats, opts)
         m.bad = badfn
-        for abs in repo[node].walk(m):
+        for abs in ctx.walk(m):
             if abs not in names:
                 names[abs] = m.rel(abs), m.exact(abs)
 
         # get the list of subrepos that must be reverted
-        targetsubs = [s for s in repo[node].substate if m(s)]
+        targetsubs = sorted(s for s in ctx.substate if m(s))
         m = scmutil.matchfiles(repo, names)
         changes = repo.status(match=m)[:4]
         modified, added, removed, deleted = map(set, changes)
@@ -1633,6 +2055,12 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
                 checkout(f)
                 normal(f)
 
+            copied = copies.pathcopies(repo[parent], ctx)
+
+            for f in add[0] + undelete[0] + revert[0]:
+                if f in copied:
+                    repo.dirstate.copy(copied[f], f)
+
             if targetsubs:
                 # Revert the subrepos on the revert list
                 for sub in targetsubs:
@@ -1644,12 +2072,12 @@ def command(table):
     '''returns a function object bound to table which can be used as
     a decorator for populating table as a command table'''
 
-    def cmd(name, options, synopsis=None):
+    def cmd(name, options=(), synopsis=None):
         def decorator(func):
             if synopsis:
-                table[name] = func, options[:], synopsis
+                table[name] = func, list(options), synopsis
             else:
-                table[name] = func, options[:]
+                table[name] = func, list(options)
             return func
         return decorator
 

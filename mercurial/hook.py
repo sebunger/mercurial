@@ -6,8 +6,8 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import os, sys
-import extensions, util
+import os, sys, time, types
+import extensions, util, demandimport
 
 def _pythonhook(ui, repo, name, hname, funcname, args, throw):
     '''call python hook. hook is callable object, looked up as
@@ -20,6 +20,8 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
     be run as hooks without wrappers to convert return values.'''
 
     ui.note(_("calling hook %s: %s\n") % (hname, funcname))
+    starttime = time.time()
+
     obj = funcname
     if not util.safehasattr(obj, '__call__'):
         d = funcname.rfind('.')
@@ -35,13 +37,17 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
                 sys.path = sys.path[:] + [modpath]
                 modname = modfile
         try:
+            demandimport.disable()
             obj = __import__(modname)
+            demandimport.enable()
         except ImportError:
             e1 = sys.exc_type, sys.exc_value, sys.exc_traceback
             try:
                 # extensions are loaded with hgext_ prefix
                 obj = __import__("hgext_%s" % modname)
+                demandimport.enable()
             except ImportError:
+                demandimport.enable()
                 e2 = sys.exc_type, sys.exc_value, sys.exc_traceback
                 if ui.tracebackflag:
                     ui.warn(_('exception from first failed import attempt:\n'))
@@ -66,7 +72,7 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
                              (hname, funcname))
     try:
         try:
-            # redirect IO descriptors the the ui descriptors so hooks
+            # redirect IO descriptors to the ui descriptors so hooks
             # that write directly to these don't mess up the command
             # protocol when running through the command server
             old = sys.stdout, sys.stderr, sys.stdin
@@ -88,6 +94,12 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
             return True
     finally:
         sys.stdout, sys.stderr, sys.stdin = old
+        duration = time.time() - starttime
+        readablefunc = funcname
+        if isinstance(funcname, types.FunctionType):
+            readablefunc = funcname.__module__ + "." + funcname.__name__
+        ui.log('pythonhook', 'pythonhook-%s: %s finished in %0.2f seconds\n',
+               name, readablefunc, duration)
     if r:
         if throw:
             raise util.Abort(_('%s hook failed') % hname)
@@ -97,6 +109,7 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
 def _exthook(ui, repo, name, cmd, args, throw):
     ui.note(_("running hook %s: %s\n") % (name, cmd))
 
+    starttime = time.time()
     env = {}
     for k, v in args.iteritems():
         if util.safehasattr(v, '__call__'):
@@ -117,6 +130,10 @@ def _exthook(ui, repo, name, cmd, args, throw):
         r = util.system(cmd, environ=env, cwd=cwd, out=ui)
     else:
         r = util.system(cmd, environ=env, cwd=cwd, out=ui.fout)
+
+    duration = time.time() - starttime
+    ui.log('exthook', 'exthook-%s: %s finished in %0.2f seconds\n',
+           name, cmd, duration)
     if r:
         desc, r = util.explainexit(r)
         if throw:
@@ -138,26 +155,30 @@ def redirect(state):
     _redirect = state
 
 def hook(ui, repo, name, throw=False, **args):
-    r = False
+    if not ui.callhooks:
+        return False
 
+    r = False
     oldstdout = -1
-    if _redirect:
-        try:
-            stdoutno = sys.__stdout__.fileno()
-            stderrno = sys.__stderr__.fileno()
-            # temporarily redirect stdout to stderr, if possible
-            if stdoutno >= 0 and stderrno >= 0:
-                sys.__stdout__.flush()
-                oldstdout = os.dup(stdoutno)
-                os.dup2(stderrno, stdoutno)
-        except AttributeError:
-            # __stdout/err__ doesn't have fileno(), it's not a real file
-            pass
 
     try:
         for hname, cmd in _allhooks(ui):
             if hname.split('.')[0] != name or not cmd:
                 continue
+
+            if oldstdout == -1 and _redirect:
+                try:
+                    stdoutno = sys.__stdout__.fileno()
+                    stderrno = sys.__stderr__.fileno()
+                    # temporarily redirect stdout to stderr, if possible
+                    if stdoutno >= 0 and stderrno >= 0:
+                        sys.__stdout__.flush()
+                        oldstdout = os.dup(stdoutno)
+                        os.dup2(stderrno, stdoutno)
+                except (OSError, AttributeError):
+                    # files seem to be bogus, give up on redirecting (WSGI, etc)
+                    pass
+
             if util.safehasattr(cmd, '__call__'):
                 r = _pythonhook(ui, repo, name, hname, cmd, args, throw) or r
             elif cmd.startswith('python:'):
@@ -166,7 +187,11 @@ def hook(ui, repo, name, throw=False, **args):
                     path = util.expandpath(path)
                     if repo:
                         path = os.path.join(repo.root, path)
-                    mod = extensions.loadpath(path, 'hghook.%s' % hname)
+                    try:
+                        mod = extensions.loadpath(path, 'hghook.%s' % hname)
+                    except Exception:
+                        ui.write(_("loading %s hook failed:\n") % hname)
+                        raise
                     hookfn = getattr(mod, cmd)
                 else:
                     hookfn = cmd[7:].strip()

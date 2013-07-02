@@ -55,11 +55,11 @@ Simulate a Windows merge:
     unmatched files in local:
      b
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: a03b0deabf2b, local: d6fa54f68ae1+, remote: 2d8bcf2dda39
    a: update permissions -> e
   updating: a 1/1 files (100.00%)
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
 
 Simulate a Windows commit:
@@ -69,3 +69,5 @@ Simulate a Windows commit:
   $ hg manifest -v
   755 * a
   644   b
+
+  $ cd ..

@@ -22,15 +22,20 @@ test-mq-qclone-http.t
 test-mq-qimport.t
 test-newcgi.t
 test-newercgi.t
+test-obsolete.t
 test-oldcgi.t
 test-serve.t
 test-share.t
 test-subrepo-relative-path.t
+test-websub.t
 
 # Failed to locate styles (?)
 test-bisect3.t
 test-command-template.t
+test-commit-amend.t
 test-glog.t
+test-histedit-arguments.t
+test-histedit-revspec.t
 test-install.t
 test-log.t
 test-tag.t
@@ -46,8 +51,3 @@ test-gendoc.t
 
 # I'm missing some locales or something (?)
 test-i18n.t
-
-# test-convert-git.t fails with git 1.7.10
-# (http://mercurial.selenic.com/bts/issue3427) and some buildds (such
-# as ancina) have git installed and run this test
-test-convert-git.t

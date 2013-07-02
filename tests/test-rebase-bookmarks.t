@@ -23,7 +23,7 @@ Create a repo with several bookmarks
   adding b
   $ hg book 'X'
   $ hg book 'Y'
- 
+
   $ echo c > c
   $ hg ci -Am C
   adding c
@@ -36,8 +36,10 @@ Create a repo with several bookmarks
   adding d
   created new head
 
-  $ hg tglog 
-  @  3: 'D' bookmarks:
+  $ hg book W
+
+  $ hg tglog
+  @  3: 'D' bookmarks: W
   |
   | o  2: 'C' bookmarks: Y Z
   | |
@@ -45,7 +47,7 @@ Create a repo with several bookmarks
   |/
   o  0: 'A' bookmarks:
   
- 
+
 Move only rebased bookmarks
 
   $ cd ..
@@ -54,17 +56,35 @@ Move only rebased bookmarks
   $ cd a1
   $ hg up -q Z
 
-  $ hg rebase --detach -s Y -d 3
+Test deleting divergent bookmarks from dest (issue3685)
+
+  $ hg book -r 3 Z@diverge
+
+... and also test that bookmarks not on dest or not being moved aren't deleted
+
+  $ hg book -r 3 X@diverge
+  $ hg book -r 0 Y@diverge
+
+  $ hg tglog
+  o  3: 'D' bookmarks: W X@diverge Z@diverge
+  |
+  | @  2: 'C' bookmarks: Y Z
+  | |
+  | o  1: 'B' bookmarks: X
+  |/
+  o  0: 'A' bookmarks: Y@diverge
+  
+  $ hg rebase -s Y -d 3
   saved backup bundle to $TESTTMP/a1/.hg/strip-backup/*-backup.hg (glob)
 
-  $ hg tglog 
+  $ hg tglog
   @  3: 'C' bookmarks: Y Z
   |
-  o  2: 'D' bookmarks:
+  o  2: 'D' bookmarks: W X@diverge
   |
   | o  1: 'B' bookmarks: X
   |/
-  o  0: 'A' bookmarks:
+  o  0: 'A' bookmarks: Y@diverge
   
 Keep bookmarks to the correct rebased changeset
 
@@ -77,12 +97,66 @@ Keep bookmarks to the correct rebased changeset
   $ hg rebase -s 1 -d 3
   saved backup bundle to $TESTTMP/a2/.hg/strip-backup/*-backup.hg (glob)
 
-  $ hg tglog 
+  $ hg tglog
   @  3: 'C' bookmarks: Y Z
   |
   o  2: 'B' bookmarks: X
   |
-  o  1: 'D' bookmarks:
+  o  1: 'D' bookmarks: W
   |
   o  0: 'A' bookmarks:
   
+
+Keep active bookmark on the correct changeset
+
+  $ cd ..
+  $ hg clone -q a a3
+
+  $ cd a3
+  $ hg up -q X
+
+  $ hg rebase -d W
+  saved backup bundle to $TESTTMP/a3/.hg/strip-backup/*-backup.hg (glob)
+
+  $ hg tglog
+  @  3: 'C' bookmarks: Y Z
+  |
+  o  2: 'B' bookmarks: X
+  |
+  o  1: 'D' bookmarks: W
+  |
+  o  0: 'A' bookmarks:
+  
+rebase --continue with bookmarks present (issue3802)
+
+  $ hg up 2
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ echo 'C' > c
+  $ hg add c
+  $ hg ci -m 'other C'
+  created new head
+  $ hg up 3
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg rebase
+  merging c
+  warning: conflicts during merge.
+  merging c incomplete! (edit conflicts, then use 'hg resolve --mark')
+  unresolved conflicts (see hg resolve, then hg rebase --continue)
+  [1]
+  $ echo 'c' > c
+  $ hg resolve --mark c
+  $ hg rebase --continue
+  saved backup bundle to $TESTTMP/a3/.hg/strip-backup/3d5fa227f4b5-backup.hg (glob)
+  $ hg tglog
+  @  4: 'C' bookmarks: Y Z
+  |
+  o  3: 'other C' bookmarks:
+  |
+  o  2: 'B' bookmarks: X
+  |
+  o  1: 'D' bookmarks: W
+  |
+  o  0: 'A' bookmarks:
+  
+
+  $ cd ..

@@ -39,7 +39,7 @@ already has one local mq patch
   $ hg add p1
   $ hg qref -m P1
 
-  $ hg export qtip > p1.patch 
+  $ hg export qtip > p1.patch
 
   $ hg up -q -C 1
 
@@ -108,8 +108,8 @@ already has one local mq patch
   $ hg up -q qtip
 
   $ HGMERGE=internal:fail hg rebase
-  abort: unresolved conflicts (see hg resolve, then hg rebase --continue)
-  [255]
+  unresolved conflicts (see hg resolve, then hg rebase --continue)
+  [1]
 
   $ HGMERGE=internal:local hg resolve --all
 
@@ -135,3 +135,5 @@ already has one local mq patch
   |
   o  0: 'r0' tags:
   
+
+  $ cd ..

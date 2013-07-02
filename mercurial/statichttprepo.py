@@ -10,7 +10,7 @@
 from i18n import _
 import changelog, byterange, url, error
 import localrepo, manifest, util, scmutil, store
-import urllib, urllib2, errno
+import urllib, urllib2, errno, os
 
 class httprangereader(object):
     def __init__(self, url, opener):
@@ -26,7 +26,8 @@ class httprangereader(object):
         end = ''
         if bytes:
             end = self.pos + bytes - 1
-        req.add_header('Range', 'bytes=%d-%s' % (self.pos, end))
+        if self.pos or end:
+            req.add_header('Range', 'bytes=%d-%s' % (self.pos, end))
 
         try:
             f = self.opener.open(req)
@@ -63,7 +64,7 @@ def build_opener(ui, authinfo):
     urlopener = url.opener(ui, authinfo)
     urlopener.add_handler(byterange.HTTPRangeHandler())
 
-    class statichttpopener(scmutil.abstractopener):
+    class statichttpvfs(scmutil.abstractvfs):
         def __init__(self, base):
             self.base = base
 
@@ -73,7 +74,19 @@ def build_opener(ui, authinfo):
             f = "/".join((self.base, urllib.quote(path)))
             return httprangereader(f, urlopener)
 
-    return statichttpopener
+        def join(self, path):
+            if path:
+                return os.path.join(self.base, path)
+            else:
+                return self.base
+
+    return statichttpvfs
+
+class statichttppeer(localrepo.localpeer):
+    def local(self):
+        return None
+    def canpush(self):
+        return False
 
 class statichttprepository(localrepo.localrepository):
     def __init__(self, ui, path):
@@ -86,6 +99,7 @@ class statichttprepository(localrepo.localrepository):
 
         opener = build_opener(ui, authinfo)
         self.opener = opener(self.path)
+        self.vfs = self.opener
         self._phasedefaults = []
 
         try:
@@ -111,24 +125,30 @@ class statichttprepository(localrepo.localrepository):
         self.store = store.store(requirements, self.path, opener)
         self.spath = self.store.path
         self.sopener = self.store.opener
+        self.svfs = self.sopener
         self.sjoin = self.store.join
         self._filecache = {}
+        self.requirements = requirements
 
         self.manifest = manifest.manifest(self.sopener)
         self.changelog = changelog.changelog(self.sopener)
         self._tags = None
         self.nodetagscache = None
-        self._branchcache = None
-        self._branchcachetip = None
+        self._branchcaches = {}
         self.encodepats = None
         self.decodepats = None
-        self.capabilities.difference_update(["pushkey"])
+
+    def _restrictcapabilities(self, caps):
+        return caps.difference(["pushkey"])
 
     def url(self):
         return self._url
 
     def local(self):
         return False
+
+    def peer(self):
+        return statichttppeer(self)
 
     def lock(self, wait=True):
         raise util.Abort(_('cannot lock static-http repository'))

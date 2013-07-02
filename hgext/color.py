@@ -103,7 +103,10 @@ disable color.
 import os
 
 from mercurial import commands, dispatch, extensions, ui as uimod, util
+from mercurial import templater, error
 from mercurial.i18n import _
+
+testedwith = 'internal'
 
 # start and stop parameters for effects
 _effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
@@ -222,6 +225,13 @@ except ImportError:
     _terminfo_params = False
 
 _styles = {'grep.match': 'red bold',
+           'grep.linenumber': 'green',
+           'grep.rev': 'green',
+           'grep.change': 'green',
+           'grep.sep': 'cyan',
+           'grep.filename': 'magenta',
+           'grep.user': 'magenta',
+           'grep.date': 'magenta',
            'bookmarks.current': 'green',
            'branches.active': 'none',
            'branches.closed': 'black bold',
@@ -307,6 +317,9 @@ def configstyles(ui):
 
 class colorui(uimod.ui):
     def popbuffer(self, labeled=False):
+        if self._colormode is None:
+            return super(colorui, self).popbuffer(labeled)
+
         if labeled:
             return ''.join(self.label(a, label) for a, label
                            in self._buffers.pop())
@@ -314,6 +327,9 @@ class colorui(uimod.ui):
 
     _colormode = 'ansi'
     def write(self, *args, **opts):
+        if self._colormode is None:
+            return super(colorui, self).write(*args, **opts)
+
         label = opts.get('label', '')
         if self._buffers:
             self._buffers[-1].extend([(str(a), label) for a in args])
@@ -325,6 +341,9 @@ class colorui(uimod.ui):
                 *[self.label(str(a), label) for a in args], **opts)
 
     def write_err(self, *args, **opts):
+        if self._colormode is None:
+            return super(colorui, self).write_err(*args, **opts)
+
         label = opts.get('label', '')
         if self._colormode == 'win32':
             for a in args:
@@ -334,6 +353,9 @@ class colorui(uimod.ui):
                 *[self.label(str(a), label) for a in args], **opts)
 
     def label(self, msg, label):
+        if self._colormode is None:
+            return super(colorui, self).label(msg, label)
+
         effects = []
         for l in label.split():
             s = _styles.get(l, '')
@@ -345,22 +367,44 @@ class colorui(uimod.ui):
                               for s in msg.split('\n')])
         return msg
 
+def templatelabel(context, mapping, args):
+    if len(args) != 2:
+        # i18n: "label" is a keyword
+        raise error.ParseError(_("label expects two arguments"))
+
+    thing = templater.stringify(args[1][0](context, mapping, args[1][1]))
+    thing = templater.runtemplate(context, mapping,
+                                  templater.compiletemplate(thing, context))
+
+    # apparently, repo could be a string that is the favicon?
+    repo = mapping.get('repo', '')
+    if isinstance(repo, str):
+        return thing
+
+    label = templater.stringify(args[0][0](context, mapping, args[0][1]))
+    label = templater.runtemplate(context, mapping,
+                                  templater.compiletemplate(label, context))
+
+    thing = templater.stringify(thing)
+    label = templater.stringify(label)
+
+    return repo.ui.label(thing, label)
 
 def uisetup(ui):
-    global _terminfo_params
     if ui.plain():
         return
+    if not issubclass(ui.__class__, colorui):
+        colorui.__bases__ = (ui.__class__,)
+        ui.__class__ = colorui
     def colorcmd(orig, ui_, opts, cmd, cmdfunc):
         mode = _modesetup(ui_, opts)
+        colorui._colormode = mode
         if mode:
-            colorui._colormode = mode
-            if not issubclass(ui_.__class__, colorui):
-                colorui.__bases__ = (ui_.__class__,)
-                ui_.__class__ = colorui
             extstyles()
             configstyles(ui_)
         return orig(ui_, opts, cmd, cmdfunc)
     extensions.wrapfunction(dispatch, '_runcommand', colorcmd)
+    templater.funcs['label'] = templatelabel
 
 def extsetup(ui):
     commands.globalopts.append(
@@ -497,5 +541,5 @@ else:
                 orig(m.group(2), **opts)
                 m = re.match(ansire, m.group(3))
         finally:
-            # Explicity reset original attributes
+            # Explicitly reset original attributes
             _kernel32.SetConsoleTextAttribute(stdout, origattr)

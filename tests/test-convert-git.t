@@ -1,5 +1,9 @@
 
   $ "$TESTDIR/hghave" git || exit 80
+  $ echo "[core]" >> $HOME/.gitconfig
+  $ echo "autocrlf = false" >> $HOME/.gitconfig
+  $ echo "[core]" >> $HOME/.gitconfig
+  $ echo "autocrlf = false" >> $HOME/.gitconfig
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "convert=" >> $HGRCPATH
   $ echo 'hgext.graphlog =' >> $HGRCPATH
@@ -277,17 +281,78 @@ convert author committer
   abort: --sourcesort is not supported by this data source
   [255]
 
-damage git repository and convert again
+test sub modules
 
-  $ cat > damage.py <<EOF
-  > import os
-  > for root, dirs, files in os.walk('git-repo4/.git/objects'):
-  >     if files:
-  >         path = os.path.join(root, files[0])
-  >         os.remove(path)
-  >         break
-  > EOF
-  $ python damage.py
-  $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | \
-  >     grep 'abort:' | sed 's/abort:.*/abort:/g'
-  abort:
+  $ mkdir git-repo5
+  $ cd git-repo5
+  $ git init-db >/dev/null 2>/dev/null
+  $ echo 'sub' >> foo
+  $ git add foo
+  $ commit -a -m 'addfoo'
+  $ BASE=`pwd`
+  $ cd ..
+  $ mkdir git-repo6
+  $ cd git-repo6
+  $ git init-db >/dev/null 2>/dev/null
+  $ git submodule add ${BASE} >/dev/null 2>/dev/null
+  $ commit -a -m 'addsubmodule' >/dev/null 2>/dev/null
+  $ cd ..
+
+convert sub modules
+  $ hg convert git-repo6 git-repo6-hg
+  initializing destination git-repo6-hg repository
+  scanning source...
+  sorting...
+  converting...
+  0 addsubmodule
+  updating bookmarks
+  $ hg -R git-repo6-hg log -v
+  changeset:   0:* (glob)
+  bookmark:    master
+  tag:         tip
+  user:        nottest <test@example.org>
+  date:        Mon Jan 01 00:00:23 2007 +0000
+  files:       .hgsub .hgsubstate
+  description:
+  addsubmodule
+  
+  committer: test <test@example.org>
+  
+  
+
+  $ cd git-repo6-hg
+  $ hg up >/dev/null 2>/dev/null
+  $ cat .hgsubstate
+  * git-repo5 (glob)
+  $ cd git-repo5
+  $ cat foo
+  sub
+
+  $ cd ../..
+
+damaged git repository tests:
+In case the hard-coded hashes change, the following commands can be used to
+list the hashes and their corresponding types in the repository:
+cd git-repo4/.git/objects
+find . -type f | cut -c 3- | sed 's_/__' | xargs -n 1 -t git cat-file -t
+cd ../../..
+
+damage git repository by renaming a commit object
+  $ COMMIT_OBJ=1c/0ce3c5886f83a1d78a7b517cdff5cf9ca17bdd
+  $ mv git-repo4/.git/objects/$COMMIT_OBJ git-repo4/.git/objects/$COMMIT_OBJ.tmp
+  $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | grep 'abort:'
+  abort: cannot read tags from git-repo4/.git
+  $ mv git-repo4/.git/objects/$COMMIT_OBJ.tmp git-repo4/.git/objects/$COMMIT_OBJ
+damage git repository by renaming a blob object
+
+  $ BLOB_OBJ=8b/137891791fe96927ad78e64b0aad7bded08bdc
+  $ mv git-repo4/.git/objects/$BLOB_OBJ git-repo4/.git/objects/$BLOB_OBJ.tmp
+  $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | grep 'abort:'
+  abort: cannot read 'blob' object at 8b137891791fe96927ad78e64b0aad7bded08bdc
+  $ mv git-repo4/.git/objects/$BLOB_OBJ.tmp git-repo4/.git/objects/$BLOB_OBJ
+damage git repository by renaming a tree object
+
+  $ TREE_OBJ=72/49f083d2a63a41cc737764a86981eb5f3e4635
+  $ mv git-repo4/.git/objects/$TREE_OBJ git-repo4/.git/objects/$TREE_OBJ.tmp
+  $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | grep 'abort:'
+  abort: cannot read changes in 1c0ce3c5886f83a1d78a7b517cdff5cf9ca17bdd

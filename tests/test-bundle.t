@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" system-sh || exit 80
-
 Setting up test
 
   $ hg init test
@@ -207,8 +205,8 @@ Make sure bundlerepo doesn't leak tempfiles (issue2491)
 
 Pull ../full.hg into empty (with hook)
 
-  $ echo '[hooks]' >> .hg/hgrc
-  $ echo 'changegroup = python "$TESTDIR"/printenv.py changegroup' >> .hg/hgrc
+  $ echo "[hooks]" >> .hg/hgrc
+  $ echo "changegroup = python \"$TESTDIR/printenv.py\" changegroup" >> .hg/hgrc
 
 doesn't work (yet ?)
 
@@ -221,7 +219,7 @@ hg -R bundle://../full.hg verify
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:../full.hg 
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:../full.hg
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Rollback empty
@@ -244,7 +242,7 @@ Pull full.hg into empty again (using -R; with hook)
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:empty+full.hg 
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:empty+full.hg
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Create partial clones
@@ -386,9 +384,12 @@ Outgoing -R full.hg vs partial2 in partial
 Outgoing -R does-not-exist.hg vs partial2 in partial
 
   $ hg -R bundle://../does-not-exist.hg outgoing ../partial2
-  abort: *: ../does-not-exist.hg (glob)
+  abort: *../does-not-exist.hg* (glob)
   [255]
   $ cd ..
+
+hide outer repo
+  $ hg init
 
 Direct clone from bundle (all-history)
 
@@ -419,7 +420,7 @@ When cloning from a non-copiable repository into '', do not
 recurse infinitely (issue 2528)
 
   $ hg clone full.hg ''
-  abort: * (glob)
+  abort: empty destination path is not valid
   [255]
 
 test for http://mercurial.selenic.com/bts/issue216
@@ -442,6 +443,33 @@ Unbundle incremental bundles into fresh empty in one go
   adding file changes
   added 1 changesets with 1 changes to 1 files
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+View full contents of the bundle
+  $ hg -R test bundle --base null -r 3  ../partial.hg
+  4 changesets found
+  $ cd test
+  $ hg -R ../../partial.hg log -r "bundle()"
+  changeset:   0:f9ee2f85a263
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0.0
+  
+  changeset:   1:34c2bf6b0626
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0.1
+  
+  changeset:   2:e38ba6f5b7e0
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0.2
+  
+  changeset:   3:eebf5a27f8ca
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0.3
+  
+  $ cd ..
 
 test for 540d1059c802
 
@@ -492,6 +520,21 @@ note that percent encoding is not handled:
   $ hg incoming ../test%23bundle.hg
   abort: repository ../test%23bundle.hg not found!
   [255]
+  $ cd ..
+
+test to bundle revisions on the newly created branch (issue3828):
+
+  $ hg -q clone -U test test-clone
+  $ cd test
+
+  $ hg -q branch foo
+  $ hg commit -m "create foo branch"
+  $ hg -q outgoing ../test-clone
+  9:b4f5acb1ee27
+  $ hg -q bundle --branch foo foo.hg ../test-clone
+  $ hg -R foo.hg -q log -r "bundle()"
+  9:b4f5acb1ee27
+
   $ cd ..
 
 test for http://mercurial.selenic.com/bts/issue1144
@@ -598,3 +641,5 @@ bundle single branch
   crosschecking files in changesets and manifests
   checking files
   4 files, 3 changesets, 5 total revisions
+
+  $ cd ..

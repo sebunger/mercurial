@@ -42,7 +42,7 @@ class channeledoutput(object):
 
     def __getattr__(self, attr):
         if attr in ('isatty', 'fileno'):
-            raise AttributeError, attr
+            raise AttributeError(attr)
         return getattr(self.in_, attr)
 
 class channeledinput(object):
@@ -122,7 +122,7 @@ class channeledinput(object):
 
     def __getattr__(self, attr):
         if attr in ('isatty', 'fileno'):
-            raise AttributeError, attr
+            raise AttributeError(attr)
         return getattr(self.in_, attr)
 
 class server(object):
@@ -137,13 +137,13 @@ class server(object):
         if logpath:
             global logfile
             if logpath == '-':
-                # write log on a special 'd'ebug channel
+                # write log on a special 'd' (debug) channel
                 logfile = channeledoutput(sys.stdout, sys.stdout, 'd')
             else:
                 logfile = open(logpath, 'a')
 
-        # the ui here is really the repo ui so take its baseui so we don't end up
-        # with its local configuration
+        # the ui here is really the repo ui so take its baseui so we don't end
+        # up with its local configuration
         self.ui = repo.baseui
         self.repo = repo
         self.repoui = repo.ui
@@ -166,7 +166,7 @@ class server(object):
 
         # is the other end closed?
         if not data:
-            raise EOFError()
+            raise EOFError
 
         return data
 
@@ -220,7 +220,7 @@ class server(object):
                     'getencoding' : getencoding}
 
     def serve(self):
-        hellomsg = 'capabilities: ' + ' '.join(self.capabilities.keys())
+        hellomsg = 'capabilities: ' + ' '.join(sorted(self.capabilities))
         hellomsg += '\n'
         hellomsg += 'encoding: ' + encoding.encoding
 

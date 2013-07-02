@@ -1,8 +1,14 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+  $ "$TESTDIR/hghave" killdaemons || exit 80
 
+#if windows
+  $ hg clone http://localhost:$HGPORT/ copy
+  abort: * (glob)
+  [255]
+#else
   $ hg clone http://localhost:$HGPORT/ copy
   abort: error: Connection refused
   [255]
+#endif
   $ test -d copy
   [1]
 
@@ -19,10 +25,27 @@ one pull
   >     httpd.serve_forever()
   > 
   > signal.signal(signal.SIGTERM, lambda x, y: sys.exit(0))
+  > fp = file('dumb.pid', 'wb')
+  > fp.write(str(os.getpid()) + '\n')
+  > fp.close()
   > run()
   > EOF
   $ python dumb.py 2>/dev/null &
-  $ echo $! >> $DAEMON_PIDS
+
+Cannot just read $!, it will not be set to the right value on Windows/MinGW
+
+  $ cat > wait.py <<EOF
+  > import time
+  > while True:
+  >     try:
+  >         if '\n' in file('dumb.pid', 'rb').read():
+  >             break
+  >     except IOError:
+  >         pass
+  >     time.sleep(0.2)
+  > EOF
+  $ python wait.py
+  $ cat dumb.pid >> $DAEMON_PIDS
   $ hg init remote
   $ cd remote
   $ echo foo > bar
@@ -66,7 +89,7 @@ check for HTTP opener failures when cachefile does not exist
   $ rm .hg/cache/*
   $ cd ../local
   $ echo '[hooks]' >> .hg/hgrc
-  $ echo 'changegroup = python "$TESTDIR"/printenv.py changegroup' >> .hg/hgrc
+  $ echo "changegroup = python \"$TESTDIR/printenv.py\" changegroup" >> .hg/hgrc
   $ hg pull
   pulling from static-http://localhost:$HGPORT/remote
   searching for changes
@@ -74,7 +97,7 @@ check for HTTP opener failures when cachefile does not exist
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  changegroup hook: HG_NODE=4ac2e3648604439c580c69b09ec9d93a88d93432 HG_SOURCE=pull HG_URL=http://localhost:$HGPORT/remote 
+  changegroup hook: HG_NODE=4ac2e3648604439c580c69b09ec9d93a88d93432 HG_SOURCE=pull HG_URL=http://localhost:$HGPORT/remote
   (run 'hg update' to get a working copy)
 
 trying to push
@@ -85,14 +108,14 @@ trying to push
   $ hg commit -m"test"
   $ hg push
   pushing to static-http://localhost:$HGPORT/remote
-  abort: cannot lock static-http repository
+  abort: destination does not support push
   [255]
 
 trying clone -r
 
   $ cd ..
-  $ hg clone -r donotexist static-http://localhost:$HGPORT/remote local0
-  abort: unknown revision 'donotexist'!
+  $ hg clone -r doesnotexist static-http://localhost:$HGPORT/remote local0
+  abort: unknown revision 'doesnotexist'!
   [255]
   $ hg clone -r 0 static-http://localhost:$HGPORT/remote local0
   adding changesets
@@ -106,6 +129,9 @@ test with "/" URI (issue 747) and subrepo
 
   $ hg init
   $ hg init sub
+  $ touch sub/test
+  $ hg -R sub commit -A -m "test"
+  adding test
   $ hg -R sub tag not-empty
   $ echo sub=sub > .hgsub
   $ echo a > a
@@ -123,7 +149,7 @@ test with "/" URI (issue 747) and subrepo
   adding changesets
   adding manifests
   adding file changes
-  added 1 changesets with 1 changes to 1 files
+  added 2 changesets with 2 changes to 2 files
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd local2
   $ hg verify
@@ -162,4 +188,4 @@ test with non-repo
   $ hg clone static-http://localhost:$HGPORT/notarepo local3
   abort: 'http://localhost:$HGPORT/notarepo' does not appear to be an hg repository!
   [255]
-  $ kill $!
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS

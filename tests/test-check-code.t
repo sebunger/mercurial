@@ -43,6 +43,19 @@
   >             pass
   >     finally:
   >         pass
+  > 
+  > # yield inside a try/finally block is not allowed in Python 2.4
+  >     try:
+  >         pass
+  >         yield 1
+  >     finally:
+  >         pass
+  >     try:
+  >         yield
+  >         pass
+  >     finally:
+  >         pass
+  > 
   > EOF
   $ cat > classstyle.py <<EOF
   > class newstyle_class(object):
@@ -83,13 +96,31 @@
    any/all/format not available in Python 2.4
   ./non-py24.py:11:
    >     try:
-   no try/except/finally in Py2.4
+   no try/except/finally in Python 2.4
+  ./non-py24.py:28:
+   >     try:
+   no yield inside try/finally in Python 2.4
+  ./non-py24.py:33:
+   >     try:
+   no yield inside try/finally in Python 2.4
   ./classstyle.py:4:
    > class oldstyle_class:
    old-style class, use class foo(object)
   ./classstyle.py:7:
    > class empty():
    class foo() not available in Python 2.4, use class foo(object)
+  [1]
+  $ cat > python3-compat.py << EOF
+  > foo <> bar
+  > reduce(lambda a, b: a + b, [1, 2, 3, 4])
+  > EOF
+  $ "$check_code" python3-compat.py
+  python3-compat.py:1:
+   > foo <> bar
+   <> operator is not available in Python 3+, use !=
+  python3-compat.py:2:
+   > reduce(lambda a, b: a + b, [1, 2, 3, 4])
+   reduce is not available in Python 3+
   [1]
 
   $ cat > is-op.py <<EOF
@@ -132,11 +163,22 @@
    object comparison with literal
   [1]
 
-  $ cat > warning.py <<EOF
+  $ cat > for-nolineno.py <<EOF
   > except:
   > EOF
-  $ "$check_code" warning.py --warning --nolineno
-  warning.py:0:
+  $ "$check_code" for-nolineno.py --nolineno
+  for-nolineno.py:0:
    > except:
-   warning: naked except clause
+   naked except clause
+  [1]
+
+  $ cat > raise-format.py <<EOF
+  > raise SomeException, message
+  > # this next line is okay
+  > raise SomeException(arg1, arg2)
+  > EOF
+  $ "$check_code" raise-format.py
+  raise-format.py:1:
+   > raise SomeException, message
+   don't use old-style two-argument raise, use Exception(message)
   [1]

@@ -13,7 +13,7 @@ The above entries will be referred to as ``ui.username`` and
 ``ui.verbose``, respectively. See the Syntax section below.
 
 Files
------
+=====
 
 Mercurial reads configuration data from several files, if they exist.
 These files do not exist by default and you will have to create the
@@ -85,8 +85,11 @@ ones.
     be read.  Mercurial checks each of these locations in the specified
     order until one or more configuration files are detected.
 
+.. note:: The registry key ``HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial``
+   is used when running 32-bit Python on 64-bit Windows.
+
 Syntax
-------
+======
 
 A configuration file consists of sections, led by a ``[section]`` header
 and followed by ``name = value`` entries (sometimes called
@@ -171,14 +174,14 @@ quotation marks at the beginning of a word is counted as a quotation
 (e.g., ``foo"bar baz`` is the list of ``foo"bar`` and ``baz``).
 
 Sections
---------
+========
 
 This section describes the different sections that may appear in a
 Mercurial configuration file, the purpose of each section, its possible
 keys, and their possible values.
 
 ``alias``
-"""""""""
+---------
 
 Defines command aliases.
 Aliases allow you to define your own commands in terms of other
@@ -238,7 +241,7 @@ echo foo`` call above, ``$HG_ARGS`` would expand to ``echo foo``.
 
 
 ``annotate``
-""""""""""""
+------------
 
 Settings used when displaying file annotations. All values are
 Booleans and default to False. See ``diff`` section for related
@@ -255,7 +258,7 @@ options for the diff command.
 
 
 ``auth``
-""""""""
+--------
 
 Authentication credentials for HTTP authentication. This section
 allows you to store usernames and passwords for use when logging
@@ -322,7 +325,7 @@ for credentials as usual if required by the remote.
 
 
 ``decode/encode``
-"""""""""""""""""
+-----------------
 
 Filters for transforming files on checkout/checkin. This would
 typically be used for newline processing or other
@@ -369,7 +372,7 @@ format. We suggest you use the ``eol`` extension for convenience.
 
 
 ``defaults``
-""""""""""""
+------------
 
 (defaults are deprecated. Don't use them. Use aliases instead)
 
@@ -389,7 +392,7 @@ to the aliases of the commands defined.
 
 
 ``diff``
-""""""""
+--------
 
 Settings used when displaying diffs. Everything except for ``unified``
 is a Boolean and defaults to False. See ``annotate`` section for
@@ -417,7 +420,7 @@ related options for the annotate command.
     Number of lines of context to show.
 
 ``email``
-"""""""""
+---------
 
 Settings for extensions that send email messages.
 
@@ -472,7 +475,7 @@ Email example::
 
 
 ``extensions``
-""""""""""""""
+--------------
 
 Mercurial has an extension mechanism for adding new features. To
 enable an extension, create an entry for it in this section.
@@ -499,7 +502,7 @@ Example for ``~/.hgrc``::
 
 
 ``format``
-""""""""""
+----------
 
 ``usestore``
     Enable or disable the "store" repository format which improves
@@ -526,7 +529,7 @@ Example for ``~/.hgrc``::
     repositories will be compatible with Mercurial before version 1.7.
 
 ``graph``
-"""""""""
+---------
 
 Web graph view configuration. This section let you change graph
 elements display properties by branches, for instance to make the
@@ -554,7 +557,7 @@ Supported arguments:
     Set branch edges color in hexadecimal RGB notation.
 
 ``hooks``
-"""""""""
+---------
 
 Commands or Python functions that get automatically executed by
 various actions such as starting or finishing a commit. Multiple
@@ -604,9 +607,9 @@ variables it is passed are listed with names of the form ``$HG_foo``.
 ``post-<command>``
   Run after successful invocations of the associated command. The
   contents of the command line are passed as ``$HG_ARGS`` and the result
-  code in ``$HG_RESULT``. Parsed command line arguments are passed as 
+  code in ``$HG_RESULT``. Parsed command line arguments are passed as
   ``$HG_PATS`` and ``$HG_OPTS``. These contain string representations of
-  the python data internally passed to <command>. ``$HG_OPTS`` is a 
+  the python data internally passed to <command>. ``$HG_OPTS`` is a
   dictionary of options (with unspecified options set to their defaults).
   ``$HG_PATS`` is a list of arguments. Hook failure is ignored.
 
@@ -616,7 +619,7 @@ variables it is passed are listed with names of the form ``$HG_foo``.
   are passed as ``$HG_PATS`` and ``$HG_OPTS``. These contain string
   representations of the data internally passed to <command>. ``$HG_OPTS``
   is a  dictionary of options (with unspecified options set to their
-  defaults). ``$HG_PATS`` is a list of arguments. If the hook returns 
+  defaults). ``$HG_PATS`` is a list of arguments. If the hook returns
   failure, the command doesn't execute and Mercurial returns the failure
   code.
 
@@ -733,7 +736,7 @@ is treated as a failure.
 
 
 ``hostfingerprints``
-""""""""""""""""""""
+--------------------
 
 Fingerprints of the certificates of known HTTPS servers.
 A HTTPS connection to a server with a fingerprint configured here will
@@ -745,13 +748,13 @@ The CA chain and web.cacerts is not used for servers with a fingerprint.
 For example::
 
     [hostfingerprints]
-    hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+    hg.intevation.org = 44:ed:af:1f:97:11:b6:01:7a:48:45:fc:10:3c:b7:f9:d4:89:2a:9d
 
 This feature is only supported when using Python 2.6 or later.
 
 
 ``http_proxy``
-""""""""""""""
+--------------
 
 Used to access web-based Mercurial repositories through a HTTP
 proxy.
@@ -775,7 +778,7 @@ proxy.
     in ``http_proxy.no``. True or False. Default: False.
 
 ``merge-patterns``
-""""""""""""""""""
+------------------
 
 This section specifies merge tools to associate with particular file
 patterns. Tools matched here will take precedence over the default
@@ -789,7 +792,7 @@ Example::
   **.jpg = myimgmerge
 
 ``merge-tools``
-"""""""""""""""
+---------------
 
 This section configures external merge tools to use for file-level
 merges.
@@ -850,14 +853,6 @@ Supported arguments:
   ``prompt``
     Always prompt for merge success, regardless of success reported by tool.
 
-``checkchanged``
-  True is equivalent to ``check = changed``.
-  Default: False
-
-``checkconflicts``
-  True is equivalent to ``check = conflicts``.
-  Default: False
-
 ``fixeol``
   Attempt to fix up EOL changes caused by the merge tool.
   Default: False
@@ -889,7 +884,7 @@ Supported arguments:
 
 
 ``patch``
-"""""""""
+---------
 
 Settings used when applying patches, for instance through the 'import'
 command or with Mercurial Queues extension.
@@ -907,7 +902,7 @@ command or with Mercurial Queues extension.
 
 
 ``paths``
-"""""""""
+---------
 
 Assigns symbolic names to repositories. The left side is the
 symbolic name, and the right gives the directory or URL that is the
@@ -923,8 +918,19 @@ the following entries.
     Optional. Directory or URL to use when pushing if no destination
     is specified.
 
+Custom paths can be defined by assigning the path to a name that later can be
+used from the command line. Example::
+
+    [paths]
+    my_path = http://example.com/path
+
+To push to the path defined in ``my_path`` run the command::
+
+    hg push my_path
+
+
 ``phases``
-""""""""""
+----------
 
 Specifies default handling of phases. See :hg:`help phases` for more
 information about working with phases.
@@ -940,7 +946,7 @@ information about working with phases.
     Default: draft
 
 ``profiling``
-"""""""""""""
+-------------
 
 Specifies profiling type, format, and file output. Two profilers are
 supported: an instrumenting profiler (named ``ls``), and a sampling
@@ -987,13 +993,29 @@ profiling is done using lsprof.
     file exists, it is replaced. Default: None, data is printed on
     stderr
 
+``sort``
+    Sort field.  Specific to the ``ls`` instrumenting profiler.
+    One of ``callcount``, ``reccallcount``, ``totaltime`` and
+    ``inlinetime``.
+    Default: inlinetime.
+
+``limit``
+    Number of lines to show. Specific to the ``ls`` instrumenting profiler.
+    Default: 30.
+
+``nested``
+    Show at most this number of lines of drill-down info after each main entry.
+    This can help explain the difference between Total and Inline.
+    Specific to the ``ls`` instrumenting profiler.
+    Default: 5.
+
 ``revsetalias``
-"""""""""""""""
+---------------
 
 Alias definitions for revsets. See :hg:`help revsets` for details.
 
 ``server``
-""""""""""
+----------
 
 Controls generic server settings.
 
@@ -1019,7 +1041,7 @@ Controls generic server settings.
     present. Default is False.
 
 ``smtp``
-""""""""
+--------
 
 Configuration for extensions that need to send email messages.
 
@@ -1027,11 +1049,22 @@ Configuration for extensions that need to send email messages.
     Host name of mail server, e.g. "mail.example.com".
 
 ``port``
-    Optional. Port to connect to on mail server. Default: 25.
+    Optional. Port to connect to on mail server. Default: 465 (if
+    ``tls`` is smtps) or 25 (otherwise).
 
 ``tls``
     Optional. Method to enable TLS when connecting to mail server: starttls,
     smtps or none. Default: none.
+
+``verifycert``
+    Optional. Verification for the certificate of mail server, when
+    ``tls`` is starttls or smtps. "strict", "loose" or False. For
+    "strict" or "loose", the certificate is verified as same as the
+    verification for HTTPS connections (see ``[hostfingerprints]`` and
+    ``[web] cacerts`` also). For "strict", sending email is also
+    aborted, if there is no configuration for mail server in
+    ``[hostfingerprints]`` and ``[web] cacerts``.  --insecure for
+    :hg:`email` overwrites this as "loose". Default: "strict".
 
 ``username``
     Optional. User name for authenticating with the SMTP server.
@@ -1048,7 +1081,7 @@ Configuration for extensions that need to send email messages.
 
 
 ``subpaths``
-""""""""""""
+------------
 
 Subrepository source URLs can go stale if a remote server changes name
 or becomes temporarily unavailable. This section lets you define
@@ -1065,12 +1098,12 @@ rewrite it. Groups can be matched in ``pattern`` and referenced in
 
 rewrites ``http://server/foo-hg/`` into ``http://hg.server/foo/``.
 
-Relative subrepository paths are first made absolute, and the the
+Relative subrepository paths are first made absolute, and the
 rewrite rules are then applied on the full (absolute) path. The rules
 are applied in definition order.
 
 ``trusted``
-"""""""""""
+-----------
 
 Mercurial will not use the settings in the
 ``.hg/hgrc`` file from a repository if it doesn't belong to a trusted
@@ -1094,7 +1127,7 @@ user or service running Mercurial.
 
 
 ``ui``
-""""""
+------
 
 User interface controls.
 
@@ -1213,7 +1246,7 @@ User interface controls.
 
 
 ``web``
-"""""""
+-------
 
 Web interface configuration. The settings in this section apply to
 both the builtin webserver (started by :hg:`serve`) and the script you
@@ -1269,13 +1302,6 @@ The full set of options is:
     be present in this list. The contents of the allow_push list are
     examined after the deny_push list.
 
-``guessmime``
-    Control MIME types for raw download of file content.
-    Set to True to let hgweb guess the content type from the file
-    extension. This will serve HTML files as ``text/html`` and might
-    allow cross-site scripting attacks when serving untrusted
-    repositories. Default is False.
-
 ``allow_read``
     If the user has not already been denied repository access due to
     the contents of deny_read, this list determines whether to grant
@@ -1290,6 +1316,10 @@ The full set of options is:
 ``allowzip``
     (DEPRECATED) Whether to allow .zip downloading of repository
     revisions. Default is False. This feature creates temporary files.
+
+``archivesubrepos``
+    Whether to recurse into subrepositories when archiving. Default is
+    False.
 
 ``baseurl``
     Base URL to use when publishing URLs in other locations, so
@@ -1335,6 +1365,12 @@ The full set of options is:
     collapses each collection of repositories found within a subdirectory
     into a single entry for that subdirectory. Default is False.
 
+``comparisoncontext``
+    Number of lines of context to show in side-by-side file comparison. If
+    negative or the value ``full``, whole files are shown. Default is 5.
+    This setting can be overridden by a ``context`` request parameter to the
+    ``comparison`` command, taking the same values.
+
 ``contact``
     Name or email address of the person in charge of the repository.
     Defaults to ui.username or ``$EMAIL`` or "unknown" if unset or empty.
@@ -1377,6 +1413,13 @@ The full set of options is:
 ``errorlog``
     Where to output the error log. Default is stderr.
 
+``guessmime``
+    Control MIME types for raw download of file content.
+    Set to True to let hgweb guess the content type from the file
+    extension. This will serve HTML files as ``text/html`` and might
+    allow cross-site scripting attacks when serving untrusted
+    repositories. Default is False.
+
 ``hidden``
     Whether to hide the repository in the hgwebdir index.
     Default is False.
@@ -1394,15 +1437,19 @@ The full set of options is:
     Base URL to use for logos. If unset, ``http://mercurial.selenic.com/``
     will be used.
 
-``name``
-    Repository name to use in the web interface. Default is current
-    working directory.
-
 ``maxchanges``
     Maximum number of changes to list on the changelog. Default is 10.
 
 ``maxfiles``
     Maximum number of files to list per changeset. Default is 10.
+
+``maxshortchanges``
+    Maximum number of changes to list on the shortlog, graph or filelog
+    pages. Default is 60.
+
+``name``
+    Repository name to use in the web interface. Default is current
+    working directory.
 
 ``port``
     Port to listen on. Default is 8000.
@@ -1421,7 +1468,7 @@ The full set of options is:
     Example: ``http://hgserver/static/``.
 
 ``stripes``
-    How many lines a "zebra stripe" should span in multiline output.
+    How many lines a "zebra stripe" should span in multi-line output.
     Default is 1; set to 0 to disable.
 
 ``style``
@@ -1429,3 +1476,48 @@ The full set of options is:
 
 ``templates``
     Where to find the HTML templates. Default is install path.
+
+``websub``
+----------
+
+Web substitution filter definition. You can use this section to
+define a set of regular expression substitution patterns which
+let you automatically modify the hgweb server output.
+
+The default hgweb templates only apply these substitution patterns
+on the revision description fields. You can apply them anywhere
+you want when you create your own templates by adding calls to the
+"websub" filter (usually after calling the "escape" filter).
+
+This can be used, for example, to convert issue references to links
+to your issue tracker, or to convert "markdown-like" syntax into
+HTML (see the examples below).
+
+Each entry in this section names a substitution filter.
+The value of each entry defines the substitution expression itself.
+The websub expressions follow the old interhg extension syntax,
+which in turn imitates the Unix sed replacement syntax::
+
+    patternname = s/SEARCH_REGEX/REPLACE_EXPRESSION/[i]
+
+You can use any separator other than "/". The final "i" is optional
+and indicates that the search must be case insensitive.
+
+Examples::
+
+    [websub]
+    issues = s|issue(\d+)|<a href="http://bts.example.org/issue\1">issue\1</a>|i
+    italic = s/\b_(\S+)_\b/<i>\1<\/i>/
+    bold = s/\*\b(\S+)\b\*/<b>\1<\/b>/
+
+``worker``
+----------
+
+Parallel master/worker configuration. We currently perform working
+directory updates in parallel on Unix-like systems, which greatly
+helps performance.
+
+``numcpus``
+    Number of CPUs to use for parallel operations. Default is 4 or the
+    number of CPUs on the system, whichever is larger. A zero or
+    negative value is treated as ``use the default``.

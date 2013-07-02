@@ -6,7 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import mdiff, parsers, error, revlog, util
+import mdiff, parsers, error, revlog, util, dicthelpers
 import array, struct
 
 class manifestdict(dict):
@@ -19,14 +19,19 @@ class manifestdict(dict):
         self._flags = flags
     def flags(self, f):
         return self._flags.get(f, "")
+    def withflags(self):
+        return set(self._flags.keys())
     def set(self, f, flags):
         self._flags[f] = flags
     def copy(self):
         return manifestdict(self, dict.copy(self._flags))
+    def flagsdiff(self, d2):
+        return dicthelpers.diff(self._flags, d2._flags, "")
 
 class manifest(revlog.revlog):
     def __init__(self, opener):
-        self._mancache = None
+        # we expect to deal with not more than three revs at a time in merge
+        self._mancache = util.lrucachedict(3)
         revlog.revlog.__init__(self, opener, "00manifest.i")
 
     def parse(self, lines):
@@ -49,12 +54,12 @@ class manifest(revlog.revlog):
     def read(self, node):
         if node == revlog.nullid:
             return manifestdict() # don't upset local cache
-        if self._mancache and self._mancache[0] == node:
-            return self._mancache[1]
+        if node in self._mancache:
+            return self._mancache[node][0]
         text = self.revision(node)
         arraytext = array.array('c', text)
         mapping = self.parse(text)
-        self._mancache = (node, mapping, arraytext)
+        self._mancache[node] = (mapping, arraytext)
         return mapping
 
     def _search(self, m, s, lo=0, hi=None):
@@ -62,9 +67,7 @@ class manifest(revlog.revlog):
 
         If the string is found m[start:end] are the line containing
         that string.  If start == end the string was not found and
-        they indicate the proper sorted insertion point.  This was
-        taken from bisect_left, and modified to find line start/end as
-        it goes along.
+        they indicate the proper sorted insertion point.
 
         m should be a buffer or a string
         s is a string'''
@@ -102,8 +105,9 @@ class manifest(revlog.revlog):
     def find(self, node, f):
         '''look up entry for a single file efficiently.
         return (node, flags) pair if found, (None, None) if not.'''
-        if self._mancache and self._mancache[0] == node:
-            return self._mancache[1].get(f), self._mancache[1].flags(f)
+        if node in self._mancache:
+            mapping = self._mancache[node][0]
+            return mapping.get(f), mapping.flags(f)
         text = self.revision(node)
         start, end = self._search(text, f)
         if start == end:
@@ -117,15 +121,23 @@ class manifest(revlog.revlog):
         # apply the changes collected during the bisect loop to our addlist
         # return a delta suitable for addrevision
         def addlistdelta(addlist, x):
-            # start from the bottom up
-            # so changes to the offsets don't mess things up.
-            for start, end, content in reversed(x):
+            # for large addlist arrays, building a new array is cheaper
+            # than repeatedly modifying the existing one
+            currentposition = 0
+            newaddlist = array.array('c')
+
+            for start, end, content in x:
+                newaddlist += addlist[currentposition:start]
                 if content:
-                    addlist[start:end] = array.array('c', content)
-                else:
-                    del addlist[start:end]
-            return "".join(struct.pack(">lll", start, end, len(content)) + content
-                           for start, end, content in x)
+                    newaddlist += array.array('c', content)
+
+                currentposition = end
+
+            newaddlist += addlist[currentposition:]
+
+            deltatext = "".join(struct.pack(">lll", start, end, len(content))
+                           + content for start, end, content in x)
+            return deltatext, newaddlist
 
         def checkforbidden(l):
             for f in l:
@@ -135,7 +147,7 @@ class manifest(revlog.revlog):
 
         # if we're using the cache, make sure it is valid and
         # parented by the same node we're diffing against
-        if not (changed and self._mancache and p1 and self._mancache[0] == p1):
+        if not (changed and p1 and (p1 in self._mancache)):
             files = sorted(map)
             checkforbidden(files)
 
@@ -148,13 +160,13 @@ class manifest(revlog.revlog):
             cachedelta = None
         else:
             added, removed = changed
-            addlist = self._mancache[2]
+            addlist = self._mancache[p1][1]
 
             checkforbidden(added)
             # combine the changed lists into one list for sorting
             work = [(x, False) for x in added]
             work.extend((x, True) for x in removed)
-            # this could use heapq.merge() (from python2.6+) or equivalent
+            # this could use heapq.merge() (from Python 2.6+) or equivalent
             # since the lists are already sorted
             work.sort()
 
@@ -194,11 +206,12 @@ class manifest(revlog.revlog):
             if dstart is not None:
                 delta.append([dstart, dend, "".join(dline)])
             # apply the delta to the addlist, and get a delta for addrevision
-            cachedelta = (self.rev(p1), addlistdelta(addlist, delta))
+            deltatext, addlist = addlistdelta(addlist, delta)
+            cachedelta = (self.rev(p1), deltatext)
             arraytext = addlist
             text = util.buffer(arraytext)
 
         n = self.addrevision(text, transaction, link, p1, p2, cachedelta)
-        self._mancache = (n, map, arraytext)
+        self._mancache[n] = (map, arraytext)
 
         return n

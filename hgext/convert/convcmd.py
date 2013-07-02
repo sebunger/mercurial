@@ -147,7 +147,7 @@ class converter(object):
         map contains valid revision identifiers and merge the new
         links in the source graph.
         """
-        for c in splicemap:
+        for c in sorted(splicemap):
             if c not in parents:
                 if not self.dest.hascommit(self.map.get(c, c)):
                     # Could be in source but not converted during this run
@@ -167,7 +167,7 @@ class converter(object):
 
     def toposort(self, parents, sortmode):
         '''Return an ordering such that every uncommitted changeset is
-        preceeded by all its uncommitted ancestors.'''
+        preceded by all its uncommitted ancestors.'''
 
         def mapchildren(parents):
             """Return a (children, roots) tuple where 'children' maps parent
@@ -175,7 +175,7 @@ class converter(object):
             revisions without parents. 'parents' must be a mapping of revision
             identifier to its parents ones.
             """
-            visit = parents.keys()
+            visit = sorted(parents)
             seen = set()
             children = {}
             roots = []
@@ -190,7 +190,7 @@ class converter(object):
                 children.setdefault(n, [])
                 hasparent = False
                 for p in parents[n]:
-                    if not p in self.map:
+                    if p not in self.map:
                         visit.append(p)
                         hasparent = True
                     children.setdefault(p, []).append(n)
@@ -227,6 +227,14 @@ class converter(object):
                 return sorted(nodes, key=keyfn)[0]
             return picknext
 
+        def makeclosesorter():
+            """Close order sort."""
+            keyfn = lambda n: ('close' not in self.commitcache[n].extra,
+                               self.commitcache[n].sortkey)
+            def picknext(nodes):
+                return sorted(nodes, key=keyfn)[0]
+            return picknext
+
         def makedatesorter():
             """Sort revisions by date."""
             dates = {}
@@ -246,6 +254,8 @@ class converter(object):
             picknext = makedatesorter()
         elif sortmode == 'sourcesort':
             picknext = makesourcesorter()
+        elif sortmode == 'closesort':
+            picknext = makeclosesorter()
         else:
             raise util.Abort(_('unknown sort mode: %s') % sortmode)
 
@@ -280,7 +290,7 @@ class converter(object):
     def writeauthormap(self):
         authorfile = self.authorfile
         if authorfile:
-            self.ui.status(_('Writing author map file %s\n') % authorfile)
+            self.ui.status(_('writing author map file %s\n') % authorfile)
             ofile = open(authorfile, 'w+')
             for author in self.authors:
                 ofile.write("%s=%s\n" % (author, self.authors[author]))
@@ -297,7 +307,7 @@ class converter(object):
             try:
                 srcauthor, dstauthor = line.split('=', 1)
             except ValueError:
-                msg = _('Ignoring bad line in author map file %s: %s\n')
+                msg = _('ignoring bad line in author map file %s: %s\n')
                 self.ui.warn(msg % (authorfile, line.rstrip()))
                 continue
 
@@ -446,13 +456,15 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
             shutil.rmtree(path, True)
         raise
 
-    sortmodes = ('branchsort', 'datesort', 'sourcesort')
+    sortmodes = ('branchsort', 'datesort', 'sourcesort', 'closesort')
     sortmode = [m for m in sortmodes if opts.get(m)]
     if len(sortmode) > 1:
         raise util.Abort(_('more than one sort mode specified'))
     sortmode = sortmode and sortmode[0] or defaultsort
     if sortmode == 'sourcesort' and not srcc.hasnativeorder():
         raise util.Abort(_('--sourcesort is not supported by this data source'))
+    if sortmode == 'closesort' and not srcc.hasnativeclose():
+        raise util.Abort(_('--closesort is not supported by this data source'))
 
     fmap = opts.get('filemap')
     if fmap:
@@ -462,7 +474,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     if not revmapfile:
         try:
             revmapfile = destc.revmapfile()
-        except:
+        except Exception:
             revmapfile = os.path.join(destc, "map")
 
     c = converter(ui, srcc, destc, revmapfile, opts)

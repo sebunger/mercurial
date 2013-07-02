@@ -68,7 +68,7 @@ Issue622: hg init && hg pull -u URL doesn't checkout default branch
 
 Test 'file:' uri handling:
 
-  $ hg pull -q file://../test-doesnt-exist
+  $ hg pull -q file://../test-does-not-exist
   abort: file:// URLs can only refer to localhost
   [255]
 
@@ -88,3 +88,5 @@ regular shell commands.
 
   $ URL=`python -c "import os; print 'file://localhost' + ('/' + os.getcwd().replace(os.sep, '/')).replace('//', '/') + '/../test'"`
   $ hg pull -q "$URL"
+
+  $ cd ..

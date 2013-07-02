@@ -29,16 +29,16 @@ we get conflicts that shouldn't be there
     searching for copies back to rev 1
     unmatched files in other:
      bar
-    all copies found (* = to merge, ! = divergent):
-     bar -> foo *
+    all copies found (* = to merge, ! = divergent, % = renamed and deleted):
+     src: 'foo' -> dst: 'bar' *
     checking for directory renames
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: e6dc8efe11cc, local: 6a0df1dad128+, remote: 484bf6903104
-   foo: versions differ -> m
    foo: remote copied to bar -> m
-  preserving foo for resolve of bar
-  preserving foo for resolve of foo
+    preserving foo for resolve of bar
+   foo: versions differ -> m
+    preserving foo for resolve of foo
   updating: foo 1/2 files (50.00%)
   picked tool 'internal:merge' for bar (binary False symlink False)
   merging foo and bar to bar
@@ -63,3 +63,5 @@ contents of bar
   line 0
   line 1
   line 2-2
+
+  $ cd ..

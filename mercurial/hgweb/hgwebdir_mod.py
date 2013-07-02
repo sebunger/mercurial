@@ -10,9 +10,9 @@ import os, re, time
 from mercurial.i18n import _
 from mercurial import ui, hg, scmutil, util, templater
 from mercurial import error, encoding
-from common import ErrorResponse, get_mtime, staticfile, paritygen, \
+from common import ErrorResponse, get_mtime, staticfile, paritygen, ismember, \
                    get_contact, HTTP_OK, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
-from hgweb_mod import hgweb
+from hgweb_mod import hgweb, makebreadcrumb
 from request import wsgirequest
 import webutil
 
@@ -23,10 +23,10 @@ def findrepos(paths):
     repos = []
     for prefix, root in cleannames(paths):
         roothead, roottail = os.path.split(root)
-        # "foo = /bar/*" makes every subrepo of /bar/ to be
-        # mounted as foo/subrepo
-        # and "foo = /bar/**" also recurses into the subdirectories,
-        # remember to use it without working dir.
+        # "foo = /bar/*" or "foo = /bar/**" lets every repo /bar/N in or below
+        # /bar/ be served as as foo/N .
+        # '*' will not search inside dirs with .hg (except .hg/patches),
+        # '**' will search inside dirs with .hg (and thus also find subrepos).
         try:
             recurse = {'*': False, '**': True}[roottail]
         except KeyError:
@@ -97,7 +97,7 @@ class hgwebdir(object):
         else:
             u = ui.ui()
             u.setconfig('ui', 'report_untrusted', 'off')
-            u.setconfig('ui', 'interactive', 'off')
+            u.setconfig('ui', 'nontty', 'true')
 
         if not isinstance(self.conf, (dict, list, tuple)):
             map = {'paths': 'hgweb-paths'}
@@ -133,6 +133,12 @@ class hgwebdir(object):
         if self.stripecount:
             self.stripecount = int(self.stripecount)
         self._baseurl = self.ui.config('web', 'baseurl')
+        prefix = self.ui.config('web', 'prefix', '')
+        if prefix.startswith('/'):
+            prefix = prefix[1:]
+        if prefix.endswith('/'):
+            prefix = prefix[:-1]
+        self.prefix = prefix
         self.lastrefresh = time.time()
 
     def run(self):
@@ -158,12 +164,12 @@ class hgwebdir(object):
         user = req.env.get('REMOTE_USER')
 
         deny_read = ui.configlist('web', 'deny_read', untrusted=True)
-        if deny_read and (not user or deny_read == ['*'] or user in deny_read):
+        if deny_read and (not user or ismember(ui, user, deny_read)):
             return False
 
         allow_read = ui.configlist('web', 'allow_read', untrusted=True)
         # by default, allow reading if no allow_read option has been set
-        if (not allow_read) or (allow_read == ['*']) or (user in allow_read):
+        if (not allow_read) or ismember(ui, user, allow_read):
             return True
 
         return False
@@ -184,8 +190,15 @@ class hgwebdir(object):
                         fname = virtual[7:]
                     else:
                         fname = req.form['static'][0]
-                    static = templater.templatepath('static')
-                    return (staticfile(static, fname, req),)
+                    static = self.ui.config("web", "static", None,
+                                            untrusted=False)
+                    if not static:
+                        tp = self.templatepath or templater.templatepath()
+                        if isinstance(tp, str):
+                            tp = [tp]
+                        static = [os.path.join(p, 'static') for p in tp]
+                    staticfile(static, fname, req)
+                    return []
 
                 # top-level index
                 elif not virtual:
@@ -293,16 +306,19 @@ class hgwebdir(object):
                     except OSError:
                         continue
 
+                    # add '/' to the name to make it obvious that
+                    # the entry is a directory, not a regular repository
                     row = dict(contact="",
                                contact_sort="",
-                               name=name,
+                               name=name + '/',
                                name_sort=name,
                                url=url,
                                description="",
                                description_sort="",
                                lastchange=d,
                                lastchange_sort=d[1]-d[0],
-                               archives=[])
+                               archives=[],
+                               isdirectory=True)
 
                     seendirs.add(name)
                     yield row
@@ -386,6 +402,7 @@ class hgwebdir(object):
         self.updatereqenv(req.env)
 
         return tmpl("index", entries=entries, subdir=subdir,
+                    pathdef=makebreadcrumb('/' + subdir, self.prefix),
                     sortcolumn=sortcolumn, descending=descending,
                     **dict(sort))
 

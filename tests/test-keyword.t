@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" symlink unix-permissions serve || exit 80
-
   $ cat <<EOF >> $HGRCPATH
   > [extensions]
   > keyword =
@@ -10,6 +8,9 @@
   > [ui]
   > interactive = true
   > EOF
+
+hide outer repo
+  $ hg init
 
 Run kwdemo before [keyword] files are set up
 as it would succeed without uisetup otherwise
@@ -294,16 +295,20 @@ Check whether expansion is filewise and file mode is preserved
 
   $ echo '$Id$' > c
   $ echo 'tests for different changenodes' >> c
+#if unix-permissions
   $ chmod 600 c
   $ ls -l c | cut -b 1-10
   -rw-------
+#endif
 
 commit file c
 
   $ hg commit -A -mcndiff -d '1 0' -u 'User Name <user@example.com>'
   adding c
+#if unix-permissions
   $ ls -l c | cut -b 1-10
   -rw-------
+#endif
 
 force expansion
 
@@ -327,11 +332,11 @@ record
 
 record chunk
 
-  >>> lines = open('a').readlines()
+  >>> lines = open('a', 'rb').readlines()
   >>> lines.insert(1, 'foo\n')
   >>> lines.append('bar\n')
-  >>> open('a', 'w').writelines(lines)
-  $ hg record -d '1 10' -m rectest a<<EOF
+  >>> open('a', 'wb').writelines(lines)
+  $ hg record -d '10 1' -m rectest a<<EOF
   > y
   > y
   > n
@@ -352,7 +357,7 @@ record chunk
   record change 2/2 to 'a'? [Ynesfdaq?] 
 
   $ hg identify
-  d17e03c92c97+ tip
+  5f5eb23505c3+ tip
   $ hg status
   M a
   A r
@@ -360,7 +365,7 @@ record chunk
 Cat modified file a
 
   $ cat a
-  expand $Id: a,v d17e03c92c97 1970/01/01 00:00:01 test $
+  expand $Id: a,v 5f5eb23505c3 1970/01/01 00:00:10 test $
   foo
   do not process $Id:
   xxx $
@@ -369,8 +374,8 @@ Cat modified file a
 Diff remaining chunk
 
   $ hg diff a
-  diff -r d17e03c92c97 a
-  --- a/a	Wed Dec 31 23:59:51 1969 -0000
+  diff -r 5f5eb23505c3 a
+  --- a/a	Thu Jan 01 00:00:09 1970 -0000
   +++ b/a	* (glob)
   @@ -2,3 +2,4 @@
    foo
@@ -388,7 +393,7 @@ Record all chunks in file a
 
  - do not use "hg record -m" here!
 
-  $ hg record -l msg -d '1 11' a<<EOF
+  $ hg record -l msg -d '11 1' a<<EOF
   > y
   > y
   > y
@@ -416,7 +421,7 @@ File a should be clean
 rollback and revert expansion
 
   $ cat a
-  expand $Id: a,v 59f969a3b52c 1970/01/01 00:00:01 test $
+  expand $Id: a,v 78e0a02d76aa 1970/01/01 00:00:11 test $
   foo
   do not process $Id:
   xxx $
@@ -457,14 +462,14 @@ Only z should be overwritten
 
 record added file alone
 
-  $ hg -v record -l msg -d '1 12' r<<EOF
+  $ hg -v record -l msg -d '12 2' r<<EOF
   > y
   > EOF
   diff --git a/r b/r
   new file mode 100644
   examine changes to 'r'? [Ynesfdaq?] 
   r
-  committed changeset 3:899491280810
+  committed changeset 3:82a2f715724d
   overwriting r expanding keywords
  - status call required for dirstate.normallookup() check
   $ hg status r
@@ -481,19 +486,35 @@ record added keyword ignored file
 
   $ echo '$Id$' > i
   $ hg add i
-  $ hg --verbose record -d '1 13' -m recignored<<EOF
+  $ hg --verbose record -d '13 1' -m recignored<<EOF
   > y
   > EOF
   diff --git a/i b/i
   new file mode 100644
   examine changes to 'i'? [Ynesfdaq?] 
   i
-  committed changeset 3:5f40fe93bbdc
+  committed changeset 3:9f40ceb5a072
   $ cat i
   $Id$
   $ hg -q rollback
   $ hg forget i
   $ rm i
+
+amend
+
+  $ echo amend >> a
+  $ echo amend >> b
+  $ hg -q commit -d '14 1' -m 'prepare amend'
+
+  $ hg --debug commit --amend -d '15 1' -m 'amend without changes' | grep keywords
+  invalid branchheads cache (served): tip differs
+  overwriting a expanding keywords
+  $ hg -q id
+  67d8c481a6be
+  $ head -1 a
+  expand $Id: a,v 67d8c481a6be 1970/01/01 00:00:15 test $
+
+  $ hg -q strip -n tip
 
 Test patch queue repo
 
@@ -507,6 +528,7 @@ Keywords should not be expanded in patch
   # HG changeset patch
   # User User Name <user@example.com>
   # Date 1 0
+  #      Thu Jan 01 00:00:01 1970 +0000
   # Node ID 40a904bbbe4cd4ab0a1f28411e35db26341a40ad
   # Parent  ef63ca68695bc9495032c6fda1350c71e6d256e9
   cndiff
@@ -556,8 +578,10 @@ Copy and show added kwfiles
 Commit and show expansion in original and copy
 
   $ hg --debug commit -ma2c -d '1 0' -u 'User Name <user@example.com>'
+  invalid branchheads cache (served): tip differs
   c
    c: copy a:0045e12f6c5791aac80ca6cbfd97709a88307292
+  invalid branchheads cache (served): tip differs
   overwriting c expanding keywords
   committed changeset 2:25736cf2f5cbe41f6be4e6784ef6ecf9f3bbcc7d
   $ cat a c
@@ -593,6 +617,7 @@ Copy ignored file to ignored file: no overwriting
 cp symlink file; hg cp -A symlink file (part1)
 - copied symlink points to kwfile: overwrite
 
+#if symlink
   $ cp sym i
   $ ls -l i
   -rw-r--r--* (glob)
@@ -605,6 +630,7 @@ cp symlink file; hg cp -A symlink file (part1)
   expand $Id$
   $ hg forget i
   $ rm i
+#endif
 
 Test different options of hg kwfiles
 
@@ -641,6 +667,8 @@ Status after rollback:
   $ hg update --clean
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
+#if symlink
+
 cp symlink file; hg cp -A symlink file (part2)
 - copied symlink points to kw ignored file: do not overwrite
 
@@ -661,6 +689,8 @@ cp symlink file; hg cp -A symlink file (part2)
   $ hg update --clean
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ rm i symignored
+
+#endif
 
 Custom keywordmaps as argument to kwdemo
 
@@ -700,7 +730,7 @@ Cat and hg cat files before custom expansion
   ignore $Id$
   a
 
-Write custom keyword and prepare multiline commit message
+Write custom keyword and prepare multi-line commit message
 
   $ echo '$Xinfo$' >> a
   $ cat <<EOF >> log
@@ -718,10 +748,24 @@ Interrupted commit should not change state
   ? c
   ? log
 
-Commit with multiline message and custom expansion
+Commit with multi-line message and custom expansion
+
+|Note:
+|
+| After the last rollback, the "served" branchheads cache became invalid, but
+| all changesets in the repo were public. For filtering this means:
+|   "immutable" == "served" == ø.
+|
+| As the "served" cache is invalid, we fall back to the "immutable" cache. But
+| no update is needed between "immutable" and "served" and the "served" cache
+| is not updated on disk. The on-disk version therefore stays invalid for some
+| time. This explains why the "served" branchheads cache is detected as
+| invalid here.
 
   $ hg --debug commit -l log -d '2 0' -u 'User Name <user@example.com>'
+  invalid branchheads cache (served): tip differs
   a
+  invalid branchheads cache (served): tip differs
   overwriting a expanding keywords
   committed changeset 2:bb948857c743469b22bbf51f7ec8112279ca5d83
   $ rm log
@@ -786,7 +830,7 @@ Clone to test global and local configurations
 
   $ cd ..
 
-Expansion in destinaton with global configuration
+Expansion in destination with global configuration
 
   $ hg --quiet clone Test globalconf
   $ cat globalconf/a
@@ -900,6 +944,7 @@ kwexpand nonexistent
   nonexistent:* (glob)
 
 
+#if serve
 hg serve
  - expand with hgweb file
  - no expansion with hgweb annotate/changeset/filediff
@@ -907,14 +952,14 @@ hg serve
 
   $ hg serve -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/file/tip/a/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'file/tip/a/?style=raw'
   200 Script output follows
   
   expand $Id: a bb948857c743 Thu, 01 Jan 1970 00:00:02 +0000 user $
   do not process $Id:
   xxx $
   $Xinfo: User Name <user@example.com>: firstline $
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/annotate/tip/a/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'annotate/tip/a/?style=raw'
   200 Script output follows
   
   
@@ -926,7 +971,7 @@ hg serve
   
   
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/rev/tip/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'rev/tip/?style=raw'
   200 Script output follows
   
   
@@ -946,7 +991,7 @@ hg serve
   +xxx $
   +$Xinfo$
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/diff/bb948857c743/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'diff/bb948857c743/a?style=raw'
   200 Script output follows
   
   
@@ -963,12 +1008,13 @@ hg serve
   
   
   $ cat errors.log
+#endif
 
 Prepare merge and resolve tests
 
   $ echo '$Id$' > m
   $ hg add m
-  $ hg commit -m 4kw 
+  $ hg commit -m 4kw
   $ echo foo >> m
   $ hg commit -m 5foo
 
@@ -1105,3 +1151,5 @@ Now disable keyword expansion
   $Xinfo$
   ignore $Id$
   a
+
+  $ cd ..

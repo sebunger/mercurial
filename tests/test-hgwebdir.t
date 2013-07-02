@@ -1,5 +1,10 @@
   $ "$TESTDIR/hghave" serve || exit 80
 
+hide outer repo and work in dir without '.hg'
+  $ hg init
+  $ mkdir dir
+  $ cd dir
+
 Tests some basic hgwebdir functionality. Tests setting up paths and
 collection, different forms of 404s and the subdirectory support.
 
@@ -59,6 +64,8 @@ create repository without .hg/store
   $ rm -R nostore/.hg/store
   $ root=`pwd`
   $ cd ..
+
+serve
   $ cat > paths.conf <<EOF
   > [paths]
   > a=$root/a
@@ -70,7 +77,7 @@ create repository without .hg/store
 
 should give a 404 - file does not exist
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/a/file/tip/bork?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'a/file/tip/bork?style=raw'
   404 Not Found
   
   
@@ -79,25 +86,25 @@ should give a 404 - file does not exist
 
 should succeed
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=raw'
   200 Script output follows
   
   
   /a/
   /b/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/a/file/tip/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'a/file/tip/a?style=raw'
   200 Script output follows
   
   a
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/b/file/tip/b?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'b/file/tip/b?style=raw'
   200 Script output follows
   
   b
 
 should give a 404 - repo is not published
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/c/file/tip/c?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'c/file/tip/c?style=raw'
   404 Not Found
   
   
@@ -106,14 +113,14 @@ should give a 404 - repo is not published
 
 atom-log without basedir
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/a/atom-log' | grep '<link'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'a/atom-log' | grep '<link'
    <link rel="self" href="http://*:$HGPORT/a/atom-log"/> (glob)
    <link rel="alternate" href="http://*:$HGPORT/a/"/> (glob)
     <link href="http://*:$HGPORT/a/rev/8580ff50825a"/> (glob)
 
 rss-log without basedir
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/a/rss-log' | grep '<guid'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT 'a/rss-log' | grep '<guid'
       <guid isPermaLink="true">http://*:$HGPORT/a/rev/8580ff50825a</guid> (glob)
   $ cat > paths.conf <<EOF
   > [paths]
@@ -131,7 +138,7 @@ rss-log without basedir
 
 should succeed, slashy names
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '?style=raw'
   200 Script output follows
   
   
@@ -170,7 +177,7 @@ should succeed, slashy names
   /astar/
   /astar/.hg/patches/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/?style=paper'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '?style=paper'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -191,7 +198,7 @@ should succeed, slashy names
   <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
   </div>
   <div class="main">
-  <h2>Mercurial Repositories</h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   
   <table class="bigtable">
       <tr>
@@ -199,6 +206,7 @@ should succeed, slashy names
           <th><a href="?sort=description">Description</a></th>
           <th><a href="?sort=contact">Contact</a></th>
           <th><a href="?sort=lastchange">Last modified</a></th>
+          <th>&nbsp;</th>
           <th>&nbsp;</th>
       </tr>
       
@@ -208,6 +216,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/t/a/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -216,6 +229,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/b/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -224,6 +242,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/coll/a/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -232,6 +255,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/coll/a/.hg/patches/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -240,6 +268,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/coll/b/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -248,6 +281,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/coll/c/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -256,6 +294,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/coll/notrepo/e/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -264,6 +307,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/coll/notrepo/f/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -272,6 +320,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/a/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -280,6 +333,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/a/.hg/patches/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -288,6 +346,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/b/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -296,6 +359,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/b/d/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -304,6 +372,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/c/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -312,6 +385,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/notrepo/e/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -320,6 +398,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/notrepo/e/e2/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -328,6 +411,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/notrepo/f/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -336,6 +424,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/rcoll/notrepo/f/f2/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -344,6 +437,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/star/webdir/a/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -352,6 +450,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/star/webdir/a/.hg/patches/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -360,6 +463,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/star/webdir/b/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -368,6 +476,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/star/webdir/c/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -376,6 +489,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/star/webdir/notrepo/e/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -384,6 +502,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/star/webdir/notrepo/f/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -392,6 +515,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/a/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -400,6 +528,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/a/.hg/patches/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -408,6 +541,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/b/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -416,6 +554,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/b/d/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -424,6 +567,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/c/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -432,6 +580,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/notrepo/e/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -440,6 +593,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/notrepo/e/e2/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -448,6 +606,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/notrepo/f/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -456,6 +619,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/starstar/webdir/notrepo/f/f2/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity0">
@@ -464,6 +632,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/astar/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   <tr class="parity1">
@@ -472,6 +645,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/astar/.hg/patches/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   </table>
@@ -483,19 +661,19 @@ should succeed, slashy names
   </body>
   </html>
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't?style=raw'
   200 Script output follows
   
   
   /t/a/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/?style=raw'
   200 Script output follows
   
   
   /t/a/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/?style=paper'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/?style=paper'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -516,7 +694,7 @@ should succeed, slashy names
   <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
   </div>
   <div class="main">
-  <h2>Mercurial Repositories</h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> &gt; <a href="/t">t</a> </h2>
   
   <table class="bigtable">
       <tr>
@@ -524,6 +702,7 @@ should succeed, slashy names
           <th><a href="?sort=description">Description</a></th>
           <th><a href="?sort=contact">Contact</a></th>
           <th><a href="?sort=lastchange">Last modified</a></th>
+          <th>&nbsp;</th>
           <th>&nbsp;</th>
       </tr>
       
@@ -533,6 +712,11 @@ should succeed, slashy names
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
   <td class="indexlinks"></td>
+  <td>
+  <a href="/t/a/atom-log" title="subscribe to repository atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="subscribe to repository atom feed">
+  </a>
+  </td>
   </tr>
   
   </table>
@@ -544,7 +728,7 @@ should succeed, slashy names
   </body>
   </html>
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/a?style=atom'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/a?style=atom'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -574,7 +758,7 @@ should succeed, slashy names
    </entry>
   
   </feed>
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/a/?style=atom'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/a/?style=atom'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -604,14 +788,14 @@ should succeed, slashy names
    </entry>
   
   </feed>
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/a/file/tip/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/a/file/tip/a?style=raw'
   200 Script output follows
   
   a
 
 Test [paths] '*' extension
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/coll/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'coll/?style=raw'
   200 Script output follows
   
   
@@ -622,14 +806,14 @@ Test [paths] '*' extension
   /coll/notrepo/e/
   /coll/notrepo/f/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/coll/a/file/tip/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'coll/a/file/tip/a?style=raw'
   200 Script output follows
   
   a
 
 Test [paths] '**' extension
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/?style=raw'
   200 Script output follows
   
   
@@ -643,14 +827,14 @@ Test [paths] '**' extension
   /rcoll/notrepo/f/
   /rcoll/notrepo/f/f2/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/b/d/file/tip/d?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/b/d/file/tip/d?style=raw'
   200 Script output follows
   
   d
 
 Test collapse = True
 
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cat >> paths.conf <<EOF
   > [web]
   > collapse=true
@@ -658,7 +842,7 @@ Test collapse = True
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-3.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/coll/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'coll/?style=raw'
   200 Script output follows
   
   
@@ -668,11 +852,11 @@ Test collapse = True
   /coll/c/
   /coll/notrepo/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/coll/a/file/tip/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'coll/a/file/tip/a?style=raw'
   200 Script output follows
   
   a
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/?style=raw'
   200 Script output follows
   
   
@@ -683,14 +867,14 @@ Test collapse = True
   /rcoll/c/
   /rcoll/notrepo/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/b/d/file/tip/d?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/b/d/file/tip/d?style=raw'
   200 Script output follows
   
   d
 
 Test intermediate directories
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/notrepo/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/?style=raw'
   200 Script output follows
   
   
@@ -702,28 +886,28 @@ Test intermediate directories
 
 Test repositories inside intermediate directories
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/notrepo/e/file/tip/e?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/e/file/tip/e?style=raw'
   200 Script output follows
   
   e
 
 Test subrepositories inside intermediate directories
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/notrepo/f/f2/file/tip/f2?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/f/f2/file/tip/f2?style=raw'
   200 Script output follows
   
   f2
 
 Test descend = False
 
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cat >> paths.conf <<EOF
   > descend=false
   > EOF
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-4.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/coll/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'coll/?style=raw'
   200 Script output follows
   
   
@@ -731,11 +915,11 @@ Test descend = False
   /coll/b/
   /coll/c/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/coll/a/file/tip/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'coll/a/file/tip/a?style=raw'
   200 Script output follows
   
   a
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/?style=raw'
   200 Script output follows
   
   
@@ -743,14 +927,14 @@ Test descend = False
   /rcoll/b/
   /rcoll/c/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/b/d/file/tip/d?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/b/d/file/tip/d?style=raw'
   200 Script output follows
   
   d
 
 Test intermediate directories
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/notrepo/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/?style=raw'
   200 Script output follows
   
   
@@ -760,14 +944,14 @@ Test intermediate directories
 
 Test repositories inside intermediate directories
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/notrepo/e/file/tip/e?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/e/file/tip/e?style=raw'
   200 Script output follows
   
   e
 
 Test subrepositories inside intermediate directories
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/rcoll/notrepo/f/f2/file/tip/f2?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/f/f2/file/tip/f2?style=raw'
   200 Script output follows
   
   f2
@@ -777,7 +961,7 @@ Test [paths] '*' in a repo root
   $ hg id http://localhost:$HGPORT1/astar
   8580ff50825a
 
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cat > paths.conf <<EOF
   > [paths]
   > t/a = $root/a
@@ -787,7 +971,7 @@ Test [paths] '*' in a repo root
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-5.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '?style=raw'
   200 Script output follows
   
   
@@ -795,7 +979,7 @@ Test [paths] '*' in a repo root
   /t/b/
   /c/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/?style=raw'
   200 Script output follows
   
   
@@ -805,7 +989,7 @@ Test [paths] '*' in a repo root
 
 Test collapse = True
 
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cat >> paths.conf <<EOF
   > [web]
   > collapse=true
@@ -813,14 +997,14 @@ Test collapse = True
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-6.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '?style=raw'
   200 Script output follows
   
   
   /t/
   /c/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/?style=raw'
   200 Script output follows
   
   
@@ -830,27 +1014,27 @@ Test collapse = True
 
 test descend = False
 
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cat >> paths.conf <<EOF
   > descend=false
   > EOF
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-7.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '?style=raw'
   200 Script output follows
   
   
   /c/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/t/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 't/?style=raw'
   200 Script output follows
   
   
   /t/a/
   /t/b/
   
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cat > paths.conf <<EOF
   > [paths]
   > nostore = $root/nostore
@@ -862,7 +1046,7 @@ test descend = False
 
 test inexistent and inaccessible repo should be ignored silently
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 '/'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 ''
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -883,7 +1067,7 @@ test inexistent and inaccessible repo should be ignored silently
   <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
   </div>
   <div class="main">
-  <h2>Mercurial Repositories</h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   
   <table class="bigtable">
       <tr>
@@ -891,6 +1075,7 @@ test inexistent and inaccessible repo should be ignored silently
           <th><a href="?sort=description">Description</a></th>
           <th><a href="?sort=contact">Contact</a></th>
           <th><a href="?sort=lastchange">Last modified</a></th>
+          <th>&nbsp;</th>
           <th>&nbsp;</th>
       </tr>
       
@@ -914,7 +1099,7 @@ test inexistent and inaccessible repo should be ignored silently
 
 collections: should succeed
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '?style=raw'
   200 Script output follows
   
   
@@ -925,31 +1110,31 @@ collections: should succeed
   /notrepo/e/
   /notrepo/f/
   
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/a/file/tip/a?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'a/file/tip/a?style=raw'
   200 Script output follows
   
   a
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/b/file/tip/b?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'b/file/tip/b?style=raw'
   200 Script output follows
   
   b
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/c/file/tip/c?style=raw'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'c/file/tip/c?style=raw'
   200 Script output follows
   
   c
 
 atom-log with basedir /
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/a/atom-log' | grep '<link'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'a/atom-log' | grep '<link'
    <link rel="self" href="http://hg.example.com:8080/a/atom-log"/>
    <link rel="alternate" href="http://hg.example.com:8080/a/"/>
     <link href="http://hg.example.com:8080/a/rev/8580ff50825a"/>
 
 rss-log with basedir /
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/a/rss-log' | grep '<guid'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'a/rss-log' | grep '<guid'
       <guid isPermaLink="true">http://hg.example.com:8080/a/rev/8580ff50825a</guid>
-  $ "$TESTDIR/killdaemons.py"
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ hg serve --config web.baseurl=http://hg.example.com:8080/foo/ -p $HGPORT2 -d \
   >     --pid-file=hg.pid --webdir-conf collections.conf \
   >     -A access-collections-2.log -E error-collections-2.log
@@ -957,14 +1142,14 @@ rss-log with basedir /
 
 atom-log with basedir /foo/
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/a/atom-log' | grep '<link'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'a/atom-log' | grep '<link'
    <link rel="self" href="http://hg.example.com:8080/foo/a/atom-log"/>
    <link rel="alternate" href="http://hg.example.com:8080/foo/a/"/>
     <link href="http://hg.example.com:8080/foo/a/rev/8580ff50825a"/>
 
 rss-log with basedir /foo/
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 '/a/rss-log' | grep '<guid'
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT2 'a/rss-log' | grep '<guid'
       <guid isPermaLink="true">http://hg.example.com:8080/foo/a/rev/8580ff50825a</guid>
 
 paths errors 1

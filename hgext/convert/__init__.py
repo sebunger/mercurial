@@ -13,6 +13,8 @@ import subversion
 from mercurial import commands, templatekw
 from mercurial.i18n import _
 
+testedwith = 'internal'
+
 # Commands definition was moved elsewhere to ease demandload job.
 
 def convert(ui, src, dest=None, revmapfile=None, **opts):
@@ -59,6 +61,10 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     --sourcesort  try to preserve source revisions order, only
                   supported by Mercurial sources.
 
+    --closesort   try to move closed revisions as close as possible
+                  to parent branches, only supported by Mercurial
+                  sources.
+
     If ``REVMAP`` isn't given, it will be put in a default location
     (``<dest>/.hg/shamap`` by default). The ``REVMAP`` is a simple
     text file that maps each source commit ID to the destination ID
@@ -72,7 +78,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
 
     The authormap is a simple text file that maps each source commit
     author to a destination commit author. It is handy for source SCMs
-    that use unix logins to identify authors (eg: CVS). One line per
+    that use unix logins to identify authors (e.g.: CVS). One line per
     author mapping and the line format is::
 
       source author = destination author
@@ -136,7 +142,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     repository from "default" to a named branch.
 
     Mercurial Source
-    ''''''''''''''''
+    ################
 
     The Mercurial source recognizes the following configuration
     options, which you can set on the command line with ``--config``:
@@ -153,7 +159,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         It takes a hg revision identifier and defaults to 0.
 
     CVS Source
-    ''''''''''
+    ##########
 
     CVS source will use a sandbox (i.e. a checked-out copy) from CVS
     to indicate the starting point of what will be converted. Direct
@@ -189,13 +195,17 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         branch indicated in the regex as the second parent of the
         changeset. Default is ``{{mergefrombranch ([-\\w]+)}}``
 
-    :hook.cvslog: Specify a Python function to be called at the end of
+    :convert.localtimezone: use local time (as determined by the TZ
+        environment variable) for changeset date/times. The default
+        is False (use UTC).
+
+    :hooks.cvslog: Specify a Python function to be called at the end of
         gathering the CVS log. The function is passed a list with the
         log entries, and can modify the entries in-place, or add or
         delete them.
 
-    :hook.cvschangesets: Specify a Python function to be called after
-        the changesets are calculated from the the CVS log. The
+    :hooks.cvschangesets: Specify a Python function to be called after
+        the changesets are calculated from the CVS log. The
         function is passed a list with the changeset entries, and can
         modify the changesets in-place, or add or delete them.
 
@@ -205,7 +215,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     the command help for more details.
 
     Subversion Source
-    '''''''''''''''''
+    #################
 
     Subversion source detects classical trunk/branches/tags layouts.
     By default, the supplied ``svn://repo/path/`` source URL is
@@ -229,6 +239,10 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     :convert.svn.trunk: specify the name of the trunk branch. The
         default is ``trunk``.
 
+    :convert.localtimezone: use local time (as determined by the TZ
+        environment variable) for changeset date/times. The default
+        is False (use UTC).
+
     Source history can be retrieved starting at a specific revision,
     instead of being integrally converted. Only single branch
     conversions are supported.
@@ -237,7 +251,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         The default is 0.
 
     Perforce Source
-    '''''''''''''''
+    ###############
 
     The Perforce (P4) importer can be given a p4 depot path or a
     client specification as source. It will convert all files in the
@@ -253,7 +267,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         Perforce changelist number).
 
     Mercurial Destination
-    '''''''''''''''''''''
+    #####################
 
     The following options are supported:
 
@@ -308,7 +322,8 @@ cmdtable = {
            _('change branch names while converting'), _('FILE')),
           ('', 'branchsort', None, _('try to sort changesets by branches')),
           ('', 'datesort', None, _('try to sort changesets by date')),
-          ('', 'sourcesort', None, _('preserve source changesets order'))],
+          ('', 'sourcesort', None, _('preserve source changesets order')),
+          ('', 'closesort', None, _('try to reorder closed revisions'))],
          _('hg convert [OPTION]... SOURCE [DEST [REVMAP]]')),
     "debugsvnlog":
         (debugsvnlog,
@@ -328,7 +343,8 @@ cmdtable = {
           ('', 'root', '', _('specify cvsroot')),
           # Options specific to builtin cvsps
           ('', 'parents', '', _('show parent changesets')),
-          ('', 'ancestors', '', _('show current changeset in ancestor branches')),
+          ('', 'ancestors', '',
+           _('show current changeset in ancestor branches')),
           # Options that are ignored for compatibility with cvsps-2.1
           ('A', 'cvs-direct', None, _('ignored for compatibility')),
          ],

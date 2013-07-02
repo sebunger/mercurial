@@ -60,6 +60,12 @@ body {
   border: 0;
 }
 
+.atom-logo img{
+  width: 14px;
+  height: 14px;
+  border: 0;
+}
+
 .menu a { color: black; display: block; }
 
 .search {
@@ -182,7 +188,7 @@ h3 {
 }
 .bigtable tr { border: none; }
 .bigtable .age { width: 7em; }
-.bigtable .author { width: 12em; }
+.bigtable .author { width: 15em; }
 .bigtable .description { }
 .bigtable .description .base { font-size: 70%; float: right; line-height: 1.66; }
 .bigtable .node { width: 5em; font-family: monospace;}
@@ -274,4 +280,49 @@ ul#graphnodes li .info {
 	font-size: 70%;
 	position: relative;
 	top: -3px;
+}
+
+/* Comparison */
+.legend {
+    padding: 1.5% 0 1.5% 0;
+}
+
+.legendinfo {
+    border: 1px solid #999;
+    font-size: 80%;
+    text-align: center;
+    padding: 0.5%;
+}
+
+.equal {
+    background-color: #ffffff;
+}
+
+.delete {
+    background-color: #faa;
+    color: #333;
+}
+
+.insert {
+    background-color: #ffa;
+}
+
+.replace {
+    background-color: #e8e8e8;
+}
+
+.header {
+    text-align: center;
+}
+
+.block {
+    border-top: 1px solid #999;
+}
+
+.breadcrumb {
+    color: gray;
+}
+
+.breadcrumb a {
+    color: blue;
 }

@@ -29,7 +29,7 @@ Set up the repo
 
 manifest with descending
 
-  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/file'
+  $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT 'file'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -70,7 +70,7 @@ manifest with descending
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>directory / @ 0:9087c84a0f5d <span class="tag">tip</span> </h3>
   
   <form class="search" action="/log">
@@ -140,3 +140,5 @@ manifest with descending
   
 
   $ cat errors.log
+
+  $ cd ..

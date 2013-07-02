@@ -1,9 +1,5 @@
 test command parsing and dispatch
 
-  $ "$TESTDIR/hghave" no-outer-repo || exit 80
-
-  $ dir=`pwd`
-
   $ hg init a
   $ cd a
 
@@ -48,10 +44,21 @@ Missing arg:
   a: no such file in rev 000000000000
   [1]
 
+  $ cd "$TESTTMP"
+
+OSError "No such file or directory" / "The system cannot find the path
+specified" should include filename even when it is empty
+
+  $ hg -R a archive ''
+  abort: *: '' (glob)
+  [255]
+
+#if no-outer-repo
+
 No repo:
 
-  $ cd $dir
   $ hg cat
   abort: no repository found in '$TESTTMP' (.hg not found)!
   [255]
 
+#endif

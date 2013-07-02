@@ -38,7 +38,7 @@ def bisect(changelog, state):
         # set nodes descended from goodrevs
         for rev in goodrevs:
             ancestors[rev] = []
-        for rev in xrange(goodrev + 1, len(changelog)):
+        for rev in changelog.revs(goodrev + 1):
             for prev in clparents(rev):
                 if ancestors[prev] == []:
                     ancestors[rev] = []
@@ -46,7 +46,7 @@ def bisect(changelog, state):
         # clear good revs from array
         for rev in goodrevs:
             ancestors[rev] = None
-        for rev in xrange(len(changelog), goodrev, -1):
+        for rev in changelog.revs(len(changelog), goodrev):
             if ancestors[rev] is None:
                 for prev in clparents(rev):
                     ancestors[prev] = None
@@ -69,10 +69,10 @@ def bisect(changelog, state):
 
     # build children dict
     children = {}
-    visit = [badrev]
+    visit = util.deque([badrev])
     candidates = []
     while visit:
-        rev = visit.pop(0)
+        rev = visit.popleft()
         if ancestors[rev] == []:
             candidates.append(rev)
             for prev in clparents(rev):
@@ -132,7 +132,7 @@ def bisect(changelog, state):
 
 
 def load_state(repo):
-    state = {'good': [], 'bad': [], 'skip': []}
+    state = {'current': [], 'good': [], 'bad': [], 'skip': []}
     if os.path.exists(repo.join("bisect.state")):
         for l in repo.opener("bisect.state"):
             kind, node = l[:-1].split()
@@ -147,7 +147,7 @@ def save_state(repo, state):
     f = repo.opener("bisect.state", "w", atomictemp=True)
     wlock = repo.wlock()
     try:
-        for kind in state:
+        for kind in sorted(state):
             for node in state[kind]:
                 f.write("%s %s\n" % (kind, hex(node)))
         f.close()
@@ -159,18 +159,19 @@ def get(repo, status):
     Return a list of revision(s) that match the given status:
 
     - ``good``, ``bad``, ``skip``: csets explicitly marked as good/bad/skip
-    - ``goods``, ``bads``      : csets topologicaly good/bad
+    - ``goods``, ``bads``      : csets topologically good/bad
     - ``range``              : csets taking part in the bisection
     - ``pruned``             : csets that are goods, bads or skipped
     - ``untested``           : csets whose fate is yet unknown
     - ``ignored``            : csets ignored due to DAG topology
+    - ``current``            : the cset currently being bisected
     """
     state = load_state(repo)
-    if status in ('good', 'bad', 'skip'):
-        return [repo.changelog.rev(n) for n in state[status]]
+    if status in ('good', 'bad', 'skip', 'current'):
+        return map(repo.changelog.rev, state[status])
     else:
-        # In the floowing sets, we do *not* call 'bisect()' with more
-        # than one level of recusrsion, because that can be very, very
+        # In the following sets, we do *not* call 'bisect()' with more
+        # than one level of recursion, because that can be very, very
         # time consuming. Instead, we always develop the expression as
         # much as possible.
 
@@ -199,7 +200,7 @@ def get(repo, status):
 
         # 'ignored' is all csets that were not used during the bisection
         # due to DAG topology, but may however have had an impact.
-        # Eg., a branch merged between bads and goods, but whose branch-
+        # E.g., a branch merged between bads and goods, but whose branch-
         # point is out-side of the range.
         iba = '::bisect(bad) - ::bisect(good)'  # Ignored bads' ancestors
         iga = '::bisect(good) - ::bisect(bad)'  # Ignored goods' ancestors
@@ -233,7 +234,7 @@ def label(repo, node):
     if rev in get(repo, 'skip'):
         # i18n: bisect changeset status
         return _('skipped')
-    if rev in get(repo, 'untested'):
+    if rev in get(repo, 'untested') or rev in get(repo, 'current'):
         # i18n: bisect changeset status
         return _('untested')
     if rev in get(repo, 'ignored'):

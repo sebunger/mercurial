@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" execbit || exit 80
-
   $ checkundo()
   > {
   >     if [ -f .hg/store/undo ]; then
@@ -58,6 +56,16 @@ help
   
   You will by default be managing a patch queue named "patches". You can create
   other, independent patch queues with the "hg qqueue" command.
+  
+  If the working directory contains uncommitted files, qpush, qpop and qgoto
+  abort immediately. If -f/--force is used, the changes are discarded. Setting:
+  
+    [mq]
+    keepchanges = True
+  
+  make them behave as if --keep-changes were passed, and non-conflicting local
+  changes will be tolerated and preserved. If incompatible options such as
+  -f/--force or --exact are passed, this setting is ignored.
   
   list of commands:
   
@@ -190,18 +198,20 @@ add an untracked file
 status --mq with color (issue2096)
 
   $ hg status --mq --config extensions.color= --config color.mode=ansi --color=always
-  \x1b[0;32;1mA .hgignore\x1b[0m (esc)
-  \x1b[0;32;1mA A\x1b[0m (esc)
-  \x1b[0;32;1mA B\x1b[0m (esc)
-  \x1b[0;32;1mA series\x1b[0m (esc)
-  \x1b[0;35;1;4m? flaf\x1b[0m (esc)
+  \x1b[0;32;1mA \x1b[0m\x1b[0;32;1m.hgignore\x1b[0m (esc)
+  \x1b[0;32;1mA \x1b[0m\x1b[0;32;1mA\x1b[0m (esc)
+  \x1b[0;32;1mA \x1b[0m\x1b[0;32;1mB\x1b[0m (esc)
+  \x1b[0;32;1mA \x1b[0m\x1b[0;32;1mseries\x1b[0m (esc)
+  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4mflaf\x1b[0m (esc)
 
 try the --mq option on a command provided by an extension
 
   $ hg purge --mq --verbose --config extensions.purge=
-  Removing file flaf
+  removing file flaf
 
   $ cd ..
+
+#if no-outer-repo
 
 init --mq without repo
 
@@ -211,6 +221,8 @@ init --mq without repo
   abort: there is no Mercurial repository here (.hg not found)
   [255]
   $ cd ..
+
+#endif
 
 init --mq with repo path
 
@@ -787,6 +799,7 @@ strip with local changes, should complain
   $ hg strip -f tip
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/b/.hg/strip-backup/*-backup.hg (glob)
+  $ cd ..
 
 
 cd b; hg qrefresh
@@ -897,20 +910,27 @@ bad node in status
   no patches applied
   [1]
 
+  $ cd ..
+
+
+git patches
+
   $ cat >>$HGRCPATH <<EOF
   > [diff]
   > git = True
   > EOF
-  $ cd ..
   $ hg init git
   $ cd git
   $ hg qinit
 
   $ hg qnew -m'new file' new
   $ echo foo > new
+#if execbit
   $ chmod +x new
+#endif
   $ hg add new
   $ hg qrefresh
+#if execbit
   $ cat .hg/patches/new
   new file
   
@@ -920,6 +940,17 @@ bad node in status
   +++ b/new
   @@ -0,0 +1,1 @@
   +foo
+#else
+  $ cat .hg/patches/new
+  new file
+  
+  diff --git a/new b/new
+  new file mode 100644
+  --- /dev/null
+  +++ b/new
+  @@ -0,0 +1,1 @@
+  +foo
+#endif
 
   $ hg qnew -m'copy file' copy
   $ hg cp new copy
@@ -1079,8 +1110,14 @@ refresh omitting an added file
   $ hg qpop
   popping baz
   now at: bar
-  $ hg qdel baz
 
+test qdel/qrm
+
+  $ hg qdel baz
+  $ echo p >> .hg/patches/series
+  $ hg qrm p
+  $ hg qser
+  bar
 
 create a git patch
 
@@ -1171,7 +1208,7 @@ strip again
   
   $ hg strip 1
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/b/strip/.hg/strip-backup/*-backup.hg (glob)
+  saved backup bundle to $TESTTMP/strip/.hg/strip-backup/*-backup.hg (glob)
   $ checkundo strip
   $ hg log
   changeset:   1:20cbbe65cff7
@@ -1517,3 +1554,26 @@ Test that qfinish preserve phase when mq.secret=false
   0: draft
   1: secret
   2: secret
+
+Test that secret mq patch does not break hgweb
+
+  $ cat > hgweb.cgi <<HGWEB
+  > from mercurial import demandimport; demandimport.enable()
+  > from mercurial.hgweb import hgweb
+  > from mercurial.hgweb import wsgicgi
+  > import cgitb
+  > cgitb.enable()
+  > app = hgweb('.', 'test')
+  > wsgicgi.launch(app)
+  > HGWEB
+  $ . "$TESTDIR/cgienv"
+#if msys
+  $ PATH_INFO=//tags; export PATH_INFO
+#else
+  $ PATH_INFO=/tags; export PATH_INFO
+#endif
+  $ QUERY_STRING='style=raw'
+  $ python hgweb.cgi | grep '^tip'
+  tip	[0-9a-f]{40} (re)
+
+  $ cd ..

@@ -106,6 +106,30 @@ no clobbering of untracked files with wrong casing
   [255]
   $ cat a
   gold
+  $ rm a
+
+test that normal file in different case on target context is not
+unlinked by largefiles extension.
+
+  $ cat >> .hg/hgrc <<EOF
+  > [extensions]
+  > largefiles=
+  > EOF
+  $ hg update -q -C 1
+  $ hg status -A
+  $ echo 'A as largefiles' > A
+  $ hg add --large A
+  $ hg commit -m '#3'
+  created new head
+  $ hg manifest -r 3
+  .hglf/A
+  $ hg manifest -r 0
+  a
+  $ hg update -q -C 0
+  $ hg status -A
+  C a
+  $ hg update -q -C 3
+  $ hg update -q 0
 
   $ cd ..
 
@@ -159,5 +183,16 @@ case changes.
   $ hg qrefresh
   $ hg status -A
   C MiXeDcAsE
+
+  $ hg qpop -a
+  popping refresh-casechange
+  patch queue now empty
+  $ hg qnew refresh-pattern
+  $ hg status
+  $ echo A > A
+  $ hg add
+  adding A
+  $ hg qrefresh a # issue 3271, qrefresh with file handled case wrong
+  $ hg status # empty status means the qrefresh worked
 
   $ cd ..

@@ -6,10 +6,10 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import os, sys, errno, stat, getpass, pwd, grp, tempfile, unicodedata
+import encoding
+import os, sys, errno, stat, getpass, pwd, grp, socket, tempfile, unicodedata
 
 posixfile = open
-nulldev = '/dev/null'
 normpath = os.path.normpath
 samestat = os.path.samestat
 oslink = os.link
@@ -19,6 +19,28 @@ expandglobs = False
 
 umask = os.umask(0)
 os.umask(umask)
+
+def split(p):
+    '''Same as posixpath.split, but faster
+
+    >>> import posixpath
+    >>> for f in ['/absolute/path/to/file',
+    ...           'relative/path/to/file',
+    ...           'file_alone',
+    ...           'path/to/directory/',
+    ...           '/multiple/path//separators',
+    ...           '/file_at_root',
+    ...           '///multiple_leading_separators_at_root',
+    ...           '']:
+    ...     assert split(f) == posixpath.split(f), f
+    '''
+    ht = p.rsplit('/', 1)
+    if len(ht) == 1:
+        return '', p
+    nh = ht[0].rstrip('/')
+    if nh:
+        return nh, ht[1]
+    return ht[0] + '/', ht[1]
 
 def openhardlinks():
     '''return true if it is safe to hold open file handles to hardlinks'''
@@ -164,9 +186,6 @@ def samedevice(fpath1, fpath2):
     st2 = os.lstat(fpath2)
     return st1.st_dev == st2.st_dev
 
-encodinglower = None
-encodingupper = None
-
 # os.path.normcase is a no-op, which doesn't help us on non-native filesystems
 def normcase(path):
     return path.lower()
@@ -175,19 +194,66 @@ if sys.platform == 'darwin':
     import fcntl # only needed on darwin, missing on jython
 
     def normcase(path):
+        '''
+        Normalize a filename for OS X-compatible comparison:
+        - escape-encode invalid characters
+        - decompose to NFD
+        - lowercase
+
+        >>> normcase('UPPER')
+        'upper'
+        >>> normcase('Caf\xc3\xa9')
+        'cafe\\xcc\\x81'
+        >>> normcase('\xc3\x89')
+        'e\\xcc\\x81'
+        >>> normcase('\xb8\xca\xc3\xca\xbe\xc8.JPG') # issue3918
+        '%b8%ca%c3\\xca\\xbe%c8.jpg'
+        '''
+
+        try:
+            path.decode('ascii') # throw exception for non-ASCII character
+            return path.lower()
+        except UnicodeDecodeError:
+            pass
         try:
             u = path.decode('utf-8')
         except UnicodeDecodeError:
-            # percent-encode any characters that don't round-trip
-            p2 = path.decode('utf-8', 'ignore').encode('utf-8')
-            s = ""
-            pos = 0
+            # OS X percent-encodes any bytes that aren't valid utf-8
+            s = ''
+            g = ''
+            l = 0
             for c in path:
-                if p2[pos:pos + 1] == c:
+                o = ord(c)
+                if l and o < 128 or o >= 192:
+                    # we want a continuation byte, but didn't get one
+                    s += ''.join(["%%%02X" % ord(x) for x in g])
+                    g = ''
+                    l = 0
+                if l == 0 and o < 128:
+                    # ascii
                     s += c
-                    pos += 1
+                elif l == 0 and 194 <= o < 245:
+                    # valid leading bytes
+                    if o < 224:
+                        l = 1
+                    elif o < 240:
+                        l = 2
+                    else:
+                        l = 3
+                    g = c
+                elif l > 0 and 128 <= o < 192:
+                    # valid continuations
+                    g += c
+                    l -= 1
+                    if not l:
+                        s += g
+                        g = ''
                 else:
-                    s += "%%%02X" % ord(c)
+                    # invalid
+                    s += "%%%02X" % o
+
+            # any remaining partial characters
+            s += ''.join(["%%%02X" % ord(x) for x in g])
             u = s.decode('utf-8')
 
         # Decompose then lowercase (HFS+ technote specifies lower)
@@ -255,7 +321,7 @@ if sys.platform == 'cygwin':
         pathlen = len(path)
         if (pathlen == 0) or (path[0] != os.sep):
             # treat as relative
-            return encodingupper(path)
+            return encoding.upper(path)
 
         # to preserve case of mountpoint part
         for mp in cygwinmountpoints:
@@ -266,9 +332,9 @@ if sys.platform == 'cygwin':
             if mplen == pathlen: # mount point itself
                 return mp
             if path[mplen] == os.sep:
-                return mp + encodingupper(path[mplen:])
+                return mp + encoding.upper(path[mplen:])
 
-        return encodingupper(path)
+        return encoding.upper(path)
 
     # Cygwin translates native ACLs to POSIX permissions,
     # but these translations are not supported by native
@@ -345,12 +411,18 @@ def findexe(command):
 def setsignalhandler():
     pass
 
+_wantedkinds = set([stat.S_IFREG, stat.S_IFLNK])
+
 def statfiles(files):
-    'Stat each file in files and yield stat or None if file does not exist.'
+    '''Stat each file in files. Yield each stat, or None if a file does not
+    exist or has a type we don't care about.'''
     lstat = os.lstat
+    getkind = stat.S_IFMT
     for nf in files:
         try:
             st = lstat(nf)
+            if getkind(st.st_mode) not in _wantedkinds:
+                st = None
         except OSError, err:
             if err.errno not in (errno.ENOENT, errno.ENOTDIR):
                 raise
@@ -430,9 +502,13 @@ def termwidth():
 def makedir(path, notindexed):
     os.mkdir(path)
 
-def unlinkpath(f):
+def unlinkpath(f, ignoremissing=False):
     """unlink and remove the directory if it is empty"""
-    os.unlink(f)
+    try:
+        os.unlink(f)
+    except OSError, e:
+        if not (ignoremissing and e.errno == errno.ENOENT):
+            raise
     # try removing directories that might now be empty
     try:
         os.removedirs(os.path.dirname(f))
@@ -461,7 +537,20 @@ class cachestat(object):
 
     def __eq__(self, other):
         try:
-            return self.stat == other.stat
+            # Only dev, ino, size, mtime and atime are likely to change. Out
+            # of these, we shouldn't compare atime but should compare the
+            # rest. However, one of the other fields changing indicates
+            # something fishy going on, so return False if anything but atime
+            # changes.
+            return (self.stat.st_mode == other.stat.st_mode and
+                    self.stat.st_ino == other.stat.st_ino and
+                    self.stat.st_dev == other.stat.st_dev and
+                    self.stat.st_nlink == other.stat.st_nlink and
+                    self.stat.st_uid == other.stat.st_uid and
+                    self.stat.st_gid == other.stat.st_gid and
+                    self.stat.st_size == other.stat.st_size and
+                    self.stat.st_mtime == other.stat.st_mtime and
+                    self.stat.st_ctime == other.stat.st_ctime)
         except AttributeError:
             return False
 
@@ -470,3 +559,51 @@ class cachestat(object):
 
 def executablepath():
     return None # available on Windows only
+
+class unixdomainserver(socket.socket):
+    def __init__(self, join, subsystem):
+        '''Create a unix domain socket with the given prefix.'''
+        super(unixdomainserver, self).__init__(socket.AF_UNIX)
+        sockname = subsystem + '.sock'
+        self.realpath = self.path = join(sockname)
+        if os.path.islink(self.path):
+            if os.path.exists(self.path):
+                self.realpath = os.readlink(self.path)
+            else:
+                os.unlink(self.path)
+        try:
+            self.bind(self.realpath)
+        except socket.error, err:
+            if err.args[0] == 'AF_UNIX path too long':
+                tmpdir = tempfile.mkdtemp(prefix='hg-%s-' % subsystem)
+                self.realpath = os.path.join(tmpdir, sockname)
+                try:
+                    self.bind(self.realpath)
+                    os.symlink(self.realpath, self.path)
+                except (OSError, socket.error):
+                    self.cleanup()
+                    raise
+            else:
+                raise
+        self.listen(5)
+
+    def cleanup(self):
+        def okayifmissing(f, path):
+            try:
+                f(path)
+            except OSError, err:
+                if err.errno != errno.ENOENT:
+                    raise
+
+        okayifmissing(os.unlink, self.path)
+        if self.realpath != self.path:
+            okayifmissing(os.unlink, self.realpath)
+            okayifmissing(os.rmdir, os.path.dirname(self.realpath))
+
+def statislink(st):
+    '''check whether a stat result is a symlink'''
+    return st and stat.S_ISLNK(st.st_mode)
+
+def statisexec(st):
+    '''check whether a stat result is an executable file'''
+    return st and (st.st_mode & 0100 != 0)

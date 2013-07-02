@@ -36,6 +36,7 @@ class lock(object):
         self.releasefn = releasefn
         self.desc = desc
         self.postrelease  = []
+        self.pid = os.getpid()
         self.lock()
 
     def __del__(self):
@@ -71,7 +72,7 @@ class lock(object):
             return
         if lock._host is None:
             lock._host = socket.gethostname()
-        lockname = '%s:%s' % (lock._host, os.getpid())
+        lockname = '%s:%s' % (lock._host, self.pid)
         while not self.held:
             try:
                 util.makelock(lockname, self.f)
@@ -97,7 +98,12 @@ class lock(object):
         The lock file is only deleted when None is returned.
 
         """
-        locker = util.readlock(self.f)
+        try:
+            locker = util.readlock(self.f)
+        except OSError, why:
+            if why.errno == errno.ENOENT:
+                return None
+            raise
         try:
             host, pid = locker.split(":", 1)
         except ValueError:
@@ -122,12 +128,15 @@ class lock(object):
     def release(self):
         """release the lock and execute callback function if any
 
-        If the lock have been aquired multiple time, the actual release is
-        delayed to the last relase call."""
+        If the lock has been acquired multiple times, the actual release is
+        delayed to the last release call."""
         if self.held > 1:
             self.held -= 1
         elif self.held == 1:
             self.held = 0
+            if os.getpid() != self.pid:
+                # we forked, and are not the parent
+                return
             if self.releasefn:
                 self.releasefn()
             try:

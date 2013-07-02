@@ -107,6 +107,11 @@ def notset(mctx, x):
     s = set(getset(mctx, x))
     return [r for r in mctx.subset if r not in s]
 
+def minusset(mctx, x, y):
+    xl = getset(mctx, x)
+    yl = set(getset(mctx, y))
+    return [f for f in xl if f not in yl]
+
 def listset(mctx, a, b):
     raise error.ParseError(_("can't use a list in this context"))
 
@@ -251,8 +256,11 @@ def grep(mctx, x):
     """``grep(regex)``
     File contains the given regular expression.
     """
-    pat = getstring(x, _("grep requires a pattern"))
-    r = re.compile(pat)
+    try:
+        # i18n: "grep" is a keyword
+        r = re.compile(getstring(x, _("grep requires a pattern")))
+    except re.error, e:
+        raise error.ParseError(_('invalid match pattern: %s') % e)
     return [f for f in mctx.existing() if r.search(mctx.ctx[f].data())]
 
 _units = dict(k=2**10, K=2**10, kB=2**10, KB=2**10,
@@ -345,6 +353,29 @@ def encoding(mctx, x):
 
     return s
 
+def eol(mctx, x):
+    """``eol(style)``
+    File contains newlines of the given style (dos, unix, mac). Binary
+    files are excluded, files with mixed line endings match multiple
+    styles.
+    """
+
+    # i18n: "encoding" is a keyword
+    enc = getstring(x, _("encoding requires an encoding name"))
+
+    s = []
+    for f in mctx.existing():
+        d = mctx.ctx[f].data()
+        if util.binary(d):
+            continue
+        if (enc == 'dos' or enc == 'win') and '\r\n' in d:
+            s.append(f)
+        elif enc == 'unix' and re.search('(?<!\r)\n', d):
+            s.append(f)
+        elif enc == 'mac' and re.search('\r(?!\n)', d):
+            s.append(f)
+    return s
+
 def copied(mctx, x):
     """``copied()``
     File that is recorded as being copied.
@@ -365,7 +396,7 @@ def subrepo(mctx, x):
     # i18n: "subrepo" is a keyword
     getargs(x, 0, 1, _("subrepo takes at most one argument"))
     ctx = mctx.ctx
-    sstate = ctx.substate
+    sstate = sorted(ctx.substate)
     if x:
         pat = getstring(x, _("subrepo requires a pattern or no arguments"))
 
@@ -387,6 +418,7 @@ symbols = {
     'copied': copied,
     'deleted': deleted,
     'encoding': encoding,
+    'eol': eol,
     'exec': exec_,
     'grep': grep,
     'ignored': ignored,
@@ -406,6 +438,7 @@ methods = {
     'symbol': stringset,
     'and': andset,
     'or': orset,
+    'minus': minusset,
     'list': listset,
     'group': getset,
     'not': notset,
@@ -424,7 +457,14 @@ class matchctx(object):
     def filter(self, files):
         return [f for f in files if f in self.subset]
     def existing(self):
-        return (f for f in self.subset if f in self.ctx)
+        if self._status is not None:
+            removed = set(self._status[3])
+            unknown = set(self._status[4] + self._status[5])
+        else:
+            removed = set()
+            unknown = set()
+        return (f for f in self.subset
+                if (f in self.ctx and f not in removed) or f in unknown)
     def narrow(self, files):
         return matchctx(self.ctx, self.filter(files), self._status)
 
@@ -438,14 +478,26 @@ def _intree(funcs, tree):
                 return True
     return False
 
+# filesets using matchctx.existing()
+_existingcallers = [
+    'binary',
+    'exec',
+    'grep',
+    'size',
+    'symlink',
+]
+
 def getfileset(ctx, expr):
     tree, pos = parse(expr)
     if (pos != len(expr)):
         raise error.ParseError(_("invalid token"), pos)
 
     # do we need status info?
-    if _intree(['modified', 'added', 'removed', 'deleted',
-                'unknown', 'ignored', 'clean'], tree):
+    if (_intree(['modified', 'added', 'removed', 'deleted',
+                 'unknown', 'ignored', 'clean'], tree) or
+        # Using matchctx.existing() on a workingctx requires us to check
+        # for deleted files.
+        (ctx.rev() is None and _intree(_existingcallers, tree))):
         unknown = _intree(['unknown'], tree)
         ignored = _intree(['ignored'], tree)
 
@@ -457,7 +509,7 @@ def getfileset(ctx, expr):
             subset.extend(c)
     else:
         status = None
-        subset = ctx.walk(ctx.match([]))
+        subset = list(ctx.walk(ctx.match([])))
 
     return getset(matchctx(ctx, subset, status), tree)
 

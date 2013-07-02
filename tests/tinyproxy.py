@@ -47,7 +47,7 @@ class ProxyHandler (BaseHTTPServer.BaseHTTPRequestHandler):
         try: soc.connect(host_port)
         except socket.error, arg:
             try: msg = arg[1]
-            except: msg = arg
+            except (IndexError, TypeError): msg = arg
             self.send_error(404, msg)
             return 0
         return 1
@@ -107,7 +107,10 @@ class ProxyHandler (BaseHTTPServer.BaseHTTPRequestHandler):
                         out = self.connection
                     else:
                         out = soc
-                    data = i.recv(8192)
+                    try:
+                        data = i.recv(8192)
+                    except socket.error:
+                        break
                     if data:
                         out.send(data)
                         count = 0

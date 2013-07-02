@@ -1,27 +1,21 @@
 
   $ "$TESTDIR/hghave" svn svn-bindings || exit 80
 
-  $ fixpath()
-  > {
-  >     tr '\\' /
-  > }
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
-  > convert = 
+  > convert =
   > graphlog =
   > [convert]
   > svn.trunk = mytrunk
   > EOF
 
   $ svnadmin create svn-repo
-  $ svnpath=`pwd | fixpath`
-
-
-  $ expr "$svnpath" : "\/" > /dev/null
-  > if [ $? -ne 0 ]; then
-  >   svnpath="/$svnpath"
-  > fi
-  > svnurl="file://$svnpath/svn-repo"
+  $ SVNREPOPATH=`pwd`/svn-repo
+#if windows
+  $ SVNREPOURL=file:///`python -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
+#else
+  $ SVNREPOURL=file://`python -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
+#endif
 
 Now test that it works with trunk/tags layout, but no branches yet.
 
@@ -33,16 +27,15 @@ Initial svn import
   $ mkdir tags
   $ cd ..
 
-  $ svnurl="file://$svnpath/svn-repo/proj%20B"
-  $ svn import -m "init projB" projB "$svnurl" | fixpath | sort
+  $ svn import -m "init projB" projB "$SVNREPOURL/proj%20B" | sort
   
-  Adding         projB/mytrunk
-  Adding         projB/tags
+  Adding         projB/mytrunk (glob)
+  Adding         projB/tags (glob)
   Committed revision 1.
 
 Update svn repository
 
-  $ svn co "$svnurl"/mytrunk B | fixpath
+  $ svn co "$SVNREPOURL/proj%20B/mytrunk" B
   Checked out revision 1.
   $ cd B
   $ echo hello > 'letter .txt'
@@ -59,7 +52,7 @@ Update svn repository
   Transmitting file data .
   Committed revision 3.
 
-  $ svn copy -m "tag v0.1" "$svnurl"/mytrunk "$svnurl"/tags/v0.1
+  $ svn copy -m "tag v0.1" "$SVNREPOURL/proj%20B/mytrunk" "$SVNREPOURL/proj%20B/tags/v0.1"
   
   Committed revision 4.
 
@@ -70,9 +63,16 @@ Update svn repository
   Committed revision 5.
   $ cd ..
 
-Convert to hg once
+Convert to hg once and also test localtimezone option
 
-  $ hg convert "$svnurl" B-hg
+NOTE: This doesn't check all time zones -- it merely determines that
+the configuration option is taking effect.
+
+An arbitrary (U.S.) time zone is used here.  TZ=US/Hawaii is selected
+since it does not use DST (unlike other U.S. time zones) and is always
+a fixed difference from UTC.
+
+  $ TZ=US/Hawaii hg convert --config convert.localtimezone=True "$SVNREPOURL/proj%20B" B-hg
   initializing destination B-hg repository
   scanning source...
   sorting...
@@ -96,7 +96,7 @@ Update svn repository again
   Transmitting file data ..
   Committed revision 6.
 
-  $ svn copy -m "tag v0.2" "$svnurl"/mytrunk "$svnurl"/tags/v0.2
+  $ svn copy -m "tag v0.2" "$SVNREPOURL/proj%20B/mytrunk" "$SVNREPOURL/proj%20B/tags/v0.2"
   
   Committed revision 7.
 
@@ -107,7 +107,7 @@ Update svn repository again
   Committed revision 8.
   $ cd ..
 
-  $ hg convert -s svn "$svnurl/non-existent-path" dest
+  $ hg convert -s svn "$SVNREPOURL/proj%20B/non-existent-path" dest
   initializing destination dest repository
   abort: no revision found in module /proj B/non-existent-path
   [255]
@@ -116,7 +116,7 @@ Update svn repository again
 
 Test incremental conversion
 
-  $ hg convert "$svnurl" B-hg
+  $ TZ=US/Hawaii hg convert --config convert.localtimezone=True "$SVNREPOURL/proj%20B" B-hg
   scanning source...
   sorting...
   converting...
@@ -125,22 +125,22 @@ Test incremental conversion
   updating tags
 
   $ cd B-hg
-  $ hg glog --template '{rev} {desc|firstline} files: {files}\n'
-  o  7 update tags files: .hgtags
+  $ hg glog --template '{rev} {desc|firstline} date: {date|date} files: {files}\n'
+  o  7 update tags date: * +0000 files: .hgtags (glob)
   |
-  o  6 work in progress files: letter2.txt
+  o  6 work in progress date: * -1000 files: letter2.txt (glob)
   |
-  o  5 second letter files: letter .txt letter2.txt
+  o  5 second letter date: * -1000 files: letter .txt letter2.txt (glob)
   |
-  o  4 update tags files: .hgtags
+  o  4 update tags date: * +0000 files: .hgtags (glob)
   |
-  o  3 nice day files: letter .txt
+  o  3 nice day date: * -1000 files: letter .txt (glob)
   |
-  o  2 world files: letter .txt
+  o  2 world date: * -1000 files: letter .txt (glob)
   |
-  o  1 hello files: letter .txt
+  o  1 hello date: * -1000 files: letter .txt (glob)
   |
-  o  0 init projB files:
+  o  0 init projB date: * -1000 files: (glob)
   
   $ hg tags -q
   tip
@@ -150,7 +150,7 @@ Test incremental conversion
 
 Test filemap
   $ echo 'include letter2.txt' > filemap
-  $ hg convert --filemap filemap "$svnurl"/mytrunk fmap
+  $ hg convert --filemap filemap "$SVNREPOURL/proj%20B/mytrunk" fmap
   initializing destination fmap repository
   scanning source...
   sorting...
@@ -170,7 +170,7 @@ Test filemap
   
 
 Test stop revision
-  $ hg convert --rev 1 "$svnurl"/mytrunk stoprev
+  $ hg convert --rev 1 "$SVNREPOURL/proj%20B/mytrunk" stoprev
   initializing destination stoprev repository
   scanning source...
   sorting...
@@ -200,7 +200,7 @@ Test converting empty heads (issue3347)
   converting...
   1 init projA
   0 adddir
-  $ hg --config convert.svn.trunk= convert file://$svnpath/svn-empty/trunk
+  $ hg --config convert.svn.trunk= convert "$SVNREPOURL/../svn-empty/trunk"
   assuming destination trunk-hg
   initializing destination trunk-hg repository
   scanning source...

@@ -207,7 +207,9 @@ qrefresh --short tests:
 
   $ echo 'orphan' > orphanchild
   $ hg add orphanchild
-  $ hg qrefresh nonexistingfilename # clear patch
+  $ hg qrefresh nonexistentfilename # clear patch
+  nonexistentfilename: * (glob)
+  $ hg diff -c qtip
   $ hg qrefresh --short 1/base
   $ hg qrefresh --short 2/base
 
@@ -543,3 +545,4 @@ Refresh with phase data:
   $ hg phase p2.diff
   2: secret
 
+  $ cd ..

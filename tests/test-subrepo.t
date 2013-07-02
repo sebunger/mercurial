@@ -3,9 +3,6 @@ Let commit recurse into subrepos by default to match pre-2.0 behavior:
   $ echo "[ui]" >> $HGRCPATH
   $ echo "commitsubrepos = Yes" >> $HGRCPATH
 
-  $ rm -rf sub
-  $ mkdir sub
-  $ cd sub
   $ hg init t
   $ cd t
 
@@ -115,10 +112,16 @@ leave sub dirty (and check ui.commitsubrepos=no aborts the commit)
   abort: uncommitted changes in subrepo s
   (use --subrepos for recursive commit)
   [255]
+  $ hg id
+  f6affe3fbfaa+ tip
+  $ hg -R s ci -mc
+  $ hg id
+  f6affe3fbfaa+ tip
+  $ echo d > s/a
   $ hg ci -m4
   committing subrepository s
   $ hg tip -R s
-  changeset:   3:1c833a7a9e3a
+  changeset:   4:02dcf1d70411
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -138,7 +141,7 @@ restore
   $ hg debugsub
   path s
    source   s
-   revision 1c833a7a9e3a4445c711aaf0f012379cd0d4034e
+   revision 02dcf1d704118aee3ee306ccfa1910850d5b05ef
 
 new branch for merge tests
 
@@ -200,7 +203,7 @@ merge tests
   $ hg merge 6 --debug # test change
     searching for copies back to rev 2
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 1f14a2e2d3ec, local: f0d2028bf86d+, remote: 1831e14459c4
    .hgsubstate: versions differ -> m
   updating: .hgsubstate 1/1 files (100.00%)
@@ -208,11 +211,11 @@ merge tests
     subrepo t: other changed, get t:6747d179aa9a688023c4b0cad32e4c92bb7f34ad:hg
   getting subrepo t
   resolving manifests
-   overwrite: True, partial: False
-   ancestor: 60ca1237c194+, local: 60ca1237c194+, remote: 6747d179aa9a
+   branchmerge: False, force: False, partial: False
+   ancestor: 60ca1237c194, local: 60ca1237c194+, remote: 6747d179aa9a
    t: remote is newer -> g
-  updating: t 1/1 files (100.00%)
   getting t
+  updating: t 1/1 files (100.00%)
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg debugsub
@@ -228,7 +231,7 @@ merge tests
   $ HGMERGE=internal:merge hg merge --debug 7 # test conflict
     searching for copies back to rev 2
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 1831e14459c4, local: e45c8b14af55+, remote: f94576341bcf
    .hgsubstate: versions differ -> m
   updating: .hgsubstate 1/1 files (100.00%)
@@ -237,10 +240,10 @@ merge tests
   merging subrepo t
     searching for copies back to rev 2
   resolving manifests
-   overwrite: False, partial: False
+   branchmerge: True, force: False, partial: False
    ancestor: 6747d179aa9a, local: 20a0db6fbf6c+, remote: 7af322bc1198
    t: versions differ -> m
-  preserving t for resolve of t
+    preserving t for resolve of t
   updating: t 1/1 files (100.00%)
   picked tool 'internal:merge' for t (binary False symlink False)
   merging t
@@ -266,9 +269,9 @@ clone
   $ cd ..
   $ hg clone t tc
   updating to branch default
-  cloning subrepo s from $TESTTMP/sub/t/s (glob)
-  cloning subrepo s/ss from $TESTTMP/sub/t/s/ss (glob)
-  cloning subrepo t from $TESTTMP/sub/t/t (glob)
+  cloning subrepo s from $TESTTMP/t/s
+  cloning subrepo s/ss from $TESTTMP/t/s/ss (glob)
+  cloning subrepo t from $TESTTMP/t/t
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd tc
   $ hg debugsub
@@ -285,14 +288,10 @@ push
   $ hg ci -m11
   committing subrepository t
   $ hg push
-  pushing to $TESTTMP/sub/t (glob)
-  pushing subrepo s/ss to $TESTTMP/sub/t/s/ss (glob)
-  searching for changes
-  no changes found
-  pushing subrepo s to $TESTTMP/sub/t/s (glob)
-  searching for changes
-  no changes found
-  pushing subrepo t to $TESTTMP/sub/t/t (glob)
+  pushing to $TESTTMP/t (glob)
+  no changes made to subrepo s/ss since last push to $TESTTMP/t/s/ss (glob)
+  no changes made to subrepo s since last push to $TESTTMP/t/s
+  pushing subrepo t to $TESTTMP/t/t
   searching for changes
   adding changesets
   adding manifests
@@ -310,27 +309,25 @@ push -f
   $ hg ci -m12
   committing subrepository s
   $ hg push
-  pushing to $TESTTMP/sub/t (glob)
-  pushing subrepo s/ss to $TESTTMP/sub/t/s/ss (glob)
+  pushing to $TESTTMP/t (glob)
+  no changes made to subrepo s/ss since last push to $TESTTMP/t/s/ss (glob)
+  pushing subrepo s to $TESTTMP/t/s
   searching for changes
-  no changes found
-  pushing subrepo s to $TESTTMP/sub/t/s (glob)
-  searching for changes
-  abort: push creates new remote head 12a213df6fa9!
+  abort: push creates new remote head 12a213df6fa9! (in subrepo s)
   (did you forget to merge? use push -f to force)
   [255]
   $ hg push -f
-  pushing to $TESTTMP/sub/t (glob)
-  pushing subrepo s/ss to $TESTTMP/sub/t/s/ss (glob)
+  pushing to $TESTTMP/t (glob)
+  pushing subrepo s/ss to $TESTTMP/t/s/ss (glob)
   searching for changes
   no changes found
-  pushing subrepo s to $TESTTMP/sub/t/s (glob)
+  pushing subrepo s to $TESTTMP/t/s
   searching for changes
   adding changesets
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
-  pushing subrepo t to $TESTTMP/sub/t/t (glob)
+  pushing subrepo t to $TESTTMP/t/t
   searching for changes
   no changes found
   searching for changes
@@ -338,6 +335,122 @@ push -f
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
+
+check that unmodified subrepos are not pushed
+
+  $ hg clone . ../tcc
+  updating to branch default
+  cloning subrepo s from $TESTTMP/tc/s
+  cloning subrepo s/ss from $TESTTMP/tc/s/ss (glob)
+  cloning subrepo t from $TESTTMP/tc/t
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+the subrepos on the new clone have nothing to push to its source
+
+  $ hg push -R ../tcc .
+  pushing to .
+  no changes made to subrepo s/ss since last push to s/ss (glob)
+  no changes made to subrepo s since last push to s
+  no changes made to subrepo t since last push to t
+  searching for changes
+  no changes found
+  [1]
+
+the subrepos on the source do not have a clean store versus the clone target
+because they were never explicitly pushed to the source
+
+  $ hg push ../tcc
+  pushing to ../tcc
+  pushing subrepo s/ss to ../tcc/s/ss (glob)
+  searching for changes
+  no changes found
+  pushing subrepo s to ../tcc/s
+  searching for changes
+  no changes found
+  pushing subrepo t to ../tcc/t
+  searching for changes
+  no changes found
+  searching for changes
+  no changes found
+  [1]
+
+after push their stores become clean
+
+  $ hg push ../tcc
+  pushing to ../tcc
+  no changes made to subrepo s/ss since last push to ../tcc/s/ss (glob)
+  no changes made to subrepo s since last push to ../tcc/s
+  no changes made to subrepo t since last push to ../tcc/t
+  searching for changes
+  no changes found
+  [1]
+
+updating a subrepo to a different revision or changing
+its working directory does not make its store dirty
+
+  $ hg -R s update '.^'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg push
+  pushing to $TESTTMP/t (glob)
+  no changes made to subrepo s/ss since last push to $TESTTMP/t/s/ss (glob)
+  no changes made to subrepo s since last push to $TESTTMP/t/s
+  no changes made to subrepo t since last push to $TESTTMP/t/t
+  searching for changes
+  no changes found
+  [1]
+  $ echo foo >> s/a
+  $ hg push
+  pushing to $TESTTMP/t (glob)
+  no changes made to subrepo s/ss since last push to $TESTTMP/t/s/ss (glob)
+  no changes made to subrepo s since last push to $TESTTMP/t/s
+  no changes made to subrepo t since last push to $TESTTMP/t/t
+  searching for changes
+  no changes found
+  [1]
+  $ hg -R s update -C tip
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+committing into a subrepo makes its store (but not its parent's store) dirty
+
+  $ echo foo >> s/ss/a
+  $ hg -R s/ss commit -m 'test dirty store detection'
+  $ hg push
+  pushing to $TESTTMP/t (glob)
+  pushing subrepo s/ss to $TESTTMP/t/s/ss (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  no changes made to subrepo s since last push to $TESTTMP/t/s
+  no changes made to subrepo t since last push to $TESTTMP/t/t
+  searching for changes
+  no changes found
+  [1]
+
+a subrepo store may be clean versus one repo but not versus another
+
+  $ hg push
+  pushing to $TESTTMP/t (glob)
+  no changes made to subrepo s/ss since last push to $TESTTMP/t/s/ss (glob)
+  no changes made to subrepo s since last push to $TESTTMP/t/s
+  no changes made to subrepo t since last push to $TESTTMP/t/t
+  searching for changes
+  no changes found
+  [1]
+  $ hg push ../tcc
+  pushing to ../tcc
+  pushing subrepo s/ss to ../tcc/s/ss (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  no changes made to subrepo s since last push to ../tcc/s
+  no changes made to subrepo t since last push to ../tcc/t
+  searching for changes
+  no changes found
+  [1]
 
 update
 
@@ -348,11 +461,25 @@ update
   $ hg ci -m13
   committing subrepository t
 
+backout calls revert internally with minimal opts, which should not raise
+KeyError
+
+  $ hg backout ".^"
+  reverting .hgsubstate
+  reverting subrepo s
+  reverting s/a (glob)
+  reverting subrepo ss
+  reverting subrepo t
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ hg up -C # discard changes
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
 pull
 
   $ cd ../tc
   $ hg pull
-  pulling from $TESTTMP/sub/t (glob)
+  pulling from $TESTTMP/t (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -363,13 +490,13 @@ pull
 should pull t
 
   $ hg up
-  pulling subrepo t from $TESTTMP/sub/t/t (glob)
+  pulling subrepo t from $TESTTMP/t/t
   searching for changes
   adding changesets
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat t/t
   blah
 
@@ -552,9 +679,9 @@ test repository cloning
   $ cat mercurial2/main/nested_absolute/.hg/hgrc \
   >     mercurial2/main/nested_relative/.hg/hgrc
   [paths]
-  default = $TESTTMP/sub/mercurial/nested_absolute
+  default = $TESTTMP/mercurial/nested_absolute
   [paths]
-  default = $TESTTMP/sub/mercurial/nested_relative
+  default = $TESTTMP/mercurial/nested_relative
   $ rm -rf mercurial mercurial2
 
 Issue1977: multirepo push should fail if subrepo push fails
@@ -569,7 +696,7 @@ Issue1977: multirepo push should fail if subrepo push fails
   adding .hgsub
   $ hg clone repo repo2
   updating to branch default
-  cloning subrepo s from $TESTTMP/sub/repo/s (glob)
+  cloning subrepo s from $TESTTMP/repo/s
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -q -R repo2 pull -u
   $ echo 1 > repo2/s/a
@@ -577,16 +704,37 @@ Issue1977: multirepo push should fail if subrepo push fails
   $ hg -q -R repo2/s push
   $ hg -R repo2/s up -C 0
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ echo 2 > repo2/s/a
-  $ hg -R repo2/s ci -m3
+  $ echo 2 > repo2/s/b
+  $ hg -R repo2/s ci -m3 -A
+  adding b
   created new head
   $ hg -R repo2 ci -m3
   $ hg -q -R repo2 push
-  abort: push creates new remote head 9d66565e64e1!
+  abort: push creates new remote head cc505f09a8b2! (in subrepo s)
   (did you forget to merge? use push -f to force)
   [255]
   $ hg -R repo update
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+test if untracked file is not overwritten
+
+  $ echo issue3276_ok > repo/s/b
+  $ hg -R repo2 push -f -q
+  $ hg -R repo update
+  b: untracked file differs
+  abort: untracked files in working directory differ from files in requested revision (in subrepo s)
+  [255]
+
+  $ cat repo/s/b
+  issue3276_ok
+  $ rm repo/s/b
+  $ hg -R repo revert --all
+  reverting repo/.hgsubstate (glob)
+  reverting subrepo s
+  $ hg -R repo update
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cat repo/s/b
+  2
   $ rm -rf repo2 repo
 
 
@@ -620,8 +768,13 @@ Create repo without default path, pull top repo, and see what happens on update
   added 2 changesets with 3 changes to 2 files
   (run 'hg update' to get a working copy)
   $ hg -R issue1852b update
-  abort: default path for subrepository sub/repo not found (glob)
+  abort: default path for subrepository not found (in subrepo sub/repo) (glob)
   [255]
+
+Ensure a full traceback, not just the SubrepoAbort part
+
+  $ hg -R issue1852b update --traceback 2>&1 | grep 'raise util\.Abort'
+      raise util.Abort(_("default path for subrepository not found"))
 
 Pull -u now doesn't help
 
@@ -645,8 +798,8 @@ Try the same, but with pull -u
 Try to push from the other side
 
   $ hg -R issue1852a push `pwd`/issue1852c
-  pushing to $TESTTMP/sub/issue1852c
-  pushing subrepo sub/repo to $TESTTMP/sub/issue1852c/sub/repo (glob)
+  pushing to $TESTTMP/issue1852c (glob)
+  pushing subrepo sub/repo to $TESTTMP/issue1852c/sub/repo (glob)
   searching for changes
   no changes found
   searching for changes
@@ -693,8 +846,27 @@ subrepository:
   committing subrepository subrepo-2
   $ hg st subrepo-2/file
 
+Check that share works with subrepo
+  $ hg --config extensions.share= share . ../shared
+  updating working directory
+  cloning subrepo subrepo-2 from $TESTTMP/subrepo-status/subrepo-2
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ test -f ../shared/subrepo-1/.hg/sharedpath
+  [1]
+  $ hg -R ../shared in
+  abort: repository default not found!
+  [255]
+  $ hg -R ../shared/subrepo-2 showconfig paths
+  paths.default=$TESTTMP/subrepo-status/subrepo-2
+  $ hg -R ../shared/subrepo-1 sum --remote
+  parent: -1:000000000000 tip (empty repository)
+  branch: default
+  commit: (clean)
+  update: (current)
+  remote: (synced)
+
 Check hg update --clean
-  $ cd $TESTTMP/sub/t
+  $ cd $TESTTMP/t
   $ rm -r t/t.orig
   $ hg status -S --all
   C .hgsub
@@ -722,12 +894,12 @@ Check hg update --clean
   ? s/c
 
 Sticky subrepositories, no changes
-  $ cd $TESTTMP/sub/t
+  $ cd $TESTTMP/t
   $ hg id
   925c17564ef8 tip
   $ hg -R s id
   12a213df6fa9 tip
-  $ hg -R t id  
+  $ hg -R t id
   52c0adc0515a tip
   $ hg update 11
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -735,7 +907,7 @@ Sticky subrepositories, no changes
   365661e5936a
   $ hg -R s id
   fc627a69481f
-  $ hg -R t id  
+  $ hg -R t id
   e95bcfa18a35
 
 Sticky subrepositorys, file changes
@@ -744,10 +916,10 @@ Sticky subrepositorys, file changes
   $ hg add -S s/f1
   $ hg add -S t/f1
   $ hg id
-  365661e5936a
+  365661e5936a+
   $ hg -R s id
   fc627a69481f+
-  $ hg -R t id  
+  $ hg -R t id
   e95bcfa18a35+
   $ hg update tip
    subrepository sources for s differ
@@ -761,7 +933,7 @@ Sticky subrepositorys, file changes
   925c17564ef8+ tip
   $ hg -R s id
   fc627a69481f+
-  $ hg -R t id  
+  $ hg -R t id
   e95bcfa18a35+
   $ hg update --clean tip
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -771,7 +943,7 @@ Sticky subrepository, revision updates
   925c17564ef8 tip
   $ hg -R s id
   12a213df6fa9 tip
-  $ hg -R t id  
+  $ hg -R t id
   52c0adc0515a tip
   $ cd s
   $ hg update -r -2
@@ -788,8 +960,8 @@ Sticky subrepository, revision updates
   $ hg id
   e45c8b14af55+
   $ hg -R s id
-  1c833a7a9e3a
-  $ hg -R t id  
+  02dcf1d70411
+  $ hg -R t id
   7af322bc1198
 
 Sticky subrepository, file changes and revision updates
@@ -800,22 +972,22 @@ Sticky subrepository, file changes and revision updates
   $ hg id
   e45c8b14af55+
   $ hg -R s id
-  1c833a7a9e3a+
-  $ hg -R t id  
+  02dcf1d70411+
+  $ hg -R t id
   7af322bc1198+
   $ hg update tip
    subrepository sources for s differ
-  use (l)ocal source (1c833a7a9e3a) or (r)emote source (12a213df6fa9)?
+  use (l)ocal source (02dcf1d70411) or (r)emote source (12a213df6fa9)?
    l
    subrepository sources for t differ
   use (l)ocal source (7af322bc1198) or (r)emote source (52c0adc0515a)?
    l
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id
-  925c17564ef8 tip
+  925c17564ef8+ tip
   $ hg -R s id
-  1c833a7a9e3a+
-  $ hg -R t id  
+  02dcf1d70411+
+  $ hg -R t id
   7af322bc1198+
 
 Sticky repository, update --clean
@@ -825,7 +997,7 @@ Sticky repository, update --clean
   925c17564ef8 tip
   $ hg -R s id
   12a213df6fa9 tip
-  $ hg -R t id  
+  $ hg -R t id
   52c0adc0515a tip
 
 Test subrepo already at intended revision:
@@ -840,7 +1012,7 @@ Test subrepo already at intended revision:
   11+
   $ hg -R s id
   fc627a69481f
-  $ hg -R t id 
+  $ hg -R t id
   e95bcfa18a35
 
 Test that removing .hgsubstate doesn't break anything:
@@ -1017,3 +1189,28 @@ Forgetting an explicit path in a subrepo untracks the file
   $ hg st -S
   ? s/f19
   $ rm s/f19
+  $ cd ..
+
+Courtesy phases synchronisation to publishing server does not block the push
+(issue3781)
+
+  $ cp -r main issue3781
+  $ cp -r main issue3781-dest
+  $ cd issue3781-dest/s
+  $ hg phase tip # show we have draft changeset
+  5: draft
+  $ chmod a-w .hg/store/phaseroots # prevent phase push
+  $ cd ../../issue3781
+  $ cat >> .hg/hgrc << EOF
+  > [paths]
+  > default=../issue3781-dest/
+  > EOF
+  $ hg push
+  pushing to $TESTTMP/issue3781-dest (glob)
+  pushing subrepo s to $TESTTMP/issue3781-dest/s
+  searching for changes
+  no changes found
+  searching for changes
+  no changes found
+  [1]
+

@@ -6,7 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from mercurial import changegroup, bookmarks, phases
+from mercurial import changegroup
 from mercurial.node import short
 from mercurial.i18n import _
 import os
@@ -38,14 +38,14 @@ def _collectbrokencsets(repo, files, striprev):
     """return the changesets which will be broken by the truncation"""
     s = set()
     def collectone(revlog):
-        links = (revlog.linkrev(i) for i in revlog)
+        linkgen = (revlog.linkrev(i) for i in revlog)
         # find the truncation point of the revlog
-        for lrev in links:
+        for lrev in linkgen:
             if lrev >= striprev:
                 break
         # see if any revision after this point has a linkrev
         # less than striprev (those will be broken by strip)
-        for lrev in links:
+        for lrev in linkgen:
             if lrev < striprev:
                 s.add(lrev)
 
@@ -56,6 +56,9 @@ def _collectbrokencsets(repo, files, striprev):
     return s
 
 def strip(ui, repo, nodelist, backup="all", topic='backup'):
+    repo = repo.unfiltered()
+    repo.destroying()
+
     cl = repo.changelog
     # TODO handle undo of merge sets
     if isinstance(nodelist, str):
@@ -74,7 +77,7 @@ def strip(ui, repo, nodelist, backup="all", topic='backup'):
     #  base = revision in the set that has no ancestor in the set)
     tostrip = set(striplist)
     for rev in striplist:
-        for desc in cl.descendants(rev):
+        for desc in cl.descendants([rev]):
             tostrip.add(desc)
 
     files = _collectfiles(repo, striprev)
@@ -91,10 +94,18 @@ def strip(ui, repo, nodelist, backup="all", topic='backup'):
 
     # compute base nodes
     if saverevs:
-        descendants = set(cl.descendants(*saverevs))
+        descendants = set(cl.descendants(saverevs))
         saverevs.difference_update(descendants)
     savebases = [cl.node(r) for r in saverevs]
     stripbases = [cl.node(r) for r in tostrip]
+
+    # For a set s, max(parents(s) - s) is the same as max(heads(::s - s)), but
+    # is much faster
+    newbmtarget = repo.revs('max(parents(%ld) - (%ld))', tostrip, tostrip)
+    if newbmtarget:
+        newbmtarget = repo[newbmtarget[0]].node()
+    else:
+        newbmtarget = '.'
 
     bm = repo._bookmarks
     updatebm = []
@@ -108,6 +119,7 @@ def strip(ui, repo, nodelist, backup="all", topic='backup'):
     if backup == "all":
         backupfile = _bundle(repo, stripbases, cl.heads(), node, topic)
         repo.ui.status(_("saved backup bundle to %s\n") % backupfile)
+        repo.ui.log("backupbundle", "saved backup bundle to %s\n", backupfile)
     if saveheads or savebases:
         # do not compress partial bundle if we remove it from disk later
         chgrpfile = _bundle(repo, savebases, saveheads, node, 'temp',
@@ -131,7 +143,7 @@ def strip(ui, repo, nodelist, backup="all", topic='backup'):
                 file, troffset, ignore = tr.entries[i]
                 repo.sopener(file, 'a').truncate(troffset)
             tr.close()
-        except:
+        except: # re-raises
             tr.abort()
             raise
 
@@ -158,9 +170,9 @@ def strip(ui, repo, nodelist, backup="all", topic='backup'):
                     ui.warn(_('error removing %s: %s\n') % (undofile, str(e)))
 
         for m in updatebm:
-            bm[m] = repo['.'].node()
-        bookmarks.write(repo)
-    except:
+            bm[m] = repo[newbmtarget].node()
+        bm.write()
+    except: # re-raises
         if backupfile:
             ui.warn(_("strip failed, full bundle stored in '%s'\n")
                     % backupfile)
@@ -170,7 +182,3 @@ def strip(ui, repo, nodelist, backup="all", topic='backup'):
         raise
 
     repo.destroyed()
-
-    # remove potential unknown phase
-    # XXX using to_strip data would be faster
-    phases.filterunknown(repo)

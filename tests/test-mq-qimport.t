@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+  $ "$TESTDIR/hghave" killdaemons || exit 80
 
   $ cat > writelines.py <<EOF
   > import sys
@@ -21,6 +21,12 @@
   $ echo "git=1" >> $HGRCPATH
   $ hg init repo
   $ cd repo
+
+qimport without file or revision
+
+  $ hg qimport
+  abort: no files or revisions specified
+  [255]
 
 qimport non-existing-file
 
@@ -163,7 +169,7 @@ try to import --push
 
   $ cat > appendfoo.diff <<EOF
   > append foo
-  >  
+  > 
   > diff -r 07f494440405 -r 261500830e46 baz
   > --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   > +++ b/baz	Thu Jan 01 00:00:00 1970 +0000
@@ -173,7 +179,7 @@ try to import --push
 
   $ cat > appendbar.diff <<EOF
   > append bar
-  >  
+  > 
   > diff -r 07f494440405 -r 261500830e46 baz
   > --- a/baz	Thu Jan 01 00:00:00 1970 +0000
   > +++ b/baz	Thu Jan 01 00:00:00 1970 +0000
@@ -234,7 +240,7 @@ qimport -e --name with --force
 
 qimport with bad name, should abort before reading file
 
-  $ hg qimport non-existant-file --name .hg
+  $ hg qimport non-existent-file --name .hg
   abort: patch name cannot begin with ".hg"
   [255]
 
@@ -270,3 +276,7 @@ check qimport phase:
   $ hg qimport -r qparent
   $ hg phase qbase
   1: secret
+
+  $ cd ..
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS

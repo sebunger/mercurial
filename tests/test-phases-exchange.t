@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+  $ "$TESTDIR/hghave" killdaemons || exit 80
 
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
@@ -84,7 +84,7 @@
   
 
 pull did not updated ../alpha state.
-push from alpha to beta should update phase even if nothing is transfered
+push from alpha to beta should update phase even if nothing is transferred
 
   $ cd ../alpha
   $ hgph # not updated by remote pull
@@ -1062,4 +1062,45 @@ A. Clone without secret changeset
   |
   o  0 public a-A - 054250a37db4
   
+#if unix-permissions
 
+Pushing From an unlockable repo
+--------------------------------
+(issue3684)
+
+Unability to lock the source repo should not prevent the push. It will prevent
+the retrieval of remote phase during push. For example, pushing to a publishing
+server won't turn changeset public.
+
+1. Test that push is not prevented
+
+  $ hg init Phi
+  $ cd Upsilon
+  $ chmod -R -w .hg
+  $ hg push ../Phi
+  pushing to ../Phi
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 14 changesets with 14 changes to 14 files (+3 heads)
+  $ chmod -R +w .hg
+
+2. Test that failed phases movement are reported
+
+  $ hg phase --force --draft 3
+  $ chmod -R -w .hg
+  $ hg push ../Phi
+  pushing to ../Phi
+  searching for changes
+  no changes found
+  cannot lock source repo, skipping local public phase update
+  [1]
+  $ chmod -R +w .hg
+  $ hgph Upsilon
+
+  $ cd ..
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+
+#endif
