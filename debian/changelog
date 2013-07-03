@@ -1,6 +1,8 @@
 mercurial (2.6.3-1) UNRELEASED; urgency=low
 
   * New upstream release
+  * Remove preinst script as it's mostly checks for stuff that was fixed
+    long ago
 
  -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 22:46:45 +0100
 
