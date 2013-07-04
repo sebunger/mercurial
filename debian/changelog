@@ -4,6 +4,7 @@ mercurial (2.6.3-1) UNRELEASED; urgency=low
   * Remove preinst script as it's mostly checks for stuff that was fixed
     long ago
   * Remove old checks from postinst
+  * Move config files to mercurial-common
 
  -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 22:46:45 +0100
 
