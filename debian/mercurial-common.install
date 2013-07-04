@@ -11,5 +11,3 @@ contrib/hgk usr/share/mercurial/
 contrib/hg-ssh usr/bin
 
 debian/hgrc etc/mercurial/
-contrib/mergetools.hgrc etc/mercurial/hgrc.d/
-debian/cacerts.hgrc etc/mercurial/hgrc.d/
