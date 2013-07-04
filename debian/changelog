@@ -6,6 +6,8 @@ mercurial (2.6.3-1) UNRELEASED; urgency=low
   * Remove old checks from postinst
   * Move config files to mercurial-common
   * Install bash-completion using debhelper's bash-completion sequencer
+  * Compatible with hgsubversion 1.5 or greater, update breaks to
+    reflect that
 
  -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 22:46:45 +0100
 
