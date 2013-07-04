@@ -2,7 +2,7 @@
 # -*- mode: makefile; coding: utf-8 -*-
 
 %:
-	dh $@ --with python2
+	dh $@ --with python2 --with bash-completion
 
 PYVERS=$(shell pyversions -vs)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
@@ -62,10 +62,6 @@ override_dh_install:
 	fi
 
 install-archdep:
-	# Install bash autocompletion.
-	install -m 644 \
-		contrib/bash_completion \
-		$(CURDIR)/debian/mercurial/etc/bash_completion.d/mercurial
 	# remove arch-independent python stuff
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \

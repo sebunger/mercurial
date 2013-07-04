@@ -5,6 +5,7 @@ mercurial (2.6.3-1) UNRELEASED; urgency=low
     long ago
   * Remove old checks from postinst
   * Move config files to mercurial-common
+  * Install bash-completion using debhelper's bash-completion sequencer
 
  -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 22:46:45 +0100
 
