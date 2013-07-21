@@ -1,4 +1,4 @@
-mercurial (2.6.3-1) UNRELEASED; urgency=low
+mercurial (2.6.3-1) unstable; urgency=low
 
   * New upstream release
   * Remove preinst script as it's mostly checks for stuff that was fixed
@@ -9,7 +9,7 @@ mercurial (2.6.3-1) UNRELEASED; urgency=low
   * Compatible with hgsubversion 1.5 or greater, update breaks to
     reflect that
 
- -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 22:46:45 +0100
+ -- Javi Merino <vicho@debian.org>  Sun, 21 Jul 2013 23:31:34 +0200
 
 mercurial (2.6.2-1) unstable; urgency=low
 
