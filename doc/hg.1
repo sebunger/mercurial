@@ -4140,14 +4140,6 @@ extensions. Extensions may add new commands, add options to
 existing commands, change the default behavior of commands, or
 implement hooks.
 .sp
-Extensions are not loaded by default for a variety of reasons:
-they can increase startup overhead; they may be meant for advanced
-usage only; they may provide potentially dangerous abilities (such
-as letting you destroy or modify history); they might not be ready
-for prime time; or they may alter some usual behaviors of stock
-Mercurial. It is thus up to the user to activate extensions as
-needed.
-.sp
 To enable the "foo" extension, either shipped with Mercurial or in the
 Python search path, create an entry for it in your configuration file,
 like this:
@@ -4167,6 +4159,16 @@ You may also specify the full path to an extension:
 myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
+.sp
+See \%\fBhg help config\fP\: for more information on configuration files.
+.sp
+Extensions are not loaded by default for a variety of reasons:
+they can increase startup overhead; they may be meant for advanced
+usage only; they may provide potentially dangerous abilities (such
+as letting you destroy or modify history); they might not be ready
+for prime time; or they may alter some usual behaviors of stock
+Mercurial. It is thus up to the user to activate extensions as
+needed.
 .sp
 To explicitly disable an extension enabled in a configuration file of
 broader scope, prepend its path with !:
@@ -5472,7 +5474,7 @@ publish = False
 .ft P
 .fi
 .sp
-See \%\fBhg help config\fP\: for more information on config files.
+See \%\fBhg help config\fP\: for more information on configuration files.
 .IP Note
 .
 Servers running older versions of Mercurial are treated as

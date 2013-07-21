@@ -2,7 +2,7 @@
 # -*- mode: makefile; coding: utf-8 -*-
 
 %:
-	dh $@ --with python2
+	dh $@ --with python2 --with bash-completion
 
 PYVERS=$(shell pyversions -vs)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
@@ -62,27 +62,21 @@ override_dh_install:
 	fi
 
 install-archdep:
-	# Install bash autocompletion.
-	install -m 644 \
-		contrib/bash_completion \
-		$(CURDIR)/debian/mercurial/etc/bash_completion.d/mercurial
-	# Install system-wide conffiles
-	echo "# system-wide mercurial configuration file" \
-		>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
-	echo "# See hgrc(5) for more information" \
-		>>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
-	install -m 644 \
-		contrib/mergetools.hgrc \
-		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
-	install -m 644 \
-		debian/cacerts.hgrc \
-		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/cacerts.rc
 	# remove arch-independent python stuff
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \
 		-type d -empty -delete
 
 install-archindep:
+        # Install system-wide conffiles.  Note the rename from .hgrc
+        # to .rc, which dh_install can't do if you list the file in
+        # mercurial-common.install
+	install -m 644 \
+		contrib/mergetools.hgrc \
+		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
+	install -m 644 \
+		debian/cacerts.hgrc \
+		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/cacerts.rc
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
