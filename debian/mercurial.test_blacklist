@@ -15,6 +15,8 @@ test-hgweb-raw.t
 test-hgweb-removed.t
 test-hgwebdir.t
 test-hgwebdirsym.t
+test-http.t
+test-identify.t
 test-interhg.t
 test-keyword.t
 test-largefiles.t
