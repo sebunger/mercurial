@@ -8,8 +8,6 @@ mercurial (2.6.3-1) unstable; urgency=low
   * Install bash-completion using debhelper's bash-completion sequencer
   * Compatible with hgsubversion 1.5 or greater, update breaks to
     reflect that
-  * Blacklist test-http and test-identify as they seem to require
-    networking
 
  -- Javi Merino <vicho@debian.org>  Sun, 21 Jul 2013 23:31:34 +0200
 
