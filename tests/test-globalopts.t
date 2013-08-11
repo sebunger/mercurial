@@ -303,7 +303,7 @@ Testing -h/--help:
    forget        forget the specified files on the next commit
    graft         copy changes from other branches onto the current branch
    grep          search for a pattern in specified files and revisions
-   heads         show current repository heads or show branch heads
+   heads         show branch heads
    help          show help for a given topic or a help overview
    identify      identify the working copy or specified revision
    import        import an ordered set of patches
@@ -324,7 +324,6 @@ Testing -h/--help:
    rename        rename files; equivalent of copy + remove
    resolve       redo merges or set/view the merge status of files
    revert        restore files to their checkout state
-   rollback      roll back the last transaction (dangerous)
    root          print the root (top) of the current working directory
    serve         start stand-alone webserver
    showconfig    show combined config settings from all hgrc files
@@ -332,7 +331,6 @@ Testing -h/--help:
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
    tags          list repository tags
-   tip           show the tip revision
    unbundle      apply one or more changegroup files
    update        update working directory (or switch revisions)
    verify        verify the integrity of the repository
@@ -387,7 +385,7 @@ Testing -h/--help:
    forget        forget the specified files on the next commit
    graft         copy changes from other branches onto the current branch
    grep          search for a pattern in specified files and revisions
-   heads         show current repository heads or show branch heads
+   heads         show branch heads
    help          show help for a given topic or a help overview
    identify      identify the working copy or specified revision
    import        import an ordered set of patches
@@ -408,7 +406,6 @@ Testing -h/--help:
    rename        rename files; equivalent of copy + remove
    resolve       redo merges or set/view the merge status of files
    revert        restore files to their checkout state
-   rollback      roll back the last transaction (dangerous)
    root          print the root (top) of the current working directory
    serve         start stand-alone webserver
    showconfig    show combined config settings from all hgrc files
@@ -416,7 +413,6 @@ Testing -h/--help:
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
    tags          list repository tags
-   tip           show the tip revision
    unbundle      apply one or more changegroup files
    update        update working directory (or switch revisions)
    verify        verify the integrity of the repository

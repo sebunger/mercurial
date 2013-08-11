@@ -1,3 +1,11 @@
+mercurial (2.7-1) unstable; urgency=low
+
+  * New upstream release
+  * Remove shrink-revlog.py from examples as it is no longer shipped in
+    mercurial
+
+ -- Javi Merino <vicho@debian.org>  Sun, 11 Aug 2013 16:09:20 +0200
+
 mercurial (2.6.3-1) unstable; urgency=low
 
   * New upstream release

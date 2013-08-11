@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2055,8 +2055,8 @@ def debuginstall(ui):
+@@ -2089,8 +2089,8 @@ def debuginstall(ui):
      editor = ui.geteditor()
      cmdpath = util.findexe(editor) or util.findexe(editor.split()[0])
      if not cmdpath:
@@ -26,7 +26,7 @@ Use sensible-editor as default instead of vi.
          else:
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -753,7 +753,7 @@ class ui(object):
+@@ -754,7 +754,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -67,7 +67,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/de.po
 +++ b/i18n/de.po
-@@ -10755,8 +10755,8 @@ msgstr "(Vorlagen scheinen falsch instal
+@@ -11328,8 +11328,8 @@ msgstr "(Vorlagen scheinen falsch instal
  msgid "checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -78,7 +78,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
-@@ -16050,7 +16050,8 @@ msgstr ""
+@@ -16933,7 +16933,8 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -88,7 +88,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -16832,7 +16833,7 @@ msgid ""
+@@ -17815,7 +17816,7 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -97,9 +97,9 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -16840,7 +16841,7 @@ msgstr ""
- "    geschrieben wird. Der verwendete Editor wird aus den drei Umgebungs-\n"
- "    variablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge) ermittelt.\n"
+@@ -17824,7 +17825,7 @@ msgstr ""
+ "    variablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge) "
+ "ermittelt.\n"
  "    Der erste nicht-leere wird verwendet. Wenn alle Angaben leer sind,\n"
 -"    wird die Voreinstellung 'vi' verwendet."
 +"    wird die Voreinstellung 'sensible-editor' verwendet."
@@ -170,7 +170,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/ja.po
 +++ b/i18n/ja.po
-@@ -11548,8 +11548,8 @@ msgstr " (テンプレートのインス
+@@ -11603,8 +11603,8 @@ msgstr " (テンプレートのインス
  msgid "checking commit editor...\n"
  msgstr "メッセージ入力用エディタの確認中...\n"
  
@@ -181,7 +181,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (コミットログ用エディタを設定ファイルで設定してください)\n"
-@@ -18078,11 +18078,12 @@ msgstr ""
+@@ -18161,11 +18161,12 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -196,7 +196,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -19240,7 +19241,7 @@ msgid ""
+@@ -19323,7 +19324,7 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -205,7 +205,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    コミットログ入力時のように、 エディタでファイルを開き、\n"
-@@ -19248,7 +19249,7 @@ msgstr ""
+@@ -19331,7 +19332,7 @@ msgstr ""
  "    そこで使用されるエディタは、 HGEDITOR、 VISUAL\n"
  "    あるいは EDITOR 環境変数に設定されたものを(この順序で)使用します。\n"
  "    最初の空で無い値に設定された環境変数の値を使用します。\n"
@@ -216,7 +216,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -11697,10 +11697,10 @@ msgstr " (modelos parecem ter sido insta
+@@ -11746,10 +11746,10 @@ msgstr " (modelos parecem ter sido insta
  msgid "checking commit editor...\n"
  msgstr "verificando editor para consolidação...\n"
  
@@ -229,7 +229,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr ""
-@@ -18395,10 +18395,12 @@ msgstr ""
+@@ -18473,10 +18473,12 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -244,7 +244,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -19588,7 +19590,7 @@ msgid ""
+@@ -19666,7 +19668,7 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -253,7 +253,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -19596,7 +19598,7 @@ msgstr ""
+@@ -19674,7 +19676,7 @@ msgstr ""
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
