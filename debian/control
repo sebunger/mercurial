@@ -21,6 +21,7 @@ X-Python-Version: >= 2.4
 
 Package: mercurial-common
 Architecture: all 
+Pre-Depends: dpkg (>= 1.15.6~)
 Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mercurial (>= ${source:Version}), ca-certificates
 Suggests: wish,
@@ -38,6 +39,7 @@ Description: easy-to-use, scalable distributed version control system (common fi
 
 Package: mercurial
 Architecture: any 
+Pre-Depends: dpkg (>= 1.15.6~)
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
 Recommends: openssh-client
