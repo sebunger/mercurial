@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1013,6 +1017,8 @@ class svn_sink(converter_sink, commandli
+@@ -1023,6 +1027,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
