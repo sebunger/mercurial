@@ -1,8 +1,8 @@
-mercurial (2.7-1) UNRELEASED; urgency=low
+mercurial (2.7-1) unstable; urgency=low
 
   * New upstream release
 
- -- Javi Merino <vicho@debian.org>  Sun, 11 Aug 2013 14:39:24 +0200
+ -- Javi Merino <vicho@debian.org>  Sun, 11 Aug 2013 16:09:20 +0200
 
 mercurial (2.6.3-1) unstable; urgency=low
 
