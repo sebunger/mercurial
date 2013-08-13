@@ -1,9 +1,9 @@
-mercurial (2.7-2) UNRELEASED; urgency=low
+mercurial (2.7-2) unstable; urgency=low
 
   * Fix "conffiles not removed" by properly moving them to mercurial-common
     (Closes: #718621)
 
- -- Javi Merino <vicho@debian.org>  Tue, 13 Aug 2013 23:09:03 +0200
+ -- Javi Merino <vicho@debian.org>  Tue, 13 Aug 2013 23:11:14 +0200
 
 mercurial (2.7-1) unstable; urgency=low
 
