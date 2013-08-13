@@ -68,15 +68,15 @@ install-archdep:
 		-type d -empty -delete
 
 install-archindep:
-        # Install system-wide conffiles.  Note the rename from .hgrc
-        # to .rc, which dh_install can't do if you list the file in
-        # mercurial-common.install
+	# Install system-wide conffiles.  Note the rename from .hgrc
+	# to .rc, which dh_install can't do if you list the file in
+	# mercurial-common.install
 	install -m 644 \
 		contrib/mergetools.hgrc \
-		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
+		$(CURDIR)/debian/mercurial-common/etc/mercurial/hgrc.d/mergetools.rc
 	install -m 644 \
 		debian/cacerts.hgrc \
-		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/cacerts.rc
+		$(CURDIR)/debian/mercurial-common/etc/mercurial/hgrc.d/cacerts.rc
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
