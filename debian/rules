@@ -2,7 +2,7 @@
 # -*- mode: makefile; coding: utf-8 -*-
 
 %:
-	dh $@ --with python2 --with bash-completion
+	dh $@ --with python2,bash-completion
 
 PYVERS=$(shell pyversions -vs)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
