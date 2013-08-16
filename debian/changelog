@@ -1,3 +1,9 @@
+mercurial (2.7-3) UNRELEASED; urgency=low
+
+  * Enable tests that need networking
+
+ -- Javi Merino <vicho@debian.org>  Fri, 16 Aug 2013 18:50:39 +0200
+
 mercurial (2.7-2) unstable; urgency=low
 
   * Fix "conffiles not removed" by properly moving them to mercurial-common
