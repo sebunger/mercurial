@@ -451,9 +451,16 @@ actiontable = {'p': pick,
      ('f', 'force', False,
       _('force outgoing even for unrelated repositories')),
      ('r', 'rev', [], _('first revision to be edited'))],
-     _("[PARENT]"))
+     _("ANCESTOR | --outgoing [URL]"))
 def histedit(ui, repo, *freeargs, **opts):
     """interactively edit changeset history
+
+    This command edits changesets between ANCESTOR and the parent of
+    the working directory.
+
+    With --outgoing, this edits changesets not found in the
+    destination repository. If URL of the destination is omitted, the
+    'default-push' (or 'default') path will be used.
     """
     # TODO only abort if we try and histedit mq patches, not just
     # blanket if mq patches are applied somewhere
@@ -493,7 +500,7 @@ def histedit(ui, repo, *freeargs, **opts):
             revs.extend(freeargs)
             if len(revs) != 1:
                 raise util.Abort(
-                    _('histedit requires exactly one parent revision'))
+                    _('histedit requires exactly one ancestor revision'))
 
 
     if goal == 'continue':

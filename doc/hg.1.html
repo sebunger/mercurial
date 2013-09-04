@@ -6842,9 +6842,13 @@ repo, you can add a <tt class="docutils literal"><span class="pre">--force</span
 <div class="section" id="id23">
 <h4>histedit</h4>
 <pre class="literal-block">
-hg histedit [PARENT]
+hg histedit ANCESTOR | --outgoing [URL]
 </pre>
-<p>interactively edit changeset history</p>
+<p>This command edits changesets between ANCESTOR and the parent of
+the working directory.</p>
+<p>With --outgoing, this edits changesets not found in the
+destination repository. If URL of the destination is omitted, the
+'default-push' (or 'default') path will be used.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
