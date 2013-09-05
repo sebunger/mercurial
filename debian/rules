@@ -22,7 +22,7 @@ ARCH_IS_KFREEBSD-i386 := $(if $(subst kfreebsd-i386,,$(DEB_HOST_ARCH)),,T)
 ARCH_IS_ARMEL := $(if $(subst armel,,$(DEB_HOST_ARCH)),,T)
 ARCH_IS_SPARC := $(if $(subst sparc,,$(DEB_HOST_ARCH)),,T)
 
-# override_dh_auto_test:
+override_dh_auto_test:
 # ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 # # test-pull-pull-corruption tries to execute two hg commands at the
 # # same time to test for corruption.  It does so by running an hg
