@@ -1,3 +1,46 @@
+mercurial (2.7.1-2) unstable; urgency=low
+
+  * Temporarily don't run the testsuite when building.  Since 2.7.1 it
+    timeouts in buildd environments (but works ok if run in the command
+    line).
+
+ -- Javi Merino <vicho@debian.org>  Thu, 05 Sep 2013 21:52:14 +0100
+
+mercurial (2.7.1-1) unstable; urgency=low
+
+  * New upstream release
+  * Enable tests that need networking
+
+ -- Javi Merino <vicho@debian.org>  Wed, 04 Sep 2013 23:06:57 +0100
+
+mercurial (2.7-2) unstable; urgency=low
+
+  * Fix "conffiles not removed" by properly moving them to mercurial-common
+    (Closes: #718621)
+
+ -- Javi Merino <vicho@debian.org>  Tue, 13 Aug 2013 23:11:14 +0200
+
+mercurial (2.7-1) unstable; urgency=low
+
+  * New upstream release
+  * Remove shrink-revlog.py from examples as it is no longer shipped in
+    mercurial
+
+ -- Javi Merino <vicho@debian.org>  Sun, 11 Aug 2013 16:09:20 +0200
+
+mercurial (2.6.3-1) unstable; urgency=low
+
+  * New upstream release
+  * Remove preinst script as it's mostly checks for stuff that was fixed
+    long ago
+  * Remove old checks from postinst
+  * Move config files to mercurial-common
+  * Install bash-completion using debhelper's bash-completion sequencer
+  * Compatible with hgsubversion 1.5 or greater, update breaks to
+    reflect that
+
+ -- Javi Merino <vicho@debian.org>  Sun, 21 Jul 2013 23:31:34 +0200
+
 mercurial (2.6.2-1~bpo70+1) wheezy-backports; urgency=low
 
   * Rebuild for wheezy-backports.

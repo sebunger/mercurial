@@ -1,34 +1,3 @@
-# These tests need networking (there is no network in buildds, not
-# even loopback)
-test-archive.t
-test-extension.t
-test-hgweb.t
-test-hgweb-commands.t
-test-hgweb-descend-empties.t
-test-hgweb-diffs.t
-test-hgweb-empty.t
-test-hgweb-filelog.t
-test-hgweb-no-path-info.t
-test-hgweb-no-request-uri.t
-test-hgweb-non-interactive.t
-test-hgweb-raw.t
-test-hgweb-removed.t
-test-hgwebdir.t
-test-hgwebdirsym.t
-test-interhg.t
-test-keyword.t
-test-largefiles.t
-test-mq-qclone-http.t
-test-mq-qimport.t
-test-newcgi.t
-test-newercgi.t
-test-obsolete.t
-test-oldcgi.t
-test-serve.t
-test-share.t
-test-subrepo-relative-path.t
-test-websub.t
-
 # Failed to locate styles (?)
 test-bisect3.t
 test-command-template.t

@@ -2,7 +2,7 @@ Support installation of templates handled by mercurial-common.install.
 
 --- a/mercurial/templater.py
 +++ b/mercurial/templater.py
-@@ -323,7 +323,7 @@ funcs = {
+@@ -368,7 +368,7 @@ funcs = {
  
  # template engine
  
