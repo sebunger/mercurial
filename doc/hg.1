@@ -97,7 +97,7 @@ start debugger
 .TP
 .B \-\-encoding
 .
-set the charset encoding (default: ascii)
+set the charset encoding (default: UTF\-8)
 .TP
 .B \-\-encodingmode
 .
@@ -667,7 +667,7 @@ do not update to target
 .sp
 .nf
 .ft C
-hg bookmarks [\-f] [\-d] [\-i] [\-m NAME] [\-r REV] [NAME]
+hg bookmarks [OPTIONS]... [NAME]...
 .ft P
 .fi
 .sp
@@ -871,8 +871,7 @@ hg cat [OPTION]... FILE...
 .fi
 .sp
 Print the specified files as they were at the given revision. If
-no revision is given, the parent of the working directory is used,
-or tip if no revision is checked out.
+no revision is given, the parent of the working directory is used.
 .sp
 Output may be to a file, in which case the name of the file is
 given using a format string. The formatting rules are the same as
@@ -1165,6 +1164,10 @@ mark a branch as closed, hiding it from the branch list
 .B \-\-amend
 .
 amend the parent of the working dir
+.TP
+.B \-s,  \-\-secret
+.
+use the secret phase for committing
 .TP
 .B \-I,  \-\-include
 .
@@ -1650,7 +1653,7 @@ show the source of a grafted changeset:
 .sp
 .nf
 .ft C
-hg log \-\-debug \-r tip
+hg log \-\-debug \-r .
 .ft P
 .fi
 .UNINDENT
@@ -1782,17 +1785,15 @@ hg heads [\-ct] [\-r STARTREV] [REV]...
 .ft P
 .fi
 .sp
-With no arguments, show all repository branch heads.
+With no arguments, show all open branch heads in the repository.
+Branch heads are changesets that have no descendants on the
+same branch. They are where development generally takes place and
+are the usual targets for update and merge operations.
 .sp
-Repository "heads" are changesets with no child changesets. They are
-where development generally takes place and are the usual targets
-for update and merge operations. Branch heads are changesets that have
-no child changeset on the same branch.
-.sp
-If one or more REVs are given, only branch heads on the branches
-associated with the specified changesets are shown. This means
-that you can use \%\fBhg heads foo\fP\: to see the heads on a branch
-named \fBfoo\fP.
+If one or more REVs are given, only open branch heads on the
+branches associated with the specified changesets are shown. This
+means that you can use \%\fBhg heads .\fP\: to see the heads on the
+currently checked\-out branch.
 .sp
 If \-c/\-\-closed is specified, also show branch heads marked closed
 (see \%\fBhg commit \-\-close\-branch\fP\:).
@@ -1801,7 +1802,7 @@ If STARTREV is specified, only those heads that are descendants of
 STARTREV will be displayed.
 .sp
 If \-t/\-\-topo is specified, named branch mechanics will be ignored and only
-changesets without children will be shown.
+topological heads (changesets with no children) will be shown.
 .sp
 Returns 0 if matching heads are found, 1 if not.
 .sp
@@ -1966,8 +1967,8 @@ hg import [OPTION]... PATCH...
 Import a list of patches and commit them individually (unless
 \-\-no\-commit is specified).
 .sp
-If there are outstanding changes in the working directory, import
-will abort unless given the \-f/\-\-force flag.
+Because import first applies changes to the working directory,
+import will abort if there are outstanding changes.
 .sp
 You can import a patch straight from a mail message. Even patches
 as attachments work (to use the body part, it must have type
@@ -2059,7 +2060,7 @@ invoke editor on commit messages
 .TP
 .B \-f,  \-\-force
 .
-skip check for outstanding uncommitted changes
+skip check for outstanding uncommitted changes (DEPRECATED)
 .TP
 .B \-\-no\-commit
 .
@@ -2572,7 +2573,7 @@ Options:
 .TP
 .B \-f,  \-\-force
 .
-force a merge with outstanding changes
+force a merge including outstanding changes (DEPRECATED)
 .TP
 .B \-r,  \-\-rev
 .
@@ -3248,6 +3249,9 @@ hg rollback
 .ft P
 .fi
 .sp
+Please use \%\fBhg commit \-\-amend\fP\: instead of rollback to correct
+mistakes in the last commit.
+.sp
 This command should be used with care. There is only one level of
 rollback, and there is no way to undo a rollback. It will also
 restore the dirstate at the time of the last transaction, losing
@@ -3632,7 +3636,7 @@ earlier versions or to mark branch points as releases, etc. Changing
 an existing tag is normally disallowed; use \-f/\-\-force to override.
 .sp
 If no revision is given, the parent of the working directory is
-used, or tip if no revision is checked out.
+used.
 .sp
 To facilitate version control, distribution, and merging of tags,
 they are stored as a file named ".hgtags" which is managed similarly
@@ -3716,6 +3720,8 @@ If you have just made a commit, that commit will be the tip. If
 you have just pulled changes from another repository, the tip of
 that repository becomes the current tip. The "tip" tag is special
 and cannot be renamed or assigned to a different changeset.
+.sp
+This command is deprecated, please use \%\fBhg heads\fP\: instead.
 .sp
 Returns 0 on success.
 .sp
@@ -4140,14 +4146,6 @@ extensions. Extensions may add new commands, add options to
 existing commands, change the default behavior of commands, or
 implement hooks.
 .sp
-Extensions are not loaded by default for a variety of reasons:
-they can increase startup overhead; they may be meant for advanced
-usage only; they may provide potentially dangerous abilities (such
-as letting you destroy or modify history); they might not be ready
-for prime time; or they may alter some usual behaviors of stock
-Mercurial. It is thus up to the user to activate extensions as
-needed.
-.sp
 To enable the "foo" extension, either shipped with Mercurial or in the
 Python search path, create an entry for it in your configuration file,
 like this:
@@ -4167,6 +4165,16 @@ You may also specify the full path to an extension:
 myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
+.sp
+See \%\fBhg help config\fP\: for more information on configuration files.
+.sp
+Extensions are not loaded by default for a variety of reasons:
+they can increase startup overhead; they may be meant for advanced
+usage only; they may provide potentially dangerous abilities (such
+as letting you destroy or modify history); they might not be ready
+for prime time; or they may alter some usual behaviors of stock
+Mercurial. It is thus up to the user to activate extensions as
+needed.
 .sp
 To explicitly disable an extension enabled in a configuration file of
 broader scope, prepend its path with !:
@@ -5472,7 +5480,7 @@ publish = False
 .ft P
 .fi
 .sp
-See \%\fBhg help config\fP\: for more information on config files.
+See \%\fBhg help config\fP\: for more information on configuration files.
 .IP Note
 .
 Servers running older versions of Mercurial are treated as
@@ -6272,8 +6280,8 @@ template\-style (\-\-style).
 You can customize output for any "log\-like" command: log,
 outgoing, incoming, tip, parents, heads and glog.
 .sp
-Four styles are packaged with Mercurial: default (the style used
-when no explicit preference is passed), compact, changelog,
+Five styles are packaged with Mercurial: default (the style used
+when no explicit preference is passed), compact, changelog, phases
 and xml.
 Usage:
 .sp
@@ -6578,8 +6586,8 @@ possible. For example, "foo" and "foo/bar" becomes "foo".
 .TP
 .B tabindent
 .
-Any text. Returns the text, with every line except the
-first starting with a tab character.
+Any text. Returns the text, with every non\-empty line
+except the first starting with a tab character.
 .TP
 .B urlescape
 .
@@ -6620,10 +6628,13 @@ join(list, sep)
 label(label, expr)
 .IP \(bu 2
 .
-sub(pat, repl, expr)
+rstdoc(text, style)
 .IP \(bu 2
 .
-rstdoc(text, style)
+strip(text[, chars])
+.IP \(bu 2
+.
+sub(pat, repl, expr)
 .UNINDENT
 .sp
 Also, for any expression that returns a list, there is a list operator:
@@ -7496,6 +7507,7 @@ by providing a file using the following format:
 .sp
 Such a file may be specified with the \-\-aliases option, otherwise
 a .hgchurn file will be looked for in the working directory root.
+Aliases will be split from the rightmost "=".
 .sp
 Options:
 .INDENT 0.0
@@ -7598,6 +7610,11 @@ branches.inactive = none
 
 tags.normal = green
 tags.local = black bold
+
+rebase.rebased = blue
+rebase.remaining = red bold
+
+histedit.remaining = red bold
 .ft P
 .fi
 .sp
@@ -8850,11 +8867,16 @@ repo, you can add a \fB\-\-force\fP option.
 .sp
 .nf
 .ft C
-hg histedit [PARENT]
+hg histedit ANCESTOR | \-\-outgoing [URL]
 .ft P
 .fi
 .sp
-interactively edit changeset history
+This command edits changesets between ANCESTOR and the parent of
+the working directory.
+.sp
+With \-\-outgoing, this edits changesets not found in the
+destination repository. If URL of the destination is omitted, the
+\(aqdefault\-push\(aq (or \(aqdefault\(aq) path will be used.
 .sp
 Options:
 .INDENT 0.0
@@ -9498,6 +9520,10 @@ mark a branch as closed, hiding it from the branch list
 .
 amend the parent of the working dir
 .TP
+.B \-s,  \-\-secret
+.
+use the secret phase for committing
+.TP
 .B \-I,  \-\-include
 .
 include names matching the given patterns
@@ -9794,11 +9820,12 @@ With \-f/\-\-force, an existing patch of the same name will be
 overwritten.
 .sp
 An existing changeset may be placed under mq control with \-r/\-\-rev
-(e.g. qimport \-\-rev tip \-n patch will place tip under mq control).
-With \-g/\-\-git, patches imported with \-\-rev will use the git diff
-format. See the diffs help topic for information on why this is
-important for preserving rename/copy information and permission
-changes. Use \%\fBhg qfinish\fP\: to remove changesets from mq control.
+(e.g. qimport \-\-rev . \-n patch will place the current revision
+under mq control). With \-g/\-\-git, patches imported with \-\-rev will
+use the git diff format. See the diffs help topic for information
+on why this is important for preserving rename/copy information
+and permission changes. Use \%\fBhg qfinish\fP\: to remove changesets
+from mq control.
 .sp
 To import a patch from standard input, pass \- as the patch file.
 When importing from standard input, a patch name must be specified
@@ -11092,9 +11119,9 @@ In its default configuration, Mercurial will prevent you from
 rebasing published changes. See \%\fBhg help phases\fP\: for details.
 .sp
 If you don\(aqt specify a destination changeset (\fB\-d/\-\-dest\fP),
-rebase uses the tipmost head of the current named branch as the
-destination. (The destination changeset is not modified by
-rebasing, but new changesets are added as its descendants.)
+rebase uses the current branch tip as the destination. (The
+destination changeset is not modified by rebasing, but new
+changesets are added as its descendants.)
 .sp
 You can specify which changesets to rebase in two ways: as a
 "source" changeset or as a "base" changeset. Both are shorthand
@@ -11121,7 +11148,7 @@ branch) may be dropped if they no longer contribute any change.
 .sp
 One result of the rules for selecting the destination changeset
 and source branch is that, unlike \fBmerge\fP, rebase will do
-nothing if you are at the latest (tipmost) head of a named branch
+nothing if you are at the branch tip of a named branch
 with two heads. You need to explicitly specify source and/or
 destination (or \fBupdate\fP to the other head, if it\(aqs the head of
 the intended source branch).
@@ -11263,6 +11290,10 @@ mark a branch as closed, hiding it from the branch list
 .B \-\-amend
 .
 amend the parent of the working dir
+.TP
+.B \-s,  \-\-secret
+.
+use the secret phase for committing
 .TP
 .B \-I,  \-\-include
 .
@@ -11413,8 +11444,7 @@ the same changeset, and one of them destroys that changeset
 with rollback, the other clone will suddenly stop working: all
 operations will fail with "abort: working directory has unknown
 parent". The only known workaround is to use debugsetparents on
-the broken clone to reset it to a changeset that still exists
-(e.g. tip).
+the broken clone to reset it to a changeset that still exists.
 .RE
 .sp
 Options:
@@ -11759,7 +11789,7 @@ Source code repository: \%http://selenic.com/hg\:
 Mailing list: \%http://selenic.com/mailman/listinfo/mercurial\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2012 Matt Mackall.
+Copyright (C) 2005\-2013 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

@@ -437,14 +437,13 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                 _update(destrepo, uprev)
                 if update in destrepo._bookmarks:
                     bookmarks.setcurrent(destrepo, update)
-
-        return srcpeer, destpeer
     finally:
         release(srclock, destlock)
         if cleandir is not None:
             shutil.rmtree(cleandir, True)
         if srcpeer is not None:
             srcpeer.close()
+    return srcpeer, destpeer
 
 def _showstats(repo, stats):
     repo.ui.status(_("%d files updated, %d files merged, "
@@ -472,6 +471,7 @@ _update = update
 def clean(repo, node, show_stats=True):
     """forcibly switch the working directory to node, clobbering changes"""
     stats = updaterepo(repo, node, True)
+    util.unlinkpath(repo.join('graftstate'), ignoremissing=True)
     if show_stats:
         _showstats(repo, stats)
     return stats[3] > 0

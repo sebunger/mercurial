@@ -84,6 +84,25 @@ log on directory
   abort: cannot follow file not in parent revision: "dir"
   [255]
 
+-f, a wrong style
+
+  $ hg log -f -l1 --style something
+  abort: style 'something' not found
+  (available styles: bisect, changelog, compact, default, phases, xml)
+  [255]
+
+-f, phases style
+
+
+  $ hg log -f -l1 --style phases
+  changeset:   4:7e4639b4691b
+  tag:         tip
+  phase:       draft
+  user:        test
+  date:        Thu Jan 01 00:00:05 1970 +0000
+  summary:     e
+  
+
 -f, but no args
 
   $ hg log -f
@@ -1204,6 +1223,9 @@ enable obsolete to test hidden feature
   $ hg log --template='{rev}:{node}\n' --hidden
   1:a765632148dc55d38c35c4f247c618701886cb2f
   0:9f758d63dcde62d547ebfb08e1e7ee96535f2b05
+  $ hg log -r a
+  abort: unknown revision 'a'!
+  [255]
 
 test that parent prevent a changeset to be hidden
 

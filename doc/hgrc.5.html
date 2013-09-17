@@ -11,6 +11,7 @@
 </head>
 <body>
 <div class="document" id="hgrc">
+<span id="hgrc-5"></span>
 <h1 class="title">hgrc</h1>
 <h2 class="subtitle" id="configuration-files-for-mercurial">configuration files for Mercurial</h2>
 <table class="docinfo" frame="void" rules="none">
@@ -30,48 +31,48 @@
 <div class="contents htmlonly topic" id="contents">
 <p class="topic-title first">Contents</p>
 <ul class="simple">
-<li><a class="reference internal" href="#synopsis" id="id1">Synopsis</a></li>
-<li><a class="reference internal" href="#files" id="id2">Files</a></li>
-<li><a class="reference internal" href="#syntax" id="id3">Syntax</a></li>
-<li><a class="reference internal" href="#sections" id="id4">Sections</a><ul>
-<li><a class="reference internal" href="#alias" id="id5"><tt class="docutils literal">alias</tt></a></li>
-<li><a class="reference internal" href="#annotate" id="id6"><tt class="docutils literal">annotate</tt></a></li>
-<li><a class="reference internal" href="#auth" id="id7"><tt class="docutils literal">auth</tt></a></li>
-<li><a class="reference internal" href="#decode-encode" id="id8"><tt class="docutils literal">decode/encode</tt></a></li>
-<li><a class="reference internal" href="#defaults" id="id9"><tt class="docutils literal">defaults</tt></a></li>
-<li><a class="reference internal" href="#diff" id="id10"><tt class="docutils literal">diff</tt></a></li>
-<li><a class="reference internal" href="#email" id="id11"><tt class="docutils literal">email</tt></a></li>
-<li><a class="reference internal" href="#extensions" id="id12"><tt class="docutils literal">extensions</tt></a></li>
-<li><a class="reference internal" href="#format" id="id13"><tt class="docutils literal">format</tt></a></li>
-<li><a class="reference internal" href="#graph" id="id14"><tt class="docutils literal">graph</tt></a></li>
-<li><a class="reference internal" href="#hooks" id="id15"><tt class="docutils literal">hooks</tt></a></li>
-<li><a class="reference internal" href="#hostfingerprints" id="id16"><tt class="docutils literal">hostfingerprints</tt></a></li>
-<li><a class="reference internal" href="#http-proxy" id="id17"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id18"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id19"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#patch" id="id20"><tt class="docutils literal">patch</tt></a></li>
-<li><a class="reference internal" href="#paths" id="id21"><tt class="docutils literal">paths</tt></a></li>
-<li><a class="reference internal" href="#phases" id="id22"><tt class="docutils literal">phases</tt></a></li>
-<li><a class="reference internal" href="#profiling" id="id23"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#revsetalias" id="id24"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#server" id="id25"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id26"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id27"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id28"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id29"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id30"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id31"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id32"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#description" id="id2">Description</a></li>
+<li><a class="reference internal" href="#files" id="id3">Files</a></li>
+<li><a class="reference internal" href="#syntax" id="id4">Syntax</a></li>
+<li><a class="reference internal" href="#sections" id="id5">Sections</a><ul>
+<li><a class="reference internal" href="#alias" id="id6"><tt class="docutils literal">alias</tt></a></li>
+<li><a class="reference internal" href="#annotate" id="id7"><tt class="docutils literal">annotate</tt></a></li>
+<li><a class="reference internal" href="#auth" id="id8"><tt class="docutils literal">auth</tt></a></li>
+<li><a class="reference internal" href="#decode-encode" id="id9"><tt class="docutils literal">decode/encode</tt></a></li>
+<li><a class="reference internal" href="#defaults" id="id10"><tt class="docutils literal">defaults</tt></a></li>
+<li><a class="reference internal" href="#diff" id="id11"><tt class="docutils literal">diff</tt></a></li>
+<li><a class="reference internal" href="#email" id="id12"><tt class="docutils literal">email</tt></a></li>
+<li><a class="reference internal" href="#extensions" id="id13"><tt class="docutils literal">extensions</tt></a></li>
+<li><a class="reference internal" href="#format" id="id14"><tt class="docutils literal">format</tt></a></li>
+<li><a class="reference internal" href="#graph" id="id15"><tt class="docutils literal">graph</tt></a></li>
+<li><a class="reference internal" href="#hooks" id="id16"><tt class="docutils literal">hooks</tt></a></li>
+<li><a class="reference internal" href="#hostfingerprints" id="id17"><tt class="docutils literal">hostfingerprints</tt></a></li>
+<li><a class="reference internal" href="#http-proxy" id="id18"><tt class="docutils literal">http_proxy</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id19"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id20"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
+<li><a class="reference internal" href="#patch" id="id21"><tt class="docutils literal">patch</tt></a></li>
+<li><a class="reference internal" href="#paths" id="id22"><tt class="docutils literal">paths</tt></a></li>
+<li><a class="reference internal" href="#phases" id="id23"><tt class="docutils literal">phases</tt></a></li>
+<li><a class="reference internal" href="#profiling" id="id24"><tt class="docutils literal">profiling</tt></a></li>
+<li><a class="reference internal" href="#revsetalias" id="id25"><tt class="docutils literal">revsetalias</tt></a></li>
+<li><a class="reference internal" href="#server" id="id26"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id27"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id28"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id29"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id30"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id31"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id32"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id33"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id33">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id34">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id35">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id34">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id35">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id36">Copying</a></li>
 </ul>
 </div>
-<div class="section" id="synopsis">
-<h1><a class="toc-backref" href="#contents">Synopsis</a></h1>
-<p>The Mercurial system uses a set of configuration files to control
+<div class="section" id="description">
+<h1><a class="toc-backref" href="#contents">Description</a></h1>
+<p id="hgrc-5-gendoc">The Mercurial system uses a set of configuration files to control
 aspects of its behavior.</p>
 <p>The configuration files use a simple ini-file format. A configuration
 file consists of sections, led by a <tt class="docutils literal">[section]</tt> header and followed
@@ -1434,10 +1435,10 @@ negative value is treated as <tt class="docutils literal">use the default</tt>.<
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2012 Matt Mackall.
+Mercurial is copyright 2005-2013 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
-<!-- Common link and substitution definitions. -->
+<span class="target" id="common"></span><!-- Common link and substitution definitions. -->
 </div>
 </div>
 </body>
