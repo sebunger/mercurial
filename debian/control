@@ -18,6 +18,7 @@ Homepage: http://mercurial.selenic.com/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
 Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
+XS-Testsuite: autopkgtest
 
 Package: mercurial-common
 Architecture: all 
@@ -45,7 +46,10 @@ Suggests: qct,
  wish, 
  vim | emacs,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
-Breaks: hgsubversion (<< 1.5~), hgview (<< 1.7.1-1~), mercurial-git (<= 0.3.3), qct (<< 1.7-2~)
+Breaks: hgsubversion (<< 1.5~),
+ hgview (<< 1.7.1-1~),
+ mercurial-git (<= 0.4.0-1),
+ qct (<< 1.7-2~),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

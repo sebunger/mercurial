@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec hg clone svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
