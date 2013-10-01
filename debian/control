@@ -18,6 +18,7 @@ Homepage: http://mercurial.selenic.com/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
 Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
+XS-Testsuite: autopkgtest
 
 Package: mercurial-common
 Architecture: all 
