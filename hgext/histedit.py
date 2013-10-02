@@ -426,7 +426,12 @@ def findoutgoing(ui, repo, remote=None, force=False, opts={}):
     outgoing = discovery.findcommonoutgoing(repo, other, revs, force=force)
     if not outgoing.missing:
         raise util.Abort(_('no outgoing ancestors'))
-    return outgoing.missing[0]
+    roots = list(repo.revs("roots(%ln)", outgoing.missing))
+    if 1 < len(roots):
+        msg = _('there are ambiguous outgoing revisions')
+        hint = _('see "hg help histedit" for more detail')
+        raise util.Abort(msg, hint=hint)
+    return repo.lookup(roots[0])
 
 actiontable = {'p': pick,
                'pick': pick,
@@ -461,6 +466,15 @@ def histedit(ui, repo, *freeargs, **opts):
     With --outgoing, this edits changesets not found in the
     destination repository. If URL of the destination is omitted, the
     'default-push' (or 'default') path will be used.
+
+    For safety, this command is aborted, also if there are ambiguous
+    outgoing revisions which may confuse users: for example, there are
+    multiple branches containing outgoing revisions.
+
+    Use "min(outgoing() and ::.)" or similar revset specification
+    instead of --outgoing to specify edit target revision exactly in
+    such ambiguous situation. See :hg:`help revsets` for detail about
+    selecting revisions.
     """
     # TODO only abort if we try and histedit mq patches, not just
     # blanket if mq patches are applied somewhere
@@ -632,8 +646,7 @@ def bootstrapcontinue(ui, repo, parentctx, rules, opts):
             # `parentctxnode` should match but no result. This means that
             # currentnode is not a descendant from parentctxnode.
             msg = _('%s is not an ancestor of working directory')
-            hint = _('update to %s or descendant and run "hg histedit '
-                     '--continue" again') % parentctx
+            hint = _('use "histedit --abort" to clear broken state')
             raise util.Abort(msg % parentctx, hint=hint)
         newchildren.pop(0)  # remove parentctxnode
     # Commit dirty working directory if necessary

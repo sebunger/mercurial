@@ -1,3 +1,11 @@
+mercurial (2.7.2-1) unstable; urgency=low
+
+  * New upstream release
+  * Revert breaks of mercurial-git back to << 0.4.0-1 (Closes: #725145)
+  * Re-enable the testsuite as the tests that timeout can be blacklisted
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Oct 2013 23:55:58 +0100
+
 mercurial (2.7.1-3) unstable; urgency=low
 
   * Update breaks of mercurial-git to the current version (0.4.0-1)
