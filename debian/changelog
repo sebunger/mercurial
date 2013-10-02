@@ -2,6 +2,7 @@ mercurial (2.7.2-1) UNRELEASED; urgency=low
 
   * New upstream release
   * Revert breaks of mercurial-git back to << 0.4.0-1 (Closes: #725145)
+  * Reenable the testsuite as the tests that timeout can be blacklisted
 
  -- Javi Merino <vicho@debian.org>  Wed, 02 Oct 2013 20:50:25 +0100
 
