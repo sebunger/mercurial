@@ -1,0 +1,9 @@
+#!/bin/sh
+
+git init try
+cd try
+echo a >a
+git add a
+git commit -m a
+cd ..
+hg clone try try2

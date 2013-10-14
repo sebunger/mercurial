@@ -14,7 +14,7 @@ Support installation of help topics handled by mercurial-common.install.
      return p and p[0] != '.' and p[-1] != '~'
 --- a/mercurial/help.py
 +++ b/mercurial/help.py
-@@ -130,9 +130,11 @@ def loaddoc(topic):
+@@ -131,9 +131,11 @@ def loaddoc(topic):
              module = __file__
          base = os.path.dirname(module)
  

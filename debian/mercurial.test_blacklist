@@ -11,6 +11,7 @@ test-tag.t
 
 # No such file or directory /usr/share/mercurial/help/revsets.txt (?)
 test-bookmarks.t
+test-extension.t
 test-help.t
 test-mq.t
 test-transplant.t
@@ -20,3 +21,36 @@ test-gendoc.t
 
 # I'm missing some locales or something (?)
 test-i18n.t
+
+# No hgweb templates
+test-archive.t
+test-hgweb.t
+test-hgweb-commands.t
+test-hgweb-descend-empties.t
+test-hgweb-diffs.t
+test-hgweb-empty.t
+test-hgweb-filelog.t
+test-hgweb-non-interactive.t
+test-hgweb-nopath.t
+test-hgweb-no-path-info.t
+test-hgweb-no-request-uri.t
+test-hgweb-raw.t
+test-hgwebdir.t
+test-hgwebdirsym.t
+test-keyword.t
+test-newcgi.t
+test-newercgi.t
+test-oldcgi.t
+test-share.t
+test-websub.t
+
+# local server failed (?)
+test-hgweb-removed.t
+test-largefiles.t
+test-mq-qclone-http.t
+test-mq-qimport.t
+test-obsolete.t
+test-subrepo-relative-path.t
+
+# no port number associated with service 'daytime' (this should be easily solvable)
+test-serve.t
