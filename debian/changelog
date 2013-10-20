@@ -1,3 +1,12 @@
+mercurial (2.7.2-2) UNRELEASED; urgency=low
+
+  * Fix patches deb_specific__install-help-separately,
+    deb_specific__install-help-separately and
+    deb_specific__install-mo-fhs.patch so that we can run the full
+    testsuite when building
+
+ -- Javi Merino <vicho@debian.org>  Fri, 18 Oct 2013 12:36:46 +0100
+
 mercurial (2.7.2-1) unstable; urgency=low
 
   * New upstream release

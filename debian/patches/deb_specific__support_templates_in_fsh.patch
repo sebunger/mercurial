@@ -1,0 +1,15 @@
+Author: Vernon Tang <vt@foilhead.net>
+Description: Support installation of templates in FHS.
+Forwarded: not-needed
+
+--- a/mercurial/templater.py
++++ b/mercurial/templater.py
+@@ -368,7 +368,7 @@ funcs = {
+ 
+ # template engine
+ 
+-path = ['templates', '../templates']
++path = ['templates', '../templates', '/usr/share/mercurial/templates']
+ stringify = templatefilters.stringify
+ 
+ def _flatten(thing):
