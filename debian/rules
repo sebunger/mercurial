@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
 %:
 	dh $@ --with python2,bash-completion
 
