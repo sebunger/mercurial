@@ -1,12 +1,13 @@
-mercurial (2.7.2-2) UNRELEASED; urgency=low
+mercurial (2.8~rc1-1) UNRELEASED; urgency=low
 
+  * New upstream release
   * Fix patches deb_specific__install-help-separately,
     deb_specific__install-help-separately and
     deb_specific__install-mo-fhs.patch so that we can run the full
     testsuite when building
   * Build-depend on netbase to make test-serve.t work
 
- -- Javi Merino <vicho@debian.org>  Fri, 18 Oct 2013 12:36:46 +0100
+ -- Javi Merino <vicho@debian.org>  Mon, 21 Oct 2013 21:45:15 +0100
 
 mercurial (2.7.2-1) unstable; urgency=low
 
