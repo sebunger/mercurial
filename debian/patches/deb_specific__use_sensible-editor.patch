@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2089,8 +2089,8 @@ def debuginstall(ui):
+@@ -2091,8 +2091,8 @@ def debuginstall(ui):
      editor = ui.geteditor()
      cmdpath = util.findexe(editor) or util.findexe(editor.split()[0])
      if not cmdpath:
@@ -26,7 +26,7 @@ Use sensible-editor as default instead of vi.
          else:
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -754,7 +754,7 @@ class ui(object):
+@@ -755,7 +755,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -391,7 +391,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/ru.po
 +++ b/i18n/ru.po
-@@ -11937,8 +11937,8 @@ msgstr " (шаблоны, похоже,
+@@ -12019,8 +12019,8 @@ msgstr " (шаблоны, похоже,
  msgid "checking commit editor...\n"
  msgstr "проверка редактора сообщений фиксации...\n"
  
@@ -402,7 +402,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (задайте редактор сообщений в вашем конфиге)\n"
-@@ -18557,10 +18557,12 @@ msgstr ""
+@@ -18656,10 +18656,12 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -417,7 +417,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -19733,14 +19735,14 @@ msgid ""
+@@ -19832,14 +19834,14 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"

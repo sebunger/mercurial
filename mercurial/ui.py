@@ -176,7 +176,7 @@ class ui(object):
             alternates = [name]
 
         for n in alternates:
-            value = self._data(untrusted).get(section, name, None)
+            value = self._data(untrusted).get(section, n, None)
             if value is not None:
                 name = n
                 break
@@ -184,10 +184,11 @@ class ui(object):
             value = default
 
         if self.debugflag and not untrusted and self._reportuntrusted:
-            uvalue = self._ucfg.get(section, name)
-            if uvalue is not None and uvalue != value:
-                self.debug("ignoring untrusted configuration option "
-                           "%s.%s = %s\n" % (section, name, uvalue))
+            for n in alternates:
+                uvalue = self._ucfg.get(section, n)
+                if uvalue is not None and uvalue != value:
+                    self.debug("ignoring untrusted configuration option "
+                               "%s.%s = %s\n" % (section, n, uvalue))
         return value
 
     def configpath(self, section, name, default=None, untrusted=False):
@@ -664,7 +665,7 @@ class ui(object):
         if not self.interactive():
             return default
         try:
-            self.write(self.label(prompt or _('password: '), 'ui.prompt'))
+            self.write_err(self.label(prompt or _('password: '), 'ui.prompt'))
             return getpass.getpass('')
         except EOFError:
             raise util.Abort(_('response expected'))

@@ -1,6 +1,3 @@
-mercurial/help/*.txt usr/share/mercurial/help
-mercurial/templates usr/share/mercurial
-mercurial/locale usr/share
 debian/tmp/usr/lib
 
 contrib/mq.el usr/share/emacs/site-lisp
