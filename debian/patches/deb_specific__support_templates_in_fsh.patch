@@ -4,7 +4,7 @@ Forwarded: not-needed
 
 --- a/mercurial/templater.py
 +++ b/mercurial/templater.py
-@@ -368,7 +368,7 @@ funcs = {
+@@ -373,7 +373,7 @@ funcs = {
  
  # template engine
  
