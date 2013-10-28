@@ -6,4 +6,4 @@ echo a >a
 git add a
 git commit -m a
 cd ..
-hg --config extensions.git= clone try try2
+exec hg --config extensions.git= clone try try2
