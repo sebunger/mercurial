@@ -1,3 +1,10 @@
+mercurial (2.8~rc1-2) UNRELEASED; urgency=low
+
+  * Fix mercurial-git and hgsubversion autopkgtest by loading the
+    appropriate extension
+
+ -- Javi Merino <vicho@debian.org>  Mon, 28 Oct 2013 22:16:50 +0000
+
 mercurial (2.8~rc1-1) experimental; urgency=low
 
   * New upstream release
