@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.8.1: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.11: http://docutils.sourceforge.net/" />
 <title>hg</title>
 <meta name="author" content="Matt Mackall &lt;mpm&#64;selenic.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -498,10 +498,10 @@ hg bisect --skip
 hg bisect --skip 23
 </pre>
 </li>
-<li><p class="first">skip all revisions that do not touch directories <tt class="docutils literal">foo</tt> or <tt class="docutils literal">bar</tt></p>
-<blockquote>
-<p>hg bisect --skip '!( file(&quot;path:foo&quot;) &amp; file(&quot;path:bar&quot;) )'</p>
-</blockquote>
+<li><p class="first">skip all revisions that do not touch directories <tt class="docutils literal">foo</tt> or <tt class="docutils literal">bar</tt>:</p>
+<pre class="literal-block">
+hg bisect --skip &quot;!( file('path:foo') &amp; file('path:bar') )&quot;
+</pre>
 </li>
 <li><p class="first">forget the current bisection:</p>
 <pre class="literal-block">
@@ -514,7 +514,7 @@ revision:</p>
 hg bisect --reset
 hg bisect --bad 34
 hg bisect --good 12
-hg bisect --command 'make &amp;&amp; make tests'
+hg bisect --command &quot;make &amp;&amp; make tests&quot;
 </pre>
 </li>
 <li><p class="first">see all changesets whose states are already known in the current
@@ -2311,7 +2311,7 @@ branch that is not present at the destination. This allows you to
 only create a new branch without forcing other changes.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
-<p class="last">Extra care should be used with the -f/--force option,
+<p class="last">Extra care should be taken with the -f/--force option,
 which will push all new heads on all branches, an action which will
 almost always cause confusion for collaborators.</p>
 </div>
@@ -2387,18 +2387,18 @@ states are Added [A], Clean [C], Modified [M] and Missing [!]
 (from branch) and Delete (from disk):</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="47%" />
-<col width="13%" />
-<col width="13%" />
-<col width="13%" />
-<col width="13%" />
+<col width="53%" />
+<col width="12%" />
+<col width="12%" />
+<col width="12%" />
+<col width="12%" />
 </colgroup>
 <thead valign="bottom">
-<tr><th class="head">&nbsp;</th>
-<th class="head">&nbsp;</th>
-<th class="head">&nbsp;</th>
-<th class="head">&nbsp;</th>
-<th class="head">&nbsp;</th>
+<tr><th class="head">opt/state</th>
+<th class="head">A</th>
+<th class="head">C</th>
+<th class="head">M</th>
+<th class="head">!</th>
 </tr>
 </thead>
 <tbody valign="top">
@@ -3158,7 +3158,7 @@ hg version
 </ul>
 <p>Lastly, there is Mercurial's internal format:</p>
 <ul class="simple">
-<li><tt class="docutils literal">1165432709 0</tt> (Wed Dec 6 13:18:29 2006 UTC)</li>
+<li><tt class="docutils literal">1165411109 0</tt> (Wed Dec 6 13:18:29 2006 UTC)</li>
 </ul>
 <p>This is the internal representation format for dates. The first number
 is the number of seconds since the epoch (1970-01-01 00:00 UTC). The
@@ -4248,7 +4248,7 @@ hg log --template &quot;{rev} {phase}\n&quot;
 </li>
 <li><p class="first">resynchronize draft changesets relative to a remote repository:</p>
 <pre class="literal-block">
-hg phase -fd 'outgoing(URL)'
+hg phase -fd &quot;outgoing(URL)&quot;
 </pre>
 </li>
 </ul>
@@ -5673,16 +5673,16 @@ alternatively the number of matching revisions if the
 <p>Examples:</p>
 <pre class="literal-block">
 # display count of changed lines for every committer
-hg churn -t '{author|email}'
+hg churn -t &quot;{author|email}&quot;
 
 # display daily activity graph
-hg churn -f '%H' -s -c
+hg churn -f &quot;%H&quot; -s -c
 
 # display activity of developers by month
-hg churn -f '%Y-%m' -s -c
+hg churn -f &quot;%Y-%m&quot; -s -c
 
 # display count of lines changed in every year
-hg churn -f '%Y' -s
+hg churn -f &quot;%Y&quot; -s
 </pre>
 <p>It is possible to map alternate email addresses to a main address
 by providing a file using the following format:</p>
@@ -6869,6 +6869,9 @@ multiple branches containing outgoing revisions.</p>
 instead of --outgoing to specify edit target revision exactly in
 such ambiguous situation. See <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for detail about
 selecting revisions.</p>
+<p>Returns 0 on success, 1 if user intervention is required (not only
+for intentional &quot;edit&quot; command, but also for resolving unexpected
+conflicts).</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -8693,7 +8696,8 @@ destination (or <tt class="docutils literal">update</tt> to the other head, if i
 the intended source branch).</p>
 <p>If a rebase is interrupted to manually resolve a merge, it can be
 continued with --continue/-c or aborted with --abort/-a.</p>
-<p>Returns 0 on success, 1 if nothing to rebase.</p>
+<p>Returns 0 on success, 1 if nothing to rebase or there are
+unresolved conflicts.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -9070,7 +9074,7 @@ does not delete the bundle.)</p>
 <div class="section" id="strip">
 <h2><a class="toc-backref" href="#id108">strip</a></h2>
 <p>strip changesets and their descendents from history</p>
-<p>This extension allows to strip changesets and all their descendants from the
+<p>This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.</p>
 <div class="section" id="id41">
 <h3>Commands</h3>
@@ -9166,7 +9170,7 @@ $1 and the patch as $2.</p>
 <p>--source/-s specifies another repository to use for selecting changesets,
 just as if it temporarily had been pulled.
 If --branch/-b is specified, these revisions will be used as
-heads when deciding which changsets to transplant, just as if only
+heads when deciding which changesets to transplant, just as if only
 these revisions had been pulled.
 If --all/-a is specified, all the revisions up to the heads specified
 with --branch will be transplanted.</p>
