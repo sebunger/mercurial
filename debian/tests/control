@@ -1,5 +1,5 @@
 Tests: testsuite
-Depends: @, python-subversion, monotone, cvs, bzr, tla, darcs, pyflakes
+Depends: @, zip, unzip, netbase, python-subversion, monotone, cvs, bzr, tla, darcs, pyflakes
 
 Tests: hgsubversion
 Depends: @, hgsubversion

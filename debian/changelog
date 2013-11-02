@@ -1,6 +1,7 @@
 mercurial (2.8-2) UNRELEASED; urgency=low
 
   * Fix mercurial-git test
+  * Add missing deps to run the testsuite with autopkgtest
 
  -- Javi Merino <vicho@debian.org>  Sat, 02 Nov 2013 09:17:37 +0000
 
