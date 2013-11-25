@@ -2,7 +2,6 @@
 
 git init try
 cd try
-git config user.email babar@jungle.org
 echo a >a
 git add a
 git commit -m a
