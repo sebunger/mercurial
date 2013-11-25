@@ -42,9 +42,9 @@ Package: mercurial
 Architecture: any 
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
-Recommends: openssh-client
+Recommends: openssh-client,
+ wish,
 Suggests: qct, 
- wish, 
  vim | emacs,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
 Breaks: hgsubversion (<< 1.5~),
