@@ -2,6 +2,9 @@ mercurial (2.8-2) UNRELEASED; urgency=low
 
   * Increment testsuite timeout to 720 as test-gendoc.t takes a
     loooong time on armel
+  * Don't run pyflakes on the autopkgtest for the testsuite, it fails to
+    see the pyflakes error it's expecting (but it's not our job to fix
+    python lint issues)
 
  -- Javi Merino <vicho@debian.org>  Fri, 15 Nov 2013 14:10:00 +0000
 
