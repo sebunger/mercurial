@@ -1,3 +1,10 @@
+mercurial (2.8-2) UNRELEASED; urgency=low
+
+  * Increment testsuite timeout to 720 as test-gendoc.t takes a
+    loooong time on armel
+
+ -- Javi Merino <vicho@debian.org>  Fri, 15 Nov 2013 14:10:00 +0000
+
 mercurial (2.8-1) unstable; urgency=low
 
   * New upstream release
