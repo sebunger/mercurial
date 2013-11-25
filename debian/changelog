@@ -2,6 +2,7 @@ mercurial (2.8-3) UNRELEASED; urgency=low
 
   * Fix mercurial-git autopkg test
   * Add missing deps to run the testsuite with autopkgtest
+  * Increment testsuite timeout to 1440 to prevent timeouts in mips
 
  -- Javi Merino <vicho@debian.org>  Sat, 16 Nov 2013 10:39:56 +0000
 
