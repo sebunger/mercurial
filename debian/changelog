@@ -1,4 +1,4 @@
-mercurial (2.8-2) UNRELEASED; urgency=low
+mercurial (2.8-2) unstable; urgency=medium
 
   * Increment testsuite timeout to 720 as test-gendoc.t takes a
     loooong time on armel
