@@ -1,3 +1,21 @@
+mercurial (2.8.1-1) unstable; urgency=low
+
+  * New upstream release (Closes: #731471)
+  * Add myself to Uploaders.
+  * Add patch to fix test-i18n.
+  * Remove pyflakes test to avoid build failures when pyflakes is installed.
+
+ -- Tristan Seligmann <mithrandi@debian.org>  Fri, 06 Dec 2013 01:14:40 +0200
+
+mercurial (2.8-3) unstable; urgency=low
+
+  * Fix mercurial-git autopkg test
+  * Add missing deps to run the testsuite with autopkgtest
+  * Increment testsuite timeout to 1440 to prevent timeouts in mips
+  * Move wish to Recommends as it's needed for hg view
+
+ -- Javi Merino <vicho@debian.org>  Sun, 17 Nov 2013 10:13:23 +0000
+
 mercurial (2.8-2) unstable; urgency=medium
 
   * Increment testsuite timeout to 720 as test-gendoc.t takes a

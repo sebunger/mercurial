@@ -1,0 +1,17 @@
+Author: Tristan Seligmann <mithrandi@debian.org>
+Description: Add missing import in check-translation.py
+ An import is missing in this script, which in turn causes test-i18n.t to fail.
+Bug: http://bz.selenic.com/show_bug.cgi?id=4122
+
+Index: mercurial-2.8.1/i18n/check-translation.py
+===================================================================
+--- mercurial-2.8.1.orig/i18n/check-translation.py	2013-12-02 04:51:10.000000000 +0200
++++ mercurial-2.8.1/i18n/check-translation.py	2013-12-06 00:20:52.192369115 +0200
+@@ -122,6 +122,7 @@
+     (options, args) = optparser.parse_args()
+ 
+     if options.doctest:
++        import os
+         if 'TERM' in os.environ:
+             del os.environ['TERM']
+         import doctest
