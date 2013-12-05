@@ -3,7 +3,8 @@ Section: vcs
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
- Javi Merino <vicho@debian.org>
+ Javi Merino <vicho@debian.org>,
+ Tristan Seligmann <mithrandi@debian.org>
 Build-Depends: debhelper (>= 9),
  patchutils (>= 0.2.25),
  gettext,
