@@ -1,10 +1,11 @@
-mercurial (2.8.1-1) UNRELEASED; urgency=low
+mercurial (2.8.1-1) unstable; urgency=low
 
   * New upstream release (Closes: #731471)
   * Add myself to Uploaders.
   * Add patch to fix test-i18n.
+  * Remove pyflakes test to avoid build failures when pyflakes is installed.
 
- -- Tristan Seligmann <mithrandi@debian.org>  Thu, 05 Dec 2013 20:44:21 +0200
+ -- Tristan Seligmann <mithrandi@debian.org>  Fri, 06 Dec 2013 01:14:40 +0200
 
 mercurial (2.8-3) unstable; urgency=low
 

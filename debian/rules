@@ -94,6 +94,10 @@ override_dh_auto_clean: mercurial/__version__.py
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
 
+override_dh_clean:
+	dh_clean
+	rm tests/test-check-pyflakes.t
+
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."
 	@echo "Restore it from sources before building the package"
