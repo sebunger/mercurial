@@ -2,6 +2,7 @@ mercurial (2.8.1-1) UNRELEASED; urgency=low
 
   * New upstream release (Closes: #731471)
   * Add myself to Uploaders.
+  * Add patch to fix test-i18n.
 
  -- Tristan Seligmann <mithrandi@debian.org>  Thu, 05 Dec 2013 20:44:21 +0200
 
