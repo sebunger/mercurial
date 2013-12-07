@@ -8,6 +8,7 @@
 	dh $@ --with python2,bash-completion
 
 PYVERS=$(shell pyversions -vs)
+PYVER_DEFAULT=$(shell pyversions -vd)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
 override_dh_auto_build:
@@ -77,8 +78,16 @@ install-archindep:
 		debian/cacerts.hgrc \
 		$(CURDIR)/debian/mercurial-common/etc/mercurial/hgrc.d/cacerts.rc
 	# Move templates and help installed by setup.py to their FHS-correct location
-	mv $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/templates $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/help $(CURDIR)/debian/mercurial-common/usr/share/mercurial
-	mv $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/locale $(CURDIR)/debian/mercurial-common/usr/share
+	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/templates \
+	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/help \
+	   $(CURDIR)/debian/mercurial-common/usr/share/mercurial
+	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/locale \
+	   $(CURDIR)/debian/mercurial-common/usr/share
+	# If more than one Python version is supported, clean up the templates
+	# and help installed for the other versions
+	-rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/templates \
+	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/help \
+	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/locale \
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
@@ -96,7 +105,7 @@ override_dh_auto_clean: mercurial/__version__.py
 
 override_dh_clean:
 	dh_clean
-	rm -f tests/test-check-pyflakes.t
+	-rm -f tests/test-check-pyflakes.t
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."
