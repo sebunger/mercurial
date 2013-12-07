@@ -96,7 +96,7 @@ override_dh_auto_clean: mercurial/__version__.py
 
 override_dh_clean:
 	dh_clean
-	rm tests/test-check-pyflakes.t
+	rm -f tests/test-check-pyflakes.t
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."
