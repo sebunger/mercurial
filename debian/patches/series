@@ -9,3 +9,4 @@ deb_specific__disable_libdir_replacement.patch
 deb_specific__fix_hg-ssh_interpreter.patch
 for_upstream__dont_rm_usr_bin_python_when_running_testsuite.patch
 for_upstream__fix_i18n.patch
+for_upstream__lenient_test-shelve.patch
