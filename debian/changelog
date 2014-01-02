@@ -1,3 +1,11 @@
+mercurial (2.8.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * Drop for_upstream__fix_i18n.patch as it's now included upstream
+  * Make uscan verify the signature of downloaded tarballs
+
+ -- Javi Merino <vicho@debian.org>  Thu, 02 Jan 2014 17:31:05 +0100
+
 mercurial (2.8.1-2) unstable; urgency=low
 
   * Pass -f to rm so that repeated builds succeed (Closes: #731623).
