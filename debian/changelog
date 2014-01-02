@@ -2,6 +2,7 @@ mercurial (2.8.2-1) UNRELEASED; urgency=low
 
   * New upstream release
   * Drop for_upstream__fix_i18n.patch as it's now included upstream
+  * Make uscan verify the signature of downloaded tarballs
 
  -- Javi Merino <vicho@debian.org>  Thu, 02 Jan 2014 16:04:19 +0100
 

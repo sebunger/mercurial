@@ -1,5 +1,5 @@
 # format version number, currently 3; this line is compulsory!
 version=3
 
-opts="uversionmangle=s/-rc/~rc/" \
+opts="uversionmangle=s/-rc/~rc/,pgpsigurlmangle=s/$/.asc/" \
   http://www.selenic.com/mercurial/release/mercurial-(.*)\.tar\.gz
