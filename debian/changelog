@@ -1,3 +1,9 @@
+mercurial (2.8.1-3) UNRELEASED; urgency=low
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Thu, 02 Jan 2014 16:04:19 +0100
+
 mercurial (2.8.1-2) unstable; urgency=low
 
   * Pass -f to rm so that repeated builds succeed (Closes: #731623).
