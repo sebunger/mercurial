@@ -1,17 +1,7 @@
-Support installation of help topics handled by mercurial-common.install.
+Author: Vernon Tang <vt@foilhead.net>
+Description: Support installation of help topics in FHS.
+Forwarded: not-needed
 
---- a/setup.py
-+++ b/setup.py
-@@ -472,8 +472,7 @@ if sys.platform.startswith('linux') and
-         extmodules.append(inotify)
-         packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
- 
--packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo',
--                             'help/*.txt']}
-+packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo']}
- 
- def ordinarypath(p):
-     return p and p[0] != '.' and p[-1] != '~'
 --- a/mercurial/help.py
 +++ b/mercurial/help.py
 @@ -131,9 +131,11 @@ def loaddoc(topic):

@@ -7,10 +7,9 @@ Description: Don't rm /usr/bin/python when running the testsuite
  This fixes it at least in Debian.  I'm unsure about other systems.
 Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
-diff --git a/tests/run-tests.py b/tests/run-tests.py
 --- a/tests/run-tests.py
 +++ b/tests/run-tests.py
-@@ -429,7 +429,7 @@ def usecorrectpython():
+@@ -430,7 +430,7 @@ def usecorrectpython():
               sys.executable)
          mypython = os.path.join(BINDIR, pyexename)
          try:

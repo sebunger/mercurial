@@ -2,8 +2,9 @@
 
 git init try
 cd try
+git config user.email babar@jungle.org
 echo a >a
 git add a
 git commit -m a
 cd ..
-hg clone try try2
+exec hg --config extensions.git= clone try try2

@@ -1,0 +1,15 @@
+Author: Vincent Danjean <vdanjean@debian.org>
+Description: Look for *.mo files in /usr/share/locale (FHS compliant)
+Forwarded: not-needed
+
+--- a/mercurial/i18n.py
++++ b/mercurial/i18n.py
+@@ -15,7 +15,7 @@ else:
+     module = __file__
+ 
+ base = os.path.dirname(module)
+-for dir in ('.', '..'):
++for dir in ('.', '..', '/usr/share'):
+     localedir = os.path.join(base, dir, 'locale')
+     if os.path.isdir(localedir):
+         break
