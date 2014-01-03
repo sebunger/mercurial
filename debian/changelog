@@ -1,3 +1,9 @@
+mercurial (2.8.1-2~bpo70+1) wheezy-backports; urgency=medium
+
+  * Rebuild for wheezy-backports.
+
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Jan 2014 21:14:44 +0100
+
 mercurial (2.8.1-2) unstable; urgency=low
 
   * Pass -f to rm so that repeated builds succeed (Closes: #731623).
