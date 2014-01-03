@@ -113,7 +113,7 @@ Binary diff:
   $ cat b.diff
   diff --git a/binfile.bin b/binfile.bin
   new file mode 100644
-  index 0000000000000000000000000000000000000000..37ba3d1c6f17137d9c5f5776fa040caf5fe73ff9
+  index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..37ba3d1c6f17137d9c5f5776fa040caf5fe73ff9
   GIT binary patch
   literal 593
   zc$@)I0<QguP)<h;3K|Lk000e1NJLTq000mG000mO0ssI2kdbIM00009a7bBm000XU
@@ -360,3 +360,23 @@ There should be a trailing TAB if there are spaces in the file name:
   +foo
   $ hg ci -m 'add filename with spaces'
 
+Additions should be properly marked even in the middle of a merge
+
+  $ hg up -r -2
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ echo "New File" >> inmerge
+  $ hg add inmerge
+  $ hg ci -m "file in merge"
+  created new head
+  $ hg up 23
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg merge
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg diff -g
+  diff --git a/inmerge b/inmerge
+  new file mode 100644
+  --- /dev/null
+  +++ b/inmerge
+  @@ -0,0 +1,1 @@
+  +New File

@@ -26,8 +26,25 @@ def compilere(pat, multiline=False):
     return re.compile(pat)
 
 def repquote(m):
-    t = re.sub(r"\w", "x", m.group('text'))
-    t = re.sub(r"[^\s\nx]", "o", t)
+    fromc = '.:'
+    tochr = 'pq'
+    def encodechr(i):
+        if i > 255:
+            return 'u'
+        c = chr(i)
+        if c in ' \n':
+            return c
+        if c.isalpha():
+            return 'x'
+        if c.isdigit():
+            return 'n'
+        try:
+            return tochr[fromc.find(c)]
+        except (ValueError, IndexError):
+            return 'o'
+    t = m.group('text')
+    tt = ''.join(encodechr(i) for i in xrange(256))
+    t = t.translate(tt)
     return m.group('quote') + t + m.group('quote')
 
 def reppython(m):
@@ -61,11 +78,13 @@ testpats = [
     (r'pushd|popd', "don't use 'pushd' or 'popd', use 'cd'"),
     (r'\W\$?\(\([^\)\n]*\)\)', "don't use (()) or $(()), use 'expr'"),
     (r'grep.*-q', "don't use 'grep -q', redirect to /dev/null"),
+    (r'(?<!hg )grep.*-a', "don't use 'grep -a', use in-line python"),
     (r'sed.*-i', "don't use 'sed -i', use a temporary file"),
     (r'\becho\b.*\\n', "don't use 'echo \\n', use printf"),
     (r'echo -n', "don't use 'echo -n', use printf"),
     (r'(^| )wc[^|]*$\n(?!.*\(re\))', "filter wc output"),
     (r'head -c', "don't use 'head -c', use 'dd'"),
+    (r'tail -n', "don't use the '-n' option to tail, just use '-<num>'"),
     (r'sha1sum', "don't use sha1sum, use $TESTDIR/md5sum.py"),
     (r'ls.*-\w*R', "don't use 'ls -R', use 'find'"),
     (r'printf.*[^\\]\\([1-9]|0\d)', "don't use 'printf \NNN', use Python"),
@@ -118,7 +137,7 @@ utestpats = [
     (uprefix + r'.*\|\| echo.*(fail|error)',
      "explicit exit code checks unnecessary"),
     (uprefix + r'set -e', "don't use set -e"),
-    (uprefix + r'\s', "don't indent commands, use > for continued lines"),
+    (uprefix + r'(\s|fi\b|done\b)', "use > for continued lines"),
     (r'^  saved backup bundle to \$TESTTMP.*\.hg$', winglobmsg),
     (r'^  changeset .* references (corrupted|missing) \$TESTTMP/.*[^)]$',
      winglobmsg),
@@ -160,6 +179,9 @@ pypats = [
      "tuple parameter unpacking not available in Python 3+"),
     (r'lambda\s*\(.*,.*\)',
      "tuple parameter unpacking not available in Python 3+"),
+    (r'import (.+,[^.]+\.[^.]+|[^.]+\.[^.]+,)',
+     '2to3 can\'t always rewrite "import qux, foo.bar", '
+     'use "import foo.bar" on its own line instead.'),
     (r'(?<!def)\s+(cmp)\(', "cmp is not available in Python 3+"),
     (r'\breduce\s*\(.*', "reduce is not available in Python 3+"),
     (r'\.has_key\b', "dict.has_key is not available in Python 3+"),
@@ -221,6 +243,8 @@ pypats = [
      "missing whitespace around operator"),
     (r'[^^+=*/!<>&| %-](\s=|=\s)[^= ]',
      "wrong whitespace around ="),
+    (r'\([^()]*( =[^=]|[^<>!=]= )',
+     "no whitespace around = for named parameters"),
     (r'raise Exception', "don't raise generic exceptions"),
     (r'raise [^,(]+, (\([^\)]+\)|[^,\(\)]+)$',
      "don't use old-style two-argument raise, use Exception(message)"),
@@ -256,6 +280,7 @@ pypats = [
   ],
   # warnings
   [
+    (r'(^| )pp +xxxxqq[ \n][^\n]', "add two newlines after '.. note::'"),
   ]
 ]
 
@@ -285,8 +310,9 @@ cpats = [
     (r'(while|if|do|for)\(', "use space after while/if/do/for"),
     (r'return\(', "return is not a function"),
     (r' ;', "no space before ;"),
+    (r'[)][{]', "space between ) and {"),
     (r'\w+\* \w+', "use int *foo, not int* foo"),
-    (r'\([^\)]+\) \w+', "use (int)foo, not (int) foo"),
+    (r'\W\([^\)]+\) \w+', "use (int)foo, not (int) foo"),
     (r'\w+ (\+\+|--)', "use foo++, not foo ++"),
     (r'\w,\w', "missing whitespace after ,"),
     (r'^[^#]\w[+/*]\w', "missing whitespace in expression"),
@@ -324,7 +350,7 @@ inrevlogpats = [
 checks = [
     ('python', r'.*\.(py|cgi)$', pyfilters, pypats),
     ('test script', r'(.*/)?test-[^.~]*$', testfilters, testpats),
-    ('c', r'.*\.c$', cfilters, cpats),
+    ('c', r'.*\.[ch]$', cfilters, cpats),
     ('unified test', r'.*\.t$', utestfilters, utestpats),
     ('layering violation repo in revlog', r'mercurial/revlog\.py', pyfilters,
      inrevlogpats),
@@ -418,7 +444,7 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
         fp.close()
         if "no-" "check-code" in pre:
             if debug:
-                print "Skipping %s for %s it has no-" " check-code" % (
+                print "Skipping %s for %s it has no-" "check-code" % (
                        name, f)
             break
         for p, r in filters:
@@ -441,6 +467,8 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
             else:
                 p, msg = pat
                 ignore = None
+            if i >= nerrs:
+                msg = "warning: " + msg
 
             pos = 0
             n = 0
@@ -474,8 +502,7 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
                         bl, bu, br = blamecache[n]
                         if bl == l:
                             bd = '%s@%s' % (bu, br)
-                if i >= nerrs:
-                    msg = "warning: " + msg
+
                 errors.append((f, lineno and n + 1, l, msg, bd))
                 result = False
 

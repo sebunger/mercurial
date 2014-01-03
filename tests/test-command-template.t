@@ -500,6 +500,28 @@ Include works:
   1
   0
 
+Missing non-standard names give no error (backward compatibility):
+
+  $ echo "changeset = '{c}'" > t
+  $ hg log --style ./t
+
+Defining non-standard name works:
+
+  $ cat <<EOF > t
+  > changeset = '{c}'
+  > c = q
+  > EOF
+  $ hg log --style ./t
+  8
+  7
+  6
+  5
+  4
+  3
+  2
+  1
+  0
+
 ui.style works:
 
   $ echo '[ui]' > .hg/hgrc
@@ -1564,3 +1586,28 @@ Test the strip function with chars specified:
   h1c
   b
   a
+
+Test string escaping:
+
+  $ hg log -R latesttag -r 0 --template '>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+Test recursive evaluation:
+
+  $ hg init r
+  $ cd r
+  $ echo a > a
+  $ hg ci -Am '{rev}'
+  adding a
+  $ hg log -r 0 --template '{if(rev, desc)}\n'
+  {rev}
+  $ hg log -r 0 --template '{if(rev, "{author} {rev}")}\n'
+  test 0
+
+Test branches inside if statement:
+
+  $ hg log -r 0 --template '{if(branches, "yes", "no")}\n'
+  no

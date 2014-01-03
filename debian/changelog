@@ -1,3 +1,69 @@
+mercurial (2.8.1-2~bpo70+1) wheezy-backports; urgency=medium
+
+  * Rebuild for wheezy-backports.
+
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Jan 2014 21:14:44 +0100
+
+mercurial (2.8.1-2) unstable; urgency=low
+
+  * Pass -f to rm so that repeated builds succeed (Closes: #731623).
+  * Fix installation in the case where there is more than one supported
+    version of Python (Closes: #729153).
+    - Thanks to Faheem Mitha <faheem@faheem.info> for the patch.
+  * Make test-shelve.t more lenient. This should hopefully fix the
+    semi-intermittent build failures on some architectures with slower
+    buildds.
+
+ -- Tristan Seligmann <mithrandi@debian.org>  Sun, 08 Dec 2013 02:03:54 +0200
+
+mercurial (2.8.1-1) unstable; urgency=low
+
+  * New upstream release (Closes: #731471)
+  * Add myself to Uploaders.
+  * Add patch to fix test-i18n.
+  * Remove pyflakes test to avoid build failures when pyflakes is installed.
+
+ -- Tristan Seligmann <mithrandi@debian.org>  Fri, 06 Dec 2013 01:14:40 +0200
+
+mercurial (2.8-3) unstable; urgency=low
+
+  * Fix mercurial-git autopkg test
+  * Add missing deps to run the testsuite with autopkgtest
+  * Increment testsuite timeout to 1440 to prevent timeouts in mips
+  * Move wish to Recommends as it's needed for hg view
+
+ -- Javi Merino <vicho@debian.org>  Sun, 17 Nov 2013 10:13:23 +0000
+
+mercurial (2.8-2) unstable; urgency=medium
+
+  * Increment testsuite timeout to 720 as test-gendoc.t takes a
+    loooong time on armel
+  * Don't run pyflakes on the autopkgtest for the testsuite, it fails to
+    see the pyflakes error it's expecting (but it's not our job to fix
+    python lint issues)
+
+ -- Javi Merino <vicho@debian.org>  Fri, 15 Nov 2013 14:10:00 +0000
+
+mercurial (2.8-1) unstable; urgency=low
+
+  * New upstream release
+  * Fix mercurial-git and hgsubversion autopkgtest by loading the
+    appropriate extension
+  * Bump standards-version to 3.9.5 (no change needed)
+
+ -- Javi Merino <vicho@debian.org>  Fri, 01 Nov 2013 23:19:57 +0000
+
+mercurial (2.8~rc1-1) experimental; urgency=low
+
+  * New upstream release
+  * Fix patches deb_specific__install-help-separately,
+    deb_specific__install-help-separately and
+    deb_specific__install-mo-fhs.patch so that we can run the full
+    testsuite when building
+  * Build-depend on netbase to make test-serve.t work
+
+ -- Javi Merino <vicho@debian.org>  Mon, 21 Oct 2013 22:35:36 +0100
+
 mercurial (2.7.2-1~bpo70+1) wheezy-backports; urgency=low
 
   * Rebuild for wheezy-backports.

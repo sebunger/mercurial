@@ -267,7 +267,8 @@ class obsstore(object):
         Return the number of new marker."""
         if not _enabled:
             raise util.Abort('obsolete feature is not enabled on this repo')
-        new = [m for m in markers if m not in self._all]
+        known = set(self._all)
+        new = [m for m in markers if m not in known]
         if new:
             f = self.sopener('obsstore', 'ab')
             try:
@@ -371,9 +372,9 @@ def pushmarker(repo, key, old, new):
         lock.release()
 
 def syncpush(repo, remote):
-    """utility function to push bookmark to a remote
+    """utility function to push obsolete markers to a remote
 
-    Exist mostly to allow overridding for experimentation purpose"""
+    Exist mostly to allow overriding for experimentation purpose"""
     if (_enabled and repo.obsstore and
         'obsolete' in remote.listkeys('namespaces')):
         rslts = []
@@ -387,13 +388,13 @@ def syncpush(repo, remote):
             repo.ui.warn(msg)
 
 def syncpull(repo, remote, gettransaction):
-    """utility function to pull bookmark to a remote
+    """utility function to pull obsolete markers from a remote
 
     The `gettransaction` is function that return the pull transaction, creating
     one if necessary. We return the transaction to inform the calling code that
     a new transaction have been created (when applicable).
 
-    Exists mostly to allow overridding for experimentation purpose"""
+    Exists mostly to allow overriding for experimentation purpose"""
     tr = None
     if _enabled:
         repo.ui.debug('fetching remote obsolete markers\n')
@@ -446,10 +447,10 @@ def foreground(repo, nodes):
     """return all nodes in the "foreground" of other node
 
     The foreground of a revision is anything reachable using parent -> children
-    or precursor -> sucessor relation. It is very similars to "descendant" but
+    or precursor -> successor relation. It is very similar to "descendant" but
     augmented with obsolescence information.
 
-    Beware that possible obsolescence cycle may result if complexe situation.
+    Beware that possible obsolescence cycle may result if complex situation.
     """
     repo = repo.unfiltered()
     foreground = set(repo.set('%ln::', nodes))

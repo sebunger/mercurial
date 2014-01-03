@@ -108,7 +108,7 @@ Suggest Debian packages for some optional dependencies.
          if self.automatestdio:
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -19,6 +19,7 @@ from cStringIO import StringIO
+@@ -20,6 +20,7 @@ from cStringIO import StringIO
  from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
  from common import commandline, converter_source, converter_sink, mapfile
  from common import makedatetimestamp
@@ -116,7 +116,7 @@ Suggest Debian packages for some optional dependencies.
  
  try:
      from svn.core import SubversionException, Pool
-@@ -235,16 +236,19 @@ class svn_source(converter_source):
+@@ -236,16 +237,19 @@ class svn_source(converter_source):
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -139,7 +139,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1023,6 +1027,8 @@ class svn_sink(converter_sink, commandli
+@@ -1024,6 +1028,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -150,7 +150,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -204,7 +204,8 @@ class _httprequesthandleropenssl(_httpre
+@@ -207,7 +207,8 @@ class _httprequesthandleropenssl(_httpre
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
@@ -160,7 +160,7 @@ Suggest Debian packages for some optional dependencies.
          ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
-@@ -245,7 +246,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -248,7 +249,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:

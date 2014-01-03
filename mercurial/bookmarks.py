@@ -8,7 +8,7 @@
 from mercurial.i18n import _
 from mercurial.node import hex
 from mercurial import encoding, error, util, obsolete
-import errno, os
+import errno
 
 class bmstore(dict):
     """Storage for bookmarks.
@@ -70,7 +70,7 @@ class bmstore(dict):
 
             # touch 00changelog.i so hgweb reloads bookmarks (no lock needed)
             try:
-                os.utime(repo.sjoin('00changelog.i'), None)
+                repo.svfs.utime('00changelog.i', None)
             except OSError:
                 pass
 
@@ -126,7 +126,7 @@ def unsetcurrent(repo):
     wlock = repo.wlock()
     try:
         try:
-            util.unlink(repo.join('bookmarks.current'))
+            repo.vfs.unlink('bookmarks.current')
             repo._bookmarkcurrent = None
         except OSError, inst:
             if inst.errno != errno.ENOENT:
@@ -312,5 +312,5 @@ def validdest(repo, old, new):
     elif repo.obsstore:
         return new.node() in obsolete.foreground(repo, [old.node()])
     else:
-        # still an independant clause as it is lazyer (and therefore faster)
+        # still an independent clause as it is lazyer (and therefore faster)
         return old.descendant(new)

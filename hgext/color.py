@@ -63,6 +63,10 @@ Default effects may be overridden from your configuration file::
   rebase.rebased = blue
   rebase.remaining = red bold
 
+  shelve.age = cyan
+  shelve.newest = green bold
+  shelve.name = blue bold
+
   histedit.remaining = red bold
 
 The available effects in terminfo mode are 'blink', 'bold', 'dim',
@@ -259,6 +263,9 @@ _styles = {'grep.match': 'red bold',
            'rebase.remaining': 'red bold',
            'resolve.resolved': 'green bold',
            'resolve.unresolved': 'red bold',
+           'shelve.age': 'cyan',
+           'shelve.newest': 'green bold',
+           'shelve.name': 'blue bold',
            'status.added': 'green bold',
            'status.clean': 'none',
            'status.copied': 'none',
@@ -379,9 +386,7 @@ def templatelabel(context, mapping, args):
         # i18n: "label" is a keyword
         raise error.ParseError(_("label expects two arguments"))
 
-    thing = templater.stringify(args[1][0](context, mapping, args[1][1]))
-    thing = templater.runtemplate(context, mapping,
-                                  templater.compiletemplate(thing, context))
+    thing = templater._evalifliteral(args[1], context, mapping)
 
     # apparently, repo could be a string that is the favicon?
     repo = mapping.get('repo', '')

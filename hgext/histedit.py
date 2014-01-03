@@ -159,6 +159,7 @@ from mercurial import scmutil
 from mercurial import util
 from mercurial import obsolete
 from mercurial import merge as mergemod
+from mercurial.lock import release
 from mercurial.i18n import _
 
 cmdtable = {}
@@ -419,10 +420,6 @@ def findoutgoing(ui, repo, remote=None, force=False, opts={}):
     if revs:
         revs = [repo.lookup(rev) for rev in revs]
 
-    # hexlify nodes from outgoing, because we're going to parse
-    # parent[0] using revsingle below, and if the binary hash
-    # contains special revset characters like ":" the revset
-    # parser can choke.
     outgoing = discovery.findcommonoutgoing(repo, other, revs, force=force)
     if not outgoing.missing:
         raise util.Abort(_('no outgoing ancestors'))
@@ -475,7 +472,20 @@ def histedit(ui, repo, *freeargs, **opts):
     instead of --outgoing to specify edit target revision exactly in
     such ambiguous situation. See :hg:`help revsets` for detail about
     selecting revisions.
+
+    Returns 0 on success, 1 if user intervention is required (not only
+    for intentional "edit" command, but also for resolving unexpected
+    conflicts).
     """
+    lock = wlock = None
+    try:
+        wlock = repo.wlock()
+        lock = repo.lock()
+        _histedit(ui, repo, *freeargs, **opts)
+    finally:
+        release(lock, wlock)
+
+def _histedit(ui, repo, *freeargs, **opts):
     # TODO only abort if we try and histedit mq patches, not just
     # blanket if mq patches are applied somewhere
     mq = getattr(repo, 'mq', None)
@@ -519,7 +529,6 @@ def histedit(ui, repo, *freeargs, **opts):
 
     if goal == 'continue':
         (parentctxnode, rules, keep, topmost, replacements) = readstate(repo)
-        currentparent, wantnull = repo.dirstate.parents()
         parentctx = repo[parentctxnode]
         parentctx, repl = bootstrapcontinue(ui, repo, parentctx, rules, opts)
         replacements.extend(repl)

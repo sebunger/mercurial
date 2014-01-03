@@ -12,7 +12,8 @@ import os, re, difflib, time, tempfile, errno
 import hg, scmutil, util, revlog, copies, error, bookmarks
 import patch, help, encoding, templatekw, discovery
 import archival, changegroup, cmdutil, hbisect
-import sshserver, hgweb, hgweb.server, commandserver
+import sshserver, hgweb, commandserver
+from hgweb import server as hgweb_server
 import merge as mergemod
 import minirst, revset, fileset
 import dagparser, context, simplemerge, graphmod
@@ -396,6 +397,7 @@ def backout(ui, repo, node=None, rev=None, **opts):
     changes and the merged result is left uncommitted.
 
     .. note::
+
       backout cannot be used to fix either an unwanted or
       incorrect merge.
 
@@ -536,7 +538,7 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
 
       Some examples:
 
-      - start a bisection with known bad revision 12, and good revision 34::
+      - start a bisection with known bad revision 34, and good revision 12::
 
           hg bisect --bad 34
           hg bisect --good 12
@@ -553,9 +555,9 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
           hg bisect --skip
           hg bisect --skip 23
 
-      - skip all revisions that do not touch directories ``foo`` or ``bar``
+      - skip all revisions that do not touch directories ``foo`` or ``bar``::
 
-          hg bisect --skip '!( file("path:foo") & file("path:bar") )'
+          hg bisect --skip "!( file('path:foo') & file('path:bar') )"
 
       - forget the current bisection::
 
@@ -567,7 +569,7 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
           hg bisect --reset
           hg bisect --bad 34
           hg bisect --good 12
-          hg bisect --command 'make && make tests'
+          hg bisect --command "make && make tests"
 
       - see all changesets whose states are already known in the current
         bisection::
@@ -583,7 +585,7 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
 
           hg log -r "bisect(range)"
 
-      - with the graphlog extension, you can even get a nice graph::
+      - you can even get a nice graph::
 
           hg log --graph -r "bisect(range)"
 
@@ -834,10 +836,12 @@ def bookmark(ui, repo, *names, **opts):
                     bookmarks.deletedivergent(repo, [target], mark)
                     return
 
+                # consider successor changesets as well
+                foreground = obsolete.foreground(repo, [marks[mark]])
                 deletefrom = [b for b in divs
                               if repo[b].rev() in anc or b == target]
                 bookmarks.deletedivergent(repo, deletefrom, mark)
-                if bmctx.rev() in anc:
+                if bmctx.rev() in anc or target in foreground:
                     ui.status(_("moving bookmark '%s' forward from %s\n") %
                               (mark, short(bmctx.node())))
                     return
@@ -936,6 +940,7 @@ def branch(ui, repo, label=None, **opts):
     """set or show the current branch name
 
     .. note::
+
        Branch names are permanent and global. Use :hg:`bookmark` to create a
        light-weight bookmark instead. See :hg:`help glossary` for more
        information about named branches and bookmarks.
@@ -1807,7 +1812,7 @@ def debugdag(ui, repo, file_=None, *revs, **opts):
     [('c', 'changelog', False, _('open changelog')),
      ('m', 'manifest', False, _('open manifest'))],
     _('-c|-m|FILE REV'))
-def debugdata(ui, repo, file_, rev = None, **opts):
+def debugdata(ui, repo, file_, rev=None, **opts):
     """dump the contents of a data file revision"""
     if opts.get('changelog') or opts.get('manifest'):
         file_, rev = None, file_
@@ -1918,11 +1923,12 @@ def debugfileset(ui, repo, expr, **opts):
         ui.write("%s\n" % f)
 
 @command('debugfsinfo', [], _('[PATH]'))
-def debugfsinfo(ui, path = "."):
+def debugfsinfo(ui, path="."):
     """show information detected about current filesystem"""
     util.writefile('.debugfsinfo', '')
     ui.write(('exec: %s\n') % (util.checkexec(path) and 'yes' or 'no'))
     ui.write(('symlink: %s\n') % (util.checklink(path) and 'yes' or 'no'))
+    ui.write(('hardlink: %s\n') % (util.checknlink(path) and 'yes' or 'no'))
     ui.write(('case-sensitive: %s\n') % (util.checkcase('.debugfsinfo')
                                 and 'yes' or 'no'))
     os.unlink('.debugfsinfo')
@@ -1972,7 +1978,7 @@ def debugignore(ui, repo, *values, **opts):
      ('m', 'manifest', False, _('open manifest')),
      ('f', 'format', 0, _('revlog format'), _('FORMAT'))],
     _('[-f FORMAT] -c|-m|FILE'))
-def debugindex(ui, repo, file_ = None, **opts):
+def debugindex(ui, repo, file_=None, **opts):
     """dump the contents of an index file"""
     r = cmdutil.openrevlog(repo, 'debugindex', file_, opts)
     format = opts.get('format', 0)
@@ -2353,7 +2359,7 @@ def debugrename(ui, repo, file1, *pats, **opts):
      ('m', 'manifest', False, _('open manifest')),
      ('d', 'dump', False, _('dump index data'))],
      _('-c|-m|FILE'))
-def debugrevlog(ui, repo, file_ = None, **opts):
+def debugrevlog(ui, repo, file_=None, **opts):
     """show data and statistics about a revlog"""
     r = cmdutil.openrevlog(repo, 'debugrevlog', file_, opts)
 
@@ -2705,6 +2711,7 @@ def diff(ui, repo, *pats, **opts):
     Differences between files are shown using the unified diff format.
 
     .. note::
+
        diff may generate unexpected results for merges, as it will
        default to comparing against the working directory's first
        parent changeset if no revisions are specified.
@@ -2794,6 +2801,7 @@ def export(ui, repo, *changesets, **opts):
     comment.
 
     .. note::
+
        export may generate unexpected diff output for merge
        changesets, as it will compare the merge changeset against its
        first parent only.
@@ -2926,6 +2934,7 @@ def graft(ui, repo, *revs, **opts):
     continued with the -c/--continue option.
 
     .. note::
+
       The -c/--continue option does not reapply earlier options.
 
     .. container:: verbose
@@ -3019,11 +3028,12 @@ def graft(ui, repo, *revs, **opts):
         if n in ids:
             r = repo[n].rev()
             if r in revs:
-                ui.warn(_('skipping already grafted revision %s\n') % r)
+                ui.warn(_('skipping revision %s (already grafted to %s)\n')
+                        % (r, rev))
                 revs.remove(r)
             elif ids[n] in revs:
                 ui.warn(_('skipping already grafted revision %s '
-                            '(same origin %d)\n') % (ids[n], r))
+                            '(%s also has origin %d)\n') % (ids[n], rev, r))
                 revs.remove(ids[n])
         elif ctx.hex() in ids:
             r = ids[ctx.hex()]
@@ -3976,12 +3986,14 @@ def log(ui, repo, *pats, **opts):
     changed files and full commit message are shown.
 
     .. note::
+
        log -p/--patch may generate unexpected diff output for merge
        changesets, as it will only compare the merge changeset against
        its first parent. Also, only files different from BOTH parents
        will appear in files:.
 
     .. note::
+
        for performance reasons, log FILE may omit duplicate changes
        made on branches and will not show deletions. To see all
        changes including duplicates and deletions, use the --removed
@@ -4502,7 +4514,7 @@ def phase(ui, repo, *revs, **opts):
         rejected = [n for n in nodes
                     if newdata[cl.rev(n)] < targetphase]
         if rejected:
-            ui.warn(_('cannot move %i changesets to a more permissive '
+            ui.warn(_('cannot move %i changesets to a higher '
                       'phase, use --force\n') % len(rejected))
             ret = 1
         if changes:
@@ -4525,6 +4537,8 @@ def postincoming(ui, repo, modheads, optupdate, checkout):
             ret = hg.update(repo, checkout)
         except util.Abort, inst:
             ui.warn(_("not updating: %s\n") % str(inst))
+            if inst.hint:
+                ui.warn(_("(%s)\n") % inst.hint)
             return 0
         if not ret and not checkout:
             if bookmarks.update(repo, [movemarkfrom], repo['.'].node()):
@@ -4646,8 +4660,11 @@ def push(ui, repo, dest=None, **opts):
     branch that is not present at the destination. This allows you to
     only create a new branch without forcing other changes.
 
-    Use -f/--force to override the default behavior and push all
-    changesets on all branches.
+    .. note::
+
+      Extra care should be taken with the -f/--force option,
+      which will push all new heads on all branches, an action which will
+      almost always cause confusion for collaborators.
 
     If -r/--rev is used, the specified revision and all its ancestors
     will be pushed to the remote repository.
@@ -4762,14 +4779,14 @@ def remove(ui, repo, *pats, **opts):
       (as reported by :hg:`status`). The actions are Warn, Remove
       (from branch) and Delete (from disk):
 
-      ======= == == == ==
-              A  C  M  !
-      ======= == == == ==
-      none    W  RD W  R
-      -f      R  RD RD R
-      -A      W  W  W  R
-      -Af     R  R  R  R
-      ======= == == == ==
+      ========= == == == ==
+      opt/state A  C  M  !
+      ========= == == == ==
+      none      W  RD W  R
+      -f        R  RD RD R
+      -A        W  W  W  R
+      -Af       R  R  R  R
+      ========= == == == ==
 
       Note that remove never deletes files in Added [A] state from the
       working directory, not even if option --force is specified.
@@ -4969,6 +4986,7 @@ def revert(ui, repo, *pats, **opts):
     """restore files to their checkout state
 
     .. note::
+
        To check out earlier revisions, you should use :hg:`update REV`.
        To cancel an uncommitted merge (and lose your changes),
        use :hg:`update --clean .`.
@@ -5178,46 +5196,50 @@ def serve(ui, repo, **opts):
         o = repo
 
     app = hgweb.hgweb(o, baseui=baseui)
-
-    class service(object):
-        def init(self):
-            util.setsignalhandler()
-            self.httpd = hgweb.server.create_server(ui, app)
-
-            if opts['port'] and not ui.verbose:
-                return
-
-            if self.httpd.prefix:
-                prefix = self.httpd.prefix.strip('/') + '/'
-            else:
-                prefix = ''
-
-            port = ':%d' % self.httpd.port
-            if port == ':80':
-                port = ''
-
-            bindaddr = self.httpd.addr
-            if bindaddr == '0.0.0.0':
-                bindaddr = '*'
-            elif ':' in bindaddr: # IPv6
-                bindaddr = '[%s]' % bindaddr
-
-            fqaddr = self.httpd.fqaddr
-            if ':' in fqaddr:
-                fqaddr = '[%s]' % fqaddr
-            if opts['port']:
-                write = ui.status
-            else:
-                write = ui.write
-            write(_('listening at http://%s%s/%s (bound to %s:%d)\n') %
-                  (fqaddr, port, prefix, bindaddr, self.httpd.port))
-
-        def run(self):
-            self.httpd.serve_forever()
-
-    service = service()
-
+    service = httpservice(ui, app, opts)
     cmdutil.service(opts, initfn=service.init, runfn=service.run)
+
+class httpservice(object):
+    def __init__(self, ui, app, opts):
+        self.ui = ui
+        self.app = app
+        self.opts = opts
+
+    def init(self):
+        util.setsignalhandler()
+        self.httpd = hgweb_server.create_server(self.ui, self.app)
+
+        if self.opts['port'] and not self.ui.verbose:
+            return
+
+        if self.httpd.prefix:
+            prefix = self.httpd.prefix.strip('/') + '/'
+        else:
+            prefix = ''
+
+        port = ':%d' % self.httpd.port
+        if port == ':80':
+            port = ''
+
+        bindaddr = self.httpd.addr
+        if bindaddr == '0.0.0.0':
+            bindaddr = '*'
+        elif ':' in bindaddr: # IPv6
+            bindaddr = '[%s]' % bindaddr
+
+        fqaddr = self.httpd.fqaddr
+        if ':' in fqaddr:
+            fqaddr = '[%s]' % fqaddr
+        if self.opts['port']:
+            write = self.ui.status
+        else:
+            write = self.ui.write
+        write(_('listening at http://%s%s/%s (bound to %s:%d)\n') %
+              (fqaddr, port, prefix, bindaddr, self.httpd.port))
+
+    def run(self):
+        self.httpd.serve_forever()
+
 
 @command('showconfig|debugconfig',
     [('u', 'untrusted', None, _('show untrusted configuration options'))],
@@ -5295,6 +5317,7 @@ def status(ui, repo, *pats, **opts):
     unless explicitly requested with -u/--unknown or -i/--ignored.
 
     .. note::
+
        status may appear to disagree with diff if permissions have
        changed or a merge has occurred. The standard diff format does
        not report permission changes and diff only reports changes
@@ -5846,7 +5869,7 @@ def update(ui, repo, node=None, rev=None, clean=False, date=None, check=False):
     if check:
         c = repo[None]
         if c.dirty(merge=False, branch=False, missing=True):
-            raise util.Abort(_("uncommitted local changes"))
+            raise util.Abort(_("uncommitted changes"))
         if rev is None:
             rev = repo[repo[None].branch()].rev()
         mergemod._checkunknown(repo, repo[None], repo[rev])

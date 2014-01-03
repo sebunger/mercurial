@@ -94,7 +94,8 @@ Cases are run as shown in that table, row by row.
   parent=5
 
   $ norevtest 'none clean same'   clean 2
-  abort: crosses branches (merge branches or update --check to force update)
+  abort: not a linear update
+  (merge or update --check to force update)
   parent=2
 
 
@@ -122,22 +123,32 @@ Cases are run as shown in that table, row by row.
   M sub/suba
 
   $ revtest 'none dirty same'   dirty 2 3
-  abort: crosses branches (merge branches or use --clean to discard changes)
+  abort: uncommitted changes
+  (commit or update --clean to discard changes)
   parent=2
   M foo
 
   $ revtest 'none dirtysub same'   dirtysub 2 3
-  abort: crosses branches (merge branches or use --clean to discard changes)
+  abort: uncommitted changes
+  (commit or update --clean to discard changes)
   parent=2
   M sub/suba
 
   $ revtest 'none dirty cross'  dirty 3 4
-  abort: crosses branches (merge branches or use --clean to discard changes)
+  abort: uncommitted changes
+  (commit or update --clean to discard changes)
   parent=3
   M foo
 
+  $ norevtest 'none dirty cross'  dirty 2
+  abort: uncommitted changes
+  (commit and merge, or update --clean to discard changes)
+  parent=2
+  M foo
+
   $ revtest 'none dirtysub cross'  dirtysub 3 4
-  abort: crosses branches (merge branches or use --clean to discard changes)
+  abort: uncommitted changes
+  (commit or update --clean to discard changes)
   parent=3
   M sub/suba
 
@@ -146,12 +157,12 @@ Cases are run as shown in that table, row by row.
   parent=2
 
   $ revtest '-c dirty linear'   dirty 1 2 -c
-  abort: uncommitted local changes
+  abort: uncommitted changes
   parent=1
   M foo
 
   $ revtest '-c dirtysub linear'   dirtysub 1 2 -c
-  abort: uncommitted local changes
+  abort: uncommitted changes
   parent=1
   M sub/suba
 
@@ -195,6 +206,7 @@ Test no-argument update to a successor of an obsoleted changeset
   |/
   o  0:60829823a42a 0
   
+  $ hg book bm -r 3
   $ hg status
   M foo
 
@@ -207,10 +219,16 @@ We add simple obsolescence marker between 3 and 4 (indirect successors)
   $ hg debugobsolete 6efa171f091b00a3c35edc15d48c52a498929953 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   $ hg debugobsolete aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa d047485b3896813b2a624e86201983520f003206
 
-Test that 5 is detected as a valid destination from 3
+Test that 5 is detected as a valid destination from 3 and also accepts moving
+the bookmark (issue4015)
+
   $ hg up --quiet --hidden 3
   $ hg up 5
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg book bm
+  moving bookmark 'bm' forward from 6efa171f091b
+  $ hg bookmarks
+   * bm                        5:ff252e8273df
 
 Test that 5 is detected as a valid destination from 1
   $ hg up --quiet 0          # we should be able to update to 3 directly
@@ -222,5 +240,6 @@ Test that 5 is not detected as a valid destination from 2
   $ hg up --quiet 0
   $ hg up --quiet 2
   $ hg up 5
-  abort: crosses branches (merge branches or use --clean to discard changes)
+  abort: uncommitted changes
+  (commit or update --clean to discard changes)
   [255]

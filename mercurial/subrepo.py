@@ -5,7 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import errno, os, re, xml.dom.minidom, shutil, posixpath, sys
+import errno, os, re, shutil, posixpath, sys
+import xml.dom.minidom
 import stat, subprocess, tarfile
 from i18n import _
 import config, scmutil, util, node, error, cmdutil, bookmarks, match as matchmod
@@ -201,9 +202,24 @@ def submerge(repo, wctx, mctx, actx, overwrite):
                 wctx.sub(s).get(r, overwrite)
                 sm[s] = r
             else:
-                debug(s, "both sides changed, merge with", r)
-                wctx.sub(s).merge(r)
-                sm[s] = l
+                debug(s, "both sides changed")
+                option = repo.ui.promptchoice(
+                    _(' subrepository %s diverged (local revision: %s, '
+                      'remote revision: %s)\n'
+                      '(M)erge, keep (l)ocal or keep (r)emote?'
+                      '$$ &Merge $$ &Local $$ &Remote')
+                    % (s, l[1][:12], r[1][:12]), 0)
+                if option == 0:
+                    wctx.sub(s).merge(r)
+                    sm[s] = l
+                    debug(s, "merge with", r)
+                elif option == 1:
+                    sm[s] = l
+                    debug(s, "keep local subrepo revision", l)
+                else:
+                    wctx.sub(s).get(r, overwrite)
+                    sm[s] = r
+                    debug(s, "get remote subrepo revision", r)
         elif ld == a: # remote removed, local unchanged
             debug(s, "remote removed, remove")
             wctx.sub(s).remove()
@@ -237,6 +253,7 @@ def submerge(repo, wctx, mctx, actx, overwrite):
 
     # record merged .hgsubstate
     writestate(repo, sm)
+    return sm
 
 def _updateprompt(ui, sub, dirty, local, remote):
     if dirty:
@@ -294,6 +311,18 @@ def _abssource(repo, push=False, abort=True):
             return os.path.dirname(repo.sharedpath)
     if abort:
         raise util.Abort(_("default path for subrepository not found"))
+
+def _sanitize(ui, path):
+    def v(arg, dirname, names):
+        if os.path.basename(dirname).lower() != '.hg':
+            return
+        for f in names:
+            if f.lower() == 'hgrc':
+                ui.warn(
+                    _("warning: removing potentially hostile .hg/hgrc in '%s'"
+                      % path))
+                os.unlink(os.path.join(dirname, f))
+    os.walk(path, v, None)
 
 def itersubrepos(ctx1, ctx2):
     """find subrepos in ctx1 or ctx2"""
@@ -971,6 +1000,7 @@ class svnsubrepo(abstractsubrepo):
         # update to a directory which has since been deleted and recreated.
         args.append('%s@%s' % (state[0], state[1]))
         status, err = self._svncommand(args, failok=True)
+        _sanitize(self._ui, self._path)
         if not re.search('Checked out revision [0-9]+.', status):
             if ('is already a working copy for a different URL' in err
                 and (self._wcchanged()[:2] == (False, False))):
@@ -1231,6 +1261,7 @@ class gitsubrepo(abstractsubrepo):
                 self._gitcommand(['reset', 'HEAD'])
                 cmd.append('-f')
             self._gitcommand(cmd + args)
+            _sanitize(self._ui, self._path)
 
         def rawcheckout():
             # no branch to checkout, check it out with no branch
@@ -1314,6 +1345,7 @@ class gitsubrepo(abstractsubrepo):
                 self.get(state) # fast forward merge
             elif base != self._state[1]:
                 self._gitcommand(['merge', '--no-commit', revision])
+            _sanitize(self._ui, self._path)
 
         if self.dirty():
             if self._gitstate() != revision:

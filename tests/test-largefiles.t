@@ -1104,7 +1104,7 @@ Rollback on largefiles.
 
 "update --check" refuses to update with uncommitted changes.
   $ hg update --check 8
-  abort: uncommitted local changes
+  abort: uncommitted changes
   [255]
 
 "update --clean" leaves correct largefiles in working copy, even when there is
@@ -1280,7 +1280,7 @@ Update to revision with missing largefile - and make sure it really is missing
   $ rm ${USERCACHE}/7838695e10da2bb75ac1156565f40a2595fa2fa0
   $ hg up -r 6
   getting changed largefiles
-  large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file:$TESTTMP/d (glob)
+  large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file://$TESTTMP/d (glob)
   1 largefiles updated, 2 removed
   4 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ rm normal3
@@ -1301,7 +1301,7 @@ Update to revision with missing largefile - and make sure it really is missing
   ! normal3
   $ hg up -Cr.
   getting changed largefiles
-  large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file:$TESTTMP/d (glob)
+  large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file://$TESTTMP/d (glob)
   0 largefiles updated, 0 removed
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg st
@@ -1323,7 +1323,7 @@ Merge with revision with missing largefile - and make sure it tries to fetch it.
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   getting changed largefiles
-  large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file:$TESTTMP/d (glob)
+  large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file://$TESTTMP/d (glob)
   1 largefiles updated, 0 removed
 
   $ hg rollback -q
@@ -2189,5 +2189,99 @@ check messages when there are files to upload:
   largefiles to upload:
   b
   
+
+  $ cd ..
+
+merge action 'd' for 'local renamed directory to d2/g' which has no filename
+
+  $ hg init merge-action
+  $ cd merge-action
+  $ touch l
+  $ hg add --large l
+  $ mkdir d1
+  $ touch d1/f
+  $ hg ci -Aqm0
+  Invoking status precommit hook
+  A d1/f
+  A l
+  $ echo > d1/f
+  $ touch d1/g
+  $ hg ci -Aqm1
+  Invoking status precommit hook
+  M d1/f
+  A d1/g
+  $ hg up -qr0
+  $ hg mv d1 d2
+  moving d1/f to d2/f (glob)
+  $ hg ci -qm2
+  Invoking status precommit hook
+  A d2/f
+  R d1/f
+  $ hg merge
+  merging d2/f and d1/f to d2/f
+  1 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  getting changed largefiles
+  0 largefiles updated, 0 removed
+  $ cd ..
+
+Check whether "largefiles" feature is supported only in repositories
+enabling largefiles extension.
+
+  $ mkdir individualenabling
+  $ cd individualenabling
+
+  $ hg init enabledlocally
+  $ echo large > enabledlocally/large
+  $ hg -R enabledlocally add --large enabledlocally/large
+  $ hg -R enabledlocally commit -m '#0'
+  Invoking status precommit hook
+  A large
+
+  $ hg init notenabledlocally
+  $ echo large > notenabledlocally/large
+  $ hg -R notenabledlocally add --large notenabledlocally/large
+  $ hg -R notenabledlocally commit -m '#0'
+  Invoking status precommit hook
+  A large
+
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > # disable globally
+  > largefiles=!
+  > EOF
+  $ cat >> enabledlocally/.hg/hgrc <<EOF
+  > [extensions]
+  > # enable locally
+  > largefiles=
+  > EOF
+  $ hg -R enabledlocally root
+  $TESTTMP/individualenabling/enabledlocally
+  $ hg -R notenabledlocally root
+  abort: unknown repository format: requires features 'largefiles' (upgrade Mercurial)!
+  [255]
+
+  $ hg init push-dst
+  $ hg -R enabledlocally push push-dst
+  pushing to push-dst
+  abort: required features are not supported in the destination: largefiles
+  [255]
+
+  $ hg init pull-src
+  $ hg -R pull-src pull enabledlocally
+  pulling from enabledlocally
+  abort: required features are not supported in the destination: largefiles
+  [255]
+
+  $ hg clone enabledlocally clone-dst
+  abort: unknown repository format: requires features 'largefiles' (upgrade Mercurial)!
+  [255]
+  $ test -d clone-dst
+  [1]
+  $ hg clone --pull enabledlocally clone-pull-dst
+  abort: required features are not supported in the destination: largefiles
+  [255]
+  $ test -d clone-pull-dst
+  [1]
 
   $ cd ..

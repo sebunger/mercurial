@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.8.1: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.11: http://docutils.sourceforge.net/" />
 <title>hgrc</title>
 <meta name="author" content="Bryan O'Sullivan &lt;bos&#64;serpentine.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -526,8 +526,8 @@ or <tt class="docutils literal">foo = !</tt> when path is not supplied.</p>
 <p>Example for <tt class="docutils literal"><span class="pre">~/.hgrc</span></tt>:</p>
 <pre class="literal-block">
 [extensions]
-# (the mq extension will get loaded from Mercurial's path)
-mq =
+# (the progress extension will get loaded from Mercurial's path)
+progress =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 </pre>

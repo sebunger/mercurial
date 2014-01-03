@@ -5,6 +5,7 @@
 
 import os
 import urllib2
+import re
 
 from mercurial import error, httppeer, util, wireproto
 from mercurial.wireproto import batchable, future
@@ -39,7 +40,7 @@ def putlfile(repo, proto, sha):
             tmpfp.close()
             lfutil.linktousercache(repo, sha)
         except IOError, e:
-            repo.ui.warn(_('largefiles: failed to put %s into store: %s') %
+            repo.ui.warn(_('largefiles: failed to put %s into store: %s\n') %
                          (sha, e.strerror))
             return wireproto.pushres(1)
     finally:
@@ -92,10 +93,10 @@ def wirereposetup(ui, repo):
                         headers={'content-type':'application/mercurial-0.1'})
                     d, output = res.split('\n', 1)
                     for l in output.splitlines(True):
-                        self.ui.warn(_('remote: '), l, '\n')
+                        self.ui.warn(_('remote: '), l) # assume l ends with \n
                     return int(d)
                 except (ValueError, urllib2.HTTPError):
-                    self.ui.warn(_('unexpected putlfile response: %s') % res)
+                    self.ui.warn(_('unexpected putlfile response: %r\n') % res)
                     return 1
             # ... but we can't use sshrepository._call because the data=
             # argument won't get sent, and _callpush does exactly what we want
@@ -166,9 +167,11 @@ def sshrepocallstream(self, cmd, **args):
         args['cmds'] = args['cmds'].replace('heads ', 'lheads ')
     return ssholdcallstream(self, cmd, **args)
 
+headsre = re.compile(r'(^|;)heads\b')
+
 def httprepocallstream(self, cmd, **args):
     if cmd == 'heads' and self.capable('largefiles'):
         cmd = 'lheads'
     if cmd == 'batch' and self.capable('largefiles'):
-        args['cmds'] = args['cmds'].replace('heads ', 'lheads ')
+        args['cmds'] = headsre.sub('lheads', args['cmds'])
     return httpoldcallstream(self, cmd, **args)

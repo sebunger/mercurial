@@ -1,14 +1,18 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
 %:
 	dh $@ --with python2,bash-completion
 
 PYVERS=$(shell pyversions -vs)
+PYVER_DEFAULT=$(shell pyversions -vd)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
-override_dh_auto_build: $(PYVERS:%=build-python%)
-	$(MAKE) -C doc man
+override_dh_auto_build:
+	$(MAKE) all
 	# Do not start a line with a word with a dot in a manpage
 	sed -i -e 's,^[.]\(hgignore\|hg/hgrc\),\\fP\1,' doc/hg.1
 
@@ -35,18 +39,14 @@ ifneq ($(or $(ARCH_IS_MIPS), $(ARCH_IS_KFREEBSD-i386), $(ARCH_IS_ARMEL), $(ARCH_
 		sed -i.deb-backup -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t
 endif
 
-	http_proxy='' dh_auto_test -- TESTFLAGS="--verbose --timeout 480 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+	http_proxy='' dh_auto_test -- TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS)"
 
 	rename.ul .deb-backup '' $(CURDIR)/tests/*
 endif
 
-build-python%: mercurial/__version__.py
-	python$* setup.py build
-	touch $@
-
 override_dh_auto_install: $(PYVERS:%=install-python%)
 
-install-python%: build-python%
+install-python%:
 	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
 	# Do not hardcode the python interpreter
 	sed -i '1c#!/usr/bin/python' debian/tmp/usr/bin/hg
@@ -77,6 +77,17 @@ install-archindep:
 	install -m 644 \
 		debian/cacerts.hgrc \
 		$(CURDIR)/debian/mercurial-common/etc/mercurial/hgrc.d/cacerts.rc
+	# Move templates and help installed by setup.py to their FHS-correct location
+	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/templates \
+	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/help \
+	   $(CURDIR)/debian/mercurial-common/usr/share/mercurial
+	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/locale \
+	   $(CURDIR)/debian/mercurial-common/usr/share
+	# If more than one Python version is supported, clean up the templates
+	# and help installed for the other versions
+	-rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/templates \
+	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/help \
+	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/locale \
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
@@ -91,7 +102,10 @@ override_dh_auto_clean: mercurial/__version__.py
 	dh_auto_clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
-	$(RM) build-python*
+
+override_dh_clean:
+	dh_clean
+	-rm -f tests/test-check-pyflakes.t
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."

@@ -1,6 +1,6 @@
 """test behavior of propertycache and unfiltered propertycache
 
-The repoview overlay is quite complexe. We test the behavior of
+The repoview overlay is quite complex. We test the behavior of
 property cache of both localrepo and repoview to prevent
 regression."""
 
@@ -42,7 +42,7 @@ mercurial.localrepo.localrepository.testcachedunfifoobar = testcachedunfifoobar
 # create an empty repo. and instanciate it. It is important to run
 # those test on the real object to detect regression.
 repopath = os.path.join(os.environ['TESTTMP'], 'repo')
-subprocess.check_call(['hg', 'init', repopath])
+assert subprocess.call(['hg', 'init', repopath]) == 0
 ui = uimod.ui()
 repo = mercurial.hg.repository(ui, path=repopath).unfiltered()
 

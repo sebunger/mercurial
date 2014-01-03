@@ -185,6 +185,8 @@ class phasecache(object):
         # be replaced without us being notified.
         if rev == nullrev:
             return public
+        if rev < nullrev:
+            raise ValueError(_('cannot lookup negative revision'))
         if self._phaserevs is None or rev >= len(self._phaserevs):
             self._phaserevs = self.getphaserevs(repo, rebuild=True)
         return self._phaserevs[rev]
@@ -267,12 +269,12 @@ class phasecache(object):
         if filtered:
             self.dirty = True
         # filterunknown is called by repo.destroyed, we may have no changes in
-        # root but phaserevs contents is certainly invalide (or at least we
-        # have not proper way to check that. related to issue 3858.
+        # root but phaserevs contents is certainly invalid (or at least we
+        # have not proper way to check that). related to issue 3858.
         #
         # The other caller is __init__ that have no _phaserevs initialized
         # anyway. If this change we should consider adding a dedicated
-        # "destroyed" function to phasecache or a proper cache key mechanisme
+        # "destroyed" function to phasecache or a proper cache key mechanism
         # (see branchmap one)
         self._phaserevs = None
 
