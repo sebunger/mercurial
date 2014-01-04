@@ -1,0 +1,172 @@
+Suggest Debian packages for some optional dependencies.
+
+--- a/hgext/bugzilla.py
++++ b/hgext/bugzilla.py
+@@ -354,7 +354,8 @@ class bzmysql(bzaccess):
+             import MySQLdb as mysql
+             bzmysql._MySQLdb = mysql
+         except ImportError, err:
+-            raise util.Abort(_('python mysql support not available: %s') % err)
++            raise util.Abort(_('python mysql support not available: %s') % err +
++                             _(' (try installing the %s package)') % 'python-mysqldb')
+ 
+         bzaccess.__init__(self, ui)
+ 
+--- a/hgext/convert/bzr.py
++++ b/hgext/convert/bzr.py
+@@ -44,7 +44,8 @@ class bzr_source(converter_source):
+             # access bzrlib stuff
+             bzrdir
+         except NameError:
+-            raise NoRepo(_('Bazaar modules could not be loaded'))
++            raise NoRepo(_('Bazaar modules could not be loaded') +
++                         _(' (try installing the %s package)') % 'bzr')
+ 
+         path = os.path.abspath(path)
+         self._checkrepotype(path)
+--- a/hgext/convert/common.py
++++ b/hgext/convert/common.py
+@@ -28,11 +28,12 @@ def decodeargs(s):
+ class MissingTool(Exception):
+     pass
+ 
+-def checktool(exe, name=None, abort=True):
++def checktool(exe, name=None, abort=True, debname=None):
+     name = name or exe
+     if not util.findexe(exe):
+         exc = abort and util.Abort or MissingTool
+-        raise exc(_('cannot find required "%s" tool') % name)
++        raise exc(_('cannot find required "%s" tool') % name +
++                  (debname and _(' (try installing the %s package)') % debname or ''))
+ 
+ class NoRepo(Exception):
+     pass
+--- a/hgext/convert/cvs.py
++++ b/hgext/convert/cvs.py
+@@ -22,7 +22,7 @@ class convert_cvs(converter_source):
+         if not os.path.exists(cvs):
+             raise NoRepo(_("%s does not look like a CVS checkout") % path)
+ 
+-        checktool('cvs')
++        checktool('cvs', debname='cvs')
+ 
+         self.changeset = None
+         self.files = {}
+--- a/hgext/convert/darcs.py
++++ b/hgext/convert/darcs.py
+@@ -36,14 +36,15 @@ class darcs_source(converter_source, com
+         if not os.path.exists(os.path.join(path, '_darcs')):
+             raise NoRepo(_("%s does not look like a darcs repository") % path)
+ 
+-        checktool('darcs')
++        checktool('darcs', debname='darcs')
+         version = self.run0('--version').splitlines()[0].strip()
+         if version < '2.1':
+             raise util.Abort(_('darcs version 2.1 or newer needed (found %r)') %
+                              version)
+ 
+         if "ElementTree" not in globals():
+-            raise util.Abort(_("Python ElementTree module is not available"))
++            raise util.Abort(_("Python ElementTree module is not available") +
++                             _(" (try installing the %s package)") % 'python-celementtree')
+ 
+         self.path = os.path.realpath(path)
+ 
+--- a/hgext/convert/git.py
++++ b/hgext/convert/git.py
+@@ -79,7 +79,7 @@ class convert_git(converter_source):
+         if not os.path.exists(path + "/objects"):
+             raise NoRepo(_("%s does not look like a Git repository") % path)
+ 
+-        checktool('git', 'git')
++        checktool('git', 'git', debname='git-core')
+ 
+         self.path = path
+         self.submodules = []
+--- a/hgext/convert/gnuarch.py
++++ b/hgext/convert/gnuarch.py
+@@ -42,7 +42,8 @@ class gnuarch_source(converter_source, c
+             if util.findexe('tla'):
+                 self.execmd = 'tla'
+             else:
+-                raise util.Abort(_('cannot find a GNU Arch tool'))
++                raise util.Abort(_('cannot find a GNU Arch tool') +
++                                 _(' (try installing the %s package)') % 'tla')
+ 
+         commandline.__init__(self, ui, self.execmd)
+ 
+--- a/hgext/convert/monotone.py
++++ b/hgext/convert/monotone.py
+@@ -66,7 +66,7 @@ class monotone_source(converter_source,
+         self.files = None
+         self.dirs  = None
+ 
+-        checktool('mtn', abort=False)
++        checktool('mtn', abort=False, debname='monotone')
+ 
+     def mtnrun(self, *args, **kwargs):
+         if self.automatestdio:
+--- a/hgext/convert/subversion.py
++++ b/hgext/convert/subversion.py
+@@ -20,6 +20,7 @@ from cStringIO import StringIO
+ from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
+ from common import commandline, converter_source, converter_sink, mapfile
+ from common import makedatetimestamp
++from common import checktool
+ 
+ try:
+     from svn.core import SubversionException, Pool
+@@ -236,16 +237,19 @@ class svn_source(converter_source):
+             raise NoRepo(_("%s does not look like a Subversion repository")
+                          % url)
+         if svn is None:
+-            raise MissingTool(_('could not load Subversion python bindings'))
++            raise MissingTool(_('could not load Subversion python bindings') +
++                              _(' (try installing the %s package)') % 'python-subversion')
+ 
+         try:
+             version = svn.core.SVN_VER_MAJOR, svn.core.SVN_VER_MINOR
+             if version < (1, 4):
+                 raise MissingTool(_('Subversion python bindings %d.%d found, '
+-                                    '1.4 or later required') % version)
++                                    '1.4 or later required') % version +
++                                  _(' (try upgrading the %s package)') % 'python-subversion')
+         except AttributeError:
+             raise MissingTool(_('Subversion python bindings are too old, 1.4 '
+-                                'or later required'))
++                                'or later required') +
++                              _(' (try upgrading the %s package)') % 'python-subversion')
+ 
+         self.lastrevs = {}
+ 
+@@ -1024,6 +1028,8 @@ class svn_sink(converter_sink, commandli
+         return self.join('hg-authormap')
+ 
+     def __init__(self, ui, path):
++        checktool('svn', debname='subversion')
++        checktool('svnadmin', debname='subversion')
+ 
+         converter_sink.__init__(self, ui, path)
+         commandline.__init__(self, ui, 'svn')
+--- a/mercurial/hgweb/server.py
++++ b/mercurial/hgweb/server.py
+@@ -207,7 +207,8 @@ class _httprequesthandleropenssl(_httpre
+             import OpenSSL
+             OpenSSL.SSL.Context
+         except ImportError:
+-            raise util.Abort(_("SSL support is unavailable"))
++            raise util.Abort(_("SSL support is unavailable") +
++                             _(" (try installing the %s package)") % 'python-openssl')
+         ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
+         ctx.use_privatekey_file(ssl_cert)
+         ctx.use_certificate_file(ssl_cert)
+@@ -248,7 +249,8 @@ class _httprequesthandlerssl(_httpreques
+             import ssl
+             ssl.wrap_socket
+         except ImportError:
+-            raise util.Abort(_("SSL support is unavailable"))
++            raise util.Abort(_("SSL support is unavailable") +
++                             _(" (try installing the %s package)") % 'python-openssl')
+         httpserver.socket = ssl.wrap_socket(httpserver.socket, server_side=True,
+             certfile=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
+ 

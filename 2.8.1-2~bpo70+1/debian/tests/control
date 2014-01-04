@@ -1,0 +1,8 @@
+Tests: testsuite
+Depends: @, zip, unzip, netbase, python-subversion, monotone, cvs, bzr, tla, darcs
+
+Tests: hgsubversion
+Depends: @, hgsubversion
+
+Tests: mercurial-git
+Depends: @, mercurial-git, git
