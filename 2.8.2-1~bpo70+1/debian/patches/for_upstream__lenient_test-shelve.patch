@@ -1,0 +1,28 @@
+Author: Tristan Seligmann <mithrandi@debian.org>
+Description: Make test-shelve.t more lenient
+ When running on a slower system (eg. MIPS buildd), the age of the shelf can be
+ 10 seconds or more, resulting in the output alignment changing and thus a test
+ failure. This patch makes the spacing be matched more leniently.
+Bug: http://bz.selenic.com/show_bug.cgi?id=4124
+
+Index: mercurial-2.8.1/tests/test-shelve.t
+===================================================================
+--- mercurial-2.8.1.orig/tests/test-shelve.t	2013-12-02 04:51:10.000000000 +0200
++++ mercurial-2.8.1/tests/test-shelve.t	2013-12-08 01:28:17.505760594 +0200
+@@ -80,12 +80,12 @@
+ 
+ ensure that our shelved changes exist
+ 
+-  $ hg shelve -l
+-  default-01      (*)    [mq]: second.patch (glob)
+-  default         (*)    [mq]: second.patch (glob)
++  $ sleep 10 && hg shelve -l
++  default-01      (*)* [mq]: second.patch (glob)
++  default         (*)* [mq]: second.patch (glob)
+ 
+   $ hg shelve -l -p default
+-  default         (*)    [mq]: second.patch (glob)
++  default         (*)* [mq]: second.patch (glob)
+   
+   diff --git a/a/a b/a/a
+   --- a/a/a
