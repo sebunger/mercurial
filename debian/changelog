@@ -1,8 +1,8 @@
-mercurial (2.8.2-2) UNRELEASED; urgency=medium
+mercurial (2.9-1) UNRELEASED; urgency=medium
 
   * blacklist check_pyflakes instead of deleting the test
 
- -- Javi Merino <vicho@debian.org>  Fri, 03 Jan 2014 20:57:20 +0100
+ -- Javi Merino <vicho@debian.org>  Sun, 09 Feb 2014 17:21:35 +0000
 
 mercurial (2.8.2-1) unstable; urgency=medium
 
