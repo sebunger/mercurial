@@ -9,7 +9,7 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
 --- a/tests/run-tests.py
 +++ b/tests/run-tests.py
-@@ -430,7 +430,7 @@ def usecorrectpython():
+@@ -436,7 +436,7 @@ def usecorrectpython():
               sys.executable)
          mypython = os.path.join(BINDIR, pyexename)
          try:
