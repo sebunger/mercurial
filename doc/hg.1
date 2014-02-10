@@ -63,11 +63,11 @@ repository.
 .SH OPTIONS
 .INDENT 0.0
 .TP
-.B \-R,  \-\-repository
+.BI \-R,  \-\-repository \ <REPO>
 .
 repository root directory or name of overlay bundle file
 .TP
-.B \-\-cwd
+.BI \-\-cwd \ <DIR>
 .
 change working directory
 .TP
@@ -83,7 +83,7 @@ suppress output
 .
 enable additional output
 .TP
-.B \-\-config
+.BI \-\-config \ <CONFIG[+]>
 .
 set/override config option (use \(aqsection.name=value\(aq)
 .TP
@@ -95,11 +95,11 @@ enable debugging output
 .
 start debugger
 .TP
-.B \-\-encoding
+.BI \-\-encoding \ <ENCODE>
 .
 set the charset encoding (default: UTF\-8)
 .TP
-.B \-\-encodingmode
+.BI \-\-encodingmode \ <MODE>
 .
 set the charset encoding mode (default: strict)
 .TP
@@ -127,6 +127,8 @@ display help and exit
 .
 consider hidden changesets
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SH COMMANDS
 .SS add
 .sp
@@ -165,11 +167,11 @@ Returns 0 if all files are successfully added.
 Options:
 .INDENT 0.0
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
@@ -181,6 +183,8 @@ recurse into subrepositories
 .
 do not perform actions, just print output
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS addremove
 .sp
 .nf
@@ -211,15 +215,15 @@ Returns 0 if all files are successfully added.
 Options:
 .INDENT 0.0
 .TP
-.B \-s,  \-\-similarity
+.BI \-s,  \-\-similarity \ <SIMILARITY>
 .
 guess renamed files by similarity (0<=s<=100)
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
@@ -227,6 +231,8 @@ exclude names matching the given patterns
 .
 do not perform actions, just print output
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS annotate
 .sp
 .nf
@@ -251,7 +257,7 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 annotate the specified revision
 .TP
@@ -303,15 +309,21 @@ ignore changes in the amount of white space
 .
 ignore changes whose lines are all blank
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: blame
+.UNINDENT
 .UNINDENT
 .SS archive
 .sp
@@ -394,15 +406,15 @@ Options:
 .
 do not pass files through decoders
 .TP
-.B \-p,  \-\-prefix
+.BI \-p,  \-\-prefix \ <PREFIX>
 .
 directory prefix for files in archive
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision to distribute
 .TP
-.B \-t,  \-\-type
+.BI \-t,  \-\-type \ <TYPE>
 .
 type of distribution to create
 .TP
@@ -410,14 +422,16 @@ type of distribution to create
 .
 recurse into subrepositories
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS backout
 .sp
 .nf
@@ -459,42 +473,44 @@ Options:
 .
 merge with old dirstate parent after backout
 .TP
-.B \-\-parent
+.BI \-\-parent \ <REV>
 .
 parent to choose when backing out merge (DEPRECATED)
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision to backout
 .TP
-.B \-t,  \-\-tool
+.BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS bisect
 .sp
 .nf
@@ -655,7 +671,7 @@ skip testing changeset
 .
 extend the bisect range
 .TP
-.B \-c,  \-\-command
+.BI \-c,  \-\-command \ <CMD>
 .
 use command to check changeset state
 .TP
@@ -702,7 +718,7 @@ Options:
 .
 force
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision
 .TP
@@ -710,7 +726,7 @@ revision
 .
 delete a given bookmark
 .TP
-.B \-m,  \-\-rename
+.BI \-m,  \-\-rename \ <NAME>
 .
 rename a given bookmark
 .TP
@@ -830,15 +846,15 @@ Options:
 .
 run even when the destination is unrelated
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a changeset intended to be added to the destination
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 a specific branch you would like to bundle
 .TP
-.B \-\-base
+.BI \-\-base \ <REV[+]>
 .
 a base changeset assumed to be available at the destination
 .TP
@@ -846,15 +862,15 @@ a base changeset assumed to be available at the destination
 .
 bundle all changesets in the repository
 .TP
-.B \-t,  \-\-type
+.BI \-t,  \-\-type \ <TYPE>
 .
 bundle compression type to use (default: bzip2)
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -862,6 +878,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS cat
 .sp
 .nf
@@ -896,11 +914,11 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-o,  \-\-output
+.BI \-o,  \-\-output \ <FORMAT>
 .
 print output to file with formatted name
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 print the given revision
 .TP
@@ -908,14 +926,16 @@ print the given revision
 .
 apply any matching decode filter
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS clone
 .sp
 .nf
@@ -1077,15 +1097,15 @@ Options:
 .
 the clone will include an empty working copy (only a repository)
 .TP
-.B \-u,  \-\-updaterev
+.BI \-u,  \-\-updaterev \ <REV>
 .
 revision, tag or branch to check out
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 include the specified changeset
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 clone only the specified branch
 .TP
@@ -1097,11 +1117,11 @@ use pull protocol to copy metadata
 .
 use uncompressed transfer (fast over LAN)
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -1109,6 +1129,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS commit
 .sp
 .nf
@@ -1169,35 +1191,41 @@ amend the parent of the working dir
 .
 use the secret phase for committing
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: ci
+.UNINDENT
 .UNINDENT
 .SS copy
 .sp
@@ -1231,19 +1259,25 @@ record a copy that has already occurred
 .
 forcibly copy over an existing managed file
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
 .B \-n,  \-\-dry\-run
 .
 do not perform actions, just print output
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: cp
+.UNINDENT
 .UNINDENT
 .SS diff
 .sp
@@ -1335,11 +1369,11 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 revision
 .TP
-.B \-c,  \-\-change
+.BI \-c,  \-\-change \ <REV>
 .
 change made by revision
 .TP
@@ -1375,7 +1409,7 @@ ignore changes in the amount of white space
 .
 ignore changes whose lines are all blank
 .TP
-.B \-U,  \-\-unified
+.BI \-U,  \-\-unified \ <NUM>
 .
 number of lines of context to show
 .TP
@@ -1383,11 +1417,11 @@ number of lines of context to show
 .
 output diffstat\-style summary of changes
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
@@ -1395,6 +1429,8 @@ exclude names matching the given patterns
 .
 recurse into subrepositories
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS export
 .sp
 .nf
@@ -1506,7 +1542,7 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-o,  \-\-output
+.BI \-o,  \-\-output \ <FORMAT>
 .
 print output to file with formatted name
 .TP
@@ -1514,7 +1550,7 @@ print output to file with formatted name
 .
 diff against the second parent
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 revisions to export
 .TP
@@ -1530,6 +1566,8 @@ use git extended diff format
 .
 omit dates from diff headers
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS forget
 .sp
 .nf
@@ -1574,14 +1612,16 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS graft
 .sp
 .nf
@@ -1663,7 +1703,7 @@ Returns 0 on successful completion.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 revisions to graft
 .TP
@@ -1687,15 +1727,15 @@ record the current date as commit date
 .
 record the current user as committer
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .TP
-.B \-t,  \-\-tool
+.BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
 .TP
@@ -1703,6 +1743,8 @@ specify merge tool
 .
 do not perform actions, just print output
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS grep
 .sp
 .nf
@@ -1757,7 +1799,7 @@ print only filenames and revisions that match
 .
 print matching line numbers
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 only search files changed within revision range
 .TP
@@ -1769,14 +1811,16 @@ list the author (long with \-v)
 .
 list the date (short with \-q)
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS heads
 .sp
 .nf
@@ -1809,7 +1853,7 @@ Returns 0 if matching heads are found, 1 if not.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <STARTREV>
 .
 show only heads which are descendants of STARTREV
 .TP
@@ -1825,11 +1869,11 @@ show active branchheads only (DEPRECATED)
 .
 show normal and closed branch heads
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
@@ -1859,7 +1903,7 @@ show only help for extensions
 .
 show only help for commands
 .TP
-.B \-k,  \-\-keyword
+.BI \-k,  \-\-keyword \ <VALUE>
 .
 show topics matching keyword
 .UNINDENT
@@ -1918,7 +1962,7 @@ Returns 0 if successful.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 identify the specified revision
 .TP
@@ -1942,11 +1986,11 @@ show tags
 .
 show bookmarks
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -2046,11 +2090,11 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-p,  \-\-strip
+.BI \-p,  \-\-strip \ <NUM>
 .
 directory strip option for patch. This has the same meaning as the corresponding patch option (default: 1)
 .TP
-.B \-b,  \-\-base
+.BI \-b,  \-\-base \ <PATH>
 .
 base path (DEPRECATED)
 .TP
@@ -2078,23 +2122,23 @@ apply patch to the nodes from which it was generated
 .
 use any branch information in patch (implied by \-\-exact)
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .TP
-.B \-s,  \-\-similarity
+.BI \-s,  \-\-similarity \ <SIMILARITY>
 .
 guess renamed files by similarity (0<=s<=100)
 .sp
@@ -2130,11 +2174,11 @@ run even if remote repository is unrelated
 .
 show newest record first
 .TP
-.B \-\-bundle
+.BI \-\-bundle \ <FILE>
 .
 file to store the bundles into
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a remote changeset intended to be added
 .TP
@@ -2142,7 +2186,7 @@ a remote changeset intended to be added
 .
 compare bookmarks
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 a specific branch you would like to pull
 .TP
@@ -2154,7 +2198,7 @@ show patch
 .
 use git extended diff format
 .TP
-.B \-l,  \-\-limit
+.BI \-l,  \-\-limit \ <NUM>
 .
 limit number of changes displayed
 .TP
@@ -2170,19 +2214,19 @@ output diffstat\-style summary of changes
 .
 show the revision DAG
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -2193,8 +2237,14 @@ do not verify server certificate (ignoring web.cacerts config)
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: in
+.UNINDENT
 .UNINDENT
 .SS init
 .sp
@@ -2217,11 +2267,11 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -2257,7 +2307,7 @@ Returns 0 if a match is found, 1 otherwise.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 search the repository as it is in REV
 .TP
@@ -2269,14 +2319,16 @@ end filenames with NUL, for use with xargs
 .
 print complete paths from the filesystem root
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS log
 .sp
 .nf
@@ -2422,7 +2474,7 @@ follow changeset history, or file history across copies and renames
 .
 only follow the first parent of merge changesets (DEPRECATED)
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 show revisions matching date spec
 .TP
@@ -2430,11 +2482,11 @@ show revisions matching date spec
 .
 show copied files
 .TP
-.B \-k,  \-\-keyword
+.BI \-k,  \-\-keyword \ <TEXT[+]>
 .
 do case\-insensitive search for a given text
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 show the specified revision or range
 .TP
@@ -2446,19 +2498,19 @@ include revisions where files were removed
 .
 show only merges (DEPRECATED)
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER[+]>
 .
 revisions committed by user
 .TP
-.B \-\-only\-branch
+.BI \-\-only\-branch \ <BRANCH[+]>
 .
 show only changesets within the given named branch (DEPRECATED)
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 show changesets within the given named branch
 .TP
-.B \-P,  \-\-prune
+.BI \-P,  \-\-prune \ <REV[+]>
 .
 do not display revision or any of its ancestors
 .TP
@@ -2470,7 +2522,7 @@ show patch
 .
 use git extended diff format
 .TP
-.B \-l,  \-\-limit
+.BI \-l,  \-\-limit \ <NUM>
 .
 limit number of changes displayed
 .TP
@@ -2486,23 +2538,29 @@ output diffstat\-style summary of changes
 .
 show the revision DAG
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: history
+.UNINDENT
 .UNINDENT
 .SS manifest
 .sp
@@ -2527,7 +2585,7 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision to display
 .TP
@@ -2575,7 +2633,7 @@ Options:
 .
 force a merge including outstanding changes (DEPRECATED)
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision to merge
 .TP
@@ -2583,7 +2641,7 @@ revision to merge
 .
 review revisions to merge (no merge is performed)
 .TP
-.B \-t,  \-\-tool
+.BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
 .UNINDENT
@@ -2610,7 +2668,7 @@ Options:
 .
 run even when the destination is unrelated
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a changeset intended to be included in the destination
 .TP
@@ -2622,7 +2680,7 @@ show newest record first
 .
 compare bookmarks
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 a specific branch you would like to push
 .TP
@@ -2634,7 +2692,7 @@ show patch
 .
 use git extended diff format
 .TP
-.B \-l,  \-\-limit
+.BI \-l,  \-\-limit \ <NUM>
 .
 limit number of changes displayed
 .TP
@@ -2650,19 +2708,19 @@ output diffstat\-style summary of changes
 .
 show the revision DAG
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -2673,8 +2731,14 @@ do not verify server certificate (ignoring web.cacerts config)
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: out
+.UNINDENT
 .UNINDENT
 .SS parents
 .sp
@@ -2695,15 +2759,15 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 show parents of the specified revision
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
@@ -2783,10 +2847,12 @@ set changeset phase to secret
 .
 allow to move boundary backward
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 target revision
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS pull
 .sp
 .nf
@@ -2823,23 +2889,23 @@ update to new branch head if changesets were pulled
 .
 run even when remote repository is unrelated
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a remote changeset intended to be added
 .TP
-.B \-B,  \-\-bookmark
+.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
 .
 bookmark to pull
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 a specific branch you would like to pull
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -2847,6 +2913,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS push
 .sp
 .nf
@@ -2895,15 +2963,15 @@ Options:
 .
 force push
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a changeset intended to be included in the destination
 .TP
-.B \-B,  \-\-bookmark
+.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
 .
 bookmark to push
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 a specific branch you would like to push
 .TP
@@ -2911,11 +2979,11 @@ a specific branch you would like to push
 .
 allow pushing a new branch
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -2923,6 +2991,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS recover
 .sp
 .nf
@@ -3044,15 +3114,21 @@ record delete for missing files
 .
 remove (and delete) file even if added or modified
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: rm
+.UNINDENT
 .UNINDENT
 .SS rename
 .sp
@@ -3086,19 +3162,25 @@ record a rename that has already occurred
 .
 forcibly copy over an existing managed file
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
 .B \-n,  \-\-dry\-run
 .
 do not perform actions, just print output
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: move mv
+.UNINDENT
 .UNINDENT
 .SS resolve
 .sp
@@ -3171,18 +3253,20 @@ mark files as unresolved
 .
 hide status prefix
 .TP
-.B \-t,  \-\-tool
+.BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS revert
 .sp
 .nf
@@ -3225,11 +3309,11 @@ Options:
 .
 revert all changes when no arguments given
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 tipmost revision matching date
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revert to the specified revision
 .TP
@@ -3237,11 +3321,11 @@ revert to the specified revision
 .
 do not save backup copies of files
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
@@ -3249,6 +3333,8 @@ exclude names matching the given patterns
 .
 do not perform actions, just print output
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS rollback
 .sp
 .nf
@@ -3357,7 +3443,7 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-A,  \-\-accesslog
+.BI \-A,  \-\-accesslog \ <FILE>
 .
 name of access log file to write to
 .TP
@@ -3365,39 +3451,39 @@ name of access log file to write to
 .
 run server in background
 .TP
-.B \-\-daemon\-pipefds
+.BI \-\-daemon\-pipefds \ <NUM>
 .
 used internally by daemon mode
 .TP
-.B \-E,  \-\-errorlog
+.BI \-E,  \-\-errorlog \ <FILE>
 .
 name of error log file to write to
 .TP
-.B \-p,  \-\-port
+.BI \-p,  \-\-port \ <PORT>
 .
 port to listen on (default: 8000)
 .TP
-.B \-a,  \-\-address
+.BI \-a,  \-\-address \ <ADDR>
 .
 address to listen on (default: all interfaces)
 .TP
-.B \-\-prefix
+.BI \-\-prefix \ <PREFIX>
 .
 prefix path to serve from (default: server root)
 .TP
-.B \-n,  \-\-name
+.BI \-n,  \-\-name \ <NAME>
 .
 name to show in web pages (default: working directory)
 .TP
-.B \-\-web\-conf
+.BI \-\-web\-conf \ <FILE>
 .
 name of the hgweb config file (see "hg help hgweb")
 .TP
-.B \-\-webdir\-conf
+.BI \-\-webdir\-conf \ <FILE>
 .
 name of the hgweb config file (DEPRECATED)
 .TP
-.B \-\-pid\-file
+.BI \-\-pid\-file \ <FILE>
 .
 name of file to write process ID to
 .TP
@@ -3405,15 +3491,15 @@ name of file to write process ID to
 .
 for remote clients
 .TP
-.B \-\-cmdserver
+.BI \-\-cmdserver \ <MODE>
 .
 for remote clients
 .TP
-.B \-t,  \-\-templates
+.BI \-t,  \-\-templates \ <TEMPLATE>
 .
 web templates to use
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 template style to use
 .TP
@@ -3421,7 +3507,7 @@ template style to use
 .
 use IPv6 in addition to IPv4
 .TP
-.B \-\-certificate
+.BI \-\-certificate \ <FILE>
 .
 SSL certificate file
 .UNINDENT
@@ -3581,27 +3667,33 @@ show source of copied files
 .
 end filenames with NUL, for use with xargs
 .TP
-.B \-\-rev
+.BI \-\-rev \ <REV[+]>
 .
 show difference from revision
 .TP
-.B \-\-change
+.BI \-\-change \ <REV>
 .
 list the changed files of a revision
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: st
+.UNINDENT
 .UNINDENT
 .SS summary
 .sp
@@ -3676,7 +3768,7 @@ force tag
 .
 make the tag local
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision to tag
 .TP
@@ -3688,15 +3780,15 @@ remove a tag
 .
 edit commit message
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use <text> as commit message
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .UNINDENT
@@ -3744,11 +3836,11 @@ show patch
 .
 use git extended diff format
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
@@ -3841,11 +3933,11 @@ discard uncommitted changes (no backup)
 .
 update across branches if no uncommitted changes
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 tipmost revision matching date
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 revision
 .sp
@@ -4252,7 +4344,7 @@ commands to sign and verify changesets
 .TP
 .B graphlog
 .
-command to view revision graphs from a shell
+command to view revision graphs from a shell (DEPRECATED)
 .TP
 .B hgcia
 .
@@ -5384,6 +5476,10 @@ The latter expects null delimited patterns while the former expects line
 feeds. Each string read from the file is itself treated as a file
 pattern.
 .sp
+All patterns, except for \fBglob:\fP specified in command line (not for
+\fB\-I\fP or \fB\-X\fP options), can match also against directories: files
+under matched directories are treated as matched.
+.sp
 Plain examples:
 .sp
 .nf
@@ -5502,6 +5598,13 @@ See \%\fBhg help config\fP\: for more information on configuration files.
 Servers running older versions of Mercurial are treated as
 publishing.
 .RE
+.IP Note
+.
+Changesets in secret phase are not exchanged with the server. This
+applies to their content: file names, file contents, and changeset
+metadata. For technical reasons, the identifier (e.g. d825e4025e39)
+of the secret changeset may be communicated to the server.
+.RE
 .SS Examples
 .INDENT 0.0
 .INDENT 3.5
@@ -5574,9 +5677,9 @@ of exactly one full\-length identifier.
 .sp
 Any other string is treated as a bookmark, tag, or branch name. A
 bookmark is a movable pointer to a revision. A tag is a permanent name
-associated with a revision. A branch name denotes the tipmost revision
-of that branch. Bookmark, tag, and branch names must not contain the ":"
-character.
+associated with a revision. A branch name denotes the tipmost open branch head
+of that branch \- or if they are all closed, the tipmost closed head of the
+branch. Bookmark, tag, and branch names must not contain the ":" character.
 .sp
 The reserved name "tip" always identifies the most recent revision.
 .sp
@@ -5667,6 +5770,10 @@ The following predicates are supported:
 .B \fBadds(pattern)\fP
 .sp
 Changesets that add a file matching pattern.
+.sp
+The pattern without explicit kind like \fBglob:\fP is expected to be
+relative to the current directory and match against a file or a
+directory.
 .TP
 .B \fBall()\fP
 .sp
@@ -5760,6 +5867,10 @@ Changeset is closed.
 .sp
 Revision contains a file matching pattern. See \%\fBhg help patterns\fP\:
 for information about file patterns.
+.sp
+The pattern without explicit kind like \fBglob:\fP is expected to be
+relative to the current directory and match against a file exactly
+for efficiency.
 .TP
 .B \fBconverted([id])\fP
 .sp
@@ -5811,6 +5922,8 @@ Changesets affecting files matched by pattern.
 .sp
 For a faster but less accurate result, consider using \fBfilelog()\fP
 instead.
+.sp
+This predicate uses \fBglob:\fP as the default kind of pattern.
 .TP
 .B \fBfilelog(pattern)\fP
 .sp
@@ -5819,6 +5932,10 @@ Changesets connected to the specified filelog.
 For performance reasons, \fBfilelog()\fP does not show every changeset
 that affects the requested file(s). See \%\fBhg help log\fP\: for details. For
 a slower, more accurate result, use \fBfile()\fP.
+.sp
+The pattern without explicit kind like \fBglob:\fP is expected to be
+relative to the current directory and match against a file exactly
+for efficiency.
 .TP
 .B \fBfirst(set, [n])\fP
 .sp
@@ -5905,6 +6022,10 @@ Changeset with lowest revision number in set.
 .B \fBmodifies(pattern)\fP
 .sp
 Changesets modifying files matched by pattern.
+.sp
+The pattern without explicit kind like \fBglob:\fP is expected to be
+relative to the current directory and match against a file or a
+directory.
 .TP
 .B \fBobsolete()\fP
 .sp
@@ -5957,6 +6078,10 @@ synonym for the current local branch.
 .B \fBremoves(pattern)\fP
 .sp
 Changesets which remove files matching pattern.
+.sp
+The pattern without explicit kind like \fBglob:\fP is expected to be
+relative to the current directory and match against a file or a
+directory.
 .TP
 .B \fBrev(number)\fP
 .sp
@@ -6340,12 +6465,6 @@ changeset.
 String. The name of the branch on which the changeset was
 committed.
 .TP
-.B branches
-.
-List of strings. The name of the branch on which the
-changeset was committed. Will be empty if the branch name was
-default.
-.TP
 .B children
 .
 List of strings. The children of the changeset.
@@ -6362,6 +6481,11 @@ String. The text of the changeset description.
 .
 String. Statistics of changes with the following format:
 "modified files: +added/\-removed lines"
+.TP
+.B extras
+.
+List of dicts with key, value entries of the \(aqextras\(aq
+field of this changeset.
 .TP
 .B file_adds
 .
@@ -6735,6 +6859,15 @@ Invert the firstline filter, i.e. everything but the first line:
 $ hg log \-r 0 \-\-template "{sub(r\(aq^.*\en?\en?\(aq, \(aq\(aq, desc)}\en"
 .ft P
 .fi
+.IP \(bu 2
+.
+Display the contents of the \(aqextra\(aq field, one per line:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{join(extras, \(aq\en\(aq)}\en"
+.ft P
+.fi
 .UNINDENT
 .SH URL PATHS
 .sp
@@ -7071,7 +7204,7 @@ view the recent repository events
 Options:
 .INDENT 0.0
 .TP
-.B \-l,  \-\-limit
+.BI \-l,  \-\-limit \ <VALUE>
 .
 the number of events to show (default: 10)
 .UNINDENT
@@ -7460,15 +7593,15 @@ argument to \-\-rev if given) is printed.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 show children of the specified revision
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
@@ -7528,19 +7661,19 @@ Aliases will be split from the rightmost "=".
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 count rate for the specified revision or range
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 count rate for revisions matching date spec
 .TP
-.B \-t,  \-\-template
+.BI \-t,  \-\-template \ <TEMPLATE>
 .
 template to group changesets (default: {author|email})
 .TP
-.B \-f,  \-\-dateformat
+.BI \-f,  \-\-dateformat \ <FORMAT>
 .
 strftime\-compatible format for grouping by date
 .TP
@@ -7556,18 +7689,20 @@ sort by key (default: sort by count)
 .
 display added/removed lines separately
 .TP
-.B \-\-aliases
+.BI \-\-aliases \ <FILE>
 .
 file with email aliases
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS color
 .sp
 colorize output from some commands
@@ -8052,35 +8187,35 @@ True.
 Options:
 .INDENT 0.0
 .TP
-.B \-\-authors
+.BI \-\-authors \ <FILE>
 .
 username mapping filename (DEPRECATED, use \-\-authormap instead)
 .TP
-.B \-s,  \-\-source\-type
+.BI \-s,  \-\-source\-type \ <TYPE>
 .
 source repository type
 .TP
-.B \-d,  \-\-dest\-type
+.BI \-d,  \-\-dest\-type \ <TYPE>
 .
 destination repository type
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV>
 .
 import up to source revision REV
 .TP
-.B \-A,  \-\-authormap
+.BI \-A,  \-\-authormap \ <FILE>
 .
 remap usernames using this file
 .TP
-.B \-\-filemap
+.BI \-\-filemap \ <FILE>
 .
 remap file names using contents of file
 .TP
-.B \-\-splicemap
+.BI \-\-splicemap \ <FILE>
 .
 splice synthesized history into place
 .TP
-.B \-\-branchmap
+.BI \-\-branchmap \ <FILE>
 .
 change branch names while converting
 .TP
@@ -8295,30 +8430,32 @@ to its parent.
 Options:
 .INDENT 0.0
 .TP
-.B \-p,  \-\-program
+.BI \-p,  \-\-program \ <CMD>
 .
 comparison program to run
 .TP
-.B \-o,  \-\-option
+.BI \-o,  \-\-option \ <OPT[+]>
 .
 pass option to comparison program
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 revision
 .TP
-.B \-c,  \-\-change
+.BI \-c,  \-\-change \ <REV>
 .
 change made by revision
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS factotum
 .sp
 http authentication with factotum
@@ -8386,7 +8523,7 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a specific revision you would like to pull
 .TP
@@ -8402,27 +8539,27 @@ edit commit message (DEPRECATED)
 .
 switch parents when merging
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -8430,6 +8567,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS gpg
 .sp
 commands to sign and verify changesets
@@ -8471,19 +8610,19 @@ sign even if the sigfile is modified
 .
 do not commit the sigfile after signing
 .TP
-.B \-k,  \-\-key
+.BI \-k,  \-\-key \ <ID>
 .
 the key id to sign with
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 commit message
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .UNINDENT
@@ -8498,7 +8637,10 @@ hg sigs
 list signed changesets
 .SS graphlog
 .sp
-command to view revision graphs from a shell
+command to view revision graphs from a shell (DEPRECATED)
+.sp
+The functionality of this extension has been include in core Mercurial
+since version 2.3.
 .sp
 This extension adds a \-\-graph option to the incoming, outgoing and log
 commands. When this options is given, an ASCII representation of the
@@ -8529,7 +8671,7 @@ follow changeset history, or file history across copies and renames
 .
 only follow the first parent of merge changesets (DEPRECATED)
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 show revisions matching date spec
 .TP
@@ -8537,11 +8679,11 @@ show revisions matching date spec
 .
 show copied files
 .TP
-.B \-k,  \-\-keyword
+.BI \-k,  \-\-keyword \ <TEXT[+]>
 .
 do case\-insensitive search for a given text
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 show the specified revision or range
 .TP
@@ -8553,19 +8695,19 @@ include revisions where files were removed
 .
 show only merges (DEPRECATED)
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER[+]>
 .
 revisions committed by user
 .TP
-.B \-\-only\-branch
+.BI \-\-only\-branch \ <BRANCH[+]>
 .
 show only changesets within the given named branch (DEPRECATED)
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 show changesets within the given named branch
 .TP
-.B \-P,  \-\-prune
+.BI \-P,  \-\-prune \ <REV[+]>
 .
 do not display revision or any of its ancestors
 .TP
@@ -8577,7 +8719,7 @@ show patch
 .
 use git extended diff format
 .TP
-.B \-l,  \-\-limit
+.BI \-l,  \-\-limit \ <NUM>
 .
 limit number of changes displayed
 .TP
@@ -8593,22 +8735,24 @@ output diffstat\-style summary of changes
 .
 show the revision DAG
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS hgcia
 .sp
 hooks for integrating with the CIA.vc notification service
@@ -8702,7 +8846,7 @@ start interactive history viewer
 Options:
 .INDENT 0.0
 .TP
-.B \-l,  \-\-limit
+.BI \-l,  \-\-limit \ <NUM>
 .
 limit number of changes displayed
 .UNINDENT
@@ -8913,7 +9057,7 @@ conflicts).
 Options:
 .INDENT 0.0
 .TP
-.B \-\-commands
+.BI \-\-commands \ <VALUE>
 .
 Read history edits from the specified file.
 .TP
@@ -8937,10 +9081,12 @@ changesets not found in destination
 .
 force outgoing even for unrelated repositories
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <VALUE[+]>
 .
 first revision to be edited
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS inotify
 .sp
 accelerate status report using Linux\(aqs inotify service
@@ -8962,15 +9108,15 @@ Options:
 .
 run server in background
 .TP
-.B \-\-daemon\-pipefds
+.BI \-\-daemon\-pipefds \ <NUM>
 .
 used internally by daemon mode
 .TP
-.B \-t,  \-\-idle\-timeout
+.BI \-t,  \-\-idle\-timeout \ <NUM>
 .
 minutes to sit idle before exiting
 .TP
-.B \-\-pid\-file
+.BI \-\-pid\-file \ <FILE>
 .
 name of file to write process ID to
 .UNINDENT
@@ -9073,7 +9219,7 @@ Options:
 .
 show default keyword template maps
 .TP
-.B \-f,  \-\-rcfile
+.BI \-f,  \-\-rcfile \ <FILE>
 .
 read maps from rcfile
 .UNINDENT
@@ -9092,14 +9238,16 @@ kwexpand refuses to run if given files contain local changes.
 Options:
 .INDENT 0.0
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS kwfiles
 .sp
 .nf
@@ -9145,14 +9293,16 @@ show files excluded from expansion
 .
 only show unknown (not tracked) files
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS kwshrink
 .sp
 .nf
@@ -9168,14 +9318,16 @@ kwshrink refuses to run if given files contain local changes.
 Options:
 .INDENT 0.0
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS largefiles
 .sp
 track large binary files
@@ -9319,7 +9471,7 @@ this, the DEST repository can be used without largefiles at all.
 Options:
 .INDENT 0.0
 .TP
-.B \-s,  \-\-size
+.BI \-s,  \-\-size \ <SIZE>
 .
 minimum size (MB) for files to be converted as largefiles
 .TP
@@ -9366,15 +9518,15 @@ hg lfpull \-r "branch(default)"
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <VALUE[+]>
 .
 pull largefiles for these revisions
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -9382,6 +9534,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS mq
 .sp
 manage a stack of patches
@@ -9514,15 +9668,15 @@ do not update the new working directories
 .
 use uncompressed transfer (fast over LAN)
 .TP
-.B \-p,  \-\-patches
+.BI \-p,  \-\-patches \ <REPO>
 .
 location of source patch repository
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -9559,35 +9713,41 @@ amend the parent of the working dir
 .
 use the secret phase for committing
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: qci
+.UNINDENT
 .UNINDENT
 .SS qdelete
 .sp
@@ -9611,11 +9771,17 @@ Options:
 .
 keep patch file
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 stop managing a revision (DEPRECATED)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: qremove qrm
+.UNINDENT
 .UNINDENT
 .SS qdiff
 .sp
@@ -9672,7 +9838,7 @@ ignore changes in the amount of white space
 .
 ignore changes whose lines are all blank
 .TP
-.B \-U,  \-\-unified
+.BI \-U,  \-\-unified \ <NUM>
 .
 number of lines of context to show
 .TP
@@ -9680,14 +9846,16 @@ number of lines of context to show
 .
 output diffstat\-style summary of changes
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS qfinish
 .sp
 .nf
@@ -9749,11 +9917,11 @@ edit patch header
 .
 keep folded patch files
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .UNINDENT
@@ -9883,7 +10051,7 @@ Options:
 .
 import file in patch directory
 .TP
-.B \-n,  \-\-name
+.BI \-n,  \-\-name \ <NAME>
 .
 name of patch file
 .TP
@@ -9891,7 +10059,7 @@ name of patch file
 .
 overwrite existing files
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 place existing revisions under mq control
 .TP
@@ -9903,6 +10071,8 @@ use git extended diff format
 .
 qpush after importing
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS qinit
 .sp
 .nf
@@ -9976,7 +10146,7 @@ use git extended diff format
 .
 add "From: <current user>" to patch
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 add "From: <USER>" to patch
 .TP
@@ -9984,26 +10154,28 @@ add "From: <USER>" to patch
 .
 add "Date: <current date>" to patch
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 add "Date: <DATE>" to patch
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS qnext
 .sp
 .nf
@@ -10047,7 +10219,7 @@ Options:
 .
 pop all patches
 .TP
-.B \-n,  \-\-name
+.BI \-n,  \-\-name \ <NAME>
 .
 queue name to pop (DEPRECATED)
 .TP
@@ -10122,7 +10294,7 @@ apply all patches
 .
 merge from another queue (DEPRECATED)
 .TP
-.B \-n,  \-\-name
+.BI \-n,  \-\-name \ <NAME>
 .
 merge queue name (DEPRECATED)
 .TP
@@ -10232,7 +10404,7 @@ refresh only files already in the patch and specified files
 .
 add/update author field in patch with current user
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 add/update author field in patch with given user
 .TP
@@ -10240,26 +10412,28 @@ add/update author field in patch with given user
 .
 add/update date field in patch with current date
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 add/update date field in patch with given date
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS qrename
 .sp
 .nf
@@ -10316,7 +10490,7 @@ Options:
 .
 copy patch directory
 .TP
-.B \-n,  \-\-name
+.BI \-n,  \-\-name \ <NAME>
 .
 copy directory name
 .TP
@@ -10328,11 +10502,11 @@ clear queue status file
 .
 force copy
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .UNINDENT
@@ -10843,11 +11017,11 @@ send changes not found in the target repository
 .
 send changes not in target as a binary bundle
 .TP
-.B \-\-bundlename
+.BI \-\-bundlename \ <NAME>
 .
 name of the bundle attachment file (default: bundle)
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 a revision to send
 .TP
@@ -10855,7 +11029,7 @@ a revision to send
 .
 run even when remote repository is unrelated (with \-b/\-\-bundle)
 .TP
-.B \-\-base
+.BI \-\-base \ <REV[+]>
 .
 a base changeset to specify instead of a destination (with \-b/\-\-bundle)
 .TP
@@ -10875,11 +11049,11 @@ send patches as attachments
 .
 send patches as inline attachments
 .TP
-.B \-\-bcc
+.BI \-\-bcc \ <VALUE[+]>
 .
 email addresses of blind carbon copy recipients
 .TP
-.B \-c,  \-\-cc
+.BI \-c,  \-\-cc \ <VALUE[+]>
 .
 email addresses of copy recipients
 .TP
@@ -10891,15 +11065,15 @@ ask for confirmation before sending
 .
 add diffstat output to messages
 .TP
-.B \-\-date
+.BI \-\-date \ <VALUE>
 .
 use the given date as the sending date
 .TP
-.B \-\-desc
+.BI \-\-desc \ <VALUE>
 .
 use the given file as the series description
 .TP
-.B \-f,  \-\-from
+.BI \-f,  \-\-from \ <VALUE>
 .
 email address of sender
 .TP
@@ -10907,35 +11081,35 @@ email address of sender
 .
 print messages that would be sent
 .TP
-.B \-m,  \-\-mbox
+.BI \-m,  \-\-mbox \ <VALUE>
 .
 write messages to mbox file instead of sending them
 .TP
-.B \-\-reply\-to
+.BI \-\-reply\-to \ <VALUE[+]>
 .
 email addresses replies should be sent to
 .TP
-.B \-s,  \-\-subject
+.BI \-s,  \-\-subject \ <VALUE>
 .
 subject of first message (intro or single patch)
 .TP
-.B \-\-in\-reply\-to
+.BI \-\-in\-reply\-to \ <VALUE>
 .
 message identifier to reply to
 .TP
-.B \-\-flag
+.BI \-\-flag \ <VALUE[+]>
 .
 flags to add in subject prefixes
 .TP
-.B \-t,  \-\-to
+.BI \-t,  \-\-to \ <VALUE[+]>
 .
 email addresses of recipients
 .TP
-.B \-e,  \-\-ssh
+.BI \-e,  \-\-ssh \ <CMD>
 .
 specify ssh command to use
 .TP
-.B \-\-remotecmd
+.BI \-\-remotecmd \ <CMD>
 .
 specify hg command to run on the remote side
 .TP
@@ -10943,6 +11117,8 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS progress
 .sp
 show progress bars for some actions
@@ -11043,15 +11219,21 @@ print filenames instead of deleting them
 .
 end filenames with NUL, for use with xargs (implies \-p/\-\-print)
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: clean
+.UNINDENT
 .UNINDENT
 .SS rebase
 .sp
@@ -11128,19 +11310,19 @@ unresolved conflicts.
 Options:
 .INDENT 0.0
 .TP
-.B \-s,  \-\-source
+.BI \-s,  \-\-source \ <REV>
 .
 rebase from the specified changeset
 .TP
-.B \-b,  \-\-base
+.BI \-b,  \-\-base \ <REV>
 .
 rebase from the base of the specified changeset (up to greatest common ancestor of base and dest)
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 rebase these revisions
 .TP
-.B \-d,  \-\-dest
+.BI \-d,  \-\-dest \ <REV>
 .
 rebase onto the specified changeset
 .TP
@@ -11148,7 +11330,7 @@ rebase onto the specified changeset
 .
 collapse the rebased changesets
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as collapse commit message
 .TP
@@ -11156,7 +11338,7 @@ use text as collapse commit message
 .
 invoke editor on commit messages
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read collapse commit message from file
 .TP
@@ -11172,7 +11354,7 @@ keep original branch names
 .
 (DEPRECATED)
 .TP
-.B \-t,  \-\-tool
+.BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
 .TP
@@ -11184,14 +11366,16 @@ continue an interrupted rebase
 .
 abort an interrupted rebase
 .TP
-.B \-\-style
+.BI \-\-style \ <STYLE>
 .
 display using template map file
 .TP
-.B \-\-template
+.BI \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS record
 .sp
 commands to interactively select changes for commit/qrefresh
@@ -11262,27 +11446,27 @@ amend the parent of the working dir
 .
 use the secret phase for committing
 .TP
-.B \-I,  \-\-include
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
 .TP
-.B \-X,  \-\-exclude
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as commit message
 .TP
-.B \-l,  \-\-logfile
+.BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
 .TP
-.B \-d,  \-\-date
+.BI \-d,  \-\-date \ <DATE>
 .
 record the specified date as commit date
 .TP
-.B \-u,  \-\-user
+.BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
 .TP
@@ -11302,6 +11486,8 @@ ignore changes in the amount of white space
 .
 ignore changes whose lines are all blank
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS relink
 .sp
 recreates hardlinks between repository clones
@@ -11490,7 +11676,7 @@ mark new/missing files as added/removed before shelving
 .
 delete all shelved changes
 .TP
-.B \-\-date
+.BI \-\-date \ <DATE>
 .
 shelve with the specified commit date
 .TP
@@ -11502,11 +11688,11 @@ delete the named shelved change(s)
 .
 list current shelves
 .TP
-.B \-m,  \-\-message
+.BI \-m,  \-\-message \ <TEXT>
 .
 use text as shelve message
 .TP
-.B \-n,  \-\-name
+.BI \-n,  \-\-name \ <NAME>
 .
 use the given name for the shelved commit
 .TP
@@ -11602,7 +11788,7 @@ Return 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-rev
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 strip specified revision (optional, can specify revisions without this option)
 .TP
@@ -11630,10 +11816,12 @@ ignored  (DEPRECATED)
 .
 do not modify working copy during strip
 .TP
-.B \-B,  \-\-bookmark
+.BI \-B,  \-\-bookmark \ <VALUE>
 .
 remove revs only reachable from given bookmark
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS transplant
 .sp
 command to transplant changesets from another branch
@@ -11714,11 +11902,11 @@ and then resume where you left off by calling \%\fBhg transplant
 Options:
 .INDENT 0.0
 .TP
-.B \-s,  \-\-source
+.BI \-s,  \-\-source \ <REPO>
 .
 transplant changesets from REPO
 .TP
-.B \-b,  \-\-branch
+.BI \-b,  \-\-branch \ <REV[+]>
 .
 use this source changeset as head
 .TP
@@ -11726,15 +11914,15 @@ use this source changeset as head
 .
 pull all changesets up to the \-\-branch revisions
 .TP
-.B \-p,  \-\-prune
+.BI \-p,  \-\-prune \ <REV[+]>
 .
 skip over REV
 .TP
-.B \-m,  \-\-merge
+.BI \-m,  \-\-merge \ <REV[+]>
 .
 merge at REV
 .TP
-.B \-\-parent
+.BI \-\-parent \ <REV>
 .
 parent to choose when transplanting merge
 .TP
@@ -11750,10 +11938,12 @@ append transplant info to log message
 .
 continue last transplant session after fixing conflicts
 .TP
-.B \-\-filter
+.BI \-\-filter \ <CMD>
 .
 filter changesets through command
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS win32mbcs
 .sp
 allow the use of MBCS paths with problematic encodings
@@ -11960,7 +12150,7 @@ Source code repository: \%http://selenic.com/hg\:
 Mailing list: \%http://selenic.com/mailman/listinfo/mercurial\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2013 Matt Mackall.
+Copyright (C) 2005\-2014 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

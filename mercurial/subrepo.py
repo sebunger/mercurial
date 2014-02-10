@@ -9,7 +9,9 @@ import errno, os, re, shutil, posixpath, sys
 import xml.dom.minidom
 import stat, subprocess, tarfile
 from i18n import _
-import config, scmutil, util, node, error, cmdutil, bookmarks, match as matchmod
+import config, util, node, error, cmdutil, bookmarks, match as matchmod
+import phases
+import pathutil
 hg = None
 propertycache = util.propertycache
 
@@ -344,11 +346,42 @@ def subrepo(ctx, path):
     import hg as h
     hg = h
 
-    scmutil.pathauditor(ctx._repo.root)(path)
+    pathutil.pathauditor(ctx._repo.root)(path)
     state = ctx.substate[path]
     if state[2] not in types:
         raise util.Abort(_('unknown subrepo type %s') % state[2])
     return types[state[2]](ctx, path, state[:2])
+
+def newcommitphase(ui, ctx):
+    commitphase = phases.newcommitphase(ui)
+    substate = getattr(ctx, "substate", None)
+    if not substate:
+        return commitphase
+    check = ui.config('phases', 'checksubrepos', 'follow')
+    if check not in ('ignore', 'follow', 'abort'):
+        raise util.Abort(_('invalid phases.checksubrepos configuration: %s')
+                         % (check))
+    if check == 'ignore':
+        return commitphase
+    maxphase = phases.public
+    maxsub = None
+    for s in sorted(substate):
+        sub = ctx.sub(s)
+        subphase = sub.phase(substate[s][1])
+        if maxphase < subphase:
+            maxphase = subphase
+            maxsub = s
+    if commitphase < maxphase:
+        if check == 'abort':
+            raise util.Abort(_("can't commit in %s phase"
+                               " conflicting %s from subrepository %s") %
+                             (phases.phasenames[commitphase],
+                              phases.phasenames[maxphase], maxsub))
+        ui.warn(_("warning: changes are committed in"
+                  " %s phase from subrepository %s\n") %
+                (phases.phasenames[maxphase], maxsub))
+        return maxphase
+    return commitphase
 
 # subrepo classes need to implement the following abstract class:
 
@@ -383,6 +416,11 @@ class abstractsubrepo(object):
         new state of the subrepo.
         """
         raise NotImplementedError
+
+    def phase(self, state):
+        """returns phase of specified state in the subrepository.
+        """
+        return phases.public
 
     def remove(self):
         """remove the subrepo
@@ -651,6 +689,10 @@ class hgsubrepo(abstractsubrepo):
         return node.hex(n)
 
     @annotatesubrepoerror
+    def phase(self, state):
+        return self._repo[state].phase()
+
+    @annotatesubrepoerror
     def remove(self):
         # we can't fully delete the repository as it may contain
         # local-only history
@@ -659,39 +701,50 @@ class hgsubrepo(abstractsubrepo):
 
     def _get(self, state):
         source, revision, kind = state
-        if revision not in self._repo:
-            self._repo._subsource = source
-            srcurl = _abssource(self._repo)
-            other = hg.peer(self._repo, {}, srcurl)
-            if len(self._repo) == 0:
-                self._repo.ui.status(_('cloning subrepo %s from %s\n')
-                                     % (subrelpath(self), srcurl))
-                parentrepo = self._repo._subparent
-                shutil.rmtree(self._repo.path)
-                other, cloned = hg.clone(self._repo._subparent.baseui, {},
-                                         other, self._repo.root,
-                                         update=False)
-                self._repo = cloned.local()
-                self._initrepo(parentrepo, source, create=True)
+        if revision in self._repo.unfiltered():
+            return True
+        self._repo._subsource = source
+        srcurl = _abssource(self._repo)
+        other = hg.peer(self._repo, {}, srcurl)
+        if len(self._repo) == 0:
+            self._repo.ui.status(_('cloning subrepo %s from %s\n')
+                                 % (subrelpath(self), srcurl))
+            parentrepo = self._repo._subparent
+            shutil.rmtree(self._repo.path)
+            other, cloned = hg.clone(self._repo._subparent.baseui, {},
+                                     other, self._repo.root,
+                                     update=False)
+            self._repo = cloned.local()
+            self._initrepo(parentrepo, source, create=True)
+            self._cachestorehash(srcurl)
+        else:
+            self._repo.ui.status(_('pulling subrepo %s from %s\n')
+                                 % (subrelpath(self), srcurl))
+            cleansub = self.storeclean(srcurl)
+            remotebookmarks = other.listkeys('bookmarks')
+            self._repo.pull(other)
+            bookmarks.updatefromremote(self._repo.ui, self._repo,
+                                       remotebookmarks, srcurl)
+            if cleansub:
+                # keep the repo clean after pull
                 self._cachestorehash(srcurl)
-            else:
-                self._repo.ui.status(_('pulling subrepo %s from %s\n')
-                                     % (subrelpath(self), srcurl))
-                cleansub = self.storeclean(srcurl)
-                remotebookmarks = other.listkeys('bookmarks')
-                self._repo.pull(other)
-                bookmarks.updatefromremote(self._repo.ui, self._repo,
-                                           remotebookmarks, srcurl)
-                if cleansub:
-                    # keep the repo clean after pull
-                    self._cachestorehash(srcurl)
+        return False
 
     @annotatesubrepoerror
     def get(self, state, overwrite=False):
-        self._get(state)
+        inrepo = self._get(state)
         source, revision, kind = state
-        self._repo.ui.debug("getting subrepo %s\n" % self._path)
-        hg.updaterepo(self._repo, revision, overwrite)
+        repo = self._repo
+        repo.ui.debug("getting subrepo %s\n" % self._path)
+        if inrepo:
+            urepo = repo.unfiltered()
+            ctx = urepo[revision]
+            if ctx.hidden():
+                urepo.ui.warn(
+                    _('revision %s in subrepo %s is hidden\n') \
+                    % (revision[0:12], self._path))
+                repo = urepo
+        hg.updaterepo(repo, revision, overwrite)
 
     @annotatesubrepoerror
     def merge(self, state):
