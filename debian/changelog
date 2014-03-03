@@ -1,8 +1,9 @@
-mercurial (2.9-2) UNRELEASED; urgency=medium
+mercurial (2.9.1-1) UNRELEASED; urgency=medium
 
+  * New upstream release
   * mercurial 2.9 breaks current hgsubversion (1.5-1)
 
- -- Javi Merino <vicho@debian.org>  Mon, 24 Feb 2014 08:27:36 +0000
+ -- Javi Merino <vicho@debian.org>  Mon, 03 Mar 2014 22:04:29 +0000
 
 mercurial (2.9-1) unstable; urgency=medium
 
