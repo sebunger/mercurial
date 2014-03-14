@@ -26,7 +26,7 @@ Package: mercurial-common
 Architecture: all 
 Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mercurial (>= ${source:Version}), ca-certificates
-Suggests: wish,
+Suggests:
  python-mysqldb, 
  python-pygments,
  python-openssl
@@ -44,8 +44,8 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
 Recommends: openssh-client,
+Suggests: qct,
  wish,
-Suggests: qct, 
  vim | emacs,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
 Breaks: hgsubversion (<= 1.5-1),
