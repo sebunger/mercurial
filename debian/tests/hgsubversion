@@ -1,3 +1,39 @@
 #!/bin/sh
 
-exec hg --config extensions.hgsubversion= clone svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
+set -e
+
+SVN_ROOT=$(mktemp --tmpdir -d hgsubversion.XXXXX)
+mkdir -p $SVN_ROOT
+
+PID_FILE=/var/run/svnmock.pid
+
+# Create a local svn server with an empty repo
+svnadmin create $SVN_ROOT/celesteville
+cat > $SVN_ROOT/celesteville/conf/svnserve.conf << EOF
+[general]
+anon-access = write
+EOF
+svnserve -d --pid-file /var/run/svnmock.pid -r $SVN_ROOT
+
+# Put some content in the repository
+svn co svn://127.0.0.1/celesteville
+cd celesteville
+echo Cornelius > people
+svn add people
+svn commit -m "Add people"
+cd ..
+rm -r celesteville
+
+# Now test hgsubversion
+hg --config extensions.hgsubversion= clone svn://127.0.0.1/celesteville
+cd celesteville
+echo Arthur >> people
+hg ci -u "Babar <babar@jungle.org>" -m "Add more people"
+hg --config extensions.hgsubversion= push
+cd ..
+
+# Kill the server and cleanup
+kill $(cat /var/run/svnmock.pid)
+rm -r $SVN_ROOT
+
+rm -r celesteville
