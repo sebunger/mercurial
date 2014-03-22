@@ -18,8 +18,11 @@ svnserve -d --pid-file /var/run/svnmock.pid -r $SVN_ROOT
 # Put some content in the repository
 svn co svn://127.0.0.1/celesteville
 cd celesteville
-echo Cornelius > people
-svn add people
+mkdir trunk tags branches
+svn add trunk tags branches
+svn commit -m "Initial commit"
+echo Cornelius > trunk/people
+svn add trunk/people
 svn commit -m "Add people"
 cd ..
 rm -r celesteville
@@ -28,7 +31,7 @@ rm -r celesteville
 hg --config extensions.hgsubversion= clone svn://127.0.0.1/celesteville
 cd celesteville
 echo Arthur >> people
-hg ci -u "Babar <babar@jungle.org>" -m "Add more people"
+hg commit -u "Babar <babar@jungle.org>" -m "Add more people"
 hg --config extensions.hgsubversion= push
 cd ..
 
