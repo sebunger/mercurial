@@ -1,6 +1,7 @@
-mercurial (2.9.1-2) UNRELEASED; urgency=medium
+mercurial (2.9.2-1) UNRELEASED; urgency=medium
 
   [ Javi Merino ]
+  * New upstream release
   * Fix "please downgrade 'wish' Recommends to Suggests" by downgrading it
     and removing the redundant suggest from mercurial-control (Closes: #741514)
   * Drop Suggests of vim or emacs
@@ -12,7 +13,7 @@ mercurial (2.9.1-2) UNRELEASED; urgency=medium
   * mercurial-common Replaces mercurial << 2.6.3 (the bash_completion file and
     /etc/mercurial/hgrc moved) (Closes: #743288)
 
- -- Javi Merino <vicho@debian.org>  Fri, 14 Mar 2014 23:33:43 +0100
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Apr 2014 22:19:34 +0100
 
 mercurial (2.9.1-1) unstable; urgency=medium
 
