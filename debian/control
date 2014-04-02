@@ -27,6 +27,7 @@ Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mercurial (>= ${source:Version}), ca-certificates
 Suggests:
+ wish,
  python-mysqldb, 
  python-pygments,
  python-openssl
@@ -45,7 +46,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
 Recommends: openssh-client,
 Suggests: qct,
- wish,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
 Breaks: hgsubversion (<< 1.6~),
  hgview (<< 1.7.1-1~),
