@@ -31,7 +31,7 @@ Suggests:
  python-pygments,
  python-openssl
 Breaks: mercurial (<< ${source:Version})
-Replaces: mercurial (<< 1.4)
+Replaces: mercurial (<< 2.6.3)
 Description: easy-to-use, scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

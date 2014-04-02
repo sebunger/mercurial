@@ -1,11 +1,16 @@
 mercurial (2.9.1-2) UNRELEASED; urgency=medium
 
+  [ Javi Merino ]
   * Fix "please downgrade 'wish' Recommends to Suggests" by downgrading it
     and removing the redundant suggest from mercurial-control (Closes: #741514)
   * Drop Suggests of vim or emacs
   * Fix "autopkgtest hgsubversion shouldn't need network connectivity"
     by making the test create a local svn repository (Closes: #735578)
   * Mercurial 2.9 breaks hgsubversion prior to 1.6
+
+  [ Julien Cristau ]
+  * mercurial-common Replaces mercurial << 2.6.3 (the bash_completion file and
+    /etc/mercurial/hgrc moved) (Closes: #743288)
 
  -- Javi Merino <vicho@debian.org>  Fri, 14 Mar 2014 23:33:43 +0100
 
