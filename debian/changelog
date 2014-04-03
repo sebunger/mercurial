@@ -1,4 +1,4 @@
-mercurial (2.9.2-1) UNRELEASED; urgency=medium
+mercurial (2.9.2-1) unstable; urgency=low
 
   [ Javi Merino ]
   * New upstream release
@@ -14,7 +14,7 @@ mercurial (2.9.2-1) UNRELEASED; urgency=medium
   * mercurial-common Replaces mercurial << 2.6.3 (the bash_completion file and
     /etc/mercurial/hgrc moved) (Closes: #743288)
 
- -- Javi Merino <vicho@debian.org>  Wed, 02 Apr 2014 22:19:34 +0100
+ -- Javi Merino <vicho@debian.org>  Thu, 03 Apr 2014 08:11:58 +0100
 
 mercurial (2.9.1-1) unstable; urgency=medium
 
