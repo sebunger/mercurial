@@ -98,6 +98,9 @@ def openpath(ui, path):
     else:
         return url.open(ui, path)
 
+# a list of (ui, repo) functions called for wire peer initialization
+wirepeersetupfuncs = []
+
 def _peerorrepo(ui, path, create=False):
     """return a repository object for the specified path"""
     obj = _peerlookup(path).instance(ui, path, create)
@@ -106,6 +109,9 @@ def _peerorrepo(ui, path, create=False):
         hook = getattr(module, 'reposetup', None)
         if hook:
             hook(ui, obj)
+    if not obj.local():
+        for f in wirepeersetupfuncs:
+            f(ui, obj)
     return obj
 
 def repository(ui, path='', create=False):
@@ -213,8 +219,10 @@ def copystore(ui, srcrepo, destpath):
                 dstvfs.mkdir(dstbase)
             if srcvfs.exists(f):
                 if f.endswith('data'):
+                    # 'dstbase' may be empty (e.g. revlog format 0)
+                    lockfile = os.path.join(dstbase, "lock")
                     # lock to avoid premature writing to the target
-                    destlock = lock.lock(dstvfs, dstbase + "/lock")
+                    destlock = lock.lock(dstvfs, lockfile)
                 hardlink, n = util.copyfiles(srcvfs.join(f), dstvfs.join(f),
                                              hardlink)
                 num += n
@@ -425,7 +433,7 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                         if bn == 'default':
                             status = _("updating to bookmark @\n")
                         else:
-                            status = _("updating to bookmark @ on branch %s\n"
+                            status = (_("updating to bookmark @ on branch %s\n")
                                        % bn)
                     except KeyError:
                         try:

@@ -416,7 +416,8 @@ def backout(ui, repo, node=None, rev=None, **opts):
 
     See :hg:`help dates` for a list of formats valid for -d/--date.
 
-    Returns 0 on success.
+    Returns 0 on success, 1 if nothing to backout or there are unresolved
+    files.
     '''
     if rev and node:
         raise util.Abort(_("please specify just one revision"))
@@ -495,6 +496,9 @@ def backout(ui, repo, node=None, rev=None, **opts):
             return repo.commit(message, opts.get('user'), opts.get('date'),
                                match, editor=e)
         newnode = cmdutil.commit(ui, repo, commitfunc, [], opts)
+        if not newnode:
+            ui.status(_("nothing changed\n"))
+            return 1
         cmdutil.commitstatus(repo, newnode, branch, bheads)
 
         def nice(node):
@@ -752,8 +756,8 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
         if not changesets:
             extendnode = extendbisectrange(nodes, good)
             if extendnode is not None:
-                ui.write(_("Extending search to changeset %d:%s\n"
-                         % (extendnode.rev(), extendnode)))
+                ui.write(_("Extending search to changeset %d:%s\n")
+                         % (extendnode.rev(), extendnode))
                 state['current'] = [extendnode.node()]
                 hbisect.save_state(repo, state)
                 if noupdate:
@@ -1397,6 +1401,7 @@ def commit(ui, repo, *pats, **opts):
         if opts.get('force_editor'):
             e = cmdutil.commitforceeditor
 
+        # commitfunc is used only for temporary amend commit by cmdutil.amend
         def commitfunc(ui, repo, message, match, opts):
             editor = e
             # message contains text from -m or -l, if it's empty,
@@ -1404,18 +1409,12 @@ def commit(ui, repo, *pats, **opts):
             if not message:
                 message = old.description()
                 editor = cmdutil.commitforceeditor
-            try:
-                if opts.get('secret'):
-                    ui.setconfig('phases', 'new-commit', 'secret')
-
-                return repo.commit(message,
-                                   opts.get('user') or old.user(),
-                                   opts.get('date') or old.date(),
-                                   match,
-                                   editor=editor,
-                                   extra=extra)
-            finally:
-                ui.setconfig('phases', 'new-commit', oldcommitphase)
+            return repo.commit(message,
+                               opts.get('user') or old.user(),
+                               opts.get('date') or old.date(),
+                               match,
+                               editor=editor,
+                               extra=extra)
 
         current = repo._bookmarkcurrent
         marks = old.bookmarks()
@@ -1441,11 +1440,14 @@ def commit(ui, repo, *pats, **opts):
             try:
                 if opts.get('secret'):
                     ui.setconfig('phases', 'new-commit', 'secret')
+                    # Propagate to subrepos
+                    repo.baseui.setconfig('phases', 'new-commit', 'secret')
 
                 return repo.commit(message, opts.get('user'), opts.get('date'),
                                    match, editor=e, extra=extra)
             finally:
                 ui.setconfig('phases', 'new-commit', oldcommitphase)
+                repo.baseui.setconfig('phases', 'new-commit', oldcommitphase)
 
 
         node = cmdutil.commit(ui, repo, commitfunc, pats, opts)
@@ -4483,7 +4485,7 @@ def phase(ui, repo, *revs, **opts):
 
         public < draft < secret
 
-    Return 0 on success, 1 if no phases were changed or some could not
+    Returns 0 on success, 1 if no phases were changed or some could not
     be changed.
     """
     # search for a unique phase argument
@@ -5699,6 +5701,7 @@ def tag(ui, repo, name1, *names, **opts):
 
         if opts.get('edit'):
             message = ui.edit(message, ui.username())
+            repo.savecommitmessage(message)
 
         # don't allow tagging the null rev
         if (not opts.get('remove') and

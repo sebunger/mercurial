@@ -26,12 +26,13 @@ Package: mercurial-common
 Architecture: all 
 Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mercurial (>= ${source:Version}), ca-certificates
-Suggests: wish,
+Suggests:
+ wish,
  python-mysqldb, 
  python-pygments,
  python-openssl
 Breaks: mercurial (<< ${source:Version})
-Replaces: mercurial (<< 1.4)
+Replaces: mercurial (<< 2.6.3)
 Description: easy-to-use, scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
@@ -44,11 +45,9 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
  mercurial-common (= ${source:Version})
 Recommends: openssh-client,
- wish,
-Suggests: qct, 
- vim | emacs,
+Suggests: qct,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
-Breaks: hgsubversion (<= 1.5-1),
+Breaks: hgsubversion (<< 1.6~),
  hgview (<< 1.7.1-1~),
  mercurial-git (<< 0.4.0-1~),
  qct (<< 1.7-2~),

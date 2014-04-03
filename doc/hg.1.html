@@ -434,7 +434,8 @@ cancel the merge and leave the child of REV as a head to be
 merged separately.</p>
 </div>
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
-<p>Returns 0 on success.</p>
+<p>Returns 0 on success, 1 if nothing to backout or there are unresolved
+files.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -2354,7 +2355,7 @@ lower phase to an higher phase. Phases are ordered as follows:</p>
 <pre class="literal-block">
 public &lt; draft &lt; secret
 </pre>
-<p>Return 0 on success, 1 if no phases were changed or some could not
+<p>Returns 0 on success, 1 if no phases were changed or some could not
 be changed.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -4746,7 +4747,11 @@ as <tt class="docutils literal"><span class="pre">-key</span></tt> to sort in de
 </ul>
 </dd>
 <dt><tt class="docutils literal"><span class="pre">tag([name])</span></tt></dt>
-<dd>The specified tag by name, or all tagged revisions if no name is given.</dd>
+<dd><p class="first">The specified tag by name, or all tagged revisions if no name is given.</p>
+<p class="last">If <cite>name</cite> starts with <cite>re:</cite>, the remainder of the name is treated as
+a regular expression. To match a tag that actually starts with <cite>re:</cite>,
+use the prefix <cite>literal:</cite>.</p>
+</dd>
 <dt><tt class="docutils literal">unstable()</tt></dt>
 <dd>Non-obsolete changesets with obsolete ancestors.</dd>
 <dt><tt class="docutils literal">user(string)</tt></dt>
@@ -6159,9 +6164,10 @@ equals the full relative name of a file or one of its parent
 directories. The <tt class="docutils literal">include</tt> or <tt class="docutils literal">exclude</tt> directive with the
 longest matching path applies, so line order does not matter.</p>
 <p>The <tt class="docutils literal">include</tt> directive causes a file, or all files under a
-directory, to be included in the destination repository, and the
-exclusion of all other files and directories not explicitly
-included. The <tt class="docutils literal">exclude</tt> directive causes files or directories to
+directory, to be included in the destination repository. The default
+if there are no <tt class="docutils literal">include</tt> statements is to include everything.
+If there are any <tt class="docutils literal">include</tt> statements, nothing else is included.
+The <tt class="docutils literal">exclude</tt> directive causes files or directories to
 be omitted. The <tt class="docutils literal">rename</tt> directive renames a file or directory if
 it is converted. To rename from a subdirectory into the root of
 the repository, use <tt class="docutils literal">.</tt> as the path to rename to.</p>
