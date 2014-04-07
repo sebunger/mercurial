@@ -6,6 +6,5 @@ deb_specific__optional-dependencies
 proposed_upstream__correct-zeroconf-doc
 deb_specific__support_mo_in_fhs.patch
 deb_specific__disable_libdir_replacement.patch
-deb_specific__fix_hg-ssh_interpreter.patch
 for_upstream__dont_rm_usr_bin_python_when_running_testsuite.patch
 for_upstream__lenient_test-shelve.patch
