@@ -1,5 +1,6 @@
-mercurial (2.9.2-2) UNRELEASED; urgency=medium
+mercurial (3.0~rc1-1) UNRELEASED; urgency=medium
 
+  * New upstream release
   * Don't explicitly change the python interpreter in debian/rules, it's
     already handled by dh_python2
   * Drop patch deb_specific__fix_hg-ssh_interpreter.patch as dh_python2
@@ -9,7 +10,7 @@ mercurial (2.9.2-2) UNRELEASED; urgency=medium
   * Blacklist test-patchbomb from the testsuite autopkgtest as it is
     known to fail
 
- -- Javi Merino <vicho@debian.org>  Sun, 06 Apr 2014 13:18:06 +0100
+ -- Javi Merino <vicho@debian.org>  Sat, 19 Apr 2014 11:51:52 +0100
 
 mercurial (2.9.2-1) unstable; urgency=low
 
