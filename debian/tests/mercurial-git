@@ -1,12 +1,10 @@
 #!/bin/sh
 
-# Configure git
-git config user.name Babar
-git config user.email babar@jungle.org
-
 # Setup a git repository with some content
 git init try
 cd try
+git config user.name Babar
+git config user.email babar@jungle.org
 echo a >a
 git add a
 git commit -m a
