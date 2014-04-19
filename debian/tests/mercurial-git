@@ -1,10 +1,14 @@
 #!/bin/sh
 
+# Setup a git repository with some content
 git init try
 cd try
+git config user.name Babar
 git config user.email babar@jungle.org
 echo a >a
 git add a
 git commit -m a
 cd ..
+
+# Now try to clone it with mercurial-git
 exec hg --config extensions.git= clone try try2

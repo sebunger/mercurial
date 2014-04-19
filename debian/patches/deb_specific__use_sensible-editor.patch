@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2121,8 +2121,8 @@ def debuginstall(ui):
+@@ -2211,8 +2211,8 @@ def debuginstall(ui):
      editor = ui.geteditor()
      cmdpath = util.findexe(editor) or util.findexe(editor.split()[0])
      if not cmdpath:
@@ -26,7 +26,7 @@ Use sensible-editor as default instead of vi.
          else:
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -767,7 +767,7 @@ class ui(object):
+@@ -786,7 +786,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -67,7 +67,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
 --- a/i18n/de.po
 +++ b/i18n/de.po
-@@ -11680,8 +11680,8 @@ msgstr " (Vorlagen scheinen falsch insta
+@@ -11683,8 +11683,8 @@ msgstr " (Vorlagen scheinen falsch insta
  msgid "checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -78,7 +78,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
-@@ -17233,7 +17233,8 @@ msgstr ""
+@@ -17242,7 +17242,8 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -88,7 +88,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -18111,7 +18112,7 @@ msgid ""
+@@ -18120,7 +18121,7 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -97,7 +97,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -18120,7 +18121,7 @@ msgstr ""
+@@ -18129,7 +18130,7 @@ msgstr ""
  "    variablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge) "
  "ermittelt.\n"
  "    Der erste nicht-leere wird verwendet. Wenn alle Angaben leer sind,\n"
@@ -349,7 +349,7 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- a/mercurial/help/config.txt
 +++ b/mercurial/help/config.txt
-@@ -1166,7 +1166,8 @@ User interface controls.
+@@ -1178,7 +1178,8 @@ User interface controls.
      Print debugging information. True or False. Default is False.
  
  ``editor``

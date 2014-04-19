@@ -5,24 +5,20 @@ Description: Make test-shelve.t more lenient
  failure. This patch makes the spacing be matched more leniently.
 Bug: http://bz.selenic.com/show_bug.cgi?id=4124
 
-Index: mercurial-2.8.1/tests/test-shelve.t
-===================================================================
---- mercurial-2.8.1.orig/tests/test-shelve.t	2013-12-02 04:51:10.000000000 +0200
-+++ mercurial-2.8.1/tests/test-shelve.t	2013-12-08 01:28:17.505760594 +0200
-@@ -80,12 +80,12 @@
- 
+--- a/tests/test-shelve.t
++++ b/tests/test-shelve.t
+@@ -77,11 +77,11 @@ the common case - no options or filename
  ensure that our shelved changes exist
  
--  $ hg shelve -l
--  default-01      (*)    [mq]: second.patch (glob)
--  default         (*)    [mq]: second.patch (glob)
-+  $ sleep 10 && hg shelve -l
-+  default-01      (*)* [mq]: second.patch (glob)
-+  default         (*)* [mq]: second.patch (glob)
+   $ hg shelve -l
+-  default-01      (*)    changes to '[mq]: second.patch' (glob)
+-  default         (*)    changes to '[mq]: second.patch' (glob)
++  default-01      (*)* changes to '[mq]: second.patch' (glob)
++  default         (*)* changes to '[mq]: second.patch' (glob)
  
    $ hg shelve -l -p default
--  default         (*)    [mq]: second.patch (glob)
-+  default         (*)* [mq]: second.patch (glob)
+-  default         (*)    changes to '[mq]: second.patch' (glob)
++  default         (*)* changes to '[mq]: second.patch' (glob)
    
    diff --git a/a/a b/a/a
    --- a/a/a

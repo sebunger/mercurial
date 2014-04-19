@@ -1,3 +1,9 @@
 #!/bin/sh
 
-exec make tests TESTFLAGS="--with-hg=/usr/bin/hg"
+set -e
+
+# Blacklist patchbomb (see http://bz.selenic.com/show_bug.cgi?id=4188)
+BLACKLISTED=$(mktemp --tmpdir mercurial_testsuite_blacklist.XXXXXXXX)
+echo test-patchbomb.t > $BLACKLISTED
+
+exec make tests TESTFLAGS="--with-hg=/usr/bin/hg --blacklist=$BLACKLISTED"
