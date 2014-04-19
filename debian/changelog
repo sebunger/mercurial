@@ -9,8 +9,8 @@ mercurial (3.0~rc1-1) UNRELEASED; urgency=medium
     error in the mercurial-git autopkgtest
   * Blacklist test-patchbomb from the testsuite autopkgtest as it is
     known to fail
-  * Don't install tmplrewrite.py in examples any more.  Was useful for
-    the 1.3 transition, no longer relevant
+  * Don't install tmplrewrite.py in examples any more.  It was useful
+    for the 1.3 transition, but no longer relevant
   * Mercurial 3.0 breaks current hgsubversion (1.6)
 
  -- Javi Merino <vicho@debian.org>  Sat, 19 Apr 2014 11:51:52 +0100
