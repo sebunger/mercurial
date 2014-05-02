@@ -1,6 +1,7 @@
 mercurial (3.0-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * Rever breaks of hgsubversion to versions prior to 1.6
 
  -- Javi Merino <vicho@debian.org>  Fri, 02 May 2014 08:21:03 +0100
 
