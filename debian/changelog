@@ -2,8 +2,6 @@ mercurial (3.0.1-1) unstable; urgency=medium
 
   * New upstream release (Closes: #750444)
   * Update breaks of hgview to hgview-common << 1.8.1 (Thanks Julien Cristau)
-  * Fix "odd problem with /usr/bin/hg hash bang when backporting to
-    wheezy" by applying a patch by Max Bowsher (Closes: #750871)
 
  -- Javi Merino <vicho@debian.org>  Tue, 17 Jun 2014 22:55:05 +0100
 
