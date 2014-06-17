@@ -52,7 +52,7 @@ ifneq ($(or $(ARCH_IS_MIPS), $(ARCH_IS_KFREEBSD-i386), $(ARCH_IS_ARMEL), $(ARCH_
 		sed -i.deb-backup -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t
 endif
 
-	http_proxy='' $(MAKE) tests -- TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+	http_proxy='' dh_auto_test -- TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
 
 	rename.ul .deb-backup '' $(CURDIR)/tests/*
 endif
