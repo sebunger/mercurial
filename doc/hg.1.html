@@ -456,6 +456,9 @@ files.</p>
 <kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>revision to backout</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
 </tr>
@@ -611,29 +614,49 @@ hg log --graph -r &quot;bisect(range)&quot;
 </div>
 <div class="section" id="bookmarks">
 <h2>bookmarks</h2>
-<p>track a line of development with movable markers:</p>
+<p>create a new bookmark or list existing bookmarks:</p>
 <pre class="literal-block">
 hg bookmarks [OPTIONS]... [NAME]...
 </pre>
-<p>Bookmarks are pointers to certain commits that move when committing.
-Bookmarks are local. They can be renamed, copied and deleted. It is
-possible to use <a class="reference external" href="hg.1.html#merge"><tt class="docutils literal">hg merge NAME</tt></a> to merge from a given bookmark, and
-<a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update NAME</tt></a> to update to a given bookmark.</p>
-<p>You can use <a class="reference external" href="hg.1.html#bookmark"><tt class="docutils literal">hg bookmark NAME</tt></a> to set a bookmark on the working
-directory's parent revision with the given name. If you specify
-a revision using -r REV (where REV may be an existing bookmark),
-the bookmark is assigned to that revision.</p>
-<p>Bookmarks can be pushed and pulled between repositories (see <a class="reference external" href="hg.1.html#push"><tt class="docutils literal">hg help
-push</tt></a> and <a class="reference external" href="hg.1.html#pull"><tt class="docutils literal">hg help pull</tt></a>). This requires both the local and remote
-repositories to support bookmarks. For versions prior to 1.8, this means
-the bookmarks extension must be enabled.</p>
-<p>If you set a bookmark called '&#64;', new clones of the repository will
-have that revision checked out (and the bookmark made active) by
-default.</p>
-<p>With -i/--inactive, the new bookmark will not be made the active
-bookmark. If -r/--rev is given, the new bookmark will not be made
-active even if -i/--inactive is not given. If no NAME is given, the
-current active bookmark will be marked inactive.</p>
+<p>Bookmarks are labels on changesets to help track lines of development.
+Bookmarks are unversioned and can be moved, renamed and deleted.
+Deleting or moving a bookmark has no effect on the associated changesets.</p>
+<p>Creating or updating to a bookmark causes it to be marked as 'active'.
+Active bookmarks are indicated with a '*'.
+When a commit is made, an active bookmark will advance to the new commit.
+A plain <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> will also advance an active bookmark, if possible.
+Updating away from a bookmark will cause it to be deactivated.</p>
+<p>Bookmarks can be pushed and pulled between repositories (see
+<a class="reference external" href="hg.1.html#push"><tt class="docutils literal">hg help push</tt></a> and <a class="reference external" href="hg.1.html#pull"><tt class="docutils literal">hg help pull</tt></a>). If a shared bookmark has
+diverged, a new 'divergent bookmark' of the form <a class="reference external" href="mailto:'name&#64;path">'name&#64;path</a>' will
+be created. Using :hg:'merge' will resolve the divergence.</p>
+<p>A bookmark named '&#64;' has the special property that <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> will
+check it out by default if it exists.</p>
+<div class="verbose container">
+<p>Examples:</p>
+<ul>
+<li><p class="first">create an active bookmark for a new line of development:</p>
+<pre class="literal-block">
+hg book new-feature
+</pre>
+</li>
+<li><p class="first">create an inactive bookmark as a place marker:</p>
+<pre class="literal-block">
+hg book -i reviewed
+</pre>
+</li>
+<li><p class="first">create an inactive bookmark on another changeset:</p>
+<pre class="literal-block">
+hg book -r .^ tested
+</pre>
+</li>
+<li><p class="first">move the '&#64;' bookmark from another branch:</p>
+<pre class="literal-block">
+hg book -f &#64;
+</pre>
+</li>
+</ul>
+</div>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -1040,7 +1063,7 @@ or changesets that have children.</p>
 <td>use the secret phase for committing</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>further edit commit message already specified</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -1481,6 +1504,8 @@ hg log --debug -r .
 </li>
 </ul>
 </div>
+<p>See <a class="reference external" href="hg.1.html#revisions"><tt class="docutils literal">hg help revisions</tt></a> and <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for more about
+specifying revisions.</p>
 <p>Returns 0 on successful completion.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -1781,6 +1806,15 @@ patches will be applied on top of the working directory parent
 revision.</p>
 <p>With -s/--similarity, hg will attempt to discover renames and
 copies in the patch in the same way as <a class="reference external" href="hg.1.html#addremove"><tt class="docutils literal">hg addremove</tt></a>.</p>
+<p>Use --partial to ensure a changeset will be created from the patch
+even if some hunks fail to apply. Hunks that fail to apply will be
+written to a &lt;target-file&gt;.rej file. Conflicts can then be resolved
+by hand before <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--amend</span></tt></a> is run to update the created
+changeset. This flag exists to let people import patches that
+partially apply without losing the associated metadata (author,
+date, description, ...). Note that when none of the hunk applies
+cleanly, <a class="reference external" href="hg.1.html#import"><tt class="docutils literal">hg import <span class="pre">--partial</span></tt></a> will create an empty changeset,
+importing only the patch metadata.</p>
 <p>To read a patch from standard input, use &quot;-&quot; as the patch name. If
 a URL is specified, the patch will be downloaded from it.
 See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
@@ -1810,7 +1844,7 @@ hg import --exact proposed-fix.patch
 </li>
 </ul>
 </div>
-<p>Returns 0 on success.</p>
+<p>Returns 0 on success, 1 on partial success (see --partial).</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -1836,6 +1870,9 @@ hg import --exact proposed-fix.patch
 <tr><td class="option-group">
 <kbd><span class="option">--bypass</span></kbd></td>
 <td>apply patch without touching the working directory</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--partial</span></kbd></td>
+<td>commit even if some hunks fail</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--exact</span></kbd></td>
 <td>apply patch to the nodes from which it was generated</td></tr>
@@ -2123,6 +2160,11 @@ hg log -Mp lib/
 <li><p class="first">all revision numbers that match a keyword:</p>
 <pre class="literal-block">
 hg log -k bug --template &quot;{rev}\n&quot;
+</pre>
+</li>
+<li><p class="first">list available log templates:</p>
+<pre class="literal-block">
+hg log -T list
 </pre>
 </li>
 <li><p class="first">check if a given changeset is included is a tagged release:</p>
@@ -3248,11 +3290,11 @@ lookup, using an existing branch name as a tag name is discouraged.</p>
 <td>remove a tag</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>edit commit message</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>use &lt;text&gt; as commit message</td></tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
 </tr>
@@ -3392,7 +3434,11 @@ the working directory is updated to the requested changeset.</li>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td><p class="first">revision</p>
+<tr><td>&nbsp;</td><td>revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td><p class="first">specify merge tool</p>
 <p class="last">aliases: up checkout co</p>
 </td></tr>
 </tbody>
@@ -4334,6 +4380,8 @@ the partially merged file.</dd>
 <dt><tt class="docutils literal">internal:prompt</tt></dt>
 <dd>Asks the user which of the local or the other version to keep as
 the merged version.</dd>
+<dt><tt class="docutils literal">internal:tagmerge</tt></dt>
+<dd>Uses the internal tag merge algorithm (experimental).</dd>
 </dl>
 <p>Internal tools are always available and do not require a GUI but will by default
 not handle symlinks or binary files.</p>
@@ -5075,17 +5123,14 @@ hgrc(5) for more details.</p>
 <div class="section" id="template-usage">
 <span id="style"></span><span id="template"></span><span id="templates"></span><span id="templating"></span><h1><a class="toc-backref" href="#contents">Template Usage</a></h1>
 <p>Mercurial allows you to customize output of commands through
-templates. You can either pass in a template from the command
-line, via the --template option, or select an existing
-template-style (--style).</p>
+templates. You can either pass in a template or select an existing
+template-style from the command line, via the --template option.</p>
 <p>You can customize output for any &quot;log-like&quot; command: log,
-outgoing, incoming, tip, parents, heads and glog.</p>
-<p>Five styles are packaged with Mercurial: default (the style used
-when no explicit preference is passed), compact, changelog, phases
-and xml.
-Usage:</p>
+outgoing, incoming, tip, parents, and heads.</p>
+<p>Some built-in styles are packaged with Mercurial. These can be listed
+with <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log <span class="pre">--template</span> list</tt></a>. Example usage:</p>
 <pre class="literal-block">
-$ hg log -r1 --style changelog
+$ hg log -r1.0::1.1 --template changelog
 </pre>
 <p>A template is a piece of text, with markup to invoke variable
 expansion:</p>
@@ -5111,6 +5156,10 @@ changeset.</td>
 committed.</td>
 </tr>
 <tr class="field"><th class="field-name">children:</th><td class="field-body">List of strings. The children of the changeset.</td>
+</tr>
+<tr class="field"><th class="field-name" colspan="2">currentbookmark:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">String. The active bookmark, if it is
+associated with the changeset</td>
 </tr>
 <tr class="field"><th class="field-name">date:</th><td class="field-body">Date information. The date when the changeset was committed.</td>
 </tr>
@@ -5170,6 +5219,8 @@ revision) nothing is shown.</td>
 <tr class="field"><th class="field-name">phaseidx:</th><td class="field-body">Integer. The changeset phase index.</td>
 </tr>
 <tr class="field"><th class="field-name">rev:</th><td class="field-body">Integer. The repository-local changeset revision number.</td>
+</tr>
+<tr class="field"><th class="field-name">subrepos:</th><td class="field-body">List of strings. Updated subrepositories in the changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">tags:</th><td class="field-body">List of strings. Any tags associated with the changeset.</td>
 </tr>
@@ -5262,6 +5313,8 @@ is not a valid bisection status.</td>
 </tr>
 <tr class="field"><th class="field-name">shortdate:</th><td class="field-body">Date. Returns a date like &quot;2006-09-18&quot;.</td>
 </tr>
+<tr class="field"><th class="field-name">splitlines:</th><td class="field-body">Any text. Split text into a list of lines.</td>
+</tr>
 <tr class="field"><th class="field-name">stringify:</th><td class="field-body">Any type. Turns the value into text by converting values into
 text and concatenating them.</td>
 </tr>
@@ -5296,8 +5349,10 @@ address.</td>
 <li>revset(query[, formatargs])</li>
 <li>rstdoc(text, style)</li>
 <li>shortest(node)</li>
+<li>startswith(string, text)</li>
 <li>strip(text[, chars])</li>
 <li>sub(pat, repl, expr)</li>
+<li>word(number, text[, separator])</li>
 </ul>
 <p>Also, for any expression that returns a list, there is a list operator:</p>
 <ul class="simple">
@@ -5313,6 +5368,11 @@ $ hg log -r 0 --template &quot;files:\n{files % '  {file}\n'}&quot;
 <li><p class="first">Join the list of files with a &quot;, &quot;:</p>
 <pre class="literal-block">
 $ hg log -r 0 --template &quot;files: {join(files, ', ')}\n&quot;
+</pre>
+</li>
+<li><p class="first">Modify each line of a commit description:</p>
+<pre class="literal-block">
+$ hg log --template &quot;{splitlines(desc) % '**** {line}\n'}&quot;
 </pre>
 </li>
 <li><p class="first">Format date:</p>
@@ -5359,6 +5419,16 @@ $ hg log --template &quot;{bookmarks % '{bookmark}{ifeq(bookmark, current, \&quo
 <li><p class="first">Mark the working copy parent with '&#64;':</p>
 <pre class="literal-block">
 $ hg log --template &quot;{ifcontains(rev, revset('.'), '&#64;')}\n&quot;
+</pre>
+</li>
+<li><p class="first">Show only commit descriptions that start with &quot;template&quot;:</p>
+<pre class="literal-block">
+$ hg log --template &quot;{startswith(\&quot;template\&quot;, firstline(desc))}\n&quot;
+</pre>
+</li>
+<li><p class="first">Print the first word of each line of a commit message:</p>
+<pre class="literal-block">
+$ hg log --template &quot;{word(\&quot;0\&quot;, desc)}\n&quot;
 </pre>
 </li>
 </ul>
@@ -5912,7 +5982,7 @@ are sent to the Bugzilla email address
 bzurl=http://my-project.org/bugzilla
 user=bugmail&#64;my-project.org
 password=plugh
-version=xmlrpc
+version=xmlrpc+email
 bzemail=bugzilla&#64;my-project.org
 template=Changeset {node|short} in {root|basename}.
          {hgweb}/{webroot}/rev/{node|short}\n
@@ -6809,7 +6879,7 @@ pulled changes. To switch the merge order, use --switch-parent.</p>
 <tr><td>&nbsp;</td><td>a specific revision you would like to pull</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>edit commit message</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--force-editor</span></kbd></td>
 <td>edit commit message (DEPRECATED)</td></tr>
@@ -6892,7 +6962,10 @@ or tip if no revision is checked out.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>commit message</td></tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
 </tr>
@@ -7822,7 +7895,7 @@ hg qcommit [OPTION]... [FILE]...
 <td>use the secret phase for committing</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>further edit commit message already specified</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -8002,7 +8075,7 @@ current patch header, separated by a line of <tt class="docutils literal">* * *<
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>edit patch header</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-k</span>, <span class="option">--keep</span></kbd></td>
 <td>keep folded patch files</td></tr>
@@ -8199,7 +8272,7 @@ information.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>edit commit message</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>import uncommitted changes (DEPRECATED)</td></tr>
@@ -8434,7 +8507,7 @@ git diff format.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>edit commit message</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
@@ -8805,6 +8878,13 @@ attend = annotate, cat, diff, export, glog, log, qdiff
 <p>Setting pager.attend to an empty value will cause all commands to be
 paged.</p>
 <p>If pager.attend is present, pager.ignore will be ignored.</p>
+<p>Lastly, you can enable and disable paging for individual commands with
+the attend-&lt;command&gt; option. This setting takes precedence over
+existing attend and ignore options and defaults:</p>
+<pre class="literal-block">
+[pager]
+attend-cat = false
+</pre>
 <p>To ignore global commands like <a class="reference external" href="hg.1.html#version"><tt class="docutils literal">hg version</tt></a> or <a class="reference external" href="hg.1.html#help"><tt class="docutils literal">hg help</tt></a>, you have
 to specify them in your user configuration file.</p>
 <p>The --pager=... option can also be used to control when the pager is
@@ -9071,7 +9151,7 @@ hg purge [OPTION]... [DIR]...
 </pre>
 <p>Delete files not known to Mercurial. This is useful to test local
 and uncommitted changes in an otherwise-clean source tree.</p>
-<p>This means that purge will delete:</p>
+<p>This means that purge will delete the following by default:</p>
 <ul class="simple">
 <li>Unknown files: files marked with &quot;?&quot; by <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a></li>
 <li>Empty directories: in fact Mercurial ignores directories unless
@@ -9083,6 +9163,9 @@ they contain files under source control management</li>
 <li>Ignored files (unless --all is specified)</li>
 <li>New files added to the repository (with <a class="reference external" href="hg.1.html#add"><tt class="docutils literal">hg add</tt></a>)</li>
 </ul>
+<p>The --files and --dirs options can be used to direct purge to delete
+only files, only directories, or both. If neither option is given,
+both will be deleted.</p>
 <p>If directories are given on the command line, only files in these
 directories are considered.</p>
 <p>Be careful with purge, as you could irreversibly delete some files
@@ -9101,6 +9184,12 @@ option.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--all</span></kbd></td>
 <td>purge ignored files too</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--dirs</span></kbd></td>
+<td>purge empty directories</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--files</span></kbd></td>
+<td>purge files</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--print</span></kbd></td>
 <td>print filenames instead of deleting them</td></tr>
@@ -9312,7 +9401,7 @@ q - quit, recording no changes
 <td>use the secret phase for committing</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
-<td>further edit commit message already specified</td></tr>
+<td>invoke editor on commit messages</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -9527,6 +9616,9 @@ all shelved changes, use <tt class="docutils literal"><span class="pre">--cleanu
 <kbd><span class="option">-d</span>, <span class="option">--delete</span></kbd></td>
 <td>delete the named shelved change(s)</td></tr>
 <tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>invoke editor on commit messages</td></tr>
+<tr><td class="option-group">
 <kbd><span class="option">-l</span>, <span class="option">--list</span></kbd></td>
 <td>list current shelves</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -9641,9 +9733,6 @@ been pushed to a remote repository you will likely pull them again.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force removal of changesets, discard uncommitted changes (no backup)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--backup</span></kbd></td>
-<td>bundle only changesets with local revision number greater than REV which are not descendants of REV (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--no-backup</span></kbd></td>
 <td>no backups</td></tr>
