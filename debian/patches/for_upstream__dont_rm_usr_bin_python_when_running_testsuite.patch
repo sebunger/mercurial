@@ -9,12 +9,12 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
 --- a/tests/run-tests.py
 +++ b/tests/run-tests.py
-@@ -440,7 +440,7 @@ def usecorrectpython():
-              sys.executable)
-         mypython = os.path.join(TMPBINDIR, pyexename)
-         try:
--            if os.readlink(mypython) == sys.executable:
-+            if (mypython == sys.executable) or (os.readlink(mypython) == sys.executable):
-                 return
-             os.unlink(mypython)
-         except OSError, err:
+@@ -1632,7 +1632,7 @@ class TestRunner(object):
+                  sys.executable)
+             mypython = os.path.join(self._tmpbindir, pyexename)
+             try:
+-                if os.readlink(mypython) == sys.executable:
++                if (mypython == sys.executable) or (os.readlink(mypython) == sys.executable):
+                     return
+                 os.unlink(mypython)
+             except OSError, err:

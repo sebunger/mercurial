@@ -74,7 +74,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -79,7 +79,7 @@ class convert_git(converter_source):
+@@ -94,7 +94,7 @@ class convert_git(converter_source):
          if not os.path.exists(path + "/objects"):
              raise NoRepo(_("%s does not look like a Git repository") % path)
  

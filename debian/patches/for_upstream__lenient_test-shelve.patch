@@ -7,7 +7,7 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4124
 
 --- a/tests/test-shelve.t
 +++ b/tests/test-shelve.t
-@@ -77,11 +77,11 @@ the common case - no options or filename
+@@ -79,11 +79,11 @@ the common case - no options or filename
  ensure that our shelved changes exist
  
    $ hg shelve -l
