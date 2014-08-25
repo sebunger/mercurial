@@ -1,11 +1,11 @@
-mercurial (3.1-2) UNRELEASED; urgency=medium
+mercurial (3.1-2) unstable; urgency=medium
 
   * gcc and python2.7-dev now needed to pass the testsuite in autopkgtest
   * mercurial-git versions prior to 0.6.1 don't work with mercurial-3.1,
     update breaks
   * Fix hgsubversion autopkgtest
 
- -- Javi Merino <vicho@debian.org>  Sun, 24 Aug 2014 21:00:03 -0700
+ -- Javi Merino <vicho@debian.org>  Mon, 25 Aug 2014 14:54:24 -0700
 
 mercurial (3.1-1) unstable; urgency=medium
 
