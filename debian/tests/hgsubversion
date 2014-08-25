@@ -5,7 +5,7 @@ set -e
 SVN_ROOT=$(mktemp --tmpdir -d hgsubversion.XXXXX)
 mkdir -p $SVN_ROOT
 
-PID_FILE=/var/run/svnmock.pid
+PID_FILE=/tmp/svnmock.pid
 
 # Create a local svn server with an empty repo
 svnadmin create $SVN_ROOT/celesteville
