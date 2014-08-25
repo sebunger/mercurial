@@ -1,3 +1,15 @@
+mercurial (3.1-2) unstable; urgency=medium
+
+  * gcc and python2.7-dev now needed to pass the testsuite in autopkgtest
+  * mercurial-git versions prior to 0.6.1 don't work with mercurial-3.1,
+    update breaks
+  * Fix hgsubversion autopkgtest
+  * Remove darcs from the autopkgtest testsuite as gnutls fails to
+    initialize random number generator in the schroot and is very verbose
+    about it.
+
+ -- Javi Merino <vicho@debian.org>  Mon, 25 Aug 2014 14:54:24 -0700
+
 mercurial (3.1-1) unstable; urgency=medium
 
   * New upstream release
