@@ -1,5 +1,5 @@
 Tests: testsuite
-Depends: @, zip, unzip, netbase, python-subversion, monotone, cvs, bzr, tla, darcs, gcc, python2.7-dev
+Depends: @, zip, unzip, netbase, python-subversion, monotone, cvs, bzr, tla, gcc, python2.7-dev
 Restrictions: allow-stderr
 
 Tests: hgsubversion
