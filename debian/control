@@ -20,6 +20,7 @@ Homepage: http://mercurial.selenic.com/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
 Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
+# Can go away once dpkg 1.17.11 hits stable
 XS-Testsuite: autopkgtest
 
 Package: mercurial-common
