@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Basic test to see if the mercurial-git extension still works.
+
 # Setup a git repository with some content
 git init try
 cd try
