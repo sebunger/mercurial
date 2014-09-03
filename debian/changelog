@@ -1,3 +1,9 @@
+mercurial (3.1.1-1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 03 Sep 2014 10:23:43 +0200
+
 mercurial (3.1-2) unstable; urgency=medium
 
   * gcc and python2.7-dev now needed to pass the testsuite in autopkgtest
