@@ -3,6 +3,9 @@ mercurial (3.1.1-1) UNRELEASED; urgency=medium
   * New upstream release
   * Remove test_patchbomb from blacklisted tests (fixed upstream in
     http://selenic.com/repo/hg/rev/f8fc5df6a8cf)
+  * Add patch from_upstream__test-
+    patchbomb_t_work_around_Python_change_d579866d6419_issue4188.patch
+    which fixes the patchbomb test
 
  -- Javi Merino <vicho@debian.org>  Wed, 03 Sep 2014 10:23:43 +0200
 
