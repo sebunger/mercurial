@@ -4,7 +4,7 @@ Forwarded: not-needed
 
 --- a/mercurial/help.py
 +++ b/mercurial/help.py
-@@ -133,9 +133,11 @@ def loaddoc(topic):
+@@ -134,9 +134,11 @@ def loaddoc(topic):
              module = __file__
          base = os.path.dirname(module)
  
