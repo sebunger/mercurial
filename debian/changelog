@@ -1,4 +1,4 @@
-mercurial (3.1.1-1) UNRELEASED; urgency=medium
+mercurial (3.1.1-1) unstable; urgency=medium
 
   * New upstream release
   * Remove test_patchbomb from blacklisted tests (fixed upstream in
@@ -7,7 +7,7 @@ mercurial (3.1.1-1) UNRELEASED; urgency=medium
     patchbomb_t_work_around_Python_change_d579866d6419_issue4188.patch
     which fixes the patchbomb test
 
- -- Javi Merino <vicho@debian.org>  Wed, 03 Sep 2014 10:23:43 +0200
+ -- Javi Merino <vicho@debian.org>  Thu, 04 Sep 2014 09:04:08 +0200
 
 mercurial (3.1-2) unstable; urgency=medium
 
