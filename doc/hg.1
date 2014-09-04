@@ -711,8 +711,8 @@ Bookmarks are unversioned and can be moved, renamed and deleted.
 Deleting or moving a bookmark has no effect on the associated changesets.
 .sp
 Creating or updating to a bookmark causes it to be marked as \(aqactive\(aq.
-Active bookmarks are indicated with a \(aq*\(aq.
-When a commit is made, an active bookmark will advance to the new commit.
+The active bookmark is indicated with a \(aq*\(aq.
+When a commit is made, the active bookmark will advance to the new commit.
 A plain \%\fBhg update\fP\: will also advance an active bookmark, if possible.
 Updating away from a bookmark will cause it to be deactivated.
 .sp
@@ -1346,7 +1346,7 @@ for each config item.
 .sp
 See \%\fBhg help config\fP\: for more information about config files.
 .sp
-Returns 0 on success.
+Returns 0 on success, 1 if NAME does not exist.
 .sp
 Options:
 .INDENT 0.0
@@ -7034,6 +7034,9 @@ join(list, sep)
 .IP \(bu 2
 .
 label(label, expr)
+.IP \(bu 2
+.
+pad(text, width[, fillchar, right])
 .IP \(bu 2
 .
 revset(query[, formatargs])

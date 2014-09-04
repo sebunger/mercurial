@@ -9,7 +9,7 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
 --- a/tests/run-tests.py
 +++ b/tests/run-tests.py
-@@ -1632,7 +1632,7 @@ class TestRunner(object):
+@@ -1635,7 +1635,7 @@ class TestRunner(object):
                   sys.executable)
              mypython = os.path.join(self._tmpbindir, pyexename)
              try:

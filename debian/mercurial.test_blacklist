@@ -1,5 +1,2 @@
 # upstream don't run this test and it only fails when pyflakes is installed
 test-check-pyflakes.t
-
-# Output is *very* unstable (as of 2.9.1-1).  Try reenabling it in the future.
-test-patchbomb.t
