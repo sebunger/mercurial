@@ -117,7 +117,8 @@ def getlatesttags(repo, ctx, cache):
         if rev in latesttags:
             continue
         ctx = repo[rev]
-        tags = [t for t in ctx.tags() if repo.tagtype(t) == 'global']
+        tags = [t for t in ctx.tags()
+                if (repo.tagtype(t) and repo.tagtype(t) != 'local')]
         if tags:
             latesttags[rev] = ctx.date()[0], 0, ':'.join(sorted(tags))
             continue
@@ -194,14 +195,29 @@ def showbookmarks(**args):
     """:bookmarks: List of strings. Any bookmarks associated with the
     changeset.
     """
+    repo = args['ctx']._repo
     bookmarks = args['ctx'].bookmarks()
-    return showlist('bookmark', bookmarks, **args)
+    hybrid = showlist('bookmark', bookmarks, **args)
+    for value in hybrid.values:
+        value['current'] = repo._bookmarkcurrent
+    return hybrid
 
 def showchildren(**args):
     """:children: List of strings. The children of the changeset."""
     ctx = args['ctx']
     childrevs = ['%d:%s' % (cctx, cctx) for cctx in ctx.children()]
     return showlist('children', childrevs, element='child', **args)
+
+def showcurrentbookmark(**args):
+    """:currentbookmark: String. The active bookmark, if it is
+    associated with the changeset"""
+    import bookmarks as bookmarks # to avoid circular import issues
+    repo = args['repo']
+    if bookmarks.iscurrent(repo):
+        current = repo._bookmarkcurrent
+        if current in args['ctx'].bookmarks():
+            return current
+    return ''
 
 def showdate(repo, ctx, templ, **args):
     """:date: Date information. The date when the changeset was committed."""
@@ -220,11 +236,12 @@ def showdiffstat(repo, ctx, templ, **args):
     return '%s: +%s/-%s' % (len(stats), adds, removes)
 
 def showextras(**args):
-    templ = args['templ']
-    for key, value in sorted(args['ctx'].extra().items()):
-        args = args.copy()
-        args.update(dict(key=key, value=value))
-        yield templ('extra', **args)
+    """:extras: List of dicts with key, value entries of the 'extras'
+    field of this changeset."""
+    extras = args['ctx'].extra()
+    c = [{'key': x[0], 'value': x[1]} for x in sorted(extras.items())]
+    f = _showlist('extra', c, plural='extras', **args)
+    return _hybrid(f, c, lambda x: '%s=%s' % (x['key'], x['value']))
 
 def showfileadds(**args):
     """:file_adds: List of strings. Files added by this changeset."""
@@ -295,8 +312,8 @@ def showlatesttagdistance(repo, ctx, templ, cache, **args):
 def showmanifest(**args):
     repo, ctx, templ = args['repo'], args['ctx'], args['templ']
     args = args.copy()
-    args.update(dict(rev=repo.manifest.rev(ctx.changeset()[0]),
-                     node=hex(ctx.changeset()[0])))
+    args.update({'rev': repo.manifest.rev(ctx.changeset()[0]),
+                 'node': hex(ctx.changeset()[0])})
     return templ('manifest', **args)
 
 def shownode(repo, ctx, templ, **args):
@@ -339,6 +356,22 @@ def showrev(repo, ctx, templ, **args):
     """:rev: Integer. The repository-local changeset revision number."""
     return ctx.rev()
 
+def showsubrepos(**args):
+    """:subrepos: List of strings. Updated subrepositories in the changeset."""
+    ctx = args['ctx']
+    substate = ctx.substate
+    if not substate:
+        return showlist('subrepo', [], **args)
+    psubstate = ctx.parents()[0].substate or {}
+    subrepos = []
+    for sub in substate:
+        if sub not in psubstate or substate[sub] != psubstate[sub]:
+            subrepos.append(sub) # modified or newly added in ctx
+    for sub in psubstate:
+        if sub not in substate:
+            subrepos.append(sub) # removed in ctx
+    return showlist('subrepo', sorted(subrepos), **args)
+
 def showtags(**args):
     """:tags: List of strings. Any tags associated with the changeset."""
     return showlist('tag', args['ctx'].tags(), **args)
@@ -358,6 +391,7 @@ keywords = {
     'branches': showbranches,
     'bookmarks': showbookmarks,
     'children': showchildren,
+    'currentbookmark': showcurrentbookmark,
     'date': showdate,
     'desc': showdescription,
     'diffstat': showdiffstat,
@@ -379,6 +413,7 @@ keywords = {
     'phase': showphase,
     'phaseidx': showphaseidx,
     'rev': showrev,
+    'subrepos': showsubrepos,
     'tags': showtags,
 }
 
@@ -392,6 +427,7 @@ dockeywords = {
     'parents': _showparents,
 }
 dockeywords.update(keywords)
+del dockeywords['branches']
 
 # tell hggettext to extract docstrings from these functions:
 i18nfunctions = dockeywords.values()

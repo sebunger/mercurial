@@ -25,13 +25,26 @@ class manifestdict(dict):
         self._flags[f] = flags
     def copy(self):
         return manifestdict(self, dict.copy(self._flags))
+    def intersectfiles(self, files):
+        '''make a new manifestdict with the intersection of self with files
+
+        The algorithm assumes that files is much smaller than self.'''
+        ret = manifestdict()
+        for fn in files:
+            if fn in self:
+                ret[fn] = self[fn]
+                flags = self._flags.get(fn, None)
+                if flags:
+                    ret._flags[fn] = flags
+        return ret
     def flagsdiff(self, d2):
         return dicthelpers.diff(self._flags, d2._flags, "")
 
 class manifest(revlog.revlog):
     def __init__(self, opener):
-        # we expect to deal with not more than three revs at a time in merge
-        self._mancache = util.lrucachedict(3)
+        # we expect to deal with not more than four revs at a time,
+        # during a commit --amend
+        self._mancache = util.lrucachedict(4)
         revlog.revlog.__init__(self, opener, "00manifest.i")
 
     def parse(self, lines):

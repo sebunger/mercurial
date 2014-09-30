@@ -84,13 +84,10 @@ like CVS' $Log$, are not supported. A keyword template map "Log =
 
 from mercurial import commands, context, cmdutil, dispatch, filelog, extensions
 from mercurial import localrepo, match, patch, templatefilters, templater, util
-from mercurial import scmutil
+from mercurial import scmutil, pathutil
 from mercurial.hgweb import webcommands
 from mercurial.i18n import _
 import os, re, shutil, tempfile
-
-commands.optionalrepo += ' kwdemo'
-commands.inferrepo += ' kwexpand kwfiles kwshrink'
 
 cmdtable = {}
 command = cmdutil.command(cmdtable)
@@ -102,7 +99,8 @@ nokwcommands = ('add addremove annotate bundle export grep incoming init log'
 
 # hg commands that trigger expansion only when writing to working dir,
 # not when reading filelog, and unexpand when reading from working dir
-restricted = 'merge kwexpand kwshrink record qrecord resolve transplant'
+restricted = ('merge kwexpand kwshrink record qrecord resolve transplant'
+              ' unshelve rebase graft backout histedit fetch')
 
 # names of extensions using dorecord
 recordextensions = 'record'
@@ -218,9 +216,8 @@ class kwtemplater(object):
         '''Replaces keywords in data with expanded template.'''
         def kwsub(mobj):
             kw = mobj.group(1)
-            ct = cmdutil.changeset_templater(self.ui, self.repo,
-                                             False, None, '', False)
-            ct.use_template(self.templates[kw])
+            ct = cmdutil.changeset_templater(self.ui, self.repo, False, None,
+                                             self.templates[kw], '', False)
             self.ui.pushbuffer()
             ct.show(ctx, root=self.repo.root, file=path)
             ekw = templatefilters.firstline(self.ui.popbuffer())
@@ -363,7 +360,8 @@ def _kwfwrite(ui, repo, expand, *pats, **opts):
          [('d', 'default', None, _('show default keyword template maps')),
           ('f', 'rcfile', '',
            _('read maps from rcfile'), _('FILE'))],
-         _('hg kwdemo [-d] [-f RCFILE] [TEMPLATEMAP]...'))
+         _('hg kwdemo [-d] [-f RCFILE] [TEMPLATEMAP]...'),
+         optionalrepo=True)
 def demo(ui, repo, *args, **opts):
     '''print [keywordmaps] configuration and an expansion example
 
@@ -386,10 +384,10 @@ def demo(ui, repo, *args, **opts):
     tmpdir = tempfile.mkdtemp('', 'kwdemo.')
     ui.note(_('creating temporary repository at %s\n') % tmpdir)
     repo = localrepo.localrepository(repo.baseui, tmpdir, True)
-    ui.setconfig('keyword', fn, '')
+    ui.setconfig('keyword', fn, '', 'keyword')
     svn = ui.configbool('keywordset', 'svn')
     # explicitly set keywordset for demo output
-    ui.setconfig('keywordset', 'svn', svn)
+    ui.setconfig('keywordset', 'svn', svn, 'keyword')
 
     uikwmaps = ui.configitems('keywordmaps')
     if args or opts.get('rcfile'):
@@ -420,7 +418,7 @@ def demo(ui, repo, *args, **opts):
         if uikwmaps:
             ui.status(_('\tdisabling current template maps\n'))
             for k, v in kwmaps.iteritems():
-                ui.setconfig('keywordmaps', k, v)
+                ui.setconfig('keywordmaps', k, v, 'keyword')
     else:
         ui.status(_('\n\tconfiguration using current keyword template maps\n'))
         if uikwmaps:
@@ -439,18 +437,25 @@ def demo(ui, repo, *args, **opts):
     repo[None].add([fn])
     ui.note(_('\nkeywords written to %s:\n') % fn)
     ui.note(keywords)
-    repo.dirstate.setbranch('demobranch')
+    wlock = repo.wlock()
+    try:
+        repo.dirstate.setbranch('demobranch')
+    finally:
+        wlock.release()
     for name, cmd in ui.configitems('hooks'):
         if name.split('.', 1)[0].find('commit') > -1:
-            repo.ui.setconfig('hooks', name, '')
+            repo.ui.setconfig('hooks', name, '', 'keyword')
     msg = _('hg keyword configuration and expansion example')
-    ui.note("hg ci -m '%s'\n" % msg) # check-code-ignore
+    ui.note(("hg ci -m '%s'\n" % msg))
     repo.commit(text=msg)
     ui.status(_('\n\tkeywords expanded\n'))
     ui.write(repo.wread(fn))
     shutil.rmtree(tmpdir, ignore_errors=True)
 
-@command('kwexpand', commands.walkopts, _('hg kwexpand [OPTION]... [FILE]...'))
+@command('kwexpand',
+    commands.walkopts,
+    _('hg kwexpand [OPTION]... [FILE]...'),
+    inferrepo=True)
 def expand(ui, repo, *pats, **opts):
     '''expand keywords in the working directory
 
@@ -466,7 +471,8 @@ def expand(ui, repo, *pats, **opts):
           ('i', 'ignore', None, _('show files excluded from expansion')),
           ('u', 'unknown', None, _('only show unknown (not tracked) files')),
          ] + commands.walkopts,
-         _('hg kwfiles [OPTION]... [FILE]...'))
+         _('hg kwfiles [OPTION]... [FILE]...'),
+         inferrepo=True)
 def files(ui, repo, *pats, **opts):
     '''show files configured for keyword expansion
 
@@ -520,7 +526,10 @@ def files(ui, repo, *pats, **opts):
                      repo.pathto(f, cwd), label=label)
     fm.end()
 
-@command('kwshrink', commands.walkopts, _('hg kwshrink [OPTION]... [FILE]...'))
+@command('kwshrink',
+    commands.walkopts,
+    _('hg kwshrink [OPTION]... [FILE]...'),
+    inferrepo=True)
 def shrink(ui, repo, *pats, **opts):
     '''revert expanded keywords in the working directory
 
@@ -673,7 +682,7 @@ def reposetup(ui, repo):
                 expansion. '''
                 source = repo.dirstate.copied(dest)
                 if 'l' in wctx.flags(source):
-                    source = scmutil.canonpath(repo.root, cwd,
+                    source = pathutil.canonpath(repo.root, cwd,
                                                os.path.realpath(source))
                 return kwt.match(source)
 

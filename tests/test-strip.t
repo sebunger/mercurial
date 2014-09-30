@@ -1,6 +1,5 @@
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "strip=" >> $HGRCPATH
-  $ echo "graphlog=" >> $HGRCPATH
 
   $ restore() {
   >     hg unbundle -q .hg/strip-backup/*
@@ -226,7 +225,7 @@ after strip of merge parent
 
   $ hg up
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg glog
+  $ hg log -G
   @  changeset:   4:264128213d29
   |  tag:         tip
   |  parent:      1:ef3a871183d7
@@ -259,7 +258,7 @@ after strip of merge parent
 
   $ hg strip "roots(2)" 3
   saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
-  $ hg glog
+  $ hg log -G
   @  changeset:   2:264128213d29
   |  tag:         tip
   |  user:        test
@@ -277,7 +276,7 @@ after strip of merge parent
      summary:     a
   
   $ restore
-  $ hg glog
+  $ hg log -G
   o  changeset:   4:443431ffac4f
   |  tag:         tip
   |  user:        test
@@ -311,7 +310,7 @@ after strip of merge parent
   $ hg strip 2 4
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
-  $ hg glog
+  $ hg log -G
   o  changeset:   2:65bd5f99a4a3
   |  tag:         tip
   |  user:        test
@@ -336,6 +335,19 @@ after strip of merge parent
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
   $ restore
+
+verify fncache is kept up-to-date
+
+  $ touch a
+  $ hg ci -qAm a
+  $ cat .hg/store/fncache | sort
+  data/a.i
+  data/bar.i
+  $ hg strip tip
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/test/.hg/strip-backup/*-backup.hg (glob)
+  $ cat .hg/store/fncache
+  data/bar.i
 
 stripping an empty revset
 
@@ -478,14 +490,15 @@ test hg strip -B bookmark
   $ hg bookmark -r 'c' 'delete'
   $ hg up -C todelete
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark todelete)
   $ hg strip -B nostrip
   bookmark 'nostrip' deleted
   abort: empty revision set
   [255]
   $ hg strip -B todelete
-  bookmark 'todelete' deleted
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/bookmarks/.hg/strip-backup/*-backup.hg (glob)
+  bookmark 'todelete' deleted
   $ hg id -ir dcbb326fdec2
   abort: unknown revision 'dcbb326fdec2'!
   [255]
@@ -495,10 +508,44 @@ test hg strip -B bookmark
      B                         9:ff43616e5d0f
      delete                    6:2702dd0c91e7
   $ hg strip -B delete
-  bookmark 'delete' deleted
   saved backup bundle to $TESTTMP/bookmarks/.hg/strip-backup/*-backup.hg (glob)
+  bookmark 'delete' deleted
   $ hg id -ir 6:2702dd0c91e7
   abort: unknown revision '2702dd0c91e7'!
   [255]
+  $ hg update B
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark B)
+  $ echo a > a
+  $ hg add a
+  $ hg strip -B B
+  abort: local changes found
+  [255]
+  $ hg bookmarks
+   * B                         6:ff43616e5d0f
 
-  $ cd ..
+Make sure no one adds back a -b option:
+
+  $ hg strip -b tip
+  hg strip: option -b not recognized
+  hg strip [-k] [-f] [-n] [-B bookmark] [-r] REV...
+  
+  strip changesets and all their descendants from the repository
+  
+  use "hg help -e strip" to show help for the strip extension
+  
+  options:
+  
+   -r --rev REV [+]    strip specified revision (optional, can specify revisions
+                       without this option)
+   -f --force          force removal of changesets, discard uncommitted changes
+                       (no backup)
+      --no-backup      no backups
+   -k --keep           do not modify working copy during strip
+   -B --bookmark VALUE remove revs only reachable from given bookmark
+      --mq             operate on patch repository
+  
+  [+] marked option can be specified multiple times
+  
+  use "hg help strip" to show the full help text
+  [255]

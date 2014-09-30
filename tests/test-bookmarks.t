@@ -98,6 +98,14 @@ bookmarks revset
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     1
   
+  $ hg log -r 'bookmark("literal:X")'
+  changeset:   0:f7b1eb17ad24
+  bookmark:    X
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0
+  
+
   $ hg log -r 'bookmark(unknown)'
   abort: bookmark 'unknown' does not exist
   [255]
@@ -118,6 +126,7 @@ bookmark rev 0 again
 
   $ hg update X
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  (activating bookmark X)
   $ echo c > c
   $ hg add c
   $ hg commit -m 2
@@ -495,12 +504,12 @@ update to current bookmark if it's not the parent
   parent: 2:db815d6d32e6 
    2
   branch: default
-  bookmarks: [Z] Y x  y
+  bookmarks: *Z Y x  y
   commit: 1 added, 1 unknown (new branch head)
   update: 2 new changesets (update)
   $ hg update
-  updating to active bookmark Z
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updating bookmark Z
   $ hg bookmarks
      X2                        1:925d80f479bb
      Y                         2:db815d6d32e6
@@ -513,6 +522,7 @@ pull --update works the same as pull && update
   moving bookmark 'Y' forward from db815d6d32e6
   $ hg -R cloned-bookmarks-update update Y
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark Y)
   $ hg -R cloned-bookmarks-update pull --update .
   pulling from .
   searching for changes
@@ -549,7 +559,7 @@ test missing revisions
 
 test stripping a non-checked-out but bookmarked revision
 
-  $ hg --config extensions.graphlog= log --graph
+  $ hg log --graph
   o  changeset:   4:9ba5f110a0b3
   |  branch:      test
   |  tag:         tip
@@ -582,12 +592,13 @@ test stripping a non-checked-out but bookmarked revision
   $ hg book should-end-on-two
   $ hg co --clean 4
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  (leaving bookmark should-end-on-two)
   $ hg book four
   $ hg --config extensions.mq= strip 3
   saved backup bundle to * (glob)
 should-end-on-two should end up pointing to revision 2, as that's the
 tipmost surviving ancestor of the stripped revision.
-  $ hg --config extensions.graphlog= log --graph
+  $ hg log --graph
   @  changeset:   3:9ba5f110a0b3
   |  branch:      test
   |  bookmark:    four

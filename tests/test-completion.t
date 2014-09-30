@@ -13,6 +13,7 @@ Show all commands except debug commands
   cat
   clone
   commit
+  config
   copy
   diff
   export
@@ -43,7 +44,6 @@ Show all commands except debug commands
   rollback
   root
   serve
-  showconfig
   status
   summary
   tag
@@ -199,7 +199,7 @@ Show all commands + options
   add: include, exclude, subrepos, dry-run
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, ignore-all-space, ignore-space-change, ignore-blank-lines, include, exclude
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, ssh, remotecmd, insecure
-  commit: addremove, close-branch, amend, secret, include, exclude, message, logfile, date, user, subrepos
+  commit: addremove, close-branch, amend, secret, edit, include, exclude, message, logfile, date, user, subrepos
   diff: rev, change, text, git, nodates, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, unified, stat, include, exclude, subrepos
   export: output, switch-parent, rev, text, git, nodates
   forget: include, exclude
@@ -212,16 +212,17 @@ Show all commands + options
   serve: accesslog, daemon, daemon-pipefds, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate
   status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, copies, print0, rev, change, include, exclude, subrepos
   summary: remote
-  update: clean, check, date, rev
+  update: clean, check, date, rev, tool
   addremove: similarity, include, exclude, dry-run
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
-  backout: merge, parent, rev, tool, include, exclude, message, logfile, date, user
+  backout: merge, parent, rev, edit, tool, include, exclude, message, logfile, date, user
   bisect: reset, good, bad, skip, extend, command, noupdate
   bookmarks: force, rev, delete, rename, inactive
   branch: force, clean
   branches: active, closed
   bundle: force, rev, branch, base, all, type, ssh, remotecmd, insecure
   cat: output, rev, decode, include, exclude
+  config: untrusted, edit, local, global
   copy: after, force, include, exclude, dry-run
   debugancestor: 
   debugbuilddag: mergeable-file, overwritten-file, new-file
@@ -250,7 +251,7 @@ Show all commands + options
   debugrebuilddirstate: rev
   debugrename: rev
   debugrevlog: changelog, manifest, dump
-  debugrevspec: 
+  debugrevspec: optimize
   debugsetparents: 
   debugsub: rev
   debugsuccessorssets: 
@@ -261,7 +262,7 @@ Show all commands + options
   heads: rev, topo, active, closed, style, template
   help: extension, command, keyword
   identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, insecure
-  import: strip, base, edit, force, no-commit, bypass, exact, import-branch, message, logfile, date, user, similarity
+  import: strip, base, edit, force, no-commit, bypass, partial, exact, import-branch, message, logfile, date, user, similarity
   incoming: force, newest-first, bundle, rev, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
   locate: rev, print0, fullpath, include, exclude
   manifest: rev, all
@@ -275,7 +276,6 @@ Show all commands + options
   revert: all, date, rev, no-backup, include, exclude, dry-run
   rollback: dry-run, force
   root: 
-  showconfig: untrusted
   tag: force, local, rev, remove, edit, message, date, user
   tags: 
   tip: patch, git, style, template
@@ -305,7 +305,7 @@ Test debugpathcomplete
 
   $ hg debugpathcomplete f
   fee
-  fie/
+  fie
   fo
   $ hg debugpathcomplete -f f
   fee
@@ -316,12 +316,6 @@ Test debugpathcomplete
   $ hg rm Fum
   $ hg debugpathcomplete -r F
   Fum
-
-If one directory and no files match, give an ambiguous answer
-
-  $ hg debugpathcomplete fi
-  fie/
-  fie/.
 
 Test debuglabelcomplete
 

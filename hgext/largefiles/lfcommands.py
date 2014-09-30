@@ -21,6 +21,18 @@ import basestore
 
 # -- Commands ----------------------------------------------------------
 
+cmdtable = {}
+command = cmdutil.command(cmdtable)
+
+@command('lfconvert',
+    [('s', 'size', '',
+      _('minimum size (MB) for files to be converted as largefiles'), 'SIZE'),
+    ('', 'to-normal', False,
+     _('convert from a largefiles repo to a normal repo')),
+    ],
+    _('hg lfconvert SOURCE DEST [FILE ...]'),
+    norepo=True,
+    inferrepo=True)
 def lfconvert(ui, src, dest, *pats, **opts):
     '''convert a normal repository to a largefiles repository
 
@@ -160,10 +172,10 @@ def _addchangeset(ui, rsrc, rdst, ctx, revmap):
             finally:
                 if fd:
                     fd.close()
-            return context.memfilectx(f, data, 'l' in fctx.flags(),
+            return context.memfilectx(repo, f, data, 'l' in fctx.flags(),
                                       'x' in fctx.flags(), renamed)
         else:
-            return _getnormalcontext(repo.ui, ctx, f, revmap)
+            return _getnormalcontext(repo, ctx, f, revmap)
 
     dstfiles = []
     for file in files:
@@ -243,10 +255,11 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
                 # doesn't change after rename or copy
                 renamed = lfutil.standin(renamed[0])
 
-            return context.memfilectx(f, lfiletohash[srcfname] + '\n', 'l' in
-                fctx.flags(), 'x' in fctx.flags(), renamed)
+            return context.memfilectx(repo, f, lfiletohash[srcfname] + '\n',
+                                      'l' in fctx.flags(), 'x' in fctx.flags(),
+                                      renamed)
         else:
-            return _getnormalcontext(repo.ui, ctx, f, revmap)
+            return _getnormalcontext(repo, ctx, f, revmap)
 
     # Commit
     _commitcontext(rdst, parents, ctx, dstfiles, getfilectx, revmap)
@@ -281,7 +294,7 @@ def _convertparents(ctx, revmap):
     return parents
 
 # Get memfilectx for a normal file
-def _getnormalcontext(ui, ctx, f, revmap):
+def _getnormalcontext(repo, ctx, f, revmap):
     try:
         fctx = ctx.filectx(f)
     except error.LookupError:
@@ -292,8 +305,8 @@ def _getnormalcontext(ui, ctx, f, revmap):
 
     data = fctx.data()
     if f == '.hgtags':
-        data = _converttags (ui, revmap, data)
-    return context.memfilectx(f, data, 'l' in fctx.flags(),
+        data = _converttags (repo.ui, revmap, data)
+    return context.memfilectx(repo, f, data, 'l' in fctx.flags(),
                               'x' in fctx.flags(), renamed)
 
 # Remap tag data using a revision map
@@ -303,14 +316,14 @@ def _converttags(ui, revmap, data):
         try:
             id, name = line.split(' ', 1)
         except ValueError:
-            ui.warn(_('skipping incorrectly formatted tag %s\n'
-                % line))
+            ui.warn(_('skipping incorrectly formatted tag %s\n')
+                % line)
             continue
         try:
             newid = node.bin(id)
         except TypeError:
-            ui.warn(_('skipping incorrectly formatted id %s\n'
-                % id))
+            ui.warn(_('skipping incorrectly formatted id %s\n')
+                % id)
             continue
         try:
             newdata.append('%s %s\n' % (node.hex(revmap[newid]),
@@ -375,13 +388,6 @@ def verifylfiles(ui, repo, all=False, contents=False):
     store = basestore._openstore(repo)
     return store.verify(revs, contents=contents)
 
-def debugdirstate(ui, repo):
-    '''Show basic information for the largefiles dirstate'''
-    lfdirstate = lfutil.openlfdirstate(ui, repo)
-    for file_, ent in sorted(lfdirstate._map.iteritems()):
-        mode = '%3o' % (ent[1] & 0777 & ~util.umask)
-        ui.write("%c %s %10d %s\n" % (ent[0], mode, ent[2], file_))
-
 def cachelfiles(ui, repo, node, filelist=None):
     '''cachelfiles ensures that all largefiles needed by the specified revision
     are present in the repository's largefile cache.
@@ -429,7 +435,8 @@ def downloadlfiles(ui, repo, rev=None):
         ui.status(_("%d largefiles failed to download\n") % totalmissing)
     return totalsuccess, totalmissing
 
-def updatelfiles(ui, repo, filelist=None, printmessage=True):
+def updatelfiles(ui, repo, filelist=None, printmessage=True,
+                 normallookup=False):
     wlock = repo.wlock()
     try:
         lfdirstate = lfutil.openlfdirstate(ui, repo)
@@ -447,6 +454,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True):
                 if (os.path.exists(absstandin + '.orig') and
                     os.path.exists(abslfile)):
                     shutil.copyfile(abslfile, abslfile + '.orig')
+                    util.unlinkpath(absstandin + '.orig')
                 expecthash = lfutil.readstandin(repo, lfile)
                 if (expecthash != '' and
                     (not os.path.exists(abslfile) or
@@ -502,15 +510,20 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True):
 
             updated += update1
 
-            state = repo.dirstate[lfutil.standin(lfile)]
+            standin = lfutil.standin(lfile)
+            if standin in repo.dirstate:
+                stat = repo.dirstate._map[standin]
+                state, mtime = stat[0], stat[3]
+            else:
+                state, mtime = '?', -1
             if state == 'n':
-                # When rebasing, we need to synchronize the standin and the
-                # largefile, because otherwise the largefile will get reverted.
-                # But for commit's sake, we have to mark the file as unclean.
-                if getattr(repo, "_isrebasing", False):
+                if normallookup or mtime < 0:
+                    # state 'n' doesn't ensure 'clean' in this case
                     lfdirstate.normallookup(lfile)
                 else:
                     lfdirstate.normal(lfile)
+            elif state == 'm':
+                lfdirstate.normallookup(lfile)
             elif state == 'r':
                 lfdirstate.remove(lfile)
             elif state == 'a':
@@ -525,6 +538,10 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True):
     finally:
         wlock.release()
 
+@command('lfpull',
+    [('r', 'rev', [], _('pull largefiles for these revisions'))
+    ] + commands.remoteopts,
+    _('-r REV... [-e CMD] [--remotecmd CMD] [SOURCE]'))
 def lfpull(ui, repo, source="default", **opts):
     """pull largefiles for the specified revisions from the specified source
 
@@ -559,24 +576,3 @@ def lfpull(ui, repo, source="default", **opts):
         (cached, missing) = cachelfiles(ui, repo, rev)
         numcached += len(cached)
     ui.status(_("%d largefiles cached\n") % numcached)
-
-# -- hg commands declarations ------------------------------------------------
-
-cmdtable = {
-    'lfconvert': (lfconvert,
-                  [('s', 'size', '',
-                    _('minimum size (MB) for files to be converted '
-                      'as largefiles'),
-                    'SIZE'),
-                  ('', 'to-normal', False,
-                   _('convert from a largefiles repo to a normal repo')),
-                  ],
-                  _('hg lfconvert SOURCE DEST [FILE ...]')),
-    'lfpull': (lfpull,
-               [('r', 'rev', [], _('pull largefiles for these revisions'))
-                ] +  commands.remoteopts,
-               _('-r REV... [-e CMD] [--remotecmd CMD] [SOURCE]')
-               ),
-    }
-
-commands.inferrepo += " lfconvert"

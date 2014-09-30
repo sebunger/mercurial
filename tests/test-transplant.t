@@ -43,8 +43,9 @@
   1 files updated, 0 files merged, 3 files removed, 0 files unresolved
 
 rebase b onto r1
+(this also tests that editor is not invoked if '--edit' is not specified)
 
-  $ hg transplant -a -b tip
+  $ HGEDITOR=cat hg transplant -a -b tip
   applying 37a1297eb21b
   37a1297eb21b transplanted to e234d668f844
   applying 722f4667af76
@@ -71,7 +72,7 @@ test transplanted revset
       "transplanted([set])"
         Transplanted changesets in set, or all transplanted changesets.
 
-test tranplanted keyword
+test transplanted keyword
 
   $ hg log --template '{rev} {transplanted}\n'
   7 a53251cdf717679d1907b289f991534be05c997a
@@ -85,13 +86,26 @@ test tranplanted keyword
 
 test destination() revset predicate with a transplant of a transplant; new
 clone so subsequent rollback isn't affected
+(this also tests that editor is invoked if '--edit' is specified)
+
   $ hg clone -q . ../destination
   $ cd ../destination
   $ hg up -Cq 0
   $ hg branch -q b4
   $ hg ci -qm "b4"
-  $ hg transplant 7
+  $ hg status --rev "7^1" --rev 7
+  A b3
+  $ HGEDITOR=cat hg transplant --edit 7
   applying ffd6818a3975
+  b3
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'b4'
+  HG: added b3
   ffd6818a3975 transplanted to 502236fa76bb
 
 
@@ -414,7 +428,7 @@ Issue1111: Test transplant --merge
   $ hg ci -m appendd
   created new head
 
-tranplant
+transplant
 
   $ hg transplant -m 1
   applying 42dc4432fd35
@@ -430,6 +444,81 @@ test transplant into empty repository
   adding manifests
   adding file changes
   added 4 changesets with 4 changes to 4 files
+
+test "--merge" causing pull from source repository on local host
+
+  $ hg --config extensions.mq= -q strip 2
+  $ hg transplant -s ../t --merge tip
+  searching for changes
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  applying a53251cdf717
+  4:a53251cdf717 merged at 4831f4dc831a
+
+test interactive transplant
+
+  $ hg --config extensions.strip= -q strip 0
+  $ hg -R ../t log -G --template "{rev}:{node|short}"
+  @  4:a53251cdf717
+  |
+  o  3:722f4667af76
+  |
+  o  2:37a1297eb21b
+  |
+  | o  1:d11e3596cc1a
+  |/
+  o  0:17ab29e464c6
+  
+  $ hg transplant -q --config ui.interactive=true -s ../t <<EOF
+  > p
+  > y
+  > n
+  > n
+  > m
+  > c
+  > EOF
+  0:17ab29e464c6
+  apply changeset? [ynmpcq?]: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/r1	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +r1
+  apply changeset? [ynmpcq?]: 1:d11e3596cc1a
+  apply changeset? [ynmpcq?]: 2:37a1297eb21b
+  apply changeset? [ynmpcq?]: 3:722f4667af76
+  apply changeset? [ynmpcq?]: 4:a53251cdf717
+  apply changeset? [ynmpcq?]:  (no-eol)
+  $ hg log -G --template "{node|short}"
+  @    88be5dde5260
+  |\
+  | o  722f4667af76
+  | |
+  | o  37a1297eb21b
+  |/
+  o  17ab29e464c6
+  
+  $ hg transplant -q --config ui.interactive=true -s ../t <<EOF
+  > x
+  > ?
+  > y
+  > q
+  > EOF
+  1:d11e3596cc1a
+  apply changeset? [ynmpcq?]: unrecognized response
+  apply changeset? [ynmpcq?]: y: yes, transplant this changeset
+  n: no, skip this changeset
+  m: merge at this changeset
+  p: show patch
+  c: commit selected changesets
+  q: quit and cancel transplant
+  ?: ? (show this help)
+  apply changeset? [ynmpcq?]: 4:a53251cdf717
+  apply changeset? [ynmpcq?]:  (no-eol)
+  $ hg heads --template "{node|short}\n"
+  88be5dde5260
+
   $ cd ..
 
 

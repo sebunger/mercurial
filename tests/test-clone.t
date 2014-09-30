@@ -543,7 +543,7 @@ No remote source
   $ rm -rf b # work around bug with http clone
 
 
-#if unix-permissions
+#if unix-permissions no-root
 
 Inaccessible source
 
@@ -596,7 +596,7 @@ destination directory not empty
   [255]
 
 
-#if unix-permissions
+#if unix-permissions no-root
 
 leave existing directory in place after clone failure
 
@@ -620,4 +620,18 @@ re-enable perm to allow deletion
 
 #endif
 
+  $ cd ..
+
+Test clone from the repository in (emulated) revlog format 0 (issue4203):
+
+  $ mkdir issue4203
+  $ mkdir -p src/.hg
+  $ echo foo > src/foo
+  $ hg -R src add src/foo
+  $ hg -R src commit -m '#0'
+  $ hg -R src log -q
+  0:e1bab28bca43
+  $ hg clone -U -q src dst
+  $ hg -R dst log -q
+  0:e1bab28bca43
   $ cd ..

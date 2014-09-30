@@ -1,6 +1,3 @@
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "graphlog=" >> $HGRCPATH
-
   $ hg init a
   $ cd a
   $ echo foo > t1
@@ -25,6 +22,7 @@
   $ hg push ../a
   pushing to ../a
   searching for changes
+  remote has heads on branch 'default' that are not known locally: 1c9246a22a0a
   abort: push creates new remote head 1e108cc5548c!
   (pull and merge or see "hg help push" for details about pushing new heads)
   [255]
@@ -38,8 +36,9 @@
   query 2; still undecided: 1, sample size is: 1
   2 total queries
   listing keys for "bookmarks"
-  new remote heads on branch 'default'
-  new remote head 1e108cc5548c
+  remote has heads on branch 'default' that are not known locally: 1c9246a22a0a
+  new remote heads on branch 'default':
+   1e108cc5548c
   abort: push creates new remote head 1e108cc5548c!
   (pull and merge or see "hg help push" for details about pushing new heads)
   [255]
@@ -129,9 +128,9 @@
   $ hg push -v -r 3 -r 4 ../c
   pushing to ../c
   searching for changes
-  new remote heads on branch 'default'
-  new remote head a5dda829a167
-  new remote head ee8fbc7a0295
+  new remote heads on branch 'default':
+   a5dda829a167
+   ee8fbc7a0295
   abort: push creates new remote head a5dda829a167!
   (merge or see "hg help push" for details about pushing new heads)
   [255]
@@ -354,7 +353,7 @@ Using --new-branch to push new named branch:
   adding file changes
   added 1 changesets with 1 changes to 1 files
 
-Pushing muliple headed new branch:
+Pushing multi headed new branch:
 
   $ echo 14 > foo
   $ hg -q branch f
@@ -367,7 +366,7 @@ Pushing muliple headed new branch:
   $ hg push --branch f --new-branch ../f
   pushing to ../f
   searching for changes
-  abort: push creates multiple headed new branch 'f'
+  abort: push creates new branch 'f' with multiple heads
   (merge or see "hg help push" for details about pushing new heads)
   [255]
   $ hg push --branch f --new-branch --force ../f
@@ -379,7 +378,7 @@ Pushing muliple headed new branch:
   added 3 changesets with 3 changes to 1 files (+1 heads)
 
 Checking prepush logic does not allow silently pushing
-multiple new heads:
+multiple new heads but also doesn't report too many heads:
 
   $ cd ..
   $ hg init h
@@ -405,9 +404,29 @@ multiple new heads:
   adding c
   created new head
 
+  $ for i in `seq 3`; do hg -R h up -q 0; echo $i > h/b; hg -R h ci -qAm$i; done
+
   $ hg -R i push h
   pushing to h
   searching for changes
+  remote has heads on branch 'default' that are not known locally: 534543e22c29 764f8ec07b96 afe7cc7679f5 ce4212fc8847
+  abort: push creates new remote head 97bd0c84d346!
+  (pull and merge or see "hg help push" for details about pushing new heads)
+  [255]
+  $ hg -R h up -q 0; echo x > h/b; hg -R h ci -qAmx
+  $ hg -R i push h
+  pushing to h
+  searching for changes
+  remote has heads on branch 'default' that are not known locally: 18ddb72c4590 534543e22c29 764f8ec07b96 afe7cc7679f5 and 1 others
+  abort: push creates new remote head 97bd0c84d346!
+  (pull and merge or see "hg help push" for details about pushing new heads)
+  [255]
+  $ hg -R i push h -v
+  pushing to h
+  searching for changes
+  remote has heads on branch 'default' that are not known locally: 18ddb72c4590 534543e22c29 764f8ec07b96 afe7cc7679f5 ce4212fc8847
+  new remote heads on branch 'default':
+   97bd0c84d346
   abort: push creates new remote head 97bd0c84d346!
   (pull and merge or see "hg help push" for details about pushing new heads)
   [255]
@@ -532,7 +551,7 @@ A, not B
 
 glog of local:
 
-  $ hg glog --template "{rev}: {branches} {desc}\n"
+  $ hg log -G --template "{rev}: {branches} {desc}\n"
   @  2: A a2
   |
   | o  1: B b
@@ -541,7 +560,7 @@ glog of local:
   
 glog of remote:
 
-  $ hg glog -R inner --template "{rev}: {branches} {desc}\n"
+  $ hg log -G -R inner --template "{rev}: {branches} {desc}\n"
   @  2: B b1
   |
   o  1: B b
@@ -615,7 +634,7 @@ it replaces a former topological and branch head, so this should not warn
 
 glog of local:
 
-  $ hg glog --template "{rev}: {branches} {desc}\n"
+  $ hg log -G --template "{rev}: {branches} {desc}\n"
   @  3: A a2
   |
   o  2: A a1
@@ -626,7 +645,7 @@ glog of local:
   
 glog of remote:
 
-  $ hg glog -R inner --template "{rev}: {branches} {desc}\n"
+  $ hg log -G -R inner --template "{rev}: {branches} {desc}\n"
   @  3: B b1
   |
   | o  2: A a1
@@ -700,7 +719,7 @@ but child is on different branch:
 
 glog of local:
 
-  $ hg glog --template "{rev}: {branches} {desc}\n"
+  $ hg log -G --template "{rev}: {branches} {desc}\n"
   @  5: A b3
   |
   | o  4: B a3
@@ -715,7 +734,7 @@ glog of local:
   
 glog of remote:
 
-  $ hg glog -R inner --template "{rev}: {branches} {desc}\n"
+  $ hg log -G -R inner --template "{rev}: {branches} {desc}\n"
   @  3: B b1
   |
   o  2: B b0

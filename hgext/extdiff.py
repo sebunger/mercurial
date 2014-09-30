@@ -63,9 +63,11 @@ pretty fast (at least faster than having to compare the entire tree).
 
 from mercurial.i18n import _
 from mercurial.node import short, nullid
-from mercurial import scmutil, scmutil, util, commands, encoding
+from mercurial import cmdutil, scmutil, scmutil, util, commands, encoding
 import os, shlex, shutil, tempfile, re
 
+cmdtable = {}
+command = cmdutil.command(cmdtable)
 testedwith = 'internal'
 
 def snapshot(ui, repo, files, node, tmproot):
@@ -207,10 +209,10 @@ def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
         # Function to quote file/dir names in the argument string.
         # When not operating in 3-way mode, an empty string is
         # returned for parent2
-        replace = dict(parent=dir1a, parent1=dir1a, parent2=dir1b,
-                       plabel1=label1a, plabel2=label1b,
-                       clabel=label2, child=dir2,
-                       root=repo.root)
+        replace = {'parent': dir1a, 'parent1': dir1a, 'parent2': dir1b,
+                   'plabel1': label1a, 'plabel2': label1b,
+                   'clabel': label2, 'child': dir2,
+                   'root': repo.root}
         def quote(match):
             key = match.group()[1:]
             if not do3way and key == 'parent2':
@@ -238,6 +240,16 @@ def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
         ui.note(_('cleaning up temp directory\n'))
         shutil.rmtree(tmproot)
 
+@command('extdiff',
+    [('p', 'program', '',
+     _('comparison program to run'), _('CMD')),
+    ('o', 'option', [],
+     _('pass option to comparison program'), _('OPT')),
+    ('r', 'rev', [], _('revision'), _('REV')),
+    ('c', 'change', '', _('change made by revision'), _('REV')),
+    ] + commands.walkopts,
+    _('hg extdiff [OPT]... [FILE]...'),
+    inferrepo=True)
 def extdiff(ui, repo, *pats, **opts):
     '''use external program to diff repository (or selected files)
 
@@ -261,21 +273,6 @@ def extdiff(ui, repo, *pats, **opts):
         program = 'diff'
         option = option or ['-Npru']
     return dodiff(ui, repo, program, option, pats, opts)
-
-cmdtable = {
-    "extdiff":
-    (extdiff,
-     [('p', 'program', '',
-       _('comparison program to run'), _('CMD')),
-      ('o', 'option', [],
-       _('pass option to comparison program'), _('OPT')),
-      ('r', 'rev', [],
-       _('revision'), _('REV')),
-      ('c', 'change', '',
-       _('change made by revision'), _('REV')),
-     ] + commands.walkopts,
-     _('hg extdiff [OPT]... [FILE]...')),
-    }
 
 def uisetup(ui):
     for cmd, path in ui.configitems('extdiff'):
@@ -316,7 +313,7 @@ use %(path)s to diff repository (or selected files)
     that revision is compared to the working directory, and, when no
     revisions are specified, the working directory files are compared
     to its parent.\
-''') % dict(path=util.uirepr(path))
+''') % {'path': util.uirepr(path)}
 
             # We must translate the docstring right away since it is
             # used as a format string. The string will unfortunately
@@ -329,5 +326,3 @@ use %(path)s to diff repository (or selected files)
         cmdtable[cmd] = (save(cmd, path, diffopts),
                          cmdtable['extdiff'][1][1:],
                          _('hg %s [OPTION]... [FILE]...') % cmd)
-
-commands.inferrepo += " extdiff"

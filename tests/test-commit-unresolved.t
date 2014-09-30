@@ -1,6 +1,3 @@
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "graphlog=" >> $HGRCPATH
-
   $ addcommit () {
   >     echo $1 > $1
   >     hg add $1
@@ -44,6 +41,7 @@ Correct the conflict without marking the file as resolved
 Mark the conflict as resolved and commit
 
   $ hg resolve -m A
+  (no more unresolved files)
   $ hg commit -m "Merged"
 
   $ cd ..

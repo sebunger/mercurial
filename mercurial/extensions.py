@@ -11,7 +11,7 @@ from i18n import _, gettext
 
 _extensions = {}
 _order = []
-_ignore = ['hbisect', 'bookmarks', 'parentrevspec', 'interhg']
+_ignore = ['hbisect', 'bookmarks', 'parentrevspec', 'interhg', 'inotify']
 
 def extensions(ui=None):
     if ui:
@@ -43,10 +43,10 @@ def find(name):
 
 def loadpath(path, module_name):
     module_name = module_name.replace('.', '_')
-    path = util.expandpath(path)
+    path = util.normpath(util.expandpath(path))
     if os.path.isdir(path):
         # module/__init__.py style
-        d, f = os.path.split(path.rstrip('/'))
+        d, f = os.path.split(path)
         fd, fpath, desc = imp.find_module(f, [d])
         return imp.load_module(module_name, fd, fpath, desc)
     else:
@@ -138,7 +138,7 @@ def wrapcommand(table, command, wrapper):
     where orig is the original (wrapped) function, and *args, **kwargs
     are the arguments passed to it.
     '''
-    assert util.safehasattr(wrapper, '__call__')
+    assert callable(wrapper)
     aliases, entry = cmdutil.findcmd(command, table)
     for alias, e in table.iteritems():
         if e is entry:
@@ -191,12 +191,12 @@ def wrapfunction(container, funcname, wrapper):
     your end users, you should play nicely with others by using the
     subclass trick.
     '''
-    assert util.safehasattr(wrapper, '__call__')
+    assert callable(wrapper)
     def wrap(*args, **kwargs):
         return wrapper(origfn, *args, **kwargs)
 
     origfn = getattr(container, funcname)
-    assert util.safehasattr(origfn, '__call__')
+    assert callable(origfn)
     setattr(container, funcname, wrap)
     return origfn
 
@@ -281,7 +281,7 @@ def disabled():
         return dict((name, gettext(desc))
                     for name, desc in __index__.docs.iteritems()
                     if name not in _order)
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     paths = _disabledpaths()
@@ -304,7 +304,7 @@ def disabledext(name):
             return
         else:
             return gettext(__index__.docs.get(name))
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     paths = _disabledpaths()
@@ -367,3 +367,16 @@ def enabled(shortname=True):
         exts[ename] = doc.splitlines()[0].strip()
 
     return exts
+
+def moduleversion(module):
+    '''return version information from given module as a string'''
+    if (util.safehasattr(module, 'getversion')
+          and callable(module.getversion)):
+        version = module.getversion()
+    elif util.safehasattr(module, '__version__'):
+        version = module.__version__
+    else:
+        version = ''
+    if isinstance(version, (list, tuple)):
+        version = '.'.join(str(o) for o in version)
+    return version

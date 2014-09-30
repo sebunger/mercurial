@@ -55,13 +55,14 @@ Short help:
    archive       create an unversioned archive of a repository revision
    backout       reverse effect of earlier changeset
    bisect        subdivision search of changesets
-   bookmarks     track a line of development with movable markers
+   bookmarks     create a new bookmark or list existing bookmarks
    branch        set or show the current branch name
    branches      list repository named branches
    bundle        create a changegroup file
    cat           output the current or given revision of files
    clone         make a copy of an existing repository
    commit        commit the specified files or all outstanding changes
+   config        show combined config settings from all hgrc files
    copy          mark files as copied for the next commit
    diff          diff repository (or selected files)
    export        dump the header and diffs for one or more changesets
@@ -91,7 +92,6 @@ Short help:
    revert        restore files to their checkout state
    root          print the root (top) of the current working directory
    serve         start stand-alone webserver
-   showconfig    show combined config settings from all hgrc files
    status        show changed files in the working directory
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
@@ -131,13 +131,14 @@ Short help:
    archive       create an unversioned archive of a repository revision
    backout       reverse effect of earlier changeset
    bisect        subdivision search of changesets
-   bookmarks     track a line of development with movable markers
+   bookmarks     create a new bookmark or list existing bookmarks
    branch        set or show the current branch name
    branches      list repository named branches
    bundle        create a changegroup file
    cat           output the current or given revision of files
    clone         make a copy of an existing repository
    commit        commit the specified files or all outstanding changes
+   config        show combined config settings from all hgrc files
    copy          mark files as copied for the next commit
    diff          diff repository (or selected files)
    export        dump the header and diffs for one or more changesets
@@ -167,7 +168,6 @@ Short help:
    revert        restore files to their checkout state
    root          print the root (top) of the current working directory
    serve         start stand-alone webserver
-   showconfig    show combined config settings from all hgrc files
    status        show changed files in the working directory
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
@@ -198,6 +198,86 @@ Short help:
    templating    Template Usage
    urls          URL Paths
 
+Test extension help:
+  $ hg help extensions --config extensions.rebase= --config extensions.children=
+  Using Additional Features
+  """""""""""""""""""""""""
+  
+      Mercurial has the ability to add new features through the use of
+      extensions. Extensions may add new commands, add options to existing
+      commands, change the default behavior of commands, or implement hooks.
+  
+      To enable the "foo" extension, either shipped with Mercurial or in the
+      Python search path, create an entry for it in your configuration file,
+      like this:
+  
+        [extensions]
+        foo =
+  
+      You may also specify the full path to an extension:
+  
+        [extensions]
+        myfeature = ~/.hgext/myfeature.py
+  
+      See "hg help config" for more information on configuration files.
+  
+      Extensions are not loaded by default for a variety of reasons: they can
+      increase startup overhead; they may be meant for advanced usage only; they
+      may provide potentially dangerous abilities (such as letting you destroy
+      or modify history); they might not be ready for prime time; or they may
+      alter some usual behaviors of stock Mercurial. It is thus up to the user
+      to activate extensions as needed.
+  
+      To explicitly disable an extension enabled in a configuration file of
+      broader scope, prepend its path with !:
+  
+        [extensions]
+        # disabling extension bar residing in /path/to/extension/bar.py
+        bar = !/path/to/extension/bar.py
+        # ditto, but no path was supplied for extension baz
+        baz = !
+  
+      enabled extensions:
+  
+       children      command to display child changesets (DEPRECATED)
+       rebase        command to move sets of revisions to a different ancestor
+  
+      disabled extensions:
+  
+       acl           hooks for controlling repository access
+       blackbox      log repository events to a blackbox for debugging
+       bugzilla      hooks for integrating with the Bugzilla bug tracker
+       churn         command to display statistics about repository history
+       color         colorize output from some commands
+       convert       import revisions from foreign VCS repositories into
+                     Mercurial
+       eol           automatically manage newlines in repository files
+       extdiff       command to allow external programs to compare revisions
+       factotum      http authentication with factotum
+       gpg           commands to sign and verify changesets
+       hgcia         hooks for integrating with the CIA.vc notification service
+       hgk           browse the repository in a graphical way
+       highlight     syntax highlighting for hgweb (requires Pygments)
+       histedit      interactive history editing
+       keyword       expand keywords in tracked files
+       largefiles    track large binary files
+       mq            manage a stack of patches
+       notify        hooks for sending email push notifications
+       pager         browse command output with an external pager
+       patchbomb     command to send changesets as (a series of) patch emails
+       progress      show progress bars for some actions
+       purge         command to delete untracked files from the working
+                     directory
+       record        commands to interactively select changes for
+                     commit/qrefresh
+       relink        recreates hardlinks between repository clones
+       schemes       extend schemes with shortcuts to repository swarms
+       share         share a common history between several working directories
+       shelve        save and restore changes to the working directory
+       strip         strip changesets and their descendents from history
+       transplant    command to transplant changesets from another branch
+       win32mbcs     allow the use of MBCS paths with problematic encodings
+       zeroconf      discover and advertise repositories on the local network
 Test short command list with verbose option
 
   $ hg -v help shortlist
@@ -341,7 +421,7 @@ Test help option with version option
   Mercurial Distributed SCM (version *) (glob)
   (see http://mercurial.selenic.com for more information)
   
-  Copyright (C) 2005-2013 Matt Mackall and others
+  Copyright (C) 2005-2014 Matt Mackall and others
   This is free software; see the source for copying conditions. There is NO
   warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
@@ -483,7 +563,7 @@ Test command without options
         ! = missing (deleted by non-hg command, but still tracked)
         ? = not tracked
         I = ignored
-          = origin of the previous file listed as A (added)
+          = origin of the previous file (with --copies)
   
       Returns 0 on success.
   
@@ -516,30 +596,8 @@ Test command without options
   show changed files in the working directory
 
   $ hg help foo
-  hg: unknown command 'foo'
-  Mercurial Distributed SCM
-  
-  basic commands:
-  
-   add           add the specified files on the next commit
-   annotate      show changeset information by line for each file
-   clone         make a copy of an existing repository
-   commit        commit the specified files or all outstanding changes
-   diff          diff repository (or selected files)
-   export        dump the header and diffs for one or more changesets
-   forget        forget the specified files on the next commit
-   init          create a new repository in the given directory
-   log           show revision history of entire repository or files
-   merge         merge working directory with another revision
-   pull          pull changes from the specified source
-   push          push changes to the specified destination
-   remove        remove the specified files on the next commit
-   serve         start stand-alone webserver
-   status        show changed files in the working directory
-   summary       summarize working directory state
-   update        update working directory (or switch revisions)
-  
-  use "hg help" for the full list of commands or "hg -v" for details
+  abort: no such help topic: foo
+  (try "hg help --keyword foo")
   [255]
 
   $ hg skjdfks
@@ -569,18 +627,24 @@ Test command without options
   use "hg help" for the full list of commands or "hg -v" for details
   [255]
 
+
   $ cat > helpext.py <<EOF
   > import os
-  > from mercurial import commands
+  > from mercurial import cmdutil, commands
   > 
+  > cmdtable = {}
+  > command = cmdutil.command(cmdtable)
+  > 
+  > @command('nohelp',
+  >     [('', 'longdesc', 3, 'x'*90),
+  >     ('n', '', None, 'normal desc'),
+  >     ('', 'newline', '', 'line1\nline2')],
+  >     'hg nohelp',
+  >     norepo=True)
+  > @command('debugoptDEP', [('', 'dopt', None, 'option is DEPRECATED')])
   > def nohelp(ui, *args, **kwargs):
   >     pass
   > 
-  > cmdtable = {
-  >     "nohelp": (nohelp, [], "hg nohelp"),
-  > }
-  > 
-  > commands.norepo += ' nohelp'
   > EOF
   $ echo '[extensions]' >> $HGRCPATH
   $ echo "helpext = `pwd`/helpext.py" >> $HGRCPATH
@@ -591,6 +655,13 @@ Test command with no help text
   hg nohelp
   
   (no help text available)
+  
+  options:
+  
+      --longdesc VALUE xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                       xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (default: 3)
+   -n --               normal desc
+      --newline VALUE  line1 line2
   
   use "hg -v help nohelp" to show the global options
 
@@ -616,13 +687,14 @@ Test that default list of commands omits extension commands
    archive       create an unversioned archive of a repository revision
    backout       reverse effect of earlier changeset
    bisect        subdivision search of changesets
-   bookmarks     track a line of development with movable markers
+   bookmarks     create a new bookmark or list existing bookmarks
    branch        set or show the current branch name
    branches      list repository named branches
    bundle        create a changegroup file
    cat           output the current or given revision of files
    clone         make a copy of an existing repository
    commit        commit the specified files or all outstanding changes
+   config        show combined config settings from all hgrc files
    copy          mark files as copied for the next commit
    diff          diff repository (or selected files)
    export        dump the header and diffs for one or more changesets
@@ -652,7 +724,6 @@ Test that default list of commands omits extension commands
    revert        restore files to their checkout state
    root          print the root (top) of the current working directory
    serve         start stand-alone webserver
-   showconfig    show combined config settings from all hgrc files
    status        show changed files in the working directory
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
@@ -690,6 +761,67 @@ Test that default list of commands omits extension commands
   use "hg -v help" to show builtin aliases and global options
 
 
+Test list of internal help commands
+
+  $ hg help debug
+  debug commands (internal and unsupported):
+  
+   debugancestor
+                 find the ancestor revision of two revisions in a given index
+   debugbuilddag
+                 builds a repo with a given DAG from scratch in the current
+                 empty repo
+   debugbundle   lists the contents of a bundle
+   debugcheckstate
+                 validate the correctness of the current dirstate
+   debugcommands
+                 list all available commands and options
+   debugcomplete
+                 returns the completion list associated with the given command
+   debugdag      format the changelog or an index DAG as a concise textual
+                 description
+   debugdata     dump the contents of a data file revision
+   debugdate     parse and display a date
+   debugdirstate
+                 show the contents of the current dirstate
+   debugdiscovery
+                 runs the changeset discovery protocol in isolation
+   debugfileset  parse and apply a fileset specification
+   debugfsinfo   show information detected about current filesystem
+   debuggetbundle
+                 retrieves a bundle from a repo
+   debugignore   display the combined ignore pattern
+   debugindex    dump the contents of an index file
+   debugindexdot
+                 dump an index DAG as a graphviz dot file
+   debuginstall  test Mercurial installation
+   debugknown    test whether node ids are known to a repo
+   debuglabelcomplete
+                 complete "labels" - tags, open branch names, bookmark names
+   debugobsolete
+                 create arbitrary obsolete marker
+   debugoptDEP   (no help text available)
+   debugpathcomplete
+                 complete part or all of a tracked path
+   debugpushkey  access the pushkey key/value protocol
+   debugpvec     (no help text available)
+   debugrebuilddirstate
+                 rebuild the dirstate as it would look like for the given
+                 revision
+   debugrename   dump rename information
+   debugrevlog   show data and statistics about a revlog
+   debugrevspec  parse and apply a revision specification
+   debugsetparents
+                 manually set the parents of the current working directory
+   debugsub      (no help text available)
+   debugsuccessorssets
+                 show set of successors for revision
+   debugwalk     show how files match on given patterns
+   debugwireargs
+                 (no help text available)
+  
+  use "hg -v help debug" to show builtin aliases and global options
+
 
 Test list of commands with command with no help text
 
@@ -701,6 +833,45 @@ Test list of commands with command with no help text
    nohelp        (no help text available)
   
   use "hg -v help helpext" to show builtin aliases and global options
+
+
+test deprecated option is hidden in command help
+  $ hg help debugoptDEP
+  hg debugoptDEP
+  
+  (no help text available)
+  
+  options:
+  
+  use "hg -v help debugoptDEP" to show the global options
+
+test deprecated option is shown with -v
+  $ hg help -v debugoptDEP | grep dopt
+    --dopt option is DEPRECATED
+
+#if gettext
+test deprecated option is hidden with translation with untranslated description
+(use many globy for not failing on changed transaction)
+  $ LANGUAGE=sv hg help debugoptDEP
+  hg debugoptDEP
+  
+  (*) (glob)
+  
+  flaggor:
+  
+  *"hg -v help debugoptDEP"* (glob)
+#endif
+
+Test commands that collide with topics (issue4240)
+
+  $ hg config -hq
+  hg config [-u] [NAME]...
+  
+  show combined config settings from all hgrc files
+  $ hg showconfig -hq
+  hg config [-u] [NAME]...
+  
+  show combined config settings from all hgrc files
 
 Test a help topic
 
@@ -723,7 +894,8 @@ Test a help topic
   
       Any other string is treated as a bookmark, tag, or branch name. A bookmark
       is a movable pointer to a revision. A tag is a permanent name associated
-      with a revision. A branch name denotes the tipmost revision of that
+      with a revision. A branch name denotes the tipmost open branch head of
+      that branch - or if they are all closed, the tipmost closed head of the
       branch. Bookmark, tag, and branch names must not contain the ":"
       character.
   
@@ -791,7 +963,7 @@ Test keyword search help
   
   Commands:
   
-   bookmarks track a line of development with movable markers
+   bookmarks create a new bookmark or list existing bookmarks
    clone     make a copy of an existing repository
    paths     show aliases for remote repositories
    update    update working directory (or switch revisions)
@@ -804,6 +976,20 @@ Test keyword search help
   Extension Commands:
   
    qclone clone main and patch repository at same time
+
+Test unfound topic
+
+  $ hg help nonexistingtopicthatwillneverexisteverever
+  abort: no such help topic: nonexistingtopicthatwillneverexisteverever
+  (try "hg help --keyword nonexistingtopicthatwillneverexisteverever")
+  [255]
+
+Test unfound keyword
+
+  $ hg help --keyword nonexistingwordthatwillneverexisteverever
+  abort: no matches
+  (try "hg help" for a list of topics)
+  [255]
 
 Test omit indicating for help
 
@@ -1227,7 +1413,7 @@ Dish up an empty repo; serve it cold.
   bookmarks
   </a>
   </td><td>
-  track a line of development with movable markers
+  create a new bookmark or list existing bookmarks
   </td></tr>
   <tr><td>
   <a href="/help/branch">
@@ -1256,6 +1442,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   output the current or given revision of files
+  </td></tr>
+  <tr><td>
+  <a href="/help/config">
+  config
+  </a>
+  </td><td>
+  show combined config settings from all hgrc files
   </td></tr>
   <tr><td>
   <a href="/help/copy">
@@ -1396,13 +1589,6 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   print the root (top) of the current working directory
-  </td></tr>
-  <tr><td>
-  <a href="/help/showconfig">
-  showconfig
-  </a>
-  </td><td>
-  show combined config settings from all hgrc files
   </td></tr>
   <tr><td>
   <a href="/help/tag">
@@ -1878,9 +2064,9 @@ Dish up an empty repo; serve it cold.
   <p>
   Any other string is treated as a bookmark, tag, or branch name. A
   bookmark is a movable pointer to a revision. A tag is a permanent name
-  associated with a revision. A branch name denotes the tipmost revision
-  of that branch. Bookmark, tag, and branch names must not contain the &quot;:&quot;
-  character.
+  associated with a revision. A branch name denotes the tipmost open branch head
+  of that branch - or if they are all closed, the tipmost closed head of the
+  branch. Bookmark, tag, and branch names must not contain the &quot;:&quot; character.
   </p>
   <p>
   The reserved name &quot;tip&quot; always identifies the most recent revision.

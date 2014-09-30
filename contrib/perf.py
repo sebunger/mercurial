@@ -243,6 +243,18 @@ def perflog(ui, repo, **opts):
                                copies=opts.get('rename')))
     ui.popbuffer()
 
+@command('perfmoonwalk')
+def perfmoonwalk(ui, repo):
+    """benchmark walking the changelog backwards
+
+    This also loads the changelog data for each revision in the changelog.
+    """
+    def moonwalk():
+        for i in xrange(len(repo), -1, -1):
+            ctx = repo[i]
+            ctx.branch() # read changelog data (in addition to the index)
+    timer(moonwalk)
+
 @command('perftemplating')
 def perftemplating(ui, repo):
     ui.pushbuffer()
@@ -323,7 +335,7 @@ def perfrevset(ui, repo, expr, clear=False):
     def d():
         if clear:
             repo.invalidatevolatilesets()
-        repo.revs(expr)
+        for r in repo.revs(expr): pass
     timer(d)
 
 @command('perfvolatilesets')
@@ -349,7 +361,7 @@ def perfvolatilesets(ui, repo, *names):
     def getfiltered(name):
         def d():
             repo.invalidatevolatilesets()
-            repoview.filteredrevs(repo, name)
+            repoview.filterrevs(repo, name)
         return d
 
     allfilter = sorted(repoview.filtertable)
@@ -386,7 +398,7 @@ def perfbranchmap(ui, repo, full=False):
     allfilters = []
     while possiblefilters:
         for name in possiblefilters:
-            subset = repoview.subsettable.get(name)
+            subset = branchmap.subsettable.get(name)
             if subset not in possiblefilters:
                 break
         else:

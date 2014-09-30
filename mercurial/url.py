@@ -7,7 +7,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import urllib, urllib2, httplib, os, socket, cStringIO
+import urllib, urllib2, httplib, os, socket, cStringIO, base64
 from i18n import _
 import keepalive, util, sslutil
 import httpconnection as httpconnectionmod
@@ -32,10 +32,14 @@ class passwordmgr(urllib2.HTTPPasswordMgrWithDefaultRealm):
                 user, passwd = auth.get('username'), auth.get('password')
                 self.ui.debug("using auth.%s.* for authentication\n" % group)
         if not user or not passwd:
+            u = util.url(authuri)
+            u.query = None
             if not self.ui.interactive():
-                raise util.Abort(_('http authorization required'))
+                raise util.Abort(_('http authorization required for %s') %
+                                 util.hidepassword(str(u)))
 
-            self.ui.write(_("http authorization required\n"))
+            self.ui.write(_("http authorization required for %s\n") %
+                          util.hidepassword(str(u)))
             self.ui.write(_("realm: %s\n") % realm)
             if user:
                 self.ui.write(_("user: %s\n") % user)
@@ -221,7 +225,6 @@ def _generic_proxytunnel(self):
     proxyheaders = dict(
             [(x, self.headers[x]) for x in self.headers
              if x.lower().startswith('proxy-')])
-    self._set_hostport(self.host, self.port)
     self.send('CONNECT %s HTTP/1.0\r\n' % self.realhostport)
     for header in proxyheaders.iteritems():
         self.send('%s: %s\r\n' % header)
@@ -418,8 +421,21 @@ class httpdigestauthhandler(urllib2.HTTPDigestAuthHandler):
 
 class httpbasicauthhandler(urllib2.HTTPBasicAuthHandler):
     def __init__(self, *args, **kwargs):
+        self.auth = None
         urllib2.HTTPBasicAuthHandler.__init__(self, *args, **kwargs)
         self.retried_req = None
+
+    def http_request(self, request):
+        if self.auth:
+            request.add_unredirected_header(self.auth_header, self.auth)
+
+        return request
+
+    def https_request(self, request):
+        if self.auth:
+            request.add_unredirected_header(self.auth_header, self.auth)
+
+        return request
 
     def reset_retry_count(self):
         # Python 2.6.5 will call this on 401 or 407 errors and thus loop
@@ -434,6 +450,19 @@ class httpbasicauthhandler(urllib2.HTTPBasicAuthHandler):
             self.retried = 0
         return urllib2.HTTPBasicAuthHandler.http_error_auth_reqed(
                         self, auth_header, host, req, headers)
+
+    def retry_http_basic_auth(self, host, req, realm):
+        user, pw = self.passwd.find_user_password(realm, req.get_full_url())
+        if pw is not None:
+            raw = "%s:%s" % (user, pw)
+            auth = 'Basic %s' % base64.b64encode(raw).strip()
+            if req.headers.get(self.auth_header, None) == auth:
+                return None
+            self.auth = auth
+            req.add_unredirected_header(self.auth_header, auth)
+            return self.parent.open(req)
+        else:
+            return None
 
 handlerfuncs = []
 

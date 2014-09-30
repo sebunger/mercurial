@@ -152,7 +152,7 @@ def analyze(ui, repo, *revs, **opts):
         if lastctx.rev() != nullrev:
             interarrival[roundto(ctx.date()[0] - lastctx.date()[0], 300)] += 1
         diff = sum((d.splitlines()
-                    for d in ctx.diff(pctx, opts=dict(git=True))), [])
+                    for d in ctx.diff(pctx, opts={'git': True})), [])
         fileadds, diradds, fileremoves, filechanges = 0, 0, 0, 0
         for filename, mar, lineadd, lineremove, binary in parsegitdiff(diff):
             if binary:
@@ -189,21 +189,21 @@ def analyze(ui, repo, *revs, **opts):
     def pronk(d):
         return sorted(d.iteritems(), key=lambda x: x[1], reverse=True)
 
-    json.dump(dict(revs=len(revs),
-                   lineschanged=pronk(lineschanged),
-                   children=pronk(invchildren),
-                   fileschanged=pronk(fileschanged),
-                   filesadded=pronk(filesadded),
-                   linesinfilesadded=pronk(linesinfilesadded),
-                   dirsadded=pronk(dirsadded),
-                   filesremoved=pronk(filesremoved),
-                   linelengths=pronk(linelengths),
-                   parents=pronk(parents),
-                   p1distance=pronk(p1distance),
-                   p2distance=pronk(p2distance),
-                   interarrival=pronk(interarrival),
-                   tzoffset=pronk(tzoffset),
-                   ),
+    json.dump({'revs': len(revs),
+               'lineschanged': pronk(lineschanged),
+               'children': pronk(invchildren),
+               'fileschanged': pronk(fileschanged),
+               'filesadded': pronk(filesadded),
+               'linesinfilesadded': pronk(linesinfilesadded),
+               'dirsadded': pronk(dirsadded),
+               'filesremoved': pronk(filesremoved),
+               'linelengths': pronk(linelengths),
+               'parents': pronk(parents),
+               'p1distance': pronk(p1distance),
+               'p2distance': pronk(p2distance),
+               'interarrival': pronk(interarrival),
+               'tzoffset': pronk(tzoffset),
+               },
               fp)
     fp.close()
 
@@ -334,7 +334,7 @@ def synthesize(ui, repo, descpath, **opts):
                 for __ in xrange(add):
                     lines.insert(random.randint(0, len(lines)), makeline())
                 path = fctx.path()
-                changes[path] = context.memfilectx(path,
+                changes[path] = context.memfilectx(repo, path,
                                                    '\n'.join(lines) + '\n')
             for __ in xrange(pick(filesremoved)):
                 path = random.choice(mfk)
@@ -354,7 +354,7 @@ def synthesize(ui, repo, descpath, **opts):
             path = '/'.join(filter(None, path))
             data = '\n'.join(makeline()
                              for __ in xrange(pick(linesinfilesadded))) + '\n'
-            changes[path] = context.memfilectx(path, data)
+            changes[path] = context.memfilectx(repo, path, data)
         def filectxfn(repo, memctx, path):
             data = changes[path]
             if data is None:

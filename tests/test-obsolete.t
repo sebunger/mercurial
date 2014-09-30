@@ -1,6 +1,4 @@
   $ cat >> $HGRCPATH << EOF
-  > [extensions]
-  > graphlog=
   > [phases]
   > # public changeset are not obsolete
   > publish=false
@@ -66,6 +64,14 @@ Killing a single changeset without replacement
   date:        Thu Jan 01 00:00:00 1970 +0000
   
   $ hg up --hidden tip --quiet
+
+Killing a single changeset with itself should fail
+(simple local safeguard)
+
+  $ hg debugobsolete `getid kill_me` `getid kill_me`
+  abort: bad obsmarker input: in-marker cycle with 97b7c2d76b1845ed3eb988cd612611e72406cef0
+  [255]
+
   $ cd ..
 
 Killing a single changeset with replacement
@@ -83,6 +89,12 @@ Killing a single changeset with replacement
   $ hg debugobsolete --flag 12 `getid original_c`  `getid new_c` -d '56 12'
   $ hg log -r 'hidden()' --template '{rev}:{node|short} {desc}\n' --hidden
   2:245bde4270cd add original_c
+  $ hg debugrevlog -cd
+  # rev p1rev p2rev start   end deltastart base   p1   p2 rawsize totalsize compression heads
+      0    -1    -1     0    59          0    0    0    0      58        58           0     1
+      1     0    -1    59   118         59   59    0    0      58       116           0     1
+      2     1    -1   118   204         59   59   59    0      76       192           0     1
+      3     1    -1   204   271        204  204   59    0      66       258           0     2
   $ hg debugobsolete
   245bde4270cd1072a27757984f9cda8ba26f08ca cdbce2fbb16313928851e97e0d85413f3f7eb77f C {'date': '56 12', 'user': 'test'}
 
@@ -120,7 +132,7 @@ Refuse pathological nullid successors
 
 Check that graphlog detect that a changeset is obsolete:
 
-  $ hg glog
+  $ hg log -G
   @  changeset:   5:5601fb93a350
   |  tag:         tip
   |  parent:      1:7c3bad9141dc
@@ -217,7 +229,7 @@ check that various commands work well with filtering
 Check that public changeset are not accounted as obsolete:
 
   $ hg --hidden phase --public 2
-  $ hg --config 'extensions.graphlog=' glog
+  $ hg log -G
   @  changeset:   5:5601fb93a350
   |  tag:         tip
   |  parent:      1:7c3bad9141dc
@@ -514,7 +526,7 @@ detect outgoing obsolete and unstable
 ---------------------------------------
 
 
-  $ hg glog
+  $ hg log -G
   o  changeset:   3:6f9641995072
   |  tag:         tip
   |  parent:      1:7c3bad9141dc
@@ -548,7 +560,7 @@ detect outgoing obsolete and unstable
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     add original_d
   
-  $ hg glog -r '::unstable()'
+  $ hg log -G -r '::unstable()'
   @  changeset:   5:cda648ca50f5
   |  tag:         tip
   |  user:        test
@@ -653,7 +665,7 @@ no warning displayed
 
 Do not warn about new head when the new head is a successors of a remote one
 
-  $ hg glog
+  $ hg log -G
   @  changeset:   5:cda648ca50f5
   |  tag:         tip
   |  user:        test
@@ -886,4 +898,32 @@ This test issue 3814
   no changes found
   [1]
 
+Test that a local tag blocks a changeset from being hidden
 
+  $ hg tag -l visible -r 0 --hidden
+  $ hg log -G
+  @  changeset:   2:3816541e5485
+     tag:         tip
+     parent:      -1:000000000000
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     A
+  
+  x  changeset:   0:193e9254ce7e
+     tag:         visible
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     A
+  
+Test that removing a local tag does not cause some commands to fail
+
+  $ hg tag -l -r tip tiptag
+  $ hg tags
+  tiptag                             2:3816541e5485
+  tip                                2:3816541e5485
+  visible                            0:193e9254ce7e
+  $ hg --config extensions.strip= strip -r tip --no-backup
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg tags
+  visible                            0:193e9254ce7e
+  tip                                0:193e9254ce7e

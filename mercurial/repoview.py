@@ -9,7 +9,8 @@
 import copy
 import phases
 import util
-import obsolete, revset
+import obsolete
+import tags as tagsmod
 
 
 def hideablerevs(repo):
@@ -17,6 +18,32 @@ def hideablerevs(repo):
 
     This is a standalone function to help extensions to wrap it."""
     return obsolete.getrevs(repo, 'obsolete')
+
+def _gethiddenblockers(repo):
+    """Get revisions that will block hidden changesets from being filtered
+
+    This is a standalone function to help extensions to wrap it."""
+    assert not repo.changelog.filteredrevs
+    hideable = hideablerevs(repo)
+    blockers = []
+    if hideable:
+        # We use cl to avoid recursive lookup from repo[xxx]
+        cl = repo.changelog
+        firsthideable = min(hideable)
+        revs = cl.revs(start=firsthideable)
+        tofilter = repo.revs(
+            '(%ld) and children(%ld)', list(revs), list(hideable))
+        blockers = [r for r in tofilter if r not in hideable]
+        for par in repo[None].parents():
+            blockers.append(par.rev())
+        for bm in repo._bookmarks.values():
+            blockers.append(cl.rev(bm))
+        tags = {}
+        tagsmod.readlocaltags(repo.ui, repo, tags, {})
+        if tags:
+            rev, nodemap = cl.rev, cl.nodemap
+            blockers.extend(rev(t[0]) for t in tags.values() if t[0] in nodemap)
+    return blockers
 
 def computehidden(repo):
     """compute the set of hidden revision to filter
@@ -26,15 +53,7 @@ def computehidden(repo):
     hideable = hideablerevs(repo)
     if hideable:
         cl = repo.changelog
-        firsthideable = min(hideable)
-        revs = cl.revs(start=firsthideable)
-        blockers = [r for r in revset._children(repo, revs, hideable)
-                      if r not in hideable]
-        for par in repo[None].parents():
-            blockers.append(par.rev())
-        for bm in repo._bookmarks.values():
-            blockers.append(repo[bm].rev())
-        blocked = cl.ancestors(blockers, inclusive=True)
+        blocked = cl.ancestors(_gethiddenblockers(repo), inclusive=True)
         return frozenset(r for r in hideable if r not in blocked)
     return frozenset()
 
@@ -94,20 +113,15 @@ def computeimpactable(repo):
     return frozenset(xrange(firstmutable, len(cl)))
 
 # function to compute filtered set
+#
+# When adding a new filter you MUST update the table at:
+#     mercurial.branchmap.subsettable
+# Otherwise your filter will have to recompute all its branches cache
+# from scratch (very slow).
 filtertable = {'visible': computehidden,
                'served': computeunserved,
                'immutable':  computemutable,
                'base':  computeimpactable}
-### Nearest subset relation
-# Nearest subset of filter X is a filter Y so that:
-# * Y is included in X,
-# * X - Y is as small as possible.
-# This create and ordering used for branchmap purpose.
-# the ordering may be partial
-subsettable = {None: 'visible',
-               'visible': 'served',
-               'served': 'immutable',
-               'immutable': 'base'}
 
 def filterrevs(repo, filtername):
     """returns set of filtered revision for this filter name"""
@@ -175,7 +189,7 @@ class repoview(object):
             # without change in the cachekey.
             oldfilter = cl.filteredrevs
             try:
-                cl.filterrevs = ()  # disable filtering for tip
+                cl.filteredrevs = ()  # disable filtering for tip
                 curkey = (len(cl), cl.tip(), hash(oldfilter))
             finally:
                 cl.filteredrevs = oldfilter
@@ -215,4 +229,3 @@ class repoview(object):
     @property
     def requirements(self):
         return self._unfilteredrepo.requirements
-

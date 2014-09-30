@@ -223,7 +223,7 @@ push should succeed even though it has an unexpected response
   $ hg push
   pushing to ssh://user@dummy/remote
   searching for changes
-  note: unsynced remote changes!
+  remote has heads on branch 'default' that are not known locally: 6c0482d977a3
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
@@ -283,6 +283,10 @@ Test remote paths with spaces (issue2983):
   $ hg -R 'a repo' tag tag
   $ hg id --ssh "python \"$TESTDIR/dummyssh\"" "ssh://user@dummy/a repo"
   73649e48688a
+
+  $ hg id --ssh "python \"$TESTDIR/dummyssh\"" "ssh://user@dummy/a repo#noNoNO"
+  abort: unknown revision 'noNoNO'!
+  [255]
 
 Test (non-)escaping of remote paths with spaces when cloning (issue3145):
 
@@ -379,6 +383,7 @@ Test hg-ssh in read-only mode:
   changegroup-in-remote hook: HG_NODE=1383141674ec756a6056f6a9097618482fe0f4a6 HG_SOURCE=serve HG_URL=remote:ssh:127.0.0.1
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg init 'a repo'
+  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio

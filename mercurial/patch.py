@@ -16,7 +16,6 @@ import email.Parser
 from i18n import _
 from node import hex, short
 import base85, mdiff, scmutil, util, diffhelpers, copies, encoding, error
-import context
 
 gitre = re.compile('diff --git a/(.*) b/(.*)')
 
@@ -418,12 +417,12 @@ class fsbackend(abstractbackend):
         return os.path.join(self.opener.base, f)
 
     def getfile(self, fname):
-        path = self._join(fname)
-        if os.path.islink(path):
-            return (os.readlink(path), (True, False))
+        if self.opener.islink(fname):
+            return (self.opener.readlink(fname), (True, False))
+
         isexec = False
         try:
-            isexec = os.lstat(path).st_mode & 0100 != 0
+            isexec = self.opener.lstat(fname).st_mode & 0100 != 0
         except OSError, e:
             if e.errno != errno.ENOENT:
                 raise
@@ -432,17 +431,17 @@ class fsbackend(abstractbackend):
     def setfile(self, fname, data, mode, copysource):
         islink, isexec = mode
         if data is None:
-            util.setflags(self._join(fname), islink, isexec)
+            self.opener.setflags(fname, islink, isexec)
             return
         if islink:
             self.opener.symlink(data, fname)
         else:
             self.opener.write(fname, data)
             if isexec:
-                util.setflags(self._join(fname), False, True)
+                self.opener.setflags(fname, False, True)
 
     def unlink(self, fname):
-        util.unlinkpath(self._join(fname), ignoremissing=True)
+        self.opener.unlinkpath(fname, ignoremissing=True)
 
     def writerej(self, fname, failed, total, lines):
         fname = fname + ".rej"
@@ -454,7 +453,7 @@ class fsbackend(abstractbackend):
         fp.close()
 
     def exists(self, fname):
-        return os.path.lexists(self._join(fname))
+        return self.opener.lexists(fname)
 
 class workingbackend(fsbackend):
     def __init__(self, ui, repo, similarity):
@@ -712,7 +711,7 @@ class patchfile(object):
         if self.exists and self.create:
             if self.copysource:
                 self.ui.warn(_("cannot create %s: destination already "
-                               "exists\n" % self.fname))
+                               "exists\n") % self.fname)
             else:
                 self.ui.warn(_("file %s already exists\n") % self.fname)
             self.rej.append(h)
@@ -722,8 +721,9 @@ class patchfile(object):
             if self.remove:
                 self.backend.unlink(self.fname)
             else:
-                self.lines[:] = h.new()
-                self.offset += len(h.new())
+                l = h.new(self.lines)
+                self.lines[:] = l
+                self.offset += len(l)
                 self.dirty = True
             return 0
 
@@ -1017,9 +1017,10 @@ class hunk(object):
         return old, oldstart, new, newstart
 
 class binhunk(object):
-    'A binary patch file. Only understands literals so far.'
+    'A binary patch file.'
     def __init__(self, lr, fname):
         self.text = None
+        self.delta = False
         self.hunk = ['GIT binary patch\n']
         self._fname = fname
         self._read(lr)
@@ -1027,7 +1028,9 @@ class binhunk(object):
     def complete(self):
         return self.text is not None
 
-    def new(self):
+    def new(self, lines):
+        if self.delta:
+            return [applybindelta(self.text, ''.join(lines))]
         return [self.text]
 
     def _read(self, lr):
@@ -1036,14 +1039,19 @@ class binhunk(object):
             hunk.append(l)
             return l.rstrip('\r\n')
 
+        size = 0
         while True:
             line = getline(lr, self.hunk)
             if not line:
                 raise PatchError(_('could not extract "%s" binary data')
                                  % self._fname)
             if line.startswith('literal '):
+                size = int(line[8:].rstrip())
                 break
-        size = int(line[8:].rstrip())
+            if line.startswith('delta '):
+                size = int(line[6:].rstrip())
+                self.delta = True
+                break
         dec = []
         line = getline(lr, self.hunk)
         while len(line) > 1:
@@ -1266,6 +1274,62 @@ def iterhunks(fp):
         gp = gitpatches.pop()
         yield 'file', ('a/' + gp.path, 'b/' + gp.path, None, gp.copy())
 
+def applybindelta(binchunk, data):
+    """Apply a binary delta hunk
+    The algorithm used is the algorithm from git's patch-delta.c
+    """
+    def deltahead(binchunk):
+        i = 0
+        for c in binchunk:
+            i += 1
+            if not (ord(c) & 0x80):
+                return i
+        return i
+    out = ""
+    s = deltahead(binchunk)
+    binchunk = binchunk[s:]
+    s = deltahead(binchunk)
+    binchunk = binchunk[s:]
+    i = 0
+    while i < len(binchunk):
+        cmd = ord(binchunk[i])
+        i += 1
+        if (cmd & 0x80):
+            offset = 0
+            size = 0
+            if (cmd & 0x01):
+                offset = ord(binchunk[i])
+                i += 1
+            if (cmd & 0x02):
+                offset |= ord(binchunk[i]) << 8
+                i += 1
+            if (cmd & 0x04):
+                offset |= ord(binchunk[i]) << 16
+                i += 1
+            if (cmd & 0x08):
+                offset |= ord(binchunk[i]) << 24
+                i += 1
+            if (cmd & 0x10):
+                size = ord(binchunk[i])
+                i += 1
+            if (cmd & 0x20):
+                size |= ord(binchunk[i]) << 8
+                i += 1
+            if (cmd & 0x40):
+                size |= ord(binchunk[i]) << 16
+                i += 1
+            if size == 0:
+                size = 0x10000
+            offset_end = offset + size
+            out += data[offset:offset_end]
+        elif cmd != 0:
+            offset_end = i + cmd
+            out += binchunk[i:offset_end]
+            i += cmd
+        else:
+            raise PatchError(_('unexpected delta opcode 0'))
+    return out
+
 def applydiff(ui, fp, backend, store, strip=1, eolmode='strict'):
     """Reads a patch from fp and tries to apply it.
 
@@ -1441,21 +1505,6 @@ def patchrepo(ui, repo, ctx, store, patchobj, strip, files=None,
     backend = repobackend(ui, repo, ctx, store)
     return patchbackend(ui, backend, patchobj, strip, files, eolmode)
 
-def makememctx(repo, parents, text, user, date, branch, files, store,
-               editor=None):
-    def getfilectx(repo, memctx, path):
-        data, (islink, isexec), copied = store.getfile(path)
-        return context.memfilectx(path, data, islink=islink, isexec=isexec,
-                                  copied=copied)
-    extra = {}
-    if branch:
-        extra['branch'] = encoding.fromlocal(branch)
-    ctx =  context.memctx(repo, parents, text, files, getfilectx, user,
-                          date, extra)
-    if editor:
-        ctx._text = editor(repo, ctx, [])
-    return ctx
-
 def patch(ui, repo, patchname, strip=1, files=None, eolmode='strict',
           similarity=0):
     """Apply <patchname> to the working directory.
@@ -1472,14 +1521,11 @@ def patch(ui, repo, patchname, strip=1, files=None, eolmode='strict',
     patcher = ui.config('ui', 'patch')
     if files is None:
         files = set()
-    try:
-        if patcher:
-            return _externalpatch(ui, repo, patcher, patchname, strip,
-                                  files, similarity)
-        return internalpatch(ui, repo, patchname, strip, files, eolmode,
-                             similarity)
-    except PatchError, err:
-        raise util.Abort(str(err))
+    if patcher:
+        return _externalpatch(ui, repo, patcher, patchname, strip,
+                              files, similarity)
+    return internalpatch(ui, repo, patchname, strip, files, eolmode,
+                         similarity)
 
 def changedfiles(ui, repo, patchpath, strip=1):
     backend = fsbackend(ui, repo.root)
@@ -1515,6 +1561,7 @@ def diffopts(ui, opts=None, untrusted=False, section='diff'):
         text=opts and opts.get('text'),
         git=get('git'),
         nodates=get('nodates'),
+        nobinary=get('nobinary'),
         showfunc=get('show_function', 'showfunc'),
         ignorews=get('ignore_all_space', 'ignorews'),
         ignorewsamount=get('ignore_space_change', 'ignorewsamount'),
@@ -1575,7 +1622,7 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None,
 
     revs = None
     hexfunc = repo.ui.debugflag and hex or short
-    revs = [hexfunc(node) for node in [node1, node2] if node]
+    revs = [hexfunc(node) for node in [ctx1.node(), ctx2.node()] if node]
 
     copy = {}
     if opts.git or opts.upgrade:
@@ -1769,7 +1816,7 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
         if dodiff:
             if opts.git or revs:
                 header.insert(0, diffline(join(a), join(b), revs))
-            if dodiff == 'binary':
+            if dodiff == 'binary' and not opts.nobinary:
                 text = mdiff.b85diff(to, tn)
                 if text:
                     addindexmeta(header, [gitindex(to), gitindex(tn)])
@@ -1810,7 +1857,7 @@ def diffstatdata(lines):
             # set numbers to 0 anyway when starting new file
             adds, removes, isbinary = 0, 0, False
             if line.startswith('diff --git a/'):
-                filename = gitre.search(line).group(1)
+                filename = gitre.search(line).group(2)
             elif line.startswith('diff -r'):
                 # format: "diff -r ... -r ... filename"
                 filename = diffre.search(line).group(1)

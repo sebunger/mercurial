@@ -111,10 +111,12 @@ disable color.
 
 import os
 
-from mercurial import commands, dispatch, extensions, ui as uimod, util
+from mercurial import cmdutil, commands, dispatch, extensions, ui as uimod, util
 from mercurial import templater, error
 from mercurial.i18n import _
 
+cmdtable = {}
+command = cmdutil.command(cmdtable)
 testedwith = 'internal'
 
 # start and stop parameters for effects
@@ -166,7 +168,7 @@ def _terminfosetup(ui, mode):
 def _modesetup(ui, coloropt):
     global _terminfo_params
 
-    auto = coloropt == 'auto'
+    auto = (coloropt == 'auto')
     always = not auto and util.parsebool(coloropt)
     if not always and not auto:
         return None
@@ -230,7 +232,7 @@ try:
                         'cyan': (False, curses.COLOR_CYAN),
                         'white': (False, curses.COLOR_WHITE)}
 except ImportError:
-    _terminfo_params = False
+    _terminfo_params = {}
 
 _styles = {'grep.match': 'red bold',
            'grep.linenumber': 'green',
@@ -311,6 +313,15 @@ def extstyles():
     for name, ext in extensions.extensions():
         _styles.update(getattr(ext, 'colortable', {}))
 
+def valideffect(effect):
+    'Determine if the effect is valid or not.'
+    good = False
+    if not _terminfo_params and effect in _effects:
+        good = True
+    elif effect in _terminfo_params or effect[:-11] in _terminfo_params:
+        good = True
+    return good
+
 def configstyles(ui):
     for status, cfgeffects in ui.configitems('color'):
         if '.' not in status or status.startswith('color.'):
@@ -319,9 +330,7 @@ def configstyles(ui):
         if cfgeffects:
             good = []
             for e in cfgeffects:
-                if not _terminfo_params and e in _effects:
-                    good.append(e)
-                elif e in _terminfo_params or e[:-11] in _terminfo_params:
+                if valideffect(e):
                     good.append(e)
                 else:
                     ui.warn(_("ignoring unknown color/effect %r "
@@ -334,6 +343,7 @@ class colorui(uimod.ui):
         if self._colormode is None:
             return super(colorui, self).popbuffer(labeled)
 
+        self._bufferstates.pop()
         if labeled:
             return ''.join(self.label(a, label) for a, label
                            in self._buffers.pop())
@@ -359,6 +369,8 @@ class colorui(uimod.ui):
             return super(colorui, self).write_err(*args, **opts)
 
         label = opts.get('label', '')
+        if self._bufferstates and self._bufferstates[-1]:
+            return self.write(*args, **opts)
         if self._colormode == 'win32':
             for a in args:
                 win32print(a, super(colorui, self).write_err, **opts)
@@ -375,6 +387,8 @@ class colorui(uimod.ui):
             s = _styles.get(l, '')
             if s:
                 effects.append(s)
+            elif valideffect(l):
+                effects.append(l)
         effects = ' '.join(effects)
         if effects:
             return '\n'.join([render_effects(s, effects)
@@ -386,6 +400,10 @@ def templatelabel(context, mapping, args):
         # i18n: "label" is a keyword
         raise error.ParseError(_("label expects two arguments"))
 
+    # add known effects to the mapping so symbols like 'red', 'bold',
+    # etc. don't need to be quoted
+    mapping.update(dict([(k, k) for k in _effects]))
+
     thing = templater._evalifliteral(args[1], context, mapping)
 
     # apparently, repo could be a string that is the favicon?
@@ -393,9 +411,7 @@ def templatelabel(context, mapping, args):
     if isinstance(repo, str):
         return thing
 
-    label = templater.stringify(args[0][0](context, mapping, args[0][1]))
-    label = templater.runtemplate(context, mapping,
-                                  templater.compiletemplate(label, context))
+    label = templater._evalifliteral(args[0], context, mapping)
 
     thing = templater.stringify(thing)
     label = templater.stringify(label)
@@ -425,6 +441,17 @@ def extsetup(ui):
          # not be translated
          _("when to colorize (boolean, always, auto, or never)"),
          _('TYPE')))
+
+@command('debugcolor', [], 'hg debugcolor')
+def debugcolor(ui, repo, **opts):
+    global _styles
+    _styles = {}
+    for effect in _effects.keys():
+        _styles[effect] = effect
+    ui.write(('color mode: %s\n') % ui._colormode)
+    ui.write(_('available colors:\n'))
+    for label, colors in _styles.items():
+        ui.write(('%s\n') % colors, label=label)
 
 if os.name != 'nt':
     w32effects = None
@@ -535,8 +562,12 @@ else:
         for l in label.split():
             style = _styles.get(l, '')
             for effect in style.split():
-                attr = mapcolor(w32effects[effect], attr)
-
+                try:
+                    attr = mapcolor(w32effects[effect], attr)
+                except KeyError:
+                    # w32effects could not have certain attributes so we skip
+                    # them if not found
+                    pass
         # hack to ensure regexp finds data
         if not text.startswith('\033['):
             text = '\033[m' + text

@@ -85,7 +85,9 @@ ones.
     be read.  Mercurial checks each of these locations in the specified
     order until one or more configuration files are detected.
 
-.. note:: The registry key ``HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial``
+.. note::
+
+   The registry key ``HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial``
    is used when running 32-bit Python on 64-bit Windows.
 
 Syntax
@@ -204,7 +206,9 @@ changesets. You can define subsequent aliases using earlier ones::
 
     stable5 = latest -b stable
 
-.. note:: It is possible to create aliases with the same names as
+.. note::
+
+   It is possible to create aliases with the same names as
    existing commands, which will then override the original
    definitions. This is almost always a bad idea!
 
@@ -235,7 +239,9 @@ alias, as was done above for the purge alias. In addition,
 ``$HG_ARGS`` expands to the arguments given to Mercurial. In the ``hg
 echo foo`` call above, ``$HG_ARGS`` would expand to ``echo foo``.
 
-.. note:: Some global configuration options such as ``-R`` are
+.. note::
+
+   Some global configuration options such as ``-R`` are
    processed before shell aliases and will thus not be passed to
    aliases.
 
@@ -324,6 +330,64 @@ If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
 
 
+``committemplate``
+------------------
+
+``changeset`` configuration in this section is used as the template to
+customize the text shown in the editor when committing.
+
+In addition to pre-defined template keywords, commit log specific one
+below can be used for customization:
+
+``extramsg``
+    String: Extra message (typically 'Leave message empty to abort
+    commit.'). This may be changed by some commands or extensions.
+
+For example, the template configuration below shows as same text as
+one shown by default::
+
+    [committemplate]
+    changeset = {desc}\n\n
+        HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+        HG: {extramsg}
+        HG: --
+        HG: user: {author}\n{ifeq(p2rev, "-1", "",
+       "HG: branch merge\n")
+       }HG: branch '{branch}'\n{if(currentbookmark,
+       "HG: bookmark '{currentbookmark}'\n")  }{subrepos %
+       "HG: subrepo {subrepo}\n"              }{file_adds %
+       "HG: added {file}\n"                   }{file_mods %
+       "HG: changed {file}\n"                 }{file_dels %
+       "HG: removed {file}\n"                 }{if(files, "",
+       "HG: no files changed\n")}
+
+.. note::
+
+   For some problematic encodings (see :hg:`help win32mbcs` for
+   detail), this customization should be configured carefully, to
+   avoid showing broken characters.
+
+   For example, if multibyte character ending with backslash (0x5c) is
+   followed by ASCII character 'n' in the customized template,
+   sequence of backslash and 'n' is treated as line-feed unexpectedly
+   (and multibyte character is broken, too).
+
+Customized template is used for commands below (``--edit`` may be
+required):
+
+- :hg:`backout`
+- :hg:`commit`
+- :hg:`fetch` (for merge commit only)
+- :hg:`graft`
+- :hg:`histedit`
+- :hg:`import`
+- :hg:`qfold`, :hg:`qnew` and :hg:`qrefresh`
+- :hg:`rebase`
+- :hg:`shelve`
+- :hg:`sign`
+- :hg:`tag`
+- :hg:`transplant`
+
 ``decode/encode``
 -----------------
 
@@ -362,7 +426,9 @@ filtered by the command. The string ``OUTFILE`` is replaced with the name
 of an empty temporary file, where the filtered data must be written by
 the command.
 
-.. note:: The tempfile mechanism is recommended for Windows systems,
+.. note::
+
+   The tempfile mechanism is recommended for Windows systems,
    where the standard shell I/O redirection operators often have
    strange effects and may corrupt the contents of your files.
 
@@ -708,13 +774,17 @@ variables it is passed are listed with names of the form ``$HG_foo``.
   in ``$HG_PARENT2``. If the update succeeded, ``$HG_ERROR=0``. If the
   update failed (e.g. because conflicts not resolved), ``$HG_ERROR=1``.
 
-.. note:: It is generally better to use standard hooks rather than the
+.. note::
+
+   It is generally better to use standard hooks rather than the
    generic pre- and post- command hooks as they are guaranteed to be
    called in the appropriate contexts for influencing transactions.
    Also, hooks like "commit" will be called in all contexts that
    generate a commit (e.g. tag) and not just the commit command.
 
-.. note:: Environment variables with empty values may not be passed to
+.. note::
+
+   Environment variables with empty values may not be passed to
    hooks on platforms such as Windows. As an example, ``$HG_PARENT2``
    will have an empty value under Unix-like platforms for non-merge
    changesets, while it will not be available at all under Windows.
@@ -748,7 +818,7 @@ The CA chain and web.cacerts is not used for servers with a fingerprint.
 For example::
 
     [hostfingerprints]
-    hg.intevation.org = 44:ed:af:1f:97:11:b6:01:7a:48:45:fc:10:3c:b7:f9:d4:89:2a:9d
+    hg.intevation.org = fa:1f:d9:48:f1:e7:74:30:38:8d:d8:58:b6:94:b8:58:28:7d:8b:d0
 
 This feature is only supported when using Python 2.6 or later.
 
@@ -795,7 +865,9 @@ Example::
 ---------------
 
 This section configures external merge tools to use for file-level
-merges.
+merges. This section has likely been preconfigured at install time.
+Use :hg:`config merge-tools` to check the existing configuration.
+Also see :hg:`help merge-tools` for more details.
 
 Example ``~/.hgrc``::
 
@@ -806,6 +878,9 @@ Example ``~/.hgrc``::
   kdiff3.args = $base $local $other -o $output
   # Give higher priority
   kdiff3.priority = 1
+
+  # Changing the priority of preconfigured tool
+  vimdiff.priority = 0
 
   # Define new tool
   myHtmlTool.args = -m $local $other $base $output
@@ -826,7 +901,13 @@ Supported arguments:
 ``args``
   The arguments to pass to the tool executable. You can refer to the
   files being merged as well as the output file through these
-  variables: ``$base``, ``$local``, ``$other``, ``$output``.
+  variables: ``$base``, ``$local``, ``$other``, ``$output``. The meaning
+  of ``$local`` and ``$other`` can vary depending on which action is being
+  performed. During and update or merge, ``$local`` represents the original
+  state of the file, while ``$other`` represents the commit you are updating
+  to or the commit you are merging with. During a rebase ``$local``
+  represents the destination of the rebase, and ``$other`` represents the
+  commit being rebased.
   Default: ``$local $base $other``
 
 ``premerge``
@@ -944,6 +1025,18 @@ information about working with phases.
 ``new-commit``
     Phase of newly-created commits.
     Default: draft
+
+``checksubrepos``
+    Check the phase of the current revision of each subrepository. Allowed
+    values are "ignore", "follow" and "abort". For settings other than
+    "ignore", the phase of the current revision of each subrepository is
+    checked before committing the parent repository. If any of those phases is
+    greater than the phase of the parent repository (e.g. if a subrepo is in a
+    "secret" phase while the parent repo is in "draft" phase), the commit is
+    either aborted (if checksubrepos is set to "abort") or the higher phase is
+    used for the parent repository commit (if set to "follow").
+    Default: "follow"
+
 
 ``profiling``
 -------------
@@ -1178,6 +1271,27 @@ User interface controls.
     The conflict resolution program to use during a manual merge.
     For more information on merge tools see :hg:`help merge-tools`.
     For configuring merge tools see the ``[merge-tools]`` section.
+
+``mergemarkers``
+    Sets the merge conflict marker label styling. The ``detailed``
+    style uses the ``mergemarkertemplate`` setting to style the labels.
+    The ``basic`` style just uses 'local' and 'other' as the marker label.
+    One of ``basic`` or ``detailed``.
+    Default is ``basic``.
+
+``mergemarkertemplate``
+    The template used to print the commit description next to each conflict
+    marker during merge conflicts. See :hg:`help templates` for the template
+    format.
+    Defaults to showing the hash, tags, branches, bookmarks, author, and
+    the first line of the commit description.
+    You have to pay attention to encodings of managed files, if you
+    use non-ASCII characters in tags, branches, bookmarks, author
+    and/or commit descriptions. At template expansion, non-ASCII
+    characters use the encoding specified by ``--encoding`` global
+    option, ``HGENCODING`` or other locale setting environment
+    variables. The difference of encoding between merged file and
+    conflict markers causes serious problem.
 
 ``portablefilenames``
     Check for portable filenames. Can be ``warn``, ``ignore`` or ``abort``.

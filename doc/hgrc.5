@@ -448,6 +448,94 @@ Default: https.
 .sp
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
+.SS \fBcommittemplate\fP
+.sp
+\fBchangeset\fP configuration in this section is used as the template to
+customize the text shown in the editor when committing.
+.sp
+In addition to pre\-defined template keywords, commit log specific one
+below can be used for customization:
+.INDENT 0.0
+.TP
+.B \fBextramsg\fP
+.sp
+String: Extra message (typically \(aqLeave message empty to abort
+commit.\(aq). This may be changed by some commands or extensions.
+.UNINDENT
+.sp
+For example, the template configuration below shows as same text as
+one shown by default:
+.sp
+.nf
+.ft C
+[committemplate]
+changeset = {desc}\en\en
+    HG: Enter commit message.  Lines beginning with \(aqHG:\(aq are removed.
+    HG: {extramsg}
+    HG: \-\-
+    HG: user: {author}\en{ifeq(p2rev, "\-1", "",
+   "HG: branch merge\en")
+   }HG: branch \(aq{branch}\(aq\en{if(currentbookmark,
+   "HG: bookmark \(aq{currentbookmark}\(aq\en")  }{subrepos %
+   "HG: subrepo {subrepo}\en"              }{file_adds %
+   "HG: added {file}\en"                   }{file_mods %
+   "HG: changed {file}\en"                 }{file_dels %
+   "HG: removed {file}\en"                 }{if(files, "",
+   "HG: no files changed\en")}
+.ft P
+.fi
+.IP Note
+.
+For some problematic encodings (see \%\fBhg help win32mbcs\fP\: for
+detail), this customization should be configured carefully, to
+avoid showing broken characters.
+.sp
+For example, if multibyte character ending with backslash (0x5c) is
+followed by ASCII character \(aqn\(aq in the customized template,
+sequence of backslash and \(aqn\(aq is treated as line\-feed unexpectedly
+(and multibyte character is broken, too).
+.RE
+.sp
+Customized template is used for commands below (\fB\-\-edit\fP may be
+required):
+.INDENT 0.0
+.IP \(bu 2
+.
+\%\fBhg backout\fP\:
+.IP \(bu 2
+.
+\%\fBhg commit\fP\:
+.IP \(bu 2
+.
+\%\fBhg fetch\fP\: (for merge commit only)
+.IP \(bu 2
+.
+\%\fBhg graft\fP\:
+.IP \(bu 2
+.
+\%\fBhg histedit\fP\:
+.IP \(bu 2
+.
+\%\fBhg import\fP\:
+.IP \(bu 2
+.
+\%\fBhg qfold\fP\:, \%\fBhg qnew\fP\: and \%\fBhg qrefresh\fP\:
+.IP \(bu 2
+.
+\%\fBhg rebase\fP\:
+.IP \(bu 2
+.
+\%\fBhg shelve\fP\:
+.IP \(bu 2
+.
+\%\fBhg sign\fP\:
+.IP \(bu 2
+.
+\%\fBhg tag\fP\:
+.IP \(bu 2
+.
+\%\fBhg transplant\fP\:
+.UNINDENT
 .SS \fBdecode/encode\fP
 .sp
 Filters for transforming files on checkout/checkin. This would
@@ -948,7 +1036,7 @@ For example:
 .nf
 .ft C
 [hostfingerprints]
-hg.intevation.org = 44:ed:af:1f:97:11:b6:01:7a:48:45:fc:10:3c:b7:f9:d4:89:2a:9d
+hg.intevation.org = fa:1f:d9:48:f1:e7:74:30:38:8d:d8:58:b6:94:b8:58:28:7d:8b:d0
 .ft P
 .fi
 .sp
@@ -1001,7 +1089,9 @@ Example:
 .SS \fBmerge\-tools\fP
 .sp
 This section configures external merge tools to use for file\-level
-merges.
+merges. This section has likely been preconfigured at install time.
+Use \%\fBhg config merge\-tools\fP\: to check the existing configuration.
+Also see \%\fBhg help merge\-tools\fP\: for more details.
 .sp
 Example \fB~/.hgrc\fP:
 .sp
@@ -1014,6 +1104,9 @@ kdiff3.executable = ~/bin/kdiff3
 kdiff3.args = $base $local $other \-o $output
 # Give higher priority
 kdiff3.priority = 1
+
+# Changing the priority of preconfigured tool
+vimdiff.priority = 0
 
 # Define new tool
 myHtmlTool.args = \-m $local $other $base $output
@@ -1040,7 +1133,13 @@ Default: the tool name.
 .sp
 The arguments to pass to the tool executable. You can refer to the
 files being merged as well as the output file through these
-variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP.
+variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP. The meaning
+of \fB$local\fP and \fB$other\fP can vary depending on which action is being
+performed. During and update or merge, \fB$local\fP represents the original
+state of the file, while \fB$other\fP represents the commit you are updating
+to or the commit you are merging with. During a rebase \fB$local\fP
+represents the destination of the rebase, and \fB$other\fP represents the
+commit being rebased.
 Default: \fB$local $base $other\fP
 .TP
 .B \fBpremerge\fP
@@ -1185,6 +1284,18 @@ Default: True
 .sp
 Phase of newly\-created commits.
 Default: draft
+.TP
+.B \fBchecksubrepos\fP
+.sp
+Check the phase of the current revision of each subrepository. Allowed
+values are "ignore", "follow" and "abort". For settings other than
+"ignore", the phase of the current revision of each subrepository is
+checked before committing the parent repository. If any of those phases is
+greater than the phase of the parent repository (e.g. if a subrepo is in a
+"secret" phase while the parent repo is in "draft" phase), the commit is
+either aborted (if checksubrepos is set to "abort") or the higher phase is
+used for the parent repository commit (if set to "follow").
+Default: "follow"
 .UNINDENT
 .SS \fBprofiling\fP
 .sp
@@ -1460,6 +1571,29 @@ Template string for commands that print changesets.
 The conflict resolution program to use during a manual merge.
 For more information on merge tools see \%\fBhg help merge\-tools\fP\:.
 For configuring merge tools see the \fB[merge\-tools]\fP section.
+.TP
+.B \fBmergemarkers\fP
+.sp
+Sets the merge conflict marker label styling. The \fBdetailed\fP
+style uses the \fBmergemarkertemplate\fP setting to style the labels.
+The \fBbasic\fP style just uses \(aqlocal\(aq and \(aqother\(aq as the marker label.
+One of \fBbasic\fP or \fBdetailed\fP.
+Default is \fBbasic\fP.
+.TP
+.B \fBmergemarkertemplate\fP
+.sp
+The template used to print the commit description next to each conflict
+marker during merge conflicts. See \%\fBhg help templates\fP\: for the template
+format.
+Defaults to showing the hash, tags, branches, bookmarks, author, and
+the first line of the commit description.
+You have to pay attention to encodings of managed files, if you
+use non\-ASCII characters in tags, branches, bookmarks, author
+and/or commit descriptions. At template expansion, non\-ASCII
+characters use the encoding specified by \fB\-\-encoding\fP global
+option, \fBHGENCODING\fP or other locale setting environment
+variables. The difference of encoding between merged file and
+conflict markers causes serious problem.
 .TP
 .B \fBportablefilenames\fP
 .sp
@@ -1880,7 +2014,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2013 Matt Mackall.
+Mercurial is copyright 2005\-2014 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

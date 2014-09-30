@@ -306,7 +306,7 @@ Sticky subrepositories, no changes
   2
   $ cd ..
 
-Sticky subrepositorys, file changes
+Sticky subrepositories, file changes
   $ touch s/f1
   $ cd s
   $ svn add f1
@@ -470,6 +470,7 @@ test having obstructions when switching branches on checkout:
   $ hg book other
   $ hg co -r 'p1(tip)'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (leaving bookmark other)
   $ echo "obstruct =        [svn]       $SVNREPOURL/src" >> .hgsub
   $ svn co -r5 --quiet "$SVNREPOURL"/src obstruct
   $ hg commit -m 'Other branch which will be obstructed'
@@ -481,6 +482,7 @@ same subrepo should work if the subrepo is clean.
   A    *obstruct/other (glob)
   Checked out revision 1.
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark other)
 
 This is surprising, but is also correct based on the current code:
   $ echo "updating should (maybe) fail" > obstruct/other
@@ -543,6 +545,7 @@ First, create that condition in the repository.
   A    *recreated/somethingold (glob)
   Checked out revision 10.
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (leaving bookmark other)
   $ test -f recreated/somethingold
 
 Test archive
@@ -632,3 +635,52 @@ well.
   Checked out revision 15.
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd ..
+
+Test sanitizing ".hg/hgrc" in subrepo
+
+  $ cd sub/t
+  $ hg update -q -C tip
+  $ cd s
+  $ mkdir .hg
+  $ echo '.hg/hgrc in svn repo' > .hg/hgrc
+  $ mkdir -p sub/.hg
+  $ echo 'sub/.hg/hgrc in svn repo' > sub/.hg/hgrc
+  $ svn add .hg sub
+  A         .hg
+  A         .hg/hgrc (glob)
+  A         sub
+  A         sub/.hg (glob)
+  A         sub/.hg/hgrc (glob)
+  $ svn ci -m 'add .hg/hgrc to be sanitized at hg update'
+  Adding         .hg
+  Adding         .hg/hgrc (glob)
+  Adding         sub
+  Adding         sub/.hg (glob)
+  Adding         sub/.hg/hgrc (glob)
+  Transmitting file data ..
+  Committed revision 16.
+  $ svn up -q
+  $ cd ..
+  $ hg commit -S -m 'commit with svn revision including .hg/hgrc'
+  $ grep ' s$' .hgsubstate
+  16 s
+  $ cd ..
+
+  $ hg -R tc pull -u -q 2>&1 | sort
+  warning: removing potentially hostile 'hgrc' in '$TESTTMP/sub/tc/s/.hg' (glob)
+  warning: removing potentially hostile 'hgrc' in '$TESTTMP/sub/tc/s/sub/.hg' (glob)
+  $ cd tc
+  $ grep ' s$' .hgsubstate
+  16 s
+  $ test -f s/.hg/hgrc
+  [1]
+  $ test -f s/sub/.hg/hgrc
+  [1]
+
+Test that sanitizing is omitted in meta data area:
+
+  $ mkdir s/.svn/.hg
+  $ echo '.hg/hgrc in svn metadata area' > s/.svn/.hg/hgrc
+  $ hg update -q -C '.^1'
+
+  $ cd ../..

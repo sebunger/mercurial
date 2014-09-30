@@ -8,10 +8,14 @@
 from i18n import _
 import errno, getpass, os, socket, sys, tempfile, traceback
 import config, scmutil, util, error, formatter
+from node import hex
 
 class ui(object):
     def __init__(self, src=None):
+        # _buffers: used for temporary capture of output
         self._buffers = []
+        # _bufferstates: Should the temporary capture includes stderr
+        self._bufferstates = []
         self.quiet = self.verbose = self.debugflag = self.tracebackflag = False
         self._reportuntrusted = True
         self._ocfg = config.config() # overlay
@@ -156,11 +160,9 @@ class ui(object):
         self._tcfg.restore(data[1])
         self._ucfg.restore(data[2])
 
-    def setconfig(self, section, name, value, overlay=True):
-        if overlay:
-            self._ocfg.set(section, name, value)
-        self._tcfg.set(section, name, value)
-        self._ucfg.set(section, name, value)
+    def setconfig(self, section, name, value, source=''):
+        for cfg in (self._ocfg, self._tcfg, self._ucfg):
+            cfg.set(section, name, value, source)
         self.fixconfig(section=section)
 
     def _data(self, untrusted):
@@ -435,7 +437,7 @@ class ui(object):
         """
         user = os.environ.get("HGUSER")
         if user is None:
-            user = self.config("ui", "username")
+            user = self.config("ui", ["username", "user"])
             if user is not None:
                 user = os.path.expandvars(user)
         if user is None:
@@ -449,7 +451,9 @@ class ui(object):
             except KeyError:
                 pass
         if not user:
-            raise util.Abort(_('no username supplied (see "hg help config")'))
+            raise util.Abort(_('no username supplied'),
+                             hint=_('use "hg config --edit" '
+                                    'to set your username'))
         if "\n" in user:
             raise util.Abort(_("username %s contains a newline\n") % repr(user))
         return user
@@ -470,8 +474,12 @@ class ui(object):
             path = self.config('paths', default)
         return path or loc
 
-    def pushbuffer(self):
+    def pushbuffer(self, error=False):
+        """install a buffer to capture standar output of the ui object
+
+        If error is True, the error output will be captured too."""
         self._buffers.append([])
+        self._bufferstates.append(error)
 
     def popbuffer(self, labeled=False):
         '''pop the last buffer and return the buffered output
@@ -483,6 +491,7 @@ class ui(object):
         is being buffered so it can be captured and parsed or
         processed, labeled should not be set to True.
         '''
+        self._bufferstates.pop()
         return "".join(self._buffers.pop())
 
     def write(self, *args, **opts):
@@ -510,6 +519,8 @@ class ui(object):
 
     def write_err(self, *args, **opts):
         try:
+            if self._bufferstates and self._bufferstates[-1]:
+                return self.write(*args, **opts)
             if not getattr(self.fout, 'closed', False):
                 self.fout.flush()
             for a in args:
@@ -640,6 +651,20 @@ class ui(object):
         except EOFError:
             raise util.Abort(_('response expected'))
 
+    @staticmethod
+    def extractchoices(prompt):
+        """Extract prompt message and list of choices from specified prompt.
+
+        This returns tuple "(message, choices)", and "choices" is the
+        list of tuple "(response character, text without &)".
+        """
+        parts = prompt.split('$$')
+        msg = parts[0].rstrip(' ')
+        choices = [p.strip(' ') for p in parts[1:]]
+        return (msg,
+                [(s[s.index('&') + 1].lower(), s.replace('&', '', 1))
+                 for s in choices])
+
     def promptchoice(self, prompt, default=0):
         """Prompt user with a message, read response, and ensure it matches
         one of the provided choices. The prompt is formatted as follows:
@@ -651,10 +676,8 @@ class ui(object):
         returned.
         """
 
-        parts = prompt.split('$$')
-        msg = parts[0].rstrip(' ')
-        choices = [p.strip(' ') for p in parts[1:]]
-        resps = [s[s.index('&') + 1].lower() for s in choices]
+        msg, choices = self.extractchoices(prompt)
+        resps = [r for r, t in choices]
         while True:
             r = self.prompt(msg, resps[default])
             if r.lower() in resps:
@@ -666,7 +689,12 @@ class ui(object):
             return default
         try:
             self.write_err(self.label(prompt or _('password: '), 'ui.prompt'))
-            return getpass.getpass('')
+            # disable getpass() only if explicitly specified. it's still valid
+            # to interact with tty even if fin is not a tty.
+            if self.configbool('ui', 'nontty'):
+                return self.fin.readline().rstrip('\n')
+            else:
+                return getpass.getpass('')
         except EOFError:
             raise util.Abort(_('response expected'))
     def status(self, *msg, **opts):
@@ -700,7 +728,7 @@ class ui(object):
         if self.debugflag:
             opts['label'] = opts.get('label', '') + ' ui.debug'
             self.write(*msg, **opts)
-    def edit(self, text, user):
+    def edit(self, text, user, extra={}):
         (fd, name) = tempfile.mkstemp(prefix="hg-editor-", suffix=".txt",
                                       text=True)
         try:
@@ -708,10 +736,18 @@ class ui(object):
             f.write(text)
             f.close()
 
+            environ = {'HGUSER': user}
+            if 'transplant_source' in extra:
+                environ.update({'HGREVISION': hex(extra['transplant_source'])})
+            for label in ('source', 'rebase_source'):
+                if label in extra:
+                    environ.update({'HGREVISION': extra[label]})
+                    break
+
             editor = self.geteditor()
 
             util.system("%s \"%s\"" % (editor, name),
-                        environ={'HGUSER': user},
+                        environ=environ,
                         onerr=util.Abort, errprefix=_("edit failed"),
                         out=self.fout)
 

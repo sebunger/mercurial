@@ -6,7 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import os
+import os, re
 from mercurial import ui, hg, hook, error, encoding, templater, util, repoview
 from mercurial.templatefilters import websub
 from mercurial.i18n import _
@@ -14,7 +14,7 @@ from common import get_stat, ErrorResponse, permhooks, caching
 from common import HTTP_OK, HTTP_NOT_MODIFIED, HTTP_BAD_REQUEST
 from common import HTTP_NOT_FOUND, HTTP_SERVER_ERROR
 from request import wsgirequest
-import webcommands, protocol, webutil, re
+import webcommands, protocol, webutil
 
 perms = {
     'changegroup': 'pull',
@@ -61,13 +61,14 @@ class hgweb(object):
                 u = ui.ui()
             r = hg.repository(u, repo)
         else:
+            # we trust caller to give us a private copy
             r = repo
 
         r = self._getview(r)
-        r.ui.setconfig('ui', 'report_untrusted', 'off')
-        r.baseui.setconfig('ui', 'report_untrusted', 'off')
-        r.ui.setconfig('ui', 'nontty', 'true')
-        r.baseui.setconfig('ui', 'nontty', 'true')
+        r.ui.setconfig('ui', 'report_untrusted', 'off', 'hgweb')
+        r.baseui.setconfig('ui', 'report_untrusted', 'off', 'hgweb')
+        r.ui.setconfig('ui', 'nontty', 'true', 'hgweb')
+        r.baseui.setconfig('ui', 'nontty', 'true', 'hgweb')
         self.repo = r
         hook.redirect(True)
         self.mtime = -1
@@ -109,8 +110,6 @@ class hgweb(object):
         # compare changelog size in addition to mtime to catch
         # rollbacks made less than a second ago
         if st.st_mtime != self.mtime or st.st_size != self.size:
-            self.mtime = st.st_mtime
-            self.size = st.st_size
             r = hg.repository(self.repo.baseui, self.repo.root)
             self.repo = self._getview(r)
             self.maxchanges = int(self.config("web", "maxchanges", 10))
@@ -121,6 +120,9 @@ class hgweb(object):
             self.allowpull = self.configbool("web", "allowpull", True)
             encoding.encoding = self.config("web", "encoding",
                                             encoding.encoding)
+            # update these last to avoid threads seeing empty settings
+            self.mtime = st.st_mtime
+            self.size = st.st_size
         if request:
             self.repo.ui.environ = request.env
 
@@ -373,6 +375,7 @@ class hgweb(object):
                                              "motd": motd,
                                              "sessionvars": sessionvars,
                                              "pathdef": makebreadcrumb(req.url),
+                                             "style": style,
                                             })
         return tmpl
 

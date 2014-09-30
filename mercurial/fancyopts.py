@@ -5,7 +5,8 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import getopt, util
+import getopt
+import util
 from i18n import _
 
 def gnugetopt(args, options, longoptions):
@@ -76,7 +77,7 @@ def fancyopts(args, options, state, gnu=False):
         # copy defaults to state
         if isinstance(default, list):
             state[name] = default[:]
-        elif getattr(default, '__call__', False):
+        elif callable(default):
             state[name] = None
         else:
             state[name] = default

@@ -165,6 +165,57 @@ Open editor with old commit message if a message isn't given otherwise:
   > cat $1
   > echo "another precious commit message" > "$1"
   > __EOF__
+
+at first, test saving last-message.txt
+
+  $ cat > .hg/hgrc << '__EOF__'
+  > [hooks]
+  > pretxncommit.test-saving-last-message = false
+  > __EOF__
+
+  $ rm -f .hg/last-message.txt
+  $ hg commit --amend -v -m "message given from command line"
+  amending changeset 5f357c7560ab
+  copying changeset 5f357c7560ab to ad120869acf0
+  a
+  running hook pretxncommit.test-saving-last-message: false
+  transaction abort!
+  rollback completed
+  abort: pretxncommit.test-saving-last-message hook exited with status 1
+  [255]
+  $ cat .hg/last-message.txt
+  message given from command line (no-eol)
+
+  $ rm -f .hg/last-message.txt
+  $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit --amend -v
+  amending changeset 5f357c7560ab
+  copying changeset 5f357c7560ab to ad120869acf0
+  no changes, new message
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: foo
+  HG: branch 'default'
+  HG: changed a
+  a
+  running hook pretxncommit.test-saving-last-message: false
+  transaction abort!
+  rollback completed
+  abort: pretxncommit.test-saving-last-message hook exited with status 1
+  [255]
+
+  $ cat .hg/last-message.txt
+  another precious commit message
+
+  $ cat > .hg/hgrc << '__EOF__'
+  > [hooks]
+  > pretxncommit.test-saving-last-message =
+  > __EOF__
+
+then, test editing custom commit message
+
   $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit --amend -v
   amending changeset 5f357c7560ab
   copying changeset 5f357c7560ab to ad120869acf0
@@ -535,9 +586,10 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   merging cc incomplete! (edit conflicts, then use 'hg resolve --mark')
   [1]
   $ hg resolve -m cc
+  (no more unresolved files)
   $ hg ci -m 'merge bar'
   $ hg log --config diff.git=1 -pr .
-  changeset:   23:d51446492733
+  changeset:   23:93cd4445f720
   tag:         tip
   parent:      22:30d96aeaf27b
   parent:      21:1aa437659d19
@@ -552,11 +604,11 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   --- a/cc
   +++ b/cc
   @@ -1,1 +1,5 @@
-  +<<<<<<< local
+  +<<<<<<< local: 30d96aeaf27b - test: aa
    dd
   +=======
   +cc
-  +>>>>>>> other
+  +>>>>>>> other: 1aa437659d19  bar - test: aazzcc
   diff --git a/z b/zz
   rename from z
   rename to zz
@@ -569,7 +621,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   cc not renamed
   $ hg ci --amend -m 'merge bar (amend message)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   24:59de3dce7a79
+  changeset:   24:832b50f2c271
   tag:         tip
   parent:      22:30d96aeaf27b
   parent:      21:1aa437659d19
@@ -584,11 +636,11 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   --- a/cc
   +++ b/cc
   @@ -1,1 +1,5 @@
-  +<<<<<<< local
+  +<<<<<<< local: 30d96aeaf27b - test: aa
    dd
   +=======
   +cc
-  +>>>>>>> other
+  +>>>>>>> other: 1aa437659d19  bar - test: aazzcc
   diff --git a/z b/zz
   rename from z
   rename to zz
@@ -602,7 +654,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   $ hg mv zz z
   $ hg ci --amend -m 'merge bar (undo rename)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   26:7fb89c461f81
+  changeset:   26:bdafc5c72f74
   tag:         tip
   parent:      22:30d96aeaf27b
   parent:      21:1aa437659d19
@@ -617,11 +669,11 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   --- a/cc
   +++ b/cc
   @@ -1,1 +1,5 @@
-  +<<<<<<< local
+  +<<<<<<< local: 30d96aeaf27b - test: aa
    dd
   +=======
   +cc
-  +>>>>>>> other
+  +>>>>>>> other: 1aa437659d19  bar - test: aazzcc
   
   $ hg debugrename z
   z not renamed
@@ -638,9 +690,9 @@ Amend a merge changeset (with renames during the merge):
   $ echo aa >> aaa
   $ hg ci -m 'merge bar again'
   $ hg log --config diff.git=1 -pr .
-  changeset:   28:982d7a34ffee
+  changeset:   28:32f19415b634
   tag:         tip
-  parent:      26:7fb89c461f81
+  parent:      26:bdafc5c72f74
   parent:      27:4c94d5bc65f5
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -673,9 +725,9 @@ Amend a merge changeset (with renames during the merge):
   $ hg mv aaa aa
   $ hg ci --amend -m 'merge bar again (undo rename)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   30:522688c0e71b
+  changeset:   30:1e2a06b3d312
   tag:         tip
-  parent:      26:7fb89c461f81
+  parent:      26:bdafc5c72f74
   parent:      27:4c94d5bc65f5
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -713,9 +765,9 @@ Amend a merge changeset (with manifest-level conflicts):
   use (c)hanged version or (d)elete? c
   $ hg ci -m 'merge bar (with conflicts)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   33:5f9904c491b8
+  changeset:   33:97a298b0c59f
   tag:         tip
-  parent:      32:01780b896f58
+  parent:      32:3d78ce4226b8
   parent:      31:67db8847a540
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -725,9 +777,9 @@ Amend a merge changeset (with manifest-level conflicts):
   $ hg rm aa
   $ hg ci --amend -m 'merge bar (with conflicts, amended)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   35:6ce0c89781a3
+  changeset:   35:6de0c1bde1c8
   tag:         tip
-  parent:      32:01780b896f58
+  parent:      32:3d78ce4226b8
   parent:      31:67db8847a540
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -765,3 +817,36 @@ This silliness fails:
   $ hg ci --close-branch -m'open and close'
   abort: can only close branch heads
   [255]
+
+Test that amend with --secret creates new secret changeset forcibly
+---------------------------------------------------------------------
+
+  $ hg phase '.^::.'
+  35: draft
+  36: draft
+  $ hg commit --amend --secret -m 'amend as secret' -q
+  $ hg phase '.^::.'
+  35: draft
+  38: secret
+
+Test that amend with --edit invokes editor forcibly
+---------------------------------------------------
+
+  $ hg parents --template "{desc}\n"
+  amend as secret
+  $ HGEDITOR=cat hg commit --amend -m "editor should be suppressed"
+  $ hg parents --template "{desc}\n"
+  editor should be suppressed
+
+  $ HGEDITOR=cat hg commit --amend -m "editor should be invoked" --edit
+  editor should be invoked
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'silliness'
+  HG: changed obs.py
+  $ hg parents --template "{desc}\n"
+  editor should be invoked

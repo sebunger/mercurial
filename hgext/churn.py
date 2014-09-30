@@ -10,18 +10,21 @@
 
 from mercurial.i18n import _
 from mercurial import patch, cmdutil, scmutil, util, templater, commands
+from mercurial import encoding
 import os
 import time, datetime
 
+cmdtable = {}
+command = cmdutil.command(cmdtable)
 testedwith = 'internal'
 
 def maketemplater(ui, repo, tmpl):
     tmpl = templater.parsestring(tmpl, quoted=False)
     try:
-        t = cmdutil.changeset_templater(ui, repo, False, None, None, False)
+        t = cmdutil.changeset_templater(ui, repo, False, None, tmpl,
+                                        None, False)
     except SyntaxError, inst:
         raise util.Abort(inst.args[0])
-    t.use_template(tmpl)
     return t
 
 def changedlines(ui, repo, ctx1, ctx2, fns):
@@ -87,6 +90,22 @@ def countrate(ui, repo, amap, *pats, **opts):
     return rate
 
 
+@command('churn',
+    [('r', 'rev', [],
+     _('count rate for the specified revision or range'), _('REV')),
+    ('d', 'date', '',
+     _('count rate for revisions matching date spec'), _('DATE')),
+    ('t', 'template', '{author|email}',
+     _('template to group changesets'), _('TEMPLATE')),
+    ('f', 'dateformat', '',
+     _('strftime-compatible format for grouping by date'), _('FORMAT')),
+    ('c', 'changesets', False, _('count rate by number of changesets')),
+    ('s', 'sort', False, _('sort by key (default: sort by count)')),
+    ('', 'diffstat', False, _('display added/removed lines separately')),
+    ('', 'aliases', '', _('file with email aliases'), _('FILE')),
+    ] + commands.walkopts,
+    _("hg churn [-d DATE] [-r REV] [--aliases FILE] [FILE]"),
+    inferrepo=True)
 def churn(ui, repo, *pats, **opts):
     '''histogram of changes to the repository
 
@@ -124,7 +143,7 @@ def churn(ui, repo, *pats, **opts):
     Aliases will be split from the rightmost "=".
     '''
     def pad(s, l):
-        return (s + " " * l)[:l]
+        return s + " " * (l - encoding.colwidth(s))
 
     amap = {}
     aliases = opts.get('aliases')
@@ -179,26 +198,3 @@ def churn(ui, repo, *pats, **opts):
 
     for name, count in rate:
         ui.write(format(name, count))
-
-
-cmdtable = {
-    "churn":
-        (churn,
-         [('r', 'rev', [],
-           _('count rate for the specified revision or range'), _('REV')),
-          ('d', 'date', '',
-           _('count rate for revisions matching date spec'), _('DATE')),
-          ('t', 'template', '{author|email}',
-           _('template to group changesets'), _('TEMPLATE')),
-          ('f', 'dateformat', '',
-           _('strftime-compatible format for grouping by date'), _('FORMAT')),
-          ('c', 'changesets', False, _('count rate by number of changesets')),
-          ('s', 'sort', False, _('sort by key (default: sort by count)')),
-          ('', 'diffstat', False, _('display added/removed lines separately')),
-          ('', 'aliases', '',
-           _('file with email aliases'), _('FILE')),
-          ] + commands.walkopts,
-         _("hg churn [-d DATE] [-r REV] [--aliases FILE] [FILE]")),
-}
-
-commands.inferrepo += " churn"

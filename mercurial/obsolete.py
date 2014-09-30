@@ -6,7 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-"""Obsolete markers handling
+"""Obsolete marker handling
 
 An obsolete marker maps an old changeset to a list of new
 changesets. If the list of new changesets is empty, the old changeset
@@ -14,30 +14,31 @@ is said to be "killed". Otherwise, the old changeset is being
 "replaced" by the new changesets.
 
 Obsolete markers can be used to record and distribute changeset graph
-transformations performed by history rewriting operations, and help
-building new tools to reconciliate conflicting rewriting actions. To
-facilitate conflicts resolution, markers include various annotations
+transformations performed by history rewrite operations, and help
+building new tools to reconcile conflicting rewrite actions. To
+facilitate conflict resolution, markers include various annotations
 besides old and news changeset identifiers, such as creation date or
 author name.
 
-The old obsoleted changeset is called "precursor" and possible replacements are
-called "successors".  Markers that used changeset X as a precursors are called
-"successor markers of X" because they hold information about the successors of
-X. Markers that use changeset Y as a successors are call "precursor markers of
-Y" because they hold information about the precursors of Y.
+The old obsoleted changeset is called a "precursor" and possible
+replacements are called "successors". Markers that used changeset X as
+a precursor are called "successor markers of X" because they hold
+information about the successors of X. Markers that use changeset Y as
+a successors are call "precursor markers of Y" because they hold
+information about the precursors of Y.
 
 Examples:
 
-- When changeset A is replacement by a changeset A', one marker is stored:
+- When changeset A is replaced by changeset A', one marker is stored:
 
-    (A, (A'))
+    (A, (A',))
 
-- When changesets A and B are folded into a new changeset C two markers are
+- When changesets A and B are folded into a new changeset C, two markers are
   stored:
 
     (A, (C,)) and (B, (C,))
 
-- When changeset A is simply "pruned" from the graph, a marker in create:
+- When changeset A is simply "pruned" from the graph, a marker is created:
 
     (A, ())
 
@@ -45,9 +46,9 @@ Examples:
 
     (A, (C, C))
 
-  We use a single marker to distinct the "split" case from the "divergence"
-  case. If two independents operation rewrite the same changeset A in to A' and
-  A'' when have an error case: divergent rewriting. We can detect it because
+  We use a single marker to distinguish the "split" case from the "divergence"
+  case. If two independent operations rewrite the same changeset A in to A' and
+  A'', we have an error case: divergent rewriting. We can detect it because
   two markers will be created independently:
 
   (A, (B,)) and (A, (C,))
@@ -65,12 +66,12 @@ The file starts with a version header:
 
 The header is followed by the markers. Each marker is made of:
 
-- 1 unsigned byte: number of new changesets "R", could be zero.
+- 1 unsigned byte: number of new changesets "N", can be zero.
 
 - 1 unsigned 32-bits integer: metadata size "M" in bytes.
 
-- 1 byte: a bit field. It is reserved for flags used in obsolete
-  markers common operations, to avoid repeated decoding of metadata
+- 1 byte: a bit field. It is reserved for flags used in common
+  obsolete marker operations, to avoid repeated decoding of metadata
   entries.
 
 - 20 bytes: obsoleted changeset identifier.
@@ -78,12 +79,14 @@ The header is followed by the markers. Each marker is made of:
 - N*20 bytes: new changesets identifiers.
 
 - M bytes: metadata as a sequence of nul-terminated strings. Each
-  string contains a key and a value, separated by a color ':', without
+  string contains a key and a value, separated by a colon ':', without
   additional encoding. Keys cannot contain '\0' or ':' and values
   cannot contain '\0'.
+
 """
 import struct
 import util, base85, node
+import phases
 from i18n import _
 
 _pack = struct.pack
@@ -175,7 +178,7 @@ def encodemeta(meta):
         if ':' in key or '\0' in key:
             raise ValueError("':' and '\0' are forbidden in metadata key'")
         if '\0' in value:
-            raise ValueError("':' are forbidden in metadata value'")
+            raise ValueError("':' is forbidden in metadata value'")
     return '\0'.join(['%s:%s' % (k, meta[k]) for k in sorted(meta)])
 
 def decodemeta(data):
@@ -195,6 +198,14 @@ class marker(object):
         self._repo = repo
         self._data = data
         self._decodedmeta = None
+
+    def __hash__(self):
+        return hash(self._data)
+
+    def __eq__(self, other):
+        if type(other) != type(self):
+            return False
+        return self._data == other._data
 
     def precnode(self):
         """Precursor changeset node identifier"""
@@ -238,6 +249,9 @@ class obsstore(object):
     def __iter__(self):
         return iter(self._all)
 
+    def __len__(self):
+        return len(self._all)
+
     def __nonzero__(self):
         return bool(self._all)
 
@@ -247,6 +261,12 @@ class obsstore(object):
         * ensuring it is hashable
         * check mandatory metadata
         * encode metadata
+
+        If you are a human writing code creating marker you want to use the
+        `createmarkers` function in this module instead.
+
+        return True if a new marker have been added, False if the markers
+        already existed (no op).
         """
         if metadata is None:
             metadata = {}
@@ -257,8 +277,10 @@ class obsstore(object):
         for succ in succs:
             if len(succ) != 20:
                 raise ValueError(succ)
+        if prec in succs:
+            raise ValueError(_('in-marker cycle with %s') % node.hex(prec))
         marker = (str(prec), tuple(succs), int(flag), encodemeta(metadata))
-        self.add(transaction, [marker])
+        return bool(self.add(transaction, [marker]))
 
     def add(self, transaction, markers):
         """Add new markers to the store
@@ -268,7 +290,11 @@ class obsstore(object):
         if not _enabled:
             raise util.Abort('obsolete feature is not enabled on this repo')
         known = set(self._all)
-        new = [m for m in markers if m not in known]
+        new = []
+        for m in markers:
+            if m not in known:
+                known.add(m)
+                new.append(m)
         if new:
             f = self.sopener('obsstore', 'ab')
             try:
@@ -330,14 +356,15 @@ def _encodeonemarker(marker):
 # - the base85 encoding
 _maxpayload = 5300
 
-def listmarkers(repo):
-    """List markers over pushkey"""
-    if not repo.obsstore:
-        return {}
+def _pushkeyescape(markers):
+    """encode markers into a dict suitable for pushkey exchange
+
+    - binary data is base85 encoded
+    - split in chunks smaller than 5300 bytes"""
     keys = {}
     parts = []
     currentlen = _maxpayload * 2  # ensure we create a new part
-    for marker in  repo.obsstore:
+    for marker in markers:
         nextdata = _encodeonemarker(marker)
         if (len(nextdata) + currentlen > _maxpayload):
             currentpart = []
@@ -350,13 +377,19 @@ def listmarkers(repo):
         keys['dump%i' % idx] = base85.b85encode(data)
     return keys
 
+def listmarkers(repo):
+    """List markers over pushkey"""
+    if not repo.obsstore:
+        return {}
+    return _pushkeyescape(repo.obsstore)
+
 def pushmarker(repo, key, old, new):
     """Push markers over pushkey"""
     if not key.startswith('dump'):
         repo.ui.warn(_('unknown key: %r') % key)
         return 0
     if old:
-        repo.ui.warn(_('unexpected old value') % key)
+        repo.ui.warn(_('unexpected old value for %r') % key)
         return 0
     data = base85.b85decode(new)
     lock = repo.lock()
@@ -370,43 +403,6 @@ def pushmarker(repo, key, old, new):
             tr.release()
     finally:
         lock.release()
-
-def syncpush(repo, remote):
-    """utility function to push obsolete markers to a remote
-
-    Exist mostly to allow overriding for experimentation purpose"""
-    if (_enabled and repo.obsstore and
-        'obsolete' in remote.listkeys('namespaces')):
-        rslts = []
-        remotedata = repo.listkeys('obsolete')
-        for key in sorted(remotedata, reverse=True):
-            # reverse sort to ensure we end with dump0
-            data = remotedata[key]
-            rslts.append(remote.pushkey('obsolete', key, '', data))
-        if [r for r in rslts if not r]:
-            msg = _('failed to push some obsolete markers!\n')
-            repo.ui.warn(msg)
-
-def syncpull(repo, remote, gettransaction):
-    """utility function to pull obsolete markers from a remote
-
-    The `gettransaction` is function that return the pull transaction, creating
-    one if necessary. We return the transaction to inform the calling code that
-    a new transaction have been created (when applicable).
-
-    Exists mostly to allow overriding for experimentation purpose"""
-    tr = None
-    if _enabled:
-        repo.ui.debug('fetching remote obsolete markers\n')
-        remoteobs = remote.listkeys('obsolete')
-        if 'dump0' in remoteobs:
-            tr = gettransaction()
-            for key in sorted(remoteobs, reverse=True):
-                if key.startswith('dump'):
-                    data = base85.b85decode(remoteobs[key])
-                    repo.obsstore.mergemarkers(tr, data)
-            repo.invalidatevolatilesets()
-    return tr
 
 def allmarkers(repo):
     """all obsolete markers known in a repository"""
@@ -428,20 +424,43 @@ def allsuccessors(obsstore, nodes, ignoreflags=0):
 
     Some successors may be unknown locally.
 
-    This is a linear yield unsuited to detecting split changesets."""
+    This is a linear yield unsuited to detecting split changesets. It includes
+    initial nodes too."""
     remaining = set(nodes)
     seen = set(remaining)
     while remaining:
         current = remaining.pop()
         yield current
         for mark in obsstore.successors.get(current, ()):
-            # ignore marker flagged with with specified flag
+            # ignore marker flagged with specified flag
             if mark[2] & ignoreflags:
                 continue
             for suc in mark[1]:
                 if suc not in seen:
                     seen.add(suc)
                     remaining.add(suc)
+
+def allprecursors(obsstore, nodes, ignoreflags=0):
+    """Yield node for every precursors of <nodes>.
+
+    Some precursors may be unknown locally.
+
+    This is a linear yield unsuited to detecting folded changesets. It includes
+    initial nodes too."""
+
+    remaining = set(nodes)
+    seen = set(remaining)
+    while remaining:
+        current = remaining.pop()
+        yield current
+        for mark in obsstore.precursors.get(current, ()):
+            # ignore marker flagged with specified flag
+            if mark[2] & ignoreflags:
+                continue
+            suc = mark[0]
+            if suc not in seen:
+                seen.add(suc)
+                remaining.add(suc)
 
 def foreground(repo, nodes):
     """return all nodes in the "foreground" of other node
@@ -473,29 +492,41 @@ def foreground(repo, nodes):
 def successorssets(repo, initialnode, cache=None):
     """Return all set of successors of initial nodes
 
-    Successors set of changeset A are a group of revision that succeed A. It
-    succeed A as a consistent whole, each revision being only partial
-    replacement.  Successors set contains non-obsolete changeset only.
+    The successors set of a changeset A are a group of revisions that succeed
+    A. It succeeds A as a consistent whole, each revision being only a partial
+    replacement. The successors set contains non-obsolete changesets only.
 
-    In most cases a changeset A have zero (changeset pruned) or a single
-    successors set that contains a single successor (changeset A replaced by
-    A')
+    This function returns the full list of successor sets which is why it
+    returns a list of tuples and not just a single tuple. Each tuple is a valid
+    successors set. Not that (A,) may be a valid successors set for changeset A
+    (see below).
 
-    When changeset is split, it results successors set containing more than
-    a single element. Divergent rewriting will result in multiple successors
-    sets.
+    In most cases, a changeset A will have a single element (e.g. the changeset
+    A is replaced by A') in its successors set. Though, it is also common for a
+    changeset A to have no elements in its successor set (e.g. the changeset
+    has been pruned). Therefore, the returned list of successors sets will be
+    [(A',)] or [], respectively.
 
-    They are returned as a list of tuples containing all valid successors sets.
+    When a changeset A is split into A' and B', however, it will result in a
+    successors set containing more than a single element, i.e. [(A',B')].
+    Divergent changesets will result in multiple successors sets, i.e. [(A',),
+    (A'')].
 
-    Final successors unknown locally are considered plain prune (obsoleted
-    without successors).
+    If a changeset A is not obsolete, then it will conceptually have no
+    successors set. To distinguish this from a pruned changeset, the successor
+    set will only contain itself, i.e. [(A,)].
 
-    The optional `cache` parameter is a dictionary that may contains
-    precomputed successors sets. It is meant to reuse the computation of
-    previous call to `successorssets` when multiple calls are made at the same
-    time. The cache dictionary is updated in place. The caller is responsible
-    for its live spawn. Code that makes multiple calls to `successorssets`
-    *must* use this cache mechanism or suffer terrible performances."""
+    Finally, successors unknown locally are considered to be pruned (obsoleted
+    without any successors).
+
+    The optional `cache` parameter is a dictionary that may contain precomputed
+    successors sets. It is meant to reuse the computation of a previous call to
+    `successorssets` when multiple calls are made at the same time. The cache
+    dictionary is updated in place. The caller is responsible for its live
+    spawn. Code that makes multiple calls to `successorssets` *must* use this
+    cache mechanism or suffer terrible performances.
+
+    """
 
     succmarkers = repo.obsstore.successors
 
@@ -625,7 +656,7 @@ def successorssets(repo, initialnode, cache=None):
                 # Within a marker, a successor may have divergent successors
                 # sets. In such a case, the marker will contribute multiple
                 # divergent successors sets. If multiple successors have
-                # divergent successors sets, a cartesian product is used.
+                # divergent successors sets, a Cartesian product is used.
                 #
                 # At the end we post-process successors sets to remove
                 # duplicated entry and successors set that are strict subset of
@@ -751,14 +782,26 @@ def _computeextinctset(repo):
 @cachefor('bumped')
 def _computebumpedset(repo):
     """the set of revs trying to obsolete public revisions"""
-    # get all possible bumped changesets
-    tonode = repo.changelog.node
-    publicnodes = (tonode(r) for r in repo.revs('public()'))
-    successors = allsuccessors(repo.obsstore, publicnodes,
-                               ignoreflags=bumpedfix)
-    # revision public or already obsolete don't count as bumped
-    query = '%ld - obsolete() - public()'
-    return set(repo.revs(query, _knownrevs(repo, successors)))
+    bumped = set()
+    # util function (avoid attribute lookup in the loop)
+    phase = repo._phasecache.phase # would be faster to grab the full list
+    public = phases.public
+    cl = repo.changelog
+    torev = cl.nodemap.get
+    obs = getrevs(repo, 'obsolete')
+    for rev in repo:
+        # We only evaluate mutable, non-obsolete revision
+        if (public < phase(repo, rev)) and (rev not in obs):
+            node = cl.node(rev)
+            # (future) A cache of precursors may worth if split is very common
+            for pnode in allprecursors(repo.obsstore, [node],
+                                       ignoreflags=bumpedfix):
+                prev = torev(pnode) # unfiltered! but so is phasecache
+                if (prev is not None) and (phase(repo, prev) <= public):
+                    # we have a public precursors
+                    bumped.add(rev)
+                    break # Next draft!
+    return bumped
 
 @cachefor('divergent')
 def _computedivergentset(repo):
@@ -785,8 +828,10 @@ def _computedivergentset(repo):
 def createmarkers(repo, relations, flag=0, metadata=None):
     """Add obsolete markers between changesets in a repo
 
-    <relations> must be an iterable of (<old>, (<new>, ...)) tuple.
-    `old` and `news` are changectx.
+    <relations> must be an iterable of (<old>, (<new>, ...)[,{metadata}])
+    tuple. `old` and `news` are changectx. metadata is an optional dictionary
+    containing metadata for this marker only. It is merged with the global
+    metadata specified through the `metadata` argument of this function,
 
     Trying to obsolete a public changeset will raise an exception.
 
@@ -805,7 +850,13 @@ def createmarkers(repo, relations, flag=0, metadata=None):
         metadata['user'] = repo.ui.username()
     tr = repo.transaction('add-obsolescence-marker')
     try:
-        for prec, sucs in relations:
+        for rel in relations:
+            prec = rel[0]
+            sucs = rel[1]
+            localmetadata = metadata.copy()
+            if 2 < len(rel):
+                localmetadata.update(rel[2])
+
             if not prec.mutable():
                 raise util.Abort("cannot obsolete immutable changeset: %s"
                                  % prec)
@@ -813,7 +864,7 @@ def createmarkers(repo, relations, flag=0, metadata=None):
             nsucs = tuple(s.node() for s in sucs)
             if nprec in nsucs:
                 raise util.Abort("changeset %s cannot obsolete itself" % prec)
-            repo.obsstore.create(tr, nprec, nsucs, flag, metadata)
+            repo.obsstore.create(tr, nprec, nsucs, flag, localmetadata)
             repo.filteredrevcache.clear()
         tr.close()
     finally:

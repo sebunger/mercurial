@@ -4,7 +4,6 @@
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > convert =
-  > graphlog =
   > [convert]
   > svn.trunk = mytrunk
   > EOF
@@ -127,7 +126,7 @@ Test incremental conversion
   updating tags
 
   $ cd B-hg
-  $ hg glog --template '{rev} {desc|firstline} date: {date|date} files: {files}\n'
+  $ hg log -G --template '{rev} {desc|firstline} date: {date|date} files: {files}\n'
   o  7 update tags date: * +0000 files: .hgtags (glob)
   |
   o  6 work in progress date: * -1000 files: letter2.txt (glob)
@@ -165,7 +164,7 @@ Test filemap
   0 work in progress
   $ hg -R fmap branch -q
   default
-  $ hg glog -R fmap --template '{rev} {desc|firstline} files: {files}\n'
+  $ hg log -G -R fmap --template '{rev} {desc|firstline} files: {files}\n'
   o  1 work in progress files: letter2.txt
   |
   o  0 second letter files: letter2.txt
@@ -199,11 +198,12 @@ This is also the only place testing more than one extra field in a revision.
   extra:       convert_revision=svn:........-....-....-....-............/proj B/mytrunk@1 (re)
   $ cd ..
 
-Test converting empty heads (issue3347)
+Test converting empty heads (issue3347).
+Also tests getting logs directly without debugsvnlog.
 
   $ svnadmin create svn-empty
   $ svnadmin load -q svn-empty < "$TESTDIR/svn/empty.svndump"
-  $ hg --config convert.svn.trunk= convert svn-empty
+  $ hg --config convert.svn.trunk= --config convert.svn.debugsvnlog=0 convert svn-empty
   assuming destination svn-empty-hg
   initializing destination svn-empty-hg repository
   scanning source...

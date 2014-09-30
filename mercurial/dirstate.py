@@ -4,16 +4,17 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-import errno
 
 from node import nullid
 from i18n import _
-import scmutil, util, ignore, osutil, parsers, encoding
+import scmutil, util, ignore, osutil, parsers, encoding, pathutil
 import os, stat, errno, gc
 
 propertycache = util.propertycache
 filecache = scmutil.filecache
 _rangemask = 0x7fffffff
+
+dirstatetuple = parsers.dirstatetuple
 
 class repocache(filecache):
     """filecache for files in .hg/"""
@@ -162,8 +163,12 @@ class dirstate(object):
         else:
             return fallback
 
+    @propertycache
+    def _cwd(self):
+        return os.getcwd()
+
     def getcwd(self):
-        cwd = os.getcwd()
+        cwd = self._cwd
         if cwd == self._root:
             return ''
         # self._root ends with a path separator if self._root is '/' or 'C:\'
@@ -332,7 +337,7 @@ class dirstate(object):
         if oldstate in "?r" and "_dirs" in self.__dict__:
             self._dirs.addpath(f)
         self._dirty = True
-        self._map[f] = (state, mode, size, mtime)
+        self._map[f] = dirstatetuple(state, mode, size, mtime)
 
     def normal(self, f):
         '''Mark a file normal and clean.'''
@@ -397,7 +402,7 @@ class dirstate(object):
                 size = -1
             elif entry[0] == 'n' and entry[2] == -2: # other parent
                 size = -2
-        self._map[f] = ('r', 0, size, 0)
+        self._map[f] = dirstatetuple('r', 0, size, 0)
         if size == 0 and f in self._copymap:
             del self._copymap[f]
 
@@ -490,27 +495,31 @@ class dirstate(object):
                 self._map[f] = oldmap[f]
             else:
                 if 'x' in allfiles.flags(f):
-                    self._map[f] = ('n', 0777, -1, 0)
+                    self._map[f] = dirstatetuple('n', 0777, -1, 0)
                 else:
-                    self._map[f] = ('n', 0666, -1, 0)
+                    self._map[f] = dirstatetuple('n', 0666, -1, 0)
         self._pl = (parent, nullid)
         self._dirty = True
 
     def write(self):
         if not self._dirty:
             return
+
+        # enough 'delaywrite' prevents 'pack_dirstate' from dropping
+        # timestamp of each entries in dirstate, because of 'now > mtime'
+        delaywrite = self._ui.configint('debug', 'dirstate.delaywrite', 0)
+        if delaywrite:
+            import time # to avoid useless import
+            time.sleep(delaywrite)
+
         st = self._opener("dirstate", "w", atomictemp=True)
-
-        def finish(s):
-            st.write(s)
-            st.close()
-            self._lastnormaltime = 0
-            self._dirty = self._dirtypl = False
-
         # use the modification time of the newly created temporary file as the
         # filesystem's notion of 'now'
         now = util.fstat(st).st_mtime
-        finish(parsers.pack_dirstate(self._map, self._copymap, self._pl, now))
+        st.write(parsers.pack_dirstate(self._map, self._copymap, self._pl, now))
+        st.close()
+        self._lastnormaltime = 0
+        self._dirty = self._dirtypl = False
 
     def _dirignore(self, f):
         if f == '.':
@@ -596,7 +605,7 @@ class dirstate(object):
                 kind = getkind(st.st_mode)
                 if kind == dirkind:
                     if nf in dmap:
-                        #file deleted on disk but still in dirstate
+                        # file replaced by dir on disk but still in dirstate
                         results[nf] = None
                     if matchedir:
                         matchedir(nf)
@@ -607,10 +616,10 @@ class dirstate(object):
                     badfn(ff, badtype(kind))
                     if nf in dmap:
                         results[nf] = None
-            except OSError, inst:
-                if nf in dmap: # does it exactly match a file?
+            except OSError, inst: # nf not found on disk - it is dirstate only
+                if nf in dmap: # does it exactly match a missing file?
                     results[nf] = None
-                else: # does it match a directory?
+                else: # does it match a missing directory?
                     prefix = nf + "/"
                     for fn in dmap:
                         if fn.startswith(prefix):
@@ -638,17 +647,14 @@ class dirstate(object):
         # implementation doesn't use it at all. This satisfies the contract
         # because we only guarantee a "maybe".
 
-        def fwarn(f, msg):
-            self._ui.warn('%s: %s\n' % (self.pathto(f), msg))
-            return False
-
-        ignore = self._ignore
-        dirignore = self._dirignore
         if ignored:
             ignore = util.never
             dirignore = util.never
-        elif not unknown:
-            # if unknown and ignored are False, skip step 2
+        elif unknown:
+            ignore = self._ignore
+            dirignore = self._dirignore
+        else:
+            # if not unknown and not ignored, drop dir recursion and step 2
             ignore = util.always
             dirignore = util.always
 
@@ -695,7 +701,7 @@ class dirstate(object):
                 entries = listdir(join(nd), stat=True, skip=skip)
             except OSError, inst:
                 if inst.errno in (errno.EACCES, errno.ENOENT):
-                    fwarn(nd, inst.strerror)
+                    match.bad(self.pathto(nd), inst.strerror)
                     continue
                 raise
             for f, kind, st in entries:
@@ -724,8 +730,11 @@ class dirstate(object):
             del results[s]
         del results['.hg']
 
-        # step 3: report unseen items in the dmap hash
+        # step 3: visit remaining files from dmap
         if not skipstep3 and not exact:
+            # If a dmap file is not in results yet, it was either
+            # a) not matching matchfn b) ignored, c) missing, or d) under a
+            # symlink directory.
             if not results and matchalways:
                 visit = dmap.keys()
             else:
@@ -733,10 +742,11 @@ class dirstate(object):
             visit.sort()
 
             if unknown:
-                # unknown == True means we walked the full directory tree above.
-                # So if a file is not seen it was either a) not matching matchfn
-                # b) ignored, c) missing, or d) under a symlink directory.
-                audit_path = scmutil.pathauditor(self._root)
+                # unknown == True means we walked all dirs under the roots
+                # that wasn't ignored, and everything that matched was stat'ed
+                # and is already in results.
+                # The rest must thus be ignored or under a symlink.
+                audit_path = pathutil.pathauditor(self._root)
 
                 for nf in iter(visit):
                     # Report ignored items in the dmap as long as they are not
@@ -744,15 +754,17 @@ class dirstate(object):
                     if audit_path.check(nf):
                         try:
                             results[nf] = lstat(join(nf))
+                            # file was just ignored, no links, and exists
                         except OSError:
                             # file doesn't exist
                             results[nf] = None
                     else:
                         # It's either missing or under a symlink directory
+                        # which we in this case report as missing
                         results[nf] = None
             else:
                 # We may not have walked the full directory tree above,
-                # so stat everything we missed.
+                # so stat and check everything we missed.
                 nf = iter(visit).next
                 for st in util.statfiles([join(i) for i in visit]):
                     results[nf()] = st
@@ -819,7 +831,18 @@ class dirstate(object):
                     uadd(fn)
                 continue
 
-            state, mode, size, time = dmap[fn]
+            # This is equivalent to 'state, mode, size, time = dmap[fn]' but not
+            # written like that for performance reasons. dmap[fn] is not a
+            # Python tuple in compiled builds. The CPython UNPACK_SEQUENCE
+            # opcode has fast paths when the value to be unpacked is a tuple or
+            # a list, but falls back to creating a full-fledged iterator in
+            # general. That is much slower than simply accessing and storing the
+            # tuple members one by one.
+            t = dmap[fn]
+            state = t[0]
+            mode = t[1]
+            size = t[2]
+            time = t[3]
 
             if not st and state in "nma":
                 dadd(fn)

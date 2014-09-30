@@ -102,7 +102,8 @@ Make sure we do not obscure unknown requires file entries (issue2649)
   $ echo foo >> foo
   $ echo fake >> .hg/requires
   $ hg commit -m bla
-  abort: unknown repository format: requires features 'fake' (upgrade Mercurial)!
+  abort: repository requires features unknown to this Mercurial: fake!
+  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
   [255]
 
   $ cd ..
@@ -119,7 +120,18 @@ partial subdir commit test
   $ hg add
   adding bar/bar (glob)
   adding foo/foo (glob)
-  $ hg ci -m commit-subdir-1 foo
+  $ HGEDITOR=cat hg ci -e -m commit-subdir-1 foo
+  commit-subdir-1
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'default'
+  HG: added foo/foo
+
+
   $ hg ci -m commit-subdir-2 bar
 
 subdir log 1
@@ -173,11 +185,23 @@ full log
 dot and subdir commit test
 
   $ hg init test3
+  $ echo commit-foo-subdir > commit-log-test
   $ cd test3
   $ mkdir foo
   $ echo foo content > foo/plain-file
   $ hg add foo/plain-file
-  $ hg ci -m commit-foo-subdir foo
+  $ HGEDITOR=cat hg ci --edit -l ../commit-log-test foo
+  commit-foo-subdir
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'default'
+  HG: added foo/plain-file
+
+
   $ echo modified foo content > foo/plain-file
   $ hg ci -m commit-foo-dot .
 
@@ -284,6 +308,94 @@ test commit message content
   HG: removed removed
   abort: empty commit message
   [255]
+
+test saving last-message.txt
+
+  $ hg init sub
+  $ echo a > sub/a
+  $ hg -R sub add sub/a
+  $ cat > sub/.hg/hgrc <<EOF
+  > [hooks]
+  > precommit.test-saving-last-message = false
+  > EOF
+
+  $ echo 'sub = sub' > .hgsub
+  $ hg add .hgsub
+
+  $ cat > $TESTTMP/editor.sh <<EOF
+  > echo "==== before editing:"
+  > cat \$1
+  > echo "===="
+  > echo "test saving last-message.txt" >> \$1
+  > EOF
+
+  $ rm -f .hg/last-message.txt
+  $ HGEDITOR="sh $TESTTMP/editor.sh" hg commit -S -q
+  ==== before editing:
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'default'
+  HG: bookmark 'currentbookmark'
+  HG: subrepo sub
+  HG: added .hgsub
+  HG: added added
+  HG: changed .hgsubstate
+  HG: changed changed
+  HG: removed removed
+  ====
+  abort: precommit.test-saving-last-message hook exited with status 1 (in subrepo sub)
+  [255]
+  $ cat .hg/last-message.txt
+  
+  
+  test saving last-message.txt
+
+test that '[committemplate] changeset' definition and commit log
+specific template keywords work well
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset = HG: this is customized commit template
+  >     HG: {extramsg}
+  >     {if(currentbookmark,
+  >    "HG: bookmark '{currentbookmark}' is activated\n",
+  >    "HG: no bookmark is activated\n")}{subrepos %
+  >    "HG: subrepo '{subrepo}' is changed\n"}
+  > EOF
+
+  $ hg init sub2
+  $ echo a > sub2/a
+  $ hg -R sub2 add sub2/a
+  $ echo 'sub2 = sub2' >> .hgsub
+
+  $ HGEDITOR=cat hg commit -S -q
+  HG: this is customized commit template
+  HG: Leave message empty to abort commit.
+  HG: bookmark 'currentbookmark' is activated
+  HG: subrepo 'sub' is changed
+  HG: subrepo 'sub2' is changed
+  abort: empty commit message
+  [255]
+
+  $ hg bookmark --inactive currentbookmark
+  $ hg forget .hgsub
+  $ HGEDITOR=cat hg commit -q
+  HG: this is customized commit template
+  HG: Leave message empty to abort commit.
+  HG: no bookmark is activated
+  abort: empty commit message
+  [255]
+
+  $ cat >> .hg/hgrc <<EOF
+  > # disable customizing for subsequent tests
+  > [committemplate]
+  > changeset =
+  > EOF
+
   $ cd ..
 
 

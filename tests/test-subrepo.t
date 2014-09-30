@@ -35,6 +35,18 @@ Issue2232: committing a subrepo without .hgsub
   update: (current)
   $ hg ci -m1
 
+test handling .hgsubstate "added" explicitly.
+
+  $ hg parents --template '{node}\n{files}\n'
+  7cf8cfea66e410e8e3336508dfeec07b3192de51
+  .hgsub .hgsubstate
+  $ hg rollback -q
+  $ hg add .hgsubstate
+  $ hg ci -m1
+  $ hg parents --template '{node}\n{files}\n'
+  7cf8cfea66e410e8e3336508dfeec07b3192de51
+  .hgsub .hgsubstate
+
 Revert subrepo and test subrepo fileset keyword:
 
   $ echo b > s/a
@@ -98,6 +110,19 @@ add sub sub
   branch: default
   commit: (clean)
   update: (current)
+
+test handling .hgsubstate "modified" explicitly.
+
+  $ hg parents --template '{node}\n{files}\n'
+  df30734270ae757feb35e643b7018e818e78a9aa
+  .hgsubstate
+  $ hg rollback -q
+  $ hg status -A .hgsubstate
+  M .hgsubstate
+  $ hg ci -m2
+  $ hg parents --template '{node}\n{files}\n'
+  df30734270ae757feb35e643b7018e818e78a9aa
+  .hgsubstate
 
 bump sub rev (and check it is ignored by ui.commitsubrepos)
 
@@ -184,6 +209,18 @@ new branch for merge tests
 
   $ hg ci -m8 # remove sub
 
+test handling .hgsubstate "removed" explicitly.
+
+  $ hg parents --template '{node}\n{files}\n'
+  96615c1dad2dc8e3796d7332c77ce69156f7b78e
+  .hgsub .hgsubstate
+  $ hg rollback -q
+  $ hg remove .hgsubstate
+  $ hg ci -m8
+  $ hg parents --template '{node}\n{files}\n'
+  96615c1dad2dc8e3796d7332c77ce69156f7b78e
+  .hgsub .hgsubstate
+
 merge tests
 
   $ hg co -C 3
@@ -244,8 +281,8 @@ merge tests
   resolving manifests
    branchmerge: True, force: False, partial: False
    ancestor: 6747d179aa9a, local: 20a0db6fbf6c+, remote: 7af322bc1198
+   preserving t for resolve of t
    t: versions differ -> m
-    preserving t for resolve of t
   updating: t 1/1 files (100.00%)
   picked tool 'internal:merge' for t (binary False symlink False)
   merging t
@@ -261,11 +298,11 @@ merge tests
 should conflict
 
   $ cat t/t
-  <<<<<<< local
+  <<<<<<< local: 20a0db6fbf6c - test: 10
   conflict
   =======
   t3
-  >>>>>>> other
+  >>>>>>> other: 7af322bc1198  - test: 7
 
 clone
 
@@ -468,12 +505,8 @@ backout calls revert internally with minimal opts, which should not raise
 KeyError
 
   $ hg backout ".^"
-  reverting .hgsubstate
-  reverting subrepo s
-  reverting s/a (glob)
-  reverting subrepo ss
-  reverting subrepo t
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  changeset c373c8102e68 backed out, don't forget to commit.
 
   $ hg up -C # discard changes
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -759,6 +792,19 @@ Prepare a repo with subrepo
   $ echo test >> sub/repo/foo
   $ hg ci -mtest
   committing subrepository sub/repo (glob)
+  $ hg cat sub/repo/foo
+  test
+  test
+  $ mkdir -p tmp/sub/repo
+  $ hg cat -r 0 --output tmp/%p_p sub/repo/foo
+  $ cat tmp/sub/repo/foo_p
+  test
+  $ mv sub/repo sub_
+  $ hg cat sub/repo/baz
+  skipping missing subrepository: sub/repo
+  [1]
+  $ rm -rf sub/repo
+  $ mv sub_ sub/repo
   $ cd ..
 
 Create repo without default path, pull top repo, and see what happens on update
@@ -915,7 +961,7 @@ Sticky subrepositories, no changes
   $ hg -R t id
   e95bcfa18a35
 
-Sticky subrepositorys, file changes
+Sticky subrepositories, file changes
   $ touch s/f1
   $ touch t/f1
   $ hg add -S s/f1
@@ -1232,4 +1278,199 @@ Courtesy phases synchronisation to publishing server does not block the push
   searching for changes
   no changes found
   [1]
+  $ cd ..
 
+Test phase choice for newly created commit with "phases.subrepochecks"
+configuration
+
+  $ cd t
+  $ hg update -q -r 12
+
+  $ cat >> s/ss/.hg/hgrc <<EOF
+  > [phases]
+  > new-commit = secret
+  > EOF
+  $ cat >> s/.hg/hgrc <<EOF
+  > [phases]
+  > new-commit = draft
+  > EOF
+  $ echo phasecheck1 >> s/ss/a
+  $ hg -R s commit -S --config phases.checksubrepos=abort -m phasecheck1
+  committing subrepository ss
+  transaction abort!
+  rollback completed
+  abort: can't commit in draft phase conflicting secret from subrepository ss
+  [255]
+  $ echo phasecheck2 >> s/ss/a
+  $ hg -R s commit -S --config phases.checksubrepos=ignore -m phasecheck2
+  committing subrepository ss
+  $ hg -R s/ss phase tip
+  3: secret
+  $ hg -R s phase tip
+  6: draft
+  $ echo phasecheck3 >> s/ss/a
+  $ hg -R s commit -S -m phasecheck3
+  committing subrepository ss
+  warning: changes are committed in secret phase from subrepository ss
+  $ hg -R s/ss phase tip
+  4: secret
+  $ hg -R s phase tip
+  7: secret
+
+  $ cat >> t/.hg/hgrc <<EOF
+  > [phases]
+  > new-commit = draft
+  > EOF
+  $ cat >> .hg/hgrc <<EOF
+  > [phases]
+  > new-commit = public
+  > EOF
+  $ echo phasecheck4 >>   s/ss/a
+  $ echo phasecheck4 >>   t/t
+  $ hg commit -S -m phasecheck4
+  committing subrepository s
+  committing subrepository s/ss
+  warning: changes are committed in secret phase from subrepository ss
+  committing subrepository t
+  warning: changes are committed in secret phase from subrepository s
+  created new head
+  $ hg -R s/ss phase tip
+  5: secret
+  $ hg -R s phase tip
+  8: secret
+  $ hg -R t phase tip
+  6: draft
+  $ hg phase tip
+  15: secret
+
+  $ cd ..
+
+
+Test that commit --secret works on both repo and subrepo (issue4182)
+
+  $ cd main
+  $ echo secret >> b
+  $ echo secret >> s/b
+  $ hg commit --secret --subrepo -m "secret"
+  committing subrepository s
+  $ hg phase -r .
+  6: secret
+  $ cd s
+  $ hg phase -r .
+  6: secret
+  $ cd ../../
+
+Test "subrepos" template keyword
+
+  $ cd t
+  $ hg update -q 15
+  $ cat > .hgsub <<EOF
+  > s = s
+  > EOF
+  $ hg commit -m "16"
+  warning: changes are committed in secret phase from subrepository s
+
+(addition of ".hgsub" itself)
+
+  $ hg diff --nodates -c 1 .hgsubstate
+  diff -r f7b1eb17ad24 -r 7cf8cfea66e4 .hgsubstate
+  --- /dev/null
+  +++ b/.hgsubstate
+  @@ -0,0 +1,1 @@
+  +e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  $ hg log -r 1 --template "{p1node|short} {p2node|short}\n{subrepos % '{subrepo}\n'}"
+  f7b1eb17ad24 000000000000
+  s
+
+(modification of existing entry)
+
+  $ hg diff --nodates -c 2 .hgsubstate
+  diff -r 7cf8cfea66e4 -r df30734270ae .hgsubstate
+  --- a/.hgsubstate
+  +++ b/.hgsubstate
+  @@ -1,1 +1,1 @@
+  -e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  +dc73e2e6d2675eb2e41e33c205f4bdab4ea5111d s
+  $ hg log -r 2 --template "{p1node|short} {p2node|short}\n{subrepos % '{subrepo}\n'}"
+  7cf8cfea66e4 000000000000
+  s
+
+(addition of entry)
+
+  $ hg diff --nodates -c 5 .hgsubstate
+  diff -r 7cf8cfea66e4 -r 1f14a2e2d3ec .hgsubstate
+  --- a/.hgsubstate
+  +++ b/.hgsubstate
+  @@ -1,1 +1,2 @@
+   e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  +60ca1237c19474e7a3978b0dc1ca4e6f36d51382 t
+  $ hg log -r 5 --template "{p1node|short} {p2node|short}\n{subrepos % '{subrepo}\n'}"
+  7cf8cfea66e4 000000000000
+  t
+
+(removal of existing entry)
+
+  $ hg diff --nodates -c 16 .hgsubstate
+  diff -r 8bec38d2bd0b -r f2f70bc3d3c9 .hgsubstate
+  --- a/.hgsubstate
+  +++ b/.hgsubstate
+  @@ -1,2 +1,1 @@
+   0731af8ca9423976d3743119d0865097c07bdc1b s
+  -e202dc79b04c88a636ea8913d9182a1346d9b3dc t
+  $ hg log -r 16 --template "{p1node|short} {p2node|short}\n{subrepos % '{subrepo}\n'}"
+  8bec38d2bd0b 000000000000
+  t
+
+(merging)
+
+  $ hg diff --nodates -c 9 .hgsubstate
+  diff -r f6affe3fbfaa -r f0d2028bf86d .hgsubstate
+  --- a/.hgsubstate
+  +++ b/.hgsubstate
+  @@ -1,1 +1,2 @@
+   fc627a69481fcbe5f1135069e8a3881c023e4cf5 s
+  +60ca1237c19474e7a3978b0dc1ca4e6f36d51382 t
+  $ hg log -r 9 --template "{p1node|short} {p2node|short}\n{subrepos % '{subrepo}\n'}"
+  f6affe3fbfaa 1f14a2e2d3ec
+  t
+
+(removal of ".hgsub" itself)
+
+  $ hg diff --nodates -c 8 .hgsubstate
+  diff -r f94576341bcf -r 96615c1dad2d .hgsubstate
+  --- a/.hgsubstate
+  +++ /dev/null
+  @@ -1,2 +0,0 @@
+  -e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  -7af322bc1198a32402fe903e0b7ebcfc5c9bf8f4 t
+  $ hg log -r 8 --template "{p1node|short} {p2node|short}\n{subrepos % '{subrepo}\n'}"
+  f94576341bcf 000000000000
+
+Test that '[paths]' is configured correctly at subrepo creation
+
+  $ cd $TESTTMP/tc
+  $ cat > .hgsub <<EOF
+  > # to clear bogus subrepo path 'bogus=[boguspath'
+  > s = s
+  > t = t
+  > EOF
+  $ hg update -q --clean null
+  $ rm -rf s t
+  $ cat >> .hg/hgrc <<EOF
+  > [paths]
+  > default-push = /foo/bar
+  > EOF
+  $ hg update -q
+  $ cat s/.hg/hgrc
+  [paths]
+  default = $TESTTMP/t/s
+  default-push = /foo/bar/s
+  $ cat s/ss/.hg/hgrc
+  [paths]
+  default = $TESTTMP/t/s/ss
+  default-push = /foo/bar/s/ss
+  $ cat t/.hg/hgrc
+  [paths]
+  default = $TESTTMP/t/t
+  default-push = /foo/bar/t
+  $ cd ..

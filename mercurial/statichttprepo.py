@@ -54,8 +54,10 @@ class httprangereader(object):
             data = data[:bytes]
         self.pos += len(data)
         return data
+    def readlines(self):
+        return self.read().splitlines(True)
     def __iter__(self):
-        return iter(self.read().splitlines(1))
+        return iter(self.readlines())
     def close(self):
         pass
 
@@ -141,6 +143,7 @@ class statichttprepository(localrepo.localrepository):
         self.decodepats = None
 
     def _restrictcapabilities(self, caps):
+        caps = super(statichttprepository, self)._restrictcapabilities(caps)
         return caps.difference(["pushkey"])
 
     def url(self):

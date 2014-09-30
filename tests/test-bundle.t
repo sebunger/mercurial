@@ -84,6 +84,11 @@ Pull full.hg into test (using --cwd)
   searching for changes
   no changes found
 
+Verify that there are no leaked temporary files after pull (issue2797)
+
+  $ ls test/.hg | grep .hg10un
+  [1]
+
 Pull full.hg into empty (using --cwd)
 
   $ hg --cwd empty pull ../full.hg
@@ -541,7 +546,7 @@ test for http://mercurial.selenic.com/bts/issue1144
 
 test that verify bundle does not traceback
 
-partial history bundle, fails w/ unkown parent
+partial history bundle, fails w/ unknown parent
 
   $ hg -R bundle.hg verify
   abort: 00changelog.i@bbd179dfa0a7: unknown parent!

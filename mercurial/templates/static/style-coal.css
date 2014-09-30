@@ -214,6 +214,13 @@ h3 {
 .source a { color: #999; font-size: smaller; font-family: monospace;}
 .bottomline { border-bottom: 1px solid #999; }
 
+.sourcelines > div {
+  display: inline-block;
+  width: 100%;
+  padding: 1px 0px;
+  counter-increment: lineno;
+}
+
 .fileline { font-family: monospace; }
 .fileline img { border: 0; }
 
@@ -330,4 +337,28 @@ ul#graphnodes li .info {
 
 .breadcrumb a {
     color: blue;
+}
+
+.scroll-loading {
+    -webkit-animation: change_color 1s linear 0s infinite alternate;
+    -moz-animation: change_color 1s linear 0s infinite alternate;
+    -o-animation: change_color 1s linear 0s infinite alternate;
+    animation: change_color 1s linear 0s infinite alternate;
+}
+
+@-webkit-keyframes change_color {
+  from { background-color: #A0CEFF; } to {  }
+}
+@-moz-keyframes change_color {
+  from { background-color: #A0CEFF; } to {  }
+}
+@-o-keyframes change_color {
+  from { background-color: #A0CEFF; } to {  }
+}
+@keyframes change_color {
+  from { background-color: #A0CEFF; } to {  }
+}
+
+.scroll-loading-error {
+    background-color: #FFCCCC !important;
 }

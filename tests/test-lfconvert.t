@@ -4,8 +4,7 @@
   > [extensions]
   > largefiles =
   > share =
-  > graphlog =
-  > mq =
+  > strip =
   > convert =
   > [largefiles]
   > minsize = 0.5
@@ -133,8 +132,9 @@ add some changesets to rename/remove/merge
   [1]
   $ hg cat -r . sub/maybelarge.dat > stuff/maybelarge.dat
   $ hg resolve -m stuff/maybelarge.dat
+  (no more unresolved files)
   $ hg commit -m"merge"
-  $ hg glog --template "{rev}:{node|short}  {desc|firstline}\n"
+  $ hg log -G --template "{rev}:{node|short}  {desc|firstline}\n"
   @    5:4884f215abda  merge
   |\
   | o  4:7285f817b77e  remove large, normal3
@@ -154,7 +154,7 @@ lfconvert with rename, merge, and remove
   $ hg lfconvert --size 0.2 bigfile-repo largefiles-repo
   initializing destination largefiles-repo
   $ cd largefiles-repo
-  $ hg glog --template "{rev}:{node|short}  {desc|firstline}\n"
+  $ hg log -G --template "{rev}:{node|short}  {desc|firstline}\n"
   o    5:8e05f5f2b77e  merge
   |\
   | o  4:a5a02de7a8e4  remove large, normal3
@@ -248,7 +248,7 @@ round-trip: converting back to a normal (non-largefiles) repo with
 # "hg remove" + "hg merge" + "hg commit".
 #  $ hg -R ../bigfile-repo debugdata -c 5
 #  $ hg debugdata -c 5
-  $ hg glog --template "{rev}:{node|short}  {desc|firstline}\n"
+  $ hg log -G --template "{rev}:{node|short}  {desc|firstline}\n"
   o  6:1635824e6f59  add anotherlarge (should be a largefile)
   |
   o    5:7215f8deeaaf  merge
@@ -292,7 +292,7 @@ from the working dir on a convert.
   1 merge
   0 add anotherlarge (should be a largefile)
 
-  $ hg -R largefiles-repo-hg glog --template "{rev}:{node|short}  {desc|firstline}\n"
+  $ hg -R largefiles-repo-hg log -G --template "{rev}:{node|short}  {desc|firstline}\n"
   o  6:17126745edfd  add anotherlarge (should be a largefile)
   |
   o    5:9cc5aa7204f0  merge
@@ -326,6 +326,7 @@ process.
   verified existence of 6 revisions of 4 largefiles
   [1]
   $ hg -R largefiles-repo-hg showconfig paths
+  [1]
 
 
 Avoid a traceback if a largefile isn't available (issue3519)
@@ -343,7 +344,7 @@ Ensure the abort message is useful if a largefile is entirely unavailable
   $ rm largefiles-repo/.hg/largefiles/*
   $ hg lfconvert --to-normal issue3519 normalized3519
   initializing destination normalized3519
-  large: largefile 2e000fa7e85759c7f4c254d4d9c33ef481e459a7 not available from file://$TESTTMP/largefiles-repo (glob)
+  large: largefile 2e000fa7e85759c7f4c254d4d9c33ef481e459a7 not available from file:/*/$TESTTMP/largefiles-repo (glob)
   abort: missing largefile 'large' from revision d4892ec57ce212905215fad1d9018f56b99202ad
   [255]
 

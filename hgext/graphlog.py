@@ -5,7 +5,10 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-'''command to view revision graphs from a shell
+'''command to view revision graphs from a shell (DEPRECATED)
+
+The functionality of this extension has been include in core Mercurial
+since version 2.3.
 
 This extension adds a --graph option to the incoming, outgoing and log
 commands. When this options is given, an ASCII representation of the
@@ -40,7 +43,8 @@ testedwith = 'internal'
     ('P', 'prune', [],
      _('do not display revision or any of its ancestors'), _('REV')),
     ] + commands.logopts + commands.walkopts,
-    _('[OPTION]... [FILE]'))
+    _('[OPTION]... [FILE]'),
+    inferrepo=True)
 def graphlog(ui, repo, *pats, **opts):
     """show revision history alongside an ASCII revision graph
 
@@ -51,5 +55,3 @@ def graphlog(ui, repo, *pats, **opts):
     directory.
     """
     return cmdutil.graphlog(ui, repo, *pats, **opts)
-
-commands.inferrepo += " glog"

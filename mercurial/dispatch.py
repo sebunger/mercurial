@@ -40,7 +40,7 @@ def dispatch(req):
         if not req.ui:
             req.ui = uimod.ui()
         if '--traceback' in req.args:
-            req.ui.setconfig('ui', 'traceback', 'on')
+            req.ui.setconfig('ui', 'traceback', 'on', '--traceback')
 
         # set ui streams from the request
         if req.fin:
@@ -103,17 +103,22 @@ def _runcatch(req):
             if req.repo:
                 # copy configs that were passed on the cmdline (--config) to
                 # the repo ui
-                for cfg in cfgs:
-                    req.repo.ui.setconfig(*cfg)
+                for sec, name, val in cfgs:
+                    req.repo.ui.setconfig(sec, name, val, source='--config')
 
+            # if we are in HGPLAIN mode, then disable custom debugging
             debugger = ui.config("ui", "debugger")
-            if not debugger:
+            debugmod = pdb
+            if not debugger or ui.plain():
                 debugger = 'pdb'
-
-            try:
-                debugmod = __import__(debugger)
-            except ImportError:
-                debugmod = pdb
+            elif '--debugger' in req.args:
+                # This import can be slow for fancy debuggers, so only
+                # do it when absolutely necessary, i.e. when actual
+                # debugging has been requested
+                try:
+                    debugmod = __import__(debugger)
+                except ImportError:
+                    pass # Leave debugmod = pdb
 
             debugtrace[debugger] = debugmod.set_trace
             debugmortem[debugger] = debugmod.post_mortem
@@ -220,7 +225,8 @@ def _runcatch(req):
                 # it might be anything, for example a string
                 reason = inst.reason
             ui.warn(_("abort: error: %s\n") % reason)
-        elif util.safehasattr(inst, "args") and inst.args[0] == errno.EPIPE:
+        elif (util.safehasattr(inst, "args")
+              and inst.args and inst.args[0] == errno.EPIPE):
             if ui.debugflag:
                 ui.warn(_("broken pipe\n"))
         elif getattr(inst, "strerror", None):
@@ -350,7 +356,7 @@ class cmdalias(object):
         if not self.definition:
             def fn(ui, *args):
                 ui.warn(_("no definition for alias '%s'\n") % self.name)
-                return 1
+                return -1
             self.fn = fn
             self.badalias = True
             return
@@ -378,7 +384,16 @@ class cmdalias(object):
             self.fn = fn
             return
 
-        args = shlex.split(self.definition)
+        try:
+            args = shlex.split(self.definition)
+        except ValueError, inst:
+            def fn(ui, *args):
+                ui.warn(_("error in definition for alias '%s': %s\n")
+                        % (self.name, inst))
+                return -1
+            self.fn = fn
+            self.badalias = True
+            return
         self.cmdname = cmd = args.pop(0)
         args = map(util.expandpath, args)
 
@@ -388,7 +403,7 @@ class cmdalias(object):
                     ui.warn(_("error in definition for alias '%s': %s may only "
                               "be given on the command line\n")
                             % (self.name, invalidarg))
-                    return 1
+                    return -1
 
                 self.fn = fn
                 self.badalias = True
@@ -420,14 +435,14 @@ class cmdalias(object):
                     commands.help_(ui, cmd, unknowncmd=True)
                 except error.UnknownCommand:
                     pass
-                return 1
+                return -1
             self.fn = fn
             self.badalias = True
         except error.AmbiguousCommand:
             def fn(ui, *args):
                 ui.warn(_("alias '%s' resolves to ambiguous command '%s'\n") \
                             % (self.name, cmd))
-                return 1
+                return -1
             self.fn = fn
             self.badalias = True
 
@@ -440,7 +455,7 @@ class cmdalias(object):
             return self.fn(ui, *args, **opts)
         else:
             try:
-                util.checksignature(self.fn)(ui, *args, **opts)
+                return util.checksignature(self.fn)(ui, *args, **opts)
             except error.SignatureError:
                 args = ' '.join([self.cmdname] + self.args)
                 ui.debug("alias '%s' expands to '%s'\n" % (self.name, args))
@@ -517,7 +532,7 @@ def _parseconfig(ui, config):
             section, name = name.split('.', 1)
             if not section or not name:
                 raise IndexError
-            ui.setconfig(section, name, value)
+            ui.setconfig(section, name, value, '--config')
             configs.append((section, name, value))
         except (IndexError, ValueError):
             raise util.Abort(_('malformed --config option: %r '
@@ -634,8 +649,7 @@ def _checkshellalias(lui, ui, args):
 
     cmd = args[0]
     try:
-        aliases, entry = cmdutil.findcmd(cmd, cmdtable,
-                                         lui.configbool("ui", "strict"))
+        aliases, entry = cmdutil.findcmd(cmd, cmdtable)
     except (error.AmbiguousCommand, error.UnknownCommand):
         restorecommands()
         return
@@ -735,24 +749,24 @@ def _dispatch(req):
         for opt in ('verbose', 'debug', 'quiet'):
             val = str(bool(options[opt]))
             for ui_ in uis:
-                ui_.setconfig('ui', opt, val)
+                ui_.setconfig('ui', opt, val, '--' + opt)
 
     if options['traceback']:
         for ui_ in uis:
-            ui_.setconfig('ui', 'traceback', 'on')
+            ui_.setconfig('ui', 'traceback', 'on', '--traceback')
 
     if options['noninteractive']:
         for ui_ in uis:
-            ui_.setconfig('ui', 'interactive', 'off')
+            ui_.setconfig('ui', 'interactive', 'off', '-y')
 
     if cmdoptions.get('insecure', False):
         for ui_ in uis:
-            ui_.setconfig('web', 'cacerts', '')
+            ui_.setconfig('web', 'cacerts', '', '--insecure')
 
     if options['version']:
         return commands.version_(ui)
     if options['help']:
-        return commands.help_(ui, cmd)
+        return commands.help_(ui, cmd, command=True)
     elif not cmd:
         return commands.help_(ui, 'shortlist')
 
@@ -773,9 +787,7 @@ def _dispatch(req):
                 repo = hg.repository(ui, path=path)
                 if not repo.local():
                     raise util.Abort(_("repository '%s' is not local") % path)
-                if options['hidden']:
-                    repo = repo.unfiltered()
-                repo.ui.setconfig("bundle", "mainreporoot", repo.root)
+                repo.ui.setconfig("bundle", "mainreporoot", repo.root, 'repo')
             except error.RequirementError:
                 raise
             except error.RepoError:
@@ -794,6 +806,8 @@ def _dispatch(req):
                     raise
         if repo:
             ui = repo.ui
+            if options['hidden']:
+                repo = repo.unfiltered()
         args.insert(0, repo)
     elif rpath:
         ui.warn(_("warning: --repository ignored\n"))

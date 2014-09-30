@@ -327,6 +327,7 @@ function makeRequest(url, method, onstart, onsuccess, onerror, oncomplete) {
     };
 
     xfr.open(method, url);
+    xfr.overrideMimeType("text/xhtml; charset=" + document.characterSet.toLowerCase());
     xfr.send();
     onstart();
     return xfr;
@@ -394,7 +395,7 @@ function ajaxScrollInit(urlFormat,
                 },
                 function onsuccess(htmlText) {
                     if (mode == 'graph') {
-                        var addHeight = htmlText.match(/^<canvas id="graph".*height="(\d+)"><\/canvas>$/m)[1];
+                        var addHeight = htmlText.match(/^\s*<canvas id="graph".*height="(\d+)"><\/canvas>$/m)[1];
                         addHeight = parseInt(addHeight);
                         graph.canvas.height = addHeight;
 

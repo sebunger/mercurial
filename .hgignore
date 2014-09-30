@@ -1,6 +1,7 @@
 syntax: glob
 
 *.elc
+*.tmp
 *.orig
 *.rej
 *~
@@ -24,7 +25,9 @@ tests/*.err
 tests/htmlcov
 build
 contrib/hgsh/hgsh
+contrib/vagrant/.vagrant
 dist
+packages
 doc/common.txt
 doc/*.[0-9]
 doc/*.[0-9].txt

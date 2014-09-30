@@ -6,7 +6,6 @@
   $ echo "autocrlf = false" >> $HOME/.gitconfig
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "convert=" >> $HGRCPATH
-  $ echo 'hgext.graphlog =' >> $HGRCPATH
   $ GIT_AUTHOR_NAME='test'; export GIT_AUTHOR_NAME
   $ GIT_AUTHOR_EMAIL='test@example.org'; export GIT_AUTHOR_EMAIL
   $ GIT_AUTHOR_DATE="2007-01-01 00:00:00 +0000"; export GIT_AUTHOR_DATE
@@ -114,7 +113,7 @@ Remove the directory, then try to replace it with a file
   $ cd ..
   $ glog()
   > {
-  >     hg glog --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
+  >     hg log -G --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
   > }
   $ splitrepo()
   > {
@@ -363,6 +362,23 @@ convert sub modules
   sub
 
   $ cd ../..
+
+convert the revision removing '.gitmodules' itself (and related
+submodules)
+
+  $ cd git-repo6
+  $ git rm .gitmodules
+  rm '.gitmodules'
+  $ git rm --cached git-repo5
+  rm 'git-repo5'
+  $ commit -a -m 'remove .gitmodules and submodule git-repo5'
+  $ cd ..
+
+  $ hg convert -q git-repo6 git-repo6-hg
+  $ hg -R git-repo6-hg tip -T "{desc|firstline}\n"
+  remove .gitmodules and submodule git-repo5
+  $ hg -R git-repo6-hg tip -T "{file_dels}\n"
+  .hgsub .hgsubstate
 
 damaged git repository tests:
 In case the hard-coded hashes change, the following commands can be used to

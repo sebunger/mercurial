@@ -96,8 +96,8 @@ class hgwebdir(object):
             u = self.baseui.copy()
         else:
             u = ui.ui()
-            u.setconfig('ui', 'report_untrusted', 'off')
-            u.setconfig('ui', 'nontty', 'true')
+            u.setconfig('ui', 'report_untrusted', 'off', 'hgwebdir')
+            u.setconfig('ui', 'nontty', 'true', 'hgwebdir')
 
         if not isinstance(self.conf, (dict, list, tuple)):
             map = {'paths': 'hgweb-paths'}
@@ -214,7 +214,8 @@ class hgwebdir(object):
                     if real:
                         req.env['REPO_NAME'] = virtualrepo
                         try:
-                            repo = hg.repository(self.ui, real)
+                            # ensure caller gets private copy of ui
+                            repo = hg.repository(self.ui.copy(), real)
                             return hgweb(repo).run_wsgi(req)
                         except IOError, inst:
                             msg = inst.strerror
@@ -308,17 +309,17 @@ class hgwebdir(object):
 
                     # add '/' to the name to make it obvious that
                     # the entry is a directory, not a regular repository
-                    row = dict(contact="",
-                               contact_sort="",
-                               name=name + '/',
-                               name_sort=name,
-                               url=url,
-                               description="",
-                               description_sort="",
-                               lastchange=d,
-                               lastchange_sort=d[1]-d[0],
-                               archives=[],
-                               isdirectory=True)
+                    row = {'contact': "",
+                           'contact_sort': "",
+                           'name': name + '/',
+                           'name_sort': name,
+                           'url': url,
+                           'description': "",
+                           'description_sort': "",
+                           'lastchange': d,
+                           'lastchange_sort': d[1]-d[0],
+                           'archives': [],
+                           'isdirectory': True}
 
                     seendirs.add(name)
                     yield row
@@ -356,16 +357,18 @@ class hgwebdir(object):
                 contact = get_contact(get)
                 description = get("web", "description", "")
                 name = get("web", "name", name)
-                row = dict(contact=contact or "unknown",
-                           contact_sort=contact.upper() or "unknown",
-                           name=name,
-                           name_sort=name,
-                           url=url,
-                           description=description or "unknown",
-                           description_sort=description.upper() or "unknown",
-                           lastchange=d,
-                           lastchange_sort=d[1]-d[0],
-                           archives=archivelist(u, "tip", url))
+                row = {'contact': contact or "unknown",
+                       'contact_sort': contact.upper() or "unknown",
+                       'name': name,
+                       'name_sort': name,
+                       'url': url,
+                       'description': description or "unknown",
+                       'description_sort': description.upper() or "unknown",
+                       'lastchange': d,
+                       'lastchange_sort': d[1]-d[0],
+                       'archives': archivelist(u, "tip", url),
+                       'isdirectory': None,
+                       }
 
                 seenrepos.add(name)
                 yield row
@@ -448,7 +451,9 @@ class hgwebdir(object):
                                              "logourl": logourl,
                                              "logoimg": logoimg,
                                              "staticurl": staticurl,
-                                             "sessionvars": sessionvars})
+                                             "sessionvars": sessionvars,
+                                             "style": style,
+                                             })
         return tmpl
 
     def updatereqenv(self, env):

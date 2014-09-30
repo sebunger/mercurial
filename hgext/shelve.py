@@ -22,10 +22,10 @@ shelve".
 """
 
 from mercurial.i18n import _
-from mercurial.node import nullid, bin, hex
-from mercurial import changegroup, cmdutil, scmutil, phases
+from mercurial.node import nullid, nullrev, bin, hex
+from mercurial import changegroup, cmdutil, scmutil, phases, commands
 from mercurial import error, hg, mdiff, merge, patch, repair, util
-from mercurial import templatefilters
+from mercurial import templatefilters, changegroup, exchange
 from mercurial import lock as lockmod
 from hgext import rebase
 import errno
@@ -67,6 +67,18 @@ class shelvedfile(object):
             if err.errno != errno.ENOENT:
                 raise
             raise util.Abort(_("shelved change '%s' not found") % self.name)
+
+    def applybundle(self):
+        fp = self.opener()
+        try:
+            gen = exchange.readbundle(self.repo.ui, fp, self.fname, self.vfs)
+            changegroup.addchangegroup(self.repo, gen, 'unshelve',
+                                       'bundle:' + self.vfs.join(self.fname))
+        finally:
+            fp.close()
+
+    def writebundle(self, cg):
+        changegroup.writebundle(cg, self.fname, 'HG10UN', self.vfs)
 
 class shelvedstate(object):
     """Handle persistence during unshelving operations.
@@ -122,22 +134,21 @@ def createcmd(ui, repo, pats, opts):
     """subcommand that creates a new shelve"""
 
     def publicancestors(ctx):
-        """Compute the heads of the public ancestors of a commit.
+        """Compute the public ancestors of a commit.
 
-        Much faster than the revset heads(ancestors(ctx) - draft())"""
-        seen = set()
+        Much faster than the revset ancestors(ctx) & draft()"""
+        seen = set([nullrev])
         visit = util.deque()
         visit.append(ctx)
         while visit:
             ctx = visit.popleft()
+            yield ctx.node()
             for parent in ctx.parents():
                 rev = parent.rev()
                 if rev not in seen:
                     seen.add(rev)
                     if parent.mutable():
                         visit.append(parent)
-                    else:
-                        yield parent.node()
 
     wctx = repo[None]
     parents = wctx.parents()
@@ -150,7 +161,7 @@ def createcmd(ui, repo, pats, opts):
     label = repo._bookmarkcurrent or parent.branch() or 'default'
 
     # slashes aren't allowed in filenames, therefore we rename it
-    origlabel, label = label, label.replace('/', '_')
+    label = label.replace('/', '_')
 
     def gennames():
         yield label
@@ -167,15 +178,16 @@ def createcmd(ui, repo, pats, opts):
         if hasmq:
             saved, repo.mq.checkapplied = repo.mq.checkapplied, False
         try:
-            return repo.commit(message, user, opts.get('date'), match)
+            return repo.commit(message, user, opts.get('date'), match,
+                               editor=cmdutil.getcommiteditor(**opts))
         finally:
             if hasmq:
                 repo.mq.checkapplied = saved
 
     if parent.node() != nullid:
-        desc = parent.description().split('\n', 1)[0]
+        desc = "changes to '%s'" % parent.description().split('\n', 1)[0]
     else:
-        desc = '(empty repository)'
+        desc = '(changes in empty repository)'
 
     if not opts['message']:
         opts['message'] = desc
@@ -228,9 +240,8 @@ def createcmd(ui, repo, pats, opts):
         fp.write('\0'.join(shelvedfiles))
 
         bases = list(publicancestors(repo[node]))
-        cg = repo.changegroupsubset(bases, [node], 'shelve')
-        changegroup.writebundle(cg, shelvedfile(repo, name, 'hg').filename(),
-                                'HG10UN')
+        cg = changegroup.changegroupsubset(repo, bases, [node], 'shelve')
+        shelvedfile(repo, name, 'hg').writebundle(cg)
         cmdutil.export(repo, [node],
                        fp=shelvedfile(repo, name, 'patch').opener('wb'),
                        opts=mdiff.diffopts(git=True))
@@ -459,7 +470,9 @@ def unshelvecontinue(ui, repo, state, opts):
           ('c', 'continue', None,
            _('continue an incomplete unshelve operation')),
           ('', 'keep', None,
-           _('keep shelve after unshelving'))],
+           _('keep shelve after unshelving')),
+          ('', 'date', '',
+           _('set date for temporary commits (DEPRECATED)'), _('DATE'))],
          _('hg unshelve [SHELVED]'))
 def unshelve(ui, repo, *shelved, **opts):
     """restore a shelved change to the working directory
@@ -518,6 +531,7 @@ def unshelve(ui, repo, *shelved, **opts):
     if not shelvedfile(repo, basename, 'files').exists():
         raise util.Abort(_("shelved change '%s' not found") % basename)
 
+    oldquiet = ui.quiet
     wlock = lock = tr = None
     try:
         lock = repo.lock()
@@ -526,17 +540,19 @@ def unshelve(ui, repo, *shelved, **opts):
         tr = repo.transaction('unshelve', report=lambda x: None)
         oldtiprev = len(repo)
 
-        wctx = repo['.']
-        tmpwctx = wctx
+        pctx = repo['.']
+        tmpwctx = pctx
         # The goal is to have a commit structure like so:
-        # ...-> wctx -> tmpwctx -> shelvectx
+        # ...-> pctx -> tmpwctx -> shelvectx
         # where tmpwctx is an optional commit with the user's pending changes
         # and shelvectx is the unshelved changes. Then we merge it all down
-        # to the original wctx.
+        # to the original pctx.
 
         # Store pending changes in a commit
         m, a, r, d = repo.status()[:4]
         if m or a or r or d:
+            ui.status(_("temporarily committing pending changes "
+                        "(restore with 'hg unshelve --abort')\n"))
             def commitfunc(ui, repo, message, match, opts):
                 hasmq = util.safehasattr(repo, 'mq')
                 if hasmq:
@@ -551,28 +567,24 @@ def unshelve(ui, repo, *shelved, **opts):
 
             tempopts = {}
             tempopts['message'] = "pending changes temporary commit"
-            oldquiet = ui.quiet
-            try:
-                ui.quiet = True
-                node = cmdutil.commit(ui, repo, commitfunc, [], tempopts)
-            finally:
-                ui.quiet = oldquiet
+            tempopts['date'] = opts.get('date')
+            ui.quiet = True
+            node = cmdutil.commit(ui, repo, commitfunc, [], tempopts)
             tmpwctx = repo[node]
 
-        try:
-            fp = shelvedfile(repo, basename, 'hg').opener()
-            gen = changegroup.readbundle(fp, fp.name)
-            repo.addchangegroup(gen, 'unshelve', 'bundle:' + fp.name)
-            nodes = [ctx.node() for ctx in repo.set('%d:', oldtiprev)]
-            phases.retractboundary(repo, phases.secret, nodes)
-        finally:
-            fp.close()
+        ui.quiet = True
+        shelvedfile(repo, basename, 'hg').applybundle()
+        nodes = [ctx.node() for ctx in repo.set('%d:', oldtiprev)]
+        phases.retractboundary(repo, phases.secret, nodes)
+
+        ui.quiet = oldquiet
 
         shelvectx = repo['tip']
 
         # If the shelve is not immediately on top of the commit
         # we'll be merging with, rebase it to be on top.
         if tmpwctx.node() != shelvectx.parents()[0].node():
+            ui.status(_('rebasing shelved changes\n'))
             try:
                 rebase.rebase(ui, repo, **{
                     'rev' : [shelvectx.rev()],
@@ -584,7 +596,7 @@ def unshelve(ui, repo, *shelved, **opts):
 
                 stripnodes = [repo.changelog.node(rev)
                               for rev in xrange(oldtiprev, len(repo))]
-                shelvedstate.save(repo, basename, wctx, tmpwctx, stripnodes)
+                shelvedstate.save(repo, basename, pctx, tmpwctx, stripnodes)
 
                 util.rename(repo.join('rebasestate'),
                             repo.join('unshelverebasestate'))
@@ -599,7 +611,7 @@ def unshelve(ui, repo, *shelved, **opts):
                 # rebase was a no-op, so it produced no child commit
                 shelvectx = tmpwctx
 
-        mergefiles(ui, repo, wctx, shelvectx)
+        mergefiles(ui, repo, pctx, shelvectx)
         shelvedstate.clear(repo)
 
         # The transaction aborting will strip all the commits for us,
@@ -610,6 +622,7 @@ def unshelve(ui, repo, *shelved, **opts):
 
         unshelvecleanup(ui, repo, basename, opts)
     finally:
+        ui.quiet = oldquiet
         if tr:
             tr.release()
         lockmod.release(lock, wlock)
@@ -623,6 +636,8 @@ def unshelve(ui, repo, *shelved, **opts):
            _('shelve with the specified commit date'), _('DATE')),
           ('d', 'delete', None,
            _('delete the named shelved change(s)')),
+          ('e', 'edit', False,
+           _('invoke editor on commit messages')),
           ('l', 'list', None,
            _('list current shelves')),
           ('m', 'message', '',
@@ -632,8 +647,8 @@ def unshelve(ui, repo, *shelved, **opts):
           ('p', 'patch', None,
            _('show patch')),
           ('', 'stat', None,
-           _('output diffstat-style summary of changes'))],
-         _('hg shelve'))
+           _('output diffstat-style summary of changes'))] + commands.walkopts,
+         _('hg shelve [OPTION]... [FILE]...'))
 def shelvecmd(ui, repo, *pats, **opts):
     '''save and set aside changes from the working directory
 
@@ -663,20 +678,32 @@ def shelvecmd(ui, repo, *pats, **opts):
     '''
     cmdutil.checkunfinished(repo)
 
-    def checkopt(opt, incompatible):
+    allowables = [
+        ('addremove', 'create'), # 'create' is pseudo action
+        ('cleanup', 'cleanup'),
+#       ('date', 'create'), # ignored for passing '--date "0 0"' in tests
+        ('delete', 'delete'),
+        ('edit', 'create'),
+        ('list', 'list'),
+        ('message', 'create'),
+        ('name', 'create'),
+        ('patch', 'list'),
+        ('stat', 'list'),
+    ]
+    def checkopt(opt):
         if opts[opt]:
-            for i in incompatible.split():
-                if opts[i]:
+            for i, allowable in allowables:
+                if opts[i] and opt != allowable:
                     raise util.Abort(_("options '--%s' and '--%s' may not be "
                                        "used together") % (opt, i))
             return True
-    if checkopt('cleanup', 'addremove delete list message name patch stat'):
+    if checkopt('cleanup'):
         if pats:
             raise util.Abort(_("cannot specify names when using '--cleanup'"))
         return cleanupcmd(ui, repo)
-    elif checkopt('delete', 'addremove cleanup list message name patch stat'):
+    elif checkopt('delete'):
         return deletecmd(ui, repo, pats)
-    elif checkopt('list', 'addremove cleanup delete message name'):
+    elif checkopt('list'):
         return listcmd(ui, repo, pats, opts)
     else:
         for i in ('patch', 'stat'):

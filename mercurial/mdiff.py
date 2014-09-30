@@ -6,8 +6,8 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import bdiff, mpatch, util
-import re, struct, base85, zlib
+import bdiff, mpatch, util, base85
+import re, struct, zlib
 
 def splitnewlines(text):
     '''like str.splitlines, but only split on newlines.'''
@@ -37,6 +37,7 @@ class diffopts(object):
         'showfunc': False,
         'git': False,
         'nodates': False,
+        'nobinary': False,
         'ignorews': False,
         'ignorewsamount': False,
         'ignoreblanklines': False,

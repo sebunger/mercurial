@@ -42,7 +42,7 @@ def checklocalchanges(repo, force=False, excsuffix=''):
             raise util.Abort(_("local changed subrepos found" + excsuffix))
     return m, a, r, d
 
-def strip(ui, repo, revs, update=True, backup="all", force=None):
+def strip(ui, repo, revs, update=True, backup="all", force=None, bookmark=None):
     wlock = lock = None
     try:
         wlock = repo.wlock()
@@ -59,6 +59,14 @@ def strip(ui, repo, revs, update=True, backup="all", force=None):
             repo.dirstate.write()
 
         repair.strip(ui, repo, revs, backup)
+
+        marks = repo._bookmarks
+        if bookmark:
+            if bookmark == repo._bookmarkcurrent:
+                bookmarks.unsetcurrent(repo)
+            del marks[bookmark]
+            marks.write()
+            ui.write(_("bookmark '%s' deleted\n") % bookmark)
     finally:
         release(lock, wlock)
 
@@ -70,9 +78,6 @@ def strip(ui, repo, revs, update=True, backup="all", force=None):
                                'option)'), _('REV')),
           ('f', 'force', None, _('force removal of changesets, discard '
                                  'uncommitted changes (no backup)')),
-          ('b', 'backup', None, _('bundle only changesets with local revision'
-                                  ' number greater than REV which are not'
-                                  ' descendants of REV (DEPRECATED)')),
           ('', 'no-backup', None, _('no backups')),
           ('', 'nobackup', None, _('no backups (DEPRECATED)')),
           ('n', '', None, _('ignored  (DEPRECATED)')),
@@ -182,43 +187,32 @@ def stripcmd(ui, repo, *revs, **opts):
 
         revs = sorted(rootnodes)
         if update and opts.get('keep'):
-            wlock = repo.wlock()
-            try:
-                urev, p2 = repo.changelog.parents(revs[0])
-                if (util.safehasattr(repo, 'mq') and p2 != nullid
-                    and p2 in [x.node for x in repo.mq.applied]):
-                    urev = p2
-                uctx = repo[urev]
+            urev, p2 = repo.changelog.parents(revs[0])
+            if (util.safehasattr(repo, 'mq') and p2 != nullid
+                and p2 in [x.node for x in repo.mq.applied]):
+                urev = p2
+            uctx = repo[urev]
 
-                # only reset the dirstate for files that would actually change
-                # between the working context and uctx
-                descendantrevs = repo.revs("%s::." % uctx.rev())
-                changedfiles = []
-                for rev in descendantrevs:
-                    # blindly reset the files, regardless of what actually
-                    # changed
-                    changedfiles.extend(repo[rev].files())
+            # only reset the dirstate for files that would actually change
+            # between the working context and uctx
+            descendantrevs = repo.revs("%s::." % uctx.rev())
+            changedfiles = []
+            for rev in descendantrevs:
+                # blindly reset the files, regardless of what actually changed
+                changedfiles.extend(repo[rev].files())
 
-                # reset files that only changed in the dirstate too
-                dirstate = repo.dirstate
-                dirchanges = [f for f in dirstate if dirstate[f] != 'n']
-                changedfiles.extend(dirchanges)
+            # reset files that only changed in the dirstate too
+            dirstate = repo.dirstate
+            dirchanges = [f for f in dirstate if dirstate[f] != 'n']
+            changedfiles.extend(dirchanges)
 
-                repo.dirstate.rebuild(urev, uctx.manifest(), changedfiles)
-                repo.dirstate.write()
-                update = False
-            finally:
-                wlock.release()
+            repo.dirstate.rebuild(urev, uctx.manifest(), changedfiles)
+            repo.dirstate.write()
+            update = False
 
-        if opts.get('bookmark'):
-            if mark == repo._bookmarkcurrent:
-                bookmarks.setcurrent(repo, None)
-            del marks[mark]
-            marks.write()
-            ui.write(_("bookmark '%s' deleted\n") % mark)
 
         strip(ui, repo, revs, backup=backup, update=update,
-              force=opts.get('force'))
+              force=opts.get('force'), bookmark=opts.get('bookmark'))
     finally:
         wlock.release()
 

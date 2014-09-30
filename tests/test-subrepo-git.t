@@ -155,7 +155,7 @@ user a pulls, merges, commits
   added 1 changesets with 1 changes to 1 files (+1 heads)
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg merge 2>/dev/null
-   subrepository s diverged (local revision: 796959400868, remote revision: aa84837ccfbd)
+   subrepository s diverged (local revision: 7969594, remote revision: aa84837)
   (M)erge, keep (l)ocal or keep (r)emote? m
   pulling subrepo s from $TESTTMP/gitroot
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -452,7 +452,7 @@ Sticky subrepositories, no changes
   da5f5b1d8ffcf62fb8327bcd3c89a4367a6018e7
   $ cd ..
 
-Sticky subrepositorys, file changes
+Sticky subrepositories, file changes
   $ touch s/f1
   $ cd s
   $ git add f1
@@ -464,7 +464,7 @@ Sticky subrepositorys, file changes
   da5f5b1d8ffcf62fb8327bcd3c89a4367a6018e7
   $ cd ..
   $ hg update 4
-   subrepository s diverged (local revision: da5f5b1d8ffc, remote revision: aa84837ccfbd)
+   subrepository s diverged (local revision: da5f5b1, remote revision: aa84837)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for s differ
   use (l)ocal source (da5f5b1) or (r)emote source (aa84837)?
@@ -491,7 +491,7 @@ Sticky subrepository, revision updates
   HEAD is now at aa84837... f
   $ cd ..
   $ hg update 1
-   subrepository s diverged (local revision: 32a343883b74, remote revision: da5f5b1d8ffc)
+   subrepository s diverged (local revision: 32a3438, remote revision: da5f5b1)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for s differ (in checked out version)
   use (l)ocal source (32a3438) or (r)emote source (da5f5b1)?
@@ -514,7 +514,7 @@ Sticky subrepository, file changes and revision updates
   $ hg id -n
   1+
   $ hg update 7
-   subrepository s diverged (local revision: 32a343883b74, remote revision: 32a343883b74)
+   subrepository s diverged (local revision: 32a3438, remote revision: 32a3438)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for s differ
   use (l)ocal source (32a3438) or (r)emote source (32a3438)?
@@ -564,5 +564,101 @@ traceback
   notafile: * (glob)
   [1]
 #endif
+
+  $ cd ..
+
+Test sanitizing ".hg/hgrc" in subrepo
+
+  $ cd t
+  $ hg tip -q
+  7:af6d2edbb0d3
+  $ hg update -q -C af6d2edbb0d3
+  $ cd s
+  $ git checkout -q -b sanitize-test
+  $ mkdir .hg
+  $ echo '.hg/hgrc in git repo' > .hg/hgrc
+  $ mkdir -p sub/.hg
+  $ echo 'sub/.hg/hgrc in git repo' > sub/.hg/hgrc
+  $ git add .hg sub
+  $ git commit -qm 'add .hg/hgrc to be sanitized at hg update'
+  $ git push -q origin sanitize-test
+  $ cd ..
+  $ grep ' s$' .hgsubstate
+  32a343883b74769118bb1d3b4b1fbf9156f4dddc s
+  $ hg commit -qm 'commit with git revision including .hg/hgrc'
+  $ hg parents -q
+  8:3473d20bddcf
+  $ grep ' s$' .hgsubstate
+  c4069473b459cf27fd4d7c2f50c4346b4e936599 s
+  $ cd ..
+
+  $ hg -R tc pull -q
+  $ hg -R tc update -q -C 3473d20bddcf 2>&1 | sort
+  warning: removing potentially hostile 'hgrc' in '$TESTTMP/tc/s/.hg' (glob)
+  warning: removing potentially hostile 'hgrc' in '$TESTTMP/tc/s/sub/.hg' (glob)
+  $ cd tc
+  $ hg parents -q
+  8:3473d20bddcf
+  $ grep ' s$' .hgsubstate
+  c4069473b459cf27fd4d7c2f50c4346b4e936599 s
+  $ test -f s/.hg/hgrc
+  [1]
+  $ test -f s/sub/.hg/hgrc
+  [1]
+  $ cd ..
+
+additional test for "git merge --ff" route:
+
+  $ cd t
+  $ hg tip -q
+  8:3473d20bddcf
+  $ hg update -q -C af6d2edbb0d3
+  $ cd s
+  $ git checkout -q testing
+  $ mkdir .hg
+  $ echo '.hg/hgrc in git repo' > .hg/hgrc
+  $ mkdir -p sub/.hg
+  $ echo 'sub/.hg/hgrc in git repo' > sub/.hg/hgrc
+  $ git add .hg sub
+  $ git commit -qm 'add .hg/hgrc to be sanitized at hg update (git merge --ff)'
+  $ git push -q origin testing
+  $ cd ..
+  $ grep ' s$' .hgsubstate
+  32a343883b74769118bb1d3b4b1fbf9156f4dddc s
+  $ hg commit -qm 'commit with git revision including .hg/hgrc'
+  $ hg parents -q
+  9:ed23f7fe024e
+  $ grep ' s$' .hgsubstate
+  f262643c1077219fbd3858d54e78ef050ef84fbf s
+  $ cd ..
+
+  $ cd tc
+  $ hg update -q -C af6d2edbb0d3
+  $ test -f s/.hg/hgrc
+  [1]
+  $ test -f s/sub/.hg/hgrc
+  [1]
+  $ cd ..
+  $ hg -R tc pull -q
+  $ hg -R tc update -q -C ed23f7fe024e 2>&1 | sort
+  warning: removing potentially hostile 'hgrc' in '$TESTTMP/tc/s/.hg' (glob)
+  warning: removing potentially hostile 'hgrc' in '$TESTTMP/tc/s/sub/.hg' (glob)
+  $ cd tc
+  $ hg parents -q
+  9:ed23f7fe024e
+  $ grep ' s$' .hgsubstate
+  f262643c1077219fbd3858d54e78ef050ef84fbf s
+  $ test -f s/.hg/hgrc
+  [1]
+  $ test -f s/sub/.hg/hgrc
+  [1]
+
+Test that sanitizing is omitted in meta data area:
+
+  $ mkdir s/.git/.hg
+  $ echo '.hg/hgrc in git metadata area' > s/.git/.hg/hgrc
+  $ hg update -q -C af6d2edbb0d3
+  checking out detached HEAD in subrepo s
+  check out a git branch if you intend to make changes
 
   $ cd ..

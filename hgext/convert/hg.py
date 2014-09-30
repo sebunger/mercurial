@@ -25,6 +25,9 @@ from mercurial import hg, util, context, bookmarks, error, scmutil
 
 from common import NoRepo, commit, converter_source, converter_sink
 
+import re
+sha1re = re.compile(r'\b[0-9a-f]{6,40}\b')
+
 class mercurial_sink(converter_sink):
     def __init__(self, ui, path):
         converter_sink.__init__(self, ui, path)
@@ -74,10 +77,6 @@ class mercurial_sink(converter_sink):
 
     def authorfile(self):
         return self.repo.join("authormap")
-
-    def getheads(self):
-        h = self.repo.changelog.heads()
-        return [hex(x) for x in h]
 
     def setbranch(self, branch, pbranches):
         if not self.clonebranches:
@@ -137,8 +136,8 @@ class mercurial_sink(converter_sink):
             data, mode = source.getfile(f, v)
             if f == '.hgtags':
                 data = self._rewritetags(source, revmap, data)
-            return context.memfilectx(f, data, 'l' in mode, 'x' in mode,
-                                      copies.get(f))
+            return context.memfilectx(self.repo, f, data, 'l' in mode,
+                                      'x' in mode, copies.get(f))
 
         pl = []
         for p in parents:
@@ -157,7 +156,33 @@ class mercurial_sink(converter_sink):
         p2 = parents.pop(0)
 
         text = commit.desc
+
+        sha1s = re.findall(sha1re, text)
+        for sha1 in sha1s:
+            oldrev = source.lookuprev(sha1)
+            newrev = revmap.get(oldrev)
+            if newrev is not None:
+                text = text.replace(sha1, newrev[:len(sha1)])
+
         extra = commit.extra.copy()
+
+        for label in ('source', 'transplant_source', 'rebase_source'):
+            node = extra.get(label)
+
+            if node is None:
+                continue
+
+            # Only transplant stores its reference in binary
+            if label == 'transplant_source':
+                node = hex(node)
+
+            newrev = revmap.get(node)
+            if newrev is not None:
+                if label == 'transplant_source':
+                    newrev = bin(newrev)
+
+                extra[label] = newrev
+
         if self.branchnames and commit.branch:
             extra['branch'] = commit.branch
         if commit.rev:
@@ -190,17 +215,39 @@ class mercurial_sink(converter_sink):
             parentctx = None
             tagparent = nullid
 
-        try:
-            oldlines = sorted(parentctx['.hgtags'].data().splitlines(True))
-        except Exception:
-            oldlines = []
+        oldlines = set()
+        for branch, heads in self.repo.branchmap().iteritems():
+            for h in heads:
+                if '.hgtags' in self.repo[h]:
+                    oldlines.update(
+                        set(self.repo[h]['.hgtags'].data().splitlines(True)))
+        oldlines = sorted(list(oldlines))
 
         newlines = sorted([("%s %s\n" % (tags[tag], tag)) for tag in tags])
         if newlines == oldlines:
             return None, None
+
+        # if the old and new tags match, then there is nothing to update
+        oldtags = set()
+        newtags = set()
+        for line in oldlines:
+            s = line.strip().split(' ', 1)
+            if len(s) != 2:
+                continue
+            oldtags.add(s[1])
+        for line in newlines:
+            s = line.strip().split(' ', 1)
+            if len(s) != 2:
+                continue
+            if s[1] not in oldtags:
+                newtags.add(s[1].strip())
+
+        if not newtags:
+            return None, None
+
         data = "".join(newlines)
         def getfilectx(repo, memctx, f):
-            return context.memfilectx(f, data, False, False, None)
+            return context.memfilectx(repo, f, data, False, False, None)
 
         self.ui.status(_("updating tags\n"))
         date = "%s 0" % int(time.mktime(time.gmtime()))
@@ -224,7 +271,11 @@ class mercurial_sink(converter_sink):
             destmarks[bookmark] = bin(updatedbookmark[bookmark])
         destmarks.write()
 
-    def hascommit(self, rev):
+    def hascommitfrommap(self, rev):
+        # the exact semantics of clonebranches is unclear so we can't say no
+        return rev in self.repo or self.clonebranches
+
+    def hascommitforsplicemap(self, rev):
         if rev not in self.repo and self.clonebranches:
             raise util.Abort(_('revision %s not found in destination '
                                'repository (lookups with clonebranches=true '
@@ -365,7 +416,9 @@ class mercurial_source(converter_source):
                       sortkey=ctx.rev())
 
     def gettags(self):
-        tags = [t for t in self.repo.tagslist() if t[0] != 'tip']
+        # This will get written to .hgtags, filter non global tags out.
+        tags = [t for t in self.repo.tagslist()
+                if self.repo.tagtype(t[0]) == 'global']
         return dict([(name, hex(node)) for name, node in tags
                      if self.keep(node)])
 
@@ -412,6 +465,6 @@ class mercurial_source(converter_source):
     def getbookmarks(self):
         return bookmarks.listbookmarks(self.repo)
 
-    def checkrevformat(self, revstr):
+    def checkrevformat(self, revstr, mapname='splicemap'):
         """ Mercurial, revision string is a 40 byte hex """
-        self.checkhexformat(revstr)
+        self.checkhexformat(revstr, mapname)

@@ -15,6 +15,7 @@ import stat
 
 from mercurial import dirstate, httpconnection, match as match_, util, scmutil
 from mercurial.i18n import _
+from mercurial import node
 
 shortname = '.hglf'
 shortnameslash = shortname + '/'
@@ -105,7 +106,7 @@ class largefilesdirstate(dirstate.dirstate):
         return super(largefilesdirstate, self).forget(unixpath(f))
     def normallookup(self, f):
         return super(largefilesdirstate, self).normallookup(unixpath(f))
-    def _ignore(self):
+    def _ignore(self, f):
         return False
 
 def openlfdirstate(ui, repo, create=True):
@@ -122,9 +123,13 @@ def openlfdirstate(ui, repo, create=True):
     # it. This ensures that we create it on the first meaningful
     # largefiles operation in a new clone.
     if create and not os.path.exists(os.path.join(lfstoredir, 'dirstate')):
-        util.makedirs(lfstoredir)
         matcher = getstandinmatcher(repo)
-        for standin in repo.dirstate.walk(matcher, [], False, False):
+        standins = repo.dirstate.walk(matcher, [], False, False)
+
+        if len(standins) > 0:
+            util.makedirs(lfstoredir)
+
+        for standin in standins:
             lfile = splitstandin(standin)
             lfdirstate.normallookup(lfile)
     return lfdirstate
@@ -365,3 +370,25 @@ def getlfilestoupdate(oldstandins, newstandins):
         if f[0] not in filelist:
             filelist.append(f[0])
     return filelist
+
+def getlfilestoupload(repo, missing, addfunc):
+    for n in missing:
+        parents = [p for p in repo.changelog.parents(n) if p != node.nullid]
+        ctx = repo[n]
+        files = set(ctx.files())
+        if len(parents) == 2:
+            mc = ctx.manifest()
+            mp1 = ctx.parents()[0].manifest()
+            mp2 = ctx.parents()[1].manifest()
+            for f in mp1:
+                if f not in mc:
+                    files.add(f)
+            for f in mp2:
+                if f not in mc:
+                    files.add(f)
+            for f in mc:
+                if mc[f] != mp1.get(f, None) or mc[f] != mp2.get(f, None):
+                    files.add(f)
+        for fn in files:
+            if isstandin(fn) and fn in ctx:
+                addfunc(fn, ctx[fn].data().strip())

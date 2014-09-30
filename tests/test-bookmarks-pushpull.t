@@ -274,7 +274,7 @@ diverging a remote bookmark fails
   $ hg push http://localhost:$HGPORT2/
   pushing to http://localhost:$HGPORT2/
   searching for changes
-  abort: push creates new remote head c922c0139ca0!
+  abort: push creates new remote head c922c0139ca0 with bookmark 'Y'!
   (merge or see "hg help push" for details about pushing new heads)
   [255]
   $ hg -R ../a book
@@ -290,7 +290,7 @@ Unrelated marker does not alter the decision
   $ hg push http://localhost:$HGPORT2/
   pushing to http://localhost:$HGPORT2/
   searching for changes
-  abort: push creates new remote head c922c0139ca0!
+  abort: push creates new remote head c922c0139ca0 with bookmark 'Y'!
   (merge or see "hg help push" for details about pushing new heads)
   [255]
   $ hg -R ../a book
@@ -411,6 +411,7 @@ bookmark, not all outgoing changes:
   $ hg commit -m 'add bar'
   $ hg co "tip^"
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  (leaving bookmark @)
   $ hg book add-foo
   $ hg book -r tip add-bar
 Note: this push *must* push only a single changeset, as that's the point
@@ -423,5 +424,23 @@ of this test.
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
   exporting bookmark add-foo
+
+pushing a new bookmark on a new head does not require -f if -B is specified
+
+  $ hg up -q X
+  $ hg book W
+  $ echo c5 > f2
+  $ hg ci -Am5
+  created new head
+  $ hg push -B W
+  pushing to http://localhost:$HGPORT/
+  searching for changes
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 1 changesets with 1 changes to 1 files (+1 heads)
+  exporting bookmark W
+  $ hg -R ../b id -r W
+  cc978a373a53 tip W
 
   $ cd ..

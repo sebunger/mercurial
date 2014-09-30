@@ -98,15 +98,14 @@ def _chain(src, dst, a, b):
 
     return t
 
-def _tracefile(fctx, actx):
-    '''return file context that is the ancestor of fctx present in actx'''
-    stop = actx.rev()
-    am = actx.manifest()
+def _tracefile(fctx, am, limit=-1):
+    '''return file context that is the ancestor of fctx present in ancestor
+    manifest am, stopping after the first ancestor lower than limit'''
 
     for f in fctx.ancestors():
         if am.get(f.path(), None) == f.filenode():
             return f
-        if f.rev() < stop:
+        if f.rev() < limit:
             return None
 
 def _dirstatecopies(d):
@@ -129,6 +128,13 @@ def _forwardcopies(a, b):
             # short-circuit to avoid issues with merge states
             return _dirstatecopies(w)
 
+    # files might have to be traced back to the fctx parent of the last
+    # one-side-only changeset, but not further back than that
+    limit = _findlimit(a._repo, a.rev(), b.rev())
+    if limit is None:
+        limit = -1
+    am = a.manifest()
+
     # find where new files came from
     # we currently don't try to find where old files went, too expensive
     # this means we can miss a case like 'hg rm b; hg cp a b'
@@ -137,7 +143,7 @@ def _forwardcopies(a, b):
     missing.difference_update(a.manifest().iterkeys())
 
     for f in missing:
-        ofctx = _tracefile(b[f], a)
+        ofctx = _tracefile(b[f], am, limit)
         if ofctx:
             cm[f] = ofctx.path()
 
@@ -222,9 +228,6 @@ def mergecopies(repo, c1, c2, ca):
     fullcopy = {}
     diverge = {}
 
-    def _checkcopies(f, m1, m2):
-        checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy)
-
     repo.ui.debug("  searching for copies back to rev %d\n" % limit)
 
     u1 = _nonoverlap(m1, m2, ma)
@@ -238,9 +241,10 @@ def mergecopies(repo, c1, c2, ca):
                       % "\n   ".join(u2))
 
     for f in u1:
-        _checkcopies(f, m1, m2)
+        checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy)
+
     for f in u2:
-        _checkcopies(f, m2, m1)
+        checkcopies(ctx, f, m2, m1, ca, limit, diverge, copy, fullcopy)
 
     renamedelete = {}
     renamedelete2 = set()
@@ -256,7 +260,19 @@ def mergecopies(repo, c1, c2, ca):
         else:
             diverge2.update(fl) # reverse map for below
 
-    if fullcopy:
+    bothnew = sorted([d for d in m1 if d in m2 and d not in ma])
+    if bothnew:
+        repo.ui.debug("  unmatched files new in both:\n   %s\n"
+                      % "\n   ".join(bothnew))
+    bothdiverge, _copy, _fullcopy = {}, {}, {}
+    for f in bothnew:
+        checkcopies(ctx, f, m1, m2, ca, limit, bothdiverge, _copy, _fullcopy)
+        checkcopies(ctx, f, m2, m1, ca, limit, bothdiverge, _copy, _fullcopy)
+    for of, fl in bothdiverge.items():
+        if len(fl) == 2 and fl[0] == fl[1]:
+            copy[fl[0]] = of # not actually divergent, just matching renames
+
+    if fullcopy and repo.ui.debugflag:
         repo.ui.debug("  all copies found (* = to merge, ! = divergent, "
                       "% = renamed and deleted):\n")
         for f in sorted(fullcopy):

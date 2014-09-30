@@ -40,17 +40,17 @@
    branchmerge: True, force: False, partial: False
    ancestor: f9b20c0d4c51, local: ce36d17b18fb+, remote: 397f8b00a740
    a/a: other deleted -> r
-   a/b: other deleted -> r
-   a/c: remote renamed directory to b/c -> d
-   b/a: remote created -> g
-   b/b: remote created -> g
   removing a/a
+   a/b: other deleted -> r
   removing a/b
   updating: a/b 2/5 files (40.00%)
+   b/a: remote created -> g
   getting b/a
+   b/b: remote created -> g
   getting b/b
   updating: b/b 4/5 files (80.00%)
-  updating: a/c 5/5 files (100.00%)
+   b/c: remote directory rename - move from a/c -> dm
+  updating: b/c 5/5 files (100.00%)
   moving a/c to b/c (glob)
   3 files updated, 0 files merged, 2 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -88,8 +88,8 @@
   resolving manifests
    branchmerge: True, force: False, partial: False
    ancestor: f9b20c0d4c51, local: 397f8b00a740+, remote: ce36d17b18fb
-   None: local renamed directory to b/c -> d
-  updating:None 1/1 files (100.00%)
+   b/c: local directory rename - get from a/c -> dg
+  updating: b/c 1/1 files (100.00%)
   getting a/c to b/c
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)

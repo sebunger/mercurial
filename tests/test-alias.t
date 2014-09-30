@@ -1,18 +1,17 @@
   $ HGFOO=BAR; export HGFOO
   $ cat >> $HGRCPATH <<EOF
-  > [extensions]
-  > graphlog=
-  > 
   > [alias]
   > # should clobber ci but not commit (issue2993)
   > ci = version
   > myinit = init
+  > mycommit = commit
   > optionalrepo = showconfig alias.myinit
   > cleanstatus = status -c
   > unknown = bargle
   > ambiguous = s
   > recursive = recursive
   > nodefinition =
+  > noclosingquotation = '
   > no--cwd = status --cwd elsewhere
   > no-R = status -R elsewhere
   > no--repo = status --repo elsewhere
@@ -34,7 +33,7 @@
   > count = !hg log -r "\$@" --template=. | wc -c | sed -e 's/ //g'
   > mcount = !hg log \$@ --template=. | wc -c | sed -e 's/ //g'
   > rt = root
-  > tglog = glog --template "{rev}:{node|short}: '{desc}' {branches}\n"
+  > tglog = log -G --template "{rev}:{node|short}: '{desc}' {branches}\n"
   > idalias = id
   > idaliaslong = id
   > idaliasshell = !echo test
@@ -44,6 +43,7 @@
   > escaped2 = !sh -c 'echo "HGFOO is \$\$HGFOO"'
   > escaped3 = !sh -c 'echo "\$1 is \$\$\$1"'
   > escaped4 = !printf '\$\$0 \$\$@\n'
+  > exit1 = !sh -c 'exit 1'
   > 
   > [defaults]
   > mylog = -q
@@ -61,6 +61,7 @@ unknown
 
   $ hg unknown
   alias 'unknown' resolves to unknown command 'bargle'
+  [255]
   $ hg help unknown
   alias 'unknown' resolves to unknown command 'bargle'
 
@@ -69,6 +70,7 @@ ambiguous
 
   $ hg ambiguous
   alias 'ambiguous' resolves to ambiguous command 's'
+  [255]
   $ hg help ambiguous
   alias 'ambiguous' resolves to ambiguous command 's'
 
@@ -77,6 +79,7 @@ recursive
 
   $ hg recursive
   alias 'recursive' resolves to unknown command 'recursive'
+  [255]
   $ hg help recursive
   alias 'recursive' resolves to unknown command 'recursive'
 
@@ -85,30 +88,45 @@ no definition
 
   $ hg nodef
   no definition for alias 'nodefinition'
+  [255]
   $ hg help nodef
   no definition for alias 'nodefinition'
+
+
+no closing quotation
+
+  $ hg noclosing
+  error in definition for alias 'noclosingquotation': No closing quotation
+  [255]
+  $ hg help noclosing
+  error in definition for alias 'noclosingquotation': No closing quotation
 
 
 invalid options
 
   $ hg no--cwd
   error in definition for alias 'no--cwd': --cwd may only be given on the command line
+  [255]
   $ hg help no--cwd
   error in definition for alias 'no--cwd': --cwd may only be given on the command line
   $ hg no-R
   error in definition for alias 'no-R': -R may only be given on the command line
+  [255]
   $ hg help no-R
   error in definition for alias 'no-R': -R may only be given on the command line
   $ hg no--repo
   error in definition for alias 'no--repo': --repo may only be given on the command line
+  [255]
   $ hg help no--repo
   error in definition for alias 'no--repo': --repo may only be given on the command line
   $ hg no--repository
   error in definition for alias 'no--repository': --repository may only be given on the command line
+  [255]
   $ hg help no--repository
   error in definition for alias 'no--repository': --repository may only be given on the command line
   $ hg no--config
   error in definition for alias 'no--config': --config may only be given on the command line
+  [255]
 
 optional repository
 
@@ -128,6 +146,7 @@ no usage
 
   $ hg nousage
   no rollback information available
+  [1]
 
   $ echo foo > foo
   $ hg commit -Amfoo
@@ -327,6 +346,21 @@ shell aliases with escaped $ chars
   $ hg escaped4 test
   $0 $@
 
+abbreviated name, which matches against both shell alias and the
+command provided extension, should be aborted.
+
+  $ cat >> .hg/hgrc <<EOF
+  > [extensions]
+  > hgext.rebase =
+  > [alias]
+  > rebate = !echo this is rebate
+  > EOF
+  $ hg reba
+  hg: command 'reba' is ambiguous:
+      rebase rebate
+  [255]
+  $ hg rebat
+  this is rebate
 
 invalid arguments
 
@@ -430,3 +464,11 @@ This shouldn't:
   $ hg --config alias.log='id' history
 
   $ cd ../..
+
+return code of command and shell aliases:
+
+  $ hg mycommit -R alias
+  nothing changed
+  [1]
+  $ hg exit1
+  [1]

@@ -1,5 +1,13 @@
 Create a repository:
 
+  $ hg config
+  defaults.backout=-d "0 0"
+  defaults.commit=-d "0 0"
+  defaults.shelve=--date "0 0"
+  defaults.tag=-d "0 0"
+  ui.slash=True
+  ui.interactive=False
+  ui.mergemarkers=detailed
   $ hg init t
   $ cd t
 

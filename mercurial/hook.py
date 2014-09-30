@@ -6,7 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import os, sys, time, types
+import os, sys, time
 import extensions, util, demandimport
 
 def _pythonhook(ui, repo, name, hname, funcname, args, throw):
@@ -19,11 +19,10 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
     unmodified commands (e.g. mercurial.commands.update) can
     be run as hooks without wrappers to convert return values.'''
 
-    ui.note(_("calling hook %s: %s\n") % (hname, funcname))
-    starttime = time.time()
-
-    obj = funcname
-    if not util.safehasattr(obj, '__call__'):
+    if callable(funcname):
+        obj = funcname
+        funcname = obj.__module__ + "." + obj.__name__
+    else:
         d = funcname.rfind('.')
         if d == -1:
             raise util.Abort(_('%s hook is invalid ("%s" not in '
@@ -36,28 +35,33 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
             if modpath and modfile:
                 sys.path = sys.path[:] + [modpath]
                 modname = modfile
-        try:
+        demandimportenabled = demandimport.isenabled()
+        if demandimportenabled:
             demandimport.disable()
-            obj = __import__(modname)
-            demandimport.enable()
-        except ImportError:
-            e1 = sys.exc_type, sys.exc_value, sys.exc_traceback
+        try:
             try:
-                # extensions are loaded with hgext_ prefix
-                obj = __import__("hgext_%s" % modname)
-                demandimport.enable()
+                obj = __import__(modname)
             except ImportError:
+                e1 = sys.exc_type, sys.exc_value, sys.exc_traceback
+                try:
+                    # extensions are loaded with hgext_ prefix
+                    obj = __import__("hgext_%s" % modname)
+                except ImportError:
+                    e2 = sys.exc_type, sys.exc_value, sys.exc_traceback
+                    if ui.tracebackflag:
+                        ui.warn(_('exception from first failed import '
+                                  'attempt:\n'))
+                    ui.traceback(e1)
+                    if ui.tracebackflag:
+                        ui.warn(_('exception from second failed import '
+                                  'attempt:\n'))
+                    ui.traceback(e2)
+                    raise util.Abort(_('%s hook is invalid '
+                                       '(import of "%s" failed)') %
+                                     (hname, modname))
+        finally:
+            if demandimportenabled:
                 demandimport.enable()
-                e2 = sys.exc_type, sys.exc_value, sys.exc_traceback
-                if ui.tracebackflag:
-                    ui.warn(_('exception from first failed import attempt:\n'))
-                ui.traceback(e1)
-                if ui.tracebackflag:
-                    ui.warn(_('exception from second failed import attempt:\n'))
-                ui.traceback(e2)
-                raise util.Abort(_('%s hook is invalid '
-                                   '(import of "%s" failed)') %
-                                 (hname, modname))
         sys.path = oldpaths
         try:
             for p in funcname.split('.')[1:]:
@@ -66,10 +70,14 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
             raise util.Abort(_('%s hook is invalid '
                                '("%s" is not defined)') %
                              (hname, funcname))
-        if not util.safehasattr(obj, '__call__'):
+        if not callable(obj):
             raise util.Abort(_('%s hook is invalid '
                                '("%s" is not callable)') %
                              (hname, funcname))
+
+    ui.note(_("calling hook %s: %s\n") % (hname, funcname))
+    starttime = time.time()
+
     try:
         try:
             # redirect IO descriptors to the ui descriptors so hooks
@@ -95,11 +103,8 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
     finally:
         sys.stdout, sys.stderr, sys.stdin = old
         duration = time.time() - starttime
-        readablefunc = funcname
-        if isinstance(funcname, types.FunctionType):
-            readablefunc = funcname.__module__ + "." + funcname.__name__
         ui.log('pythonhook', 'pythonhook-%s: %s finished in %0.2f seconds\n',
-               name, readablefunc, duration)
+               name, funcname, duration)
     if r:
         if throw:
             raise util.Abort(_('%s hook failed') % hname)
@@ -112,7 +117,7 @@ def _exthook(ui, repo, name, cmd, args, throw):
     starttime = time.time()
     env = {}
     for k, v in args.iteritems():
-        if util.safehasattr(v, '__call__'):
+        if callable(v):
             v = v()
         if isinstance(v, dict):
             # make the dictionary element order stable across Python
@@ -179,7 +184,7 @@ def hook(ui, repo, name, throw=False, **args):
                     # files seem to be bogus, give up on redirecting (WSGI, etc)
                     pass
 
-            if util.safehasattr(cmd, '__call__'):
+            if callable(cmd):
                 r = _pythonhook(ui, repo, name, hname, cmd, args, throw) or r
             elif cmd.startswith('python:'):
                 if cmd.count(':') >= 2:

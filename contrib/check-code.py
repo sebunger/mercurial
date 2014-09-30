@@ -7,6 +7,18 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
+"""style and portability checker for Mercurial
+
+when a rule triggers wrong, do one of the following (prefer one from top):
+ * do the work-around the rule suggests
+ * doublecheck that it is a false match
+ * improve the rule pattern
+ * add an ignore pattern to the rule (3rd arg) which matches your good line
+   (you can append a short comment and match this, like: #re-raises, # no-py24)
+ * change the pattern to a warning and list the exception in test-check-code-hg
+ * ONLY use no--check-code for skipping entire files from external sources
+"""
+
 import re, glob, os, sys
 import keyword
 import optparse
@@ -109,6 +121,7 @@ testpats = [
     (r'^( *)\t', "don't use tabs to indent"),
     (r'sed (-e )?\'(\d+|/[^/]*/)i(?!\\\n)',
      "put a backslash-escaped newline after sed 'i' command"),
+    (r'^diff *-\w*u.*$\n(^  \$ |^$)', "prefix diff -u with cmp"),
   ],
   # warnings
   [
@@ -138,20 +151,25 @@ utestpats = [
      "explicit exit code checks unnecessary"),
     (uprefix + r'set -e', "don't use set -e"),
     (uprefix + r'(\s|fi\b|done\b)', "use > for continued lines"),
+    (uprefix + r'.*:\.\S*/', "x:.y in a path does not work on msys, rewrite "
+     "as x://.y, or see `hg log -k msys` for alternatives", r'-\S+:\.|' #-Rxxx
+     'hg pull -q file:../test'), # in test-pull.t which is skipped on windows
     (r'^  saved backup bundle to \$TESTTMP.*\.hg$', winglobmsg),
     (r'^  changeset .* references (corrupted|missing) \$TESTTMP/.*[^)]$',
      winglobmsg),
-    (r'^  pulling from \$TESTTMP/.*[^)]$', winglobmsg, '\$TESTTMP/unix-repo$'),
-    (r'^  reverting .*/.*[^)]$', winglobmsg, '\$TESTTMP/unix-repo$'),
-    (r'^  cloning subrepo \S+/.*[^)]$', winglobmsg, '\$TESTTMP/unix-repo$'),
-    (r'^  pushing to \$TESTTMP/.*[^)]$', winglobmsg, '\$TESTTMP/unix-repo$'),
-    (r'^  pushing subrepo \S+/\S+ to.*[^)]$', winglobmsg,
-     '\$TESTTMP/unix-repo$'),
+    (r'^  pulling from \$TESTTMP/.*[^)]$', winglobmsg,
+     '\$TESTTMP/unix-repo$'), # in test-issue1802.t which skipped on windows
+    (r'^  reverting .*/.*[^)]$', winglobmsg),
+    (r'^  cloning subrepo \S+/.*[^)]$', winglobmsg),
+    (r'^  pushing to \$TESTTMP/.*[^)]$', winglobmsg),
+    (r'^  pushing subrepo \S+/\S+ to.*[^)]$', winglobmsg),
     (r'^  moving \S+/.*[^)]$', winglobmsg),
-    (r'^  no changes made to subrepo since.*/.*[^)]$',
-     winglobmsg, '\$TESTTMP/unix-repo$'),
-    (r'^  .*: largefile \S+ not available from file:.*/.*[^)]$',
-     winglobmsg, '\$TESTTMP/unix-repo$'),
+    (r'^  no changes made to subrepo since.*/.*[^)]$', winglobmsg),
+    (r'^  .*: largefile \S+ not available from file:.*/.*[^)]$', winglobmsg),
+    (r'^  .*file://\$TESTTMP',
+     'write "file:/*/$TESTTMP" + (glob) to match on windows too'),
+    (r'^  (cat|find): .*: No such file or directory',
+     'use test -f to test for file existence'),
   ],
   # warnings
   [
@@ -175,6 +193,7 @@ utestfilters = [
 
 pypats = [
   [
+    (r'\([^)]*\*\w[^()]+\w+=', "can't pass varargs with keyword in Py2.5"),
     (r'^\s*def\s*\w+\s*\(.*,\s*\(',
      "tuple parameter unpacking not available in Python 3+"),
     (r'lambda\s*\(.*,.*\)',
@@ -184,12 +203,14 @@ pypats = [
      'use "import foo.bar" on its own line instead.'),
     (r'(?<!def)\s+(cmp)\(', "cmp is not available in Python 3+"),
     (r'\breduce\s*\(.*', "reduce is not available in Python 3+"),
+    (r'dict\(.*=', 'dict() is different in Py2 and 3 and is slower than {}',
+     'dict-from-generator'),
     (r'\.has_key\b', "dict.has_key is not available in Python 3+"),
     (r'\s<>\s', '<> operator is not available in Python 3+, use !='),
     (r'^\s*\t', "don't use tabs"),
     (r'\S;\s*\n', "semicolon"),
-    (r'[^_]_\("[^"]+"\s*%', "don't use % inside _()"),
-    (r"[^_]_\('[^']+'\s*%", "don't use % inside _()"),
+    (r'[^_]_\([ \t\n]*(?:"[^"]+"[ \t\n+]*)+%', "don't use % inside _()"),
+    (r"[^_]_\([ \t\n]*(?:'[^']+'[ \t\n+]*)+%", "don't use % inside _()"),
     (r'(\w|\)),\w', "missing whitespace after ,"),
     (r'(\w|\))[+/*\-<>]\w', "missing whitespace in expression"),
     (r'^\s+(\w|\.)+=\w[^,()\n]*$', "missing whitespace in assignment"),
@@ -227,9 +248,7 @@ pypats = [
     (r'^\s*except.* as .*:', "except as not available in Python 2.4"),
     (r'^\s*os\.path\.relpath', "relpath not available in Python 2.4"),
     (r'(?<!def)\s+(any|all|format)\(',
-     "any/all/format not available in Python 2.4"),
-    (r'(?<!def)\s+(callable)\(',
-     "callable not available in Python 3, use getattr(f, '__call__', None)"),
+     "any/all/format not available in Python 2.4", 'no-py24'),
     (r'if\s.*\selse', "if ... else form not available in Python 2.4"),
     (r'^\s*(%s)\s\s' % '|'.join(keyword.kwlist),
      "gratuitous whitespace after Python keyword"),
@@ -264,7 +283,7 @@ pypats = [
     (r'[\s\(](open|file)\([^)]*\)\.read\(',
      "use util.readfile() instead"),
     (r'[\s\(](open|file)\([^)]*\)\.write\(',
-     "use util.readfile() instead"),
+     "use util.writefile() instead"),
     (r'^[\s\(]*(open(er)?|file)\([^)]*\)',
      "always assign an opened file to a variable, and close it afterwards"),
     (r'[\s\(](open|file)\([^)]*\)\.',
@@ -296,6 +315,7 @@ txtfilters = []
 txtpats = [
   [
     ('\s$', 'trailing whitespace'),
+    ('.. note::[ \n][^\n]', 'add two newlines after note::')
   ],
   []
 ]
@@ -347,16 +367,28 @@ inrevlogpats = [
   []
 ]
 
+webtemplatefilters = []
+
+webtemplatepats = [
+  [],
+  [
+    (r'{desc(\|(?!websub|firstline)[^\|]*)+}',
+     'follow desc keyword with either firstline or websub'),
+  ]
+]
+
 checks = [
-    ('python', r'.*\.(py|cgi)$', pyfilters, pypats),
-    ('test script', r'(.*/)?test-[^.~]*$', testfilters, testpats),
-    ('c', r'.*\.[ch]$', cfilters, cpats),
-    ('unified test', r'.*\.t$', utestfilters, utestpats),
-    ('layering violation repo in revlog', r'mercurial/revlog\.py', pyfilters,
-     inrevlogpats),
-    ('layering violation ui in util', r'mercurial/util\.py', pyfilters,
+    ('python', r'.*\.(py|cgi)$', r'^#!.*python', pyfilters, pypats),
+    ('test script', r'(.*/)?test-[^.~]*$', '', testfilters, testpats),
+    ('c', r'.*\.[ch]$', '', cfilters, cpats),
+    ('unified test', r'.*\.t$', '', utestfilters, utestpats),
+    ('layering violation repo in revlog', r'mercurial/revlog\.py', '',
+     pyfilters, inrevlogpats),
+    ('layering violation ui in util', r'mercurial/util\.py', '', pyfilters,
      inutilpats),
-    ('txt', r'.*\.txt$', txtfilters, txtpats),
+    ('txt', r'.*\.txt$', '', txtfilters, txtpats),
+    ('web template', r'mercurial/templates/.*\.tmpl', '',
+     webtemplatefilters, webtemplatepats),
 ]
 
 def _preparepats():
@@ -372,7 +404,7 @@ def _preparepats():
                 p = re.sub(r'(?<!\\)\[\^', r'[^\\n', p)
 
                 pats[i] = (re.compile(p, re.MULTILINE),) + pseq[1:]
-        filters = c[2]
+        filters = c[3]
         for i, flt in enumerate(filters):
             filters[i] = re.compile(flt[0]), flt[1]
 _preparepats()
@@ -426,27 +458,27 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
     """
     blamecache = None
     result = True
-    for name, match, filters, pats in checks:
+
+    try:
+        fp = open(f)
+    except IOError, e:
+        print "Skipping %s, %s" % (f, str(e).split(':', 1)[0])
+        return result
+    pre = post = fp.read()
+    fp.close()
+
+    for name, match, magic, filters, pats in checks:
         if debug:
             print name, f
         fc = 0
-        if not re.match(match, f):
+        if not (re.match(match, f) or (magic and re.search(magic, f))):
             if debug:
                 print "Skipping %s for %s it doesn't match %s" % (
                        name, match, f)
             continue
-        try:
-            fp = open(f)
-        except IOError, e:
-            print "Skipping %s, %s" % (f, str(e).split(':', 1)[0])
-            continue
-        pre = post = fp.read()
-        fp.close()
         if "no-" "check-code" in pre:
-            if debug:
-                print "Skipping %s for %s it has no-" "check-code" % (
-                       name, f)
-            break
+            print "Skipping %s it has no-" "check-code" % f
+            return "Skip" # skip checking this file
         for p, r in filters:
             post = re.sub(p, r, post)
         nerrs = len(pats[0]) # nerr elements are errors
@@ -486,12 +518,10 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
                     n += 1
                 l = prelines[n]
 
-                if "check-code" "-ignore" in l:
+                if ignore and re.search(ignore, l, re.MULTILINE):
                     if debug:
-                        print "Skipping %s for %s:%s (check-code" "-ignore)" % (
+                        print "Skipping %s for %s:%s (ignore pattern)" % (
                             name, f, n)
-                    continue
-                elif ignore and re.search(ignore, l, re.MULTILINE):
                     continue
                 bd = ""
                 if blame:

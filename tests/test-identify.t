@@ -109,16 +109,24 @@ test remote identify with bookmarks
   $ hg id --bookmarks -r . http://localhost:$HGPORT1/
   Y Z
 
+test invalid lookup
+
+  $ hg id -r noNoNO http://localhost:$HGPORT1/
+  abort: unknown revision 'noNoNO'!
+  [255]
+
 Make sure we do not obscure unknown requires file entries (issue2649)
 
   $ echo fake >> .hg/requires
   $ hg id
-  abort: unknown repository format: requires features 'fake' (upgrade Mercurial)!
+  abort: repository requires features unknown to this Mercurial: fake!
+  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
   [255]
 
   $ cd ..
 #if no-outer-repo
   $ hg id test
-  abort: unknown repository format: requires features 'fake' (upgrade Mercurial)!
+  abort: repository requires features unknown to this Mercurial: fake!
+  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
   [255]
 #endif

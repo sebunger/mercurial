@@ -1,4 +1,4 @@
-import os, stat, socket
+import os, stat
 import re
 import sys
 import tempfile
@@ -95,21 +95,6 @@ def has_icasefs():
             return False
     finally:
         os.remove(path)
-
-def has_inotify():
-    try:
-        import hgext.inotify.linux.watcher
-    except ImportError:
-        return False
-    name = tempfile.mktemp(dir='.', prefix=tempprefix)
-    sock = socket.socket(socket.AF_UNIX)
-    try:
-        sock.bind(name)
-    except socket.error:
-        return False
-    sock.close()
-    os.unlink(name)
-    return True
 
 def has_fifo():
     if getattr(os, "mkfifo", None) is None:
@@ -233,6 +218,9 @@ def has_unix_permissions():
     finally:
         os.rmdir(d)
 
+def has_root():
+    return getattr(os, 'geteuid', None) and os.geteuid() == 0
+
 def has_pyflakes():
     return matchoutput("sh -c \"echo 'import re' 2>&1 | pyflakes\"",
                        r"<stdin>:1: 're' imported but unused",
@@ -244,6 +232,9 @@ def has_pygments():
         return True
     except ImportError:
         return False
+
+def has_python243():
+    return sys.version_info >= (2, 4, 3)
 
 def has_outer_repo():
     # failing for other reasons than 'no repo' imply that there is a repo
@@ -268,8 +259,17 @@ def has_system_sh():
 def has_serve():
     return os.name != 'nt' # gross approximation
 
+def has_test_repo():
+    t = os.environ["TESTDIR"]
+    return os.path.isdir(os.path.join(t, "..", ".hg"))
+
 def has_tic():
-    return matchoutput('test -x "`which tic`"', '')
+    try:
+        import curses
+        curses.COLOR_BLUE
+        return matchoutput('test -x "`which tic`"', '')
+    except ImportError:
+        return False
 
 def has_msys():
     return os.getenv('MSYSTEM')
@@ -304,7 +304,6 @@ checks = {
     "gpg": (has_gpg, "gpg client"),
     "hardlink": (has_hardlink, "hardlinks"),
     "icasefs": (has_icasefs, "case insensitive file system"),
-    "inotify": (has_inotify, "inotify extension support"),
     "killdaemons": (has_killdaemons, 'killdaemons.py support'),
     "lsprof": (has_lsprof, "python lsprof module"),
     "mtn": (has_mtn, "monotone client (>= 1.0)"),
@@ -312,6 +311,8 @@ checks = {
     "p4": (has_p4, "Perforce server and client"),
     "pyflakes": (has_pyflakes, "Pyflakes python linter"),
     "pygments": (has_pygments, "Pygments source highlighting library"),
+    "python243": (has_python243, "python >= 2.4.3"),
+    "root": (has_root, "root permissions"),
     "serve": (has_serve, "platform and python can manage 'hg serve -d'"),
     "ssl": (has_ssl, "python >= 2.6 ssl module and python OpenSSL"),
     "svn": (has_svn, "subversion client and admin tools"),
@@ -320,7 +321,8 @@ checks = {
     "svn-bindings": (has_svn_bindings, "subversion python bindings"),
     "symlink": (has_symlink, "symbolic links"),
     "system-sh": (has_system_sh, "system() uses sh"),
-    "tic": (has_tic, "terminfo compiler"),
+    "test-repo": (has_test_repo, "running tests from repository"),
+    "tic": (has_tic, "terminfo compiler and curses module"),
     "tla": (has_tla, "GNU Arch tla client"),
     "unix-permissions": (has_unix_permissions, "unix-style permissions"),
     "windows": (has_windows, "Windows"),

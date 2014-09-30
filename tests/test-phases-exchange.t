@@ -1,9 +1,5 @@
   $ "$TESTDIR/hghave" killdaemons || exit 80
 
-  $ cat >> $HGRCPATH <<EOF
-  > [extensions]
-  > graphlog=
-  > EOF
   $ hgph() { hg log -G --template "{rev} {phase} {desc} - {node|short}\n" $*; }
 
   $ mkcommit() {
@@ -91,6 +87,20 @@ push from alpha to beta should update phase even if nothing is transferred
   @  3 draft a-D - b555f63b6063
   |
   o  2 draft a-C - 54acac6f23ab
+  |
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+  $ hg push -r 2 ../beta
+  pushing to ../beta
+  searching for changes
+  no changes found
+  [1]
+  $ hgph
+  @  3 draft a-D - b555f63b6063
+  |
+  o  2 public a-C - 54acac6f23ab
   |
   o  1 public a-B - 548a3d25dbf0
   |
@@ -399,7 +409,7 @@ Push back to alpha
 
 initial setup
 
-  $ hg glog # of alpha
+  $ hg log -G # of alpha
   o  changeset:   6:145e75495359
   |  tag:         tip
   |  user:        test
@@ -743,6 +753,69 @@ Pushing to Publish=True (common changeset from publish=False)
   
 
 
+Bare push with next changeset and common changeset needing sync (issue3575)
+
+(reset some stat on remot repo to not confused other test)
+
+  $ hg -R ../alpha --config extensions.strip= strip --no-backup 967b449fbc94
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg phase --force --draft b740e3e5c05d 967b449fbc94
+  $ hg push -fv ../alpha
+  pushing to ../alpha
+  searching for changes
+  1 changesets found
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  $ hgph
+  o  9 public a-H - 967b449fbc94
+  |
+  | o  8 public a-F - b740e3e5c05d
+  | |
+  | o  7 public a-E - e9f537e46dea
+  | |
+  +---o  6 public n-B - 145e75495359
+  | |
+  o |  5 public n-A - d6bcb4f74035
+  | |
+  | o  4 public a-D - b555f63b6063
+  | |
+  | o  3 public a-C - 54acac6f23ab
+  | |
+  o |  2 public b-A - f54f1bb90ff3
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+
+  $ hg -R ../alpha update 967b449fbc94 #for latter test consistency
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hgph -R ../alpha
+  @  10 public a-H - 967b449fbc94
+  |
+  | o  9 draft a-G - 3e27b6f1eee1
+  | |
+  | o  8 public a-F - b740e3e5c05d
+  | |
+  | o  7 public a-E - e9f537e46dea
+  | |
+  +---o  6 public n-B - 145e75495359
+  | |
+  o |  5 public n-A - d6bcb4f74035
+  | |
+  o |  4 public b-A - f54f1bb90ff3
+  | |
+  | o  3 public a-D - b555f63b6063
+  | |
+  | o  2 public a-C - 54acac6f23ab
+  |/
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+
 Discovery locally secret changeset on a remote repository:
 
 - should make it non-secret
@@ -835,9 +908,8 @@ Discovery locally secret changeset on a remote repository:
   o  0 public a-A - 054250a37db4
   
 
-pushing a locally public and draft changesets remotly secret should make them
+pushing a locally public and draft changesets remotely secret should make them
 appear on the remote side.
-
 
   $ hg -R ../mu phase --secret --force 967b449fbc94
   $ hg push -r 435b5d83910c ../mu
@@ -1062,7 +1134,7 @@ A. Clone without secret changeset
   |
   o  0 public a-A - 054250a37db4
   
-#if unix-permissions
+#if unix-permissions no-root
 
 Pushing From an unlockable repo
 --------------------------------

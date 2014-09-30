@@ -14,6 +14,8 @@
 
 #include "util.h"
 
+static char *versionerrortext = "Python minor version mismatch";
+
 static int8_t hextable[256] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -151,6 +153,122 @@ quit:
 	return NULL;
 }
 
+static inline dirstateTupleObject *make_dirstate_tuple(char state, int mode,
+						       int size, int mtime)
+{
+	dirstateTupleObject *t = PyObject_New(dirstateTupleObject,
+					      &dirstateTupleType);
+	if (!t)
+		return NULL;
+	t->state = state;
+	t->mode = mode;
+	t->size = size;
+	t->mtime = mtime;
+	return t;
+}
+
+static PyObject *dirstate_tuple_new(PyTypeObject *subtype, PyObject *args,
+				    PyObject *kwds)
+{
+	/* We do all the initialization here and not a tp_init function because
+	 * dirstate_tuple is immutable. */
+	dirstateTupleObject *t;
+	char state;
+	int size, mode, mtime;
+	if (!PyArg_ParseTuple(args, "ciii", &state, &mode, &size, &mtime))
+		return NULL;
+
+	t = (dirstateTupleObject *)subtype->tp_alloc(subtype, 1);
+	if (!t)
+		return NULL;
+	t->state = state;
+	t->mode = mode;
+	t->size = size;
+	t->mtime = mtime;
+
+	return (PyObject *)t;
+}
+
+static void dirstate_tuple_dealloc(PyObject *o)
+{
+	PyObject_Del(o);
+}
+
+static Py_ssize_t dirstate_tuple_length(PyObject *o)
+{
+	return 4;
+}
+
+static PyObject *dirstate_tuple_item(PyObject *o, Py_ssize_t i)
+{
+	dirstateTupleObject *t = (dirstateTupleObject *)o;
+	switch (i) {
+	case 0:
+		return PyBytes_FromStringAndSize(&t->state, 1);
+	case 1:
+		return PyInt_FromLong(t->mode);
+	case 2:
+		return PyInt_FromLong(t->size);
+	case 3:
+		return PyInt_FromLong(t->mtime);
+	default:
+		PyErr_SetString(PyExc_IndexError, "index out of range");
+		return NULL;
+	}
+}
+
+static PySequenceMethods dirstate_tuple_sq = {
+	dirstate_tuple_length,     /* sq_length */
+	0,                         /* sq_concat */
+	0,                         /* sq_repeat */
+	dirstate_tuple_item,       /* sq_item */
+	0,                         /* sq_ass_item */
+	0,                         /* sq_contains */
+	0,                         /* sq_inplace_concat */
+	0                          /* sq_inplace_repeat */
+};
+
+PyTypeObject dirstateTupleType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"dirstate_tuple",          /* tp_name */
+	sizeof(dirstateTupleObject),/* tp_basicsize */
+	0,                         /* tp_itemsize */
+	(destructor)dirstate_tuple_dealloc, /* tp_dealloc */
+	0,                         /* tp_print */
+	0,                         /* tp_getattr */
+	0,                         /* tp_setattr */
+	0,                         /* tp_compare */
+	0,                         /* tp_repr */
+	0,                         /* tp_as_number */
+	&dirstate_tuple_sq,        /* tp_as_sequence */
+	0,                         /* tp_as_mapping */
+	0,                         /* tp_hash  */
+	0,                         /* tp_call */
+	0,                         /* tp_str */
+	0,                         /* tp_getattro */
+	0,                         /* tp_setattro */
+	0,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,        /* tp_flags */
+	"dirstate tuple",          /* tp_doc */
+	0,                         /* tp_traverse */
+	0,                         /* tp_clear */
+	0,                         /* tp_richcompare */
+	0,                         /* tp_weaklistoffset */
+	0,                         /* tp_iter */
+	0,                         /* tp_iternext */
+	0,                         /* tp_methods */
+	0,                         /* tp_members */
+	0,                         /* tp_getset */
+	0,                         /* tp_base */
+	0,                         /* tp_dict */
+	0,                         /* tp_descr_get */
+	0,                         /* tp_descr_set */
+	0,                         /* tp_dictoffset */
+	0,                         /* tp_init */
+	0,                         /* tp_alloc */
+	dirstate_tuple_new,        /* tp_new */
+};
+
 static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 {
 	PyObject *dmap, *cmap, *parents = NULL, *ret = NULL;
@@ -185,16 +303,13 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 		flen = getbe32(cur + 13);
 		pos += 17;
 		cur += 17;
-		if (flen > len - pos || flen < 0) {
+		if (flen > len - pos) {
 			PyErr_SetString(PyExc_ValueError, "overflow in dirstate");
 			goto quit;
 		}
 
-		entry = Py_BuildValue("ciii", state, mode, size, mtime);
-		if (!entry)
-			goto quit;
-		PyObject_GC_UnTrack(entry); /* don't waste time with this */
-
+		entry = (PyObject *)make_dirstate_tuple(state, mode, size,
+							mtime);
 		cpos = memchr(cur, 0, flen);
 		if (cpos) {
 			fname = PyBytes_FromStringAndSize(cur, cpos - cur);
@@ -227,39 +342,13 @@ quit:
 	return ret;
 }
 
-static inline int getintat(PyObject *tuple, int off, uint32_t *v)
-{
-	PyObject *o = PyTuple_GET_ITEM(tuple, off);
-	long val;
-
-	if (PyInt_Check(o))
-		val = PyInt_AS_LONG(o);
-	else if (PyLong_Check(o)) {
-		val = PyLong_AsLong(o);
-		if (val == -1 && PyErr_Occurred())
-			return -1;
-	} else {
-		PyErr_SetString(PyExc_TypeError, "expected an int or long");
-		return -1;
-	}
-	if (LONG_MAX > INT_MAX && (val > INT_MAX || val < INT_MIN)) {
-		PyErr_SetString(PyExc_OverflowError,
-				"Python value to large to convert to uint32_t");
-		return -1;
-	}
-	*v = (uint32_t)val;
-	return 0;
-}
-
-static PyObject *dirstate_unset;
-
 /*
  * Efficiently pack a dirstate object into its on-disk format.
  */
 static PyObject *pack_dirstate(PyObject *self, PyObject *args)
 {
 	PyObject *packobj = NULL;
-	PyObject *map, *copymap, *pl;
+	PyObject *map, *copymap, *pl, *mtime_unset = NULL;
 	Py_ssize_t nbytes, pos, l;
 	PyObject *k, *v, *pn;
 	char *p, *s;
@@ -316,34 +405,38 @@ static PyObject *pack_dirstate(PyObject *self, PyObject *args)
 	p += 20;
 
 	for (pos = 0; PyDict_Next(map, &pos, &k, &v); ) {
+		dirstateTupleObject *tuple;
+		char state;
 		uint32_t mode, size, mtime;
 		Py_ssize_t len, l;
 		PyObject *o;
-		char *s, *t;
+		char *t;
 
-		if (!PyTuple_Check(v) || PyTuple_GET_SIZE(v) != 4) {
-			PyErr_SetString(PyExc_TypeError, "expected a 4-tuple");
+		if (!dirstate_tuple_check(v)) {
+			PyErr_SetString(PyExc_TypeError,
+					"expected a dirstate tuple");
 			goto bail;
 		}
-		o = PyTuple_GET_ITEM(v, 0);
-		if (PyString_AsStringAndSize(o, &s, &l) == -1 || l != 1) {
-			PyErr_SetString(PyExc_TypeError, "expected one byte");
-			goto bail;
-		}
-		*p++ = *s;
-		if (getintat(v, 1, &mode) == -1)
-			goto bail;
-		if (getintat(v, 2, &size) == -1)
-			goto bail;
-		if (getintat(v, 3, &mtime) == -1)
-			goto bail;
-		if (*s == 'n' && mtime == (uint32_t)now) {
+		tuple = (dirstateTupleObject *)v;
+
+		state = tuple->state;
+		mode = tuple->mode;
+		size = tuple->size;
+		mtime = tuple->mtime;
+		if (state == 'n' && mtime == (uint32_t)now) {
 			/* See pure/parsers.py:pack_dirstate for why we do
 			 * this. */
-			if (PyDict_SetItem(map, k, dirstate_unset) == -1)
-				goto bail;
 			mtime = -1;
+			mtime_unset = (PyObject *)make_dirstate_tuple(
+				state, mode, size, mtime);
+			if (!mtime_unset)
+				goto bail;
+			if (PyDict_SetItem(map, k, mtime_unset) == -1)
+				goto bail;
+			Py_DECREF(mtime_unset);
+			mtime_unset = NULL;
 		}
+		*p++ = state;
 		putbe32(mode, p);
 		putbe32(size, p + 4);
 		putbe32(mtime, p + 8);
@@ -372,6 +465,7 @@ static PyObject *pack_dirstate(PyObject *self, PyObject *args)
 
 	return packobj;
 bail:
+	Py_XDECREF(mtime_unset);
 	Py_XDECREF(packobj);
 	return NULL;
 }
@@ -926,8 +1020,13 @@ static int nt_insert(indexObject *self, const char *node, int rev)
 static int nt_init(indexObject *self)
 {
 	if (self->nt == NULL) {
+		if (self->raw_length > INT_MAX) {
+			PyErr_SetString(PyExc_ValueError, "overflow in nt_init");
+			return -1;
+		}
 		self->ntcapacity = self->raw_length < 4
-			? 4 : self->raw_length / 2;
+			? 4 : (int)self->raw_length / 2;
+
 		self->nt = calloc(self->ntcapacity, sizeof(nodetree));
 		if (self->nt == NULL) {
 			PyErr_NoMemory();
@@ -1203,7 +1302,7 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 	const bitmask allseen = (1ull << revcount) - 1;
 	const bitmask poison = 1ull << revcount;
 	PyObject *gca = PyList_New(0);
-	int i, v, interesting, left;
+	int i, v, interesting;
 	int maxrev = -1;
 	long sp;
 	bitmask *seen;
@@ -1225,7 +1324,7 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 	for (i = 0; i < revcount; i++)
 		seen[revs[i]] = 1ull << i;
 
-	interesting = left = revcount;
+	interesting = revcount;
 
 	for (v = maxrev; v >= 0 && interesting; v--) {
 		long sv = seen[v];
@@ -1246,11 +1345,8 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 				}
 				sv |= poison;
 				for (i = 0; i < revcount; i++) {
-					if (revs[i] == v) {
-						if (--left <= 1)
-							goto done;
-						break;
-					}
+					if (revs[i] == v)
+						goto done;
 				}
 			}
 		}
@@ -1295,7 +1391,7 @@ static PyObject *find_deepest(indexObject *self, PyObject *revs)
 	static const Py_ssize_t capacity = 24;
 	int *depth, *interesting = NULL;
 	int i, j, v, ninteresting;
-	PyObject *dict = NULL, *keys;
+	PyObject *dict = NULL, *keys = NULL;
 	long *seen = NULL;
 	int maxrev = -1;
 	long final;
@@ -1399,8 +1495,10 @@ static PyObject *find_deepest(indexObject *self, PyObject *revs)
 		final |= i;
 		j -= 1;
 	}
-	if (final == 0)
-		return PyList_New(0);
+	if (final == 0) {
+		keys = PyList_New(0);
+		goto bail;
+	}
 
 	dict = PyDict_New();
 	if (dict == NULL)
@@ -1424,19 +1522,13 @@ static PyObject *find_deepest(indexObject *self, PyObject *revs)
 
 	keys = PyDict_Keys(dict);
 
-	free(depth);
-	free(seen);
-	free(interesting);
-	Py_DECREF(dict);
-
-	return keys;
 bail:
 	free(depth);
 	free(seen);
 	free(interesting);
 	Py_XDECREF(dict);
 
-	return NULL;
+	return keys;
 }
 
 /*
@@ -1524,10 +1616,6 @@ static PyObject *index_ancestors(indexObject *self, PyObject *args)
 		ret = gca;
 		Py_INCREF(gca);
 	}
-	else if (PyList_GET_SIZE(gca) == 1) {
-		ret = PyList_GET_ITEM(gca, 0);
-		Py_INCREF(ret);
-	}
 	else ret = find_deepest(self, gca);
 
 done:
@@ -1539,6 +1627,97 @@ done:
 bail:
 	free(revs);
 	Py_XDECREF(gca);
+	Py_XDECREF(ret);
+	return NULL;
+}
+
+/*
+ * Given a (possibly overlapping) set of revs, return all the
+ * common ancestors heads: heads(::args[0] and ::a[1] and ...)
+ */
+static PyObject *index_commonancestorsheads(indexObject *self, PyObject *args)
+{
+	PyObject *ret = NULL;
+	Py_ssize_t argcount, i, len;
+	bitmask repeat = 0;
+	int revcount = 0;
+	int *revs;
+
+	argcount = PySequence_Length(args);
+	revs = malloc(argcount * sizeof(*revs));
+	if (argcount > 0 && revs == NULL)
+		return PyErr_NoMemory();
+	len = index_length(self) - 1;
+
+	for (i = 0; i < argcount; i++) {
+		static const int capacity = 24;
+		PyObject *obj = PySequence_GetItem(args, i);
+		bitmask x;
+		long val;
+
+		if (!PyInt_Check(obj)) {
+			PyErr_SetString(PyExc_TypeError,
+					"arguments must all be ints");
+			goto bail;
+		}
+		val = PyInt_AsLong(obj);
+		if (val == -1) {
+			ret = PyList_New(0);
+			goto done;
+		}
+		if (val < 0 || val >= len) {
+			PyErr_SetString(PyExc_IndexError,
+					"index out of range");
+			goto bail;
+		}
+		/* this cheesy bloom filter lets us avoid some more
+		 * expensive duplicate checks in the common set-is-disjoint
+		 * case */
+		x = 1ull << (val & 0x3f);
+		if (repeat & x) {
+			int k;
+			for (k = 0; k < revcount; k++) {
+				if (val == revs[k])
+					goto duplicate;
+			}
+		}
+		else repeat |= x;
+		if (revcount >= capacity) {
+			PyErr_Format(PyExc_OverflowError,
+				     "bitset size (%d) > capacity (%d)",
+				     revcount, capacity);
+			goto bail;
+		}
+		revs[revcount++] = (int)val;
+	duplicate:;
+	}
+
+	if (revcount == 0) {
+		ret = PyList_New(0);
+		goto done;
+	}
+	if (revcount == 1) {
+		PyObject *obj;
+		ret = PyList_New(1);
+		if (ret == NULL)
+			goto bail;
+		obj = PyInt_FromLong(revs[0]);
+		if (obj == NULL)
+			goto bail;
+		PyList_SET_ITEM(ret, 0, obj);
+		goto done;
+	}
+
+	ret = find_gca_candidates(self, revs, revcount);
+	if (ret == NULL)
+		goto bail;
+
+done:
+	free(revs);
+	return ret;
+
+bail:
+	free(revs);
 	Py_XDECREF(ret);
 	return NULL;
 }
@@ -1787,6 +1966,9 @@ static PyMappingMethods index_mapping_methods = {
 static PyMethodDef index_methods[] = {
 	{"ancestors", (PyCFunction)index_ancestors, METH_VARARGS,
 	 "return the gca set of the given revs"},
+	{"commonancestorsheads", (PyCFunction)index_commonancestorsheads,
+	  METH_VARARGS,
+	  "return the heads of the common ancestors of the given revs"},
 	{"clearcaches", (PyCFunction)index_clearcaches, METH_NOARGS,
 	 "clear the index caches"},
 	{"get", (PyCFunction)index_m_get, METH_VARARGS,
@@ -1913,21 +2095,50 @@ void dirs_module_init(PyObject *mod);
 
 static void module_init(PyObject *mod)
 {
+	/* This module constant has two purposes.  First, it lets us unit test
+	 * the ImportError raised without hard-coding any error text.  This
+	 * means we can change the text in the future without breaking tests,
+	 * even across changesets without a recompile.  Second, its presence
+	 * can be used to determine whether the version-checking logic is
+	 * present, which also helps in testing across changesets without a
+	 * recompile.  Note that this means the pure-Python version of parsers
+	 * should not have this module constant. */
+	PyModule_AddStringConstant(mod, "versionerrortext", versionerrortext);
+
 	dirs_module_init(mod);
 
 	indexType.tp_new = PyType_GenericNew;
-	if (PyType_Ready(&indexType) < 0)
+	if (PyType_Ready(&indexType) < 0 ||
+	    PyType_Ready(&dirstateTupleType) < 0)
 		return;
 	Py_INCREF(&indexType);
-
 	PyModule_AddObject(mod, "index", (PyObject *)&indexType);
+	Py_INCREF(&dirstateTupleType);
+	PyModule_AddObject(mod, "dirstatetuple",
+			   (PyObject *)&dirstateTupleType);
 
 	nullentry = Py_BuildValue("iiiiiiis#", 0, 0, 0,
 				  -1, -1, -1, -1, nullid, 20);
 	if (nullentry)
 		PyObject_GC_UnTrack(nullentry);
+}
 
-	dirstate_unset = Py_BuildValue("ciii", 'n', 0, -1, -1);
+static int check_python_version(void)
+{
+	PyObject *sys = PyImport_ImportModule("sys");
+	long hexversion = PyInt_AsLong(PyObject_GetAttrString(sys, "hexversion"));
+	/* sys.hexversion is a 32-bit number by default, so the -1 case
+	 * should only occur in unusual circumstances (e.g. if sys.hexversion
+	 * is manually set to an invalid value). */
+	if ((hexversion == -1) || (hexversion >> 16 != PY_VERSION_HEX >> 16)) {
+		PyErr_Format(PyExc_ImportError, "%s: The Mercurial extension "
+			"modules were compiled with Python " PY_VERSION ", but "
+			"Mercurial is currently using Python with sys.hexversion=%ld: "
+			"Python %s\n at: %s", versionerrortext, hexversion,
+			Py_GetVersion(), Py_GetProgramFullPath());
+		return -1;
+	}
+	return 0;
 }
 
 #ifdef IS_PY3K
@@ -1941,14 +2152,22 @@ static struct PyModuleDef parsers_module = {
 
 PyMODINIT_FUNC PyInit_parsers(void)
 {
-	PyObject *mod = PyModule_Create(&parsers_module);
+	PyObject *mod;
+
+	if (check_python_version() == -1)
+		return;
+	mod = PyModule_Create(&parsers_module);
 	module_init(mod);
 	return mod;
 }
 #else
 PyMODINIT_FUNC initparsers(void)
 {
-	PyObject *mod = Py_InitModule3("parsers", methods, parsers_doc);
+	PyObject *mod;
+
+	if (check_python_version() == -1)
+		return;
+	mod = Py_InitModule3("parsers", methods, parsers_doc);
 	module_init(mod);
 }
 #endif

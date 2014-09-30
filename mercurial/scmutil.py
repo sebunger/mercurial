@@ -8,8 +8,9 @@
 from i18n import _
 from mercurial.node import nullrev
 import util, error, osutil, revset, similar, encoding, phases, parsers
+import pathutil
 import match as matchmod
-import os, errno, re, stat, glob
+import os, errno, re, glob, tempfile
 
 if os.name == 'nt':
     import scmwindows as scmplatform
@@ -18,6 +19,16 @@ else:
 
 systemrcpath = scmplatform.systemrcpath
 userrcpath = scmplatform.userrcpath
+
+def itersubrepos(ctx1, ctx2):
+    """find subrepos in ctx1 or ctx2"""
+    # Create a (subpath, ctx) mapping where we prefer subpaths from
+    # ctx1. The subpaths from ctx2 are important when the .hgsub file
+    # has been modified (in ctx2) but not yet committed (in ctx1).
+    subpaths = dict.fromkeys(ctx2.substate, ctx2)
+    subpaths.update(dict.fromkeys(ctx1.substate, ctx1))
+    for subpath, ctx in sorted(subpaths.iteritems()):
+        yield subpath, ctx.sub(subpath)
 
 def nochangesfound(ui, repo, excluded=None):
     '''Report no changes for push/pull, excluded is None or a list of
@@ -97,109 +108,16 @@ class casecollisionauditor(object):
         self._newfiles = set()
 
     def __call__(self, f):
+        if f in self._newfiles:
+            return
         fl = encoding.lower(f)
-        if (fl in self._loweredfiles and f not in self._dirstate and
-            f not in self._newfiles):
+        if fl in self._loweredfiles and f not in self._dirstate:
             msg = _('possible case-folding collision for %s') % f
             if self._abort:
                 raise util.Abort(msg)
             self._ui.warn(_("warning: %s\n") % msg)
         self._loweredfiles.add(fl)
         self._newfiles.add(f)
-
-class pathauditor(object):
-    '''ensure that a filesystem path contains no banned components.
-    the following properties of a path are checked:
-
-    - ends with a directory separator
-    - under top-level .hg
-    - starts at the root of a windows drive
-    - contains ".."
-    - traverses a symlink (e.g. a/symlink_here/b)
-    - inside a nested repository (a callback can be used to approve
-      some nested repositories, e.g., subrepositories)
-    '''
-
-    def __init__(self, root, callback=None):
-        self.audited = set()
-        self.auditeddir = set()
-        self.root = root
-        self.callback = callback
-        if os.path.lexists(root) and not util.checkcase(root):
-            self.normcase = util.normcase
-        else:
-            self.normcase = lambda x: x
-
-    def __call__(self, path):
-        '''Check the relative path.
-        path may contain a pattern (e.g. foodir/**.txt)'''
-
-        path = util.localpath(path)
-        normpath = self.normcase(path)
-        if normpath in self.audited:
-            return
-        # AIX ignores "/" at end of path, others raise EISDIR.
-        if util.endswithsep(path):
-            raise util.Abort(_("path ends in directory separator: %s") % path)
-        parts = util.splitpath(path)
-        if (os.path.splitdrive(path)[0]
-            or parts[0].lower() in ('.hg', '.hg.', '')
-            or os.pardir in parts):
-            raise util.Abort(_("path contains illegal component: %s") % path)
-        if '.hg' in path.lower():
-            lparts = [p.lower() for p in parts]
-            for p in '.hg', '.hg.':
-                if p in lparts[1:]:
-                    pos = lparts.index(p)
-                    base = os.path.join(*parts[:pos])
-                    raise util.Abort(_("path '%s' is inside nested repo %r")
-                                     % (path, base))
-
-        normparts = util.splitpath(normpath)
-        assert len(parts) == len(normparts)
-
-        parts.pop()
-        normparts.pop()
-        prefixes = []
-        while parts:
-            prefix = os.sep.join(parts)
-            normprefix = os.sep.join(normparts)
-            if normprefix in self.auditeddir:
-                break
-            curpath = os.path.join(self.root, prefix)
-            try:
-                st = os.lstat(curpath)
-            except OSError, err:
-                # EINVAL can be raised as invalid path syntax under win32.
-                # They must be ignored for patterns can be checked too.
-                if err.errno not in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
-                    raise
-            else:
-                if stat.S_ISLNK(st.st_mode):
-                    raise util.Abort(
-                        _('path %r traverses symbolic link %r')
-                        % (path, prefix))
-                elif (stat.S_ISDIR(st.st_mode) and
-                      os.path.isdir(os.path.join(curpath, '.hg'))):
-                    if not self.callback or not self.callback(curpath):
-                        raise util.Abort(_("path '%s' is inside nested "
-                                           "repo %r")
-                                         % (path, prefix))
-            prefixes.append(normprefix)
-            parts.pop()
-            normparts.pop()
-
-        self.audited.add(normpath)
-        # only add prefixes to the cache after checking everything: we don't
-        # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
-        self.auditeddir.update(prefixes)
-
-    def check(self, path):
-        try:
-            self(path)
-            return True
-        except (OSError, util.Abort):
-            return False
 
 class abstractvfs(object):
     """Abstract base class; cannot be instantiated"""
@@ -242,6 +160,9 @@ class abstractvfs(object):
         finally:
             fp.close()
 
+    def chmod(self, path, mode):
+        return os.chmod(self.join(path), mode)
+
     def exists(self, path=None):
         return os.path.exists(self.join(path))
 
@@ -251,11 +172,20 @@ class abstractvfs(object):
     def isdir(self, path=None):
         return os.path.isdir(self.join(path))
 
+    def isfile(self, path=None):
+        return os.path.isfile(self.join(path))
+
     def islink(self, path=None):
         return os.path.islink(self.join(path))
 
+    def lexists(self, path=None):
+        return os.path.lexists(self.join(path))
+
     def lstat(self, path=None):
         return os.lstat(self.join(path))
+
+    def listdir(self, path=None):
+        return os.listdir(self.join(path))
 
     def makedir(self, path=None, notindexed=True):
         return util.makedir(self.join(path), notindexed)
@@ -263,11 +193,26 @@ class abstractvfs(object):
     def makedirs(self, path=None, mode=None):
         return util.makedirs(self.join(path), mode)
 
+    def makelock(self, info, path):
+        return util.makelock(info, self.join(path))
+
     def mkdir(self, path=None):
         return os.mkdir(self.join(path))
 
+    def mkstemp(self, suffix='', prefix='tmp', dir=None, text=False):
+        fd, name = tempfile.mkstemp(suffix=suffix, prefix=prefix,
+                                    dir=self.join(dir), text=text)
+        dname, fname = util.split(name)
+        if dir:
+            return fd, os.path.join(dir, fname)
+        else:
+            return fd, fname
+
     def readdir(self, path=None, stat=None, skip=None):
         return osutil.listdir(self.join(path), stat, skip)
+
+    def readlock(self, path):
+        return util.readlock(self.join(path))
 
     def rename(self, src, dst):
         return util.rename(self.join(src), self.join(dst))
@@ -283,6 +228,9 @@ class abstractvfs(object):
 
     def unlink(self, path=None):
         return util.unlink(self.join(path))
+
+    def unlinkpath(self, path=None, ignoremissing=False):
+        return util.unlinkpath(self.join(path), ignoremissing)
 
     def utime(self, path=None, t=None):
         return os.utime(self.join(path), t)
@@ -309,7 +257,7 @@ class vfs(abstractvfs):
     def _setmustaudit(self, onoff):
         self._audit = onoff
         if onoff:
-            self.audit = pathauditor(self.base)
+            self.audit = pathutil.pathauditor(self.base)
         else:
             self.audit = util.always
 
@@ -444,52 +392,6 @@ class readonlyvfs(abstractvfs, auditvfs):
         return self.vfs(path, mode, *args, **kw)
 
 
-def canonpath(root, cwd, myname, auditor=None):
-    '''return the canonical path of myname, given cwd and root'''
-    if util.endswithsep(root):
-        rootsep = root
-    else:
-        rootsep = root + os.sep
-    name = myname
-    if not os.path.isabs(name):
-        name = os.path.join(root, cwd, name)
-    name = os.path.normpath(name)
-    if auditor is None:
-        auditor = pathauditor(root)
-    if name != rootsep and name.startswith(rootsep):
-        name = name[len(rootsep):]
-        auditor(name)
-        return util.pconvert(name)
-    elif name == root:
-        return ''
-    else:
-        # Determine whether `name' is in the hierarchy at or beneath `root',
-        # by iterating name=dirname(name) until that causes no change (can't
-        # check name == '/', because that doesn't work on windows). The list
-        # `rel' holds the reversed list of components making up the relative
-        # file name we want.
-        rel = []
-        while True:
-            try:
-                s = util.samefile(name, root)
-            except OSError:
-                s = False
-            if s:
-                if not rel:
-                    # name was actually the same as root (maybe a symlink)
-                    return ''
-                rel.reverse()
-                name = os.path.join(*rel)
-                auditor(name)
-                return util.pconvert(name)
-            dirname, basename = util.split(name)
-            rel.append(basename)
-            if dirname == name:
-                break
-            name = dirname
-
-        raise util.Abort(_("%s not under root '%s'") % (myname, root))
-
 def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
     '''yield every hg repository under path, always recursively.
     The recurse flag will only control recursion into repo working dirs'''
@@ -586,15 +488,26 @@ def revpair(repo, revs):
 
     l = revrange(repo, revs)
 
-    if len(l) == 0:
-        if revs:
-            raise util.Abort(_('empty revision range'))
-        return repo.dirstate.p1(), None
+    if not l:
+        first = second = None
+    elif l.isascending():
+        first = l.min()
+        second = l.max()
+    elif l.isdescending():
+        first = l.max()
+        second = l.min()
+    else:
+        l = list(l)
+        first = l[0]
+        second = l[-1]
 
-    if len(l) == 1 and len(revs) == 1 and _revrangesep not in revs[0]:
-        return repo.lookup(l[0]), None
+    if first is None:
+        raise util.Abort(_('empty revision range'))
 
-    return repo.lookup(l[0]), repo.lookup(l[-1])
+    if first == second and len(revs) == 1 and _revrangesep not in revs[0]:
+        return repo.lookup(first), None
+
+    return repo.lookup(first), repo.lookup(second)
 
 _revrangesep = ':'
 
@@ -606,7 +519,7 @@ def revrange(repo, revs):
             return defval
         return repo[val].rev()
 
-    seen, l = set(), []
+    seen, l = set(), revset.baseset([])
     for spec in revs:
         if l and not seen:
             seen = set(l)
@@ -615,19 +528,19 @@ def revrange(repo, revs):
         try:
             if isinstance(spec, int):
                 seen.add(spec)
-                l.append(spec)
+                l = l + revset.baseset([spec])
                 continue
 
             if _revrangesep in spec:
                 start, end = spec.split(_revrangesep, 1)
                 start = revfix(repo, start, 0)
                 end = revfix(repo, end, len(repo) - 1)
-                if end == nullrev and start <= 0:
+                if end == nullrev and start < 0:
                     start = nullrev
                 rangeiter = repo.changelog.revs(start, end)
                 if not seen and not l:
                     # by far the most common case: revs = ["-1:0"]
-                    l = list(rangeiter)
+                    l = revset.baseset(rangeiter)
                     # defer syncing seen until next iteration
                     continue
                 newrevs = set(rangeiter)
@@ -636,44 +549,51 @@ def revrange(repo, revs):
                     seen.update(newrevs)
                 else:
                     seen = newrevs
-                l.extend(sorted(newrevs, reverse=start > end))
+                l = l + revset.baseset(sorted(newrevs, reverse=start > end))
                 continue
             elif spec and spec in repo: # single unquoted rev
                 rev = revfix(repo, spec, None)
                 if rev in seen:
                     continue
                 seen.add(rev)
-                l.append(rev)
+                l = l + revset.baseset([rev])
                 continue
         except error.RepoLookupError:
             pass
 
         # fall through to new-style queries if old-style fails
-        m = revset.match(repo.ui, spec)
-        dl = [r for r in m(repo, list(repo)) if r not in seen]
-        l.extend(dl)
-        seen.update(dl)
+        m = revset.match(repo.ui, spec, repo)
+        if seen or l:
+            dl = [r for r in m(repo, revset.spanset(repo)) if r not in seen]
+            l = l + revset.baseset(dl)
+            seen.update(dl)
+        else:
+            l = m(repo, revset.spanset(repo))
 
     return l
 
 def expandpats(pats):
+    '''Expand bare globs when running on windows.
+    On posix we assume it already has already been done by sh.'''
     if not util.expandglobs:
         return list(pats)
     ret = []
-    for p in pats:
-        kind, name = matchmod._patsplit(p, None)
+    for kindpat in pats:
+        kind, pat = matchmod._patsplit(kindpat, None)
         if kind is None:
             try:
-                globbed = glob.glob(name)
+                globbed = glob.glob(pat)
             except re.error:
-                globbed = [name]
+                globbed = [pat]
             if globbed:
                 ret.extend(globbed)
                 continue
-        ret.append(p)
+        ret.append(kindpat)
     return ret
 
 def matchandpats(ctx, pats=[], opts={}, globbed=False, default='relpath'):
+    '''Return a matcher and the patterns that were used.
+    The matcher will warn about bad matches.'''
     if pats == ("",):
         pats = []
     if not globbed and default == 'relpath':
@@ -687,12 +607,15 @@ def matchandpats(ctx, pats=[], opts={}, globbed=False, default='relpath'):
     return m, pats
 
 def match(ctx, pats=[], opts={}, globbed=False, default='relpath'):
+    '''Return a matcher that will warn about bad matches.'''
     return matchandpats(ctx, pats, opts, globbed, default)[0]
 
 def matchall(repo):
+    '''Return a matcher that will efficiently match everything.'''
     return matchmod.always(repo.root, repo.getcwd())
 
 def matchfiles(repo, files):
+    '''Return a matcher that will efficiently match exactly these files.'''
     return matchmod.exact(repo.root, repo.getcwd(), files)
 
 def addremove(repo, pats=[], opts={}, dry_run=None, similarity=None):
@@ -767,7 +690,7 @@ def _interestingfiles(repo, matcher):
     This is different from dirstate.status because it doesn't care about
     whether files are modified or clean.'''
     added, unknown, deleted, removed = [], [], [], []
-    audit_path = pathauditor(repo.root)
+    audit_path = pathutil.pathauditor(repo.root)
 
     ctx = repo[None]
     dirstate = repo.dirstate
@@ -847,18 +770,20 @@ def readrequires(opener, supported):
     missings.sort()
     if missings:
         raise error.RequirementError(
-            _("unknown repository format: requires features '%s' (upgrade "
-              "Mercurial)") % "', '".join(missings))
+            _("repository requires features unknown to this Mercurial: %s")
+            % " ".join(missings),
+            hint=_("see http://mercurial.selenic.com/wiki/MissingRequirement"
+                   " for more information"))
     return requirements
 
-class filecacheentry(object):
-    def __init__(self, path, stat=True):
+class filecachesubentry(object):
+    def __init__(self, path, stat):
         self.path = path
         self.cachestat = None
         self._cacheable = None
 
         if stat:
-            self.cachestat = filecacheentry.stat(self.path)
+            self.cachestat = filecachesubentry.stat(self.path)
 
             if self.cachestat:
                 self._cacheable = self.cachestat.cacheable()
@@ -868,7 +793,7 @@ class filecacheentry(object):
 
     def refresh(self):
         if self.cacheable():
-            self.cachestat = filecacheentry.stat(self.path)
+            self.cachestat = filecachesubentry.stat(self.path)
 
     def cacheable(self):
         if self._cacheable is not None:
@@ -882,7 +807,7 @@ class filecacheentry(object):
         if not self.cacheable():
             return True
 
-        newstat = filecacheentry.stat(self.path)
+        newstat = filecachesubentry.stat(self.path)
 
         # we may not know if it's cacheable yet, check again now
         if newstat and self._cacheable is None:
@@ -906,24 +831,44 @@ class filecacheentry(object):
             if e.errno != errno.ENOENT:
                 raise
 
+class filecacheentry(object):
+    def __init__(self, paths, stat=True):
+        self._entries = []
+        for path in paths:
+            self._entries.append(filecachesubentry(path, stat))
+
+    def changed(self):
+        '''true if any entry has changed'''
+        for entry in self._entries:
+            if entry.changed():
+                return True
+        return False
+
+    def refresh(self):
+        for entry in self._entries:
+            entry.refresh()
+
 class filecache(object):
-    '''A property like decorator that tracks a file under .hg/ for updates.
+    '''A property like decorator that tracks files under .hg/ for updates.
 
     Records stat info when called in _filecache.
 
-    On subsequent calls, compares old stat info with new info, and recreates
-    the object when needed, updating the new stat info in _filecache.
+    On subsequent calls, compares old stat info with new info, and recreates the
+    object when any of the files changes, updating the new stat info in
+    _filecache.
 
     Mercurial either atomic renames or appends for files under .hg,
     so to ensure the cache is reliable we need the filesystem to be able
     to tell us if a file has been replaced. If it can't, we fallback to
     recreating the object on every call (essentially the same behaviour as
-    propertycache).'''
-    def __init__(self, path):
-        self.path = path
+    propertycache).
+
+    '''
+    def __init__(self, *paths):
+        self.paths = paths
 
     def join(self, obj, fname):
-        """Used to compute the runtime path of the cached file.
+        """Used to compute the runtime path of a cached file.
 
         Users should subclass filecache and provide their own version of this
         function to call the appropriate join function on 'obj' (an instance
@@ -948,11 +893,11 @@ class filecache(object):
             if entry.changed():
                 entry.obj = self.func(obj)
         else:
-            path = self.join(obj, self.path)
+            paths = [self.join(obj, path) for path in self.paths]
 
             # We stat -before- creating the object so our cache doesn't lie if
             # a writer modified between the time we read and stat
-            entry = filecacheentry(path)
+            entry = filecacheentry(paths, True)
             entry.obj = self.func(obj)
 
             obj._filecache[self.name] = entry
@@ -964,7 +909,8 @@ class filecache(object):
         if self.name not in obj._filecache:
             # we add an entry for the missing value because X in __dict__
             # implies X in _filecache
-            ce = filecacheentry(self.join(obj, self.path), False)
+            paths = [self.join(obj, path) for path in self.paths]
+            ce = filecacheentry(paths, False)
             obj._filecache[self.name] = ce
         else:
             ce = obj._filecache[self.name]

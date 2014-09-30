@@ -43,6 +43,9 @@ use "hg help" for the full list of commands or "hg -v" for details
 000000000000
  runcommand id
 000000000000 tip
+ runcommand id -runknown
+abort: unknown revision 'unknown'!
+ [255]
 
 testing inputeof:
 
@@ -70,14 +73,16 @@ testing cwd:
 testing localhgrc:
 
  runcommand showconfig
-bundle.mainreporoot=$TESTTMP
+bundle.mainreporoot=$TESTTMP/repo
 defaults.backout=-d "0 0"
 defaults.commit=-d "0 0"
 defaults.shelve=--date "0 0"
 defaults.tag=-d "0 0"
 ui.slash=True
 ui.interactive=False
+ui.mergemarkers=detailed
 ui.foo=bar
+ui.nontty=true
  runcommand init foo
  runcommand -R foo showconfig ui defaults
 defaults.backout=-d "0 0"
@@ -86,6 +91,8 @@ defaults.shelve=--date "0 0"
 defaults.tag=-d "0 0"
 ui.slash=True
 ui.interactive=False
+ui.mergemarkers=detailed
+ui.nontty=true
 
 testing hookoutput:
 
@@ -142,6 +149,7 @@ testing rollback:
 
  runcommand phase -r . -p
 no phases changed
+ [1]
  runcommand commit -Am.
  runcommand rollback
 repository tip rolled back to revision 3 (undo commit)
@@ -171,6 +179,7 @@ testing phasecacheafterstrip:
 
  runcommand update -C 0
 1 files updated, 0 files merged, 2 files removed, 0 files unresolved
+(leaving bookmark bm3)
  runcommand commit -Am. a
 created new head
  runcommand log -Gq
@@ -191,3 +200,63 @@ o  0:eff892de26ec
 5: public
  runcommand branches
 default                        1:731265503d86
+
+testing obsolete:
+
+ runcommand up null
+0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+ runcommand phase -df tip
+ runcommand log --hidden
+changeset:   1:731265503d86
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     .
+
+changeset:   0:eff892de26ec
+bookmark:    bm1
+bookmark:    bm2
+bookmark:    bm3
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     1
+
+ runcommand log
+changeset:   0:eff892de26ec
+bookmark:    bm1
+bookmark:    bm2
+bookmark:    bm3
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     1
+
+
+testing mqoutsidechanges:
+
+ runcommand qapplied
+ runcommand qapplied
+0.diff
+ runcommand qpop --all
+popping 0.diff
+patch queue now empty
+ runcommand qqueue --active
+foo
+
+testing getpass:
+
+ runcommand debuggetpass --config ui.interactive=True
+password: 1234
+
+testing hellomessage:
+
+o, 'capabilities: getencoding runcommand\nencoding: ***'
+ runcommand id
+abort: there is no Mercurial repository here (.hg not found)
+ [255]
+
+testing startwithoutrepo:
+
+ runcommand init repo2
+ runcommand id -R repo2
+000000000000 tip

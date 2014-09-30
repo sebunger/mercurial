@@ -1,6 +1,5 @@
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
-  > graphlog=
   > rebase=
   > mq=
   > 
@@ -53,14 +52,39 @@ Rebasing B onto H and collapsing changesets with different phases:
 
   $ hg phase --force --secret 3
 
-  $ hg rebase --collapse --keepbranches
+  $ cat > $TESTTMP/editor.sh <<EOF
+  > echo "==== before editing"
+  > cat \$1
+  > echo "===="
+  > echo "edited manually" >> \$1
+  > EOF
+  $ HGEDITOR="sh $TESTTMP/editor.sh" hg rebase --collapse --keepbranches -e
+  ==== before editing
+  Collapsed revision
+  * B
+  * C
+  * D
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: Nicolas Dumazet <nicdumz.commits@gmail.com>
+  HG: branch 'default'
+  HG: changed B
+  HG: changed C
+  HG: changed D
+  ====
   saved backup bundle to $TESTTMP/a1/.hg/strip-backup/*-backup.hg (glob)
 
   $ hg tglogp
   @  5:secret 'Collapsed revision
   |  * B
   |  * C
-  |  * D'
+  |  * D
+  |
+  |
+  |  edited manually'
   o  4:draft 'H'
   |
   | o  3:draft 'G'
@@ -275,18 +299,18 @@ We keep it the test this way in case new complexity is injected.
   7:c65502d4178782309ce0574c5ae6ee9485a9bafa default
   6:c772a8b2dc17629cec88a19d09c926c4814b12c7 default
 
-  $ cat $TESTTMP/b2/.hg/cache/branchheads-served
+  $ cat $TESTTMP/b2/.hg/cache/branch2-served
   c65502d4178782309ce0574c5ae6ee9485a9bafa 7
-  c772a8b2dc17629cec88a19d09c926c4814b12c7 default
-  c65502d4178782309ce0574c5ae6ee9485a9bafa default
+  c772a8b2dc17629cec88a19d09c926c4814b12c7 o default
+  c65502d4178782309ce0574c5ae6ee9485a9bafa o default
 
   $ hg strip 4
   saved backup bundle to $TESTTMP/b2/.hg/strip-backup/8a5212ebc852-backup.hg (glob)
 
-  $ cat $TESTTMP/b2/.hg/cache/branchheads-served
+  $ cat $TESTTMP/b2/.hg/cache/branch2-served
   c65502d4178782309ce0574c5ae6ee9485a9bafa 4
-  2870ad076e541e714f3c2bc32826b5c6a6e5b040 default
-  c65502d4178782309ce0574c5ae6ee9485a9bafa default
+  2870ad076e541e714f3c2bc32826b5c6a6e5b040 o default
+  c65502d4178782309ce0574c5ae6ee9485a9bafa o default
 
   $ hg heads --template="{rev}:{node} {branch}\n"
   4:c65502d4178782309ce0574c5ae6ee9485a9bafa default
@@ -608,8 +632,8 @@ Rebase, collapse and copies
   merging a and d to d
   merging b and e to e
   merging c and f to f
-  merging e and g to g
   merging f and c to c
+  merging e and g to g
   saved backup bundle to $TESTTMP/copies/.hg/strip-backup/*-backup.hg (glob)
   $ hg st
   $ hg st --copies --change tip

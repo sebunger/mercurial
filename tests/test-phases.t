@@ -148,7 +148,7 @@ Test secret changeset are not pushed
 (Issue3303)
 Check that remote secret changeset are ignore when checking creation of remote heads
 
-We add a secret head into the push destination.  This secreat head shadow a
+We add a secret head into the push destination. This secret head shadows a
 visible shared between the initial repo and the push destination.
 
   $ hg up -q 4 # B'
@@ -156,8 +156,8 @@ visible shared between the initial repo and the push destination.
   $ hg phase .
   5: secret
 
-# We now try to push a new public changeset that descend from the common public
-# head shadowed by the remote secret head.
+We now try to push a new public changeset that descend from the common public
+head shadowed by the remote secret head.
 
   $ cd ../initialrepo
   $ hg up -q 6 #B'
@@ -175,28 +175,28 @@ visible shared between the initial repo and the push destination.
 
 check that branch cache with "served" filter are properly computed and stored
 
-  $ ls ../push-dest/.hg/cache/branchheads*
-  ../push-dest/.hg/cache/branchheads-served
-  $ cat ../push-dest/.hg/cache/branchheads-served
+  $ ls ../push-dest/.hg/cache/branch2*
+  ../push-dest/.hg/cache/branch2-served
+  $ cat ../push-dest/.hg/cache/branch2-served
   6d6770faffce199f1fddd1cf87f6f026138cf061 6 465891ffab3c47a3c23792f7dc84156e19a90722
-  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e default
-  6d6770faffce199f1fddd1cf87f6f026138cf061 default
+  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e o default
+  6d6770faffce199f1fddd1cf87f6f026138cf061 o default
   $ hg heads -R ../push-dest --template '{rev}:{node} {phase}\n'  #update visible cache too
   6:6d6770faffce199f1fddd1cf87f6f026138cf061 draft
   5:2713879da13d6eea1ff22b442a5a87cb31a7ce6a secret
   3:b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e draft
-  $ ls ../push-dest/.hg/cache/branchheads*
-  ../push-dest/.hg/cache/branchheads-served
-  ../push-dest/.hg/cache/branchheads-visible
-  $ cat ../push-dest/.hg/cache/branchheads-served
+  $ ls ../push-dest/.hg/cache/branch2*
+  ../push-dest/.hg/cache/branch2-served
+  ../push-dest/.hg/cache/branch2-visible
+  $ cat ../push-dest/.hg/cache/branch2-served
   6d6770faffce199f1fddd1cf87f6f026138cf061 6 465891ffab3c47a3c23792f7dc84156e19a90722
-  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e default
-  6d6770faffce199f1fddd1cf87f6f026138cf061 default
-  $ cat ../push-dest/.hg/cache/branchheads-visible
+  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e o default
+  6d6770faffce199f1fddd1cf87f6f026138cf061 o default
+  $ cat ../push-dest/.hg/cache/branch2-visible
   6d6770faffce199f1fddd1cf87f6f026138cf061 6
-  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e default
-  2713879da13d6eea1ff22b442a5a87cb31a7ce6a default
-  6d6770faffce199f1fddd1cf87f6f026138cf061 default
+  b3325c91a4d916bcc4cdc83ea3fe4ece46a42f6e o default
+  2713879da13d6eea1ff22b442a5a87cb31a7ce6a o default
+  6d6770faffce199f1fddd1cf87f6f026138cf061 o default
 
 
 Restore condition prior extra insertion.
@@ -378,10 +378,6 @@ Test phase command
 
 initial picture
 
-  $ cat >> $HGRCPATH << EOF
-  > [extensions]
-  > hgext.graphlog=
-  > EOF
   $ hg log -G --template "{rev} {phase} {desc}\n"
   @    7 secret merge B' and E
   |\
@@ -511,3 +507,55 @@ test complete failure
   [1]
 
   $ cd ..
+
+test hidden changeset are not cloned as public (issue3935)
+
+  $ cd initialrepo
+
+(enabling evolution)
+  $ cat > ../obs.py << EOF
+  > import mercurial.obsolete
+  > mercurial.obsolete._enabled = True
+  > EOF
+  $ echo '[extensions]' >> $HGRCPATH
+  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
+
+(making a changeset hidden; H in that case)
+  $ hg debugobsolete `hg id --debug -r 5`
+
+  $ cd ..
+  $ hg clone initialrepo clonewithobs
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 6 changes to 6 files
+  updating to branch default
+  6 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd clonewithobs
+  $ hg log -G --template "{rev} {phase} {desc}\n"
+  @    6 public merge B' and E
+  |\
+  | o  5 public B'
+  | |
+  o |  4 public E
+  | |
+  o |  3 public D
+  | |
+  o |  2 public C
+  |/
+  o  1 public B
+  |
+  o  0 public A
+  
+
+test verify repo containing hidden changesets, which should not abort just
+because repo.cancopy() is False
+
+  $ cd ../initialrepo
+  $ hg verify
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  7 files, 8 changesets, 7 total revisions

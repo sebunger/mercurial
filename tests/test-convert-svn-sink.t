@@ -17,7 +17,6 @@
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > convert =
-  > graphlog =
   > EOF
 
   $ hg init a
@@ -353,6 +352,7 @@ Branchy history
   [1]
   $ hg --cwd b revert -r 2 b
   $ hg --cwd b resolve -m b
+  (no more unresolved files)
   $ hg --cwd b ci -d '5 0' -m 'merge'
 
 Expect 4 changes

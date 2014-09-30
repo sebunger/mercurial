@@ -138,9 +138,7 @@ def rebase(ui, repo, **opts):
     skipped = set()
     targetancestors = set()
 
-    editor = None
-    if opts.get('edit'):
-        editor = cmdutil.commitforceeditor
+    editor = cmdutil.getcommiteditor(**opts)
 
     lock = wlock = None
     try:
@@ -193,7 +191,7 @@ def rebase(ui, repo, **opts):
                     return 0
                 else:
                     msg = _('cannot continue inconsistent rebase')
-                    hint = _('use "hg rebase --abort" to clear borken state')
+                    hint = _('use "hg rebase --abort" to clear broken state')
                     raise util.Abort(msg, hint=hint)
             if abortf:
                 return abort(repo, originalwd, target, state)
@@ -221,46 +219,79 @@ def rebase(ui, repo, **opts):
 
             if revf:
                 rebaseset = scmutil.revrange(repo, revf)
+                if not rebaseset:
+                    ui.status(_('empty "rev" revision set - '
+                                'nothing to rebase\n'))
+                    return 1
             elif srcf:
                 src = scmutil.revrange(repo, [srcf])
+                if not src:
+                    ui.status(_('empty "source" revision set - '
+                                'nothing to rebase\n'))
+                    return 1
                 rebaseset = repo.revs('(%ld)::', src)
+                assert rebaseset
             else:
                 base = scmutil.revrange(repo, [basef or '.'])
+                if not base:
+                    ui.status(_('empty "base" revision set - '
+                                "can't compute rebase set\n"))
+                    return 1
                 rebaseset = repo.revs(
                     '(children(ancestor(%ld, %d)) and ::(%ld))::',
                     base, dest, base)
-            if rebaseset:
-                root = min(rebaseset)
-            else:
-                root = None
+                if not rebaseset:
+                    if base == [dest.rev()]:
+                        if basef:
+                            ui.status(_('nothing to rebase - %s is both "base"'
+                                        ' and destination\n') % dest)
+                        else:
+                            ui.status(_('nothing to rebase - working directory '
+                                        'parent is also destination\n'))
+                    elif not repo.revs('%ld - ::%d', base, dest):
+                        if basef:
+                            ui.status(_('nothing to rebase - "base" %s is '
+                                        'already an ancestor of destination '
+                                        '%s\n') %
+                                      ('+'.join(str(repo[r]) for r in base),
+                                       dest))
+                        else:
+                            ui.status(_('nothing to rebase - working '
+                                        'directory parent is already an '
+                                        'ancestor of destination %s\n') % dest)
+                    else: # can it happen?
+                        ui.status(_('nothing to rebase from %s to %s\n') %
+                                  ('+'.join(str(repo[r]) for r in base), dest))
+                    return 1
 
-            if not rebaseset:
-                repo.ui.debug('base is ancestor of destination\n')
-                result = None
-            elif (not (keepf or obsolete._enabled)
+            if (not (keepf or obsolete._enabled)
                   and repo.revs('first(children(%ld) - %ld)',
                                 rebaseset, rebaseset)):
                 raise util.Abort(
                     _("can't remove original changesets with"
                       " unrebased descendants"),
                     hint=_('use --keep to keep original changesets'))
-            else:
-                result = buildstate(repo, dest, rebaseset, collapsef)
 
+            result = buildstate(repo, dest, rebaseset, collapsef)
             if not result:
                 # Empty state built, nothing to rebase
                 ui.status(_('nothing to rebase\n'))
                 return 1
-            elif not keepf and not repo[root].mutable():
+
+            root = min(rebaseset)
+            if not keepf and not repo[root].mutable():
                 raise util.Abort(_("can't rebase immutable changeset %s")
                                  % repo[root],
                                  hint=_('see hg help phases for details'))
-            else:
-                originalwd, target, state = result
-                if collapsef:
-                    targetancestors = repo.changelog.ancestors([target],
-                                                               inclusive=True)
-                    external = externalparent(repo, state, targetancestors)
+
+            originalwd, target, state = result
+            if collapsef:
+                targetancestors = repo.changelog.ancestors([target],
+                                                           inclusive=True)
+                external = externalparent(repo, state, targetancestors)
+
+            if dest.closesbranch() and not keepbranchesf:
+                ui.status(_('reopening closed branch head %s\n') % dest)
 
         if keepbranchesf:
             # insert _savebranch at the start of extrafns so if
@@ -274,7 +305,6 @@ def rebase(ui, repo, **opts):
                     if len(branches) > 1:
                         raise util.Abort(_('cannot collapse multiple named '
                             'branches'))
-
 
         # Rebase
         if not targetancestors:
@@ -304,15 +334,25 @@ def rebase(ui, repo, **opts):
                     repo.ui.debug('resuming interrupted rebase\n')
                 else:
                     try:
-                        ui.setconfig('ui', 'forcemerge', opts.get('tool', ''))
+                        ui.setconfig('ui', 'forcemerge', opts.get('tool', ''),
+                                     'rebase')
                         stats = rebasenode(repo, rev, p1, state, collapsef)
                         if stats and stats[3] > 0:
                             raise error.InterventionRequired(
                                 _('unresolved conflicts (see hg '
                                   'resolve, then hg rebase --continue)'))
                     finally:
-                        ui.setconfig('ui', 'forcemerge', '')
-                cmdutil.duplicatecopies(repo, rev, target)
+                        ui.setconfig('ui', 'forcemerge', '', 'rebase')
+                if collapsef:
+                    cmdutil.duplicatecopies(repo, rev, target)
+                else:
+                    # If we're not using --collapse, we need to
+                    # duplicate copies between the revision we're
+                    # rebasing and its first parent, but *not*
+                    # duplicate any copies that have already been
+                    # performed in the destination.
+                    p1rev = repo[rev].p1().rev()
+                    cmdutil.duplicatecopies(repo, rev, p1rev, skiprev=target)
                 if not collapsef:
                     newrev = concludenode(repo, rev, p1, p2, extrafn=extrafn,
                                           editor=editor)
@@ -343,7 +383,7 @@ def rebase(ui, repo, **opts):
                 for rebased in state:
                     if rebased not in skipped and state[rebased] > nullmerge:
                         commitmsg += '\n* %s' % repo[rebased].description()
-                commitmsg = ui.edit(commitmsg, repo.ui.username())
+                editor = cmdutil.getcommiteditor(edit=True)
             newrev = concludenode(repo, rev, p1, external, commitmsg=commitmsg,
                                   extrafn=extrafn, editor=editor)
             for oldrev in state.iterkeys():
@@ -378,6 +418,9 @@ def rebase(ui, repo, **opts):
 
         if currentbookmarks:
             updatebookmarks(repo, targetnode, nstate, currentbookmarks)
+            if activebookmark not in repo._bookmarks:
+                # active bookmark was divergent one and has been deleted
+                activebookmark = None
 
         clearstatus(repo)
         ui.note(_("rebase completed\n"))
@@ -487,11 +530,18 @@ def rebasenode(repo, rev, p1, state, collapse):
             if state.get(p.rev()) == repo[p1].rev():
                 base = p.node()
                 break
+        else: # fallback when base not found
+            base = None
+
+            # Raise because this function is called wrong (see issue 4106)
+            raise AssertionError('no base found to rebase on '
+                                 '(rebasenode called wrong)')
     if base is not None:
         repo.ui.debug("   detach base %d:%s\n" % (repo[base].rev(), repo[base]))
     # When collapsing in-place, the parent is the common ancestor, we
     # have to allow merging with it.
-    return merge.update(repo, rev, True, True, False, base, collapse)
+    return merge.update(repo, rev, True, True, False, base, collapse,
+                        labels=['dest', 'source'])
 
 def nearestrebased(repo, rev, state):
     """return the nearest ancestors of rev in the rebase result"""
@@ -632,6 +682,7 @@ def clearstatus(repo):
 def restorestatus(repo):
     'Restore a previously stored status'
     try:
+        keepbranches = None
         target = None
         collapse = False
         external = nullrev
@@ -661,6 +712,10 @@ def restorestatus(repo):
                     state[repo[oldrev].rev()] = int(newrev)
                 else:
                     state[repo[oldrev].rev()] = repo[newrev].rev()
+
+        if keepbranches is None:
+            raise util.Abort(_('.hg/rebasestate is incomplete'))
+
         skipped = set()
         # recompute the set of skipped revs
         if not collapse:
@@ -669,7 +724,8 @@ def restorestatus(repo):
                 if new != nullrev and new in seen:
                     skipped.add(old)
                 seen.add(new)
-        repo.ui.debug('computed skipped revs: %s\n' % skipped)
+        repo.ui.debug('computed skipped revs: %s\n' %
+                      (' '.join(str(r) for r in sorted(skipped)) or None))
         repo.ui.debug('rebase status resumed\n')
         return (originalwd, target, state, skipped,
                 collapse, keep, keepbranches, external, activebookmark)
@@ -756,7 +812,7 @@ def buildstate(repo, dest, rebaseset, collapse):
                 repo.ui.debug('source is a child of destination\n')
                 return None
 
-        repo.ui.debug('rebase onto %d starting from %s\n' % (dest, roots))
+        repo.ui.debug('rebase onto %d starting from %s\n' % (dest, root))
         state.update(dict.fromkeys(rebaseset, nullrev))
         # Rebase tries to turn <dest> into a parent of <root> while
         # preserving the number of parents of rebased changesets:

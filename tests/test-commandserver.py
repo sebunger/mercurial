@@ -51,7 +51,10 @@ def runcommand(server, args, output=sys.stdout, error=sys.stderr, input=None,
         elif ch == 'L':
             writeblock(server, input.readline(data))
         elif ch == 'r':
-            return struct.unpack('>i', data)[0]
+            ret, = struct.unpack('>i', data)
+            if ret != 0:
+                print ' [%d]' % ret
+            return ret
         else:
             print "unexpected channel %c: %r" % (ch, data)
             if ch.isupper():
@@ -101,6 +104,9 @@ def checkruncommand(server):
     # make sure --config doesn't stick
     runcommand(server, ['id'])
 
+    # negative return code should be masked
+    runcommand(server, ['id', '-runknown'])
+
 def inputeof(server):
     readchannel(server)
     server.stdin.write('runcommand\n')
@@ -149,7 +155,7 @@ def localhgrc(server):
 
     # the cached repo local hgrc contains ui.foo=bar, so showconfig should
     # show it
-    runcommand(server, ['showconfig'])
+    runcommand(server, ['showconfig'], outfilter=sep)
 
     # but not for this repo
     runcommand(server, ['init', 'foo'])
@@ -262,8 +268,45 @@ def phasecacheafterstrip(server):
     # shouldn't raise "7966c8e3734d: no node!"
     runcommand(server, ['branches'])
 
+def obsolete(server):
+    readchannel(server)
+
+    runcommand(server, ['up', 'null'])
+    runcommand(server, ['phase', '-df', 'tip'])
+    cmd = 'hg debugobsolete `hg log -r tip --template {node}`'
+    if os.name == 'nt':
+        cmd = 'sh -c "%s"' % cmd # run in sh, not cmd.exe
+    os.system(cmd)
+    runcommand(server, ['log', '--hidden'])
+    runcommand(server, ['log'])
+
+def mqoutsidechanges(server):
+    readchannel(server)
+
+    # load repo.mq
+    runcommand(server, ['qapplied'])
+    os.system('hg qnew 0.diff')
+    # repo.mq should be invalidated
+    runcommand(server, ['qapplied'])
+
+    runcommand(server, ['qpop', '--all'])
+    os.system('hg qqueue --create foo')
+    # repo.mq should be recreated to point to new queue
+    runcommand(server, ['qqueue', '--active'])
+
+def getpass(server):
+    readchannel(server)
+    runcommand(server, ['debuggetpass', '--config', 'ui.interactive=True'],
+               input=cStringIO.StringIO('1234\n'))
+
+def startwithoutrepo(server):
+    readchannel(server)
+    runcommand(server, ['init', 'repo2'])
+    runcommand(server, ['id', '-R', 'repo2'])
+
 if __name__ == '__main__':
-    os.system('hg init')
+    os.system('hg init repo')
+    os.chdir('repo')
 
     check(hellomessage)
     check(unknowncommand)
@@ -285,3 +328,30 @@ if __name__ == '__main__':
     check(branch)
     check(hgignore)
     check(phasecacheafterstrip)
+    obs = open('obs.py', 'w')
+    obs.write('import mercurial.obsolete\nmercurial.obsolete._enabled = True\n')
+    obs.close()
+    hgrc = open('.hg/hgrc', 'a')
+    hgrc.write('[extensions]\nobs=obs.py\n')
+    hgrc.close()
+    check(obsolete)
+    hgrc = open('.hg/hgrc', 'a')
+    hgrc.write('[extensions]\nmq=\n')
+    hgrc.close()
+    check(mqoutsidechanges)
+    dbg = open('dbgui.py', 'w')
+    dbg.write('from mercurial import cmdutil, commands\n'
+              'cmdtable = {}\n'
+              'command = cmdutil.command(cmdtable)\n'
+              '@command("debuggetpass", norepo=True)\n'
+              'def debuggetpass(ui):\n'
+              '    ui.write("%s\\n" % ui.getpass())\n')
+    dbg.close()
+    hgrc = open('.hg/hgrc', 'a')
+    hgrc.write('[extensions]\ndbgui=dbgui.py\n')
+    hgrc.close()
+    check(getpass)
+
+    os.chdir('..')
+    check(hellomessage)
+    check(startwithoutrepo)

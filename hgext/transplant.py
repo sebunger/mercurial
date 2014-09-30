@@ -80,13 +80,13 @@ class transplants(object):
             self.dirty = True
 
 class transplanter(object):
-    def __init__(self, ui, repo):
+    def __init__(self, ui, repo, opts):
         self.ui = ui
         self.path = repo.join('transplant')
         self.opener = scmutil.opener(self.path)
         self.transplants = transplants(self.path, 'transplants',
                                        opener=self.opener)
-        self.editor = None
+        self.editor = cmdutil.getcommiteditor(**opts)
 
     def applied(self, repo, node, parent):
         '''returns True if a node is already an ancestor of parent
@@ -154,7 +154,7 @@ class transplanter(object):
                     # transplants before them fail.
                     domerge = True
                     if not hasnode(repo, node):
-                        repo.pull(source, heads=[node])
+                        repo.pull(source.peer(), heads=[node])
 
                 skipmerge = False
                 if parents[1] != revlog.nullid:
@@ -451,33 +451,30 @@ def hasnode(repo, node):
 
 def browserevs(ui, repo, nodes, opts):
     '''interactively transplant changesets'''
-    def browsehelp(ui):
-        ui.write(_('y: transplant this changeset\n'
-                   'n: skip this changeset\n'
-                   'm: merge at this changeset\n'
-                   'p: show patch\n'
-                   'c: commit selected changesets\n'
-                   'q: cancel transplant\n'
-                   '?: show this help\n'))
-
     displayer = cmdutil.show_changeset(ui, repo, opts)
     transplants = []
     merges = []
+    prompt = _('apply changeset? [ynmpcq?]:'
+               '$$ &yes, transplant this changeset'
+               '$$ &no, skip this changeset'
+               '$$ &merge at this changeset'
+               '$$ show &patch'
+               '$$ &commit selected changesets'
+               '$$ &quit and cancel transplant'
+               '$$ &? (show this help)')
     for node in nodes:
         displayer.show(repo[node])
         action = None
         while not action:
-            action = ui.prompt(_('apply changeset? [ynmpcq?]:'))
+            action = 'ynmpcq?'[ui.promptchoice(prompt)]
             if action == '?':
-                browsehelp(ui)
+                for c, t in ui.extractchoices(prompt)[1]:
+                    ui.write('%s: %s\n' % (c, t))
                 action = None
             elif action == 'p':
                 parent = repo.changelog.parents(node)[0]
                 for chunk in patch.diff(repo, parent, node):
                     ui.write(chunk)
-                action = None
-            elif action not in ('y', 'n', 'm', 'c', 'q'):
-                ui.write(_('no such option\n'))
                 action = None
         if action == 'y':
             transplants.append(node)
@@ -571,8 +568,9 @@ def transplant(ui, repo, *revs, **opts):
         if not heads:
             heads = repo.heads()
         ancestors = []
+        ctx = repo[dest]
         for head in heads:
-            ancestors.append(repo.changelog.ancestor(dest, head))
+            ancestors.append(ctx.ancestor(repo[head]).node())
         for node in repo.changelog.nodesbetween(ancestors, heads)[0]:
             if match(node):
                 yield node
@@ -601,9 +599,7 @@ def transplant(ui, repo, *revs, **opts):
     if not opts.get('filter'):
         opts['filter'] = ui.config('transplant', 'filter')
 
-    tp = transplanter(ui, repo)
-    if opts.get('edit'):
-        tp.editor = cmdutil.commitforceeditor
+    tp = transplanter(ui, repo, opts)
 
     cmdutil.checkunfinished(repo)
     p1, p2 = repo.dirstate.parents()
@@ -673,7 +669,8 @@ def revsettransplanted(repo, subset, x):
         s = revset.getset(repo, subset, x)
     else:
         s = subset
-    return [r for r in s if repo[r].extra().get('transplant_source')]
+    return revset.baseset([r for r in s if
+        repo[r].extra().get('transplant_source')])
 
 def kwtransplanted(repo, ctx, **args):
     """:transplanted: String. The node identifier of the transplanted

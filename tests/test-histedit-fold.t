@@ -1,4 +1,4 @@
-Test histedit extention: Fold commands
+Test histedit extension: Fold commands
 ======================================
 
 This test file is dedicated to testing the fold command in non conflicting
@@ -14,7 +14,6 @@ Initialization
   > [alias]
   > logt = log --template '{rev}:{node|short} {desc|firstline}\n'
   > [extensions]
-  > graphlog=
   > histedit=
   > EOF
 
@@ -106,12 +105,113 @@ check histedit_source
   
   
 
+check saving last-message.txt
+
+  $ cat > $TESTTMP/abortfolding.py <<EOF
+  > from mercurial import util
+  > def abortfolding(ui, repo, hooktype, **kwargs):
+  >     ctx = repo[kwargs.get('node')]
+  >     if set(ctx.files()) == set(['c', 'd', 'f']):
+  >         return True # abort folding commit only
+  >     ui.warn('allow non-folding commit\\n')
+  > EOF
+  $ cat > .hg/hgrc <<EOF
+  > [hooks]
+  > pretxncommit.abortfolding = python:$TESTTMP/abortfolding.py:abortfolding
+  > EOF
+
+  $ cat > $TESTTMP/editor.sh << EOF
+  > echo "==== before editing"
+  > cat \$1
+  > echo "===="
+  > echo "check saving last-message.txt" >> \$1
+  > EOF
+
+  $ rm -f .hg/last-message.txt
+  $ HGEDITOR="sh $TESTTMP/editor.sh" hg histedit 6de59d13424a --commands - 2>&1 <<EOF | fixbundle
+  > pick 6de59d13424a f
+  > fold 9c277da72c9b d
+  > EOF
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  allow non-folding commit
+  0 files updated, 0 files merged, 3 files removed, 0 files unresolved
+  ==== before editing
+  f
+  ***
+  c
+  ***
+  d
+  
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'default'
+  HG: changed c
+  HG: changed d
+  HG: changed f
+  ====
+  transaction abort!
+  rollback completed
+  abort: pretxncommit.abortfolding hook failed
+
+  $ cat .hg/last-message.txt
+  f
+  ***
+  c
+  ***
+  d
+  
+  
+  
+  check saving last-message.txt
+
   $ cd ..
+  $ rm -r r
+
+folding preserves initial author
+--------------------------------
+
+  $ initrepo
+
+  $ hg ci --user "someone else" --amend --quiet
+
+tip before edit
+  $ hg log --rev .
+  changeset:   5:a00ad806cb55
+  tag:         tip
+  user:        someone else
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     f
+  
+
+  $ hg histedit e860deea161a --commands - 2>&1 <<EOF | fixbundle
+  > pick e860deea161a e
+  > fold a00ad806cb55 f
+  > EOF
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+tip after edit
+  $ hg log --rev .
+  changeset:   4:698d4e8040a1
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     e
+  
+
+  $ cd ..
+  $ rm -r r
 
 folding and creating no new change doesn't break:
 -------------------------------------------------
 
-folded content is dropped during a merge. The folded commit should properly disapear.
+folded content is dropped during a merge. The folded commit should properly disappear.
 
   $ mkdir fold-to-empty-test
   $ cd fold-to-empty-test
@@ -155,6 +255,7 @@ should effectively drop the changes from +6.
   U file
   $ hg revert -r 'p1()' file
   $ hg resolve --mark file
+  (no more unresolved files)
   $ hg histedit --continue
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/*-backup.hg (glob)
@@ -214,6 +315,7 @@ dropped revision.
   > 5
   > EOF
   $ hg resolve --mark file
+  (no more unresolved files)
   $ hg commit -m '+5.2'
   created new head
   $ echo 6 >> file

@@ -7,12 +7,15 @@
 
 """recreates hardlinks between repository clones"""
 
-from mercurial import hg, util
+from mercurial import cmdutil, hg, util
 from mercurial.i18n import _
 import os, stat
 
+cmdtable = {}
+command = cmdutil.command(cmdtable)
 testedwith = 'internal'
 
+@command('relink', [], _('[ORIGIN]'))
 def relink(ui, repo, origin=None, **opts):
     """recreate hardlinks between two repositories
 
@@ -47,6 +50,10 @@ def relink(ui, repo, origin=None, **opts):
     if repo.root == src.root:
         ui.status(_('there is nothing to relink\n'))
         return
+
+    if not util.samedevice(src.store.path, repo.store.path):
+        # No point in continuing
+        raise util.Abort(_('source and destination are on different devices'))
 
     locallock = repo.lock()
     try:
@@ -174,11 +181,3 @@ def do_relink(src, dst, files, ui):
 
     ui.status(_('relinked %d files (%s reclaimed)\n') %
               (relinked, util.bytecount(savedbytes)))
-
-cmdtable = {
-    'relink': (
-        relink,
-        [],
-        _('[ORIGIN]')
-    )
-}

@@ -142,11 +142,15 @@ class server(object):
             else:
                 logfile = open(logpath, 'a')
 
-        # the ui here is really the repo ui so take its baseui so we don't end
-        # up with its local configuration
-        self.ui = repo.baseui
-        self.repo = repo
-        self.repoui = repo.ui
+        if repo:
+            # the ui here is really the repo ui so take its baseui so we don't
+            # end up with its local configuration
+            self.ui = repo.baseui
+            self.repo = repo
+            self.repoui = repo.ui
+        else:
+            self.ui = ui
+            self.repo = self.repoui = None
 
         if mode == 'pipe':
             self.cerr = channeledoutput(sys.stderr, sys.stdout, 'e')
@@ -183,15 +187,24 @@ class server(object):
         # copy the uis so changes (e.g. --config or --verbose) don't
         # persist between requests
         copiedui = self.ui.copy()
-        self.repo.baseui = copiedui
-        self.repo.ui = self.repo.dirstate._ui = self.repoui.copy()
-        self.repo.invalidate()
-        self.repo.invalidatedirstate()
+        uis = [copiedui]
+        if self.repo:
+            self.repo.baseui = copiedui
+            # clone ui without using ui.copy because this is protected
+            repoui = self.repoui.__class__(self.repoui)
+            repoui.copy = copiedui.copy # redo copy protection
+            uis.append(repoui)
+            self.repo.ui = self.repo.dirstate._ui = repoui
+            self.repo.invalidateall()
+
+        for ui in uis:
+            # any kind of interaction must use server channels
+            ui.setconfig('ui', 'nontty', 'true', 'commandserver')
 
         req = dispatch.request(args[:], copiedui, self.repo, self.cin,
                                self.cout, self.cerr)
 
-        ret = dispatch.dispatch(req) or 0 # might return None
+        ret = (dispatch.dispatch(req) or 0) & 255 # might return None
 
         # restore old cwd
         if '--cwd' in args:
