@@ -85,6 +85,8 @@ install-archindep:
 	-rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/templates \
 	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/help \
 	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/locale \
+	# excanvas.js is provided by libjs-excanvas
+	rm $(CURDIR)/debian/mercurial-common/usr/share/mercurial/templates/static/excanvas.js
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \

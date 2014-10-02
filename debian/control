@@ -25,7 +25,10 @@ XS-Testsuite: autopkgtest
 
 Package: mercurial-common
 Architecture: all 
-Depends: ${misc:Depends}, ${python:Depends}
+Depends:
+ ${misc:Depends},
+ ${python:Depends},
+ libjs-excanvas
 Recommends: mercurial (>= ${source:Version}), ca-certificates
 Suggests:
  wish,
