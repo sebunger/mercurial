@@ -1,10 +1,10 @@
-mercurial (3.1.2-1) UNRELEASED; urgency=medium
+mercurial (3.1.2-1) unstable; urgency=medium
 
   * New upstream version
   * Use excanvas.js from libjs-excanvas instead of shipping a copy in
     the package
 
- -- Javi Merino <vicho@debian.org>  Thu, 02 Oct 2014 22:29:50 +0100
+ -- Javi Merino <vicho@debian.org>  Thu, 02 Oct 2014 23:34:41 +0100
 
 mercurial (3.1.1-1) unstable; urgency=medium
 
