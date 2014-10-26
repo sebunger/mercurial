@@ -2125,9 +2125,8 @@ will appear in files:.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">for performance reasons, log FILE may omit duplicate changes
-made on branches and will not show deletions. To see all
-changes including duplicates and deletions, use the --removed
-switch.</p>
+made on branches and will not show removals or mode changes. To
+see all such changes, use the --removed switch.</p>
 </div>
 <div class="verbose container">
 <p>Some examples:</p>
@@ -2167,7 +2166,7 @@ hg log -k bug --template &quot;{rev}\n&quot;
 hg log -T list
 </pre>
 </li>
-<li><p class="first">check if a given changeset is included is a tagged release:</p>
+<li><p class="first">check if a given changeset is included in a tagged release:</p>
 <pre class="literal-block">
 hg log -r &quot;a21ccf and ancestor(1.9)&quot;
 </pre>
