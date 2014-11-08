@@ -1,6 +1,9 @@
 mercurial (3.2-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * Drop deb_specific__support_templates_in_fsh.patch,
+    deb_specific__support_help_in_fhs.patch and
+    deb_specific__support_mo_in_fhs.patch as they are no longer needed
 
  -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
 
