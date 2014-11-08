@@ -9,6 +9,7 @@ mercurial (3.2-1) UNRELEASED; urgency=medium
     as it is now included upstream
   * Bump standards-version to 3.9.6 (no change needed)
   * Build-depend on dh-python
+  * Simplify installation of /etc/mercurial/hgrc.d/cacerts.rc
 
  -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
 
