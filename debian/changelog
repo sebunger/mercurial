@@ -7,6 +7,7 @@ mercurial (3.2-1) UNRELEASED; urgency=medium
   * Remove from_upstream__test-
     patchbomb_t_work_around_Python_change_d579866d6419_issue4188.patch
     as it is now included upstream
+  * Bump standards-version to 3.9.6 (no change needed)
 
  -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
 
