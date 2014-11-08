@@ -6,6 +6,7 @@ Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Javi Merino <vicho@debian.org>,
  Tristan Seligmann <mithrandi@debian.org>
 Build-Depends: debhelper (>= 9),
+ dh-python,
  patchutils (>= 0.2.25),
  gettext,
  python-all-dev (>= 2.6.6-3~),
