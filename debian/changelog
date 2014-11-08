@@ -4,6 +4,9 @@ mercurial (3.2-1) UNRELEASED; urgency=medium
   * Drop deb_specific__support_templates_in_fsh.patch,
     deb_specific__support_help_in_fhs.patch and
     deb_specific__support_mo_in_fhs.patch as they are no longer needed
+  * Remove from_upstream__test-
+    patchbomb_t_work_around_Python_change_d579866d6419_issue4188.patch
+    as it is now included upstream
 
  -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
 
