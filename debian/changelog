@@ -1,3 +1,9 @@
+mercurial (3.2-1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
+
 mercurial (3.1.2-1) unstable; urgency=medium
 
   * New upstream version
