@@ -14,6 +14,7 @@ mercurial (3.2-1) UNRELEASED; urgency=medium
   * Simplify installation of /etc/mercurial/hgrc.d/cacerts.rc
   * Remove sample.hgrc from the examples as it's now removed in upstream
     (full of bad suggestions)
+  * Updated breaks for mercurial-git: 0.6.1-2 doesn't work
 
  -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
 
