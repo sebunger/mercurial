@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" svn13 || exit 80
+#require svn13
 
   $ svnupanddisplay()
   > {
@@ -224,15 +224,21 @@ Symlinks
   adding link
   $ hg --cwd a mv link newlink
   $ hg --cwd a commit -m 'move symlink'
-  $ hg convert -d svn a
-  assuming destination a-hg
-  initializing svn working copy 'a-hg-wc'
+  $ hg convert -d svn a a-svnlink
+  initializing svn repository 'a-svnlink'
+  initializing svn working copy 'a-svnlink-wc'
   scanning source...
   sorting...
   converting...
+  7 add a file
+  6 modify a file
+  5 rename a file
+  4 copy a file
+  3 remove a file
+  2 make a file executable
   1 add symlink
   0 move symlink
-  $ svnupanddisplay a-hg-wc 1
+  $ svnupanddisplay a-svnlink-wc 1
    8 1 test d1
    8 1 test d1/d2
    8 1 test d1/d2/b
@@ -245,7 +251,38 @@ Symlinks
    D /link
    A /newlink (from /link@7)
 
+Make sure our changes don't affect the rest of the test cases
+
+  $ hg --cwd a up 5
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg --cwd a --config extensions.strip= strip -r 6
+  saved backup bundle to $TESTTMP/a/.hg/strip-backup/bd4f7b7a7067-backup.hg (glob)
+
 #endif
+
+Convert with --full adds and removes files that didn't change
+
+  $ touch a/f
+  $ hg -R a ci -Aqmf
+  $ echo "rename c d" > filemap
+  $ hg convert -d svn a --filemap filemap --full
+  assuming destination a-hg
+  initializing svn working copy 'a-hg-wc'
+  scanning source...
+  sorting...
+  converting...
+  0 f
+  $ svnupanddisplay a-hg-wc 1
+   7 7 test .
+   7 7 test d
+   7 7 test f
+  revision: 7
+  author: test
+  msg: f
+   D /c
+   A /d
+   D /d1
+   A /f
 
   $ rm -rf a a-hg a-hg-wc
 

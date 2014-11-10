@@ -1,17 +1,13 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
   $ cat << EOF >> $HGRCPATH
   > [ui]
   > logtemplate={rev}:{node|short} {desc|firstline}
   > [phases]
   > publish=False
-  > [extensions]
+  > [experimental]
+  > evolution=createmarkers,exchange
   > EOF
-  $ cat > obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
-  > EOF
-  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
 
 initialize
 
@@ -61,7 +57,6 @@ import bookmark by name
   $ hg pull -B X ../a
   pulling from ../a
   no changes found
-  importing bookmark X
   $ hg bookmark
      X                         0:4e3505fd9583
    * Y                         0:4e3505fd9583
@@ -99,8 +94,8 @@ push/pull name that doesn't exist
   $ hg push -B badname ../a
   pushing to ../a
   searching for changes
-  no changes found
   bookmark badname does not exist on the local or remote repository!
+  no changes found
   [2]
   $ hg pull -B anotherbadname ../a
   pulling from ../a
@@ -356,7 +351,7 @@ hgweb
   pushing to http://localhost:$HGPORT/
   searching for changes
   no changes found
-  exporting bookmark Z
+  updating bookmark Z
   [1]
   $ hg book -d Z
   $ hg in -B http://localhost:$HGPORT/
@@ -373,7 +368,6 @@ hgweb
   adding remote bookmark Z
   adding remote bookmark foo
   adding remote bookmark foobar
-  importing bookmark Z
   $ hg clone http://localhost:$HGPORT/ cloned-bookmarks
   requesting all changes
   adding changesets
@@ -442,5 +436,31 @@ pushing a new bookmark on a new head does not require -f if -B is specified
   exporting bookmark W
   $ hg -R ../b id -r W
   cc978a373a53 tip W
+
+  $ cd ..
+
+pushing an unchanged bookmark should result in no changes
+
+  $ hg init unchanged-a
+  $ hg init unchanged-b
+  $ cd unchanged-a
+  $ echo initial > foo
+  $ hg commit -A -m initial
+  adding foo
+  $ hg bookmark @
+  $ hg push -B @ ../unchanged-b
+  pushing to ../unchanged-b
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  exporting bookmark @
+
+  $ hg push -B @ ../unchanged-b
+  pushing to ../unchanged-b
+  searching for changes
+  no changes found
+  [1]
 
   $ cd ..

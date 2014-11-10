@@ -231,24 +231,18 @@ ensure that we have a merge with unresolved conflicts
   +=======
   +a
   +>>>>>>> source: 4702e8911fe0 - shelve: changes to '[mq]: second.patch'
-  diff --git a/b.rename/b b/b.rename/b
-  new file mode 100644
-  --- /dev/null
-  +++ b/b.rename/b
-  @@ -0,0 +1,1 @@
-  +b
+  diff --git a/b/b b/b.rename/b
+  rename from b/b
+  rename to b.rename/b
   diff --git a/b/b b/b/b
   deleted file mode 100644
   --- a/b/b
   +++ /dev/null
   @@ -1,1 +0,0 @@
   -b
-  diff --git a/c.copy b/c.copy
-  new file mode 100644
-  --- /dev/null
-  +++ b/c.copy
-  @@ -0,0 +1,1 @@
-  +c
+  diff --git a/c b/c.copy
+  copy from c
+  copy to c.copy
   $ hg resolve -l
   U a/a
 
@@ -446,7 +440,7 @@ shelve should still work even if mq is disabled
   $ hg --config extensions.mq=! unshelve
   unshelving change 'test'
 
-shelve should leave dirstate clean (issue 4055)
+shelve should leave dirstate clean (issue4055)
 
   $ cd ..
   $ hg init shelverebase
@@ -475,7 +469,7 @@ shelve should leave dirstate clean (issue 4055)
 
   $ cd ..
 
-shelve should only unshelve pending changes (issue 4068)
+shelve should only unshelve pending changes (issue4068)
 
   $ hg init onlypendingchanges
   $ cd onlypendingchanges
@@ -514,12 +508,10 @@ unshelve should work on an ancestor of the original commit
 
 test bug 4073 we need to enable obsolete markers for it
 
-  $ cat > ../obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > evolution=createmarkers
   > EOF
-  $ echo '[extensions]' >> $HGRCPATH
-  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
   $ hg shelve
   shelved as default
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
@@ -680,15 +672,55 @@ unshelve and conflicts with tracked and untracked files
   g
   $ hg unshelve --abort
   rebase aborted
-  no changes needed to a
-  no changes needed to d
-  no changes needed to e
   unshelve of 'default' aborted
   $ hg st
   ? f.orig
   $ cat f.orig
   g
   $ hg shelve --delete default
+
+Recreate some conflict again
+
+  $ cd ../repo
+  $ hg up -C -r 3
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (leaving bookmark test)
+  $ echo y >> a/a
+  $ hg shelve
+  shelved as default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg up test
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark test)
+  $ hg unshelve
+  unshelving change 'default'
+  rebasing shelved changes
+  merging a/a
+  warning: conflicts during merge.
+  merging a/a incomplete! (edit conflicts, then use 'hg resolve --mark')
+  unresolved conflicts (see 'hg resolve', then 'hg unshelve --continue')
+  [1]
+
+Test that resolving all conflicts in one direction (so that the rebase
+is a no-op), works (issue4398)
+
+  $ hg revert -a -r .
+  reverting a/a (glob)
+  $ hg resolve -m a/a
+  (no more unresolved files)
+  $ hg unshelve -c
+  unshelve of 'default' complete
+  $ hg diff
+  $ hg status
+  ? a/a.orig
+  ? foo/foo
+  $ hg summary
+  parent: 4:33f7f61e6c5e tip
+   create conflict
+  branch: default
+  bookmarks: *test
+  commit: 2 unknown (clean)
+  update: (current)
 
   $ hg shelve --delete --stat
   abort: options '--delete' and '--stat' may not be used together

@@ -6,8 +6,9 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import sys, os, re
+import os, re
 import util, config, templatefilters, templatekw, parser, error
+import revset as revsetmod
 import types
 import minirst
 
@@ -216,6 +217,7 @@ def buildfunc(exp, context):
 
 def date(context, mapping, args):
     if not (1 <= len(args) <= 2):
+        # i18n: "date" is a keyword
         raise error.ParseError(_("date expects one or two arguments"))
 
     date = args[0][0](context, mapping, args[0][1])
@@ -224,8 +226,26 @@ def date(context, mapping, args):
         return util.datestr(date, fmt)
     return util.datestr(date)
 
+def diff(context, mapping, args):
+    if len(args) > 2:
+        # i18n: "diff" is a keyword
+        raise error.ParseError(_("diff expects one, two or no arguments"))
+
+    def getpatterns(i):
+        if i < len(args):
+            s = args[i][1].strip()
+            if s:
+                return [s]
+        return []
+
+    ctx = mapping['ctx']
+    chunks = ctx.diff(match=ctx.match([], getpatterns(0), getpatterns(1)))
+
+    return ''.join(chunks)
+
 def fill(context, mapping, args):
     if not (1 <= len(args) <= 4):
+        # i18n: "fill" is a keyword
         raise error.ParseError(_("fill expects one to four arguments"))
 
     text = stringify(args[0][0](context, mapping, args[0][1]))
@@ -236,6 +256,7 @@ def fill(context, mapping, args):
         try:
             width = int(stringify(args[1][0](context, mapping, args[1][1])))
         except ValueError:
+            # i18n: "fill" is a keyword
             raise error.ParseError(_("fill expects an integer width"))
         try:
             initindent = stringify(_evalifliteral(args[2], context, mapping))
@@ -249,6 +270,7 @@ def pad(context, mapping, args):
     """usage: pad(text, width, fillchar=' ', right=False)
     """
     if not (2 <= len(args) <= 4):
+        # i18n: "pad" is a keyword
         raise error.ParseError(_("pad() expects two to four arguments"))
 
     width = int(args[1][1])
@@ -312,7 +334,8 @@ def ifcontains(context, mapping, args):
 
     # Iterating over items gives a formatted string, so we iterate
     # directly over the raw values.
-    if item in [i.values()[0] for i in items()]:
+    if ((callable(items) and item in [i.values()[0] for i in items()]) or
+        (isinstance(items, str) and item in items)):
         yield _evalifliteral(args[2], context, mapping)
     elif len(args) == 4:
         yield _evalifliteral(args[3], context, mapping)
@@ -370,16 +393,20 @@ def revset(context, mapping, args):
     ctx = mapping['ctx']
     repo = ctx._repo
 
+    def query(expr):
+        m = revsetmod.match(repo.ui, expr)
+        return m(repo, revsetmod.spanset(repo))
+
     if len(args) > 1:
         formatargs = list([a[0](context, mapping, a[1]) for a in args[1:]])
-        revs = repo.revs(raw, *formatargs)
+        revs = query(revsetmod.formatspec(raw, *formatargs))
         revs = list([str(r) for r in revs])
     else:
         revsetcache = mapping['cache'].setdefault("revsetcache", {})
         if raw in revsetcache:
             revs = revsetcache[raw]
         else:
-            revs = repo.revs(raw)
+            revs = query(raw)
             revs = list([str(r) for r in revs])
             revsetcache[raw] = revs
 
@@ -399,6 +426,7 @@ def shortest(context, mapping, args):
     """usage: shortest(node, minlength=4)
     """
     if not (1 <= len(args) <= 2):
+        # i18n: "shortest" is a keyword
         raise error.ParseError(_("shortest() expects one or two arguments"))
 
     node = stringify(args[0][0](context, mapping, args[0][1]))
@@ -448,6 +476,7 @@ def shortest(context, mapping, args):
 
 def strip(context, mapping, args):
     if not (1 <= len(args) <= 2):
+        # i18n: "strip" is a keyword
         raise error.ParseError(_("strip expects one or two arguments"))
 
     text = stringify(args[0][0](context, mapping, args[0][1]))
@@ -511,6 +540,7 @@ methods = {
 
 funcs = {
     "date": date,
+    "diff": diff,
     "fill": fill,
     "get": get,
     "if": if_,
@@ -530,7 +560,6 @@ funcs = {
 
 # template engine
 
-path = ['templates', '../templates']
 stringify = templatefilters.stringify
 
 def _flatten(thing):
@@ -602,7 +631,7 @@ class engine(object):
 engines = {'default': engine}
 
 def stylelist():
-    paths = templatepath()
+    paths = templatepaths()
     if not paths:
         return _('no templates found, try `hg debuginstall` for more info')
     dirlist =  os.listdir(paths[0])
@@ -687,30 +716,20 @@ class templater(object):
                                            max=self.maxchunk)
         return stream
 
-def templatepath(name=None):
-    '''return location of template file or directory (if no name).
-    returns None if not found.'''
-    normpaths = []
+def templatepaths():
+    '''return locations used for template files.'''
+    pathsrel = ['templates']
+    paths = [os.path.normpath(os.path.join(util.datapath, f))
+             for f in pathsrel]
+    return [p for p in paths if os.path.isdir(p)]
 
-    # executable version (py2exe) doesn't support __file__
-    if util.mainfrozen():
-        module = sys.executable
-    else:
-        module = __file__
-    for f in path:
-        if f.startswith('/'):
-            p = f
-        else:
-            fl = f.split('/')
-            p = os.path.join(os.path.dirname(module), *fl)
-        if name:
-            p = os.path.join(p, name)
-        if name and os.path.exists(p):
-            return os.path.normpath(p)
-        elif os.path.isdir(p):
-            normpaths.append(os.path.normpath(p))
-
-    return normpaths
+def templatepath(name):
+    '''return location of template file. returns None if not found.'''
+    for p in templatepaths():
+        f = os.path.join(p, name)
+        if os.path.exists(f):
+            return f
+    return None
 
 def stylemap(styles, paths=None):
     """Return path to mapfile for a given style.
@@ -722,7 +741,7 @@ def stylemap(styles, paths=None):
     """
 
     if paths is None:
-        paths = templatepath()
+        paths = templatepaths()
     elif isinstance(paths, str):
         paths = [paths]
 

@@ -8,3 +8,4 @@ contrib/hgk usr/share/mercurial/
 contrib/hg-ssh usr/bin
 
 debian/hgrc etc/mercurial/
+debian/cacerts.rc etc/mercurial/hgrc.d/

@@ -1,14 +1,23 @@
-mercurial (3.1.2-2) unstable; urgency=high
+mercurial (3.2-1) experimental; urgency=medium
 
-  * Fix "CVE-2014-9390: Errors in handling case-sensitive directories
-    allow for remote code execution on pull" by adding patches
-    from_upstream__encoding_add_hfsignoreclean_to_clean_out_HFS-ignored_characters.patch,
-    from_upstream__pathauditor_check_for_codepoints_ignored_on_OS_X.patch,
-    and
-    from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
-    (Closes: #773640)
+  * New upstream release (Closes: #768022)
+  * Replace deb_specific__support_templates_in_fsh.patch,
+    deb_specific__support_help_in_fhs.patch and
+    deb_specific__support_mo_in_fhs.patch with
+    deb_specific__fix_fhs_paths.py as the mechanism to specify the path to
+    datafiles has been unified.
+  * Remove from_upstream__test-
+    patchbomb_t_work_around_Python_change_d579866d6419_issue4188.patch
+    as it is now included upstream
+  * Bump standards-version to 3.9.6 (no change needed)
+  * Build-depend on dh-python
+  * Simplify installation of /etc/mercurial/hgrc.d/cacerts.rc
+  * Remove sample.hgrc from the examples as it's now removed in upstream
+    (full of bad suggestions)
+  * Update breaks for mercurial-git and hgsubversion: current versions
+    don't work
 
- -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 16:01:50 +0100
+ -- Javi Merino <vicho@debian.org>  Mon, 10 Nov 2014 08:34:13 +0000
 
 mercurial (3.1.2-1) unstable; urgency=medium
 
