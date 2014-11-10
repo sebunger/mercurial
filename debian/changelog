@@ -1,4 +1,4 @@
-mercurial (3.2-1) UNRELEASED; urgency=medium
+mercurial (3.2-1) experimental; urgency=medium
 
   * New upstream release (Closes: #768022)
   * Replace deb_specific__support_templates_in_fsh.patch,
@@ -17,7 +17,7 @@ mercurial (3.2-1) UNRELEASED; urgency=medium
   * Update breaks for mercurial-git and hgsubversion: current versions
     don't work
 
- -- Javi Merino <vicho@debian.org>  Sun, 02 Nov 2014 12:55:06 +0000
+ -- Javi Merino <vicho@debian.org>  Mon, 10 Nov 2014 08:34:13 +0000
 
 mercurial (3.1.2-1) unstable; urgency=medium
 
