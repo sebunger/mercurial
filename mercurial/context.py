@@ -17,6 +17,11 @@ import revlog
 
 propertycache = util.propertycache
 
+# Phony node value to stand-in for new files in some uses of
+# manifests. Manifests support 21-byte hashes for nodes which are
+# dirty in the working copy.
+_newnode = '!' * 21
+
 class basectx(object):
     """A basectx object represents the common logic for its children:
     changectx: read-only context that is already present in the repo,
@@ -128,7 +133,7 @@ class basectx(object):
                 if (fn not in deletedset and
                     ((fn in withflags and mf1.flags(fn) != mf2.flags(fn)) or
                      (mf1[fn] != mf2node and
-                      (mf2node or self[fn].cmp(other[fn]))))):
+                      (mf2node != _newnode or self[fn].cmp(other[fn]))))):
                     modified.append(fn)
                 elif listclean:
                     clean.append(fn)
@@ -1063,15 +1068,16 @@ class committablectx(basectx):
     def _manifest(self):
         """generate a manifest corresponding to the values in self._status"""
 
-        man = self._parents[0].manifest().copy()
+        man1 = self._parents[0].manifest()
+        man = man1.copy()
         if len(self._parents) > 1:
             man2 = self.p2().manifest()
             def getman(f):
-                if f in man:
-                    return man
+                if f in man1:
+                    return man1
                 return man2
         else:
-            getman = lambda f: man
+            getman = lambda f: man1
 
         copied = self._repo.dirstate.copies()
         ff = self._flagfunc
@@ -1336,8 +1342,10 @@ class workingctx(committablectx):
         else:
             wlock = self._repo.wlock()
             try:
-                if self._repo.dirstate[dest] in '?r':
+                if self._repo.dirstate[dest] in '?':
                     self._repo.dirstate.add(dest)
+                elif self._repo.dirstate[dest] in 'r':
+                    self._repo.dirstate.normallookup(dest)
                 self._repo.dirstate.copy(source, dest)
             finally:
                 wlock.release()
@@ -1405,7 +1413,7 @@ class workingctx(committablectx):
         mf = self._repo['.']._manifestmatches(match, s)
         modified, added, removed = s[0:3]
         for f in modified + added:
-            mf[f] = None
+            mf[f] = _newnode
             mf.setflag(f, self.flags(f))
         for f in removed:
             if f in mf:

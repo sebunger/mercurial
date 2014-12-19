@@ -113,7 +113,6 @@ HGHEADERS = [
     '# Branch ',
     '# Node ID ',
     '# Parent  ', # can occur twice for merges - but that is not relevant for mq
-    '', # all lines after headers 'has' this prefix - simplifies the algorithm
     ]
 
 def inserthgheader(lines, header, value):
@@ -127,6 +126,9 @@ def inserthgheader(lines, header, value):
     ['# HG changeset patch', '# Date z', '']
     >>> inserthgheader(['# HG changeset patch', '# User y'], '# Date ', 'z')
     ['# HG changeset patch', '# User y', '# Date z']
+    >>> inserthgheader(['# HG changeset patch', '# Date x', '# User y'],
+    ...                '# User ', 'z')
+    ['# HG changeset patch', '# Date x', '# User z']
     >>> inserthgheader(['# HG changeset patch', '# Date y'], '# Date ', 'z')
     ['# HG changeset patch', '# Date z']
     >>> inserthgheader(['# HG changeset patch', '', '# Date y'], '# Date ', 'z')
@@ -136,18 +138,27 @@ def inserthgheader(lines, header, value):
     """
     start = lines.index('# HG changeset patch') + 1
     newindex = HGHEADERS.index(header)
+    bestpos = len(lines)
     for i in range(start, len(lines)):
         line = lines[i]
+        if not line.startswith('# '):
+            bestpos = min(bestpos, i)
+            break
         for lineindex, h in enumerate(HGHEADERS):
             if line.startswith(h):
-                if lineindex < newindex:
-                    break # next line
                 if lineindex == newindex:
                     lines[i] = header + value
-                else:
-                    lines.insert(i, header + value)
-                return lines
-    lines.append(header + value)
+                    return lines
+                if lineindex > newindex:
+                    bestpos = min(bestpos, i)
+                break # next line
+    lines.insert(bestpos, header + value)
+    return lines
+
+def insertplainheader(lines, header, value):
+    if lines and lines[0] and ':' not in lines[0]:
+        lines.insert(0, '')
+    lines.insert(0, '%s: %s' % (header, value))
     return lines
 
 class patchheader(object):
@@ -260,7 +271,7 @@ class patchheader(object):
                 inserthgheader(self.comments, '# User ', user)
             except ValueError:
                 if self.plainmode:
-                    self.comments = ['From: ' + user] + self.comments
+                    insertplainheader(self.comments, 'From', user)
                 else:
                     tmp = ['# HG changeset patch', '# User ' + user]
                     self.comments = tmp + self.comments
@@ -272,7 +283,7 @@ class patchheader(object):
                 inserthgheader(self.comments, '# Date ', date)
             except ValueError:
                 if self.plainmode:
-                    self.comments = ['Date: ' + date] + self.comments
+                    insertplainheader(self.comments, 'Date', date)
                 else:
                     tmp = ['# HG changeset patch', '# Date ' + date]
                     self.comments = tmp + self.comments
@@ -293,7 +304,10 @@ class patchheader(object):
         if self.comments:
             self._delmsg()
         self.message = [message]
-        self.comments += self.message
+        if message:
+            if self.plainmode and self.comments and self.comments[-1]:
+                self.comments.append('')
+            self.comments.append(message)
 
     def updateheader(self, prefixes, new):
         '''Update all references to a field in the patch header.
