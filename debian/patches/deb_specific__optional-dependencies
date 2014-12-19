@@ -150,7 +150,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -207,7 +207,8 @@ class _httprequesthandleropenssl(_httpre
+@@ -208,7 +208,8 @@ class _httprequesthandleropenssl(_httpre
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
@@ -160,7 +160,7 @@ Suggest Debian packages for some optional dependencies.
          ctx = OpenSSL.SSL.Context(OpenSSL.SSL.TLSv1_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
-@@ -248,7 +249,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -249,7 +250,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:
