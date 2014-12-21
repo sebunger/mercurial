@@ -1,0 +1,47 @@
+# HG changeset patch
+# User Augie Fackler <raf@durin42.com>
+# Date 1418753201 18000
+#      Tue Dec 16 13:06:41 2014 -0500
+# Branch stable
+# Node ID 885bd7c5c7e3efc10081c09c11e538a3fa19ace4
+# Parent  035434b407be60e5ae7a0da56f9d7a187a6bef5a
+encoding: add hfsignoreclean to clean out HFS-ignored characters
+
+According to Apple Technote 1150 (unavailable from Apple as far as I
+can tell, but archived in several places online), HFS+ ignores sixteen
+specific unicode runes when doing path normalization. We need to
+handle those cases, so this function lets us efficiently strip the
+offending characters from a UTF-8 encoded string (which is the only
+way it seems to matter on OS X.)
+
+--- a/mercurial/encoding.py
++++ b/mercurial/encoding.py
+@@ -8,6 +8,28 @@
+ import error
+ import unicodedata, locale, os
+ 
++# These unicode characters are ignored by HFS+ (Apple Technote 1150,
++# "Unicode Subtleties"), so we need to ignore them in some places for
++# sanity.
++_ignore = [unichr(int(x, 16)).encode("utf-8") for x in
++           "200c 200d 200e 200f 202a 202b 202c 202d 202e "
++           "206a 206b 206c 206d 206e 206f feff".split()]
++# verify the next function will work
++assert set([i[0] for i in _ignore]) == set(["\xe2", "\xef"])
++
++def hfsignoreclean(s):
++    """Remove codepoints ignored by HFS+ from s.
++
++    >>> hfsignoreclean(u'.h\u200cg'.encode('utf-8'))
++    '.hg'
++    >>> hfsignoreclean(u'.h\ufeffg'.encode('utf-8'))
++    '.hg'
++    """
++    if "\xe2" in s or "\xef" in s:
++        for c in _ignore:
++            s = s.replace(c, '')
++    return s
++
+ def _getpreferredencoding():
+     '''
+     On darwin, getpreferredencoding ignores the locale environment and

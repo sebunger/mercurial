@@ -1,0 +1,63 @@
+# HG changeset patch
+# User Augie Fackler <raf@durin42.com>
+# Date 1418753297 18000
+#      Tue Dec 16 13:08:17 2014 -0500
+# Branch stable
+# Node ID c02a05cc6f5e661b09b0b0c65ec7bc874e161f9c
+# Parent  7a5bcd471f2ef302613b8551a79081d46d04be6e
+pathauditor: check for codepoints ignored on OS X
+
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -216,7 +216,23 @@ subdir log
+   summary:     commit-foo-subdir
+   
+   $ cd ..
+-  $ cd ..
++
++verify pathauditor blocks evil filepaths
++  $ cat > evil-commit.py <<EOF
++  > from mercurial import ui, hg, context, node
++  > notrc = u".h\u200cg".encode('utf-8') + '/hgrc'
++  > u = ui.ui()
++  > r = hg.repository(u, '.')
++  > def filectxfn(repo, memctx, path):
++  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
++  > c = context.memctx(r, [r['tip'].node(), node.nullid],
++  >                    'evil', [notrc], filectxfn, 0)
++  > r.commitctx(c)
++  > EOF
++  $ $PYTHON evil-commit.py
++  $ hg co --clean tip
++  abort: path contains illegal component: .h\xe2\x80\x8cg/hgrc (esc)
++  [255]
+ 
+ Issue1049: Hg permits partial commit of merge without warning
+ 
+--- a/mercurial/scmutil.py
++++ b/mercurial/scmutil.py
+@@ -10,6 +10,9 @@ import util, error, osutil, revset, simi
+ import match as matchmod
+ import os, errno, re, stat, sys, glob
+ 
++def _lowerclean(s):
++    return encoding.hfsignoreclean(s.lower())
++
+ def nochangesfound(ui, secretlist=None):
+     '''report no changes for push/pull'''
+     if secretlist:
+@@ -102,11 +105,11 @@ class pathauditor(object):
+             raise util.Abort(_("path ends in directory separator: %s") % path)
+         parts = util.splitpath(path)
+         if (os.path.splitdrive(path)[0]
+-            or parts[0].lower() in ('.hg', '.hg.', '')
++            or _lowerclean(parts[0]) in ('.hg', '.hg.', '')
+             or os.pardir in parts):
+             raise util.Abort(_("path contains illegal component: %s") % path)
+-        if '.hg' in path.lower():
+-            lparts = [p.lower() for p in parts]
++        if '.hg' in _lowerclean(path):
++            lparts = [_lowerclean(p.lower()) for p in parts]
+             for p in '.hg', '.hg.':
+                 if p in lparts[1:]:
+                     pos = lparts.index(p)

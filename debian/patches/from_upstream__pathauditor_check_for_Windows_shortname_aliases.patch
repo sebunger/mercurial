@@ -1,0 +1,70 @@
+# HG changeset patch
+# User Matt Mackall <mpm@selenic.com>
+# Date 1418933908 21600
+#      Thu Dec 18 14:18:28 2014 -0600
+# Branch stable
+# Node ID 6dad422ecc5adb63d9fa649eeb8e05a5f9bc4900
+# Parent  c02a05cc6f5e661b09b0b0c65ec7bc874e161f9c
+pathauditor: check for Windows shortname aliases
+
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -234,6 +234,42 @@ verify pathauditor blocks evil filepaths
+   abort: path contains illegal component: .h\xe2\x80\x8cg/hgrc (esc)
+   [255]
+ 
++  $ hg rollback -f
++  repository tip rolled back to revision 1 (undo commit)
++  $ cat > evil-commit.py <<EOF
++  > from mercurial import ui, hg, context, node
++  > notrc = "HG~1/hgrc"
++  > u = ui.ui()
++  > r = hg.repository(u, '.')
++  > def filectxfn(repo, memctx, path):
++  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
++  > c = context.memctx(r, [r['tip'].node(), node.nullid],
++  >                    'evil', [notrc], filectxfn, 0)
++  > r.commitctx(c)
++  > EOF
++  $ $PYTHON evil-commit.py
++  $ hg co --clean tip
++  abort: path contains illegal component: HG~1/hgrc
++  [255]
++
++  $ hg rollback -f
++  repository tip rolled back to revision 1 (undo commit)
++  $ cat > evil-commit.py <<EOF
++  > from mercurial import ui, hg, context, node
++  > notrc = "HG8B6C~2/hgrc"
++  > u = ui.ui()
++  > r = hg.repository(u, '.')
++  > def filectxfn(repo, memctx, path):
++  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
++  > c = context.memctx(r, [r['tip'].node(), node.nullid],
++  >                    'evil', [notrc], filectxfn, 0)
++  > r.commitctx(c)
++  > EOF
++  $ $PYTHON evil-commit.py
++  $ hg co --clean tip
++  abort: path contains illegal component: HG8B6C~2/hgrc
++  [255]
++
+ Issue1049: Hg permits partial commit of merge without warning
+ 
+   $ cd ..
+--- a/mercurial/scmutil.py
++++ b/mercurial/scmutil.py
+@@ -108,6 +108,13 @@ class pathauditor(object):
+             or _lowerclean(parts[0]) in ('.hg', '.hg.', '')
+             or os.pardir in parts):
+             raise util.Abort(_("path contains illegal component: %s") % path)
++        # Windows shortname aliases
++        for p in parts:
++            if "~" in p:
++                first, last = p.split("~", 1)
++                if last.isdigit() and first.upper() in ["HG", "HG8B6C"]:
++                    raise util.Abort(_("path contains illegal component: %s")
++                                     % path)
+         if '.hg' in _lowerclean(path):
+             lparts = [_lowerclean(p.lower()) for p in parts]
+             for p in '.hg', '.hg.':

@@ -1,0 +1,29 @@
+# HG changeset patch
+# User Augie Fackler <raf@durin42.com>
+# Date 1418330569 18000
+#      Thu Dec 11 15:42:49 2014 -0500
+# Branch stable
+# Node ID 035434b407be60e5ae7a0da56f9d7a187a6bef5a
+# Parent  6f53629ad2733199ae2194bfb33569cf7b2fef1d
+test-casefolding.t: demonstrate a bug with HFS+ ignoring some codepoints
+
+--- a/tests/test-casefolding.t
++++ b/tests/test-casefolding.t
+@@ -160,4 +160,17 @@ case changes.
+   $ hg status -A
+   C MiXeDcAsE
+ 
++#if osx
++
++We assume anyone running the tests on a case-insensitive volume on OS
++X will be using HFS+. If that's not true, this test will fail.
++
++Bug: some codepoints are to be ignored on HFS+:
++
++  $ rm A
++  >>> open(u'a\u200c'.encode('utf-8'), 'w').write('unicode is fun')
++  $ hg status
++  M A
++  ? a\xe2\x80\x8c (esc)
++#endif
+   $ cd ..
