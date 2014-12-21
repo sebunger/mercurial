@@ -1,9 +1,9 @@
-mercurial (2.2.2-3+deb7u1) UNRELEASED; urgency=high
+mercurial (2.2.2-3+deb7u1) wheezy-security; urgency=high
 
   * Security update for CVE-2014-9390: errors in handling case-sensitive
     directories allow for remote code execution on pull.
 
- -- Javi Merino <vicho@debian.org>  Sun, 21 Dec 2014 12:58:24 +0100
+ -- Javi Merino <vicho@debian.org>  Sun, 21 Dec 2014 19:53:59 +0100
 
 mercurial (2.2.2-3) unstable; urgency=low
 
