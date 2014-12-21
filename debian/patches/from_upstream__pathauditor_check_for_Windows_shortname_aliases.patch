@@ -21,7 +21,7 @@ pathauditor: check for Windows shortname aliases
 +  > u = ui.ui()
 +  > r = hg.repository(u, '.')
 +  > def filectxfn(repo, memctx, path):
-+  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
++  >     return context.memfilectx(path, '[hooks]\nupdate = echo owned')
 +  > c = context.memctx(r, [r['tip'].node(), node.nullid],
 +  >                    'evil', [notrc], filectxfn, 0)
 +  > r.commitctx(c)
@@ -39,7 +39,7 @@ pathauditor: check for Windows shortname aliases
 +  > u = ui.ui()
 +  > r = hg.repository(u, '.')
 +  > def filectxfn(repo, memctx, path):
-+  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
++  >     return context.memfilectx(path, '[hooks]\nupdate = echo owned')
 +  > c = context.memctx(r, [r['tip'].node(), node.nullid],
 +  >                    'evil', [notrc], filectxfn, 0)
 +  > r.commitctx(c)
