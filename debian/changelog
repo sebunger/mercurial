@@ -1,3 +1,17 @@
+mercurial (3.1.2-2) UNRELEASED; urgency=high
+
+  * Fix "CVE-2014-9390: Errors in handling case-sensitive directories
+    allow for remote code execution on pull" by adding patches
+    from_upstream__test-casefolding_t_demonstrate_a_bug_with_HFS_ignoring_some_codepoints.patch,
+    from_upstream__encoding_add_hfsignoreclean_to_clean_out_HFS-ignored_characters.patch,
+    from_upstream__pathauditor_check_for_codepoints_ignored_on_OS_X.patch,
+    from_upstream__darwin_omit_ignorable_codepoints_when_normcaseing_a_file_path.patch
+    and
+    from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
+    (Closes: #773640)
+
+ -- Javi Merino <vicho@debian.org>  Sun, 21 Dec 2014 20:51:38 +0100
+
 mercurial (3.1.2-1) unstable; urgency=medium
 
   * New upstream version

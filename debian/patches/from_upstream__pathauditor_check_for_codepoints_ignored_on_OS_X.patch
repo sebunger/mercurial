@@ -1,0 +1,59 @@
+Origin: http://selenic.com/repo/hg-stable/rev/c02a05cc6f5e
+Description: pathauditor: check for codepoints ignored on OS X
+ This is a fix for CVE-2014-9390
+Applied-Upstream: 3.2.3
+
+--- a/mercurial/pathutil.py
++++ b/mercurial/pathutil.py
+@@ -1,8 +1,12 @@
+ import os, errno, stat
+ 
++import encoding
+ import util
+ from i18n import _
+ 
++def _lowerclean(s):
++    return encoding.hfsignoreclean(s.lower())
++
+ class pathauditor(object):
+     '''ensure that a filesystem path contains no banned components.
+     the following properties of a path are checked:
+@@ -39,11 +43,11 @@ class pathauditor(object):
+             raise util.Abort(_("path ends in directory separator: %s") % path)
+         parts = util.splitpath(path)
+         if (os.path.splitdrive(path)[0]
+-            or parts[0].lower() in ('.hg', '.hg.', '')
++            or _lowerclean(parts[0]) in ('.hg', '.hg.', '')
+             or os.pardir in parts):
+             raise util.Abort(_("path contains illegal component: %s") % path)
+-        if '.hg' in path.lower():
+-            lparts = [p.lower() for p in parts]
++        if '.hg' in _lowerclean(path):
++            lparts = [_lowerclean(p.lower()) for p in parts]
+             for p in '.hg', '.hg.':
+                 if p in lparts[1:]:
+                     pos = lparts.index(p)
+--- a/tests/test-commit.t
++++ b/tests/test-commit.t
+@@ -418,4 +418,21 @@ commit copy
+        0         0       6  .....       0 26d3ca0dfd18 000000000000 000000000000 (re)
+        1         6       7  .....       1 d267bddd54f7 26d3ca0dfd18 000000000000 (re)
+ 
++verify pathauditor blocks evil filepaths
++  $ cat > evil-commit.py <<EOF
++  > from mercurial import ui, hg, context, node
++  > notrc = u".h\u200cg".encode('utf-8') + '/hgrc'
++  > u = ui.ui()
++  > r = hg.repository(u, '.')
++  > def filectxfn(repo, memctx, path):
++  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
++  > c = context.memctx(r, [r['tip'].node(), node.nullid],
++  >                    'evil', [notrc], filectxfn, 0)
++  > r.commitctx(c)
++  > EOF
++  $ $PYTHON evil-commit.py
++  $ hg co --clean tip
++  abort: path contains illegal component: .h\xe2\x80\x8cg/hgrc (esc)
++  [255]
++
+   $ cd ..
