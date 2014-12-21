@@ -1,11 +1,7 @@
-# HG changeset patch
-# User Matt Mackall <mpm@selenic.com>
-# Date 1418933908 21600
-#      Thu Dec 18 14:18:28 2014 -0600
-# Branch stable
-# Node ID 6dad422ecc5adb63d9fa649eeb8e05a5f9bc4900
-# Parent  c02a05cc6f5e661b09b0b0c65ec7bc874e161f9c
-pathauditor: check for Windows shortname aliases
+Origin: http://selenic.com/repo/hg-stable/rev/6dad422ecc5a
+Description: pathauditor: check for Windows shortname aliases
+ This is a fix for CVE-2014-9390
+Applied-Upstream: 3.2.3
 
 --- a/tests/test-commit.t
 +++ b/tests/test-commit.t

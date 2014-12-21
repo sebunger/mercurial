@@ -1,11 +1,7 @@
-# HG changeset patch
-# User Augie Fackler <raf@durin42.com>
-# Date 1418753297 18000
-#      Tue Dec 16 13:08:17 2014 -0500
-# Branch stable
-# Node ID c02a05cc6f5e661b09b0b0c65ec7bc874e161f9c
-# Parent  7a5bcd471f2ef302613b8551a79081d46d04be6e
-pathauditor: check for codepoints ignored on OS X
+Origin: http://selenic.com/repo/hg-stable/rev/c02a05cc6f5e
+Description: pathauditor: check for codepoints ignored on OS X
+ This is a fix for CVE-2014-9390
+Applied-Upstream: 3.2.3
 
 --- a/tests/test-commit.t
 +++ b/tests/test-commit.t

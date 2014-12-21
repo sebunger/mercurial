@@ -1,14 +1,10 @@
-# HG changeset patch
-# User Augie Fackler <raf@durin42.com>
-# Date 1418753230 18000
-#      Tue Dec 16 13:07:10 2014 -0500
-# Branch stable
-# Node ID 7a5bcd471f2ef302613b8551a79081d46d04be6e
-# Parent  885bd7c5c7e3efc10081c09c11e538a3fa19ace4
-darwin: omit ignorable codepoints when normcase()ing a file path
-
-This lets us avoid some nasty case collision problems in OS X with
-invisible codepoints.
+Origin: http://selenic.com/repo/hg-stable/rev/7a5bcd471f2e
+Description: darwin: omit ignorable codepoints when normcase()ing a file path
+ This lets us avoid some nasty case collision problems in OS X with
+ invisible codepoints.
+ .
+ This is a fix for CVE-2014-9390
+Applied-Upstream: 3.2.3
 
 --- a/mercurial/posix.py
 +++ b/mercurial/posix.py

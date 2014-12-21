@@ -1,11 +1,7 @@
-# HG changeset patch
-# User Augie Fackler <raf@durin42.com>
-# Date 1418330569 18000
-#      Thu Dec 11 15:42:49 2014 -0500
-# Branch stable
-# Node ID 035434b407be60e5ae7a0da56f9d7a187a6bef5a
-# Parent  6f53629ad2733199ae2194bfb33569cf7b2fef1d
-test-casefolding.t: demonstrate a bug with HFS+ ignoring some codepoints
+Origin: http://selenic.com/repo/hg-stable/rev/035434b407be
+Description: test-casefolding.t: demonstrate a bug with HFS+ ignoring some codepoints
+ This is a fix for CVE-2014-9390
+Applied-Upstream: 3.2.3
 
 --- a/tests/test-casefolding.t
 +++ b/tests/test-casefolding.t

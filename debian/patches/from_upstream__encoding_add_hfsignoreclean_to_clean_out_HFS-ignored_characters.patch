@@ -1,18 +1,14 @@
-# HG changeset patch
-# User Augie Fackler <raf@durin42.com>
-# Date 1418753201 18000
-#      Tue Dec 16 13:06:41 2014 -0500
-# Branch stable
-# Node ID 885bd7c5c7e3efc10081c09c11e538a3fa19ace4
-# Parent  035434b407be60e5ae7a0da56f9d7a187a6bef5a
-encoding: add hfsignoreclean to clean out HFS-ignored characters
-
-According to Apple Technote 1150 (unavailable from Apple as far as I
-can tell, but archived in several places online), HFS+ ignores sixteen
-specific unicode runes when doing path normalization. We need to
-handle those cases, so this function lets us efficiently strip the
-offending characters from a UTF-8 encoded string (which is the only
-way it seems to matter on OS X.)
+Origin: http://selenic.com/repo/hg-stable/rev/885bd7c5c7e3
+Description: encoding: add hfsignoreclean to clean out HFS-ignored characters
+ According to Apple Technote 1150 (unavailable from Apple as far as I
+ can tell, but archived in several places online), HFS+ ignores sixteen
+ specific unicode runes when doing path normalization. We need to
+ handle those cases, so this function lets us efficiently strip the
+ offending characters from a UTF-8 encoded string (which is the only
+ way it seems to matter on OS X.)
+ .
+ This is a fix for CVE-2014-9390
+Applied-Upstream: 3.2.3
 
 --- a/mercurial/encoding.py
 +++ b/mercurial/encoding.py
