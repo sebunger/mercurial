@@ -1,4 +1,4 @@
-mercurial (3.1.2-2) UNRELEASED; urgency=high
+mercurial (3.1.2-2) unstable; urgency=high
 
   * Fix "CVE-2014-9390: Errors in handling case-sensitive directories
     allow for remote code execution on pull" by adding patches
@@ -8,7 +8,7 @@ mercurial (3.1.2-2) UNRELEASED; urgency=high
     from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
     (Closes: #773640)
 
- -- Javi Merino <vicho@debian.org>  Sun, 21 Dec 2014 20:51:38 +0100
+ -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 16:01:50 +0100
 
 mercurial (3.1.2-1) unstable; urgency=medium
 
