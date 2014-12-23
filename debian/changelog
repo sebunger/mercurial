@@ -1,3 +1,10 @@
+mercurial (2.2.2-4) stable; urgency=high
+
+  * Security update for CVE-2014-9390: errors in handling case-sensitive
+    directories allow for remote code execution on pull.
+
+ -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 12:42:20 +0100
+
 mercurial (2.2.2-3) unstable; urgency=low
 
   * Fix "Backport improvement to vimdiff configuration" by adding
