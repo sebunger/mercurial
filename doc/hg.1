@@ -223,6 +223,10 @@ Options:
 .
 guess renamed files by similarity (0<=s<=100)
 .TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -487,6 +491,10 @@ Options:
 .B \-\-merge
 .
 merge with old dirstate parent after backout
+.TP
+.B \-\-commit
+.
+commit if no conflicts were encountered
 .TP
 .BI \-\-parent \ <REV>
 .
@@ -820,7 +828,7 @@ recommends that primary development take place on the \(aqdefault\(aq
 branch.
 .sp
 Unless \-f/\-\-force is specified, branch will not let you set a
-branch name that already exists, even if it\(aqs inactive.
+branch name that already exists.
 .sp
 Use \-C/\-\-clean to reset the working directory branch to that of
 the parent of the working directory, negating a previous branch
@@ -856,9 +864,6 @@ List the repository\(aqs named branches, indicating which ones are
 inactive. If \-c/\-\-closed is specified, also list branches which have
 been marked closed (see \%\fBhg commit \-\-close\-branch\fP\:).
 .sp
-If \-a/\-\-active is specified, only show active branches. A branch
-is considered active if it contains repository heads.
-.sp
 Use the command \%\fBhg update\fP\: to switch to an existing branch.
 .sp
 Returns 0.
@@ -868,7 +873,7 @@ Options:
 .TP
 .B \-a,  \-\-active
 .
-show only branches that have unmerged heads
+show only branches that have unmerged heads (DEPRECATED)
 .TP
 .B \-c,  \-\-closed
 .
@@ -1546,6 +1551,10 @@ use git extended diff format
 .B \-\-nodates
 .
 omit dates from diff headers
+.TP
+.B \-\-noprefix
+.
+omit a/ and b/ prefixes from filenames
 .TP
 .B \-p,  \-\-show\-function
 .
@@ -3501,6 +3510,10 @@ record delete for missing files
 .
 remove (and delete) file even if added or modified
 .TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -4811,7 +4824,7 @@ save and restore changes to the working directory
 .TP
 .B strip
 .
-strip changesets and their descendents from history
+strip changesets and their descendants from history
 .TP
 .B transplant
 .
@@ -6382,6 +6395,9 @@ result, use \fBfile()\fP.
 The pattern without explicit kind like \fBglob:\fP is expected to be
 relative to the current directory and match against a file exactly
 for efficiency.
+.sp
+If some linkrev points to revisions filtered by the current repoview, we\(aqll
+work around it to return a non\-filtered value.
 .TP
 .B \fBfirst(set, [n])\fP
 .sp
@@ -6472,6 +6488,14 @@ Changesets modifying files matched by pattern.
 The pattern without explicit kind like \fBglob:\fP is expected to be
 relative to the current directory and match against a file or a
 directory.
+.TP
+.B \fBnamed(namespace)\fP
+.sp
+The changesets in a given namespace.
+.sp
+If \fInamespace\fP starts with \fIre:\fP, the remainder of the string is treated as
+a regular expression. To match a namespace that actually starts with \fIre:\fP,
+use the prefix \fIliteral:\fP.
 .TP
 .B \fBobsolete()\fP
 .sp
@@ -6623,6 +6647,23 @@ rs($1, $2) = reverse(sort($1, $2))
 .sp
 defines three aliases, \fBh\fP, \fBd\fP, and \fBrs\fP. \fBrs(0:tip, author)\fP is
 exactly equivalent to \fBreverse(sort(0:tip, author))\fP.
+.sp
+An infix operator \fB##\fP can concatenate strings and identifiers into
+one string. For example:
+.sp
+.nf
+.ft C
+[revsetalias]
+issue($1) = grep(r\(aq\ebissue[ :]?\(aq ## $1 ## r\(aq\eb|\ebbug\e(\(aq ## $1 ## r\(aq\e)\(aq)
+.ft P
+.fi
+.sp
+\fBissue(1234)\fP is equivalent to \fBgrep(r\(aq\ebissue[ :]?1234\eb|\ebbug\e(1234\e)\(aq)\fP
+in this case. This matches against all of "issue 1234", "issue:1234",
+"issue1234" and "bug(1234)".
+.sp
+All other prefix, infix and postfix operators have lower priority than
+\fB##\fP. For example, \fB$1 ## $2~2\fP is equivalent to \fB($1 ## $2)~2\fP.
 .sp
 Command line equivalents for \%\fBhg log\fP\::
 .sp
@@ -6790,6 +6831,14 @@ subrepo, it will be added even without \-S/\-\-subrepos specified.
 Git and Subversion subrepositories are currently silently
 ignored.
 .TP
+.B addremove
+.
+addremove does not recurse into subrepos unless
+\-S/\-\-subrepos is specified.  However, if you specify the full
+path of a directory in a subrepo, addremove will be performed on
+it even without \-S/\-\-subrepos being specified.  Git and
+Subversion subrepositories will print a warning and continue.
+.TP
 .B archive
 .
 archive does not recurse in subrepositories unless
@@ -6809,14 +6858,16 @@ to instead commit all modified subrepositories by specifying
 \-S/\-\-subrepos, or setting "ui.commitsubrepos=True" in a
 configuration file (see \%\fBhg help config\fP\:).  After there are no
 longer any modified subrepositories, it records their state and
-finally commits it in the parent repository.
+finally commits it in the parent repository.  The \-\-addremove
+option also honors the \-S/\-\-subrepos option.  However, Git and
+Subversion subrepositories will print a warning and abort.
 .TP
 .B diff
 .
 diff does not recurse in subrepos unless \-S/\-\-subrepos is
 specified. Changes are displayed as usual, on the subrepositories
-elements. Git and Subversion subrepositories are currently
-silently ignored.
+elements. Git subrepositories do not support \-\-include/\-\-exclude.
+Subversion subrepositories are currently silently ignored.
 .TP
 .B forget
 .
@@ -6857,6 +6908,14 @@ status does not recurse into subrepositories unless
 regular Mercurial changes on the subrepository
 elements. Subversion subrepositories are currently silently
 ignored.
+.TP
+.B remove
+.
+remove does not recurse into subrepositories unless
+\-S/\-\-subrepos is specified.  However, if you specify a file or
+directory path in a subrepo, it will be removed even without
+\-S/\-\-subrepos.  Git and Subversion subrepositories are currently
+silently ignored.
 .TP
 .B update
 .
@@ -7035,10 +7094,6 @@ Integer. The repository\-local changeset revision number.
 .B subrepos
 .
 List of strings. Updated subrepositories in the changeset.
-.TP
-.B tags
-.
-List of strings. Any tags associated with the changeset.
 .UNINDENT
 .sp
 The "date" keyword does not produce human\-readable output. If you
@@ -8979,10 +9034,9 @@ cdiff = gdiff \-Nprc5
 #cmd.cdiff = gdiff
 #opts.cdiff = \-Nprc5
 
-# add new command called vdiff, runs kdiff3
-vdiff = kdiff3
-
-# add new command called meld, runs meld (no need to name twice)
+# add new command called meld, runs meld (no need to name twice).  If
+# the meld executable is not available, the meld tool in [merge\-tools]
+# will be used, if available
 meld =
 
 # add new command called vimdiff, runs gvimdiff with DirDiff plugin
@@ -10454,6 +10508,10 @@ use git extended diff format
 .
 omit dates from diff headers
 .TP
+.B \-\-noprefix
+.
+omit a/ and b/ prefixes from filenames
+.TP
 .B \-p,  \-\-show\-function
 .
 show which function each change is in
@@ -11599,6 +11657,22 @@ to be a sendmail compatible mailer or fill out the [smtp] section so
 that the patchbomb extension can automatically send patchbombs
 directly from the commandline. See the [email] and [smtp] sections in
 hgrc(5) for details.
+.sp
+You can control the default inclusion of an introduction message with the
+\fBpatchbomb.intro\fP configuration option. The configuration is always
+overwritten by command line flags like \-\-intro and \-\-desc:
+.sp
+.nf
+.ft C
+[patchbomb]
+intro=auto   # include introduction message if more than 1 patch (default)
+intro=never  # never include an introduction message
+intro=always # always include an introduction message
+.ft P
+.fi
+.sp
+You can set patchbomb to always ask for confirmation by setting
+\fBpatchbomb.confirm\fP to true.
 .SS Commands
 .SS email
 .sp
@@ -11658,6 +11732,9 @@ for each patchbomb message, so you can verify everything is alright.
 .sp
 In case email sending fails, you will find a backup of your series
 introductory message in \fB.hg/last\-email.txt\fP.
+.sp
+The default behavior of this command can be customized through
+configuration. (See \%\fBhg help patchbomb\fP\: for details)
 .sp
 Examples:
 .sp
@@ -12365,12 +12442,12 @@ create a new shared repository:
 .sp
 .nf
 .ft C
-hg share [\-U] SOURCE [DEST]
+hg share [\-U] [\-B] SOURCE [DEST]
 .ft P
 .fi
 .sp
 Initialize a new repository and working directory that shares its
-history with another repository.
+history (and optionally bookmarks) with another repository.
 .IP Note
 .
 using rollback or extensions that destroy/modify history (mq,
@@ -12389,6 +12466,10 @@ Options:
 .B \-U,  \-\-noupdate
 .
 do not create a working copy
+.TP
+.B \-B,  \-\-bookmarks
+.
+also share bookmarks
 .UNINDENT
 .SS unshare
 .sp
@@ -12553,7 +12634,7 @@ set date for temporary commits (DEPRECATED)
 .UNINDENT
 .SS strip
 .sp
-strip changesets and their descendents from history
+strip changesets and their descendants from history
 .sp
 This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.

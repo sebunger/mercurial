@@ -232,6 +232,9 @@ identical files are detected.</p>
 <kbd><span class="option">-s</span>, <span class="option">--similarity <var>&lt;SIMILARITY&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>guess renamed files by similarity (0&lt;=s&lt;=100)</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
+<td>recurse into subrepositories</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -453,6 +456,9 @@ files.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--merge</span></kbd></td>
 <td>merge with old dirstate parent after backout</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--commit</span></kbd></td>
+<td>commit if no conflicts were encountered</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--parent <var>&lt;REV&gt;</var></span></kbd></td>
 <td>parent to choose when backing out merge (DEPRECATED)</td></tr>
@@ -710,7 +716,7 @@ in the repository until the next commit). Standard practice
 recommends that primary development take place on the 'default'
 branch.</p>
 <p>Unless -f/--force is specified, branch will not let you set a
-branch name that already exists, even if it's inactive.</p>
+branch name that already exists.</p>
 <p>Use -C/--clean to reset the working directory branch to that of
 the parent of the working directory, negating a previous branch
 change.</p>
@@ -740,8 +746,6 @@ hg branches [-ac]
 <p>List the repository's named branches, indicating which ones are
 inactive. If -c/--closed is specified, also list branches which have
 been marked closed (see <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--close-branch</span></tt></a>).</p>
-<p>If -a/--active is specified, only show active branches. A branch
-is considered active if it contains repository heads.</p>
 <p>Use the command <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> to switch to an existing branch.</p>
 <p>Returns 0.</p>
 <p>Options:</p>
@@ -751,7 +755,7 @@ is considered active if it contains repository heads.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--active</span></kbd></td>
-<td>show only branches that have unmerged heads</td></tr>
+<td>show only branches that have unmerged heads (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--closed</span></kbd></td>
 <td>show normal and closed branches</td></tr>
@@ -1274,6 +1278,9 @@ hg diff -r 9353^2:9353  # compare against the second parent
 <tr><td class="option-group">
 <kbd><span class="option">--nodates</span></kbd></td>
 <td>omit dates from diff headers</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--noprefix</span></kbd></td>
+<td>omit a/ and b/ prefixes from filenames</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-p</span>, <span class="option">--show-function</span></kbd></td>
 </tr>
@@ -2854,6 +2861,9 @@ working directory, not even if option --force is specified.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>remove (and delete) file even if added or modified</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
+<td>recurse into subrepositories</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -3847,7 +3857,7 @@ baz = !
 </tr>
 <tr class="field"><th class="field-name">shelve:</th><td class="field-body">save and restore changes to the working directory</td>
 </tr>
-<tr class="field"><th class="field-name">strip:</th><td class="field-body">strip changesets and their descendents from history</td>
+<tr class="field"><th class="field-name">strip:</th><td class="field-body">strip changesets and their descendants from history</td>
 </tr>
 <tr class="field"><th class="field-name">transplant:</th><td class="field-body">command to transplant changesets from another branch</td>
 </tr>
@@ -4929,9 +4939,11 @@ instead.</p>
 filelog, rather than filtering through all changesets (much faster, but
 doesn't include deletes or duplicate changes). For a slower, more accurate
 result, use <tt class="docutils literal">file()</tt>.</p>
-<p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
+<p>The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
 relative to the current directory and match against a file exactly
 for efficiency.</p>
+<p class="last">If some linkrev points to revisions filtered by the current repoview, we'll
+work around it to return a non-filtered value.</p>
 </dd>
 <dt><tt class="docutils literal">first(set, [n])</tt></dt>
 <dd>An alias for limit().</dd>
@@ -4988,6 +5000,12 @@ specified. You can match more than one field at a time.</p>
 <p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
 relative to the current directory and match against a file or a
 directory.</p>
+</dd>
+<dt><tt class="docutils literal">named(namespace)</tt></dt>
+<dd><p class="first">The changesets in a given namespace.</p>
+<p class="last">If <cite>namespace</cite> starts with <cite>re:</cite>, the remainder of the string is treated as
+a regular expression. To match a namespace that actually starts with <cite>re:</cite>,
+use the prefix <cite>literal:</cite>.</p>
 </dd>
 <dt><tt class="docutils literal">obsolete()</tt></dt>
 <dd>Mutable changeset with a newer version.</dd>
@@ -5082,6 +5100,17 @@ rs($1, $2) = reverse(sort($1, $2))
 </pre>
 <p>defines three aliases, <tt class="docutils literal">h</tt>, <tt class="docutils literal">d</tt>, and <tt class="docutils literal">rs</tt>. <tt class="docutils literal">rs(0:tip, author)</tt> is
 exactly equivalent to <tt class="docutils literal">reverse(sort(0:tip, author))</tt>.</p>
+<p>An infix operator <tt class="docutils literal">##</tt> can concatenate strings and identifiers into
+one string. For example:</p>
+<pre class="literal-block">
+[revsetalias]
+issue($1) = grep(r'\bissue[ :]?' ## $1 ## r'\b|\bbug\(' ## $1 ## r'\)')
+</pre>
+<p><tt class="docutils literal">issue(1234)</tt> is equivalent to <tt class="docutils literal"><span class="pre">grep(r'\bissue[</span> <span class="pre">:]?1234\b|\bbug\(1234\)')</span></tt>
+in this case. This matches against all of &quot;issue 1234&quot;, &quot;issue:1234&quot;,
+&quot;issue1234&quot; and &quot;bug(1234)&quot;.</p>
+<p>All other prefix, infix and postfix operators have lower priority than
+<tt class="docutils literal">##</tt>. For example, <tt class="docutils literal">$1 ## $2~2</tt> is equivalent to <tt class="docutils literal">($1 ## <span class="pre">$2)~2</span></tt>.</p>
 <p>Command line equivalents for <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log</tt></a>:</p>
 <pre class="literal-block">
 -f    -&gt;  ::.
@@ -5210,6 +5239,12 @@ subrepo, it will be added even without -S/--subrepos specified.
 Git and Subversion subrepositories are currently silently
 ignored.</td>
 </tr>
+<tr class="field"><th class="field-name">addremove:</th><td class="field-body">addremove does not recurse into subrepos unless
+-S/--subrepos is specified.  However, if you specify the full
+path of a directory in a subrepo, addremove will be performed on
+it even without -S/--subrepos being specified.  Git and
+Subversion subrepositories will print a warning and continue.</td>
+</tr>
 <tr class="field"><th class="field-name">archive:</th><td class="field-body">archive does not recurse in subrepositories unless
 -S/--subrepos is specified.</td>
 </tr>
@@ -5223,12 +5258,14 @@ to instead commit all modified subrepositories by specifying
 -S/--subrepos, or setting &quot;ui.commitsubrepos=True&quot; in a
 configuration file (see <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a>).  After there are no
 longer any modified subrepositories, it records their state and
-finally commits it in the parent repository.</td>
+finally commits it in the parent repository.  The --addremove
+option also honors the -S/--subrepos option.  However, Git and
+Subversion subrepositories will print a warning and abort.</td>
 </tr>
 <tr class="field"><th class="field-name">diff:</th><td class="field-body">diff does not recurse in subrepos unless -S/--subrepos is
 specified. Changes are displayed as usual, on the subrepositories
-elements. Git and Subversion subrepositories are currently
-silently ignored.</td>
+elements. Git subrepositories do not support --include/--exclude.
+Subversion subrepositories are currently silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">forget:</th><td class="field-body">forget currently only handles exact file matches in subrepos.
 Git and Subversion subrepositories are currently silently ignored.</td>
@@ -5257,6 +5294,12 @@ repositories.  Push is a no-op for Subversion subrepositories.</td>
 regular Mercurial changes on the subrepository
 elements. Subversion subrepositories are currently silently
 ignored.</td>
+</tr>
+<tr class="field"><th class="field-name">remove:</th><td class="field-body">remove does not recurse into subrepositories unless
+-S/--subrepos is specified.  However, if you specify a file or
+directory path in a subrepo, it will be removed even without
+-S/--subrepos.  Git and Subversion subrepositories are currently
+silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">update:</th><td class="field-body">update restores the subrepos in the state they were
 originally committed in target changeset. If the recorded
@@ -5377,8 +5420,6 @@ revision) nothing is shown.</td>
 <tr class="field"><th class="field-name">rev:</th><td class="field-body">Integer. The repository-local changeset revision number.</td>
 </tr>
 <tr class="field"><th class="field-name">subrepos:</th><td class="field-body">List of strings. Updated subrepositories in the changeset.</td>
-</tr>
-<tr class="field"><th class="field-name">tags:</th><td class="field-body">List of strings. Any tags associated with the changeset.</td>
 </tr>
 </tbody>
 </table>
@@ -6961,10 +7002,9 @@ cdiff = gdiff -Nprc5
 #cmd.cdiff = gdiff
 #opts.cdiff = -Nprc5
 
-# add new command called vdiff, runs kdiff3
-vdiff = kdiff3
-
-# add new command called meld, runs meld (no need to name twice)
+# add new command called meld, runs meld (no need to name twice).  If
+# the meld executable is not available, the meld tool in [merge-tools]
+# will be used, if available
 meld =
 
 # add new command called vimdiff, runs gvimdiff with DirDiff plugin
@@ -8219,6 +8259,9 @@ qrefresh.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--nodates</span></kbd></td>
 <td>omit dates from diff headers</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--noprefix</span></kbd></td>
+<td>omit a/ and b/ prefixes from filenames</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-p</span>, <span class="option">--show-function</span></kbd></td>
 </tr>
@@ -9158,6 +9201,17 @@ to be a sendmail compatible mailer or fill out the [smtp] section so
 that the patchbomb extension can automatically send patchbombs
 directly from the commandline. See the [email] and [smtp] sections in
 hgrc(5) for details.</p>
+<p>You can control the default inclusion of an introduction message with the
+<tt class="docutils literal">patchbomb.intro</tt> configuration option. The configuration is always
+overwritten by command line flags like --intro and --desc:</p>
+<pre class="literal-block">
+[patchbomb]
+intro=auto   # include introduction message if more than 1 patch (default)
+intro=never  # never include an introduction message
+intro=always # always include an introduction message
+</pre>
+<p>You can set patchbomb to always ask for confirmation by setting
+<tt class="docutils literal">patchbomb.confirm</tt> to true.</p>
 <div class="section" id="id28">
 <h3>Commands</h3>
 <div class="section" id="email">
@@ -9204,6 +9258,8 @@ PAGER environment variable is set, your pager will be fired up once
 for each patchbomb message, so you can verify everything is alright.</p>
 <p>In case email sending fails, you will find a backup of your series
 introductory message in <tt class="docutils literal"><span class="pre">.hg/last-email.txt</span></tt>.</p>
+<p>The default behavior of this command can be customized through
+configuration. (See <a class="reference external" href="hg.1.html#patchbomb"><tt class="docutils literal">hg help patchbomb</tt></a> for details)</p>
 <p>Examples:</p>
 <pre class="literal-block">
 hg email -r 3000          # send patch 3000 only
@@ -9795,10 +9851,10 @@ same name.</p>
 <h4>share</h4>
 <p>create a new shared repository:</p>
 <pre class="literal-block">
-hg share [-U] SOURCE [DEST]
+hg share [-U] [-B] SOURCE [DEST]
 </pre>
 <p>Initialize a new repository and working directory that shares its
-history with another repository.</p>
+history (and optionally bookmarks) with another repository.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">using rollback or extensions that destroy/modify history (mq,
@@ -9818,6 +9874,10 @@ the broken clone to reset it to a changeset that still exists.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-U</span>, <span class="option">--noupdate</span></kbd></td>
 <td>do not create a working copy</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-B</span>, <span class="option">--bookmarks</span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>also share bookmarks</td></tr>
 </tbody>
 </table>
 </div>
@@ -9963,7 +10023,7 @@ does not delete the bundle.)</p>
 </div>
 <div class="section" id="strip">
 <h2><a class="toc-backref" href="#id107">strip</a></h2>
-<p>strip changesets and their descendents from history</p>
+<p>strip changesets and their descendants from history</p>
 <p>This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.</p>
 <div class="section" id="id41">

@@ -65,17 +65,6 @@ install-archdep:
 		-type d -empty -delete
 
 install-archindep:
-	# Install system-wide conffiles.  Note the rename from .hgrc
-	# to .rc, which dh_install can't do if you list the file in
-	# mercurial-common.install
-	# TODO: Move this to to mercurial-common.install with 
-	#
-	# mercurial/default.d/mergetools.rc etc/mercurial/hgrc.d/
-	#
-	# once mergtools is moved to default.d (in mercurial 3.3?)
-	install -m 644 \
-		contrib/mergetools.hgrc \
-		$(CURDIR)/debian/mercurial-common/etc/mercurial/hgrc.d/mergetools.rc
 	# Move templates and help installed by setup.py to their FHS-correct location
 	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/templates \
 	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/help \

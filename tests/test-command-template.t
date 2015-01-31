@@ -525,6 +525,25 @@ Test JSON style:
    }
   ]
 
+honor --git but not format-breaking diffopts
+  $ hg --config diff.noprefix=True log --git -vpr . -Tjson
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a",
+    "branch": "default",
+    "phase": "draft",
+    "user": "test",
+    "date": [1577872860, 0],
+    "desc": "third",
+    "bookmarks": [],
+    "tags": ["tip"],
+    "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"],
+    "files": ["fourth", "second", "third"],
+    "diff": "diff --git a/second b/fourth\nrename from second\nrename to fourth\ndiff --git a/third b/third\nnew file mode 100644\n--- /dev/null\n+++ b/third\n@@ -0,0 +1,1 @@\n+third\n"
+   }
+  ]
+
   $ hg log -T json
   [
    {
@@ -696,8 +715,8 @@ Test JSON style:
     "manifest": "94961b75a2da554b4df6fb599e5bfc7d48de0c64",
     "extra": {"branch": "default"},
     "modified": [],
-    "added": ["second"],
-    "removed": ["fourth", "third"]
+    "added": ["fourth", "third"],
+    "removed": ["second"]
    },
    {
     "rev": 7,
@@ -713,8 +732,8 @@ Test JSON style:
     "manifest": "f2dbc354b94e5ec0b4f10680ee0cee816101d0bf",
     "extra": {"branch": "default"},
     "modified": [],
-    "added": [],
-    "removed": ["second"]
+    "added": ["second"],
+    "removed": []
    },
    {
     "rev": 6,
@@ -747,8 +766,8 @@ Test JSON style:
     "manifest": "4dc3def4f9b4c6e8de820f6ee74737f91e96a216",
     "extra": {"branch": "default"},
     "modified": [],
-    "added": [],
-    "removed": ["d"]
+    "added": ["d"],
+    "removed": []
    },
    {
     "rev": 4,
@@ -798,8 +817,8 @@ Test JSON style:
     "manifest": "6e0e82995c35d0d57a52aca8da4e56139e06b4b1",
     "extra": {"branch": "default"},
     "modified": [],
-    "added": [],
-    "removed": ["c"]
+    "added": ["c"],
+    "removed": []
    },
    {
     "rev": 1,
@@ -815,8 +834,8 @@ Test JSON style:
     "manifest": "4e8d705b1e53e3f9375e0e60dc7b525d8211fe55",
     "extra": {"branch": "default"},
     "modified": [],
-    "added": [],
-    "removed": ["b"]
+    "added": ["b"],
+    "removed": []
    },
    {
     "rev": 0,
@@ -832,8 +851,8 @@ Test JSON style:
     "manifest": "a0c8bcbbb45c63b90b70ad007bf38961f64f2af0",
     "extra": {"branch": "default"},
     "modified": [],
-    "added": [],
-    "removed": ["a"]
+    "added": ["a"],
+    "removed": []
    }
   ]
 

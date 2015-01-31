@@ -1,3 +1,10 @@
+mercurial (3.3~rc1-1) experimental; urgency=medium
+
+  * New upstream release
+  * move the installation of mergetools.rc to mercurial-common.install
+
+ -- Javi Merino <vicho@debian.org>  Sat, 31 Jan 2015 17:48:59 +0100
+
 mercurial (3.2.3-1) experimental; urgency=medium
 
   * New upstream release
