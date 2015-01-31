@@ -1,6 +1,7 @@
 mercurial (3.3~rc1-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * move the installation of mergetools.rc to mercurial-common.install
 
  -- Javi Merino <vicho@debian.org>  Sat, 31 Jan 2015 15:22:03 +0100
 
