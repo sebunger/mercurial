@@ -41,7 +41,7 @@ Replaces: mercurial (<< 2.6.3)
 Description: easy-to-use, scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
- . 
+ .
  This package contains the architecture independent components of Mercurial,
  and is generally useless without the mercurial package.
 
@@ -59,7 +59,7 @@ Breaks: hgsubversion (<= 1.6.3-2),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
- . 
+ .
  Its features include:
   * O(1) delta-compressed file storage and retrieval scheme
   * Complete cross-indexing of files and changesets for efficient exploration

@@ -3,6 +3,8 @@ mercurial (3.4~rc1-1) UNRELEASED; urgency=medium
   * New upstream release
   * Delete patch for_upstream__lenient_test-shelve.patch which is
     applied upstream
+  * Remove trailing spaces from empty lines in the descriptions.  It
+    upsets lintian
 
  -- Javi Merino <vicho@debian.org>  Sun, 19 Apr 2015 10:38:59 +0100
 
