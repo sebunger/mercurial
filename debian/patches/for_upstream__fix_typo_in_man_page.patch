@@ -1,5 +1,6 @@
 Description: help: fix typo commited -> committed
 Author: Javi Merino <merino.jav@gmail.com>
+Forwarded: http://thread.gmane.org/gmane.comp.version-control.mercurial.devel/78868
 
 diff --git a/mercurial/help/config.txt b/mercurial/help/config.txt
 --- a/mercurial/help/config.txt
