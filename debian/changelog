@@ -1,4 +1,4 @@
-mercurial (3.4~rc1-1) UNRELEASED; urgency=medium
+mercurial (3.4~rc1-1) experimental; urgency=medium
 
   * New upstream release
   * Delete patch for_upstream__lenient_test-shelve.patch which is
@@ -8,7 +8,7 @@ mercurial (3.4~rc1-1) UNRELEASED; urgency=medium
   * Add patch for_upstream__fix_typo_in_man_page.patch to fix a typo
     spotted by lintian
 
- -- Javi Merino <vicho@debian.org>  Sun, 19 Apr 2015 10:38:59 +0100
+ -- Javi Merino <vicho@debian.org>  Sun, 19 Apr 2015 15:41:25 +0100
 
 mercurial (3.3.2-1) experimental; urgency=medium
 
