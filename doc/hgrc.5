@@ -1082,6 +1082,39 @@ created. Non\-zero status will cause the tag to fail. ID of
 changeset to tag is in \fB$HG_NODE\fP. Name of tag is in \fB$HG_TAG\fP. Tag is
 local if \fB$HG_LOCAL=1\fP, in repository if \fB$HG_LOCAL=0\fP.
 .TP
+.B \fBpretxnopen\fP
+.sp
+Run before any new repository transaction is open. The reason for the
+transaction will be in \fB$HG_TXNNAME\fP and a unique identifier for the
+transaction will be in \fBHG_TXNID\fP. A non\-zero status will prevent the
+transaction from being opened.
+.TP
+.B \fBpretxnclose\fP
+.sp
+Run right before the transaction is actually finalized. Any
+repository change will be visible to the hook program. This lets you
+validate the transaction content or change it. Exit status 0 allows
+the commit to proceed. Non\-zero status will cause the transaction to
+be rolled back. The reason for the transaction opening will be in
+\fB$HG_TXNNAME\fP and a unique identifier for the transaction will be in
+\fBHG_TXNID\fP. The rest of the available data will vary according the
+transaction type. New changesets will add \fB$HG_NODE\fP (id of the
+first added changeset), \fB$HG_URL\fP and \fB$HG_SOURCE\fP variables,
+bookmarks and phases changes will set \fBHG_BOOKMARK_MOVED\fP and
+\fBHG_PHASES_MOVED\fP to \fB1\fP, etc.
+.TP
+.B \fBtxnclose\fP
+.sp
+Run after any repository transaction has been commited. At this
+point, the transaction can no longer be rolled back. The hook will run
+after the lock is released. see \fBpretxnclose\fP docs for details about
+available variables.
+.TP
+.B \fBtxnabort\fP
+.sp
+Run when a transaction is aborted. see \fBpretxnclose\fP docs for details about
+available variables.
+.TP
 .B \fBpretxnchangegroup\fP
 .sp
 Run after a changegroup has been added via push, pull or unbundle,
@@ -1737,13 +1770,13 @@ marker during merge conflicts. See \%\fBhg help templates\fP\: for the template
 format.
 Defaults to showing the hash, tags, branches, bookmarks, author, and
 the first line of the commit description.
-You have to pay attention to encodings of managed files, if you
-use non\-ASCII characters in tags, branches, bookmarks, author
-and/or commit descriptions. At template expansion, non\-ASCII
-characters use the encoding specified by \fB\-\-encoding\fP global
-option, \fBHGENCODING\fP or other locale setting environment
-variables. The difference of encoding between merged file and
-conflict markers causes serious problem.
+If you use non\-ASCII characters in names for tags, branches, bookmarks,
+authors, and/or commit descriptions, you must pay attention to encodings of
+managed files. At template expansion, non\-ASCII characters use the encoding
+specified by the \fB\-\-encoding\fP global option, \fBHGENCODING\fP or other
+environment variables that govern your locale. If the encoding of the merge
+markers is different from the encoding of the merged files,
+serious problems may occur.
 .TP
 .B \fBportablefilenames\fP
 .sp
@@ -1783,6 +1816,10 @@ only makes a difference on systems where the default path
 separator is not the slash character (e.g. Windows uses the
 backslash character (\fB\e\fP)).
 Default is False.
+.TP
+.B \fBstatuscopies\fP
+.sp
+Display copies in the status command.
 .TP
 .B \fBssh\fP
 .sp
@@ -2167,7 +2204,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2014 Matt Mackall.
+Mercurial is copyright 2005\-2015 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

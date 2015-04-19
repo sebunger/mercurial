@@ -798,6 +798,31 @@ the old value (if any) is in <tt class="docutils literal">$HG_OLD</tt>, and the 
 created. Non-zero status will cause the tag to fail. ID of
 changeset to tag is in <tt class="docutils literal">$HG_NODE</tt>. Name of tag is in <tt class="docutils literal">$HG_TAG</tt>. Tag is
 local if <tt class="docutils literal">$HG_LOCAL=1</tt>, in repository if <tt class="docutils literal">$HG_LOCAL=0</tt>.</dd>
+<dt><tt class="docutils literal">pretxnopen</tt></dt>
+<dd>Run before any new repository transaction is open. The reason for the
+transaction will be in <tt class="docutils literal">$HG_TXNNAME</tt> and a unique identifier for the
+transaction will be in <tt class="docutils literal">HG_TXNID</tt>. A non-zero status will prevent the
+transaction from being opened.</dd>
+<dt><tt class="docutils literal">pretxnclose</tt></dt>
+<dd>Run right before the transaction is actually finalized. Any
+repository change will be visible to the hook program. This lets you
+validate the transaction content or change it. Exit status 0 allows
+the commit to proceed. Non-zero status will cause the transaction to
+be rolled back. The reason for the transaction opening will be in
+<tt class="docutils literal">$HG_TXNNAME</tt> and a unique identifier for the transaction will be in
+<tt class="docutils literal">HG_TXNID</tt>. The rest of the available data will vary according the
+transaction type. New changesets will add <tt class="docutils literal">$HG_NODE</tt> (id of the
+first added changeset), <tt class="docutils literal">$HG_URL</tt> and <tt class="docutils literal">$HG_SOURCE</tt> variables,
+bookmarks and phases changes will set <tt class="docutils literal">HG_BOOKMARK_MOVED</tt> and
+<tt class="docutils literal">HG_PHASES_MOVED</tt> to <tt class="docutils literal">1</tt>, etc.</dd>
+<dt><tt class="docutils literal">txnclose</tt></dt>
+<dd>Run after any repository transaction has been commited. At this
+point, the transaction can no longer be rolled back. The hook will run
+after the lock is released. see <tt class="docutils literal">pretxnclose</tt> docs for details about
+available variables.</dd>
+<dt><tt class="docutils literal">txnabort</tt></dt>
+<dd>Run when a transaction is aborted. see <tt class="docutils literal">pretxnclose</tt> docs for details about
+available variables.</dd>
 <dt><tt class="docutils literal">pretxnchangegroup</tt></dt>
 <dd>Run after a changegroup has been added via push, pull or unbundle,
 but before the transaction has been committed. Changegroup is
@@ -1294,13 +1319,13 @@ marker during merge conflicts. See <a class="reference external" href="hg.1.html
 format.
 Defaults to showing the hash, tags, branches, bookmarks, author, and
 the first line of the commit description.
-You have to pay attention to encodings of managed files, if you
-use non-ASCII characters in tags, branches, bookmarks, author
-and/or commit descriptions. At template expansion, non-ASCII
-characters use the encoding specified by <tt class="docutils literal"><span class="pre">--encoding</span></tt> global
-option, <tt class="docutils literal">HGENCODING</tt> or other locale setting environment
-variables. The difference of encoding between merged file and
-conflict markers causes serious problem.</dd>
+If you use non-ASCII characters in names for tags, branches, bookmarks,
+authors, and/or commit descriptions, you must pay attention to encodings of
+managed files. At template expansion, non-ASCII characters use the encoding
+specified by the <tt class="docutils literal"><span class="pre">--encoding</span></tt> global option, <tt class="docutils literal">HGENCODING</tt> or other
+environment variables that govern your locale. If the encoding of the merge
+markers is different from the encoding of the merged files,
+serious problems may occur.</dd>
 <dt><tt class="docutils literal">portablefilenames</tt></dt>
 <dd>Check for portable filenames. Can be <tt class="docutils literal">warn</tt>, <tt class="docutils literal">ignore</tt> or <tt class="docutils literal">abort</tt>.
 Default is <tt class="docutils literal">warn</tt>.
@@ -1328,6 +1353,8 @@ only makes a difference on systems where the default path
 separator is not the slash character (e.g. Windows uses the
 backslash character (<tt class="docutils literal">\</tt>)).
 Default is False.</dd>
+<dt><tt class="docutils literal">statuscopies</tt></dt>
+<dd>Display copies in the status command.</dd>
 <dt><tt class="docutils literal">ssh</tt></dt>
 <dd>command to use for SSH connections. Default is <tt class="docutils literal">ssh</tt>.</dd>
 <dt><tt class="docutils literal">strict</tt></dt>
@@ -1603,7 +1630,7 @@ negative value is treated as <tt class="docutils literal">use the default</tt>.<
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2014 Matt Mackall.
+Mercurial is copyright 2005-2015 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <span class="target" id="common"></span><!-- Common link and substitution definitions. -->

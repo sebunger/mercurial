@@ -4,5 +4,5 @@ deb_specific__optional-dependencies
 proposed_upstream__correct-zeroconf-doc
 deb_specific__disable_libdir_replacement.patch
 for_upstream__dont_rm_usr_bin_python_when_running_testsuite.patch
-for_upstream__lenient_test-shelve.patch
 deb_specific__fix_fhs_paths.patch
+for_upstream__fix_typo_in_man_page.patch

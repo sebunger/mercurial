@@ -8,10 +8,6 @@
 import util
 import heapq
 
-def _nonoverlap(d1, d2, d3):
-    "Return list of elements in d1 not in d2 or d3"
-    return sorted([d for d in d1 if d not in d3 and d not in d2])
-
 def _dirname(f):
     s = f.rfind("/")
     if s == -1:
@@ -144,7 +140,19 @@ def _dirstatecopies(d):
             del c[k]
     return c
 
-def _forwardcopies(a, b):
+def _computeforwardmissing(a, b, match=None):
+    """Computes which files are in b but not a.
+    This is its own function so extensions can easily wrap this call to see what
+    files _forwardcopies is about to process.
+    """
+    ma = a.manifest()
+    mb = b.manifest()
+    if match:
+        ma = ma.matches(match)
+        mb = mb.matches(match)
+    return mb.filesnotin(ma)
+
+def _forwardcopies(a, b, match=None):
     '''find {dst@b: src@a} copy mapping where a is an ancestor of b'''
 
     # check for working copy
@@ -167,9 +175,7 @@ def _forwardcopies(a, b):
     # we currently don't try to find where old files went, too expensive
     # this means we can miss a case like 'hg rm b; hg cp a b'
     cm = {}
-    missing = set(b.manifest().iterkeys())
-    missing.difference_update(a.manifest().iterkeys())
-
+    missing = _computeforwardmissing(a, b, match=match)
     ancestrycontext = a._repo.changelog.ancestors([b.rev()], inclusive=True)
     for f in missing:
         fctx = b[f]
@@ -197,16 +203,36 @@ def _backwardrenames(a, b):
         r[v] = k
     return r
 
-def pathcopies(x, y):
+def pathcopies(x, y, match=None):
     '''find {dst@y: src@x} copy mapping for directed compare'''
     if x == y or not x or not y:
         return {}
     a = y.ancestor(x)
     if a == x:
-        return _forwardcopies(x, y)
+        return _forwardcopies(x, y, match=match)
     if a == y:
         return _backwardrenames(x, y)
-    return _chain(x, y, _backwardrenames(x, a), _forwardcopies(a, y))
+    return _chain(x, y, _backwardrenames(x, a),
+                  _forwardcopies(a, y, match=match))
+
+def _computenonoverlap(repo, c1, c2, addedinm1, addedinm2):
+    """Computes, based on addedinm1 and addedinm2, the files exclusive to c1
+    and c2. This is its own function so extensions can easily wrap this call
+    to see what files mergecopies is about to process.
+
+    Even though c1 and c2 are not used in this function, they are useful in
+    other extensions for being able to read the file nodes of the changed files.
+    """
+    u1 = sorted(addedinm1 - addedinm2)
+    u2 = sorted(addedinm2 - addedinm1)
+
+    if u1:
+        repo.ui.debug("  unmatched files in local:\n   %s\n"
+                      % "\n   ".join(u1))
+    if u2:
+        repo.ui.debug("  unmatched files in other:\n   %s\n"
+                      % "\n   ".join(u2))
+    return u1, u2
 
 def mergecopies(repo, c1, c2, ca):
     """
@@ -246,14 +272,41 @@ def mergecopies(repo, c1, c2, ca):
     m2 = c2.manifest()
     ma = ca.manifest()
 
-    def makectx(f, n):
-        if len(n) != 20: # in a working context?
-            if c1.rev() is None:
-                return c1.filectx(f)
-            return c2.filectx(f)
-        return repo.filectx(f, fileid=n)
 
-    ctx = util.lrucachefunc(makectx)
+    def setupctx(ctx):
+        """return a 'makectx' function suitable for checkcopies usage from ctx
+
+        We have to re-setup the function building 'filectx' for each
+        'checkcopies' to ensure the linkrev adjustement is properly setup for
+        each. Linkrev adjustment is important to avoid bug in rename
+        detection. Moreover, having a proper '_ancestrycontext' setup ensures
+        the performance impact of this adjustment is kept limited. Without it,
+        each file could do a full dag traversal making the time complexity of
+        the operation explode (see issue4537).
+
+        This function exists here mostly to limit the impact on stable. Feel
+        free to refactor on default.
+        """
+        rev = ctx.rev()
+        ac = getattr(ctx, '_ancestrycontext', None)
+        if ac is None:
+            revs = [rev]
+            if rev is None:
+                revs = [p.rev() for p in ctx.parents()]
+            ac = ctx._repo.changelog.ancestors(revs, inclusive=True)
+            ctx._ancestrycontext = ac
+        def makectx(f, n):
+            if len(n) != 20:  # in a working context?
+                if c1.rev() is None:
+                    return c1.filectx(f)
+                return c2.filectx(f)
+            fctx = repo.filectx(f, fileid=n)
+            # setup only needed for filectx not create from a changectx
+            fctx._ancestrycontext = ac
+            fctx._descendantrev = rev
+            return fctx
+        return util.lrucachefunc(makectx)
+
     copy = {}
     movewithdir = {}
     fullcopy = {}
@@ -261,20 +314,16 @@ def mergecopies(repo, c1, c2, ca):
 
     repo.ui.debug("  searching for copies back to rev %d\n" % limit)
 
-    u1 = _nonoverlap(m1, m2, ma)
-    u2 = _nonoverlap(m2, m1, ma)
-
-    if u1:
-        repo.ui.debug("  unmatched files in local:\n   %s\n"
-                      % "\n   ".join(u1))
-    if u2:
-        repo.ui.debug("  unmatched files in other:\n   %s\n"
-                      % "\n   ".join(u2))
+    addedinm1 = m1.filesnotin(ma)
+    addedinm2 = m2.filesnotin(ma)
+    u1, u2 = _computenonoverlap(repo, c1, c2, addedinm1, addedinm2)
 
     for f in u1:
+        ctx = setupctx(c1)
         checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy)
 
     for f in u2:
+        ctx = setupctx(c2)
         checkcopies(ctx, f, m2, m1, ca, limit, diverge, copy, fullcopy)
 
     renamedelete = {}
@@ -291,13 +340,15 @@ def mergecopies(repo, c1, c2, ca):
         else:
             diverge2.update(fl) # reverse map for below
 
-    bothnew = sorted([d for d in m1 if d in m2 and d not in ma])
+    bothnew = sorted(addedinm1 & addedinm2)
     if bothnew:
         repo.ui.debug("  unmatched files new in both:\n   %s\n"
                       % "\n   ".join(bothnew))
     bothdiverge, _copy, _fullcopy = {}, {}, {}
     for f in bothnew:
+        ctx = setupctx(c1)
         checkcopies(ctx, f, m1, m2, ca, limit, bothdiverge, _copy, _fullcopy)
+        ctx = setupctx(c2)
         checkcopies(ctx, f, m2, m1, ca, limit, bothdiverge, _copy, _fullcopy)
     for of, fl in bothdiverge.items():
         if len(fl) == 2 and fl[0] == fl[1]:

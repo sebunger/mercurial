@@ -28,7 +28,6 @@ test case collision on rename (issue750)
   a
   committing manifest
   committing changelog
-  couldn't read revision branch cache names: * (glob)
   committed changeset 0:07f4944404050f47db2e5c5071e0e84e7a27bba9
 
 Case-changing renames should work:
@@ -36,6 +35,15 @@ Case-changing renames should work:
   $ hg mv a A
   $ hg mv A a
   $ hg st
+
+addremove after case-changing rename has no effect (issue4590)
+
+  $ hg mv a A
+  $ hg addremove
+  recording removal of a as rename to A (100% similar)
+  $ hg revert --all
+  forgetting A
+  undeleting a
 
 test changing case of path components
 

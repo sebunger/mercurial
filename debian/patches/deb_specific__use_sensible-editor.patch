@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2331,8 +2331,8 @@ def debuginstall(ui):
+@@ -2372,8 +2372,8 @@ def debuginstall(ui):
      editor = ui.geteditor()
      cmdpath = util.findexe(shlex.split(editor)[0])
      if not cmdpath:
@@ -26,7 +26,7 @@ Use sensible-editor as default instead of vi.
          else:
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -865,7 +865,7 @@ class ui(object):
+@@ -869,7 +869,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -349,7 +349,7 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- a/mercurial/help/config.txt
 +++ b/mercurial/help/config.txt
-@@ -1330,7 +1330,8 @@ User interface controls.
+@@ -1359,7 +1359,8 @@ User interface controls.
      Print debugging information. True or False. Default is False.
  
  ``editor``

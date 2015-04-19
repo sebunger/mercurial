@@ -26,7 +26,7 @@ Suggest Debian packages for some optional dependencies.
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -28,11 +28,12 @@ def decodeargs(s):
+@@ -28,14 +28,15 @@ def decodeargs(s):
  class MissingTool(Exception):
      pass
  
@@ -34,7 +34,10 @@ Suggest Debian packages for some optional dependencies.
 +def checktool(exe, name=None, abort=True, debname=None):
      name = name or exe
      if not util.findexe(exe):
-         exc = abort and util.Abort or MissingTool
+         if abort:
+             exc = util.Abort
+         else:
+             exc = MissingTool
 -        raise exc(_('cannot find required "%s" tool') % name)
 +        raise exc(_('cannot find required "%s" tool') % name +
 +                  (debname and _(' (try installing the %s package)') % debname or ''))
@@ -139,7 +142,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1081,6 +1085,8 @@ class svn_sink(converter_sink, commandli
+@@ -1089,6 +1093,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
