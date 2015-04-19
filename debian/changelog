@@ -5,6 +5,8 @@ mercurial (3.4~rc1-1) UNRELEASED; urgency=medium
     applied upstream
   * Remove trailing spaces from empty lines in the descriptions.  It
     upsets lintian
+  * Add patch for_upstream__fix_typo_in_man_page.patch to fix a typo
+    spotted by lintian
 
  -- Javi Merino <vicho@debian.org>  Sun, 19 Apr 2015 10:38:59 +0100
 
