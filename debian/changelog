@@ -1,10 +1,10 @@
-mercurial (3.1.2-2+deb8u1) UNRELEASED; urgency=high
+mercurial (3.1.2-2+deb8u1) stable-security; urgency=high
 
   * Fix "CVE-2014-9462" by adding patch
     from_upstream__sshpeer_more_thorough_shell_quoting.patch
     (Closes: #783237)
 
- -- Javi Merino <vicho@debian.org>  Fri, 01 May 2015 18:34:35 +0100
+ -- Javi Merino <vicho@debian.org>  Fri, 01 May 2015 19:14:56 +0100
 
 mercurial (3.1.2-2) unstable; urgency=high
 
