@@ -48,9 +48,6 @@ override_dh_auto_install: $(PYVERS:%=install-python%)
 
 install-python%:
 	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
-	# Do not hardcode the python interpreter
-	sed -i '1c#!/usr/bin/python' debian/tmp/usr/bin/hg
-
 
 override_dh_install:
 	dh_install

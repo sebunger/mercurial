@@ -1,24 +1,30 @@
-mercurial (3.1.2-1~bpo70+1) wheezy-backports; urgency=medium
+mercurial (3.1.2-2+deb8u1) jessie-security; urgency=high
 
-  * Rebuild for wheezy-backports.
+  * Fix "CVE-2014-9462" by adding patch
+    from_upstream__sshpeer_more_thorough_shell_quoting.patch
+    (Closes: #783237)
 
- -- Javi Merino <vicho@debian.org>  Sun, 26 Oct 2014 13:52:54 +0000
+ -- Javi Merino <vicho@debian.org>  Fri, 01 May 2015 19:14:56 +0100
+
+mercurial (3.1.2-2) unstable; urgency=high
+
+  * Fix "CVE-2014-9390: Errors in handling case-sensitive directories
+    allow for remote code execution on pull" by adding patches
+    from_upstream__encoding_add_hfsignoreclean_to_clean_out_HFS-ignored_characters.patch,
+    from_upstream__pathauditor_check_for_codepoints_ignored_on_OS_X.patch,
+    and
+    from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
+    (Closes: #773640)
+
+ -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 16:01:50 +0100
 
 mercurial (3.1.2-1) unstable; urgency=medium
 
-  * New upstream release
+  * New upstream version
   * Use excanvas.js from libjs-excanvas instead of shipping a copy in
     the package
-  
+
  -- Javi Merino <vicho@debian.org>  Thu, 02 Oct 2014 23:34:41 +0100
-
-mercurial (3.1.1-1~bpo70+1) wheezy-backports; urgency=medium
-
-  * Rebuild for wheezy-backports.
-  * Restore munging of /usr/bin/hg's shebang in debian/rules to ensure it uses
-    python instead of python2.6 (closes: #750871).
-
- -- Julien Cristau <jcristau@debian.org>  Tue, 30 Sep 2014 10:15:17 +0200
 
 mercurial (3.1.1-1) unstable; urgency=medium
 
@@ -123,12 +129,6 @@ mercurial (2.9-1) unstable; urgency=medium
 
  -- Javi Merino <vicho@debian.org>  Mon, 10 Feb 2014 22:37:30 +0000
 
-mercurial (2.8.2-1~bpo70+1) wheezy-backports; urgency=medium
-
-  * Rebuild for wheezy-backports.
-
- -- Javi Merino <vicho@debian.org>  Wed, 08 Jan 2014 22:07:09 +0000
-
 mercurial (2.8.2-1) unstable; urgency=medium
 
   * New upstream release
@@ -136,12 +136,6 @@ mercurial (2.8.2-1) unstable; urgency=medium
   * Make uscan verify the signature of downloaded tarballs
 
  -- Javi Merino <vicho@debian.org>  Thu, 02 Jan 2014 17:31:05 +0100
-
-mercurial (2.8.1-2~bpo70+1) wheezy-backports; urgency=medium
-
-  * Rebuild for wheezy-backports.
-
- -- Javi Merino <vicho@debian.org>  Fri, 03 Jan 2014 21:14:44 +0100
 
 mercurial (2.8.1-2) unstable; urgency=low
 
@@ -203,12 +197,6 @@ mercurial (2.8~rc1-1) experimental; urgency=low
 
  -- Javi Merino <vicho@debian.org>  Mon, 21 Oct 2013 22:35:36 +0100
 
-mercurial (2.7.2-1~bpo70+1) wheezy-backports; urgency=low
-
-  * Rebuild for wheezy-backports.
-
- -- Javi Merino <vicho@debian.org>  Mon, 14 Oct 2013 22:18:14 +0100
-
 mercurial (2.7.2-1) unstable; urgency=low
 
   * New upstream release
@@ -223,12 +211,6 @@ mercurial (2.7.1-3) unstable; urgency=low
   * Add autopkgtest tests
 
  -- Javi Merino <vicho@debian.org>  Tue, 01 Oct 2013 08:48:23 +0100
-
-mercurial (2.7.1-2~bpo70+1) wheezy-backports; urgency=low
-
-  * Rebuild for wheezy-backports.
-
- -- Javi Merino <vicho@debian.org>  Tue, 17 Sep 2013 08:27:45 +0100
 
 mercurial (2.7.1-2) unstable; urgency=low
 
@@ -272,18 +254,6 @@ mercurial (2.6.3-1) unstable; urgency=low
     reflect that
 
  -- Javi Merino <vicho@debian.org>  Sun, 21 Jul 2013 23:31:34 +0200
-
-mercurial (2.6.2-1~bpo70+1) wheezy-backports; urgency=low
-
-  * Rebuild for wheezy-backports.
-  * Delete patches
-    from_upstream__reinclude_root_directory_in_directory_rename_detectio
-    n.patch, from_upstream__set_vimdiff_to_check_changed.patch,
-    from_upstream__mergetools_vimdiff_issue_warning.patch and
-    from_upstream__mergetools_refine_vimdiff_warning_message.patch which
-    were backported to wheezy and are now included upstream
-
- -- Javi Merino <vicho@debian.org>  Tue, 02 Jul 2013 21:57:41 +0100
 
 mercurial (2.6.2-1) unstable; urgency=low
 
@@ -375,23 +345,6 @@ mercurial (2.3-1) experimental; urgency=low
     spelling error in a manpage
 
  -- Javi Merino <vicho@debian.org>  Fri, 03 Aug 2012 20:53:44 +0200
-
-mercurial (2.2.2-3) unstable; urgency=low
-
-  * Fix "Backport improvement to vimdiff configuration" by adding
-    from_upstream__set_vimdiff_to_check_changed.patch,
-    from_upstream__mergetools_vimdiff_issue_warning.patch and
-    from_upstream__mergetools_refine_vimdiff_warning_message.patch
-    backported from upstream (Closes: #701168)
-
- -- Javi Merino <vicho@debian.org>  Sat, 23 Feb 2013 19:52:22 +0000
-
-mercurial (2.2.2-2) unstable; urgency=low
-
-  * Fix "Please add patch from http://bz.selenic.com/show_bug.cgi?id=3511"
-    by adding it (Closes: #698634)
-
- -- Javi Merino <vicho@debian.org>  Mon, 21 Jan 2013 23:33:20 +0000
 
 mercurial (2.2.2-1) unstable; urgency=low
 
