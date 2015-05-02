@@ -43,6 +43,6 @@ cd ..
 
 # Kill the server and cleanup
 kill $(cat $PID_FILE)
-rm -r $SVN_ROOT
+rm -rf $SVN_ROOT
 
 rm -r celesteville

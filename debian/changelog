@@ -1,3 +1,13 @@
+mercurial (3.4-1) unstable; urgency=medium
+
+  * New upstream release
+  * Delete patch for_upstream__fix_typo_in_man_page.patch as it is applied
+    upstream
+  * Update breaks of hgsubversion to versions prior to 1.8-1
+  * Upload to unstable
+
+ -- Javi Merino <vicho@debian.org>  Sat, 02 May 2015 10:01:10 +0100
+
 mercurial (3.4~rc1-1) experimental; urgency=medium
 
   * New upstream release

@@ -3830,7 +3830,7 @@ do not save backup copies of files
 .TP
 .B \-i,  \-\-interactive
 .
-interactively select the changes
+interactively select the changes (EXPERIMENTAL)
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -5904,7 +5904,7 @@ defined. This will perform a search for changesets.
 .sp
 The argument for \fBrev\fP can be a single revision, a revision set,
 or a literal keyword to search for in changeset data (equivalent to
-\%\fBhg log \-k\fP\:.
+\%\fBhg log \-k\fP\:).
 .sp
 The \fBrevcount\fP query string argument defines the maximum numbers of
 changesets to render.
@@ -6010,7 +6010,7 @@ file will be shown. This form is equivalent to the \fBfilelog\fP handler.
 .sp
 Show information about a directory.
 .sp
-If the URL path arguments are defined, information about the root
+If the URL path arguments are omitted, information about the root
 directory for the \fBtip\fP changeset will be shown.
 .sp
 Because this handler can only show information for directories, it
@@ -7176,8 +7176,7 @@ Subversion subrepositories will print a warning and abort.
 .
 diff does not recurse in subrepos unless \-S/\-\-subrepos is
 specified. Changes are displayed as usual, on the subrepositories
-elements. Git subrepositories do not support \-\-include/\-\-exclude.
-Subversion subrepositories are currently silently ignored.
+elements. Subversion subrepositories are currently silently ignored.
 .TP
 .B files
 .
@@ -8547,19 +8546,12 @@ Typical uses for censor are due to security or legal requirements, including:
 .ft P
 .fi
 .sp
-Censored file revisions are listed in a tracked file called .hgcensored stored
-in the repository root. The censor command adds an entry to the .hgcensored file
-in the working directory and commits it (much like \fBhg tag\fP and .hgtags). The
-censored file data is then replaced with a pointer to the new commit, enabling
-verification.
-.sp
 Censored nodes can interrupt mercurial\(aqs typical operation whenever the excised
 data needs to be materialized. Some commands, like \fBhg cat\fP/\fBhg revert\fP,
 simply fail when asked to produce censored data. Others, like \fBhg verify\fP and
 \fBhg update\fP, must be capable of tolerating censored data to continue to
 function in a meaningful way. Such commands only tolerate censored file
-revisions if they are allowed by the policy specified by the "censor.allow"
-config option.
+revisions if they are allowed by the "censor.policy=ignore" config option.
 .SS Commands
 .SS censor
 .sp
@@ -10159,8 +10151,12 @@ Histedit rule lines are truncated to 80 characters by default. You
 can customise this behaviour by setting a different length in your
 configuration file:
 .sp
+.nf
+.ft C
 [histedit]
 linelen = 120      # truncate rule lines at 120 characters
+.ft P
+.fi
 .SS Commands
 .SS histedit
 .sp
@@ -13024,7 +13020,7 @@ show patch
 .TP
 .B \-i,  \-\-interactive
 .
-interactive mode, only works while creating a shelve
+interactive mode, only works while creating a shelve(EXPERIMENTAL)
 .TP
 .B \-\-stat
 .

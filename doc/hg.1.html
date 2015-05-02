@@ -3123,7 +3123,7 @@ To disable these backups, use --no-backup.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-i</span>, <span class="option">--interactive</span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>interactively select the changes</td></tr>
+<tr><td>&nbsp;</td><td>interactively select the changes (EXPERIMENTAL)</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -4620,7 +4620,7 @@ revision.</p>
 defined. This will perform a search for changesets.</p>
 <p>The argument for <tt class="docutils literal">rev</tt> can be a single revision, a revision set,
 or a literal keyword to search for in changeset data (equivalent to
-<a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log <span class="pre">-k</span></tt></a>.</p>
+<a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log <span class="pre">-k</span></tt></a>).</p>
 <p>The <tt class="docutils literal">revcount</tt> query string argument defines the maximum numbers of
 changesets to render.</p>
 <p>For non-searches, the <tt class="docutils literal">changelog</tt> template will be rendered.</p>
@@ -4710,7 +4710,7 @@ file will be shown. This form is equivalent to the <tt class="docutils literal">
 <div class="section" id="manifest-revision-path">
 <h3>/manifest[/{revision}[/{path}]]</h3>
 <p>Show information about a directory.</p>
-<p>If the URL path arguments are defined, information about the root
+<p>If the URL path arguments are omitted, information about the root
 directory for the <tt class="docutils literal">tip</tt> changeset will be shown.</p>
 <p>Because this handler can only show information for directories, it
 is recommended to use the <tt class="docutils literal">file</tt> handler instead, as it can handle both
@@ -5529,8 +5529,7 @@ Subversion subrepositories will print a warning and abort.</td>
 </tr>
 <tr class="field"><th class="field-name">diff:</th><td class="field-body">diff does not recurse in subrepos unless -S/--subrepos is
 specified. Changes are displayed as usual, on the subrepositories
-elements. Git subrepositories do not support --include/--exclude.
-Subversion subrepositories are currently silently ignored.</td>
+elements. Subversion subrepositories are currently silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">files:</th><td class="field-body">files does not recurse into subrepos unless -S/--subrepos is
 specified.  Git and Subversion subrepositories are currently
@@ -6569,18 +6568,12 @@ data.</p>
 * Licensed data/code/libraries for which the license has expired
 * Personally Identifiable Information or other private data
 </pre>
-<p>Censored file revisions are listed in a tracked file called .hgcensored stored
-in the repository root. The censor command adds an entry to the .hgcensored file
-in the working directory and commits it (much like <tt class="docutils literal">hg tag</tt> and .hgtags). The
-censored file data is then replaced with a pointer to the new commit, enabling
-verification.</p>
 <p>Censored nodes can interrupt mercurial's typical operation whenever the excised
 data needs to be materialized. Some commands, like <tt class="docutils literal">hg cat</tt>/<tt class="docutils literal">hg revert</tt>,
 simply fail when asked to produce censored data. Others, like <tt class="docutils literal">hg verify</tt> and
 <tt class="docutils literal">hg update</tt>, must be capable of tolerating censored data to continue to
 function in a meaningful way. Such commands only tolerate censored file
-revisions if they are allowed by the policy specified by the &quot;censor.allow&quot;
-config option.</p>
+revisions if they are allowed by the &quot;censor.policy=ignore&quot; config option.</p>
 <div class="section" id="id15">
 <h3>Commands</h3>
 <div class="section" id="id16">
@@ -7998,8 +7991,10 @@ repo, you can add a <tt class="docutils literal"><span class="pre">--force</span
 <p>Histedit rule lines are truncated to 80 characters by default. You
 can customise this behaviour by setting a different length in your
 configuration file:</p>
-<p>[histedit]
-linelen = 120      # truncate rule lines at 120 characters</p>
+<pre class="literal-block">
+[histedit]
+linelen = 120      # truncate rule lines at 120 characters
+</pre>
 <div class="section" id="id31">
 <h3>Commands</h3>
 <div class="section" id="id32">
@@ -10375,7 +10370,7 @@ all shelved changes, use <tt class="docutils literal"><span class="pre">--cleanu
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-i</span>, <span class="option">--interactive</span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>interactive mode, only works while creating a shelve</td></tr>
+<tr><td>&nbsp;</td><td>interactive mode, only works while creating a shelve(EXPERIMENTAL)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--stat</span></kbd></td>
 <td>output diffstat-style summary of changes</td></tr>

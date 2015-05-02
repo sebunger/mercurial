@@ -816,12 +816,12 @@ first added changeset), <tt class="docutils literal">$HG_URL</tt> and <tt class=
 bookmarks and phases changes will set <tt class="docutils literal">HG_BOOKMARK_MOVED</tt> and
 <tt class="docutils literal">HG_PHASES_MOVED</tt> to <tt class="docutils literal">1</tt>, etc.</dd>
 <dt><tt class="docutils literal">txnclose</tt></dt>
-<dd>Run after any repository transaction has been commited. At this
+<dd>Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
-after the lock is released. see <tt class="docutils literal">pretxnclose</tt> docs for details about
+after the lock is released. See <tt class="docutils literal">pretxnclose</tt> docs for details about
 available variables.</dd>
 <dt><tt class="docutils literal">txnabort</tt></dt>
-<dd>Run when a transaction is aborted. see <tt class="docutils literal">pretxnclose</tt> docs for details about
+<dd>Run when a transaction is aborted. See <tt class="docutils literal">pretxnclose</tt> docs for details about
 available variables.</dd>
 <dt><tt class="docutils literal">pretxnchangegroup</tt></dt>
 <dd>Run after a changegroup has been added via push, pull or unbundle,
