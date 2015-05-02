@@ -1,4 +1,4 @@
-mercurial (3.1.2-2+deb8u1) stable-security; urgency=high
+mercurial (3.1.2-2+deb8u1) jessie-security; urgency=high
 
   * Fix "CVE-2014-9462" by adding patch
     from_upstream__sshpeer_more_thorough_shell_quoting.patch
