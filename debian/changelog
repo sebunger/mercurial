@@ -3,6 +3,7 @@ mercurial (3.4-1) UNRELEASED; urgency=medium
   * New upstream release
   * Delete patch for_upstream__fix_typo_in_man_page.patch as it is applied
     upstream
+  * Update breaks of hgsubversion to versions prior to 1.8-1
 
  -- Javi Merino <vicho@debian.org>  Sat, 02 May 2015 09:07:38 +0100
 
