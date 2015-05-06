@@ -1,3 +1,11 @@
+mercurial (2.2.2-4+deb7u1) UNRELEASED; urgency=medium
+
+  * Fix "CVE-2014-9462" by adding patch
+    from_upstream__sshpeer_more_thorough_shell_quoting.patch (Closes:
+    #783237)
+
+ -- Javi Merino <vicho@debian.org>  Sun, 03 May 2015 20:29:11 +0100
+
 mercurial (2.2.2-4) stable; urgency=high
 
   * Security update for CVE-2014-9390: errors in handling case-sensitive
