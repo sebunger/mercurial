@@ -1,0 +1,17 @@
+Origin: http://selenic.com/hg/rev/93bc65e970c0
+Description: mergetools.hgrc: set vimdiff to check=changed
+Bug: http://bugs.debian.org/701168
+Applied-Upstream: 2.3.2
+
+diff --git a/contrib/mergetools.hgrc b/contrib/mergetools.hgrc
+--- a/contrib/mergetools.hgrc
++++ b/contrib/mergetools.hgrc
+@@ -16,6 +16,7 @@ gvimdiff.regname=path
+ gvimdiff.priority=-9
+ 
+ vimdiff.args=$local $other $base
++vimdiff.check=changed
+ vimdiff.priority=-10
+ 
+ merge.checkconflicts=True
+
