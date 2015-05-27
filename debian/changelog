@@ -1,4 +1,4 @@
-mercurial (1.6.4-1+deb6u1) UNRELEASED; urgency=medium
+mercurial (1.6.4-1+deb6u1) squeeze-lts; urgency=medium
 
   * Fix "CVE-2014-9462" by adding patch
     from_upstream__sshpeer_more_thorough_shell_quoting.patch
@@ -9,7 +9,7 @@ mercurial (1.6.4-1+deb6u1) UNRELEASED; urgency=medium
     and
     from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
   
- -- Javi Merino <vicho@debian.org>  Tue, 19 May 2015 12:37:46 +0900
+ -- Javi Merino <vicho@debian.org>  Wed, 27 May 2015 11:49:05 +0100
 
 mercurial (1.6.4-1) unstable; urgency=low
 
