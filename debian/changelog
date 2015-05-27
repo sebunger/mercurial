@@ -2,7 +2,13 @@ mercurial (1.6.4-1+deb6u1) UNRELEASED; urgency=medium
 
   * Fix "CVE-2014-9462" by adding patch
     from_upstream__sshpeer_more_thorough_shell_quoting.patch
-
+  * Fix "CVE-2014-9390: Errors in handling case-sensitive directories
+    allow for remote code execution on pull" by adding patches
+    from_upstream__encoding_add_hfsignoreclean_to_clean_out_HFS-ignored_characters.patch,
+    from_upstream__pathauditor_check_for_codepoints_ignored_on_OS_X.patch,
+    and
+    from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
+  
  -- Javi Merino <vicho@debian.org>  Tue, 19 May 2015 12:37:46 +0900
 
 mercurial (1.6.4-1) unstable; urgency=low
