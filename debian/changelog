@@ -16,7 +16,7 @@ mercurial (1.6.4-1+deb6u1) squeeze-lts; urgency=medium
   * Run tests for CVE-2014-9390 by adding patch
     from_upstream__test_CVE-2014-930.patch
   
- -- Javi Merino <vicho@debian.org>  Wed, 27 May 2015 11:49:05 +0100
+ -- Javi Merino <vicho@debian.org>  Tue, 02 Jun 2015 20:54:24 +0100
 
 mercurial (1.6.4-1) unstable; urgency=low
 
