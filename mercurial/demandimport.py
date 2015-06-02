@@ -3,7 +3,7 @@
 # Copyright 2006, 2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''
 demandimport - automatic demandloading of modules
@@ -81,7 +81,10 @@ class _demandmod(object):
 def _demandimport(name, globals=None, locals=None, fromlist=None, level=None):
     if not locals or name in ignore or fromlist == ('*',):
         # these cases we can't really delay
-        return _origimport(name, globals, locals, fromlist)
+        if level is None:
+            return _origimport(name, globals, locals, fromlist)
+        else:
+            return _origimport(name, globals, locals, fromlist, level)
     elif not fromlist:
         # import a [as b]
         if '.' in name: # a.b
@@ -117,6 +120,7 @@ ignore = [
     '_xmlplus',
     'fcntl',
     'win32com.gen_py',
+    '_winreg', # 2.7 mimetypes needs immediate ImportError
     'pythoncom',
     # imported by tarfile, not available under Windows
     'pwd',
@@ -124,6 +128,12 @@ ignore = [
     # imported by profile, itself imported by hotshot.stats,
     # not available under Windows
     'resource',
+    # this trips up many extension authors
+    'gtk',
+    # setuptools' pkg_resources.py expects "from __main__ import x" to
+    # raise ImportError if x not defined
+    '__main__',
+    '_ssl', # conditional imports in the stdlib, issue1964
     ]
 
 def enable():

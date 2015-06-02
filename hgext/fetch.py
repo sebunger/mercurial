@@ -3,7 +3,7 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''pull, update and merge in one command'''
 
@@ -28,7 +28,7 @@ def fetch(ui, repo, source='default', **opts):
     parent, with local changes as the second. To switch the merge
     order, use --switch-parent.
 
-    See 'hg help dates' for a list of formats valid for -d/--date.
+    See :hg:`help dates` for a list of formats valid for -d/--date.
     '''
 
     date = opts.get('date')
@@ -61,7 +61,7 @@ def fetch(ui, repo, source='default', **opts):
             raise util.Abort(_('multiple heads in this branch '
                                '(use "hg heads ." and "hg merge" to merge)'))
 
-        other = hg.repository(cmdutil.remoteui(repo, opts),
+        other = hg.repository(hg.remoteui(repo, opts),
                               ui.expandpath(source))
         ui.status(_('pulling from %s\n') %
                   url.hidepassword(ui.expandpath(source)))
@@ -81,7 +81,6 @@ def fetch(ui, repo, source='default', **opts):
 
         # Is this a simple fast-forward along the current branch?
         newheads = repo.branchheads(branch)
-        newheads = [head for head in newheads if len(repo[head].children()) == 0]
         newchildren = repo.changelog.nodesbetween([parent], newheads)[2]
         if len(newheads) == 1:
             if newchildren[0] != parent:
@@ -139,7 +138,8 @@ def fetch(ui, repo, source='default', **opts):
 cmdtable = {
     'fetch':
         (fetch,
-        [('r', 'rev', [], _('a specific revision you would like to pull')),
+        [('r', 'rev', [],
+          _('a specific revision you would like to pull'), _('REV')),
          ('e', 'edit', None, _('edit commit message')),
          ('', 'force-editor', None, _('edit commit message (DEPRECATED)')),
          ('', 'switch-parent', None, _('switch parents when merging')),

@@ -2,13 +2,20 @@
 # -*- mode: makefile; coding: utf-8 -*-
 
 %:
-	dh --with quilt $@
+	dh $@
 
 PYVERS=$(shell pyversions -vs)
 
 override_dh_auto_build: $(PYVERS:%=build-python%)
 	$(MAKE) -C doc man
-	touch $@
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	# Tests are not yet ready to be run in Debian build context
+	#$(MAKE) tests
+	chmod a+x tests/test-CVE-2014-9390
+	make test-CVE-2014-9390
+endif
+	# Do not start a line with a word with a dot in a manpage
+	sed -i -e 's,^[.]\(hgignore\|hg/hgrc\),\\fP\1,' doc/hg.1
 
 build-python%: mercurial/__version__.py
 	python$* setup.py build
@@ -17,7 +24,7 @@ build-python%: mercurial/__version__.py
 override_dh_auto_install: $(PYVERS:%=install-python%)
 
 install-python%: build-python%
-	python$* setup.py install --root $(CURDIR)/debian/tmp
+	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
 	# Do not hardcode the python interpreter
 	sed -i '1c#!/usr/bin/python' debian/tmp/usr/bin/hg
 
@@ -36,7 +43,6 @@ install-archdep:
 	install -m 644 \
 		contrib/bash_completion \
 		$(CURDIR)/debian/mercurial/etc/bash_completion.d/mercurial
-	
 	# Install system-wide conffiles
 	echo "# system-wide mercurial configuration file" \
 		>  $(CURDIR)/debian/mercurial/etc/mercurial/hgrc
@@ -45,10 +51,6 @@ install-archdep:
 	install -m 644 \
 		contrib/mergetools.hgrc \
 		$(CURDIR)/debian/mercurial/etc/mercurial/hgrc.d/mergetools.rc
-	
-	# Symlink docs
-	rm -rf $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
-	ln -s mercurial-common $(CURDIR)/debian/mercurial/usr/share/doc/mercurial
 	# remove arch-independent python stuff
 	find debian/mercurial/usr/lib \
 		! -name '*.so' ! -type d -delete , \
@@ -60,16 +62,12 @@ install-archindep:
 		-name '*.so' ! -type d -delete , \
 		-type d -empty -delete
 
-override_dh_auto_clean:
+override_dh_auto_clean: mercurial/__version__.py
 	cp -a mercurial/__version__.py mercurial/__version__.py.save
 	$(MAKE) clean
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
 	$(RM) build-python*
-	# if this is a git repository, restore removed files that would have been ignored by dpkg-source
-	-test -d .git && git checkout -- $$(git status | \
-		sed -e '/^#[[:space:]]*deleted:[[:space:]]*/s/^#[[:space:]]*deleted:[[:space:]]*//p;d' | \
-		grep -v '^debian/')
 
 mercurial/__version__.py:
 	@echo "$@ is missing (you probably call 'make clean' directly)."

@@ -2,6 +2,8 @@
 
 echo "[extensions]" >> $HGRCPATH
 echo "mq=" >> $HGRCPATH
+echo "[mq]" >> $HGRCPATH
+echo "git=keep" >> $HGRCPATH
 
 echo % init
 hg init a
@@ -55,5 +57,16 @@ hg qdiff --nodates -b
 echo % qdiff -U 1 -B
 hg qdiff --nodates -U 1 -B
 
-echo qdiff -w
+echo % qdiff -w
 hg qdiff --nodates -w
+
+echo % qdiff --reverse
+hg qdiff --nodates --reverse
+
+echo % qdiff preserve existing git flag
+hg qrefresh --git
+echo a >> lines
+hg qdiff
+
+echo % qdiff --stat
+hg qdiff --stat

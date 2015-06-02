@@ -204,6 +204,13 @@ class AbstractMethodException(Exception):
 class BadTypeInNameException(Exception):
 	pass
 
+class BadDomainName(Exception):
+	def __init__(self, pos):
+		Exception.__init__(self, "at position %s" % pos)
+
+class BadDomainNameCircular(BadDomainName):
+	pass
+
 # implementation classes
 
 class DNSEntry(object):
@@ -560,7 +567,7 @@ class DNSIncoming(object):
 				#
 				#print "UNKNOWN TYPE = " + str(info[0])
 				#raise BadTypeInNameException
-				pass
+				self.offset += info[3]
 
 			if rec is not None:
 				self.answers.append(rec)
@@ -575,8 +582,7 @@ class DNSIncoming(object):
 
 	def readUTF(self, offset, len):
 		"""Reads a UTF-8 string of a given length from the packet"""
-		result = self.data[offset:offset+len].decode('utf-8')
-		return result
+		return self.data[offset:offset+len].decode('utf-8')
 
 	def readName(self):
 		"""Reads a domain name from the packet"""
@@ -599,10 +605,10 @@ class DNSIncoming(object):
 					next = off + 1
 				off = ((len & 0x3F) << 8) | ord(self.data[off])
 				if off >= first:
-					raise "Bad domain name (circular) at " + str(off)
+					raise BadDomainNameCircular(off)
 				first = off
 			else:
-				raise "Bad domain name at " + str(off)
+				raise BadDomainName(off)
 
 		if next >= 0:
 			self.offset = next
@@ -864,7 +870,8 @@ class Engine(threading.Thread):
 						try:
 							self.readers[socket].handle_read()
 						except:
-							traceback.print_exc()
+							if not globals()['_GLOBAL_DONE']:
+								traceback.print_exc()
 				except:
 					pass
 
@@ -1060,16 +1067,16 @@ class ServiceInfo(object):
 			for key in properties:
 				value = properties[key]
 				if value is None:
-					suffix = ''.encode('utf-8')
+					suffix = ''
 				elif isinstance(value, str):
-					suffix = value.encode('utf-8')
+					suffix = value
 				elif isinstance(value, int):
 					if value:
 						suffix = 'true'
 					else:
 						suffix = 'false'
 				else:
-					suffix = ''.encode('utf-8')
+					suffix = ''
 				list.append('='.join((key, suffix)))
 			for item in list:
 				result = ''.join((result, struct.pack('!c', chr(len(item))), item))
@@ -1571,3 +1578,5 @@ if __name__ == '__main__':
 	r.unregisterService(info)
 	print "   Unregister done."
 	r.close()
+
+# no-check-code

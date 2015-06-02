@@ -3,10 +3,11 @@
 # Copyright 2006, 2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import nullid, short
 from i18n import _
+import os
 import revlog, util, error
 
 def verify(repo):
@@ -27,6 +28,7 @@ def _verify(repo):
     ui = repo.ui
     cl = repo.changelog
     mf = repo.manifest
+    lrugetctx = util.lrucachefunc(repo.changectx)
 
     if not repo.cancopy():
         raise util.Abort(_("cannot verify bundle or remote repos"))
@@ -46,6 +48,8 @@ def _verify(repo):
         if isinstance(inst, KeyboardInterrupt):
             ui.warn(_("interrupted"))
             raise
+        if not str(inst):
+            inst = repr(inst)
         err(linkrev, "%s: %s" % (msg, inst), filename)
 
     def warn(msg):
@@ -78,7 +82,14 @@ def _verify(repo):
                 msg = _("rev %d points to unexpected changeset %d")
             err(None, msg % (i, lr), f)
             if linkrevs:
-                warn(_(" (expected %s)") % " ".join(map(str,linkrevs)))
+                if f and len(linkrevs) > 1:
+                    try:
+                        # attempt to filter down to real linkrevs
+                        linkrevs = [l for l in linkrevs
+                                    if lrugetctx(l)[f].filenode() == node]
+                    except:
+                        pass
+                warn(_(" (expected %s)") % " ".join(map(str, linkrevs)))
             lr = None # can't be trusted
 
         try:
@@ -97,6 +108,9 @@ def _verify(repo):
         seen[n] = i
         return lr
 
+    if os.path.exists(repo.sjoin("journal")):
+        ui.warn(_("abandoned transaction found - run hg recover\n"))
+
     revlogv1 = cl.version != revlog.REVLOGV0
     if ui.verbose or not revlogv1:
         ui.status(_("repository uses revlog format %d\n") %
@@ -108,7 +122,9 @@ def _verify(repo):
     ui.status(_("checking changesets\n"))
     seen = {}
     checklog(cl, "changelog", 0)
+    total = len(repo)
     for i in repo:
+        ui.progress(_('changesets'), i, total=total)
         n = cl.node(i)
         checkentry(cl, i, n, seen, [i], "changelog")
 
@@ -119,11 +135,14 @@ def _verify(repo):
                 filelinkrevs.setdefault(f, []).append(i)
         except Exception, inst:
             exc(i, _("unpacking changeset %s") % short(n), inst)
+    ui.progress(_('changesets'), None)
 
     ui.status(_("checking manifests\n"))
     seen = {}
     checklog(mf, "manifest", 0)
+    total = len(mf)
     for i in mf:
+        ui.progress(_('manifests'), i, total=total)
         n = mf.node(i)
         lr = checkentry(mf, i, n, seen, mflinkrevs.get(n, []), "manifest")
         if n in mflinkrevs:
@@ -136,26 +155,34 @@ def _verify(repo):
                 if not f:
                     err(lr, _("file without name in manifest"))
                 elif f != "/dev/null":
-                    fns = filenodes.setdefault(f, {})
-                    if fn not in fns:
-                        fns[fn] = i
+                    filenodes.setdefault(f, {}).setdefault(fn, lr)
         except Exception, inst:
             exc(lr, _("reading manifest delta %s") % short(n), inst)
+    ui.progress(_('manifests'), None)
 
     ui.status(_("crosschecking files in changesets and manifests\n"))
 
+    total = len(mflinkrevs) + len(filelinkrevs) + len(filenodes)
+    count = 0
     if havemf:
-        for c,m in sorted([(c, m) for m in mflinkrevs for c in mflinkrevs[m]]):
+        for c, m in sorted([(c, m) for m in mflinkrevs
+                            for c in mflinkrevs[m]]):
+            count += 1
+            ui.progress(_('crosschecking'), count, total=total)
             err(c, _("changeset refers to unknown manifest %s") % short(m))
-        del mflinkrevs
+        mflinkrevs = None # del is bad here due to scope issues
 
         for f in sorted(filelinkrevs):
+            count += 1
+            ui.progress(_('crosschecking'), count, total=total)
             if f not in filenodes:
                 lr = filelinkrevs[f][0]
                 err(lr, _("in changeset but not in manifest"), f)
 
     if havecl:
         for f in sorted(filenodes):
+            count += 1
+            ui.progress(_('crosschecking'), count, total=total)
             if f not in filelinkrevs:
                 try:
                     fl = repo.file(f)
@@ -164,17 +191,21 @@ def _verify(repo):
                     lr = None
                 err(lr, _("in manifest but not in changeset"), f)
 
+    ui.progress(_('crosschecking'), None)
+
     ui.status(_("checking files\n"))
 
     storefiles = set()
     for f, f2, size in repo.store.datafiles():
         if not f:
             err(None, _("cannot decode filename '%s'") % f2)
-        elif size > 0:
+        elif size > 0 or not revlogv1:
             storefiles.add(f)
 
     files = sorted(set(filenodes) | set(filelinkrevs))
-    for f in files:
+    total = len(files)
+    for i, f in enumerate(files):
+        ui.progress(_('checking'), i, item=f, total=total)
         try:
             linkrevs = filelinkrevs[f]
         except KeyError:
@@ -200,6 +231,7 @@ def _verify(repo):
 
         checklog(fl, f, lr)
         seen = {}
+        rp = None
         for i in fl:
             revisions += 1
             n = fl.node(i)
@@ -212,18 +244,28 @@ def _verify(repo):
 
             # verify contents
             try:
-                t = fl.read(n)
+                l = len(fl.read(n))
                 rp = fl.renamed(n)
-                if len(t) != fl.size(i):
+                if l != fl.size(i):
                     if len(fl.revision(n)) != fl.size(i):
                         err(lr, _("unpacked size is %s, %s expected") %
-                            (len(t), fl.size(i)), f)
+                            (l, fl.size(i)), f)
             except Exception, inst:
                 exc(lr, _("unpacking %s") % short(n), inst, f)
 
             # check renames
             try:
                 if rp:
+                    if lr is not None and ui.verbose:
+                        ctx = lrugetctx(lr)
+                        found = False
+                        for pctx in ctx.parents():
+                            if rp[0] in pctx:
+                                found = True
+                                break
+                        if not found:
+                            warn(_("warning: copy source of '%s' not"
+                                   " in parents of %s") % (f, ctx))
                     fl2 = repo.file(rp[0])
                     if not len(fl2):
                         err(lr, _("empty or missing copy source revlog %s:%s")
@@ -239,9 +281,10 @@ def _verify(repo):
 
         # cross-check
         if f in filenodes:
-            fns = [(mf.linkrev(l), n) for n,l in filenodes[f].iteritems()]
+            fns = [(lr, n) for n, lr in filenodes[f].iteritems()]
             for lr, node in sorted(fns):
                 err(lr, _("%s in manifests not found") % short(node), f)
+    ui.progress(_('checking'), None)
 
     for f in storefiles:
         warn(_("warning: orphan revlog '%s'") % f)

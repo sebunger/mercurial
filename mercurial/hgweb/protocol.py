@@ -3,10 +3,10 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
-import cStringIO, zlib, tempfile, errno, os, sys, urllib
-from mercurial import util, streamclone
+import cStringIO, zlib, tempfile, errno, os, sys, urllib, copy
+from mercurial import util, streamclone, pushkey
 from mercurial.node import bin, hex
 from mercurial import changegroup as changegroupmod
 from common import ErrorResponse, HTTP_OK, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
@@ -17,16 +17,17 @@ from common import ErrorResponse, HTTP_OK, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
 __all__ = [
    'lookup', 'heads', 'branches', 'between', 'changegroup',
    'changegroupsubset', 'capabilities', 'unbundle', 'stream_out',
-   'branchmap',
+   'branchmap', 'pushkey', 'listkeys'
 ]
 
 HGTYPE = 'application/mercurial-0.1'
+basecaps = 'lookup changegroupsubset branchmap pushkey'.split()
 
 def lookup(repo, req):
     try:
         r = hex(repo.lookup(req.form['key'][0]))
         success = 1
-    except Exception,inst:
+    except Exception, inst:
         r = str(inst)
         success = 0
     resp = "%s %s\n" % (success, r)
@@ -61,13 +62,9 @@ def branches(repo, req):
     yield resp
 
 def between(repo, req):
-    if 'pairs' in req.form:
-        pairs = [map(bin, p.split("-"))
-                 for p in req.form['pairs'][0].split(" ")]
-    resp = cStringIO.StringIO()
-    for b in repo.between(pairs):
-        resp.write(" ".join(map(hex, b)) + "\n")
-    resp = resp.getvalue()
+    pairs = [map(bin, p.split("-"))
+             for p in req.form['pairs'][0].split(" ")]
+    resp = ''.join(" ".join(map(hex, b)) + "\n" for b in repo.between(pairs))
     req.respond(HTTP_OK, HGTYPE, length=len(resp))
     yield resp
 
@@ -109,8 +106,8 @@ def changegroupsubset(repo, req):
     yield z.flush()
 
 def capabilities(repo, req):
-    caps = ['lookup', 'changegroupsubset', 'branchmap']
-    if repo.ui.configbool('server', 'uncompressed', untrusted=True):
+    caps = copy.copy(basecaps)
+    if streamclone.allowed(repo.ui):
         caps.append('stream=%d' % repo.changelog.version)
     if changegroupmod.bundlepriority:
         caps.append('unbundle=%s' % ','.join(changegroupmod.bundlepriority))
@@ -167,7 +164,7 @@ def unbundle(repo, req):
                           urllib.quote(req.env.get('REMOTE_HOST', '')),
                           urllib.quote(req.env.get('REMOTE_USER', '')))
                     try:
-                        ret = repo.addchangegroup(gen, 'serve', url)
+                        ret = repo.addchangegroup(gen, 'serve', url, lock=lock)
                     except util.Abort, inst:
                         sys.stdout.write("abort: %s\n" % inst)
                         ret = 0
@@ -181,18 +178,21 @@ def unbundle(repo, req):
         except ValueError, inst:
             raise ErrorResponse(HTTP_OK, inst)
         except (OSError, IOError), inst:
-            filename = getattr(inst, 'filename', '')
-            # Don't send our filesystem layout to the client
-            if filename.startswith(repo.root):
-                filename = filename[len(repo.root)+1:]
-            else:
-                filename = ''
             error = getattr(inst, 'strerror', 'Unknown error')
+            if not isinstance(error, str):
+                error = 'Error: %s' % str(error)
             if inst.errno == errno.ENOENT:
                 code = HTTP_NOT_FOUND
             else:
                 code = HTTP_SERVER_ERROR
-            raise ErrorResponse(code, '%s: %s' % (error, filename))
+            filename = getattr(inst, 'filename', '')
+            # Don't send our filesystem layout to the client
+            if filename and filename.startswith(repo.root):
+                filename = filename[len(repo.root)+1:]
+                text = '%s: %s' % (error, filename)
+            else:
+                text = error.replace(repo.root + os.path.sep, '')
+            raise ErrorResponse(code, text)
     finally:
         fp.close()
         os.unlink(tempname)
@@ -200,7 +200,26 @@ def unbundle(repo, req):
 def stream_out(repo, req):
     req.respond(HTTP_OK, HGTYPE)
     try:
-        for chunk in streamclone.stream_out(repo, untrusted=True):
+        for chunk in streamclone.stream_out(repo):
             yield chunk
     except streamclone.StreamException, inst:
         yield str(inst)
+
+def pushkey(repo, req):
+    namespace = req.form['namespace'][0]
+    key = req.form['key'][0]
+    old = req.form['old'][0]
+    new = req.form['new'][0]
+
+    r = repo.pushkey(namespace, key, old, new)
+    r = '%d\n' % int(r)
+    req.respond(HTTP_OK, HGTYPE, length=len(r))
+    yield r
+
+def listkeys(repo, req):
+    namespace = req.form['namespace'][0]
+    d = repo.listkeys(namespace).items()
+    t = '\n'.join(['%s\t%s' % (k.encode('string-escape'),
+                               v.encode('string-escape')) for k, v in d])
+    req.respond(HTTP_OK, HGTYPE, length=len(t))
+    yield t

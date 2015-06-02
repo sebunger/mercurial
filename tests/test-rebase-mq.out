@@ -1,5 +1,5 @@
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-@  3 P1 tags: qtip tip f2.patch
+@  3 P1 tags: f2.patch qtip tip
 |
 o  2 P0 tags: f.patch qbase
 |
@@ -11,6 +11,9 @@ o  0 C1 tags: qparent
 % Rebase - try to rebase on an applied mq patch
 abort: cannot rebase onto an applied mq patch
 
+% Rebase - same thing, but mq patch is default dest
+abort: cannot rebase onto an applied mq patch
+
 % Rebase - generate a conflict
 merging f
 warning: conflicts during merge.
@@ -18,20 +21,14 @@ merging f failed!
 abort: fix unresolved conflicts with hg resolve then run hg rebase --continue
 
 % Fix the 1st conflict
-merging f
 warning: conflicts during merge.
 merging f failed!
 abort: fix unresolved conflicts with hg resolve then run hg rebase --continue
+merging f
 
 % Fix the 2nd conflict
-saving bundle to 
-adding branch
-adding changesets
-adding manifests
-adding file changes
-added 2 changesets with 2 changes to 1 files
-rebase completed
-@  3 P1 tags: qtip tip f2.patch
+saved backup bundle to 
+@  3 P1 tags: f2.patch qtip tip
 |
 o  2 P0 tags: f.patch qbase
 |
@@ -79,8 +76,18 @@ diff -r x -r y f
 +mq1r1mq2
 
 % Adding one git-style patch and one normal
+popping f2.patch
+popping f.patch
 patch queue now empty
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+% patch series step 1/2
+f_git.patch: P0 (git)
+f.patch: P1
+% patch queue manifest step 1/2
+.hgignore
+f.patch
+f_git.patch
+series
 % Git patch
 P0 (git)
 
@@ -102,7 +109,14 @@ diff -r x p
 +mq2
 
 % Rebase the applied mq patches
-saving bundle to 
+% patch series step 2/2
+f_git.patch: P0 (git)
+f.patch: P1
+% patch queue manifest step 2/2
+.hgignore
+f.patch
+f_git.patch
+series
 % And the patches are correct
 % Git patch
 # HG changeset patch

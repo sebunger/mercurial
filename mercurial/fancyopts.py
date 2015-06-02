@@ -3,7 +3,7 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import getopt
 
@@ -16,7 +16,7 @@ def gnugetopt(args, options, longoptions):
     extraargs = []
     if '--' in args:
         stopindex = args.index('--')
-        extraargs = args[stopindex+1:]
+        extraargs = args[stopindex + 1:]
         args = args[:stopindex]
     opts, parseargs = getopt.getopt(args, options, longoptions)
     args = []
@@ -43,6 +43,7 @@ def fancyopts(args, options, state, gnu=False):
       long option
       default value
       description
+      option value label(optional)
 
     option types include:
 
@@ -59,7 +60,11 @@ def fancyopts(args, options, state, gnu=False):
     argmap = {}
     defmap = {}
 
-    for short, name, default, comment in options:
+    for option in options:
+        if len(option) == 5:
+            short, name, default, comment, dummy = option
+        else:
+            short, name, default, comment = option
         # convert opts to getopt format
         oname = name
         name = name.replace('-', '_')
@@ -77,8 +82,10 @@ def fancyopts(args, options, state, gnu=False):
 
         # does it take a parameter?
         if not (default is None or default is True or default is False):
-            if short: short += ':'
-            if oname: oname += '='
+            if short:
+                short += ':'
+            if oname:
+                oname += '='
         if short:
             shortlist += short
         if name:

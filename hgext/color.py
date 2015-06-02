@@ -18,8 +18,8 @@
 
 '''colorize output from some commands
 
-This extension modifies the status command to add color to its output
-to reflect file status, the qseries command to add color to reflect
+This extension modifies the status and resolve commands to add color to their
+output to reflect file status, the qseries command to add color to reflect
 patch status (applied, unapplied, missing), and to diff-related
 commands to highlight additions, removals, diff headers, and trailing
 whitespace.
@@ -29,259 +29,270 @@ also available. Effects are rendered with the ECMA-48 SGR control
 function (aka ANSI escape codes). This module also provides the
 render_text function, which can be used to add effects to any text.
 
-Default effects may be overridden from the .hgrc file:
+Default effects may be overridden from your configuration file::
 
-[color]
-status.modified = blue bold underline red_background
-status.added = green bold
-status.removed = red bold blue_background
-status.deleted = cyan bold underline
-status.unknown = magenta bold underline
-status.ignored = black bold
+  [color]
+  status.modified = blue bold underline red_background
+  status.added = green bold
+  status.removed = red bold blue_background
+  status.deleted = cyan bold underline
+  status.unknown = magenta bold underline
+  status.ignored = black bold
 
-# 'none' turns off all effects
-status.clean = none
-status.copied = none
+  # 'none' turns off all effects
+  status.clean = none
+  status.copied = none
 
-qseries.applied = blue bold underline
-qseries.unapplied = black bold
-qseries.missing = red bold
+  qseries.applied = blue bold underline
+  qseries.unapplied = black bold
+  qseries.missing = red bold
 
-diff.diffline = bold
-diff.extended = cyan bold
-diff.file_a = red bold
-diff.file_b = green bold
-diff.hunk = magenta
-diff.deleted = red
-diff.inserted = green
-diff.changed = white
-diff.trailingwhitespace = bold red_background
+  diff.diffline = bold
+  diff.extended = cyan bold
+  diff.file_a = red bold
+  diff.file_b = green bold
+  diff.hunk = magenta
+  diff.deleted = red
+  diff.inserted = green
+  diff.changed = white
+  diff.trailingwhitespace = bold red_background
+
+  resolve.unresolved = red bold
+  resolve.resolved = green bold
+
+  bookmarks.current = green
+
+The color extension will try to detect whether to use ANSI codes or
+Win32 console APIs, unless it is made explicit::
+
+  [color]
+  mode = ansi
+
+Any value other than 'ansi', 'win32', or 'auto' will disable color.
+
 '''
 
 import os, sys
 
-from mercurial import cmdutil, commands, extensions, error
+from mercurial import commands, dispatch, extensions, ui as uimod
 from mercurial.i18n import _
 
 # start and stop parameters for effects
-_effect_params = {'none': 0,
-                  'black': 30,
-                  'red': 31,
-                  'green': 32,
-                  'yellow': 33,
-                  'blue': 34,
-                  'magenta': 35,
-                  'cyan': 36,
-                  'white': 37,
-                  'bold': 1,
-                  'italic': 3,
-                  'underline': 4,
-                  'inverse': 7,
-                  'black_background': 40,
-                  'red_background': 41,
-                  'green_background': 42,
-                  'yellow_background': 43,
-                  'blue_background': 44,
-                  'purple_background': 45,
-                  'cyan_background': 46,
-                  'white_background': 47}
+_effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
+            'blue': 34, 'magenta': 35, 'cyan': 36, 'white': 37, 'bold': 1,
+            'italic': 3, 'underline': 4, 'inverse': 7,
+            'black_background': 40, 'red_background': 41,
+            'green_background': 42, 'yellow_background': 43,
+            'blue_background': 44, 'purple_background': 45,
+            'cyan_background': 46, 'white_background': 47}
+
+_styles = {'grep.match': 'red bold',
+           'diff.changed': 'white',
+           'diff.deleted': 'red',
+           'diff.diffline': 'bold',
+           'diff.extended': 'cyan bold',
+           'diff.file_a': 'red bold',
+           'diff.file_b': 'green bold',
+           'diff.hunk': 'magenta',
+           'diff.inserted': 'green',
+           'diff.trailingwhitespace': 'bold red_background',
+           'diffstat.deleted': 'red',
+           'diffstat.inserted': 'green',
+           'log.changeset': 'yellow',
+           'resolve.resolved': 'green bold',
+           'resolve.unresolved': 'red bold',
+           'status.added': 'green bold',
+           'status.clean': 'none',
+           'status.copied': 'none',
+           'status.deleted': 'cyan bold underline',
+           'status.ignored': 'black bold',
+           'status.modified': 'blue bold',
+           'status.removed': 'red bold',
+           'status.unknown': 'magenta bold underline'}
+
 
 def render_effects(text, effects):
     'Wrap text in commands to turn on each effect.'
-    start = [str(_effect_params[e]) for e in ['none'] + effects]
+    if not text:
+        return text
+    start = [str(_effects[e]) for e in ['none'] + effects.split()]
     start = '\033[' + ';'.join(start) + 'm'
-    stop = '\033[' + str(_effect_params['none']) + 'm'
+    stop = '\033[' + str(_effects['none']) + 'm'
     return ''.join([start, text, stop])
 
-def colorstatus(orig, ui, repo, *pats, **opts):
-    '''run the status command with colored output'''
+def extstyles():
+    for name, ext in extensions.extensions():
+        _styles.update(getattr(ext, 'colortable', {}))
 
-    delimiter = opts['print0'] and '\0' or '\n'
-
-    nostatus = opts.get('no_status')
-    opts['no_status'] = False
-    # run status and capture its output
-    ui.pushbuffer()
-    retval = orig(ui, repo, *pats, **opts)
-    # filter out empty strings
-    lines_with_status = [ line for line in ui.popbuffer().split(delimiter) if line ]
-
-    if nostatus:
-        lines = [l[2:] for l in lines_with_status]
-    else:
-        lines = lines_with_status
-
-    # apply color to output and display it
-    for i in xrange(len(lines)):
-        status = _status_abbreviations[lines_with_status[i][0]]
-        effects = _status_effects[status]
-        if effects:
-            lines[i] = render_effects(lines[i], effects)
-        ui.write(lines[i] + delimiter)
-    return retval
-
-_status_abbreviations = { 'M': 'modified',
-                          'A': 'added',
-                          'R': 'removed',
-                          '!': 'deleted',
-                          '?': 'unknown',
-                          'I': 'ignored',
-                          'C': 'clean',
-                          ' ': 'copied', }
-
-_status_effects = { 'modified': ['blue', 'bold'],
-                    'added': ['green', 'bold'],
-                    'removed': ['red', 'bold'],
-                    'deleted': ['cyan', 'bold', 'underline'],
-                    'unknown': ['magenta', 'bold', 'underline'],
-                    'ignored': ['black', 'bold'],
-                    'clean': ['none'],
-                    'copied': ['none'], }
-
-def colorqseries(orig, ui, repo, *dummy, **opts):
-    '''run the qseries command with colored output'''
-    ui.pushbuffer()
-    retval = orig(ui, repo, **opts)
-    patches = ui.popbuffer().splitlines()
-    for patch in patches:
-        patchname = patch
-        if opts['summary']:
-            patchname = patchname.split(': ')[0]
-        if ui.verbose:
-            patchname = patchname.split(' ', 2)[-1]
-
-        if opts['missing']:
-            effects = _patch_effects['missing']
-        # Determine if patch is applied.
-        elif [ applied for applied in repo.mq.applied
-               if patchname == applied.name ]:
-            effects = _patch_effects['applied']
-        else:
-            effects = _patch_effects['unapplied']
-        ui.write(render_effects(patch, effects) + '\n')
-    return retval
-
-_patch_effects = { 'applied': ['blue', 'bold', 'underline'],
-                   'missing': ['red', 'bold'],
-                   'unapplied': ['black', 'bold'], }
-
-def colorwrap(orig, s):
-    '''wrap ui.write for colored diff output'''
-    lines = s.split('\n')
-    for i, line in enumerate(lines):
-        stripline = line
-        if line and line[0] in '+-':
-            # highlight trailing whitespace, but only in changed lines
-            stripline = line.rstrip()
-        for prefix, style in _diff_prefixes:
-            if stripline.startswith(prefix):
-                lines[i] = render_effects(stripline, _diff_effects[style])
-                break
-        if line != stripline:
-            lines[i] += render_effects(
-                line[len(stripline):], _diff_effects['trailingwhitespace'])
-    orig('\n'.join(lines))
-
-def colorshowpatch(orig, self, node):
-    '''wrap cmdutil.changeset_printer.showpatch with colored output'''
-    oldwrite = extensions.wrapfunction(self.ui, 'write', colorwrap)
-    try:
-        orig(self, node)
-    finally:
-        self.ui.write = oldwrite
-
-def colordiff(orig, ui, repo, *pats, **opts):
-    '''run the diff command with colored output'''
-    oldwrite = extensions.wrapfunction(ui, 'write', colorwrap)
-    try:
-        orig(ui, repo, *pats, **opts)
-    finally:
-        ui.write = oldwrite
-
-_diff_prefixes = [('diff', 'diffline'),
-                  ('copy', 'extended'),
-                  ('rename', 'extended'),
-                  ('old', 'extended'),
-                  ('new', 'extended'),
-                  ('deleted', 'extended'),
-                  ('---', 'file_a'),
-                  ('+++', 'file_b'),
-                  ('@', 'hunk'),
-                  ('-', 'deleted'),
-                  ('+', 'inserted')]
-
-_diff_effects = {'diffline': ['bold'],
-                 'extended': ['cyan', 'bold'],
-                 'file_a': ['red', 'bold'],
-                 'file_b': ['green', 'bold'],
-                 'hunk': ['magenta'],
-                 'deleted': ['red'],
-                 'inserted': ['green'],
-                 'changed': ['white'],
-                 'trailingwhitespace': ['bold', 'red_background']}
-
-_ui = None
-
-def uisetup(ui):
-    '''Initialize the extension.'''
-    global _ui
-    _ui = ui
-    _setupcmd(ui, 'diff', commands.table, colordiff, _diff_effects)
-    _setupcmd(ui, 'incoming', commands.table, None, _diff_effects)
-    _setupcmd(ui, 'log', commands.table, None, _diff_effects)
-    _setupcmd(ui, 'outgoing', commands.table, None, _diff_effects)
-    _setupcmd(ui, 'tip', commands.table, None, _diff_effects)
-    _setupcmd(ui, 'status', commands.table, colorstatus, _status_effects)
-
-def extsetup():
-    try:
-        mq = extensions.find('mq')
-        try:
-            # If we are loaded after mq, we must wrap commands.table
-            _setupcmd(_ui, 'qdiff', commands.table, colordiff, _diff_effects)
-            _setupcmd(_ui, 'qseries', commands.table, colorqseries, _patch_effects)
-        except error.UnknownCommand:
-            # Otherwise we wrap mq.cmdtable
-            _setupcmd(_ui, 'qdiff', mq.cmdtable, colordiff, _diff_effects)
-            _setupcmd(_ui, 'qseries', mq.cmdtable, colorqseries, _patch_effects)
-    except KeyError:
-        # The mq extension is not enabled
-        pass
-
-def _setupcmd(ui, cmd, table, func, effectsmap):
-    '''patch in command to command table and load effect map'''
-    def nocolor(orig, *args, **opts):
-
-        if (opts['no_color'] or opts['color'] == 'never' or
-            (opts['color'] == 'auto' and (os.environ.get('TERM') == 'dumb'
-                                          or not sys.__stdout__.isatty()))):
-            return orig(*args, **opts)
-
-        oldshowpatch = extensions.wrapfunction(cmdutil.changeset_printer,
-                                               'showpatch', colorshowpatch)
-        try:
-            if func is not None:
-                return func(orig, *args, **opts)
-            return orig(*args, **opts)
-        finally:
-            cmdutil.changeset_printer.showpatch = oldshowpatch
-
-    entry = extensions.wrapcommand(table, cmd, nocolor)
-    entry[1].extend([
-        ('', 'color', 'auto', _("when to colorize (always, auto, or never)")),
-        ('', 'no-color', None, _("don't colorize output")),
-    ])
-
-    for status in effectsmap:
-        configkey = cmd + '.' + status
-        effects = ui.configlist('color', configkey)
-        if effects:
+def configstyles(ui):
+    for status, cfgeffects in ui.configitems('color'):
+        if '.' not in status:
+            continue
+        cfgeffects = ui.configlist('color', status)
+        if cfgeffects:
             good = []
-            for e in effects:
-                if e in _effect_params:
+            for e in cfgeffects:
+                if e in _effects:
                     good.append(e)
                 else:
                     ui.warn(_("ignoring unknown color/effect %r "
                               "(configured in color.%s)\n")
-                            % (e, configkey))
-            effectsmap[status] = good
+                            % (e, status))
+            _styles[status] = ' '.join(good)
+
+class colorui(uimod.ui):
+    def popbuffer(self, labeled=False):
+        if labeled:
+            return ''.join(self.label(a, label) for a, label
+                           in self._buffers.pop())
+        return ''.join(a for a, label in self._buffers.pop())
+
+    _colormode = 'ansi'
+    def write(self, *args, **opts):
+        label = opts.get('label', '')
+        if self._buffers:
+            self._buffers[-1].extend([(str(a), label) for a in args])
+        elif self._colormode == 'win32':
+            for a in args:
+                win32print(a, super(colorui, self).write, **opts)
+        else:
+            return super(colorui, self).write(
+                *[self.label(str(a), label) for a in args], **opts)
+
+    def write_err(self, *args, **opts):
+        label = opts.get('label', '')
+        if self._colormode == 'win32':
+            for a in args:
+                win32print(a, super(colorui, self).write_err, **opts)
+        else:
+            return super(colorui, self).write_err(
+                *[self.label(str(a), label) for a in args], **opts)
+
+    def label(self, msg, label):
+        effects = []
+        for l in label.split():
+            s = _styles.get(l, '')
+            if s:
+                effects.append(s)
+        effects = ''.join(effects)
+        if effects:
+            return '\n'.join([render_effects(s, effects)
+                              for s in msg.split('\n')])
+        return msg
+
+
+def uisetup(ui):
+    if ui.plain():
+        return
+    mode = ui.config('color', 'mode', 'auto')
+    if mode == 'auto':
+        if os.name == 'nt' and 'TERM' not in os.environ:
+            # looks line a cmd.exe console, use win32 API or nothing
+            mode = w32effects and 'win32' or 'none'
+        else:
+            mode = 'ansi'
+    if mode == 'win32':
+        if w32effects is None:
+            # only warn if color.mode is explicitly set to win32
+            ui.warn(_('win32console not found, please install pywin32\n'))
+            return
+        _effects.update(w32effects)
+    elif mode != 'ansi':
+        return
+    def colorcmd(orig, ui_, opts, cmd, cmdfunc):
+        if (opts['color'] == 'always' or
+            (opts['color'] == 'auto' and (os.environ.get('TERM') != 'dumb'
+                                          and ui_.formatted()))):
+            colorui._colormode = mode
+            colorui.__bases__ = (ui_.__class__,)
+            ui_.__class__ = colorui
+            extstyles()
+            configstyles(ui_)
+        return orig(ui_, opts, cmd, cmdfunc)
+    extensions.wrapfunction(dispatch, '_runcommand', colorcmd)
+
+commands.globalopts.append(('', 'color', 'auto',
+                            _("when to colorize (always, auto, or never)"),
+                            _('TYPE')))
+
+try:
+    import re, pywintypes
+    from win32console import *
+
+    # http://msdn.microsoft.com/en-us/library/ms682088%28VS.85%29.aspx
+    w32effects = {
+        'none': -1,
+        'black': 0,
+        'red': FOREGROUND_RED,
+        'green': FOREGROUND_GREEN,
+        'yellow': FOREGROUND_RED | FOREGROUND_GREEN,
+        'blue': FOREGROUND_BLUE,
+        'magenta': FOREGROUND_BLUE | FOREGROUND_RED,
+        'cyan': FOREGROUND_BLUE | FOREGROUND_GREEN,
+        'white': FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+        'bold': FOREGROUND_INTENSITY,
+        'black_background': 0x100,              # unused value > 0x0f
+        'red_background': BACKGROUND_RED,
+        'green_background': BACKGROUND_GREEN,
+        'yellow_background': BACKGROUND_RED | BACKGROUND_GREEN,
+        'blue_background': BACKGROUND_BLUE,
+        'purple_background': BACKGROUND_BLUE | BACKGROUND_RED,
+        'cyan_background': BACKGROUND_BLUE | BACKGROUND_GREEN,
+        'white_background': BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE,
+        'bold_background': BACKGROUND_INTENSITY,
+        'underline': COMMON_LVB_UNDERSCORE,     # double-byte charsets only
+        'inverse': COMMON_LVB_REVERSE_VIDEO,    # double-byte charsets only
+    }
+
+    passthrough = set([FOREGROUND_INTENSITY, BACKGROUND_INTENSITY,
+                       COMMON_LVB_UNDERSCORE, COMMON_LVB_REVERSE_VIDEO])
+
+    stdout = GetStdHandle(STD_OUTPUT_HANDLE)
+    try:
+        origattr = stdout.GetConsoleScreenBufferInfo()['Attributes']
+    except pywintypes.error:
+        # stdout may be defined but not support
+        # GetConsoleScreenBufferInfo(), when called from subprocess or
+        # redirected.
+        raise ImportError()
+    ansire = re.compile('\033\[([^m]*)m([^\033]*)(.*)', re.MULTILINE | re.DOTALL)
+
+    def win32print(text, orig, **opts):
+        label = opts.get('label', '')
+        attr = origattr
+
+        def mapcolor(val, attr):
+            if val == -1:
+                return origattr
+            elif val in passthrough:
+                return attr | val
+            elif val > 0x0f:
+                return (val & 0x70) | (attr & 0x8f)
+            else:
+                return (val & 0x07) | (attr & 0xf8)
+
+        # determine console attributes based on labels
+        for l in label.split():
+            style = _styles.get(l, '')
+            for effect in style.split():
+                attr = mapcolor(w32effects[effect], attr)
+
+        # hack to ensure regexp finds data
+        if not text.startswith('\033['):
+            text = '\033[m' + text
+
+        # Look for ANSI-like codes embedded in text
+        m = re.match(ansire, text)
+        while m:
+            for sattr in m.group(1).split(';'):
+                if sattr:
+                    attr = mapcolor(int(sattr), attr)
+            stdout.SetConsoleTextAttribute(attr)
+            orig(m.group(2), **opts)
+            m = re.match(ansire, m.group(3))
+
+        # Explicity reset original attributes
+        stdout.SetConsoleTextAttribute(origattr)
+
+except ImportError:
+    w32effects = None

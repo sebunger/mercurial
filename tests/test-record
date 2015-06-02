@@ -37,6 +37,10 @@ y
 EOF
 echo; hg tip -p
 
+echo % summary shows we updated to the new cset
+hg summary
+echo
+
 echo % rename empty file
 
 hg mv empty-rw empty-rename
@@ -297,9 +301,20 @@ y
 EOF
 echo; hg tip --config diff.git=True -p
 
+cd ..
+
+echo % abort early when a merge is in progress
+hg up 4
+touch iwillmergethat
+hg add iwillmergethat
+hg branch thatbranch
+hg ci -m'new head'
+hg up default
+hg merge thatbranch
+echo; hg record -m'will abort'
+hg up -C
 
 echo % with win32ext
-cd ..
 echo '[extensions]' >> .hg/hgrc
 echo 'win32text = ' >> .hg/hgrc
 echo '[decode]' >> .hg/hgrc
@@ -315,4 +330,3 @@ y
 y
 EOF
 echo; hg tip -p
-

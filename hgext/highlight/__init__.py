@@ -3,7 +3,7 @@
 #  Copyright 2008, 2009 Patrick Mezard <pmezard@gmail.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 #
 # The original module was split in an interface and an implementation
 # file to defer pygments loading and speedup extension setup.
@@ -13,10 +13,10 @@
 It depends on the Pygments syntax highlighting library:
 http://pygments.org/
 
-There is a single configuration option:
+There is a single configuration option::
 
-[web]
-pygments_style = <style>
+  [web]
+  pygments_style = <style>
 
 The default is 'colorful'.
 """
@@ -53,8 +53,9 @@ def generate_css(web, req, tmpl):
     req.respond(common.HTTP_OK, 'text/css')
     return ['/* pygments_style = %s */\n\n' % pg_style, fmter.get_style_defs('')]
 
-# monkeypatch in the new version
-extensions.wrapfunction(webcommands, '_filerevision', filerevision_highlight)
-extensions.wrapfunction(webcommands, 'annotate', annotate_highlight)
-webcommands.highlightcss = generate_css
-webcommands.__all__.append('highlightcss')
+def extsetup():
+    # monkeypatch in the new version
+    extensions.wrapfunction(webcommands, '_filerevision', filerevision_highlight)
+    extensions.wrapfunction(webcommands, 'annotate', annotate_highlight)
+    webcommands.highlightcss = generate_css
+    webcommands.__all__.append('highlightcss')

@@ -12,6 +12,7 @@ hg commit -m "1" -d "1000000 0"
 
 echo "# rename a single file"
 hg rename d1/d11/a1 d2/c
+hg sum
 hg status -C
 hg update -C
 rm d2/c
@@ -22,6 +23,17 @@ hg rename --after d1/d11/a1 d2/c
 hg status -C
 hg update -C
 rm d2/c
+
+echo '# rename --after a single file when src and tgt already tracked'
+mv d1/d11/a1 d2/c
+hg addrem
+hg rename --after d1/d11/a1 d2/c
+hg status -C
+hg update -C
+rm d2/c
+
+echo "# rename --after a single file to a nonexistant target filename"
+hg rename --after d1/a dummy
 
 echo "# move a single file to an existing directory"
 hg rename d1/d11/a1 d2
@@ -146,6 +158,13 @@ hg status -C
 hg update -C
 rm d1/ca
 
+echo "# attempt to overwrite an existing broken symlink"
+ln -s ba d1/ca
+hg rename --traceback d1/ba d1/ca
+hg status -C
+hg update -C
+rm d1/ca
+
 echo "# replace a symlink with a file"
 ln -s ba d1/ca
 hg rename --force d1/ba d1/ca
@@ -208,6 +227,13 @@ hg rename d1/b d1/bb
 echo "some stuff added to d1/bb" >> d1/bb
 hg rename d1/bb d1/b
 hg status -C
+hg update -C
+
+echo '# overwriting with renames (issue1959)'
+hg rename d1/a d1/c
+hg rename d1/b d1/a
+hg status -C
+hg diff --git
 hg update -C
 
 echo "# check illegal path components"

@@ -15,8 +15,19 @@ echo s = s > .hgsub
 hg add .hgsub
 hg init s
 echo a > s/a
+
+# issue2232 - committing a subrepo without .hgsub
+hg ci -mbad s
+
 hg -R s ci -Ams0
+hg sum
 hg ci -m1
+
+# issue 2022 - update -C
+echo b > s/a
+hg sum
+hg co -C 1
+hg sum
 
 echo % add sub sub
 echo ss = ss > s/.hgsub
@@ -24,7 +35,9 @@ hg init s/ss
 echo a > s/ss/a
 hg -R s add s/.hgsub
 hg -R s/ss add s/ss/a
+hg sum
 hg ci -m2
+hg sum
 
 echo % bump sub rev
 echo b > s/a
@@ -78,7 +91,7 @@ cat t/t
 
 echo % clone
 cd ..
-hg clone t tc
+hg clone t tc | sed 's|from .*/sub|from .../sub|g'
 cd tc
 hg debugsub
 
@@ -102,5 +115,130 @@ hg ci -m13
 echo % pull
 cd ../tc
 hg pull | sed 's/ .*sub/ ...sub/g'
-hg up # should pull t
+# should pull t
+hg up | sed 's|from .*/sub|from .../sub|g'
 cat t/t
+
+echo % bogus subrepo path aborts
+echo 'bogus=[boguspath' >> .hgsub
+hg ci -m 'bogus subrepo path'
+
+echo % issue 1986
+cd ..
+rm -rf sub
+hg init main
+cd main
+
+hg init s           # subrepo layout
+cd s                #
+echo a > a          #   o   5 br
+hg ci -Am1          #  /|
+hg branch br        # o |   4 default
+echo a >> a         # | |
+hg ci -m1           # | o   3 br
+hg up default       # |/|
+echo b > b          # o |   2 default
+hg ci -Am1          # | |
+hg up br            # | o   1 br
+hg merge tip        # |/
+hg ci -m1           # o     0 default
+hg up 2
+echo c > c
+hg ci -Am1
+hg up 3
+hg merge 4
+hg ci -m1
+
+cd ..                         # main repo layout:
+echo 's = s' > .hgsub         #
+hg -R s up 2                  #   * <-- try to merge default into br again
+hg ci -Am1                    # .`|
+hg branch br                  # . o   5 br      --> substate = 5
+echo b > b                    # . |
+hg -R s up 3                  # o |   4 default --> substate = 4
+hg ci -Am1                    # | |
+hg up default                 # | o   3 br      --> substate = 2
+echo c > c                    # |/|
+hg ci -Am1                    # o |   2 default --> substate = 2
+hg up 1                       # | |     
+hg merge 2                    # | o   1 br      --> substate = 3
+hg ci -m1                     # |/    
+hg up 2                       # o     0 default --> substate = 2
+hg -R s up 4
+echo d > d
+hg ci -Am1
+hg up 3
+hg -R s up 5
+echo e > e
+hg ci -Am1
+
+hg up 5
+hg merge 4    # try to merge default into br again
+cd ..
+
+echo % test subrepo delete from .hgsubstate
+hg init testdelete
+mkdir testdelete/nested testdelete/nested2
+hg init testdelete/nested
+hg init testdelete/nested2
+echo test > testdelete/nested/foo
+echo test > testdelete/nested2/foo
+hg -R testdelete/nested add
+hg -R testdelete/nested2 add
+hg -R testdelete/nested ci -m test
+hg -R testdelete/nested2 ci -m test
+echo nested = nested > testdelete/.hgsub
+echo nested2 = nested2 >> testdelete/.hgsub
+hg -R testdelete add
+hg -R testdelete ci -m "nested 1 & 2 added"
+echo nested = nested > testdelete/.hgsub
+hg -R testdelete ci -m "nested 2 deleted"
+cat testdelete/.hgsubstate | sed "s:.* ::"
+hg -R testdelete remove testdelete/.hgsub
+hg -R testdelete ci -m ".hgsub deleted"
+cat testdelete/.hgsubstate
+
+echo % test repository cloning
+mkdir mercurial mercurial2
+hg init nested_absolute
+echo test > nested_absolute/foo
+hg -R nested_absolute add
+hg -R nested_absolute ci -mtest
+cd mercurial
+hg init nested_relative
+echo test2 > nested_relative/foo2
+hg -R nested_relative add
+hg -R nested_relative ci -mtest2
+hg init main
+echo "nested_relative = ../nested_relative" > main/.hgsub
+echo "nested_absolute = `pwd`/nested_absolute" >> main/.hgsub
+hg -R main add
+hg -R main ci -m "add subrepos"
+cd ..
+hg clone mercurial/main mercurial2/main
+cat mercurial2/main/nested_absolute/.hg/hgrc \
+    mercurial2/main/nested_relative/.hg/hgrc \
+    | "$TESTDIR/filtertmp.py"
+rm -rf mercurial mercurial2
+
+echo % issue 1977
+hg init repo
+hg init repo/s
+echo a > repo/s/a
+hg -R repo/s ci -Am0
+echo s = s > repo/.hgsub
+hg -R repo ci -Am1
+hg clone repo repo2 | sed 's|from .*/sub|from .../sub|g'
+hg -q -R repo2 pull -u
+echo 1 > repo2/s/a
+hg -R repo2/s ci -m2
+hg -q -R repo2/s push
+hg -R repo2/s up -C 0
+echo 2 > repo2/s/a
+hg -R repo2/s ci -m3
+hg -R repo2 ci -m3
+hg -q -R repo2 push
+hg -R repo update
+rm -rf repo2 repo
+
+exit 0

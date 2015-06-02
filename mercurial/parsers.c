@@ -11,6 +11,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "util.h"
+
 static int hexdigit(char c)
 {
 	if (c >= '0' && c <= '9')
@@ -33,11 +35,13 @@ static PyObject *unhexlify(const char *str, int len)
 	const char *c;
 	char *d;
 
-	ret = PyString_FromStringAndSize(NULL, len / 2);
+	ret = PyBytes_FromStringAndSize(NULL, len / 2);
+
 	if (!ret)
 		return NULL;
 
-	d = PyString_AS_STRING(ret);
+	d = PyBytes_AsString(ret);
+
 	for (c = str; c < str + len;) {
 		int hi = hexdigit(*c++);
 		int lo = hexdigit(*c++);
@@ -81,7 +85,8 @@ static PyObject *parse_manifest(PyObject *self, PyObject *args)
 			goto quit;
 		}
 
-		file = PyString_FromStringAndSize(start, zero - start);
+		file = PyBytes_FromStringAndSize(start, zero - start);
+
 		if (!file)
 			goto bail;
 
@@ -92,9 +97,7 @@ static PyObject *parse_manifest(PyObject *self, PyObject *args)
 			goto bail;
 
 		if (nlen > 40) {
-			PyObject *flags;
-
-			flags = PyString_FromStringAndSize(zero + 41,
+			flags = PyBytes_FromStringAndSize(zero + 41,
 							   nlen - 40);
 			if (!flags)
 				goto bail;
@@ -133,14 +136,14 @@ quit:
 }
 
 #ifdef _WIN32
-# ifdef _MSC_VER
+#ifdef _MSC_VER
 /* msvc 6.0 has problems */
-#  define inline __inline
+#define inline __inline
 typedef unsigned long uint32_t;
 typedef unsigned __int64 uint64_t;
-# else
-#  include <stdint.h>
-# endif
+#else
+#include <stdint.h>
+#endif
 static uint32_t ntohl(uint32_t x)
 {
 	return ((x & 0x000000ffUL) << 24) |
@@ -150,13 +153,13 @@ static uint32_t ntohl(uint32_t x)
 }
 #else
 /* not windows */
-# include <sys/types.h>
-# if defined __BEOS__ && !defined __HAIKU__
-#  include <ByteOrder.h>
-# else
-#  include <arpa/inet.h>
-# endif
-# include <inttypes.h>
+#include <sys/types.h>
+#if defined __BEOS__ && !defined __HAIKU__
+#include <ByteOrder.h>
+#else
+#include <arpa/inet.h>
+#endif
+#include <inttypes.h>
 #endif
 
 static PyObject *parse_dirstate(PyObject *self, PyObject *args)
@@ -196,7 +199,7 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 		mtime = ntohl(*(uint32_t *)(decode + 8));
 		flen = ntohl(*(uint32_t *)(decode + 12));
 		cur += 17;
-		if (flen > end - cur) {
+		if (cur + flen > end || cur + flen < cur) {
 			PyErr_SetString(PyExc_ValueError, "overflow in dirstate");
 			goto quit;
 		}
@@ -208,8 +211,8 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 
 		cpos = memchr(cur, 0, flen);
 		if (cpos) {
-			fname = PyString_FromStringAndSize(cur, cpos - cur);
-			cname = PyString_FromStringAndSize(cpos + 1,
+			fname = PyBytes_FromStringAndSize(cur, cpos - cur);
+			cname = PyBytes_FromStringAndSize(cpos + 1,
 							   flen - (cpos - cur) - 1);
 			if (!fname || !cname ||
 			    PyDict_SetItem(cmap, fname, cname) == -1 ||
@@ -217,7 +220,7 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 				goto quit;
 			Py_DECREF(cname);
 		} else {
-			fname = PyString_FromStringAndSize(cur, flen);
+			fname = PyBytes_FromStringAndSize(cur, flen);
 			if (!fname ||
 			    PyDict_SetItem(dmap, fname, entry) == -1)
 				goto quit;
@@ -250,8 +253,9 @@ static PyObject * _build_idx_entry(PyObject *nodemap, int n, uint64_t offset_fla
 	int err;
 	PyObject *entry, *node_id, *n_obj;
 
-	node_id = PyString_FromStringAndSize(c_node_id, 20);
+	node_id = PyBytes_FromStringAndSize(c_node_id, 20);
 	n_obj = PyInt_FromLong(n);
+
 	if (!node_id || !n_obj)
 		err = -1;
 	else
@@ -305,16 +309,16 @@ static int _parse_index_ng (const char *data, int size, int inlined,
 		if (n == 0) /* mask out version number for the first entry */
 			offset_flags &= 0xFFFF;
 		else {
-			uint32_t offset_high =  ntohl(*((uint32_t *) decode));
-			offset_flags |= ((uint64_t) offset_high) << 32;
+			uint32_t offset_high =  ntohl(*((uint32_t *)decode));
+			offset_flags |= ((uint64_t)offset_high) << 32;
 		}
 
-		comp_len = ntohl(*((uint32_t *) (decode + 8)));
-		uncomp_len = ntohl(*((uint32_t *) (decode + 12)));
-		base_rev = ntohl(*((uint32_t *) (decode + 16)));
-		link_rev = ntohl(*((uint32_t *) (decode + 20)));
-		parent_1 = ntohl(*((uint32_t *) (decode + 24)));
-		parent_2 = ntohl(*((uint32_t *) (decode + 28)));
+		comp_len = ntohl(*((uint32_t *)(decode + 8)));
+		uncomp_len = ntohl(*((uint32_t *)(decode + 12)));
+		base_rev = ntohl(*((uint32_t *)(decode + 16)));
+		link_rev = ntohl(*((uint32_t *)(decode + 20)));
+		parent_1 = ntohl(*((uint32_t *)(decode + 24)));
+		parent_2 = ntohl(*((uint32_t *)(decode + 28)));
 		c_node_id = decode + 32;
 
 		entry = _build_idx_entry(nodemap, n, offset_flags,
@@ -334,7 +338,7 @@ static int _parse_index_ng (const char *data, int size, int inlined,
 
 		n++;
 		step = 64 + (inlined ? comp_len : 0);
-		if (end - data < step)
+		if (data + step > end || data + step < data)
 			break;
 		data += step;
 	}
@@ -429,7 +433,23 @@ static PyMethodDef methods[] = {
 	{NULL, NULL}
 };
 
+#ifdef IS_PY3K
+static struct PyModuleDef parsers_module = {
+	PyModuleDef_HEAD_INIT,
+	"parsers",
+	parsers_doc,
+	-1,
+	methods
+};
+
+PyMODINIT_FUNC PyInit_parsers(void)
+{
+	return PyModule_Create(&parsers_module);
+}
+#else
 PyMODINIT_FUNC initparsers(void)
 {
 	Py_InitModule3("parsers", methods, parsers_doc);
 }
+#endif
+

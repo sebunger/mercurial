@@ -548,6 +548,7 @@ hg glog [OPTION]... [FILE]
 
 show revision history alongside an ASCII revision graph
 failed
+% empty revision range - display nothing
 % from outer space
 @  changeset:   34:fea3ac5810e0
 |  tag:         tip
@@ -574,6 +575,12 @@ o  changeset:   1:5ac72c0599bf
    user:        test
    date:        Thu Jan 01 00:00:00 1970 +0000
    summary:     two
+
+% file log with explicit style (issue 1896)
+o  changeset:   0:3d578b4a1f53
+   user:        test
+   date:        Thu Jan 01 00:00:00 1970 +0000
+   summary:     one
 
 % incoming and outgoing
 requesting all changes
@@ -637,3 +644,56 @@ o  changeset:   27:886ed638191b
    date:        Thu Jan 01 00:00:27 1970 +0000
    summary:     (27) collapse
 
+% file + limit with revs != cset revs
+o  changeset:   34:fea3ac5810e0
+|  parent:      32:d06dffa21a31
+|  user:        test
+|  date:        Thu Jan 01 00:00:34 1970 +0000
+|  summary:     (34) head
+|
+| o  changeset:   33:68608f5145f9
+| |  parent:      18:1aa84d96232a
+| |  user:        test
+| |  date:        Thu Jan 01 00:00:33 1970 +0000
+| |  summary:     (33) head
+| |
+% file + limit + -ra:b, (b - a) < limit
+o  changeset:   34:fea3ac5810e0
+|  parent:      32:d06dffa21a31
+|  user:        test
+|  date:        Thu Jan 01 00:00:34 1970 +0000
+|  summary:     (34) head
+|
+| o  changeset:   33:68608f5145f9
+| |  parent:      18:1aa84d96232a
+| |  user:        test
+| |  date:        Thu Jan 01 00:00:33 1970 +0000
+| |  summary:     (33) head
+| |
+o |    changeset:   32:d06dffa21a31
+|\ \   parent:      27:886ed638191b
+| | |  parent:      31:621d83e11f67
+| | |  user:        test
+| | |  date:        Thu Jan 01 00:00:32 1970 +0000
+| | |  summary:     (32) expand
+| | |
+% file + limit + -ra:b, b < tip
+o  changeset:   34:fea3ac5810e0
+|  parent:      32:d06dffa21a31
+|  user:        test
+|  date:        Thu Jan 01 00:00:34 1970 +0000
+|  summary:     (34) head
+|
+% file + limit + -ra:b, b < tip, (b - a) < limit
+o  changeset:   34:fea3ac5810e0
+|  parent:      32:d06dffa21a31
+|  user:        test
+|  date:        Thu Jan 01 00:00:34 1970 +0000
+|  summary:     (34) head
+|
+| o  changeset:   33:68608f5145f9
+| |  parent:      18:1aa84d96232a
+| |  user:        test
+| |  date:        Thu Jan 01 00:00:33 1970 +0000
+| |  summary:     (33) head
+| |

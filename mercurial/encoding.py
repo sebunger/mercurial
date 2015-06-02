@@ -3,24 +3,46 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import error
 import sys, unicodedata, locale, os
 
-_encodingfixup = {'646': 'ascii', 'ANSI_X3.4-1968': 'ascii'}
+def _getpreferredencoding():
+    '''
+    On darwin, getpreferredencoding ignores the locale environment and
+    always returns mac-roman. http://bugs.python.org/issue6202 fixes this
+    for Python 2.7 and up. This is the same corrected code for earlier
+    Python versions.
+
+    However, we can't use a version check for this method, as some distributions 
+    patch Python to fix this. Instead, we use it as a 'fixer' for the mac-roman
+    encoding, as it is unlikely that this encoding is the actually expected.
+    '''
+    try:
+        locale.CODESET
+    except AttributeError:
+        # Fall back to parsing environment variables :-(
+        return locale.getdefaultlocale()[1]
+
+    oldloc = locale.setlocale(locale.LC_CTYPE)
+    locale.setlocale(locale.LC_CTYPE, "")
+    result = locale.nl_langinfo(locale.CODESET)
+    locale.setlocale(locale.LC_CTYPE, oldloc)
+
+    return result
+
+_encodingfixers = {
+    '646': lambda: 'ascii',
+    'ANSI_X3.4-1968': lambda: 'ascii',
+    'mac-roman': _getpreferredencoding
+}
 
 try:
     encoding = os.environ.get("HGENCODING")
-    if sys.platform == 'darwin' and not encoding:
-        # On darwin, getpreferredencoding ignores the locale environment and
-        # always returns mac-roman. We override this if the environment is
-        # not C (has been customized by the user).
-        locale.setlocale(locale.LC_CTYPE, '')
-        encoding = locale.getlocale()[1]
     if not encoding:
         encoding = locale.getpreferredencoding() or 'ascii'
-        encoding = _encodingfixup.get(encoding, encoding)
+        encoding = _encodingfixers.get(encoding, lambda: encoding)()
 except locale.Error:
     encoding = 'ascii'
 encodingmode = os.environ.get("HGENCODINGMODE", "strict")
@@ -60,7 +82,7 @@ def fromlocal(s):
     try:
         return s.decode(encoding, encodingmode).encode("utf-8")
     except UnicodeDecodeError, inst:
-        sub = s[max(0, inst.start-10):inst.start+10]
+        sub = s[max(0, inst.start - 10):inst.start + 10]
         raise error.Abort("decoding near '%s': %s!" % (sub, inst))
     except LookupError, k:
         raise error.Abort("%s, please check your locale settings" % k)
@@ -70,6 +92,6 @@ def colwidth(s):
     d = s.decode(encoding, 'replace')
     if hasattr(unicodedata, 'east_asian_width'):
         w = unicodedata.east_asian_width
-        return sum([w(c) in 'WF' and 2 or 1 for c in d])
+        return sum([w(c) in 'WFA' and 2 or 1 for c in d])
     return len(d)
 

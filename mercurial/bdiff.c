@@ -15,11 +15,11 @@
 #include <limits.h>
 
 #if defined __hpux || defined __SUNPRO_C || defined _AIX
-# define inline
+#define inline
 #endif
 
 #ifdef __linux
-# define inline __inline
+#define inline __inline
 #endif
 
 #ifdef _WIN32
@@ -45,6 +45,8 @@ static uint32_t htonl(uint32_t x)
 #endif
 #include <inttypes.h>
 #endif
+
+#include "util.h"
 
 struct line {
 	int h, len, n, e;
@@ -151,7 +153,7 @@ static int equatelines(struct line *a, int an, struct line *b, int bn)
 	}
 
 	/* compute popularity threshold */
-	t = (bn >= 4000) ? bn / 1000 : bn + 1;
+	t = (bn >= 31000) ? bn / 1000 : 1000000 / (bn + 1);
 
 	/* match items in a to their equivalence class in b */
 	for (i = 0; i < an; i++) {
@@ -226,19 +228,23 @@ static void recurse(struct line *a, struct line *b, struct pos *pos,
 {
 	int i, j, k;
 
-	/* find the longest match in this chunk */
-	k = longest_match(a, b, pos, a1, a2, b1, b2, &i, &j);
-	if (!k)
-		return;
+	while (1) {
+		/* find the longest match in this chunk */
+		k = longest_match(a, b, pos, a1, a2, b1, b2, &i, &j);
+		if (!k)
+			return;
 
-	/* and recurse on the remaining chunks on either side */
-	recurse(a, b, pos, a1, i, b1, j, l);
-	l->head->a1 = i;
-	l->head->a2 = i + k;
-	l->head->b1 = j;
-	l->head->b2 = j + k;
-	l->head++;
-	recurse(a, b, pos, i + k, a2, j + k, b2, l);
+		/* and recurse on the remaining chunks on either side */
+		recurse(a, b, pos, a1, i, b1, j, l);
+		l->head->a1 = i;
+		l->head->a2 = i + k;
+		l->head->b1 = j;
+		l->head->b2 = j + k;
+		l->head++;
+		/* tail-recursion didn't happen, so doing equivalent iteration */
+		a1 = i + k;
+		b1 = j + k;
+	}
 }
 
 static struct hunklist diff(struct line *a, int an, struct line *b, int bn)
@@ -267,19 +273,21 @@ static struct hunklist diff(struct line *a, int an, struct line *b, int bn)
 
 	/* normalize the hunk list, try to push each hunk towards the end */
 	for (curr = l.base; curr != l.head; curr++) {
-		struct hunk *next = curr+1;
+		struct hunk *next = curr + 1;
 		int shift = 0;
 
 		if (next == l.head)
 			break;
 
 		if (curr->a2 == next->a1)
-			while (curr->a2+shift < an && curr->b2+shift < bn
-			       && !cmp(a+curr->a2+shift, b+curr->b2+shift))
+			while (curr->a2 + shift < an && curr->b2 + shift < bn
+			       && !cmp(a + curr->a2 + shift,
+				       b + curr->b2 + shift))
 				shift++;
 		else if (curr->b2 == next->b1)
-			while (curr->b2+shift < bn && curr->a2+shift < an
-			       && !cmp(b+curr->b2+shift, a+curr->a2+shift))
+			while (curr->b2 + shift < bn && curr->a2 + shift < an
+			       && !cmp(b + curr->b2 + shift,
+				       a + curr->a2 + shift))
 				shift++;
 		if (!shift)
 			continue;
@@ -303,8 +311,9 @@ static PyObject *blocks(PyObject *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "SS:bdiff", &sa, &sb))
 		return NULL;
 
-	an = splitlines(PyString_AsString(sa), PyString_Size(sa), &a);
-	bn = splitlines(PyString_AsString(sb), PyString_Size(sb), &b);
+	an = splitlines(PyBytes_AsString(sa), PyBytes_Size(sa), &a);
+	bn = splitlines(PyBytes_AsString(sb), PyBytes_Size(sb), &b);
+
 	if (!a || !b)
 		goto nomem;
 
@@ -357,12 +366,13 @@ static PyObject *bdiff(PyObject *self, PyObject *args)
 		lb = h->b2;
 	}
 
-	result = PyString_FromStringAndSize(NULL, len);
+	result = PyBytes_FromStringAndSize(NULL, len);
+
 	if (!result)
 		goto nomem;
 
 	/* build binary patch */
-	rb = PyString_AsString(result);
+	rb = PyBytes_AsString(result);
 	la = lb = 0;
 
 	for (h = l.base; h != l.head; h++) {
@@ -394,8 +404,23 @@ static PyMethodDef methods[] = {
 	{NULL, NULL}
 };
 
+#ifdef IS_PY3K
+static struct PyModuleDef bdiff_module = {
+	PyModuleDef_HEAD_INIT,
+	"bdiff",
+	mdiff_doc,
+	-1,
+	methods
+};
+
+PyMODINIT_FUNC PyInit_bdiff(void)
+{
+	return PyModule_Create(&bdiff_module);
+}
+#else
 PyMODINIT_FUNC initbdiff(void)
 {
 	Py_InitModule3("bdiff", methods, mdiff_doc);
 }
+#endif
 

@@ -3,11 +3,11 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import os, mimetypes, re, cgi, copy
 import webutil
-from mercurial import error, archival, templater, templatefilters
+from mercurial import error, encoding, archival, templater, templatefilters
 from mercurial.node import short, hex
 from mercurial.util import binary
 from common import paritygen, staticfile, get_contact, ErrorResponse
@@ -51,6 +51,8 @@ def rawfile(web, req, tmpl):
     mt = mimetypes.guess_type(path)[0]
     if mt is None:
         mt = binary(text) and 'application/octet-stream' or 'text/plain'
+    if mt.startswith('text/'):
+        mt += '; charset="%s"' % encoding.encoding
 
     req.respond(HTTP_OK, mt, path, len(text))
     return [text]
@@ -65,7 +67,7 @@ def _filerevision(web, tmpl, fctx):
         text = '(binary:%s)' % mt
 
     def lines():
-        for lineno, t in enumerate(text.splitlines(1)):
+        for lineno, t in enumerate(text.splitlines(True)):
             yield {"line": t,
                    "lineid": "l%d" % (lineno + 1),
                    "linenumber": "% 6d" % (lineno + 1),
@@ -98,7 +100,20 @@ def file(web, req, tmpl):
         except ErrorResponse:
             raise inst
 
-def _search(web, tmpl, query):
+def _search(web, req, tmpl):
+
+    query = req.form['rev'][0]
+    revcount = web.maxchanges
+    if 'revcount' in req.form:
+        revcount = int(req.form.get('revcount', [revcount])[0])
+        tmpl.defaults['sessionvars']['revcount'] = revcount
+
+    lessvars = copy.copy(tmpl.defaults['sessionvars'])
+    lessvars['revcount'] = revcount / 2
+    lessvars['rev'] = query
+    morevars = copy.copy(tmpl.defaults['sessionvars'])
+    morevars['revcount'] = revcount * 2
+    morevars['rev'] = query
 
     def changelist(**map):
         cl = web.repo.changelog
@@ -146,19 +161,18 @@ def _search(web, tmpl, query):
                        inbranch=webutil.nodeinbranch(web.repo, ctx),
                        branches=webutil.nodebranchdict(web.repo, ctx))
 
-            if count >= web.maxchanges:
+            if count >= revcount:
                 break
 
     cl = web.repo.changelog
     parity = paritygen(web.stripecount)
 
-    return tmpl('search',
-                query=query,
-                node=hex(cl.tip()),
-                entries=changelist,
-                archives=web.archivelist("tip"))
+    return tmpl('search', query=query, node=hex(cl.tip()),
+                entries=changelist, archives=web.archivelist("tip"),
+                morevars=morevars, lessvars=lessvars)
 
-def changelog(web, req, tmpl, shortlog = False):
+def changelog(web, req, tmpl, shortlog=False):
+
     if 'node' in req.form:
         ctx = webutil.changectx(web.repo, req)
     else:
@@ -169,7 +183,7 @@ def changelog(web, req, tmpl, shortlog = False):
         try:
             ctx = web.repo[hi]
         except error.RepoError:
-            return _search(web, tmpl, hi) # XXX redirect to 404 page?
+            return _search(web, req, tmpl) # XXX redirect to 404 page?
 
     def changelist(limit=0, **map):
         l = [] # build a list in forward order for efficiency
@@ -200,24 +214,32 @@ def changelog(web, req, tmpl, shortlog = False):
         for e in l:
             yield e
 
-    maxchanges = shortlog and web.maxshortchanges or web.maxchanges
+    revcount = shortlog and web.maxshortchanges or web.maxchanges
+    if 'revcount' in req.form:
+        revcount = int(req.form.get('revcount', [revcount])[0])
+        tmpl.defaults['sessionvars']['revcount'] = revcount
+
+    lessvars = copy.copy(tmpl.defaults['sessionvars'])
+    lessvars['revcount'] = revcount / 2
+    morevars = copy.copy(tmpl.defaults['sessionvars'])
+    morevars['revcount'] = revcount * 2
+
     cl = web.repo.changelog
     count = len(cl)
     pos = ctx.rev()
-    start = max(0, pos - maxchanges + 1)
-    end = min(count, start + maxchanges)
+    start = max(0, pos - revcount + 1)
+    end = min(count, start + revcount)
     pos = end - 1
-    parity = paritygen(web.stripecount, offset=start-end)
+    parity = paritygen(web.stripecount, offset=start - end)
 
-    changenav = webutil.revnavgen(pos, maxchanges, count, web.repo.changectx)
+    changenav = webutil.revnavgen(pos, revcount, count, web.repo.changectx)
 
-    return tmpl(shortlog and 'shortlog' or 'changelog',
-                changenav=changenav,
-                node=hex(ctx.node()),
-                rev=pos, changesets=count,
+    return tmpl(shortlog and 'shortlog' or 'changelog', changenav=changenav,
+                node=hex(ctx.node()), rev=pos, changesets=count,
                 entries=lambda **x: changelist(limit=0,**x),
                 latestentry=lambda **x: changelist(limit=1,**x),
-                archives=web.archivelist("tip"))
+                archives=web.archivelist("tip"), revcount=revcount,
+                morevars=morevars, lessvars=lessvars)
 
 def shortlog(web, req, tmpl):
     return changelog(web, req, tmpl, shortlog = True)
@@ -236,7 +258,11 @@ def changeset(web, req, tmpl):
                           parity=parity.next()))
 
     parity = paritygen(web.stripecount)
-    diffs = webutil.diffs(web.repo, tmpl, ctx, None, parity)
+    style = web.config('web', 'style', 'paper')
+    if 'style' in req.form:
+        style = req.form['style'][0]
+
+    diffs = webutil.diffs(web.repo, tmpl, ctx, None, parity, style)
     return tmpl('changeset',
                 diff=diffs,
                 rev=ctx.rev(),
@@ -310,7 +336,7 @@ def manifest(web, req, tmpl):
             emptydirs = []
             h = dirs[d]
             while isinstance(h, dict) and len(h) == 1:
-                k,v = h.items()[0]
+                k, v = h.items()[0]
                 if v:
                     emptydirs.append(k)
                 h = v
@@ -339,7 +365,7 @@ def tags(web, req, tmpl):
     i.reverse()
     parity = paritygen(web.stripecount)
 
-    def entries(notip=False,limit=0, **map):
+    def entries(notip=False, limit=0, **map):
         count = 0
         for k, n in i:
             if notip and k == "tip":
@@ -354,9 +380,9 @@ def tags(web, req, tmpl):
 
     return tmpl("tags",
                 node=hex(web.repo.changelog.tip()),
-                entries=lambda **x: entries(False,0, **x),
-                entriesnotip=lambda **x: entries(True,0, **x),
-                latestentry=lambda **x: entries(True,1, **x))
+                entries=lambda **x: entries(False, 0, **x),
+                entriesnotip=lambda **x: entries(True, 0, **x),
+                latestentry=lambda **x: entries(True, 1, **x))
 
 def branches(web, req, tmpl):
     b = web.repo.branchtags()
@@ -413,14 +439,14 @@ def summary(web, req, tmpl):
 
         b = web.repo.branchtags()
         l = [(-web.repo.changelog.rev(n), n, t) for t, n in b.iteritems()]
-        for r,n,t in sorted(l):
+        for r, n, t in sorted(l):
             yield {'parity': parity.next(),
                    'branch': t,
                    'node': hex(n),
                    'date': web.repo[n].date()}
 
     def changelist(**map):
-        parity = paritygen(web.stripecount, offset=start-end)
+        parity = paritygen(web.stripecount, offset=start - end)
         l = [] # build a list in forward order for efficiency
         for i in xrange(start, end):
             ctx = web.repo[i]
@@ -474,7 +500,11 @@ def filediff(web, req, tmpl):
         # path already defined in except clause
 
     parity = paritygen(web.stripecount)
-    diffs = webutil.diffs(web.repo, tmpl, fctx or ctx, [path], parity)
+    style = web.config('web', 'style', 'paper')
+    if 'style' in req.form:
+        style = req.form['style'][0]
+
+    diffs = webutil.diffs(web.repo, tmpl, fctx or ctx, [path], parity, style)
     rename = fctx and webutil.renamelink(fctx) or []
     ctx = fctx and fctx or ctx
     return tmpl("filediff",
@@ -559,11 +589,20 @@ def filelog(web, req, tmpl):
             frev -= 1
         fctx = web.repo.filectx(f, fl.linkrev(frev))
 
+    revcount = web.maxshortchanges
+    if 'revcount' in req.form:
+        revcount = int(req.form.get('revcount', [revcount])[0])
+        tmpl.defaults['sessionvars']['revcount'] = revcount
+
+    lessvars = copy.copy(tmpl.defaults['sessionvars'])
+    lessvars['revcount'] = revcount / 2
+    morevars = copy.copy(tmpl.defaults['sessionvars'])
+    morevars['revcount'] = revcount * 2
+
     count = fctx.filerev() + 1
-    pagelen = web.maxshortchanges
-    start = max(0, fctx.filerev() - pagelen + 1) # first rev on this page
-    end = min(count, start + pagelen) # last rev on this page
-    parity = paritygen(web.stripecount, offset=start-end)
+    start = max(0, fctx.filerev() - revcount + 1) # first rev on this page
+    end = min(count, start + revcount) # last rev on this page
+    parity = paritygen(web.stripecount, offset=start - end)
 
     def entries(limit=0, **map):
         l = []
@@ -594,11 +633,11 @@ def filelog(web, req, tmpl):
             yield e
 
     nodefunc = lambda x: fctx.filectx(fileid=x)
-    nav = webutil.revnavgen(end - 1, pagelen, count, nodefunc)
+    nav = webutil.revnavgen(end - 1, revcount, count, nodefunc)
     return tmpl("filelog", file=f, node=hex(fctx.node()), nav=nav,
                 entries=lambda **x: entries(limit=0, **x),
-                latestentry=lambda **x: entries(limit=1, **x))
-
+                latestentry=lambda **x: entries(limit=1, **x),
+                revcount=revcount, morevars=morevars, lessvars=lessvars)
 
 def archive(web, req, tmpl):
     type_ = req.form.get('type', [None])[0]
@@ -646,10 +685,10 @@ def static(web, req, tmpl):
     return [staticfile(static, fname, req)]
 
 def graph(web, req, tmpl):
+
     rev = webutil.changectx(web.repo, req).rev()
     bg_height = 39
-
-    revcount = 25
+    revcount = web.maxshortchanges
     if 'revcount' in req.form:
         revcount = int(req.form.get('revcount', [revcount])[0])
         tmpl.defaults['sessionvars']['revcount'] = revcount
@@ -670,7 +709,7 @@ def graph(web, req, tmpl):
 
     dag = graphmod.revisions(web.repo, rev, downrev)
     tree = list(graphmod.colored(dag))
-    canvasheight = (len(tree) + 1) * bg_height - 27;
+    canvasheight = (len(tree) + 1) * bg_height - 27
     data = []
     for (id, type, ctx, vtx, edges) in tree:
         if type != graphmod.CHANGESET:

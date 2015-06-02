@@ -31,6 +31,8 @@ diff -r b55ecdccb5cf 2/base
 -base
 +patched
 % patch file contents
+# HG changeset patch
+# Parent 
 mqbase
 
 diff -r b55ecdccb5cf 1/base
@@ -73,6 +75,8 @@ diff -r b55ecdccb5cf 2/base
 -base
 +patched
 % patch file contents
+# HG changeset patch
+# Parent 
 mqbase
 
 diff -r b55ecdccb5cf 1/base
@@ -109,6 +113,8 @@ diff -r b55ecdccb5cf 2/base
 -base
 +patched
 % patch file contents
+# HG changeset patch
+# Parent 
 mqbase
 
 diff -r b55ecdccb5cf 1/base
@@ -145,6 +151,8 @@ diff -r b55ecdccb5cf 2/base
 -base
 +patched
 % patch file contents
+# HG changeset patch
+# Parent 
 mqbase
 
 diff -r b55ecdccb5cf 1/base
@@ -181,6 +189,8 @@ diff -r b55ecdccb5cf orphanchild
 @@ -0,0 +1,1 @@
 +orphan
 % -- patch file content
+# HG changeset patch
+# Parent 
 mqbase
 
 diff -r b55ecdccb5cf 1/base
@@ -259,6 +269,23 @@ diff -r 000000000000 b
 +++ b/b
 @@ -0,0 +1,1 @@
 +a
+% issue2025: qrefresh does not honor filtering options when tip != qtip
+% refresh with tip != qtip
+% status after refresh
+M a
+% b after refresh
+b
+b
+% patch file after refresh
+# HG changeset patch
+# Parent 
+
+diff -r 1a60229be7ac b
+--- a/b
++++ b/b
+@@ -1,1 +1,2 @@
+ b
++b
 % issue1441 with git patches
 diff --git a/b b/b
 new file mode 100644

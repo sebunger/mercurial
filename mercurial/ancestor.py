@@ -3,20 +3,23 @@
 # Copyright 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import heapq
 
 def ancestor(a, b, pfunc):
     """
-    return the least common ancestor of nodes a and b or None if there
-    is no such ancestor.
+    return a minimal-distance ancestor of nodes a and b, or None if there is no
+    such ancestor. Note that there can be several ancestors with the same
+    (minimal) distance, and the one returned is arbitrary.
 
-    pfunc must return a list of parent vertices
+    pfunc must return a list of parent vertices for a given vertex
     """
 
     if a == b:
         return a
+
+    a, b = sorted([a, b])
 
     # find depth from root of all ancestors
     parentcache = {}

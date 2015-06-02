@@ -3,7 +3,7 @@
 # Copyright 2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 def addlines(fp, hunk, lena, lenb, a, b):
     while True:
@@ -34,11 +34,15 @@ def addlines(fp, hunk, lena, lenb, a, b):
 
 def fix_newline(hunk, a, b):
     l = hunk[-1]
-    c = l[0]
-    hline = l[:-1]
+    # tolerate CRLF in last line
+    if l.endswith('\r\n'):
+        hline = l[:-2]
+    else:
+        hline = l[:-1]
+    c = hline[0]
 
     if c == " " or c == "+":
-        b[-1] = l[1:-1]
+        b[-1] = hline[1:]
     if c == " " or c == "-":
         a[-1] = hline
     hunk[-1] = hline

@@ -25,7 +25,10 @@ It has the following prerequisites, at least as I build it:
       http://gnuwin32.sourceforge.net/packages/gettext.htm
 
   Inno Setup
-      http://www.jrsoftware.org/isinfo.php
+      http://www.jrsoftware.org/isdl.php#qsp
+
+      Get and install ispack-5.3.4.exe which includes Inno Setup Processor,
+      which is necessary to package Mercurial.
 
   ISTool - optional
       http://www.istool.org/default.aspx/
@@ -33,8 +36,8 @@ It has the following prerequisites, at least as I build it:
   add_path (you need only add_path.exe in the zip file)
       http://www.barisione.org/apps.html#add_path
 
-  Asciidoc - optional
-      http://www.methods.co.nz/asciidoc/
+  Docutils
+      http://docutils.sourceforge.net/
 
 And, of course, Mercurial itself.
 
@@ -79,21 +82,23 @@ following files:
     Microsoft.VC90.MFC.manifest)
 
 Before building the installer, you have to build Mercurial HTML documentation 
-(or fix mercurial.iss to not reference the doc directory). Assuming you have an
-"asciidoc.bat" batch file somewhere in your PATH:
+(or fix mercurial.iss to not reference the doc directory):
 
   cd doc
-  mingw32-make ASCIIDOC=asciidoc.bat html
+  mingw32-make html
   cd ..
 
 If you use ISTool, you open the C:\hg\hg-release\contrib\win32\mercurial.iss
 file and type Ctrl-F9 to compile the installer file.
 
-Otherwise you run the Inno Setup compiler.  Assuming it's on the path you run:
+Otherwise you run the Inno Setup compiler.  Assuming it's in the path
+you should execute:
 
-  iscc contrib\win32\mercurial.iss
+  iscc contrib\win32\mercurial.iss /DVERSION=foo
 
-The actual installer will be in the C:\hg\hg-release\Output directory.
+Where 'foo' is the version number you would like to see in the
+'Add/Remove Applications' tool.  The installer will be placed into
+a directory named Output/ at the root of your repository.
 
 To automate the steps above you may want to create a batchfile based on the
 following:
@@ -102,8 +107,8 @@ following:
   echo compiler=mingw32 >> setup.cfg
   python setup.py py2exe -b 1
   cd doc
-  mingw32-make ASCIIDOC=asciidoc.bat html
+  mingw32-make html
   cd ..
-  iscc contrib\win32\mercurial.iss
+  iscc contrib\win32\mercurial.iss /DVERSION=snapshot
 
 and run it from the root of the hg repository (c:\hg\hg-release).

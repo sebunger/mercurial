@@ -1,9 +1,14 @@
 #!/bin/sh
 
+. $TESTDIR/helpers.sh
+
 echo "[extensions]" >> $HGRCPATH
 echo "graphlog=" >> $HGRCPATH
 echo "rebase=" >> $HGRCPATH
 echo "mq=" >> $HGRCPATH
+
+echo "[mq]" >> $HGRCPATH
+echo "plain=true" >> $HGRCPATH
 
 filterpatch()
 {
@@ -42,6 +47,12 @@ echo '% Rebase - try to rebase on an applied mq patch'
 hg rebase -s 1 -d 3
 
 echo
+echo '% Rebase - same thing, but mq patch is default dest'
+hg update -q 1
+hg rebase
+hg update -q qtip
+
+echo
 echo '% Rebase - generate a conflict'
 hg rebase -s 2 -d 1
 
@@ -49,13 +60,13 @@ echo
 echo '% Fix the 1st conflict'
 echo 'mq1r1' > f
 hg resolve -m f
-hg rebase -c 2>&1 | sed -e 's/\(saving bundle to \).*/\1/'
+hg rebase -c | hidebackup
 
 echo
 echo '% Fix the 2nd conflict'
 echo 'mq1r1mq2' > f
 hg resolve -m f
-hg rebase -c 2>&1 | sed -e 's/\(saving bundle to \).*/\1/'
+hg rebase -c | hidebackup
 
 hg glog  --template '{rev} {desc} tags: {tags}\n'
 
@@ -90,6 +101,11 @@ hg qref --git -m 'P0 (git)'
 hg qnew f.patch
 echo 'mq2' > p
 hg qref -m 'P1'
+hg qcommit -m 'save patch state'
+echo '% patch series step 1/2'
+hg qseries -s
+echo '% patch queue manifest step 1/2'
+hg -R .hg/patches manifest
 
 echo '% Git patch'
 cat .hg/patches/f_git.patch  | filterpatch
@@ -100,7 +116,12 @@ cat .hg/patches/f.patch | filterpatch
 
 echo
 echo '% Rebase the applied mq patches'
-hg rebase -s 2 -d 1 --quiet 2>&1 | sed -e 's/\(saving bundle to \).*/\1/'
+hg rebase -s 2 -d 1 --quiet
+hg qcommit -m 'save patch state'
+echo '% patch series step 2/2'
+hg qseries -s
+echo '% patch queue manifest step 2/2'
+hg -R .hg/patches manifest
 
 echo '% And the patches are correct'
 echo '% Git patch'

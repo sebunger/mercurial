@@ -19,11 +19,6 @@ adding file changes
 added 0 changesets with 0 changes to 4 files
 (run 'hg update' to get a working copy)
 ====== Verify empty
-changeset:   -1:000000000000
-tag:         tip
-user:        
-date:        Thu Jan 01 00:00:00 1970 +0000
-
 checking changesets
 checking manifests
 crosschecking files in changesets and manifests
@@ -42,7 +37,7 @@ adding file changes
 added 9 changesets with 7 changes to 4 files (+1 heads)
 (run 'hg heads' to see heads, 'hg merge' to merge)
 ====== Rollback empty
-rolling back last transaction
+rolling back to revision -1 (undo pull)
 ====== Pull full.hg into empty again (using --cwd)
 pulling from ../full.hg
 requesting all changes
@@ -60,7 +55,7 @@ pulling from full.hg
 searching for changes
 no changes found
 ====== Rollback empty
-rolling back last transaction
+rolling back to revision -1 (undo pull)
 ====== Pull full.hg into empty again (using -R)
 pulling from full.hg
 requesting all changes
@@ -70,14 +65,14 @@ adding file changes
 added 9 changesets with 7 changes to 4 files (+1 heads)
 (run 'hg heads' to see heads, 'hg merge' to merge)
 ====== Log -R full.hg in fresh empty
-changeset:   8:836ac62537ab
+changeset:   8:088ff9d6e1e1
 tag:         tip
 parent:      3:ac69c658229d
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     0.3m
 
-changeset:   7:80fe151401c2
+changeset:   7:27f57c869697
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3m
@@ -128,7 +123,7 @@ adding file changes
 added 9 changesets with 7 changes to 4 files (+1 heads)
 (run 'hg heads' to see heads, 'hg merge' to merge)
 ====== Rollback empty
-rolling back last transaction
+rolling back to revision -1 (undo pull)
 ====== Log -R bundle:empty+full.hg
 8 7 6 5 4 3 2 1 0 
 ====== Pull full.hg into empty again (using -R; with hook)
@@ -146,19 +141,19 @@ adding changesets
 adding manifests
 adding file changes
 added 4 changesets with 4 changes to 1 files
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 ====== Log -R full.hg in partial
-changeset:   8:836ac62537ab
+changeset:   8:088ff9d6e1e1
 tag:         tip
 parent:      3:ac69c658229d
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     0.3m
 
-changeset:   7:80fe151401c2
+changeset:   7:27f57c869697
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3m
@@ -218,12 +213,12 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3
 
-changeset:   7:80fe151401c2
+changeset:   7:27f57c869697
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3m
 
-changeset:   8:836ac62537ab
+changeset:   8:088ff9d6e1e1
 tag:         tip
 parent:      3:ac69c658229d
 user:        test
@@ -249,12 +244,12 @@ user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3
 
-changeset:   7:80fe151401c2
+changeset:   7:27f57c869697
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3m
 
-changeset:   8:836ac62537ab
+changeset:   8:088ff9d6e1e1
 tag:         tip
 parent:      3:ac69c658229d
 user:        test
@@ -269,16 +264,16 @@ adding changesets
 adding manifests
 adding file changes
 added 9 changesets with 7 changes to 4 files (+1 heads)
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-changeset:   8:836ac62537ab
+changeset:   8:088ff9d6e1e1
 tag:         tip
 parent:      3:ac69c658229d
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     0.3m
 
-changeset:   7:80fe151401c2
+changeset:   7:27f57c869697
 user:        test
 date:        Mon Jan 12 13:46:40 1970 +0000
 summary:     1.3m
@@ -296,7 +291,7 @@ adding file changes
 added 1 changesets with 1 changes to 1 files
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 ====== test for 540d1059c802
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 searching for changes
 1 changesets found
@@ -318,7 +313,7 @@ crosschecking files in changesets and manifests
 checking files
 2 files, 2 changesets, 2 total revisions
 ====== diff against bundle
-diff -r 836ac62537ab anotherfile
+diff -r 088ff9d6e1e1 anotherfile
 --- a/anotherfile	Mon Jan 12 13:46:40 1970 +0000
 +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
 @@ -1,4 +0,0 @@
@@ -326,3 +321,45 @@ diff -r 836ac62537ab anotherfile
 -1
 -2
 -3
+====== bundle single branch
+adding a
+adding b
+adding b1
+0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+adding c
+created new head
+adding c1
+== bundling via incoming
+comparing with .
+searching for changes
+d2ae7f538514cd87c17547b0de4cea71fe1af9fb
+5ece8e77363e2b5269e27c66828b72da29e4341a
+== bundling
+searching for changes
+common changesets up to c0025332f9ed
+2 changesets found
+list of changesets:
+d2ae7f538514cd87c17547b0de4cea71fe1af9fb
+5ece8e77363e2b5269e27c66828b72da29e4341a
+bundling changes: 0 chunks
+bundling changes: 1 chunks
+bundling changes: 2 chunks
+bundling changes: 3 chunks
+bundling changes: 4 chunks
+bundling changes: 5 chunks
+bundling changes: 6 chunks
+bundling manifests: 0 chunks
+bundling manifests: 1 chunks
+bundling manifests: 2 chunks
+bundling manifests: 3 chunks
+bundling manifests: 4 chunks
+bundling manifests: 5 chunks
+bundling manifests: 6 chunks
+bundling files: b 0 chunks
+bundling files: b 1 chunks
+bundling files: b 2 chunks
+bundling files: b 3 chunks
+bundling files: b1 4 chunks
+bundling files: b1 5 chunks
+bundling files: b1 6 chunks
+bundling files: b1 7 chunks

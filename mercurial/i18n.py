@@ -3,7 +3,7 @@
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import encoding
 import gettext, sys, os
@@ -16,7 +16,7 @@ else:
 
 base = os.path.dirname(module)
 for dir in ('.', '..'):
-    localedir = os.path.normpath(os.path.join(base, dir, 'locale'))
+    localedir = os.path.join(base, dir, 'locale')
     if os.path.isdir(localedir):
         break
 
@@ -36,13 +36,23 @@ def gettext(message):
     if message is None:
         return message
 
-    # We cannot just run the text through encoding.tolocal since that
-    # leads to infinite recursion when encoding._encoding is invalid.
+    paragraphs = message.split('\n\n')
+    # Be careful not to translate the empty string -- it holds the
+    # meta data of the .po file.
+    u = u'\n\n'.join([p and t.ugettext(p) or '' for p in paragraphs])
     try:
-        u = t.ugettext(message)
+        # encoding.tolocal cannot be used since it will first try to
+        # decode the Unicode string. Calling u.decode(enc) really
+        # means u.encode(sys.getdefaultencoding()).decode(enc). Since
+        # the Python encoding defaults to 'ascii', this fails if the
+        # translated string use non-ASCII characters.
         return u.encode(encoding.encoding, "replace")
     except LookupError:
+        # An unknown encoding results in a LookupError.
         return message
 
-_ = gettext
+if 'HGPLAIN' in os.environ:
+    _ = lambda message: message
+else:
+    _ = gettext
 

@@ -5,13 +5,14 @@
 # Copyright 2009 Nicolas Dumazet <nicdumz@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from mercurial.i18n import _
 import common, server
 import errno, os, socket, struct
 
-class QueryFailed(Exception): pass
+class QueryFailed(Exception):
+    pass
 
 def start_server(function):
     """
@@ -27,33 +28,34 @@ def start_server(function):
             autostart = self.ui.configbool('inotify', 'autostart', True)
 
             if err[0] == errno.ECONNREFUSED:
-                self.ui.warn(_('(found dead inotify server socket; '
-                               'removing it)\n'))
-                os.unlink(self.repo.join('inotify.sock'))
+                self.ui.warn(_('inotify-client: found dead inotify server '
+                               'socket; removing it\n'))
+                os.unlink(os.path.join(self.root, '.hg', 'inotify.sock'))
             if err[0] in (errno.ECONNREFUSED, errno.ENOENT) and autostart:
-                self.ui.debug(_('(starting inotify server)\n'))
+                self.ui.debug('(starting inotify server)\n')
                 try:
                     try:
-                        server.start(self.ui, self.repo)
+                        server.start(self.ui, self.dirstate, self.root,
+                                     dict(daemon=True, daemon_pipefds=''))
                     except server.AlreadyStartedException, inst:
                         # another process may have started its own
                         # inotify server while this one was starting.
                         self.ui.debug(str(inst))
                 except Exception, inst:
-                    self.ui.warn(_('could not start inotify server: '
-                                   '%s\n') % inst)
+                    self.ui.warn(_('inotify-client: could not start inotify '
+                                   'server: %s\n') % inst)
                 else:
                     try:
                         return function(self, *args)
                     except socket.error, err:
-                        self.ui.warn(_('could not talk to new inotify '
-                                       'server: %s\n') % err[-1])
+                        self.ui.warn(_('inotify-client: could not talk to new '
+                                       'inotify server: %s\n') % err[-1])
             elif err[0] in (errno.ECONNREFUSED, errno.ENOENT):
                 # silently ignore normal errors if autostart is False
-                self.ui.debug(_('(inotify server not running)\n'))
+                self.ui.debug('(inotify server not running)\n')
             else:
-                self.ui.warn(_('failed to contact inotify server: %s\n')
-                         % err[-1])
+                self.ui.warn(_('inotify-client: failed to contact inotify '
+                               'server: %s\n') % err[-1])
 
         self.ui.traceback()
         raise QueryFailed('inotify query failed')
@@ -64,11 +66,12 @@ def start_server(function):
 class client(object):
     def __init__(self, ui, repo):
         self.ui = ui
-        self.repo = repo
+        self.dirstate = repo.dirstate
+        self.root = repo.root
         self.sock = socket.socket(socket.AF_UNIX)
 
     def _connect(self):
-        sockpath = self.repo.join('inotify.sock')
+        sockpath = os.path.join(self.root, '.hg', 'inotify.sock')
         try:
             self.sock.connect(sockpath)
         except socket.error, err:
@@ -95,7 +98,8 @@ class client(object):
             version = ord(cs.read(1))
         except TypeError:
             # empty answer, assume the server crashed
-            self.ui.warn(_('received empty answer from inotify server'))
+            self.ui.warn(_('inotify-client: received empty answer from inotify '
+                           'server'))
             raise QueryFailed('server crashed')
 
         if version != common.version:
@@ -134,8 +138,10 @@ class client(object):
             states = 'almrx!'
             if ignored:
                 raise ValueError('this is insanity')
-            if clean: states += 'c'
-            if unknown: states += '?'
+            if clean:
+                states += 'c'
+            if unknown:
+                states += '?'
             yield states
 
         req = '\0'.join(genquery())
@@ -148,7 +154,16 @@ class client(object):
                 if names:
                     return filter(match, names.split('\0'))
             return []
-        return map(readnames, resphdr)
+        results = tuple(map(readnames, resphdr[:-1]))
+
+        if names:
+            nbytes = resphdr[-1]
+            vdirs = cs.read(nbytes)
+            if vdirs:
+                for vdir in vdirs.split('\0'):
+                    match.dir(vdir)
+
+        return results
 
     @start_server
     def debugquery(self):

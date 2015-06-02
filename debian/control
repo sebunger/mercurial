@@ -3,12 +3,14 @@ Section: vcs
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
 Uploaders: Vincent Danjean <vdanjean@debian.org>,
- Gerardo Curiel <gcuriel@debian.org.ve>,
- Vernon Tang <vt@foilhead.net>
-Build-Depends: debhelper (>= 7.0.50), quilt (>> 0.46-6),
+ Vernon Tang <vt@foilhead.net>,
+ Javi Merino <cibervicho@gmail.com>
+DM-Upload-Allowed: yes
+Build-Depends: debhelper (>= 7.0.50),
  patchutils (>= 0.2.25), gettext,
- python-support (>= 0.5.3), python-all-dev, xmlto, asciidoc
-Standards-Version: 3.8.2
+ python-support (>= 0.5.3), python-all-dev (>= 2.5.4-1~), python-docutils,
+ zip, unzip
+Standards-Version: 3.9.1.0
 Homepage: http://www.selenic.com/mercurial/
 Vcs-Svn: svn://svn.debian.org/python-apps/packages/mercurial/trunk
 Vcs-Browser: http://svn.debian.org/viewsvn/python-apps/packages/mercurial/trunk/
@@ -21,8 +23,8 @@ Suggests: wish,
  python-mysqldb, 
  python-pygments,
  python-openssl
-Conflicts: mercurial (<< ${binary:Version})
-Replaces: mercurial (<< ${binary:Version})
+Breaks: mercurial (<< ${binary:Version})
+Replaces: mercurial (<< 1.4)
 Description: scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
@@ -38,6 +40,7 @@ Suggests: qct,
  wish, 
  vim | emacs,
  kdiff3 | tkdiff | meld | xxdiff
+Breaks: mercurial-git (<< 0.2.3)
 Description: scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

@@ -1,5 +1,26 @@
 % qimport non-existing-file
-abort: unable to read non-existing-file
+abort: unable to read file non-existing-file
+% import email
+adding email to series file
+applying email
+now at: email
+% hg tip -v
+changeset:   0:1a706973a7d8
+tag:         email
+tag:         qbase
+tag:         qtip
+tag:         tip
+user:        Username in patch <test@example.net>
+date:        Thu Jan 01 00:00:00 1970 +0000
+files:       x
+description:
+First line of commit message.
+
+More text in commit message.
+
+
+popping email
+patch queue now empty
 % import URL
 adding url.diff to series file
 url.diff
@@ -8,12 +29,14 @@ abort: patch "url.diff" already exists
 applying url.diff
 now at: url.diff
 foo
+popping url.diff
 patch queue now empty
 % qimport -f
 adding url.diff to series file
 applying url.diff
 now at: url.diff
 foo2
+popping url.diff
 patch queue now empty
 % build diff with CRLF
 adding b

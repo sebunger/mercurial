@@ -74,6 +74,13 @@ hg clone -r0 a b
 hg --cwd a export tip | hg --cwd b import -
 rm -r b
 
+echo % import two patches in one stream
+hg init b
+hg --cwd a export 0:tip | hg --cwd b import -
+hg --cwd a id
+hg --cwd b id
+rm -r b
+
 echo % override commit message
 hg clone -r0 a b
 hg --cwd a export tip | hg --cwd b import -m 'override' -
@@ -160,7 +167,7 @@ hg --cwd a export tip | sed -e 's/d1\/d2\///' > tip.patch
 dir=`pwd`
 cd b/d1/d2 2>&1 > /dev/null
 hg import  ../../../tip.patch
-cd $dir
+cd "$dir"
 echo "% message should be 'subdir change'"
 hg --cwd b tip | grep 'subdir change'
 echo "% committer should be 'someoneelse'"
@@ -189,7 +196,10 @@ echo line0 >> a
 echo line1 >> a
 echo line0 >> a
 hg ci -m brancha
-hg import -v tip.patch
+hg import --no-commit -v tip.patch
+hg revert -a
+echo '% test fuzziness with eol=auto'
+hg --config patch.eol=auto import --no-commit -v tip.patch
 cd ..
 
 # Test hunk touching empty files (issue906)
@@ -286,31 +296,31 @@ rename to bar
 EOF
 cd ..
 
-echo '% test import with similarity (issue295)'
+echo '% test import with similarity and git and strip (issue295 et al.)'
 hg init sim
 cd sim
 echo 'this is a test' > a
 hg ci -Ama
 cat > ../rename.diff <<EOF
-diff --git a/a b/a
+diff --git a/foo/a b/foo/a
 deleted file mode 100644
---- a/a
+--- a/foo/a
 +++ /dev/null
 @@ -1,1 +0,0 @@
 -this is a test
-diff --git a/b b/b
+diff --git a/foo/b b/foo/b
 new file mode 100644
 --- /dev/null
-+++ b/b
++++ b/foo/b
 @@ -0,0 +1,2 @@
 +this is a test
 +foo
 EOF
-hg import --no-commit -v -s 1 ../rename.diff
+hg import --no-commit -v -s 1 ../rename.diff -p2
 hg st -C
 hg revert -a
 rm b
-hg import --no-commit -v -s 100 ../rename.diff
+hg import --no-commit -v -s 100 ../rename.diff -p2
 hg st -C
 cd ..
 
@@ -332,3 +342,156 @@ new file mode 100644
 EOF
 hg import --no-commit a.patch
 cd ..
+
+echo '% create file when source is not /dev/null'
+cat > create.patch <<EOF
+diff -Naur proj-orig/foo proj-new/foo
+--- proj-orig/foo       1969-12-31 16:00:00.000000000 -0800
++++ proj-new/foo        2009-07-17 16:50:45.801368000 -0700
+@@ -0,0 +1,1 @@
++a
+EOF
+# some people have patches like the following too
+cat > create2.patch <<EOF
+diff -Naur proj-orig/foo proj-new/foo
+--- proj-orig/foo.orig  1969-12-31 16:00:00.000000000 -0800
++++ proj-new/foo        2009-07-17 16:50:45.801368000 -0700
+@@ -0,0 +1,1 @@
++a
+EOF
+hg init oddcreate
+cd oddcreate
+hg import --no-commit ../create.patch
+cat foo
+rm foo
+hg revert foo
+hg import --no-commit ../create2.patch
+cat foo
+
+echo % 'first line mistaken for email headers (issue 1859)'
+hg init emailconfusion
+cd emailconfusion
+cat > a.patch <<EOF
+module: summary
+
+description
+
+
+diff -r 000000000000 -r 9b4c1e343b55 test.txt
+--- /dev/null
++++ b/a
+@@ -0,0 +1,1 @@
++a
+EOF
+hg import -d '0 0' a.patch
+hg parents -v
+cd ..
+
+echo % '--- in commit message'
+hg init commitconfusion
+cd commitconfusion
+cat > a.patch <<EOF
+module: summary
+
+--- description
+
+diff --git a/a b/a
+new file mode 100644
+--- /dev/null
++++ b/a
+@@ -0,0 +1,1 @@
++a
+EOF
+hg import -d '0 0' a.patch
+hg parents -v
+cd ..
+
+echo '% tricky header splitting'
+cat > trickyheaders.patch <<EOF
+From: User A <user@a>
+Subject: [PATCH] from: tricky!
+
+# HG changeset patch
+# User User B
+# Date 1266264441 18000
+# Branch stable
+# Node ID f2be6a1170ac83bf31cb4ae0bad00d7678115bc0
+# Parent  0000000000000000000000000000000000000000
+from: tricky!
+
+That is not a header.
+
+diff -r 000000000000 -r f2be6a1170ac foo
+--- /dev/null
++++ b/foo
+@@ -0,0 +1,1 @@
++foo
+EOF
+
+hg init trickyheaders
+cd trickyheaders
+hg import -d '0 0' ../trickyheaders.patch
+hg export --git tip
+cd ..
+
+echo '% issue2102'
+hg init issue2102
+cd issue2102
+mkdir -p src/cmd/gc
+touch src/cmd/gc/mksys.bash
+hg ci -Am init
+hg import - <<EOF
+# HG changeset patch
+# User Rob Pike
+# Date 1216685449 25200
+# Node ID 03aa2b206f499ad6eb50e6e207b9e710d6409c98
+# Parent  93d10138ad8df586827ca90b4ddb5033e21a3a84
+help management of empty pkg and lib directories in perforce
+
+R=gri
+DELTA=4  (4 added, 0 deleted, 0 changed)
+OCL=13328
+CL=13328
+
+diff --git a/lib/place-holder b/lib/place-holder
+new file mode 100644
+--- /dev/null
++++ b/lib/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/pkg/place-holder b/pkg/place-holder
+new file mode 100644
+--- /dev/null
++++ b/pkg/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+old mode 100644
+new mode 100755
+EOF
+hg sum
+hg diff --git -c tip
+cd ..
+
+echo '% diff lines looking like headers'
+hg init difflineslikeheaders
+cd difflineslikeheaders
+echo a >a
+echo b >b
+echo c >c
+hg ci -Am1
+
+echo "key: value" >>a
+echo "key: value" >>b
+echo "foo" >>c
+hg ci -m2
+
+hg up -C 0
+hg diff --git -c1 >want
+hg diff -c1 | hg import --no-commit -
+hg diff --git >have
+diff want have
+cd ..
+

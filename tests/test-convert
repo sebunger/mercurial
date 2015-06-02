@@ -49,4 +49,20 @@ echo % converting empty dir should fail "nicely"
 mkdir emptydir
 # override $PATH to ensure p4 not visible; use $PYTHON in case we're
 # running from a devel copy, not a temp installation
-PATH=$BINDIR $PYTHON $BINDIR/hg convert emptydir 2>&1 | sed 's,file://.*/emptydir,.../emptydir,g'
+PATH="$BINDIR" $PYTHON "$BINDIR"/hg convert emptydir 2>&1 | sed 's,file://.*/emptydir,.../emptydir,g'
+
+echo % convert with imaginary source type
+hg convert --source-type foo a a-foo
+echo % convert with imaginary sink type
+hg convert --dest-type foo a a-foo
+
+echo
+echo % "testing: convert must not produce duplicate entries in fncache"
+hg convert a b
+echo % "contents of fncache file:"
+cat b/.hg/store/fncache
+
+echo '% test bogus URL'
+hg convert -q bzr+ssh://foobar@selenic.com/baz baz
+
+true

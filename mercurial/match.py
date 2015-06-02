@@ -3,9 +3,11 @@
 #  Copyright 2008, 2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
-import util, re
+import re
+import util
+from i18n import _
 
 class match(object):
     def __init__(self, root, cwd, patterns, include=[], exclude=[],
@@ -124,10 +126,11 @@ def _globre(pat):
     res = ''
     group = 0
     escape = re.escape
-    def peek(): return i < n and pat[i]
+    def peek():
+        return i < n and pat[i]
     while i < n:
         c = pat[i]
-        i = i+1
+        i += 1
         if c not in '*?[{},\\':
             res += escape(c)
         elif c == '*':
@@ -212,8 +215,8 @@ def _buildmatch(pats, tail):
             try:
                 re.compile('(?:%s)' % _regex(k, p, tail))
             except re.error:
-                raise util.Abort("invalid pattern (%s): %s" % (k, p))
-        raise util.Abort("invalid pattern")
+                raise util.Abort(_("invalid pattern (%s): %s") % (k, p))
+        raise util.Abort(_("invalid pattern"))
 
 def _normalize(names, default, root, cwd):
     pats = []

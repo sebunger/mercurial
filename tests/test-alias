@@ -12,6 +12,9 @@ mylog = log
 lognull = log -r null
 shortlog = log --template '{rev} {node|short} | {date|isodate}\n'
 dln = lognull --debug
+nousage = rollback
+put = export -r 0 -o "\$FOO/%R.diff"
+rt = root
 
 [defaults]
 mylog = -q
@@ -24,17 +27,25 @@ hg myinit alias
 
 echo '% unknown'
 hg unknown
+hg help unknown
 
 echo '% ambiguous'
 hg ambiguous
+hg help ambiguous
 
 echo '% recursive'
 hg recursive
+hg help recursive
 
 echo '% no definition'
 hg nodef
+hg help nodef
 
 cd alias
+
+echo '% no usage'
+hg nousage
+
 echo foo > foo
 hg ci -Amfoo
 
@@ -50,3 +61,12 @@ hg lognull
 
 echo '% properly recursive'
 hg dln
+
+echo '% path expanding'
+FOO=`pwd` hg put
+cat 0.diff
+
+echo '% invalid arguments'
+hg rt foo
+
+exit 0

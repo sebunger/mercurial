@@ -1,7 +1,8 @@
-templates usr/share/mercurial
+mercurial/help/*.txt usr/share/mercurial/help
+mercurial/templates usr/share/mercurial
+mercurial/locale usr/share
 debian/tmp/usr/lib
 
-contrib/mercurial.el usr/share/emacs/site-lisp
 contrib/mq.el usr/share/emacs/site-lisp
 
 contrib/logo-droplets.svg usr/share/mercurial

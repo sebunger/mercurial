@@ -29,6 +29,7 @@ hg init a
 echo a > a/a
 mkdir -p a/d1/d2
 echo b > a/d1/d2/b
+ln -s a/missing a/link
 echo % add
 hg --cwd a ci -d '0 0' -A -m 'add a file'
 
@@ -43,6 +44,7 @@ ls a a-hg-wc
 cmp a/a a-hg-wc/a && echo same || echo different
 
 hg --cwd a mv a b
+hg --cwd a mv link newlink
 echo % rename
 hg --cwd a ci -d '2 0' -m 'rename a file'
 hg --cwd a tip -q
@@ -134,3 +136,15 @@ hg --cwd b ci -d '5 0' -m 'merge'
 hg convert -d svn b
 echo % expect 4 changes
 svnupanddisplay b-hg-wc 0
+
+echo % tags are not supported, but must not break conversion
+
+rm -rf a a-hg a-hg-wc
+hg init a
+echo a > a/a
+hg --cwd a ci -d '0 0' -A -m 'Add file a'
+hg --cwd a tag -d '1 0' -m 'Tagged as v1.0' v1.0
+
+hg convert -d svn a
+svnupanddisplay a-hg-wc 2
+rm -rf a a-hg a-hg-wc

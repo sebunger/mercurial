@@ -26,25 +26,32 @@ except:
     raise SystemExit(
         "Couldn't import standard zlib (incomplete Python install).")
 
+try:
+    import bz2
+except:
+    raise SystemExit(
+        "Couldn't import standard bz2 (incomplete Python install).")
+
 import os, subprocess, time
 import shutil
 import tempfile
+from distutils import log
 from distutils.core import setup, Extension
 from distutils.dist import Distribution
-from distutils.command.install_data import install_data
 from distutils.command.build import build
+from distutils.command.build_ext import build_ext
 from distutils.command.build_py import build_py
 from distutils.spawn import spawn, find_executable
 from distutils.ccompiler import new_compiler
+from distutils.errors import CCompilerError
 
-extra = {}
 scripts = ['hg']
 if os.name == 'nt':
     scripts.append('contrib/win32/hg.bat')
 
 # simplified version of distutils.ccompiler.CCompiler.has_function
 # that actually removes its temporary files.
-def has_function(cc, funcname):
+def hasfunction(cc, funcname):
     tmpdir = tempfile.mkdtemp(prefix='hg-install-')
     devnull = oldstderr = None
     try:
@@ -77,6 +84,7 @@ def has_function(cc, funcname):
 # py2exe needs to be installed to work
 try:
     import py2exe
+    py2exeloaded = True
 
     # Help py2exe to find win32com.shell
     try:
@@ -92,12 +100,27 @@ try:
     except ImportError:
         pass
 
-    extra['console'] = ['hg']
-
 except ImportError:
+    py2exeloaded = False
     pass
 
-version = None
+def runcmd(cmd, env):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, env=env)
+    out, err = p.communicate()
+    # If root is executing setup.py, but the repository is owned by
+    # another user (as in "sudo python setup.py install") we will get
+    # trust warnings since the .hg/hgrc file is untrusted. That is
+    # fine, we don't want to load it anyway.  Python may warn about
+    # a missing __init__.py in mercurial/locale, we also ignore that.
+    err = [e for e in err.splitlines()
+           if not e.startswith('Not trusting file') \
+              and not e.startswith('warning: Not importing')]
+    if err:
+        return ''
+    return out
+
+version = ''
 
 if os.path.isdir('.hg'):
     # Execute hg out of this directory with a custom environment which
@@ -107,43 +130,39 @@ if os.path.isdir('.hg'):
     env = {'PYTHONPATH': os.pathsep.join(pypath),
            'HGRCPATH': '',
            'LANGUAGE': 'C'}
+    if 'LD_LIBRARY_PATH' in os.environ:
+        env['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
     if 'SystemRoot' in os.environ:
         # Copy SystemRoot into the custom environment for Python 2.6
         # under Windows. Otherwise, the subprocess will fail with
         # error 0xc0150004. See: http://bugs.python.org/issue3440
         env['SystemRoot'] = os.environ['SystemRoot']
     cmd = [sys.executable, 'hg', 'id', '-i', '-t']
-
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE, env=env)
-    out, err = p.communicate()
-
-    # If root is executing setup.py, but the repository is owned by
-    # another user (as in "sudo python setup.py install") we will get
-    # trust warnings since the .hg/hgrc file is untrusted. That is
-    # fine, we don't want to load it anyway.
-    err = [e for e in err.splitlines()
-           if not e.startswith('Not trusting file')]
-    if err:
-        sys.stderr.write('warning: could not establish Mercurial '
-                         'version:\n%s\n' % '\n'.join(err))
-    else:
-        l = out.split()
-        while len(l) > 1 and l[-1][0].isalpha(): # remove non-numbered tags
-            l.pop()
-        if l:
-            version = l[-1] # latest tag or revision number
-            if version.endswith('+'):
-                version += time.strftime('%Y%m%d')
+    l = runcmd(cmd, env).split()
+    while len(l) > 1 and l[-1][0].isalpha(): # remove non-numbered tags
+        l.pop()
+    if len(l) > 1: # tag found
+        version = l[-1]
+        if l[0].endswith('+'): # propagate the dirty status to the tag
+            version += '+'
+    elif len(l) == 1: # no tag found
+        cmd = [sys.executable, 'hg', 'parents', '--template',
+               '{latesttag}+{latesttagdistance}-']
+        version = runcmd(cmd, env) + l[0]
+    if version.endswith('+'):
+        version += time.strftime('%Y%m%d')
 elif os.path.exists('.hg_archival.txt'):
-    hgarchival = open('.hg_archival.txt')
-    for line in hgarchival:
-        if line.startswith('node:'):
-            version = line.split(':')[1].strip()[:12]
-            break
+    kw = dict([[t.strip() for t in l.split(':', 1)]
+               for l in open('.hg_archival.txt')])
+    if 'tag' in kw:
+        version =  kw['tag']
+    elif 'latesttag' in kw:
+        version = '%(latesttag)s+%(latesttagdistance)s-%(node).12s' % kw
+    else:
+        version = kw.get('node', '')[:12]
 
 if version:
-    f = file("mercurial/__version__.py", "w")
+    f = open("mercurial/__version__.py", "w")
     f.write('# this file is autogenerated by setup.py\n')
     f.write('version = "%s"\n' % version)
     f.close()
@@ -155,13 +174,7 @@ try:
 except ImportError:
     version = 'unknown'
 
-class install_package_data(install_data):
-    def finalize_options(self):
-        self.set_undefined_options('install',
-                                   ('install_lib', 'install_dir'))
-        install_data.finalize_options(self)
-
-class build_mo(build):
+class hgbuildmo(build):
 
     description = "build translations (.mo files)"
 
@@ -183,22 +196,34 @@ class build_mo(build):
             pofile = join(podir, po)
             modir = join('locale', po[:-3], 'LC_MESSAGES')
             mofile = join(modir, 'hg.mo')
-            cmd = ['msgfmt', '-v', '-o', mofile, pofile]
+            mobuildfile = join('mercurial', mofile)
+            cmd = ['msgfmt', '-v', '-o', mobuildfile, pofile]
             if sys.platform != 'sunos5':
                 # msgfmt on Solaris does not know about -c
                 cmd.append('-c')
-            self.mkpath(modir)
-            self.make_file([pofile], mofile, spawn, (cmd,))
-            self.distribution.data_files.append((join('mercurial', modir),
-                                                 [mofile]))
+            self.mkpath(join('mercurial', modir))
+            self.make_file([pofile], mobuildfile, spawn, (cmd,))
 
-build.sub_commands.append(('build_mo', None))
+# Insert hgbuildmo first so that files in mercurial/locale/ are found
+# when build_py is run next.
+build.sub_commands.insert(0, ('build_mo', None))
 
 Distribution.pure = 0
 Distribution.global_options.append(('pure', None, "use pure (slow) Python "
                                     "code instead of C extensions"))
 
-class hg_build_py(build_py):
+class hgbuildext(build_ext):
+
+    def build_extension(self, ext):
+        try:
+            build_ext.build_extension(self, ext)
+        except CCompilerError:
+            if not hasattr(ext, 'optional') or not ext.optional:
+                raise
+            log.warn("Failed to build optional extension '%s' (skipping)",
+                     ext.name)
+
+class hgbuildpy(build_py):
 
     def finalize_options(self):
         build_py.finalize_options(self)
@@ -220,50 +245,83 @@ class hg_build_py(build_py):
             else:
                 yield module
 
-cmdclass = {'install_data': install_package_data,
-            'build_mo': build_mo,
-            'build_py': hg_build_py}
+cmdclass = {'build_mo': hgbuildmo,
+            'build_ext': hgbuildext,
+            'build_py': hgbuildpy}
 
-ext_modules=[
+packages = ['mercurial', 'mercurial.hgweb', 'hgext', 'hgext.convert',
+            'hgext.highlight', 'hgext.zeroconf']
+
+pymodules = []
+
+extmodules = [
     Extension('mercurial.base85', ['mercurial/base85.c']),
     Extension('mercurial.bdiff', ['mercurial/bdiff.c']),
     Extension('mercurial.diffhelpers', ['mercurial/diffhelpers.c']),
     Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
     Extension('mercurial.parsers', ['mercurial/parsers.c']),
-    Extension('mercurial.osutil', ['mercurial/osutil.c']),
     ]
 
-packages = ['mercurial', 'mercurial.hgweb', 'hgext', 'hgext.convert',
-            'hgext.highlight', 'hgext.zeroconf', ]
+# disable osutil.c under windows + python 2.4 (issue1364)
+if sys.platform == 'win32' and sys.version_info < (2, 5, 0, 'final'):
+    pymodules.append('mercurial.pure.osutil')
+else:
+    extmodules.append(Extension('mercurial.osutil', ['mercurial/osutil.c']))
 
 if sys.platform == 'linux2' and os.uname()[2] > '2.6':
     # The inotify extension is only usable with Linux 2.6 kernels.
     # You also need a reasonably recent C library.
+    # In any case, if it fails to build the error will be skipped ('optional').
     cc = new_compiler()
-    if has_function(cc, 'inotify_add_watch'):
-        ext_modules.append(Extension('hgext.inotify.linux._inotify',
-                                     ['hgext/inotify/linux/_inotify.c']))
+    if hasfunction(cc, 'inotify_add_watch'):
+        inotify = Extension('hgext.inotify.linux._inotify',
+                            ['hgext/inotify/linux/_inotify.c'])
+        inotify.optional = True
+        extmodules.append(inotify)
         packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
 
+packagedata = {'mercurial': ['locale/*/LC_MESSAGES/hg.mo',
+                             'help/*.txt']}
+
+def ordinarypath(p):
+    return p and p[0] != '.' and p[-1] != '~'
+
+for root in ('templates',):
+    for curdir, dirs, files in os.walk(os.path.join('mercurial', root)):
+        curdir = curdir.split(os.sep, 1)[1]
+        dirs[:] = filter(ordinarypath, dirs)
+        for f in filter(ordinarypath, files):
+            f = os.path.join(curdir, f)
+            packagedata['mercurial'].append(f)
+
 datafiles = []
-for root in ('templates', 'i18n'):
-    for dir, dirs, files in os.walk(root):
-        dirs[:] = [x for x in dirs if not x.startswith('.')]
-        files = [x for x in files if not x.startswith('.')]
-        datafiles.append((os.path.join('mercurial', dir),
-                          [os.path.join(dir, file_) for file_ in files]))
+setupversion = version
+extra = {}
+
+if py2exeloaded:
+    extra['console'] = [
+        {'script':'hg',
+         'copyright':'Copyright (C) 2005-2010 Matt Mackall and others',
+         'product_version':version}]
+
+if os.name == 'nt':
+    # Windows binary file versions for exe/dll files must have the
+    # form W.X.Y.Z, where W,X,Y,Z are numbers in the range 0..65535
+    setupversion = version.split('+', 1)[0]
 
 setup(name='mercurial',
-      version=version,
+      version=setupversion,
       author='Matt Mackall',
       author_email='mpm@selenic.com',
       url='http://mercurial.selenic.com/',
       description='Scalable distributed SCM',
-      license='GNU GPL',
+      license='GNU GPLv2+',
       scripts=scripts,
       packages=packages,
-      ext_modules=ext_modules,
+      py_modules=pymodules,
+      ext_modules=extmodules,
       data_files=datafiles,
+      package_data=packagedata,
       cmdclass=cmdclass,
       options=dict(py2exe=dict(packages=['hgext', 'email']),
                    bdist_mpkg=dict(zipdist=True,

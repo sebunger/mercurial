@@ -3,11 +3,11 @@
 # Copyright 2006, 2007, 2008 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import short
 from i18n import _
-import util, simplemerge, match
+import util, simplemerge, match, error
 import os, tempfile, re, filecmp
 
 def _toolstr(ui, tool, part, default=""):
@@ -15,6 +15,9 @@ def _toolstr(ui, tool, part, default=""):
 
 def _toolbool(ui, tool, part, default=False):
     return ui.configbool("merge-tools", tool + "." + part, default)
+
+def _toollist(ui, tool, part, default=[]):
+    return ui.configlist("merge-tools", tool + "." + part, default)
 
 _internal = ['internal:' + s
              for s in 'fail local other merge prompt dump'.split()]
@@ -60,24 +63,24 @@ def _picktool(repo, ui, path, binary, symlink):
     for pat, tool in ui.configitems("merge-patterns"):
         mf = match.match(repo.root, '', [pat])
         if mf(path) and check(tool, pat, symlink, False):
-                toolpath = _findtool(ui, tool)
-                return (tool, '"' + toolpath + '"')
+            toolpath = _findtool(ui, tool)
+            return (tool, '"' + toolpath + '"')
 
     # then merge tools
     tools = {}
-    for k,v in ui.configitems("merge-tools"):
+    for k, v in ui.configitems("merge-tools"):
         t = k.split('.')[0]
         if t not in tools:
             tools[t] = int(_toolstr(ui, t, "priority", "0"))
     names = tools.keys()
-    tools = sorted([(-p,t) for t,p in tools.items()])
+    tools = sorted([(-p, t) for t, p in tools.items()])
     uimerge = ui.config("ui", "merge")
     if uimerge:
         if uimerge not in names:
             return (uimerge, uimerge)
         tools.insert(0, (None, uimerge)) # highest priority
     tools.append((None, "hgmerge")) # the old default, if found
-    for p,t in tools:
+    for p, t in tools:
         if check(t, None, symlink, binary):
             toolpath = _findtool(ui, t)
             return (t, '"' + toolpath + '"')
@@ -140,14 +143,14 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
     binary = isbin(fcd) or isbin(fco) or isbin(fca)
     symlink = 'l' in fcd.flags() + fco.flags()
     tool, toolpath = _picktool(repo, ui, fd, binary, symlink)
-    ui.debug(_("picked tool '%s' for %s (binary %s symlink %s)\n") %
+    ui.debug("picked tool '%s' for %s (binary %s symlink %s)\n" %
                (tool, fd, binary, symlink))
 
     if not tool or tool == 'internal:prompt':
         tool = "internal:local"
-        if ui.prompt(_(" no tool found to merge %s\n"
-                       "keep (l)ocal or take (o)ther?") % fd,
-                     (_("&Local"), _("&Other")), _("l")) != _("l"):
+        if ui.promptchoice(_(" no tool found to merge %s\n"
+                             "keep (l)ocal or take (o)ther?") % fd,
+                           (_("&Local"), _("&Other")), 0):
             tool = "internal:other"
     if tool == "internal:local":
         return 0
@@ -170,22 +173,35 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
     else:
         ui.status(_("merging %s\n") % fd)
 
-    ui.debug(_("my %s other %s ancestor %s\n") % (fcd, fco, fca))
+    ui.debug("my %s other %s ancestor %s\n" % (fcd, fco, fca))
 
     # do we attempt to simplemerge first?
-    if _toolbool(ui, tool, "premerge", not (binary or symlink)):
+    try:
+        premerge = _toolbool(ui, tool, "premerge", not (binary or symlink))
+    except error.ConfigError:
+        premerge = _toolstr(ui, tool, "premerge").lower()
+        valid = 'keep'.split()
+        if premerge not in valid:
+            _valid = ', '.join(["'" + v + "'" for v in valid])
+            raise error.ConfigError(_("%s.premerge not valid "
+                                      "('%s' is neither boolean nor %s)") %
+                                    (tool, premerge, _valid))
+
+    if premerge:
         r = simplemerge.simplemerge(ui, a, b, c, quiet=True)
         if not r:
-            ui.debug(_(" premerge successful\n"))
+            ui.debug(" premerge successful\n")
             os.unlink(back)
             os.unlink(b)
             os.unlink(c)
             return 0
-        util.copyfile(back, a) # restore from backup and try again
+        if premerge != 'keep':
+            util.copyfile(back, a) # restore from backup and try again
 
     env = dict(HG_FILE=fd,
                HG_MY_NODE=short(mynode),
                HG_OTHER_NODE=str(fco.changectx()),
+               HG_BASE_NODE=str(fca.changectx()),
                HG_MY_ISLINK='l' in fcd.flags(),
                HG_OTHER_ISLINK='l' in fco.flags(),
                HG_BASE_ISLINK='l' in fca.flags())
@@ -204,18 +220,28 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
             out, a = a, back # read input from backup, write to original
         replace = dict(local=a, base=b, other=c, output=out)
         args = re.sub("\$(local|base|other|output)",
-                      lambda x: '"%s"' % replace[x.group()[1:]], args)
+            lambda x: '"%s"' % util.localpath(replace[x.group()[1:]]), args)
         r = util.system(toolpath + ' ' + args, cwd=repo.root, environ=env)
 
-    if not r and _toolbool(ui, tool, "checkconflicts"):
-        if re.match("^(<<<<<<< .*|=======|>>>>>>> .*)$", fcd.data()):
+    if not r and (_toolbool(ui, tool, "checkconflicts") or
+                  'conflicts' in _toollist(ui, tool, "check")):
+        if re.search("^(<<<<<<< .*|=======|>>>>>>> .*)$", fcd.data(),
+                     re.MULTILINE):
             r = 1
 
-    if not r and _toolbool(ui, tool, "checkchanged"):
+    checked = False
+    if 'prompt' in _toollist(ui, tool, "check"):
+        checked = True
+        if ui.promptchoice(_("was merge of '%s' successful (yn)?") % fd,
+                           (_("&Yes"), _("&No")), 1):
+            r = 1
+
+    if not r and not checked and (_toolbool(ui, tool, "checkchanged") or
+                                  'changed' in _toollist(ui, tool, "check")):
         if filecmp.cmp(repo.wjoin(fd), back):
-            if ui.prompt(_(" output file %s appears unchanged\n"
-                "was merge successful (yn)?") % fd,
-                (_("&Yes"), _("&No")), _("n")) != _("y"):
+            if ui.promptchoice(_(" output file %s appears unchanged\n"
+                                 "was merge successful (yn)?") % fd,
+                               (_("&Yes"), _("&No")), 1):
                 r = 1
 
     if _toolbool(ui, tool, "fixeol"):

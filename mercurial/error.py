@@ -3,7 +3,7 @@
 # Copyright 2005-2008 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 """Mercurial exceptions.
 
@@ -27,13 +27,22 @@ class LookupError(RevlogError, KeyError):
     def __str__(self):
         return RevlogError.__str__(self)
 
-class ParseError(Exception):
+class CommandError(Exception):
     """Exception raised on errors in parsing the command line."""
 
-class ConfigError(Exception):
+class Abort(Exception):
+    """Raised if a command needs to print an error and exit."""
+
+class ConfigError(Abort):
     'Exception raised when parsing config files'
 
+class ParseError(Exception):
+    'Exception raised when parsing config files (msg[, pos])'
+
 class RepoError(Exception):
+    pass
+
+class RepoLookupError(RepoError):
     pass
 
 class CapabilityError(RepoError):
@@ -67,6 +76,3 @@ class SignalInterrupt(KeyboardInterrupt):
 
 class SignatureError(Exception):
     pass
-
-class Abort(Exception):
-    """Raised if a command needs to print an error and exit."""

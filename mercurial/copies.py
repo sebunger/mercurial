@@ -3,9 +3,8 @@
 # Copyright 2008 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
-from i18n import _
 import util
 import heapq
 
@@ -28,29 +27,10 @@ def _dirs(files):
             f = _dirname(f)
     return d
 
-def _findoldnames(fctx, limit):
-    "find files that path was copied from, back to linkrev limit"
-    old = {}
-    seen = set()
-    orig = fctx.path()
-    visit = [(fctx, 0)]
-    while visit:
-        fc, depth = visit.pop()
-        s = str(fc)
-        if s in seen:
-            continue
-        seen.add(s)
-        if fc.path() != orig and fc.path() not in old:
-            old[fc.path()] = (depth, fc.path()) # remember depth
-        if fc.rev() < limit and fc.rev() is not None:
-            continue
-        visit += [(p, depth - 1) for p in fc.parents()]
-
-    # return old names sorted by depth
-    return [o[1] for o in sorted(old.values())]
-
 def _findlimit(repo, a, b):
-    "find the earliest revision that's an ancestor of a or b but not both"
+    """Find the earliest revision that's an ancestor of a or b but not both,
+    None if no such revision exists.
+    """
     # basic idea:
     # - mark a and b with different sides
     # - if a parent's children are all on the same side, the parent is
@@ -73,6 +53,7 @@ def _findlimit(repo, a, b):
     visit = [-a, -b]
     heapq.heapify(visit)
     interesting = len(visit)
+    hascommonancestor = False
     limit = working
 
     while interesting:
@@ -82,6 +63,8 @@ def _findlimit(repo, a, b):
         else:
             parents = cl.parentrevs(r)
         for p in parents:
+            if p < 0:
+                continue
             if p not in side:
                 # first time we see p; add it to visit
                 side[p] = side[r]
@@ -92,9 +75,13 @@ def _findlimit(repo, a, b):
                 # p was interesting but now we know better
                 side[p] = 0
                 interesting -= 1
+                hascommonancestor = True
         if side[r]:
             limit = r # lowest rev visited
             interesting -= 1
+
+    if not hascommonancestor:
+        return None
     return limit
 
 def copies(repo, c1, c2, ca, checkdirs=False):
@@ -110,6 +97,9 @@ def copies(repo, c1, c2, ca, checkdirs=False):
         return repo.dirstate.copies(), {}
 
     limit = _findlimit(repo, c1.rev(), c2.rev())
+    if limit is None:
+        # no common ancestor, no copies
+        return {}, {}
     m1 = c1.manifest()
     m2 = c2.manifest()
     ma = ca.manifest()
@@ -126,34 +116,76 @@ def copies(repo, c1, c2, ca, checkdirs=False):
     fullcopy = {}
     diverge = {}
 
+    def related(f1, f2, limit):
+        # Walk back to common ancestor to see if the two files originate
+        # from the same file. Since workingfilectx's rev() is None it messes
+        # up the integer comparison logic, hence the pre-step check for
+        # None (f1 and f2 can only be workingfilectx's initially).
+
+        if f1 == f2:
+            return f1 # a match
+
+        g1, g2 = f1.ancestors(), f2.ancestors()
+        try:
+            f1r, f2r = f1.rev(), f2.rev()
+
+            if f1r is None:
+                f1 = g1.next()
+            if f2r is None:
+                f2 = g2.next()
+
+            while 1:
+                f1r, f2r = f1.rev(), f2.rev()
+                if f1r > f2r:
+                    f1 = g1.next()
+                elif f2r > f1r:
+                    f2 = g2.next()
+                elif f1 == f2:
+                    return f1 # a match
+                elif f1r == f2r or f1r < limit or f2r < limit:
+                    return False # copy no longer relevant
+        except StopIteration:
+            return False
+
     def checkcopies(f, m1, m2):
         '''check possible copies of f from m1 to m2'''
-        c1 = ctx(f, m1[f])
-        for of in _findoldnames(c1, limit):
-            fullcopy[f] = of # remember for dir rename detection
-            if of in m2: # original file not in other manifest?
-                # if the original file is unchanged on the other branch,
-                # no merge needed
-                if m2[of] != ma.get(of):
-                    c2 = ctx(of, m2[of])
-                    ca = c1.ancestor(c2)
-                    # related and named changed on only one side?
-                    if ca and (ca.path() == f or ca.path() == c2.path()):
-                        if c1 != ca or c2 != ca: # merge needed?
-                            copy[f] = of
-            elif of in ma:
-                diverge.setdefault(of, []).append(f)
+        of = None
+        seen = set([f])
+        for oc in ctx(f, m1[f]).ancestors():
+            ocr = oc.rev()
+            of = oc.path()
+            if of in seen:
+                # check limit late - grab last rename before
+                if ocr < limit:
+                    break
+                continue
+            seen.add(of)
 
-    repo.ui.debug(_("  searching for copies back to rev %d\n") % limit)
+            fullcopy[f] = of # remember for dir rename detection
+            if of not in m2:
+                continue # no match, keep looking
+            if m2[of] == ma.get(of):
+                break # no merge needed, quit early
+            c2 = ctx(of, m2[of])
+            cr = related(oc, c2, ca.rev())
+            if cr and (of == f or of == c2.path()): # non-divergent
+                copy[f] = of
+                of = None
+                break
+
+        if of in ma:
+            diverge.setdefault(of, []).append(f)
+
+    repo.ui.debug("  searching for copies back to rev %d\n" % limit)
 
     u1 = _nonoverlap(m1, m2, ma)
     u2 = _nonoverlap(m2, m1, ma)
 
     if u1:
-        repo.ui.debug(_("  unmatched files in local:\n   %s\n")
+        repo.ui.debug("  unmatched files in local:\n   %s\n"
                       % "\n   ".join(u1))
     if u2:
-        repo.ui.debug(_("  unmatched files in other:\n   %s\n")
+        repo.ui.debug("  unmatched files in other:\n   %s\n"
                       % "\n   ".join(u2))
 
     for f in u1:
@@ -169,18 +201,20 @@ def copies(repo, c1, c2, ca, checkdirs=False):
             diverge2.update(fl) # reverse map for below
 
     if fullcopy:
-        repo.ui.debug(_("  all copies found (* = to merge, ! = divergent):\n"))
+        repo.ui.debug("  all copies found (* = to merge, ! = divergent):\n")
         for f in fullcopy:
             note = ""
-            if f in copy: note += "*"
-            if f in diverge2: note += "!"
+            if f in copy:
+                note += "*"
+            if f in diverge2:
+                note += "!"
             repo.ui.debug("   %s -> %s %s\n" % (f, fullcopy[f], note))
     del diverge2
 
     if not fullcopy or not checkdirs:
         return copy, diverge
 
-    repo.ui.debug(_("  checking for directory renames\n"))
+    repo.ui.debug("  checking for directory renames\n")
 
     # generate a directory move map
     d1, d2 = _dirs(m1), _dirs(m2)
@@ -216,7 +250,7 @@ def copies(repo, c1, c2, ca, checkdirs=False):
         return copy, diverge
 
     for d in dirmove:
-        repo.ui.debug(_("  dir %s -> %s\n") % (d, dirmove[d]))
+        repo.ui.debug("  dir %s -> %s\n" % (d, dirmove[d]))
 
     # check unaccounted nonoverlapping files against directory moves
     for f in u1 + u2:
@@ -227,7 +261,7 @@ def copies(repo, c1, c2, ca, checkdirs=False):
                     df = dirmove[d] + f[len(d):]
                     if df not in copy:
                         copy[f] = df
-                        repo.ui.debug(_("  file %s -> %s\n") % (f, copy[f]))
+                        repo.ui.debug("  file %s -> %s\n" % (f, copy[f]))
                     break
 
     return copy, diverge

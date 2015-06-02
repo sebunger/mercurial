@@ -3,7 +3,7 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from common import NoRepo, MissingTool, SKIPREV, mapfile
 from cvs import convert_cvs
@@ -48,6 +48,8 @@ sink_converters = [
 
 def convertsource(ui, path, type, rev):
     exceptions = []
+    if type and type not in [s[0] for s in source_converters]:
+        raise util.Abort(_('%s: invalid source repository type') % type)
     for name, source, sortmode in source_converters:
         try:
             if not type or name == type:
@@ -60,6 +62,8 @@ def convertsource(ui, path, type, rev):
     raise util.Abort(_('%s: missing or unsupported repository') % path)
 
 def convertsink(ui, path, type):
+    if type and type not in [s[0] for s in sink_converters]:
+        raise util.Abort(_('%s: invalid destination repository type') % type)
     for name, sink in sink_converters:
         try:
             if not type or name == type:
@@ -67,6 +71,25 @@ def convertsink(ui, path, type):
         except NoRepo, inst:
             ui.note(_("convert: %s\n") % inst)
     raise util.Abort(_('%s: unknown repository type') % path)
+
+class progresssource(object):
+    def __init__(self, ui, source, filecount):
+        self.ui = ui
+        self.source = source
+        self.filecount = filecount
+        self.retrieved = 0
+
+    def getfile(self, file, rev):
+        self.retrieved += 1
+        self.ui.progress(_('getting files'), self.retrieved,
+                         item=file, total=self.filecount)
+        return self.source.getfile(file, rev)
+
+    def lookuprev(self, rev):
+        return self.source.lookuprev(rev)
+
+    def close(self):
+        self.ui.progress(_('getting files'), None)
 
 class converter(object):
     def __init__(self, ui, source, dest, revmapfile, opts):
@@ -104,13 +127,16 @@ class converter(object):
         parents = {}
         while visit:
             n = visit.pop(0)
-            if n in known or n in self.map: continue
+            if n in known or n in self.map:
+                continue
             known.add(n)
+            self.ui.progress(_('scanning'), len(known), unit=_('revisions'))
             commit = self.cachecommit(n)
             parents[n] = []
             for p in commit.parents:
                 parents[n].append(p)
                 visit.append(p)
+        self.ui.progress(_('scanning'), None)
 
         return parents
 
@@ -297,8 +323,10 @@ class converter(object):
             parents = [self.map.get(p, p) for p in parents]
         except KeyError:
             parents = [b[0] for b in pbranches]
+        source = progresssource(self.ui, self.source, len(files))
         newnode = self.dest.putcommit(files, copies, parents, commit,
-                                      self.source, self.map)
+                                      source, self.map)
+        source.close()
         self.source.converted(rev, newnode)
         self.map[rev] = newnode
 
@@ -316,7 +344,7 @@ class converter(object):
             c = None
 
             self.ui.status(_("converting...\n"))
-            for c in t:
+            for i, c in enumerate(t):                
                 num -= 1
                 desc = self.commitcache[c].desc
                 if "\n" in desc:
@@ -326,7 +354,10 @@ class converter(object):
                 # 'utf-8'
                 self.ui.status("%d %s\n" % (num, recode(desc)))
                 self.ui.note(_("source: %s\n") % recode(c))
+                self.ui.progress(_('converting'), i, unit=_('revisions'),
+                                 total=len(t))
                 self.copy(c)
+            self.ui.progress(_('converting'), None)
 
             tags = self.source.gettags()
             ctags = {}
@@ -336,11 +367,14 @@ class converter(object):
                     ctags[k] = self.map[v]
 
             if c and ctags:
-                nrev = self.dest.puttags(ctags)
-                # write another hash correspondence to override the previous
-                # one so we don't end up with extra tag heads
-                if nrev:
-                    self.map[c] = nrev
+                nrev, tagsparent = self.dest.puttags(ctags)
+                if nrev and tagsparent:
+                    # write another hash correspondence to override the previous
+                    # one so we don't end up with extra tag heads
+                    tagsparents = [e for e in self.map.iteritems()
+                                   if e[1] == tagsparent]
+                    if tagsparents:
+                        self.map[tagsparents[0][0]] = nrev
 
             self.writeauthormap()
         finally:

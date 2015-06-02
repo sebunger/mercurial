@@ -6,7 +6,7 @@
 # Inspired by git bisect, extension skeleton taken from mq.py.
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import os
 from i18n import _
@@ -31,8 +31,16 @@ def bisect(changelog, state):
         # only the earliest bad revision matters
         badrev = min([changelog.rev(n) for n in bad])
         goodrevs = [changelog.rev(n) for n in good]
-        # build ancestors array
-        ancestors = [[]] * (len(changelog) + 1) # an extra for [-1]
+        goodrev = min(goodrevs)
+        # build visit array
+        ancestors = [None] * (len(changelog) + 1) # an extra for [-1]
+
+        # set nodes descended from goodrev
+        ancestors[goodrev] = []
+        for rev in xrange(goodrev + 1, len(changelog)):
+            for prev in clparents(rev):
+                if ancestors[prev] == []:
+                    ancestors[rev] = []
 
         # clear good revs from array
         for node in goodrevs:
@@ -53,7 +61,9 @@ def bisect(changelog, state):
         badrev, ancestors = buildancestors(state['good'], state['bad'])
     bad = changelog.node(badrev)
     if not ancestors: # now we're confused
-        raise util.Abort(_("Inconsistent state, %s:%s is good and bad")
+        if len(state['bad']) == 1 and len(state['good']) == 1:
+            raise util.Abort(_("starting revisions are not directly related"))
+        raise util.Abort(_("inconsistent state, %s:%s is good and bad")
                          % (badrev, short(bad)))
 
     # build children dict

@@ -3,7 +3,7 @@
 # Copyright 2007 Joel Rosdahl <joel@rosdahl.net>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''command to view revision graphs from a shell
 
@@ -12,58 +12,41 @@ commands. When this options is given, an ASCII representation of the
 revision graph is also shown.
 '''
 
-import os, sys
+import os
 from mercurial.cmdutil import revrange, show_changeset
 from mercurial.commands import templateopts
 from mercurial.i18n import _
 from mercurial.node import nullrev
 from mercurial import bundlerepo, changegroup, cmdutil, commands, extensions
-from mercurial import hg, url, util, graphmod
+from mercurial import hg, url, util, graphmod, discovery
 
 ASCIIDATA = 'ASC'
 
-def asciiformat(ui, repo, revdag, opts, parentrepo=None):
-    """formats a changelog DAG walk for ASCII output"""
-    if parentrepo is None:
-        parentrepo = repo
-    showparents = [ctx.node() for ctx in parentrepo[None].parents()]
-    displayer = show_changeset(ui, repo, opts, buffered=True)
-    for (id, type, ctx, parentids) in revdag:
-        if type != graphmod.CHANGESET:
-            continue
-        displayer.show(ctx)
-        lines = displayer.hunk.pop(ctx.rev()).split('\n')[:-1]
-        char = ctx.node() in showparents and '@' or 'o'
-        yield (id, ASCIIDATA, (char, lines), parentids)
-
-def asciiedges(nodes):
+def asciiedges(seen, rev, parents):
     """adds edge info to changelog DAG walk suitable for ascii()"""
-    seen = []
-    for node, type, data, parents in nodes:
-        if node not in seen:
-            seen.append(node)
-        nodeidx = seen.index(node)
+    if rev not in seen:
+        seen.append(rev)
+    nodeidx = seen.index(rev)
 
-        knownparents = []
-        newparents = []
-        for parent in parents:
-            if parent in seen:
-                knownparents.append(parent)
-            else:
-                newparents.append(parent)
+    knownparents = []
+    newparents = []
+    for parent in parents:
+        if parent in seen:
+            knownparents.append(parent)
+        else:
+            newparents.append(parent)
 
-        ncols = len(seen)
-        nextseen = seen[:]
-        nextseen[nodeidx:nodeidx + 1] = newparents
-        edges = [(nodeidx, nextseen.index(p)) for p in knownparents]
+    ncols = len(seen)
+    seen[nodeidx:nodeidx + 1] = newparents
+    edges = [(nodeidx, seen.index(p)) for p in knownparents]
 
-        if len(newparents) > 0:
-            edges.append((nodeidx, nodeidx))
-        if len(newparents) > 1:
-            edges.append((nodeidx, nodeidx + 1))
-        nmorecols = len(nextseen) - ncols
-        seen = nextseen
-        yield (nodeidx, type, data, edges, ncols, nmorecols)
+    if len(newparents) > 0:
+        edges.append((nodeidx, nodeidx))
+    if len(newparents) > 1:
+        edges.append((nodeidx, nodeidx + 1))
+
+    nmorecols = len(seen) - ncols
+    return nodeidx, edges, ncols, nmorecols
 
 def fix_long_right_edges(edges):
     for (i, (start, end)) in enumerate(edges):
@@ -95,7 +78,7 @@ def draw_edges(edges, nodeline, interline):
         else:
             nodeline[2 * end] = "+"
             if start > end:
-                (start, end) = (end,start)
+                (start, end) = (end, start)
             for i in range(2 * start + 1, 2 * end):
                 if nodeline[i] != "+":
                     nodeline[i] = "-"
@@ -117,11 +100,17 @@ def get_padding_line(ni, n_columns, edges):
     line.extend(["|", " "] * (n_columns - ni - 1))
     return line
 
-def ascii(ui, dag):
+def asciistate():
+    """returns the initial value for the "state" argument to ascii()"""
+    return [0, 0]
+
+def ascii(ui, state, type, char, text, coldata):
     """prints an ASCII graph of the DAG
 
-    dag is a generator that emits tuples with the following elements:
+    takes the following arguments (one call per node in the graph):
 
+      - ui to write to
+      - Somewhere to keep the needed state in (init to asciistate())
       - Column of the current node in the set of ongoing edges.
       - Type indicator of node data == ASCIIDATA.
       - Payload: (char, lines):
@@ -135,105 +124,112 @@ def ascii(ui, dag):
         in the current revision. That is: -1 means one column removed;
         0 means no columns added or removed; 1 means one column added.
     """
-    prev_n_columns_diff = 0
-    prev_node_index = 0
-    for (node_index, type, (node_ch, node_lines), edges, n_columns, n_columns_diff) in dag:
 
-        assert -2 < n_columns_diff < 2
-        if n_columns_diff == -1:
-            # Transform
-            #
-            #     | | |        | | |
-            #     o | |  into  o---+
-            #     |X /         |/ /
-            #     | |          | |
-            fix_long_right_edges(edges)
-
-        # add_padding_line says whether to rewrite
+    idx, edges, ncols, coldiff = coldata
+    assert -2 < coldiff < 2
+    if coldiff == -1:
+        # Transform
         #
-        #     | | | |        | | | |
-        #     | o---+  into  | o---+
-        #     |  / /         |   | |  # <--- padding line
-        #     o | |          |  / /
-        #                    o | |
-        add_padding_line = (len(node_lines) > 2 and
-                            n_columns_diff == -1 and
-                            [x for (x, y) in edges if x + 1 < y])
+        #     | | |        | | |
+        #     o | |  into  o---+
+        #     |X /         |/ /
+        #     | |          | |
+        fix_long_right_edges(edges)
 
-        # fix_nodeline_tail says whether to rewrite
-        #
-        #     | | o | |        | | o | |
-        #     | | |/ /         | | |/ /
-        #     | o | |    into  | o / /   # <--- fixed nodeline tail
-        #     | |/ /           | |/ /
-        #     o | |            o | |
-        fix_nodeline_tail = len(node_lines) <= 2 and not add_padding_line
+    # add_padding_line says whether to rewrite
+    #
+    #     | | | |        | | | |
+    #     | o---+  into  | o---+
+    #     |  / /         |   | |  # <--- padding line
+    #     o | |          |  / /
+    #                    o | |
+    add_padding_line = (len(text) > 2 and coldiff == -1 and
+                        [x for (x, y) in edges if x + 1 < y])
 
-        # nodeline is the line containing the node character (typically o)
-        nodeline = ["|", " "] * node_index
-        nodeline.extend([node_ch, " "])
+    # fix_nodeline_tail says whether to rewrite
+    #
+    #     | | o | |        | | o | |
+    #     | | |/ /         | | |/ /
+    #     | o | |    into  | o / /   # <--- fixed nodeline tail
+    #     | |/ /           | |/ /
+    #     o | |            o | |
+    fix_nodeline_tail = len(text) <= 2 and not add_padding_line
 
-        nodeline.extend(
-            get_nodeline_edges_tail(
-                node_index, prev_node_index, n_columns, n_columns_diff,
-                prev_n_columns_diff, fix_nodeline_tail))
+    # nodeline is the line containing the node character (typically o)
+    nodeline = ["|", " "] * idx
+    nodeline.extend([char, " "])
 
-        # shift_interline is the line containing the non-vertical
-        # edges between this entry and the next
-        shift_interline = ["|", " "] * node_index
-        if n_columns_diff == -1:
-            n_spaces = 1
-            edge_ch = "/"
-        elif n_columns_diff == 0:
-            n_spaces = 2
-            edge_ch = "|"
-        else:
-            n_spaces = 3
-            edge_ch = "\\"
-        shift_interline.extend(n_spaces * [" "])
-        shift_interline.extend([edge_ch, " "] * (n_columns - node_index - 1))
+    nodeline.extend(
+        get_nodeline_edges_tail(idx, state[1], ncols, coldiff,
+                                state[0], fix_nodeline_tail))
 
-        # draw edges from the current node to its parents
-        draw_edges(edges, nodeline, shift_interline)
+    # shift_interline is the line containing the non-vertical
+    # edges between this entry and the next
+    shift_interline = ["|", " "] * idx
+    if coldiff == -1:
+        n_spaces = 1
+        edge_ch = "/"
+    elif coldiff == 0:
+        n_spaces = 2
+        edge_ch = "|"
+    else:
+        n_spaces = 3
+        edge_ch = "\\"
+    shift_interline.extend(n_spaces * [" "])
+    shift_interline.extend([edge_ch, " "] * (ncols - idx - 1))
 
-        # lines is the list of all graph lines to print
-        lines = [nodeline]
-        if add_padding_line:
-            lines.append(get_padding_line(node_index, n_columns, edges))
-        lines.append(shift_interline)
+    # draw edges from the current node to its parents
+    draw_edges(edges, nodeline, shift_interline)
 
-        # make sure that there are as many graph lines as there are
-        # log strings
-        while len(node_lines) < len(lines):
-            node_lines.append("")
-        if len(lines) < len(node_lines):
-            extra_interline = ["|", " "] * (n_columns + n_columns_diff)
-            while len(lines) < len(node_lines):
-                lines.append(extra_interline)
+    # lines is the list of all graph lines to print
+    lines = [nodeline]
+    if add_padding_line:
+        lines.append(get_padding_line(idx, ncols, edges))
+    lines.append(shift_interline)
 
-        # print lines
-        indentation_level = max(n_columns, n_columns + n_columns_diff)
-        for (line, logstr) in zip(lines, node_lines):
-            ln = "%-*s %s" % (2 * indentation_level, "".join(line), logstr)
-            ui.write(ln.rstrip() + '\n')
+    # make sure that there are as many graph lines as there are
+    # log strings
+    while len(text) < len(lines):
+        text.append("")
+    if len(lines) < len(text):
+        extra_interline = ["|", " "] * (ncols + coldiff)
+        while len(lines) < len(text):
+            lines.append(extra_interline)
 
-        # ... and start over
-        prev_node_index = node_index
-        prev_n_columns_diff = n_columns_diff
+    # print lines
+    indentation_level = max(ncols, ncols + coldiff)
+    for (line, logstr) in zip(lines, text):
+        ln = "%-*s %s" % (2 * indentation_level, "".join(line), logstr)
+        ui.write(ln.rstrip() + '\n')
+
+    # ... and start over
+    state[0] = coldiff
+    state[1] = idx
 
 def get_revs(repo, rev_opt):
     if rev_opt:
         revs = revrange(repo, rev_opt)
+        if len(revs) == 0:
+            return (nullrev, nullrev)
         return (max(revs), min(revs))
     else:
         return (len(repo) - 1, 0)
 
 def check_unsupported_flags(opts):
     for op in ["follow", "follow_first", "date", "copies", "keyword", "remove",
-               "only_merges", "user", "only_branch", "prune", "newest_first",
-               "no_merges", "include", "exclude"]:
+               "only_merges", "user", "branch", "only_branch", "prune",
+               "newest_first", "no_merges", "include", "exclude"]:
         if op in opts and opts[op]:
-            raise util.Abort(_("--graph option is incompatible with --%s") % op)
+            raise util.Abort(_("--graph option is incompatible with --%s")
+                             % op.replace("_", "-"))
+
+def generate(ui, dag, displayer, showparents, edgefn):
+    seen, state = [], asciistate()
+    for rev, type, ctx, parents in dag:
+        char = ctx.node() in showparents and '@' or 'o'
+        displayer.show(ctx)
+        lines = displayer.hunk.pop(rev).split('\n')[:-1]
+        ascii(ui, state, type, char, lines, edgefn(seen, rev, parents))
 
 def graphlog(ui, repo, path=None, **opts):
     """show revision history alongside an ASCII revision graph
@@ -248,24 +244,26 @@ def graphlog(ui, repo, path=None, **opts):
     check_unsupported_flags(opts)
     limit = cmdutil.loglimit(opts)
     start, stop = get_revs(repo, opts["rev"])
-    stop = max(stop, start - limit + 1)
     if start == nullrev:
         return
 
     if path:
         path = util.canonpath(repo.root, os.getcwd(), path)
     if path: # could be reset in canonpath
-        revdag = graphmod.filerevs(repo, path, start, stop)
+        revdag = graphmod.filerevs(repo, path, start, stop, limit)
     else:
+        if limit is not None:
+            stop = max(stop, start - limit + 1)
         revdag = graphmod.revisions(repo, start, stop)
 
-    fmtdag = asciiformat(ui, repo, revdag, opts)
-    ascii(ui, asciiedges(fmtdag))
+    displayer = show_changeset(ui, repo, opts, buffered=True)
+    showparents = [ctx.node() for ctx in repo[None].parents()]
+    generate(ui, revdag, displayer, showparents, asciiedges)
 
 def graphrevs(repo, nodes, opts):
     limit = cmdutil.loglimit(opts)
     nodes.reverse()
-    if limit < sys.maxint:
+    if limit is not None:
         nodes = nodes[:limit]
     return graphmod.nodes(repo, nodes)
 
@@ -280,22 +278,23 @@ def goutgoing(ui, repo, dest=None, **opts):
     """
 
     check_unsupported_flags(opts)
-    dest, revs, checkout = hg.parseurl(
-        ui.expandpath(dest or 'default-push', dest or 'default'),
-        opts.get('rev'))
+    dest = ui.expandpath(dest or 'default-push', dest or 'default')
+    dest, branches = hg.parseurl(dest, opts.get('branch'))
+    revs, checkout = hg.addbranchrevs(repo, repo, branches, opts.get('rev'))
+    other = hg.repository(hg.remoteui(ui, opts), dest)
     if revs:
         revs = [repo.lookup(rev) for rev in revs]
-    other = hg.repository(cmdutil.remoteui(ui, opts), dest)
     ui.status(_('comparing with %s\n') % url.hidepassword(dest))
-    o = repo.findoutgoing(other, force=opts.get('force'))
+    o = discovery.findoutgoing(repo, other, force=opts.get('force'))
     if not o:
         ui.status(_("no changes found\n"))
         return
 
     o = repo.changelog.nodesbetween(o, revs)[0]
     revdag = graphrevs(repo, o, opts)
-    fmtdag = asciiformat(ui, repo, revdag, opts)
-    ascii(ui, asciiedges(fmtdag))
+    displayer = show_changeset(ui, repo, opts, buffered=True)
+    showparents = [ctx.node() for ctx in repo[None].parents()]
+    generate(ui, revdag, displayer, showparents, asciiedges)
 
 def gincoming(ui, repo, source="default", **opts):
     """show the incoming changesets alongside an ASCII revision graph
@@ -308,12 +307,14 @@ def gincoming(ui, repo, source="default", **opts):
     """
 
     check_unsupported_flags(opts)
-    source, revs, checkout = hg.parseurl(ui.expandpath(source), opts.get('rev'))
-    other = hg.repository(cmdutil.remoteui(repo, opts), source)
+    source, branches = hg.parseurl(ui.expandpath(source), opts.get('branch'))
+    other = hg.repository(hg.remoteui(repo, opts), source)
+    revs, checkout = hg.addbranchrevs(repo, other, branches, opts.get('rev'))
     ui.status(_('comparing with %s\n') % url.hidepassword(source))
     if revs:
         revs = [other.lookup(rev) for rev in revs]
-    incoming = repo.findincoming(other, heads=revs, force=opts["force"])
+    incoming = discovery.findincoming(repo, other, heads=revs,
+                                      force=opts["force"])
     if not incoming:
         try:
             os.unlink(opts["bundle"])
@@ -343,8 +344,9 @@ def gincoming(ui, repo, source="default", **opts):
 
         chlist = other.changelog.nodesbetween(incoming, revs)[0]
         revdag = graphrevs(other, chlist, opts)
-        fmtdag = asciiformat(ui, other, revdag, opts, parentrepo=repo)
-        ascii(ui, asciiedges(fmtdag))
+        displayer = show_changeset(ui, other, opts, buffered=True)
+        showparents = [ctx.node() for ctx in repo[None].parents()]
+        generate(ui, revdag, displayer, showparents, asciiedges)
 
     finally:
         if hasattr(other, 'close'):
@@ -370,9 +372,11 @@ def _wrapcmd(ui, cmd, table, wrapfn):
 cmdtable = {
     "glog":
         (graphlog,
-         [('l', 'limit', '', _('limit number of changes displayed')),
+         [('l', 'limit', '',
+           _('limit number of changes displayed'), _('NUM')),
           ('p', 'patch', False, _('show patch')),
-          ('r', 'rev', [], _('show the specified revision or range')),
+          ('r', 'rev', [],
+           _('show the specified revision or range'), _('REV')),
          ] + templateopts,
          _('hg glog [OPTION]... [FILE]')),
 }

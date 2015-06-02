@@ -1,26 +1,30 @@
 Support installation of templates handled by mercurial-common.install.
 
-diff -r b042642c1393 mercurial/templater.py
 --- a/mercurial/templater.py
 +++ b/mercurial/templater.py
 @@ -9,7 +9,7 @@
- import re, sys, os
+ import sys, os
  import util, config, templatefilters
  
 -path = ['templates', '../templates']
 +path = ['templates', '../templates', '/usr/share/mercurial/templates']
  stringify = templatefilters.stringify
  
- def parsestring(s, quoted=True):
-diff -r b042642c1393 setup.py
+ def _flatten(thing):
 --- a/setup.py
 +++ b/setup.py
-@@ -246,7 +246,7 @@
-         packages.extend(['hgext.inotify', 'hgext.inotify.linux'])
+@@ -286,14 +286,6 @@
+ def ordinarypath(p):
+     return p and p[0] != '.' and p[-1] != '~'
  
- datafiles = []
 -for root in ('templates',):
-+for root in ():
-     for dir, dirs, files in os.walk(root):
-         datafiles.append((os.path.join('mercurial', dir),
-                           [os.path.join(dir, file_) for file_ in files]))
+-    for curdir, dirs, files in os.walk(os.path.join('mercurial', root)):
+-        curdir = curdir.split(os.sep, 1)[1]
+-        dirs[:] = filter(ordinarypath, dirs)
+-        for f in filter(ordinarypath, files):
+-            f = os.path.join(curdir, f)
+-            packagedata['mercurial'].append(f)
+-
+ datafiles = []
+ setupversion = version
+ extra = {}

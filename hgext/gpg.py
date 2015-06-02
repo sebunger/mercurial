@@ -1,7 +1,7 @@
 # Copyright 2005, 2006 Benoit Boissinot <benoit.boissinot@ens-lyon.org>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''commands to sign and verify changesets'''
 
@@ -38,8 +38,10 @@ class gpg(object):
         finally:
             for f in (sigfile, datafile):
                 try:
-                    if f: os.unlink(f)
-                except: pass
+                    if f:
+                        os.unlink(f)
+                except:
+                    pass
         keys = []
         key, fingerprint = None, None
         err = ""
@@ -88,7 +90,7 @@ def sigwalk(repo):
             if not l:
                 continue
             yield (l.split(" ", 2), (context, ln))
-            ln +=1
+            ln += 1
 
     # read the heads
     fl = repo.file(".hgsigs")
@@ -195,7 +197,7 @@ def sign(ui, repo, *revs, **opts):
     If no revision is given, the parent of the working directory is used,
     or tip if no revision is checked out.
 
-    See 'hg help dates' for a list of formats valid for -d/--date.
+    See :hg:`help dates` for a list of formats valid for -d/--date.
     """
 
     mygpg = newgpg(ui, **opts)
@@ -219,13 +221,13 @@ def sign(ui, repo, *revs, **opts):
 
     for n in nodes:
         hexnode = hgnode.hex(n)
-        ui.write("Signing %d:%s\n" % (repo.changelog.rev(n),
-                                      hgnode.short(n)))
+        ui.write(_("Signing %d:%s\n") % (repo.changelog.rev(n),
+                                         hgnode.short(n)))
         # build data
         data = node2txt(repo, n, sigver)
         sig = mygpg.sign(data)
         if not sig:
-            raise util.Abort(_("Error while signing"))
+            raise util.abort(_("error while signing"))
         sig = binascii.b2a_base64(sig)
         sig = sig.replace("\n", "")
         sigmessage += "%s %s %s\n" % (hexnode, sigver, sig)
@@ -235,16 +237,17 @@ def sign(ui, repo, *revs, **opts):
         repo.opener("localsigs", "ab").write(sigmessage)
         return
 
-    for x in repo.status(unknown=True)[:5]:
-        if ".hgsigs" in x and not opts["force"]:
-            raise util.Abort(_("working copy of .hgsigs is changed "
-                               "(please commit .hgsigs manually "
-                               "or use --force)"))
+    msigs = match.exact(repo.root, '', ['.hgsigs'])
+    s = repo.status(match=msigs, unknown=True, ignored=True)[:6]
+    if util.any(s) and not opts["force"]:
+        raise util.Abort(_("working copy of .hgsigs is changed "
+                           "(please commit .hgsigs manually "
+                           "or use --force)"))
 
     repo.wfile(".hgsigs", "ab").write(sigmessage)
 
     if '.hgsigs' not in repo.dirstate:
-        repo.add([".hgsigs"])
+        repo[None].add([".hgsigs"])
 
     if opts["no_commit"]:
         return
@@ -256,8 +259,7 @@ def sign(ui, repo, *revs, **opts):
                              % hgnode.short(n)
                              for n in nodes])
     try:
-        m = match.exact(repo.root, '', ['.hgsigs'])
-        repo.commit(message, opts['user'], opts['date'], match=m)
+        repo.commit(message, opts['user'], opts['date'], match=msigs)
     except ValueError, inst:
         raise util.Abort(str(inst))
 
@@ -274,8 +276,10 @@ cmdtable = {
          [('l', 'local', None, _('make the signature local')),
           ('f', 'force', None, _('sign even if the sigfile is modified')),
           ('', 'no-commit', None, _('do not commit the sigfile after signing')),
-          ('k', 'key', '', _('the key id to sign with')),
-          ('m', 'message', '', _('commit message')),
+          ('k', 'key', '',
+           _('the key id to sign with'), _('ID')),
+          ('m', 'message', '',
+           _('commit message'), _('TEXT')),
          ] + commands.commitopts2,
          _('hg sign [OPTION]... [REVISION]...')),
     "sigcheck": (check, [], _('hg sigcheck REVISION')),

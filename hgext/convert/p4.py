@@ -1,11 +1,9 @@
-#
 # Perforce source for convert extension.
 #
 # Copyright 2009, Frank Kingswood <frank@kingswood-consulting.co.uk>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
-#
+# GNU General Public License version 2 or any later version.
 
 from mercurial import util
 from mercurial.i18n import _
@@ -30,7 +28,7 @@ class p4_source(converter_source):
         super(p4_source, self).__init__(ui, path, rev=rev)
 
         if "/" in path and not path.startswith('//'):
-            raise NoRepo('%s does not look like a P4 repo' % path)
+            raise NoRepo(_('%s does not look like a P4 repository') % path)
 
         checktool('p4', abort=False)
 
@@ -43,17 +41,20 @@ class p4_source(converter_source):
         self.parent = {}
         self.encoding = "latin_1"
         self.depotname = {}           # mapping from local name to depot name
-        self.modecache = {}
-        self.re_type = re.compile("([a-z]+)?(text|binary|symlink|apple|resource|unicode|utf\d+)(\+\w+)?$")
-        self.re_keywords = re.compile(r"\$(Id|Header|Date|DateTime|Change|File|Revision|Author):[^$\n]*\$")
+        self.re_type = re.compile(
+            "([a-z]+)?(text|binary|symlink|apple|resource|unicode|utf\d+)"
+            "(\+\w+)?$")
+        self.re_keywords = re.compile(
+            r"\$(Id|Header|Date|DateTime|Change|File|Revision|Author)"
+            r":[^$\n]*\$")
         self.re_keywords_old = re.compile("\$(Id|Header):[^$\n]*\$")
 
         self._parse(ui, path)
 
     def _parse_view(self, path):
         "Read changes affecting the path"
-        cmd = 'p4 -G changes -s submitted "%s"' % path
-        stdout = util.popen(cmd)
+        cmd = 'p4 -G changes -s submitted %s' % util.shellquote(path)
+        stdout = util.popen(cmd, mode='rb')
         for d in loaditer(stdout):
             c = d.get("change", None)
             if c:
@@ -71,8 +72,8 @@ class p4_source(converter_source):
             else:
                 views = {"//": ""}
         else:
-            cmd = 'p4 -G client -o "%s"' % path
-            clientspec = marshal.load(util.popen(cmd))
+            cmd = 'p4 -G client -o %s' % util.shellquote(path)
+            clientspec = marshal.load(util.popen(cmd, mode='rb'))
 
             views = {}
             for client in clientspec:
@@ -92,7 +93,7 @@ class p4_source(converter_source):
 
         # list with depot pathnames, longest first
         vieworder = views.keys()
-        vieworder.sort(key=lambda x: -len(x))
+        vieworder.sort(key=len, reverse=True)
 
         # handle revision limiting
         startrev = self.ui.config('convert', 'p4.startrev', default=0)
@@ -105,7 +106,7 @@ class p4_source(converter_source):
         lastid = None
         for change in self.p4changes:
             cmd = "p4 -G describe %s" % change
-            stdout = util.popen(cmd)
+            stdout = util.popen(cmd, mode='rb')
             d = marshal.load(stdout)
 
             desc = self.recode(d["desc"])
@@ -120,7 +121,8 @@ class p4_source(converter_source):
 
             date = (int(d["time"]), 0)     # timezone not set
             c = commit(author=self.recode(d["user"]), date=util.datestr(date),
-                        parents=parents, desc=desc, branch='', extra={"p4": change})
+                       parents=parents, desc=desc, branch='',
+                       extra={"p4": change})
 
             files = []
             i = 0
@@ -146,8 +148,9 @@ class p4_source(converter_source):
         return self.heads
 
     def getfile(self, name, rev):
-        cmd = 'p4 -G print "%s#%s"' % (self.depotname[name], rev)
-        stdout = util.popen(cmd)
+        cmd = 'p4 -G print %s' \
+            % util.shellquote("%s#%s" % (self.depotname[name], rev))
+        stdout = util.popen(cmd, mode='rb')
 
         mode = None
         contents = ""
@@ -180,17 +183,12 @@ class p4_source(converter_source):
         if mode is None:
             raise IOError(0, "bad stat")
 
-        self.modecache[(name, rev)] = mode
-
         if keywords:
             contents = keywords.sub("$\\1$", contents)
         if mode == "l" and contents.endswith("\n"):
             contents = contents[:-1]
 
-        return contents
-
-    def getmode(self, name, rev):
-        return self.modecache[(name, rev)]
+        return contents, mode
 
     def getchanges(self, rev):
         return self.files[rev], {}

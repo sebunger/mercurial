@@ -4,7 +4,7 @@
 # Copyright 2007 Joel Rosdahl <joel@rosdahl.net>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 """supports walking the history as DAGs suitable for graphical output
 
@@ -36,21 +36,24 @@ def revisions(repo, start, stop):
         yield (cur, CHANGESET, ctx, sorted(parents))
         cur -= 1
 
-def filerevs(repo, path, start, stop):
+def filerevs(repo, path, start, stop, limit=None):
     """file cset DAG generator yielding (id, CHANGESET, ctx, [parentids]) tuples
 
     This generator function walks through the revision history of a single
     file from revision start down to revision stop.
     """
     filerev = len(repo.file(path)) - 1
-    while filerev >= 0:
+    rev = stop + 1
+    count = 0
+    while filerev >= 0 and rev > stop:
         fctx = repo.filectx(path, fileid=filerev)
         parents = [f.linkrev() for f in fctx.parents() if f.path() == path]
         rev = fctx.rev()
         if rev <= start:
-            yield (rev, CHANGESET, fctx, sorted(parents))
-        if rev <= stop:
-            break
+            yield (rev, CHANGESET, fctx.changectx(), sorted(parents))
+            count += 1
+            if count == limit:
+                break
         filerev -= 1
 
 def nodes(repo, nodes):
@@ -112,7 +115,7 @@ def colored(dag):
                 edges.append((ecol, next.index(eid), colors[eid]))
             elif eid == cur:
                 for p in parents:
-                    edges.append((ecol, next.index(p), colors[p]))
+                    edges.append((ecol, next.index(p), color))
 
         # Yield and move on
         yield (cur, type, data, (col, color), edges)

@@ -6,7 +6,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../tip.patch
 % message should be same
@@ -19,7 +19,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../tip.patch
 line2
@@ -29,7 +29,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../tip.patch
 abort: empty commit message
@@ -39,7 +39,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../tip.patch
 % import of plain diff with specific date and user
@@ -48,7 +48,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../tip.patch
 changeset:   1:ca68f19f3a40
@@ -73,7 +73,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../tip.patch
 diff -r 80971e65b431 a
@@ -88,7 +88,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying tip.patch
 % import from stdin
@@ -97,16 +97,21 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
+% import two patches in one stream
+applying patch from stdin
+applied 80971e65b431
+1d4bd90af0e4 tip
+1d4bd90af0e4 tip
 % override commit message
 requesting all changes
 adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
 summary:     override
@@ -116,7 +121,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../msg.patch
 user:        email patcher
@@ -127,7 +132,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
 % plain diff in email, subject, no message body
@@ -136,7 +141,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
 % plain diff in email, no subject, no message body, should fail
@@ -145,7 +150,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
 abort: empty commit message
@@ -155,7 +160,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
 summary:     second change
@@ -165,7 +170,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying patch from stdin
 email patch
@@ -176,7 +181,8 @@ next line
 parent: 0
 applying ../patch1
 applying ../patch2
-rolling back last transaction
+applied 1d4bd90af0e4
+rolling back to revision 1 (undo commit)
 parent: 1
 % hg import in a subdirectory
 requesting all changes
@@ -184,7 +190,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 2 changes to 2 files
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 applying ../../../tip.patch
 % message should be 'subdir change'
@@ -199,7 +205,11 @@ created new head
 applying tip.patch
 patching file a
 Hunk #1 succeeded at 1 with fuzz 2 (offset -2 lines).
-a
+reverting a
+% test fuzziness with eol=auto
+applying tip.patch
+patching file a
+Hunk #1 succeeded at 1 with fuzz 2 (offset -2 lines).
 adding a
 adding b1
 adding c1
@@ -269,7 +279,7 @@ bb
 % test paths outside repo root
 applying patch from stdin
 abort: ../outside/foo not under root
-% test import with similarity (issue295)
+% test import with similarity and git and strip (issue295 et al.)
 adding a
 applying ../rename.diff
 patching file a
@@ -292,3 +302,80 @@ R a
 % add empty file from the end of patch (issue 1495)
 adding a
 applying a.patch
+% create file when source is not /dev/null
+applying ../create.patch
+a
+applying ../create2.patch
+a
+% first line mistaken for email headers (issue 1859)
+applying a.patch
+changeset:   0:5a681217c0ad
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+files:       a
+description:
+module: summary
+
+description
+
+
+% --- in commit message
+applying a.patch
+changeset:   0:f34d9187897d
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+files:       a
+description:
+module: summary
+
+
+% tricky header splitting
+applying ../trickyheaders.patch
+# HG changeset patch
+# User User B
+# Date 0 0
+# Node ID eb56ab91903632294ac504838508cb370c0901d2
+# Parent  0000000000000000000000000000000000000000
+from: tricky!
+
+That is not a header.
+
+diff --git a/foo b/foo
+new file mode 100644
+--- /dev/null
++++ b/foo
+@@ -0,0 +1,1 @@
++foo
+% issue2102
+adding src/cmd/gc/mksys.bash
+applying patch from stdin
+parent: 1:d59915696727 tip
+ help management of empty pkg and lib directories in perforce
+branch: default
+commit: (clean)
+update: (current)
+diff --git a/lib/place-holder b/lib/place-holder
+new file mode 100644
+--- /dev/null
++++ b/lib/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/pkg/place-holder b/pkg/place-holder
+new file mode 100644
+--- /dev/null
++++ b/pkg/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+old mode 100644
+new mode 100755
+% diff lines looking like headers
+adding a
+adding b
+adding c
+3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+applying patch from stdin

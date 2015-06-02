@@ -3,34 +3,42 @@
 #  Copyright 2005, 2007-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''perform automatic newline conversion
 
-To perform automatic newline conversion, use:
+  Deprecation: The win32text extension requires each user to configure
+  the extension again and again for each clone since the configuration
+  is not copied when cloning.
 
-[extensions]
-hgext.win32text =
-[encode]
-** = cleverencode:
-# or ** = macencode:
+  We have therefore made the ``eol`` as an alternative. The ``eol``
+  uses a version controlled file for its configuration and each clone
+  will therefore use the right settings from the start.
 
-[decode]
-** = cleverdecode:
-# or ** = macdecode:
+To perform automatic newline conversion, use::
 
-If not doing conversion, to make sure you do not commit CRLF/CR by accident:
+  [extensions]
+  win32text =
+  [encode]
+  ** = cleverencode:
+  # or ** = macencode:
 
-[hooks]
-pretxncommit.crlf = python:hgext.win32text.forbidcrlf
-# or pretxncommit.cr = python:hgext.win32text.forbidcr
+  [decode]
+  ** = cleverdecode:
+  # or ** = macdecode:
+
+If not doing conversion, to make sure you do not commit CRLF/CR by accident::
+
+  [hooks]
+  pretxncommit.crlf = python:hgext.win32text.forbidcrlf
+  # or pretxncommit.cr = python:hgext.win32text.forbidcr
 
 To do the same check on a server to prevent CRLF/CR from being
-pushed or pulled:
+pushed or pulled::
 
-[hooks]
-pretxnchangegroup.crlf = python:hgext.win32text.forbidcrlf
-# or pretxnchangegroup.cr = python:hgext.win32text.forbidcr
+  [hooks]
+  pretxnchangegroup.crlf = python:hgext.win32text.forbidcrlf
+  # or pretxnchangegroup.cr = python:hgext.win32text.forbidcr
 '''
 
 from mercurial.i18n import _
@@ -137,7 +145,7 @@ def forbidnewline(ui, repo, hooktype, node, newline, **kwargs):
                   'and also consider adding:\n'
                   '\n'
                   '[extensions]\n'
-                  'hgext.win32text =\n'
+                  'win32text =\n'
                   '[encode]\n'
                   '** = %sencode:\n'
                   '[decode]\n'

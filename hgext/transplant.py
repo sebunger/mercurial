@@ -3,7 +3,7 @@
 # Copyright 2006, 2007 Brendan Cully <brendan@kublai.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''command to transplant changesets from another branch
 
@@ -16,7 +16,7 @@ map from a changeset hash to its hash in the source repository.
 from mercurial.i18n import _
 import os, tempfile
 from mercurial import bundlerepo, changegroup, cmdutil, hg, merge, match
-from mercurial import patch, revlog, util, error
+from mercurial import patch, revlog, util, error, discovery
 
 class transplantentry(object):
     def __init__(self, lnode, rnode):
@@ -182,7 +182,7 @@ class transplanter(object):
         fp.write("# HG changeset patch\n")
         fp.write("# User %s\n" % user)
         fp.write("# Date %d %d\n" % date)
-        fp.write(changelog[4])
+        fp.write(msg + '\n')
         fp.close()
 
         try:
@@ -227,8 +227,6 @@ class transplanter(object):
                 finally:
                     files = patch.updatedir(self.ui, repo, files)
             except Exception, inst:
-                if filter:
-                    os.unlink(patchfile)
                 seriespath = os.path.join(self.path, 'series')
                 if os.path.exists(seriespath):
                     os.unlink(seriespath)
@@ -236,7 +234,7 @@ class transplanter(object):
                 p2 = node
                 self.log(user, date, message, p1, p2, merge=merge)
                 self.ui.write(str(inst) + '\n')
-                raise util.Abort(_('Fix up the merge and run '
+                raise util.Abort(_('fix up the merge and run '
                                    'hg transplant --continue'))
         else:
             files = None
@@ -248,6 +246,15 @@ class transplanter(object):
             m = match.exact(repo.root, '', files)
 
         n = repo.commit(message, user, date, extra=extra, match=m)
+        if not n:
+            # Crash here to prevent an unclear crash later, in
+            # transplants.write().  This can happen if patch.patch()
+            # does nothing but claims success or if repo.status() fails
+            # to report changes done by patch.patch().  These both
+            # appear to be bugs in other parts of Mercurial, but dying
+            # here, as soon as we can detect the problem, is preferable
+            # to silently dropping changesets on the floor.
+            raise RuntimeError('nothing committed after transplant')
         if not merge:
             self.transplants.set(n, node)
 
@@ -343,7 +350,7 @@ class transplanter(object):
                 node = revlog.bin(line[10:])
             elif line.startswith('# Parent '):
                 parents.append(revlog.bin(line[9:]))
-            elif not line.startswith('#'):
+            elif not line.startswith('# '):
                 inmsg = True
                 message.append(line)
         return (node, user, date, '\n'.join(message), parents)
@@ -395,13 +402,13 @@ def hasnode(repo, node):
 def browserevs(ui, repo, nodes, opts):
     '''interactively transplant changesets'''
     def browsehelp(ui):
-        ui.write('y: transplant this changeset\n'
-                 'n: skip this changeset\n'
-                 'm: merge at this changeset\n'
-                 'p: show patch\n'
-                 'c: commit selected changesets\n'
-                 'q: cancel transplant\n'
-                 '?: show this help\n')
+        ui.write(_('y: transplant this changeset\n'
+                   'n: skip this changeset\n'
+                   'm: merge at this changeset\n'
+                   'p: show patch\n'
+                   'c: commit selected changesets\n'
+                   'q: cancel transplant\n'
+                   '?: show this help\n'))
 
     displayer = cmdutil.show_changeset(ui, repo, opts)
     transplants = []
@@ -420,7 +427,7 @@ def browserevs(ui, repo, nodes, opts):
                     ui.write(chunk)
                 action = None
             elif action not in ('y', 'n', 'm', 'c', 'q'):
-                ui.write('no such option\n')
+                ui.write(_('no such option\n'))
                 action = None
         if action == 'y':
             transplants.append(node)
@@ -432,6 +439,7 @@ def browserevs(ui, repo, nodes, opts):
             transplants = ()
             merges = ()
             break
+    displayer.close()
     return (transplants, merges)
 
 def transplant(ui, repo, *revs, **opts):
@@ -439,9 +447,9 @@ def transplant(ui, repo, *revs, **opts):
 
     Selected changesets will be applied on top of the current working
     directory with the log of the original changeset. If --log is
-    specified, log messages will have a comment appended of the form:
+    specified, log messages will have a comment appended of the form::
 
-    (transplanted from CHANGESETHASH)
+      (transplanted from CHANGESETHASH)
 
     You can rewrite the changelog message with the --filter option.
     Its argument will be invoked with the current changelog message as
@@ -454,7 +462,7 @@ def transplant(ui, repo, *revs, **opts):
     transplanted, otherwise you will be prompted to select the
     changesets you want.
 
-    hg transplant --branch REVISION --all will rebase the selected
+    :hg:`transplant --branch REVISION --all` will rebase the selected
     branch (up to the named revision) onto your current working
     directory.
 
@@ -463,17 +471,18 @@ def transplant(ui, repo, *revs, **opts):
     of a merged transplant, and you can merge descendants of them
     normally instead of transplanting them.
 
-    If no merges or revisions are provided, hg transplant will start
-    an interactive changeset browser.
+    If no merges or revisions are provided, :hg:`transplant` will
+    start an interactive changeset browser.
 
     If a changeset application fails, you can fix the merge by hand
-    and then resume where you left off by calling hg transplant
-    --continue/-c.
+    and then resume where you left off by calling :hg:`transplant
+    --continue/-c`.
     '''
     def getremotechanges(repo, url):
         sourcerepo = ui.expandpath(url)
         source = hg.repository(ui, sourcerepo)
-        common, incoming, rheads = repo.findcommonincoming(source, force=True)
+        tmp = discovery.findcommonincoming(repo, source, force=True)
+        common, incoming, rheads = tmp
         if not incoming:
             return (source, None, None)
 
@@ -490,7 +499,7 @@ def transplant(ui, repo, *revs, **opts):
 
     def incwalk(repo, incoming, branches, match=util.always):
         if not branches:
-            branches=None
+            branches = None
         for node in repo.changelog.nodesbetween(incoming, branches)[0]:
             if match(node):
                 yield node
@@ -507,7 +516,7 @@ def transplant(ui, repo, *revs, **opts):
 
     def checkopts(opts, revs):
         if opts.get('continue'):
-            if filter(lambda opt: opts.get(opt), ('branch', 'all', 'merge')):
+            if opts.get('branch') or opts.get('all') or opts.get('merge'):
                 raise util.Abort(_('--continue is incompatible with '
                                    'branch, all or merge'))
             return
@@ -553,7 +562,7 @@ def transplant(ui, repo, *revs, **opts):
             tp.resume(repo, source, opts)
             return
 
-        tf=tp.transplantfilter(repo, source, p1)
+        tf = tp.transplantfilter(repo, source, p1)
         if opts.get('prune'):
             prune = [source.lookup(r)
                      for r in cmdutil.revrange(source, opts.get('prune'))]
@@ -592,15 +601,20 @@ def transplant(ui, repo, *revs, **opts):
 cmdtable = {
     "transplant":
         (transplant,
-         [('s', 'source', '', _('pull patches from REPOSITORY')),
-          ('b', 'branch', [], _('pull patches from branch BRANCH')),
+         [('s', 'source', '',
+           _('pull patches from REPO'), _('REPO')),
+          ('b', 'branch', [],
+           _('pull patches from branch BRANCH'), _('BRANCH')),
           ('a', 'all', None, _('pull all changesets up to BRANCH')),
-          ('p', 'prune', [], _('skip over REV')),
-          ('m', 'merge', [], _('merge at REV')),
+          ('p', 'prune', [],
+           _('skip over REV'), _('REV')),
+          ('m', 'merge', [],
+           _('merge at REV'), _('REV')),
           ('', 'log', None, _('append transplant info to log message')),
           ('c', 'continue', None, _('continue last transplant session '
                                     'after repair')),
-          ('', 'filter', '', _('filter changesets through FILTER'))],
-         _('hg transplant [-s REPOSITORY] [-b BRANCH [-a]] [-p REV] '
+          ('', 'filter', '',
+           _('filter changesets through command'), _('CMD'))],
+         _('hg transplant [-s REPO] [-b BRANCH [-a]] [-p REV] '
            '[-m REV] [REV]...'))
 }

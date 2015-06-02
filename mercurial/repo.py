@@ -4,7 +4,7 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import error
@@ -40,4 +40,5 @@ class repository(object):
         url = self.url()
         if url.endswith('/'):
             return url + path
-        return url + '/' + path
+        else:
+            return url + '/' + path

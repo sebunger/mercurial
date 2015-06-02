@@ -3,7 +3,7 @@
 # Copyright 2006 Eric Hopper <hopper@omnifarious.org>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 #
 # This was originally copied from the public domain code at
 # http://www.python.org/dev/peps/pep-0333/#the-server-gateway-side
@@ -17,8 +17,11 @@ def launch(application):
 
     environ = dict(os.environ.iteritems())
     environ.setdefault('PATH_INFO', '')
-    if '.cgi' in environ['PATH_INFO']:
-        environ['PATH_INFO'] = environ['PATH_INFO'].split('.cgi', 1)[1]
+    if environ.get('SERVER_SOFTWARE', '').startswith('Microsoft-IIS'):
+        # IIS includes script_name in path_info
+        scriptname = environ['SCRIPT_NAME']
+        if environ['PATH_INFO'].startswith(scriptname):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(scriptname):]
 
     environ['wsgi.input'] = sys.stdin
     environ['wsgi.errors'] = sys.stderr
@@ -27,7 +30,7 @@ def launch(application):
     environ['wsgi.multiprocess'] = True
     environ['wsgi.run_once'] = True
 
-    if environ.get('HTTPS','off').lower() in ('on','1','yes'):
+    if environ.get('HTTPS', 'off').lower() in ('on', '1', 'yes'):
         environ['wsgi.url_scheme'] = 'https'
     else:
         environ['wsgi.url_scheme'] = 'http'
@@ -66,5 +69,9 @@ def launch(application):
         return write
 
     content = application(environ, start_response)
-    for chunk in content:
-        write(chunk)
+    try:
+        for chunk in content:
+            write(chunk)
+    finally:
+        if hasattr(content, 'close'):
+            content.close()

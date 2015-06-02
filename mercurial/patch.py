@@ -4,13 +4,14 @@
 # Copyright 2007 Chris Mason <chris.mason@oracle.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
+
+import cStringIO, email.Parser, os, re
+import tempfile, zlib
 
 from i18n import _
 from node import hex, nullid, short
-import base85, cmdutil, mdiff, util, diffhelpers, copies
-import cStringIO, email.Parser, os, re, math
-import sys, tempfile, zlib
+import base85, cmdutil, mdiff, util, diffhelpers, copies, encoding
 
 gitre = re.compile('diff --git a/(.*) b/(.*)')
 
@@ -24,7 +25,7 @@ class NoHunks(PatchError):
 
 def copyfile(src, dst, basedir):
     abssrc, absdst = [util.canonpath(basedir, basedir, x) for x in [src, dst]]
-    if os.path.exists(absdst):
+    if os.path.lexists(absdst):
         raise util.Abort(_("cannot create %s: destination already exists") %
                          dst)
 
@@ -41,12 +42,139 @@ def copyfile(src, dst, basedir):
 
 # public functions
 
+def split(stream):
+    '''return an iterator of individual patches from a stream'''
+    def isheader(line, inheader):
+        if inheader and line[0] in (' ', '\t'):
+            # continuation
+            return True
+        if line[0] in (' ', '-', '+'):
+            # diff line - don't check for header pattern in there
+            return False
+        l = line.split(': ', 1)
+        return len(l) == 2 and ' ' not in l[0]
+
+    def chunk(lines):
+        return cStringIO.StringIO(''.join(lines))
+
+    def hgsplit(stream, cur):
+        inheader = True
+
+        for line in stream:
+            if not line.strip():
+                inheader = False
+            if not inheader and line.startswith('# HG changeset patch'):
+                yield chunk(cur)
+                cur = []
+                inheader = True
+
+            cur.append(line)
+
+        if cur:
+            yield chunk(cur)
+
+    def mboxsplit(stream, cur):
+        for line in stream:
+            if line.startswith('From '):
+                for c in split(chunk(cur[1:])):
+                    yield c
+                cur = []
+
+            cur.append(line)
+
+        if cur:
+            for c in split(chunk(cur[1:])):
+                yield c
+
+    def mimesplit(stream, cur):
+        def msgfp(m):
+            fp = cStringIO.StringIO()
+            g = email.Generator.Generator(fp, mangle_from_=False)
+            g.flatten(m)
+            fp.seek(0)
+            return fp
+
+        for line in stream:
+            cur.append(line)
+        c = chunk(cur)
+
+        m = email.Parser.Parser().parse(c)
+        if not m.is_multipart():
+            yield msgfp(m)
+        else:
+            ok_types = ('text/plain', 'text/x-diff', 'text/x-patch')
+            for part in m.walk():
+                ct = part.get_content_type()
+                if ct not in ok_types:
+                    continue
+                yield msgfp(part)
+
+    def headersplit(stream, cur):
+        inheader = False
+
+        for line in stream:
+            if not inheader and isheader(line, inheader):
+                yield chunk(cur)
+                cur = []
+                inheader = True
+            if inheader and not isheader(line, inheader):
+                inheader = False
+
+            cur.append(line)
+
+        if cur:
+            yield chunk(cur)
+
+    def remainder(cur):
+        yield chunk(cur)
+
+    class fiter(object):
+        def __init__(self, fp):
+            self.fp = fp
+
+        def __iter__(self):
+            return self
+
+        def next(self):
+            l = self.fp.readline()
+            if not l:
+                raise StopIteration
+            return l
+
+    inheader = False
+    cur = []
+
+    mimeheaders = ['content-type']
+
+    if not hasattr(stream, 'next'):
+        # http responses, for example, have readline but not next
+        stream = fiter(stream)
+
+    for line in stream:
+        cur.append(line)
+        if line.startswith('# HG changeset patch'):
+            return hgsplit(stream, cur)
+        elif line.startswith('From '):
+            return mboxsplit(stream, cur)
+        elif isheader(line, inheader):
+            inheader = True
+            if line.split(':', 1)[0].lower() in mimeheaders:
+                # let email parser handle this
+                return mimesplit(stream, cur)
+        elif line.startswith('--- ') and inheader:
+            # No evil headers seen by diff start, split by hand
+            return headersplit(stream, cur)
+        # Not enough info, keep reading
+
+    # if we are here, we have a very plain patch
+    return remainder(cur)
+
 def extract(ui, fileobj):
     '''extract patch from data read from fileobj.
 
     patch can be a normal patch or contained in an email message.
 
-    return tuple (filename, message, user, date, node, p1, p2).
+    return tuple (filename, message, user, date, branch, node, p1, p2).
     Any item in the returned tuple can be None. If filename is None,
     fileobj did not contain a patch. Caller must unlink filename when done.'''
 
@@ -54,7 +182,8 @@ def extract(ui, fileobj):
     # (this heuristic is borrowed from quilt)
     diffre = re.compile(r'^(?:Index:[ \t]|diff[ \t]|RCS file: |'
                         r'retrieving revision [0-9]+(\.[0-9]+)*$|'
-                        r'(---|\*\*\*)[ \t])', re.MULTILINE)
+                        r'---[ \t].*?^\+\+\+[ \t]|'
+                        r'\*\*\*[ \t].*?^---[ \t])', re.MULTILINE|re.DOTALL)
 
     fd, tmpname = tempfile.mkstemp(prefix='hg-patch-')
     tmpfp = os.fdopen(fd, 'w')
@@ -63,6 +192,10 @@ def extract(ui, fileobj):
 
         subject = msg['Subject']
         user = msg['From']
+        if not subject and not user:
+            # Not an email, restore parsed headers if any
+            subject = '\n'.join(': '.join(h) for h in msg.items()) + '\n'
+
         gitsendmail = 'git-send-email' in msg.get('X-Mailer', '')
         # should try to parse msg['Date']
         date = None
@@ -74,7 +207,7 @@ def extract(ui, fileobj):
             if subject.startswith('[PATCH'):
                 pend = subject.find(']')
                 if pend >= 0:
-                    subject = subject[pend+1:].lstrip()
+                    subject = subject[pend + 1:].lstrip()
             subject = subject.replace('\n\t', ' ')
             ui.debug('Subject: %s\n' % subject)
         if user:
@@ -93,12 +226,12 @@ def extract(ui, fileobj):
                 hgpatch = False
                 ignoretext = False
 
-                ui.debug(_('found patch at byte %d\n') % m.start(0))
+                ui.debug('found patch at byte %d\n' % m.start(0))
                 diffs_seen += 1
                 cfp = cStringIO.StringIO()
                 for line in payload[:m.start(0)].splitlines():
                     if line.startswith('# HG changeset patch'):
-                        ui.debug(_('patch generated by hg export\n'))
+                        ui.debug('patch generated by hg export\n')
                         hgpatch = True
                         # drop earlier commit message content
                         cfp.seek(0)
@@ -170,6 +303,9 @@ class patchmeta(object):
         isexec = mode & 0100
         self.mode = (islink, isexec)
 
+    def __repr__(self):
+        return "<patchmeta %s %r>" % (self.op, self.path)
+
 def readgitpatch(lr):
     """extract git-style metadata about patches from <patchname>"""
 
@@ -182,12 +318,13 @@ def readgitpatch(lr):
     lineno = 0
     for line in lr:
         lineno += 1
+        line = line.rstrip(' \r\n')
         if line.startswith('diff --git'):
             m = gitre.match(line)
             if m:
                 if gp:
                     gitpatches.append(gp)
-                src, dst = m.group(1, 2)
+                dst = m.group(2)
                 gp = patchmeta(dst)
                 gp.lineno = lineno
         elif gp:
@@ -200,23 +337,21 @@ def readgitpatch(lr):
                 continue
             if line.startswith('rename from '):
                 gp.op = 'RENAME'
-                gp.oldpath = line[12:].rstrip()
+                gp.oldpath = line[12:]
             elif line.startswith('rename to '):
-                gp.path = line[10:].rstrip()
+                gp.path = line[10:]
             elif line.startswith('copy from '):
                 gp.op = 'COPY'
-                gp.oldpath = line[10:].rstrip()
+                gp.oldpath = line[10:]
             elif line.startswith('copy to '):
-                gp.path = line[8:].rstrip()
+                gp.path = line[8:]
             elif line.startswith('deleted file'):
                 gp.op = 'DELETE'
-                # is the deleted file a symlink?
-                gp.setmode(int(line.rstrip()[-6:], 8))
             elif line.startswith('new file mode '):
                 gp.op = 'ADD'
-                gp.setmode(int(line.rstrip()[-6:], 8))
+                gp.setmode(int(line[-6:], 8))
             elif line.startswith('new mode '):
-                gp.setmode(int(line.rstrip()[-6:], 8))
+                gp.setmode(int(line[-6:], 8))
             elif line.startswith('GIT binary patch'):
                 dopatch |= GP_BINARY
                 gp.binary = True
@@ -234,6 +369,7 @@ class linereader(object):
         self.fp = fp
         self.buf = []
         self.textmode = textmode
+        self.eol = None
 
     def push(self, line):
         if line is not None:
@@ -245,6 +381,11 @@ class linereader(object):
             del self.buf[0]
             return l
         l = self.fp.readline()
+        if not self.eol:
+            if l.endswith('\r\n'):
+                self.eol = '\r\n'
+            elif l.endswith('\n'):
+                self.eol = '\n'
         if self.textmode and l.endswith('\r\n'):
             l = l[:-2] + '\n'
         return l
@@ -259,11 +400,13 @@ class linereader(object):
 # @@ -start,len +start,len @@ or @@ -start +start @@ if len is 1
 unidesc = re.compile('@@ -(\d+)(,(\d+))? \+(\d+)(,(\d+))? @@')
 contextdesc = re.compile('(---|\*\*\*) (\d+)(,(\d+))? (---|\*\*\*)')
+eolmodes = ['strict', 'crlf', 'lf', 'auto']
 
 class patchfile(object):
-    def __init__(self, ui, fname, opener, missing=False, eol=None):
+    def __init__(self, ui, fname, opener, missing=False, eolmode='strict'):
         self.fname = fname
-        self.eol = eol
+        self.eolmode = eolmode
+        self.eol = None
         self.opener = opener
         self.ui = ui
         self.lines = []
@@ -281,28 +424,50 @@ class patchfile(object):
         self.hash = {}
         self.dirty = 0
         self.offset = 0
+        self.skew = 0
         self.rej = []
         self.fileprinted = False
         self.printfile(False)
         self.hunks = 0
 
     def readlines(self, fname):
+        if os.path.islink(fname):
+            return [os.readlink(fname)]
         fp = self.opener(fname, 'r')
         try:
-            return list(linereader(fp, self.eol is not None))
+            lr = linereader(fp, self.eolmode != 'strict')
+            lines = list(lr)
+            self.eol = lr.eol
+            return lines
         finally:
             fp.close()
 
     def writelines(self, fname, lines):
-        fp = self.opener(fname, 'w')
+        # Ensure supplied data ends in fname, being a regular file or
+        # a symlink. updatedir() will -too magically- take care of
+        # setting it to the proper type afterwards.
+        islink = os.path.islink(fname)
+        if islink:
+            fp = cStringIO.StringIO()
+        else:
+            fp = self.opener(fname, 'w')
         try:
-            if self.eol and self.eol != '\n':
+            if self.eolmode == 'auto':
+                eol = self.eol
+            elif self.eolmode == 'crlf':
+                eol = '\r\n'
+            else:
+                eol = '\n'
+
+            if self.eolmode != 'strict' and eol and eol != '\n':
                 for l in lines:
                     if l and l[-1] == '\n':
-                        l = l[:-1] + self.eol
+                        l = l[:-1] + eol
                     fp.write(l)
             else:
                 fp.writelines(lines)
+            if islink:
+                self.opener.symlink(fp.getvalue(), fname)
         finally:
             fp.close()
 
@@ -325,19 +490,11 @@ class patchfile(object):
         # looks through the hash and finds candidate lines.  The
         # result is a list of line numbers sorted based on distance
         # from linenum
-        def sorter(a, b):
-            vala = abs(a - linenum)
-            valb = abs(b - linenum)
-            return cmp(vala, valb)
 
-        try:
-            cand = self.hash[l]
-        except:
-            return []
-
+        cand = self.hash.get(l, [])
         if len(cand) > 1:
             # resort our list of potentials forward then back.
-            cand.sort(sorter)
+            cand.sort(key=lambda x: abs(x - linenum))
         return cand
 
     def hashlines(self):
@@ -370,26 +527,13 @@ class patchfile(object):
 
         self.writelines(fname, rejlines())
 
-    def write(self, dest=None):
-        if not self.dirty:
-            return
-        if not dest:
-            dest = self.fname
-        self.writelines(dest, self.lines)
-
-    def close(self):
-        self.write()
-        self.write_rej()
-
-    def apply(self, h, reverse):
+    def apply(self, h):
         if not h.complete():
             raise PatchError(_("bad hunk #%d %s (%d %d %d %d)") %
                             (h.number, h.desc, len(h.a), h.lena, len(h.b),
                             h.lenb))
 
         self.hunks += 1
-        if reverse:
-            h.reverse()
 
         if self.missing:
             self.rej.append(h)
@@ -400,7 +544,7 @@ class patchfile(object):
             self.rej.append(h)
             return -1
 
-        if isinstance(h, githunk):
+        if isinstance(h, binhunk):
             if h.rmfile():
                 self.unlink(self.fname)
             else:
@@ -408,6 +552,14 @@ class patchfile(object):
                 self.offset += len(h.new())
                 self.dirty = 1
             return 0
+
+        horig = h
+        if (self.eolmode in ('crlf', 'lf')
+            or self.eolmode == 'auto' and self.eol):
+            # If new eols are going to be normalized, then normalize
+            # hunk data before patching. Otherwise, preserve input
+            # line-endings.
+            h = h.getnormalized()
 
         # fast case first, no offsets, no fuzz
         old = h.old()
@@ -417,7 +569,10 @@ class patchfile(object):
         else:
             start = h.starta + self.offset - 1
         orig_start = start
-        if diffhelpers.testhunk(old, self.lines, start) == 0:
+        # if there's skew we want to emit the "(offset %d lines)" even
+        # when the hunk cleanly applies at start + skew, so skip the
+        # fast case code
+        if self.skew == 0 and diffhelpers.testhunk(old, self.lines, start) == 0:
             if h.rmfile():
                 self.unlink(self.fname)
             else:
@@ -433,10 +588,10 @@ class patchfile(object):
             # override the start line and use eof here
             search_start = len(self.lines)
         else:
-            search_start = orig_start
+            search_start = orig_start + self.skew
 
         for fuzzlen in xrange(3):
-            for toponly in [ True, False ]:
+            for toponly in [True, False]:
                 old = h.old(fuzzlen, toponly)
 
                 cand = self.findlines(old[0][1:], search_start)
@@ -445,41 +600,68 @@ class patchfile(object):
                         newlines = h.new(fuzzlen, toponly)
                         self.lines[l : l + len(old)] = newlines
                         self.offset += len(newlines) - len(old)
+                        self.skew = l - orig_start
                         self.dirty = 1
-                        if fuzzlen:
-                            fuzzstr = "with fuzz %d " % fuzzlen
-                            f = self.ui.warn
-                            self.printfile(True)
-                        else:
-                            fuzzstr = ""
-                            f = self.ui.note
                         offset = l - orig_start - fuzzlen
-                        if offset == 1:
-                            msg = _("Hunk #%d succeeded at %d %s"
-                                    "(offset %d line).\n")
-                        else:
-                            msg = _("Hunk #%d succeeded at %d %s"
+                        if fuzzlen:
+                            msg = _("Hunk #%d succeeded at %d "
+                                    "with fuzz %d "
                                     "(offset %d lines).\n")
-                        f(msg % (h.number, l+1, fuzzstr, offset))
+                            self.printfile(True)
+                            self.ui.warn(msg %
+                                (h.number, l + 1, fuzzlen, offset))
+                        else:
+                            msg = _("Hunk #%d succeeded at %d "
+                                    "(offset %d lines).\n")
+                            self.ui.note(msg % (h.number, l + 1, offset))
                         return fuzzlen
         self.printfile(True)
         self.ui.warn(_("Hunk #%d FAILED at %d\n") % (h.number, orig_start))
-        self.rej.append(h)
+        self.rej.append(horig)
         return -1
 
 class hunk(object):
     def __init__(self, desc, num, lr, context, create=False, remove=False):
         self.number = num
         self.desc = desc
-        self.hunk = [ desc ]
+        self.hunk = [desc]
         self.a = []
         self.b = []
-        if context:
-            self.read_context_hunk(lr)
-        else:
-            self.read_unified_hunk(lr)
+        self.starta = self.lena = None
+        self.startb = self.lenb = None
+        if lr is not None:
+            if context:
+                self.read_context_hunk(lr)
+            else:
+                self.read_unified_hunk(lr)
         self.create = create
         self.remove = remove and not create
+
+    def getnormalized(self):
+        """Return a copy with line endings normalized to LF."""
+
+        def normalize(lines):
+            nlines = []
+            for line in lines:
+                if line.endswith('\r\n'):
+                    line = line[:-2] + '\n'
+                nlines.append(line)
+            return nlines
+
+        # Dummy object, it is rebuilt manually
+        nh = hunk(self.desc, self.number, None, None, False, False)
+        nh.number = self.number
+        nh.desc = self.desc
+        nh.hunk = self.hunk
+        nh.a = normalize(self.a)
+        nh.b = normalize(self.b)
+        nh.starta = self.starta
+        nh.startb = self.startb
+        nh.lena = self.lena
+        nh.lenb = self.lenb
+        nh.create = self.create
+        nh.remove = self.remove
+        return nh
 
     def read_unified_hunk(self, lr):
         m = unidesc.match(self.desc)
@@ -556,7 +738,7 @@ class hunk(object):
             if l.startswith('\ '):
                 s = self.b[-1][:-1]
                 self.b[-1] = s
-                self.hunk[hunki-1] = s
+                self.hunk[hunki - 1] = s
                 continue
             if not l:
                 lr.push(l)
@@ -585,7 +767,7 @@ class hunk(object):
                 elif h.startswith('-'):
                     continue
                 else:
-                    self.hunk.insert(hunki-1, u)
+                    self.hunk.insert(hunki - 1, u)
                     break
 
         if not self.a:
@@ -602,31 +784,6 @@ class hunk(object):
         self.desc = "@@ -%d,%d +%d,%d @@\n" % (self.starta, self.lena,
                                              self.startb, self.lenb)
         self.hunk[0] = self.desc
-
-    def reverse(self):
-        self.create, self.remove = self.remove, self.create
-        origlena = self.lena
-        origstarta = self.starta
-        self.lena = self.lenb
-        self.starta = self.startb
-        self.lenb = origlena
-        self.startb = origstarta
-        self.a = []
-        self.b = []
-        # self.hunk[0] is the @@ description
-        for x in xrange(1, len(self.hunk)):
-            o = self.hunk[x]
-            if o.startswith('-'):
-                n = '+' + o[1:]
-                self.b.append(o[1:])
-            elif o.startswith('+'):
-                n = '-' + o[1:]
-                self.a.append(n)
-            else:
-                n = o
-                self.b.append(o[1:])
-                self.a.append(o)
-            self.hunk[x] = o
 
     def fix_newline(self):
         diffhelpers.fix_newline(self.hunk, self.a, self.b)
@@ -649,15 +806,15 @@ class hunk(object):
             top = 0
             bot = 0
             hlen = len(self.hunk)
-            for x in xrange(hlen-1):
+            for x in xrange(hlen - 1):
                 # the hunk starts with the @@ line, so use x+1
-                if self.hunk[x+1][0] == ' ':
+                if self.hunk[x + 1][0] == ' ':
                     top += 1
                 else:
                     break
             if not toponly:
-                for x in xrange(hlen-1):
-                    if self.hunk[hlen-bot-1][0] == ' ':
+                for x in xrange(hlen - 1):
+                    if self.hunk[hlen - bot - 1][0] == ' ':
                         bot += 1
                     else:
                         break
@@ -680,23 +837,15 @@ class hunk(object):
     def old(self, fuzz=0, toponly=False):
         return self.fuzzit(self.a, fuzz, toponly)
 
-    def newctrl(self):
-        res = []
-        for x in self.hunk:
-            c = x[0]
-            if c == ' ' or c == '+':
-                res.append(x)
-        return res
-
     def new(self, fuzz=0, toponly=False):
         return self.fuzzit(self.b, fuzz, toponly)
 
-class githunk(object):
-    """A git hunk"""
+class binhunk:
+    'A binary patch file. Only understands literals so far.'
     def __init__(self, gitpatch):
         self.gitpatch = gitpatch
         self.text = None
-        self.hunk = []
+        self.hunk = ['GIT binary patch\n']
 
     def createfile(self):
         return self.gitpatch.op in ('ADD', 'RENAME', 'COPY')
@@ -709,12 +858,6 @@ class githunk(object):
 
     def new(self):
         return [self.text]
-
-class binhunk(githunk):
-    'A binary patch file. Only understands literals so far.'
-    def __init__(self, gitpatch):
-        super(binhunk, self).__init__(gitpatch)
-        self.hunk = ['GIT binary patch\n']
 
     def extract(self, lr):
         line = lr.readline()
@@ -743,18 +886,6 @@ class binhunk(githunk):
                              len(text), size)
         self.text = text
 
-class symlinkhunk(githunk):
-    """A git symlink hunk"""
-    def __init__(self, gitpatch, hunk):
-        super(symlinkhunk, self).__init__(gitpatch)
-        self.hunk = hunk
-
-    def complete(self):
-        return True
-
-    def fix_newline(self):
-        return
-
 def parsefilename(str):
     # --- filename \t|space stuff
     s = str[4:].rstrip('\r\n')
@@ -765,24 +896,25 @@ def parsefilename(str):
             return s
     return s[:i]
 
-def selectfile(afile_orig, bfile_orig, hunk, strip, reverse):
-    def pathstrip(path, count=1):
-        pathlen = len(path)
-        i = 0
-        if count == 0:
-            return '', path.rstrip()
-        while count > 0:
-            i = path.find('/', i)
-            if i == -1:
-                raise PatchError(_("unable to strip away %d dirs from %s") %
-                                 (count, path))
+def pathstrip(path, strip):
+    pathlen = len(path)
+    i = 0
+    if strip == 0:
+        return '', path.rstrip()
+    count = strip
+    while count > 0:
+        i = path.find('/', i)
+        if i == -1:
+            raise PatchError(_("unable to strip away %d of %d dirs from %s") %
+                             (count, strip, path))
+        i += 1
+        # consume '//' in the path
+        while i < pathlen - 1 and path[i] == '/':
             i += 1
-            # consume '//' in the path
-            while i < pathlen - 1 and path[i] == '/':
-                i += 1
-            count -= 1
-        return path[:i].lstrip(), path[i:].rstrip()
+        count -= 1
+    return path[:i].lstrip(), path[i:].rstrip()
 
+def selectfile(afile_orig, bfile_orig, hunk, strip):
     nulla = afile_orig == "/dev/null"
     nullb = bfile_orig == "/dev/null"
     abase, afile = pathstrip(afile_orig, strip)
@@ -791,11 +923,22 @@ def selectfile(afile_orig, bfile_orig, hunk, strip, reverse):
     if afile == bfile:
         goodb = gooda
     else:
-        goodb = not nullb and os.path.exists(bfile)
+        goodb = not nullb and os.path.lexists(bfile)
     createfunc = hunk.createfile
-    if reverse:
-        createfunc = hunk.rmfile
     missing = not goodb and not gooda and not createfunc()
+
+    # some diff programs apparently produce create patches where the
+    # afile is not /dev/null, but afile starts with bfile
+    abasedir = afile[:afile.rfind('/') + 1]
+    bbasedir = bfile[:bfile.rfind('/') + 1]
+    if missing and abasedir == bbasedir and afile.startswith(bfile):
+        # this isn't very pretty
+        hunk.create = True
+        if createfunc():
+            missing = False
+        else:
+            hunk.create = False
+
     # If afile is "a/b/foo" and bfile is "a/b/foo.orig" we assume the
     # diff is between a file and its backup. In this case, the original
     # file should be patched (see original mpatch code).
@@ -843,15 +986,13 @@ def scangitpatch(lr, firstline):
     fp.seek(pos)
     return dopatch, gitpatches
 
-def iterhunks(ui, fp, sourcefile=None, textmode=False):
+def iterhunks(ui, fp, sourcefile=None):
     """Read a patch and yield the following events:
     - ("file", afile, bfile, firsthunk): select a new target file.
     - ("hunk", hunk): a new hunk is ready to be applied, follows a
     "file" event.
     - ("git", gitchanges): current diff is in git format, gitchanges
     maps filenames to gitpatch records. Unique event.
-
-    If textmode is True, input line-endings are normalized to LF.
     """
     changed = {}
     current_hunk = None
@@ -865,15 +1006,15 @@ def iterhunks(ui, fp, sourcefile=None, textmode=False):
     # our states
     BFILE = 1
     context = None
-    lr = linereader(fp, textmode)
-    dopatch = True
+    lr = linereader(fp)
     # gitworkdone is True if a git operation (copy, rename, ...) was
     # performed already for the current file. Useful when the file
     # section may have no hunk.
     gitworkdone = False
+    empty = None
 
     while True:
-        newfile = False
+        newfile = newgitfile = False
         x = lr.readline()
         if not x:
             break
@@ -882,7 +1023,7 @@ def iterhunks(ui, fp, sourcefile=None, textmode=False):
                 current_hunk.fix_newline()
             yield 'hunk', current_hunk
             current_hunk = None
-            gitworkdone = False
+            empty = False
         if ((sourcefile or state == BFILE) and ((not context and x[0] == '@') or
             ((context is not False) and x.startswith('***************')))):
             try:
@@ -892,10 +1033,6 @@ def iterhunks(ui, fp, sourcefile=None, textmode=False):
                 create = afile == '/dev/null' or gpatch and gpatch.op == 'ADD'
                 remove = bfile == '/dev/null' or gpatch and gpatch.op == 'DELETE'
                 current_hunk = hunk(x, hunknum + 1, lr, context, create, remove)
-                if remove:
-                    gpatch = changed.get(afile[2:])
-                    if gpatch and gpatch.mode[0]:
-                        current_hunk = symlinkhunk(gpatch, current_hunk)
             except PatchError, err:
                 ui.debug(err)
                 current_hunk = None
@@ -904,31 +1041,35 @@ def iterhunks(ui, fp, sourcefile=None, textmode=False):
             if emitfile:
                 emitfile = False
                 yield 'file', (afile, bfile, current_hunk)
+                empty = False
         elif state == BFILE and x.startswith('GIT binary patch'):
             current_hunk = binhunk(changed[bfile])
             hunknum += 1
             if emitfile:
                 emitfile = False
                 yield 'file', ('a/' + afile, 'b/' + bfile, current_hunk)
+                empty = False
             current_hunk.extract(lr)
         elif x.startswith('diff --git'):
             # check for git diff, scanning the whole patch file if needed
             m = gitre.match(x)
+            gitworkdone = False
             if m:
                 afile, bfile = m.group(1, 2)
                 if not git:
                     git = True
-                    dopatch, gitpatches = scangitpatch(lr, x)
+                    gitpatches = scangitpatch(lr, x)[1]
                     yield 'git', gitpatches
                     for gp in gitpatches:
                         changed[gp.path] = gp
                 # else error?
                 # copy/rename + modify should modify target, not source
                 gp = changed.get(bfile)
-                if gp and gp.op in ('COPY', 'DELETE', 'RENAME', 'ADD'):
+                if gp and (gp.op in ('COPY', 'DELETE', 'RENAME', 'ADD')
+                           or gp.mode):
                     afile = bfile
                     gitworkdone = True
-            newfile = True
+                newgitfile = True
         elif x.startswith('---'):
             # check for a unified diff
             l2 = lr.readline()
@@ -956,51 +1097,67 @@ def iterhunks(ui, fp, sourcefile=None, textmode=False):
             bfile = parsefilename(l2)
 
         if newfile:
+            if empty:
+                raise NoHunks
+            empty = not gitworkdone
+            gitworkdone = False
+
+        if newgitfile or newfile:
             emitfile = True
             state = BFILE
             hunknum = 0
     if current_hunk:
         if current_hunk.complete():
             yield 'hunk', current_hunk
+            empty = False
         else:
             raise PatchError(_("malformed patch %s %s") % (afile,
                              current_hunk.desc))
 
-    if hunknum == 0 and dopatch and not gitworkdone:
+    if (empty is None and not gitworkdone) or empty:
         raise NoHunks
 
-def applydiff(ui, fp, changed, strip=1, sourcefile=None, reverse=False,
-              eol=None):
-    """
-    Reads a patch from fp and tries to apply it.
+
+def applydiff(ui, fp, changed, strip=1, sourcefile=None, eolmode='strict'):
+    """Reads a patch from fp and tries to apply it.
 
     The dict 'changed' is filled in with all of the filenames changed
     by the patch. Returns 0 for a clean patch, -1 if any rejects were
     found and 1 if there was any fuzz.
 
-    If 'eol' is None, the patch content and patched file are read in
-    binary mode. Otherwise, line endings are ignored when patching then
-    normalized to 'eol' (usually '\n' or \r\n').
+    If 'eolmode' is 'strict', the patch content and patched file are
+    read in binary mode. Otherwise, line endings are ignored when
+    patching then normalized according to 'eolmode'.
+
+    Callers probably want to call 'updatedir' after this to apply
+    certain categories of changes not done by this function.
     """
+    return _applydiff(
+        ui, fp, patchfile, copyfile,
+        changed, strip=strip, sourcefile=sourcefile, eolmode=eolmode)
+
+
+def _applydiff(ui, fp, patcher, copyfn, changed, strip=1,
+               sourcefile=None, eolmode='strict'):
     rejects = 0
     err = 0
     current_file = None
-    gitpatches = None
-    opener = util.opener(os.getcwd())
-    textmode = eol is not None
+    cwd = os.getcwd()
+    opener = util.opener(cwd)
 
     def closefile():
         if not current_file:
             return 0
-        current_file.close()
+        if current_file.dirty:
+            current_file.writelines(current_file.fname, current_file.lines)
+        current_file.write_rej()
         return len(current_file.rej)
 
-    for state, values in iterhunks(ui, fp, sourcefile, textmode):
+    for state, values in iterhunks(ui, fp, sourcefile):
         if state == 'hunk':
             if not current_file:
                 continue
-            current_hunk = values
-            ret = current_file.apply(current_hunk, reverse)
+            ret = current_file.apply(values)
             if ret >= 0:
                 changed.setdefault(current_file.fname, None)
                 if ret > 0:
@@ -1010,22 +1167,27 @@ def applydiff(ui, fp, changed, strip=1, sourcefile=None, reverse=False,
             afile, bfile, first_hunk = values
             try:
                 if sourcefile:
-                    current_file = patchfile(ui, sourcefile, opener, eol=eol)
+                    current_file = patcher(ui, sourcefile, opener,
+                                           eolmode=eolmode)
                 else:
-                    current_file, missing = selectfile(afile, bfile, first_hunk,
-                                            strip, reverse)
-                    current_file = patchfile(ui, current_file, opener, missing, eol)
+                    current_file, missing = selectfile(afile, bfile,
+                                                       first_hunk, strip)
+                    current_file = patcher(ui, current_file, opener,
+                                           missing=missing, eolmode=eolmode)
             except PatchError, err:
                 ui.warn(str(err) + '\n')
-                current_file, current_hunk = None, None
+                current_file = None
                 rejects += 1
                 continue
         elif state == 'git':
-            gitpatches = values
-            cwd = os.getcwd()
-            for gp in gitpatches:
-                if gp.op in ('COPY', 'RENAME'):
-                    copyfile(gp.oldpath, gp.path, cwd)
+            for gp in values:
+                gp.path = pathstrip(gp.path, strip - 1)[1]
+                if gp.oldpath:
+                    gp.oldpath = pathstrip(gp.oldpath, strip - 1)[1]
+                # Binary patches really overwrite target files, copying them
+                # will just make it fails with "target file exists"
+                if gp.op in ('COPY', 'RENAME') and not gp.binary:
+                    copyfn(gp.oldpath, gp.path, cwd)
                 changed[gp.path] = gp
         else:
             raise util.Abort(_('unsupported parser state: %s') % state)
@@ -1035,20 +1197,6 @@ def applydiff(ui, fp, changed, strip=1, sourcefile=None, reverse=False,
     if rejects:
         return -1
     return err
-
-def diffopts(ui, opts={}, untrusted=False):
-    def get(key, name=None, getter=ui.configbool):
-        return (opts.get(key) or
-                getter('diff', name or key, None, untrusted=untrusted))
-    return mdiff.diffopts(
-        text=opts.get('text'),
-        git=get('git'),
-        nodates=get('nodates'),
-        showfunc=get('show_function', 'showfunc'),
-        ignorews=get('ignore_all_space', 'ignorews'),
-        ignorewsamount=get('ignore_space_change', 'ignorewsamount'),
-        ignoreblanklines=get('ignore_blank_lines', 'ignoreblanklines'),
-        context=get('unified', getter=ui.config))
 
 def updatedir(ui, repo, patches, similarity=0):
     '''Update dirstate after patch application according to metadata'''
@@ -1071,21 +1219,23 @@ def updatedir(ui, repo, patches, similarity=0):
             copies.append((gp.oldpath, gp.path))
         elif gp.op == 'DELETE':
             removes.add(gp.path)
+
+    wctx = repo[None]
     for src, dst in copies:
-        repo.copy(src, dst)
+        wctx.copy(src, dst)
     if (not similarity) and removes:
-        repo.remove(sorted(removes), True)
+        wctx.remove(sorted(removes), True)
+
     for f in patches:
         gp = patches[f]
         if gp and gp.mode:
             islink, isexec = gp.mode
             dst = repo.wjoin(gp.path)
             # patch won't create empty files
-            if gp.op == 'ADD' and not os.path.exists(dst):
+            if gp.op == 'ADD' and not os.path.lexists(dst):
                 flags = (isexec and 'x' or '') + (islink and 'l' or '')
                 repo.wwrite(gp.path, '', flags)
-            elif gp.op != 'DELETE':
-                util.set_flags(dst, islink, isexec)
+            util.set_flags(dst, islink, isexec)
     cmdutil.addremove(repo, cfiles, similarity=similarity)
     files = patches.keys()
     files.extend([r for r in removes if r not in files])
@@ -1127,34 +1277,37 @@ def externalpatch(patcher, args, patchname, ui, strip, cwd, files):
                          util.explain_exit(code)[0])
     return fuzz
 
-def internalpatch(patchobj, ui, strip, cwd, files={}, eolmode='strict'):
+def internalpatch(patchobj, ui, strip, cwd, files=None, eolmode='strict'):
     """use builtin patch to apply <patchobj> to the working directory.
     returns whether patch was applied with fuzz factor."""
 
+    if files is None:
+        files = {}
     if eolmode is None:
         eolmode = ui.config('patch', 'eol', 'strict')
-    try:
-        eol = {'strict': None, 'crlf': '\r\n', 'lf': '\n'}[eolmode.lower()]
-    except KeyError:
-        raise util.Abort(_('Unsupported line endings type: %s') % eolmode)
+    if eolmode.lower() not in eolmodes:
+        raise util.Abort(_('unsupported line endings type: %s') % eolmode)
+    eolmode = eolmode.lower()
 
     try:
-        fp = file(patchobj, 'rb')
+        fp = open(patchobj, 'rb')
     except TypeError:
         fp = patchobj
     if cwd:
         curdir = os.getcwd()
         os.chdir(cwd)
     try:
-        ret = applydiff(ui, fp, files, strip=strip, eol=eol)
+        ret = applydiff(ui, fp, files, strip=strip, eolmode=eolmode)
     finally:
         if cwd:
             os.chdir(curdir)
+        if fp != patchobj:
+            fp.close()
     if ret < 0:
         raise PatchError
     return ret > 0
 
-def patch(patchname, ui, strip=1, cwd=None, files={}, eolmode='strict'):
+def patch(patchname, ui, strip=1, cwd=None, files=None, eolmode='strict'):
     """Apply <patchname> to the working directory.
 
     'eolmode' specifies how end of lines should be handled. It can be:
@@ -1168,6 +1321,8 @@ def patch(patchname, ui, strip=1, cwd=None, files={}, eolmode='strict'):
     """
     patcher = ui.config('ui', 'patch')
     args = []
+    if files is None:
+        files = {}
     try:
         if patcher:
             return externalpatch(patcher, args, patchname, ui, strip, cwd,
@@ -1176,8 +1331,13 @@ def patch(patchname, ui, strip=1, cwd=None, files={}, eolmode='strict'):
             try:
                 return internalpatch(patchname, ui, strip, cwd, files, eolmode)
             except NoHunks:
-                patcher = util.find_exe('gpatch') or util.find_exe('patch') or 'patch'
-                ui.debug(_('no valid hunks found; trying with %r instead\n') %
+                ui.warn(_('internal patcher failed\n'
+                          'please report details to '
+                          'http://mercurial.selenic.com/bts/\n'
+                          'or mercurial@selenic.com\n'))
+                patcher = (util.find_exe('gpatch') or util.find_exe('patch')
+                           or 'patch')
+                ui.debug('no valid hunks found; trying with %r instead\n' %
                          patcher)
                 if util.needbinarypatch():
                     args.append('--binary')
@@ -1212,7 +1372,7 @@ def b85diff(to, tn):
         l = len(text)
         i = 0
         while i < l:
-            yield text[i:i+csize]
+            yield text[i:i + csize]
             i += csize
 
     tohash = gitindex(to)
@@ -1228,22 +1388,44 @@ def b85diff(to, tn):
     ret.append('\n')
     return ''.join(ret)
 
-def _addmodehdr(header, omode, nmode):
-    if omode != nmode:
-        header.append('old mode %s\n' % omode)
-        header.append('new mode %s\n' % nmode)
+class GitDiffRequired(Exception):
+    pass
 
-def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None):
+def diffopts(ui, opts=None, untrusted=False):
+    def get(key, name=None, getter=ui.configbool):
+        return ((opts and opts.get(key)) or
+                getter('diff', name or key, None, untrusted=untrusted))
+    return mdiff.diffopts(
+        text=opts and opts.get('text'),
+        git=get('git'),
+        nodates=get('nodates'),
+        showfunc=get('show_function', 'showfunc'),
+        ignorews=get('ignore_all_space', 'ignorews'),
+        ignorewsamount=get('ignore_space_change', 'ignorewsamount'),
+        ignoreblanklines=get('ignore_blank_lines', 'ignoreblanklines'),
+        context=get('unified', getter=ui.config))
+
+def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None,
+         losedatafn=None):
     '''yields diff of changes to files between two nodes, or node and
     working directory.
 
     if node1 is None, use first dirstate parent instead.
-    if node2 is None, compare node1 with working directory.'''
+    if node2 is None, compare node1 with working directory.
+
+    losedatafn(**kwarg) is a callable run when opts.upgrade=True and
+    every time some change cannot be represented with the current
+    patch format. Return False to upgrade to git patch format, True to
+    accept the loss or raise an exception to abort the diff. It is
+    called with the name of current file being diffed as 'fn'. If set
+    to None, patches will always be upgraded to git format when
+    necessary.
+    '''
 
     if opts is None:
         opts = mdiff.defaultopts
 
-    if not node1:
+    if not node1 and not node2:
         node1 = repo.dirstate.parents()[0]
 
     def lrugetfilectx():
@@ -1254,7 +1436,7 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None):
             if f not in cache:
                 if len(cache) > 20:
                     del cache[order.pop(0)]
-                cache[f] = fctx._filelog
+                cache[f] = fctx.filelog()
             else:
                 order.remove(f)
             order.append(f)
@@ -1270,25 +1452,86 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None):
     modified, added, removed = changes[:3]
 
     if not modified and not added and not removed:
-        return
+        return []
+
+    revs = None
+    if not repo.ui.quiet:
+        hexfunc = repo.ui.debugflag and hex or short
+        revs = [hexfunc(node) for node in [node1, node2] if node]
+
+    copy = {}
+    if opts.git or opts.upgrade:
+        copy = copies.copies(repo, ctx1, ctx2, repo[nullid])[0]
+
+    difffn = lambda opts, losedata: trydiff(repo, revs, ctx1, ctx2,
+                 modified, added, removed, copy, getfilectx, opts, losedata)
+    if opts.upgrade and not opts.git:
+        try:
+            def losedata(fn):
+                if not losedatafn or not losedatafn(fn=fn):
+                    raise GitDiffRequired()
+            # Buffer the whole output until we are sure it can be generated
+            return list(difffn(opts.copy(git=False), losedata))
+        except GitDiffRequired:
+            return difffn(opts.copy(git=True), None)
+    else:
+        return difffn(opts, None)
+
+def difflabel(func, *args, **kw):
+    '''yields 2-tuples of (output, label) based on the output of func()'''
+    prefixes = [('diff', 'diff.diffline'),
+                ('copy', 'diff.extended'),
+                ('rename', 'diff.extended'),
+                ('old', 'diff.extended'),
+                ('new', 'diff.extended'),
+                ('deleted', 'diff.extended'),
+                ('---', 'diff.file_a'),
+                ('+++', 'diff.file_b'),
+                ('@@', 'diff.hunk'),
+                ('-', 'diff.deleted'),
+                ('+', 'diff.inserted')]
+
+    for chunk in func(*args, **kw):
+        lines = chunk.split('\n')
+        for i, line in enumerate(lines):
+            if i != 0:
+                yield ('\n', '')
+            stripline = line
+            if line and line[0] in '+-':
+                # highlight trailing whitespace, but only in changed lines
+                stripline = line.rstrip()
+            for prefix, label in prefixes:
+                if stripline.startswith(prefix):
+                    yield (stripline, label)
+                    break
+            else:
+                yield (line, '')
+            if line != stripline:
+                yield (line[len(stripline):], 'diff.trailingwhitespace')
+
+def diffui(*args, **kw):
+    '''like diff(), but yields 2-tuples of (output, label) for ui.write()'''
+    return difflabel(diff, *args, **kw)
+
+
+def _addmodehdr(header, omode, nmode):
+    if omode != nmode:
+        header.append('old mode %s\n' % omode)
+        header.append('new mode %s\n' % nmode)
+
+def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
+            copy, getfilectx, opts, losedatafn):
 
     date1 = util.datestr(ctx1.date())
     man1 = ctx1.manifest()
 
-    if repo.ui.quiet:
-        r = None
-    else:
-        hexfunc = repo.ui.debugflag and hex or short
-        r = [hexfunc(node) for node in [node1, node2] if node]
-
-    if opts.git:
-        copy, diverge = copies.copies(repo, ctx1, ctx2, repo[nullid])
-        copy = copy.copy()
-        for k, v in copy.items():
-            copy[v] = k
-
     gone = set()
     gitmode = {'l': '120000', 'x': '100755', '': '100644'}
+
+    copyto = dict([(v, k) for k, v in copy.items()])
+
+    if opts.git:
+        revs = None
 
     for f in sorted(modified + added + removed):
         to = None
@@ -1300,40 +1543,70 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None):
         if f not in removed:
             tn = getfilectx(f, ctx2).data()
         a, b = f, f
-        if opts.git:
+        if opts.git or losedatafn:
             if f in added:
                 mode = gitmode[ctx2.flags(f)]
-                if f in copy:
-                    a = copy[f]
-                    omode = gitmode[man1.flags(a)]
-                    _addmodehdr(header, omode, mode)
-                    if a in removed and a not in gone:
-                        op = 'rename'
-                        gone.add(a)
+                if f in copy or f in copyto:
+                    if opts.git:
+                        if f in copy:
+                            a = copy[f]
+                        else:
+                            a = copyto[f]
+                        omode = gitmode[man1.flags(a)]
+                        _addmodehdr(header, omode, mode)
+                        if a in removed and a not in gone:
+                            op = 'rename'
+                            gone.add(a)
+                        else:
+                            op = 'copy'
+                        header.append('%s from %s\n' % (op, a))
+                        header.append('%s to %s\n' % (op, f))
+                        to = getfilectx(a, ctx1).data()
                     else:
-                        op = 'copy'
-                    header.append('%s from %s\n' % (op, a))
-                    header.append('%s to %s\n' % (op, f))
-                    to = getfilectx(a, ctx1).data()
+                        losedatafn(f)
                 else:
-                    header.append('new file mode %s\n' % mode)
+                    if opts.git:
+                        header.append('new file mode %s\n' % mode)
+                    elif ctx2.flags(f):
+                        losedatafn(f)
+                # In theory, if tn was copied or renamed we should check
+                # if the source is binary too but the copy record already
+                # forces git mode.
                 if util.binary(tn):
-                    dodiff = 'binary'
+                    if opts.git:
+                        dodiff = 'binary'
+                    else:
+                        losedatafn(f)
+                if not opts.git and not tn:
+                    # regular diffs cannot represent new empty file
+                    losedatafn(f)
             elif f in removed:
-                # have we already reported a copy above?
-                if f in copy and copy[f] in added and copy[copy[f]] == f:
-                    dodiff = False
-                else:
-                    header.append('deleted file mode %s\n' %
-                                  gitmode[man1.flags(f)])
+                if opts.git:
+                    # have we already reported a copy above?
+                    if ((f in copy and copy[f] in added
+                         and copyto[copy[f]] == f) or
+                        (f in copyto and copyto[f] in added
+                         and copy[copyto[f]] == f)):
+                        dodiff = False
+                    else:
+                        header.append('deleted file mode %s\n' %
+                                      gitmode[man1.flags(f)])
+                elif not to or util.binary(to):
+                    # regular diffs cannot represent empty file deletion
+                    losedatafn(f)
             else:
-                omode = gitmode[man1.flags(f)]
-                nmode = gitmode[ctx2.flags(f)]
-                _addmodehdr(header, omode, nmode)
-                if util.binary(to) or util.binary(tn):
-                    dodiff = 'binary'
-            r = None
-            header.insert(0, mdiff.diffline(r, a, b, opts))
+                oflag = man1.flags(f)
+                nflag = ctx2.flags(f)
+                binary = util.binary(to) or util.binary(tn)
+                if opts.git:
+                    _addmodehdr(header, gitmode[oflag], gitmode[nflag])
+                    if binary:
+                        dodiff = 'binary'
+                elif binary or nflag != oflag:
+                    losedatafn(f)
+            if opts.git:
+                header.insert(0, mdiff.diffline(revs, a, b, opts))
+
         if dodiff:
             if dodiff == 'binary':
                 text = b85diff(to, tn)
@@ -1341,59 +1614,19 @@ def diff(repo, node1=None, node2=None, match=None, changes=None, opts=None):
                 text = mdiff.unidiff(to, date1,
                                     # ctx2 date may be dynamic
                                     tn, util.datestr(ctx2.date()),
-                                    a, b, r, opts=opts)
+                                    a, b, revs, opts=opts)
             if header and (text or len(header) > 1):
                 yield ''.join(header)
             if text:
                 yield text
-
-def export(repo, revs, template='hg-%h.patch', fp=None, switch_parent=False,
-           opts=None):
-    '''export changesets as hg patches.'''
-
-    total = len(revs)
-    revwidth = max([len(str(rev)) for rev in revs])
-
-    def single(rev, seqno, fp):
-        ctx = repo[rev]
-        node = ctx.node()
-        parents = [p.node() for p in ctx.parents() if p]
-        branch = ctx.branch()
-        if switch_parent:
-            parents.reverse()
-        prev = (parents and parents[0]) or nullid
-
-        if not fp:
-            fp = cmdutil.make_file(repo, template, node, total=total,
-                                   seqno=seqno, revwidth=revwidth,
-                                   mode='ab')
-        if fp != sys.stdout and hasattr(fp, 'name'):
-            repo.ui.note("%s\n" % fp.name)
-
-        fp.write("# HG changeset patch\n")
-        fp.write("# User %s\n" % ctx.user())
-        fp.write("# Date %d %d\n" % ctx.date())
-        if branch and (branch != 'default'):
-            fp.write("# Branch %s\n" % branch)
-        fp.write("# Node ID %s\n" % hex(node))
-        fp.write("# Parent  %s\n" % hex(prev))
-        if len(parents) > 1:
-            fp.write("# Parent  %s\n" % hex(parents[1]))
-        fp.write(ctx.description().rstrip())
-        fp.write("\n\n")
-
-        for chunk in diff(repo, prev, node, opts=opts):
-            fp.write(chunk)
-
-    for seqno, rev in enumerate(revs):
-        single(rev, seqno+1, fp)
 
 def diffstatdata(lines):
     filename, adds, removes = None, 0, 0
     for line in lines:
         if line.startswith('diff'):
             if filename:
-                yield (filename, adds, removes)
+                isbinary = adds == 0 and removes == 0
+                yield (filename, adds, removes, isbinary)
             # set numbers to 0 anyway when starting new file
             adds, removes = 0, 0
             if line.startswith('diff --git'):
@@ -1406,38 +1639,76 @@ def diffstatdata(lines):
         elif line.startswith('-') and not line.startswith('---'):
             removes += 1
     if filename:
-        yield (filename, adds, removes)
+        isbinary = adds == 0 and removes == 0
+        yield (filename, adds, removes, isbinary)
 
-def diffstat(lines, width=80):
+def diffstat(lines, width=80, git=False):
     output = []
     stats = list(diffstatdata(lines))
 
     maxtotal, maxname = 0, 0
     totaladds, totalremoves = 0, 0
-    for filename, adds, removes in stats:
+    hasbinary = False
+
+    sized = [(filename, adds, removes, isbinary, encoding.colwidth(filename))
+             for filename, adds, removes, isbinary in stats]
+
+    for filename, adds, removes, isbinary, namewidth in sized:
         totaladds += adds
         totalremoves += removes
-        maxname = max(maxname, len(filename))
-        maxtotal = max(maxtotal, adds+removes)
+        maxname = max(maxname, namewidth)
+        maxtotal = max(maxtotal, adds + removes)
+        if isbinary:
+            hasbinary = True
 
     countwidth = len(str(maxtotal))
-    graphwidth = width - countwidth - maxname
+    if hasbinary and countwidth < 3:
+        countwidth = 3
+    graphwidth = width - countwidth - maxname - 6
     if graphwidth < 10:
         graphwidth = 10
 
-    factor = max(int(math.ceil(float(maxtotal) / graphwidth)), 1)
+    def scale(i):
+        if maxtotal <= graphwidth:
+            return i
+        # If diffstat runs out of room it doesn't print anything,
+        # which isn't very useful, so always print at least one + or -
+        # if there were at least some changes.
+        return max(i * graphwidth // maxtotal, int(bool(i)))
 
-    for filename, adds, removes in stats:
-        # If diffstat runs out of room it doesn't print anything, which
-        # isn't very useful, so always print at least one + or - if there
-        # were at least some changes
-        pluses = '+' * max(adds/factor, int(bool(adds)))
-        minuses = '-' * max(removes/factor, int(bool(removes)))
-        output.append(' %-*s |  %*.d %s%s\n' % (maxname, filename, countwidth,
-                                                adds+removes, pluses, minuses))
+    for filename, adds, removes, isbinary, namewidth in sized:
+        if git and isbinary:
+            count = 'Bin'
+        else:
+            count = adds + removes
+        pluses = '+' * scale(adds)
+        minuses = '-' * scale(removes)
+        output.append(' %s%s |  %*s %s%s\n' %
+                      (filename, ' ' * (maxname - namewidth),
+                       countwidth, count,
+                       pluses, minuses))
 
     if stats:
-        output.append(' %d files changed, %d insertions(+), %d deletions(-)\n'
+        output.append(_(' %d files changed, %d insertions(+), %d deletions(-)\n')
                       % (len(stats), totaladds, totalremoves))
 
     return ''.join(output)
+
+def diffstatui(*args, **kw):
+    '''like diffstat(), but yields 2-tuples of (output, label) for
+    ui.write()
+    '''
+
+    for line in diffstat(*args, **kw).splitlines():
+        if line and line[-1] in '+-':
+            name, graph = line.rsplit(' ', 1)
+            yield (name + ' ', '')
+            m = re.search(r'\++', graph)
+            if m:
+                yield (m.group(0), 'diffstat.inserted')
+            m = re.search(r'-+', graph)
+            if m:
+                yield (m.group(0), 'diffstat.deleted')
+        else:
+            yield (line, '')
+        yield ('\n', '')

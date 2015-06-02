@@ -6,16 +6,16 @@
 #   Edward Lee <edward.lee@engineering.uiuc.edu>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''expand expressions into changelog and summaries
 
-This extension allows the use of a special syntax in summaries,
-which will be automatically expanded into links or any other
-arbitrary expression, much like InterWiki does.
+This extension allows the use of a special syntax in summaries, which
+will be automatically expanded into links or any other arbitrary
+expression, much like InterWiki does.
 
-A few example patterns (link to bug tracking, etc.) that may
-be used in your hgrc:
+A few example patterns (link to bug tracking, etc.) that may be used
+in your hgrc::
 
   [interhg]
   issues = s!issue(\\d+)!<a href="http://bts/issue\\1">issue\\1</a>!
@@ -40,7 +40,7 @@ def interhg_escape(x):
 
 templatefilters.filters["escape"] = interhg_escape
 
-def interhg_refresh(orig, self):
+def interhg_refresh(orig, self, *args, **kwargs):
     interhg_table[:] = []
     for key, pattern in self.repo.ui.configitems('interhg'):
         # grab the delimiter from the character after the "s"
@@ -75,6 +75,6 @@ def interhg_refresh(orig, self):
         except re.error:
             self.repo.ui.warn(_("interhg: invalid regexp for %s: %s\n")
                               % (key, regexp))
-    return orig(self)
+    return orig(self, *args, **kwargs)
 
 extensions.wrapfunction(hgweb_mod.hgweb, 'refresh', interhg_refresh)

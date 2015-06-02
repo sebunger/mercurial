@@ -14,6 +14,12 @@ echo % verify
 hg verify
 
 echo
+echo % verify with journal
+touch .hg/store/journal
+hg verify
+rm .hg/store/journal
+
+echo
 echo % introduce some bugs in repo
 cd .hg/store/data
 mv _f_o_o.txt.i X_f_o_o.txt.i
@@ -40,6 +46,14 @@ cat start b > .hg/store/data/a.i
 
 echo
 echo % verify
+hg verify
+
+cd ..
+
+echo % test revlog format 0
+
+"$TESTDIR/revlog-formatv0.py"
+cd formatv0
 hg verify
 
 exit 0

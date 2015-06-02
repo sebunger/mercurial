@@ -3,7 +3,7 @@
 # Copyright 2007 Bryan O'Sullivan <bos@serpentine.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''commands to interactively select changes for commit/qrefresh'''
 
@@ -275,7 +275,8 @@ def filterpatch(ui, chunks):
         - ? (help)
         - q (quit)
 
-        else, input is returned to the caller.
+        Returns True/False and sets reps_all and resp_file as
+        appropriate.
         """
         if resp_all[0] is not None:
             return resp_all[0]
@@ -291,27 +292,33 @@ def filterpatch(ui, chunks):
                     _('Record &all changes to all remaining files'),
                     _('&Quit, recording no changes'),
                     _('&?'))
-            r = (ui.prompt("%s %s " % (query, resps), choices)
-                 or _('y')).lower()
-            if r == _('?'):
+            r = ui.promptchoice("%s %s" % (query, resps), choices)
+            ui.write("\n")
+            if r == 7: # ?
                 doc = gettext(record.__doc__)
-                c = doc.find(_('y - record this change'))
+                c = doc.find('::') + 2
                 for l in doc[c:].splitlines():
-                    if l: ui.write(l.strip(), '\n')
+                    if l.startswith('      '):
+                        ui.write(l.strip(), '\n')
                 continue
-            elif r == _('s'):
-                r = resp_file[0] = 'n'
-            elif r == _('f'):
-                r = resp_file[0] = 'y'
-            elif r == _('d'):
-                r = resp_all[0] = 'n'
-            elif r == _('a'):
-                r = resp_all[0] = 'y'
-            elif r == _('q'):
+            elif r == 0: # yes
+                ret = True
+            elif r == 1: # no
+                ret = False
+            elif r == 2: # Skip
+                ret = resp_file[0] = False
+            elif r == 3: # file (Record remaining)
+                ret = resp_file[0] = True
+            elif r == 4: # done, skip remaining
+                ret = resp_all[0] = False
+            elif r == 5: # all
+                ret = resp_all[0] = True
+            elif r == 6: # quit
                 raise util.Abort(_('user quit'))
-            return r
+            return ret
     pos, total = 0, len(chunks) - 1
     while chunks:
+        pos = total - len(chunks) + 1
         chunk = chunks.pop()
         if isinstance(chunk, header):
             # new-file mark
@@ -326,7 +333,7 @@ def filterpatch(ui, chunks):
                 chunk.pretty(ui)
             r = prompt(_('examine changes to %s?') %
                        _(' and ').join(map(repr, chunk.files())))
-            if r == _('y'):
+            if r:
                 applied[chunk.filename()] = [chunk]
                 if chunk.allhunks():
                     applied[chunk.filename()] += consumefile()
@@ -340,52 +347,50 @@ def filterpatch(ui, chunks):
                                       chunk.filename()) \
                            or  prompt(_('record change %d/%d to %r?') %
                                       (pos, total, chunk.filename()))
-            if r == _('y'):
+            if r:
                 if fixoffset:
                     chunk = copy.copy(chunk)
                     chunk.toline += fixoffset
                 applied[chunk.filename()].append(chunk)
             else:
                 fixoffset += chunk.removed - chunk.added
-        pos = pos + 1
     return reduce(operator.add, [h for h in applied.itervalues()
                                  if h[0].special() or len(h) > 1], [])
 
 def record(ui, repo, *pats, **opts):
     '''interactively select changes to commit
 
-    If a list of files is omitted, all changes reported by "hg status"
+    If a list of files is omitted, all changes reported by :hg:`status`
     will be candidates for recording.
 
-    See 'hg help dates' for a list of formats valid for -d/--date.
+    See :hg:`help dates` for a list of formats valid for -d/--date.
 
     You will be prompted for whether to record changes to each
     modified file, and for files with multiple changes, for each
     change to use. For each query, the following responses are
-    possible:
+    possible::
 
-    y - record this change
-    n - skip this change
+      y - record this change
+      n - skip this change
 
-    s - skip remaining changes to this file
-    f - record remaining changes to this file
+      s - skip remaining changes to this file
+      f - record remaining changes to this file
 
-    d - done, skip remaining changes and files
-    a - record all changes to all remaining files
-    q - quit, recording no changes
+      d - done, skip remaining changes and files
+      a - record all changes to all remaining files
+      q - quit, recording no changes
 
-    ? - display help'''
+      ? - display help
 
-    def record_committer(ui, repo, pats, opts):
-        commands.commit(ui, repo, *pats, **opts)
+    This command is not available when committing a merge.'''
 
-    dorecord(ui, repo, record_committer, *pats, **opts)
+    dorecord(ui, repo, commands.commit, *pats, **opts)
 
 
 def qrecord(ui, repo, patch, *pats, **opts):
     '''interactively record a new patch
 
-    See 'hg help qnew' & 'hg help record' for more information and
+    See :hg:`help qnew` & :hg:`help record` for more information and
     usage.
     '''
 
@@ -394,31 +399,36 @@ def qrecord(ui, repo, patch, *pats, **opts):
     except KeyError:
         raise util.Abort(_("'mq' extension not loaded"))
 
-    def qrecord_committer(ui, repo, pats, opts):
+    def committomq(ui, repo, *pats, **opts):
         mq.new(ui, repo, patch, *pats, **opts)
 
     opts = opts.copy()
     opts['force'] = True    # always 'qnew -f'
-    dorecord(ui, repo, qrecord_committer, *pats, **opts)
+    dorecord(ui, repo, committomq, *pats, **opts)
 
 
-def dorecord(ui, repo, committer, *pats, **opts):
+def dorecord(ui, repo, commitfunc, *pats, **opts):
     if not ui.interactive():
         raise util.Abort(_('running non-interactively, use commit instead'))
 
     def recordfunc(ui, repo, message, match, opts):
         """This is generic record driver.
 
-        It's job is to interactively filter local changes, and accordingly
+        Its job is to interactively filter local changes, and accordingly
         prepare working dir into a state, where the job can be delegated to
         non-interactive commit command such as 'commit' or 'qrefresh'.
 
         After the actual job is done by non-interactive command, working dir
         state is restored to original.
 
-        In the end we'll record intresting changes, and everything else will be
+        In the end we'll record interesting changes, and everything else will be
         left in place, so the user can continue his work.
         """
+
+        merge = len(repo[None].parents()) > 1
+        if merge:
+            raise util.Abort(_('cannot partially commit a merge '
+                               '(use hg commit instead)'))
 
         changes = repo.status(match=match)[:3]
         diffopts = mdiff.diffopts(git=True, nodates=True)
@@ -433,8 +443,10 @@ def dorecord(ui, repo, committer, *pats, **opts):
 
         contenders = set()
         for h in chunks:
-            try: contenders.update(set(h.files()))
-            except AttributeError: pass
+            try:
+                contenders.update(set(h.files()))
+            except AttributeError:
+                pass
 
         changed = changes[0] + changes[1] + changes[2]
         newfiles = [f for f in changed if f in contenders]
@@ -460,7 +472,7 @@ def dorecord(ui, repo, committer, *pats, **opts):
                 fd, tmpname = tempfile.mkstemp(prefix=f.replace('/', '_')+'.',
                                                dir=backupdir)
                 os.close(fd)
-                ui.debug(_('backup %r as %r\n') % (f, tmpname))
+                ui.debug('backup %r as %r\n' % (f, tmpname))
                 util.copyfile(repo.wjoin(f), tmpname)
                 backups[f] = tmpname
 
@@ -478,7 +490,7 @@ def dorecord(ui, repo, committer, *pats, **opts):
             # 3b. (apply)
             if dopatch:
                 try:
-                    ui.debug(_('applying patch\n'))
+                    ui.debug('applying patch\n')
                     ui.debug(fp.getvalue())
                     pfiles = {}
                     patch.internalpatch(fp, ui, 1, repo.root, files=pfiles,
@@ -500,7 +512,7 @@ def dorecord(ui, repo, committer, *pats, **opts):
             cwd = os.getcwd()
             os.chdir(repo.root)
             try:
-                committer(ui, repo, newfiles, opts)
+                commitfunc(ui, repo, *newfiles, **opts)
             finally:
                 os.chdir(cwd)
 
@@ -509,13 +521,24 @@ def dorecord(ui, repo, committer, *pats, **opts):
             # 5. finally restore backed-up files
             try:
                 for realname, tmpname in backups.iteritems():
-                    ui.debug(_('restoring %r to %r\n') % (tmpname, realname))
+                    ui.debug('restoring %r to %r\n' % (tmpname, realname))
                     util.copyfile(tmpname, repo.wjoin(realname))
                     os.unlink(tmpname)
                 os.rmdir(backupdir)
             except OSError:
                 pass
-    return cmdutil.commit(ui, repo, recordfunc, pats, opts)
+
+    # wrap ui.write so diff output can be labeled/colorized
+    def wrapwrite(orig, *args, **kw):
+        label = kw.pop('label', '')
+        for chunk, l in patch.difflabel(lambda: args):
+            orig(chunk, label=label + l)
+    oldwrite = ui.write
+    extensions.wrapfunction(ui, 'write', wrapwrite)
+    try:
+        return cmdutil.commit(ui, repo, recordfunc, pats, opts)
+    finally:
+        ui.write = oldwrite
 
 cmdtable = {
     "record":
@@ -528,7 +551,7 @@ cmdtable = {
 }
 
 
-def extsetup():
+def uisetup(ui):
     try:
         mq = extensions.find('mq')
     except KeyError:
@@ -539,7 +562,7 @@ def extsetup():
         (qrecord,
 
          # add qnew options, except '--force'
-         [opt for opt in mq.cmdtable['qnew'][1] if opt[1] != 'force'],
+         [opt for opt in mq.cmdtable['^qnew'][1] if opt[1] != 'force'],
 
          _('hg qrecord [OPTION]... PATCH [FILE]...')),
     }

@@ -3,12 +3,32 @@
 # Copyright 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import util, encoding
 import os, smtplib, socket, quopri
 import email.Header, email.MIMEText, email.Utils
+
+_oldheaderinit = email.Header.Header.__init__
+def _unifiedheaderinit(self, *args, **kw):
+    """
+    Python2.7 introduces a backwards incompatible change
+    (Python issue1974, r70772) in email.Generator.Generator code:
+    pre-2.7 code passed "continuation_ws='\t'" to the Header
+    constructor, and 2.7 removed this parameter.
+
+    Default argument is continuation_ws=' ', which means that the
+    behaviour is different in <2.7 and 2.7
+
+    We consider the 2.7 behaviour to be preferable, but need
+    to have an unified behaviour for versions 2.4 to 2.7
+    """
+    # override continuation_ws
+    kw['continuation_ws'] = ' '
+    _oldheaderinit(self, *args, **kw)
+
+email.Header.Header.__dict__['__init__'] = _unifiedheaderinit
 
 def _smtp(ui):
     '''build an smtp connection and return a function to send mail'''
@@ -16,7 +36,7 @@ def _smtp(ui):
     s = smtplib.SMTP(local_hostname=local_hostname)
     mailhost = ui.config('smtp', 'host')
     if not mailhost:
-        raise util.Abort(_('no [smtp]host in hgrc - cannot send mail'))
+        raise util.Abort(_('smtp.host not configured - cannot send mail'))
     mailport = int(ui.config('smtp', 'port', 25))
     ui.note(_('sending mail: smtp host %s, port %s\n') %
             (mailhost, mailport))
@@ -36,7 +56,10 @@ def _smtp(ui):
     if username and password:
         ui.note(_('(authenticating to mail server as %s)\n') %
                   (username))
-        s.login(username, password)
+        try:
+            s.login(username, password)
+        except smtplib.SMTPException, inst:
+            raise util.Abort(inst)
 
     def send(sender, recipients, msg):
         try:
@@ -157,16 +180,12 @@ def headencode(ui, s, charsets=None, display=False):
         return str(email.Header.Header(s, cs))
     return s
 
-def addressencode(ui, address, charsets=None, display=False):
-    '''Turns address into RFC-2047 compliant header.'''
-    if display or not address:
-        return address or ''
-    name, addr = email.Utils.parseaddr(address)
+def _addressencode(ui, name, addr, charsets=None):
     name = headencode(ui, name, charsets)
     try:
         acc, dom = addr.split('@')
         acc = acc.encode('ascii')
-        dom = dom.encode('idna')
+        dom = dom.decode(encoding.encoding).encode('idna')
         addr = '%s@%s' % (acc, dom)
     except UnicodeDecodeError:
         raise util.Abort(_('invalid email address: %s') % addr)
@@ -177,6 +196,26 @@ def addressencode(ui, address, charsets=None, display=False):
         except UnicodeDecodeError:
             raise util.Abort(_('invalid local address: %s') % addr)
     return email.Utils.formataddr((name, addr))
+
+def addressencode(ui, address, charsets=None, display=False):
+    '''Turns address into RFC-2047 compliant header.'''
+    if display or not address:
+        return address or ''
+    name, addr = email.Utils.parseaddr(address)
+    return _addressencode(ui, name, addr, charsets)
+
+def addrlistencode(ui, addrs, charsets=None, display=False):
+    '''Turns a list of addresses into a list of RFC-2047 compliant headers.
+    A single element of input list may contain multiple addresses, but output
+    always has one address per item'''
+    if display:
+        return [a.strip() for a in addrs if a.strip()]
+
+    result = []
+    for name, addr in email.Utils.getaddresses(addrs):
+        if name or addr:
+            result.append(_addressencode(ui, name, addr, charsets))
+    return result
 
 def mimeencode(ui, s, charsets=None, display=False):
     '''creates mime text object, encodes it if needed, and sets

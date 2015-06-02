@@ -146,6 +146,9 @@ hg glog a
 echo % unused arguments
 hg glog -q foo bar || echo failed
 
+echo % empty revision range - display nothing
+hg glog -r 1..0
+
 echo % from outer space
 cd ..
 hg glog -l1 repo
@@ -165,6 +168,9 @@ echo more >two
 hg commit -mmore
 hg glog two
 
+echo "% file log with explicit style (issue 1896)"
+hg glog --style=default one
+
 echo % incoming and outgoing
 cd ..
 hg clone -U -r31 repo repo2
@@ -172,3 +178,19 @@ cd repo2
 hg incoming --graph ../repo
 cd ..
 hg -R repo outgoing --graph repo2
+
+cd repo
+echo % file + limit with revs != cset revs
+touch b
+hg ci -Aqm0
+# this used to show only one cset
+hg glog -l2 a
+
+echo "% file + limit + -ra:b, (b - a) < limit"
+hg glog -l3000 -r32:tip a
+
+echo "% file + limit + -ra:b, b < tip"
+hg glog -l1 -r32:34 a
+
+echo "% file + limit + -ra:b, b < tip, (b - a) < limit"
+hg glog -l10 -r33:34 a

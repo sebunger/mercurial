@@ -58,9 +58,9 @@ f = urllib2.urlopen('http://127.0.0.1:%s/?cmd=archive;node=%s;type=%s'
                     % (os.environ['HGPORT'], node, archive))
 sys.stdout.write(f.read())
 EOF
-http_proxy= python getarchive.py "$TIP" gz | gunzip | tar tf - 2>/dev/null | sed "s/$QTIP/TIP/"
-http_proxy= python getarchive.py "$TIP" bz2 | bunzip2 | tar tf - 2>/dev/null | sed "s/$QTIP/TIP/"
-http_proxy= python getarchive.py "$TIP" zip > archive.zip
+python getarchive.py "$TIP" gz | gunzip | tar tf - 2>/dev/null | sed "s/$QTIP/TIP/"
+python getarchive.py "$TIP" bz2 | bunzip2 | tar tf - 2>/dev/null | sed "s/$QTIP/TIP/"
+python getarchive.py "$TIP" zip > archive.zip
 unzip -t archive.zip | sed "s/$QTIP/TIP/"
 
 "$TESTDIR/killdaemons.py"
@@ -73,6 +73,20 @@ bunzip2 -dc test.tar.bz2 | tar tf - 2>/dev/null
 
 hg archive -t tgz -p %b-%h test-%h.tar.gz
 gzip -dc test-$QTIP.tar.gz | tar tf - 2>/dev/null | sed "s/$QTIP/TIP/"
+
+hg archive autodetected_test.tar
+tar tf autodetected_test.tar
+
+# The '-t' should override autodetection
+hg archive -t tar autodetect_override_test.zip
+tar tf autodetect_override_test.zip
+
+for ext in tar tar.gz tgz tar.bz2 tbz2 zip; do
+    hg archive auto_test.$ext
+    if [ -d auto_test.$ext ]; then
+        echo "extension $ext was not autodetected."
+    fi
+done
 
 cat > md5comp.py <<EOF
 try:
@@ -108,6 +122,14 @@ if [ -f rev-0.tar ]; then
     echo 'rev-0.tar created'
 fi
 
+echo '% test .hg_archival.txt'
+hg archive ../test-tags
+cat ../test-tags/.hg_archival.txt
+hg tag -r 2 mytag
+hg tag -r 2 anothertag
+hg archive -r 2 ../test-lasttag
+cat ../test-lasttag/.hg_archival.txt
+
 hg archive -t bogus test.bogus
 
 echo % server errors
@@ -117,5 +139,12 @@ echo '% empty repo'
 hg init ../empty
 cd ../empty
 hg archive ../test-empty
+
+echo '% old file -- date clamped to 1980'
+touch -t 197501010000 old
+hg add old
+hg commit -m old
+hg archive ../old.zip
+unzip -l ../old.zip | grep 80 > /dev/null && echo ok
 
 exit 0

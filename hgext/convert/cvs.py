@@ -3,11 +3,11 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
-import os, locale, re, socket, errno
+import os, re, socket, errno
 from cStringIO import StringIO
-from mercurial import util
+from mercurial import encoding, util
 from mercurial.i18n import _
 
 from common import NoRepo, commit, converter_source, checktool
@@ -19,28 +19,18 @@ class convert_cvs(converter_source):
 
         cvs = os.path.join(path, "CVS")
         if not os.path.exists(cvs):
-            raise NoRepo("%s does not look like a CVS checkout" % path)
+            raise NoRepo(_("%s does not look like a CVS checkout") % path)
 
         checktool('cvs')
-        self.cmd = ui.config('convert', 'cvsps', 'builtin')
-        cvspsexe = self.cmd.split(None, 1)[0]
-        self.builtin = cvspsexe == 'builtin'
-        if not self.builtin:
-            ui.warn(_('warning: support for external cvsps is deprecated and '
-                      'will be removed in Mercurial 1.4\n'))
-
-        if not self.builtin:
-            checktool(cvspsexe)
 
         self.changeset = None
         self.files = {}
         self.tags = {}
         self.lastbranch = {}
-        self.parent = {}
         self.socket = None
-        self.cvsroot = file(os.path.join(cvs, "Root")).read()[:-1]
-        self.cvsrepo = file(os.path.join(cvs, "Repository")).read()[:-1]
-        self.encoding = locale.getpreferredencoding()
+        self.cvsroot = open(os.path.join(cvs, "Root")).read()[:-1]
+        self.cvsrepo = open(os.path.join(cvs, "Repository")).read()[:-1]
+        self.encoding = encoding.encoding
 
         self._connect()
 
@@ -50,19 +40,14 @@ class convert_cvs(converter_source):
         self.changeset = {}
 
         maxrev = 0
-        cmd = self.cmd
         if self.rev:
             # TODO: handle tags
             try:
                 # patchset number?
                 maxrev = int(self.rev)
             except ValueError:
-                try:
-                    # date
-                    util.parsedate(self.rev, ['%Y/%m/%d %H:%M:%S'])
-                    cmd = '%s -d "1970/01/01 00:00:01" -d "%s"' % (cmd, self.rev)
-                except util.Abort:
-                    raise util.Abort(_('revision %s is not a patchset number or date') % self.rev)
+                raise util.Abort(_('revision %s is not a patchset number')
+                                 % self.rev)
 
         d = os.getcwd()
         try:
@@ -71,116 +56,37 @@ class convert_cvs(converter_source):
             state = 0
             filerevids = {}
 
-            if self.builtin:
-                # builtin cvsps code
-                self.ui.status(_('using builtin cvsps\n'))
+            cache = 'update'
+            if not self.ui.configbool('convert', 'cvsps.cache', True):
+                cache = None
+            db = cvsps.createlog(self.ui, cache=cache)
+            db = cvsps.createchangeset(self.ui, db,
+                fuzz=int(self.ui.config('convert', 'cvsps.fuzz', 60)),
+                mergeto=self.ui.config('convert', 'cvsps.mergeto', None),
+                mergefrom=self.ui.config('convert', 'cvsps.mergefrom', None))
 
-                cache = 'update'
-                if not self.ui.configbool('convert', 'cvsps.cache', True):
-                    cache = None
-                db = cvsps.createlog(self.ui, cache=cache)
-                db = cvsps.createchangeset(self.ui, db,
-                      fuzz=int(self.ui.config('convert', 'cvsps.fuzz', 60)),
-                      mergeto=self.ui.config('convert', 'cvsps.mergeto', None),
-                      mergefrom=self.ui.config('convert', 'cvsps.mergefrom', None))
+            for cs in db:
+                if maxrev and cs.id > maxrev:
+                    break
+                id = str(cs.id)
+                cs.author = self.recode(cs.author)
+                self.lastbranch[cs.branch] = id
+                cs.comment = self.recode(cs.comment)
+                date = util.datestr(cs.date)
+                self.tags.update(dict.fromkeys(cs.tags, id))
 
-                for cs in db:
-                    if maxrev and cs.id>maxrev:
-                        break
-                    id = str(cs.id)
-                    cs.author = self.recode(cs.author)
-                    self.lastbranch[cs.branch] = id
-                    cs.comment = self.recode(cs.comment)
-                    date = util.datestr(cs.date)
-                    self.tags.update(dict.fromkeys(cs.tags, id))
+                files = {}
+                for f in cs.entries:
+                    files[f.file] = "%s%s" % ('.'.join([str(x)
+                                                        for x in f.revision]),
+                                              ['', '(DEAD)'][f.dead])
 
-                    files = {}
-                    for f in cs.entries:
-                        files[f.file] = "%s%s" % ('.'.join([str(x) for x in f.revision]),
-                                                  ['', '(DEAD)'][f.dead])
-
-                    # add current commit to set
-                    c = commit(author=cs.author, date=date,
-                             parents=[str(p.id) for p in cs.parents],
-                             desc=cs.comment, branch=cs.branch or '')
-                    self.changeset[id] = c
-                    self.files[id] = files
-            else:
-                # external cvsps
-                for l in util.popen(cmd):
-                    if state == 0: # header
-                        if l.startswith("PatchSet"):
-                            id = l[9:-2]
-                            if maxrev and int(id) > maxrev:
-                                # ignore everything
-                                state = 3
-                        elif l.startswith("Date:"):
-                            date = util.parsedate(l[6:-1], ["%Y/%m/%d %H:%M:%S"])
-                            date = util.datestr(date)
-                        elif l.startswith("Branch:"):
-                            branch = l[8:-1]
-                            self.parent[id] = self.lastbranch.get(branch, 'bad')
-                            self.lastbranch[branch] = id
-                        elif l.startswith("Ancestor branch:"):
-                            ancestor = l[17:-1]
-                            # figure out the parent later
-                            self.parent[id] = self.lastbranch[ancestor]
-                        elif l.startswith("Author:"):
-                            author = self.recode(l[8:-1])
-                        elif l.startswith("Tag:") or l.startswith("Tags:"):
-                            t = l[l.index(':')+1:]
-                            t = [ut.strip() for ut in t.split(',')]
-                            if (len(t) > 1) or (t[0] and (t[0] != "(none)")):
-                                self.tags.update(dict.fromkeys(t, id))
-                        elif l.startswith("Log:"):
-                            # switch to gathering log
-                            state = 1
-                            log = ""
-                    elif state == 1: # log
-                        if l == "Members: \n":
-                            # switch to gathering members
-                            files = {}
-                            oldrevs = []
-                            log = self.recode(log[:-1])
-                            state = 2
-                        else:
-                            # gather log
-                            log += l
-                    elif state == 2: # members
-                        if l == "\n": # start of next entry
-                            state = 0
-                            p = [self.parent[id]]
-                            if id == "1":
-                                p = []
-                            if branch == "HEAD":
-                                branch = ""
-                            if branch:
-                                latest = 0
-                                # the last changeset that contains a base
-                                # file is our parent
-                                for r in oldrevs:
-                                    latest = max(filerevids.get(r, 0), latest)
-                                if latest:
-                                    p = [latest]
-
-                            # add current commit to set
-                            c = commit(author=author, date=date, parents=p,
-                                       desc=log, branch=branch)
-                            self.changeset[id] = c
-                            self.files[id] = files
-                        else:
-                            colon = l.rfind(':')
-                            file = l[1:colon]
-                            rev = l[colon+1:-2]
-                            oldrev, rev = rev.split("->")
-                            files[file] = rev
-
-                            # save some information for identifying branch points
-                            oldrevs.append("%s:%s" % (oldrev, file))
-                            filerevids["%s:%s" % (rev, file)] = id
-                    elif state == 3:
-                        # swallow all input
-                        continue
+                # add current commit to set
+                c = commit(author=cs.author, date=date,
+                           parents=[str(p.id) for p in cs.parents],
+                           desc=cs.comment, branch=cs.branch or '')
+                self.changeset[id] = c
+                self.files[id] = files
 
             self.heads = self.lastbranch.values()
         finally:
@@ -282,8 +188,8 @@ class convert_cvs(converter_source):
         self.writep.flush()
         r = self.readp.readline()
         if not r.startswith("Valid-requests"):
-            raise util.Abort(_("unexpected response from CVS server "
-                               "(expected \"Valid-requests\", but got %r)")
+            raise util.Abort(_('unexpected response from CVS server '
+                               '(expected "Valid-requests", but got %r)')
                              % r)
         if "UseUnchanged" in r:
             self.writep.write("UseUnchanged\n")
@@ -294,7 +200,7 @@ class convert_cvs(converter_source):
         self._parse()
         return self.heads
 
-    def _getfile(self, name, rev):
+    def getfile(self, name, rev):
 
         def chunkedread(fp, count):
             # file-objects returned by socked.makefile() do not handle
@@ -304,11 +210,13 @@ class convert_cvs(converter_source):
             while count > 0:
                 data = fp.read(min(count, chunksize))
                 if not data:
-                    raise util.Abort(_("%d bytes missing from remote file") % count)
+                    raise util.Abort(_("%d bytes missing from remote file")
+                                     % count)
                 count -= len(data)
                 output.write(data)
             return output.getvalue()
 
+        self._parse()
         if rev.endswith("(DEAD)"):
             raise IOError
 
@@ -320,6 +228,7 @@ class convert_cvs(converter_source):
         self.writep.flush()
 
         data = ""
+        mode = None
         while 1:
             line = self.readp.readline()
             if line.startswith("Created ") or line.startswith("Updated "):
@@ -337,6 +246,8 @@ class convert_cvs(converter_source):
                 data = chunkedread(self.readp, count)
             else:
                 if line == "ok\n":
+                    if mode is None:
+                        raise util.Abort(_('malformed response from CVS'))
                     return (data, "x" in mode and "x" or "")
                 elif line.startswith("E "):
                     self.ui.warn(_("cvs server: %s\n") % line[2:])
@@ -345,18 +256,8 @@ class convert_cvs(converter_source):
                 else:
                     raise util.Abort(_("unknown CVS response: %s") % line)
 
-    def getfile(self, file, rev):
-        self._parse()
-        data, mode = self._getfile(file, rev)
-        self.modecache[(file, rev)] = mode
-        return data
-
-    def getmode(self, file, rev):
-        return self.modecache[(file, rev)]
-
     def getchanges(self, rev):
         self._parse()
-        self.modecache = {}
         return sorted(self.files[rev].iteritems()), {}
 
     def getcommit(self, rev):

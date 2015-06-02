@@ -86,8 +86,9 @@ hg bisect -g
 set +e
 
 echo % test invalid command
+# assuming that the shell returns 127 if command not found ...
 hg bisect -r
-hg bisect --command 'foobar'
+hg bisect --command 'exit 127'
 
 echo % test bisecting command
 cat > script.py <<EOF
@@ -102,5 +103,5 @@ chmod +x script.py
 hg bisect -r
 hg bisect --good tip
 hg bisect --bad 0
-hg bisect --command "`pwd`/script.py"
+hg bisect --command "'`pwd`/script.py' and some parameters"
 true

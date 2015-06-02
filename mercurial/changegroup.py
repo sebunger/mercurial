@@ -3,14 +3,14 @@
 #  Copyright 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import util
 import struct, os, bz2, zlib, tempfile
 
 def getchunk(source):
-    """get a chunk from a changegroup"""
+    """return the next chunk from changegroup 'source' as a string"""
     d = source.read(4)
     if not d:
         return ""
@@ -24,19 +24,23 @@ def getchunk(source):
                           % (len(d), l - 4))
     return d
 
-def chunkiter(source):
-    """iterate through the chunks in source"""
+def chunkiter(source, progress=None):
+    """iterate through the chunks in source, yielding a sequence of chunks
+    (strings)"""
     while 1:
         c = getchunk(source)
         if not c:
             break
+        elif progress is not None:
+            progress()
         yield c
 
 def chunkheader(length):
-    """build a changegroup chunk header"""
+    """return a changegroup chunk header (string)"""
     return struct.pack(">l", length + 4)
 
 def closechunk():
+    """return a changegroup chunk header (string) for a zero-length chunk"""
     return struct.pack(">l", 0)
 
 class nocompress(object):
@@ -52,7 +56,17 @@ bundletypes = {
     "HG10GZ": ("HG10GZ", lambda: zlib.compressobj()),
 }
 
-# hgweb uses this list to communicate it's preferred type
+def collector(cl, mmfs, files):
+    # Gather information about changeset nodes going out in a bundle.
+    # We want to gather manifests needed and filelogs affected.
+    def collect(node):
+        c = cl.read(node)
+        for fn in c[3]:
+            files.setdefault(fn, fn)
+        mmfs.setdefault(c[0], node)
+    return collect
+
+# hgweb uses this list to communicate its preferred type
 bundlepriority = ['HG10GZ', 'HG10BZ', 'HG10UN']
 
 def writebundle(cg, filename, bundletype):

@@ -17,7 +17,7 @@ marked working directory as branch stable
  <entry>
   <title>branch</title>
   <id>http://127.0.0.1/#changeset-1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe</id>
-  <link href="http://127.0.0.1/rev/1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe"/>
+  <link href="http://127.0.0.1/rev/1d22e65f027e"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -33,7 +33,7 @@ marked working directory as branch stable
  <entry>
   <title>Added tag 1.0 for changeset 2ef0ac749a14</title>
   <id>http://127.0.0.1/#changeset-a4f92ed23982be056b9852de5dfe873eaac7f0de</id>
-  <link href="http://127.0.0.1/rev/a4f92ed23982be056b9852de5dfe873eaac7f0de"/>
+  <link href="http://127.0.0.1/rev/a4f92ed23982"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -49,7 +49,7 @@ marked working directory as branch stable
  <entry>
   <title>base</title>
   <id>http://127.0.0.1/#changeset-2ef0ac749a14e4f57a5a822464a0902c6f7f448f</id>
-  <link href="http://127.0.0.1/rev/2ef0ac749a14e4f57a5a822464a0902c6f7f448f"/>
+  <link href="http://127.0.0.1/rev/2ef0ac749a14"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -78,7 +78,7 @@ marked working directory as branch stable
  <entry>
   <title>branch</title>
   <id>http://127.0.0.1/#changeset-1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe</id>
-  <link href="http://127.0.0.1/rev/1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe"/>
+  <link href="http://127.0.0.1/rev/1d22e65f027e"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -94,7 +94,7 @@ marked working directory as branch stable
  <entry>
   <title>Added tag 1.0 for changeset 2ef0ac749a14</title>
   <id>http://127.0.0.1/#changeset-a4f92ed23982be056b9852de5dfe873eaac7f0de</id>
-  <link href="http://127.0.0.1/rev/a4f92ed23982be056b9852de5dfe873eaac7f0de"/>
+  <link href="http://127.0.0.1/rev/a4f92ed23982"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -110,7 +110,7 @@ marked working directory as branch stable
  <entry>
   <title>base</title>
   <id>http://127.0.0.1/#changeset-2ef0ac749a14e4f57a5a822464a0902c6f7f448f</id>
-  <link href="http://127.0.0.1/rev/2ef0ac749a14e4f57a5a822464a0902c6f7f448f"/>
+  <link href="http://127.0.0.1/rev/2ef0ac749a14"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -137,7 +137,7 @@ marked working directory as branch stable
  <entry>
   <title>base</title>
   <id>http://127.0.0.1/#changeset-2ef0ac749a14e4f57a5a822464a0902c6f7f448f</id>
-  <link href="http://127.0.0.1/rev/2ef0ac749a14e4f57a5a822464a0902c6f7f448f"/>
+  <link href="http://127.0.0.1/rev/2ef0ac749a14"/>
   <author>
    <name>test</name>
    <email>&#116;&#101;&#115;&#116;</email>
@@ -201,7 +201,11 @@ marked working directory as branch stable
 files, or words in the commit message</div>
 </form>
 
-<div class="navigate">rev 2: <a href="/shortlog/2ef0ac749a14">(0)</a> <a href="/shortlog/tip">tip</a> </div>
+<div class="navigate">
+<a href="/shortlog/2?revcount=30">less</a>
+<a href="/shortlog/2?revcount=120">more</a>
+| rev 2: <a href="/shortlog/2ef0ac749a14">(0)</a> <a href="/shortlog/tip">tip</a> 
+</div>
 
 <table class="bigtable">
  <tr>
@@ -210,24 +214,29 @@ files, or words in the commit message</div>
   <th class="description">description</th>
  </tr>
  <tr class="parity0">
-  <td class="age">many years</td>
+  <td class="age">1970-01-01</td>
   <td class="author">test</td>
   <td class="description"><a href="/rev/1d22e65f027e">branch</a><span class="branchhead">stable</span> <span class="tag">tip</span> </td>
  </tr>
  <tr class="parity1">
-  <td class="age">many years</td>
+  <td class="age">1970-01-01</td>
   <td class="author">test</td>
   <td class="description"><a href="/rev/a4f92ed23982">Added tag 1.0 for changeset 2ef0ac749a14</a><span class="branchhead">default</span> </td>
  </tr>
  <tr class="parity0">
-  <td class="age">many years</td>
+  <td class="age">1970-01-01</td>
   <td class="author">test</td>
   <td class="description"><a href="/rev/2ef0ac749a14">base</a><span class="tag">1.0</span> </td>
  </tr>
 
 </table>
 
-<div class="navigate">rev 2: <a href="/shortlog/2ef0ac749a14">(0)</a> <a href="/shortlog/tip">tip</a> </div>
+<div class="navigate">
+<a href="/shortlog/2?revcount=30">less</a>
+<a href="/shortlog/2?revcount=120">more</a>
+| rev 2: <a href="/shortlog/2ef0ac749a14">(0)</a> <a href="/shortlog/tip">tip</a> 
+</div>
+
 </div>
 </div>
 
@@ -291,7 +300,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th class="date">date</th>
- <td class="date">Thu Jan 01 00:00:00 1970 +0000 (many years ago)</td></tr>
+ <td class="date">Thu Jan 01 00:00:00 1970 +0000 (1970-01-01)</td></tr>
 <tr>
  <th class="author">parents</th>
  <td class="author"></td>
@@ -337,10 +346,81 @@ files, or words in the commit message</div>
 # Parent  2ef0ac749a14e4f57a5a822464a0902c6f7f448f
 Added tag 1.0 for changeset 2ef0ac749a14
 
+diff -r 2ef0ac749a14 -r a4f92ed23982 .hgtags
 --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
 +++ b/.hgtags	Thu Jan 01 00:00:00 1970 +0000
 @@ -0,0 +1,1 @@
 +2ef0ac749a14e4f57a5a822464a0902c6f7f448f 1.0
+
+200 Script output follows
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US">
+<head>
+<link rel="icon" href="/static/hgicon.png" type="image/png" />
+<meta name="robots" content="index, nofollow" />
+<link rel="stylesheet" href="/static/style-paper.css" type="text/css" />
+
+<title>test: searching for base</title>
+</head>
+<body>
+
+<div class="container">
+<div class="menu">
+<div class="logo">
+<a href="http://mercurial.selenic.com/">
+<img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial"></a>
+</div>
+<ul>
+<li><a href="/shortlog">log</a></li>
+<li><a href="/graph">graph</a></li>
+<li><a href="/tags">tags</a></li>
+<li><a href="/branches">branches</a></li>
+</ul>
+</div>
+
+<div class="main">
+<h2><a href="/">test</a></h2>
+<h3>searching for 'base'</h3>
+
+<form class="search" action="/log">
+
+<p><input name="rev" id="search1" type="text" size="30"></p>
+<div id="hint">find changesets by author, revision,
+files, or words in the commit message</div>
+</form>
+
+<div class="navigate">
+<a href="/search/?rev=base&revcount=5">less</a>
+<a href="/search/?rev=base&revcount=20">more</a>
+</div>
+
+<table class="bigtable">
+ <tr>
+  <th class="age">age</th>
+  <th class="author">author</th>
+  <th class="description">description</th>
+ </tr>
+ <tr class="parity0">
+  <td class="age">1970-01-01</td>
+  <td class="author">test</td>
+  <td class="description"><a href="/rev/2ef0ac749a14">base</a><span class="tag">1.0</span> </td>
+ </tr>
+
+</table>
+
+<div class="navigate">
+<a href="/search/?rev=base&revcount=5">less</a>
+<a href="/search/?rev=base&revcount=20">more</a>
+</div>
+
+</div>
+</div>
+
+
+
+</body>
+</html>
 
 % File-related
 200 Script output follows
@@ -393,6 +473,7 @@ drwxr-xr-x da
 </ul>
 <ul>
 <li class="active">file</li>
+<li><a href="/file/tip/foo">latest</a></li>
 <li><a href="/diff/a4f92ed23982/foo">diff</a></li>
 <li><a href="/annotate/a4f92ed23982/foo">annotate</a></li>
 <li><a href="/log/a4f92ed23982/foo">file log</a></li>
@@ -420,7 +501,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th class="date">date</th>
- <td class="date">Thu Jan 01 00:00:00 1970 +0000 (many years ago)</td>
+ <td class="date">Thu Jan 01 00:00:00 1970 +0000 (1970-01-01)</td>
 </tr>
 <tr>
  <th class="author">parents</th>
@@ -451,6 +532,7 @@ files, or words in the commit message</div>
 200 Script output follows
 
 
+diff -r 000000000000 -r a4f92ed23982 foo
 --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
 +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
 @@ -0,0 +1,1 @@
@@ -462,97 +544,12 @@ files, or words in the commit message</div>
 % Overviews
 200 Script output follows
 
-<?xml version="1.0" encoding="ascii"?>
-<feed xmlns="http://127.0.0.1/2005/Atom">
- <id>http://127.0.0.1/</id>
- <link rel="self" href="http://127.0.0.1/atom-tags"/>
- <link rel="alternate" href="http://127.0.0.1/tags"/>
- <title>test: tags</title>
- <summary>test tag history</summary>
- <author><name>Mercurial SCM</name></author>
- <updated>1970-01-01T00:00:00+00:00</updated>
-
- <entry>
-  <title>1.0</title>
-  <link rel="alternate" href="http://127.0.0.1/rev/2ef0ac749a14e4f57a5a822464a0902c6f7f448f"/>
-  <id>http://127.0.0.1/#tag-2ef0ac749a14e4f57a5a822464a0902c6f7f448f</id>
-  <updated>1970-01-01T00:00:00+00:00</updated>
-  <published>1970-01-01T00:00:00+00:00</published>
-  <content type="text">1.0</content>
- </entry>
-
-</feed>
+tip	1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe
+1.0	2ef0ac749a14e4f57a5a822464a0902c6f7f448f
 200 Script output follows
 
-<?xml version="1.0" encoding="ascii"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://127.0.0.1/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://127.0.0.1/1999/xhtml" xml:lang="en-US" lang="en-US">
-<head>
-<link rel="icon" href="/static/hgicon.png" type="image/png" />
-<meta name="robots" content="index, nofollow"/>
-<link rel="stylesheet" href="/static/style-gitweb.css" type="text/css" />
-
-
-<title>test: Branches</title>
-<link rel="alternate" type="application/atom+xml"
-   href="/atom-tags" title="Atom feed for test"/>
-<link rel="alternate" type="application/rss+xml"
-   href="/rss-tags" title="RSS feed for test"/>
-</head>
-<body>
-
-<div class="page_header">
-<a href="http://127.0.0.1/" title="Mercurial" style="float: right;">Mercurial</a><a href="/summary?style=gitweb">test</a> / branches
-</div>
-
-<div class="page_nav">
-<a href="/summary?style=gitweb">summary</a> |
-<a href="/shortlog?style=gitweb">shortlog</a> |
-<a href="/log?style=gitweb">changelog</a> |
-<a href="/graph?style=gitweb">graph</a> |
-<a href="/tags?style=gitweb">tags</a> |
-branches |
-<a href="/file/1d22e65f027e?style=gitweb">files</a>
-<br/>
-</div>
-
-<div class="title">&nbsp;</div>
-<table cellspacing="0">
-
-<tr class="parity0">
-<td class="age"><i>many years ago</i></td>
-<td><a class="list" href="/shortlog/1d22e65f027e?style=gitweb"><b>1d22e65f027e</b></a></td>
-<td class="open">stable</td>
-<td class="link">
-<a href="/changeset/1d22e65f027e?style=gitweb">changeset</a> |
-<a href="/log/1d22e65f027e?style=gitweb">changelog</a> |
-<a href="/file/1d22e65f027e?style=gitweb">files</a>
-</td>
-</tr>
-<tr class="parity1">
-<td class="age"><i>many years ago</i></td>
-<td><a class="list" href="/shortlog/a4f92ed23982?style=gitweb"><b>a4f92ed23982</b></a></td>
-<td class="inactive">default</td>
-<td class="link">
-<a href="/changeset/a4f92ed23982?style=gitweb">changeset</a> |
-<a href="/log/a4f92ed23982?style=gitweb">changelog</a> |
-<a href="/file/a4f92ed23982?style=gitweb">files</a>
-</td>
-</tr>
-</table>
-
-<div class="page_footer">
-<div class="page_footer_text">test</div>
-<div class="rss_logo">
-<a href="/rss-log">RSS</a>
-<a href="/atom-log">Atom</a>
-</div>
-<br />
-
-</div>
-</body>
-</html>
-
+stable	1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe	open
+default	a4f92ed23982be056b9852de5dfe873eaac7f0de	inactive
 200 Script output follows
 
 <?xml version="1.0" encoding="ascii"?>
@@ -605,7 +602,7 @@ summary |
 <table cellspacing="0">
 
 <tr class="parity0">
-<td class="age"><i>many years ago</i></td>
+<td class="age"><i>1970-01-01</i></td>
 <td><i>test</i></td>
 <td>
 <a class="list" href="/rev/1d22e65f027e?style=gitweb">
@@ -619,7 +616,7 @@ summary |
 </td>
 </tr>
 <tr class="parity1">
-<td class="age"><i>many years ago</i></td>
+<td class="age"><i>1970-01-01</i></td>
 <td><i>test</i></td>
 <td>
 <a class="list" href="/rev/a4f92ed23982?style=gitweb">
@@ -633,7 +630,7 @@ summary |
 </td>
 </tr>
 <tr class="parity0">
-<td class="age"><i>many years ago</i></td>
+<td class="age"><i>1970-01-01</i></td>
 <td><i>test</i></td>
 <td>
 <a class="list" href="/rev/2ef0ac749a14?style=gitweb">
@@ -653,7 +650,7 @@ summary |
 <table cellspacing="0">
 
 <tr class="parity0">
-<td class="age"><i>many years ago</i></td>
+<td class="age"><i>1970-01-01</i></td>
 <td><a class="list" href="/rev/2ef0ac749a14?style=gitweb"><b>1.0</b></a></td>
 <td class="link">
 <a href="/rev/2ef0ac749a14?style=gitweb">changeset</a> |
@@ -668,7 +665,7 @@ summary |
 <table cellspacing="0">
 
 <tr class="parity0">
-<td class="age"><i>many years ago</i></td>
+<td class="age"><i>1970-01-01</i></td>
 <td><a class="list" href="/shortlog/1d22e65f027e?style=gitweb"><b>1d22e65f027e</b></a></td>
 <td class="">stable</td>
 <td class="link">
@@ -678,7 +675,7 @@ summary |
 </td>
 </tr>
 <tr class="parity1">
-<td class="age"><i>many years ago</i></td>
+<td class="age"><i>1970-01-01</i></td>
 <td><a class="list" href="/shortlog/a4f92ed23982?style=gitweb"><b>a4f92ed23982</b></a></td>
 <td class="">default</td>
 <td class="link">
@@ -742,8 +739,8 @@ graph |
 <a href="/branches?style=gitweb">branches</a> |
 <a href="/file/1d22e65f027e?style=gitweb">files</a>
 <br/>
-<a href="/graph/2?style=gitweb&revcount=12">less</a>
-<a href="/graph/2?style=gitweb&revcount=50">more</a>
+<a href="/graph/2?style=gitweb&revcount=30">less</a>
+<a href="/graph/2?style=gitweb&revcount=120">more</a>
 | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/2ef0ac749a14?style=gitweb">-2</a> <a href="/graph/tip?style=gitweb">tip</a> <br/>
 </div>
 
@@ -761,7 +758,7 @@ graph |
 <script>
 <!-- hide script content
 
-var data = [["1d22e65f027e", [0, 1], [[0, 0, 1]], "branch", "test", "many years", ["stable", true], ["tip"]], ["a4f92ed23982", [0, 1], [[0, 0, 1]], "Added tag 1.0 for changeset 2ef0ac749a14", "test", "many years", ["default", true], []], ["2ef0ac749a14", [0, 1], [], "base", "test", "many years", ["default", false], ["1.0"]]];
+var data = [["1d22e65f027e", [0, 1], [[0, 0, 1]], "branch", "test", "1970-01-01", ["stable", true], ["tip"]], ["a4f92ed23982", [0, 1], [[0, 0, 1]], "Added tag 1.0 for changeset 2ef0ac749a14", "test", "1970-01-01", ["default", true], []], ["2ef0ac749a14", [0, 1], [], "base", "test", "1970-01-01", ["default", false], ["1.0"]]];
 var graph = new Graph();
 graph.scale(39);
 
@@ -778,7 +775,7 @@ graph.edge = function(x0, y0, x1, y1, color) {
 var revlink = '<li style="_STYLE"><span class="desc">';
 revlink += '<a class="list" href="/rev/_NODEID?style=gitweb" title="_NODEID"><b>_DESC</b></a>';
 revlink += '</span> _TAGS';
-revlink += '<span class="info">_DATE ago, by _USER</span></li>';
+revlink += '<span class="info">_DATE, by _USER</span></li>';
 
 graph.vertex = function(x, y, color, parity, cur) {
 	
@@ -828,8 +825,8 @@ graph.render(data);
 </script>
 
 <div class="page_nav">
-<a href="/graph/2?style=gitweb&revcount=12">less</a>
-<a href="/graph/2?style=gitweb&revcount=50">more</a>
+<a href="/graph/2?style=gitweb&revcount=30">less</a>
+<a href="/graph/2?style=gitweb&revcount=120">more</a>
 | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/2ef0ac749a14?style=gitweb">-2</a> <a href="/graph/tip?style=gitweb">tip</a> 
 </div>
 
@@ -848,7 +845,7 @@ graph.render(data);
 % capabilities
 200 Script output follows
 
-lookup changegroupsubset branchmap unbundle=HG10GZ,HG10BZ,HG10UN% heads
+lookup changegroupsubset branchmap pushkey unbundle=HG10GZ,HG10BZ,HG10UN% heads
 200 Script output follows
 
 1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe
@@ -873,7 +870,7 @@ x\x9c\xbdTMHUA\x14\xbe\xa8\xf9\xec\xda&\x10\x11*\xb8\x88\x81\x99\xbef\xe6\xce\xb
 
 1
 % failing unbundle, requires POST request
-405 Method Not Allowed
+405 push requires POST request
 
 0
 push requires POST request
@@ -985,4 +982,7 @@ ul#graphnodes li .info {
 	position: relative;
 	top: -1px;
 }
+% Stop and restart with HGENCODING=cp932
+% Graph json escape of multibyte character
+var data = [["40b4d6888e92", [0, 1], [[0, 0, 1]], "\u80fd", "test", "1970-01-01", ["stable", true], ["tip"]], ["1d22e65f027e", [0, 1], [[0, 0, 1]], "branch", "test", "1970-01-01", ["stable", false], []], ["a4f92ed23982", [0, 1], [[0, 0, 1]], "Added tag 1.0 for changeset 2ef0ac749a14", "test", "1970-01-01", ["default", true], []], ["2ef0ac749a14", [0, 1], [], "base", "test", "1970-01-01", ["default", false], ["1.0"]]];
 % ERRORS ENCOUNTERED

@@ -16,7 +16,7 @@ hg tag 1.0
 echo another > foo
 hg branch stable
 hg ci -Ambranch
-hg serve -n test -p $HGPORT -d --pid-file=hg.pid -E errors.log
+hg serve --config server.uncompressed=False -n test -p $HGPORT -d --pid-file=hg.pid -E errors.log
 cat hg.pid >> $DAEMON_PIDS
 
 echo % Logs and changes
@@ -26,6 +26,7 @@ echo % Logs and changes
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/shortlog/'
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/rev/0/'
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/rev/1/?style=raw'
+"$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/log?rev=base'
 
 echo % File-related
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/file/1/foo/?style=raw'
@@ -35,8 +36,8 @@ echo % File-related
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/filediff/1/foo/?style=raw'
 
 echo % Overviews
-"$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/tags/?style=atom' | sed "s/http:\/\/[^/]*\//http:\/\/127.0.0.1\//"
-"$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/branches/?style=gitweb' | sed "s/http:\/\/[^/]*\//http:\/\/127.0.0.1\//"
+"$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/raw-tags'
+"$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/raw-branches'
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/summary/?style=gitweb'
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/graph/?style=gitweb'
 
@@ -58,6 +59,20 @@ echo % failing unbundle, requires POST request
 
 echo % Static files
 "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/static/style.css'
+
+echo % Stop and restart with HGENCODING=cp932
+"$TESTDIR/killdaemons.py"
+HGENCODING=cp932 hg serve --config server.uncompressed=False -n test \
+    -p $HGPORT -d --pid-file=hg.pid -E errors.log
+cat hg.pid >> $DAEMON_PIDS
+
+# commit message with Japanese Kanji 'Noh', which ends with '\x5c'
+echo foo >> foo
+HGENCODING=cp932 hg ci -m `python -c 'print("\x94\x5c")'`
+
+echo % Graph json escape of multibyte character
+"$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '/graph/' \
+    | grep '^var data ='
 
 echo % ERRORS ENCOUNTERED
 cat errors.log

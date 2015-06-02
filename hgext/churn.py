@@ -4,13 +4,13 @@
 # Copyright 2008 Alexander Solovyov <piranha@piranha.org.ua>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''command to display statistics about repository history'''
 
 from mercurial.i18n import _
-from mercurial import patch, cmdutil, util, templater
-import sys, os
+from mercurial import patch, cmdutil, util, templater, commands
+import os
 import time, datetime
 
 def maketemplater(ui, repo, tmpl):
@@ -23,14 +23,15 @@ def maketemplater(ui, repo, tmpl):
     return t
 
 def changedlines(ui, repo, ctx1, ctx2, fns):
-    lines = 0
-    fmatch = cmdutil.match(repo, pats=fns)
+    added, removed = 0, 0
+    fmatch = cmdutil.matchfiles(repo, fns)
     diff = ''.join(patch.diff(repo, ctx1.node(), ctx2.node(), fmatch))
     for l in diff.split('\n'):
-        if (l.startswith("+") and not l.startswith("+++ ") or
-            l.startswith("-") and not l.startswith("--- ")):
-            lines += 1
-    return lines
+        if l.startswith("+") and not l.startswith("+++ "):
+            added += 1
+        elif l.startswith("-") and not l.startswith("--- "):
+            removed += 1
+    return (added, removed)
 
 def countrate(ui, repo, amap, *pats, **opts):
     """Calculate stats"""
@@ -47,46 +48,39 @@ def countrate(ui, repo, amap, *pats, **opts):
             tmpl.show(ctx)
             return ui.popbuffer()
 
-    count = pct = 0
+    state = {'count': 0}
     rate = {}
     df = False
     if opts.get('date'):
         df = util.matchdate(opts['date'])
 
-    get = util.cachefunc(lambda r: repo[r].changeset())
-    changeiter, matchfn = cmdutil.walkchangerevs(ui, repo, pats, get, opts)
-    for st, rev, fns in changeiter:
-        if not st == 'add':
-            continue
-        if df and not df(get(rev)[2][0]): # doesn't match date format
-            continue
+    m = cmdutil.match(repo, pats, opts)
+    def prep(ctx, fns):
+        rev = ctx.rev()
+        if df and not df(ctx.date()[0]): # doesn't match date format
+            return
 
-        ctx = repo[rev]
         key = getkey(ctx)
         key = amap.get(key, key) # alias remap
         if opts.get('changesets'):
-            rate[key] = rate.get(key, 0) + 1
+            rate[key] = (rate.get(key, (0,))[0] + 1, 0)
         else:
             parents = ctx.parents()
             if len(parents) > 1:
                 ui.note(_('Revision %d is a merge, ignoring...\n') % (rev,))
-                continue
+                return
 
             ctx1 = parents[0]
             lines = changedlines(ui, repo, ctx1, ctx, fns)
-            rate[key] = rate.get(key, 0) + lines
+            rate[key] = [r + l for r, l in zip(rate.get(key, (0, 0)), lines)]
 
-        if opts.get('progress'):
-            count += 1
-            newpct = int(100.0 * count / max(len(repo), 1))
-            if pct < newpct:
-                pct = newpct
-                ui.write("\r" + _("generating stats: %d%%") % pct)
-                sys.stdout.flush()
+        state['count'] += 1
+        ui.progress(_('analyzing'), state['count'], total=len(repo))
 
-    if opts.get('progress'):
-        ui.write("\r")
-        sys.stdout.flush()
+    for ctx in cmdutil.walkchangerevs(repo, m, opts, prep):
+        continue
+
+    ui.progress(_('analyzing'), None)
 
     return rate
 
@@ -104,7 +98,7 @@ def churn(ui, repo, *pats, **opts):
     alternatively the number of matching revisions if the
     --changesets option is specified.
 
-    Examples:
+    Examples::
 
       # display count of changed lines for every committer
       hg churn -t '{author|email}'
@@ -119,12 +113,12 @@ def churn(ui, repo, *pats, **opts):
       hg churn -f '%Y' -s
 
     It is possible to map alternate email addresses to a main address
-    by providing a file using the following format:
+    by providing a file using the following format::
 
-    <alias email> <actual email>
+      <alias email> = <actual email>
 
-    Such a file may be specified with the --aliases option, otherwise a
-    .hgchurn file will be looked for in the working directory root.
+    Such a file may be specified with the --aliases option, otherwise
+    a .hgchurn file will be looked for in the working directory root.
     '''
     def pad(s, l):
         return (s + " " * l)[:l]
@@ -135,40 +129,68 @@ def churn(ui, repo, *pats, **opts):
         aliases = repo.wjoin('.hgchurn')
     if aliases:
         for l in open(aliases, "r"):
-            l = l.strip()
-            alias, actual = l.split()
-            amap[alias] = actual
+            try:
+                alias, actual = l.split('=' in l and '=' or None, 1)
+                amap[alias.strip()] = actual.strip()
+            except ValueError:
+                l = l.strip()
+                if l:
+                    ui.warn(_("skipping malformed alias: %s\n" % l))
+                continue
 
     rate = countrate(ui, repo, amap, *pats, **opts).items()
     if not rate:
         return
 
-    sortfn = ((not opts.get('sort')) and (lambda a, b: cmp(b[1], a[1])) or None)
-    rate.sort(sortfn)
+    sortkey = ((not opts.get('sort')) and (lambda x: -sum(x[1])) or None)
+    rate.sort(key=sortkey)
 
-    maxcount = float(max([v for k, v in rate]))
-    maxname = max([len(k) for k, v in rate])
+    # Be careful not to have a zero maxcount (issue833)
+    maxcount = float(max(sum(v) for k, v in rate)) or 1.0
+    maxname = max(len(k) for k, v in rate)
 
     ttywidth = util.termwidth()
-    ui.debug(_("assuming %i character terminal\n") % ttywidth)
-    width = ttywidth - maxname - 2 - 6 - 2 - 2
+    ui.debug("assuming %i character terminal\n" % ttywidth)
+    width = ttywidth - maxname - 2 - 2 - 2
 
-    for date, count in rate:
-        print "%s %6d %s" % (pad(date, maxname), count,
-                             "*" * int(count * width / maxcount))
+    if opts.get('diffstat'):
+        width -= 15
+        def format(name, (added, removed)):
+            return "%s %15s %s%s\n" % (pad(name, maxname),
+                                       '+%d/-%d' % (added, removed),
+                                       ui.label('+' * charnum(added),
+                                                'diffstat.inserted'),
+                                       ui.label('-' * charnum(removed),
+                                                'diffstat.deleted'))
+    else:
+        width -= 6
+        def format(name, count):
+            return "%s %6d %s\n" % (pad(name, maxname), sum(count),
+                                    '*' * charnum(sum(count)))
+
+    def charnum(count):
+        return int(round(count * width / maxcount))
+
+    for name, count in rate:
+        ui.write(format(name, count))
 
 
 cmdtable = {
     "churn":
         (churn,
-         [('r', 'rev', [], _('count rate for the specified revision or range')),
-          ('d', 'date', '', _('count rate for revisions matching date spec')),
-          ('t', 'template', '{author|email}', _('template to group changesets')),
+         [('r', 'rev', [],
+           _('count rate for the specified revision or range'), _('REV')),
+          ('d', 'date', '',
+           _('count rate for revisions matching date spec'), _('DATE')),
+          ('t', 'template', '{author|email}',
+           _('template to group changesets'), _('TEMPLATE')),
           ('f', 'dateformat', '',
-              _('strftime-compatible format for grouping by date')),
+           _('strftime-compatible format for grouping by date'), _('FORMAT')),
           ('c', 'changesets', False, _('count rate by number of changesets')),
           ('s', 'sort', False, _('sort by key (default: sort by count)')),
-          ('', 'aliases', '', _('file with email aliases')),
-          ('', 'progress', None, _('show progress'))],
-         _("hg churn [-d DATE] [-r REV] [--aliases FILE] [--progress] [FILE]")),
+          ('', 'diffstat', False, _('display added/removed lines separately')),
+          ('', 'aliases', '',
+           _('file with email aliases'), _('FILE')),
+          ] + commands.walkopts,
+         _("hg churn [-d DATE] [-r REV] [--aliases FILE] [FILE]")),
 }

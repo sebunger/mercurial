@@ -5,7 +5,7 @@
 #  Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 """Mercurial utility functions and platform specfic implementations.
 
@@ -14,9 +14,9 @@ hide platform-specific details from the core.
 """
 
 from i18n import _
-import error, osutil
-import cStringIO, errno, re, shutil, sys, tempfile, traceback
-import os, stat, time, calendar, random, textwrap
+import error, osutil, encoding
+import errno, re, shutil, sys, tempfile, traceback
+import os, stat, time, calendar, textwrap, unicodedata, signal
 import imp
 
 # Python compatibility
@@ -28,29 +28,42 @@ def _fastsha1(s):
     # This function will import sha1 from hashlib or sha (whichever is
     # available) and overwrite itself with it on the first call.
     # Subsequent calls will go directly to the imported function.
-    try:
+    if sys.version_info >= (2, 5):
         from hashlib import sha1 as _sha1
-    except ImportError:
+    else:
         from sha import sha as _sha1
     global _fastsha1, sha1
     _fastsha1 = sha1 = _sha1
     return _sha1(s)
 
+import __builtin__
+
+def fakebuffer(sliceable, offset=0):
+    return sliceable[offset:]
+if not hasattr(__builtin__, 'buffer'):
+    __builtin__.buffer = fakebuffer
+
 import subprocess
 closefds = os.name == 'posix'
-def popen2(cmd):
+
+def popen2(cmd, env=None, newlines=False):
     # Setting bufsize to -1 lets the system decide the buffer size.
     # The default for bufsize is 0, meaning unbuffered. This leads to
     # poor performance on Mac OS X: http://bugs.python.org/issue4194
     p = subprocess.Popen(cmd, shell=True, bufsize=-1,
                          close_fds=closefds,
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         universal_newlines=newlines,
+                         env=env)
     return p.stdin, p.stdout
-def popen3(cmd):
+
+def popen3(cmd, env=None, newlines=False):
     p = subprocess.Popen(cmd, shell=True, bufsize=-1,
                          close_fds=closefds,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+                         stderr=subprocess.PIPE,
+                         universal_newlines=newlines,
+                         env=env)
     return p.stdin, p.stdout, p.stderr
 
 def version():
@@ -84,7 +97,7 @@ defaultdateformats = (
     '%b %d %Y',
     '%b %d',
     '%H:%M:%S',
-    '%I:%M:%SP',
+    '%I:%M:%S%p',
     '%H:%M',
     '%I:%M%p',
 )
@@ -176,16 +189,21 @@ def tempfilter(s, cmd):
         code = os.system(cmd)
         if sys.platform == 'OpenVMS' and code & 1:
             code = 0
-        if code: raise Abort(_("command '%s' failed: %s") %
-                             (cmd, explain_exit(code)))
+        if code:
+            raise Abort(_("command '%s' failed: %s") %
+                        (cmd, explain_exit(code)))
         return open(outname, 'rb').read()
     finally:
         try:
-            if inname: os.unlink(inname)
-        except: pass
+            if inname:
+                os.unlink(inname)
+        except:
+            pass
         try:
-            if outname: os.unlink(outname)
-        except: pass
+            if outname:
+                os.unlink(outname)
+        except:
+            pass
 
 filtertable = {
     'tempfile:': tempfilter,
@@ -236,8 +254,11 @@ def increasingchunks(source, min=1024, max=65536):
 
 Abort = error.Abort
 
-def always(fn): return True
-def never(fn): return False
+def always(fn):
+    return True
+
+def never(fn):
+    return False
 
 def pathto(root, n1, n2):
     '''return the relative path from one place to another.
@@ -250,7 +271,8 @@ def pathto(root, n1, n2):
     relative to root.
     n2 should always be relative to root.
     '''
-    if not n1: return localpath(n2)
+    if not n1:
+        return localpath(n2)
     if os.path.isabs(n1):
         if os.path.splitdrive(root)[0] != os.path.splitdrive(n1)[0]:
             return os.path.join(root, localpath(n2))
@@ -266,9 +288,7 @@ def pathto(root, n1, n2):
 
 def canonpath(root, cwd, myname):
     """return the canonical path of myname, given cwd and root"""
-    if root == os.sep:
-        rootsep = os.sep
-    elif endswithsep(root):
+    if endswithsep(root):
         rootsep = root
     else:
         rootsep = root + os.sep
@@ -337,7 +357,8 @@ def hgexecutable():
         elif main_is_frozen():
             set_hgexecutable(sys.executable)
         else:
-            set_hgexecutable(find_exe('hg') or 'hg')
+            exe = find_exe('hg') or os.path.basename(sys.argv[0])
+            set_hgexecutable(exe)
     return _hgexecutable
 
 def set_hgexecutable(path):
@@ -345,13 +366,16 @@ def set_hgexecutable(path):
     global _hgexecutable
     _hgexecutable = path
 
-def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
+def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
     '''enhanced shell command execution.
     run with environment maybe modified, maybe in different dir.
 
     if command fails and onerr is None, return status.  if ui object,
     print error message and return status, else raise onerr object as
-    exception.'''
+    exception.
+
+    if out is specified, it is assumed to be a file-like object that has a
+    write() method. stdout and stderr will be redirected to out.'''
     def py2shell(val):
         'convert python object into string that is useful to shell'
         if val is None or val is False:
@@ -359,41 +383,35 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
         if val is True:
             return '1'
         return str(val)
-    oldenv = {}
-    for k in environ:
-        oldenv[k] = os.environ.get(k)
-    if cwd is not None:
-        oldcwd = os.getcwd()
     origcmd = cmd
     if os.name == 'nt':
         cmd = '"%s"' % cmd
-    try:
-        for k, v in environ.iteritems():
-            os.environ[k] = py2shell(v)
-        os.environ['HG'] = hgexecutable()
-        if cwd is not None and oldcwd != cwd:
-            os.chdir(cwd)
-        rc = os.system(cmd)
-        if sys.platform == 'OpenVMS' and rc & 1:
-            rc = 0
-        if rc and onerr:
-            errmsg = '%s %s' % (os.path.basename(origcmd.split(None, 1)[0]),
-                                explain_exit(rc)[0])
-            if errprefix:
-                errmsg = '%s: %s' % (errprefix, errmsg)
-            try:
-                onerr.warn(errmsg + '\n')
-            except AttributeError:
-                raise onerr(errmsg)
-        return rc
-    finally:
-        for k, v in oldenv.iteritems():
-            if v is None:
-                del os.environ[k]
-            else:
-                os.environ[k] = v
-        if cwd is not None and oldcwd != cwd:
-            os.chdir(oldcwd)
+    env = dict(os.environ)
+    env.update((k, py2shell(v)) for k, v in environ.iteritems())
+    env['HG'] = hgexecutable()
+    if out is None:
+        rc = subprocess.call(cmd, shell=True, close_fds=closefds,
+                             env=env, cwd=cwd)
+    else:
+        proc = subprocess.Popen(cmd, shell=True, close_fds=closefds,
+                                env=env, cwd=cwd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        for line in proc.stdout:
+            out.write(line)
+        proc.wait()
+        rc = proc.returncode
+    if sys.platform == 'OpenVMS' and rc & 1:
+        rc = 0
+    if rc and onerr:
+        errmsg = '%s %s' % (os.path.basename(origcmd.split(None, 1)[0]),
+                            explain_exit(rc)[0])
+        if errprefix:
+            errmsg = '%s: %s' % (errprefix, errmsg)
+        try:
+            onerr.warn(errmsg + '\n')
+        except AttributeError:
+            raise onerr(errmsg)
+    return rc
 
 def checksignature(func):
     '''wrap a function with code to check for calling errors'''
@@ -415,37 +433,6 @@ def lexists(filename):
     except:
         return False
     return True
-
-def rename(src, dst):
-    """forcibly rename a file"""
-    try:
-        os.rename(src, dst)
-    except OSError, err: # FIXME: check err (EEXIST ?)
-
-        # On windows, rename to existing file is not allowed, so we
-        # must delete destination first. But if a file is open, unlink
-        # schedules it for delete but does not delete it. Rename
-        # happens immediately even for open files, so we rename
-        # destination to a temporary name, then delete that. Then
-        # rename is safe to do.
-        # The temporary name is chosen at random to avoid the situation
-        # where a file is left lying around from a previous aborted run.
-        # The usual race condition this introduces can't be avoided as
-        # we need the name to rename into, and not the file itself. Due
-        # to the nature of the operation however, any races will at worst
-        # lead to the rename failing and the current operation aborting.
-
-        def tempname(prefix):
-            for tries in xrange(10):
-                temp = '%s-%08x' % (prefix, random.randint(0, 0xffffffff))
-                if not os.path.exists(temp):
-                    return temp
-            raise IOError, (errno.EEXIST, "No usable temporary filename found")
-
-        temp = tempname(dst)
-        os.rename(dst, temp)
-        os.unlink(temp)
-        os.rename(src, dst)
 
 def unlink(f):
     """unlink and remove the directory if it is empty"""
@@ -478,12 +465,14 @@ def copyfiles(src, dst, hardlink=None):
         hardlink = (os.stat(src).st_dev ==
                     os.stat(os.path.dirname(dst)).st_dev)
 
+    num = 0
     if os.path.isdir(src):
         os.mkdir(dst)
         for name, kind in osutil.listdir(src):
             srcname = os.path.join(src, name)
             dstname = os.path.join(dst, name)
-            copyfiles(srcname, dstname, hardlink)
+            hardlink, n = copyfiles(srcname, dstname, hardlink)
+            num += n
     else:
         if hardlink:
             try:
@@ -493,6 +482,9 @@ def copyfiles(src, dst, hardlink=None):
                 shutil.copy(src, dst)
         else:
             shutil.copy(src, dst)
+        num += 1
+
+    return hardlink, num
 
 class path_auditor(object):
     '''ensure that a filesystem path contains no banned components.
@@ -570,6 +562,14 @@ else:
 def lookup_reg(key, name=None, scope=None):
     return None
 
+def hidewindow():
+    """Hide current shell window.
+
+    Used to hide the window opened when starting asynchronous
+    child process under Windows, unneeded on other systems.
+    """
+    pass
+
 if os.name == 'nt':
     from windows import *
 else:
@@ -642,7 +642,7 @@ def fspath(name, root):
             l = l + 1
         name = name[l:]
 
-    if not os.path.exists(os.path.join(root, name)):
+    if not os.path.lexists(os.path.join(root, name)):
         return None
 
     seps = os.sep
@@ -663,8 +663,9 @@ def fspath(name, root):
         contents = _fspathcache[dir]
 
         lpart = part.lower()
+        lenp = len(part)
         for n in contents:
-            if n.lower() == lpart:
+            if lenp == len(n) and n.lower() == lpart:
                 result.append(n)
                 break
         else:
@@ -687,7 +688,7 @@ def checkexec(path):
 
     try:
         EXECFLAGS = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-        fh, fn = tempfile.mkstemp("", "", path)
+        fh, fn = tempfile.mkstemp(dir=path, prefix='hg-checkexec-')
         try:
             os.close(fh)
             m = os.stat(fn).st_mode & 0777
@@ -705,7 +706,7 @@ def checklink(path):
     """check whether the given path is on a symlink-capable filesystem"""
     # mktemp is not racy because symlink creation will fail if the
     # file already exists
-    name = tempfile.mktemp(dir=path)
+    name = tempfile.mktemp(dir=path, prefix='hg-checklink-')
     try:
         os.symlink(".", name)
         os.unlink(name)
@@ -788,7 +789,7 @@ class atomictempfile(object):
     file.  When rename is called, the copy is renamed to the original
     name, making the changes visible.
     """
-    def __init__(self, name, mode, createmode):
+    def __init__(self, name, mode='w+b', createmode=None):
         self.__name = name
         self._fp = None
         self.temp = mktempcopy(name, emptyok=('w' in mode),
@@ -842,11 +843,9 @@ class opener(object):
             self.audit_path = always
         self.createmode = None
 
-    def __getattr__(self, name):
-        if name == '_can_symlink':
-            self._can_symlink = checklink(self.base)
-            return self._can_symlink
-        raise AttributeError(name)
+    @propertycache
+    def _can_symlink(self):
+        return checklink(self.base)
 
     def _fixfilemode(self, name):
         if self.createmode is None:
@@ -910,31 +909,36 @@ class chunkbuffer(object):
         """in_iter is the iterator that's iterating over the input chunks.
         targetsize is how big a buffer to try to maintain."""
         self.iter = iter(in_iter)
-        self.buf = ''
-        self.targetsize = 2**16
+        self._queue = []
 
     def read(self, l):
         """Read L bytes of data from the iterator of chunks of data.
         Returns less than L bytes if the iterator runs dry."""
-        if l > len(self.buf) and self.iter:
-            # Clamp to a multiple of self.targetsize
-            targetsize = max(l, self.targetsize)
-            collector = cStringIO.StringIO()
-            collector.write(self.buf)
-            collected = len(self.buf)
-            for chunk in self.iter:
-                collector.write(chunk)
-                collected += len(chunk)
-                if collected >= targetsize:
+        left = l
+        buf = ''
+        queue = self._queue
+        while left > 0:
+            # refill the queue
+            if not queue:
+                target = 2**18
+                for chunk in self.iter:
+                    queue.append(chunk)
+                    target -= len(chunk)
+                    if target <= 0:
+                        break
+                if not queue:
                     break
-            if collected < targetsize:
-                self.iter = False
-            self.buf = collector.getvalue()
-        if len(self.buf) == l:
-            s, self.buf = str(self.buf), ''
-        else:
-            s, self.buf = self.buf[:l], buffer(self.buf, l)
-        return s
+
+            chunk = queue.pop(0)
+            left -= len(chunk)
+            if left < 0:
+                queue.insert(0, chunk[left:])
+                buf += chunk[:left]
+            else:
+                buf += chunk
+
+        return buf
+
 
 def filechunkiter(f, size=65536, limit=None):
     """Create a generator that produces the data in the file size
@@ -946,11 +950,15 @@ def filechunkiter(f, size=65536, limit=None):
     assert size >= 0
     assert limit is None or limit >= 0
     while True:
-        if limit is None: nbytes = size
-        else: nbytes = min(limit, size)
+        if limit is None:
+            nbytes = size
+        else:
+            nbytes = min(limit, size)
         s = nbytes and f.read(nbytes)
-        if not s: break
-        if limit: limit -= len(s)
+        if not s:
+            break
+        if limit:
+            limit -= len(s)
         yield s
 
 def makedate():
@@ -969,8 +977,8 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y %1%2'):
     t, tz = date or makedate()
     if "%1" in format or "%2" in format:
         sign = (tz > 0) and "-" or "+"
-        minutes = abs(tz) / 60
-        format = format.replace("%1", "%c%02d" % (sign, minutes / 60))
+        minutes = abs(tz) // 60
+        format = format.replace("%1", "%c%02d" % (sign, minutes // 60))
         format = format.replace("%2", "%02d" % (minutes % 60))
     s = time.strftime(format, time.gmtime(float(t) - tz))
     return s
@@ -1118,7 +1126,7 @@ def shortuser(user):
         user = user[:f]
     f = user.find('<')
     if f >= 0:
-        user = user[f+1:]
+        user = user[f + 1:]
     f = user.find(' ')
     if f >= 0:
         user = user[:f]
@@ -1130,15 +1138,16 @@ def shortuser(user):
 def email(author):
     '''get email of author.'''
     r = author.find('>')
-    if r == -1: r = None
-    return author[author.find('<')+1:r]
+    if r == -1:
+        r = None
+    return author[author.find('<') + 1:r]
 
 def ellipsis(text, maxlength=400):
     """Trim string to at most maxlength (default: 400) characters."""
     if len(text) <= maxlength:
         return text
     else:
-        return "%s..." % (text[:maxlength-3])
+        return "%s..." % (text[:maxlength - 3])
 
 def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
     '''yield every hg repository under path, recursively.'''
@@ -1164,6 +1173,7 @@ def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
         seen_dirs = []
         _add_dir_if_not_there(seen_dirs, path)
     for root, dirs, files in os.walk(path, topdown=True, onerror=errhandler):
+        dirs.sort()
         if '.hg' in dirs:
             yield root # found a repository
             qroot = os.path.join(root, '.hg', 'patches')
@@ -1206,7 +1216,9 @@ def rcpath():
         if 'HGRCPATH' in os.environ:
             _rcpath = []
             for p in os.environ['HGRCPATH'].split(os.pathsep):
-                if not p: continue
+                if not p:
+                    continue
+                p = expandpath(p)
                 if os.path.isdir(p):
                     for f, kind in osutil.listdir(p):
                         if f.endswith('.rc'):
@@ -1221,15 +1233,15 @@ def bytecount(nbytes):
     '''return byte count formatted as readable string, with units'''
 
     units = (
-        (100, 1<<30, _('%.0f GB')),
-        (10, 1<<30, _('%.1f GB')),
-        (1, 1<<30, _('%.2f GB')),
-        (100, 1<<20, _('%.0f MB')),
-        (10, 1<<20, _('%.1f MB')),
-        (1, 1<<20, _('%.2f MB')),
-        (100, 1<<10, _('%.0f KB')),
-        (10, 1<<10, _('%.1f KB')),
-        (1, 1<<10, _('%.2f KB')),
+        (100, 1 << 30, _('%.0f GB')),
+        (10, 1 << 30, _('%.1f GB')),
+        (1, 1 << 30, _('%.2f GB')),
+        (100, 1 << 20, _('%.0f MB')),
+        (10, 1 << 20, _('%.1f MB')),
+        (1, 1 << 20, _('%.2f MB')),
+        (100, 1 << 10, _('%.0f KB')),
+        (10, 1 << 10, _('%.1f KB')),
+        (1, 1 << 10, _('%.2f KB')),
         (1, 1, _('%.0f bytes')),
         )
 
@@ -1243,12 +1255,136 @@ def drop_scheme(scheme, path):
     if path.startswith(sc):
         path = path[len(sc):]
         if path.startswith('//'):
-            path = path[2:]
+            if scheme == 'file':
+                i = path.find('/', 2)
+                if i == -1:
+                    return ''
+                # On Windows, absolute paths are rooted at the current drive
+                # root. On POSIX they are rooted at the file system root.
+                if os.name == 'nt':
+                    droot = os.path.splitdrive(os.getcwd())[0] + '/'
+                    path = os.path.join(droot, path[i + 1:])
+                else:
+                    path = path[i:]
+            else:
+                path = path[2:]
     return path
 
 def uirepr(s):
     # Avoid double backslash in Windows path repr()
     return repr(s).replace('\\\\', '\\')
+
+#### naming convention of below implementation follows 'textwrap' module
+
+class MBTextWrapper(textwrap.TextWrapper):
+    def __init__(self, **kwargs):
+        textwrap.TextWrapper.__init__(self, **kwargs)
+
+    def _cutdown(self, str, space_left):
+        l = 0
+        ucstr = unicode(str, encoding.encoding)
+        w = unicodedata.east_asian_width
+        for i in xrange(len(ucstr)):
+            l += w(ucstr[i]) in 'WFA' and 2 or 1
+            if space_left < l:
+                return (ucstr[:i].encode(encoding.encoding),
+                        ucstr[i:].encode(encoding.encoding))
+        return str, ''
+
+    # ----------------------------------------
+    # overriding of base class
+
+    def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
+        space_left = max(width - cur_len, 1)
+
+        if self.break_long_words:
+            cut, res = self._cutdown(reversed_chunks[-1], space_left)
+            cur_line.append(cut)
+            reversed_chunks[-1] = res
+        elif not cur_line:
+            cur_line.append(reversed_chunks.pop())
+
+#### naming convention of above implementation follows 'textwrap' module
+
+def wrap(line, width=None, initindent='', hangindent=''):
+    if width is None:
+        width = termwidth() - 2
+    maxindent = max(len(hangindent), len(initindent))
+    if width <= maxindent:
+        # adjust for weird terminal size
+        width = max(78, maxindent + 1)
+    wrapper = MBTextWrapper(width=width,
+                            initial_indent=initindent,
+                            subsequent_indent=hangindent)
+    return wrapper.fill(line)
+
+def iterlines(iterator):
+    for chunk in iterator:
+        for line in chunk.splitlines():
+            yield line
+
+def expandpath(path):
+    return os.path.expanduser(os.path.expandvars(path))
+
+def hgcmd():
+    """Return the command used to execute current hg
+
+    This is different from hgexecutable() because on Windows we want
+    to avoid things opening new shell windows like batch files, so we
+    get either the python call or current executable.
+    """
+    if main_is_frozen():
+        return [sys.executable]
+    return gethgcmd()
+
+def rundetached(args, condfn):
+    """Execute the argument list in a detached process.
+
+    condfn is a callable which is called repeatedly and should return
+    True once the child process is known to have started successfully.
+    At this point, the child process PID is returned. If the child
+    process fails to start or finishes before condfn() evaluates to
+    True, return -1.
+    """
+    # Windows case is easier because the child process is either
+    # successfully starting and validating the condition or exiting
+    # on failure. We just poll on its PID. On Unix, if the child
+    # process fails to start, it will be left in a zombie state until
+    # the parent wait on it, which we cannot do since we expect a long
+    # running process on success. Instead we listen for SIGCHLD telling
+    # us our child process terminated.
+    terminated = set()
+    def handler(signum, frame):
+        terminated.add(os.wait())
+    prevhandler = None
+    if hasattr(signal, 'SIGCHLD'):
+        prevhandler = signal.signal(signal.SIGCHLD, handler)
+    try:
+        pid = spawndetached(args)
+        while not condfn():
+            if ((pid in terminated or not testpid(pid))
+                and not condfn()):
+                return -1
+            time.sleep(0.1)
+        return pid
+    finally:
+        if prevhandler is not None:
+            signal.signal(signal.SIGCHLD, prevhandler)
+
+try:
+    any, all = any, all
+except NameError:
+    def any(iterable):
+        for i in iterable:
+            if i:
+                return True
+        return False
+
+    def all(iterable):
+        for i in iterable:
+            if not i:
+                return False
+        return True
 
 def termwidth():
     if 'COLUMNS' in os.environ:
@@ -1256,29 +1392,4 @@ def termwidth():
             return int(os.environ['COLUMNS'])
         except ValueError:
             pass
-    try:
-        import termios, array, fcntl
-        for dev in (sys.stdout, sys.stdin):
-            try:
-                try:
-                    fd = dev.fileno()
-                except AttributeError:
-                    continue
-                if not os.isatty(fd):
-                    continue
-                arri = fcntl.ioctl(fd, termios.TIOCGWINSZ, '\0' * 8)
-                return array.array('h', arri)[1]
-            except ValueError:
-                pass
-    except ImportError:
-        pass
-    return 80
-
-def wrap(line, hangindent, width=78):
-    padding = '\n' + ' ' * hangindent
-    return padding.join(textwrap.wrap(line, width=width - hangindent))
-
-def iterlines(iterator):
-    for chunk in iterator:
-        for line in chunk.splitlines():
-            yield line
+    return termwidth_()

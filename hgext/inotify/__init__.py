@@ -4,41 +4,19 @@
 # Copyright 2007, 2008 Brendan Cully <brendan@kublai.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''accelerate status report using Linux's inotify service'''
 
 # todo: socket permissions
 
 from mercurial.i18n import _
-from mercurial import cmdutil, util
 import server
-from weakref import proxy
 from client import client, QueryFailed
 
 def serve(ui, repo, **opts):
     '''start an inotify server for this repository'''
-    timeout = opts.get('timeout')
-    if timeout:
-        timeout = float(timeout) * 1e3
-
-    class service(object):
-        def init(self):
-            try:
-                self.master = server.master(ui, repo, timeout)
-            except server.AlreadyStartedException, inst:
-                raise util.Abort(str(inst))
-
-        def run(self):
-            try:
-                self.master.run()
-            finally:
-                self.master.shutdown()
-
-    service = service()
-    logfile = ui.config('inotify', 'log')
-    cmdutil.service(opts, initfn=service.init, runfn=service.run,
-                    logfile=logfile)
+    server.start(ui, repo.dirstate, repo.root, opts)
 
 def debuginotify(ui, repo, **opts):
     '''debugging information for inotify extension
@@ -56,9 +34,6 @@ def reposetup(ui, repo):
     if not hasattr(repo, 'dirstate'):
         return
 
-    # XXX: weakref until hg stops relying on __del__
-    repo = proxy(repo)
-
     class inotifydirstate(repo.dirstate.__class__):
 
         # We'll set this to false after an unsuccessful attempt so that
@@ -66,11 +41,11 @@ def reposetup(ui, repo):
         # to start an inotify server if it won't start.
         _inotifyon = True
 
-        def status(self, match, ignored, clean, unknown=True):
+        def status(self, match, subrepos, ignored, clean, unknown):
             files = match.files()
             if '.' in files:
                 files = []
-            if self._inotifyon and not ignored:
+            if self._inotifyon and not ignored and not subrepos and not self._dirty:
                 cli = client(ui, repo)
                 try:
                     result = cli.statusquery(files, match, False,
@@ -83,8 +58,8 @@ def reposetup(ui, repo):
                 else:
                     if ui.config('inotify', 'debug'):
                         r2 = super(inotifydirstate, self).status(
-                            match, False, clean, unknown)
-                        for c,a,b in zip('LMARDUIC', result, r2):
+                            match, [], False, clean, unknown)
+                        for c, a, b in zip('LMARDUIC', result, r2):
                             for f in a:
                                 if f not in b:
                                     ui.warn('*** inotify: %s +%s\n' % (c, f))
@@ -94,7 +69,7 @@ def reposetup(ui, repo):
                         result = r2
                     return result
             return super(inotifydirstate, self).status(
-                match, ignored, clean, unknown)
+                match, subrepos, ignored, clean, unknown)
 
     repo.dirstate.__class__ = inotifydirstate
 
@@ -104,8 +79,11 @@ cmdtable = {
     '^inserve':
         (serve,
          [('d', 'daemon', None, _('run server in background')),
-          ('', 'daemon-pipefds', '', _('used internally by daemon mode')),
-          ('t', 'idle-timeout', '', _('minutes to sit idle before exiting')),
-          ('', 'pid-file', '', _('name of file to write process ID to'))],
+          ('', 'daemon-pipefds', '',
+           _('used internally by daemon mode'), _('NUM')),
+          ('t', 'idle-timeout', '',
+           _('minutes to sit idle before exiting'), _('NUM')),
+          ('', 'pid-file', '',
+           _('name of file to write process ID to'), _('FILE'))],
          _('hg inserve [OPTION]...')),
     }

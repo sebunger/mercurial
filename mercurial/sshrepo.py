@@ -3,11 +3,11 @@
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import bin, hex
 from i18n import _
-import repo, util, error
+import repo, util, error, encoding
 import re, urllib
 
 class remotelock(object):
@@ -75,7 +75,7 @@ class sshrepository(repo.repository):
             if lines[-1] == "1\n" and l == "\n":
                 break
             if l:
-                ui.debug(_("remote: "), l)
+                ui.debug("remote: ", l)
             lines.append(l)
             max_noise -= 1
         else:
@@ -90,9 +90,11 @@ class sshrepository(repo.repository):
     def readerr(self):
         while 1:
             size = util.fstat(self.pipee).st_size
-            if size == 0: break
+            if size == 0:
+                break
             l = self.pipee.readline()
-            if not l: break
+            if not l:
+                break
             self.ui.status(_("remote: "), l)
 
     def abort(self, exception):
@@ -113,9 +115,9 @@ class sshrepository(repo.repository):
     __del__ = cleanup
 
     def do_cmd(self, cmd, **args):
-        self.ui.debug(_("sending %s command\n") % cmd)
+        self.ui.debug("sending %s command\n" % cmd)
         self.pipeo.write("%s\n" % cmd)
-        for k, v in args.iteritems():
+        for k, v in sorted(args.iteritems()):
             self.pipeo.write("%s %d\n" % (k, len(v)))
             self.pipeo.write(v)
         self.pipeo.flush()
@@ -173,6 +175,13 @@ class sshrepository(repo.repository):
             for branchpart in d.splitlines():
                 branchheads = branchpart.split(' ')
                 branchname = urllib.unquote(branchheads[0])
+                # Earlier servers (1.3.x) send branch names in (their) local
+                # charset. The best we can do is assume it's identical to our
+                # own local charset, in case it's not utf-8.
+                try:
+                    branchname.decode('utf-8')
+                except UnicodeDecodeError:
+                    branchname = encoding.fromlocal(branchname)
                 branchheads = [bin(x) for x in branchheads[1:]]
                 branchmap[branchname] = branchheads
             return branchmap
@@ -183,7 +192,7 @@ class sshrepository(repo.repository):
         n = " ".join(map(hex, nodes))
         d = self.call("branches", nodes=n)
         try:
-            br = [ tuple(map(bin, b.split(" "))) for b in d.splitlines() ]
+            br = [tuple(map(bin, b.split(" "))) for b in d.splitlines()]
             return br
         except:
             self.abort(error.ResponseError(_("unexpected response:"), d))
@@ -192,7 +201,7 @@ class sshrepository(repo.repository):
         n = " ".join(["-".join(map(hex, p)) for p in pairs])
         d = self.call("between", pairs=n)
         try:
-            p = [ l and map(bin, l.split(" ")) or [] for l in d.splitlines() ]
+            p = [l and map(bin, l.split(" ")) or [] for l in d.splitlines()]
             return p
         except:
             self.abort(error.ResponseError(_("unexpected response:"), d))
@@ -208,6 +217,10 @@ class sshrepository(repo.repository):
         return self.do_cmd("changegroupsubset", bases=bases, heads=heads)
 
     def unbundle(self, cg, heads, source):
+        '''Send cg (a readable file-like object representing the
+        changegroup to push, typically a chunkbuffer object) to the
+        remote server as a bundle. Return an integer indicating the
+        result of the push (see localrepository.addchangegroup()).'''
         d = self.call("unbundle", heads=' '.join(map(hex, heads)))
         if d:
             # remote may send "unsynced changes"
@@ -233,6 +246,9 @@ class sshrepository(repo.repository):
             self.abort(error.ResponseError(_("unexpected response:"), r))
 
     def addchangegroup(self, cg, source, url):
+        '''Send a changegroup to the remote server.  Return an integer
+        similar to unbundle(). DEPRECATED, since it requires locking the
+        remote.'''
         d = self.call("addchangegroup")
         if d:
             self.abort(error.RepoError(_("push refused: %s") % d))
@@ -256,5 +272,22 @@ class sshrepository(repo.repository):
 
     def stream_out(self):
         return self.do_cmd('stream_out')
+
+    def pushkey(self, namespace, key, old, new):
+        if not self.capable('pushkey'):
+            return False
+        d = self.call("pushkey",
+                      namespace=namespace, key=key, old=old, new=new)
+        return bool(int(d))
+
+    def listkeys(self, namespace):
+        if not self.capable('pushkey'):
+            return {}
+        d = self.call("listkeys", namespace=namespace)
+        r = {}
+        for l in d.splitlines():
+            k, v = l.split('\t')
+            r[k.decode('string-escape')] = v.decode('string-escape')
+        return r
 
 instance = sshrepository

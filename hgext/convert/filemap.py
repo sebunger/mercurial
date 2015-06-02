@@ -2,7 +2,7 @@
 # Copyright 2007 Alexis S. L. Carvalho <alexis@cecm.usp.br>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import shlex
 from mercurial.i18n import _
@@ -10,11 +10,11 @@ from mercurial import util
 from common import SKIPREV, converter_source
 
 def rpairs(name):
-    yield '.', name
     e = len(name)
     while e != -1:
-        yield name[:e], name[e+1:]
+        yield name[:e], name[e + 1:]
         e = name.rfind('/', 0, e)
+    yield '.', name
 
 class filemapper(object):
     '''Map and filter filenames when importing.
@@ -82,7 +82,7 @@ class filemapper(object):
             exc = self.lookup(name, self.exclude)[0]
         else:
             exc = ''
-        if not inc or exc:
+        if (not self.include and exc) or (len(inc) <= len(exc)):
             return None
         newpre, pre, suf = self.lookup(name, self.rename)
         if newpre:
@@ -100,8 +100,7 @@ class filemapper(object):
 #
 # - Filter and rename files.  This is mostly wrapped by the filemapper
 #   class above. We hide the original filename in the revision that is
-#   returned by getchanges to be able to find things later in getfile
-#   and getmode.
+#   returned by getchanges to be able to find things later in getfile.
 #
 # - Return only revisions that matter for the files we're interested in.
 #   This involves rewriting the parents of the original revision to
@@ -318,10 +317,9 @@ class filemap_source(converter_source):
         self.convertedorder.append((rev, True, None))
         self._discard(*parents)
 
-        # Get the real changes and do the filtering/mapping.
-        # To be able to get the files later on in getfile and getmode,
-        # we hide the original filename in the rev part of the return
-        # value.
+        # Get the real changes and do the filtering/mapping. To be
+        # able to get the files later on in getfile, we hide the
+        # original filename in the rev part of the return value.
         changes, copies = self.base.getchanges(rev)
         newnames = {}
         files = []
@@ -344,10 +342,6 @@ class filemap_source(converter_source):
     def getfile(self, name, rev):
         realname, realrev = rev
         return self.base.getfile(realname, realrev)
-
-    def getmode(self, name, rev):
-        realname, realrev = rev
-        return self.base.getmode(realname, realrev)
 
     def gettags(self):
         return self.base.gettags()

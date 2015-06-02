@@ -59,7 +59,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th class="date">date</th>
- <td class="date">Thu Jan 01 00:00:00 1970 +0000 (many years ago)</td></tr>
+ <td class="date">Thu Jan 01 00:00:00 1970 +0000 (1970-01-01)</td></tr>
 <tr>
  <th class="author">parents</th>
  <td class="author"></td>
@@ -95,6 +95,28 @@ files, or words in the commit message</div>
 </body>
 </html>
 
+% raw revision
+200 Script output follows
+
+
+# HG changeset patch
+# User test
+# Date 0 0
+# Node ID 0cd96de13884b090099512d4794ae87ad067ea8e
+
+a
+
+diff -r 000000000000 -r 0cd96de13884 a
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/a	Thu Jan 01 00:00:00 1970 +0000
+@@ -0,0 +1,1 @@
++a
+diff -r 000000000000 -r 0cd96de13884 b
+--- /dev/null	Thu Jan 01 00:00:00 1970 +0000
++++ b/b	Thu Jan 01 00:00:00 1970 +0000
+@@ -0,0 +1,1 @@
++b
+
 % diff removed file
 200 Script output follows
 
@@ -127,6 +149,7 @@ files, or words in the commit message</div>
 </ul>
 <ul>
 <li><a href="/file/78e4ebad7cdf/a">file</a></li>
+<li><a href="/file/tip/a">latest</a></li>
 <li class="active">diff</li>
 <li><a href="/annotate/78e4ebad7cdf/a">annotate</a></li>
 <li><a href="/log/78e4ebad7cdf/a">file log</a></li>
@@ -154,7 +177,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th>date</th>
- <td>Thu Jan 01 00:00:00 1970 +0000 (many years ago)</td>
+ <td>Thu Jan 01 00:00:00 1970 +0000 (1970-01-01)</td>
 </tr>
 <tr>
  <th>parents</th>
@@ -241,7 +264,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th class="date">date</th>
- <td class="date">Thu Jan 01 00:00:00 1970 +0000 (many years ago)</td></tr>
+ <td class="date">Thu Jan 01 00:00:00 1970 +0000 (1970-01-01)</td></tr>
 <tr>
  <th class="author">parents</th>
  <td class="author"></td>
@@ -279,6 +302,30 @@ files, or words in the commit message</div>
 </body>
 </html>
 
+% revision
+200 Script output follows
+
+
+# HG changeset patch
+# User test
+# Date 0 0
+# Node ID 0cd96de13884b090099512d4794ae87ad067ea8e
+
+a
+
+diff --git a/a b/a
+new file mode 100644
+--- /dev/null
++++ b/a
+@@ -0,0 +1,1 @@
++a
+diff --git a/b b/b
+new file mode 100644
+--- /dev/null
++++ b/b
+@@ -0,0 +1,1 @@
++b
+
 % diff removed file
 200 Script output follows
 
@@ -311,6 +358,7 @@ files, or words in the commit message</div>
 </ul>
 <ul>
 <li><a href="/file/78e4ebad7cdf/a">file</a></li>
+<li><a href="/file/tip/a">latest</a></li>
 <li class="active">diff</li>
 <li><a href="/annotate/78e4ebad7cdf/a">annotate</a></li>
 <li><a href="/log/78e4ebad7cdf/a">file log</a></li>
@@ -338,7 +386,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th>date</th>
- <td>Thu Jan 01 00:00:00 1970 +0000 (many years ago)</td>
+ <td>Thu Jan 01 00:00:00 1970 +0000 (1970-01-01)</td>
 </tr>
 <tr>
  <th>parents</th>
@@ -369,4 +417,12 @@ files, or words in the commit message</div>
 </body>
 </html>
 
+% test import rev as raw-rev
+requesting all changes
+adding changesets
+adding manifests
+adding file changes
+added 1 changesets with 2 changes to 2 files
+updating to branch default
+2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 % errors

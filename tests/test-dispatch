@@ -3,6 +3,8 @@
 
 "$TESTDIR/hghave" no-outer-repo || exit 80
 
+dir=`pwd`
+
 hg init a
 cd a
 echo a > a
@@ -20,7 +22,7 @@ EOF
 hg cat a
 
 echo '% no repo'
-cd ..
+cd $dir
 hg cat
 
 exit 0

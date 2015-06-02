@@ -20,7 +20,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 3 changes to 3 files
-updating working directory
+updating to branch default
 3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 a
@@ -45,7 +45,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 3 changes to 3 files
-updating working directory
+updating to branch default
 3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 a
@@ -70,7 +70,7 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 3 changes to 3 files
-updating working directory
+updating to branch default
 3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 a
@@ -78,3 +78,8 @@ applying b.patch
 now at: b.patch
 imported patch b.patch
 a
+% test --mq works and uses correct repository config
+comparing with http://localhost:$HGPORT2/a/.hg/patches
+searching for changes
+no changes found
+0 b.patch

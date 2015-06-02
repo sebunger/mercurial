@@ -3,6 +3,10 @@
 echo "[extensions]" >> $HGRCPATH
 echo "mq=" >> $HGRCPATH
 
+catpatch() {
+    cat $1 | sed -e "s/^\(# Parent \).*/\1/"
+}
+
 echo % init
 hg init a
 cd a
@@ -30,7 +34,7 @@ hg qdiff . | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
                  -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
 echo % patch file contents
-cat .hg/patches/mqbase | \
+catpatch .hg/patches/mqbase | \
 sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
     -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
@@ -47,7 +51,7 @@ hg qdiff . | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
                  -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
 echo % patch file contents
-cat .hg/patches/mqbase | \
+catpatch .hg/patches/mqbase | \
 sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
     -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
@@ -63,7 +67,7 @@ hg qdiff . | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
                  -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
 echo % patch file contents
-cat .hg/patches/mqbase | \
+catpatch .hg/patches/mqbase | \
 sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
     -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
@@ -79,7 +83,7 @@ hg qdiff . | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
                  -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
 echo % patch file contents
-cat .hg/patches/mqbase | \
+catpatch .hg/patches/mqbase | \
 sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
     -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
@@ -98,7 +102,7 @@ hg qdiff | sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
                -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 
 echo % -- patch file content
-cat .hg/patches/mqbase | \
+catpatch .hg/patches/mqbase | \
 sed -e "s/\(+++ [a-zA-Z0-9_/.-]*\).*/\1/" \
     -e "s/\(--- [a-zA-Z0-9_/.-]*\).*/\1/"
 hg st
@@ -154,6 +158,31 @@ hg mv a b
 hg qrefresh
 hg qdiff --nodates
 cd ..
+
+echo '% issue2025: qrefresh does not honor filtering options when tip != qtip'
+hg init repo-2025
+cd repo-2025
+echo a > a
+echo b > b
+hg ci -qAm addab
+echo a >> a
+echo b >> b
+hg qnew -f patch
+hg up -qC 0
+echo c > c
+hg ci -qAm addc
+hg up -qC 1
+echo '% refresh with tip != qtip'
+hg --config diff.nodates=1 qrefresh -I b 2>&1 \
+    | sed 's/saving bundle.*/saving bundle.../g'
+echo '% status after refresh'
+hg st
+echo '% b after refresh'
+cat b
+echo '% patch file after refresh'
+catpatch .hg/patches/patch
+cd ..
+
 
 echo % issue1441 with git patches
 hg init repo-1441-git

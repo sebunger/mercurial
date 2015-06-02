@@ -3,7 +3,7 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import bin, hex, nullid
 from i18n import _
@@ -78,7 +78,7 @@ class appender(object):
             doff = self.offset - self.size
             self.data.insert(0, "".join(self.data))
             del self.data[1:]
-            s = self.data[0][doff:doff+count]
+            s = self.data[0][doff:doff + count]
             self.offset += len(s)
             ret += s
         return ret
@@ -87,25 +87,39 @@ class appender(object):
         self.data.append(str(s))
         self.offset += len(s)
 
+def delayopener(opener, target, divert, buf):
+    def o(name, mode='r'):
+        if name != target:
+            return opener(name, mode)
+        if divert:
+            return opener(name + ".a", mode.replace('a', 'w'))
+        # otherwise, divert to memory
+        return appender(opener(name, mode), buf)
+    return o
+
 class changelog(revlog.revlog):
     def __init__(self, opener):
+        revlog.revlog.__init__(self, opener, "00changelog.i")
         self._realopener = opener
         self._delayed = False
-        revlog.revlog.__init__(self, self._delayopener, "00changelog.i")
+        self._divert = False
 
     def delayupdate(self):
         "delay visibility of index updates to other readers"
         self._delayed = True
-        self._delaycount = len(self)
+        self._divert = (len(self) == 0)
         self._delaybuf = []
-        self._delayname = None
+        self.opener = delayopener(self._realopener, self.indexfile,
+                                  self._divert, self._delaybuf)
 
     def finalize(self, tr):
         "finalize index updates"
         self._delayed = False
+        self.opener = self._realopener
         # move redirected index data back into place
-        if self._delayname:
-            util.rename(self._delayname + ".a", self._delayname)
+        if self._divert:
+            n = self.opener(self.indexfile + ".a").name
+            util.rename(n, n[:-2])
         elif self._delaybuf:
             fp = self.opener(self.indexfile, 'a')
             fp.write("".join(self._delaybuf))
@@ -113,21 +127,6 @@ class changelog(revlog.revlog):
             self._delaybuf = []
         # split when we're done
         self.checkinlinesize(tr)
-
-    def _delayopener(self, name, mode='r'):
-        fp = self._realopener(name, mode)
-        # only divert the index
-        if not self._delayed or not name == self.indexfile:
-            return fp
-        # if we're doing an initial clone, divert to another file
-        if self._delaycount == 0:
-            self._delayname = fp.name
-            if not len(self):
-                # make sure to truncate the file
-                mode = mode.replace('a', 'w')
-            return self._realopener(name + ".a", mode)
-        # otherwise, divert to memory
-        return appender(fp, self._delaybuf)
 
     def readpending(self, file):
         r = revlog.revlog(self.opener, file)
@@ -147,17 +146,16 @@ class changelog(revlog.revlog):
             fp2.close()
             # switch modes so finalize can simply rename
             self._delaybuf = []
-            self._delayname = fp1.name
+            self._divert = True
 
-        if self._delayname:
+        if self._divert:
             return True
 
         return False
 
     def checkinlinesize(self, tr, fp=None):
-        if self.opener == self._delayopener:
-            return
-        return revlog.revlog.checkinlinesize(self, tr, fp)
+        if not self._delayed:
+            revlog.revlog.checkinlinesize(self, tr, fp)
 
     def read(self, node):
         """
@@ -200,7 +198,7 @@ class changelog(revlog.revlog):
         return (manifest, user, (time, timezone), files, desc, extra)
 
     def add(self, manifest, files, desc, transaction, p1, p2,
-                  user, date=None, extra={}):
+                  user, date=None, extra=None):
         user = user.strip()
         # An empty username or a username with a "\n" will make the
         # revision text contain two "\n\n" sequences -> corrupt
@@ -220,8 +218,13 @@ class changelog(revlog.revlog):
             parseddate = "%d %d" % util.parsedate(date)
         else:
             parseddate = "%d %d" % util.makedate()
-        if extra and extra.get("branch") in ("default", ""):
-            del extra["branch"]
+        if extra:
+            branch = extra.get("branch")
+            if branch in ("default", ""):
+                del extra["branch"]
+            elif branch in (".", "null", "tip"):
+                raise error.RevlogError(_('the name \'%s\' is reserved')
+                                        % branch)
         if extra:
             extra = encodeextra(extra)
             parseddate = "%s %s" % (parseddate, extra)

@@ -3,7 +3,7 @@
 # Copyright (C) 2009 Brendan Cully <brendan@kublai.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import struct
 
@@ -25,8 +25,8 @@ def b85encode(text, pad=False):
     longs = len(text) >> 2
     words = struct.unpack('>%dL' % (longs), text)
 
-    out = ''.join(_b85chars[(word / 52200625) % 85] +
-                  _b85chars2[(word / 7225) % 7225] +
+    out = ''.join(_b85chars[(word // 52200625) % 85] +
+                  _b85chars2[(word // 7225) % 7225] +
                   _b85chars2[word % 7225]
                   for word in words)
 
@@ -37,7 +37,7 @@ def b85encode(text, pad=False):
     olen = l % 4
     if olen:
         olen += 1
-    olen += l / 4 * 5
+    olen += l // 4 * 5
     return out[:olen]
 
 def b85decode(text):
@@ -48,7 +48,7 @@ def b85decode(text):
     l = len(text)
     out = []
     for i in range(0, len(text), 5):
-        chunk = text[i:i+5]
+        chunk = text[i:i + 5]
         acc = 0
         for j, c in enumerate(chunk):
             try:

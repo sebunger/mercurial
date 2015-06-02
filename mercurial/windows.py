@@ -3,11 +3,11 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import osutil, error
-import errno, msvcrt, os, re, sys
+import errno, msvcrt, os, re, sys, random, subprocess
 
 nulldev = 'NUL:'
 umask = 002
@@ -17,7 +17,7 @@ def posixfile(name, mode='r', buffering=-1):
     try:
         return osutil.posixfile(name, mode, buffering)
     except WindowsError, err:
-        raise IOError(err.errno, err.strerror)
+        raise IOError(err.errno, '%s: %s' % (name, err.strerror))
 posixfile.__doc__ = osutil.posixfile.__doc__
 
 class winstdout(object):
@@ -41,13 +41,14 @@ class winstdout(object):
             limit = 16000
             l = len(s)
             start = 0
-            self.softspace = 0;
+            self.softspace = 0
             while start < l:
                 end = start + limit
                 self.fp.write(s[start:end])
                 start = end
         except IOError, inst:
-            if inst.errno != 0: raise
+            if inst.errno != 0:
+                raise
             self.close()
             raise IOError(errno.EPIPE, 'Broken pipe')
 
@@ -55,7 +56,8 @@ class winstdout(object):
         try:
             return self.fp.flush()
         except IOError, inst:
-            if inst.errno != errno.EINVAL: raise
+            if inst.errno != errno.EINVAL:
+                raise
             self.close()
             raise IOError(errno.EPIPE, 'Broken pipe')
 
@@ -126,6 +128,15 @@ def localpath(path):
 def normpath(path):
     return pconvert(os.path.normpath(path))
 
+def realpath(path):
+    '''
+    Returns the true, canonical file system path equivalent to the given
+    path.
+    '''
+    # TODO: There may be a more clever way to do this that also handles other,
+    # less common file systems.
+    return os.path.normpath(os.path.normcase(os.path.realpath(path)))
+
 def samestat(s1, s2):
     return False
 
@@ -194,7 +205,7 @@ def find_exe(command):
         executable = findexisting(os.path.join(path, command))
         if executable is not None:
             return executable
-    return None
+    return findexisting(os.path.expanduser(os.path.expandvars(command)))
 
 def set_signal_handler():
     try:
@@ -206,7 +217,6 @@ def statfiles(files):
     '''Stat each file in files and yield stat or None if file does not exist.
     Cluster and cache stat per directory to minimize number of OS stat calls.'''
     ncase = os.path.normcase
-    sep   = os.sep
     dircache = {} # dirname -> filename -> status | None if file does not exist
     for nf in files:
         nf  = ncase(nf)
@@ -258,7 +268,7 @@ def _removedirs(name):
         head, tail = os.path.split(head)
     while head and tail:
         try:
-            if osutil.listdir(name):
+            if osutil.listdir(head):
                 return
             os.rmdir(head)
         except:
@@ -273,6 +283,89 @@ def unlink(f):
         _removedirs(os.path.dirname(f))
     except OSError:
         pass
+
+def rename(src, dst):
+    '''atomically rename file src to dst, replacing dst if it exists'''
+    try:
+        os.rename(src, dst)
+    except OSError, err: # FIXME: check err (EEXIST ?)
+
+        # On windows, rename to existing file is not allowed, so we
+        # must delete destination first. But if a file is open, unlink
+        # schedules it for delete but does not delete it. Rename
+        # happens immediately even for open files, so we rename
+        # destination to a temporary name, then delete that. Then
+        # rename is safe to do.
+        # The temporary name is chosen at random to avoid the situation
+        # where a file is left lying around from a previous aborted run.
+        # The usual race condition this introduces can't be avoided as
+        # we need the name to rename into, and not the file itself. Due
+        # to the nature of the operation however, any races will at worst
+        # lead to the rename failing and the current operation aborting.
+
+        def tempname(prefix):
+            for tries in xrange(10):
+                temp = '%s-%08x' % (prefix, random.randint(0, 0xffffffff))
+                if not os.path.exists(temp):
+                    return temp
+            raise IOError, (errno.EEXIST, "No usable temporary filename found")
+
+        temp = tempname(dst)
+        os.rename(dst, temp)
+        try:
+            os.unlink(temp)
+        except:
+            # Some rude AV-scanners on Windows may cause the unlink to
+            # fail. Not aborting here just leaks the temp file, whereas
+            # aborting at this point may leave serious inconsistencies.
+            # Ideally, we would notify the user here.
+            pass
+        os.rename(src, dst)
+
+def spawndetached(args):
+    # No standard library function really spawns a fully detached
+    # process under win32 because they allocate pipes or other objects
+    # to handle standard streams communications. Passing these objects
+    # to the child process requires handle inheritance to be enabled
+    # which makes really detached processes impossible.
+    class STARTUPINFO:
+        dwFlags = subprocess.STARTF_USESHOWWINDOW
+        hStdInput = None
+        hStdOutput = None
+        hStdError = None
+        wShowWindow = subprocess.SW_HIDE
+
+    args = subprocess.list2cmdline(args)
+    # Not running the command in shell mode makes python26 hang when
+    # writing to hgweb output socket.
+    comspec = os.environ.get("COMSPEC", "cmd.exe")
+    args = comspec + " /c " + args
+    hp, ht, pid, tid = subprocess.CreateProcess(
+        None, args,
+        # no special security
+        None, None,
+        # Do not inherit handles
+        0,
+        # DETACHED_PROCESS
+        0x00000008,
+        os.environ,
+        os.getcwd(),
+        STARTUPINFO())
+    return pid
+
+def gethgcmd():
+    return [sys.executable] + sys.argv[:1]
+
+def termwidth_():
+    # cmd.exe does not handle CR like a unix console, the CR is
+    # counted in the line length. On 80 columns consoles, if 80
+    # characters are written, the following CR won't apply on the
+    # current line but on the new one. Keep room for it.
+    return 79
+
+def groupmembers(name):
+    # Don't support groups on Windows for now
+    raise KeyError()
 
 try:
     # override functions with win32 versions if possible

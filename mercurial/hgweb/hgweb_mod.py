@@ -4,33 +4,37 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import os
 from mercurial import ui, hg, hook, error, encoding, templater
-from common import get_mtime, ErrorResponse
+from common import get_mtime, ErrorResponse, permhooks
 from common import HTTP_OK, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
-from common import HTTP_UNAUTHORIZED, HTTP_METHOD_NOT_ALLOWED
 from request import wsgirequest
 import webcommands, protocol, webutil
 
 perms = {
     'changegroup': 'pull',
     'changegroupsubset': 'pull',
-    'unbundle': 'push',
     'stream_out': 'pull',
+    'listkeys': 'pull',
+    'unbundle': 'push',
+    'pushkey': 'push',
 }
 
 class hgweb(object):
-    def __init__(self, repo, name=None):
+    def __init__(self, repo, name=None, baseui=None):
         if isinstance(repo, str):
-            u = ui.ui()
-            u.setconfig('ui', 'report_untrusted', 'off')
-            u.setconfig('ui', 'interactive', 'off')
+            if baseui:
+                u = baseui.copy()
+            else:
+                u = ui.ui()
             self.repo = hg.repository(u, repo)
         else:
             self.repo = repo
 
+        self.repo.ui.setconfig('ui', 'report_untrusted', 'off')
+        self.repo.ui.setconfig('ui', 'interactive', 'off')
         hook.redirect(True)
         self.mtime = -1
         self.reponame = name
@@ -54,8 +58,10 @@ class hgweb(object):
         return self.repo.ui.configlist(section, name, default,
                                        untrusted=untrusted)
 
-    def refresh(self):
-        mtime = get_mtime(self.repo.root)
+    def refresh(self, request=None):
+        if request:
+            self.repo.ui.environ = request.env
+        mtime = get_mtime(self.repo.spath)
         if mtime != self.mtime:
             self.mtime = mtime
             self.repo = hg.repository(self.repo.ui, self.repo.root)
@@ -80,7 +86,7 @@ class hgweb(object):
 
     def run_wsgi(self, req):
 
-        self.refresh()
+        self.refresh(req)
 
         # work with CGI variables to create coherent structure
         # use SCRIPT_NAME, PATH_INFO and QUERY_STRING as well as our REPO_NAME
@@ -134,7 +140,7 @@ class hgweb(object):
             style = cmd.rfind('-')
             if style != -1:
                 req.form['style'] = [cmd[:style]]
-                cmd = cmd[style+1:]
+                cmd = cmd[style + 1:]
 
             # avoid accepting e.g. style parameter as command
             if hasattr(webcommands, cmd):
@@ -150,6 +156,10 @@ class hgweb(object):
                     req.form['node'] = [node]
                 if args:
                     req.form['file'] = args
+
+            ua = req.env.get('HTTP_USER_AGENT', '')
+            if cmd == 'rev' and 'mercurial' in ua:
+                req.form['style'] = ['raw']
 
             if cmd == 'archive':
                 fn = req.form['node'][0]
@@ -233,14 +243,17 @@ class hgweb(object):
         # figure out which style to use
 
         vars = {}
-        style = self.config("web", "style", "paper")
-        if 'style' in req.form:
-            style = req.form['style'][0]
+        styles = (
+            req.form.get('style', [None])[0],
+            self.config('web', 'style'),
+            'paper',
+        )
+        style, mapfile = templater.stylemap(styles, self.templatepath)
+        if style == styles[0]:
             vars['style'] = style
 
         start = req.url[-1] == '?' and '&' or '?'
         sessionvars = webutil.sessionvars(vars, start)
-        mapfile = templater.stylemap(style, self.templatepath)
 
         if not self.reponame:
             self.reponame = (self.config("web", "name")
@@ -268,48 +281,11 @@ class hgweb(object):
                 yield {"type" : i, "extension" : spec[2], "node" : nodeid}
 
     archive_specs = {
-        'bz2': ('application/x-tar', 'tbz2', '.tar.bz2', None),
-        'gz': ('application/x-tar', 'tgz', '.tar.gz', None),
+        'bz2': ('application/x-bzip2', 'tbz2', '.tar.bz2', None),
+        'gz': ('application/x-gzip', 'tgz', '.tar.gz', None),
         'zip': ('application/zip', 'zip', '.zip', None),
         }
 
     def check_perm(self, req, op):
-        '''Check permission for operation based on request data (including
-        authentication info). Return if op allowed, else raise an ErrorResponse
-        exception.'''
-
-        user = req.env.get('REMOTE_USER')
-
-        deny_read = self.configlist('web', 'deny_read')
-        if deny_read and (not user or deny_read == ['*'] or user in deny_read):
-            raise ErrorResponse(HTTP_UNAUTHORIZED, 'read not authorized')
-
-        allow_read = self.configlist('web', 'allow_read')
-        result = (not allow_read) or (allow_read == ['*'])
-        if not (result or user in allow_read):
-            raise ErrorResponse(HTTP_UNAUTHORIZED, 'read not authorized')
-
-        if op == 'pull' and not self.allowpull:
-            raise ErrorResponse(HTTP_UNAUTHORIZED, 'pull not authorized')
-        elif op == 'pull' or op is None: # op is None for interface requests
-            return
-
-        # enforce that you can only push using POST requests
-        if req.env['REQUEST_METHOD'] != 'POST':
-            msg = 'push requires POST request'
-            raise ErrorResponse(HTTP_METHOD_NOT_ALLOWED, msg)
-
-        # require ssl by default for pushing, auth info cannot be sniffed
-        # and replayed
-        scheme = req.env.get('wsgi.url_scheme')
-        if self.configbool('web', 'push_ssl', True) and scheme != 'https':
-            raise ErrorResponse(HTTP_OK, 'ssl required')
-
-        deny = self.configlist('web', 'deny_push')
-        if deny and (not user or deny == ['*'] or user in deny):
-            raise ErrorResponse(HTTP_UNAUTHORIZED, 'push not authorized')
-
-        allow = self.configlist('web', 'allow_push')
-        result = allow and (allow == ['*'] or user in allow)
-        if not result:
-            raise ErrorResponse(HTTP_UNAUTHORIZED, 'push not authorized')
+        for hook in permhooks:
+            hook(self, req, op)

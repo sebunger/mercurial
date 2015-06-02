@@ -3,7 +3,7 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import base64, errno
 import os
@@ -24,7 +24,8 @@ def decodeargs(s):
     s = base64.decodestring(s)
     return pickle.loads(s)
 
-class MissingTool(Exception): pass
+class MissingTool(Exception):
+    pass
 
 def checktool(exe, name=None, abort=True):
     name = name or exe
@@ -32,7 +33,8 @@ def checktool(exe, name=None, abort=True):
         exc = abort and util.Abort or MissingTool
         raise exc(_('cannot find required "%s" tool') % name)
 
-class NoRepo(Exception): pass
+class NoRepo(Exception):
+    pass
 
 SKIPREV = 'SKIP'
 
@@ -75,15 +77,10 @@ class converter_source(object):
         raise NotImplementedError()
 
     def getfile(self, name, rev):
-        """Return file contents as a string. rev is the identifier returned
-        by a previous call to getchanges(). Raise IOError to indicate that
-        name was deleted in rev.
-        """
-        raise NotImplementedError()
-
-    def getmode(self, name, rev):
-        """Return file mode, eg. '', 'x', or 'l'. rev is the identifier
-        returned by a previous call to getchanges().
+        """Return a pair (data, mode) where data is the file content
+        as a string and mode one of '', 'x' or 'l'. rev is the
+        identifier returned by a previous call to getchanges(). Raise
+        IOError to indicate that name was deleted in rev.
         """
         raise NotImplementedError()
 
@@ -190,8 +187,8 @@ class converter_sink(object):
         changeset.  'files' is a list of (path, version) tuples,
         'copies' is a dictionary mapping destinations to sources,
         'source' is the source repository, and 'revmap' is a mapfile
-        of source revisions to converted revisions. Only getfile(),
-        getmode(), and lookuprev() should be called on 'source'.
+        of source revisions to converted revisions. Only getfile() and
+        lookuprev() should be called on 'source'.
 
         Note that the sink repository is not told to update itself to
         a particular revision (or even what that revision would be)
@@ -203,6 +200,8 @@ class converter_sink(object):
         """Put tags into sink.
 
         tags: {tagname: sink_rev_id, ...} where tagname is an UTF-8 string.
+        Return a pair (tag_revision, tag_parent_revision), or (None, None)
+        if nothing was changed.
         """
         raise NotImplementedError()
 
@@ -264,7 +263,7 @@ class commandline(object):
 
     def _run(self, cmd, *args, **kwargs):
         cmdline = self._cmdline(cmd, *args, **kwargs)
-        self.ui.debug(_('running: %s\n') % (cmdline,))
+        self.ui.debug('running: %s\n' % (cmdline,))
         self.prerun()
         try:
             return util.popen(cmdline)
@@ -320,7 +319,7 @@ class commandline(object):
         # Since ARG_MAX is for command line _and_ environment, lower our limit
         # (and make happy Windows shells while doing this).
 
-        self._argmax = self._argmax/2 - 1
+        self._argmax = self._argmax / 2 - 1
         return self._argmax
 
     def limit_arglist(self, arglist, cmd, *args, **kwargs):
@@ -363,10 +362,11 @@ class mapfile(dict):
             return
         for i, line in enumerate(fp):
             try:
-                key, value = line[:-1].rsplit(' ', 1)
+                key, value = line.splitlines()[0].rsplit(' ', 1)
             except ValueError:
-                raise util.Abort(_('syntax error in %s(%d): key/value pair expected')
-                                 % (self.path, i+1))
+                raise util.Abort(
+                    _('syntax error in %s(%d): key/value pair expected')
+                    % (self.path, i + 1))
             if key not in self:
                 self.order.append(key)
             super(mapfile, self).__setitem__(key, value)

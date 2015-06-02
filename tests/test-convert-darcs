@@ -1,19 +1,13 @@
 #!/bin/sh
 
 "$TESTDIR/hghave" darcs || exit 80
-if darcs --version 2>&1 | grep '^2\.' > /dev/null; then
-    # FIXME: darcs 2 will fail with
-    ### Abort: timeout after 180 seconds.
-    echo 'skipped: test currently disabled for darcs 2'
-    exit 80
-fi
 
 echo "[extensions]" >> $HGRCPATH
 echo "convert=" >> $HGRCPATH
-echo 'hgext.graphlog =' >> $HGRCPATH
+echo 'graphlog =' >> $HGRCPATH
 
 DARCS_EMAIL='test@example.org'; export DARCS_EMAIL
-HOME=do_not_use_HOME_darcs; export HOME
+HOME=`pwd`/do_not_use_HOME_darcs; export HOME
 
 # skip if we can't import elementtree
 mkdir dummy
@@ -22,6 +16,9 @@ if hg convert dummy 2>&1 | grep ElementTree > /dev/null; then
     echo 'skipped: missing feature: elementtree module'
     exit 80
 fi
+
+echo '% try converting darcs1 repository'
+hg convert -s darcs "$TESTDIR/darcs/darcs1" 2>&1 | grep darcs-1.0
 
 echo % initialize darcs repo
 mkdir darcs-repo
@@ -47,16 +44,34 @@ darcs record -a -l -m p1.2
 
 echo % merge branch
 darcs pull -a ../darcs-clone
+sleep 1
 echo e > a
+echo f > f
+mkdir dir
+echo d > dir/d
+echo d > dir/d2
 darcs record -a -l -m p2
-cd ..
+
+echo % test file and directory move
+darcs mv f ff
+# Test remove + move
+darcs remove dir/d2
+rm dir/d2
+darcs mv dir dir2
+darcs record -a -l -m p3
+
+echo % test utf-8 commit message and author
+echo g > g
+# darcs is encoding agnostic, so it takes whatever bytes it's given
+darcs record -a -l -m 'p4: desc ñ' -A 'author ñ'
 
 glog()
 {
-    hg glog --template '{rev} "{desc|firstline}" files: {files}\n' "$@"
+    HGENCODING=utf-8 hg glog --template '{rev} "{desc|firstline}" ({author}) files: {files}\n' "$@"
 }
 
-hg convert darcs-repo darcs-repo-hg 2>&1 | grep -v hGetLine | grep -v '^$'
+cd ..
+hg convert darcs-repo darcs-repo-hg
 # The converter does not currently handle patch conflicts very well.
 # When they occur, it reverts *all* changes and moves forward,
 # letting the conflict resolving patch fix collisions.

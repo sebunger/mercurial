@@ -50,15 +50,18 @@ adding tst.d/foo
 .hg/data/tst.d.hg
 .hg/data/tst.d.hg/foo.i
 .hg/dirstate
+.hg/last-message.txt
 .hg/requires
 .hg/undo
 .hg/undo.branch
+.hg/undo.desc
 .hg/undo.dirstate
 % non fncache repo
 adding tst.d/Foo
 .hg
 .hg/00changelog.i
 .hg/dirstate
+.hg/last-message.txt
 .hg/requires
 .hg/store
 .hg/store/00changelog.i
@@ -68,4 +71,5 @@ adding tst.d/Foo
 .hg/store/data/tst.d.hg/_foo.i
 .hg/store/undo
 .hg/undo.branch
+.hg/undo.desc
 .hg/undo.dirstate

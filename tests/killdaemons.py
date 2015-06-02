@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import os, sys, time, errno, signal
+import os, time, errno, signal
 
 # Kill off any leftover daemon processes
 try:
-    fp = file(os.environ['DAEMON_PIDS'])
+    fp = open(os.environ['DAEMON_PIDS'])
     for line in fp:
         try:
             pid = int(line)

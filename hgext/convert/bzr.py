@@ -3,7 +3,7 @@
 #  Copyright 2008, 2009 Marek Kubica <marek@xivilization.net> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 # This module is for handling 'bzr', that was formerly known as Bazaar-NG;
 # it cannot access 'bar' repositories, but they were never used very much
@@ -14,6 +14,7 @@ from mercurial import demandimport
 demandimport.ignore.extend([
         'bzrlib.transactions',
         'bzrlib.urlutils',
+        'ElementPath',
     ])
 
 from mercurial.i18n import _
@@ -36,13 +37,14 @@ class bzr_source(converter_source):
         super(bzr_source, self).__init__(ui, path, rev=rev)
 
         if not os.path.exists(os.path.join(path, '.bzr')):
-            raise NoRepo('%s does not look like a Bazaar repo' % path)
+            raise NoRepo(_('%s does not look like a Bazaar repository')
+                         % path)
 
         try:
             # access bzrlib stuff
             branch
         except NameError:
-            raise NoRepo('Bazaar modules could not be loaded')
+            raise NoRepo(_('Bazaar modules could not be loaded'))
 
         path = os.path.abspath(path)
         self._checkrepotype(path)
@@ -107,18 +109,16 @@ class bzr_source(converter_source):
             # the file is not available anymore - was deleted
             raise IOError(_('%s is not available in %s anymore') %
                     (name, rev))
+        mode = self._modecache[(name, rev)]
         if kind == 'symlink':
             target = revtree.get_symlink_target(fileid)
             if target is None:
                 raise util.Abort(_('%s.%s symlink has no target')
                                  % (name, rev))
-            return target
+            return target, mode
         else:
             sio = revtree.get_file(fileid)
-            return sio.read()
-
-    def getmode(self, name, rev):
-        return self._modecache[(name, rev)]
+            return sio.read(), mode
 
     def getchanges(self, version):
         # set up caches: modecache and revtree
@@ -170,7 +170,7 @@ class bzr_source(converter_source):
         return changes
 
     def _gettreechanges(self, current, origin):
-        revid = current._revision_id;
+        revid = current._revision_id
         changes = []
         renames = {}
         for (fileid, paths, changed_content, versioned, parent, name,
@@ -203,7 +203,8 @@ class bzr_source(converter_source):
                         changes.append((frompath, revid))
                         changes.append((topath, revid))
                         # add to mode cache
-                        mode = ((entry.executable and 'x') or (entry.kind == 'symlink' and 's')
+                        mode = ((entry.executable and 'x')
+                                or (entry.kind == 'symlink' and 's')
                                 or '')
                         self._modecache[(topath, revid)] = mode
                         # register the change as move

@@ -1,8 +1,8 @@
 % test fetch with default branches only
 adding a
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 adding b
 1:97d72e5f12c7
@@ -16,9 +16,9 @@ added 1 changesets with 1 changes to 1 files
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1:97d72e5f12c7
 adding c
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 % should merge c into a
 pulling from ../a
@@ -36,7 +36,7 @@ a
 b
 c
 % fetch over http, no auth
-pulling from http://localhost:20059/
+pulling from http://localhost:$HGPORT/
 searching for changes
 adding changesets
 adding manifests
@@ -47,9 +47,9 @@ updating to 2:97d72e5f12c7
 merging with 1:5e056962225c
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 new changeset 3:... merges remote changes with local
-Automated merge with http://localhost:20059/
+Automated merge with http://localhost:$HGPORT/
 % fetch over http with auth (should be hidden in desc)
-pulling from http://user:***@localhost:20059/
+pulling from http://user:***@localhost:$HGPORT/
 searching for changes
 adding changesets
 adding manifests
@@ -60,10 +60,10 @@ updating to 2:97d72e5f12c7
 merging with 1:5e056962225c
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 new changeset 3:... merges remote changes with local
-Automated merge with http://localhost:20059/
-updating working directory
+Automated merge with http://localhost:$HGPORT/
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 adding f
 adding g
@@ -86,12 +86,11 @@ marked working directory as branch a
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 marked working directory as branch b
 adding b
-created new head
 
 % pull in change on foreign branch
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -105,9 +104,9 @@ added 1 changesets with 1 changes to 1 files
 2
 
 % pull in changes on both foreign and local branches
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -124,9 +123,9 @@ added 2 changesets with 2 changes to 2 files
 
 % pull changes on foreign (2 new heads) and local (1 new head) branches
 % with a local change
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 2 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -149,15 +148,14 @@ new changeset 7:48f1a33f52af merges remote changes with local
 7
 % pull in changes on foreign (merge of local branch) and local (2 new
 % heads) with a local change
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 (branch merge, don't forget to commit)
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-created new head
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 created new head
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -172,7 +170,7 @@ not merging with 1 other new branch heads (use "hg heads ." and "hg merge" to me
 3
 % pull in change on different branch than dirstate
 adding a
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 marked working directory as branch topic
 abort: working dir not at branch tip (use "hg update" to check out branch tip)
@@ -184,7 +182,8 @@ marked working directory as branch second
 adding b
 marked working directory as branch default
 adding c
-updating working directory
+created new head
+updating to branch default
 3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 % fetch should succeed
 pulling from ../ib1
@@ -192,7 +191,7 @@ searching for changes
 no changes found
 % test issue1726
 adding a
-updating working directory
+updating to branch default
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 pulling from ../i1726r1
 searching for changes
@@ -207,3 +206,11 @@ merging a
 0 files updated, 1 files merged, 0 files removed, 0 files unresolved
 new changeset 3 merges remote changes with local
 3
+
+% test issue2047
+pulling from ../i2047a
+searching for changes
+adding changesets
+adding manifests
+adding file changes
+added 1 changesets with 1 changes to 1 files

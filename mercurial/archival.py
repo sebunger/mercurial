@@ -3,10 +3,11 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 from node import hex
+import cmdutil
 import util
 import cStringIO, os, stat, tarfile, time, zipfile
 import zlib, gzip
@@ -138,6 +139,13 @@ class zipit(object):
         self.z = zipfile.ZipFile(dest, 'w',
                                  compress and zipfile.ZIP_DEFLATED or
                                  zipfile.ZIP_STORED)
+
+        # Python's zipfile module emits deprecation warnings if we try
+        # to store files with a date before 1980.
+        epoch = 315532800 # calendar.timegm((1980, 1, 1, 0, 0, 0, 1, 1, 0))
+        if mtime < epoch:
+            mtime = epoch
+
         self.date_time = time.gmtime(mtime)[:6]
 
     def addfile(self, name, mode, islink, data):
@@ -204,7 +212,8 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
     prefix is name of path to put before every archive member.'''
 
     def write(name, mode, islink, getdata):
-        if matchfn and not matchfn(name): return
+        if matchfn and not matchfn(name):
+            return
         data = getdata()
         if decode:
             data = repo.wwritedata(name, data)
@@ -217,9 +226,25 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
     archiver = archivers[kind](dest, prefix, mtime or ctx.date()[0])
 
     if repo.ui.configbool("ui", "archivemeta", True):
-        write('.hg_archival.txt', 0644, False,
-              lambda: 'repo: %s\nnode: %s\n' % (
-                  hex(repo.changelog.node(0)), hex(node)))
+        def metadata():
+            base = 'repo: %s\nnode: %s\nbranch: %s\n' % (
+                hex(repo.changelog.node(0)), hex(node), ctx.branch())
+
+            tags = ''.join('tag: %s\n' % t for t in ctx.tags()
+                           if repo.tagtype(t) == 'global')
+            if not tags:
+                repo.ui.pushbuffer()
+                opts = {'template': '{latesttag}\n{latesttagdistance}',
+                        'style': '', 'patch': None, 'git': None}
+                cmdutil.show_changeset(repo.ui, repo, opts).show(ctx)
+                ltags, dist = repo.ui.popbuffer().split('\n')
+                tags = ''.join('latesttag: %s\n' % t for t in ltags.split(':'))
+                tags += 'latesttagdistance: %s\n' % dist
+
+            return base + tags
+
+        write('.hg_archival.txt', 0644, False, metadata)
+
     for f in ctx:
         ff = ctx.flags(f)
         write(f, 'x' in ff and 0755 or 0644, 'l' in ff, ctx[f].data)

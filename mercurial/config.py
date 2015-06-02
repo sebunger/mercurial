@@ -3,10 +3,10 @@
 #  Copyright 2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
-import error
+import error, util
 import re, os
 
 class sortdict(dict):
@@ -73,16 +73,16 @@ class config(object):
     def parse(self, src, data, sections=None, remap=None, include=None):
         sectionre = re.compile(r'\[([^\[]+)\]')
         itemre = re.compile(r'([^=\s][^=]*?)\s*=\s*(.*\S|)')
-        contre = re.compile(r'\s+(\S.*\S)')
+        contre = re.compile(r'\s+(\S|\S.*\S)\s*$')
         emptyre = re.compile(r'(;|#|\s*$)')
         unsetre = re.compile(r'%unset\s+(\S+)')
-        includere = re.compile(r'%include\s+(\S.*\S)')
+        includere = re.compile(r'%include\s+(\S|\S.*\S)\s*$')
         section = ""
         item = None
         line = 0
-        cont = 0
+        cont = False
 
-        for l in data.splitlines(1):
+        for l in data.splitlines(True):
             line += 1
             if cont:
                 m = contre.match(l)
@@ -93,13 +93,19 @@ class config(object):
                     self.set(section, item, v, "%s:%d" % (src, line))
                     continue
                 item = None
+                cont = False
             m = includere.match(l)
             if m:
-                inc = m.group(1)
+                inc = util.expandpath(m.group(1))
                 base = os.path.dirname(src)
                 inc = os.path.normpath(os.path.join(base, inc))
                 if include:
-                    include(inc, remap=remap, sections=sections)
+                    try:
+                        include(inc, remap=remap, sections=sections)
+                    except IOError, inst:
+                        raise error.ParseError(_("cannot include %s (%s)")
+                                               % (inc, inst.strerror),
+                                               "%s:%s" % (src, line))
                 continue
             if emptyre.match(l):
                 continue
@@ -114,7 +120,7 @@ class config(object):
             m = itemre.match(l)
             if m:
                 item = m.group(1)
-                cont = 1
+                cont = True
                 if sections and section not in sections:
                     continue
                 self.set(section, item, m.group(2), "%s:%d" % (src, line))
@@ -128,8 +134,7 @@ class config(object):
                     del self._data[section][name]
                 continue
 
-            raise error.ConfigError(_('config error at %s:%d: \'%s\'')
-                                    % (src, line, l.rstrip()))
+            raise error.ParseError(l.rstrip(), ("%s:%s" % (src, line)))
 
     def read(self, path, fp=None, sections=None, remap=None):
         if not fp:

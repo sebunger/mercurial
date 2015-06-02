@@ -3,22 +3,22 @@
 # Copyright (C) 2007 Alexis S. L. Carvalho <alexis@cecm.usp.br>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''interpret suffixes to refer to ancestor revisions
 
 This extension allows you to use git-style suffixes to refer to the
 ancestors of a specific revision.
 
-For example, if you can refer to a revision as "foo", then:
+For example, if you can refer to a revision as "foo", then::
 
-- foo^N = Nth parent of foo
+  foo^N = Nth parent of foo
   foo^0 = foo
   foo^1 = first parent of foo
   foo^2 = second parent of foo
   foo^  = foo^1
 
-- foo~N = Nth first grandparent of foo
+  foo~N = Nth first grandparent of foo
   foo~0 = foo
   foo~1 = foo^1 = foo^ = first parent of foo
   foo~2 = foo^1^1 = foo^^ = first parent of first parent of foo
@@ -67,7 +67,7 @@ def reposetup(ui, repo):
                     p = cl.parentrevs(rev)
                     if j < len(suffix) and suffix[j].isdigit():
                         j += 1
-                        n = int(suffix[i+1:j])
+                        n = int(suffix[i + 1:j])
                         if n > 2 or n == 2 and p[1] == -1:
                             raise
                     else:
@@ -85,7 +85,7 @@ def reposetup(ui, repo):
                         j += 1
                     if j == i + 1:
                         raise
-                    n = int(suffix[i+1:j])
+                    n = int(suffix[i + 1:j])
                     for k in xrange(n):
                         rev = cl.parentrevs(rev)[0]
                     i = j

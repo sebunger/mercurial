@@ -3,9 +3,9 @@
 # Copyright 2005-2008 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
-import cgi, re, os, time, urllib, textwrap
+import cgi, re, os, time, urllib
 import util, encoding
 
 def stringify(thing):
@@ -14,15 +14,13 @@ def stringify(thing):
         return "".join([stringify(t) for t in thing if t is not None])
     return str(thing)
 
-agescales = [("second", 1),
-             ("minute", 60),
-             ("hour", 3600),
-             ("day", 3600 * 24),
-             ("week", 3600 * 24 * 7),
+agescales = [("year", 3600 * 24 * 365),
              ("month", 3600 * 24 * 30),
-             ("year", 3600 * 24 * 365)]
-
-agescales.reverse()
+             ("week", 3600 * 24 * 7),
+             ("day", 3600 * 24),
+             ("hour", 3600),
+             ("minute", 60),
+             ("second", 1)]
 
 def age(date):
     '''turn a (timestamp, tzoff) tuple into an age string.'''
@@ -40,10 +38,13 @@ def age(date):
         return 'in the future'
 
     delta = max(1, int(now - then))
+    if delta > agescales[0][1] * 2:
+        return util.shortdate(date)
+
     for t, s in agescales:
-        n = delta / s
+        n = delta // s
         if n >= 2 or s == 1:
-            return fmt(t, n)
+            return '%s ago' % fmt(t, n)
 
 para_re = None
 space_re = None
@@ -60,20 +61,23 @@ def fill(text, width):
         while True:
             m = para_re.search(text, start)
             if not m:
-                w = len(text)
-                while w > start and text[w-1].isspace(): w -= 1
-                yield text[start:w], text[w:]
+                uctext = unicode(text[start:], encoding.encoding)
+                w = len(uctext)
+                while 0 < w and uctext[w - 1].isspace():
+                    w -= 1
+                yield (uctext[:w].encode(encoding.encoding),
+                       uctext[w:].encode(encoding.encoding))
                 break
             yield text[start:m.start(0)], m.group(1)
             start = m.end(1)
 
-    return "".join([space_re.sub(' ', textwrap.fill(para, width)) + rest
+    return "".join([space_re.sub(' ', util.wrap(para, width=width)) + rest
                     for para, rest in findparas()])
 
 def firstline(text):
     '''return the first line of text'''
     try:
-        return text.splitlines(1)[0].rstrip('\r\n')
+        return text.splitlines(True)[0].rstrip('\r\n')
     except IndexError:
         return ''
 
@@ -88,30 +92,35 @@ def obfuscate(text):
 def domain(author):
     '''get domain of author, or empty string if none.'''
     f = author.find('@')
-    if f == -1: return ''
-    author = author[f+1:]
+    if f == -1:
+        return ''
+    author = author[f + 1:]
     f = author.find('>')
-    if f >= 0: author = author[:f]
+    if f >= 0:
+        author = author[:f]
     return author
 
 def person(author):
     '''get name of author, or else username.'''
-    if not '@' in author: return author
+    if not '@' in author:
+        return author
     f = author.find('<')
-    if f == -1: return util.shortuser(author)
+    if f == -1:
+        return util.shortuser(author)
     return author[:f].rstrip()
 
 def indent(text, prefix):
     '''indent each non-empty line of text after first with prefix.'''
     lines = text.splitlines()
     num_lines = len(lines)
+    endswithnewline = text[-1:] == '\n'
     def indenter():
         for i in xrange(num_lines):
             l = lines[i]
             if i and l.strip():
                 yield prefix
             yield l
-            if i < num_lines - 1 or text.endswith('\n'):
+            if i < num_lines - 1 or endswithnewline:
                 yield '\n'
     return "".join(indenter())
 
@@ -131,6 +140,12 @@ def xmlescape(text):
             .replace("'", '&#39;')) # &apos; invalid in HTML
     return re.sub('[\x00-\x08\x0B\x0C\x0E-\x1F]', ' ', text)
 
+def uescape(c):
+    if ord(c) < 0x80:
+        return c
+    else:
+        return '\\u%04x' % ord(c)
+
 _escapes = [
     ('\\', '\\\\'), ('"', '\\"'), ('\t', '\\t'), ('\n', '\\n'),
     ('\r', '\\r'), ('\f', '\\f'), ('\b', '\\b'),
@@ -139,7 +154,7 @@ _escapes = [
 def jsonescape(s):
     for k, v in _escapes:
         s = s.replace(k, v)
-    return s
+    return ''.join(uescape(c) for c in s)
 
 def json(obj):
     if obj is None or obj is False or obj is True:
@@ -147,9 +162,10 @@ def json(obj):
     elif isinstance(obj, int) or isinstance(obj, float):
         return str(obj)
     elif isinstance(obj, str):
-        return '"%s"' % jsonescape(obj)
+        u = unicode(obj, encoding.encoding, 'replace')
+        return '"%s"' % jsonescape(u)
     elif isinstance(obj, unicode):
-        return json(obj.encode('utf-8'))
+        return '"%s"' % jsonescape(obj)
     elif hasattr(obj, 'keys'):
         out = []
         for k, v in obj.iteritems():

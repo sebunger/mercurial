@@ -3,10 +3,10 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import imp, os
-import util, cmdutil, help
+import util, cmdutil, help, error
 from i18n import _, gettext
 
 _extensions = {}
@@ -30,7 +30,7 @@ def find(name):
 
 def loadpath(path, module_name):
     module_name = module_name.replace('.', '_')
-    path = os.path.expanduser(path)
+    path = util.expandpath(path)
     if os.path.isdir(path):
         # module/__init__.py style
         d, f = os.path.split(path.rstrip('/'))
@@ -40,6 +40,7 @@ def loadpath(path, module_name):
         return imp.load_source(module_name, path)
 
 def load(ui, name, path):
+    # unused ui argument kept for backwards compatibility
     if name.startswith('hgext.') or name.startswith('hgext/'):
         shortname = name[6:]
     else:
@@ -66,12 +67,9 @@ def load(ui, name, path):
     _extensions[shortname] = mod
     _order.append(shortname)
 
-    uisetup = getattr(mod, 'uisetup', None)
-    if uisetup:
-        uisetup(ui)
-
 def loadall(ui):
     result = ui.configitems("extensions")
+    newindex = len(_order)
     for (name, path) in result:
         if path:
             if path[0] == '!':
@@ -90,7 +88,35 @@ def loadall(ui):
             if ui.traceback():
                 return 1
 
+    for name in _order[newindex:]:
+        uisetup = getattr(_extensions[name], 'uisetup', None)
+        if uisetup:
+            uisetup(ui)
+
+    for name in _order[newindex:]:
+        extsetup = getattr(_extensions[name], 'extsetup', None)
+        if extsetup:
+            try:
+                extsetup(ui)
+            except TypeError:
+                if extsetup.func_code.co_argcount != 0:
+                    raise
+                extsetup() # old extsetup with no ui argument
+
 def wrapcommand(table, command, wrapper):
+    '''Wrap the command named `command' in table
+
+    Replace command in the command table with wrapper. The wrapped command will
+    be inserted into the command table specified by the table argument.
+
+    The wrapper will be called like
+
+      wrapper(orig, *args, **kwargs)
+
+    where orig is the original (wrapped) function, and *args, **kwargs
+    are the arguments passed to it.
+    '''
+    assert hasattr(wrapper, '__call__')
     aliases, entry = cmdutil.findcmd(command, table)
     for alias, e in table.iteritems():
         if e is entry:
@@ -111,29 +137,59 @@ def wrapcommand(table, command, wrapper):
     return entry
 
 def wrapfunction(container, funcname, wrapper):
+    '''Wrap the function named funcname in container
+
+    Replace the funcname member in the given container with the specified
+    wrapper. The container is typically a module, class, or instance.
+
+    The wrapper will be called like
+
+      wrapper(orig, *args, **kwargs)
+
+    where orig is the original (wrapped) function, and *args, **kwargs
+    are the arguments passed to it.
+
+    Wrapping methods of the repository object is not recommended since
+    it conflicts with extensions that extend the repository by
+    subclassing. All extensions that need to extend methods of
+    localrepository should use this subclassing trick: namely,
+    reposetup() should look like
+
+      def reposetup(ui, repo):
+          class myrepo(repo.__class__):
+              def whatever(self, *args, **kwargs):
+                  [...extension stuff...]
+                  super(myrepo, self).whatever(*args, **kwargs)
+                  [...extension stuff...]
+
+          repo.__class__ = myrepo
+
+    In general, combining wrapfunction() with subclassing does not
+    work. Since you cannot control what other extensions are loaded by
+    your end users, you should play nicely with others by using the
+    subclass trick.
+    '''
+    assert hasattr(wrapper, '__call__')
     def wrap(*args, **kwargs):
         return wrapper(origfn, *args, **kwargs)
 
     origfn = getattr(container, funcname)
+    assert hasattr(origfn, '__call__')
     setattr(container, funcname, wrap)
     return origfn
 
-def disabled():
-    '''find disabled extensions from hgext
-    returns a dict of {name: desc}, and the max name length'''
-
+def _disabledpaths(strip_init=False):
+    '''find paths of disabled extensions. returns a dict of {name: path}
+    removes /__init__.py from packages if strip_init is True'''
     import hgext
     extpath = os.path.dirname(os.path.abspath(hgext.__file__))
-
     try: # might not be a filesystem path
         files = os.listdir(extpath)
     except OSError:
-        return None, 0
+        return {}
 
     exts = {}
-    maxlength = 0
     for e in files:
-
         if e.endswith('.py'):
             name = e.rsplit('.', 1)[0]
             path = os.path.join(extpath, e)
@@ -142,41 +198,104 @@ def disabled():
             path = os.path.join(extpath, e, '__init__.py')
             if not os.path.exists(path):
                 continue
-
+            if strip_init:
+                path = os.path.dirname(path)
         if name in exts or name in _order or name == '__init__':
             continue
+        exts[name] = path
+    return exts
 
-        try:
-            file = open(path)
-        except IOError:
+def _disabledhelp(path):
+    '''retrieve help synopsis of a disabled extension (without importing)'''
+    try:
+        file = open(path)
+    except IOError:
+        return
+    else:
+        doc = help.moduledoc(file)
+        file.close()
+
+    if doc: # extracting localized synopsis
+        return gettext(doc).splitlines()[0]
+    else:
+        return _('(no help text available)')
+
+def disabled():
+    '''find disabled extensions from hgext
+    returns a dict of {name: desc}, and the max name length'''
+
+    paths = _disabledpaths()
+    if not paths:
+        return None, 0
+
+    exts = {}
+    maxlength = 0
+    for name, path in paths.iteritems():
+        doc = _disabledhelp(path)
+        if not doc:
             continue
-        else:
-            doc = help.moduledoc(file)
-            file.close()
 
-        if doc: # extracting localized synopsis
-            exts[name] = gettext(doc).splitlines()[0]
-        else:
-            exts[name] = _('(no help text available)')
-
+        exts[name] = doc
         if len(name) > maxlength:
             maxlength = len(name)
 
     return exts, maxlength
 
+def disabledext(name):
+    '''find a specific disabled extension from hgext. returns desc'''
+    paths = _disabledpaths()
+    if name in paths:
+        return _disabledhelp(paths[name])
+
+def disabledcmd(cmd, strict=False):
+    '''import disabled extensions until cmd is found.
+    returns (cmdname, extname, doc)'''
+
+    paths = _disabledpaths(strip_init=True)
+    if not paths:
+        raise error.UnknownCommand(cmd)
+
+    def findcmd(cmd, name, path):
+        try:
+            mod = loadpath(path, 'hgext.%s' % name)
+        except Exception:
+            return
+        try:
+            aliases, entry = cmdutil.findcmd(cmd,
+                getattr(mod, 'cmdtable', {}), strict)
+        except (error.AmbiguousCommand, error.UnknownCommand):
+            return
+        for c in aliases:
+            if c.startswith(cmd):
+                cmd = c
+                break
+        else:
+            cmd = aliases[0]
+        return (cmd, name, mod)
+
+    # first, search for an extension with the same name as the command
+    path = paths.pop(cmd, None)
+    if path:
+        ext = findcmd(cmd, cmd, path)
+        if ext:
+            return ext
+
+    # otherwise, interrogate each extension until there's a match
+    for name, path in paths.iteritems():
+        ext = findcmd(cmd, name, path)
+        if ext:
+            return ext
+
+    raise error.UnknownCommand(cmd)
+
 def enabled():
     '''return a dict of {name: desc} of extensions, and the max name length'''
-
-    if not enabled:
-        return {}, 0
-
     exts = {}
     maxlength = 0
-    exthelps = []
     for ename, ext in extensions():
         doc = (gettext(ext.__doc__) or _('(no help text available)'))
         ename = ename.split('.')[-1]
         maxlength = max(len(ename), maxlength)
-        exts[ename] = doc.splitlines(0)[0].strip()
+        exts[ename] = doc.splitlines()[0].strip()
 
     return exts, maxlength

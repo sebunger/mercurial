@@ -3,7 +3,7 @@
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import bdiff, mpatch, util
@@ -27,7 +27,9 @@ class diffopts(object):
     nodates removes dates from diff headers
     ignorews ignores all whitespace changes in the diff
     ignorewsamount ignores changes in the amount of whitespace
-    ignoreblanklines ignores changes whose lines are all blank'''
+    ignoreblanklines ignores changes whose lines are all blank
+    upgrade generates git diffs to avoid data loss
+    '''
 
     defaults = {
         'context': 3,
@@ -38,6 +40,7 @@ class diffopts(object):
         'ignorews': False,
         'ignorewsamount': False,
         'ignoreblanklines': False,
+        'upgrade': False,
         }
 
     __slots__ = defaults.keys()
@@ -55,15 +58,20 @@ class diffopts(object):
             raise util.Abort(_('diff context lines count must be '
                                'an integer, not %r') % self.context)
 
+    def copy(self, **kwargs):
+        opts = dict((k, getattr(self, k)) for k in self.defaults)
+        opts.update(kwargs)
+        return diffopts(**opts)
+
 defaultopts = diffopts()
 
-def wsclean(opts, text):
+def wsclean(opts, text, blank=True):
     if opts.ignorews:
         text = re.sub('[ \t]+', '', text)
     elif opts.ignorewsamount:
         text = re.sub('[ \t]+', ' ', text)
         text = re.sub('[ \t]+\n', '\n', text)
-    if opts.ignoreblanklines:
+    if blank and opts.ignoreblanklines:
         text = re.sub('\n+', '', text)
     return text
 
@@ -88,7 +96,8 @@ def unidiff(a, ad, b, bd, fn1, fn2, r=None, opts=defaultopts):
             return '\t\n'
         return '\n'
 
-    if not a and not b: return ""
+    if not a and not b:
+        return ""
     epoch = util.datestr((0, 0))
 
     if not opts.text and (util.binary(a) or util.binary(b)):
@@ -116,11 +125,12 @@ def unidiff(a, ad, b, bd, fn1, fn2, r=None, opts=defaultopts):
     else:
         al = splitnewlines(a)
         bl = splitnewlines(b)
-        l = list(bunidiff(a, b, al, bl, "a/" + fn1, "b/" + fn2, opts=opts))
-        if not l: return ""
-        # difflib uses a space, rather than a tab
-        l[0] = "%s%s" % (l[0][:-2], datetag(ad))
-        l[1] = "%s%s" % (l[1][:-2], datetag(bd))
+        l = list(_unidiff(a, b, al, bl, opts=opts))
+        if not l:
+            return ""
+
+        l.insert(0, "--- a/%s%s" % (fn1, datetag(ad)))
+        l.insert(1, "+++ b/%s%s" % (fn2, datetag(bd)))
 
     for ln in xrange(len(l)):
         if l[ln][-1] != '\n':
@@ -131,11 +141,10 @@ def unidiff(a, ad, b, bd, fn1, fn2, r=None, opts=defaultopts):
 
     return "".join(l)
 
-# somewhat self contained replacement for difflib.unified_diff
+# creates a headerless unified diff
 # t1 and t2 are the text to be diffed
 # l1 and l2 are the text broken up into lines
-# header1 and header2 are the filenames for the diff output
-def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
+def _unidiff(t1, t2, l1, l2, opts=defaultopts):
     def contextend(l, len):
         ret = l + opts.context
         if ret > len:
@@ -148,10 +157,7 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
             return 0
         return ret
 
-    def yieldhunk(hunk, header):
-        if header:
-            for x in header:
-                yield x
+    def yieldhunk(hunk):
         (astart, a2, bstart, b2, delta) = hunk
         aend = contextend(a2, len(l1))
         alen = aend - astart
@@ -174,8 +180,6 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
         for x in xrange(a2, aend):
             yield ' ' + l1[x]
 
-    header = [ "--- %s\t\n" % header1, "+++ %s\t\n" % header2 ]
-
     if opts.showfunc:
         funcre = re.compile('\w')
 
@@ -183,6 +187,10 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
     # below finds the spaces between those matching sequences and translates
     # them into diff output.
     #
+    if opts.ignorews or opts.ignorewsamount:
+        t1 = wsclean(opts, t1, False)
+        t2 = wsclean(opts, t2, False)
+
     diff = bdiff.blocks(t1, t2)
     hunk = None
     for i, s1 in enumerate(diff):
@@ -191,7 +199,7 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
         # in the file.  If it starts later, old and new below will both be
         # empty and we'll continue to the next match.
         if i > 0:
-            s = diff[i-1]
+            s = diff[i - 1]
         else:
             s = [0, 0, 0, 0]
         delta = []
@@ -208,7 +216,7 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
         if not old and not new:
             continue
 
-        if opts.ignorews or opts.ignorewsamount or opts.ignoreblanklines:
+        if opts.ignoreblanklines:
             if wsclean(opts, "".join(old)) == wsclean(opts, "".join(new)):
                 continue
 
@@ -222,11 +230,8 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
                 astart = hunk[1]
                 bstart = hunk[3]
             else:
-                for x in yieldhunk(hunk, header):
+                for x in yieldhunk(hunk):
                     yield x
-                # we only want to yield the header if the files differ, and
-                # we only want to yield it once.
-                header = None
         if prev:
             # we've joined the previous hunk, record the new ending points.
             hunk[1] = a2
@@ -234,14 +239,14 @@ def bunidiff(t1, t2, l1, l2, header1, header2, opts=defaultopts):
             delta = hunk[4]
         else:
             # create a new hunk
-            hunk = [ astart, a2, bstart, b2, delta ]
+            hunk = [astart, a2, bstart, b2, delta]
 
-        delta[len(delta):] = [ ' ' + x for x in l1[astart:a1] ]
-        delta[len(delta):] = [ '-' + x for x in old ]
-        delta[len(delta):] = [ '+' + x for x in new ]
+        delta[len(delta):] = [' ' + x for x in l1[astart:a1]]
+        delta[len(delta):] = ['-' + x for x in old]
+        delta[len(delta):] = ['+' + x for x in new]
 
     if hunk:
-        for x in yieldhunk(hunk, header):
+        for x in yieldhunk(hunk):
             yield x
 
 def patchtext(bin):

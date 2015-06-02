@@ -3,7 +3,7 @@
 """This does HTTP GET requests given a host:port and path and returns
 a subset of the headers plus the body of the result."""
 
-import httplib, sys, re
+import httplib, sys
 
 try:
     import msvcrt, os
@@ -22,7 +22,6 @@ for h in headers:
         print "%s: %s" % (h, response.getheader(h))
 print
 data = response.read()
-data = re.sub('\d+ years', 'many years', data)
 sys.stdout.write(data)
 
 if 200 <= response.status <= 299:

@@ -3,39 +3,44 @@
 #  Copyright 2007-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from common import NoRepo, checktool, commandline, commit, converter_source
 from mercurial.i18n import _
 from mercurial import util
-import os, shutil, tempfile
+import os, shutil, tempfile, re
 
 # The naming drift of ElementTree is fun!
 
-try: from xml.etree.cElementTree import ElementTree
+try:
+    from xml.etree.cElementTree import ElementTree
 except ImportError:
-    try: from xml.etree.ElementTree import ElementTree
+    try:
+        from xml.etree.ElementTree import ElementTree
     except ImportError:
-        try: from elementtree.cElementTree import ElementTree
+        try:
+            from elementtree.cElementTree import ElementTree
         except ImportError:
-            try: from elementtree.ElementTree import ElementTree
-            except ImportError: ElementTree = None
-
+            try:
+                from elementtree.ElementTree import ElementTree
+            except ImportError:
+                ElementTree = None
 
 class darcs_source(converter_source, commandline):
     def __init__(self, ui, path, rev=None):
         converter_source.__init__(self, ui, path, rev=rev)
         commandline.__init__(self, ui, 'darcs')
 
-        # check for _darcs, ElementTree, _darcs/inventory so that we can
-        # easily skip test-convert-darcs if ElementTree is not around
-        if not os.path.exists(os.path.join(path, '_darcs', 'inventories')):
-            raise NoRepo("%s does not look like a darcs repo" % path)
-
+        # check for _darcs, ElementTree so that we can easily skip
+        # test-convert-darcs if ElementTree is not around
         if not os.path.exists(os.path.join(path, '_darcs')):
-            raise NoRepo("%s does not look like a darcs repo" % path)
+            raise NoRepo(_("%s does not look like a darcs repository") % path)
 
         checktool('darcs')
+        version = self.run0('--version').splitlines()[0].strip()
+        if version < '2.1':
+            raise util.Abort(_('darcs version 2.1 or newer needed (found %r)') %
+                             version)
 
         if ElementTree is None:
             raise util.Abort(_("Python ElementTree module is not available"))
@@ -46,6 +51,15 @@ class darcs_source(converter_source, commandline):
         self.changes = {}
         self.parents = {}
         self.tags = {}
+
+        # Check darcs repository format
+        format = self.format()
+        if format:
+            if format in ('darcs-1.0', 'hashed'):
+                raise NoRepo(_("%s repository format is unsupported, "
+                               "please upgrade") % format)
+        else:
+            self.ui.warn(_('failed to detect repository format!'))
 
     def before(self):
         self.tmppath = tempfile.mkdtemp(
@@ -71,15 +85,37 @@ class darcs_source(converter_source, commandline):
         self.parents[child] = []
 
     def after(self):
-        self.ui.debug(_('cleaning up %s\n') % self.tmppath)
+        self.ui.debug('cleaning up %s\n' % self.tmppath)
         shutil.rmtree(self.tmppath, ignore_errors=True)
 
     def xml(self, cmd, **kwargs):
+        # NOTE: darcs is currently encoding agnostic and will print
+        # patch metadata byte-for-byte, even in the XML changelog.
         etree = ElementTree()
         fp = self._run(cmd, **kwargs)
         etree.parse(fp)
         self.checkexit(fp.close())
         return etree.getroot()
+
+    def format(self):
+        output, status = self.run('show', 'repo', no_files=True,
+                                  repodir=self.path)
+        self.checkexit(status)
+        m = re.search(r'^\s*Format:\s*(.*)$', output, re.MULTILINE)
+        if not m:
+            return None
+        return ','.join(sorted(f.strip() for f in m.group(1).split(',')))
+
+    def manifest(self):
+        man = []
+        output, status = self.run('show', 'files', no_directories=True,
+                                  repodir=self.tmppath)
+        self.checkexit(status)
+        for line in output.split('\n'):
+            path = line[2:]
+            if path:
+                man.append(path)
+        return man
 
     def getheads(self):
         return self.parents[None]
@@ -88,8 +124,12 @@ class darcs_source(converter_source, commandline):
         elt = self.changes[rev]
         date = util.strdate(elt.get('local_date'), '%a %b %d %H:%M:%S %Z %Y')
         desc = elt.findtext('name') + '\n' + elt.findtext('comment', '')
-        return commit(author=elt.get('author'), date=util.datestr(date),
-                      desc=desc.strip(), parents=self.parents[rev])
+        # etree can return unicode objects for name, comment, and author,
+        # so recode() is used to ensure str objects are emitted.
+        return commit(author=self.recode(elt.get('author')),
+                      date=util.datestr(date),
+                      desc=self.recode(desc).strip(),
+                      parents=self.parents[rev])
 
     def pull(self, rev):
         output, status = self.run('pull', self.path, all=True,
@@ -104,28 +144,45 @@ class darcs_source(converter_source, commandline):
             self.checkexit(status, output)
 
     def getchanges(self, rev):
-        self.pull(rev)
         copies = {}
         changes = []
+        man = None
         for elt in self.changes[rev].find('summary').getchildren():
             if elt.tag in ('add_directory', 'remove_directory'):
                 continue
             if elt.tag == 'move':
-                changes.append((elt.get('from'), rev))
-                copies[elt.get('from')] = elt.get('to')
+                if man is None:
+                    man = self.manifest()
+                source, dest = elt.get('from'), elt.get('to')
+                if source in man:
+                    # File move
+                    changes.append((source, rev))
+                    changes.append((dest, rev))
+                    copies[dest] = source
+                else:
+                    # Directory move, deduce file moves from manifest
+                    source = source + '/'
+                    for f in man:
+                        if not f.startswith(source):
+                            continue
+                        fdest = dest + '/' + f[len(source):]
+                        changes.append((f, rev))
+                        changes.append((fdest, rev))
+                        copies[fdest] = f
             else:
                 changes.append((elt.text.strip(), rev))
+        self.pull(rev)
         self.lastrev = rev
         return sorted(changes), copies
 
     def getfile(self, name, rev):
         if rev != self.lastrev:
             raise util.Abort(_('internal calling inconsistency'))
-        return open(os.path.join(self.tmppath, name), 'rb').read()
-
-    def getmode(self, name, rev):
-        mode = os.lstat(os.path.join(self.tmppath, name)).st_mode
-        return (mode & 0111) and 'x' or ''
+        path = os.path.join(self.tmppath, name)
+        data = open(path, 'rb').read()
+        mode = os.lstat(path).st_mode
+        mode = (mode & 0111) and 'x' or ''
+        return data, mode
 
     def gettags(self):
         return self.tags

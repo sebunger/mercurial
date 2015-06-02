@@ -4,7 +4,7 @@
 from mercurial import cmdutil, match, commands
 import time, os, sys
 
-def timer(func):
+def timer(func, title=None):
     results = []
     begin = time.time()
     count = 0
@@ -21,6 +21,8 @@ def timer(func):
             break
         if cstop - begin > 10 and count >= 3:
             break
+    if title:
+        sys.stderr.write("! %s\n" % title)
     if r:
         sys.stderr.write("! result: %s\n" % r)
     m = min(results)
@@ -30,17 +32,17 @@ def timer(func):
 def perfwalk(ui, repo, *pats):
     try:
         m = cmdutil.match(repo, pats, {})
-        timer(lambda: len(list(repo.dirstate.walk(m, True, False))))
+        timer(lambda: len(list(repo.dirstate.walk(m, [], True, False))))
     except:
         try:
             m = cmdutil.match(repo, pats, {})
-            timer(lambda: len([b for a,b,c in repo.dirstate.statwalk([], m)]))
+            timer(lambda: len([b for a, b, c in repo.dirstate.statwalk([], m)]))
         except:
             timer(lambda: len(list(cmdutil.walk(repo, pats, {}))))
 
 def perfstatus(ui, repo, *pats):
     #m = match.always(repo.root, repo.getcwd())
-    #timer(lambda: sum(map(len, repo.dirstate.status(m, False, False, False))))
+    #timer(lambda: sum(map(len, repo.dirstate.status(m, [], False, False, False))))
     timer(lambda: sum(map(len, repo.status())))
 
 def perfheads(ui, repo):
@@ -51,7 +53,7 @@ def perftags(ui, repo):
     def t():
         repo.changelog = mercurial.changelog.changelog(repo.sopener)
         repo.manifest = mercurial.manifest.manifest(repo.sopener)
-        repo.tagscache = None
+        repo._tags = None
         return len(repo.tags())
     timer(t)
 
@@ -101,9 +103,10 @@ def perfparents(ui, repo):
 def perflookup(ui, repo, rev):
     timer(lambda: len(repo.lookup(rev)))
 
-def perflog(ui, repo):
+def perflog(ui, repo, **opts):
     ui.pushbuffer()
-    timer(lambda: commands.log(ui, repo, rev=[], date='', user=''))
+    timer(lambda: commands.log(ui, repo, rev=[], date='', user='',
+                               copies=opts.get('rename')))
     ui.popbuffer()
 
 def perftemplating(ui, repo):
@@ -112,6 +115,23 @@ def perftemplating(ui, repo):
                                template='{date|shortdate} [{rev}:{node|short}]'
                                ' {author|person}: {desc|firstline}\n'))
     ui.popbuffer()
+
+def perfdiffwd(ui, repo):
+    """Profile diff of working directory changes"""
+    options = {
+        'w': 'ignore_all_space',
+        'b': 'ignore_space_change',
+        'B': 'ignore_blank_lines',
+        }
+
+    for diffopt in ('', 'w', 'b', 'B', 'wB'):
+        opts = dict((options[c], '1') for c in diffopt)
+        def d():
+            ui.pushbuffer()
+            commands.diff(ui, repo, **opts)
+            ui.popbuffer()
+        title = 'diffopts: %s' % (diffopt and ('-' + diffopt) or 'none')
+        timer(d, title)
 
 cmdtable = {
     'perflookup': (perflookup, []),
@@ -125,7 +145,8 @@ cmdtable = {
     'perftags': (perftags, []),
     'perfdirstate': (perfdirstate, []),
     'perfdirstatedirs': (perfdirstate, []),
-    'perflog': (perflog, []),
+    'perflog': (perflog,
+                [('', 'rename', False, 'ask log to follow renames')]),
     'perftemplating': (perftemplating, []),
+    'perfdiffwd': (perfdiffwd, []),
 }
-

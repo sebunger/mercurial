@@ -4,29 +4,60 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 from lock import release
 import localrepo, bundlerepo, httprepo, sshrepo, statichttprepo
-import lock, util, extensions, error
-import merge as _merge
-import verify as _verify
+import lock, util, extensions, error, encoding, node
+import merge as mergemod
+import verify as verifymod
 import errno, os, shutil
 
 def _local(path):
-    return (os.path.isfile(util.drop_scheme('file', path)) and
-            bundlerepo or localrepo)
+    path = util.expandpath(util.drop_scheme('file', path))
+    return (os.path.isfile(path) and bundlerepo or localrepo)
 
-def parseurl(url, revs=[]):
-    '''parse url#branch, returning url, branch + revs'''
+def addbranchrevs(lrepo, repo, branches, revs):
+    hashbranch, branches = branches
+    if not hashbranch and not branches:
+        return revs or None, revs and revs[0] or None
+    revs = revs and list(revs) or []
+    if not repo.capable('branchmap'):
+        if branches:
+            raise util.Abort(_("remote branch lookup not supported"))
+        revs.append(hashbranch)
+        return revs, revs[0]
+    branchmap = repo.branchmap()
+
+    def primary(butf8):
+        if butf8 == '.':
+            if not lrepo or not lrepo.local():
+                raise util.Abort(_("dirstate branch not accessible"))
+            butf8 = lrepo.dirstate.branch()
+        if butf8 in branchmap:
+            revs.extend(node.hex(r) for r in reversed(branchmap[butf8]))
+            return True
+        else:
+            return False
+
+    for branch in branches:
+        butf8 = encoding.fromlocal(branch)
+        if not primary(butf8):
+            raise error.RepoLookupError(_("unknown branch '%s'") % branch)
+    if hashbranch:
+        butf8 = encoding.fromlocal(hashbranch)
+        if not primary(butf8):
+            revs.append(hashbranch)
+    return revs, revs[0]
+
+def parseurl(url, branches=None):
+    '''parse url#branch, returning (url, (branch, branches))'''
 
     if '#' not in url:
-        return url, (revs or None), revs and revs[-1] or None
-
+        return url, (None, branches or [])
     url, branch = url.split('#', 1)
-    checkout = revs and revs[-1] or branch
-    return url, (revs or []) + [branch], checkout
+    return url, (branch, branches or [])
 
 schemes = {
     'bundle': bundlerepo,
@@ -88,12 +119,15 @@ def share(ui, source, dest=None, update=True):
         raise util.Abort(_('can only share local repositories'))
 
     if not dest:
-        dest = os.path.basename(source)
+        dest = defaultdest(source)
+    else:
+        dest = ui.expandpath(dest)
 
     if isinstance(source, str):
         origsource = ui.expandpath(source)
-        source, rev, checkout = parseurl(origsource, '')
+        source, branches = parseurl(origsource)
         srcrepo = repository(ui, source)
+        rev, checkout = addbranchrevs(srcrepo, srcrepo, branches, None)
     else:
         srcrepo = source
         origsource = source = srcrepo.url()
@@ -135,15 +169,17 @@ def share(ui, source, dest=None, update=True):
         if update is not True:
             checkout = update
         for test in (checkout, 'default', 'tip'):
+            if test is None:
+                continue
             try:
                 uprev = r.lookup(test)
                 break
-            except:
+            except error.RepoLookupError:
                 continue
         _update(r, uprev)
 
 def clone(ui, source, dest=None, pull=False, rev=None, update=True,
-          stream=False):
+          stream=False, branch=None):
     """Make a copy of an existing repository.
 
     Create a copy of an existing repository in a new directory.  The
@@ -175,20 +211,25 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
     update: update working directory after clone completes, if
     destination is local repository (True means update to default rev,
     anything else is treated as a revision)
+
+    branch: branches to clone
     """
 
     if isinstance(source, str):
         origsource = ui.expandpath(source)
-        source, rev, checkout = parseurl(origsource, rev)
+        source, branch = parseurl(origsource, branch)
         src_repo = repository(ui, source)
     else:
         src_repo = source
+        branch = (None, branch or [])
         origsource = source = src_repo.url()
-        checkout = rev and rev[-1] or None
+    rev, checkout = addbranchrevs(src_repo, src_repo, branch, rev)
 
     if dest is None:
         dest = defaultdest(source)
         ui.status(_("destination directory: %s\n") % dest)
+    else:
+        dest = ui.expandpath(dest)
 
     dest = localpath(dest)
     source = localpath(source)
@@ -248,8 +289,10 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
                                      % dest)
                 raise
 
+            hardlink = None
+            num = 0
             for f in src_repo.store.copylist():
-                src = os.path.join(src_repo.path, f)
+                src = os.path.join(src_repo.sharedpath, f)
                 dst = os.path.join(dest_path, f)
                 dstbase = os.path.dirname(dst)
                 if dstbase and not os.path.exists(dstbase):
@@ -258,7 +301,12 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
                     if dst.endswith('data'):
                         # lock to avoid premature writing to the target
                         dest_lock = lock.lock(os.path.join(dstbase, "lock"))
-                    util.copyfiles(src, dst)
+                    hardlink, n = util.copyfiles(src, dst, hardlink)
+                    num += n
+            if hardlink:
+                ui.debug("linked %d files\n" % num)
+            else:
+                ui.debug("copied %d files\n" % num)
 
             # we need to re-init the repo after manually copying the data
             # into it
@@ -277,9 +325,9 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             revs = None
             if rev:
                 if 'lookup' not in src_repo.capabilities:
-                    raise util.Abort(_("src repository does not support revision "
-                                       "lookup and so doesn't support clone by "
-                                       "revision"))
+                    raise util.Abort(_("src repository does not support "
+                                       "revision lookup and so doesn't "
+                                       "support clone by revision"))
                 revs = [src_repo.lookup(r) for r in rev]
                 checkout = revs[0]
             if dest_repo.local():
@@ -301,15 +349,21 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             dest_repo.ui.setconfig('paths', 'default', abspath)
 
             if update:
-                dest_repo.ui.status(_("updating working directory\n"))
                 if update is not True:
                     checkout = update
+                    if src_repo.local():
+                        checkout = src_repo.lookup(update)
                 for test in (checkout, 'default', 'tip'):
+                    if test is None:
+                        continue
                     try:
                         uprev = dest_repo.lookup(test)
                         break
-                    except:
+                    except error.RepoLookupError:
                         continue
+                bn = dest_repo[uprev].branch()
+                dest_repo.ui.status(_("updating to branch %s\n")
+                                    % encoding.tolocal(bn))
                 _update(dest_repo, uprev)
 
         return src_repo, dest_repo
@@ -319,16 +373,12 @@ def clone(ui, source, dest=None, pull=False, rev=None, update=True,
             dir_cleanup.cleanup()
 
 def _showstats(repo, stats):
-    stats = ((stats[0], _("updated")),
-             (stats[1], _("merged")),
-             (stats[2], _("removed")),
-             (stats[3], _("unresolved")))
-    note = ", ".join([_("%d files %s") % s for s in stats])
-    repo.ui.status("%s\n" % note)
+    repo.ui.status(_("%d files updated, %d files merged, "
+                     "%d files removed, %d files unresolved\n") % stats)
 
 def update(repo, node):
     """update the working directory to node, merging linear changes"""
-    stats = _merge.update(repo, node, False, False, None)
+    stats = mergemod.update(repo, node, False, False, None)
     _showstats(repo, stats)
     if stats[3]:
         repo.ui.status(_("use 'hg resolve' to retry unresolved file merges\n"))
@@ -339,25 +389,52 @@ _update = update
 
 def clean(repo, node, show_stats=True):
     """forcibly switch the working directory to node, clobbering changes"""
-    stats = _merge.update(repo, node, False, True, None)
-    if show_stats: _showstats(repo, stats)
+    stats = mergemod.update(repo, node, False, True, None)
+    if show_stats:
+        _showstats(repo, stats)
     return stats[3] > 0
 
 def merge(repo, node, force=None, remind=True):
     """branch merge with node, resolving changes"""
-    stats = _merge.update(repo, node, True, force, False)
+    stats = mergemod.update(repo, node, True, force, False)
     _showstats(repo, stats)
     if stats[3]:
         repo.ui.status(_("use 'hg resolve' to retry unresolved file merges "
-                         "or 'hg up --clean' to abandon\n"))
+                         "or 'hg update -C' to abandon\n"))
     elif remind:
         repo.ui.status(_("(branch merge, don't forget to commit)\n"))
     return stats[3] > 0
 
 def revert(repo, node, choose):
     """revert changes to revision in node without updating dirstate"""
-    return _merge.update(repo, node, False, True, choose)[3] > 0
+    return mergemod.update(repo, node, False, True, choose)[3] > 0
 
 def verify(repo):
     """verify the consistency of a repository"""
-    return _verify.verify(repo)
+    return verifymod.verify(repo)
+
+def remoteui(src, opts):
+    'build a remote ui from ui or repo and opts'
+    if hasattr(src, 'baseui'): # looks like a repository
+        dst = src.baseui.copy() # drop repo-specific config
+        src = src.ui # copy target options from repo
+    else: # assume it's a global ui object
+        dst = src.copy() # keep all global options
+
+    # copy ssh-specific options
+    for o in 'ssh', 'remotecmd':
+        v = opts.get(o) or src.config('ui', o)
+        if v:
+            dst.setconfig("ui", o, v)
+
+    # copy bundle-specific options
+    r = src.config('bundle', 'mainreporoot')
+    if r:
+        dst.setconfig('bundle', 'mainreporoot', r)
+
+    # copy auth and http_proxy section settings
+    for sect in ('auth', 'http_proxy'):
+        for key, val in src.configitems(sect):
+            dst.setconfig(sect, key, val)
+
+    return dst

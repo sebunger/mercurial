@@ -4,7 +4,7 @@
 # Copyright 2007 Matt Mackall
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import changegroup
 from node import nullrev, short
@@ -17,8 +17,7 @@ def _bundle(repo, bases, heads, node, suffix, extranodes=None):
     backupdir = repo.join("strip-backup")
     if not os.path.isdir(backupdir):
         os.mkdir(backupdir)
-    name = os.path.join(backupdir, "%s-%s" % (short(node), suffix))
-    repo.ui.warn(_("saving bundle to %s\n") % name)
+    name = os.path.join(backupdir, "%s-%s.hg" % (short(node), suffix))
     return changegroup.writebundle(cg, name, "HG10BZ")
 
 def _collectfiles(repo, striprev):
@@ -106,39 +105,56 @@ def strip(ui, repo, node, backup="all"):
     extranodes = _collectextranodes(repo, files, striprev)
 
     # create a changegroup for all the branches we need to keep
+    backupfile = None
     if backup == "all":
-        _bundle(repo, [node], cl.heads(), node, 'backup')
+        backupfile = _bundle(repo, [node], cl.heads(), node, 'backup')
+        repo.ui.status(_("saved backup bundle to %s\n") % backupfile)
     if saveheads or extranodes:
         chgrpfile = _bundle(repo, savebases, saveheads, node, 'temp',
                             extranodes)
 
     mfst = repo.manifest
 
-    tr = repo.transaction()
+    tr = repo.transaction("strip")
     offset = len(tr.entries)
 
-    tr.startgroup()
-    cl.strip(striprev, tr)
-    mfst.strip(striprev, tr)
-    for fn in files:
-        repo.file(fn).strip(striprev, tr)
-    tr.endgroup()
-
     try:
-        for i in xrange(offset, len(tr.entries)):
-            file, troffset, ignore = tr.entries[i]
-            repo.sopener(file, 'a').truncate(troffset)
-        tr.close()
+        tr.startgroup()
+        cl.strip(striprev, tr)
+        mfst.strip(striprev, tr)
+        for fn in files:
+            repo.file(fn).strip(striprev, tr)
+        tr.endgroup()
+
+        try:
+            for i in xrange(offset, len(tr.entries)):
+                file, troffset, ignore = tr.entries[i]
+                repo.sopener(file, 'a').truncate(troffset)
+            tr.close()
+        except:
+            tr.abort()
+            raise
+
+        if saveheads or extranodes:
+            ui.note(_("adding branch\n"))
+            f = open(chgrpfile, "rb")
+            gen = changegroup.readbundle(f, chgrpfile)
+            if not repo.ui.verbose:
+                # silence internal shuffling chatter
+                repo.ui.pushbuffer()
+            repo.addchangegroup(gen, 'strip', 'bundle:' + chgrpfile, True)
+            if not repo.ui.verbose:
+                repo.ui.popbuffer()
+            f.close()
+            if backup != "strip":
+                os.unlink(chgrpfile)
     except:
-        tr.abort()
+        if backupfile:
+            ui.warn(_("strip failed, full bundle stored in '%s'\n")
+                    % backupfile)
+        elif saveheads:
+            ui.warn(_("strip failed, partial bundle stored in '%s'\n")
+                    % chgrpfile)
         raise
 
-    if saveheads or extranodes:
-        ui.status(_("adding branch\n"))
-        f = open(chgrpfile, "rb")
-        gen = changegroup.readbundle(f, chgrpfile)
-        repo.addchangegroup(gen, 'strip', 'bundle:' + chgrpfile, True)
-        f.close()
-        if backup != "strip":
-            os.unlink(chgrpfile)
-
+    repo.destroyed()

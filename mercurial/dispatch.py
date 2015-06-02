@@ -3,13 +3,13 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import os, sys, atexit, signal, pdb, socket, errno, shlex, time
 import util, commands, hg, fancyopts, extensions, hook, error
 import cmdutil, encoding
-import ui as _ui
+import ui as uimod
 
 def run():
     "run the command in sys.argv"
@@ -18,11 +18,18 @@ def run():
 def dispatch(args):
     "run the command specified in args"
     try:
-        u = _ui.ui()
+        u = uimod.ui()
         if '--traceback' in args:
             u.setconfig('ui', 'traceback', 'on')
     except util.Abort, inst:
         sys.stderr.write(_("abort: %s\n") % inst)
+        return -1
+    except error.ParseError, inst:
+        if len(inst.args) > 1:
+            sys.stderr.write(_("hg: parse error at %s: %s\n") %
+                             (inst.args[1], inst.args[0]))
+        else:
+            sys.stderr.write(_("hg: parse error: %s\n") % inst.args[0])
         return -1
     return _runcatch(u, args)
 
@@ -30,9 +37,13 @@ def _runcatch(ui, args):
     def catchterm(*args):
         raise error.SignalInterrupt
 
-    for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
-        num = getattr(signal, name, None)
-        if num: signal.signal(num, catchterm)
+    try:
+        for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
+            num = getattr(signal, name, None)
+            if num:
+                signal.signal(num, catchterm)
+    except ValueError:
+        pass # happens if called in a thread
 
     try:
         try:
@@ -55,8 +66,13 @@ def _runcatch(ui, args):
     except error.AmbiguousCommand, inst:
         ui.warn(_("hg: command '%s' is ambiguous:\n    %s\n") %
                 (inst.args[0], " ".join(inst.args[1])))
-    except error.ConfigError, inst:
-        ui.warn(_("hg: %s\n") % inst.args[0])
+    except error.ParseError, inst:
+        if len(inst.args) > 1:
+            ui.warn(_("hg: parse error at %s: %s\n") %
+                             (inst.args[1], inst.args[0]))
+        else:
+            ui.warn(_("hg: parse error: %s\n") % inst.args[0])
+        return -1
     except error.LockHeld, inst:
         if inst.errno == errno.ETIMEDOUT:
             reason = _('timed out waiting for lock held by %s') % inst.locker
@@ -66,7 +82,7 @@ def _runcatch(ui, args):
     except error.LockUnavailable, inst:
         ui.warn(_("abort: could not lock %s: %s\n") %
                (inst.desc or inst.filename, inst.strerror))
-    except error.ParseError, inst:
+    except error.CommandError, inst:
         if inst.args[0]:
             ui.warn(_("hg %s: %s\n") % (inst.args[0], inst.args[1]))
             commands.help_(ui, inst.args[0])
@@ -89,12 +105,17 @@ def _runcatch(ui, args):
         ui.warn(_("killed!\n"))
     except error.UnknownCommand, inst:
         ui.warn(_("hg: unknown command '%s'\n") % inst.args[0])
-        commands.help_(ui, 'shortlist')
+        try:
+            # check if the command is in a disabled extension
+            # (but don't check for extensions themselves)
+            commands.help_(ui, inst.args[0], unknowncmd=True)
+        except error.UnknownCommand:
+            commands.help_(ui, 'shortlist')
     except util.Abort, inst:
         ui.warn(_("abort: %s\n") % inst)
     except ImportError, inst:
+        ui.warn(_("abort: %s!\n") % inst)
         m = str(inst).split()[-1]
-        ui.warn(_("abort: could not import module %s!\n") % m)
         if m in "mpatch bdiff".split():
             ui.warn(_("(did you forget to compile extensions?)\n"))
         elif m in "zlib".split():
@@ -145,6 +166,7 @@ def _runcatch(ui, args):
         ui.warn(_("** report bug details to "
                  "http://mercurial.selenic.com/bts/\n"))
         ui.warn(_("** or mercurial@selenic.com\n"))
+        ui.warn(_("** Python %s\n") % sys.version.replace('\n', ''))
         ui.warn(_("** Mercurial Distributed SCM (version %s)\n")
                % util.version())
         ui.warn(_("** Extensions loaded: %s\n")
@@ -153,14 +175,6 @@ def _runcatch(ui, args):
 
     return -1
 
-def _findrepo(p):
-    while not os.path.isdir(os.path.join(p, ".hg")):
-        oldp, p = p, os.path.dirname(p)
-        if p == oldp:
-            return None
-
-    return p
-
 def aliasargs(fn):
     if hasattr(fn, 'args'):
         return fn.args
@@ -168,15 +182,20 @@ def aliasargs(fn):
 
 class cmdalias(object):
     def __init__(self, name, definition, cmdtable):
-        self.name = name
+        self.name = self.cmd = name
         self.definition = definition
         self.args = []
         self.opts = []
         self.help = ''
         self.norepo = True
+        self.badalias = False
 
         try:
-            cmdutil.findcmd(self.name, cmdtable, True)
+            aliases, entry = cmdutil.findcmd(self.name, cmdtable)
+            for alias, e in cmdtable.iteritems():
+                if e is entry:
+                    self.cmd = alias
+                    break
             self.shadows = True
         except error.UnknownCommand:
             self.shadows = False
@@ -186,37 +205,54 @@ class cmdalias(object):
                 ui.warn(_("no definition for alias '%s'\n") % self.name)
                 return 1
             self.fn = fn
+            self.badalias = True
 
             return
 
         args = shlex.split(self.definition)
         cmd = args.pop(0)
-        opts = []
-        help = ''
+        args = map(util.expandpath, args)
 
         try:
-            self.fn, self.opts, self.help = cmdutil.findcmd(cmd, cmdtable, False)[1]
+            tableentry = cmdutil.findcmd(cmd, cmdtable, False)[1]
+            if len(tableentry) > 2:
+                self.fn, self.opts, self.help = tableentry
+            else:
+                self.fn, self.opts = tableentry
+
             self.args = aliasargs(self.fn) + args
             if cmd not in commands.norepo.split(' '):
                 self.norepo = False
+            if self.help.startswith("hg " + cmd):
+                # drop prefix in old-style help lines so hg shows the alias
+                self.help = self.help[4 + len(cmd):]
+            self.__doc__ = self.fn.__doc__
+
         except error.UnknownCommand:
             def fn(ui, *args):
                 ui.warn(_("alias '%s' resolves to unknown command '%s'\n") \
                             % (self.name, cmd))
+                try:
+                    # check if the command is in a disabled extension
+                    commands.help_(ui, cmd, unknowncmd=True)
+                except error.UnknownCommand:
+                    pass
                 return 1
             self.fn = fn
+            self.badalias = True
         except error.AmbiguousCommand:
             def fn(ui, *args):
                 ui.warn(_("alias '%s' resolves to ambiguous command '%s'\n") \
                             % (self.name, cmd))
                 return 1
             self.fn = fn
+            self.badalias = True
 
     def __call__(self, ui, *args, **opts):
         if self.shadows:
-            ui.debug(_("alias '%s' shadows command\n") % self.name)
+            ui.debug("alias '%s' shadows command\n" % self.name)
 
-        return self.fn(ui, *args, **opts)
+        return util.checksignature(self.fn)(ui, *args, **opts)
 
 def addaliases(ui, cmdtable):
     # aliases are processed after extensions have been loaded, so they
@@ -224,7 +260,7 @@ def addaliases(ui, cmdtable):
     # but only if they have been defined prior to the current definition.
     for alias, definition in ui.configitems('alias'):
         aliasdef = cmdalias(alias, definition, cmdtable)
-        cmdtable[alias] = (aliasdef, aliasdef.opts, aliasdef.help)
+        cmdtable[aliasdef.cmd] = (aliasdef, aliasdef.opts, aliasdef.help)
         if aliasdef.norepo:
             commands.norepo += ' %s' % alias
 
@@ -235,18 +271,18 @@ def _parse(ui, args):
     try:
         args = fancyopts.fancyopts(args, commands.globalopts, options)
     except fancyopts.getopt.GetoptError, inst:
-        raise error.ParseError(None, inst)
+        raise error.CommandError(None, inst)
 
     if args:
         cmd, args = args[0], args[1:]
-        aliases, i = cmdutil.findcmd(cmd, commands.table,
+        aliases, entry = cmdutil.findcmd(cmd, commands.table,
                                      ui.config("ui", "strict"))
         cmd = aliases[0]
-        args = aliasargs(i[0]) + args
+        args = aliasargs(entry[0]) + args
         defaults = ui.config("defaults", cmd)
         if defaults:
-            args = shlex.split(defaults) + args
-        c = list(i[1])
+            args = map(util.expandpath, shlex.split(defaults)) + args
+        c = list(entry[1])
     else:
         cmd = None
         c = []
@@ -258,7 +294,7 @@ def _parse(ui, args):
     try:
         args = fancyopts.fancyopts(args, c, cmdoptions, True)
     except fancyopts.getopt.GetoptError, inst:
-        raise error.ParseError(cmd, inst)
+        raise error.CommandError(cmd, inst)
 
     # separate global options back out
     for o in commands.globalopts:
@@ -266,7 +302,7 @@ def _parse(ui, args):
         options[n] = cmdoptions[n]
         del cmdoptions[n]
 
-    return (cmd, cmd and i[0] or None, args, options, cmdoptions)
+    return (cmd, cmd and entry[0] or None, args, options, cmdoptions)
 
 def _parseconfig(ui, config):
     """parse the --config options from the command line"""
@@ -278,7 +314,8 @@ def _parseconfig(ui, config):
                 raise IndexError
             ui.setconfig(section, name, value)
         except (IndexError, ValueError):
-            raise util.Abort(_('malformed --config option: %s') % cfg)
+            raise util.Abort(_('malformed --config option: %r '
+                               '(use --config section.name=value)') % cfg)
 
 def _earlygetopt(aliases, args):
     """Return list of values for an option (or aliases).
@@ -309,15 +346,16 @@ def _earlygetopt(aliases, args):
             pos += 1
     return values
 
-def runcommand(lui, repo, cmd, fullargs, ui, options, d):
+def runcommand(lui, repo, cmd, fullargs, ui, options, d, cmdpats, cmdoptions):
     # run pre-hook, and abort if it fails
-    ret = hook.hook(lui, repo, "pre-%s" % cmd, False, args=" ".join(fullargs))
+    ret = hook.hook(lui, repo, "pre-%s" % cmd, False, args=" ".join(fullargs),
+                    pats=cmdpats, opts=cmdoptions)
     if ret:
         return ret
     ret = _runcommand(ui, options, cmd, d)
     # run post-hook, passing command result
     hook.hook(lui, repo, "post-%s" % cmd, False, args=" ".join(fullargs),
-              result = ret)
+              result=ret, pats=cmdpats, opts=cmdoptions)
     return ret
 
 _loaded = set()
@@ -332,10 +370,15 @@ def _dispatch(ui, args):
         os.chdir(cwd[-1])
 
     # read the local repository .hgrc into a local ui object
-    path = _findrepo(os.getcwd()) or ""
+    try:
+        wd = os.getcwd()
+    except OSError, e:
+        raise util.Abort(_("error getting current working directory: %s") %
+                         e.strerror)
+    path = cmdutil.findrepo(wd) or ""
     if not path:
         lui = ui
-    if path:
+    else:
         try:
             lui = ui.copy()
             lui.readconfig(os.path.join(path, ".hg", "hgrc"))
@@ -349,19 +392,17 @@ def _dispatch(ui, args):
         lui = ui.copy()
         lui.readconfig(os.path.join(path, ".hg", "hgrc"))
 
+    # Configure extensions in phases: uisetup, extsetup, cmdtable, and
+    # reposetup. Programs like TortoiseHg will call _dispatch several
+    # times so we keep track of configured extensions in _loaded.
     extensions.loadall(lui)
-    for name, module in extensions.extensions():
-        if name in _loaded:
-            continue
+    exts = [ext for ext in extensions.extensions() if ext[0] not in _loaded]
+    # Propagate any changes to lui.__class__ by extensions
+    ui.__class__ = lui.__class__
 
-        # setup extensions
-        # TODO this should be generalized to scheme, where extensions can
-        #      redepend on other extensions.  then we should toposort them, and
-        #      do initialization in correct order
-        extsetup = getattr(module, 'extsetup', None)
-        if extsetup:
-            extsetup()
+    # (uisetup and extsetup are handled in extensions.loadall)
 
+    for name, module in exts:
         cmdtable = getattr(module, 'cmdtable', {})
         overrides = [cmd for cmd in cmdtable if cmd in commands.table]
         if overrides:
@@ -369,6 +410,8 @@ def _dispatch(ui, args):
                     % (name, " ".join(overrides)))
         commands.table.update(cmdtable)
         _loaded.add(name)
+
+    # (reposetup is handled in hg.repository)
 
     addaliases(lui, commands.table)
 
@@ -381,9 +424,9 @@ def _dispatch(ui, args):
     cmd, func, args, options, cmdoptions = _parse(lui, args)
 
     if options["config"]:
-        raise util.Abort(_("Option --config may not be abbreviated!"))
+        raise util.Abort(_("option --config may not be abbreviated!"))
     if options["cwd"]:
-        raise util.Abort(_("Option --cwd may not be abbreviated!"))
+        raise util.Abort(_("option --cwd may not be abbreviated!"))
     if options["repository"]:
         raise util.Abort(_(
             "Option -R has to be separated from other options (e.g. not -qR) "
@@ -423,6 +466,7 @@ def _dispatch(ui, args):
         return commands.help_(ui, 'shortlist')
 
     repo = None
+    cmdpats = args[:]
     if cmd not in commands.norepo.split():
         try:
             repo = hg.repository(ui, path=path)
@@ -433,7 +477,7 @@ def _dispatch(ui, args):
         except error.RepoError:
             if cmd not in commands.optionalrepo.split():
                 if args and not path: # try to infer -R from command args
-                    repos = map(_findrepo, args)
+                    repos = map(cmdutil.findrepo, args)
                     guess = repos[0]
                     if guess and repos.count(guess) == len(repos):
                         return _dispatch(ui, ['--repository', guess] + fullargs)
@@ -443,17 +487,18 @@ def _dispatch(ui, args):
                 raise
         args.insert(0, repo)
     elif rpath:
-        ui.warn("warning: --repository ignored\n")
+        ui.warn(_("warning: --repository ignored\n"))
 
     d = lambda: util.checksignature(func)(ui, *args, **cmdoptions)
-    return runcommand(lui, repo, cmd, fullargs, ui, options, d)
+    return runcommand(lui, repo, cmd, fullargs, ui, options, d,
+                      cmdpats, cmdoptions)
 
 def _runcommand(ui, options, cmd, cmdfunc):
     def checkargs():
         try:
             return cmdfunc()
         except error.SignatureError:
-            raise error.ParseError(cmd, _("invalid arguments"))
+            raise error.CommandError(cmd, _("invalid arguments"))
 
     if options['profile']:
         format = ui.config('profiling', 'format', default='text')
@@ -466,8 +511,7 @@ def _runcommand(ui, options, cmd, cmdfunc):
         output = ui.config('profiling', 'output')
 
         if output:
-            path = os.path.expanduser(output)
-            path = ui.expandpath(path)
+            path = ui.expandpath(output)
             ostream = open(path, 'wb')
         else:
             ostream = sys.stderr

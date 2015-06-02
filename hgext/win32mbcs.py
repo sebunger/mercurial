@@ -2,11 +2,11 @@
 #
 # Copyright (c) 2008 Shun-ichi Goto <shunichi.goto@gmail.com>
 #
-# Version: 0.2
+# Version: 0.3
 # Author:  Shun-ichi Goto <shunichi.goto@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 #
 
 '''allow the use of MBCS paths with problematic encodings
@@ -19,33 +19,41 @@ wrapping some functions to convert to Unicode string before path
 operation.
 
 This extension is useful for:
- * Japanese Windows users using shift_jis encoding.
- * Chinese Windows users using big5 encoding.
- * All users who use a repository with one of problematic encodings on
-   case-insensitive file system.
+
+- Japanese Windows users using shift_jis encoding.
+- Chinese Windows users using big5 encoding.
+- All users who use a repository with one of problematic encodings on
+  case-insensitive file system.
 
 This extension is not needed for:
- * Any user who use only ASCII chars in path.
- * Any user who do not use any of problematic encodings.
+
+- Any user who use only ASCII chars in path.
+- Any user who do not use any of problematic encodings.
 
 Note that there are some limitations on using this extension:
- * You should use single encoding in one repository.
- * You should set same encoding for the repository by locale or
-   HGENCODING.
 
-Path encoding conversion are done between Unicode and
-encoding.encoding which is decided by Mercurial from current locale
-setting or HGENCODING.
+- You should use single encoding in one repository.
+
+
+By default, win32mbcs uses encoding.encoding decided by Mercurial.
+You can specify the encoding by config option::
+
+ [win32mbcs]
+ encoding = sjis
+
+It is useful for the users who want to commit with UTF-8 log message.
 '''
 
 import os, sys
 from mercurial.i18n import _
 from mercurial import util, encoding
 
+_encoding = None                                # see reposetup()
+
 def decode(arg):
     if isinstance(arg, str):
-        uarg = arg.decode(encoding.encoding)
-        if arg == uarg.encode(encoding.encoding):
+        uarg = arg.decode(_encoding)
+        if arg == uarg.encode(_encoding):
             return uarg
         raise UnicodeError("Not local encoding")
     elif isinstance(arg, tuple):
@@ -59,7 +67,7 @@ def decode(arg):
 
 def encode(arg):
     if isinstance(arg, unicode):
-        return arg.encode(encoding.encoding)
+        return arg.encode(_encoding)
     elif isinstance(arg, tuple):
         return tuple(map(encode, arg))
     elif isinstance(arg, list):
@@ -90,7 +98,7 @@ def wrapper(func, args, kwds):
         return encode(func(*decode(args), **decode(kwds)))
     except UnicodeError:
         raise util.Abort(_("[win32mbcs] filename conversion failed with"
-                         " %s encoding\n") % (encoding.encoding))
+                         " %s encoding\n") % (_encoding))
 
 def wrapperforlistdir(func, args, kwds):
     # Ensure 'path' argument ends with os.sep to avoids
@@ -98,7 +106,7 @@ def wrapperforlistdir(func, args, kwds):
     if args:
         args = list(args)
         args[0] = appendsep(args[0])
-    if kwds.has_key('path'):
+    if 'path' in kwds:
         kwds['path'] = appendsep(kwds['path'])
     return func(*args, **kwds)
 
@@ -120,7 +128,7 @@ def wrapname(name, wrapper):
 funcs = '''os.path.join os.path.split os.path.splitext
  os.path.splitunc os.path.normpath os.path.normcase os.makedirs
  mercurial.util.endswithsep mercurial.util.splitpath mercurial.util.checkcase
- mercurial.util.fspath mercurial.windows.pconvert'''
+ mercurial.util.fspath mercurial.util.pconvert mercurial.util.normpath'''
 
 # codec and alias names of sjis and big5 to be faked.
 problematic_encodings = '''big5 big5-tw csbig5 big5hkscs big5-hkscs
@@ -133,12 +141,14 @@ def reposetup(ui, repo):
     if not os.path.supports_unicode_filenames:
         ui.warn(_("[win32mbcs] cannot activate on this platform.\n"))
         return
-
+    # determine encoding for filename
+    global _encoding
+    _encoding = ui.config('win32mbcs', 'encoding', encoding.encoding)
     # fake is only for relevant environment.
-    if encoding.encoding.lower() in problematic_encodings.split():
+    if _encoding.lower() in problematic_encodings.split():
         for f in funcs.split():
             wrapname(f, wrapper)
         wrapname("mercurial.osutil.listdir", wrapperforlistdir)
-        ui.debug(_("[win32mbcs] activated with encoding: %s\n")
-                 % encoding.encoding)
+        ui.debug("[win32mbcs] activated with encoding: %s\n"
+                 % _encoding)
 

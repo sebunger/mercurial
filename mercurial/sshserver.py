@@ -4,14 +4,17 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 from node import bin, hex
-import streamclone, util, hook
-import os, sys, tempfile, urllib
+import streamclone, util, hook, pushkey
+import os, sys, tempfile, urllib, copy
 
 class sshserver(object):
+
+    caps = 'unbundle lookup changegroupsubset branchmap pushkey'.split()
+
     def __init__(self, ui, repo):
         self.ui = ui
         self.repo = repo
@@ -39,7 +42,8 @@ class sshserver(object):
 
     def serve_forever(self):
         try:
-            while self.serve_one(): pass
+            while self.serve_one():
+                pass
         finally:
             if self.lock is not None:
                 self.lock.release()
@@ -49,7 +53,8 @@ class sshserver(object):
         cmd = self.fin.readline()[:-1]
         if cmd:
             impl = getattr(self, 'do_' + cmd, None)
-            if impl: impl()
+            if impl:
+                impl()
             else: self.respond("")
         return cmd != ''
 
@@ -59,7 +64,7 @@ class sshserver(object):
         try:
             r = hex(self.repo.lookup(key))
             success = 1
-        except Exception,inst:
+        except Exception, inst:
             r = str(inst)
             success = 0
         self.respond("%s %s\n" % (success, r))
@@ -85,9 +90,8 @@ class sshserver(object):
 
         capabilities: space separated list of tokens
         '''
-
-        caps = ['unbundle', 'lookup', 'changegroupsubset', 'branchmap']
-        if self.ui.configbool('server', 'uncompressed'):
+        caps = copy.copy(self.caps)
+        if streamclone.allowed(self.repo.ui):
             caps.append('stream=%d' % self.repo.changelog.version)
         self.respond("capabilities: %s\n" % (' '.join(caps),))
 
@@ -157,7 +161,8 @@ class sshserver(object):
             return
 
         self.respond("")
-        r = self.repo.addchangegroup(self.fin, 'serve', self.client_url())
+        r = self.repo.addchangegroup(self.fin, 'serve', self.client_url(),
+                                     lock=self.lock)
         self.respond(str(r))
 
     def client_url(self):
@@ -179,11 +184,9 @@ class sshserver(object):
         self.respond('')
 
         # write bundle data to temporary file because it can be big
-        tempname = fp = None
+        fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
+        fp = os.fdopen(fd, 'wb+')
         try:
-            fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
-            fp = os.fdopen(fd, 'wb+')
-
             count = int(self.fin.readline())
             while count:
                 fp.write(self.fin.read(count))
@@ -203,17 +206,16 @@ class sshserver(object):
                 # push can proceed
 
                 fp.seek(0)
-                r = self.repo.addchangegroup(fp, 'serve', self.client_url())
+                r = self.repo.addchangegroup(fp, 'serve', self.client_url(),
+                                             lock=self.lock)
                 self.respond(str(r))
             finally:
                 if not was_locked:
                     self.lock.release()
                     self.lock = None
         finally:
-            if fp is not None:
-                fp.close()
-            if tempname is not None:
-                os.unlink(tempname)
+            fp.close()
+            os.unlink(tempname)
 
     def do_stream_out(self):
         try:
@@ -223,3 +225,18 @@ class sshserver(object):
         except streamclone.StreamException, inst:
             self.fout.write(str(inst))
             self.fout.flush()
+
+    def do_pushkey(self):
+        arg, key = self.getarg()
+        arg, namespace = self.getarg()
+        arg, new = self.getarg()
+        arg, old = self.getarg()
+        r = pushkey.push(self.repo, namespace, key, old, new)
+        self.respond('%s\n' % int(r))
+
+    def do_listkeys(self):
+        arg, namespace = self.getarg()
+        d = pushkey.list(self.repo, namespace).items()
+        t = '\n'.join(['%s\t%s' % (k.encode('string-escape'),
+                                   v.encode('string-escape')) for k, v in d])
+        self.respond(t)

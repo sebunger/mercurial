@@ -11,6 +11,8 @@
 
 #include <Python.h>
 
+#include "util.h"
+
 static const char b85chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	"abcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
 static char b85dec[256];
@@ -46,10 +48,10 @@ b85encode(PyObject *self, PyObject *args)
 			olen++;
 		olen += len / 4 * 5;
 	}
-	if (!(out = PyString_FromStringAndSize(NULL, olen + 3)))
+	if (!(out = PyBytes_FromStringAndSize(NULL, olen + 3)))
 		return NULL;
 
-	dst = PyString_AS_STRING(out);
+	dst = PyBytes_AsString(out);
 
 	while (len) {
 		acc = 0;
@@ -68,7 +70,7 @@ b85encode(PyObject *self, PyObject *args)
 	}
 
 	if (!pad)
-		_PyString_Resize(&out, olen);
+		_PyBytes_Resize(&out, olen);
 
 	return out;
 }
@@ -89,10 +91,10 @@ b85decode(PyObject *self, PyObject *args)
 	i = len % 5;
 	if (i)
 		olen += i - 1;
-	if (!(out = PyString_FromStringAndSize(NULL, olen)))
+	if (!(out = PyBytes_FromStringAndSize(NULL, olen)))
 		return NULL;
 
-	dst = PyString_AS_STRING(out);
+	dst = PyBytes_AsString(out);
 
 	i = 0;
 	while (i < len)
@@ -105,18 +107,24 @@ b85decode(PyObject *self, PyObject *args)
 		{
 			c = b85dec[(int)*text++] - 1;
 			if (c < 0)
-				return PyErr_Format(PyExc_ValueError, "Bad base85 character at position %d", i);
+				return PyErr_Format(
+					PyExc_ValueError,
+					"Bad base85 character at position %d", i);
 			acc = acc * 85 + c;
 		}
 		if (i++ < len)
 		{
 			c = b85dec[(int)*text++] - 1;
 			if (c < 0)
-				return PyErr_Format(PyExc_ValueError, "Bad base85 character at position %d", i);
+				return PyErr_Format(
+					PyExc_ValueError,
+					"Bad base85 character at position %d", i);
 			/* overflow detection: 0xffffffff == "|NsC0",
 			 * "|NsC" == 0x03030303 */
 			if (acc > 0x03030303 || (acc *= 85) > 0xffffffff - c)
-				return PyErr_Format(PyExc_ValueError, "Bad base85 sequence at position %d", i);
+				return PyErr_Format(
+					PyExc_ValueError,
+					"Bad base85 sequence at position %d", i);
 			acc += c;
 		}
 
@@ -147,9 +155,26 @@ static PyMethodDef methods[] = {
 	{NULL, NULL}
 };
 
+#ifdef IS_PY3K
+static struct PyModuleDef base85_module = {
+	PyModuleDef_HEAD_INIT,
+	"base85",
+	base85_doc,
+	-1,
+	methods
+};
+
+PyMODINIT_FUNC PyInit_base85(void)
+{
+	b85prep();
+
+	return PyModule_Create(&base85_module);
+}
+#else
 PyMODINIT_FUNC initbase85(void)
 {
 	Py_InitModule3("base85", methods, base85_doc);
 
 	b85prep();
 }
+#endif

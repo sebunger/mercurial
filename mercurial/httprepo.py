@@ -4,19 +4,22 @@
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from node import bin, hex, nullid
 from i18n import _
-import repo, changegroup, statichttprepo, error, url, util
+import repo, changegroup, statichttprepo, error, url, util, pushkey
 import os, urllib, urllib2, urlparse, zlib, httplib
 import errno, socket
+import encoding
 
 def zgenerator(f):
     zd = zlib.decompressobj()
     try:
         for chunk in util.filechunkiter(f):
-            yield zd.decompress(chunk)
+            while chunk:
+                yield zd.decompress(chunk, 2**18)
+                chunk = zd.unconsumed_tail
     except httplib.HTTPException:
         raise IOError(None, _('connection ended unexpectedly'))
     yield zd.flush()
@@ -35,7 +38,7 @@ class httprepository(repo.repository):
         self._url, authinfo = url.getauthinfo(path)
 
         self.ui = ui
-        self.ui.debug(_('using %s\n') % self._url)
+        self.ui.debug('using %s\n' % self._url)
 
         self.urlopener = url.opener(ui, authinfo)
 
@@ -56,7 +59,7 @@ class httprepository(repo.repository):
                 self.caps = set(self.do_read('capabilities').split())
             except error.RepoError:
                 self.caps = set()
-            self.ui.debug(_('capabilities: %s\n') %
+            self.ui.debug('capabilities: %s\n' %
                           (' '.join(self.caps or ['none'])))
         return self.caps
 
@@ -68,21 +71,26 @@ class httprepository(repo.repository):
     def do_cmd(self, cmd, **args):
         data = args.pop('data', None)
         headers = args.pop('headers', {})
-        self.ui.debug(_("sending %s command\n") % cmd)
+        self.ui.debug("sending %s command\n" % cmd)
         q = {"cmd": cmd}
         q.update(args)
         qs = '?%s' % urllib.urlencode(q)
         cu = "%s%s" % (self._url, qs)
+        req = urllib2.Request(cu, data, headers)
+        if data is not None:
+            # len(data) is broken if data doesn't fit into Py_ssize_t
+            # add the header ourself to avoid OverflowError
+            size = data.__len__()
+            self.ui.debug("sending %s bytes\n" % size)
+            req.add_unredirected_header('Content-Length', '%d' % size)
         try:
-            if data:
-                self.ui.debug(_("sending %s bytes\n") % len(data))
-            resp = self.urlopener.open(urllib2.Request(cu, data, headers))
+            resp = self.urlopener.open(req)
         except urllib2.HTTPError, inst:
             if inst.code == 401:
                 raise util.Abort(_('authorization failed'))
             raise
         except httplib.HTTPException, inst:
-            self.ui.debug(_('http error while sending %s command\n') % cmd)
+            self.ui.debug('http error while sending %s command\n' % cmd)
             self.ui.traceback()
             raise IOError(None, inst)
         except IndexError:
@@ -92,9 +100,9 @@ class httprepository(repo.repository):
         resp_url = resp.geturl()
         if resp_url.endswith(qs):
             resp_url = resp_url[:-len(qs)]
-        if self._url != resp_url:
+        if self._url.rstrip('/') != resp_url.rstrip('/'):
             self.ui.status(_('real URL is %s\n') % resp_url)
-            self._url = resp_url
+        self._url = resp_url
         try:
             proto = resp.getheader('content-type')
         except AttributeError:
@@ -105,9 +113,11 @@ class httprepository(repo.repository):
         if not (proto.startswith('application/mercurial-') or
                 proto.startswith('text/plain') or
                 proto.startswith('application/hg-changegroup')):
-            self.ui.debug(_("requested URL: '%s'\n") % url.hidepassword(cu))
-            raise error.RepoError(_("'%s' does not appear to be an hg repository")
-                                  % safeurl)
+            self.ui.debug("requested URL: '%s'\n" % url.hidepassword(cu))
+            raise error.RepoError(
+                _("'%s' does not appear to be an hg repository:\n"
+                  "---%%<--- (%s)\n%s\n---%%<---\n")
+                % (safeurl, proto, resp.read()))
 
         if proto.startswith('application/mercurial-'):
             try:
@@ -152,6 +162,13 @@ class httprepository(repo.repository):
             for branchpart in d.splitlines():
                 branchheads = branchpart.split(' ')
                 branchname = urllib.unquote(branchheads[0])
+                # Earlier servers (1.3.x) send branch names in (their) local
+                # charset. The best we can do is assume it's identical to our
+                # own local charset, in case it's not utf-8.
+                try:
+                    branchname.decode('utf-8')
+                except UnicodeDecodeError:
+                    branchname = encoding.fromlocal(branchname)
                 branchheads = [bin(x) for x in branchheads[1:]]
                 branchmap[branchname] = branchheads
             return branchmap
@@ -162,7 +179,7 @@ class httprepository(repo.repository):
         n = " ".join(map(hex, nodes))
         d = self.do_read("branches", nodes=n)
         try:
-            br = [ tuple(map(bin, b.split(" "))) for b in d.splitlines() ]
+            br = [tuple(map(bin, b.split(" "))) for b in d.splitlines()]
             return br
         except:
             raise error.ResponseError(_("unexpected response:"), d)
@@ -174,7 +191,8 @@ class httprepository(repo.repository):
             n = " ".join(["-".join(map(hex, p)) for p in pairs[i:i + batch]])
             d = self.do_read("between", pairs=n)
             try:
-                r += [ l and map(bin, l.split(" ")) or [] for l in d.splitlines() ]
+                r += [l and map(bin, l.split(" ")) or []
+                      for l in d.splitlines()]
             except:
                 raise error.ResponseError(_("unexpected response:"), d)
         return r
@@ -192,6 +210,12 @@ class httprepository(repo.repository):
         return util.chunkbuffer(zgenerator(f))
 
     def unbundle(self, cg, heads, source):
+        '''Send cg (a readable file-like object representing the
+        changegroup to push, typically a chunkbuffer object) to the
+        remote server as a bundle. Return an integer response code:
+        non-zero indicates a successful push (see
+        localrepository.addchangegroup()), and zero indicates either
+        error or nothing to push.'''
         # have to stream bundle to a temp file because we do not have
         # http 1.1 chunked transfer.
 
@@ -215,7 +239,7 @@ class httprepository(repo.repository):
             try:
                 resp = self.do_read(
                      'unbundle', data=fp,
-                     headers={'Content-Type': 'application/octet-stream'},
+                     headers={'Content-Type': 'application/mercurial-0.1'},
                      heads=' '.join(map(hex, heads)))
                 resp_code, output = resp.split('\n', 1)
                 try:
@@ -223,7 +247,8 @@ class httprepository(repo.repository):
                 except ValueError, err:
                     raise error.ResponseError(
                             _('push failed (unexpected response):'), resp)
-                self.ui.write(output)
+                for l in output.splitlines(True):
+                    self.ui.status(_('remote: '), l)
                 return ret
             except socket.error, err:
                 if err[0] in (errno.ECONNRESET, errno.EPIPE):
@@ -235,6 +260,31 @@ class httprepository(repo.repository):
 
     def stream_out(self):
         return self.do_cmd('stream_out')
+
+    def pushkey(self, namespace, key, old, new):
+        if not self.capable('pushkey'):
+            return False
+        d = self.do_cmd("pushkey", data="", # force a POST
+                        namespace=namespace, key=key, old=old, new=new).read()
+        code, output = d.split('\n', 1)
+        try:
+            ret = bool(int(code))
+        except ValueError, err:
+            raise error.ResponseError(
+                _('push failed (unexpected response):'), d)
+        for l in output.splitlines(True):
+            self.ui.status(_('remote: '), l)
+        return ret
+
+    def listkeys(self, namespace):
+        if not self.capable('pushkey'):
+            return {}
+        d = self.do_cmd("listkeys", namespace=namespace).read()
+        r = {}
+        for l in d.splitlines():
+            k, v = l.split('\t')
+            r[k.decode('string-escape')] = v.decode('string-escape')
+        return r
 
 class httpsrepository(httprepository):
     def __init__(self, ui, path):

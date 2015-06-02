@@ -39,7 +39,7 @@ def has_bzr114():
     try:
         import bzrlib
         return (bzrlib.__doc__ != None
-                and bzrlib.version_info[:2] == (1, 14))
+                and bzrlib.version_info[:2] >= (1, 14))
     except ImportError:
         return False
 
@@ -47,11 +47,8 @@ def has_cvs():
     re = r'Concurrent Versions System.*?server'
     return matchoutput('cvs --version 2>&1', re)
 
-def has_cvsps():
-    return matchoutput('cvsps -h -q 2>&1', r'cvsps version', True)
-
 def has_darcs():
-    return matchoutput('darcs', r'darcs version', True)
+    return matchoutput('darcs --version', r'2\.[2-9]', True)
 
 def has_mtn():
     return matchoutput('mtn --version', r'monotone', True) and not matchoutput(
@@ -78,7 +75,7 @@ def has_executablebit():
 
 def has_icasefs():
     # Stolen from mercurial.util
-    fd, path = tempfile.mkstemp(prefix=tempprefix)
+    fd, path = tempfile.mkstemp(prefix=tempprefix, dir='.')
     os.close(fd)
     try:
         s1 = os.stat(path)
@@ -122,6 +119,13 @@ def has_lsprof():
 
 def has_git():
     return matchoutput('git --version 2>&1', r'^git version')
+
+def has_docutils():
+    try:
+        from docutils.core import publish_cmdline
+        return True
+    except ImportError:
+        return False
 
 def has_svn():
     return matchoutput('svn --version 2>&1', r'^svn, version') and \
@@ -180,7 +184,6 @@ checks = {
     "bzr": (has_bzr, "Canonical's Bazaar client"),
     "bzr114": (has_bzr114, "Canonical's Bazaar client >= 1.14"),
     "cvs": (has_cvs, "cvs client/server"),
-    "cvsps": (has_cvsps, "cvsps utility"),
     "darcs": (has_darcs, "darcs client"),
     "eol-in-paths": (has_eol_in_paths, "end-of-lines in paths"),
     "execbit": (has_executablebit, "executable bit"),
@@ -195,6 +198,7 @@ checks = {
     "outer-repo": (has_outer_repo, "outer repo"),
     "p4": (has_p4, "Perforce server and client"),
     "pygments": (has_pygments, "Pygments source highlighting library"),
+    "docutils": (has_docutils, "Docutils text processing library"),
     "svn": (has_svn, "subversion client and admin tools"),
     "svn-bindings": (has_svn_bindings, "subversion python bindings"),
     "symlink": (has_symlink, "symbolic links"),

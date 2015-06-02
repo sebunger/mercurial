@@ -1,0 +1,36 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Fri, 29 May 2015 14:37:57 +0200
+Subject: from_upstream__sshpeer_even_more_thorough_shell_quoting
+
+---
+ mercurial/sshrepo.py | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/mercurial/sshrepo.py b/mercurial/sshrepo.py
+index f487498..dd02f96 100644
+--- a/mercurial/sshrepo.py
++++ b/mercurial/sshrepo.py
+@@ -51,8 +51,9 @@ class sshrepository(repo.repository):
+                             _serverquote(self.port))
+ 
+         if create:
+-            cmd = '%s %s "%s init %s"'
+-            cmd = cmd % (sshcmd, args, remotecmd, self.path)
++            cmd = '%s %s %s' % (sshcmd, args,
++                util.shellquote("%s init %s" %
++                    (_serverquote(remotecmd), _serverquote(self.path))))
+ 
+             ui.note(_('running %s\n') % cmd)
+             res = util.system(cmd)
+@@ -68,8 +69,9 @@ class sshrepository(repo.repository):
+         # cleanup up previous run
+         self.cleanup()
+ 
+-        cmd = '%s %s "%s -R %s serve --stdio"'
+-        cmd = cmd % (sshcmd, args, remotecmd, self.path)
++        cmd = '%s %s %s' % (sshcmd, args,
++            util.shellquote("%s -R %s serve --stdio" %
++                (_serverquote(remotecmd), _serverquote(self.path))))
+ 
+         cmd = util.quotecommand(cmd)
+         ui.note(_('running %s\n') % cmd)
