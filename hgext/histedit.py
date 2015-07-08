@@ -252,7 +252,10 @@ class histeditstate(object):
         for replacement in self.replacements:
             fp.write('%s%s\n' % (node.hex(replacement[0]), ''.join(node.hex(r)
                 for r in replacement[1])))
-        fp.write('%s\n' % self.backupfile)
+        backupfile = self.backupfile
+        if not backupfile:
+            backupfile = ''
+        fp.write('%s\n' % backupfile)
         fp.close()
 
     def _load(self):
@@ -738,7 +741,7 @@ def _histedit(ui, repo, state, *freeargs, **opts):
 
 
     replacements = []
-    keep = opts.get('keep', False)
+    state.keep = opts.get('keep', False)
 
     # rebuild state
     if goal == 'continue':
@@ -747,7 +750,8 @@ def _histedit(ui, repo, state, *freeargs, **opts):
     elif goal == 'edit-plan':
         state.read()
         if not rules:
-            comment = editcomment % (state.parentctx, node.short(state.topmost))
+            comment = editcomment % (node.short(state.parentctxnode),
+                                     node.short(state.topmost))
             rules = ruleeditor(repo, ui, state.rules, comment)
         else:
             if rules == '-':
@@ -806,7 +810,7 @@ def _histedit(ui, repo, state, *freeargs, **opts):
                     'exactly one common root'))
             root = rr[0].node()
 
-        revs = between(repo, root, topmost, keep)
+        revs = between(repo, root, topmost, state.keep)
         if not revs:
             raise util.Abort(_('%s is not an ancestor of working directory') %
                              node.short(root))
@@ -830,7 +834,6 @@ def _histedit(ui, repo, state, *freeargs, **opts):
 
         state.parentctxnode = parentctxnode
         state.rules = rules
-        state.keep = keep
         state.topmost = topmost
         state.replacements = replacements
 
@@ -866,7 +869,7 @@ def _histedit(ui, repo, state, *freeargs, **opts):
                     for n in succs[1:]:
                         ui.debug(m % node.short(n))
 
-    if not keep:
+    if not state.keep:
         if mapping:
             movebookmarks(ui, repo, mapping, state.topmost, ntm)
             # TODO update mq state
@@ -889,21 +892,22 @@ def _histedit(ui, repo, state, *freeargs, **opts):
 
 def bootstrapcontinue(ui, state, opts):
     repo = state.repo
-    action, currentnode = state.rules.pop(0)
+    if state.rules:
+        action, currentnode = state.rules.pop(0)
 
-    actobj = actiontable[action].fromrule(state, currentnode)
+        actobj = actiontable[action].fromrule(state, currentnode)
 
-    s = repo.status()
-    if s.modified or s.added or s.removed or s.deleted:
-        actobj.continuedirty()
         s = repo.status()
         if s.modified or s.added or s.removed or s.deleted:
-            raise util.Abort(_("working copy still dirty"))
+            actobj.continuedirty()
+            s = repo.status()
+            if s.modified or s.added or s.removed or s.deleted:
+                raise util.Abort(_("working copy still dirty"))
 
-    parentctx, replacements = actobj.continueclean()
+        parentctx, replacements = actobj.continueclean()
 
-    state.parentctxnode = parentctx.node()
-    state.replacements.extend(replacements)
+        state.parentctxnode = parentctx.node()
+        state.replacements.extend(replacements)
 
     return state
 

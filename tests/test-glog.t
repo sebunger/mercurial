@@ -2013,6 +2013,16 @@ Test --follow and forward --rev
   |
   o  0 add a
   
+  $ hg archive -r 7 archive
+  $ grep changessincelatesttag archive/.hg_archival.txt
+  changessincelatesttag: 1
+  $ rm -r archive
+
+changessincelatesttag with no prior tag
+  $ hg archive -r 4 archive
+  $ grep changessincelatesttag archive/.hg_archival.txt
+  changessincelatesttag: 5
+
   $ hg export 'all()'
   # HG changeset patch
   # User test
@@ -2368,6 +2378,14 @@ issue3772
 should not draw line down to null due to the magic of fullreposet
 
   $ hg log -G -r 'all()' | tail -6
+  |
+  o  changeset:   0:f8035bb17114
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     add a
+  
+
+  $ hg log -G -r 'branch(default)' | tail -6
   |
   o  changeset:   0:f8035bb17114
      user:        test

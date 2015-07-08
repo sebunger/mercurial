@@ -1328,11 +1328,11 @@ the following are valid keystrokes:
                 [space] : (un-)select item ([~]/[x] = partly/fully applied)
                       a : (un-)select all items
     up/down-arrow [k/j] : go to previous/next unfolded item
-        pgup/pgdn [k/j] : go to previous/next item of same type
+        pgup/pgdn [K/J] : go to previous/next item of same type
  right/left-arrow [l/h] : go to child item / parent item
- shift-left-arrow   [h] : go to parent header / fold selected header
+ shift-left-arrow   [H] : go to parent header / fold selected header
                       f : fold / unfold item, hiding/revealing its children
-                      f : fold / unfold parent item and all of its ancestors
+                      F : fold / unfold parent item and all of its ancestors
                       m : edit / resume editing the commit message
                       e : edit the currently selected hunk
                       a : toggle amend mode (hg rev >= 2.2)
@@ -1517,17 +1517,17 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
     def handlekeypressed(self, keypressed, test=False):
         if keypressed in ["k", "KEY_UP"]:
             self.uparrowevent()
-        if keypressed in ["k", "KEY_PPAGE"]:
+        if keypressed in ["K", "KEY_PPAGE"]:
             self.uparrowshiftevent()
         elif keypressed in ["j", "KEY_DOWN"]:
             self.downarrowevent()
-        elif keypressed in ["j", "KEY_NPAGE"]:
+        elif keypressed in ["J", "KEY_NPAGE"]:
             self.downarrowshiftevent()
         elif keypressed in ["l", "KEY_RIGHT"]:
             self.rightarrowevent()
         elif keypressed in ["h", "KEY_LEFT"]:
             self.leftarrowevent()
-        elif keypressed in ["h", "KEY_SLEFT"]:
+        elif keypressed in ["H", "KEY_SLEFT"]:
             self.leftarrowshiftevent()
         elif keypressed in ["q"]:
             raise util.Abort(_('user quit'))
@@ -1547,7 +1547,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
             self.toggleedit(test=test)
         elif keypressed in ["f"]:
             self.togglefolded()
-        elif keypressed in ["f"]:
+        elif keypressed in ["F"]:
             self.togglefolded(foldparent=True)
         elif keypressed in ["?"]:
             self.helpwindow()

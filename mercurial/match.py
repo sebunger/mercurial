@@ -260,6 +260,12 @@ class narrowmatcher(match):
 
         self._files = [f[len(path) + 1:] for f in matcher._files
                        if f.startswith(path + "/")]
+
+        # If the parent repo had a path to this subrepo and no patterns are
+        # specified, this submatcher always matches.
+        if not self._always and not matcher._anypats:
+            self._always = util.any(f == path for f in matcher._files)
+
         self._anypats = matcher._anypats
         self.matchfn = lambda fn: matcher.matchfn(self._path + "/" + fn)
         self._fmap = set(self._files)
@@ -401,6 +407,8 @@ def _regex(kind, pat, globsuffix):
     if kind == 're':
         return pat
     if kind == 'path':
+        if pat == '.':
+            return ''
         return '^' + util.re.escape(pat) + '(?:/|$)'
     if kind == 'relglob':
         return '(?:|.*/)' + _globre(pat) + globsuffix

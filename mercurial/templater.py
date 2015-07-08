@@ -47,7 +47,7 @@ def tokenizer(data):
             s = pos
             while pos < end: # find closing quote
                 d = program[pos]
-                if decode and d == '\\': # skip over escaped characters
+                if d == '\\': # skip over escaped characters
                     pos += 2
                     continue
                 if d == c:
@@ -55,6 +55,41 @@ def tokenizer(data):
                         yield ('rawstring', program[s:pos], s)
                         break
                     yield ('string', program[s:pos], s)
+                    break
+                pos += 1
+            else:
+                raise error.ParseError(_("unterminated string"), s)
+        elif (c == '\\' and program[pos:pos + 2] in (r"\'", r'\"')
+              or c == 'r' and program[pos:pos + 3] in (r"r\'", r'r\"')):
+            # handle escaped quoted strings for compatibility with 2.9.2-3.4,
+            # where some of nested templates were preprocessed as strings and
+            # then compiled. therefore, \"...\" was allowed. (issue4733)
+            #
+            # processing flow of _evalifliteral() at 5ab28a2e9962:
+            # outer template string    -> stringify()  -> compiletemplate()
+            # ------------------------    ------------    ------------------
+            # {f("\\\\ {g(\"\\\"\")}"}    \\ {g("\"")}    [r'\\', {g("\"")}]
+            #             ~~~~~~~~
+            #             escaped quoted string
+            if c == 'r':
+                pos += 1
+                token = 'rawstring'
+            else:
+                token = 'string'
+            quote = program[pos:pos + 2]
+            s = pos = pos + 2
+            while pos < end: # find closing escaped quote
+                if program.startswith('\\\\\\', pos, end):
+                    pos += 4 # skip over double escaped characters
+                    continue
+                if program.startswith(quote, pos, end):
+                    try:
+                        # interpret as if it were a part of an outer string
+                        data = program[s:pos].decode('string-escape')
+                    except ValueError: # unbalanced escapes
+                        raise error.ParseError(_("syntax error"), s)
+                    yield (token, data, s)
+                    pos += 1
                     break
                 pos += 1
             else:
@@ -87,8 +122,9 @@ def compiletemplate(tmpl, context, strtoken="string"):
         if n < 0:
             parsed.append((strtoken, tmpl[pos:]))
             break
-        if n > 0 and tmpl[n - 1] == '\\':
-            # escaped
+        bs = (n - pos) - len(tmpl[pos:n].rstrip('\\'))
+        if strtoken == 'string' and bs % 2 == 1:
+            # escaped (e.g. '\{', '\\\{', but not '\\{' nor r'\{')
             parsed.append((strtoken, (tmpl[pos:n - 1] + "{")))
             pos = n + 1
             continue
@@ -226,10 +262,17 @@ def date(context, mapping, args):
         raise error.ParseError(_("date expects one or two arguments"))
 
     date = args[0][0](context, mapping, args[0][1])
+    fmt = None
     if len(args) == 2:
         fmt = stringify(args[1][0](context, mapping, args[1][1]))
-        return util.datestr(date, fmt)
-    return util.datestr(date)
+    try:
+        if fmt is None:
+            return util.datestr(date)
+        else:
+            return util.datestr(date, fmt)
+    except (TypeError, ValueError):
+        # i18n: "date" is a keyword
+        raise error.ParseError(_("date expects a date information"))
 
 def diff(context, mapping, args):
     """:diff([includepattern [, excludepattern]]): Show a diff, optionally
@@ -240,7 +283,7 @@ def diff(context, mapping, args):
 
     def getpatterns(i):
         if i < len(args):
-            s = args[i][1].strip()
+            s = stringify(args[i][0](context, mapping, args[i][1])).strip()
             if s:
                 return [s]
         return []
@@ -318,12 +361,13 @@ def get(context, mapping, args):
     yield dictarg.get(key)
 
 def _evalifliteral(arg, context, mapping):
-    t = stringify(arg[0](context, mapping, arg[1]))
-    if arg[0] == runstring or arg[0] == runrawstring:
+    # get back to token tag to reinterpret string as template
+    strtoken = {runstring: 'string', runrawstring: 'rawstring'}.get(arg[0])
+    if strtoken:
         yield runtemplate(context, mapping,
-                          compiletemplate(t, context, strtoken='rawstring'))
+                          compiletemplate(arg[1], context, strtoken))
     else:
-        yield t
+        yield stringify(arg[0](context, mapping, arg[1]))
 
 def if_(context, mapping, args):
     """:if(expr, then[, else]): Conditionally execute based on the result of
@@ -408,7 +452,7 @@ def revset(context, mapping, args):
         # i18n: "revset" is a keyword
         raise error.ParseError(_("revset expects one or more arguments"))
 
-    raw = args[0][1]
+    raw = stringify(args[0][0](context, mapping, args[0][1]))
     ctx = mapping['ctx']
     repo = ctx.repo()
 
@@ -611,14 +655,13 @@ def _flatten(thing):
                     yield j
 
 def parsestring(s, quoted=True):
-    '''parse a string using simple c-like syntax.
-    string must be in quotes if quoted is True.'''
+    '''unwrap quotes if quoted is True'''
     if quoted:
         if len(s) < 2 or s[0] != s[-1]:
             raise SyntaxError(_('unmatched quotes'))
-        return s[1:-1].decode('string_escape')
+        return s[1:-1]
 
-    return s.decode('string_escape')
+    return s
 
 class engine(object):
     '''template expansion engine.

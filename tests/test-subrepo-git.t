@@ -325,6 +325,14 @@ archive subrepos
   ../archive_x/s
   ../archive_x/s/g
 
+  $ hg -R ../tc archive -S ../archive.tgz 2>/dev/null
+  $ tar -tzf ../archive.tgz | sort
+  archive/.hg_archival.txt
+  archive/.hgsub
+  archive/.hgsubstate
+  archive/a
+  archive/s/g
+
 create nested repo
 
   $ cd ..
@@ -381,6 +389,20 @@ Don't crash if the subrepo is missing
   $ hg commit --subrepos -qm missing
   abort: subrepo s is missing (in subrepo s)
   [255]
+
+#if symlink
+Don't crash if subrepo is a broken symlink
+  $ ln -s broken s
+  $ hg status -S
+  $ hg push -q
+  abort: subrepo s is missing (in subrepo s)
+  [255]
+  $ hg commit --subrepos -qm missing
+  abort: subrepo s is missing (in subrepo s)
+  [255]
+  $ rm s
+#endif
+
   $ hg update -C 2> /dev/null
   cloning subrepo s from $TESTTMP/gitroot
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
