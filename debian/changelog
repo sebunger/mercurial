@@ -1,4 +1,4 @@
-mercurial (3.4.1-1) UNRELEASED; urgency=medium
+mercurial (3.4.2-1) UNRELEASED; urgency=medium
 
   * New upstream release
   * Drop "XS-Testsuite" as it's no longer needed
