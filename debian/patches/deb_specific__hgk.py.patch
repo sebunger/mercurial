@@ -2,7 +2,7 @@ Set default hgk path for hgk outside bin.
 
 --- a/hgext/hgk.py
 +++ b/hgext/hgk.py
-@@ -326,6 +326,6 @@ def view(ui, repo, *etc, **opts):
+@@ -330,6 +330,6 @@ def view(ui, repo, *etc, **opts):
      if repo.filtername is None:
          optstr += '--hidden'
  
