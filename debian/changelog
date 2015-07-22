@@ -2,7 +2,8 @@ mercurial (3.5~rc1-1) UNRELEASED; urgency=medium
 
   * New upstream release
   * Update debian/copyright to match copyright-format 1.0
-  * New version breaks the mercurial-git in sid
+  * New version breaks the current versions of mercurial-git and
+    hgsubversion in sid
 
  -- Javi Merino <vicho@debian.org>  Tue, 21 Jul 2015 17:03:49 +0200
 
