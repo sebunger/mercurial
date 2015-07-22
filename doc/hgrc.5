@@ -506,8 +506,8 @@ changeset = {desc}\en\en
     HG: \-\-
     HG: user: {author}\en{ifeq(p2rev, "\-1", "",
    "HG: branch merge\en")
-   }HG: branch \(aq{branch}\(aq\en{if(currentbookmark,
-   "HG: bookmark \(aq{currentbookmark}\(aq\en")  }{subrepos %
+   }HG: branch \(aq{branch}\(aq\en{if(activebookmark,
+   "HG: bookmark \(aq{activebookmark}\(aq\en")   }{subrepos %
    "HG: subrepo {subrepo}\en"              }{file_adds %
    "HG: added {file}\en"                   }{file_mods %
    "HG: changed {file}\en"                 }{file_dels %
@@ -886,8 +886,8 @@ Example for \fB~/.hgrc\fP:
 .nf
 .ft C
 [extensions]
-# (the progress extension will get loaded from Mercurial\(aqs path)
-progress =
+# (the color extension will get loaded from Mercurial\(aqs path)
+color =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 .ft P
@@ -1412,6 +1412,13 @@ endings in patched files are normalized to their original setting
 on a per\-file basis. If target file does not exist or has no end
 of line, patch line endings are preserved.
 Default: strict.
+.TP
+.B \fBfuzz\fP
+.sp
+The number of lines of \(aqfuzz\(aq to allow when applying patches. This
+controls how much context the patcher is allowed to ignore when
+trying to apply a patch.
+Default: 2
 .UNINDENT
 .SS \fBpaths\fP
 .sp
@@ -1561,6 +1568,55 @@ This can help explain the difference between Total and Inline.
 Specific to the \fBls\fP instrumenting profiler.
 Default: 5.
 .UNINDENT
+.SS \fBprogress\fP
+.sp
+Mercurial commands can draw progress bars that are as informative as
+possible. Some progress bars only offer indeterminate information, while others
+have a definite end point.
+.INDENT 0.0
+.TP
+.B \fBdelay\fP
+.sp
+Number of seconds (float) before showing the progress bar. (default: 3)
+.TP
+.B \fBchangedelay\fP
+.sp
+Minimum delay before showing a new topic. When set to less than 3 * refresh,
+that value will be used instead. (default: 1)
+.TP
+.B \fBrefresh\fP
+.sp
+Time in seconds between refreshes of the progress bar. (default: 0.1)
+.TP
+.B \fBformat\fP
+.sp
+Format of the progress bar.
+.sp
+Valid entries for the format field are \fBtopic\fP, \fBbar\fP, \fBnumber\fP,
+\fBunit\fP, \fBestimate\fP, speed, and item. item defaults to the last 20
+characters of the item, but this can be changed by adding either \fB\-<num>\fP
+which would take the last num characters, or \fB+<num>\fP for the first num
+characters.
+.sp
+(default: Topic bar number estimate)
+.TP
+.B \fBwidth\fP
+.sp
+If set, the maximum width of the progress information (that is, min(width,
+term width) will be used)
+.TP
+.B \fBclear\-complete\fP
+.sp
+clear the progress bar after it\(aqs done (default to True)
+.TP
+.B \fBdisable\fP
+.sp
+If true, don\(aqt show a progress bar
+.TP
+.B \fBassume\-tty\fP
+.sp
+If true, ALWAYS show a progress bar, unless disable is given
+.UNINDENT
 .SS \fBrevsetalias\fP
 .sp
 Alias definitions for revsets. See \%\fBhg help revsets\fP\: for details.
@@ -1592,6 +1648,11 @@ protocol. Default is False.
 Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.
+.TP
+.B \fBmaxhttpheaderlen\fP
+.sp
+Instruct HTTP clients not to send request headers longer than this
+many bytes. Default is 1024.
 .UNINDENT
 .SS \fBsmtp\fP
 .sp
@@ -1778,6 +1839,20 @@ environment variables that govern your locale. If the encoding of the merge
 markers is different from the encoding of the merged files,
 serious problems may occur.
 .TP
+.B \fBpatch\fP
+.sp
+An optional external tool that \fBhg import\fP and some extensions
+will use for applying patches. By default Mercurial uses an
+internal patch utility. The external tool must work as the common
+Unix \fBpatch\fP program. In particular, it must accept a \fB\-p\fP
+argument to strip patch headers, a \fB\-d\fP argument to specify the
+current directory, a file name to patch, and a patch file to take
+from stdin.
+.sp
+It is possible to specify a patch tool together with extra
+arguments. For example, setting this option to \fBpatch \-\-merge\fP
+will use the \fBpatch\fP program with its 2\-way merge option.
+.TP
 .B \fBportablefilenames\fP
 .sp
 Check for portable filenames. Can be \fBwarn\fP, \fBignore\fP or \fBabort\fP.
@@ -1798,11 +1873,6 @@ Reduce the amount of output printed. True or False. Default is False.
 .B \fBremotecmd\fP
 .sp
 remote command to use for clone/push/pull operations. Default is \fBhg\fP.
-.TP
-.B \fBreportoldssl\fP
-.sp
-Warn if an SSL certificate is unable to be used due to using Python
-2.5 or earlier. True or False. Default is True.
 .TP
 .B \fBreport_untrusted\fP
 .sp
@@ -1991,6 +2061,10 @@ generate this file manually. The form must be as follows:
 .B \fBcache\fP
 .sp
 Whether to support caching in hgweb. Defaults to True.
+.TP
+.B \fBcertificate\fP
+.sp
+Certificate to use when running \%\fBhg serve\fP\:.
 .TP
 .B \fBcollapse\fP
 .sp

@@ -55,20 +55,21 @@
 <li><a class="reference internal" href="#paths" id="id23"><tt class="docutils literal">paths</tt></a></li>
 <li><a class="reference internal" href="#phases" id="id24"><tt class="docutils literal">phases</tt></a></li>
 <li><a class="reference internal" href="#profiling" id="id25"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#revsetalias" id="id26"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#server" id="id27"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id28"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id29"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id30"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id31"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id32"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id33"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id34"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#progress" id="id26"><tt class="docutils literal">progress</tt></a></li>
+<li><a class="reference internal" href="#revsetalias" id="id27"><tt class="docutils literal">revsetalias</tt></a></li>
+<li><a class="reference internal" href="#server" id="id28"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id29"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id30"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id31"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id32"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id33"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id34"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id35"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id35">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id36">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id37">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id36">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id37">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id38">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -414,8 +415,8 @@ changeset = {desc}\n\n
     HG: --
     HG: user: {author}\n{ifeq(p2rev, &quot;-1&quot;, &quot;&quot;,
    &quot;HG: branch merge\n&quot;)
-   }HG: branch '{branch}'\n{if(currentbookmark,
-   &quot;HG: bookmark '{currentbookmark}'\n&quot;)  }{subrepos %
+   }HG: branch '{branch}'\n{if(activebookmark,
+   &quot;HG: bookmark '{activebookmark}'\n&quot;)   }{subrepos %
    &quot;HG: subrepo {subrepo}\n&quot;              }{file_adds %
    &quot;HG: added {file}\n&quot;                   }{file_mods %
    &quot;HG: changed {file}\n&quot;                 }{file_dels %
@@ -648,8 +649,8 @@ or <tt class="docutils literal">foo = !</tt> when path is not supplied.</p>
 <p>Example for <tt class="docutils literal"><span class="pre">~/.hgrc</span></tt>:</p>
 <pre class="literal-block">
 [extensions]
-# (the progress extension will get loaded from Mercurial's path)
-progress =
+# (the color extension will get loaded from Mercurial's path)
+color =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 </pre>
@@ -1049,6 +1050,11 @@ endings in patched files are normalized to their original setting
 on a per-file basis. If target file does not exist or has no end
 of line, patch line endings are preserved.
 Default: strict.</dd>
+<dt><tt class="docutils literal">fuzz</tt></dt>
+<dd>The number of lines of 'fuzz' to allow when applying patches. This
+controls how much context the patcher is allowed to ignore when
+trying to apply a patch.
+Default: 2</dd>
 </dl>
 </div>
 <div class="section" id="paths">
@@ -1163,6 +1169,39 @@ Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
 Default: 5.</dd>
 </dl>
 </div>
+<div class="section" id="progress">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">progress</tt></a></h2>
+<p>Mercurial commands can draw progress bars that are as informative as
+possible. Some progress bars only offer indeterminate information, while others
+have a definite end point.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">delay</tt></dt>
+<dd>Number of seconds (float) before showing the progress bar. (default: 3)</dd>
+<dt><tt class="docutils literal">changedelay</tt></dt>
+<dd>Minimum delay before showing a new topic. When set to less than 3 * refresh,
+that value will be used instead. (default: 1)</dd>
+<dt><tt class="docutils literal">refresh</tt></dt>
+<dd>Time in seconds between refreshes of the progress bar. (default: 0.1)</dd>
+<dt><tt class="docutils literal">format</tt></dt>
+<dd><p class="first">Format of the progress bar.</p>
+<p>Valid entries for the format field are <tt class="docutils literal">topic</tt>, <tt class="docutils literal">bar</tt>, <tt class="docutils literal">number</tt>,
+<tt class="docutils literal">unit</tt>, <tt class="docutils literal">estimate</tt>, speed, and item. item defaults to the last 20
+characters of the item, but this can be changed by adding either <tt class="docutils literal"><span class="pre">-&lt;num&gt;</span></tt>
+which would take the last num characters, or <tt class="docutils literal">+&lt;num&gt;</tt> for the first num
+characters.</p>
+<p class="last">(default: Topic bar number estimate)</p>
+</dd>
+<dt><tt class="docutils literal">width</tt></dt>
+<dd>If set, the maximum width of the progress information (that is, min(width,
+term width) will be used)</dd>
+<dt><tt class="docutils literal"><span class="pre">clear-complete</span></tt></dt>
+<dd>clear the progress bar after it's done (default to True)</dd>
+<dt><tt class="docutils literal">disable</tt></dt>
+<dd>If true, don't show a progress bar</dd>
+<dt><tt class="docutils literal"><span class="pre">assume-tty</span></tt></dt>
+<dd>If true, ALWAYS show a progress bar, unless disable is given</dd>
+</dl>
+</div>
 <div class="section" id="revsetalias">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">revsetalias</tt></a></h2>
 <p>Alias definitions for revsets. See <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for details.</p>
@@ -1189,6 +1228,9 @@ protocol. Default is False.</dd>
 <dd>Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.</dd>
+<dt><tt class="docutils literal">maxhttpheaderlen</tt></dt>
+<dd>Instruct HTTP clients not to send request headers longer than this
+many bytes. Default is 1024.</dd>
 </dl>
 </div>
 <div class="section" id="smtp">
@@ -1326,6 +1368,18 @@ specified by the <tt class="docutils literal"><span class="pre">--encoding</span
 environment variables that govern your locale. If the encoding of the merge
 markers is different from the encoding of the merged files,
 serious problems may occur.</dd>
+<dt><tt class="docutils literal">patch</tt></dt>
+<dd><p class="first">An optional external tool that <tt class="docutils literal">hg import</tt> and some extensions
+will use for applying patches. By default Mercurial uses an
+internal patch utility. The external tool must work as the common
+Unix <tt class="docutils literal">patch</tt> program. In particular, it must accept a <tt class="docutils literal"><span class="pre">-p</span></tt>
+argument to strip patch headers, a <tt class="docutils literal"><span class="pre">-d</span></tt> argument to specify the
+current directory, a file name to patch, and a patch file to take
+from stdin.</p>
+<p class="last">It is possible to specify a patch tool together with extra
+arguments. For example, setting this option to <tt class="docutils literal">patch <span class="pre">--merge</span></tt>
+will use the <tt class="docutils literal">patch</tt> program with its 2-way merge option.</p>
+</dd>
 <dt><tt class="docutils literal">portablefilenames</tt></dt>
 <dd>Check for portable filenames. Can be <tt class="docutils literal">warn</tt>, <tt class="docutils literal">ignore</tt> or <tt class="docutils literal">abort</tt>.
 Default is <tt class="docutils literal">warn</tt>.
@@ -1341,9 +1395,6 @@ On Windows, this configuration option is ignored and the command aborted.</dd>
 <dd>Reduce the amount of output printed. True or False. Default is False.</dd>
 <dt><tt class="docutils literal">remotecmd</tt></dt>
 <dd>remote command to use for clone/push/pull operations. Default is <tt class="docutils literal">hg</tt>.</dd>
-<dt><tt class="docutils literal">reportoldssl</tt></dt>
-<dd>Warn if an SSL certificate is unable to be used due to using Python
-2.5 or earlier. True or False. Default is True.</dd>
 <dt><tt class="docutils literal">report_untrusted</tt></dt>
 <dd>Warn if a <tt class="docutils literal">.hg/hgrc</tt> file is ignored due to not being owned by a
 trusted user or group. True or False. Default is True.</dd>
@@ -1475,6 +1526,8 @@ generate this file manually. The form must be as follows:</p>
 </dd>
 <dt><tt class="docutils literal">cache</tt></dt>
 <dd>Whether to support caching in hgweb. Defaults to True.</dd>
+<dt><tt class="docutils literal">certificate</tt></dt>
+<dd>Certificate to use when running <a class="reference external" href="hg.1.html#serve"><tt class="docutils literal">hg serve</tt></a>.</dd>
 <dt><tt class="docutils literal">collapse</tt></dt>
 <dd>With <tt class="docutils literal">descend</tt> enabled, repositories in subdirectories are shown at
 a single level alongside repositories in the current path. With
