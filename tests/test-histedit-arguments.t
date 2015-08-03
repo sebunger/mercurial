@@ -67,6 +67,7 @@ Run a dummy edit to make sure we get tip^^ correctly via revsingle.
   #  p, pick = use commit
   #  e, edit = use commit, but stop for amending
   #  f, fold = use commit, but combine it with the one above
+  #  r, roll = like fold, but discard this commit's description
   #  d, drop = remove commit from history
   #  m, mess = edit message without changing commit content
   #
@@ -102,6 +103,15 @@ Test that we pick the minimum of a revrange
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg up --quiet
 
+Test config specified default
+-----------------------------
+
+  $ HGEDITOR=cat hg histedit --config "histedit.defaultrev=only(.) - ::eb57da33312f" --commands - << EOF
+  > pick c8e68270e35a 3 four
+  > pick 08d98a8350f3 4 five
+  > EOF
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
 Run on a revision not descendants of the initial parent
 --------------------------------------------------------------------
 
@@ -110,6 +120,13 @@ created (and forgotten) by Mercurial earlier than 2.7. This emulates
 Mercurial earlier than 2.7 by renaming ".hg/histedit-state"
 temporarily.
 
+  $ hg log -G -T '{rev} {shortest(node)} {desc}\n' -r 2::
+  @  4 08d9 five
+  |
+  o  3 c8e6 four
+  |
+  o  2 eb57 three
+  |
   $ HGEDITOR=cat hg histedit -r 4 --commands - << EOF
   > edit 08d98a8350f3 4 five
   > EOF
@@ -121,15 +138,23 @@ temporarily.
 
   $ mv .hg/histedit-state .hg/histedit-state.back
   $ hg update --quiet --clean 2
+  $ echo alpha >> alpha
   $ mv .hg/histedit-state.back .hg/histedit-state
 
   $ hg histedit --continue
-  abort: c8e68270e35a is not an ancestor of working directory
-  (use "histedit --abort" to clear broken state)
-  [255]
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/foo/.hg/strip-backup/08d98a8350f3-02594089-backup.hg (glob)
+  $ hg log -G -T '{rev} {shortest(node)} {desc}\n' -r 2::
+  @  4 f5ed five
+  |
+  | o  3 c8e6 four
+  |/
+  o  2 eb57 three
+  |
 
-  $ hg histedit --abort
-  $ hg update --quiet --clean
+  $ hg unbundle -q $TESTTMP/foo/.hg/strip-backup/08d98a8350f3-02594089-backup.hg
+  $ hg strip -q -r f5ed --config extensions.strip=
+  $ hg up -q 08d98a8350f3
 
 Test that missing revisions are detected
 ---------------------------------------
@@ -265,7 +290,37 @@ Test that trimming description using multi-byte characters
   #  p, pick = use commit
   #  e, edit = use commit, but stop for amending
   #  f, fold = use commit, but combine it with the one above
+  #  r, roll = like fold, but discard this commit's description
   #  d, drop = remove commit from history
   #  m, mess = edit message without changing commit content
   #
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+Test --continue with --keep
+
+  $ hg strip -q -r . --config extensions.strip=
+  $ hg histedit '.^' -q --keep --commands - << EOF
+  > edit eb57da33312f 2 three
+  > pick f3cfcca30c44 4 x
+  > EOF
+  Make changes as needed, you may commit or record as needed now.
+  When you are finished, run hg histedit --continue to resume.
+  [1]
+  $ echo edit >> alpha
+  $ hg histedit -q --continue
+  $ hg log -G -T '{rev}:{node|short} {desc}'
+  @  6:8fda0c726bf2 x
+  |
+  o  5:63379946892c three
+  |
+  | o  4:f3cfcca30c44 x
+  | |
+  | | o  3:2a30f3cfee78 four
+  | |/   ***
+  | |    five
+  | o  2:eb57da33312f three
+  |/
+  o  1:579e40513370 two
+  |
+  o  0:6058cbb6cfd7 one
+  

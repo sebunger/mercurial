@@ -71,6 +71,8 @@ Non store repo:
   .hg/00manifest.i
   .hg/cache
   .hg/cache/branch2-served
+  .hg/cache/rbc-names-v1
+  .hg/cache/rbc-revs-v1
   .hg/data
   .hg/data/tst.d.hg
   .hg/data/tst.d.hg/foo.i
@@ -79,6 +81,7 @@ Non store repo:
   .hg/phaseroots
   .hg/requires
   .hg/undo
+  .hg/undo.backupfiles
   .hg/undo.bookmarks
   .hg/undo.branch
   .hg/undo.desc
@@ -99,6 +102,8 @@ Non fncache repo:
   .hg/00changelog.i
   .hg/cache
   .hg/cache/branch2-served
+  .hg/cache/rbc-names-v1
+  .hg/cache/rbc-revs-v1
   .hg/dirstate
   .hg/last-message.txt
   .hg/requires
@@ -110,6 +115,7 @@ Non fncache repo:
   .hg/store/data/tst.d.hg/_foo.i
   .hg/store/phaseroots
   .hg/store/undo
+  .hg/store/undo.backupfiles
   .hg/store/undo.phaseroots
   .hg/undo.bookmarks
   .hg/undo.branch
@@ -210,19 +216,19 @@ Aborting transaction prevents fncache change
 
   $ cat > ../exceptionext.py <<EOF
   > import os
-  > from mercurial import commands, util, transaction
+  > from mercurial import commands, util, localrepo
   > from mercurial.extensions import wrapfunction
   > 
   > def wrapper(orig, self, *args, **kwargs):
-  >     origonclose = self.onclose
-  >     def onclose():
-  >         origonclose()
+  >     tr = orig(self, *args, **kwargs)
+  >     def fail(tr):
   >         raise util.Abort("forced transaction failure")
-  >     self.onclose = onclose
-  >     return orig(self, *args, **kwargs)
+  >     # zzz prefix to ensure it sorted after store.write
+  >     tr.addfinalize('zzz-forcefails', fail)
+  >     return tr
   > 
   > def uisetup(ui):
-  >     wrapfunction(transaction.transaction, 'close', wrapper)
+  >     wrapfunction(localrepo.localrepository, 'transaction', wrapper)
   > 
   > cmdtable = {}
   > 
@@ -234,5 +240,48 @@ Aborting transaction prevents fncache change
   rollback completed
   abort: forced transaction failure
   [255]
+  $ cat .hg/store/fncache
+  data/y.i
+
+Aborted transactions can be recovered later
+
+  $ cat > ../exceptionext.py <<EOF
+  > import os
+  > from mercurial import commands, util, transaction, localrepo
+  > from mercurial.extensions import wrapfunction
+  > 
+  > def trwrapper(orig, self, *args, **kwargs):
+  >     tr = orig(self, *args, **kwargs)
+  >     def fail(tr):
+  >         raise util.Abort("forced transaction failure")
+  >     # zzz prefix to ensure it sorted after store.write
+  >     tr.addfinalize('zzz-forcefails', fail)
+  >     return tr
+  > 
+  > def abortwrapper(orig, self, *args, **kwargs):
+  >     raise util.Abort("forced transaction failure")
+  > 
+  > def uisetup(ui):
+  >     wrapfunction(localrepo.localrepository, 'transaction', trwrapper)
+  >     wrapfunction(transaction.transaction, '_abort', abortwrapper)
+  > 
+  > cmdtable = {}
+  > 
+  > EOF
+  $ rm -f "${extpath}c"
+  $ hg up -q 1
+  $ touch z
+  $ hg ci -qAm z 2>/dev/null
+  [255]
+  $ cat .hg/store/fncache | sort
+  data/y.i
+  data/z.i
+  $ hg recover
+  rolling back interrupted transaction
+  checking changesets
+  checking manifests
+  crosschecking files in changesets and manifests
+  checking files
+  1 files, 1 changesets, 1 total revisions
   $ cat .hg/store/fncache
   data/y.i

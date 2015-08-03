@@ -13,12 +13,14 @@ This contains helper routines that are independent of the SCM core and
 hide platform-specific details from the core.
 """
 
-from i18n import _
-import error, osutil, encoding
+import i18n
+_ = i18n._
+import error, osutil, encoding, parsers
 import errno, shutil, sys, tempfile, traceback
 import re as remod
 import os, time, datetime, calendar, textwrap, signal, collections
-import imp, socket, urllib
+import imp, socket, urllib, struct
+import gc
 
 if os.name == 'nt':
     import windows as platform
@@ -46,6 +48,8 @@ makedir = platform.makedir
 nlinks = platform.nlinks
 normpath = platform.normpath
 normcase = platform.normcase
+normcasespec = platform.normcasespec
+normcasefallback = platform.normcasefallback
 openhardlinks = platform.openhardlinks
 oslink = platform.oslink
 parsepatchoutput = platform.parsepatchoutput
@@ -53,7 +57,9 @@ pconvert = platform.pconvert
 popen = platform.popen
 posixfile = platform.posixfile
 quotecommand = platform.quotecommand
+readpipe = platform.readpipe
 rename = platform.rename
+removedirs = platform.removedirs
 samedevice = platform.samedevice
 samefile = platform.samefile
 samestat = platform.samestat
@@ -106,6 +112,113 @@ def _fastsha1(s=''):
     _fastsha1 = sha1 = _sha1
     return _sha1(s)
 
+def md5(s=''):
+    try:
+        from hashlib import md5 as _md5
+    except ImportError:
+        from md5 import md5 as _md5
+    global md5
+    md5 = _md5
+    return _md5(s)
+
+DIGESTS = {
+    'md5': md5,
+    'sha1': sha1,
+}
+# List of digest types from strongest to weakest
+DIGESTS_BY_STRENGTH = ['sha1', 'md5']
+
+try:
+    import hashlib
+    DIGESTS.update({
+        'sha512': hashlib.sha512,
+    })
+    DIGESTS_BY_STRENGTH.insert(0, 'sha512')
+except ImportError:
+    pass
+
+for k in DIGESTS_BY_STRENGTH:
+    assert k in DIGESTS
+
+class digester(object):
+    """helper to compute digests.
+
+    This helper can be used to compute one or more digests given their name.
+
+    >>> d = digester(['md5', 'sha1'])
+    >>> d.update('foo')
+    >>> [k for k in sorted(d)]
+    ['md5', 'sha1']
+    >>> d['md5']
+    'acbd18db4cc2f85cedef654fccc4a4d8'
+    >>> d['sha1']
+    '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33'
+    >>> digester.preferred(['md5', 'sha1'])
+    'sha1'
+    """
+
+    def __init__(self, digests, s=''):
+        self._hashes = {}
+        for k in digests:
+            if k not in DIGESTS:
+                raise Abort(_('unknown digest type: %s') % k)
+            self._hashes[k] = DIGESTS[k]()
+        if s:
+            self.update(s)
+
+    def update(self, data):
+        for h in self._hashes.values():
+            h.update(data)
+
+    def __getitem__(self, key):
+        if key not in DIGESTS:
+            raise Abort(_('unknown digest type: %s') % k)
+        return self._hashes[key].hexdigest()
+
+    def __iter__(self):
+        return iter(self._hashes)
+
+    @staticmethod
+    def preferred(supported):
+        """returns the strongest digest type in both supported and DIGESTS."""
+
+        for k in DIGESTS_BY_STRENGTH:
+            if k in supported:
+                return k
+        return None
+
+class digestchecker(object):
+    """file handle wrapper that additionally checks content against a given
+    size and digests.
+
+        d = digestchecker(fh, size, {'md5': '...'})
+
+    When multiple digests are given, all of them are validated.
+    """
+
+    def __init__(self, fh, size, digests):
+        self._fh = fh
+        self._size = size
+        self._got = 0
+        self._digests = dict(digests)
+        self._digester = digester(self._digests.keys())
+
+    def read(self, length=-1):
+        content = self._fh.read(length)
+        self._digester.update(content)
+        self._got += len(content)
+        return content
+
+    def validate(self):
+        if self._size != self._got:
+            raise Abort(_('size mismatch: expected %d, got %d') %
+                (self._size, self._got))
+        for k, v in self._digests.items():
+            if v != self._digester[k]:
+                # i18n: first parameter is a digest name
+                raise Abort(_('%s mismatch: expected %s, got %s') %
+                    (k, v, self._digester[k]))
+
 try:
     buffer = buffer
 except NameError:
@@ -118,6 +231,15 @@ except NameError:
 
 import subprocess
 closefds = os.name == 'posix'
+
+def unpacker(fmt):
+    """create a struct unpacker for the specified format"""
+    try:
+        # 2.5+
+        return struct.Struct(fmt).unpack
+    except AttributeError:
+        # 2.4
+        return lambda buf: struct.unpack(fmt, buf)
 
 def popen2(cmd, env=None, newlines=False):
     # Setting bufsize to -1 lets the system decide the buffer size.
@@ -240,8 +362,10 @@ class sortdict(dict):
     def __iter__(self):
         return self._list.__iter__()
     def update(self, src):
-        for k in src:
-            self[k] = src[k]
+        if isinstance(src, dict):
+            src = src.iteritems()
+        for k, v in src:
+            self[k] = v
     def clear(self):
         dict.clear(self)
         self._list = []
@@ -250,10 +374,22 @@ class sortdict(dict):
     def __delitem__(self, key):
         dict.__delitem__(self, key)
         self._list.remove(key)
+    def pop(self, key, *args, **kwargs):
+        dict.pop(self, key, *args, **kwargs)
+        try:
+            self._list.remove(key)
+        except ValueError:
+            pass
     def keys(self):
         return self._list
     def iterkeys(self):
         return self._list.__iter__()
+    def iteritems(self):
+        for k in self._list:
+            yield k, self[k]
+    def insert(self, index, key, val):
+        self._list.insert(index, key)
+        dict.__setitem__(self, key, val)
 
 class lrucachedict(object):
     '''cache most recent gets from or sets to this dictionary'''
@@ -423,6 +559,28 @@ def always(fn):
 def never(fn):
     return False
 
+def nogc(func):
+    """disable garbage collector
+
+    Python's garbage collector triggers a GC each time a certain number of
+    container objects (the number being defined by gc.get_threshold()) are
+    allocated even when marked not to be tracked by the collector. Tracking has
+    no effect on when GCs are triggered, only on what objects the GC looks
+    into. As a workaround, disable GC while building complex (huge)
+    containers.
+
+    This garbage collector issue have been fixed in 2.7.
+    """
+    def wrapper(*args, **kwargs):
+        gcenabled = gc.isenabled()
+        gc.disable()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            if gcenabled:
+                gc.enable()
+    return wrapper
+
 def pathto(root, n1, n2):
     '''return the relative path from one place to another.
     root should use os.sep to separate directories
@@ -449,8 +607,6 @@ def pathto(root, n1, n2):
     b.reverse()
     return os.sep.join((['..'] * len(a)) + b) or '.'
 
-_hgexecutable = None
-
 def mainfrozen():
     """return True if we are a frozen executable.
 
@@ -460,6 +616,17 @@ def mainfrozen():
     return (safehasattr(sys, "frozen") or # new py2exe
             safehasattr(sys, "importers") or # old py2exe
             imp.is_frozen("__main__")) # tools/freeze
+
+# the location of data files matching the source code
+if mainfrozen():
+    # executable version (py2exe) doesn't support __file__
+    datapath = os.path.dirname(sys.executable)
+else:
+    datapath = os.path.dirname(__file__)
+
+i18n.setdatapath(datapath)
+
+_hgexecutable = None
 
 def hgexecutable():
     """return location of the 'hg' executable.
@@ -489,9 +656,8 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
     '''enhanced shell command execution.
     run with environment maybe modified, maybe in different dir.
 
-    if command fails and onerr is None, return status.  if ui object,
-    print error message and return status, else raise onerr object as
-    exception.
+    if command fails and onerr is None, return status, else raise onerr
+    object as exception.
 
     if out is specified, it is assumed to be a file-like object that has a
     write() method. stdout and stderr will be redirected to out.'''
@@ -526,7 +692,10 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
             proc = subprocess.Popen(cmd, shell=True, close_fds=closefds,
                                     env=env, cwd=cwd, stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT)
-            for line in proc.stdout:
+            while True:
+                line = proc.stdout.readline()
+                if not line:
+                    break
                 out.write(line)
             proc.wait()
             rc = proc.returncode
@@ -537,10 +706,7 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None, out=None):
                             explainexit(rc)[0])
         if errprefix:
             errmsg = '%s: %s' % (errprefix, errmsg)
-        try:
-            onerr.warn(errmsg + '\n')
-        except AttributeError:
-            raise onerr(errmsg)
+        raise onerr(errmsg)
     return rc
 
 def checksignature(func):
@@ -555,10 +721,18 @@ def checksignature(func):
 
     return check
 
-def copyfile(src, dest):
+def copyfile(src, dest, hardlink=False):
     "copy a file, preserving mode and atime/mtime"
     if os.path.lexists(dest):
         unlink(dest)
+    # hardlinks are problematic on CIFS, quietly ignore this flag
+    # until we find a way to work around it cleanly (issue4546)
+    if False and hardlink:
+        try:
+            oslink(src, dest)
+            return
+        except (IOError, OSError):
+            pass # fall back to normal copy
     if os.path.islink(src):
         os.symlink(os.readlink(src), dest)
     else:
@@ -568,20 +742,27 @@ def copyfile(src, dest):
         except shutil.Error, inst:
             raise Abort(str(inst))
 
-def copyfiles(src, dst, hardlink=None):
-    """Copy a directory tree using hardlinks if possible"""
+def copyfiles(src, dst, hardlink=None, progress=lambda t, pos: None):
+    """Copy a directory tree using hardlinks if possible."""
+    num = 0
 
     if hardlink is None:
         hardlink = (os.stat(src).st_dev ==
                     os.stat(os.path.dirname(dst)).st_dev)
+    if hardlink:
+        topic = _('linking')
+    else:
+        topic = _('copying')
 
-    num = 0
     if os.path.isdir(src):
         os.mkdir(dst)
         for name, kind in osutil.listdir(src):
             srcname = os.path.join(src, name)
             dstname = os.path.join(dst, name)
-            hardlink, n = copyfiles(srcname, dstname, hardlink)
+            def nprog(t, pos):
+                if pos is not None:
+                    return progress(t, pos + num)
+            hardlink, n = copyfiles(srcname, dstname, hardlink, progress=nprog)
             num += n
     else:
         if hardlink:
@@ -593,6 +774,8 @@ def copyfiles(src, dst, hardlink=None):
         else:
             shutil.copy(src, dst)
         num += 1
+        progress(topic, num)
+    progress(topic, None)
 
     return hardlink, num
 
@@ -694,7 +877,7 @@ def checkcase(path):
     Requires a path (like /foo/.hg) ending with a foldable final
     directory component.
     """
-    s1 = os.stat(path)
+    s1 = os.lstat(path)
     d, b = os.path.split(path)
     b2 = b.upper()
     if b == b2:
@@ -703,7 +886,7 @@ def checkcase(path):
             return True # no evidence against case sensitivity
     p2 = os.path.join(d, b2)
     try:
-        s2 = os.stat(p2)
+        s2 = os.lstat(p2)
         if s2 == s1:
             return False
         return True
@@ -772,11 +955,8 @@ def fspath(name, root):
 
     The root should be normcase-ed, too.
     '''
-    def find(p, contents):
-        for n in contents:
-            if normcase(n) == p:
-                return n
-        return None
+    def _makefspathcacheentry(dir):
+        return dict((normcase(n), n) for n in os.listdir(dir))
 
     seps = os.sep
     if os.altsep:
@@ -792,16 +972,15 @@ def fspath(name, root):
             continue
 
         if dir not in _fspathcache:
-            _fspathcache[dir] = os.listdir(dir)
+            _fspathcache[dir] = _makefspathcacheentry(dir)
         contents = _fspathcache[dir]
 
-        found = find(part, contents)
+        found = contents.get(part)
         if not found:
             # retry "once per directory" per "dirstate.walk" which
             # may take place for each patches of "hg qpush", for example
-            contents = os.listdir(dir)
-            _fspathcache[dir] = contents
-            found = find(part, contents)
+            _fspathcache[dir] = contents = _makefspathcacheentry(dir)
+            found = contents.get(part)
 
         result.append(found or part)
         dir = os.path.join(dir, part)
@@ -963,15 +1142,20 @@ def makedirs(name, mode=None, notindexed=False):
     if mode is not None:
         os.chmod(name, mode)
 
-def ensuredirs(name, mode=None):
-    """race-safe recursive directory creation"""
+def ensuredirs(name, mode=None, notindexed=False):
+    """race-safe recursive directory creation
+
+    Newly created directories are marked as "not to be indexed by
+    the content indexing service", if ``notindexed`` is specified
+    for "write" mode access.
+    """
     if os.path.isdir(name):
         return
     parent = os.path.dirname(os.path.abspath(name))
     if parent != name:
-        ensuredirs(parent, mode)
+        ensuredirs(parent, mode, notindexed)
     try:
-        os.mkdir(name)
+        makedir(name, notindexed)
     except OSError, err:
         if err.errno == errno.EEXIST and os.path.isdir(name):
             # someone else seems to have won a directory creation race
@@ -1025,7 +1209,7 @@ class chunkbuffer(object):
         """Read L bytes of data from the iterator of chunks of data.
         Returns less than L bytes if the iterator runs dry.
 
-        If size parameter is ommited, read everything"""
+        If size parameter is omitted, read everything"""
         left = l
         buf = []
         queue = self._queue
@@ -1182,11 +1366,11 @@ def parsedate(date, formats=None, bias={}):
         formats = defaultdateformats
     date = date.strip()
 
-    if date == _('now'):
+    if date == 'now' or date == _('now'):
         return makedate()
-    if date == _('today'):
+    if date == 'today' or date == _('today'):
         date = datetime.date.today().strftime('%b %d')
-    elif date == _('yesterday'):
+    elif date == 'yesterday' or date == _('yesterday'):
         date = (datetime.date.today() -
                 datetime.timedelta(days=1)).strftime('%b %d')
 
@@ -1295,7 +1479,7 @@ def matchdate(date):
         except ValueError:
             raise Abort(_("invalid day spec: %s") % date[1:])
         if days < 0:
-            raise Abort(_("%s must be nonnegative (see 'hg help dates')")
+            raise Abort(_('%s must be nonnegative (see "hg help dates")')
                 % date[1:])
         when = makedate()[0] - days * 3600 * 24
         return lambda x: x >= when
@@ -2056,6 +2240,51 @@ def debugstacktrace(msg='stacktrace', skip=0, f=sys.stderr, otherf=sys.stdout):
         for fnln, func in entries:
             f.write(' %-*s in %s\n' % (fnmax, fnln, func))
     f.flush()
+
+class dirs(object):
+    '''a multiset of directory names from a dirstate or manifest'''
+
+    def __init__(self, map, skip=None):
+        self._dirs = {}
+        addpath = self.addpath
+        if safehasattr(map, 'iteritems') and skip is not None:
+            for f, s in map.iteritems():
+                if s[0] != skip:
+                    addpath(f)
+        else:
+            for f in map:
+                addpath(f)
+
+    def addpath(self, path):
+        dirs = self._dirs
+        for base in finddirs(path):
+            if base in dirs:
+                dirs[base] += 1
+                return
+            dirs[base] = 1
+
+    def delpath(self, path):
+        dirs = self._dirs
+        for base in finddirs(path):
+            if dirs[base] > 1:
+                dirs[base] -= 1
+                return
+            del dirs[base]
+
+    def __iter__(self):
+        return self._dirs.iterkeys()
+
+    def __contains__(self, d):
+        return d in self._dirs
+
+if safehasattr(parsers, 'dirs'):
+    dirs = parsers.dirs
+
+def finddirs(path):
+    pos = path.rfind('/')
+    while pos != -1:
+        yield path[:pos]
+        pos = path.rfind('/', 0, pos)
 
 # convenient shortcut
 dst = debugstacktrace

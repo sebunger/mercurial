@@ -6,6 +6,7 @@ Uploaders: Vincent Danjean <vdanjean@debian.org>,
  Javi Merino <vicho@debian.org>,
  Tristan Seligmann <mithrandi@debian.org>
 Build-Depends: debhelper (>= 9),
+ dh-python,
  patchutils (>= 0.2.25),
  gettext,
  python-all-dev (>= 2.6.6-3~),
@@ -15,13 +16,11 @@ Build-Depends: debhelper (>= 9),
  unzip,
  bash-completion,
  netbase,
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Homepage: http://mercurial.selenic.com/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
 Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
-# Can go away once dpkg 1.17.11 hits stable
-XS-Testsuite: autopkgtest
 
 Package: mercurial-common
 Architecture: all 
@@ -40,7 +39,7 @@ Replaces: mercurial (<< 2.6.3)
 Description: easy-to-use, scalable distributed version control system (common files)
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
- . 
+ .
  This package contains the architecture independent components of Mercurial,
  and is generally useless without the mercurial package.
 
@@ -51,14 +50,14 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
 Recommends: openssh-client,
 Suggests: qct,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
-Breaks: hgsubversion (<< 1.6~),
+Breaks: hgsubversion (<< 1.8-1),
  hgview-common (<< 1.8.1),
- mercurial-git (<< 0.6.1-1~),
+ mercurial-git (<= 0.6.1-2),
  qct (<< 1.7-2~),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
- . 
+ .
  Its features include:
   * O(1) delta-compressed file storage and retrieval scheme
   * Complete cross-indexing of files and changesets for efficient exploration

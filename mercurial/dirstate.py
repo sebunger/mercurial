@@ -8,7 +8,7 @@
 from node import nullid
 from i18n import _
 import scmutil, util, ignore, osutil, parsers, encoding, pathutil
-import os, stat, errno, gc
+import os, stat, errno
 
 propertycache = util.propertycache
 filecache = scmutil.filecache
@@ -38,12 +38,38 @@ class dirstate(object):
         self._opener = opener
         self._validate = validate
         self._root = root
-        self._rootdir = os.path.join(root, '')
+        # ntpath.join(root, '') of Python 2.7.9 does not add sep if root is
+        # UNC path pointing to root share (issue4557)
+        self._rootdir = pathutil.normasprefix(root)
         self._dirty = False
         self._dirtypl = False
         self._lastnormaltime = 0
         self._ui = ui
         self._filecache = {}
+        self._parentwriters = 0
+
+    def beginparentchange(self):
+        '''Marks the beginning of a set of changes that involve changing
+        the dirstate parents. If there is an exception during this time,
+        the dirstate will not be written when the wlock is released. This
+        prevents writing an incoherent dirstate where the parent doesn't
+        match the contents.
+        '''
+        self._parentwriters += 1
+
+    def endparentchange(self):
+        '''Marks the end of a set of changes that involve changing the
+        dirstate parents. Once all parent changes have been marked done,
+        the wlock will be free to write the dirstate on release.
+        '''
+        if self._parentwriters > 0:
+            self._parentwriters -= 1
+
+    def pendingparentchange(self):
+        '''Returns true if the dirstate is in the middle of a set of changes
+        that modify the dirstate parent.
+        '''
+        return self._parentwriters > 0
 
     @propertycache
     def _map(self):
@@ -58,14 +84,29 @@ class dirstate(object):
         return self._copymap
 
     @propertycache
-    def _foldmap(self):
+    def _filefoldmap(self):
+        try:
+            makefilefoldmap = parsers.make_file_foldmap
+        except AttributeError:
+            pass
+        else:
+            return makefilefoldmap(self._map, util.normcasespec,
+                                   util.normcasefallback)
+
         f = {}
+        normcase = util.normcase
         for name, s in self._map.iteritems():
             if s[0] != 'r':
-                f[util.normcase(name)] = name
-        for name in self._dirs:
-            f[util.normcase(name)] = name
+                f[normcase(name)] = name
         f['.'] = '.' # prevents useless util.fspath() invocation
+        return f
+
+    @propertycache
+    def _dirfoldmap(self):
+        f = {}
+        normcase = util.normcase
+        for name in self._dirs:
+            f[normcase(name)] = name
         return f
 
     @repocache('branch')
@@ -95,7 +136,7 @@ class dirstate(object):
 
     @propertycache
     def _dirs(self):
-        return scmutil.dirs(self._map, 'r')
+        return util.dirs(self._map, 'r')
 
     def dirs(self):
         return self._dirs
@@ -105,7 +146,9 @@ class dirstate(object):
         files = [self._join('.hgignore')]
         for name, path in self._ui.configitems("ui"):
             if name == 'ignore' or name.startswith('ignore.'):
-                files.append(util.expandpath(path))
+                # we need to use os.path.join here rather than self._join
+                # because path is arbitrary and user-specified
+                files.append(os.path.join(self._rootdir, util.expandpath(path)))
         return ignore.ignore(self._root, files, self._ui.warn)
 
     @propertycache
@@ -232,17 +275,26 @@ class dirstate(object):
 
         See localrepo.setparents()
         """
+        if self._parentwriters == 0:
+            raise ValueError("cannot set dirstate parent without "
+                             "calling dirstate.beginparentchange")
+
         self._dirty = self._dirtypl = True
         oldp2 = self._pl[1]
         self._pl = p1, p2
         copies = {}
         if oldp2 != nullid and p2 == nullid:
-            # Discard 'm' markers when moving away from a merge state
             for f, s in self._map.iteritems():
+                # Discard 'm' markers when moving away from a merge state
                 if s[0] == 'm':
                     if f in self._copymap:
                         copies[f] = self._copymap[f]
                     self.normallookup(f)
+                # Also fix up otherparent markers
+                elif s[0] == 'n' and s[2] == -2:
+                    if f in self._copymap:
+                        copies[f] = self._copymap[f]
+                    self.add(f)
         return copies
 
     def setbranch(self, branch):
@@ -283,23 +335,21 @@ class dirstate(object):
         # Depending on when in the process's lifetime the dirstate is parsed,
         # this can get very expensive. As a workaround, disable GC while
         # parsing the dirstate.
-        gcenabled = gc.isenabled()
-        gc.disable()
-        try:
-            p = parsers.parse_dirstate(self._map, self._copymap, st)
-        finally:
-            if gcenabled:
-                gc.enable()
+        #
+        # (we cannot decorate the function directly since it is in a C module)
+        parse_dirstate = util.nogc(parsers.parse_dirstate)
+        p = parse_dirstate(self._map, self._copymap, st)
         if not self._dirtypl:
             self._pl = p
 
     def invalidate(self):
-        for a in ("_map", "_copymap", "_foldmap", "_branch", "_pl", "_dirs",
-                "_ignore"):
+        for a in ("_map", "_copymap", "_filefoldmap", "_dirfoldmap", "_branch",
+                  "_pl", "_dirs", "_ignore"):
             if a in self.__dict__:
                 delattr(self, a)
         self._lastnormaltime = 0
         self._dirty = False
+        self._parentwriters = 0
 
     def copy(self, source, dest):
         """Mark dest as a copy of source. Unmark dest if source is None."""
@@ -328,7 +378,7 @@ class dirstate(object):
             if f in self._dirs:
                 raise util.Abort(_('directory %r already in dirstate') % f)
             # shadows
-            for d in scmutil.finddirs(f):
+            for d in util.finddirs(f):
                 if d in self._dirs:
                     break
                 if d in self._map and self[d] != 'r':
@@ -380,7 +430,13 @@ class dirstate(object):
         if self._pl[1] == nullid:
             raise util.Abort(_("setting %r to other parent "
                                "only allowed in merges") % f)
-        self._addpath(f, 'n', 0, -2, -1)
+        if f in self and self[f] == 'n':
+            # merge-like
+            self._addpath(f, 'm', 0, -2, -1)
+        else:
+            # add-like
+            self._addpath(f, 'n', 0, -2, -1)
+
         if f in self._copymap:
             del self._copymap[f]
 
@@ -410,11 +466,7 @@ class dirstate(object):
         '''Mark a file merged.'''
         if self._pl[1] == nullid:
             return self.normallookup(f)
-        s = os.lstat(self._join(f))
-        self._addpath(f, 'm', s.st_mode,
-                      s.st_size & _rangemask, int(s.st_mtime) & _rangemask)
-        if f in self._copymap:
-            del self._copymap[f]
+        return self.otherparent(f)
 
     def drop(self, f):
         '''Drop a file from the dirstate'''
@@ -423,36 +475,56 @@ class dirstate(object):
             self._droppath(f)
             del self._map[f]
 
-    def _normalize(self, path, isknown, ignoremissing=False, exists=None):
+    def _discoverpath(self, path, normed, ignoremissing, exists, storemap):
+        if exists is None:
+            exists = os.path.lexists(os.path.join(self._root, path))
+        if not exists:
+            # Maybe a path component exists
+            if not ignoremissing and '/' in path:
+                d, f = path.rsplit('/', 1)
+                d = self._normalize(d, False, ignoremissing, None)
+                folded = d + "/" + f
+            else:
+                # No path components, preserve original case
+                folded = path
+        else:
+            # recursively normalize leading directory components
+            # against dirstate
+            if '/' in normed:
+                d, f = normed.rsplit('/', 1)
+                d = self._normalize(d, False, ignoremissing, True)
+                r = self._root + "/" + d
+                folded = d + "/" + util.fspath(f, r)
+            else:
+                folded = util.fspath(normed, self._root)
+            storemap[normed] = folded
+
+        return folded
+
+    def _normalizefile(self, path, isknown, ignoremissing=False, exists=None):
         normed = util.normcase(path)
-        folded = self._foldmap.get(normed, None)
+        folded = self._filefoldmap.get(normed, None)
         if folded is None:
             if isknown:
                 folded = path
             else:
-                if exists is None:
-                    exists = os.path.lexists(os.path.join(self._root, path))
-                if not exists:
-                    # Maybe a path component exists
-                    if not ignoremissing and '/' in path:
-                        d, f = path.rsplit('/', 1)
-                        d = self._normalize(d, isknown, ignoremissing, None)
-                        folded = d + "/" + f
-                    else:
-                        # No path components, preserve original case
-                        folded = path
-                else:
-                    # recursively normalize leading directory components
-                    # against dirstate
-                    if '/' in normed:
-                        d, f = normed.rsplit('/', 1)
-                        d = self._normalize(d, isknown, ignoremissing, True)
-                        r = self._root + "/" + d
-                        folded = d + "/" + util.fspath(f, r)
-                    else:
-                        folded = util.fspath(normed, self._root)
-                    self._foldmap[normed] = folded
+                folded = self._discoverpath(path, normed, ignoremissing, exists,
+                                            self._filefoldmap)
+        return folded
 
+    def _normalize(self, path, isknown, ignoremissing=False, exists=None):
+        normed = util.normcase(path)
+        folded = self._filefoldmap.get(normed, None)
+        if folded is None:
+            folded = self._dirfoldmap.get(normed, None)
+        if folded is None:
+            if isknown:
+                folded = path
+            else:
+                # store discovered result in dirfoldmap so that future
+                # normalizefile calls don't start matching directories
+                folded = self._discoverpath(path, normed, ignoremissing, exists,
+                                            self._dirfoldmap)
         return folded
 
     def normalize(self, path, isknown=False, ignoremissing=False):
@@ -508,7 +580,7 @@ class dirstate(object):
         # enough 'delaywrite' prevents 'pack_dirstate' from dropping
         # timestamp of each entries in dirstate, because of 'now > mtime'
         delaywrite = self._ui.configint('debug', 'dirstate.delaywrite', 0)
-        if delaywrite:
+        if delaywrite > 0:
             import time # to avoid useless import
             time.sleep(delaywrite)
 
@@ -526,7 +598,7 @@ class dirstate(object):
             return False
         if self._ignore(f):
             return True
-        for p in scmutil.finddirs(f):
+        for p in util.finddirs(f):
             if self._ignore(p):
                 return True
         return False
@@ -558,7 +630,6 @@ class dirstate(object):
         matchedir = match.explicitdir
         badfn = match.bad
         dmap = self._map
-        normpath = util.normpath
         lstat = os.lstat
         getkind = stat.S_IFMT
         dirkind = stat.S_IFDIR
@@ -570,7 +641,7 @@ class dirstate(object):
         dirsnotfound = []
         notfoundadd = dirsnotfound.append
 
-        if match.matchfn != match.exact and self._checkcase:
+        if not match.isexact() and self._checkcase:
             normalize = self._normalize
         else:
             normalize = None
@@ -588,15 +659,18 @@ class dirstate(object):
             j += 1
 
         if not files or '.' in files:
-            files = ['']
+            files = ['.']
         results = dict.fromkeys(subrepos)
         results['.hg'] = None
 
+        alldirs = None
         for ff in files:
-            if normalize:
-                nf = normalize(normpath(ff), False, True)
+            # constructing the foldmap is expensive, so don't do it for the
+            # common case where files is ['.']
+            if normalize and ff != '.':
+                nf = normalize(ff, False, True)
             else:
-                nf = normpath(ff)
+                nf = ff
             if nf in results:
                 continue
 
@@ -609,7 +683,7 @@ class dirstate(object):
                         results[nf] = None
                     if matchedir:
                         matchedir(nf)
-                    foundadd(nf)
+                    foundadd((nf, ff))
                 elif kind == regkind or kind == lnkkind:
                     results[nf] = st
                 else:
@@ -620,13 +694,12 @@ class dirstate(object):
                 if nf in dmap: # does it exactly match a missing file?
                     results[nf] = None
                 else: # does it match a missing directory?
-                    prefix = nf + "/"
-                    for fn in dmap:
-                        if fn.startswith(prefix):
-                            if matchedir:
-                                matchedir(nf)
-                            notfoundadd(nf)
-                            break
+                    if alldirs is None:
+                        alldirs = util.dirs(dmap)
+                    if nf in alldirs:
+                        if matchedir:
+                            matchedir(nf)
+                        notfoundadd(nf)
                     else:
                         badfn(ff, inst.strerror)
 
@@ -670,7 +743,7 @@ class dirstate(object):
         join = self._join
 
         exact = skipstep3 = False
-        if matchfn == match.exact: # match.exact
+        if match.isexact(): # match.exact
             exact = True
             dirignore = util.always # skip step 2
         elif match.files() and not match.anypats(): # match.match, no patterns
@@ -678,53 +751,70 @@ class dirstate(object):
 
         if not exact and self._checkcase:
             normalize = self._normalize
+            normalizefile = self._normalizefile
             skipstep3 = False
         else:
-            normalize = None
+            normalize = self._normalize
+            normalizefile = None
 
         # step 1: find all explicit files
         results, work, dirsnotfound = self._walkexplicit(match, subrepos)
 
         skipstep3 = skipstep3 and not (work or dirsnotfound)
-        work = [d for d in work if not dirignore(d)]
-        wadd = work.append
+        work = [d for d in work if not dirignore(d[0])]
 
         # step 2: visit subdirectories
-        while work:
-            nd = work.pop()
-            skip = None
-            if nd == '.':
-                nd = ''
-            else:
-                skip = '.hg'
-            try:
-                entries = listdir(join(nd), stat=True, skip=skip)
-            except OSError, inst:
-                if inst.errno in (errno.EACCES, errno.ENOENT):
-                    match.bad(self.pathto(nd), inst.strerror)
-                    continue
-                raise
-            for f, kind, st in entries:
-                if normalize:
-                    nf = normalize(nd and (nd + "/" + f) or f, True, True)
+        def traverse(work, alreadynormed):
+            wadd = work.append
+            while work:
+                nd = work.pop()
+                skip = None
+                if nd == '.':
+                    nd = ''
                 else:
-                    nf = nd and (nd + "/" + f) or f
-                if nf not in results:
-                    if kind == dirkind:
-                        if not ignore(nf):
-                            if matchtdir:
-                                matchtdir(nf)
-                            wadd(nf)
-                        if nf in dmap and (matchalways or matchfn(nf)):
-                            results[nf] = None
-                    elif kind == regkind or kind == lnkkind:
-                        if nf in dmap:
-                            if matchalways or matchfn(nf):
+                    skip = '.hg'
+                try:
+                    entries = listdir(join(nd), stat=True, skip=skip)
+                except OSError, inst:
+                    if inst.errno in (errno.EACCES, errno.ENOENT):
+                        match.bad(self.pathto(nd), inst.strerror)
+                        continue
+                    raise
+                for f, kind, st in entries:
+                    if normalizefile:
+                        # even though f might be a directory, we're only
+                        # interested in comparing it to files currently in the
+                        # dmap -- therefore normalizefile is enough
+                        nf = normalizefile(nd and (nd + "/" + f) or f, True,
+                                           True)
+                    else:
+                        nf = nd and (nd + "/" + f) or f
+                    if nf not in results:
+                        if kind == dirkind:
+                            if not ignore(nf):
+                                if matchtdir:
+                                    matchtdir(nf)
+                                wadd(nf)
+                            if nf in dmap and (matchalways or matchfn(nf)):
+                                results[nf] = None
+                        elif kind == regkind or kind == lnkkind:
+                            if nf in dmap:
+                                if matchalways or matchfn(nf):
+                                    results[nf] = st
+                            elif ((matchalways or matchfn(nf))
+                                  and not ignore(nf)):
+                                # unknown file -- normalize if necessary
+                                if not alreadynormed:
+                                    nf = normalize(nf, False, True)
                                 results[nf] = st
-                        elif (matchalways or matchfn(nf)) and not ignore(nf):
-                            results[nf] = st
-                    elif nf in dmap and (matchalways or matchfn(nf)):
-                        results[nf] = None
+                        elif nf in dmap and (matchalways or matchfn(nf)):
+                            results[nf] = None
+
+        for nd, d in work:
+            # alreadynormed means that processwork doesn't have to do any
+            # expensive directory normalization
+            alreadynormed = not normalize or nd == d
+            traverse([d], alreadynormed)
 
         for s in subrepos:
             del results[s]
@@ -749,9 +839,16 @@ class dirstate(object):
                 audit_path = pathutil.pathauditor(self._root)
 
                 for nf in iter(visit):
+                    # If a stat for the same file was already added with a
+                    # different case, don't add one for this, since that would
+                    # make it appear as if the file exists under both names
+                    # on disk.
+                    if (normalizefile and
+                        normalizefile(nf, True, True) in results):
+                        results[nf] = None
                     # Report ignored items in the dmap as long as they are not
                     # under a symlink directory.
-                    if audit_path.check(nf):
+                    elif audit_path.check(nf):
                         try:
                             results[nf] = lstat(join(nf))
                             # file was just ignored, no links, and exists
@@ -772,28 +869,17 @@ class dirstate(object):
 
     def status(self, match, subrepos, ignored, clean, unknown):
         '''Determine the status of the working copy relative to the
-        dirstate and return a tuple of lists (unsure, modified, added,
-        removed, deleted, unknown, ignored, clean), where:
+        dirstate and return a pair of (unsure, status), where status is of type
+        scmutil.status and:
 
           unsure:
             files that might have been modified since the dirstate was
             written, but need to be read to be sure (size is the same
             but mtime differs)
-          modified:
+          status.modified:
             files that have definitely been modified since the dirstate
             was written (different size or mode)
-          added:
-            files that have been explicitly added with hg add
-          removed:
-            files that have been explicitly removed with hg remove
-          deleted:
-            files that have been deleted through other means ("missing")
-          unknown:
-            files not in the dirstate that are not ignored
-          ignored:
-            files not in the dirstate that are ignored
-            (by _dirignore())
-          clean:
+          status.clean:
             files that have definitely not been modified since the
             dirstate was written
         '''
@@ -857,9 +943,9 @@ class dirstate(object):
                 elif time != mtime and time != mtime & _rangemask:
                     ladd(fn)
                 elif mtime == lastnormaltime:
-                    # fn may have been changed in the same timeslot without
-                    # changing its size. This can happen if we quickly do
-                    # multiple commits in a single transaction.
+                    # fn may have just been marked as normal and it may have
+                    # changed in the same second without changing its size.
+                    # This can happen if we quickly do multiple commits.
                     # Force lookup, so we don't miss such a racy file change.
                     ladd(fn)
                 elif listclean:
@@ -871,5 +957,23 @@ class dirstate(object):
             elif state == 'r':
                 radd(fn)
 
-        return (lookup, modified, added, removed, deleted, unknown, ignored,
-                clean)
+        return (lookup, scmutil.status(modified, added, removed, deleted,
+                                       unknown, ignored, clean))
+
+    def matches(self, match):
+        '''
+        return files in the dirstate (in whatever state) filtered by match
+        '''
+        dmap = self._map
+        if match.always():
+            return dmap.keys()
+        files = match.files()
+        if match.isexact():
+            # fast path -- filter the other way around, since typically files is
+            # much smaller than dmap
+            return [f for f in files if f in dmap]
+        if not match.anypats() and util.all(fn in dmap for fn in files):
+            # fast path -- all the values are known to be files, so just return
+            # that
+            return list(files)
+        return [f for f in dmap if match(f)]

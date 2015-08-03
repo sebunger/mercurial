@@ -37,6 +37,13 @@ Test copies and moves from a directory other than root (issue3516)
   A dira/dirb/largefile
   $ cd dira
   $ hg cp dirb/largefile foo/largefile
+
+TODO: Ideally, this should mention the largefile, not the standin
+  $ hg log -T '{rev}\n' --stat 'set:clean()'
+  0
+   .hglf/dira/dirb/largefile |  1 +
+   1 files changed, 1 insertions(+), 0 deletions(-)
+  
   $ hg ci -m "deep copy"
   Invoking status precommit hook
   A dira/foo/largefile
@@ -67,6 +74,11 @@ Test copies and moves from a directory other than root (issue3516)
   dirc/baz/largefile
   dirc/dirb
   dirc/dirb/largefile
+
+  $ hg clone -q . ../fetch
+  $ hg --config extensions.fetch= fetch ../fetch
+  abort: uncommitted changes
+  [255]
   $ hg up -qC
   $ cd ..
 
@@ -209,7 +221,7 @@ verify that large files in subrepos handled properly
   A .hgsub
   ? .hgsubstate
   $ echo "rev 1" > subrepo/large.txt
-  $ hg -R subrepo add --large subrepo/large.txt
+  $ hg add --large subrepo/large.txt
   $ hg sum
   parent: 1:8ee150ea2e9c tip
    add subrepo
@@ -243,14 +255,67 @@ verify that large files in subrepos handled properly
   commit: 1 subrepos
   update: (current)
   $ hg ci -m "this commit should fail without -S"
-  abort: uncommitted changes in subrepo subrepo
+  abort: uncommitted changes in subrepository 'subrepo'
   (use --subrepos for recursive commit)
   [255]
 
 Add a normal file to the subrepo, then test archiving
 
   $ echo 'normal file' > subrepo/normal.txt
-  $ hg -R subrepo add subrepo/normal.txt
+  $ touch large.dat
+  $ mv subrepo/large.txt subrepo/renamed-large.txt
+  $ hg addremove -S --dry-run
+  adding large.dat as a largefile
+  removing subrepo/large.txt
+  adding subrepo/normal.txt
+  adding subrepo/renamed-large.txt
+  $ hg status -S
+  ! subrepo/large.txt
+  ? large.dat
+  ? subrepo/normal.txt
+  ? subrepo/renamed-large.txt
+
+  $ hg addremove --dry-run subrepo
+  removing subrepo/large.txt (glob)
+  adding subrepo/normal.txt (glob)
+  adding subrepo/renamed-large.txt (glob)
+  $ hg status -S
+  ! subrepo/large.txt
+  ? large.dat
+  ? subrepo/normal.txt
+  ? subrepo/renamed-large.txt
+  $ cd ..
+
+  $ hg -R statusmatch addremove --dry-run statusmatch/subrepo
+  removing statusmatch/subrepo/large.txt (glob)
+  adding statusmatch/subrepo/normal.txt (glob)
+  adding statusmatch/subrepo/renamed-large.txt (glob)
+  $ hg -R statusmatch status -S
+  ! subrepo/large.txt
+  ? large.dat
+  ? subrepo/normal.txt
+  ? subrepo/renamed-large.txt
+
+  $ hg -R statusmatch addremove --dry-run -S
+  adding large.dat as a largefile
+  removing subrepo/large.txt
+  adding subrepo/normal.txt
+  adding subrepo/renamed-large.txt
+  $ cd statusmatch
+
+  $ mv subrepo/renamed-large.txt subrepo/large.txt
+  $ hg addremove subrepo
+  adding subrepo/normal.txt (glob)
+  $ hg forget subrepo/normal.txt
+
+  $ hg addremove -S
+  adding large.dat as a largefile
+  adding subrepo/normal.txt
+  $ rm large.dat
+
+  $ hg addremove subrepo
+  $ hg addremove -S
+  removing large.dat
 
 Lock in subrepo, otherwise the change isn't archived
 
@@ -278,6 +343,13 @@ Lock in subrepo, otherwise the change isn't archived
   ../lf_subrepo_archive/subrepo
   ../lf_subrepo_archive/subrepo/large.txt
   ../lf_subrepo_archive/subrepo/normal.txt
+  $ cat ../lf_subrepo_archive/.hg_archival.txt
+  repo: 41bd42f10efa43698cc02052ea0977771cba506d
+  node: d56a95e6522858bc08a724c4fe2bdee066d1c30b
+  branch: default
+  latesttag: null
+  latesttagdistance: 4
+  changessincelatesttag: 4
 
 Test update with subrepos.
 
@@ -299,10 +371,25 @@ Test update with subrepos.
   $ hg update -C
   getting changed largefiles
   1 largefiles updated, 0 removed
-  getting changed largefiles
-  0 largefiles updated, 0 removed
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg status -S
+
+  $ hg forget -v subrepo/large.txt
+  removing subrepo/large.txt (glob)
+
+Test reverting a forgotten file
+  $ hg revert -R subrepo subrepo/large.txt
+  $ hg status -SA subrepo/large.txt
+  C subrepo/large.txt
+
+  $ hg rm -v subrepo/large.txt
+  removing subrepo/large.txt (glob)
+  $ hg revert -R subrepo subrepo/large.txt
+  $ rm subrepo/large.txt
+  $ hg addremove -S
+  removing subrepo/large.txt
+  $ hg st -S
+  R subrepo/large.txt
 
 Test archiving a revision that references a subrepo that is not yet
 cloned (see test-subrepo-recursion.t):
@@ -376,6 +463,10 @@ Test actions on largefiles using relative paths from subdir
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     anotherlarge
   
+  $ hg --debug log -T '{rev}: {desc}\n' ../sub/anotherlarge
+  updated patterns: ['../.hglf/sub/../sub/anotherlarge', '../sub/anotherlarge']
+  1: anotherlarge
+
   $ hg log -G anotherlarge
   @  changeset:   1:9627a577c5e9
   |  tag:         tip
@@ -383,6 +474,30 @@ Test actions on largefiles using relative paths from subdir
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     anotherlarge
   |
+
+  $ hg log glob:another*
+  changeset:   1:9627a577c5e9
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     anotherlarge
+  
+  $ hg --debug log -T '{rev}: {desc}\n' -G glob:another*
+  updated patterns: ['glob:../.hglf/sub/another*', 'glob:another*']
+  @  1: anotherlarge
+  |
+
+#if no-msys
+  $ hg --debug log -T '{rev}: {desc}\n' 'glob:../.hglf/sub/another*' # no-msys
+  updated patterns: ['glob:../.hglf/sub/another*']
+  1: anotherlarge
+
+  $ hg --debug log -G -T '{rev}: {desc}\n' 'glob:../.hglf/sub/another*' # no-msys
+  updated patterns: ['glob:../.hglf/sub/another*']
+  @  1: anotherlarge
+  |
+#endif
+
   $ echo more >> anotherlarge
   $ hg st .
   M anotherlarge
@@ -393,7 +508,32 @@ Test actions on largefiles using relative paths from subdir
   ? sub/anotherlarge.orig
   $ cd ..
 
+Test glob logging from the root dir
+  $ hg log glob:**another*
+  changeset:   1:9627a577c5e9
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     anotherlarge
+  
+  $ hg log -G glob:**another*
+  @  changeset:   1:9627a577c5e9
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     anotherlarge
+  |
+
   $ cd ..
+
+Log from outer space
+  $ hg --debug log -R addrm2 -T '{rev}: {desc}\n' 'addrm2/sub/anotherlarge'
+  updated patterns: ['addrm2/.hglf/sub/anotherlarge', 'addrm2/sub/anotherlarge']
+  1: anotherlarge
+  $ hg --debug log -R addrm2 -T '{rev}: {desc}\n' 'addrm2/.hglf/sub/anotherlarge'
+  updated patterns: ['addrm2/.hglf/sub/anotherlarge']
+  1: anotherlarge
+
 
 Check error message while exchange
 =========================================================
@@ -482,7 +622,7 @@ check messages when there are files to upload:
   b
   
   $ hg -R clone2 outgoing --large --graph --template "{rev}"
-  comparing with $TESTTMP/issue3651/src
+  comparing with $TESTTMP/issue3651/src (glob)
   searching for changes
   @  1
   
@@ -523,6 +663,8 @@ check messages when there are files to upload:
   all remote heads known locally
   1:1acbe71ce432
   2:6095d0695d70
+  finding outgoing largefiles: 0/2 revision (0.00%)
+  finding outgoing largefiles: 1/2 revision (50.00%)
   largefiles to upload (1 entities):
   b
       89e6c98d92887913cadf06b2adb97f26cde4849b
@@ -578,6 +720,11 @@ check messages when there are files to upload:
   3:7983dce246cc
   4:233f12ada4ae
   5:036794ea641c
+  finding outgoing largefiles: 0/5 revision (0.00%)
+  finding outgoing largefiles: 1/5 revision (20.00%)
+  finding outgoing largefiles: 2/5 revision (40.00%)
+  finding outgoing largefiles: 3/5 revision (60.00%)
+  finding outgoing largefiles: 4/5 revision (80.00%)
   largefiles to upload (3 entities):
   b
       13f9ed0898e315bf59dc2973fec52037b6f441a2
@@ -589,7 +736,7 @@ check messages when there are files to upload:
       89e6c98d92887913cadf06b2adb97f26cde4849b
   
 
-Pusing revision #1 causes uploading entity 89e6c98d9288, which is
+Pushing revision #1 causes uploading entity 89e6c98d9288, which is
 shared also by largefiles b1, b2 in revision #2 and b in revision #5.
 
 Then, entity 89e6c98d9288 is not treated as "outgoing entity" at "hg
@@ -623,6 +770,10 @@ and #5 refer it.
   3:7983dce246cc
   4:233f12ada4ae
   5:036794ea641c
+  finding outgoing largefiles: 0/4 revision (0.00%)
+  finding outgoing largefiles: 1/4 revision (25.00%)
+  finding outgoing largefiles: 2/4 revision (50.00%)
+  finding outgoing largefiles: 3/4 revision (75.00%)
   largefiles to upload (2 entities):
   b
       13f9ed0898e315bf59dc2973fec52037b6f441a2
@@ -661,8 +812,6 @@ merge action 'd' for 'local renamed directory to d2/g' which has no filename
   merging d2/f and d1/f to d2/f
   1 files updated, 1 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
-  getting changed largefiles
-  0 largefiles updated, 0 removed
   $ cd ..
 
 
@@ -725,10 +874,10 @@ Merge conflicts:
   ancestor was 09d2af8dd22201dd8d48e5dcfcaed281ff9422c7
   keep (l)ocal e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e or
   take (o)ther 7448d8798a4380162d4b56f9b452e2f6f9e24e7a? l
-  0 files updated, 4 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
   getting changed largefiles
   1 largefiles updated, 0 removed
+  0 files updated, 4 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
   $ cat f-different
   1
   $ cat f-same
@@ -829,7 +978,107 @@ locally (issue4109)
   $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
 #endif
 
+Test overridden functions work correctly even for repos disabling
+largefiles (issue4547)
+
+  $ hg showconfig extensions | grep largefiles
+  extensions.largefiles=!
+
+(test updating implied by clone)
+
+  $ hg init enabled-but-no-largefiles
+  $ echo normal1 > enabled-but-no-largefiles/normal1
+  $ hg -R enabled-but-no-largefiles add enabled-but-no-largefiles/normal1
+  $ hg -R enabled-but-no-largefiles commit -m '#0@enabled-but-no-largefiles'
+  Invoking status precommit hook
+  A normal1
+  $ cat >> enabled-but-no-largefiles/.hg/hgrc <<EOF
+  > [extensions]
+  > # enable locally
+  > largefiles=
+  > EOF
+  $ hg clone -q enabled-but-no-largefiles no-largefiles
+
+(test rebasing implied by pull: precommit while rebasing unexpectedly
+shows "normal3" as "?", because lfdirstate isn't yet written out at
+that time)
+
+  $ echo normal2 > enabled-but-no-largefiles/normal2
+  $ hg -R enabled-but-no-largefiles add enabled-but-no-largefiles/normal2
+  $ hg -R enabled-but-no-largefiles commit -m '#1@enabled-but-no-largefiles'
+  Invoking status precommit hook
+  A normal2
+
+  $ echo normal3 > no-largefiles/normal3
+  $ hg -R no-largefiles add no-largefiles/normal3
+  $ hg -R no-largefiles commit -m '#1@no-largefiles'
+  Invoking status precommit hook
+  A normal3
+
+  $ hg -R no-largefiles -q pull --rebase
+  Invoking status precommit hook
+  ? normal3
+
+(test reverting)
+
+  $ hg init subrepo-root
+  $ cat >> subrepo-root/.hg/hgrc <<EOF
+  > [extensions]
+  > # enable locally
+  > largefiles=
+  > EOF
+  $ echo large > subrepo-root/large
+  $ hg -R subrepo-root add --large subrepo-root/large
+  $ hg clone -q no-largefiles subrepo-root/no-largefiles
+  $ cat > subrepo-root/.hgsub <<EOF
+  > no-largefiles = no-largefiles
+  > EOF
+  $ hg -R subrepo-root add subrepo-root/.hgsub
+  $ hg -R subrepo-root commit -m '#0'
+  Invoking status precommit hook
+  A .hgsub
+  A large
+  ? .hgsubstate
+  $ echo dirty >> subrepo-root/large
+  $ echo dirty >> subrepo-root/no-largefiles/normal1
+  $ hg -R subrepo-root status -S
+  M large
+  M no-largefiles/normal1
+  $ hg -R subrepo-root revert --all
+  reverting subrepo-root/.hglf/large (glob)
+  reverting subrepo no-largefiles
+  reverting subrepo-root/no-largefiles/normal1 (glob)
+
   $ cd ..
 
 
+Test "pull --rebase" when rebase is enabled before largefiles (issue3861)
+=========================================================================
 
+  $ hg showconfig extensions | grep largefiles
+  extensions.largefiles=!
+
+  $ mkdir issue3861
+  $ cd issue3861
+  $ hg init src
+  $ hg clone -q src dst
+  $ echo a > src/a
+  $ hg -R src commit -Aqm "#0"
+  Invoking status precommit hook
+  A a
+
+  $ cat >> dst/.hg/hgrc <<EOF
+  > [extensions]
+  > largefiles=
+  > EOF
+  $ hg -R dst pull --rebase
+  pulling from $TESTTMP/issue3861/src (glob)
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  nothing to rebase - working directory parent is already an ancestor of destination bf5e395ced2c
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ cd ..

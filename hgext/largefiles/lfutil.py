@@ -12,6 +12,7 @@ import os
 import platform
 import shutil
 import stat
+import copy
 
 from mercurial import dirstate, httpconnection, match as match_, util, scmutil
 from mercurial.i18n import _
@@ -81,9 +82,10 @@ def inusercache(ui, hash):
     return path and os.path.exists(path)
 
 def findfile(repo, hash):
-    if instore(repo, hash):
+    path, exists = findstorepath(repo, hash)
+    if exists:
         repo.ui.note(_('found %s in store\n') % hash)
-        return storepath(repo, hash)
+        return path
     elif inusercache(repo.ui, hash):
         repo.ui.note(_('found %s in system cache\n') % hash)
         path = storepath(repo, hash)
@@ -134,13 +136,14 @@ def openlfdirstate(ui, repo, create=True):
             lfdirstate.normallookup(lfile)
     return lfdirstate
 
-def lfdirstatestatus(lfdirstate, repo, rev):
+def lfdirstatestatus(lfdirstate, repo):
+    wctx = repo['.']
     match = match_.always(repo.root, repo.getcwd())
-    s = lfdirstate.status(match, [], False, False, False)
-    unsure, modified, added, removed, missing, unknown, ignored, clean = s
+    unsure, s = lfdirstate.status(match, [], False, False, False)
+    modified, clean = s.modified, s.clean
     for lfile in unsure:
         try:
-            fctx = repo[rev][standin(lfile)]
+            fctx = wctx[standin(lfile)]
         except LookupError:
             fctx = None
         if not fctx or fctx.data().strip() != hashfile(repo.wjoin(lfile)):
@@ -148,7 +151,7 @@ def lfdirstatestatus(lfdirstate, repo, rev):
         else:
             clean.append(lfile)
             lfdirstate.normal(lfile)
-    return (modified, added, removed, missing, unknown, ignored, clean)
+    return s
 
 def listlfiles(repo, rev=None, matcher=None):
     '''return a list of largefiles in the working copy or the
@@ -162,11 +165,30 @@ def listlfiles(repo, rev=None, matcher=None):
             for f in repo[rev].walk(matcher)
             if rev is not None or repo.dirstate[f] != '?']
 
-def instore(repo, hash):
-    return os.path.exists(storepath(repo, hash))
+def instore(repo, hash, forcelocal=False):
+    return os.path.exists(storepath(repo, hash, forcelocal))
 
-def storepath(repo, hash):
-    return repo.join(os.path.join(longname, hash))
+def storepath(repo, hash, forcelocal=False):
+    if not forcelocal and repo.shared():
+        return repo.vfs.reljoin(repo.sharedpath, longname, hash)
+    return repo.join(longname, hash)
+
+def findstorepath(repo, hash):
+    '''Search through the local store path(s) to find the file for the given
+    hash.  If the file is not found, its path in the primary store is returned.
+    The return value is a tuple of (path, exists(path)).
+    '''
+    # For shared repos, the primary store is in the share source.  But for
+    # backward compatibility, force a lookup in the local store if it wasn't
+    # found in the share source.
+    path = storepath(repo, hash, False)
+
+    if instore(repo, hash):
+        return (path, True)
+    elif repo.shared() and instore(repo, hash, True):
+        return storepath(repo, hash, True)
+
+    return (path, False)
 
 def copyfromcache(repo, hash, filename):
     '''Copy the specified largefile from the repo or system cache to
@@ -202,7 +224,7 @@ def copyalltostore(repo, node):
 def copytostoreabsolute(repo, file, hash):
     if inusercache(repo.ui, hash):
         link(usercachepath(repo.ui, hash), storepath(repo, hash))
-    elif not getattr(repo, "_isconverting", False):
+    else:
         util.makedirs(os.path.dirname(storepath(repo, hash)))
         dst = util.atomictempfile(storepath(repo, hash),
                                   createmode=repo.store.createmode)
@@ -363,6 +385,52 @@ def getstandinsstate(repo):
         standins.append((lfile, hash))
     return standins
 
+def synclfdirstate(repo, lfdirstate, lfile, normallookup):
+    lfstandin = standin(lfile)
+    if lfstandin in repo.dirstate:
+        stat = repo.dirstate._map[lfstandin]
+        state, mtime = stat[0], stat[3]
+    else:
+        state, mtime = '?', -1
+    if state == 'n':
+        if normallookup or mtime < 0:
+            # state 'n' doesn't ensure 'clean' in this case
+            lfdirstate.normallookup(lfile)
+        else:
+            lfdirstate.normal(lfile)
+    elif state == 'm':
+        lfdirstate.normallookup(lfile)
+    elif state == 'r':
+        lfdirstate.remove(lfile)
+    elif state == 'a':
+        lfdirstate.add(lfile)
+    elif state == '?':
+        lfdirstate.drop(lfile)
+
+def markcommitted(orig, ctx, node):
+    repo = ctx.repo()
+
+    orig(node)
+
+    # ATTENTION: "ctx.files()" may differ from "repo[node].files()"
+    # because files coming from the 2nd parent are omitted in the latter.
+    #
+    # The former should be used to get targets of "synclfdirstate",
+    # because such files:
+    # - are marked as "a" by "patch.patch()" (e.g. via transplant), and
+    # - have to be marked as "n" after commit, but
+    # - aren't listed in "repo[node].files()"
+
+    lfdirstate = openlfdirstate(repo.ui, repo)
+    for f in ctx.files():
+        if isstandin(f):
+            lfile = splitstandin(f)
+            synclfdirstate(repo, lfdirstate, lfile, False)
+    lfdirstate.write()
+
+    # As part of committing, copy all of the largefiles into the cache.
+    copyalltostore(repo, node)
+
 def getlfilestoupdate(oldstandins, newstandins):
     changedstandins = set(oldstandins).symmetric_difference(set(newstandins))
     filelist = []
@@ -372,9 +440,18 @@ def getlfilestoupdate(oldstandins, newstandins):
     return filelist
 
 def getlfilestoupload(repo, missing, addfunc):
-    for n in missing:
+    for i, n in enumerate(missing):
+        repo.ui.progress(_('finding outgoing largefiles'), i,
+            unit=_('revision'), total=len(missing))
         parents = [p for p in repo.changelog.parents(n) if p != node.nullid]
-        ctx = repo[n]
+
+        oldlfstatus = repo.lfstatus
+        repo.lfstatus = False
+        try:
+            ctx = repo[n]
+        finally:
+            repo.lfstatus = oldlfstatus
+
         files = set(ctx.files())
         if len(parents) == 2:
             mc = ctx.manifest()
@@ -392,3 +469,138 @@ def getlfilestoupload(repo, missing, addfunc):
         for fn in files:
             if isstandin(fn) and fn in ctx:
                 addfunc(fn, ctx[fn].data().strip())
+    repo.ui.progress(_('finding outgoing largefiles'), None)
+
+def updatestandinsbymatch(repo, match):
+    '''Update standins in the working directory according to specified match
+
+    This returns (possibly modified) ``match`` object to be used for
+    subsequent commit process.
+    '''
+
+    ui = repo.ui
+
+    # Case 1: user calls commit with no specific files or
+    # include/exclude patterns: refresh and commit all files that
+    # are "dirty".
+    if match is None or match.always():
+        # Spend a bit of time here to get a list of files we know
+        # are modified so we can compare only against those.
+        # It can cost a lot of time (several seconds)
+        # otherwise to update all standins if the largefiles are
+        # large.
+        lfdirstate = openlfdirstate(ui, repo)
+        dirtymatch = match_.always(repo.root, repo.getcwd())
+        unsure, s = lfdirstate.status(dirtymatch, [], False, False,
+                                      False)
+        modifiedfiles = unsure + s.modified + s.added + s.removed
+        lfiles = listlfiles(repo)
+        # this only loops through largefiles that exist (not
+        # removed/renamed)
+        for lfile in lfiles:
+            if lfile in modifiedfiles:
+                if os.path.exists(
+                        repo.wjoin(standin(lfile))):
+                    # this handles the case where a rebase is being
+                    # performed and the working copy is not updated
+                    # yet.
+                    if os.path.exists(repo.wjoin(lfile)):
+                        updatestandin(repo,
+                            standin(lfile))
+
+        return match
+
+    lfiles = listlfiles(repo)
+    match._files = repo._subdirlfs(match.files(), lfiles)
+
+    # Case 2: user calls commit with specified patterns: refresh
+    # any matching big files.
+    smatcher = composestandinmatcher(repo, match)
+    standins = repo.dirstate.walk(smatcher, [], False, False)
+
+    # No matching big files: get out of the way and pass control to
+    # the usual commit() method.
+    if not standins:
+        return match
+
+    # Refresh all matching big files.  It's possible that the
+    # commit will end up failing, in which case the big files will
+    # stay refreshed.  No harm done: the user modified them and
+    # asked to commit them, so sooner or later we're going to
+    # refresh the standins.  Might as well leave them refreshed.
+    lfdirstate = openlfdirstate(ui, repo)
+    for fstandin in standins:
+        lfile = splitstandin(fstandin)
+        if lfdirstate[lfile] != 'r':
+            updatestandin(repo, fstandin)
+
+    # Cook up a new matcher that only matches regular files or
+    # standins corresponding to the big files requested by the
+    # user.  Have to modify _files to prevent commit() from
+    # complaining "not tracked" for big files.
+    match = copy.copy(match)
+    origmatchfn = match.matchfn
+
+    # Check both the list of largefiles and the list of
+    # standins because if a largefile was removed, it
+    # won't be in the list of largefiles at this point
+    match._files += sorted(standins)
+
+    actualfiles = []
+    for f in match._files:
+        fstandin = standin(f)
+
+        # ignore known largefiles and standins
+        if f in lfiles or fstandin in standins:
+            continue
+
+        actualfiles.append(f)
+    match._files = actualfiles
+
+    def matchfn(f):
+        if origmatchfn(f):
+            return f not in lfiles
+        else:
+            return f in standins
+
+    match.matchfn = matchfn
+
+    return match
+
+class automatedcommithook(object):
+    '''Stateful hook to update standins at the 1st commit of resuming
+
+    For efficiency, updating standins in the working directory should
+    be avoided while automated committing (like rebase, transplant and
+    so on), because they should be updated before committing.
+
+    But the 1st commit of resuming automated committing (e.g. ``rebase
+    --continue``) should update them, because largefiles may be
+    modified manually.
+    '''
+    def __init__(self, resuming):
+        self.resuming = resuming
+
+    def __call__(self, repo, match):
+        if self.resuming:
+            self.resuming = False # avoids updating at subsequent commits
+            return updatestandinsbymatch(repo, match)
+        else:
+            return match
+
+def getstatuswriter(ui, repo, forcibly=None):
+    '''Return the function to write largefiles specific status out
+
+    If ``forcibly`` is ``None``, this returns the last element of
+    ``repo._lfstatuswriters`` as "default" writer function.
+
+    Otherwise, this returns the function to always write out (or
+    ignore if ``not forcibly``) status.
+    '''
+    if forcibly is None and util.safehasattr(repo, '_largefilesenabled'):
+        return repo._lfstatuswriters[-1]
+    else:
+        if forcibly:
+            return ui.status # forcibly WRITE OUT
+        else:
+            return lambda *msg, **opts: None # forcibly IGNORE

@@ -165,6 +165,48 @@ hg status -A:
   C .hgignore
   C modified
 
+  $ hg status -A -Tjson
+  [
+   {
+    "path": "added",
+    "status": "A"
+   },
+   {
+    "copy": "modified",
+    "path": "copied",
+    "status": "A"
+   },
+   {
+    "path": "removed",
+    "status": "R"
+   },
+   {
+    "path": "deleted",
+    "status": "!"
+   },
+   {
+    "path": "unknown",
+    "status": "?"
+   },
+   {
+    "path": "ignored",
+    "status": "I"
+   },
+   {
+    "path": ".hgignore",
+    "status": "C"
+   },
+   {
+    "path": "modified",
+    "status": "C"
+   }
+  ]
+
+  $ hg status -A -Tpickle > pickle
+  >>> import pickle
+  >>> print sorted((x['status'], x['path']) for x in pickle.load(open("pickle")))
+  [('!', 'deleted'), ('?', 'pickle'), ('?', 'unknown'), ('A', 'added'), ('A', 'copied'), ('C', '.hgignore'), ('C', 'modified'), ('I', 'ignored'), ('R', 'removed')]
+  $ rm pickle
 
   $ echo "^ignoreddir$" > .hgignore
   $ mkdir ignoreddir
@@ -197,6 +239,17 @@ Check 'status -q' and some combinations
   $ hg remove removed
   $ rm deleted
   $ hg copy modified copied
+
+Specify working directory revision explicitly, that should be the same as
+"hg status"
+
+  $ hg status --change "wdir()"
+  M modified
+  A added
+  A copied
+  R removed
+  ! deleted
+  ? unknown
 
 Run status with 2 different flags.
 Check if result is the same or different.
@@ -280,19 +333,6 @@ hg status -A --change 1 and revset:
   R removed
   C deleted
 
-status against non-parent with unknown file (issue4321)
-
-  $ touch unknown
-  $ hg status --rev 0 unknown
-  ? unknown
-
-status of removed but existing in working directory.  "? removed" should
-not be included:
-
-  $ touch removed
-  $ hg status --rev 0 removed
-  R removed
-
   $ cd ..
 
 hg status of binary file starting with '\1\n', a separator for metadata:
@@ -350,9 +390,69 @@ warning message about such pattern.
   $ hg status -A --rev 1 1
   R 1/2/3/4/5/b.txt
 
+  $ hg status --config ui.formatdebug=True --rev 1 1
+  status = [
+      {*'path': '1/2/3/4/5/b.txt'*}, (glob)
+  ]
+
 #if windows
   $ hg --config ui.slash=false status -A --rev 1 1
   R 1\2\3\4\5\b.txt
 #endif
+
+  $ cd ..
+
+Status after move overwriting a file (issue4458)
+=================================================
+
+
+  $ hg init issue4458
+  $ cd issue4458
+  $ echo a > a
+  $ echo b > b
+  $ hg commit -Am base
+  adding a
+  adding b
+
+
+with --force
+
+  $ hg mv b --force a
+  $ hg st --copies
+  M a
+    b
+  R b
+  $ hg revert --all
+  reverting a
+  undeleting b
+  $ rm *.orig
+
+without force
+
+  $ hg rm a
+  $ hg st --copies
+  R a
+  $ hg mv b a
+  $ hg st --copies
+  M a
+    b
+  R b
+
+using ui.statuscopies setting
+  $ hg st --config ui.statuscopies=true
+  M a
+    b
+  R b
+  $ hg st --config ui.statuscopies=false
+  M a
+  R b
+
+Other "bug" highlight, the revision status does not report the copy information.
+This is buggy behavior.
+
+  $ hg commit -m 'blah'
+  $ hg st --copies --change .
+  M a
+  R b
 
   $ cd ..

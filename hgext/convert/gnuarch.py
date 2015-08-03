@@ -137,13 +137,14 @@ class gnuarch_source(converter_source, commandline):
         if rev != self.lastrev:
             raise util.Abort(_('internal calling inconsistency'))
 
-        # Raise IOError if necessary (i.e. deleted files).
         if not os.path.lexists(os.path.join(self.tmppath, name)):
-            raise IOError
+            return None, None
 
         return self._getfile(name, rev)
 
-    def getchanges(self, rev):
+    def getchanges(self, rev, full):
+        if full:
+            raise util.Abort(_("convert from arch do not support --full"))
         self._update(rev)
         changes = []
         copies = {}
@@ -170,7 +171,7 @@ class gnuarch_source(converter_source, commandline):
             copies.update(cps)
 
         self.lastrev = rev
-        return sorted(set(changes)), copies
+        return sorted(set(changes)), copies, set()
 
     def getcommit(self, rev):
         changes = self.changes[rev]
@@ -208,7 +209,10 @@ class gnuarch_source(converter_source, commandline):
         mode = os.lstat(os.path.join(self.tmppath, name)).st_mode
         if stat.S_ISLNK(mode):
             data = os.readlink(os.path.join(self.tmppath, name))
-            mode = mode and 'l' or ''
+            if mode:
+                mode = 'l'
+            else:
+                mode = ''
         else:
             data = open(os.path.join(self.tmppath, name), 'rb').read()
             mode = (mode & 0111) and 'x' or ''

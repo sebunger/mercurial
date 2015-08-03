@@ -87,13 +87,37 @@ Issue294: hg remove --after dir fails when dir.* also exists
   $ cd ..
   $ rm -r t
 
+  $ hg rm t/b
+
   $ hg locate 't/**'
   t/b (glob)
   t/e.h (glob)
   t/x (glob)
 
+  $ hg files
+  b
+  dir.h/foo (glob)
+  t.h
+  t/e.h (glob)
+  t/x (glob)
+  $ hg files b
+  b
+
   $ mkdir otherdir
   $ cd otherdir
+
+  $ hg files path:
+  ../b (glob)
+  ../dir.h/foo (glob)
+  ../t.h (glob)
+  ../t/e.h (glob)
+  ../t/x (glob)
+  $ hg files path:.
+  ../b (glob)
+  ../dir.h/foo (glob)
+  ../t.h (glob)
+  ../t/e.h (glob)
+  ../t/x (glob)
 
   $ hg locate b
   ../b (glob)
@@ -117,5 +141,14 @@ Issue294: hg remove --after dir fails when dir.* also exists
   $ hg locate -r 0 're:.*\.h$'
   ../t.h (glob)
   ../t/e.h (glob)
+
+  $ hg files
+  ../b (glob)
+  ../dir.h/foo (glob)
+  ../t.h (glob)
+  ../t/e.h (glob)
+  ../t/x (glob)
+  $ hg files .
+  [1]
 
   $ cd ../..

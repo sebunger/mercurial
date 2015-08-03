@@ -2,21 +2,16 @@
 
 Enable obsolete
 
-  $ cat > ${TESTTMP}/obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
-  > EOF
-
   $ cat >> $HGRCPATH << EOF
   > [ui]
   > logtemplate= {rev}:{node|short} {desc|firstline}
   > [phases]
   > publish=False
-  > [extensions]'
+  > [experimental]
+  > evolution=createmarkers,allowunstable
+  > [extensions]
   > histedit=
   > rebase=
-  > 
-  > obs=${TESTTMP}/obs.py
   > EOF
 
   $ hg init base
@@ -57,6 +52,7 @@ Enable obsolete
   #  p, pick = use commit
   #  e, edit = use commit, but stop for amending
   #  f, fold = use commit, but combine it with the one above
+  #  r, roll = like fold, but discard this commit's description
   #  d, drop = remove commit from history
   #  m, mess = edit message without changing commit content
   #
@@ -68,7 +64,7 @@ Enable obsolete
   > fold e860deea161a 4 e
   > pick 652413bf663e 5 f
   > EOF
-  saved backup bundle to $TESTTMP/base/.hg/strip-backup/96e494a2d553-backup.hg (glob)
+  saved backup bundle to $TESTTMP/base/.hg/strip-backup/96e494a2d553-3c6c5d92-backup.hg (glob)
   $ hg log --graph --hidden
   @  8:cacdfd884a93 f
   |
@@ -89,11 +85,11 @@ Enable obsolete
   o  0:cb9a9f314b8b a
   
   $ hg debugobsolete
-  d2ae7f538514cd87c17547b0de4cea71fe1af9fb 0 {'date': '* *', 'user': 'test'} (glob)
-  177f92b773850b59254aa5e923436f921b55483b b346ab9a313db8537ecf96fca3ca3ca984ef3bd7 0 {'date': '* *', 'user': 'test'} (glob)
-  055a42cdd88768532f9cf79daa407fc8d138de9b 59d9f330561fd6c88b1a6b32f0e45034d88db784 0 {'date': '* *', 'user': 'test'} (glob)
-  e860deea161a2f77de56603b340ebbb4536308ae 59d9f330561fd6c88b1a6b32f0e45034d88db784 0 {'date': '* *', 'user': 'test'} (glob)
-  652413bf663ef2a641cab26574e46d5f5a64a55a cacdfd884a9321ec4e1de275ef3949fa953a1f83 0 {'date': '* *', 'user': 'test'} (glob)
+  d2ae7f538514cd87c17547b0de4cea71fe1af9fb 0 {cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b} (*) {'user': 'test'} (glob)
+  177f92b773850b59254aa5e923436f921b55483b b346ab9a313db8537ecf96fca3ca3ca984ef3bd7 0 (*) {'user': 'test'} (glob)
+  055a42cdd88768532f9cf79daa407fc8d138de9b 59d9f330561fd6c88b1a6b32f0e45034d88db784 0 (*) {'user': 'test'} (glob)
+  e860deea161a2f77de56603b340ebbb4536308ae 59d9f330561fd6c88b1a6b32f0e45034d88db784 0 (*) {'user': 'test'} (glob)
+  652413bf663ef2a641cab26574e46d5f5a64a55a cacdfd884a9321ec4e1de275ef3949fa953a1f83 0 (*) {'user': 'test'} (glob)
 
 
 Ensure hidden revision does not prevent histedit
@@ -150,6 +146,7 @@ Test that rewriting leaving instability behind is allowed
 stabilise
 
   $ hg rebase  -r 'unstable()' -d .
+  rebasing 9:c13eb81022ca "f"
   $ hg up tip -q
 
 Test dropping of changeset on the top of the stack
@@ -430,9 +427,9 @@ Note that there is a few reordering in this series for more extensive test
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/folding/.hg/strip-backup/58019c66f35f-backup.hg (glob)
-  saved backup bundle to $TESTTMP/folding/.hg/strip-backup/83d1858e070b-backup.hg (glob)
-  saved backup bundle to $TESTTMP/folding/.hg/strip-backup/859969f5ed7e-backup.hg (glob)
+  saved backup bundle to $TESTTMP/folding/.hg/strip-backup/58019c66f35f-96092fce-backup.hg (glob)
+  saved backup bundle to $TESTTMP/folding/.hg/strip-backup/83d1858e070b-f3469cf8-backup.hg (glob)
+  saved backup bundle to $TESTTMP/folding/.hg/strip-backup/859969f5ed7e-d89a19d7-backup.hg (glob)
   $ hg log -G
   @  19:f9daec13fb98 (secret) i
   |

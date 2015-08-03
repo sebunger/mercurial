@@ -146,7 +146,7 @@ def _addchangeset(ui, rsrc, rdst, ctx, revmap):
             try:
                 fctx = ctx.filectx(lfutil.standin(f))
             except error.LookupError:
-                raise IOError
+                return None
             renamed = fctx.renamed()
             if renamed:
                 renamed = lfutil.splitstandin(renamed[0])
@@ -248,7 +248,7 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
             try:
                 fctx = ctx.filectx(srcfname)
             except error.LookupError:
-                raise IOError
+                return None
             renamed = fctx.renamed()
             if renamed:
                 # standin is always a largefile because largefile-ness
@@ -268,6 +268,7 @@ def _commitcontext(rdst, parents, ctx, dstfiles, getfilectx, revmap):
     mctx = context.memctx(rdst, parents, ctx.description(), dstfiles,
                           getfilectx, ctx.user(), ctx.date(), ctx.extra())
     ret = rdst.commitctx(mctx)
+    lfutil.copyalltostore(rdst, ret)
     rdst.setparents(ret)
     revmap[ctx.node()] = rdst.changelog.tip()
 
@@ -298,7 +299,7 @@ def _getnormalcontext(repo, ctx, f, revmap):
     try:
         fctx = ctx.filectx(f)
     except error.LookupError:
-        raise IOError
+        return None
     renamed = fctx.renamed()
     if renamed:
         renamed = renamed[0]
@@ -435,14 +436,21 @@ def downloadlfiles(ui, repo, rev=None):
         ui.status(_("%d largefiles failed to download\n") % totalmissing)
     return totalsuccess, totalmissing
 
-def updatelfiles(ui, repo, filelist=None, printmessage=True,
+def updatelfiles(ui, repo, filelist=None, printmessage=None,
                  normallookup=False):
+    '''Update largefiles according to standins in the working directory
+
+    If ``printmessage`` is other than ``None``, it means "print (or
+    ignore, for false) message forcibly".
+    '''
+    statuswriter = lfutil.getstatuswriter(ui, repo, printmessage)
     wlock = repo.wlock()
     try:
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         lfiles = set(lfutil.listlfiles(repo)) | set(lfdirstate)
 
         if filelist is not None:
+            filelist = set(filelist)
             lfiles = [f for f in lfiles if f in filelist]
 
         update = {}
@@ -456,15 +464,12 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True,
                     shutil.copyfile(abslfile, abslfile + '.orig')
                     util.unlinkpath(absstandin + '.orig')
                 expecthash = lfutil.readstandin(repo, lfile)
-                if (expecthash != '' and
-                    (not os.path.exists(abslfile) or
-                     expecthash != lfutil.hashfile(abslfile))):
+                if expecthash != '':
                     if lfile not in repo[None]: # not switched to normal file
                         util.unlinkpath(abslfile, ignoremissing=True)
-                    # use normallookup() to allocate entry in largefiles
-                    # dirstate, because lack of it misleads
-                    # lfilesrepo.status() into recognition that such cache
-                    # missing files are REMOVED.
+                    # use normallookup() to allocate an entry in largefiles
+                    # dirstate to prevent lfilesrepo.status() from reporting
+                    # missing files as removed.
                     lfdirstate.normallookup(lfile)
                     update[lfile] = expecthash
             else:
@@ -481,8 +486,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True,
         lfdirstate.write()
 
         if lfiles:
-            if printmessage:
-                ui.status(_('getting changed largefiles\n'))
+            statuswriter(_('getting changed largefiles\n'))
             cachelfiles(ui, repo, None, lfiles)
 
         for lfile in lfiles:
@@ -510,30 +514,11 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True,
 
             updated += update1
 
-            standin = lfutil.standin(lfile)
-            if standin in repo.dirstate:
-                stat = repo.dirstate._map[standin]
-                state, mtime = stat[0], stat[3]
-            else:
-                state, mtime = '?', -1
-            if state == 'n':
-                if normallookup or mtime < 0:
-                    # state 'n' doesn't ensure 'clean' in this case
-                    lfdirstate.normallookup(lfile)
-                else:
-                    lfdirstate.normal(lfile)
-            elif state == 'm':
-                lfdirstate.normallookup(lfile)
-            elif state == 'r':
-                lfdirstate.remove(lfile)
-            elif state == 'a':
-                lfdirstate.add(lfile)
-            elif state == '?':
-                lfdirstate.drop(lfile)
+            lfutil.synclfdirstate(repo, lfdirstate, lfile, normallookup)
 
         lfdirstate.write()
-        if printmessage and lfiles:
-            ui.status(_('%d largefiles updated, %d removed\n') % (updated,
+        if lfiles:
+            statuswriter(_('%d largefiles updated, %d removed\n') % (updated,
                 removed))
     finally:
         wlock.release()

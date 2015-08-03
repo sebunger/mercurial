@@ -1,6 +1,6 @@
-http://mercurial.selenic.com/bts/issue352
+#require eol-in-paths
 
-  $ "$TESTDIR/hghave" eol-in-paths || exit 80
+http://mercurial.selenic.com/bts/issue352
 
 test issue352
 
@@ -59,10 +59,12 @@ test issue2039
 
   $ hg init bar
   $ cd bar
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "color=" >> $HGRCPATH
-  $ echo "[color]" >> $HGRCPATH
-  $ echo "mode = ansi" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > color =
+  > [color]
+  > mode = ansi
+  > EOF
   $ A=`printf 'foo\nbar'`
   $ B=`printf 'foo\nbar.baz'`
   $ touch "$A"

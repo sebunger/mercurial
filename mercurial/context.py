@@ -9,13 +9,18 @@ from node import nullid, nullrev, short, hex, bin
 from i18n import _
 import mdiff, error, util, scmutil, subrepo, patch, encoding, phases
 import match as matchmod
-import os, errno, stat
+import copy, os, errno, stat
 import obsolete as obsmod
 import repoview
 import fileset
 import revlog
 
 propertycache = util.propertycache
+
+# Phony node value to stand-in for new files in some uses of
+# manifests. Manifests support 21-byte hashes for nodes which are
+# dirty in the working copy.
+_newnode = '!' * 21
 
 class basectx(object):
     """A basectx object represents the common logic for its children:
@@ -61,8 +66,7 @@ class basectx(object):
         return self.filectx(key)
 
     def __iter__(self):
-        for f in sorted(self._manifest):
-            yield f
+        return iter(self._manifest)
 
     def _manifestmatches(self, match, s):
         """generate a new manifest filtered by the match argument
@@ -71,22 +75,9 @@ class basectx(object):
         object oriented way for other contexts to customize the manifest
         generation.
         """
-        if match.always():
-            return self.manifest().copy()
+        return self.manifest().matches(match)
 
-        files = match.files()
-        if (match.matchfn == match.exact or
-            (not match.anypats() and util.all(fn in self for fn in files))):
-            return self.manifest().intersectfiles(files)
-
-        mf = self.manifest().copy()
-        for fn in mf.keys():
-            if not match(fn):
-                del mf[fn]
-        return mf
-
-    def _matchstatus(self, other, s, match, listignored, listclean,
-                     listunknown):
+    def _matchstatus(self, other, match):
         """return match.always if match is none
 
         This internal method provides a way for child objects to override the
@@ -94,53 +85,57 @@ class basectx(object):
         """
         return match or matchmod.always(self._repo.root, self._repo.getcwd())
 
-    def _prestatus(self, other, s, match, listignored, listclean, listunknown):
-        """provide a hook to allow child objects to preprocess status results
-
-        For example, this allows other contexts, such as workingctx, to query
-        the dirstate before comparing the manifests.
-        """
-        # load earliest manifest first for caching reasons
-        if self.rev() < other.rev():
-            self.manifest()
-        return s
-
-    def _poststatus(self, other, s, match, listignored, listclean, listunknown):
-        """provide a hook to allow child objects to postprocess status results
-
-        For example, this allows other contexts, such as workingctx, to filter
-        suspect symlinks in the case of FAT32 and NTFS filesytems.
-        """
-        return s
-
     def _buildstatus(self, other, s, match, listignored, listclean,
                      listunknown):
         """build a status with respect to another context"""
+        # Load earliest manifest first for caching reasons. More specifically,
+        # if you have revisions 1000 and 1001, 1001 is probably stored as a
+        # delta against 1000. Thus, if you read 1000 first, we'll reconstruct
+        # 1000 and cache it so that when you read 1001, we just need to apply a
+        # delta to what's in the cache. So that's one full reconstruction + one
+        # delta application.
+        if self.rev() is not None and self.rev() < other.rev():
+            self.manifest()
         mf1 = other._manifestmatches(match, s)
         mf2 = self._manifestmatches(match, s)
 
-        modified, added, clean = [], [], []
-        deleted, unknown, ignored = s[3], s[4], s[5]
-        withflags = mf1.withflags() | mf2.withflags()
-        for fn, mf2node in mf2.iteritems():
-            if fn in mf1:
-                if (fn not in deleted and
-                    ((fn in withflags and mf1.flags(fn) != mf2.flags(fn)) or
-                     (mf1[fn] != mf2node and
-                      (mf2node or self[fn].cmp(other[fn]))))):
-                    modified.append(fn)
-                elif listclean:
-                    clean.append(fn)
-                del mf1[fn]
-            elif fn not in deleted:
+        modified, added = [], []
+        removed = []
+        clean = []
+        deleted, unknown, ignored = s.deleted, s.unknown, s.ignored
+        deletedset = set(deleted)
+        d = mf1.diff(mf2, clean=listclean)
+        for fn, value in d.iteritems():
+            if fn in deletedset:
+                continue
+            if value is None:
+                clean.append(fn)
+                continue
+            (node1, flag1), (node2, flag2) = value
+            if node1 is None:
                 added.append(fn)
-        removed = mf1.keys()
+            elif node2 is None:
+                removed.append(fn)
+            elif node2 != _newnode:
+                # The file was not a new file in mf2, so an entry
+                # from diff is really a difference.
+                modified.append(fn)
+            elif self[fn].cmp(other[fn]):
+                # node2 was newnode, but the working file doesn't
+                # match the one in mf1.
+                modified.append(fn)
+            else:
+                clean.append(fn)
+
         if removed:
             # need to filter files if they are already reported as removed
             unknown = [fn for fn in unknown if fn not in mf1]
             ignored = [fn for fn in ignored if fn not in mf1]
+            # if they're deleted, don't report them as removed
+            removed = [fn for fn in removed if fn not in deletedset]
 
-        return [modified, added, removed, deleted, unknown, ignored, clean]
+        return scmutil.status(modified, added, removed, deleted, unknown,
+                              ignored, clean)
 
     @propertycache
     def substate(self):
@@ -157,6 +152,8 @@ class basectx(object):
         return hex(self.node())
     def manifest(self):
         return self._manifest
+    def repo(self):
+        return self._repo
     def phasestr(self):
         return phases.phasenames[self.phase()]
     def mutable(self):
@@ -269,14 +266,13 @@ class basectx(object):
         diffopts = patch.diffopts(self._repo.ui, opts)
         return patch.diff(self._repo, ctx2, self, match=match, opts=diffopts)
 
-    @propertycache
-    def _dirs(self):
-        return scmutil.dirs(self._manifest)
-
     def dirs(self):
-        return self._dirs
+        return self._manifest.dirs()
 
-    def dirty(self):
+    def hasdir(self, dir):
+        return self._manifest.hasdir(dir)
+
+    def dirty(self, missing=False, merge=True, branch=True):
         return False
 
     def status(self, other=None, match=None, listignored=False,
@@ -310,18 +306,16 @@ class basectx(object):
             reversed = True
             ctx1, ctx2 = ctx2, ctx1
 
-        r = [[], [], [], [], [], [], []]
-        match = ctx2._matchstatus(ctx1, r, match, listignored, listclean,
-                                  listunknown)
-        r = ctx2._prestatus(ctx1, r, match, listignored, listclean, listunknown)
+        match = ctx2._matchstatus(ctx1, match)
+        r = scmutil.status([], [], [], [], [], [], [])
         r = ctx2._buildstatus(ctx1, r, match, listignored, listclean,
                               listunknown)
-        r = ctx2._poststatus(ctx1, r, match, listignored, listclean,
-                             listunknown)
 
         if reversed:
-            # reverse added and removed
-            r[1], r[2] = r[2], r[1]
+            # Reverse added and removed. Clear deleted, unknown and ignored as
+            # these make no sense to reverse.
+            r = scmutil.status(r.modified, r.removed, r.added, [], [], [],
+                               r.clean)
 
         if listsubrepos:
             for subpath, sub in scmutil.itersubrepos(ctx1, ctx2):
@@ -340,14 +334,16 @@ class basectx(object):
         for l in r:
             l.sort()
 
-        # we return a tuple to signify that this list isn't changing
-        return tuple(r)
+        return r
 
 
 def makememctx(repo, parents, text, user, date, branch, files, store,
                editor=None):
     def getfilectx(repo, memctx, path):
-        data, (islink, isexec), copied = store.getfile(path)
+        data, mode, copied = store.getfile(path)
+        if data is None:
+            return None
+        islink, isexec = mode
         return memfilectx(repo, path, data, islink=islink, isexec=isexec,
                                   copied=copied, memctx=memctx)
     extra = {}
@@ -373,91 +369,104 @@ class changectx(basectx):
             changeid = '.'
         self._repo = repo
 
-        if isinstance(changeid, int):
-            try:
-                self._node = repo.changelog.node(changeid)
-            except IndexError:
-                raise error.RepoLookupError(
-                    _("unknown revision '%s'") % changeid)
-            self._rev = changeid
-            return
-        if isinstance(changeid, long):
-            changeid = str(changeid)
-        if changeid == '.':
-            self._node = repo.dirstate.p1()
-            self._rev = repo.changelog.rev(self._node)
-            return
-        if changeid == 'null':
-            self._node = nullid
-            self._rev = nullrev
-            return
-        if changeid == 'tip':
-            self._node = repo.changelog.tip()
-            self._rev = repo.changelog.rev(self._node)
-            return
-        if len(changeid) == 20:
-            try:
-                self._node = changeid
-                self._rev = repo.changelog.rev(changeid)
-                return
-            except LookupError:
-                pass
-
         try:
-            r = int(changeid)
-            if str(r) != changeid:
-                raise ValueError
-            l = len(repo.changelog)
-            if r < 0:
-                r += l
-            if r < 0 or r >= l:
-                raise ValueError
-            self._rev = r
-            self._node = repo.changelog.node(r)
-            return
-        except (ValueError, OverflowError, IndexError):
-            pass
-
-        if len(changeid) == 40:
-            try:
-                self._node = bin(changeid)
+            if isinstance(changeid, int):
+                self._node = repo.changelog.node(changeid)
+                self._rev = changeid
+                return
+            if isinstance(changeid, long):
+                changeid = str(changeid)
+            if changeid == 'null':
+                self._node = nullid
+                self._rev = nullrev
+                return
+            if changeid == 'tip':
+                self._node = repo.changelog.tip()
                 self._rev = repo.changelog.rev(self._node)
                 return
-            except (TypeError, LookupError):
+            if changeid == '.' or changeid == repo.dirstate.p1():
+                # this is a hack to delay/avoid loading obsmarkers
+                # when we know that '.' won't be hidden
+                self._node = repo.dirstate.p1()
+                self._rev = repo.unfiltered().changelog.rev(self._node)
+                return
+            if len(changeid) == 20:
+                try:
+                    self._node = changeid
+                    self._rev = repo.changelog.rev(changeid)
+                    return
+                except error.FilteredRepoLookupError:
+                    raise
+                except LookupError:
+                    pass
+
+            try:
+                r = int(changeid)
+                if str(r) != changeid:
+                    raise ValueError
+                l = len(repo.changelog)
+                if r < 0:
+                    r += l
+                if r < 0 or r >= l:
+                    raise ValueError
+                self._rev = r
+                self._node = repo.changelog.node(r)
+                return
+            except error.FilteredIndexError:
+                raise
+            except (ValueError, OverflowError, IndexError):
                 pass
 
-        if changeid in repo._bookmarks:
-            self._node = repo._bookmarks[changeid]
-            self._rev = repo.changelog.rev(self._node)
-            return
-        if changeid in repo._tagscache.tags:
-            self._node = repo._tagscache.tags[changeid]
-            self._rev = repo.changelog.rev(self._node)
-            return
-        try:
-            self._node = repo.branchtip(changeid)
-            self._rev = repo.changelog.rev(self._node)
-            return
-        except error.RepoLookupError:
-            pass
+            if len(changeid) == 40:
+                try:
+                    self._node = bin(changeid)
+                    self._rev = repo.changelog.rev(self._node)
+                    return
+                except error.FilteredLookupError:
+                    raise
+                except (TypeError, LookupError):
+                    pass
 
-        self._node = repo.changelog._partialmatch(changeid)
-        if self._node is not None:
-            self._rev = repo.changelog.rev(self._node)
-            return
+            # lookup bookmarks through the name interface
+            try:
+                self._node = repo.names.singlenode(repo, changeid)
+                self._rev = repo.changelog.rev(self._node)
+                return
+            except KeyError:
+                pass
+            except error.FilteredRepoLookupError:
+                raise
+            except error.RepoLookupError:
+                pass
 
-        # lookup failed
-        # check if it might have come from damaged dirstate
-        #
-        # XXX we could avoid the unfiltered if we had a recognizable exception
-        # for filtered changeset access
-        if changeid in repo.unfiltered().dirstate.parents():
-            raise error.Abort(_("working directory has unknown parent '%s'!")
-                              % short(changeid))
-        try:
-            if len(changeid) == 20:
-                changeid = hex(changeid)
-        except TypeError:
+            self._node = repo.unfiltered().changelog._partialmatch(changeid)
+            if self._node is not None:
+                self._rev = repo.changelog.rev(self._node)
+                return
+
+            # lookup failed
+            # check if it might have come from damaged dirstate
+            #
+            # XXX we could avoid the unfiltered if we had a recognizable
+            # exception for filtered changeset access
+            if changeid in repo.unfiltered().dirstate.parents():
+                msg = _("working directory has unknown parent '%s'!")
+                raise error.Abort(msg % short(changeid))
+            try:
+                if len(changeid) == 20:
+                    changeid = hex(changeid)
+            except TypeError:
+                pass
+        except (error.FilteredIndexError, error.FilteredLookupError,
+                error.FilteredRepoLookupError):
+            if repo.filtername == 'visible':
+                msg = _("hidden revision '%s'") % changeid
+                hint = _('use --hidden to access hidden revisions')
+                raise error.FilteredRepoLookupError(msg, hint=hint)
+            msg = _("filtered revision '%s' (not in '%s' subset)")
+            msg %= (changeid, repo.filtername)
+            raise error.FilteredRepoLookupError(msg)
+        except IndexError:
             pass
         raise error.RepoLookupError(
             _("unknown revision '%s'") % changeid)
@@ -539,9 +548,11 @@ class changectx(basectx):
                        changectx=self, filelog=filelog)
 
     def ancestor(self, c2, warn=False):
-        """
-        return the "best" ancestor context of self and c2
-        """
+        """return the "best" ancestor context of self and c2
+
+        If there are multiple candidates, it will show a message and check
+        merge.preferancestor configuration before falling back to the
+        revlog ancestor."""
         # deal with workingctxs
         n2 = c2._node
         if n2 is None:
@@ -553,9 +564,10 @@ class changectx(basectx):
             anc = cahs[0]
         else:
             for r in self._repo.ui.configlist('merge', 'preferancestor'):
-                if r == '*':
+                try:
+                    ctx = changectx(self._repo, r)
+                except error.RepoLookupError:
                     continue
-                ctx = changectx(self._repo, r)
                 anc = ctx.node()
                 if anc in cahs:
                     break
@@ -575,30 +587,24 @@ class changectx(basectx):
         return self._repo.changelog.descendant(self._rev, other._rev)
 
     def walk(self, match):
-        fset = set(match.files())
-        # for dirstate.walk, files=['.'] means "walk the whole tree".
-        # follow that here, too
-        fset.discard('.')
+        '''Generates matching file names.'''
 
-        # avoid the entire walk if we're only looking for specific files
-        if fset and not match.anypats():
-            if util.all([fn in self for fn in fset]):
-                for fn in sorted(fset):
-                    if match(fn):
-                        yield fn
-                raise StopIteration
+        # Override match.bad method to have message with nodeid
+        match = copy.copy(match)
+        oldbad = match.bad
+        def bad(fn, msg):
+            # The manifest doesn't know about subrepos, so don't complain about
+            # paths into valid subrepos.
+            if util.any(fn == s or fn.startswith(s + '/')
+                        for s in self.substate):
+                return
+            oldbad(fn, _('no such file in rev %s') % self)
+        match.bad = bad
 
-        for fn in self:
-            if fn in fset:
-                # specified pattern is the exact name
-                fset.remove(fn)
-            if match(fn):
-                yield fn
-        for fn in sorted(fset):
-            if fn in self._dirs:
-                # specified pattern is a directory
-                continue
-            match.bad(fn, _('no such file in rev %s') % self)
+        return self._manifest.walk(match)
+
+    def matches(self, match):
+        return self.walk(match)
 
 class basefilectx(object):
     """A filecontext object represents the common logic for its children:
@@ -620,6 +626,11 @@ class basefilectx(object):
             return self._changeid
         elif '_changectx' in self.__dict__:
             return self._changectx.rev()
+        elif '_descendantrev' in self.__dict__:
+            # this file context was created from a revision with a known
+            # descendant, we can (lazily) correct for linkrev aliases
+            return self._adjustlinkrev(self._path, self._filelog,
+                                       self._filenode, self._descendantrev)
         else:
             return self._filelog.linkrev(self._filerev)
 
@@ -704,6 +715,8 @@ class basefilectx(object):
         return self._changectx.manifest()
     def changectx(self):
         return self._changectx
+    def repo(self):
+        return self._repo
 
     def path(self):
         return self._path
@@ -713,6 +726,10 @@ class basefilectx(object):
             return util.binary(self.data())
         except IOError:
             return False
+    def isexec(self):
+        return 'x' in self.flags()
+    def islink(self):
+        return 'l' in self.flags()
 
     def cmp(self, fctx):
         """compare with other file context
@@ -729,17 +746,107 @@ class basefilectx(object):
 
         return True
 
+    def _adjustlinkrev(self, path, filelog, fnode, srcrev, inclusive=False):
+        """return the first ancestor of <srcrev> introducing <fnode>
+
+        If the linkrev of the file revision does not point to an ancestor of
+        srcrev, we'll walk down the ancestors until we find one introducing
+        this file revision.
+
+        :repo: a localrepository object (used to access changelog and manifest)
+        :path: the file path
+        :fnode: the nodeid of the file revision
+        :filelog: the filelog of this path
+        :srcrev: the changeset revision we search ancestors from
+        :inclusive: if true, the src revision will also be checked
+        """
+        repo = self._repo
+        cl = repo.unfiltered().changelog
+        ma = repo.manifest
+        # fetch the linkrev
+        fr = filelog.rev(fnode)
+        lkr = filelog.linkrev(fr)
+        # hack to reuse ancestor computation when searching for renames
+        memberanc = getattr(self, '_ancestrycontext', None)
+        iteranc = None
+        if srcrev is None:
+            # wctx case, used by workingfilectx during mergecopy
+            revs = [p.rev() for p in self._repo[None].parents()]
+            inclusive = True # we skipped the real (revless) source
+        else:
+            revs = [srcrev]
+        if memberanc is None:
+            memberanc = iteranc = cl.ancestors(revs, lkr,
+                                               inclusive=inclusive)
+        # check if this linkrev is an ancestor of srcrev
+        if lkr not in memberanc:
+            if iteranc is None:
+                iteranc = cl.ancestors(revs, lkr, inclusive=inclusive)
+            for a in iteranc:
+                ac = cl.read(a) # get changeset data (we avoid object creation)
+                if path in ac[3]: # checking the 'files' field.
+                    # The file has been touched, check if the content is
+                    # similar to the one we search for.
+                    if fnode == ma.readfast(ac[0]).get(path):
+                        return a
+            # In theory, we should never get out of that loop without a result.
+            # But if manifest uses a buggy file revision (not children of the
+            # one it replaces) we could. Such a buggy situation will likely
+            # result is crash somewhere else at to some point.
+        return lkr
+
+    def introrev(self):
+        """return the rev of the changeset which introduced this file revision
+
+        This method is different from linkrev because it take into account the
+        changeset the filectx was created from. It ensures the returned
+        revision is one of its ancestors. This prevents bugs from
+        'linkrev-shadowing' when a file revision is used by multiple
+        changesets.
+        """
+        lkr = self.linkrev()
+        attrs = vars(self)
+        noctx = not ('_changeid' in attrs or '_changectx' in attrs)
+        if noctx or self.rev() == lkr:
+            return self.linkrev()
+        return self._adjustlinkrev(self._path, self._filelog, self._filenode,
+                                   self.rev(), inclusive=True)
+
+    def _parentfilectx(self, path, fileid, filelog):
+        """create parent filectx keeping ancestry info for _adjustlinkrev()"""
+        fctx = filectx(self._repo, path, fileid=fileid, filelog=filelog)
+        if '_changeid' in vars(self) or '_changectx' in vars(self):
+            # If self is associated with a changeset (probably explicitly
+            # fed), ensure the created filectx is associated with a
+            # changeset that is an ancestor of self.changectx.
+            # This lets us later use _adjustlinkrev to get a correct link.
+            fctx._descendantrev = self.rev()
+            fctx._ancestrycontext = getattr(self, '_ancestrycontext', None)
+        elif '_descendantrev' in vars(self):
+            # Otherwise propagate _descendantrev if we have one associated.
+            fctx._descendantrev = self._descendantrev
+            fctx._ancestrycontext = getattr(self, '_ancestrycontext', None)
+        return fctx
+
     def parents(self):
-        p = self._path
+        _path = self._path
         fl = self._filelog
-        pl = [(p, n, fl) for n in self._filelog.parents(self._filenode)]
+        parents = self._filelog.parents(self._filenode)
+        pl = [(_path, node, fl) for node in parents if node != nullid]
 
-        r = self._filelog.renamed(self._filenode)
+        r = fl.renamed(self._filenode)
         if r:
-            pl[0] = (r[0], r[1], None)
+            # - In the simple rename case, both parent are nullid, pl is empty.
+            # - In case of merge, only one of the parent is null id and should
+            # be replaced with the rename information. This parent is -always-
+            # the first one.
+            #
+            # As null id have always been filtered out in the previous list
+            # comprehension, inserting to 0 will always result in "replacing
+            # first nullid parent with rename information.
+            pl.insert(0, (r[0], r[1], self._repo.file(r[0])))
 
-        return [filectx(self._repo, p, fileid=n, filelog=l)
-                for p, n, l in pl if n != nullid]
+        return [self._parentfilectx(path, fnode, l) for path, fnode, l in pl]
 
     def p1(self):
         return self.parents()[0]
@@ -762,19 +869,16 @@ class basefilectx(object):
         this returns fixed value(False is used) as linenumber,
         if "linenumber" parameter is "False".'''
 
-        def decorate_compat(text, rev):
-            return ([rev] * len(text.splitlines()), text)
-
-        def without_linenumber(text, rev):
-            return ([(rev, False)] * len(text.splitlines()), text)
-
-        def with_linenumber(text, rev):
-            size = len(text.splitlines())
-            return ([(rev, i) for i in xrange(1, size + 1)], text)
-
-        decorate = (((linenumber is None) and decorate_compat) or
-                    (linenumber and with_linenumber) or
-                    without_linenumber)
+        if linenumber is None:
+            def decorate(text, rev):
+                return ([rev] * len(text.splitlines()), text)
+        elif linenumber:
+            def decorate(text, rev):
+                size = len(text.splitlines())
+                return ([(rev, i) for i in xrange(1, size + 1)], text)
+        else:
+            def decorate(text, rev):
+                return ([(rev, False)] * len(text.splitlines()), text)
 
         def pair(parent, child):
             blocks = mdiff.allblocks(parent[1], child[1], opts=diffopts,
@@ -789,6 +893,11 @@ class basefilectx(object):
         getlog = util.lrucachefunc(lambda x: self._repo.file(x))
 
         def parents(f):
+            # Cut _descendantrev here to mitigate the penalty of lazy linkrev
+            # adjustment. Otherwise, p._adjustlinkrev() would walk changelog
+            # from the topmost introrev (= srcrev) down to p.linkrev() if it
+            # isn't an ancestor of the srcrev.
+            f._changeid
             pl = f.parents()
 
             # Don't return renamed parents if we aren't following.
@@ -804,10 +913,20 @@ class basefilectx(object):
             return pl
 
         # use linkrev to find the first changeset where self appeared
-        if self.rev() != self.linkrev():
-            base = self.filectx(self.filenode())
-        else:
-            base = self
+        base = self
+        introrev = self.introrev()
+        if self.rev() != introrev:
+            base = self.filectx(self.filenode(), changeid=introrev)
+        if getattr(base, '_ancestrycontext', None) is None:
+            cl = self._repo.changelog
+            if introrev is None:
+                # wctx is not inclusive, but works because _ancestrycontext
+                # is used to test filelog revisions
+                ac = cl.ancestors([p.rev() for p in base.parents()],
+                                  inclusive=True)
+            else:
+                ac = cl.ancestors([introrev], inclusive=True)
+            base._ancestrycontext = ac
 
         # This algorithm would prefer to be recursive, but Python is a
         # bit recursion-hostile. Instead we do an iterative
@@ -855,10 +974,14 @@ class basefilectx(object):
     def ancestors(self, followfirst=False):
         visit = {}
         c = self
-        cut = followfirst and 1 or None
+        if followfirst:
+            cut = 1
+        else:
+            cut = None
+
         while True:
             for parent in c.parents()[:cut]:
-                visit[(parent.rev(), parent.node())] = parent
+                visit[(parent.linkrev(), parent.filenode())] = parent
             if not visit:
                 break
             c = visit.pop(max(visit))
@@ -894,7 +1017,7 @@ class filectx(basefilectx):
     def _changectx(self):
         try:
             return changectx(self._repo, self._changeid)
-        except error.RepoLookupError:
+        except error.FilteredRepoLookupError:
             # Linkrev may point to any revision in the repository.  When the
             # repository is filtered this may lead to `filectx` trying to build
             # `changectx` for filtered revision. In such case we fallback to
@@ -913,14 +1036,21 @@ class filectx(basefilectx):
             # considered when solving linkrev issue are on the table.
             return changectx(self._repo.unfiltered(), self._changeid)
 
-    def filectx(self, fileid):
+    def filectx(self, fileid, changeid=None):
         '''opens an arbitrary revision of the file without
         opening a new filelog'''
         return filectx(self._repo, self._path, fileid=fileid,
-                       filelog=self._filelog)
+                       filelog=self._filelog, changeid=changeid)
 
     def data(self):
-        return self._filelog.read(self._filenode)
+        try:
+            return self._filelog.read(self._filenode)
+        except error.CensoredNodeError:
+            if self._repo.ui.config("censor", "policy", "abort") == "ignore":
+                return ""
+            raise util.Abort(_("censored node: %s") % short(self._filenode),
+                             hint=_("set censor.policy to ignore errors"))
+
     def size(self):
         return self._filelog.size(self._filerev)
 
@@ -1027,31 +1157,37 @@ class committablectx(basectx):
 
     @propertycache
     def _manifest(self):
-        """generate a manifest corresponding to the values in self._status"""
+        """generate a manifest corresponding to the values in self._status
 
-        man = self._parents[0].manifest().copy()
+        This reuse the file nodeid from parent, but we append an extra letter
+        when modified. Modified files get an extra 'm' while added files get
+        an extra 'a'. This is used by manifests merge to see that files
+        are different and by update logic to avoid deleting newly added files.
+        """
+
+        man1 = self._parents[0].manifest()
+        man = man1.copy()
         if len(self._parents) > 1:
             man2 = self.p2().manifest()
             def getman(f):
-                if f in man:
-                    return man
+                if f in man1:
+                    return man1
                 return man2
         else:
-            getman = lambda f: man
+            getman = lambda f: man1
 
         copied = self._repo.dirstate.copies()
         ff = self._flagfunc
-        modified, added, removed, deleted = self._status[:4]
-        for i, l in (("a", added), ("m", modified)):
+        for i, l in (("a", self._status.added), ("m", self._status.modified)):
             for f in l:
                 orig = copied.get(f, f)
                 man[f] = getman(orig).get(orig, nullid) + i
                 try:
-                    man.set(f, ff(f))
+                    man.setflag(f, ff(f))
                 except OSError:
                     pass
 
-        for f in deleted + removed:
+        for f in self._status.deleted + self._status.removed:
             if f in man:
                 del man[f]
 
@@ -1072,6 +1208,8 @@ class committablectx(basectx):
     def subrev(self, subpath):
         return None
 
+    def manifestnode(self):
+        return None
     def user(self):
         return self._user or self._repo.ui.username()
     def date(self):
@@ -1079,22 +1217,17 @@ class committablectx(basectx):
     def description(self):
         return self._text
     def files(self):
-        return sorted(self._status[0] + self._status[1] + self._status[2])
+        return sorted(self._status.modified + self._status.added +
+                      self._status.removed)
 
     def modified(self):
-        return self._status[0]
+        return self._status.modified
     def added(self):
-        return self._status[1]
+        return self._status.added
     def removed(self):
-        return self._status[2]
+        return self._status.removed
     def deleted(self):
-        return self._status[3]
-    def unknown(self):
-        return self._status[4]
-    def ignored(self):
-        return self._status[5]
-    def clean(self):
-        return self._status[6]
+        return self._status.deleted
     def branch(self):
         return encoding.tolocal(self._extra['branch'])
     def closesbranch(self):
@@ -1139,14 +1272,20 @@ class committablectx(basectx):
             return ''
 
     def ancestor(self, c2):
-        """return the ancestor context of self and c2"""
+        """return the "best" ancestor context of self and c2"""
         return self._parents[0].ancestor(c2) # punt on two parents for now
 
     def walk(self, match):
+        '''Generates matching file names.'''
         return sorted(self._repo.dirstate.walk(match, sorted(self.substate),
                                                True, False))
 
+    def matches(self, match):
+        return sorted(self._repo.dirstate.matches(match))
+
     def ancestors(self):
+        for p in self._parents:
+            yield p
         for a in self._repo.changelog.ancestors(
             [p.rev() for p in self._parents]):
             yield changectx(self._repo, a)
@@ -1161,14 +1300,13 @@ class committablectx(basectx):
 
         """
 
+        self._repo.dirstate.beginparentchange()
         for f in self.modified() + self.added():
             self._repo.dirstate.normal(f)
         for f in self.removed():
             self._repo.dirstate.drop(f)
         self._repo.dirstate.setparents(node)
-
-    def dirs(self):
-        return self._repo.dirstate.dirs()
+        self._repo.dirstate.endparentchange()
 
 class workingctx(committablectx):
     """A workingctx object makes access to data related to
@@ -1297,11 +1435,25 @@ class workingctx(committablectx):
         else:
             wlock = self._repo.wlock()
             try:
-                if self._repo.dirstate[dest] in '?r':
+                if self._repo.dirstate[dest] in '?':
                     self._repo.dirstate.add(dest)
+                elif self._repo.dirstate[dest] in 'r':
+                    self._repo.dirstate.normallookup(dest)
                 self._repo.dirstate.copy(source, dest)
             finally:
                 wlock.release()
+
+    def match(self, pats=[], include=None, exclude=None, default='glob'):
+        r = self._repo
+
+        # Only a case insensitive filesystem needs magic to translate user input
+        # to actual case in the filesystem.
+        if not util.checkcase(r.root):
+            return matchmod.icasefsmatcher(r.root, r.getcwd(), pats, include,
+                                           exclude, default, r.auditor, self)
+        return matchmod.match(r.root, r.getcwd(), pats,
+                              include, exclude, default,
+                              auditor=r.auditor, ctx=self)
 
     def _filtersuspectsymlink(self, files):
         if not files or self._repo.dirstate._checklink:
@@ -1364,36 +1516,13 @@ class workingctx(committablectx):
         need to build a manifest and return what matches.
         """
         mf = self._repo['.']._manifestmatches(match, s)
-        modified, added, removed = s[0:3]
-        for f in modified + added:
-            mf[f] = None
-            mf.set(f, self.flags(f))
-        for f in removed:
+        for f in s.modified + s.added:
+            mf[f] = _newnode
+            mf.setflag(f, self.flags(f))
+        for f in s.removed:
             if f in mf:
                 del mf[f]
         return mf
-
-    def _prestatus(self, other, s, match, listignored, listclean, listunknown):
-        """override the parent hook with a dirstate query
-
-        We use this prestatus hook to populate the status with information from
-        the dirstate.
-        """
-        # doesn't need to call super; if that changes, be aware that super
-        # calls self.manifest which would slow down the common case of calling
-        # status against a workingctx's parent
-        return self._dirstatestatus(match, listignored, listclean, listunknown)
-
-    def _poststatus(self, other, s, match, listignored, listclean, listunknown):
-        """override the parent hook with a filter for suspect symlinks
-
-        We use this poststatus hook to filter out symlinks that might have
-        accidentally ended up with the entire contents of the file they are
-        susposed to be linking to.
-        """
-        s[0] = self._filtersuspectsymlink(s[0])
-        self._status = s[:]
-        return s
 
     def _dirstatestatus(self, match=None, ignored=False, clean=False,
                         unknown=False):
@@ -1403,20 +1532,28 @@ class workingctx(committablectx):
         subrepos = []
         if '.hgsub' in self:
             subrepos = sorted(self.substate)
-        s = self._repo.dirstate.status(match, subrepos, listignored,
-                                       listclean, listunknown)
-        cmp, modified, added, removed, deleted, unknown, ignored, clean = s
+        cmp, s = self._repo.dirstate.status(match, subrepos, listignored,
+                                            listclean, listunknown)
 
         # check for any possibly clean files
         if cmp:
             modified2, fixup = self._checklookup(cmp)
-            modified += modified2
+            s.modified.extend(modified2)
 
             # update dirstate for files that are actually clean
             if fixup and listclean:
-                clean += fixup
+                s.clean.extend(fixup)
 
-        return [modified, added, removed, deleted, unknown, ignored, clean]
+        if match.always():
+            # cache for performance
+            if s.unknown or s.ignored or s.clean:
+                # "_status" is cached with list*=False in the normal route
+                self._status = scmutil.status(s.modified, s.added, s.removed,
+                                              s.deleted, [], [], [])
+            else:
+                self._status = s
+
+        return s
 
     def _buildstatus(self, other, s, match, listignored, listclean,
                      listunknown):
@@ -1427,14 +1564,18 @@ class workingctx(committablectx):
         building a new manifest if self (working directory) is not comparing
         against its parent (repo['.']).
         """
+        s = self._dirstatestatus(match, listignored, listclean, listunknown)
+        # Filter out symlinks that, in the case of FAT32 and NTFS filesystems,
+        # might have accidentally ended up with the entire contents of the file
+        # they are supposed to be linking to.
+        s.modified[:] = self._filtersuspectsymlink(s.modified)
         if other != self._repo['.']:
             s = super(workingctx, self)._buildstatus(other, s, match,
                                                      listignored, listclean,
                                                      listunknown)
         return s
 
-    def _matchstatus(self, other, s, match, listignored, listclean,
-                     listunknown):
+    def _matchstatus(self, other, match):
         """override the match method with a filter for directory patterns
 
         We use inheritance to customize the match.bad method only in cases of
@@ -1445,29 +1586,16 @@ class workingctx(committablectx):
         just use the default match object sent to us.
         """
         superself = super(workingctx, self)
-        match = superself._matchstatus(other, s, match, listignored, listclean,
-                                       listunknown)
+        match = superself._matchstatus(other, match)
         if other != self._repo['.']:
             def bad(f, msg):
                 # 'f' may be a directory pattern from 'match.files()',
                 # so 'f not in ctx1' is not enough
-                if f not in other and f not in other.dirs():
+                if f not in other and not other.hasdir(f):
                     self._repo.ui.warn('%s: %s\n' %
                                        (self._repo.dirstate.pathto(f), msg))
             match.bad = bad
         return match
-
-    def status(self, other='.', match=None, listignored=False,
-               listclean=False, listunknown=False, listsubrepos=False):
-        # yet to be determined: what to do if 'other' is a 'workingctx' or a
-        # 'memctx'?
-        s = super(workingctx, self).status(other, match, listignored, listclean,
-                                           listunknown, listsubrepos)
-        # calling 'super' subtly reveresed the contexts, so we flip the results
-        # (s[1] is 'added' and s[2] is 'removed')
-        s = list(s)
-        s[1], s[2] = s[2], s[1]
-        return tuple(s)
 
 class committablefilectx(basefilectx):
     """A committablefilectx provides common functionality for a file context
@@ -1485,6 +1613,10 @@ class committablefilectx(basefilectx):
 
     def __nonzero__(self):
         return True
+
+    def linkrev(self):
+        # linked to self._changectx no matter if file is modified or not
+        return self.rev()
 
     def parents(self):
         '''return parent filectxs, following copies if necessary'''
@@ -1504,7 +1636,7 @@ class committablefilectx(basefilectx):
         for pc in pcl[1:]:
             pl.append((path, filenode(pc, path), fl))
 
-        return [filectx(self._repo, p, fileid=n, filelog=l)
+        return [self._parentfilectx(p, fileid=n, filelog=l)
                 for p, n, l in pl if n != nullid]
 
     def children(self):
@@ -1548,6 +1680,52 @@ class workingfilectx(committablefilectx):
         # invert comparison to reuse the same code path
         return fctx.cmp(self)
 
+    def remove(self, ignoremissing=False):
+        """wraps unlink for a repo's working directory"""
+        util.unlinkpath(self._repo.wjoin(self._path), ignoremissing)
+
+    def write(self, data, flags):
+        """wraps repo.wwrite"""
+        self._repo.wwrite(self._path, data, flags)
+
+class workingcommitctx(workingctx):
+    """A workingcommitctx object makes access to data related to
+    the revision being committed convenient.
+
+    This hides changes in the working directory, if they aren't
+    committed in this context.
+    """
+    def __init__(self, repo, changes,
+                 text="", user=None, date=None, extra=None):
+        super(workingctx, self).__init__(repo, text, user, date, extra,
+                                         changes)
+
+    def _dirstatestatus(self, match=None, ignored=False, clean=False,
+                        unknown=False):
+        """Return matched files only in ``self._status``
+
+        Uncommitted files appear "clean" via this context, even if
+        they aren't actually so in the working directory.
+        """
+        match = match or matchmod.always(self._repo.root, self._repo.getcwd())
+        if clean:
+            clean = [f for f in self._manifest if f not in self._changedset]
+        else:
+            clean = []
+        return scmutil.status([f for f in self._status.modified if match(f)],
+                              [f for f in self._status.added if match(f)],
+                              [f for f in self._status.removed if match(f)],
+                              [], [], [], clean)
+
+    @propertycache
+    def _changedset(self):
+        """Return the set of files changed in this context
+        """
+        changed = set(self._status.modified)
+        changed.update(self._status.added)
+        changed.update(self._status.removed)
+        return changed
+
 class memctx(committablectx):
     """Use memctx to perform in-memory commits via localrepo.commitctx().
 
@@ -1575,6 +1753,12 @@ class memctx(committablectx):
     supported by util.parsedate() and defaults to current date, extra
     is a dictionary of metadata or is left empty.
     """
+
+    # Mercurial <= 3.1 expects the filectxfn to raise IOError for missing files.
+    # Extensions that need to retain compatibility across Mercurial 3.1 can use
+    # this field to determine what to do in filectxfn.
+    _returnnoneformissingfiles = True
+
     def __init__(self, repo, parents, text, files, filectxfn, user=None,
                  date=None, extra=None, editor=False):
         super(memctx, self).__init__(repo, text, user, date, extra)
@@ -1584,11 +1768,32 @@ class memctx(committablectx):
         p1, p2 = parents
         self._parents = [changectx(self._repo, p) for p in (p1, p2)]
         files = sorted(set(files))
-        self._status = [files, [], [], [], []]
-        self._filectxfn = filectxfn
+        self._files = files
         self.substate = {}
 
-        self._extra = extra and extra.copy() or {}
+        # if store is not callable, wrap it in a function
+        if not callable(filectxfn):
+            def getfilectx(repo, memctx, path):
+                fctx = filectxfn[path]
+                # this is weird but apparently we only keep track of one parent
+                # (why not only store that instead of a tuple?)
+                copied = fctx.renamed()
+                if copied:
+                    copied = copied[0]
+                return memfilectx(repo, path, fctx.data(),
+                                  islink=fctx.islink(), isexec=fctx.isexec(),
+                                  copied=copied, memctx=memctx)
+            self._filectxfn = getfilectx
+        else:
+            # "util.cachefunc" reduces invocation of possibly expensive
+            # "filectxfn" for performance (e.g. converting from another VCS)
+            self._filectxfn = util.cachefunc(filectxfn)
+
+        if extra:
+            self._extra = extra.copy()
+        else:
+            self._extra = {}
+
         if self._extra.get('branch', '') == '':
             self._extra['branch'] = 'default'
 
@@ -1597,7 +1802,9 @@ class memctx(committablectx):
             self._repo.savecommitmessage(self._text)
 
     def filectx(self, path, filelog=None):
-        """get a file context from the working directory"""
+        """get a file context from the working directory
+
+        Returns None if file doesn't exist and should be removed."""
         return self._filectxfn(self._repo, self, path)
 
     def commit(self):
@@ -1612,23 +1819,55 @@ class memctx(committablectx):
         pctx = self._parents[0]
         man = pctx.manifest().copy()
 
-        for f, fnode in man.iteritems():
+        for f in self._status.modified:
             p1node = nullid
             p2node = nullid
-            p = pctx[f].parents()
+            p = pctx[f].parents() # if file isn't in pctx, check p2?
             if len(p) > 0:
                 p1node = p[0].node()
                 if len(p) > 1:
                     p2node = p[1].node()
             man[f] = revlog.hash(self[f].data(), p1node, p2node)
 
+        for f in self._status.added:
+            man[f] = revlog.hash(self[f].data(), nullid, nullid)
+
+        for f in self._status.removed:
+            if f in man:
+                del man[f]
+
         return man
 
+    @propertycache
+    def _status(self):
+        """Calculate exact status from ``files`` specified at construction
+        """
+        man1 = self.p1().manifest()
+        p2 = self._parents[1]
+        # "1 < len(self._parents)" can't be used for checking
+        # existence of the 2nd parent, because "memctx._parents" is
+        # explicitly initialized by the list, of which length is 2.
+        if p2.node() != nullid:
+            man2 = p2.manifest()
+            managing = lambda f: f in man1 or f in man2
+        else:
+            managing = lambda f: f in man1
+
+        modified, added, removed = [], [], []
+        for f in self._files:
+            if not managing(f):
+                added.append(f)
+            elif self[f]:
+                modified.append(f)
+            else:
+                removed.append(f)
+
+        return scmutil.status(modified, added, removed, [], [], [], [])
 
 class memfilectx(committablefilectx):
     """memfilectx represents an in-memory file to commit.
 
-    See memctx and commitablefilectx for more details.
+    See memctx and committablefilectx for more details.
     """
     def __init__(self, repo, path, data, islink=False,
                  isexec=False, copied=None, memctx=None):
@@ -1652,9 +1891,14 @@ class memfilectx(committablefilectx):
         return len(self.data())
     def flags(self):
         return self._flags
-    def isexec(self):
-        return 'x' in self._flags
-    def islink(self):
-        return 'l' in self._flags
     def renamed(self):
         return self._copied
+
+    def remove(self, ignoremissing=False):
+        """wraps unlink for a repo's working directory"""
+        # need to figure out what to do here
+        del self._changectx[self._path]
+
+    def write(self, data, flags):
+        """wraps repo.wwrite"""
+        self._data = data

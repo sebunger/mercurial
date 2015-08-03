@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
 hide outer repo and work in dir without '.hg'
   $ hg init
@@ -56,6 +56,13 @@ create a subdirectory containing repositories and subrepositories
   $ echo f2 > f/f2/f2
   $ hg --cwd f/f2 ci -Amf2 -d '4 0'
   adding f2
+  $ echo 'f2 = f2' > f/.hgsub
+  $ hg -R f ci -Am 'add subrepo' -d'4 0'
+  adding .hgsub
+  $ cat >> f/.hg/hgrc << EOF
+  > [web]
+  > name = fancy name for repo f
+  > EOF
   $ cd ..
 
 create repository without .hg/store
@@ -201,6 +208,7 @@ should succeed, slashy names
   <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   
   <table class="bigtable">
+      <thead>
       <tr>
           <th><a href="?sort=name">Name</a></th>
           <th><a href="?sort=description">Description</a></th>
@@ -209,6 +217,7 @@ should succeed, slashy names
           <th>&nbsp;</th>
           <th>&nbsp;</th>
       </tr>
+      </thead>
       <tbody class="stripes2">
       
   <tr>
@@ -303,7 +312,7 @@ should succeed, slashy names
   </tr>
   
   <tr>
-  <td><a href="/coll/notrepo/f/?style=paper">coll/notrepo/f</a></td>
+  <td><a href="/coll/notrepo/f/?style=paper">fancy name for repo f</a></td>
   <td>unknown</td>
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
@@ -407,7 +416,7 @@ should succeed, slashy names
   </tr>
   
   <tr>
-  <td><a href="/rcoll/notrepo/f/?style=paper">rcoll/notrepo/f</a></td>
+  <td><a href="/rcoll/notrepo/f/?style=paper">fancy name for repo f</a></td>
   <td>unknown</td>
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
@@ -498,7 +507,7 @@ should succeed, slashy names
   </tr>
   
   <tr>
-  <td><a href="/star/webdir/notrepo/f/?style=paper">star/webdir/notrepo/f</a></td>
+  <td><a href="/star/webdir/notrepo/f/?style=paper">fancy name for repo f</a></td>
   <td>unknown</td>
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
@@ -602,7 +611,7 @@ should succeed, slashy names
   </tr>
   
   <tr>
-  <td><a href="/starstar/webdir/notrepo/f/?style=paper">starstar/webdir/notrepo/f</a></td>
+  <td><a href="/starstar/webdir/notrepo/f/?style=paper">fancy name for repo f</a></td>
   <td>unknown</td>
   <td>&#70;&#111;&#111;&#32;&#66;&#97;&#114;&#32;&#60;&#102;&#111;&#111;&#46;&#98;&#97;&#114;&#64;&#101;&#120;&#97;&#109;&#112;&#108;&#101;&#46;&#99;&#111;&#109;&#62;</td>
   <td class="age">*</td> (glob)
@@ -699,6 +708,7 @@ should succeed, slashy names
   <h2 class="breadcrumb"><a href="/">Mercurial</a> &gt; <a href="/t">t</a> </h2>
   
   <table class="bigtable">
+      <thead>
       <tr>
           <th><a href="?sort=name">Name</a></th>
           <th><a href="?sort=description">Description</a></th>
@@ -707,6 +717,7 @@ should succeed, slashy names
           <th>&nbsp;</th>
           <th>&nbsp;</th>
       </tr>
+      </thead>
       <tbody class="stripes2">
       
   <tr>
@@ -896,6 +907,7 @@ Test collapse = True
   $ cat >> paths.conf <<EOF
   > [web]
   > collapse=true
+  > descend = true
   > EOF
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-3.log
@@ -931,6 +943,25 @@ Test collapse = True
   d
 
 Test intermediate directories
+
+Hide the subrepo parent
+
+  $ cp $root/notrepo/f/.hg/hgrc $root/notrepo/f/.hg/hgrc.bak
+  $ cat >> $root/notrepo/f/.hg/hgrc << EOF
+  > [web]
+  > hidden = True
+  > EOF
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/?style=raw'
+  200 Script output follows
+  
+  
+  /rcoll/notrepo/e/
+  /rcoll/notrepo/e/e2/
+  
+
+Subrepo parent not hidden
+  $ mv $root/notrepo/f/.hg/hgrc.bak $root/notrepo/f/.hg/hgrc
 
   $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT1 'rcoll/notrepo/?style=raw'
   200 Script output follows
@@ -1128,6 +1159,7 @@ test inexistent and inaccessible repo should be ignored silently
   <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   
   <table class="bigtable">
+      <thead>
       <tr>
           <th><a href="?sort=name">Name</a></th>
           <th><a href="?sort=description">Description</a></th>
@@ -1136,6 +1168,7 @@ test inexistent and inaccessible repo should be ignored silently
           <th>&nbsp;</th>
           <th>&nbsp;</th>
       </tr>
+      </thead>
       <tbody class="stripes2">
       
       </tbody>

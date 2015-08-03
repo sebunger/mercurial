@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" killdaemons || exit 80
+#require killdaemons
 
   $ cat <<EOF >> $HGRCPATH
   > [extensions]
@@ -95,8 +95,17 @@ clone so subsequent rollback isn't affected
   $ hg ci -qm "b4"
   $ hg status --rev "7^1" --rev 7
   A b3
-  $ HGEDITOR=cat hg transplant --edit 7
+  $ cat > $TESTTMP/checkeditform.sh <<EOF
+  > env | grep HGEDITFORM
+  > true
+  > EOF
+  $ cat > $TESTTMP/checkeditform-n-cat.sh <<EOF
+  > env | grep HGEDITFORM
+  > cat \$*
+  > EOF
+  $ HGEDITOR="sh $TESTTMP/checkeditform-n-cat.sh" hg transplant --edit 7
   applying ffd6818a3975
+  HGEDITFORM=transplant.normal
   b3
   
   
@@ -221,7 +230,8 @@ test same-parent transplant with --log
   (transplanted from e234d668f844e1b1a765f01db83a32c0c7bfa170)
   1  r2
   0  r1
-remote transplant
+remote transplant, and also test that transplant doesn't break with
+format-breaking diffopts
 
   $ hg clone -r 1 ../t ../remote
   adding changesets
@@ -231,7 +241,7 @@ remote transplant
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd ../remote
-  $ hg transplant --log -s ../t 2 4
+  $ hg --config diff.noprefix=True transplant --log -s ../t 2 4
   searching for changes
   applying 37a1297eb21b
   37a1297eb21b transplanted to c19cf0ccb069
@@ -288,7 +298,7 @@ remote transplant with pull
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd ../rp
-  $ hg transplant -s http://localhost:$HGPORT/ 2 4
+  $ hg transplant -s http://localhost:$HGPORT/ 37a1297eb21b a53251cdf717
   searching for changes
   searching for changes
   adding changesets
@@ -303,10 +313,11 @@ remote transplant with pull
   0  r1
 
 remote transplant without pull
+(It was using "2" and "4" (as the previous transplant used to) which referenced
+revision different from one run to another)
 
   $ hg pull -q http://localhost:$HGPORT/
-  $ hg transplant -s http://localhost:$HGPORT/ 2 4
-  searching for changes
+  $ hg transplant -s http://localhost:$HGPORT/ 8d9279348abb 722f4667af76
   skipping already applied revision 2:8d9279348abb
   applying 722f4667af76
   722f4667af76 transplanted to 76e321915884
@@ -373,7 +384,8 @@ transplant -c shouldn't use an old changeset
   patch failed to apply
   abort: fix up the merge and run hg transplant --continue
   [255]
-  $ hg transplant --continue
+  $ HGEDITOR="sh $TESTTMP/checkeditform.sh" hg transplant --continue -e
+  HGEDITFORM=transplant.normal
   46ae92138f3c transplanted as 9159dada197d
   $ hg transplant 1:3
   skipping already applied revision 1:46ae92138f3c
@@ -430,9 +442,30 @@ Issue1111: Test transplant --merge
 
 transplant
 
-  $ hg transplant -m 1
+  $ HGEDITOR="sh $TESTTMP/checkeditform.sh" hg transplant -m 1 -e
   applying 42dc4432fd35
+  HGEDITFORM=transplant.merge
   1:42dc4432fd35 merged at a9f4acbac129
+  $ hg update -q -C 2
+  $ cat > a <<EOF
+  > x
+  > y
+  > z
+  > EOF
+  $ hg commit -m replace
+  $ hg update -q -C 4
+  $ hg transplant -m 5
+  applying 600a3cdcb41d
+  patching file a
+  Hunk #1 FAILED at 0
+  1 out of 1 hunks FAILED -- saving rejects to file a.rej
+  patch failed to apply
+  abort: fix up the merge and run hg transplant --continue
+  [255]
+  $ HGEDITOR="sh $TESTTMP/checkeditform.sh" hg transplant --continue -e
+  HGEDITFORM=transplant.merge
+  600a3cdcb41d transplanted as a3f88be652e0
+
   $ cd ..
 
 test transplant into empty repository
@@ -481,15 +514,20 @@ test interactive transplant
   > c
   > EOF
   0:17ab29e464c6
-  apply changeset? [ynmpcq?]: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  apply changeset? [ynmpcq?]: p
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   +++ b/r1	Thu Jan 01 00:00:00 1970 +0000
   @@ -0,0 +1,1 @@
   +r1
-  apply changeset? [ynmpcq?]: 1:d11e3596cc1a
-  apply changeset? [ynmpcq?]: 2:37a1297eb21b
-  apply changeset? [ynmpcq?]: 3:722f4667af76
-  apply changeset? [ynmpcq?]: 4:a53251cdf717
-  apply changeset? [ynmpcq?]:  (no-eol)
+  apply changeset? [ynmpcq?]: y
+  1:d11e3596cc1a
+  apply changeset? [ynmpcq?]: n
+  2:37a1297eb21b
+  apply changeset? [ynmpcq?]: n
+  3:722f4667af76
+  apply changeset? [ynmpcq?]: m
+  4:a53251cdf717
+  apply changeset? [ynmpcq?]: c
   $ hg log -G --template "{node|short}"
   @    88be5dde5260
   |\
@@ -506,16 +544,19 @@ test interactive transplant
   > q
   > EOF
   1:d11e3596cc1a
-  apply changeset? [ynmpcq?]: unrecognized response
-  apply changeset? [ynmpcq?]: y: yes, transplant this changeset
+  apply changeset? [ynmpcq?]: x
+  unrecognized response
+  apply changeset? [ynmpcq?]: ?
+  y: yes, transplant this changeset
   n: no, skip this changeset
   m: merge at this changeset
   p: show patch
   c: commit selected changesets
   q: quit and cancel transplant
   ?: ? (show this help)
-  apply changeset? [ynmpcq?]: 4:a53251cdf717
-  apply changeset? [ynmpcq?]:  (no-eol)
+  apply changeset? [ynmpcq?]: y
+  4:a53251cdf717
+  apply changeset? [ynmpcq?]: q
   $ hg heads --template "{node|short}\n"
   88be5dde5260
 
@@ -633,7 +674,7 @@ test with a win32ext like setup (differing EOLs)
   $ cd twin2
   $ echo '[patch]' >> .hg/hgrc
   $ echo 'eol = crlf' >> .hg/hgrc
-  $ python -c "file('b', 'wb').write('b\r\nb\r\n')"
+  $ $PYTHON -c "file('b', 'wb').write('b\r\nb\r\n')"
   $ hg ci -Am addb
   adding b
   $ hg transplant -s ../twin1 tip
@@ -728,6 +769,22 @@ test transplanting a patch turning into a no-op
   searching for changes
   applying 7a7d57e15850
   skipping emptied changeset 7a7d57e15850
+
+Test empty result in --continue
+
+  $ hg transplant -s ../binarysource 1
+  searching for changes
+  applying 645035761929
+  file b already exists
+  1 out of 1 hunks FAILED -- saving rejects to file b.rej
+  patch failed to apply
+  abort: fix up the merge and run hg transplant --continue
+  [255]
+  $ hg status
+  ? b.rej
+  $ hg transplant --continue
+  645035761929 skipped due to empty diff
+
   $ cd ..
 
 Explicitly kill daemons to let the test exit on Windows

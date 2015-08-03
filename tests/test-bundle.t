@@ -224,7 +224,7 @@ hg -R bundle://../full.hg verify
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:../full.hg
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:../full.hg (glob)
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Rollback empty
@@ -247,7 +247,7 @@ Pull full.hg into empty again (using -R; with hook)
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:empty+full.hg
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:empty+full.hg (glob)
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Create partial clones
@@ -268,51 +268,60 @@ Create partial clones
 
 Log -R full.hg in partial
 
-  $ hg -R bundle://../full.hg log
+  $ hg -R bundle://../full.hg log -T phases
   changeset:   8:aa35859c02ea
   tag:         tip
+  phase:       draft
   parent:      3:eebf5a27f8ca
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     0.3m
   
   changeset:   7:a6a34bfa0076
+  phase:       draft
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     1.3m
   
   changeset:   6:7373c1169842
+  phase:       draft
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     1.3
   
   changeset:   5:1bb50a9436a7
+  phase:       draft
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     1.2
   
   changeset:   4:095197eb4973
+  phase:       draft
   parent:      0:f9ee2f85a263
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     1.1
   
   changeset:   3:eebf5a27f8ca
+  phase:       public
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     0.3
   
   changeset:   2:e38ba6f5b7e0
+  phase:       public
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     0.2
   
   changeset:   1:34c2bf6b0626
+  phase:       public
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     0.1
   
   changeset:   0:f9ee2f85a263
+  phase:       public
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     0.0
@@ -422,7 +431,7 @@ Direct clone from bundle (all-history)
   $ rm -r full-clone
 
 When cloning from a non-copiable repository into '', do not
-recurse infinitely (issue 2528)
+recurse infinitely (issue2528)
 
   $ hg clone full.hg ''
   abort: empty destination path is not valid

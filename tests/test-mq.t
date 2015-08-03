@@ -5,11 +5,12 @@
   >     fi
   > }
 
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "mq=" >> $HGRCPATH
-
-  $ echo "[mq]" >> $HGRCPATH
-  $ echo "plain=true" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > mq =
+  > [mq]
+  > plain = true
+  > EOF
 
 
 help
@@ -95,7 +96,7 @@ help
    qtop          print the name of the current patch
    qunapplied    print the patches not yet applied
   
-  use "hg -v help mq" to show builtin aliases and global options
+  (use "hg help -v mq" to show built-in aliases and global options)
 
   $ hg init a
   $ cd a
@@ -310,14 +311,13 @@ qpop
 qpush with dump of tag cache
 Dump the tag cache to ensure that it has exactly one head after qpush.
 
-  $ rm -f .hg/cache/tags
+  $ rm -f .hg/cache/tags2-visible
   $ hg tags > /dev/null
 
-.hg/cache/tags (pre qpush):
+.hg/cache/tags2-visible (pre qpush):
 
-  $ cat .hg/cache/tags
+  $ cat .hg/cache/tags2-visible
   1 [\da-f]{40} (re)
-  
   $ hg qpush
   applying test.patch
   now at: test.patch
@@ -325,11 +325,10 @@ Dump the tag cache to ensure that it has exactly one head after qpush.
   2: draft
   $ hg tags > /dev/null
 
-.hg/cache/tags (post qpush):
+.hg/cache/tags2-visible (post qpush):
 
-  $ cat .hg/cache/tags
+  $ cat .hg/cache/tags2-visible
   2 [\da-f]{40} (re)
-  
   $ checkundo qpush
   $ cd ..
 
@@ -800,7 +799,7 @@ strip with local changes, should complain
 
   $ hg strip -f tip
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/b/.hg/strip-backup/*-backup.hg (glob)
+  saved backup bundle to $TESTTMP/b/.hg/strip-backup/770eb8fce608-0ddcae0f-backup.hg (glob)
   $ cd ..
 
 
@@ -869,7 +868,7 @@ qpush failure
   file foo already exists
   1 out of 1 hunks FAILED -- saving rejects to file foo.rej
   patch failed, unable to continue (try -v)
-  patch failed, rejects left in working dir
+  patch failed, rejects left in working directory
   errors during apply, please fix and refresh bar
   [2]
   $ hg st
@@ -1399,7 +1398,10 @@ apply force, should discard changes in hello, but not bye
   applying empty
   saving current version of hello.txt as hello.txt.orig
   patching file hello.txt
+  committing files:
   hello.txt
+  committing manifest
+  committing changelog
   now at: empty
   $ hg st
   M bye.txt
@@ -1509,6 +1511,7 @@ Proper phase default with mq:
 
   $ rm .hg/store/phaseroots
   $ hg phase 'qparent::'
+  -1: public
   0: draft
   1: draft
   2: draft
@@ -1516,6 +1519,7 @@ Proper phase default with mq:
   $ echo 'secret=true' >> $HGRCPATH
   $ rm -f .hg/store/phaseroots
   $ hg phase 'qparent::'
+  -1: public
   0: secret
   1: secret
   2: secret
@@ -1577,5 +1581,28 @@ Test that secret mq patch does not break hgweb
   $ QUERY_STRING='style=raw'
   $ python hgweb.cgi | grep '^tip'
   tip	[0-9a-f]{40} (re)
+
+  $ cd ..
+
+Test interaction with revset (issue4426)
+
+  $ hg init issue4426
+  $ cd issue4426
+
+  $ echo a > a
+  $ hg ci -Am a
+  adding a
+  $ echo a >> a
+  $ hg ci -m a
+  $ echo a >> a
+  $ hg ci -m a
+  $ hg qimport -r 0::
+
+reimport things
+
+  $ hg qimport -r 1::
+  abort: revision 2 is already managed
+  [255]
+
 
   $ cd ..

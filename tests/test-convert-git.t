@@ -1,5 +1,5 @@
+#require git
 
-  $ "$TESTDIR/hghave" git || exit 80
   $ echo "[core]" >> $HOME/.gitconfig
   $ echo "autocrlf = false" >> $HOME/.gitconfig
   $ echo "[core]" >> $HOME/.gitconfig
@@ -33,8 +33,7 @@
   $ git add a d
   $ commit -a -m t1
 
-Remove the directory, then try to replace it with a file
-(issue 754)
+Remove the directory, then try to replace it with a file (issue754)
 
   $ git rm -f d/b
   rm 'd/b'
@@ -52,7 +51,43 @@ Remove the directory, then try to replace it with a file
   $ git pull --no-commit . other > /dev/null 2>/dev/null
   $ commit -m 'Merge branch other'
   $ cd ..
-  $ hg convert --datesort git-repo
+  $ hg convert --config extensions.progress= --config progress.assume-tty=1 \
+  >   --config progress.delay=0 --config progress.changedelay=0 \
+  >   --config progress.refresh=0 --config progress.width=60 \
+  > --datesort git-repo
+  \r (no-eol) (esc)
+  scanning [======>                                     ] 1/6\r (no-eol) (esc)
+  scanning [=============>                              ] 2/6\r (no-eol) (esc)
+  scanning [=====================>                      ] 3/6\r (no-eol) (esc)
+  scanning [============================>               ] 4/6\r (no-eol) (esc)
+  scanning [===================================>        ] 5/6\r (no-eol) (esc)
+  scanning [===========================================>] 6/6\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [                                          ] 0/6\r (no-eol) (esc)
+  getting files [==================>                    ] 1/2\r (no-eol) (esc)
+  getting files [======================================>] 2/2\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [======>                                   ] 1/6\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [=============>                            ] 2/6\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [====================>                     ] 3/6\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [===========================>              ] 4/6\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [==================================>       ] 5/6\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
   assuming destination git-repo-hg
   initializing destination git-repo-hg repository
   scanning source...
@@ -135,7 +170,79 @@ Remove the directory, then try to replace it with a file
 
 full conversion
 
-  $ hg -q convert --datesort git-repo2 fullrepo
+  $ hg convert --datesort git-repo2 fullrepo \
+  > --config extensions.progress= --config progress.assume-tty=1 \
+  > --config progress.delay=0 --config progress.changedelay=0 \
+  > --config progress.refresh=0 --config progress.width=60
+  \r (no-eol) (esc)
+  scanning [===>                                        ] 1/9\r (no-eol) (esc)
+  scanning [========>                                   ] 2/9\r (no-eol) (esc)
+  scanning [=============>                              ] 3/9\r (no-eol) (esc)
+  scanning [==================>                         ] 4/9\r (no-eol) (esc)
+  scanning [=======================>                    ] 5/9\r (no-eol) (esc)
+  scanning [============================>               ] 6/9\r (no-eol) (esc)
+  scanning [=================================>          ] 7/9\r (no-eol) (esc)
+  scanning [======================================>     ] 8/9\r (no-eol) (esc)
+  scanning [===========================================>] 9/9\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [                                          ] 0/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [===>                                      ] 1/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [========>                                 ] 2/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [=============>                            ] 3/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [=================>                        ] 4/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [======================>                   ] 5/9\r (no-eol) (esc)
+  getting files [===>                                   ] 1/8\r (no-eol) (esc)
+  getting files [========>                              ] 2/8\r (no-eol) (esc)
+  getting files [=============>                         ] 3/8\r (no-eol) (esc)
+  getting files [==================>                    ] 4/8\r (no-eol) (esc)
+  getting files [=======================>               ] 5/8\r (no-eol) (esc)
+  getting files [============================>          ] 6/8\r (no-eol) (esc)
+  getting files [=================================>     ] 7/8\r (no-eol) (esc)
+  getting files [======================================>] 8/8\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [===========================>              ] 6/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [===============================>          ] 7/9\r (no-eol) (esc)
+  getting files [======================================>] 1/1\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  converting [====================================>     ] 8/9\r (no-eol) (esc)
+  getting files [==================>                    ] 1/2\r (no-eol) (esc)
+  getting files [======================================>] 2/2\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  initializing destination fullrepo repository
+  scanning source...
+  sorting...
+  converting...
+  8 add foo
+  7 change foo
+  6 add quux
+  5 add bar
+  4 add baz
+  3 Octopus merge
+  2 change bar
+  1 change foo
+  0 Discard change to foo
+  updating bookmarks
   $ hg up -q -R fullrepo
   $ glog -R fullrepo
   @    9 "Discard change to foo" files: foo
@@ -206,12 +313,63 @@ full conversion
   9277c9cc8dd4576fc01a17939b4351e5ada93466 644   foo
   88dfeab657e8cf2cef3dec67b914f49791ae76b1 644   quux
 
-test binary conversion (issue 1359)
+test importing git renames and copies
 
+  $ cd git-repo2
+  $ git mv foo foo-renamed
+since bar is not touched in this commit, this copy will not be detected
+  $ cp bar bar-copied
+  $ cp baz baz-copied
+  $ cp baz baz-copied2
+  $ echo baz2 >> baz
+  $ git add bar-copied baz-copied baz-copied2
+  $ commit -a -m 'rename and copy'
+  $ cd ..
+
+input validation
+  $ hg convert --config convert.git.similarity=foo --datesort git-repo2 fullrepo
+  abort: convert.git.similarity is not an integer ('foo')
+  [255]
+  $ hg convert --config convert.git.similarity=-1 --datesort git-repo2 fullrepo
+  abort: similarity must be between 0 and 100
+  [255]
+  $ hg convert --config convert.git.similarity=101 --datesort git-repo2 fullrepo
+  abort: similarity must be between 0 and 100
+  [255]
+
+  $ hg -q convert --config convert.git.similarity=100 --datesort git-repo2 fullrepo
+  $ hg -R fullrepo status -C --change master
+  M baz
+  A bar-copied
+  A baz-copied
+    baz
+  A baz-copied2
+    baz
+  A foo-renamed
+    foo
+  R foo
+
+  $ cd git-repo2
+  $ echo bar2 >> bar
+  $ commit -a -m 'change bar'
+  $ cp bar bar-copied2
+  $ git add bar-copied2
+  $ commit -a -m 'copy with no changes'
+  $ cd ..
+
+  $ hg -q convert --config convert.git.similarity=100 \
+  > --config convert.git.findcopiesharder=1 --datesort git-repo2 fullrepo
+  $ hg -R fullrepo status -C --change master
+  A bar-copied2
+    bar
+
+test binary conversion (issue1359)
+
+  $ count=19
   $ mkdir git-repo3
   $ cd git-repo3
   $ git init-db >/dev/null 2>/dev/null
-  $ python -c 'file("b", "wb").write("".join([chr(i) for i in range(256)])*16)'
+  $ $PYTHON -c 'file("b", "wb").write("".join([chr(i) for i in range(256)])*16)'
   $ git add b
   $ commit -a -m addbinary
   $ cd ..
@@ -228,7 +386,7 @@ convert binary file
   $ cd git-repo3-hg
   $ hg up -C
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ python -c 'print len(file("b", "rb").read())'
+  $ $PYTHON -c 'print len(file("b", "rb").read())'
   4096
   $ cd ..
 
@@ -362,6 +520,29 @@ convert sub modules
   sub
 
   $ cd ../..
+
+make sure rename detection doesn't break removing and adding gitmodules
+
+  $ cd git-repo6
+  $ git mv .gitmodules .gitmodules-renamed
+  $ commit -a -m 'rename .gitmodules'
+  $ git mv .gitmodules-renamed .gitmodules
+  $ commit -a -m 'rename .gitmodules back'
+  $ cd ..
+
+  $ hg --config convert.git.similarity=100 convert -q git-repo6 git-repo6-hg
+  $ hg -R git-repo6-hg log -r 'tip^' -T "{desc|firstline}\n"
+  rename .gitmodules
+  $ hg -R git-repo6-hg status -C --change 'tip^'
+  A .gitmodules-renamed
+  R .hgsub
+  R .hgsubstate
+  $ hg -R git-repo6-hg log -r tip -T "{desc|firstline}\n"
+  rename .gitmodules back
+  $ hg -R git-repo6-hg status -C --change tip
+  A .hgsub
+  A .hgsubstate
+  R .gitmodules-renamed
 
 convert the revision removing '.gitmodules' itself (and related
 submodules)

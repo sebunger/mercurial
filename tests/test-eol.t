@@ -408,10 +408,12 @@ Test issue2569 -- eol extension takes write lock on reading:
 
 Test cleverencode: and cleverdecode: aliases for win32text extension
 
-  $ echo '[encode]' >> $HGRCPATH
-  $ echo '**.txt = cleverencode:' >> $HGRCPATH
-  $ echo '[decode]' >> $HGRCPATH
-  $ echo '**.txt = cleverdecode:' >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [encode]
+  > **.txt = cleverencode:
+  > [decode]
+  > **.txt = cleverdecode:
+  > EOF
 
   $ hg init win32compat
   $ cd win32compat
@@ -524,5 +526,20 @@ append a line without trailing newline
   third
   fourth
   fifth
+
+amend of changesets with renamed/deleted files expose new code paths
+
+  $ hg mv a.txt b.txt
+  $ hg ci --amend -q
+  $ hg diff -c.
+  diff --git a/a.txt b/b.txt
+  rename from a.txt
+  rename to b.txt
+  --- a/a.txt
+  +++ b/b.txt
+  @@ -1,2 +1,3 @@
+   third
+   fourth
+  +fifth
 
   $ cd ..

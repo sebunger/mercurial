@@ -28,67 +28,89 @@ alphabetical order, later ones overriding earlier ones. Where multiple
 paths are given below, settings from earlier paths override later
 ones.
 
-| (All) ``<repo>/.hg/hgrc``
+.. container:: verbose.unix
 
-    Per-repository configuration options that only apply in a
-    particular repository. This file is not version-controlled, and
-    will not get transferred during a "clone" operation. Options in
-    this file override options in all other configuration files. On
-    Plan 9 and Unix, most of this file will be ignored if it doesn't
-    belong to a trusted user or to a trusted group. See the documentation
-    for the ``[trusted]`` section below for more details.
+  On Unix, the following files are consulted:
 
-| (Plan 9) ``$home/lib/hgrc``
-| (Unix) ``$HOME/.hgrc``
-| (Windows) ``%USERPROFILE%\.hgrc``
-| (Windows) ``%USERPROFILE%\Mercurial.ini``
-| (Windows) ``%HOME%\.hgrc``
-| (Windows) ``%HOME%\Mercurial.ini``
+  - ``<repo>/.hg/hgrc`` (per-repository)
+  - ``$HOME/.hgrc`` (per-user)
+  - ``<install-root>/etc/mercurial/hgrc`` (per-installation)
+  - ``<install-root>/etc/mercurial/hgrc.d/*.rc`` (per-installation)
+  - ``/etc/mercurial/hgrc`` (per-system)
+  - ``/etc/mercurial/hgrc.d/*.rc`` (per-system)
+  - ``<internal>/default.d/*.rc`` (defaults)
 
-    Per-user configuration file(s), for the user running Mercurial. On
-    Windows 9x, ``%HOME%`` is replaced by ``%APPDATA%``. Options in these
-    files apply to all Mercurial commands executed by this user in any
-    directory. Options in these files override per-system and per-installation
-    options.
+.. container:: verbose.windows
 
-| (Plan 9) ``/lib/mercurial/hgrc``
-| (Plan 9) ``/lib/mercurial/hgrc.d/*.rc``
-| (Unix) ``/etc/mercurial/hgrc``
-| (Unix) ``/etc/mercurial/hgrc.d/*.rc``
+  On Windows, the following files are consulted:
 
-    Per-system configuration files, for the system on which Mercurial
-    is running. Options in these files apply to all Mercurial commands
-    executed by any user in any directory. Options in these files
-    override per-installation options.
+  - ``<repo>/.hg/hgrc`` (per-repository)
+  - ``%USERPROFILE%\.hgrc`` (per-user)
+  - ``%USERPROFILE%\Mercurial.ini`` (per-user)
+  - ``%HOME%\.hgrc`` (per-user)
+  - ``%HOME%\Mercurial.ini`` (per-user)
+  - ``<install-dir>\Mercurial.ini`` (per-installation)
+  - ``<install-dir>\hgrc.d\*.rc`` (per-installation)
+  - ``HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial`` (per-installation)
+  - ``<internal>/default.d/*.rc`` (defaults)
 
-| (Plan 9) ``<install-root>/lib/mercurial/hgrc``
-| (Plan 9) ``<install-root>/lib/mercurial/hgrc.d/*.rc``
-| (Unix) ``<install-root>/etc/mercurial/hgrc``
-| (Unix) ``<install-root>/etc/mercurial/hgrc.d/*.rc``
-
-    Per-installation configuration files, searched for in the
-    directory where Mercurial is installed. ``<install-root>`` is the
-    parent directory of the **hg** executable (or symlink) being run. For
-    example, if installed in ``/shared/tools/bin/hg``, Mercurial will look
-    in ``/shared/tools/etc/mercurial/hgrc``. Options in these files apply
-    to all Mercurial commands executed by any user in any directory.
-
-| (Windows) ``<install-dir>\Mercurial.ini`` **or**
-| (Windows) ``<install-dir>\hgrc.d\*.rc`` **or**
-| (Windows) ``HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial``
-
-    Per-installation/system configuration files, for the system on
-    which Mercurial is running. Options in these files apply to all
-    Mercurial commands executed by any user in any directory. Registry
-    keys contain PATH-like strings, every part of which must reference
-    a ``Mercurial.ini`` file or be a directory where ``*.rc`` files will
-    be read.  Mercurial checks each of these locations in the specified
-    order until one or more configuration files are detected.
-
-.. note::
+  .. note::
 
    The registry key ``HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial``
    is used when running 32-bit Python on 64-bit Windows.
+
+.. container:: verbose.plan9
+
+  On Plan9, the following files are consulted:
+
+  - ``<repo>/.hg/hgrc`` (per-repository)
+  - ``$home/lib/hgrc`` (per-user)
+  - ``<install-root>/lib/mercurial/hgrc`` (per-installation)
+  - ``<install-root>/lib/mercurial/hgrc.d/*.rc`` (per-installation)
+  - ``/lib/mercurial/hgrc`` (per-system)
+  - ``/lib/mercurial/hgrc.d/*.rc`` (per-system)
+  - ``<internal>/default.d/*.rc`` (defaults)
+
+Per-repository configuration options only apply in a
+particular repository. This file is not version-controlled, and
+will not get transferred during a "clone" operation. Options in
+this file override options in all other configuration files. On
+Plan 9 and Unix, most of this file will be ignored if it doesn't
+belong to a trusted user or to a trusted group. See the documentation
+for the ``[trusted]`` section below for more details.
+
+Per-user configuration file(s) are for the user running Mercurial. On
+Windows 9x, ``%HOME%`` is replaced by ``%APPDATA%``. Options in these
+files apply to all Mercurial commands executed by this user in any
+directory. Options in these files override per-system and per-installation
+options.
+
+Per-installation configuration files are searched for in the
+directory where Mercurial is installed. ``<install-root>`` is the
+parent directory of the **hg** executable (or symlink) being run. For
+example, if installed in ``/shared/tools/bin/hg``, Mercurial will look
+in ``/shared/tools/etc/mercurial/hgrc``. Options in these files apply
+to all Mercurial commands executed by any user in any directory.
+
+Per-installation configuration files are for the system on
+which Mercurial is running. Options in these files apply to all
+Mercurial commands executed by any user in any directory. Registry
+keys contain PATH-like strings, every part of which must reference
+a ``Mercurial.ini`` file or be a directory where ``*.rc`` files will
+be read.  Mercurial checks each of these locations in the specified
+order until one or more configuration files are detected.
+
+Per-system configuration files are for the system on which Mercurial
+is running. Options in these files apply to all Mercurial commands
+executed by any user in any directory. Options in these files
+override per-installation options.
+
+Mercurial comes with some default configuration. The default configuration
+files are installed with Mercurial and will be overwritten on upgrades. Default
+configuration files should never be edited by users or administrators but can
+be overridden in other configuration files. So far the directory only contains
+merge tool configuration but packagers can also put other default configuration
+there.
 
 Syntax
 ======
@@ -229,8 +251,9 @@ repository in the same manner as the purge extension.
 Positional arguments like ``$1``, ``$2``, etc. in the alias definition
 expand to the command arguments. Unmatched arguments are
 removed. ``$0`` expands to the alias name and ``$@`` expands to all
-arguments separated by a space. These expansions happen before the
-command is passed to the shell.
+arguments separated by a space. ``"$@"`` (with quotes) expands to all
+arguments quoted individually and separated by a space. These expansions
+happen before the command is passed to the shell.
 
 Shell aliases are executed in an environment where ``$HG`` expands to
 the path of the Mercurial that was used to execute the alias. This is
@@ -388,6 +411,57 @@ required):
 - :hg:`tag`
 - :hg:`transplant`
 
+Configuring items below instead of ``changeset`` allows showing
+customized message only for specific actions, or showing different
+messages for each action.
+
+- ``changeset.backout`` for :hg:`backout`
+- ``changeset.commit.amend.merge`` for :hg:`commit --amend` on merges
+- ``changeset.commit.amend.normal`` for :hg:`commit --amend` on other
+- ``changeset.commit.normal.merge`` for :hg:`commit` on merges
+- ``changeset.commit.normal.normal`` for :hg:`commit` on other
+- ``changeset.fetch`` for :hg:`fetch` (impling merge commit)
+- ``changeset.gpg.sign`` for :hg:`sign`
+- ``changeset.graft`` for :hg:`graft`
+- ``changeset.histedit.edit`` for ``edit`` of :hg:`histedit`
+- ``changeset.histedit.fold`` for ``fold`` of :hg:`histedit`
+- ``changeset.histedit.mess`` for ``mess`` of :hg:`histedit`
+- ``changeset.histedit.pick`` for ``pick`` of :hg:`histedit`
+- ``changeset.import.bypass`` for :hg:`import --bypass`
+- ``changeset.import.normal.merge`` for :hg:`import` on merges
+- ``changeset.import.normal.normal`` for :hg:`import` on other
+- ``changeset.mq.qnew`` for :hg:`qnew`
+- ``changeset.mq.qfold`` for :hg:`qfold`
+- ``changeset.mq.qrefresh`` for :hg:`qrefresh`
+- ``changeset.rebase.collapse`` for :hg:`rebase --collapse`
+- ``changeset.rebase.merge`` for :hg:`rebase` on merges
+- ``changeset.rebase.normal`` for :hg:`rebase` on other
+- ``changeset.shelve.shelve`` for :hg:`shelve`
+- ``changeset.tag.add`` for :hg:`tag` without ``--remove``
+- ``changeset.tag.remove`` for :hg:`tag --remove`
+- ``changeset.transplant.merge`` for :hg:`transplant` on merges
+- ``changeset.transplant.normal`` for :hg:`transplant` on other
+
+These dot-separated lists of names are treated as hierarchical ones.
+For example, ``changeset.tag.remove`` customizes the commit message
+only for :hg:`tag --remove`, but ``changeset.tag`` customizes the
+commit message for :hg:`tag` regardless of ``--remove`` option.
+
+At the external editor invocation for committing, corresponding
+dot-separated list of names without ``changeset.`` prefix
+(e.g. ``commit.normal.normal``) is in ``HGEDITFORM`` environment variable.
+
+In this section, items other than ``changeset`` can be referred from
+others. For example, the configuration to list committed files up
+below can be referred as ``{listupfiles}``::
+
+    [committemplate]
+    listupfiles = {file_adds %
+       "HG: added {file}\n"     }{file_mods %
+       "HG: changed {file}\n"   }{file_dels %
+       "HG: removed {file}\n"   }{if(files, "",
+       "HG: no files changed\n")}
+
 ``decode/encode``
 -----------------
 
@@ -472,6 +546,9 @@ related options for the annotate command.
 
 ``nodates``
     Don't include dates in diff headers.
+
+``noprefix``
+    Omit 'a/' and 'b/' prefixes from filenames. Ignored in plain mode.
 
 ``showfunc``
     Show which function each change is in.
@@ -731,6 +808,35 @@ variables it is passed are listed with names of the form ``$HG_foo``.
   changeset to tag is in ``$HG_NODE``. Name of tag is in ``$HG_TAG``. Tag is
   local if ``$HG_LOCAL=1``, in repository if ``$HG_LOCAL=0``.
 
+``pretxnopen``
+  Run before any new repository transaction is open. The reason for the
+  transaction will be in ``$HG_TXNNAME`` and a unique identifier for the
+  transaction will be in ``HG_TXNID``. A non-zero status will prevent the
+  transaction from being opened.
+
+``pretxnclose``
+  Run right before the transaction is actually finalized. Any
+  repository change will be visible to the hook program. This lets you
+  validate the transaction content or change it. Exit status 0 allows
+  the commit to proceed. Non-zero status will cause the transaction to
+  be rolled back. The reason for the transaction opening will be in
+  ``$HG_TXNNAME`` and a unique identifier for the transaction will be in
+  ``HG_TXNID``. The rest of the available data will vary according the
+  transaction type. New changesets will add ``$HG_NODE`` (id of the
+  first added changeset), ``$HG_URL`` and ``$HG_SOURCE`` variables,
+  bookmarks and phases changes will set ``HG_BOOKMARK_MOVED`` and
+  ``HG_PHASES_MOVED`` to ``1``, etc.
+
+``txnclose``
+  Run after any repository transaction has been committed. At this
+  point, the transaction can no longer be rolled back. The hook will run
+  after the lock is released. See ``pretxnclose`` docs for details about
+  available variables.
+
+``txnabort``
+  Run when a transaction is aborted. See ``pretxnclose`` docs for details about
+  available variables.
+
 ``pretxnchangegroup``
   Run after a changegroup has been added via push, pull or unbundle,
   but before the transaction has been committed. Changegroup is
@@ -915,8 +1021,11 @@ Supported arguments:
 
 ``premerge``
   Attempt to run internal non-interactive 3-way merge tool before
-  launching external tool.  Options are ``true``, ``false``, or ``keep``
-  to leave markers in the file if the premerge fails.
+  launching external tool.  Options are ``true``, ``false``, ``keep`` or
+  ``keep-merge3``. The ``keep`` option will leave markers in the file if the
+  premerge fails. The ``keep-merge3`` will do the same but include information
+  about the base of the merge in the marker (see internal :merge3 in
+  :hg:`help merge-tools`).
   Default: True
 
 ``binary``
@@ -1258,11 +1367,11 @@ User interface controls.
 
 ``ignore``
     A file to read per-user ignore patterns from. This file should be
-    in the same format as a repository-wide .hgignore file. This
-    option supports hook syntax, so if you want to specify multiple
-    ignore files, you can do so by setting something like
-    ``ignore.other = ~/.hgignore2``. For details of the ignore file
-    format, see the ``hgignore(5)`` man page.
+    in the same format as a repository-wide .hgignore file. Filenames
+    are relative to the repository root. This option supports hook syntax,
+    so if you want to specify multiple ignore files, you can do so by
+    setting something like ``ignore.other = ~/.hgignore2``. For details
+    of the ignore file format, see the ``hgignore(5)`` man page.
 
 ``interactive``
     Allow to prompt the user. True or False. Default is True.
@@ -1288,13 +1397,13 @@ User interface controls.
     format.
     Defaults to showing the hash, tags, branches, bookmarks, author, and
     the first line of the commit description.
-    You have to pay attention to encodings of managed files, if you
-    use non-ASCII characters in tags, branches, bookmarks, author
-    and/or commit descriptions. At template expansion, non-ASCII
-    characters use the encoding specified by ``--encoding`` global
-    option, ``HGENCODING`` or other locale setting environment
-    variables. The difference of encoding between merged file and
-    conflict markers causes serious problem.
+    If you use non-ASCII characters in names for tags, branches, bookmarks,
+    authors, and/or commit descriptions, you must pay attention to encodings of
+    managed files. At template expansion, non-ASCII characters use the encoding
+    specified by the ``--encoding`` global option, ``HGENCODING`` or other
+    environment variables that govern your locale. If the encoding of the merge
+    markers is different from the encoding of the merged files,
+    serious problems may occur.
 
 ``portablefilenames``
     Check for portable filenames. Can be ``warn``, ``ignore`` or ``abort``.
@@ -1315,7 +1424,7 @@ User interface controls.
     remote command to use for clone/push/pull operations. Default is ``hg``.
 
 ``reportoldssl``
-    Warn if an SSL certificate is unable to be due to using Python
+    Warn if an SSL certificate is unable to be used due to using Python
     2.5 or earlier. True or False. Default is True.
 
 ``report_untrusted``
@@ -1328,6 +1437,9 @@ User interface controls.
     separator is not the slash character (e.g. Windows uses the
     backslash character (``\``)).
     Default is False.
+
+``statuscopies``
+    Display copies in the status command.
 
 ``ssh``
     command to use for SSH connections. Default is ``ssh``.
@@ -1589,10 +1701,13 @@ The full set of options is:
     Default is 1; set to 0 to disable.
 
 ``style``
-    Which template map style to use.
+    Which template map style to use. The available options are the names of
+    subdirectories in the HTML templates path. Default is ``paper``.
+    Example: ``monoblue``
 
 ``templates``
-    Where to find the HTML templates. Default is install path.
+    Where to find the HTML templates. The default path to the HTML templates
+    can be obtained from ``hg debuginstall``.
 
 ``websub``
 ----------

@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "fetch=" >> $HGRCPATH
@@ -150,7 +150,7 @@ should merge f into g
 should abort, because i is modified
 
   $ hg --cwd i fetch ../h
-  abort: working directory is missing some files
+  abort: uncommitted changes
   [255]
 
 test fetch with named branches
@@ -339,7 +339,8 @@ pull in change on different branch than dirstate
   marked working directory as branch topic
   (branches are permanent and global, did you want a bookmark?)
   $ hg -R n2 fetch -m merge n1
-  abort: working dir not at branch tip (use "hg update" to check out branch tip)
+  abort: working directory not at branch tip
+  (use "hg update" to check out branch tip)
   [255]
 
 parent should be 0 (fetch did not update or merge anything)

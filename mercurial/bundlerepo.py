@@ -15,7 +15,8 @@ from node import nullid
 from i18n import _
 import os, tempfile, shutil
 import changegroup, util, mdiff, discovery, cmdutil, scmutil, exchange
-import localrepo, changelog, manifest, filelog, revlog, error
+import localrepo, changelog, manifest, filelog, revlog, error, phases, bundle2
+import pathutil
 
 class bundlerevlog(revlog.revlog):
     def __init__(self, opener, indexfile, bundle, linkmapper):
@@ -156,7 +157,15 @@ class bundlechangelog(bundlerevlog, changelog.changelog):
         # Although changelog doesn't override 'revision' method, some extensions
         # may replace this class with another that does. Same story with
         # manifest and filelog classes.
-        return changelog.changelog.revision(self, nodeorrev)
+
+        # This bypasses filtering on changelog.node() and rev() because we need
+        # revision text of the bundle base even if it is hidden.
+        oldfilter = self.filteredrevs
+        try:
+            self.filteredrevs = ()
+            return changelog.changelog.revision(self, nodeorrev)
+        finally:
+            self.filteredrevs = oldfilter
 
 class bundlemanifest(bundlerevlog, manifest.manifest):
     def __init__(self, opener, bundle, linkmapper):
@@ -177,12 +186,26 @@ class bundlefilelog(bundlerevlog, filelog.filelog):
     def baserevision(self, nodeorrev):
         return filelog.filelog.revision(self, nodeorrev)
 
-    def _file(self, f):
-        self._repo.file(f)
-
 class bundlepeer(localrepo.localpeer):
     def canpush(self):
         return False
+
+class bundlephasecache(phases.phasecache):
+    def __init__(self, *args, **kwargs):
+        super(bundlephasecache, self).__init__(*args, **kwargs)
+        if util.safehasattr(self, 'opener'):
+            self.opener = scmutil.readonlyvfs(self.opener)
+
+    def write(self):
+        raise NotImplementedError
+
+    def _write(self, fp):
+        raise NotImplementedError
+
+    def _updateroots(self, phase, newroots, tr):
+        self.phaseroots[phase] = newroots
+        self.invalidate()
+        self.dirty = True
 
 class bundlerepository(localrepo.localrepository):
     def __init__(self, ui, path, bundlename):
@@ -202,7 +225,7 @@ class bundlerepository(localrepo.localrepository):
 
         self.tempfile = None
         f = util.posixfile(bundlename, "rb")
-        self.bundle = exchange.readbundle(ui, f, bundlename)
+        self.bundlefile = self.bundle = exchange.readbundle(ui, f, bundlename)
         if self.bundle.compressed():
             fdtemp, temp = self.vfs.mkstemp(prefix="hg-bundle-",
                                             suffix=".hg10un")
@@ -220,16 +243,44 @@ class bundlerepository(localrepo.localrepository):
                 fptemp.close()
 
             f = self.vfs.open(self.tempfile, mode="rb")
-            self.bundle = exchange.readbundle(ui, f, bundlename, self.vfs)
+            self.bundlefile = self.bundle = exchange.readbundle(ui, f,
+                                                                bundlename,
+                                                                self.vfs)
+
+        if isinstance(self.bundle, bundle2.unbundle20):
+            cgparts = [part for part in self.bundle.iterparts()
+                       if (part.type == 'changegroup')
+                       and (part.params.get('version', '01')
+                            in changegroup.packermap)]
+
+            if not cgparts:
+                raise util.Abort('No changegroups found')
+            version = cgparts[0].params.get('version', '01')
+            cgparts = [p for p in cgparts
+                       if p.params.get('version', '01') == version]
+            if len(cgparts) > 1:
+                raise NotImplementedError("Can't process multiple changegroups")
+            part = cgparts[0]
+
+            part.seek(0)
+            self.bundle = changegroup.packermap[version][1](part, 'UN')
 
         # dict with the mapping 'filename' -> position in the bundle
         self.bundlefilespos = {}
+
+        self.firstnewrev = self.changelog.repotiprev + 1
+        phases.retractboundary(self, None, phases.draft,
+                               [ctx.node() for ctx in self[self.firstnewrev:]])
+
+    @localrepo.unfilteredpropertycache
+    def _phasecache(self):
+        return bundlephasecache(self, self._phasedefaults)
 
     @localrepo.unfilteredpropertycache
     def changelog(self):
         # consume the header if it exists
         self.bundle.changelogheader()
-        c = bundlechangelog(self.sopener, self.bundle)
+        c = bundlechangelog(self.svfs, self.bundle)
         self.manstart = self.bundle.tell()
         return c
 
@@ -238,7 +289,7 @@ class bundlerepository(localrepo.localrepository):
         self.bundle.seek(self.manstart)
         # consume the header if it exists
         self.bundle.manifestheader()
-        m = bundlemanifest(self.sopener, self.bundle, self.changelog.rev)
+        m = bundlemanifest(self.svfs, self.bundle, self.changelog.rev)
         self.filestart = self.bundle.tell()
         return m
 
@@ -271,14 +322,14 @@ class bundlerepository(localrepo.localrepository):
 
         if f in self.bundlefilespos:
             self.bundle.seek(self.bundlefilespos[f])
-            return bundlefilelog(self.sopener, f, self.bundle,
+            return bundlefilelog(self.svfs, f, self.bundle,
                                  self.changelog.rev, self)
         else:
-            return filelog.filelog(self.sopener, f)
+            return filelog.filelog(self.svfs, f)
 
     def close(self):
         """Close assigned bundle file immediately."""
-        self.bundle.close()
+        self.bundlefile.close()
         if self.tempfile is not None:
             self.vfs.unlink(self.tempfile)
         if self._tempparent:
@@ -310,7 +361,7 @@ def instance(ui, path, create):
         if parentpath == cwd:
             parentpath = ''
         else:
-            cwd = os.path.join(cwd,'')
+            cwd = pathutil.normasprefix(cwd)
             if parentpath.startswith(cwd):
                 parentpath = parentpath[len(cwd):]
     u = util.url(path)
@@ -324,6 +375,16 @@ def instance(ui, path, create):
     else:
         repopath, bundlename = parentpath, path
     return bundlerepository(ui, repopath, bundlename)
+
+class bundletransactionmanager(object):
+    def transaction(self):
+        return None
+
+    def close(self):
+        raise NotImplementedError
+
+    def release(self):
+        raise NotImplementedError
 
 def getremotechanges(ui, repo, other, onlyheads=None, bundlename=None,
                      force=False):
@@ -374,8 +435,11 @@ def getremotechanges(ui, repo, other, onlyheads=None, bundlename=None,
             rheads = None
         else:
             cg = other.changegroupsubset(incoming, rheads, 'incoming')
-        bundletype = localrepo and "HG10BZ" or "HG10UN"
-        fname = bundle = changegroup.writebundle(cg, bundlename, bundletype)
+        if localrepo:
+            bundletype = "HG10BZ"
+        else:
+            bundletype = "HG10UN"
+        fname = bundle = changegroup.writebundle(ui, cg, bundlename, bundletype)
         # keep written bundle?
         if bundlename:
             bundle = None
@@ -392,6 +456,14 @@ def getremotechanges(ui, repo, other, onlyheads=None, bundlename=None,
         localrepo = localrepo.unfiltered()
 
     csets = localrepo.changelog.findmissing(common, rheads)
+
+    if bundlerepo:
+        reponodes = [ctx.node() for ctx in bundlerepo[bundlerepo.firstnewrev:]]
+        remotephases = other.listkeys('phases')
+
+        pullop = exchange.pulloperation(bundlerepo, other, heads=reponodes)
+        pullop.trmanager = bundletransactionmanager()
+        exchange._pullapplyphases(pullop, remotephases)
 
     def cleanup():
         if bundlerepo:

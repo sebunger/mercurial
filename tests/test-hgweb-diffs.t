@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
 setting up repo
 
@@ -97,7 +97,8 @@ revision
   </tr>
   <tr>
    <th class="date">date</th>
-   <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td></tr>
+   <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td>
+  </tr>
   <tr>
    <th class="author">parents</th>
    <td class="author"></td>
@@ -115,11 +116,10 @@ revision
     <td class="diffstat">
        2 files changed, 2 insertions(+), 0 deletions(-)
   
-      <a id="diffstatexpand" href="javascript:toggleDiffstat()"/>[<tt>+</tt>]</a>
+      <a id="diffstatexpand" href="javascript:toggleDiffstat()">[<tt>+</tt>]</a>
       <div id="diffstatdetails" style="display:none;">
-        <a href="javascript:toggleDiffstat()"/>[<tt>-</tt>]</a>
-        <p>
-        <table class="stripes2">  <tr>
+        <a href="javascript:toggleDiffstat()">[<tt>-</tt>]</a>
+        <table class="diffstat-table stripes2">  <tr>
       <td class="diffstat-file"><a href="#l1.1">a</a></td>
       <td class="diffstat-total" align="right">1</td>
       <td class="diffstat-graph">
@@ -369,7 +369,8 @@ revision
   </tr>
   <tr>
    <th class="date">date</th>
-   <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td></tr>
+   <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td>
+  </tr>
   <tr>
    <th class="author">parents</th>
    <td class="author"></td>
@@ -387,11 +388,10 @@ revision
     <td class="diffstat">
        2 files changed, 2 insertions(+), 0 deletions(-)
   
-      <a id="diffstatexpand" href="javascript:toggleDiffstat()"/>[<tt>+</tt>]</a>
+      <a id="diffstatexpand" href="javascript:toggleDiffstat()">[<tt>+</tt>]</a>
       <div id="diffstatdetails" style="display:none;">
-        <a href="javascript:toggleDiffstat()"/>[<tt>-</tt>]</a>
-        <p>
-        <table class="stripes2">  <tr>
+        <a href="javascript:toggleDiffstat()">[<tt>-</tt>]</a>
+        <table class="diffstat-table stripes2">  <tr>
       <td class="diffstat-file"><a href="#l1.1">a</a></td>
       <td class="diffstat-total" align="right">1</td>
       <td class="diffstat-graph">

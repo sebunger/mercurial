@@ -44,13 +44,13 @@ Test status and dirstate of largefiles and that summary output is correct.
   $ sleep 1
   $ hg st
   $ hg debugstate --nodates
-  n 644         41 .hglf/large1
-  n 644         41 .hglf/sub/large2
-  n 644          8 normal1
-  n 644          8 sub/normal2
+  n 644         41 set                 .hglf/large1
+  n 644         41 set                 .hglf/sub/large2
+  n 644          8 set                 normal1
+  n 644          8 set                 sub/normal2
   $ hg debugstate --large --nodates
-  n 644          7 large1
-  n 644          7 sub/large2
+  n 644          7 set                 large1
+  n 644          7 set                 sub/large2
   $ echo normal11 > normal1
   $ echo normal22 > sub/normal2
   $ echo large11 > large1
@@ -491,9 +491,9 @@ Test addremove with -R
   $ echo "testing addremove with patterns" > testaddremove.dat
   $ echo "normaladdremove" > normaladdremove
   $ cd ..
-  $ hg -R a addremove
+  $ hg -R a -v addremove
   removing sub/large4
-  adding a/testaddremove.dat as a largefile (glob)
+  adding testaddremove.dat as a largefile
   removing normal3
   adding normaladdremove
   $ cd a
@@ -581,8 +581,6 @@ Test 3507 (both normal files and largefiles were a problem)
   C sub2/large6
   C sub2/large7
   $ hg up -C '.^'
-  getting changed largefiles
-  0 largefiles updated, 0 removed
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg remove large
   $ hg addremove --traceback
@@ -598,7 +596,7 @@ Test 3507 (both normal files and largefiles were a problem)
   C sub2/large6
   C sub2/large7
 
-Test commit -A (issue 3542)
+Test commit -A (issue3542)
   $ echo large8 > large8
   $ hg add --large large8
   $ hg ci -Am 'this used to add large8 as normal and commit both'
@@ -1097,6 +1095,17 @@ redo pull with --lfrev and check it pulls largefiles for the right revs
   all local heads known remotely
   6 changesets found
   adding changesets
+  uncompressed size of bundle content:
+      1213 (changelog)
+      1479 (manifests)
+       234  .hglf/large1
+       504  .hglf/large3
+       512  .hglf/sub/large4
+       162  .hglf/sub2/large6
+       162  .hglf/sub2/large7
+       192  normal1
+       397  normal3
+       405  sub/normal4
   adding manifests
   adding file changes
   added 6 changesets with 16 changes to 8 files
@@ -1172,12 +1181,12 @@ rebased or not.
   adding manifests
   adding file changes
   added 1 changesets with 2 changes to 2 files (+1 heads)
+  rebasing 8:f574fb32bb45 "modify normal file largefile in repo d"
   Invoking status precommit hook
   M sub/normal4
   M sub2/large6
-  saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-backup.hg (glob)
+  saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-dd1d9f80-backup.hg (glob)
   0 largefiles cached
-  nothing to rebase - working directory parent is also destination
   $ [ -f .hg/largefiles/e166e74c7303192238d60af5a9c4ce9bef0b7928 ]
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
@@ -1231,10 +1240,11 @@ rebased or not.
   added 1 changesets with 2 changes to 2 files (+1 heads)
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg rebase
+  rebasing 8:f574fb32bb45 "modify normal file largefile in repo d"
   Invoking status precommit hook
   M sub/normal4
   M sub2/large6
-  saved backup bundle to $TESTTMP/e/.hg/strip-backup/f574fb32bb45-backup.hg (glob)
+  saved backup bundle to $TESTTMP/e/.hg/strip-backup/f574fb32bb45-dd1d9f80-backup.hg (glob)
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
   8:a381d2c8c80e  modify normal file and largefile in repo b
@@ -1419,8 +1429,6 @@ Rollback on largefiles.
 
 verify that largefile .orig file no longer is overwritten on every update -C:
   $ hg update --clean
-  getting changed largefiles
-  0 largefiles updated, 0 removed
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat sub2/large7.orig
   mistake
@@ -1496,7 +1504,6 @@ revert some files to an older revision
   $ cat sub2/large6
   large6
   $ hg revert --no-backup -C -r '.^' sub2
-  reverting .hglf/sub2/large6 (glob)
   $ hg revert --no-backup sub2
   reverting .hglf/sub2/large6 (glob)
   $ hg status
@@ -1604,11 +1611,11 @@ Merge with revision with missing largefile - and make sure it tries to fetch it.
   A f
   created new head
   $ hg merge -r 6
-  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
   getting changed largefiles
   large3: largefile 7838695e10da2bb75ac1156565f40a2595fa2fa0 not available from file:/*/$TESTTMP/d (glob)
   1 largefiles updated, 0 removed
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
 
   $ hg rollback -q
   $ hg up -Cq
@@ -1662,10 +1669,10 @@ correctly.
   ancestor was 971fb41e78fea4f8e0ba5244784239371cb00591
   keep (l)ocal d846f26643bfa8ec210be40cc93cc6b7ff1128ea or
   take (o)ther e166e74c7303192238d60af5a9c4ce9bef0b7928? l
-  3 files updated, 1 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
   getting changed largefiles
   1 largefiles updated, 0 removed
+  3 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
   $ hg commit -m "Merge repos e and f"
   Invoking status precommit hook
   M normal3
@@ -1696,17 +1703,17 @@ Test status after merging with a branch that introduces a new largefile:
   M normal3
   created new head
   $ hg merge
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
   getting changed largefiles
   1 largefiles updated, 0 removed
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
   $ hg status
   M large
 
 - make sure update of merge with removed largefiles fails as expected
   $ hg rm sub2/large6
   $ hg up -r.
-  abort: outstanding uncommitted merges
+  abort: outstanding uncommitted merge
   [255]
 
 - revert should be able to revert files introduced in a pending merge
@@ -1720,7 +1727,7 @@ coexist.
   $ rm sub2/large7
   $ echo "largeasnormal" > sub2/large7
   $ hg add sub2/large7
-  sub2/large7 already a largefile
+  sub2/large7 already a largefile (glob)
 
 Test that transplanting a largefile change works correctly.
 
@@ -1742,8 +1749,6 @@ Test that transplanting a largefile change works correctly.
   adding manifests
   adding file changes
   added 1 changesets with 2 changes to 2 files
-  getting changed largefiles
-  1 largefiles updated, 0 removed
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
   8:a381d2c8c80e  modify normal file and largefile in repo b
@@ -1791,7 +1796,7 @@ Cat a standin
   $ hg cat .hglf/sub/large4
   e166e74c7303192238d60af5a9c4ce9bef0b7928
   $ hg cat .hglf/normal3
-  .hglf/normal3: no such file in rev 598410d3eb9a
+  .hglf/normal3: no such file in rev 598410d3eb9a (glob)
   [1]
 
 Test that renaming a largefile results in correct output for status

@@ -21,7 +21,7 @@
 #endif
 
 [Setup]
-AppCopyright=Copyright 2005-2010 Matt Mackall and others
+AppCopyright=Copyright 2005-2015 Matt Mackall and others
 AppName=Mercurial
 #if ARCH == "x64"
 AppVerName=Mercurial {#VERSION} (64-bit)
@@ -44,7 +44,7 @@ AppContact=mercurial@selenic.com
 DefaultDirName={pf}\Mercurial
 SourceDir=..\..
 VersionInfoDescription=Mercurial distributed SCM (version {#VERSION})
-VersionInfoCopyright=Copyright 2005-2010 Matt Mackall and others
+VersionInfoCopyright=Copyright 2005-2015 Matt Mackall and others
 VersionInfoCompany=Matt Mackall and others
 InternalCompressLevel=max
 SolidCompression=true
@@ -67,8 +67,6 @@ Source: contrib\mq.el; DestDir: {app}/Contrib
 Source: contrib\hgweb.fcgi; DestDir: {app}/Contrib
 Source: contrib\hgweb.wsgi; DestDir: {app}/Contrib
 Source: contrib\win32\ReadMe.html; DestDir: {app}; Flags: isreadme
-Source: contrib\mergetools.hgrc; DestDir: {tmp};
-Source: contrib\win32\mercurial.ini; DestDir: {app}; DestName: Mercurial.ini; Check: CheckFile; AfterInstall: ConcatenateFiles;
 Source: contrib\win32\postinstall.txt; DestDir: {app}; DestName: ReleaseNotes.txt
 Source: dist\hg.exe; DestDir: {app}; AfterInstall: Touch('{app}\hg.exe.local')
 #if ARCH == "x64"
@@ -82,10 +80,10 @@ Source: dist\w9xpopen.exe; DestDir: {app}
 Source: dist\Microsoft.VC*.CRT.manifest; DestDir: {app}; Flags: skipifsourcedoesntexist
 Source: dist\library.zip; DestDir: {app}
 Source: dist\add_path.exe; DestDir: {app}
-Source: dist\cacert.pem; Destdir: {app}
 Source: doc\*.html; DestDir: {app}\Docs
 Source: doc\style.css; DestDir: {app}\Docs
 Source: mercurial\help\*.txt; DestDir: {app}\help
+Source: mercurial\default.d\*.rc; DestDir: {app}\default.d
 Source: mercurial\locale\*.*; DestDir: {app}\locale; Flags: recursesubdirs createallsubdirs skipifsourcedoesntexist
 Source: mercurial\templates\*.*; DestDir: {app}\Templates; Flags: recursesubdirs createallsubdirs
 Source: CONTRIBUTORS; DestDir: {app}; DestName: Contributors.txt
@@ -93,10 +91,12 @@ Source: COPYING; DestDir: {app}; DestName: Copying.txt
 
 [INI]
 Filename: {app}\Mercurial.url; Section: InternetShortcut; Key: URL; String: http://mercurial.selenic.com/
-Filename: {app}\Mercurial.ini; Section: web; Key: cacerts; String: {app}\cacert.pem
+Filename: {app}\default.d\editor.rc; Section: ui; Key: editor; String: notepad
 
 [UninstallDelete]
 Type: files; Name: {app}\Mercurial.url
+Type: filesandordirs; Name: {app}\default.d
+Type: files; Name: "{app}\hg.exe.local"
 
 [Icons]
 Name: {group}\Uninstall Mercurial; Filename: {uninstallexe}
@@ -111,35 +111,7 @@ Filename: "{app}\add_path.exe"; Parameters: "{app}"; Flags: postinstall; Descrip
 [UninstallRun]
 Filename: "{app}\add_path.exe"; Parameters: "/del {app}"
 
-[UninstallDelete]
-Type: files; Name: "{app}\hg.exe.local"
-
 [Code]
-var
-  WriteFile: Boolean;
-  CheckDone: Boolean;
-
-function CheckFile(): Boolean;
-begin
-  if not CheckDone then begin
-    WriteFile := True;
-    if FileExists(ExpandConstant(CurrentFileName)) then begin
-        WriteFile := MsgBox('' + ExpandConstant(CurrentFileName) + '' #13#13 'The file already exists.' #13#13 'Would you like Setup to overwrite it?', mbConfirmation, MB_YESNO) = idYes;
-    end;
-    CheckDone := True;
-  end;
-  Result := WriteFile;
-end;
-
-procedure ConcatenateFiles();
-var
-  MergeConfigs: TArrayOfString;
-begin
-  if LoadStringsFromFile(ExpandConstant('{tmp}\mergetools.hgrc'),MergeConfigs) then begin
-    SaveStringsToFile(ExpandConstant(CurrentFileName),MergeConfigs,True);
-  end;
-end;
-
 procedure Touch(fn: String);
 begin
   SaveStringToFile(ExpandConstant(fn), '', False);

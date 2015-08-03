@@ -1,17 +1,13 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
   $ cat << EOF >> $HGRCPATH
   > [ui]
   > logtemplate={rev}:{node|short} {desc|firstline}
   > [phases]
   > publish=False
-  > [extensions]
+  > [experimental]
+  > evolution=createmarkers,exchange
   > EOF
-  $ cat > obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
-  > EOF
-  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
 
 initialize
 
@@ -58,10 +54,20 @@ import bookmark by name
   X	4e3505fd95835d721066b76e75dbb8cc554d7f77
   Y	4e3505fd95835d721066b76e75dbb8cc554d7f77
   Z	4e3505fd95835d721066b76e75dbb8cc554d7f77
+
+delete the bookmark to re-pull it
+
+  $ hg book -d X
   $ hg pull -B X ../a
   pulling from ../a
   no changes found
-  importing bookmark X
+  adding remote bookmark X
+
+finally no-op pull
+
+  $ hg pull -B X ../a
+  pulling from ../a
+  no changes found
   $ hg bookmark
      X                         0:4e3505fd9583
    * Y                         0:4e3505fd9583
@@ -99,8 +105,8 @@ push/pull name that doesn't exist
   $ hg push -B badname ../a
   pushing to ../a
   searching for changes
-  no changes found
   bookmark badname does not exist on the local or remote repository!
+  no changes found
   [2]
   $ hg pull -B anotherbadname ../a
   pulling from ../a
@@ -158,6 +164,40 @@ divergent bookmarks
      Z                         2:0d2164f0ce0d
      foo                       -1:000000000000
    * foobar                    1:9b140be10808
+
+(test that too many divergence of bookmark)
+
+  $ python $TESTDIR/seq.py 1 100 | while read i; do hg bookmarks -r 000000000000 "X@${i}"; done
+  $ hg pull ../a
+  pulling from ../a
+  searching for changes
+  no changes found
+  warning: failed to assign numbered name to divergent bookmark X
+  divergent bookmark @ stored as @1
+  $ hg bookmarks | grep '^   X' | grep -v ':000000000000'
+     X                         1:9b140be10808
+     X@foo                     2:0d2164f0ce0d
+
+(test that remotely diverged bookmarks are reused if they aren't changed)
+
+  $ hg bookmarks | grep '^   @'
+     @                         1:9b140be10808
+     @1                        2:0d2164f0ce0d
+     @foo                      2:0d2164f0ce0d
+  $ hg pull ../a
+  pulling from ../a
+  searching for changes
+  no changes found
+  warning: failed to assign numbered name to divergent bookmark X
+  divergent bookmark @ stored as @1
+  $ hg bookmarks | grep '^   @'
+     @                         1:9b140be10808
+     @1                        2:0d2164f0ce0d
+     @foo                      2:0d2164f0ce0d
+
+  $ python $TESTDIR/seq.py 1 100 | while read i; do hg bookmarks -d "X@${i}"; done
+  $ hg bookmarks -d "@1"
+
   $ hg push -f ../a
   pushing to ../a
   searching for changes
@@ -170,6 +210,18 @@ divergent bookmarks
    * X                         1:0d2164f0ce0d
      Y                         0:4e3505fd9583
      Z                         1:0d2164f0ce0d
+
+explicit pull should overwrite the local version (issue4439)
+
+  $ hg pull --config paths.foo=../a foo -B X
+  pulling from $TESTTMP/a (glob)
+  no changes found
+  divergent bookmark @ stored as @foo
+  importing bookmark X
+
+reinstall state for further testing:
+
+  $ hg book -fr 9b140be10808 X
 
 revsets should not ignore divergent bookmarks
 
@@ -350,18 +402,23 @@ hgweb
   $ hg out -B http://localhost:$HGPORT/
   comparing with http://localhost:$HGPORT/
   searching for changed bookmarks
-  no changed bookmarks found
-  [1]
+     @                         0d2164f0ce0d
+     X                         0d2164f0ce0d
+     Z                         0d2164f0ce0d
+     foo                                   
+     foobar                                
   $ hg push -B Z http://localhost:$HGPORT/
   pushing to http://localhost:$HGPORT/
   searching for changes
   no changes found
-  exporting bookmark Z
+  updating bookmark Z
   [1]
   $ hg book -d Z
   $ hg in -B http://localhost:$HGPORT/
   comparing with http://localhost:$HGPORT/
   searching for changed bookmarks
+     @                         9b140be10808
+     X                         9b140be10808
      Z                         0d2164f0ce0d
      foo                       000000000000
      foobar                    9b140be10808
@@ -373,7 +430,6 @@ hgweb
   adding remote bookmark Z
   adding remote bookmark foo
   adding remote bookmark foobar
-  importing bookmark Z
   $ hg clone http://localhost:$HGPORT/ cloned-bookmarks
   requesting all changes
   adding changesets
@@ -389,6 +445,121 @@ hgweb
      Z                         2:0d2164f0ce0d
      foo                       -1:000000000000
      foobar                    1:9b140be10808
+
+  $ cd ..
+
+Test to show result of bookmarks comparision
+
+  $ mkdir bmcomparison
+  $ cd bmcomparison
+
+  $ hg init source
+  $ hg -R source debugbuilddag '+2*2*3*4'
+  $ hg -R source log -G --template '{rev}:{node|short}'
+  o  4:e7bd5218ca15
+  |
+  | o  3:6100d3090acf
+  |/
+  | o  2:fa942426a6fd
+  |/
+  | o  1:66f7d451a68b
+  |/
+  o  0:1ea73414a91b
+  
+  $ hg -R source bookmarks -r 0 SAME
+  $ hg -R source bookmarks -r 0 ADV_ON_REPO1
+  $ hg -R source bookmarks -r 0 ADV_ON_REPO2
+  $ hg -R source bookmarks -r 0 DIFF_ADV_ON_REPO1
+  $ hg -R source bookmarks -r 0 DIFF_ADV_ON_REPO2
+  $ hg -R source bookmarks -r 1 DIVERGED
+
+  $ hg clone -U source repo1
+
+(test that incoming/outgoing exit with 1, if there is no bookmark to
+be excahnged)
+
+  $ hg -R repo1 incoming -B
+  comparing with $TESTTMP/bmcomparison/source
+  searching for changed bookmarks
+  no changed bookmarks found
+  [1]
+  $ hg -R repo1 outgoing -B
+  comparing with $TESTTMP/bmcomparison/source
+  searching for changed bookmarks
+  no changed bookmarks found
+  [1]
+
+  $ hg -R repo1 bookmarks -f -r 1 ADD_ON_REPO1
+  $ hg -R repo1 bookmarks -f -r 2 ADV_ON_REPO1
+  $ hg -R repo1 bookmarks -f -r 3 DIFF_ADV_ON_REPO1
+  $ hg -R repo1 bookmarks -f -r 3 DIFF_DIVERGED
+  $ hg -R repo1 -q --config extensions.mq= strip 4
+  $ hg -R repo1 log -G --template '{node|short} ({bookmarks})'
+  o  6100d3090acf (DIFF_ADV_ON_REPO1 DIFF_DIVERGED)
+  |
+  | o  fa942426a6fd (ADV_ON_REPO1)
+  |/
+  | o  66f7d451a68b (ADD_ON_REPO1 DIVERGED)
+  |/
+  o  1ea73414a91b (ADV_ON_REPO2 DIFF_ADV_ON_REPO2 SAME)
+  
+
+  $ hg clone -U source repo2
+  $ hg -R repo2 bookmarks -f -r 1 ADD_ON_REPO2
+  $ hg -R repo2 bookmarks -f -r 1 ADV_ON_REPO2
+  $ hg -R repo2 bookmarks -f -r 2 DIVERGED
+  $ hg -R repo2 bookmarks -f -r 4 DIFF_ADV_ON_REPO2
+  $ hg -R repo2 bookmarks -f -r 4 DIFF_DIVERGED
+  $ hg -R repo2 -q --config extensions.mq= strip 3
+  $ hg -R repo2 log -G --template '{node|short} ({bookmarks})'
+  o  e7bd5218ca15 (DIFF_ADV_ON_REPO2 DIFF_DIVERGED)
+  |
+  | o  fa942426a6fd (DIVERGED)
+  |/
+  | o  66f7d451a68b (ADD_ON_REPO2 ADV_ON_REPO2)
+  |/
+  o  1ea73414a91b (ADV_ON_REPO1 DIFF_ADV_ON_REPO1 SAME)
+  
+
+(test that difference of bookmarks between repositories are fully shown)
+
+  $ hg -R repo1 incoming -B repo2 -v
+  comparing with repo2
+  searching for changed bookmarks
+     ADD_ON_REPO2              66f7d451a68b added
+     ADV_ON_REPO2              66f7d451a68b advanced
+     DIFF_ADV_ON_REPO2         e7bd5218ca15 changed
+     DIFF_DIVERGED             e7bd5218ca15 changed
+     DIVERGED                  fa942426a6fd diverged
+  $ hg -R repo1 outgoing -B repo2 -v
+  comparing with repo2
+  searching for changed bookmarks
+     ADD_ON_REPO1              66f7d451a68b added
+     ADD_ON_REPO2                           deleted
+     ADV_ON_REPO1              fa942426a6fd advanced
+     DIFF_ADV_ON_REPO1         6100d3090acf advanced
+     DIFF_ADV_ON_REPO2         1ea73414a91b changed
+     DIFF_DIVERGED             6100d3090acf changed
+     DIVERGED                  66f7d451a68b diverged
+
+  $ hg -R repo2 incoming -B repo1 -v
+  comparing with repo1
+  searching for changed bookmarks
+     ADD_ON_REPO1              66f7d451a68b added
+     ADV_ON_REPO1              fa942426a6fd advanced
+     DIFF_ADV_ON_REPO1         6100d3090acf changed
+     DIFF_DIVERGED             6100d3090acf changed
+     DIVERGED                  66f7d451a68b diverged
+  $ hg -R repo2 outgoing -B repo1 -v
+  comparing with repo1
+  searching for changed bookmarks
+     ADD_ON_REPO1                           deleted
+     ADD_ON_REPO2              66f7d451a68b added
+     ADV_ON_REPO2              66f7d451a68b advanced
+     DIFF_ADV_ON_REPO1         1ea73414a91b changed
+     DIFF_ADV_ON_REPO2         e7bd5218ca15 advanced
+     DIFF_DIVERGED             e7bd5218ca15 changed
+     DIVERGED                  fa942426a6fd diverged
 
   $ cd ..
 
@@ -443,4 +614,110 @@ pushing a new bookmark on a new head does not require -f if -B is specified
   $ hg -R ../b id -r W
   cc978a373a53 tip W
 
+Check summary output for incoming/outgoing bookmarks
+
+  $ hg bookmarks -d X
+  $ hg bookmarks -d Y
+  $ hg summary --remote | grep '^remote:'
+  remote: *, 2 incoming bookmarks, 1 outgoing bookmarks (glob)
+
   $ cd ..
+
+pushing an unchanged bookmark should result in no changes
+
+  $ hg init unchanged-a
+  $ hg init unchanged-b
+  $ cd unchanged-a
+  $ echo initial > foo
+  $ hg commit -A -m initial
+  adding foo
+  $ hg bookmark @
+  $ hg push -B @ ../unchanged-b
+  pushing to ../unchanged-b
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  exporting bookmark @
+
+  $ hg push -B @ ../unchanged-b
+  pushing to ../unchanged-b
+  searching for changes
+  no changes found
+  [1]
+
+
+Check hook preventing push (issue4455)
+======================================
+
+  $ hg bookmarks
+   * @                         0:55482a6fb4b1
+  $ hg log -G
+  @  0:55482a6fb4b1 initial
+  
+  $ hg init ../issue4455-dest
+  $ hg push ../issue4455-dest # changesets only
+  pushing to ../issue4455-dest
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  $ cat >> .hg/hgrc << EOF
+  > [paths]
+  > local=../issue4455-dest/
+  > ssh=ssh://user@dummy/issue4455-dest
+  > http=http://localhost:$HGPORT/
+  > [ui]
+  > ssh=python "$TESTDIR/dummyssh"
+  > EOF
+  $ cat >> ../issue4455-dest/.hg/hgrc << EOF
+  > [hooks]
+  > prepushkey=false
+  > [web]
+  > push_ssl = false
+  > allow_push = *
+  > EOF
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+  $ hg -R ../issue4455-dest serve -p $HGPORT -d --pid-file=../issue4455.pid -E ../issue4455-error.log
+  $ cat ../issue4455.pid >> $DAEMON_PIDS
+
+Local push
+----------
+
+  $ hg push -B @ local
+  pushing to $TESTTMP/issue4455-dest (glob)
+  searching for changes
+  no changes found
+  pushkey-abort: prepushkey hook exited with status 1
+  exporting bookmark @ failed!
+  [1]
+  $ hg -R ../issue4455-dest/ bookmarks
+  no bookmarks set
+
+Using ssh
+---------
+
+  $ hg push -B @ ssh
+  pushing to ssh://user@dummy/issue4455-dest
+  searching for changes
+  no changes found
+  remote: pushkey-abort: prepushkey hook exited with status 1
+  exporting bookmark @ failed!
+  [1]
+  $ hg -R ../issue4455-dest/ bookmarks
+  no bookmarks set
+
+Using http
+----------
+
+  $ hg push -B @ http
+  pushing to http://localhost:$HGPORT/
+  searching for changes
+  no changes found
+  remote: pushkey-abort: prepushkey hook exited with status 1
+  exporting bookmark @ failed!
+  [1]
+  $ hg -R ../issue4455-dest/ bookmarks
+  no bookmarks set

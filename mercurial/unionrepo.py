@@ -15,7 +15,7 @@ from node import nullid
 from i18n import _
 import os
 import util, mdiff, cmdutil, scmutil
-import localrepo, changelog, manifest, filelog, revlog
+import localrepo, changelog, manifest, filelog, revlog, pathutil
 
 class unionrevlog(revlog.revlog):
     def __init__(self, opener, indexfile, revlog2, linkmapper):
@@ -160,8 +160,11 @@ class unionfilelog(unionrevlog, filelog.filelog):
     def baserevdiff(self, rev1, rev2):
         return filelog.filelog.revdiff(self, rev1, rev2)
 
-    def _file(self, f):
-        self._repo.file(f)
+    def iscensored(self, rev):
+        """Check if a revision is censored."""
+        if rev <= self.repotiprev:
+            return filelog.filelog.iscensored(self, rev)
+        return self.revlog2.iscensored(rev)
 
 class unionpeer(localrepo.localpeer):
     def canpush(self):
@@ -178,7 +181,7 @@ class unionrepository(localrepo.localrepository):
 
     @localrepo.unfilteredpropertycache
     def changelog(self):
-        return unionchangelog(self.sopener, self.repo2.sopener)
+        return unionchangelog(self.svfs, self.repo2.svfs)
 
     def _clrev(self, rev2):
         """map from repo2 changelog rev to temporary rev in self.changelog"""
@@ -187,14 +190,14 @@ class unionrepository(localrepo.localrepository):
 
     @localrepo.unfilteredpropertycache
     def manifest(self):
-        return unionmanifest(self.sopener, self.repo2.sopener,
+        return unionmanifest(self.svfs, self.repo2.svfs,
                              self._clrev)
 
     def url(self):
         return self._url
 
     def file(self, f):
-        return unionfilelog(self.sopener, f, self.repo2.sopener,
+        return unionfilelog(self.svfs, f, self.repo2.svfs,
                             self._clrev, self)
 
     def close(self):
@@ -225,7 +228,7 @@ def instance(ui, path, create):
         if parentpath == cwd:
             parentpath = ''
         else:
-            cwd = os.path.join(cwd,'')
+            cwd = pathutil.normasprefix(cwd)
             if parentpath.startswith(cwd):
                 parentpath = parentpath[len(cwd):]
     if path.startswith('union:'):

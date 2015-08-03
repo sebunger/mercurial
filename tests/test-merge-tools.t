@@ -30,6 +30,14 @@ revision 3 - simple to merge
   $ echo "revision 3" >> f
   $ hg commit -Am "revision 3"
   created new head
+
+revision 4 - hard to merge
+
+  $ hg update 0 > /dev/null
+  $ echo "revision 4" > f
+  $ hg commit -Am "revision 4"
+  created new head
+
   $ echo "[merge-tools]" > .hg/hgrc
 
   $ beforemerge() {
@@ -97,9 +105,11 @@ simplest hgrc using false for merge:
   M f
   ? f.orig
 
+#if unix-permissions
+
 unexecutable file in $PATH shouldn't be found:
 
-  $ touch false
+  $ echo "echo fail" > false
   $ hg up -qC 1
   $ PATH="`pwd`:$BINDIR" $PYTHON "$BINDIR"/hg merge -r 2
   merging f
@@ -109,6 +119,8 @@ unexecutable file in $PATH shouldn't be found:
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]
   $ rm false
+
+#endif
 
 executable directory in $PATH shouldn't be found:
 
@@ -417,7 +429,7 @@ ui.merge specifies internal:fail:
   # hg stat
   M f
 
-ui.merge specifies internal:local:
+ui.merge specifies :local (without internal prefix):
 
   $ beforemerge
   [merge-tools]
@@ -425,7 +437,7 @@ ui.merge specifies internal:local:
   true.priority=1
   true.executable=cat
   # hg update -C 1
-  $ hg merge -r 2 --config ui.merge=internal:local
+  $ hg merge -r 2 --config ui.merge=:local
   0 files updated, 1 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ aftermerge
@@ -595,7 +607,17 @@ update is a merge ...
   true.priority=1
   true.executable=cat
   # hg update -C 1
-  $ hg debugsetparent 0
+  $ hg update -q 0
+  $ f -s f
+  f: size=17
+  $ touch -t 200001010000 f
+  $ hg status f
+  $ hg revert -q -r 1 .
+  $ f -s f
+  f: size=17
+  $ touch -t 200001010000 f
+  $ hg status f
+  M f
   $ hg update -r 2
   merging f
   revision 1
@@ -620,7 +642,17 @@ update should also have --tool
   true.priority=1
   true.executable=cat
   # hg update -C 1
-  $ hg debugsetparent 0
+  $ hg update -q 0
+  $ f -s f
+  f: size=17
+  $ touch -t 200001010000 f
+  $ hg status f
+  $ hg revert -q -r 1 .
+  $ f -s f
+  f: size=17
+  $ touch -t 200001010000 f
+  $ hg status f
+  M f
   $ hg update -r 2 --tool false
   merging f
   merging f failed!
@@ -700,6 +732,77 @@ Default is silent simplemerge:
   space
   # hg stat
   M f
+
+premerge=keep keeps conflict markers in:
+
+  $ beforemerge
+  [merge-tools]
+  false.whatever=
+  true.priority=1
+  true.executable=cat
+  # hg update -C 1
+  $ hg merge -r 4 --config merge-tools.true.premerge=keep
+  merging f
+  <<<<<<< local: ef83787e2614  - test: revision 1
+  revision 1
+  space
+  =======
+  revision 4
+  >>>>>>> other: 81448d39c9a0 - test: revision 4
+  revision 0
+  space
+  revision 4
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ aftermerge
+  # cat f
+  <<<<<<< local: ef83787e2614  - test: revision 1
+  revision 1
+  space
+  =======
+  revision 4
+  >>>>>>> other: 81448d39c9a0 - test: revision 4
+  # hg stat
+  M f
+
+premerge=keep-merge3 keeps conflict markers with base content:
+
+  $ beforemerge
+  [merge-tools]
+  false.whatever=
+  true.priority=1
+  true.executable=cat
+  # hg update -C 1
+  $ hg merge -r 4 --config merge-tools.true.premerge=keep-merge3
+  merging f
+  <<<<<<< local: ef83787e2614  - test: revision 1
+  revision 1
+  space
+  ||||||| base
+  revision 0
+  space
+  =======
+  revision 4
+  >>>>>>> other: 81448d39c9a0 - test: revision 4
+  revision 0
+  space
+  revision 4
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ aftermerge
+  # cat f
+  <<<<<<< local: ef83787e2614  - test: revision 1
+  revision 1
+  space
+  ||||||| base
+  revision 0
+  space
+  =======
+  revision 4
+  >>>>>>> other: 81448d39c9a0 - test: revision 4
+  # hg stat
+  M f
+
 
 Tool execution
 
@@ -832,17 +935,17 @@ for Unix-like permission)
   true.priority=1
   true.executable=cat
   # hg update -C 1
-  $ echo "revision 4" > '"; exit 1; echo "'
-  $ hg commit -Am "revision 4"
-  adding "; exit 1; echo "
-  warning: filename contains '"', which is reserved on Windows: '"; exit 1; echo "'
-  $ hg update -C 1 > /dev/null
   $ echo "revision 5" > '"; exit 1; echo "'
   $ hg commit -Am "revision 5"
   adding "; exit 1; echo "
   warning: filename contains '"', which is reserved on Windows: '"; exit 1; echo "'
+  $ hg update -C 1 > /dev/null
+  $ echo "revision 6" > '"; exit 1; echo "'
+  $ hg commit -Am "revision 6"
+  adding "; exit 1; echo "
+  warning: filename contains '"', which is reserved on Windows: '"; exit 1; echo "'
   created new head
-  $ hg merge --config merge-tools.true.executable="true" -r 4
+  $ hg merge --config merge-tools.true.executable="true" -r 5
   merging "; exit 1; echo "
   0 files updated, 1 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -891,7 +994,7 @@ internal merge cannot handle symlinks and shouldn't try:
   $ hg commit -qm 'f is symlink'
   $ hg merge -r 2 --tool internal:merge
   merging f
-  warning: internal:merge cannot merge symlinks for f
+  warning: internal :merge cannot merge symlinks for f
   merging f incomplete! (edit conflicts, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon

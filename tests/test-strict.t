@@ -28,7 +28,7 @@
    forget        forget the specified files on the next commit
    init          create a new repository in the given directory
    log           show revision history of entire repository or files
-   merge         merge working directory with another revision
+   merge         merge another revision into working directory
    pull          pull changes from the specified source
    push          push changes to the specified destination
    remove        remove the specified files on the next commit
@@ -37,7 +37,7 @@
    summary       summarize working directory state
    update        update working directory (or switch revisions)
   
-  use "hg help" for the full list of commands or "hg -v" for details
+  (use "hg help" for the full list of commands or "hg -v" for details)
   [255]
   $ hg annotate a
   0: a

@@ -1,7 +1,9 @@
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "color=" >> $HGRCPATH
-  $ echo "[color]" >> $HGRCPATH
-  $ echo "mode=ansi" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > color =
+  > [color]
+  > mode = ansi
+  > EOF
 Terminfo codes compatibility fix
   $ echo "color.none=0" >> $HGRCPATH
 
@@ -19,6 +21,14 @@ hg status in repo root:
   \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4mb/2/in_b_2\x1b[0m (esc)
   \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4mb/in_b\x1b[0m (esc)
   \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4min_root\x1b[0m (esc)
+
+  $ hg status --color=debug
+  [status.unknown|? ][status.unknown|a/1/in_a_1]
+  [status.unknown|? ][status.unknown|a/in_a]
+  [status.unknown|? ][status.unknown|b/1/in_b_1]
+  [status.unknown|? ][status.unknown|b/2/in_b_2]
+  [status.unknown|? ][status.unknown|b/in_b]
+  [status.unknown|? ][status.unknown|in_root]
 
 hg status . in repo root:
 
@@ -137,6 +147,18 @@ Make sure ui.formatted=False works
   adding deleted
   adding modified
   adding removed
+  $ hg log --color=debug
+  [log.changeset changeset.draft|changeset:   0:389aef86a55e]
+  [log.tag|tag:         tip]
+  [log.user|user:        test]
+  [log.date|date:        Thu Jan 01 00:00:00 1970 +0000]
+  [log.summary|summary:     initial checkin]
+  
+Labels on empty strings should not be displayed, labels on custom
+templates should be.
+
+  $ hg log --color=debug -T '{label("my.label",author)}\n{label("skipped.label","")}'
+  [my.label|test]
   $ touch modified added unknown ignored
   $ hg add added
   $ hg remove removed
@@ -316,8 +338,8 @@ test 'resolve -l'
 hg resolve with one unresolved, one resolved:
 
   $ hg resolve --color=always -l
-  \x1b[0;31;1mU a\x1b[0m (esc)
-  \x1b[0;32;1mR b\x1b[0m (esc)
+  \x1b[0;31;1mU \x1b[0m\x1b[0;31;1ma\x1b[0m (esc)
+  \x1b[0;32;1mR \x1b[0m\x1b[0;32;1mb\x1b[0m (esc)
 
 color coding of error message with current availability of curses
 

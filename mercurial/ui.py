@@ -10,11 +10,74 @@ import errno, getpass, os, socket, sys, tempfile, traceback
 import config, scmutil, util, error, formatter
 from node import hex
 
+samplehgrcs = {
+    'user':
+"""# example user config (see "hg help config" for more info)
+[ui]
+# name and email, e.g.
+# username = Jane Doe <jdoe@example.com>
+username =
+
+[extensions]
+# uncomment these lines to enable some popular extensions
+# (see "hg help extensions" for more info)
+#
+# pager =
+# progress =
+# color =""",
+
+    'cloned':
+"""# example repository config (see "hg help config" for more info)
+[paths]
+default = %s
+
+# path aliases to other clones of this repo in URLs or filesystem paths
+# (see "hg help config.paths" for more info)
+#
+# default-push = ssh://jdoe@example.net/hg/jdoes-fork
+# my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
+# my-clone     = /home/jdoe/jdoes-clone
+
+[ui]
+# name and email (local to this repository, optional), e.g.
+# username = Jane Doe <jdoe@example.com>
+""",
+
+    'local':
+"""# example repository config (see "hg help config" for more info)
+[paths]
+# path aliases to other clones of this repo in URLs or filesystem paths
+# (see "hg help config.paths" for more info)
+#
+# default      = http://example.com/hg/example-repo
+# default-push = ssh://jdoe@example.net/hg/jdoes-fork
+# my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
+# my-clone     = /home/jdoe/jdoes-clone
+
+[ui]
+# name and email (local to this repository, optional), e.g.
+# username = Jane Doe <jdoe@example.com>
+""",
+
+    'global':
+"""# example system-wide hg config (see "hg help config" for more info)
+
+[extensions]
+# uncomment these lines to enable some popular extensions
+# (see "hg help extensions" for more info)
+#
+# blackbox =
+# progress =
+# color =
+# pager =""",
+}
+
 class ui(object):
     def __init__(self, src=None):
         # _buffers: used for temporary capture of output
         self._buffers = []
-        # _bufferstates: Should the temporary capture includes stderr
+        # _bufferstates:
+        #   should the temporary capture include stderr and subprocess output
         self._bufferstates = []
         self.quiet = self.verbose = self.debugflag = self.tracebackflag = False
         self._reportuntrusted = True
@@ -96,7 +159,7 @@ class ui(object):
 
         if self.plain():
             for k in ('debug', 'fallbackencoding', 'quiet', 'slash',
-                      'logtemplate', 'style',
+                      'logtemplate', 'statuscopies', 'style',
                       'traceback', 'verbose'):
                 if k in cfg['ui']:
                     del cfg['ui'][k]
@@ -106,6 +169,9 @@ class ui(object):
         if self.plain('alias'):
             for k, v in cfg.items('alias'):
                 del cfg['alias'][k]
+        if self.plain('revsetalias'):
+            for k, v in cfg.items('revsetalias'):
+                del cfg['revsetalias'][k]
 
         if trusted:
             self._tcfg.update(cfg)
@@ -469,17 +535,24 @@ class ui(object):
         if util.hasscheme(loc) or os.path.isdir(os.path.join(loc, '.hg')):
             return loc
 
-        path = self.config('paths', loc)
-        if not path and default is not None:
-            path = self.config('paths', default)
-        return path or loc
+        p = self.paths.getpath(loc, default=default)
+        if p:
+            return p.loc
+        return loc
 
-    def pushbuffer(self, error=False):
-        """install a buffer to capture standar output of the ui object
+    @util.propertycache
+    def paths(self):
+        return paths(self)
 
-        If error is True, the error output will be captured too."""
+    def pushbuffer(self, error=False, subproc=False):
+        """install a buffer to capture standard output of the ui object
+
+        If error is True, the error output will be captured too.
+
+        If subproc is True, output from subprocesses (typically hooks) will be
+        captured too."""
         self._buffers.append([])
-        self._bufferstates.append(error)
+        self._bufferstates.append((error, subproc))
 
     def popbuffer(self, labeled=False):
         '''pop the last buffer and return the buffered output
@@ -519,7 +592,7 @@ class ui(object):
 
     def write_err(self, *args, **opts):
         try:
-            if self._bufferstates and self._bufferstates[-1]:
+            if self._bufferstates and self._bufferstates[-1][0]:
                 return self.write(*args, **opts)
             if not getattr(self.fout, 'closed', False):
                 self.fout.flush()
@@ -626,6 +699,8 @@ class ui(object):
         oldout = sys.stdout
         sys.stdin = self.fin
         sys.stdout = self.fout
+        # prompt ' ' must exist; otherwise readline may delete entire line
+        # - http://bugs.python.org/issue12833
         line = raw_input(' ')
         sys.stdin = oldin
         sys.stdout = oldout
@@ -646,7 +721,9 @@ class ui(object):
         try:
             r = self._readline(self.label(msg, 'ui.prompt'))
             if not r:
-                return default
+                r = default
+            if self.configbool('ui', 'promptecho'):
+                self.write(r, "\n")
             return r
         except EOFError:
             raise util.Abort(_('response expected'))
@@ -728,7 +805,7 @@ class ui(object):
         if self.debugflag:
             opts['label'] = opts.get('label', '') + ' ui.debug'
             self.write(*msg, **opts)
-    def edit(self, text, user, extra={}):
+    def edit(self, text, user, extra={}, editform=None):
         (fd, name) = tempfile.mkstemp(prefix="hg-editor-", suffix=".txt",
                                       text=True)
         try:
@@ -739,17 +816,18 @@ class ui(object):
             environ = {'HGUSER': user}
             if 'transplant_source' in extra:
                 environ.update({'HGREVISION': hex(extra['transplant_source'])})
-            for label in ('source', 'rebase_source'):
+            for label in ('intermediate-source', 'source', 'rebase_source'):
                 if label in extra:
                     environ.update({'HGREVISION': extra[label]})
                     break
+            if editform:
+                environ.update({'HGEDITFORM': editform})
 
             editor = self.geteditor()
 
-            util.system("%s \"%s\"" % (editor, name),
+            self.system("%s \"%s\"" % (editor, name),
                         environ=environ,
-                        onerr=util.Abort, errprefix=_("edit failed"),
-                        out=self.fout)
+                        onerr=util.Abort, errprefix=_("edit failed"))
 
             f = open(name)
             t = f.read()
@@ -758,6 +836,16 @@ class ui(object):
             os.unlink(name)
 
         return t
+
+    def system(self, cmd, environ={}, cwd=None, onerr=None, errprefix=None):
+        '''execute shell command with appropriate output stream. command
+        output will be redirected if fout is not stdout.
+        '''
+        out = self.fout
+        if util.any(s[1] for s in self._bufferstates):
+            out = self
+        return util.system(cmd, environ=environ, cwd=cwd, onerr=onerr,
+                           errprefix=errprefix, out=out)
 
     def traceback(self, exc=None, force=False):
         '''print exception traceback if traceback printing enabled or forced.
@@ -849,3 +937,48 @@ class ui(object):
         ui.write(ui.label(s, 'label')).
         '''
         return msg
+
+class paths(dict):
+    """Represents a collection of paths and their configs.
+
+    Data is initially derived from ui instances and the config files they have
+    loaded.
+    """
+    def __init__(self, ui):
+        dict.__init__(self)
+
+        for name, loc in ui.configitems('paths'):
+            # No location is the same as not existing.
+            if not loc:
+                continue
+            self[name] = path(name, rawloc=loc)
+
+    def getpath(self, name, default=None):
+        """Return a ``path`` for the specified name, falling back to a default.
+
+        Returns the first of ``name`` or ``default`` that is present, or None
+        if neither is present.
+        """
+        try:
+            return self[name]
+        except KeyError:
+            if default is not None:
+                try:
+                    return self[default]
+                except KeyError:
+                    pass
+
+        return None
+
+class path(object):
+    """Represents an individual path and its configuration."""
+
+    def __init__(self, name, rawloc=None):
+        """Construct a path from its config options.
+
+        ``name`` is the symbolic name of the path.
+        ``rawloc`` is the raw location, as defined in the config.
+        """
+        self.name = name
+        # We'll do more intelligent things with rawloc in the future.
+        self.loc = rawloc

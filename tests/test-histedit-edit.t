@@ -3,13 +3,14 @@
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > histedit=
+  > strip=
   > EOF
 
   $ initrepo ()
   > {
   >     hg init r
   >     cd r
-  >     for x in a b c d e f ; do
+  >     for x in a b c d e f g; do
   >         echo $x > $x
   >         hg add $x
   >         hg ci -m $x
@@ -20,8 +21,13 @@
 
 log before edit
   $ hg log --graph
-  @  changeset:   5:652413bf663e
+  @  changeset:   6:3c6a8ed2ebe8
   |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     g
+  |
+  o  changeset:   5:652413bf663e
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     f
@@ -58,10 +64,56 @@ edit the history
   > pick 055a42cdd887 d
   > edit e860deea161a e
   > pick 652413bf663e f
+  > pick 3c6a8ed2ebe8 g
   > EOF
-  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 3 files removed, 0 files unresolved
   Make changes as needed, you may commit or record as needed now.
   When you are finished, run hg histedit --continue to resume.
+
+edit the plan via the editor
+  $ cat >> $TESTTMP/editplan.sh <<EOF
+  > cat > \$1 <<EOF2
+  > drop e860deea161a e
+  > drop 652413bf663e f
+  > drop 3c6a8ed2ebe8 g
+  > EOF2
+  > EOF
+  $ HGEDITOR="sh $TESTTMP/editplan.sh" hg histedit --edit-plan
+  $ cat .hg/histedit-state
+  v1
+  055a42cdd88768532f9cf79daa407fc8d138de9b
+  3c6a8ed2ebe862cc949d2caa30775dd6f16fb799
+  False
+  3
+  drop
+  e860deea161a2f77de56603b340ebbb4536308ae
+  drop
+  652413bf663ef2a641cab26574e46d5f5a64a55a
+  drop
+  3c6a8ed2ebe862cc949d2caa30775dd6f16fb799
+  0
+  strip-backup/177f92b77385-0ebe6a8f-histedit.hg
+
+edit the plan via --commands
+  $ hg histedit --edit-plan --commands - 2>&1 << EOF
+  > edit e860deea161a e
+  > pick 652413bf663e f
+  > drop 3c6a8ed2ebe8 g
+  > EOF
+  $ cat .hg/histedit-state
+  v1
+  055a42cdd88768532f9cf79daa407fc8d138de9b
+  3c6a8ed2ebe862cc949d2caa30775dd6f16fb799
+  False
+  3
+  edit
+  e860deea161a2f77de56603b340ebbb4536308ae
+  pick
+  652413bf663ef2a641cab26574e46d5f5a64a55a
+  drop
+  3c6a8ed2ebe862cc949d2caa30775dd6f16fb799
+  0
+  strip-backup/177f92b77385-0ebe6a8f-histedit.hg
 
 Go at a random point and try to continue
 
@@ -72,10 +124,22 @@ Go at a random point and try to continue
   (use 'hg histedit --continue' or 'hg histedit --abort')
   [255]
 
+Try to delete necessary commit
+  $ hg strip -r 652413b
+  abort: histedit in progress, can't strip 652413bf663e
+  [255]
+
 commit, then edit the revision
   $ hg ci -m 'wat'
   created new head
   $ echo a > e
+
+qnew should fail while we're in the middle of the edit step
+
+  $ hg --config extensions.mq= qnew please-fail
+  abort: histedit in progress
+  (use 'hg histedit --continue' or 'hg histedit --abort')
+  [255]
   $ HGEDITOR='echo foobaz > ' hg histedit --continue 2>&1 | fixbundle
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -120,6 +184,34 @@ commit, then edit the revision
 
   $ hg cat e
   a
+
+Stripping necessary commits should not break --abort
+
+  $ hg histedit 1a60820cd1f6 --commands - 2>&1 << EOF| fixbundle
+  > edit 1a60820cd1f6 wat
+  > pick a5e1ba2f7afb foobaz
+  > pick b5f70786f9b0 g
+  > EOF
+  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  Make changes as needed, you may commit or record as needed now.
+  When you are finished, run hg histedit --continue to resume.
+
+  $ mv .hg/histedit-state .hg/histedit-state.bak
+  $ hg strip -q -r b5f70786f9b0
+  $ mv .hg/histedit-state.bak .hg/histedit-state
+  $ hg histedit --abort
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 3 files
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg log -r .
+  changeset:   6:b5f70786f9b0
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     f
+  
 
 check histedit_source
 
@@ -170,7 +262,7 @@ check histedit_source
   HG: branch 'default'
   HG: added f
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/r/.hg/strip-backup/b5f70786f9b0-backup.hg (glob)
+  saved backup bundle to $TESTTMP/r/.hg/strip-backup/b5f70786f9b0-c28d9c86-backup.hg (glob)
 
   $ hg status
 
@@ -342,4 +434,4 @@ rollback should not work after a histedit
   [1]
   $ HGEDITOR=true hg histedit --continue
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/r0/.hg/strip-backup/cb9a9f314b8b-backup.hg (glob)
+  saved backup bundle to $TESTTMP/r0/.hg/strip-backup/cb9a9f314b8b-cc5ccb0b-backup.hg (glob)

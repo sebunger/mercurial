@@ -8,10 +8,6 @@
 import util
 import heapq
 
-def _nonoverlap(d1, d2, d3):
-    "Return list of elements in d1 not in d2 or d3"
-    return sorted([d for d in d1 if d not in d3 and d not in d2])
-
 def _dirname(f):
     s = f.rfind("/")
     if s == -1:
@@ -19,9 +15,15 @@ def _dirname(f):
     return f[:s]
 
 def _findlimit(repo, a, b):
-    """Find the earliest revision that's an ancestor of a or b but not both,
+    """
+    Find the last revision that needs to be checked to ensure that a full
+    transitive closure for file copies can be properly calculated.
+    Generally, this means finding the earliest revision number that's an
+    ancestor of a or b but not both, except when a or b is a direct descendent
+    of the other, in which case we can return the minimum revnum of a and b.
     None if no such revision exists.
     """
+
     # basic idea:
     # - mark a and b with different sides
     # - if a parent's children are all on the same side, the parent is
@@ -73,7 +75,29 @@ def _findlimit(repo, a, b):
 
     if not hascommonancestor:
         return None
-    return limit
+
+    # Consider the following flow (see test-commit-amend.t under issue4405):
+    # 1/ File 'a0' committed
+    # 2/ File renamed from 'a0' to 'a1' in a new commit (call it 'a1')
+    # 3/ Move back to first commit
+    # 4/ Create a new commit via revert to contents of 'a1' (call it 'a1-amend')
+    # 5/ Rename file from 'a1' to 'a2' and commit --amend 'a1-msg'
+    #
+    # During the amend in step five, we will be in this state:
+    #
+    # @  3 temporary amend commit for a1-amend
+    # |
+    # o  2 a1-amend
+    # |
+    # | o  1 a1
+    # |/
+    # o  0 a0
+    #
+    # When _findlimit is called, a and b are revs 3 and 0, so limit will be 2,
+    # yet the filelog has the copy information in rev 1 and we will not look
+    # back far enough unless we also look at the a and b as candidates.
+    # This only occurs when a is a descendent of b or visa-versa.
+    return min(limit, a, b)
 
 def _chain(src, dst, a, b):
     '''chain two sets of copies a->b'''
@@ -105,7 +129,7 @@ def _tracefile(fctx, am, limit=-1):
     for f in fctx.ancestors():
         if am.get(f.path(), None) == f.filenode():
             return f
-        if f.rev() < limit:
+        if limit >= 0 and f.linkrev() < limit and f.rev() < limit:
             return None
 
 def _dirstatecopies(d):
@@ -116,7 +140,19 @@ def _dirstatecopies(d):
             del c[k]
     return c
 
-def _forwardcopies(a, b):
+def _computeforwardmissing(a, b, match=None):
+    """Computes which files are in b but not a.
+    This is its own function so extensions can easily wrap this call to see what
+    files _forwardcopies is about to process.
+    """
+    ma = a.manifest()
+    mb = b.manifest()
+    if match:
+        ma = ma.matches(match)
+        mb = mb.matches(match)
+    return mb.filesnotin(ma)
+
+def _forwardcopies(a, b, match=None):
     '''find {dst@b: src@a} copy mapping where a is an ancestor of b'''
 
     # check for working copy
@@ -139,11 +175,12 @@ def _forwardcopies(a, b):
     # we currently don't try to find where old files went, too expensive
     # this means we can miss a case like 'hg rm b; hg cp a b'
     cm = {}
-    missing = set(b.manifest().iterkeys())
-    missing.difference_update(a.manifest().iterkeys())
-
+    missing = _computeforwardmissing(a, b, match=match)
+    ancestrycontext = a._repo.changelog.ancestors([b.rev()], inclusive=True)
     for f in missing:
-        ofctx = _tracefile(b[f], am, limit)
+        fctx = b[f]
+        fctx._ancestrycontext = ancestrycontext
+        ofctx = _tracefile(fctx, am, limit)
         if ofctx:
             cm[f] = ofctx.path()
 
@@ -166,16 +203,36 @@ def _backwardrenames(a, b):
         r[v] = k
     return r
 
-def pathcopies(x, y):
+def pathcopies(x, y, match=None):
     '''find {dst@y: src@x} copy mapping for directed compare'''
     if x == y or not x or not y:
         return {}
     a = y.ancestor(x)
     if a == x:
-        return _forwardcopies(x, y)
+        return _forwardcopies(x, y, match=match)
     if a == y:
         return _backwardrenames(x, y)
-    return _chain(x, y, _backwardrenames(x, a), _forwardcopies(a, y))
+    return _chain(x, y, _backwardrenames(x, a),
+                  _forwardcopies(a, y, match=match))
+
+def _computenonoverlap(repo, c1, c2, addedinm1, addedinm2):
+    """Computes, based on addedinm1 and addedinm2, the files exclusive to c1
+    and c2. This is its own function so extensions can easily wrap this call
+    to see what files mergecopies is about to process.
+
+    Even though c1 and c2 are not used in this function, they are useful in
+    other extensions for being able to read the file nodes of the changed files.
+    """
+    u1 = sorted(addedinm1 - addedinm2)
+    u2 = sorted(addedinm2 - addedinm1)
+
+    if u1:
+        repo.ui.debug("  unmatched files in local:\n   %s\n"
+                      % "\n   ".join(u1))
+    if u2:
+        repo.ui.debug("  unmatched files in other:\n   %s\n"
+                      % "\n   ".join(u2))
+    return u1, u2
 
 def mergecopies(repo, c1, c2, ca):
     """
@@ -215,14 +272,41 @@ def mergecopies(repo, c1, c2, ca):
     m2 = c2.manifest()
     ma = ca.manifest()
 
-    def makectx(f, n):
-        if len(n) != 20: # in a working context?
-            if c1.rev() is None:
-                return c1.filectx(f)
-            return c2.filectx(f)
-        return repo.filectx(f, fileid=n)
 
-    ctx = util.lrucachefunc(makectx)
+    def setupctx(ctx):
+        """return a 'makectx' function suitable for checkcopies usage from ctx
+
+        We have to re-setup the function building 'filectx' for each
+        'checkcopies' to ensure the linkrev adjustement is properly setup for
+        each. Linkrev adjustment is important to avoid bug in rename
+        detection. Moreover, having a proper '_ancestrycontext' setup ensures
+        the performance impact of this adjustment is kept limited. Without it,
+        each file could do a full dag traversal making the time complexity of
+        the operation explode (see issue4537).
+
+        This function exists here mostly to limit the impact on stable. Feel
+        free to refactor on default.
+        """
+        rev = ctx.rev()
+        ac = getattr(ctx, '_ancestrycontext', None)
+        if ac is None:
+            revs = [rev]
+            if rev is None:
+                revs = [p.rev() for p in ctx.parents()]
+            ac = ctx._repo.changelog.ancestors(revs, inclusive=True)
+            ctx._ancestrycontext = ac
+        def makectx(f, n):
+            if len(n) != 20:  # in a working context?
+                if c1.rev() is None:
+                    return c1.filectx(f)
+                return c2.filectx(f)
+            fctx = repo.filectx(f, fileid=n)
+            # setup only needed for filectx not create from a changectx
+            fctx._ancestrycontext = ac
+            fctx._descendantrev = rev
+            return fctx
+        return util.lrucachefunc(makectx)
+
     copy = {}
     movewithdir = {}
     fullcopy = {}
@@ -230,20 +314,16 @@ def mergecopies(repo, c1, c2, ca):
 
     repo.ui.debug("  searching for copies back to rev %d\n" % limit)
 
-    u1 = _nonoverlap(m1, m2, ma)
-    u2 = _nonoverlap(m2, m1, ma)
-
-    if u1:
-        repo.ui.debug("  unmatched files in local:\n   %s\n"
-                      % "\n   ".join(u1))
-    if u2:
-        repo.ui.debug("  unmatched files in other:\n   %s\n"
-                      % "\n   ".join(u2))
+    addedinm1 = m1.filesnotin(ma)
+    addedinm2 = m2.filesnotin(ma)
+    u1, u2 = _computenonoverlap(repo, c1, c2, addedinm1, addedinm2)
 
     for f in u1:
+        ctx = setupctx(c1)
         checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy)
 
     for f in u2:
+        ctx = setupctx(c2)
         checkcopies(ctx, f, m2, m1, ca, limit, diverge, copy, fullcopy)
 
     renamedelete = {}
@@ -260,13 +340,15 @@ def mergecopies(repo, c1, c2, ca):
         else:
             diverge2.update(fl) # reverse map for below
 
-    bothnew = sorted([d for d in m1 if d in m2 and d not in ma])
+    bothnew = sorted(addedinm1 & addedinm2)
     if bothnew:
         repo.ui.debug("  unmatched files new in both:\n   %s\n"
                       % "\n   ".join(bothnew))
     bothdiverge, _copy, _fullcopy = {}, {}, {}
     for f in bothnew:
+        ctx = setupctx(c1)
         checkcopies(ctx, f, m1, m2, ca, limit, bothdiverge, _copy, _fullcopy)
+        ctx = setupctx(c2)
         checkcopies(ctx, f, m2, m1, ca, limit, bothdiverge, _copy, _fullcopy)
     for of, fl in bothdiverge.items():
         if len(fl) == 2 and fl[0] == fl[1]:
@@ -374,7 +456,7 @@ def checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy):
 
         g1, g2 = f1.ancestors(), f2.ancestors()
         try:
-            f1r, f2r = f1.rev(), f2.rev()
+            f1r, f2r = f1.linkrev(), f2.linkrev()
 
             if f1r is None:
                 f1 = g1.next()
@@ -382,7 +464,7 @@ def checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy):
                 f2 = g2.next()
 
             while True:
-                f1r, f2r = f1.rev(), f2.rev()
+                f1r, f2r = f1.linkrev(), f2.linkrev()
                 if f1r > f2r:
                     f1 = g1.next()
                 elif f2r > f1r:
@@ -397,7 +479,7 @@ def checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy):
     of = None
     seen = set([f])
     for oc in ctx(f, m1[f]).ancestors():
-        ocr = oc.rev()
+        ocr = oc.linkrev()
         of = oc.path()
         if of in seen:
             # check limit late - grab last rename before
@@ -420,3 +502,22 @@ def checkcopies(ctx, f, m1, m2, ca, limit, diverge, copy, fullcopy):
 
     if of in ma:
         diverge.setdefault(of, []).append(f)
+
+def duplicatecopies(repo, rev, fromrev, skiprev=None):
+    '''reproduce copies from fromrev to rev in the dirstate
+
+    If skiprev is specified, it's a revision that should be used to
+    filter copy records. Any copies that occur between fromrev and
+    skiprev will not be duplicated, even if they appear in the set of
+    copies between fromrev and rev.
+    '''
+    exclude = {}
+    if skiprev is not None:
+        exclude = pathcopies(repo[fromrev], repo[skiprev])
+    for dst, src in pathcopies(repo[fromrev], repo[rev]).iteritems():
+        # copies.pathcopies returns backward renames, so dst might not
+        # actually be in the dirstate
+        if dst in exclude:
+            continue
+        if repo.dirstate[dst] in "nma":
+            repo.dirstate.copy(src, dst)

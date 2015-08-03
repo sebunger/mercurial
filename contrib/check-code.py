@@ -94,7 +94,7 @@ testpats = [
     (r'sed.*-i', "don't use 'sed -i', use a temporary file"),
     (r'\becho\b.*\\n', "don't use 'echo \\n', use printf"),
     (r'echo -n', "don't use 'echo -n', use printf"),
-    (r'(^| )wc[^|]*$\n(?!.*\(re\))', "filter wc output"),
+    (r'(^|\|\s*)\bwc\b[^|]*$\n(?!.*\(re\))', "filter wc output"),
     (r'head -c', "don't use 'head -c', use 'dd'"),
     (r'tail -n', "don't use the '-n' option to tail, just use '-<num>'"),
     (r'sha1sum', "don't use sha1sum, use $TESTDIR/md5sum.py"),
@@ -122,6 +122,7 @@ testpats = [
     (r'sed (-e )?\'(\d+|/[^/]*/)i(?!\\\n)',
      "put a backslash-escaped newline after sed 'i' command"),
     (r'^diff *-\w*u.*$\n(^  \$ |^$)', "prefix diff -u with cmp"),
+    (r'seq ', "don't use 'seq', use $TESTDIR/seq.py")
   ],
   # warnings
   [
@@ -153,13 +154,13 @@ utestpats = [
     (uprefix + r'(\s|fi\b|done\b)', "use > for continued lines"),
     (uprefix + r'.*:\.\S*/', "x:.y in a path does not work on msys, rewrite "
      "as x://.y, or see `hg log -k msys` for alternatives", r'-\S+:\.|' #-Rxxx
-     'hg pull -q file:../test'), # in test-pull.t which is skipped on windows
+     '# no-msys'), # in test-pull.t which is skipped on windows
     (r'^  saved backup bundle to \$TESTTMP.*\.hg$', winglobmsg),
     (r'^  changeset .* references (corrupted|missing) \$TESTTMP/.*[^)]$',
      winglobmsg),
     (r'^  pulling from \$TESTTMP/.*[^)]$', winglobmsg,
      '\$TESTTMP/unix-repo$'), # in test-issue1802.t which skipped on windows
-    (r'^  reverting .*/.*[^)]$', winglobmsg),
+    (r'^  reverting (?!subrepo ).*/.*[^)]$', winglobmsg),
     (r'^  cloning subrepo \S+/.*[^)]$', winglobmsg),
     (r'^  pushing to \$TESTTMP/.*[^)]$', winglobmsg),
     (r'^  pushing subrepo \S+/\S+ to.*[^)]$', winglobmsg),
@@ -179,12 +180,14 @@ utestpats = [
 ]
 
 for i in [0, 1]:
-    for p, m in testpats[i]:
+    for tp in testpats[i]:
+        p = tp[0]
+        m = tp[1]
         if p.startswith(r'^'):
             p = r"^  [$>] (%s)" % p[1:]
         else:
             p = r"^  [$>] .*(%s)" % p
-        utestpats[i].append((p, m))
+        utestpats[i].append((p, m) + tp[2:])
 
 utestfilters = [
     (r"<<(\S+)((.|\n)*?\n  > \1)", rephere),
@@ -214,8 +217,9 @@ pypats = [
     (r'(\w|\)),\w', "missing whitespace after ,"),
     (r'(\w|\))[+/*\-<>]\w', "missing whitespace in expression"),
     (r'^\s+(\w|\.)+=\w[^,()\n]*$', "missing whitespace in assignment"),
-    (r'(\s+)try:\n((?:\n|\1\s.*\n)+?)\1except.*?:\n'
-     r'((?:\n|\1\s.*\n)+?)\1finally:', 'no try/except/finally in Python 2.4'),
+    (r'(\s+)try:\n((?:\n|\1\s.*\n)+?)(\1except.*?:\n'
+     r'((?:\n|\1\s.*\n)+?))+\1finally:',
+     'no try/except/finally in Python 2.4'),
     (r'(?<!def)(\s+|^|\()next\(.+\)',
      'no next(foo) in Python 2.4 and 2.5, use foo.next() instead'),
     (r'(\s+)try:\n((?:\n|\1\s.*\n)*?)\1\s*yield\b.*?'
@@ -288,7 +292,7 @@ pypats = [
      "always assign an opened file to a variable, and close it afterwards"),
     (r'[\s\(](open|file)\([^)]*\)\.',
      "always assign an opened file to a variable, and close it afterwards"),
-    (r'(?i)descendent', "the proper spelling is descendAnt"),
+    (r'(?i)descend[e]nt', "the proper spelling is descendAnt"),
     (r'\.debug\(\_', "don't mark debug messages for translation"),
     (r'\.strip\(\)\.split\(\)', "no need to strip before splitting"),
     (r'^\s*except\s*:', "naked except clause", r'#.*re-raises'),
@@ -296,6 +300,9 @@ pypats = [
     (r'ui\.(status|progress|write|note|warn)\([\'\"]x',
      "missing _() in ui message (use () to hide false-positives)"),
     (r'release\(.*wlock, .*lock\)', "wrong lock release order"),
+    (r'\b__bool__\b', "__bool__ should be __nonzero__ in Python 2"),
+    (r'os\.path\.join\(.*, *(""|\'\')\)',
+     "use pathutil.normasprefix(path) instead of os.path.join(path, '')"),
   ],
   # warnings
   [
@@ -330,6 +337,7 @@ cpats = [
     (r'(while|if|do|for)\(', "use space after while/if/do/for"),
     (r'return\(', "return is not a function"),
     (r' ;', "no space before ;"),
+    (r'[^;] \)', "no space before )"),
     (r'[)][{]', "space between ) and {"),
     (r'\w+\* \w+', "use int *foo, not int* foo"),
     (r'\W\([^\)]+\) \w+', "use (int)foo, not (int) foo"),

@@ -1,11 +1,54 @@
 hide outer repo
   $ hg init
 
+Invalid syntax: no value
+
+  $ cat > .hg/hgrc << EOF
+  > novaluekey
+  > EOF
+  $ hg showconfig
+  hg: parse error at $TESTTMP/.hg/hgrc:1: novaluekey (glob)
+  [255]
+
+Invalid syntax: no key
+
+  $ cat > .hg/hgrc << EOF
+  > =nokeyvalue
+  > EOF
+  $ hg showconfig
+  hg: parse error at $TESTTMP/.hg/hgrc:1: =nokeyvalue (glob)
+  [255]
+
+Test hint about invalid syntax from leading white space
+
+  $ cat > .hg/hgrc << EOF
+  >  key=value
+  > EOF
+  $ hg showconfig
+  hg: parse error at $TESTTMP/.hg/hgrc:1:  key=value (glob)
+  unexpected leading whitespace
+  [255]
+
+  $ cat > .hg/hgrc << EOF
+  >  [section]
+  > key=value
+  > EOF
+  $ hg showconfig
+  hg: parse error at $TESTTMP/.hg/hgrc:1:  [section] (glob)
+  unexpected leading whitespace
+  [255]
+
+Reset hgrc
+
+  $ echo > .hg/hgrc
+
 Test case sensitive configuration
 
-  $ echo '[Section]' >> $HGRCPATH
-  $ echo 'KeY = Case Sensitive' >> $HGRCPATH
-  $ echo 'key = lower case' >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [Section]
+  > KeY = Case Sensitive
+  > key = lower case
+  > EOF
 
   $ hg showconfig Section
   Section.KeY=Case Sensitive

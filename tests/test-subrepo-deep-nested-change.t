@@ -46,11 +46,28 @@ Cleaning both repositories, just as a clone -U
 
 Clone main
 
-  $ hg clone main cloned
+  $ hg --config extensions.largefiles= clone main cloned
   updating to branch default
   cloning subrepo sub1 from $TESTTMP/sub1
   cloning subrepo sub1/sub2 from $TESTTMP/sub2 (glob)
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+Largefiles is NOT enabled in the clone if the source repo doesn't require it
+  $ cat cloned/.hg/hgrc
+  # example repository config (see "hg help config" for more info)
+  [paths]
+  default = $TESTTMP/main (glob)
+  
+  # path aliases to other clones of this repo in URLs or filesystem paths
+  # (see "hg help config.paths" for more info)
+  #
+  # default-push = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-clone     = /home/jdoe/jdoes-clone
+  
+  [ui]
+  # name and email (local to this repository, optional), e.g.
+  # username = Jane Doe <jdoe@example.com>
 
 Checking cloned repo ids
 
@@ -106,10 +123,115 @@ Check that deep archiving works
   $ hg --config extensions.largefiles=! add sub1/sub2/test.txt
   $ mkdir sub1/sub2/folder
   $ echo 'subfolder' > sub1/sub2/folder/test.txt
-  $ hg --config extensions.largefiles=! add sub1/sub2/folder/test.txt
-  $ hg ci -Sm "add test.txt"
+  $ hg ci -ASm "add test.txt"
+  adding sub1/sub2/folder/test.txt
   committing subrepository sub1
   committing subrepository sub1/sub2 (glob)
+
+.. but first take a detour through some deep removal testing
+
+  $ hg remove -S -I 're:.*.txt' .
+  removing sub1/sub2/folder/test.txt (glob)
+  removing sub1/sub2/test.txt (glob)
+  $ hg status -S
+  R sub1/sub2/folder/test.txt
+  R sub1/sub2/test.txt
+  $ hg update -Cq
+  $ hg remove -I 're:.*.txt' sub1
+  $ hg status -S
+  $ hg remove sub1/sub2/folder/test.txt
+  $ hg remove sub1/.hgsubstate
+  $ mv sub1/.hgsub sub1/x.hgsub
+  $ hg status -S
+  warning: subrepo spec file 'sub1/.hgsub' not found (glob)
+  R sub1/.hgsubstate
+  R sub1/sub2/folder/test.txt
+  ! sub1/.hgsub
+  ? sub1/x.hgsub
+  $ mv sub1/x.hgsub sub1/.hgsub
+  $ hg update -Cq
+  $ touch sub1/foo
+  $ hg forget sub1/sub2/folder/test.txt
+  $ rm sub1/sub2/test.txt
+
+Test relative path printing + subrepos
+  $ mkdir -p foo/bar
+  $ cd foo
+  $ touch bar/abc
+  $ hg addremove -S ..
+  adding ../sub1/sub2/folder/test.txt (glob)
+  removing ../sub1/sub2/test.txt (glob)
+  adding ../sub1/foo (glob)
+  adding bar/abc (glob)
+  $ cd ..
+  $ hg status -S
+  A foo/bar/abc
+  A sub1/foo
+  R sub1/sub2/test.txt
+  $ hg update -Cq
+  $ touch sub1/sub2/folder/bar
+  $ hg addremove sub1/sub2
+  adding sub1/sub2/folder/bar (glob)
+  $ hg status -S
+  A sub1/sub2/folder/bar
+  ? foo/bar/abc
+  ? sub1/foo
+  $ hg update -Cq
+  $ hg addremove sub1
+  adding sub1/sub2/folder/bar (glob)
+  adding sub1/foo (glob)
+  $ hg update -Cq
+  $ rm sub1/sub2/folder/test.txt
+  $ rm sub1/sub2/test.txt
+  $ hg ci -ASm "remove test.txt"
+  adding sub1/sub2/folder/bar
+  removing sub1/sub2/folder/test.txt
+  removing sub1/sub2/test.txt
+  adding sub1/foo
+  adding foo/bar/abc
+  committing subrepository sub1
+  committing subrepository sub1/sub2 (glob)
+
+  $ hg forget sub1/sub2/sub2
+  $ echo x > sub1/sub2/x.txt
+  $ hg add sub1/sub2/x.txt
+
+Files sees uncommitted adds and removes in subrepos
+  $ hg files -S
+  .hgsub
+  .hgsubstate
+  foo/bar/abc (glob)
+  main
+  sub1/.hgsub (glob)
+  sub1/.hgsubstate (glob)
+  sub1/foo (glob)
+  sub1/sub1 (glob)
+  sub1/sub2/folder/bar (glob)
+  sub1/sub2/x.txt (glob)
+
+  $ hg files -S -r '.^' sub1/sub2/folder
+  sub1/sub2/folder/test.txt (glob)
+
+  $ hg files -S -r '.^' sub1/sub2/missing
+  sub1/sub2/missing: no such file in rev 78026e779ea6 (glob)
+  [1]
+
+  $ hg files -S -r '.^' sub1/
+  sub1/.hgsub (glob)
+  sub1/.hgsubstate (glob)
+  sub1/sub1 (glob)
+  sub1/sub2/folder/test.txt (glob)
+  sub1/sub2/sub2 (glob)
+  sub1/sub2/test.txt (glob)
+
+  $ hg files -S -r '.^' sub1/sub2
+  sub1/sub2/folder/test.txt (glob)
+  sub1/sub2/sub2 (glob)
+  sub1/sub2/test.txt (glob)
+
+  $ hg rollback -q
+  $ hg up -Cq
+
   $ hg --config extensions.largefiles=! archive -S ../archive_all
   $ find ../archive_all | sort
   ../archive_all
@@ -207,21 +329,17 @@ Exclude large files from main and sub-sub repo
 
 Exclude normal files from main and sub-sub repo
 
-  $ hg --config extensions.largefiles= archive -S -X '**.txt' ../archive_lf
-  $ find ../archive_lf | sort
-  ../archive_lf
-  ../archive_lf/.hgsub
-  ../archive_lf/.hgsubstate
-  ../archive_lf/large.bin
-  ../archive_lf/main
-  ../archive_lf/sub1
-  ../archive_lf/sub1/.hgsub
-  ../archive_lf/sub1/.hgsubstate
-  ../archive_lf/sub1/sub1
-  ../archive_lf/sub1/sub2
-  ../archive_lf/sub1/sub2/large.bin
-  ../archive_lf/sub1/sub2/sub2
-  $ rm -rf ../archive_lf
+  $ hg --config extensions.largefiles= archive -S -X '**.txt' ../archive_lf.tgz
+  $ tar -tzf ../archive_lf.tgz | sort
+  archive_lf/.hgsub
+  archive_lf/.hgsubstate
+  archive_lf/large.bin
+  archive_lf/main
+  archive_lf/sub1/.hgsub
+  archive_lf/sub1/.hgsubstate
+  archive_lf/sub1/sub1
+  archive_lf/sub1/sub2/large.bin
+  archive_lf/sub1/sub2/sub2
 
 Include normal files from within a largefiles subrepo
 
@@ -257,8 +375,189 @@ Find an exact largefile match in a largefiles subrepo
   ../archive_lf/sub1/sub2/large.bin
   $ rm -rf ../archive_lf
 
+The local repo enables largefiles if a largefiles repo is cloned
+  $ hg showconfig extensions
+  abort: repository requires features unknown to this Mercurial: largefiles!
+  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
+  [255]
+  $ hg --config extensions.largefiles= clone -qU . ../lfclone
+  $ cat ../lfclone/.hg/hgrc
+  # example repository config (see "hg help config" for more info)
+  [paths]
+  default = $TESTTMP/cloned (glob)
+  
+  # path aliases to other clones of this repo in URLs or filesystem paths
+  # (see "hg help config.paths" for more info)
+  #
+  # default-push = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-clone     = /home/jdoe/jdoes-clone
+  
+  [ui]
+  # name and email (local to this repository, optional), e.g.
+  # username = Jane Doe <jdoe@example.com>
+  
+  [extensions]
+  largefiles=
+
 Find an exact match to a standin (should archive nothing)
   $ hg --config extensions.largefiles= archive -S -I 'sub/sub2/.hglf/large.bin' ../archive_lf
   $ find ../archive_lf 2> /dev/null | sort
+
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > largefiles=
+  > [largefiles]
+  > patterns=glob:**.dat
+  > EOF
+
+Test forget through a deep subrepo with the largefiles extension, both a
+largefile and a normal file.  Then a largefile that hasn't been committed yet.
+  $ touch sub1/sub2/untracked.txt
+  $ touch sub1/sub2/large.dat
+  $ hg forget sub1/sub2/large.bin sub1/sub2/test.txt sub1/sub2/untracked.txt
+  not removing sub1/sub2/untracked.txt: file is already untracked (glob)
+  [1]
+  $ hg add --large --dry-run -v sub1/sub2/untracked.txt
+  adding sub1/sub2/untracked.txt as a largefile (glob)
+  $ hg add --large -v sub1/sub2/untracked.txt
+  adding sub1/sub2/untracked.txt as a largefile (glob)
+  $ hg add --normal -v sub1/sub2/large.dat
+  adding sub1/sub2/large.dat (glob)
+  $ hg forget -v sub1/sub2/untracked.txt
+  removing sub1/sub2/untracked.txt (glob)
+  $ hg status -S
+  A sub1/sub2/large.dat
+  R sub1/sub2/large.bin
+  R sub1/sub2/test.txt
+  ? foo/bar/abc
+  ? sub1/sub2/untracked.txt
+  ? sub1/sub2/x.txt
+  $ hg add sub1/sub2
+  $ hg ci -Sqm 'forget testing'
+
+Test issue4330: commit a directory where only normal files have changed
+  $ touch foo/bar/large.dat
+  $ hg add --large foo/bar/large.dat
+  $ hg ci -m 'add foo/bar/large.dat'
+  $ touch a.txt
+  $ touch a.dat
+  $ hg add -v foo/bar/abc a.txt a.dat
+  adding a.dat as a largefile
+  adding a.txt
+  adding foo/bar/abc (glob)
+  $ hg ci -m 'dir commit with only normal file deltas' foo/bar
+  $ hg status
+  A a.dat
+  A a.txt
+
+Test a directory commit with a changed largefile and a changed normal file
+  $ echo changed > foo/bar/large.dat
+  $ echo changed > foo/bar/abc
+  $ hg ci -m 'dir commit with normal and lf file deltas' foo
+  $ hg status
+  A a.dat
+  A a.txt
+
+  $ hg ci -m "add a.*"
+  $ hg mv a.dat b.dat
+  $ hg mv foo/bar/abc foo/bar/def
+  $ hg status -C
+  A b.dat
+    a.dat
+  A foo/bar/def
+    foo/bar/abc
+  R a.dat
+  R foo/bar/abc
+
+  $ hg ci -m "move large and normal"
+  $ hg status -C --rev '.^' --rev .
+  A b.dat
+    a.dat
+  A foo/bar/def
+    foo/bar/abc
+  R a.dat
+  R foo/bar/abc
+
+
+  $ echo foo > main
+  $ hg ci -m "mod parent only"
+  $ hg init sub3
+  $ echo "sub3 = sub3" >> .hgsub
+  $ echo xyz > sub3/a.txt
+  $ hg add sub3/a.txt
+  $ hg ci -Sm "add sub3"
+  committing subrepository sub3
+  $ cat .hgsub | grep -v sub3 > .hgsub1
+  $ mv .hgsub1 .hgsub
+  $ hg ci -m "remove sub3"
+
+  $ hg log -r "subrepo()" --style compact
+  0   7f491f53a367   1970-01-01 00:00 +0000   test
+    main import
+  
+  1   ffe6649062fe   1970-01-01 00:00 +0000   test
+    deep nested modif should trigger a commit
+  
+  2   9bb10eebee29   1970-01-01 00:00 +0000   test
+    add test.txt
+  
+  3   7c64f035294f   1970-01-01 00:00 +0000   test
+    add large files
+  
+  4   f734a59e2e35   1970-01-01 00:00 +0000   test
+    forget testing
+  
+  11   9685a22af5db   1970-01-01 00:00 +0000   test
+    add sub3
+  
+  12[tip]   2e0485b475b9   1970-01-01 00:00 +0000   test
+    remove sub3
+  
+  $ hg log -r "subrepo('sub3')" --style compact
+  11   9685a22af5db   1970-01-01 00:00 +0000   test
+    add sub3
+  
+  12[tip]   2e0485b475b9   1970-01-01 00:00 +0000   test
+    remove sub3
+  
+  $ hg log -r "subrepo('bogus')" --style compact
+
+
+Test .hgsubstate in the R state
+
+  $ hg rm .hgsub .hgsubstate
+  $ hg ci -m 'trash subrepo tracking'
+
+  $ hg log -r "subrepo('re:sub\d+')" --style compact
+  0   7f491f53a367   1970-01-01 00:00 +0000   test
+    main import
+  
+  1   ffe6649062fe   1970-01-01 00:00 +0000   test
+    deep nested modif should trigger a commit
+  
+  2   9bb10eebee29   1970-01-01 00:00 +0000   test
+    add test.txt
+  
+  3   7c64f035294f   1970-01-01 00:00 +0000   test
+    add large files
+  
+  4   f734a59e2e35   1970-01-01 00:00 +0000   test
+    forget testing
+  
+  11   9685a22af5db   1970-01-01 00:00 +0000   test
+    add sub3
+  
+  12   2e0485b475b9   1970-01-01 00:00 +0000   test
+    remove sub3
+  
+  13[tip]   a68b2c361653   1970-01-01 00:00 +0000   test
+    trash subrepo tracking
+  
+
+Restore the trashed subrepo tracking
+
+  $ hg rollback -q
+  $ hg update -Cq .
 
   $ cd ..

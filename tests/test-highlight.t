@@ -1,5 +1,5 @@
+#require pygments serve
 
-  $ "$TESTDIR/hghave" pygments serve || exit 80
   $ cat <<EOF >> $HGRCPATH
   > [extensions]
   > highlight =
@@ -268,10 +268,12 @@ hgweb fileannotate, html
   
   <div class="overflow">
   <table class="bigtable">
+  <thead>
   <tr>
    <th class="annotate">rev</th>
    <th class="line">&nbsp;&nbsp;line source</th>
   </tr>
+  </thead>
   <tbody class="stripes2">
     
   <tr id="l1">
@@ -577,7 +579,7 @@ errors encountered
   $ cd ..
   $ hg init eucjp
   $ cd eucjp
-  $ python -c 'print("\265\376")' >> eucjp.txt  # Japanese kanji "Kyo"
+  $ $PYTHON -c 'print("\265\376")' >> eucjp.txt  # Japanese kanji "Kyo"
   $ hg ci -Ama
   adding eucjp.txt
   $ hgserveget () {

@@ -7,4 +7,7 @@ contrib/hgk usr/share/mercurial/
 
 contrib/hg-ssh usr/bin
 
+mercurial/default.d/mergetools.rc etc/mercurial/hgrc.d/
+
 debian/hgrc etc/mercurial/
+debian/cacerts.rc etc/mercurial/hgrc.d/

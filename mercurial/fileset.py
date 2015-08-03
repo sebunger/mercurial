@@ -124,7 +124,7 @@ def modified(mctx, x):
     """
     # i18n: "modified" is a keyword
     getargs(x, 0, 0, _("modified takes no arguments"))
-    s = mctx.status()[0]
+    s = mctx.status().modified
     return [f for f in mctx.subset if f in s]
 
 def added(mctx, x):
@@ -133,7 +133,7 @@ def added(mctx, x):
     """
     # i18n: "added" is a keyword
     getargs(x, 0, 0, _("added takes no arguments"))
-    s = mctx.status()[1]
+    s = mctx.status().added
     return [f for f in mctx.subset if f in s]
 
 def removed(mctx, x):
@@ -142,7 +142,7 @@ def removed(mctx, x):
     """
     # i18n: "removed" is a keyword
     getargs(x, 0, 0, _("removed takes no arguments"))
-    s = mctx.status()[2]
+    s = mctx.status().removed
     return [f for f in mctx.subset if f in s]
 
 def deleted(mctx, x):
@@ -151,7 +151,7 @@ def deleted(mctx, x):
     """
     # i18n: "deleted" is a keyword
     getargs(x, 0, 0, _("deleted takes no arguments"))
-    s = mctx.status()[3]
+    s = mctx.status().deleted
     return [f for f in mctx.subset if f in s]
 
 def unknown(mctx, x):
@@ -161,7 +161,7 @@ def unknown(mctx, x):
     """
     # i18n: "unknown" is a keyword
     getargs(x, 0, 0, _("unknown takes no arguments"))
-    s = mctx.status()[4]
+    s = mctx.status().unknown
     return [f for f in mctx.subset if f in s]
 
 def ignored(mctx, x):
@@ -171,7 +171,7 @@ def ignored(mctx, x):
     """
     # i18n: "ignored" is a keyword
     getargs(x, 0, 0, _("ignored takes no arguments"))
-    s = mctx.status()[5]
+    s = mctx.status().ignored
     return [f for f in mctx.subset if f in s]
 
 def clean(mctx, x):
@@ -180,13 +180,13 @@ def clean(mctx, x):
     """
     # i18n: "clean" is a keyword
     getargs(x, 0, 0, _("clean takes no arguments"))
-    s = mctx.status()[6]
+    s = mctx.status().clean
     return [f for f in mctx.subset if f in s]
 
 def func(mctx, a, b):
     if a[0] == 'symbol' and a[1] in symbols:
         return symbols[a[1]](mctx, b)
-    raise error.ParseError(_("not a function: %s") % a[1])
+    raise error.UnknownIdentifier(a[1], symbols.keys())
 
 def getlist(x):
     if not x:
@@ -233,7 +233,7 @@ def resolved(mctx, x):
     getargs(x, 0, 0, _("resolved takes no arguments"))
     if mctx.ctx.rev() is not None:
         return []
-    ms = merge.mergestate(mctx.ctx._repo)
+    ms = merge.mergestate(mctx.ctx.repo())
     return [f for f in mctx.subset if f in ms and ms[f] == 'r']
 
 def unresolved(mctx, x):
@@ -244,16 +244,27 @@ def unresolved(mctx, x):
     getargs(x, 0, 0, _("unresolved takes no arguments"))
     if mctx.ctx.rev() is not None:
         return []
-    ms = merge.mergestate(mctx.ctx._repo)
+    ms = merge.mergestate(mctx.ctx.repo())
     return [f for f in mctx.subset if f in ms and ms[f] == 'u']
 
 def hgignore(mctx, x):
     """``hgignore()``
     File that matches the active .hgignore pattern.
     """
+    # i18n: "hgignore" is a keyword
     getargs(x, 0, 0, _("hgignore takes no arguments"))
-    ignore = mctx.ctx._repo.dirstate._ignore
+    ignore = mctx.ctx.repo().dirstate._ignore
     return [f for f in mctx.subset if ignore(f)]
+
+def portable(mctx, x):
+    """``portable()``
+    File that has a portable name. (This doesn't include filenames with case
+    collisions.)
+    """
+    # i18n: "portable" is a keyword
+    getargs(x, 0, 0, _("portable takes no arguments"))
+    checkwinfilename = util.checkwinfilename
+    return [f for f in mctx.subset if checkwinfilename(f) is None]
 
 def grep(mctx, x):
     """``grep(regex)``
@@ -388,6 +399,7 @@ def subrepo(mctx, x):
     ctx = mctx.ctx
     sstate = sorted(ctx.substate)
     if x:
+        # i18n: "subrepo" is a keyword
         pat = getstring(x, _("subrepo requires a pattern or no arguments"))
 
         import match as matchmod # avoid circular import issues
@@ -396,7 +408,7 @@ def subrepo(mctx, x):
             def m(s):
                 return (s == pat)
         else:
-            m = matchmod.match(ctx._repo.root, '', [pat], ctx=ctx)
+            m = matchmod.match(ctx.repo().root, '', [pat], ctx=ctx)
         return [sub for sub in sstate if m(sub)]
     else:
         return [sub for sub in sstate]
@@ -414,6 +426,7 @@ symbols = {
     'ignored': ignored,
     'hgignore': hgignore,
     'modified': modified,
+    'portable': portable,
     'removed': removed,
     'resolved': resolved,
     'size': size,
@@ -491,7 +504,7 @@ def getfileset(ctx, expr):
         unknown = _intree(['unknown'], tree)
         ignored = _intree(['ignored'], tree)
 
-        r = ctx._repo
+        r = ctx.repo()
         status = r.status(ctx.p1(), ctx,
                           unknown=unknown, ignored=ignored, clean=True)
         subset = []

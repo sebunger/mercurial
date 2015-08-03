@@ -8,6 +8,28 @@
 import error
 import unicodedata, locale, os
 
+# These unicode characters are ignored by HFS+ (Apple Technote 1150,
+# "Unicode Subtleties"), so we need to ignore them in some places for
+# sanity.
+_ignore = [unichr(int(x, 16)).encode("utf-8") for x in
+           "200c 200d 200e 200f 202a 202b 202c 202d 202e "
+           "206a 206b 206c 206d 206e 206f feff".split()]
+# verify the next function will work
+assert set([i[0] for i in _ignore]) == set(["\xe2", "\xef"])
+
+def hfsignoreclean(s):
+    """Remove codepoints ignored by HFS+ from s.
+
+    >>> hfsignoreclean(u'.h\u200cg'.encode('utf-8'))
+    '.hg'
+    >>> hfsignoreclean(u'.h\ufeffg'.encode('utf-8'))
+    '.hg'
+    """
+    if "\xe2" in s or "\xef" in s:
+        for c in _ignore:
+            s = s.replace(c, '')
+    return s
+
 def _getpreferredencoding():
     '''
     On darwin, getpreferredencoding ignores the locale environment and
@@ -258,11 +280,42 @@ def trim(s, width, ellipsis='', leftside=False):
             return concat(usub.encode(encoding))
     return ellipsis # no enough room for multi-column characters
 
+def _asciilower(s):
+    '''convert a string to lowercase if ASCII
+
+    Raises UnicodeDecodeError if non-ASCII characters are found.'''
+    s.decode('ascii')
+    return s.lower()
+
+def asciilower(s):
+    # delay importing avoids cyclic dependency around "parsers" in
+    # pure Python build (util => i18n => encoding => parsers => util)
+    import parsers
+    impl = getattr(parsers, 'asciilower', _asciilower)
+    global asciilower
+    asciilower = impl
+    return impl(s)
+
+def _asciiupper(s):
+    '''convert a string to uppercase if ASCII
+
+    Raises UnicodeDecodeError if non-ASCII characters are found.'''
+    s.decode('ascii')
+    return s.upper()
+
+def asciiupper(s):
+    # delay importing avoids cyclic dependency around "parsers" in
+    # pure Python build (util => i18n => encoding => parsers => util)
+    import parsers
+    impl = getattr(parsers, 'asciiupper', _asciiupper)
+    global asciiupper
+    asciiupper = impl
+    return impl(s)
+
 def lower(s):
     "best-effort encoding-aware case-folding of local string s"
     try:
-        s.decode('ascii') # throw exception for non-ASCII character
-        return s.lower()
+        return asciilower(s)
     except UnicodeDecodeError:
         pass
     try:
@@ -283,10 +336,11 @@ def lower(s):
 def upper(s):
     "best-effort encoding-aware case-folding of local string s"
     try:
-        s.decode('ascii') # throw exception for non-ASCII character
-        return s.upper()
+        return asciiupper(s)
     except UnicodeDecodeError:
-        pass
+        return upperfallback(s)
+
+def upperfallback(s):
     try:
         if isinstance(s, localstr):
             u = s._utf8.decode("utf-8")
@@ -301,6 +355,64 @@ def upper(s):
         return s.upper() # we don't know how to fold this except in ASCII
     except LookupError, k:
         raise error.Abort(k, hint="please check your locale settings")
+
+class normcasespecs(object):
+    '''what a platform's normcase does to ASCII strings
+
+    This is specified per platform, and should be consistent with what normcase
+    on that platform actually does.
+
+    lower: normcase lowercases ASCII strings
+    upper: normcase uppercases ASCII strings
+    other: the fallback function should always be called
+
+    This should be kept in sync with normcase_spec in util.h.'''
+    lower = -1
+    upper = 1
+    other = 0
+
+_jsonmap = {}
+
+def jsonescape(s):
+    '''returns a string suitable for JSON
+
+    JSON is problematic for us because it doesn't support non-Unicode
+    bytes. To deal with this, we take the following approach:
+
+    - localstr objects are converted back to UTF-8
+    - valid UTF-8/ASCII strings are passed as-is
+    - other strings are converted to UTF-8b surrogate encoding
+    - apply JSON-specified string escaping
+
+    (escapes are doubled in these tests)
+
+    >>> jsonescape('this is a test')
+    'this is a test'
+    >>> jsonescape('escape characters: \\0 \\x0b \\t \\n \\r \\" \\\\')
+    'escape characters: \\\\u0000 \\\\u000b \\\\t \\\\n \\\\r \\\\" \\\\\\\\'
+    >>> jsonescape('a weird byte: \\xdd')
+    'a weird byte: \\xed\\xb3\\x9d'
+    >>> jsonescape('utf-8: caf\\xc3\\xa9')
+    'utf-8: caf\\xc3\\xa9'
+    >>> jsonescape('')
+    ''
+    '''
+
+    if not _jsonmap:
+        for x in xrange(32):
+            _jsonmap[chr(x)] = "\u%04x" %x
+        for x in xrange(32, 256):
+            c = chr(x)
+            _jsonmap[c] = c
+        _jsonmap['\t'] = '\\t'
+        _jsonmap['\n'] = '\\n'
+        _jsonmap['\"'] = '\\"'
+        _jsonmap['\\'] = '\\\\'
+        _jsonmap['\b'] = '\\b'
+        _jsonmap['\f'] = '\\f'
+        _jsonmap['\r'] = '\\r'
+
+    return ''.join(_jsonmap[c] for c in toutf8b(s))
 
 def toutf8b(s):
     '''convert a local, possibly-binary string into UTF-8b
@@ -336,8 +448,8 @@ def toutf8b(s):
         return s._utf8
 
     try:
-        if s.decode('utf-8'):
-            return s
+        s.decode('utf-8')
+        return s
     except UnicodeDecodeError:
         # surrogate-encode any characters that don't round-trip
         s2 = s.decode('utf-8', 'ignore').encode('utf-8')

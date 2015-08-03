@@ -135,8 +135,11 @@ Interrupted commit should not change state or run commit hook
 Commit with several checks
 
   $ hg --debug commit -mabsym -u 'User Name <user@example.com>'
+  committing files:
   a
   b
+  committing manifest
+  committing changelog
   overwriting a expanding keywords
   running hook commit.test: cp a hooktest
   committed changeset 1:ef63ca68695bc9495032c6fda1350c71e6d256e9
@@ -184,7 +187,7 @@ hg status of kw-ignored binary file starting with '\1\n'
   $ hg status -A --rev 3:4 i
   C i
 
-  $ hg -q strip -n 2
+  $ hg -q strip --no-backup 2
 
 Test hook execution
 
@@ -343,18 +346,21 @@ record chunk
   > EOF
   diff --git a/a b/a
   2 hunks, 2 lines changed
-  examine changes to 'a'? [Ynesfdaq?] 
+  examine changes to 'a'? [Ynesfdaq?] y
+  
   @@ -1,3 +1,4 @@
    expand $Id$
   +foo
    do not process $Id:
    xxx $
-  record change 1/2 to 'a'? [Ynesfdaq?] 
+  record change 1/2 to 'a'? [Ynesfdaq?] y
+  
   @@ -2,2 +3,3 @@
    do not process $Id:
    xxx $
   +bar
-  record change 2/2 to 'a'? [Ynesfdaq?] 
+  record change 2/2 to 'a'? [Ynesfdaq?] n
+  
 
   $ hg identify
   5f5eb23505c3+ tip
@@ -400,18 +406,21 @@ Record all chunks in file a
   > EOF
   diff --git a/a b/a
   2 hunks, 2 lines changed
-  examine changes to 'a'? [Ynesfdaq?] 
+  examine changes to 'a'? [Ynesfdaq?] y
+  
   @@ -1,3 +1,4 @@
    expand $Id$
   +foo
    do not process $Id:
    xxx $
-  record change 1/2 to 'a'? [Ynesfdaq?] 
+  record change 1/2 to 'a'? [Ynesfdaq?] y
+  
   @@ -2,2 +3,3 @@
    do not process $Id:
    xxx $
   +bar
-  record change 2/2 to 'a'? [Ynesfdaq?] 
+  record change 2/2 to 'a'? [Ynesfdaq?] y
+  
 
 File a should be clean
 
@@ -464,14 +473,24 @@ record added file alone
 
   $ hg -v record -l msg -d '12 2' r<<EOF
   > y
+  > y
   > EOF
   diff --git a/r b/r
   new file mode 100644
-  examine changes to 'r'? [Ynesfdaq?] 
+  examine changes to 'r'? [Ynesfdaq?] y
+  
+  @@ -0,0 +1,1 @@
+  +$Id$
+  record this change to 'r'? [Ynesfdaq?] y
+  
+  resolving manifests
+  patching file r
+  committing files:
   r
+  committing manifest
+  committing changelog
   committed changeset 3:82a2f715724d
   overwriting r expanding keywords
- - status call required for dirstate.normallookup() check
   $ hg status r
   $ hg --verbose rollback
   repository tip rolled back to revision 2 (undo commit)
@@ -488,11 +507,22 @@ record added keyword ignored file
   $ hg add i
   $ hg --verbose record -d '13 1' -m recignored<<EOF
   > y
+  > y
   > EOF
   diff --git a/i b/i
   new file mode 100644
-  examine changes to 'i'? [Ynesfdaq?] 
+  examine changes to 'i'? [Ynesfdaq?] y
+  
+  @@ -0,0 +1,1 @@
+  +$Id$
+  record this change to 'i'? [Ynesfdaq?] y
+  
+  resolving manifests
+  patching file i
+  committing files:
   i
+  committing manifest
+  committing changelog
   committed changeset 3:9f40ceb5a072
   $ cat i
   $Id$
@@ -513,7 +543,7 @@ amend
   $ head -1 a
   expand $Id: a,v 67d8c481a6be 1970/01/01 00:00:15 test $
 
-  $ hg -q strip -n tip
+  $ hg -q strip --no-backup tip
 
 Test patch queue repo
 
@@ -577,10 +607,11 @@ Copy and show added kwfiles
 Commit and show expansion in original and copy
 
   $ hg --debug commit -ma2c -d '1 0' -u 'User Name <user@example.com>'
-  invalid branchheads cache (served): tip differs
+  committing files:
   c
    c: copy a:0045e12f6c5791aac80ca6cbfd97709a88307292
-  invalid branchheads cache (served): tip differs
+  committing manifest
+  committing changelog
   overwriting c expanding keywords
   committed changeset 2:25736cf2f5cbe41f6be4e6784ef6ecf9f3bbcc7d
   $ cat a c
@@ -749,22 +780,11 @@ Interrupted commit should not change state
 
 Commit with multi-line message and custom expansion
 
-|Note:
-|
-| After the last rollback, the "served" branchheads cache became invalid, but
-| all changesets in the repo were public. For filtering this means:
-|   "immutable" == "served" == ø.
-|
-| As the "served" cache is invalid, we fall back to the "immutable" cache. But
-| no update is needed between "immutable" and "served" and the "served" cache
-| is not updated on disk. The on-disk version therefore stays invalid for some
-| time. This explains why the "served" branchheads cache is detected as
-| invalid here.
-
   $ hg --debug commit -l log -d '2 0' -u 'User Name <user@example.com>'
-  invalid branchheads cache (served): tip differs
+  committing files:
   a
-  invalid branchheads cache (served): tip differs
+  committing manifest
+  committing changelog
   overwriting a expanding keywords
   committed changeset 2:bb948857c743469b22bbf51f7ec8112279ca5d83
   $ rm log
@@ -806,6 +826,9 @@ remove with status checks
   $ hg debugrebuildstate
   $ hg remove a
   $ hg --debug commit -m rma
+  committing files:
+  committing manifest
+  committing changelog
   committed changeset 3:d14c712653769de926994cf7fbb06c8fbd68f012
   $ hg status
   ? c
@@ -876,7 +899,10 @@ Imported patch should not be rejected
   >>> text = re.sub(r'(Id.*)', r'\1 rejecttest', open('a').read())
   >>> open('a', 'wb').write(text)
   $ hg --debug commit -m'rejects?' -d '3 0' -u 'User Name <user@example.com>'
+  committing files:
   a
+  committing manifest
+  committing changelog
   overwriting a expanding keywords
   committed changeset 2:85e279d709ffc28c9fdd1b868570985fc3d87082
   $ hg export -o ../rejecttest.diff tip
@@ -916,8 +942,11 @@ kwexpand x/a should abort
   [255]
   $ cd x
   $ hg --debug commit -m xa -d '3 0' -u 'User Name <user@example.com>'
+  committing files:
   x/a
    x/a: copy a:779c764182ce5d43e2b1eb66ce06d7b47bfe342e
+  committing manifest
+  committing changelog
   overwriting x/a expanding keywords
   committed changeset 3:b4560182a3f9a358179fd2d835c15e9da379c1e4
   $ cat a
@@ -1054,13 +1083,13 @@ conflict: keyword should stay outside conflict zone
   foo
   >>>>>>> other: 85d2d2d732a5  - test: simplemerge
 
-resolve to local
+resolve to local, m must contain hash of last change (local parent)
 
-  $ HGMERGE=internal:local hg resolve -a
+  $ hg resolve -t internal:local -a
   (no more unresolved files)
   $ hg commit -m localresolve
   $ cat m
-  $Id: m 800511b3a22d Thu, 01 Jan 1970 00:00:00 +0000 test $
+  $Id: m 88a80c8d172e Thu, 01 Jan 1970 00:00:00 +0000 test $
   bar
 
 Test restricted mode with transplant -b

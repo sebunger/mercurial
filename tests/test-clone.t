@@ -10,7 +10,7 @@ Prepare repo a:
 
 Create a non-inlined filelog:
 
-  $ python -c 'file("data1", "wb").write("".join("%s\n" % x for x in range(10000)))'
+  $ $PYTHON -c 'file("data1", "wb").write("".join("%s\n" % x for x in range(10000)))'
   $ for j in 0 1 2 3 4 5 6 7 8 9; do
   >   cat data1 >> b
   >   hg commit -m test
@@ -25,12 +25,27 @@ List files in store/data (should show a 'b.d'):
   .hg/store/data/b.d
   .hg/store/data/b.i
 
+Trigger branchcache creation:
+
+  $ hg branches
+  default                       10:a7949464abda
+  $ ls .hg/cache
+  branch2-served
+  rbc-names-v1
+  rbc-revs-v1
+
 Default operation:
 
   $ hg clone . ../b
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd ../b
+
+Ensure branchcache got copied over:
+
+  $ ls .hg/cache
+  branch2-served
+
   $ cat a
   a
   $ hg verify
@@ -50,14 +65,34 @@ No update, with debug option:
 
 #if hardlink
   $ hg --debug clone -U . ../c
+  linking: 1
+  linking: 2
+  linking: 3
+  linking: 4
+  linking: 5
+  linking: 6
+  linking: 7
+  linking: 8
   linked 8 files
-  listing keys for "bookmarks"
 #else
   $ hg --debug clone -U . ../c
+  linking: 1
+  copying: 2
+  copying: 3
+  copying: 4
+  copying: 5
+  copying: 6
+  copying: 7
+  copying: 8
   copied 8 files
-  listing keys for "bookmarks"
 #endif
   $ cd ../c
+
+Ensure branchcache got copied over:
+
+  $ ls .hg/cache
+  branch2-served
+
   $ cat a 2>/dev/null || echo "a not present"
   a not present
   $ hg verify
@@ -537,9 +572,15 @@ No local source
 
 No remote source
 
+#if windows
+  $ hg clone http://127.0.0.1:3121/a b
+  abort: error: * (glob)
+  [255]
+#else
   $ hg clone http://127.0.0.1:3121/a b
   abort: error: *refused* (glob)
   [255]
+#endif
   $ rm -rf b # work around bug with http clone
 
 

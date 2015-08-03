@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
 Some tests for hgweb in an empty repository
 
@@ -48,10 +48,9 @@ Some tests for hgweb in an empty repository
   <ul>
    <li><a href="/help">help</a></li>
   </ul>
-  <p>
   <div class="atom-logo">
   <a href="/atom-log" title="subscribe to atom feed">
-  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed" />
   </a>
   </div>
   </div>
@@ -74,11 +73,13 @@ Some tests for hgweb in an empty repository
   </div>
   
   <table class="bigtable">
+  <thead>
    <tr>
     <th class="age">age</th>
     <th class="author">author</th>
     <th class="description">description</th>
    </tr>
+  </thead>
   <tbody class="stripes2">
   
   </tbody>
@@ -98,7 +99,7 @@ Some tests for hgweb in an empty repository
                   var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
                   return m ? m[1] : null;
               },
-              '.bigtable > tbody:nth-of-type(2)',
+              '.bigtable > tbody',
               '<tr class="%class%">\
               <td colspan="3" style="text-align: center;">%text%</td>\
               </tr>'
@@ -158,10 +159,9 @@ Some tests for hgweb in an empty repository
   <ul>
    <li><a href="/help">help</a></li>
   </ul>
-  <p>
   <div class="atom-logo">
   <a href="/atom-log" title="subscribe to atom feed">
-  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed" />
   </a>
   </div>
   </div>
@@ -184,11 +184,13 @@ Some tests for hgweb in an empty repository
   </div>
   
   <table class="bigtable">
+  <thead>
    <tr>
     <th class="age">age</th>
     <th class="author">author</th>
     <th class="description">description</th>
    </tr>
+  </thead>
   <tbody class="stripes2">
   
   </tbody>
@@ -208,7 +210,7 @@ Some tests for hgweb in an empty repository
                   var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
                   return m ? m[1] : null;
               },
-              '.bigtable > tbody:nth-of-type(2)',
+              '.bigtable > tbody',
               '<tr class="%class%">\
               <td colspan="3" style="text-align: center;">%text%</td>\
               </tr>'
@@ -264,10 +266,9 @@ Some tests for hgweb in an empty repository
   <ul>
    <li><a href="/help">help</a></li>
   </ul>
-  <p>
   <div class="atom-logo">
   <a href="/atom-log" title="subscribe to atom feed">
-  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed" />
   </a>
   </div>
   </div>
@@ -431,11 +432,13 @@ Some tests for hgweb in an empty repository
   </form>
   
   <table class="bigtable">
+  <thead>
   <tr>
     <th class="name">name</th>
     <th class="size">size</th>
     <th class="permissions">permissions</th>
   </tr>
+  </thead>
   <tbody class="stripes2">
   <tr class="fileline">
     <td class="name"><a href="/file/000000000000/">[up]</a></td>

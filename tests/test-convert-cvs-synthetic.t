@@ -1,6 +1,7 @@
+#require cvs112
+
 This feature requires use of builtin cvsps!
 
-  $ "$TESTDIR/hghave" cvs112 || exit 80
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "convert = " >> $HGRCPATH
 
@@ -13,6 +14,7 @@ create cvs repository with one project
   $ CVS_OPTIONS=-f
   $ export CVS_OPTIONS
   $ cd ..
+  $ rmdir cvsrepo
   $ cvscall()
   > {
   >     cvs -f "$@"

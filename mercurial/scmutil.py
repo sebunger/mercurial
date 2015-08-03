@@ -7,10 +7,10 @@
 
 from i18n import _
 from mercurial.node import nullrev
-import util, error, osutil, revset, similar, encoding, phases, parsers
+import util, error, osutil, revset, similar, encoding, phases
 import pathutil
 import match as matchmod
-import os, errno, re, glob, tempfile
+import os, errno, re, glob, tempfile, shutil, stat, inspect
 
 if os.name == 'nt':
     import scmwindows as scmplatform
@@ -19,6 +19,59 @@ else:
 
 systemrcpath = scmplatform.systemrcpath
 userrcpath = scmplatform.userrcpath
+
+class status(tuple):
+    '''Named tuple with a list of files per status. The 'deleted', 'unknown'
+       and 'ignored' properties are only relevant to the working copy.
+    '''
+
+    __slots__ = ()
+
+    def __new__(cls, modified, added, removed, deleted, unknown, ignored,
+                clean):
+        return tuple.__new__(cls, (modified, added, removed, deleted, unknown,
+                                   ignored, clean))
+
+    @property
+    def modified(self):
+        '''files that have been modified'''
+        return self[0]
+
+    @property
+    def added(self):
+        '''files that have been added'''
+        return self[1]
+
+    @property
+    def removed(self):
+        '''files that have been removed'''
+        return self[2]
+
+    @property
+    def deleted(self):
+        '''files that are in the dirstate, but have been deleted from the
+           working copy (aka "missing")
+        '''
+        return self[3]
+
+    @property
+    def unknown(self):
+        '''files not in the dirstate that are not ignored'''
+        return self[4]
+
+    @property
+    def ignored(self):
+        '''files not in the dirstate that are ignored (by _dirignore())'''
+        return self[5]
+
+    @property
+    def clean(self):
+        '''files that have not been modified'''
+        return self[6]
+
+    def __repr__(self, *args, **kwargs):
+        return (('<status modified=%r, added=%r, removed=%r, deleted=%r, '
+                 'unknown=%r, ignored=%r, clean=%r>') % self)
 
 def itersubrepos(ctx1, ctx2):
     """find subrepos in ctx1 or ctx2"""
@@ -119,6 +172,40 @@ class casecollisionauditor(object):
         self._loweredfiles.add(fl)
         self._newfiles.add(f)
 
+def develwarn(tui, msg):
+    """issue a developer warning message"""
+    msg = 'devel-warn: ' + msg
+    if tui.tracebackflag:
+        util.debugstacktrace(msg, 2)
+    else:
+        curframe = inspect.currentframe()
+        calframe = inspect.getouterframes(curframe, 2)
+        tui.write_err('%s at: %s:%s (%s)\n' % ((msg,) + calframe[2][1:4]))
+
+def filteredhash(repo, maxrev):
+    """build hash of filtered revisions in the current repoview.
+
+    Multiple caches perform up-to-date validation by checking that the
+    tiprev and tipnode stored in the cache file match the current repository.
+    However, this is not sufficient for validating repoviews because the set
+    of revisions in the view may change without the repository tiprev and
+    tipnode changing.
+
+    This function hashes all the revs filtered from the view and returns
+    that SHA-1 digest.
+    """
+    cl = repo.changelog
+    if not cl.filteredrevs:
+        return None
+    key = None
+    revs = sorted(r for r in cl.filteredrevs if r <= maxrev)
+    if revs:
+        s = util.sha1()
+        for rev in revs:
+            s.update('%s;' % rev)
+        key = s.digest()
+    return key
+
 class abstractvfs(object):
     """Abstract base class; cannot be instantiated"""
 
@@ -135,9 +222,25 @@ class abstractvfs(object):
                 raise
         return ""
 
-    def open(self, path, mode="r", text=False, atomictemp=False):
+    def tryreadlines(self, path, mode='rb'):
+        '''gracefully return an empty array for missing files'''
+        try:
+            return self.readlines(path, mode=mode)
+        except IOError, inst:
+            if inst.errno != errno.ENOENT:
+                raise
+        return []
+
+    def open(self, path, mode="r", text=False, atomictemp=False,
+             notindexed=False):
+        '''Open ``path`` file, which is relative to vfs root.
+
+        Newly created directories are marked as "not to be indexed by
+        the content indexing service", if ``notindexed`` is specified
+        for "write" mode access.
+        '''
         self.open = self.__call__
-        return self.__call__(path, mode, text, atomictemp)
+        return self.__call__(path, mode, text, atomictemp, notindexed)
 
     def read(self, path):
         fp = self(path, 'rb')
@@ -146,10 +249,24 @@ class abstractvfs(object):
         finally:
             fp.close()
 
+    def readlines(self, path, mode='rb'):
+        fp = self(path, mode=mode)
+        try:
+            return fp.readlines()
+        finally:
+            fp.close()
+
     def write(self, path, data):
         fp = self(path, 'wb')
         try:
             return fp.write(data)
+        finally:
+            fp.close()
+
+    def writelines(self, path, data, mode='wb', notindexed=False):
+        fp = self(path, mode=mode, notindexed=notindexed)
+        try:
+            return fp.writelines(data)
         finally:
             fp.close()
 
@@ -177,6 +294,19 @@ class abstractvfs(object):
 
     def islink(self, path=None):
         return os.path.islink(self.join(path))
+
+    def reljoin(self, *paths):
+        """join various elements of a path together (as os.path.join would do)
+
+        The vfs base is not injected so that path stay relative. This exists
+        to allow handling of strange encoding if needed."""
+        return os.path.join(*paths)
+
+    def split(self, path):
+        """split top-most element of a path (as os.path.split would do)
+
+        This exists to allow handling of strange encoding if needed."""
+        return os.path.split(path)
 
     def lexists(self, path=None):
         return os.path.lexists(self.join(path))
@@ -220,6 +350,31 @@ class abstractvfs(object):
     def readlink(self, path):
         return os.readlink(self.join(path))
 
+    def removedirs(self, path=None):
+        """Remove a leaf directory and all empty intermediate ones
+        """
+        return util.removedirs(self.join(path))
+
+    def rmtree(self, path=None, ignore_errors=False, forcibly=False):
+        """Remove a directory tree recursively
+
+        If ``forcibly``, this tries to remove READ-ONLY files, too.
+        """
+        if forcibly:
+            def onerror(function, path, excinfo):
+                if function is not os.remove:
+                    raise
+                # read-only files cannot be unlinked under Windows
+                s = os.stat(path)
+                if (s.st_mode & stat.S_IWRITE) != 0:
+                    raise
+                os.chmod(path, stat.S_IMODE(s.st_mode) | stat.S_IWRITE)
+                os.remove(path)
+        else:
+            onerror = None
+        return shutil.rmtree(self.join(path),
+                             ignore_errors=ignore_errors, onerror=onerror)
+
     def setflags(self, path, l, x):
         return util.setflags(self.join(path), l, x)
 
@@ -234,6 +389,22 @@ class abstractvfs(object):
 
     def utime(self, path=None, t=None):
         return os.utime(self.join(path), t)
+
+    def walk(self, path=None, onerror=None):
+        """Yield (dirpath, dirs, files) tuple for each directories under path
+
+        ``dirpath`` is relative one from the root of this vfs. This
+        uses ``os.sep`` as path separator, even you specify POSIX
+        style ``path``.
+
+        "The root of this vfs" is represented as empty ``dirpath``.
+        """
+        root = os.path.normpath(self.join(None))
+        # when dirpath == root, dirpath[prefixlen:] becomes empty
+        # because len(dirpath) < prefixlen.
+        prefixlen = len(pathutil.normasprefix(root))
+        for dirpath, dirs, files in os.walk(self.join(path), onerror=onerror):
+            yield (dirpath[prefixlen:], dirs, files)
 
 class vfs(abstractvfs):
     '''Operate files relative to a base directory
@@ -276,7 +447,14 @@ class vfs(abstractvfs):
             return
         os.chmod(name, self.createmode & 0666)
 
-    def __call__(self, path, mode="r", text=False, atomictemp=False):
+    def __call__(self, path, mode="r", text=False, atomictemp=False,
+                 notindexed=False):
+        '''Open ``path`` file, which is relative to vfs root.
+
+        Newly created directories are marked as "not to be indexed by
+        the content indexing service", if ``notindexed`` is specified
+        for "write" mode access.
+        '''
         if self._audit:
             r = util.checkosfilename(path)
             if r:
@@ -294,7 +472,7 @@ class vfs(abstractvfs):
             # to a directory. Let the posixfile() call below raise IOError.
             if basename:
                 if atomictemp:
-                    util.ensuredirs(dirname, self.createmode)
+                    util.ensuredirs(dirname, self.createmode, notindexed)
                     return util.atomictempfile(f, mode, self.createmode)
                 try:
                     if 'w' in mode:
@@ -312,7 +490,7 @@ class vfs(abstractvfs):
                     if e.errno != errno.ENOENT:
                         raise
                     nlink = 0
-                    util.ensuredirs(dirname, self.createmode)
+                    util.ensuredirs(dirname, self.createmode, notindexed)
                 if nlink > 0:
                     if self._trustnlink is None:
                         self._trustnlink = nlink > 1 or util.checknlink(f)
@@ -342,9 +520,9 @@ class vfs(abstractvfs):
         else:
             self.write(dst, src)
 
-    def join(self, path):
+    def join(self, path, *insidef):
         if path:
-            return os.path.join(self.base, path)
+            return os.path.join(self.base, path, *insidef)
         else:
             return self.base
 
@@ -372,9 +550,9 @@ class filtervfs(abstractvfs, auditvfs):
     def __call__(self, path, *args, **kwargs):
         return self.vfs(self._filter(path), *args, **kwargs)
 
-    def join(self, path):
+    def join(self, path, *insidef):
         if path:
-            return self.vfs.join(self._filter(path))
+            return self.vfs.join(self._filter(self.vfs.reljoin(path, *insidef)))
         else:
             return self.vfs.join(path)
 
@@ -442,7 +620,13 @@ def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
 
 def osrcpath():
     '''return default os-specific hgrc search path'''
-    path = systemrcpath()
+    path = []
+    defaultpath = os.path.join(util.datapath, 'default.d')
+    if os.path.isdir(defaultpath):
+        for f, kind in osutil.listdir(defaultpath):
+            if f.endswith('.rc'):
+                path.append(os.path.join(defaultpath, f))
+    path.extend(systemrcpath())
     path.extend(userrcpath())
     path = [os.path.normpath(f) for f in path]
     return path
@@ -473,14 +657,21 @@ def rcpath():
             _rcpath = osrcpath()
     return _rcpath
 
+def intrev(repo, rev):
+    """Return integer for a given revision that can be used in comparison or
+    arithmetic operation"""
+    if rev is None:
+        return len(repo)
+    return rev
+
 def revsingle(repo, revspec, default='.'):
     if not revspec and revspec != 0:
         return repo[default]
 
     l = revrange(repo, [revspec])
-    if len(l) < 1:
+    if not l:
         raise util.Abort(_('empty revision set'))
-    return repo[l[-1]]
+    return repo[l.last()]
 
 def revpair(repo, revs):
     if not revs:
@@ -497,9 +688,8 @@ def revpair(repo, revs):
         first = l.max()
         second = l.min()
     else:
-        l = list(l)
-        first = l[0]
-        second = l[-1]
+        first = l.first()
+        second = l.last()
 
     if first is None:
         raise util.Abort(_('empty revision range'))
@@ -520,12 +710,22 @@ def revrange(repo, revs):
         return repo[val].rev()
 
     seen, l = set(), revset.baseset([])
+
+    revsetaliases = [alias for (alias, _) in
+                     repo.ui.configitems("revsetalias")]
+
     for spec in revs:
         if l and not seen:
             seen = set(l)
         # attempt to parse old-style ranges first to deal with
         # things like old-tag which contain query metacharacters
         try:
+            # ... except for revset aliases without arguments. These
+            # should be parsed as soon as possible, because they might
+            # clash with a hash prefix.
+            if spec in revsetaliases:
+                raise error.RepoLookupError
+
             if isinstance(spec, int):
                 seen.add(spec)
                 l = l + revset.baseset([spec])
@@ -533,6 +733,9 @@ def revrange(repo, revs):
 
             if _revrangesep in spec:
                 start, end = spec.split(_revrangesep, 1)
+                if start in revsetaliases or end in revsetaliases:
+                    raise error.RepoLookupError
+
                 start = revfix(repo, start, 0)
                 end = revfix(repo, end, len(repo) - 1)
                 if end == nullrev and start < 0:
@@ -564,11 +767,11 @@ def revrange(repo, revs):
         # fall through to new-style queries if old-style fails
         m = revset.match(repo.ui, spec, repo)
         if seen or l:
-            dl = [r for r in m(repo, revset.spanset(repo)) if r not in seen]
+            dl = [r for r in m(repo) if r not in seen]
             l = l + revset.baseset(dl)
             seen.update(dl)
         else:
-            l = m(repo, revset.spanset(repo))
+            l = m(repo)
 
     return l
 
@@ -602,8 +805,10 @@ def matchandpats(ctx, pats=[], opts={}, globbed=False, default='relpath'):
     m = ctx.match(pats, opts.get('include'), opts.get('exclude'),
                          default)
     def badfn(f, msg):
-        ctx._repo.ui.warn("%s: %s\n" % (m.rel(f), msg))
+        ctx.repo().ui.warn("%s: %s\n" % (m.rel(f), msg))
     m.bad = badfn
+    if m.always():
+        pats = []
     return m, pats
 
 def match(ctx, pats=[], opts={}, globbed=False, default='relpath'):
@@ -618,40 +823,68 @@ def matchfiles(repo, files):
     '''Return a matcher that will efficiently match exactly these files.'''
     return matchmod.exact(repo.root, repo.getcwd(), files)
 
-def addremove(repo, pats=[], opts={}, dry_run=None, similarity=None):
+def addremove(repo, matcher, prefix, opts={}, dry_run=None, similarity=None):
+    m = matcher
     if dry_run is None:
         dry_run = opts.get('dry_run')
     if similarity is None:
         similarity = float(opts.get('similarity') or 0)
-    # we'd use status here, except handling of symlinks and ignore is tricky
-    m = match(repo[None], pats, opts)
+
+    ret = 0
+    join = lambda f: os.path.join(prefix, f)
+
+    def matchessubrepo(matcher, subpath):
+        if matcher.exact(subpath):
+            return True
+        for f in matcher.files():
+            if f.startswith(subpath):
+                return True
+        return False
+
+    wctx = repo[None]
+    for subpath in sorted(wctx.substate):
+        if opts.get('subrepos') or matchessubrepo(m, subpath):
+            sub = wctx.sub(subpath)
+            try:
+                submatch = matchmod.narrowmatcher(subpath, m)
+                if sub.addremove(submatch, prefix, opts, dry_run, similarity):
+                    ret = 1
+            except error.LookupError:
+                repo.ui.status(_("skipping missing subrepository: %s\n")
+                                 % join(subpath))
+
     rejected = []
-    m.bad = lambda x, y: rejected.append(x)
+    origbad = m.bad
+    def badfn(f, msg):
+        if f in m.files():
+            origbad(f, msg)
+        rejected.append(f)
 
-    added, unknown, deleted, removed = _interestingfiles(repo, m)
+    m.bad = badfn
+    added, unknown, deleted, removed, forgotten = _interestingfiles(repo, m)
+    m.bad = origbad
 
-    unknownset = set(unknown)
+    unknownset = set(unknown + forgotten)
     toprint = unknownset.copy()
     toprint.update(deleted)
     for abs in sorted(toprint):
         if repo.ui.verbose or not m.exact(abs):
-            rel = m.rel(abs)
             if abs in unknownset:
-                status = _('adding %s\n') % ((pats and rel) or abs)
+                status = _('adding %s\n') % m.uipath(abs)
             else:
-                status = _('removing %s\n') % ((pats and rel) or abs)
+                status = _('removing %s\n') % m.uipath(abs)
             repo.ui.status(status)
 
     renames = _findrenames(repo, m, added + unknown, removed + deleted,
                            similarity)
 
     if not dry_run:
-        _markchanges(repo, unknown, deleted, renames)
+        _markchanges(repo, unknown + forgotten, deleted, renames)
 
     for f in rejected:
         if f in m.files():
             return 1
-    return 0
+    return ret
 
 def marktouched(repo, files, similarity=0.0):
     '''Assert that files have somehow been operated upon. files are relative to
@@ -660,10 +893,10 @@ def marktouched(repo, files, similarity=0.0):
     rejected = []
     m.bad = lambda x, y: rejected.append(x)
 
-    added, unknown, deleted, removed = _interestingfiles(repo, m)
+    added, unknown, deleted, removed, forgotten = _interestingfiles(repo, m)
 
     if repo.ui.verbose:
-        unknownset = set(unknown)
+        unknownset = set(unknown + forgotten)
         toprint = unknownset.copy()
         toprint.update(deleted)
         for abs in sorted(toprint):
@@ -676,7 +909,7 @@ def marktouched(repo, files, similarity=0.0):
     renames = _findrenames(repo, m, added + unknown, removed + deleted,
                            similarity)
 
-    _markchanges(repo, unknown, deleted, renames)
+    _markchanges(repo, unknown + forgotten, deleted, renames)
 
     for f in rejected:
         if f in m.files():
@@ -689,7 +922,7 @@ def _interestingfiles(repo, matcher):
 
     This is different from dirstate.status because it doesn't care about
     whether files are modified or clean.'''
-    added, unknown, deleted, removed = [], [], [], []
+    added, unknown, deleted, removed, forgotten = [], [], [], [], []
     audit_path = pathutil.pathauditor(repo.root)
 
     ctx = repo[None]
@@ -702,13 +935,15 @@ def _interestingfiles(repo, matcher):
             unknown.append(abs)
         elif dstate != 'r' and not st:
             deleted.append(abs)
+        elif dstate == 'r' and st:
+            forgotten.append(abs)
         # for finding renames
-        elif dstate == 'r':
+        elif dstate == 'r' and not st:
             removed.append(abs)
         elif dstate == 'a':
             added.append(abs)
 
-    return added, unknown, deleted, removed
+    return added, unknown, deleted, removed, forgotten
 
 def _findrenames(repo, matcher, added, removed, similarity):
     '''Find renames from removed files to added ones.'''
@@ -923,48 +1158,3 @@ class filecache(object):
             del obj.__dict__[self.name]
         except KeyError:
             raise AttributeError(self.name)
-
-class dirs(object):
-    '''a multiset of directory names from a dirstate or manifest'''
-
-    def __init__(self, map, skip=None):
-        self._dirs = {}
-        addpath = self.addpath
-        if util.safehasattr(map, 'iteritems') and skip is not None:
-            for f, s in map.iteritems():
-                if s[0] != skip:
-                    addpath(f)
-        else:
-            for f in map:
-                addpath(f)
-
-    def addpath(self, path):
-        dirs = self._dirs
-        for base in finddirs(path):
-            if base in dirs:
-                dirs[base] += 1
-                return
-            dirs[base] = 1
-
-    def delpath(self, path):
-        dirs = self._dirs
-        for base in finddirs(path):
-            if dirs[base] > 1:
-                dirs[base] -= 1
-                return
-            del dirs[base]
-
-    def __iter__(self):
-        return self._dirs.iterkeys()
-
-    def __contains__(self, d):
-        return d in self._dirs
-
-if util.safehasattr(parsers, 'dirs'):
-    dirs = parsers.dirs
-
-def finddirs(path):
-    pos = path.rfind('/')
-    while pos != -1:
-        yield path[:pos]
-        pos = path.rfind('/', 0, pos)

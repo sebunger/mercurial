@@ -301,7 +301,7 @@ hide outer repo
   
    foo           yet another foo command
   
-  global options:
+  global options ([+] can be repeated):
   
    -R --repository REPO   repository root directory or name of overlay bundle
                           file
@@ -321,8 +321,6 @@ hide outer repo
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
-  
-  [+] marked option can be specified multiple times
 
 
 
@@ -337,7 +335,7 @@ hide outer repo
    debugfoobar   yet another debug command
    foo           yet another foo command
   
-  global options:
+  global options ([+] can be repeated):
   
    -R --repository REPO   repository root directory or name of overlay bundle
                           file
@@ -357,8 +355,6 @@ hide outer repo
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
-  
-  [+] marked option can be specified multiple times
 
 
 
@@ -388,9 +384,9 @@ Extension module help vs command help:
       compared to the working directory, and, when no revisions are specified,
       the working directory files are compared to its parent.
   
-  use "hg help -e extdiff" to show help for the extdiff extension
+  (use "hg help -e extdiff" to show help for the extdiff extension)
   
-  options:
+  options ([+] can be repeated):
   
    -p --program CMD         comparison program to run
    -o --option OPT [+]      pass option to comparison program
@@ -399,9 +395,7 @@ Extension module help vs command help:
    -I --include PATTERN [+] include names matching the given patterns
    -X --exclude PATTERN [+] exclude names matching the given patterns
   
-  [+] marked option can be specified multiple times
-  
-  use "hg -v help extdiff" to show the global options
+  (some details hidden, use --verbose to show complete help)
 
 
 
@@ -430,10 +424,9 @@ Extension module help vs command help:
     #cmd.cdiff = gdiff
     #opts.cdiff = -Nprc5
   
-    # add new command called vdiff, runs kdiff3
-    vdiff = kdiff3
-  
-    # add new command called meld, runs meld (no need to name twice)
+    # add new command called meld, runs meld (no need to name twice).  If
+    # the meld executable is not available, the meld tool in [merge-tools]
+    # will be used, if available
     meld =
   
     # add new command called vimdiff, runs gvimdiff with DirDiff plugin
@@ -469,7 +462,7 @@ Extension module help vs command help:
   
    extdiff       use external program to diff repository (or selected files)
   
-  use "hg -v help extdiff" to show builtin aliases and global options
+  (use "hg help -v -e extdiff" to show built-in aliases and global options)
 
 
 
@@ -533,7 +526,7 @@ Test help topic with same name as extension
   
   multirevs command
   
-  use "hg -v help multirevs" to show the global options
+  (some details hidden, use --verbose to show complete help)
 
 
 
@@ -543,7 +536,7 @@ Test help topic with same name as extension
   
   multirevs command
   
-  use "hg help multirevs" to show the full help text
+  (use "hg multirevs -h" to show more help)
   [255]
 
 
@@ -564,11 +557,13 @@ Issue811: Problem loading extensions twice (by site and by user)
   >     "yet another debug command"
   >     ui.write("%s\n" % '\n'.join([x for x, y in extensions.extensions()]))
   > EOF
-  $ echo "debugissue811 = $debugpath" >> $HGRCPATH
-  $ echo "mq=" >> $HGRCPATH
-  $ echo "strip=" >> $HGRCPATH
-  $ echo "hgext.mq=" >> $HGRCPATH
-  $ echo "hgext/mq=" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > debugissue811 = $debugpath
+  > mq =
+  > strip =
+  > hgext.mq =
+  > hgext/mq =
+  > EOF
 
 Show extensions:
 (note that mq force load strip, also checking it's not loaded twice)
@@ -577,6 +572,214 @@ Show extensions:
   debugissue811
   strip
   mq
+
+For extensions, which name matches one of its commands, help
+message should ask '-v -e' to get list of built-in aliases
+along with extension help itself
+
+  $ mkdir $TESTTMP/d
+  $ cat > $TESTTMP/d/dodo.py <<EOF
+  > """
+  > This is an awesome 'dodo' extension. It does nothing and
+  > writes 'Foo foo'
+  > """
+  > from mercurial import cmdutil, commands
+  > cmdtable = {}
+  > command = cmdutil.command(cmdtable)
+  > @command('dodo', [], 'hg dodo')
+  > def dodo(ui, *args, **kwargs):
+  >     """Does nothing"""
+  >     ui.write("I do nothing. Yay\\n")
+  > @command('foofoo', [], 'hg foofoo')
+  > def foofoo(ui, *args, **kwargs):
+  >     """Writes 'Foo foo'"""
+  >     ui.write("Foo foo\\n")
+  > EOF
+  $ dodopath=$TESTTMP/d/dodo.py
+
+  $ echo "dodo = $dodopath" >> $HGRCPATH
+
+Make sure that user is asked to enter '-v -e' to get list of built-in aliases
+  $ hg help -e dodo
+  dodo extension -
+  
+  This is an awesome 'dodo' extension. It does nothing and writes 'Foo foo'
+  
+  list of commands:
+  
+   dodo          Does nothing
+   foofoo        Writes 'Foo foo'
+  
+  (use "hg help -v -e dodo" to show built-in aliases and global options)
+
+Make sure that '-v -e' prints list of built-in aliases along with
+extension help itself
+  $ hg help -v -e dodo
+  dodo extension -
+  
+  This is an awesome 'dodo' extension. It does nothing and writes 'Foo foo'
+  
+  list of commands:
+  
+   dodo          Does nothing
+   foofoo        Writes 'Foo foo'
+  
+  global options ([+] can be repeated):
+  
+   -R --repository REPO   repository root directory or name of overlay bundle
+                          file
+      --cwd DIR           change working directory
+   -y --noninteractive    do not prompt, automatically pick the first choice for
+                          all prompts
+   -q --quiet             suppress output
+   -v --verbose           enable additional output
+      --config CONFIG [+] set/override config option (use 'section.name=value')
+      --debug             enable debugging output
+      --debugger          start debugger
+      --encoding ENCODE   set the charset encoding (default: ascii)
+      --encodingmode MODE set the charset encoding mode (default: strict)
+      --traceback         always print a traceback on exception
+      --time              time how long the command takes
+      --profile           print command execution profile
+      --version           output version information and exit
+   -h --help              display help and exit
+      --hidden            consider hidden changesets
+
+Make sure that single '-v' option shows help and built-ins only for 'dodo' command
+  $ hg help -v dodo
+  hg dodo
+  
+  Does nothing
+  
+  (use "hg help -e dodo" to show help for the dodo extension)
+  
+  options:
+  
+    --mq operate on patch repository
+  
+  global options ([+] can be repeated):
+  
+   -R --repository REPO   repository root directory or name of overlay bundle
+                          file
+      --cwd DIR           change working directory
+   -y --noninteractive    do not prompt, automatically pick the first choice for
+                          all prompts
+   -q --quiet             suppress output
+   -v --verbose           enable additional output
+      --config CONFIG [+] set/override config option (use 'section.name=value')
+      --debug             enable debugging output
+      --debugger          start debugger
+      --encoding ENCODE   set the charset encoding (default: ascii)
+      --encodingmode MODE set the charset encoding mode (default: strict)
+      --traceback         always print a traceback on exception
+      --time              time how long the command takes
+      --profile           print command execution profile
+      --version           output version information and exit
+   -h --help              display help and exit
+      --hidden            consider hidden changesets
+
+In case when extension name doesn't match any of its commands,
+help message should ask for '-v' to get list of built-in aliases
+along with extension help
+  $ cat > $TESTTMP/d/dudu.py <<EOF
+  > """
+  > This is an awesome 'dudu' extension. It does something and
+  > also writes 'Beep beep'
+  > """
+  > from mercurial import cmdutil, commands
+  > cmdtable = {}
+  > command = cmdutil.command(cmdtable)
+  > @command('something', [], 'hg something')
+  > def something(ui, *args, **kwargs):
+  >     """Does something"""
+  >     ui.write("I do something. Yaaay\\n")
+  > @command('beep', [], 'hg beep')
+  > def beep(ui, *args, **kwargs):
+  >     """Writes 'Beep beep'"""
+  >     ui.write("Beep beep\\n")
+  > EOF
+  $ dudupath=$TESTTMP/d/dudu.py
+
+  $ echo "dudu = $dudupath" >> $HGRCPATH
+
+  $ hg help -e dudu
+  dudu extension -
+  
+  This is an awesome 'dudu' extension. It does something and also writes 'Beep
+  beep'
+  
+  list of commands:
+  
+   beep          Writes 'Beep beep'
+   something     Does something
+  
+  (use "hg help -v dudu" to show built-in aliases and global options)
+
+In case when extension name doesn't match any of its commands,
+help options '-v' and '-v -e' should be equivalent
+  $ hg help -v dudu
+  dudu extension -
+  
+  This is an awesome 'dudu' extension. It does something and also writes 'Beep
+  beep'
+  
+  list of commands:
+  
+   beep          Writes 'Beep beep'
+   something     Does something
+  
+  global options ([+] can be repeated):
+  
+   -R --repository REPO   repository root directory or name of overlay bundle
+                          file
+      --cwd DIR           change working directory
+   -y --noninteractive    do not prompt, automatically pick the first choice for
+                          all prompts
+   -q --quiet             suppress output
+   -v --verbose           enable additional output
+      --config CONFIG [+] set/override config option (use 'section.name=value')
+      --debug             enable debugging output
+      --debugger          start debugger
+      --encoding ENCODE   set the charset encoding (default: ascii)
+      --encodingmode MODE set the charset encoding mode (default: strict)
+      --traceback         always print a traceback on exception
+      --time              time how long the command takes
+      --profile           print command execution profile
+      --version           output version information and exit
+   -h --help              display help and exit
+      --hidden            consider hidden changesets
+
+  $ hg help -v -e dudu
+  dudu extension -
+  
+  This is an awesome 'dudu' extension. It does something and also writes 'Beep
+  beep'
+  
+  list of commands:
+  
+   beep          Writes 'Beep beep'
+   something     Does something
+  
+  global options ([+] can be repeated):
+  
+   -R --repository REPO   repository root directory or name of overlay bundle
+                          file
+      --cwd DIR           change working directory
+   -y --noninteractive    do not prompt, automatically pick the first choice for
+                          all prompts
+   -q --quiet             suppress output
+   -v --verbose           enable additional output
+      --config CONFIG [+] set/override config option (use 'section.name=value')
+      --debug             enable debugging output
+      --debugger          start debugger
+      --encoding ENCODE   set the charset encoding (default: ascii)
+      --encodingmode MODE set the charset encoding mode (default: strict)
+      --traceback         always print a traceback on exception
+      --time              time how long the command takes
+      --profile           print command execution profile
+      --version           output version information and exit
+   -h --help              display help and exit
+      --hidden            consider hidden changesets
 
 Disabled extension commands:
 
@@ -588,7 +791,7 @@ Disabled extension commands:
   
       patchbomb     command to send changesets as (a series of) patch emails
   
-  use "hg help extensions" for information on enabling extensions
+  (use "hg help extensions" for information on enabling extensions)
 
 
   $ hg qdel
@@ -597,7 +800,7 @@ Disabled extension commands:
   
       mq            manage a stack of patches
   
-  use "hg help extensions" for information on enabling extensions
+  (use "hg help extensions" for information on enabling extensions)
   [255]
 
 
@@ -607,7 +810,7 @@ Disabled extension commands:
   
       churn         command to display statistics about repository history
   
-  use "hg help extensions" for information on enabling extensions
+  (use "hg help extensions" for information on enabling extensions)
   [255]
 
 
@@ -617,12 +820,12 @@ Disabled extensions:
   $ hg help churn
   churn extension - command to display statistics about repository history
   
-  use "hg help extensions" for information on enabling extensions
+  (use "hg help extensions" for information on enabling extensions)
 
   $ hg help patchbomb
   patchbomb extension - command to send changesets as (a series of) patch emails
   
-  use "hg help extensions" for information on enabling extensions
+  (use "hg help extensions" for information on enabling extensions)
 
 
 Broken disabled extension and command:
@@ -642,7 +845,7 @@ Broken disabled extension and command:
   $ hg --config extensions.path=./path.py help broken
   broken extension - (no help text available)
   
-  use "hg help extensions" for information on enabling extensions
+  (use "hg help extensions" for information on enabling extensions)
 
 
   $ cat > hgext/forest.py <<EOF
@@ -655,7 +858,7 @@ Broken disabled extension and command:
   [255]
 
   $ cat > throw.py <<EOF
-  > from mercurial import cmdutil, commands
+  > from mercurial import cmdutil, commands, util
   > cmdtable = {}
   > command = cmdutil.command(cmdtable)
   > class Bogon(Exception): pass
@@ -664,6 +867,7 @@ Broken disabled extension and command:
   >     """throws an exception"""
   >     raise Bogon()
   > EOF
+
 No declared supported version, extension complains:
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension throw
@@ -673,6 +877,7 @@ No declared supported version, extension complains:
   ** Python * (glob)
   ** Mercurial Distributed SCM * (glob)
   ** Extensions loaded: throw
+
 empty declaration of supported version, extension complains:
   $ echo "testedwith = ''" >> throw.py
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
@@ -683,6 +888,7 @@ empty declaration of supported version, extension complains:
   ** Python * (glob)
   ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw
+
 If the extension specifies a buglink, show that:
   $ echo 'buglink = "http://example.com/bts"' >> throw.py
   $ rm -f throw.pyc throw.pyo
@@ -694,6 +900,7 @@ If the extension specifies a buglink, show that:
   ** Python * (glob)
   ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw
+
 If the extensions declare outdated versions, accuse the older extension first:
   $ echo "from mercurial import util" >> older.py
   $ echo "util.version = lambda:'2.2'" >> older.py
@@ -703,31 +910,33 @@ If the extensions declare outdated versions, accuse the older extension first:
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
   >   throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension older
-  ** which supports versions 1.9.3 of Mercurial.
+  ** which supports versions 1.9 of Mercurial.
   ** Please disable older and try your action again.
   ** If that fixes the bug please report it to the extension author.
   ** Python * (glob)
   ** Mercurial Distributed SCM (version 2.2)
   ** Extensions loaded: throw, older
+
 One extension only tested with older, one only with newer versions:
-  $ echo "util.version = lambda:'2.1.0'" >> older.py
+  $ echo "util.version = lambda:'2.1'" >> older.py
   $ rm -f older.pyc older.pyo
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
   >   throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension older
-  ** which supports versions 1.9.3 of Mercurial.
+  ** which supports versions 1.9 of Mercurial.
   ** Please disable older and try your action again.
   ** If that fixes the bug please report it to the extension author.
   ** Python * (glob)
-  ** Mercurial Distributed SCM (version 2.1.0)
+  ** Mercurial Distributed SCM (version 2.1)
   ** Extensions loaded: throw, older
+
 Older extension is tested with current version, the other only with newer:
   $ echo "util.version = lambda:'1.9.3'" >> older.py
   $ rm -f older.pyc older.pyo
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
   >   throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension throw
-  ** which supports versions 2.1.1 of Mercurial.
+  ** which supports versions 2.1 of Mercurial.
   ** Please disable throw and try your action again.
   ** If that fixes the bug please report it to http://example.com/bts
   ** Python * (glob)
@@ -735,8 +944,22 @@ Older extension is tested with current version, the other only with newer:
   ** Extensions loaded: throw, older
 
 Declare the version as supporting this hg version, show regular bts link:
-  $ hgver=`python -c 'from mercurial import util; print util.version().split("+")[0]'`
+  $ hgver=`$PYTHON -c 'from mercurial import util; print util.version().split("+")[0]'`
   $ echo 'testedwith = """'"$hgver"'"""' >> throw.py
+  $ if [ -z "$hgver" ]; then
+  >   echo "unable to fetch a mercurial version. Make sure __version__ is correct";
+  > fi
+  $ rm -f throw.pyc throw.pyo
+  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  ** unknown exception encountered, please report by visiting
+  ** http://mercurial.selenic.com/wiki/BugTracker
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: throw
+
+Patch version is ignored during compatibility check
+  $ echo "testedwith = '3.2'" >> throw.py
+  $ echo "util.version = lambda:'3.2.2'" >> throw.py
   $ rm -f throw.pyc throw.pyo
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** unknown exception encountered, please report by visiting
@@ -819,9 +1042,11 @@ Commands handling multiple repositories at a time should invoke only
   $ hg -q -R pull-src1 pull src
   reposetup() for $TESTTMP/reposetup-test/src (glob)
 
-  $ echo '[extensions]' >> $HGRCPATH
-  $ echo '# disable extension globally and explicitly' >> $HGRCPATH
-  $ echo 'reposetuptest = !' >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > # disable extension globally and explicitly
+  > reposetuptest = !
+  > EOF
   $ hg clone -U src clone-dst2
   reposetup() for $TESTTMP/reposetup-test/src (glob)
   $ hg init push-dst2
@@ -831,9 +1056,11 @@ Commands handling multiple repositories at a time should invoke only
   $ hg -q -R pull-src2 pull src
   reposetup() for $TESTTMP/reposetup-test/src (glob)
 
-  $ echo '[extensions]' >> $HGRCPATH
-  $ echo '# enable extension globally' >> $HGRCPATH
-  $ echo "reposetuptest = $TESTTMP/reposetuptest.py" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > # enable extension globally
+  > reposetuptest = $TESTTMP/reposetuptest.py
+  > EOF
   $ hg clone -U src clone-dst3
   reposetup() for $TESTTMP/reposetup-test/src (glob)
   reposetup() for $TESTTMP/reposetup-test/clone-dst3 (glob)
@@ -869,9 +1096,11 @@ disabling in command line overlays with all configuration
   $ hg --config extensions.reposetuptest=! init pull-src5
   $ hg --config extensions.reposetuptest=! -q -R pull-src5 pull src
 
-  $ echo '[extensions]' >> $HGRCPATH
-  $ echo '# disable extension globally and explicitly' >> $HGRCPATH
-  $ echo 'reposetuptest = !' >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > # disable extension globally and explicitly
+  > reposetuptest = !
+  > EOF
   $ hg init parent
   $ hg init parent/sub1
   $ echo 1 > parent/sub1/1
@@ -914,3 +1143,27 @@ disabling in command line overlays with all configuration
   C sub3/3
 
   $ cd ..
+
+Test synopsis and docstring extending
+
+  $ hg init exthelp
+  $ cat > exthelp.py <<EOF
+  > from mercurial import commands, extensions
+  > def exbookmarks(orig, *args, **opts):
+  >     return orig(*args, **opts)
+  > def uisetup(ui):
+  >     synopsis = ' GREPME [--foo] [-x]'
+  >     docstring = '''
+  >     GREPME make sure that this is in the help!
+  >     '''
+  >     extensions.wrapcommand(commands.table, 'bookmarks', exbookmarks,
+  >                            synopsis, docstring)
+  > EOF
+  $ abspath=`pwd`/exthelp.py
+  $ echo '[extensions]' >> $HGRCPATH
+  $ echo "exthelp = $abspath" >> $HGRCPATH
+  $ cd exthelp
+  $ hg help bookmarks | grep GREPME
+  hg bookmarks [OPTIONS]... [NAME]... GREPME [--foo] [-x]
+      GREPME make sure that this is in the help!
+

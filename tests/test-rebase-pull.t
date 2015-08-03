@@ -53,7 +53,8 @@ Now b has one revision to be pulled from a:
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
-  saved backup bundle to $TESTTMP/b/.hg/strip-backup/*-backup.hg (glob)
+  rebasing 2:ff8d69a621f9 "L1"
+  saved backup bundle to $TESTTMP/b/.hg/strip-backup/ff8d69a621f9-160fa373-backup.hg (glob)
 
   $ hg tglog
   @  3: 'L1'
@@ -149,7 +150,8 @@ pull --rebase works when a specific revision is pulled (issue3619)
   adding manifests
   adding file changes
   added 2 changesets with 2 changes to 2 files
-  saved backup bundle to $TESTTMP/c/.hg/strip-backup/ff8d69a621f9-backup.hg (glob)
+  rebasing 3:ff8d69a621f9 "L1"
+  saved backup bundle to $TESTTMP/c/.hg/strip-backup/ff8d69a621f9-160fa373-backup.hg (glob)
   $ hg tglog
   @  5: 'L1'
   |
@@ -163,5 +165,47 @@ pull --rebase works when a specific revision is pulled (issue3619)
   |
   o  0: 'C1'
   
+pull --rebase works with bundle2 turned on
 
-
+  $ cd ../a
+  $ echo R4 > R4
+  $ hg ci -Am R4
+  adding R4
+  $ hg tglog
+  @  5: 'R4'
+  |
+  o  4: 'R3'
+  |
+  o  3: 'R2'
+  |
+  o  2: 'R1'
+  |
+  o  1: 'C2'
+  |
+  o  0: 'C1'
+  
+  $ cd ../c
+  $ hg pull --rebase --config experimental.bundle2-exp=True --config experimental.strip-bundle2-version=02
+  pulling from $TESTTMP/a (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  rebasing 5:518d153c0ba3 "L1"
+  saved backup bundle to $TESTTMP/c/.hg/strip-backup/518d153c0ba3-73407f14-backup.hg (glob)
+  $ hg tglog
+  @  6: 'L1'
+  |
+  o  5: 'R4'
+  |
+  o  4: 'R3'
+  |
+  o  3: 'R2'
+  |
+  o  2: 'R1'
+  |
+  o  1: 'C2'
+  |
+  o  0: 'C1'
+  

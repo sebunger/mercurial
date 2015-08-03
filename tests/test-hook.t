@@ -1,4 +1,10 @@
 commit hooks can see env vars
+(and post-transaction one are run unlocked)
+
+  $ cat > $TESTTMP/txnabort.checkargs.py <<EOF
+  > def showargs(ui, repo, hooktype, **kwargs):
+  >     ui.write('%s python hook: %s\n' % (hooktype, ','.join(sorted(kwargs))))
+  > EOF
 
   $ hg init a
   $ cd a
@@ -12,13 +18,22 @@ commit hooks can see env vars
   > pre-identify = python "$TESTDIR/printenv.py" pre-identify 1
   > pre-cat = python "$TESTDIR/printenv.py" pre-cat
   > post-cat = python "$TESTDIR/printenv.py" post-cat
+  > pretxnopen = sh -c "HG_LOCAL= HG_TAG= python \"$TESTDIR/printenv.py\" pretxnopen"
+  > pretxnclose = sh -c "HG_LOCAL= HG_TAG= python \"$TESTDIR/printenv.py\" pretxnclose"
+  > txnclose = sh -c "HG_LOCAL= HG_TAG= python \"$TESTDIR/printenv.py\" txnclose"
+  > txnabort.0 = python:$TESTTMP/txnabort.checkargs.py:showargs
+  > txnabort.1 = sh -c "HG_LOCAL= HG_TAG= python \"$TESTDIR/printenv.py\" txnabort"
+  > txnclose.checklock = sh -c "hg debuglock > /dev/null"
   > EOF
   $ echo a > a
   $ hg add a
   $ hg commit -m a
   precommit hook: HG_PARENT1=0000000000000000000000000000000000000000
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   pretxncommit hook: HG_NODE=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b HG_PARENT1=0000000000000000000000000000000000000000 HG_PENDING=$TESTTMP/a
   0:cb9a9f314b8b
+  pretxnclose hook: HG_PENDING=$TESTTMP/a HG_PHASES_MOVED=1 HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
+  txnclose hook: HG_PHASES_MOVED=1 HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   commit hook: HG_NODE=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b HG_PARENT1=0000000000000000000000000000000000000000
   commit.b hook: HG_NODE=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b HG_PARENT1=0000000000000000000000000000000000000000
 
@@ -42,8 +57,11 @@ pretxncommit and commit hooks can see both parents of merge
   $ echo b >> a
   $ hg commit -m a1 -d "1 0"
   precommit hook: HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   pretxncommit hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b HG_PENDING=$TESTTMP/a
   1:ab228980c14d
+  pretxnclose hook: HG_PENDING=$TESTTMP/a HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
+  txnclose hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   commit hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
   commit.b hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
   $ hg update -C 0
@@ -52,8 +70,11 @@ pretxncommit and commit hooks can see both parents of merge
   $ hg add b
   $ hg commit -m b -d '1 0'
   precommit hook: HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   pretxncommit hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b HG_PENDING=$TESTTMP/a
   2:ee9deb46ab31
+  pretxnclose hook: HG_PENDING=$TESTTMP/a HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
+  txnclose hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   commit hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
   commit.b hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
   created new head
@@ -62,8 +83,11 @@ pretxncommit and commit hooks can see both parents of merge
   (branch merge, don't forget to commit)
   $ hg commit -m merge -d '2 0'
   precommit hook: HG_PARENT1=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT2=ab228980c14deea8b9555d91c9581127383e40fd
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   pretxncommit hook: HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_PARENT1=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT2=ab228980c14deea8b9555d91c9581127383e40fd HG_PENDING=$TESTTMP/a
   3:07f3376c1e65
+  pretxnclose hook: HG_PENDING=$TESTTMP/a HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
+  txnclose hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   commit hook: HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_PARENT1=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT2=ab228980c14deea8b9555d91c9581127383e40fd
   commit.b hook: HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_PARENT1=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT2=ab228980c14deea8b9555d91c9581127383e40fd
 
@@ -82,15 +106,15 @@ test generic hooks
   $ hg pull ../a
   pulling from ../a
   searching for changes
-  prechangegroup hook: HG_SOURCE=pull HG_URL=file:$TESTTMP/a
+  prechangegroup hook: HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   adding changesets
   adding manifests
   adding file changes
   added 3 changesets with 2 changes to 2 files
-  changegroup hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_SOURCE=pull HG_URL=file:$TESTTMP/a
-  incoming hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_SOURCE=pull HG_URL=file:$TESTTMP/a
-  incoming hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_SOURCE=pull HG_URL=file:$TESTTMP/a
-  incoming hook: HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_SOURCE=pull HG_URL=file:$TESTTMP/a
+  changegroup hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
+  incoming hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
+  incoming hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
+  incoming hook: HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   (run 'hg update' to get a working copy)
 
 tag hooks can see env vars
@@ -103,9 +127,12 @@ tag hooks can see env vars
   $ hg tag -d '3 0' a
   pretag hook: HG_LOCAL=0 HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_TAG=a
   precommit hook: HG_PARENT1=07f3376c1e655977439df2a814e3cc14b27abac2
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   pretxncommit hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PARENT1=07f3376c1e655977439df2a814e3cc14b27abac2 HG_PENDING=$TESTTMP/a
   4:539e4b31b6dc
+  pretxnclose hook: HG_PENDING=$TESTTMP/a HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   tag hook: HG_LOCAL=0 HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_TAG=a
+  txnclose hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   commit hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PARENT1=07f3376c1e655977439df2a814e3cc14b27abac2
   commit.b hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PARENT1=07f3376c1e655977439df2a814e3cc14b27abac2
   $ hg tag -l la
@@ -137,16 +164,34 @@ more there after
   4:539e4b31b6dc
   $ hg commit -m 'fail' -d '4 0'
   precommit hook: HG_PARENT1=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   pretxncommit hook: HG_NODE=6f611f8018c10e827fee6bd2bc807f937e761567 HG_PARENT1=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PENDING=$TESTTMP/a
   5:6f611f8018c1
   5:6f611f8018c1
   pretxncommit.forbid hook: HG_NODE=6f611f8018c10e827fee6bd2bc807f937e761567 HG_PARENT1=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PENDING=$TESTTMP/a
   transaction abort!
+  txnabort python hook: txnid,txnname
+  txnabort hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   rollback completed
   abort: pretxncommit.forbid1 hook exited with status 1
   [255]
   $ hg -q tip
   4:539e4b31b6dc
+
+(Check that no 'changelog.i.a' file were left behind)
+
+  $ ls -1 .hg/store/
+  00changelog.i
+  00manifest.i
+  data
+  fncache
+  journal.phaseroots
+  phaseroots
+  undo
+  undo.backup.fncache
+  undo.backupfiles
+  undo.phaseroots
+
 
 precommit hook can prevent commit
 
@@ -183,8 +228,11 @@ pushkey hook
   pushing to ../a
   searching for changes
   no changes found
-  exporting bookmark foo
+  pretxnopen hook: HG_TXNID=TXN:* HG_TXNNAME=bookmarks (glob)
+  pretxnclose hook: HG_BOOKMARK_MOVED=1 HG_PENDING=$TESTTMP/a HG_TXNID=TXN:* HG_TXNNAME=bookmarks (glob)
+  txnclose hook: HG_BOOKMARK_MOVED=1 HG_TXNID=TXN:* HG_TXNNAME=bookmarks (glob)
   pushkey hook: HG_KEY=foo HG_NAMESPACE=bookmarks HG_NEW=0000000000000000000000000000000000000000 HG_RET=1
+  exporting bookmark foo
   [1]
   $ cd ../a
 
@@ -196,10 +244,10 @@ listkeys hook
   $ hg pull -B bar ../a
   pulling from ../a
   listkeys hook: HG_NAMESPACE=bookmarks HG_VALUES={'bar': '0000000000000000000000000000000000000000', 'foo': '0000000000000000000000000000000000000000'}
+  listkeys hook: HG_NAMESPACE=bookmarks HG_VALUES={'bar': '0000000000000000000000000000000000000000', 'foo': '0000000000000000000000000000000000000000'}
   no changes found
   listkeys hook: HG_NAMESPACE=phases HG_VALUES={'cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b': '1', 'publishing': 'True'}
   adding remote bookmark bar
-  importing bookmark bar
   $ cd ../a
 
 test that prepushkey can prevent incoming keys
@@ -210,14 +258,14 @@ test that prepushkey can prevent incoming keys
   $ hg push -B baz ../a
   pushing to ../a
   searching for changes
-  no changes found
   listkeys hook: HG_NAMESPACE=phases HG_VALUES={'cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b': '1', 'publishing': 'True'}
   listkeys hook: HG_NAMESPACE=bookmarks HG_VALUES={'bar': '0000000000000000000000000000000000000000', 'foo': '0000000000000000000000000000000000000000'}
-  listkeys hook: HG_NAMESPACE=bookmarks HG_VALUES={'bar': '0000000000000000000000000000000000000000', 'foo': '0000000000000000000000000000000000000000'}
-  exporting bookmark baz
+  no changes found
+  listkeys hook: HG_NAMESPACE=phases HG_VALUES={'cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b': '1', 'publishing': 'True'}
   prepushkey.forbid hook: HG_KEY=baz HG_NAMESPACE=bookmarks HG_NEW=0000000000000000000000000000000000000000
-  abort: prepushkey hook exited with status 1
-  [255]
+  pushkey-abort: prepushkey hook exited with status 1
+  exporting bookmark baz failed!
+  [1]
   $ cd ../a
 
 test that prelistkeys can prevent listing keys
@@ -245,7 +293,7 @@ prechangegroup hook can prevent incoming changes
   $ hg pull ../a
   pulling from ../a
   searching for changes
-  prechangegroup.forbid hook: HG_SOURCE=pull HG_URL=file:$TESTTMP/a
+  prechangegroup.forbid hook: HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   abort: prechangegroup.forbid hook exited with status 1
   [255]
 
@@ -265,7 +313,7 @@ incoming changes no longer there after
   adding file changes
   added 1 changesets with 1 changes to 1 files
   4:539e4b31b6dc
-  pretxnchangegroup.forbid hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PENDING=$TESTTMP/b HG_SOURCE=pull HG_URL=file:$TESTTMP/a
+  pretxnchangegroup.forbid hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PENDING=$TESTTMP/b HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   transaction abort!
   rollback completed
   abort: pretxnchangegroup.forbid1 hook exited with status 1
@@ -498,7 +546,10 @@ make sure --traceback works
   Automatically installed hook
   $ echo >> foo
   $ hg ci --debug -d '0 0' -m 'change foo'
+  committing files:
   foo
+  committing manifest
+  committing changelog
   calling hook commit.auto: hgext_hookext.autohook
   Automatically installed hook
   committed changeset 1:52998019f6252a2b893452765fcb0a47351a5708
@@ -569,7 +620,9 @@ make sure --traceback works on hook import failure
 
 Issue1827: Hooks Update & Commit not completely post operation
 
-commit and update hooks should run after command completion
+commit and update hooks should run after command completion.  The largefiles
+use demonstrates a recursive wlock, showing the hook doesn't run until the
+final release (and dirstate flush).
 
   $ echo '[hooks]' > .hg/hgrc
   $ echo 'commit = hg id' >> .hg/hgrc
@@ -577,7 +630,7 @@ commit and update hooks should run after command completion
   $ echo bb > a
   $ hg ci -ma
   223eafe2750c tip
-  $ hg up 0
+  $ hg up 0 --config extensions.largefiles=
   cb9a9f314b8b
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 

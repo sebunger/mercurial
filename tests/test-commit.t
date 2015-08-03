@@ -4,7 +4,12 @@ commit date test
   $ cd test
   $ echo foo > foo
   $ hg add foo
-  $ HGEDITOR=true hg commit -m ""
+  $ cat > $TESTTMP/checkeditform.sh <<EOF
+  > env | grep HGEDITFORM
+  > true
+  > EOF
+  $ HGEDITOR="sh $TESTTMP/checkeditform.sh" hg commit -m ""
+  HGEDITFORM=commit.normal.normal
   abort: empty commit message
   [255]
   $ hg commit -d '0 0' -m commit-1
@@ -45,7 +50,10 @@ commit added file that has been deleted
   $ hg add
   adding dir/file (glob)
   $ hg -v commit -m commit-9 dir
+  committing files:
   dir/file
+  committing manifest
+  committing changelog
   committed changeset 2:d2a76177cb42
 
   $ echo > dir.file
@@ -66,7 +74,10 @@ commit added file that has been deleted
   abort: dir2: no match under directory!
   [255]
   $ hg -v commit -m commit-13 ../dir
+  committing files:
   dir/file
+  committing manifest
+  committing changelog
   committed changeset 3:1cd62a2d8db5
   $ cd ..
 
@@ -87,7 +98,10 @@ commit added file that has been deleted
   [255]
   $ echo >> dir/file
   $ hg -v commit -m commit-17 dir/file
+  committing files:
   dir/file
+  committing manifest
+  committing changelog
   committed changeset 4:49176991390e
 
 An empty date was interpreted as epoch origin
@@ -277,7 +291,8 @@ should fail because we are specifying a pattern
 
 should succeed
 
-  $ hg ci -mmerge
+  $ HGEDITOR="sh $TESTTMP/checkeditform.sh" hg ci -mmerge --edit
+  HGEDITFORM=commit.normal.merge
   $ cd ..
 
 
@@ -359,6 +374,20 @@ specific template keywords work well
 
   $ cat >> .hg/hgrc <<EOF
   > [committemplate]
+  > changeset.commit.normal = HG: this is "commit.normal" template
+  >     HG: {extramsg}
+  >     {if(currentbookmark,
+  >    "HG: bookmark '{currentbookmark}' is activated\n",
+  >    "HG: no bookmark is activated\n")}{subrepos %
+  >    "HG: subrepo '{subrepo}' is changed\n"}
+  > 
+  > changeset.commit = HG: this is "commit" template
+  >     HG: {extramsg}
+  >     {if(currentbookmark,
+  >    "HG: bookmark '{currentbookmark}' is activated\n",
+  >    "HG: no bookmark is activated\n")}{subrepos %
+  >    "HG: subrepo '{subrepo}' is changed\n"}
+  > 
   > changeset = HG: this is customized commit template
   >     HG: {extramsg}
   >     {if(currentbookmark,
@@ -373,7 +402,7 @@ specific template keywords work well
   $ echo 'sub2 = sub2' >> .hgsub
 
   $ HGEDITOR=cat hg commit -S -q
-  HG: this is customized commit template
+  HG: this is "commit.normal" template
   HG: Leave message empty to abort commit.
   HG: bookmark 'currentbookmark' is activated
   HG: subrepo 'sub' is changed
@@ -381,14 +410,147 @@ specific template keywords work well
   abort: empty commit message
   [255]
 
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset.commit.normal =
+  > # now, "changeset.commit" should be chosen for "hg commit"
+  > EOF
+
   $ hg bookmark --inactive currentbookmark
   $ hg forget .hgsub
+  $ HGEDITOR=cat hg commit -q
+  HG: this is "commit" template
+  HG: Leave message empty to abort commit.
+  HG: no bookmark is activated
+  abort: empty commit message
+  [255]
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset.commit =
+  > # now, "changeset" should be chosen for "hg commit"
+  > EOF
+
   $ HGEDITOR=cat hg commit -q
   HG: this is customized commit template
   HG: Leave message empty to abort commit.
   HG: no bookmark is activated
   abort: empty commit message
   [255]
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset = {desc}
+  >     HG: mods={file_mods}
+  >     HG: adds={file_adds}
+  >     HG: dels={file_dels}
+  >     HG: files={files}
+  >     HG:
+  >     {splitlines(diff()) % 'HG: {line}\n'
+  >    }HG:
+  >     HG: mods={file_mods}
+  >     HG: adds={file_adds}
+  >     HG: dels={file_dels}
+  >     HG: files={files}\n
+  > EOF
+  $ hg status -amr
+  M changed
+  A added
+  R removed
+  $ HGEDITOR=cat hg commit -q -e -m "foo bar" changed
+  foo bar
+  HG: mods=changed
+  HG: adds=
+  HG: dels=
+  HG: files=changed
+  HG:
+  HG: --- a/changed	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/changed	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,1 +1,2 @@
+  HG:  changed
+  HG: +changed
+  HG:
+  HG: mods=changed
+  HG: adds=
+  HG: dels=
+  HG: files=changed
+  $ hg status -amr
+  A added
+  R removed
+  $ hg parents --template "M {file_mods}\nA {file_adds}\nR {file_dels}\n"
+  M changed
+  A 
+  R 
+  $ hg rollback -q
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset = {desc}
+  >     HG: mods={file_mods}
+  >     HG: adds={file_adds}
+  >     HG: dels={file_dels}
+  >     HG: files={files}
+  >     HG:
+  >     {splitlines(diff("changed")) % 'HG: {line}\n'
+  >    }HG:
+  >     HG: mods={file_mods}
+  >     HG: adds={file_adds}
+  >     HG: dels={file_dels}
+  >     HG: files={files}
+  >     HG:
+  >     {splitlines(diff("added")) % 'HG: {line}\n'
+  >    }HG:
+  >     HG: mods={file_mods}
+  >     HG: adds={file_adds}
+  >     HG: dels={file_dels}
+  >     HG: files={files}
+  >     HG:
+  >     {splitlines(diff("removed")) % 'HG: {line}\n'
+  >    }HG:
+  >     HG: mods={file_mods}
+  >     HG: adds={file_adds}
+  >     HG: dels={file_dels}
+  >     HG: files={files}\n
+  > EOF
+  $ HGEDITOR=cat hg commit -q -e -m "foo bar" added removed
+  foo bar
+  HG: mods=
+  HG: adds=added
+  HG: dels=removed
+  HG: files=added removed
+  HG:
+  HG:
+  HG: mods=
+  HG: adds=added
+  HG: dels=removed
+  HG: files=added removed
+  HG:
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/added	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +added
+  HG:
+  HG: mods=
+  HG: adds=added
+  HG: dels=removed
+  HG: files=added removed
+  HG:
+  HG: --- a/removed	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,1 +0,0 @@
+  HG: -removed
+  HG:
+  HG: mods=
+  HG: adds=added
+  HG: dels=removed
+  HG: files=added removed
+  $ hg status -amr
+  M changed
+  $ hg parents --template "M {file_mods}\nA {file_adds}\nR {file_dels}\n"
+  M 
+  A added
+  R removed
+  $ hg rollback -q
 
   $ cat >> .hg/hgrc <<EOF
   > # disable customizing for subsequent tests
@@ -418,4 +580,61 @@ commit copy
        0         0       6  .....       0 26d3ca0dfd18 000000000000 000000000000 (re)
        1         6       7  .....       1 d267bddd54f7 26d3ca0dfd18 000000000000 (re)
 
-  $ cd ..
+verify pathauditor blocks evil filepaths
+  $ cat > evil-commit.py <<EOF
+  > from mercurial import ui, hg, context, node
+  > notrc = u".h\u200cg".encode('utf-8') + '/hgrc'
+  > u = ui.ui()
+  > r = hg.repository(u, '.')
+  > def filectxfn(repo, memctx, path):
+  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
+  > c = context.memctx(r, [r['tip'].node(), node.nullid],
+  >                    'evil', [notrc], filectxfn, 0)
+  > r.commitctx(c)
+  > EOF
+  $ $PYTHON evil-commit.py
+#if windows
+  $ hg co --clean tip
+  abort: path contains illegal component: .h\xe2\x80\x8cg\\hgrc (esc)
+  [255]
+#else
+  $ hg co --clean tip
+  abort: path contains illegal component: .h\xe2\x80\x8cg/hgrc (esc)
+  [255]
+#endif
+
+  $ hg rollback -f
+  repository tip rolled back to revision 1 (undo commit)
+  $ cat > evil-commit.py <<EOF
+  > from mercurial import ui, hg, context, node
+  > notrc = "HG~1/hgrc"
+  > u = ui.ui()
+  > r = hg.repository(u, '.')
+  > def filectxfn(repo, memctx, path):
+  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
+  > c = context.memctx(r, [r['tip'].node(), node.nullid],
+  >                    'evil', [notrc], filectxfn, 0)
+  > r.commitctx(c)
+  > EOF
+  $ $PYTHON evil-commit.py
+  $ hg co --clean tip
+  abort: path contains illegal component: HG~1/hgrc (glob)
+  [255]
+
+  $ hg rollback -f
+  repository tip rolled back to revision 1 (undo commit)
+  $ cat > evil-commit.py <<EOF
+  > from mercurial import ui, hg, context, node
+  > notrc = "HG8B6C~2/hgrc"
+  > u = ui.ui()
+  > r = hg.repository(u, '.')
+  > def filectxfn(repo, memctx, path):
+  >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
+  > c = context.memctx(r, [r['tip'].node(), node.nullid],
+  >                    'evil', [notrc], filectxfn, 0)
+  > r.commitctx(c)
+  > EOF
+  $ $PYTHON evil-commit.py
+  $ hg co --clean tip
+  abort: path contains illegal component: HG8B6C~2/hgrc (glob)
+  [255]

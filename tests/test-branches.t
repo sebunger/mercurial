@@ -419,10 +419,12 @@ branch b
   
 default branch colors:
 
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "color =" >> $HGRCPATH
-  $ echo "[color]" >> $HGRCPATH
-  $ echo "mode = ansi" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > color =
+  > [color]
+  > mode = ansi
+  > EOF
 
   $ hg up -C c
   3 files updated, 0 files merged, 2 files removed, 0 files unresolved
@@ -430,44 +432,206 @@ default branch colors:
   $ hg up -C b
   2 files updated, 0 files merged, 3 files removed, 0 files unresolved
   $ hg branches --color=always
-  \x1b[0;32mb\x1b[0m \x1b[0;33m                            13:e23b5505d1ad\x1b[0m (esc)
-  \x1b[0;0ma branch name much longer than the default justification used by branches\x1b[0m \x1b[0;33m7:10ff5895aa57\x1b[0m (esc)
-  \x1b[0;0ma\x1b[0m \x1b[0;33m                             5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
-  \x1b[0;0mdefault\x1b[0m \x1b[0;33m                       0:19709c5a4e75\x1b[0m (inactive) (esc)
+  \x1b[0;32mb\x1b[0m\x1b[0;33m                             13:e23b5505d1ad\x1b[0m (esc)
+  \x1b[0;0ma branch name much longer than the default justification used by branches\x1b[0m\x1b[0;33m 7:10ff5895aa57\x1b[0m (esc)
+  \x1b[0;0ma\x1b[0m\x1b[0;33m                              5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
+  \x1b[0;0mdefault\x1b[0m\x1b[0;33m                        0:19709c5a4e75\x1b[0m (inactive) (esc)
 
 default closed branch color:
 
   $ hg branches --color=always --closed
-  \x1b[0;32mb\x1b[0m \x1b[0;33m                            13:e23b5505d1ad\x1b[0m (esc)
-  \x1b[0;0ma branch name much longer than the default justification used by branches\x1b[0m \x1b[0;33m7:10ff5895aa57\x1b[0m (esc)
-  \x1b[0;30;1mc\x1b[0m \x1b[0;33m                            14:f894c25619d3\x1b[0m (closed) (esc)
-  \x1b[0;0ma\x1b[0m \x1b[0;33m                             5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
-  \x1b[0;0mdefault\x1b[0m \x1b[0;33m                       0:19709c5a4e75\x1b[0m (inactive) (esc)
+  \x1b[0;32mb\x1b[0m\x1b[0;33m                             13:e23b5505d1ad\x1b[0m (esc)
+  \x1b[0;0ma branch name much longer than the default justification used by branches\x1b[0m\x1b[0;33m 7:10ff5895aa57\x1b[0m (esc)
+  \x1b[0;30;1mc\x1b[0m\x1b[0;33m                             14:f894c25619d3\x1b[0m (closed) (esc)
+  \x1b[0;0ma\x1b[0m\x1b[0;33m                              5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
+  \x1b[0;0mdefault\x1b[0m\x1b[0;33m                        0:19709c5a4e75\x1b[0m (inactive) (esc)
 
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "color =" >> $HGRCPATH
-  $ echo "[color]" >> $HGRCPATH
-  $ echo "branches.active = green" >> $HGRCPATH
-  $ echo "branches.closed = blue" >> $HGRCPATH
-  $ echo "branches.current = red" >> $HGRCPATH
-  $ echo "branches.inactive = magenta" >> $HGRCPATH
-  $ echo "log.changeset = cyan" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > color =
+  > [color]
+  > branches.active = green
+  > branches.closed = blue
+  > branches.current = red
+  > branches.inactive = magenta
+  > log.changeset = cyan
+  > EOF
 
 custom branch colors:
 
   $ hg branches --color=always
-  \x1b[0;31mb\x1b[0m \x1b[0;36m                            13:e23b5505d1ad\x1b[0m (esc)
-  \x1b[0;32ma branch name much longer than the default justification used by branches\x1b[0m \x1b[0;36m7:10ff5895aa57\x1b[0m (esc)
-  \x1b[0;35ma\x1b[0m \x1b[0;36m                             5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
-  \x1b[0;35mdefault\x1b[0m \x1b[0;36m                       0:19709c5a4e75\x1b[0m (inactive) (esc)
+  \x1b[0;31mb\x1b[0m\x1b[0;36m                             13:e23b5505d1ad\x1b[0m (esc)
+  \x1b[0;32ma branch name much longer than the default justification used by branches\x1b[0m\x1b[0;36m 7:10ff5895aa57\x1b[0m (esc)
+  \x1b[0;35ma\x1b[0m\x1b[0;36m                              5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
+  \x1b[0;35mdefault\x1b[0m\x1b[0;36m                        0:19709c5a4e75\x1b[0m (inactive) (esc)
 
 custom closed branch color:
 
   $ hg branches --color=always --closed
-  \x1b[0;31mb\x1b[0m \x1b[0;36m                            13:e23b5505d1ad\x1b[0m (esc)
-  \x1b[0;32ma branch name much longer than the default justification used by branches\x1b[0m \x1b[0;36m7:10ff5895aa57\x1b[0m (esc)
-  \x1b[0;34mc\x1b[0m \x1b[0;36m                            14:f894c25619d3\x1b[0m (closed) (esc)
-  \x1b[0;35ma\x1b[0m \x1b[0;36m                             5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
-  \x1b[0;35mdefault\x1b[0m \x1b[0;36m                       0:19709c5a4e75\x1b[0m (inactive) (esc)
+  \x1b[0;31mb\x1b[0m\x1b[0;36m                             13:e23b5505d1ad\x1b[0m (esc)
+  \x1b[0;32ma branch name much longer than the default justification used by branches\x1b[0m\x1b[0;36m 7:10ff5895aa57\x1b[0m (esc)
+  \x1b[0;34mc\x1b[0m\x1b[0;36m                             14:f894c25619d3\x1b[0m (closed) (esc)
+  \x1b[0;35ma\x1b[0m\x1b[0;36m                              5:d8cbc61dbaa6\x1b[0m (inactive) (esc)
+  \x1b[0;35mdefault\x1b[0m\x1b[0;36m                        0:19709c5a4e75\x1b[0m (inactive) (esc)
+
+template output:
+
+  $ hg branches -Tjson --closed
+  [
+   {
+    "active": true,
+    "branch": "b",
+    "closed": false,
+    "current": true,
+    "node": "e23b5505d1ad24aab6f84fd8c7cb8cd8e5e93be0",
+    "rev": 13
+   },
+   {
+    "active": true,
+    "branch": "a branch name much longer than the default justification used by branches",
+    "closed": false,
+    "current": false,
+    "node": "10ff5895aa5793bd378da574af8cec8ea408d831",
+    "rev": 7
+   },
+   {
+    "active": false,
+    "branch": "c",
+    "closed": true,
+    "current": false,
+    "node": "f894c25619d3f1484639d81be950e0a07bc6f1f6",
+    "rev": 14
+   },
+   {
+    "active": false,
+    "branch": "a",
+    "closed": false,
+    "current": false,
+    "node": "d8cbc61dbaa6dc817175d1e301eecb863f280832",
+    "rev": 5
+   },
+   {
+    "active": false,
+    "branch": "default",
+    "closed": false,
+    "current": false,
+    "node": "19709c5a4e75bf938f8e349aff97438539bb729e",
+    "rev": 0
+   }
+  ]
+
+
+Tests of revision branch name caching
+
+We rev branch cache is updated automatically. In these tests we use a trick to
+trigger rebuilds. We remove the branch head cache and run 'hg head' to cause a
+rebuild that also will populate the rev branch cache.
+
+revision branch cache is created when building the branch head cache
+  $ rm -rf .hg/cache; hg head a -T '{rev}\n'
+  5
+  $ f --hexdump --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=87
+  0000: 64 65 66 61 75 6c 74 00 61 00 62 00 63 00 61 20 |default.a.b.c.a |
+  0010: 62 72 61 6e 63 68 20 6e 61 6d 65 20 6d 75 63 68 |branch name much|
+  0020: 20 6c 6f 6e 67 65 72 20 74 68 61 6e 20 74 68 65 | longer than the|
+  0030: 20 64 65 66 61 75 6c 74 20 6a 75 73 74 69 66 69 | default justifi|
+  0040: 63 61 74 69 6f 6e 20 75 73 65 64 20 62 79 20 62 |cation used by b|
+  0050: 72 61 6e 63 68 65 73                            |ranches|
+  .hg/cache/rbc-revs-v1: size=120
+  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
+  0010: 88 1f e2 b9 00 00 00 01 ac 22 03 33 00 00 00 02 |.........".3....|
+  0020: ae e3 9c d1 00 00 00 02 d8 cb c6 1d 00 00 00 01 |................|
+  0030: 58 97 36 a2 00 00 00 03 10 ff 58 95 00 00 00 04 |X.6.......X.....|
+  0040: ee bb 94 44 00 00 00 02 5f 40 61 bb 00 00 00 02 |...D...._@a.....|
+  0050: bf be 84 1b 00 00 00 02 d3 f1 63 45 80 00 00 02 |..........cE....|
+  0060: e3 d4 9c 05 80 00 00 02 e2 3b 55 05 00 00 00 02 |.........;U.....|
+  0070: f8 94 c2 56 80 00 00 03                         |...V....|
+
+#if unix-permissions no-root
+no errors when revbranchcache is not writable
+
+  $ echo >> .hg/cache/rbc-revs-v1
+  $ chmod a-w .hg/cache/rbc-revs-v1
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n'
+  5
+  $ chmod a+w .hg/cache/rbc-revs-v1
+#endif
+
+recovery from invalid cache revs file with trailing data
+  $ echo >> .hg/cache/rbc-revs-v1
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
+  5
+  truncating cache/rbc-revs-v1 to 120
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=120
+recovery from invalid cache file with partial last record
+  $ mv .hg/cache/rbc-revs-v1 .
+  $ f -qDB 119 rbc-revs-v1 > .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=119
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
+  5
+  truncating cache/rbc-revs-v1 to 112
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=120
+recovery from invalid cache file with missing record - no truncation
+  $ mv .hg/cache/rbc-revs-v1 .
+  $ f -qDB 112 rbc-revs-v1 > .hg/cache/rbc-revs-v1
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
+  5
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=120
+recovery from invalid cache file with some bad records
+  $ mv .hg/cache/rbc-revs-v1 .
+  $ f -qDB 8 rbc-revs-v1 > .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=8
+  $ f -qDB 112 rbc-revs-v1 >> .hg/cache/rbc-revs-v1
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=120
+  $ hg log -r 'branch(.)' -T '{rev} ' --debug
+  3 4 8 9 10 11 12 13 truncating cache/rbc-revs-v1 to 8
+  $ rm -f .hg/cache/branch* && hg head a -T '{rev}\n' --debug
+  5
+  truncating cache/rbc-revs-v1 to 104
+  $ f --size --hexdump --bytes=16 .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=120
+  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
+cache is updated when committing
+  $ hg branch i-will-regret-this
+  marked working directory as branch i-will-regret-this
+  (branches are permanent and global, did you want a bookmark?)
+  $ hg ci -m regrets
+  $ f --size .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=106
+  .hg/cache/rbc-revs-v1: size=128
+update after rollback - the cache will be correct but rbc-names will will still
+contain the branch name even though it no longer is used
+  $ hg up -qr '.^'
+  $ hg rollback -qf
+  $ f --size --hexdump .hg/cache/rbc-*
+  .hg/cache/rbc-names-v1: size=106
+  0000: 64 65 66 61 75 6c 74 00 61 00 62 00 63 00 61 20 |default.a.b.c.a |
+  0010: 62 72 61 6e 63 68 20 6e 61 6d 65 20 6d 75 63 68 |branch name much|
+  0020: 20 6c 6f 6e 67 65 72 20 74 68 61 6e 20 74 68 65 | longer than the|
+  0030: 20 64 65 66 61 75 6c 74 20 6a 75 73 74 69 66 69 | default justifi|
+  0040: 63 61 74 69 6f 6e 20 75 73 65 64 20 62 79 20 62 |cation used by b|
+  0050: 72 61 6e 63 68 65 73 00 69 2d 77 69 6c 6c 2d 72 |ranches.i-will-r|
+  0060: 65 67 72 65 74 2d 74 68 69 73                   |egret-this|
+  .hg/cache/rbc-revs-v1: size=120
+  0000: 19 70 9c 5a 00 00 00 00 dd 6b 44 0d 00 00 00 01 |.p.Z.....kD.....|
+  0010: 88 1f e2 b9 00 00 00 01 ac 22 03 33 00 00 00 02 |.........".3....|
+  0020: ae e3 9c d1 00 00 00 02 d8 cb c6 1d 00 00 00 01 |................|
+  0030: 58 97 36 a2 00 00 00 03 10 ff 58 95 00 00 00 04 |X.6.......X.....|
+  0040: ee bb 94 44 00 00 00 02 5f 40 61 bb 00 00 00 02 |...D...._@a.....|
+  0050: bf be 84 1b 00 00 00 02 d3 f1 63 45 80 00 00 02 |..........cE....|
+  0060: e3 d4 9c 05 80 00 00 02 e2 3b 55 05 00 00 00 02 |.........;U.....|
+  0070: f8 94 c2 56 80 00 00 03                         |...V....|
+cache is updated/truncated when stripping - it is thus very hard to get in a
+situation where the cache is out of sync and the hash check detects it
+  $ hg --config extensions.strip= strip -r tip --nob
+  $ f --size .hg/cache/rbc-revs*
+  .hg/cache/rbc-revs-v1: size=112
 
   $ cd ..

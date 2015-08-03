@@ -35,6 +35,48 @@ static int8_t hextable[256] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
+static char lowertable[128] = {
+	'\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07',
+	'\x08', '\x09', '\x0a', '\x0b', '\x0c', '\x0d', '\x0e', '\x0f',
+	'\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17',
+	'\x18', '\x19', '\x1a', '\x1b', '\x1c', '\x1d', '\x1e', '\x1f',
+	'\x20', '\x21', '\x22', '\x23', '\x24', '\x25', '\x26', '\x27',
+	'\x28', '\x29', '\x2a', '\x2b', '\x2c', '\x2d', '\x2e', '\x2f',
+	'\x30', '\x31', '\x32', '\x33', '\x34', '\x35', '\x36', '\x37',
+	'\x38', '\x39', '\x3a', '\x3b', '\x3c', '\x3d', '\x3e', '\x3f',
+	'\x40',
+	        '\x61', '\x62', '\x63', '\x64', '\x65', '\x66', '\x67', /* A-G */
+	'\x68', '\x69', '\x6a', '\x6b', '\x6c', '\x6d', '\x6e', '\x6f', /* H-O */
+	'\x70', '\x71', '\x72', '\x73', '\x74', '\x75', '\x76', '\x77', /* P-W */
+	'\x78', '\x79', '\x7a',                                         /* X-Z */
+	                        '\x5b', '\x5c', '\x5d', '\x5e', '\x5f',
+	'\x60', '\x61', '\x62', '\x63', '\x64', '\x65', '\x66', '\x67',
+	'\x68', '\x69', '\x6a', '\x6b', '\x6c', '\x6d', '\x6e', '\x6f',
+	'\x70', '\x71', '\x72', '\x73', '\x74', '\x75', '\x76', '\x77',
+	'\x78', '\x79', '\x7a', '\x7b', '\x7c', '\x7d', '\x7e', '\x7f'
+};
+
+static char uppertable[128] = {
+	'\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07',
+	'\x08', '\x09', '\x0a', '\x0b', '\x0c', '\x0d', '\x0e', '\x0f',
+	'\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17',
+	'\x18', '\x19', '\x1a', '\x1b', '\x1c', '\x1d', '\x1e', '\x1f',
+	'\x20', '\x21', '\x22', '\x23', '\x24', '\x25', '\x26', '\x27',
+	'\x28', '\x29', '\x2a', '\x2b', '\x2c', '\x2d', '\x2e', '\x2f',
+	'\x30', '\x31', '\x32', '\x33', '\x34', '\x35', '\x36', '\x37',
+	'\x38', '\x39', '\x3a', '\x3b', '\x3c', '\x3d', '\x3e', '\x3f',
+	'\x40', '\x41', '\x42', '\x43', '\x44', '\x45', '\x46', '\x47',
+	'\x48', '\x49', '\x4a', '\x4b', '\x4c', '\x4d', '\x4e', '\x4f',
+	'\x50', '\x51', '\x52', '\x53', '\x54', '\x55', '\x56', '\x57',
+	'\x58', '\x59', '\x5a', '\x5b', '\x5c', '\x5d', '\x5e', '\x5f',
+	'\x60',
+		'\x41', '\x42', '\x43', '\x44', '\x45', '\x46', '\x47', /* a-g */
+	'\x48', '\x49', '\x4a', '\x4b', '\x4c', '\x4d', '\x4e', '\x4f', /* h-o */
+	'\x50', '\x51', '\x52', '\x53', '\x54', '\x55', '\x56', '\x57', /* p-w */
+	'\x58', '\x59', '\x5a', 					/* x-z */
+				'\x7b', '\x7c', '\x7d', '\x7e', '\x7f'
+};
+
 static inline int hexdigit(const char *p, Py_ssize_t off)
 {
 	int8_t val = hextable[(unsigned char)p[off]];
@@ -50,7 +92,7 @@ static inline int hexdigit(const char *p, Py_ssize_t off)
 /*
  * Turn a hex-encoded string into binary.
  */
-static PyObject *unhexlify(const char *str, int len)
+PyObject *unhexlify(const char *str, int len)
 {
 	PyObject *ret;
 	char *d;
@@ -70,6 +112,144 @@ static PyObject *unhexlify(const char *str, int len)
 	}
 
 	return ret;
+}
+
+static inline PyObject *_asciitransform(PyObject *str_obj,
+					const char table[128],
+					PyObject *fallback_fn)
+{
+	char *str, *newstr;
+	Py_ssize_t i, len;
+	PyObject *newobj = NULL;
+	PyObject *ret = NULL;
+
+	str = PyBytes_AS_STRING(str_obj);
+	len = PyBytes_GET_SIZE(str_obj);
+
+	newobj = PyBytes_FromStringAndSize(NULL, len);
+	if (!newobj)
+		goto quit;
+
+	newstr = PyBytes_AS_STRING(newobj);
+
+	for (i = 0; i < len; i++) {
+		char c = str[i];
+		if (c & 0x80) {
+			if (fallback_fn != NULL) {
+				ret = PyObject_CallFunctionObjArgs(fallback_fn,
+					str_obj, NULL);
+			} else {
+				PyObject *err = PyUnicodeDecodeError_Create(
+					"ascii", str, len, i, (i + 1),
+					"unexpected code byte");
+				PyErr_SetObject(PyExc_UnicodeDecodeError, err);
+				Py_XDECREF(err);
+			}
+			goto quit;
+		}
+		newstr[i] = table[(unsigned char)c];
+	}
+
+	ret = newobj;
+	Py_INCREF(ret);
+quit:
+	Py_XDECREF(newobj);
+	return ret;
+}
+
+static PyObject *asciilower(PyObject *self, PyObject *args)
+{
+	PyObject *str_obj;
+	if (!PyArg_ParseTuple(args, "O!:asciilower", &PyBytes_Type, &str_obj))
+		return NULL;
+	return _asciitransform(str_obj, lowertable, NULL);
+}
+
+static PyObject *asciiupper(PyObject *self, PyObject *args)
+{
+	PyObject *str_obj;
+	if (!PyArg_ParseTuple(args, "O!:asciiupper", &PyBytes_Type, &str_obj))
+		return NULL;
+	return _asciitransform(str_obj, uppertable, NULL);
+}
+
+static PyObject *make_file_foldmap(PyObject *self, PyObject *args)
+{
+	PyObject *dmap, *spec_obj, *normcase_fallback;
+	PyObject *file_foldmap = NULL;
+	enum normcase_spec spec;
+	PyObject *k, *v;
+	dirstateTupleObject *tuple;
+	Py_ssize_t pos = 0;
+	const char *table;
+
+	if (!PyArg_ParseTuple(args, "O!O!O!:make_file_foldmap",
+			      &PyDict_Type, &dmap,
+			      &PyInt_Type, &spec_obj,
+			      &PyFunction_Type, &normcase_fallback))
+		goto quit;
+
+	spec = (int)PyInt_AS_LONG(spec_obj);
+	switch (spec) {
+	case NORMCASE_LOWER:
+		table = lowertable;
+		break;
+	case NORMCASE_UPPER:
+		table = uppertable;
+		break;
+	case NORMCASE_OTHER:
+		table = NULL;
+		break;
+	default:
+		PyErr_SetString(PyExc_TypeError, "invalid normcasespec");
+		goto quit;
+	}
+
+#if PY_VERSION_HEX >= 0x02060000
+	/* _PyDict_NewPresized expects a minused parameter, but it actually
+	   creates a dictionary that's the nearest power of two bigger than the
+	   parameter. For example, with the initial minused = 1000, the
+	   dictionary created has size 1024. Of course in a lot of cases that
+	   can be greater than the maximum load factor Python's dict object
+	   expects (= 2/3), so as soon as we cross the threshold we'll resize
+	   anyway. So create a dictionary that's 3/2 the size. Also add some
+	   more to deal with additions outside this function. */
+	file_foldmap = _PyDict_NewPresized((PyDict_Size(dmap) / 5) * 8);
+#else
+	file_foldmap = PyDict_New();
+#endif
+
+	if (file_foldmap == NULL)
+		goto quit;
+
+	while (PyDict_Next(dmap, &pos, &k, &v)) {
+		if (!dirstate_tuple_check(v)) {
+			PyErr_SetString(PyExc_TypeError,
+					"expected a dirstate tuple");
+			goto quit;
+		}
+
+		tuple = (dirstateTupleObject *)v;
+		if (tuple->state != 'r') {
+			PyObject *normed;
+			if (table != NULL) {
+				normed = _asciitransform(k, table,
+					normcase_fallback);
+			} else {
+				normed = PyObject_CallFunctionObjArgs(
+					normcase_fallback, k, NULL);
+			}
+
+			if (normed == NULL)
+				goto quit;
+			if (PyDict_SetItem(file_foldmap, normed, k) == -1)
+				goto quit;
+		}
+	}
+	return file_foldmap;
+quit:
+	Py_XDECREF(file_foldmap);
+	return NULL;
 }
 
 /*
@@ -275,14 +455,19 @@ static PyObject *parse_dirstate(PyObject *self, PyObject *args)
 	PyObject *fname = NULL, *cname = NULL, *entry = NULL;
 	char state, *cur, *str, *cpos;
 	int mode, size, mtime;
-	unsigned int flen;
-	int len, pos = 40;
+	unsigned int flen, len, pos = 40;
+	int readlen;
 
 	if (!PyArg_ParseTuple(args, "O!O!s#:parse_dirstate",
 			      &PyDict_Type, &dmap,
 			      &PyDict_Type, &cmap,
-			      &str, &len))
+			      &str, &readlen))
 		goto quit;
+
+	if (readlen < 0)
+		goto quit;
+
+	len = readlen;
 
 	/* read parents */
 	if (len < 40)
@@ -350,7 +535,7 @@ static PyObject *pack_dirstate(PyObject *self, PyObject *args)
 	PyObject *packobj = NULL;
 	PyObject *map, *copymap, *pl, *mtime_unset = NULL;
 	Py_ssize_t nbytes, pos, l;
-	PyObject *k, *v, *pn;
+	PyObject *k, *v = NULL, *pn;
 	char *p, *s;
 	double now;
 
@@ -467,6 +652,7 @@ static PyObject *pack_dirstate(PyObject *self, PyObject *args)
 bail:
 	Py_XDECREF(mtime_unset);
 	Py_XDECREF(packobj);
+	Py_XDECREF(v);
 	return NULL;
 }
 
@@ -503,6 +689,7 @@ typedef struct {
 	Py_ssize_t length;     /* current number of elements */
 	PyObject *added;       /* populated on demand */
 	PyObject *headrevs;    /* cache, invalidated on changes */
+	PyObject *filteredrevs;/* filtered revs set */
 	nodetree *nt;          /* base-16 trie */
 	int ntlength;          /* # nodes in use */
 	int ntcapacity;        /* # nodes allocated */
@@ -524,7 +711,7 @@ static Py_ssize_t index_length(const indexObject *self)
 static PyObject *nullentry;
 static const char nullid[20];
 
-static long inline_scan(indexObject *self, const char **offsets);
+static Py_ssize_t inline_scan(indexObject *self, const char **offsets);
 
 #if LONG_MAX == 0x7fffffffL
 static char *tuple_format = "Kiiiiiis#";
@@ -681,10 +868,10 @@ static PyObject *index_insert(indexObject *self, PyObject *args)
 {
 	PyObject *obj;
 	char *node;
-	long offset;
+	int index;
 	Py_ssize_t len, nodelen;
 
-	if (!PyArg_ParseTuple(args, "lO", &offset, &obj))
+	if (!PyArg_ParseTuple(args, "iO", &index, &obj))
 		return NULL;
 
 	if (!PyTuple_Check(obj) || PyTuple_GET_SIZE(obj) != 8) {
@@ -697,18 +884,12 @@ static PyObject *index_insert(indexObject *self, PyObject *args)
 
 	len = index_length(self);
 
-	if (offset < 0)
-		offset += len;
+	if (index < 0)
+		index += len;
 
-	if (offset != len - 1) {
+	if (index != len - 1) {
 		PyErr_SetString(PyExc_IndexError,
 				"insert only supported at index -1");
-		return NULL;
-	}
-
-	if (offset > INT_MAX) {
-		PyErr_SetString(PyExc_ValueError,
-				"currently only 2**31 revs supported");
 		return NULL;
 	}
 
@@ -722,7 +903,7 @@ static PyObject *index_insert(indexObject *self, PyObject *args)
 		return NULL;
 
 	if (self->nt)
-		nt_insert(self, node, (int)offset);
+		nt_insert(self, node, index);
 
 	Py_CLEAR(self->headrevs);
 	Py_RETURN_NONE;
@@ -762,19 +943,27 @@ static PyObject *index_clearcaches(indexObject *self)
 static PyObject *index_stats(indexObject *self)
 {
 	PyObject *obj = PyDict_New();
+	PyObject *t = NULL;
 
 	if (obj == NULL)
 		return NULL;
 
 #define istat(__n, __d) \
-	if (PyDict_SetItemString(obj, __d, PyInt_FromSsize_t(self->__n)) == -1) \
-		goto bail;
+	t = PyInt_FromSsize_t(self->__n); \
+	if (!t) \
+		goto bail; \
+	if (PyDict_SetItemString(obj, __d, t) == -1) \
+		goto bail; \
+	Py_DECREF(t);
 
 	if (self->added) {
 		Py_ssize_t len = PyList_GET_SIZE(self->added);
-		if (PyDict_SetItemString(obj, "index entries added",
-					 PyInt_FromSsize_t(len)) == -1)
+		t = PyInt_FromSsize_t(len);
+		if (!t)
 			goto bail;
+		if (PyDict_SetItemString(obj, "index entries added", t) == -1)
+			goto bail;
+		Py_DECREF(t);
 	}
 
 	if (self->raw_length != self->length - 1)
@@ -794,6 +983,7 @@ static PyObject *index_stats(indexObject *self)
 
 bail:
 	Py_XDECREF(obj);
+	Py_XDECREF(t);
 	return NULL;
 }
 
@@ -819,14 +1009,165 @@ static PyObject *list_copy(PyObject *list)
 	return newlist;
 }
 
-static PyObject *index_headrevs(indexObject *self)
+/* arg should be Py_ssize_t but Python 2.4 do not support the n format */
+static int check_filter(PyObject *filter, unsigned long arg) {
+	if (filter) {
+		PyObject *arglist, *result;
+		int isfiltered;
+
+		arglist = Py_BuildValue("(k)", arg);
+		if (!arglist) {
+			return -1;
+		}
+
+		result = PyEval_CallObject(filter, arglist);
+		Py_DECREF(arglist);
+		if (!result) {
+			return -1;
+		}
+
+		/* PyObject_IsTrue returns 1 if true, 0 if false, -1 if error,
+		 * same as this function, so we can just return it directly.*/
+		isfiltered = PyObject_IsTrue(result);
+		Py_DECREF(result);
+		return isfiltered;
+	} else {
+		return 0;
+	}
+}
+
+static Py_ssize_t add_roots_get_min(indexObject *self, PyObject *list,
+                                    Py_ssize_t marker, char *phases)
+{
+	PyObject *iter = NULL;
+	PyObject *iter_item = NULL;
+	Py_ssize_t min_idx = index_length(self) + 1;
+	long iter_item_long;
+
+	if (PyList_GET_SIZE(list) != 0) {
+		iter = PyObject_GetIter(list);
+		if (iter == NULL)
+			return -2;
+		while ((iter_item = PyIter_Next(iter)))
+		{
+			iter_item_long = PyInt_AS_LONG(iter_item);
+			Py_DECREF(iter_item);
+			if (iter_item_long < min_idx)
+				min_idx = iter_item_long;
+			phases[iter_item_long] = marker;
+		}
+		Py_DECREF(iter);
+	}
+
+	return min_idx;
+}
+
+static inline void set_phase_from_parents(char *phases, int parent_1,
+                                          int parent_2, Py_ssize_t i)
+{
+	if (parent_1 >= 0 && phases[parent_1] > phases[i])
+		phases[i] = phases[parent_1];
+	if (parent_2 >= 0 && phases[parent_2] > phases[i])
+		phases[i] = phases[parent_2];
+}
+
+static PyObject *compute_phases(indexObject *self, PyObject *args)
+{
+	PyObject *roots = Py_None;
+	PyObject *phaseslist = NULL;
+	PyObject *phaseroots = NULL;
+	PyObject *rev = NULL;
+	PyObject *p1 = NULL;
+	PyObject *p2 = NULL;
+	Py_ssize_t addlen = self->added ? PyList_GET_SIZE(self->added) : 0;
+	Py_ssize_t len = index_length(self) - 1;
+	Py_ssize_t numphase = 0;
+	Py_ssize_t minrevallphases = 0;
+	Py_ssize_t minrevphase = 0;
+	Py_ssize_t i = 0;
+	int parent_1, parent_2;
+	char *phases = NULL;
+	const char *data;
+
+	if (!PyArg_ParseTuple(args, "O", &roots))
+		goto release_none;
+	if (roots == NULL || !PyList_Check(roots))
+		goto release_none;
+
+	phases = calloc(len, 1); /* phase per rev: {0: public, 1: draft, 2: secret} */
+	if (phases == NULL)
+		goto release_none;
+	/* Put the phase information of all the roots in phases */
+	numphase = PyList_GET_SIZE(roots)+1;
+	minrevallphases = len + 1;
+	for (i = 0; i < numphase-1; i++) {
+		phaseroots = PyList_GET_ITEM(roots, i);
+		if (!PyList_Check(phaseroots))
+			goto release_phases;
+		minrevphase = add_roots_get_min(self, phaseroots, i+1, phases);
+		if (minrevphase == -2) /* Error from add_roots_get_min */
+			goto release_phases;
+		minrevallphases = MIN(minrevallphases, minrevphase);
+	}
+	/* Propagate the phase information from the roots to the revs */
+	if (minrevallphases != -1) {
+		for (i = minrevallphases; i < self->raw_length; i++) {
+			data = index_deref(self, i);
+			set_phase_from_parents(phases, getbe32(data+24), getbe32(data+28), i);
+		}
+		for (i = 0; i < addlen; i++) {
+			rev = PyList_GET_ITEM(self->added, i);
+			p1 = PyTuple_GET_ITEM(rev, 5);
+			p2 = PyTuple_GET_ITEM(rev, 6);
+			if (!PyInt_Check(p1) || !PyInt_Check(p2)) {
+				PyErr_SetString(PyExc_TypeError, "revlog parents are invalid");
+				goto release_phases;
+			}
+			parent_1 = (int)PyInt_AS_LONG(p1);
+			parent_2 = (int)PyInt_AS_LONG(p2);
+			set_phase_from_parents(phases, parent_1, parent_2, i+self->raw_length);
+		}
+	}
+	/* Transform phase list to a python list */
+	phaseslist = PyList_New(len);
+	if (phaseslist == NULL)
+		goto release_phases;
+	for (i = 0; i < len; i++)
+		PyList_SET_ITEM(phaseslist, i, PyInt_FromLong(phases[i]));
+
+release_phases:
+	free(phases);
+release_none:
+	return phaseslist;
+}
+
+static PyObject *index_headrevs(indexObject *self, PyObject *args)
 {
 	Py_ssize_t i, len, addlen;
 	char *nothead = NULL;
-	PyObject *heads;
+	PyObject *heads = NULL;
+	PyObject *filter = NULL;
+	PyObject *filteredrevs = Py_None;
 
-	if (self->headrevs)
+	if (!PyArg_ParseTuple(args, "|O", &filteredrevs)) {
+		return NULL;
+	}
+
+	if (self->headrevs && filteredrevs == self->filteredrevs)
 		return list_copy(self->headrevs);
+
+	Py_DECREF(self->filteredrevs);
+	self->filteredrevs = filteredrevs;
+	Py_INCREF(filteredrevs);
+
+	if (filteredrevs != Py_None) {
+		filter = PyObject_GetAttrString(filteredrevs, "__contains__");
+		if (!filter) {
+			PyErr_SetString(PyExc_TypeError,
+				"filteredrevs has no attribute __contains__");
+			goto bail;
+		}
+	}
 
 	len = index_length(self) - 1;
 	heads = PyList_New(0);
@@ -846,9 +1187,25 @@ static PyObject *index_headrevs(indexObject *self)
 		goto bail;
 
 	for (i = 0; i < self->raw_length; i++) {
-		const char *data = index_deref(self, i);
-		int parent_1 = getbe32(data + 24);
-		int parent_2 = getbe32(data + 28);
+		const char *data;
+		int parent_1, parent_2, isfiltered;
+
+		isfiltered = check_filter(filter, i);
+		if (isfiltered == -1) {
+			PyErr_SetString(PyExc_TypeError,
+				"unable to check filter");
+			goto bail;
+		}
+
+		if (isfiltered) {
+			nothead[i] = 1;
+			continue;
+		}
+
+		data = index_deref(self, i);
+		parent_1 = getbe32(data + 24);
+		parent_2 = getbe32(data + 28);
+
 		if (parent_1 >= 0)
 			nothead[parent_1] = 1;
 		if (parent_2 >= 0)
@@ -862,12 +1219,26 @@ static PyObject *index_headrevs(indexObject *self)
 		PyObject *p1 = PyTuple_GET_ITEM(rev, 5);
 		PyObject *p2 = PyTuple_GET_ITEM(rev, 6);
 		long parent_1, parent_2;
+		int isfiltered;
 
 		if (!PyInt_Check(p1) || !PyInt_Check(p2)) {
 			PyErr_SetString(PyExc_TypeError,
 					"revlog parents are invalid");
 			goto bail;
 		}
+
+		isfiltered = check_filter(filter, i);
+		if (isfiltered == -1) {
+			PyErr_SetString(PyExc_TypeError,
+				"unable to check filter");
+			goto bail;
+		}
+
+		if (isfiltered) {
+			nothead[i] = 1;
+			continue;
+		}
+
 		parent_1 = PyInt_AS_LONG(p1);
 		parent_2 = PyInt_AS_LONG(p2);
 		if (parent_1 >= 0)
@@ -881,7 +1252,7 @@ static PyObject *index_headrevs(indexObject *self)
 
 		if (nothead[i])
 			continue;
-		head = PyInt_FromLong(i);
+		head = PyInt_FromSsize_t(i);
 		if (head == NULL || PyList_Append(heads, head) == -1) {
 			Py_XDECREF(head);
 			goto bail;
@@ -890,9 +1261,11 @@ static PyObject *index_headrevs(indexObject *self)
 
 done:
 	self->headrevs = heads;
+	Py_XDECREF(filter);
 	free(nothead);
 	return list_copy(self->headrevs);
 bail:
+	Py_XDECREF(filter);
 	Py_XDECREF(heads);
 	free(nothead);
 	return NULL;
@@ -939,7 +1312,7 @@ static int nt_find(indexObject *self, const char *node, Py_ssize_t nodelen,
 			const char *n;
 			Py_ssize_t i;
 
-			v = -v - 1;
+			v = -(v + 1);
 			n = index_node(self, v);
 			if (n == NULL)
 				return -2;
@@ -959,6 +1332,11 @@ static int nt_find(indexObject *self, const char *node, Py_ssize_t nodelen,
 static int nt_new(indexObject *self)
 {
 	if (self->ntlength == self->ntcapacity) {
+		if (self->ntcapacity >= INT_MAX / (sizeof(nodetree) * 2)) {
+			PyErr_SetString(PyExc_MemoryError,
+					"overflow in nt_new");
+			return -1;
+		}
 		self->ntcapacity *= 2;
 		self->nt = realloc(self->nt,
 				   self->ntcapacity * sizeof(nodetree));
@@ -990,7 +1368,7 @@ static int nt_insert(indexObject *self, const char *node, int rev)
 			return 0;
 		}
 		if (v < 0) {
-			const char *oldnode = index_node(self, -v - 1);
+			const char *oldnode = index_node(self, -(v + 1));
 			int noff;
 
 			if (!oldnode || !memcmp(oldnode, node, 20)) {
@@ -1020,7 +1398,7 @@ static int nt_insert(indexObject *self, const char *node, int rev)
 static int nt_init(indexObject *self)
 {
 	if (self->nt == NULL) {
-		if (self->raw_length > INT_MAX) {
+		if (self->raw_length > INT_MAX / sizeof(nodetree)) {
 			PyErr_SetString(PyExc_ValueError, "overflow in nt_init");
 			return -1;
 		}
@@ -1105,40 +1483,34 @@ static int index_find_node(indexObject *self,
 	return -2;
 }
 
-static PyObject *raise_revlog_error(void)
+static void raise_revlog_error(void)
 {
-	static PyObject *errclass;
-	PyObject *mod = NULL, *errobj;
+	PyObject *mod = NULL, *dict = NULL, *errclass = NULL;
 
-	if (errclass == NULL) {
-		PyObject *dict;
-
-		mod = PyImport_ImportModule("mercurial.error");
-		if (mod == NULL)
-			goto classfail;
-
-		dict = PyModule_GetDict(mod);
-		if (dict == NULL)
-			goto classfail;
-
-		errclass = PyDict_GetItemString(dict, "RevlogError");
-		if (errclass == NULL) {
-			PyErr_SetString(PyExc_SystemError,
-					"could not find RevlogError");
-			goto classfail;
-		}
-		Py_INCREF(errclass);
+	mod = PyImport_ImportModule("mercurial.error");
+	if (mod == NULL) {
+		goto cleanup;
 	}
 
-	errobj = PyObject_CallFunction(errclass, NULL);
-	if (errobj == NULL)
-		return NULL;
-	PyErr_SetObject(errclass, errobj);
-	return errobj;
+	dict = PyModule_GetDict(mod);
+	if (dict == NULL) {
+		goto cleanup;
+	}
+	Py_INCREF(dict);
 
-classfail:
+	errclass = PyDict_GetItemString(dict, "RevlogError");
+	if (errclass == NULL) {
+		PyErr_SetString(PyExc_SystemError,
+				"could not find RevlogError");
+		goto cleanup;
+	}
+
+	/* value of exception is ignored by callers */
+	PyErr_SetString(errclass, "RevlogError");
+
+cleanup:
+	Py_XDECREF(dict);
 	Py_XDECREF(mod);
-	return NULL;
 }
 
 static PyObject *index_getitem(indexObject *self, PyObject *value)
@@ -1304,7 +1676,7 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 	PyObject *gca = PyList_New(0);
 	int i, v, interesting;
 	int maxrev = -1;
-	long sp;
+	bitmask sp;
 	bitmask *seen;
 
 	if (gca == NULL)
@@ -1327,7 +1699,7 @@ static PyObject *find_gca_candidates(indexObject *self, const int *revs,
 	interesting = revcount;
 
 	for (v = maxrev; v >= 0 && interesting; v--) {
-		long sv = seen[v];
+		bitmask sv = seen[v];
 		int parents[2];
 
 		if (!sv)
@@ -1532,106 +1904,6 @@ bail:
 }
 
 /*
- * Given a (possibly overlapping) set of revs, return the greatest
- * common ancestors: those with the longest path to the root.
- */
-static PyObject *index_ancestors(indexObject *self, PyObject *args)
-{
-	PyObject *ret = NULL, *gca = NULL;
-	Py_ssize_t argcount, i, len;
-	bitmask repeat = 0;
-	int revcount = 0;
-	int *revs;
-
-	argcount = PySequence_Length(args);
-	revs = malloc(argcount * sizeof(*revs));
-	if (argcount > 0 && revs == NULL)
-		return PyErr_NoMemory();
-	len = index_length(self) - 1;
-
-	for (i = 0; i < argcount; i++) {
-		static const int capacity = 24;
-		PyObject *obj = PySequence_GetItem(args, i);
-		bitmask x;
-		long val;
-
-		if (!PyInt_Check(obj)) {
-			PyErr_SetString(PyExc_TypeError,
-					"arguments must all be ints");
-			goto bail;
-		}
-		val = PyInt_AsLong(obj);
-		if (val == -1) {
-			ret = PyList_New(0);
-			goto done;
-		}
-		if (val < 0 || val >= len) {
-			PyErr_SetString(PyExc_IndexError,
-					"index out of range");
-			goto bail;
-		}
-		/* this cheesy bloom filter lets us avoid some more
-		 * expensive duplicate checks in the common set-is-disjoint
-		 * case */
-		x = 1ull << (val & 0x3f);
-		if (repeat & x) {
-			int k;
-			for (k = 0; k < revcount; k++) {
-				if (val == revs[k])
-					goto duplicate;
-			}
-		}
-		else repeat |= x;
-		if (revcount >= capacity) {
-			PyErr_Format(PyExc_OverflowError,
-				     "bitset size (%d) > capacity (%d)",
-				     revcount, capacity);
-			goto bail;
-		}
-		revs[revcount++] = (int)val;
-	duplicate:;
-	}
-
-	if (revcount == 0) {
-		ret = PyList_New(0);
-		goto done;
-	}
-	if (revcount == 1) {
-		PyObject *obj;
-		ret = PyList_New(1);
-		if (ret == NULL)
-			goto bail;
-		obj = PyInt_FromLong(revs[0]);
-		if (obj == NULL)
-			goto bail;
-		PyList_SET_ITEM(ret, 0, obj);
-		goto done;
-	}
-
-	gca = find_gca_candidates(self, revs, revcount);
-	if (gca == NULL)
-		goto bail;
-
-	if (PyList_GET_SIZE(gca) <= 1) {
-		ret = gca;
-		Py_INCREF(gca);
-	}
-	else ret = find_deepest(self, gca);
-
-done:
-	free(revs);
-	Py_XDECREF(gca);
-
-	return ret;
-
-bail:
-	free(revs);
-	Py_XDECREF(gca);
-	Py_XDECREF(ret);
-	return NULL;
-}
-
-/*
  * Given a (possibly overlapping) set of revs, return all the
  * common ancestors heads: heads(::args[0] and ::a[1] and ...)
  */
@@ -1658,9 +1930,11 @@ static PyObject *index_commonancestorsheads(indexObject *self, PyObject *args)
 		if (!PyInt_Check(obj)) {
 			PyErr_SetString(PyExc_TypeError,
 					"arguments must all be ints");
+			Py_DECREF(obj);
 			goto bail;
 		}
 		val = PyInt_AsLong(obj);
+		Py_DECREF(obj);
 		if (val == -1) {
 			ret = PyList_New(0);
 			goto done;
@@ -1720,6 +1994,24 @@ bail:
 	free(revs);
 	Py_XDECREF(ret);
 	return NULL;
+}
+
+/*
+ * Given a (possibly overlapping) set of revs, return the greatest
+ * common ancestors: those with the longest path to the root.
+ */
+static PyObject *index_ancestors(indexObject *self, PyObject *args)
+{
+	PyObject *gca = index_commonancestorsheads(self, args);
+	if (gca == NULL)
+		return NULL;
+
+	if (PyList_GET_SIZE(gca) <= 1) {
+		Py_INCREF(gca);
+		return gca;
+	}
+
+	return find_deepest(self, gca);
 }
 
 /*
@@ -1846,6 +2138,9 @@ static int index_assign_subscript(indexObject *self, PyObject *item,
 			PyErr_SetString(PyExc_ValueError, "rev out of range");
 		return -1;
 	}
+
+	if (nt_init(self) == -1)
+		return -1;
 	return nt_insert(self, node, (int)rev);
 }
 
@@ -1853,7 +2148,7 @@ static int index_assign_subscript(indexObject *self, PyObject *item,
  * Find all RevlogNG entries in an index that has inline data. Update
  * the optional "offsets" table with those entries.
  */
-static long inline_scan(indexObject *self, const char **offsets)
+static Py_ssize_t inline_scan(indexObject *self, const char **offsets)
 {
 	const char *data = PyString_AS_STRING(self->data);
 	Py_ssize_t pos = 0;
@@ -1892,6 +2187,8 @@ static int index_init(indexObject *self, PyObject *args)
 	self->cache = NULL;
 	self->data = NULL;
 	self->headrevs = NULL;
+	self->filteredrevs = Py_None;
+	Py_INCREF(Py_None);
 	self->nt = NULL;
 	self->offsets = NULL;
 
@@ -1913,7 +2210,7 @@ static int index_init(indexObject *self, PyObject *args)
 	Py_INCREF(self->data);
 
 	if (self->inlined) {
-		long len = inline_scan(self, NULL);
+		Py_ssize_t len = inline_scan(self, NULL);
 		if (len == -1)
 			goto bail;
 		self->raw_length = len;
@@ -1941,6 +2238,7 @@ static PyObject *index_nodemap(indexObject *self)
 static void index_dealloc(indexObject *self)
 {
 	_index_clearcaches(self);
+	Py_XDECREF(self->filteredrevs);
 	Py_XDECREF(self->data);
 	Py_XDECREF(self->added);
 	PyObject_Del(self);
@@ -1973,8 +2271,12 @@ static PyMethodDef index_methods[] = {
 	 "clear the index caches"},
 	{"get", (PyCFunction)index_m_get, METH_VARARGS,
 	 "get an index entry"},
-	{"headrevs", (PyCFunction)index_headrevs, METH_NOARGS,
-	 "get head revisions"},
+	{"computephases", (PyCFunction)compute_phases, METH_VARARGS,
+		"compute phases"},
+	{"headrevs", (PyCFunction)index_headrevs, METH_VARARGS,
+	 "get head revisions"}, /* Can do filtering since 3.2 */
+	{"headrevsfiltered", (PyCFunction)index_headrevs, METH_VARARGS,
+	 "get filtered head revisions"}, /* Can always do filtering */
 	{"insert", (PyCFunction)index_insert, METH_VARARGS,
 	 "insert an index entry"},
 	{"partialmatch", (PyCFunction)index_partialmatch, METH_VARARGS,
@@ -2074,6 +2376,157 @@ bail:
 	return NULL;
 }
 
+#define BUMPED_FIX 1
+#define USING_SHA_256 2
+
+static PyObject *readshas(
+	const char *source, unsigned char num, Py_ssize_t hashwidth)
+{
+	int i;
+	PyObject *list = PyTuple_New(num);
+	if (list == NULL) {
+		return NULL;
+	}
+	for (i = 0; i < num; i++) {
+		PyObject *hash = PyString_FromStringAndSize(source, hashwidth);
+		if (hash == NULL) {
+			Py_DECREF(list);
+			return NULL;
+		}
+		PyTuple_SetItem(list, i, hash);
+		source += hashwidth;
+	}
+	return list;
+}
+
+static PyObject *fm1readmarker(const char *data, uint32_t *msize)
+{
+	const char *meta;
+
+	double mtime;
+	int16_t tz;
+	uint16_t flags;
+	unsigned char nsuccs, nparents, nmetadata;
+	Py_ssize_t hashwidth = 20;
+
+	PyObject *prec = NULL, *parents = NULL, *succs = NULL;
+	PyObject *metadata = NULL, *ret = NULL;
+	int i;
+
+	*msize = getbe32(data);
+	data += 4;
+	mtime = getbefloat64(data);
+	data += 8;
+	tz = getbeint16(data);
+	data += 2;
+	flags = getbeuint16(data);
+	data += 2;
+
+	if (flags & USING_SHA_256) {
+		hashwidth = 32;
+	}
+
+	nsuccs = (unsigned char)(*data++);
+	nparents = (unsigned char)(*data++);
+	nmetadata = (unsigned char)(*data++);
+
+	prec = PyString_FromStringAndSize(data, hashwidth);
+	data += hashwidth;
+	if (prec == NULL) {
+		goto bail;
+	}
+
+	succs = readshas(data, nsuccs, hashwidth);
+	if (succs == NULL) {
+		goto bail;
+	}
+	data += nsuccs * hashwidth;
+
+	if (nparents == 1 || nparents == 2) {
+		parents = readshas(data, nparents, hashwidth);
+		if (parents == NULL) {
+			goto bail;
+		}
+		data += nparents * hashwidth;
+	} else {
+		parents = Py_None;
+	}
+
+	meta = data + (2 * nmetadata);
+	metadata = PyTuple_New(nmetadata);
+	if (metadata == NULL) {
+		goto bail;
+	}
+	for (i = 0; i < nmetadata; i++) {
+		PyObject *tmp, *left = NULL, *right = NULL;
+		Py_ssize_t metasize = (unsigned char)(*data++);
+		left = PyString_FromStringAndSize(meta, metasize);
+		meta += metasize;
+		metasize = (unsigned char)(*data++);
+		right = PyString_FromStringAndSize(meta, metasize);
+		meta += metasize;
+		if (!left || !right) {
+			Py_XDECREF(left);
+			Py_XDECREF(right);
+			goto bail;
+		}
+		tmp = PyTuple_Pack(2, left, right);
+		Py_DECREF(left);
+		Py_DECREF(right);
+		if (!tmp) {
+			goto bail;
+		}
+		PyTuple_SetItem(metadata, i, tmp);
+	}
+	ret = Py_BuildValue("(OOHO(di)O)", prec, succs, flags,
+			    metadata, mtime, (int)tz * 60, parents);
+bail:
+	Py_XDECREF(prec);
+	Py_XDECREF(succs);
+	Py_XDECREF(metadata);
+	if (parents != Py_None)
+		Py_XDECREF(parents);
+	return ret;
+}
+
+
+static PyObject *fm1readmarkers(PyObject *self, PyObject *args) {
+	const char *data;
+	Py_ssize_t datalen;
+	/* only unsigned long because python 2.4, should be Py_ssize_t */
+	unsigned long offset, stop;
+	PyObject *markers = NULL;
+
+	/* replace kk with nn when we drop Python 2.4 */
+	if (!PyArg_ParseTuple(args, "s#kk", &data, &datalen, &offset, &stop)) {
+		return NULL;
+	}
+	data += offset;
+	markers = PyList_New(0);
+	if (!markers) {
+		return NULL;
+	}
+	while (offset < stop) {
+		uint32_t msize;
+		int error;
+		PyObject *record = fm1readmarker(data, &msize);
+		if (!record) {
+			goto bail;
+		}
+		error = PyList_Append(markers, record);
+		Py_DECREF(record);
+		if (error) {
+			goto bail;
+		}
+		data += msize;
+		offset += msize;
+	}
+	return markers;
+bail:
+	Py_DECREF(markers);
+	return NULL;
+}
+
 static char parsers_doc[] = "Efficient content parsing.";
 
 PyObject *encodedir(PyObject *self, PyObject *args);
@@ -2085,13 +2538,20 @@ static PyMethodDef methods[] = {
 	{"parse_manifest", parse_manifest, METH_VARARGS, "parse a manifest\n"},
 	{"parse_dirstate", parse_dirstate, METH_VARARGS, "parse a dirstate\n"},
 	{"parse_index2", parse_index2, METH_VARARGS, "parse a revlog index\n"},
+	{"asciilower", asciilower, METH_VARARGS, "lowercase an ASCII string\n"},
+	{"asciiupper", asciiupper, METH_VARARGS, "uppercase an ASCII string\n"},
+	{"make_file_foldmap", make_file_foldmap, METH_VARARGS,
+	 "make file foldmap\n"},
 	{"encodedir", encodedir, METH_VARARGS, "encodedir a path\n"},
 	{"pathencode", pathencode, METH_VARARGS, "fncache-encode a path\n"},
 	{"lowerencode", lowerencode, METH_VARARGS, "lower-encode a path\n"},
+	{"fm1readmarkers", fm1readmarkers, METH_VARARGS,
+			"parse v1 obsolete markers\n"},
 	{NULL, NULL}
 };
 
 void dirs_module_init(PyObject *mod);
+void manifest_module_init(PyObject *mod);
 
 static void module_init(PyObject *mod)
 {
@@ -2106,6 +2566,7 @@ static void module_init(PyObject *mod)
 	PyModule_AddStringConstant(mod, "versionerrortext", versionerrortext);
 
 	dirs_module_init(mod);
+	manifest_module_init(mod);
 
 	indexType.tp_new = PyType_GenericNew;
 	if (PyType_Ready(&indexType) < 0 ||
@@ -2125,8 +2586,16 @@ static void module_init(PyObject *mod)
 
 static int check_python_version(void)
 {
-	PyObject *sys = PyImport_ImportModule("sys");
-	long hexversion = PyInt_AsLong(PyObject_GetAttrString(sys, "hexversion"));
+	PyObject *sys = PyImport_ImportModule("sys"), *ver;
+	long hexversion;
+	if (!sys)
+		return -1;
+	ver = PyObject_GetAttrString(sys, "hexversion");
+	Py_DECREF(sys);
+	if (!ver)
+		return -1;
+	hexversion = PyInt_AsLong(ver);
+	Py_DECREF(ver);
 	/* sys.hexversion is a 32-bit number by default, so the -1 case
 	 * should only occur in unusual circumstances (e.g. if sys.hexversion
 	 * is manually set to an invalid value). */

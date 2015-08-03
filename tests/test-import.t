@@ -90,8 +90,13 @@ the commit message, regardless of '--edit')
   added 1 changesets with 2 changes to 2 files
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ HGEDITOR=cat hg --cwd b import ../diffed-tip.patch
+  $ cat > $TESTTMP/editor.sh <<EOF
+  > env | grep HGEDITFORM
+  > cat \$1
+  > EOF
+  $ HGEDITOR="sh $TESTTMP/editor.sh" hg --cwd b import ../diffed-tip.patch
   applying ../diffed-tip.patch
+  HGEDITFORM=import.normal.normal
   
   
   HG: Enter commit message.  Lines beginning with 'HG:' are removed.
@@ -102,6 +107,22 @@ the commit message, regardless of '--edit')
   HG: changed a
   abort: empty commit message
   [255]
+
+Test avoiding editor invocation at applying the patch with --exact,
+even if commit message is empty
+
+  $ echo a >> b/a
+  $ hg --cwd b commit -m ' '
+  $ hg --cwd b tip -T "{node}\n"
+  d8804f3f5396d800812f579c8452796a5993bdb2
+  $ hg --cwd b export -o ../empty-log.diff .
+  $ hg --cwd b update -q -C ".^1"
+  $ hg --cwd b --config extensions.strip= strip -q tip
+  $ HGEDITOR=cat hg --cwd b import --exact ../empty-log.diff
+  applying ../empty-log.diff
+  $ hg --cwd b tip -T "{node}\n"
+  d8804f3f5396d800812f579c8452796a5993bdb2
+
   $ rm -r b
 
 
@@ -390,11 +411,17 @@ patches: import patch1 patch2; rollback
   $ hg --cwd b import -v ../patch1 ../patch2
   applying ../patch1
   patching file a
+  committing files:
   a
+  committing manifest
+  committing changelog
   created 1d4bd90af0e4
   applying ../patch2
   patching file a
+  committing files:
   a
+  committing manifest
+  committing changelog
   created 6d019af21222
   $ hg --cwd b rollback
   repository tip rolled back to revision 0 (undo import)
@@ -568,7 +595,7 @@ Test importing a patch ending with a binary file removal
   $ hg init binaryremoval
   $ cd binaryremoval
   $ echo a > a
-  $ python -c "file('b', 'wb').write('a\x00b')"
+  $ $PYTHON -c "file('b', 'wb').write('a\x00b')"
   $ hg ci -Am addall
   adding a
   adding b
@@ -643,6 +670,25 @@ test -p0
   $ hg status
   $ cat a
   bb
+
+test --prefix
+
+  $ mkdir -p dir/dir2
+  $ echo b > dir/dir2/b
+  $ hg ci -Am b
+  adding dir/dir2/b
+  $ hg import -p2 --prefix dir - << EOF
+  > foobar
+  > --- drop1/drop2/dir2/b
+  > +++ drop1/drop2/dir2/b
+  > @@ -1,1 +1,1 @@
+  > -b
+  > +cc
+  > EOF
+  applying patch from stdin
+  $ hg status
+  $ cat dir/dir2/b
+  cc
   $ cd ..
 
 
@@ -1407,7 +1453,7 @@ Importing multiple failing patches:
   $ echo 'B' > b # just to make another commit
   $ hg commit -m "a new base"
   created new head
-  $ hg export --rev 'desc("extended jungle") + desc("four")' | hg import --partial -
+  $ hg export --rev 'desc("four") + desc("extended jungle")' | hg import --partial -
   applying patch from stdin
   patching file a
   Hunk #1 FAILED at 0

@@ -35,7 +35,7 @@ Amending changeset with changes in working dir:
   $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit --amend -m 'amend base1'
   pretxncommit 43f1ba15f28a50abf0aae529cf8a16bfced7b149
   43f1ba15f28a tip
-  saved backup bundle to $TESTTMP/.hg/strip-backup/489edb5b847d-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/489edb5b847d-f1bf3ab8-amend-backup.hg (glob)
   $ echo 'pretxncommit.foo = ' >> $HGRCPATH
   $ hg diff -c .
   diff -r ad120869acf0 -r 43f1ba15f28a a
@@ -86,7 +86,7 @@ Check proper abort for empty message
 
 Add new file:
   $ hg ci --amend -m 'amend base1 new file'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/43f1ba15f28a-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/43f1ba15f28a-7a3b3496-amend-backup.hg (glob)
 
 Remove file that was added in amended commit:
 (and test logfile option)
@@ -95,7 +95,7 @@ Remove file that was added in amended commit:
   $ hg rm b
   $ echo 'amend base1 remove new file' > ../logfile
   $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg ci --amend --logfile ../logfile
-  saved backup bundle to $TESTTMP/.hg/strip-backup/b8e3cb2b3882-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/b8e3cb2b3882-0b55739a-amend-backup.hg (glob)
 
   $ hg cat b
   b: no such file in rev 74609c7f506e
@@ -106,11 +106,22 @@ No changes, just a different message:
   $ hg ci -v --amend -m 'no changes, new message'
   amending changeset 74609c7f506e
   copying changeset 74609c7f506e to ad120869acf0
+  committing files:
   a
+  committing manifest
+  committing changelog
   stripping amended changeset 74609c7f506e
   1 changesets found
-  saved backup bundle to $TESTTMP/.hg/strip-backup/74609c7f506e-amend-backup.hg (glob)
+  uncompressed size of bundle content:
+       250 (changelog)
+       143 (manifests)
+       109  a
+  saved backup bundle to $TESTTMP/.hg/strip-backup/74609c7f506e-1bfde511-amend-backup.hg (glob)
   1 changesets found
+  uncompressed size of bundle content:
+       246 (changelog)
+       143 (manifests)
+       109  a
   adding branch
   adding changesets
   adding manifests
@@ -145,11 +156,16 @@ Disable default date on commit so when -d isn't given, the old date is preserved
 
 Test -u/-d:
 
-  $ hg ci --amend -u foo -d '1 0'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/1cd866679df8-amend-backup.hg (glob)
+  $ cat > .hg/checkeditform.sh <<EOF
+  > env | grep HGEDITFORM
+  > true
+  > EOF
+  $ HGEDITOR="sh .hg/checkeditform.sh" hg ci --amend -u foo -d '1 0'
+  HGEDITFORM=commit.amend.normal
+  saved backup bundle to $TESTTMP/.hg/strip-backup/1cd866679df8-5f5bcb85-amend-backup.hg (glob)
   $ echo a >> a
   $ hg ci --amend -u foo -d '1 0'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/780e6f23e03d-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/780e6f23e03d-83b10a27-amend-backup.hg (glob)
   $ hg log -r .
   changeset:   1:5f357c7560ab
   tag:         tip
@@ -177,7 +193,10 @@ at first, test saving last-message.txt
   $ hg commit --amend -v -m "message given from command line"
   amending changeset 5f357c7560ab
   copying changeset 5f357c7560ab to ad120869acf0
+  committing files:
   a
+  committing manifest
+  committing changelog
   running hook pretxncommit.test-saving-last-message: false
   transaction abort!
   rollback completed
@@ -199,7 +218,10 @@ at first, test saving last-message.txt
   HG: user: foo
   HG: branch 'default'
   HG: changed a
+  committing files:
   a
+  committing manifest
+  committing changelog
   running hook pretxncommit.test-saving-last-message: false
   transaction abort!
   rollback completed
@@ -228,11 +250,22 @@ then, test editing custom commit message
   HG: user: foo
   HG: branch 'default'
   HG: changed a
+  committing files:
   a
+  committing manifest
+  committing changelog
   stripping amended changeset 5f357c7560ab
   1 changesets found
-  saved backup bundle to $TESTTMP/.hg/strip-backup/5f357c7560ab-amend-backup.hg (glob)
+  uncompressed size of bundle content:
+       238 (changelog)
+       143 (manifests)
+       111  a
+  saved backup bundle to $TESTTMP/.hg/strip-backup/5f357c7560ab-e7c84ade-amend-backup.hg (glob)
   1 changesets found
+  uncompressed size of bundle content:
+       246 (changelog)
+       143 (manifests)
+       111  a
   adding branch
   adding changesets
   adding manifests
@@ -245,7 +278,10 @@ Same, but with changes in working dir (different code path):
   $ echo a >> a
   $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit --amend -v
   amending changeset 7ab3bf440b54
+  committing files:
   a
+  committing manifest
+  committing changelog
   copying changeset a0ea9b1a4c8c to ad120869acf0
   another precious commit message
   
@@ -256,12 +292,23 @@ Same, but with changes in working dir (different code path):
   HG: user: foo
   HG: branch 'default'
   HG: changed a
+  committing files:
   a
+  committing manifest
+  committing changelog
   stripping intermediate changeset a0ea9b1a4c8c
   stripping amended changeset 7ab3bf440b54
   2 changesets found
-  saved backup bundle to $TESTTMP/.hg/strip-backup/7ab3bf440b54-amend-backup.hg (glob)
+  uncompressed size of bundle content:
+       450 (changelog)
+       282 (manifests)
+       209  a
+  saved backup bundle to $TESTTMP/.hg/strip-backup/7ab3bf440b54-8e3b5088-amend-backup.hg (glob)
   1 changesets found
+  uncompressed size of bundle content:
+       246 (changelog)
+       143 (manifests)
+       113  a
   adding branch
   adding changesets
   adding manifests
@@ -283,13 +330,13 @@ Moving bookmarks, preserve active bookmark:
   $ hg book book1
   $ hg book book2
   $ hg ci --amend -m 'move bookmarks'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/ea22a388757c-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/ea22a388757c-e51094db-amend-backup.hg (glob)
   $ hg book
      book1                     1:6cec5aa930e2
    * book2                     1:6cec5aa930e2
   $ echo a >> a
   $ hg ci --amend -m 'move bookmarks'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/6cec5aa930e2-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/6cec5aa930e2-e9b06de4-amend-backup.hg (glob)
   $ hg book
      book1                     1:48bb6e53a15f
    * book2                     1:48bb6e53a15f
@@ -326,7 +373,7 @@ Moving branches:
   marked working directory as branch default
   (branches are permanent and global, did you want a bookmark?)
   $ hg ci --amend -m 'back to default'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/8ac881fbf49d-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/8ac881fbf49d-fd962fef-amend-backup.hg (glob)
   $ hg branches
   default                        2:ce12b0b57d46
 
@@ -342,7 +389,7 @@ Close branch:
   $ echo b >> b
   $ hg ci -mb
   $ hg ci --amend --close-branch -m 'closing branch foo'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/c962248fa264-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/c962248fa264-6701c392-amend-backup.hg (glob)
 
 Same thing, different code path:
 
@@ -351,7 +398,7 @@ Same thing, different code path:
   reopening closed branch head 4
   $ echo b >> b
   $ hg ci --amend --close-branch
-  saved backup bundle to $TESTTMP/.hg/strip-backup/027371728205-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/027371728205-49c0c55d-amend-backup.hg (glob)
   $ hg branches
   default                        2:ce12b0b57d46
 
@@ -372,7 +419,7 @@ Follow copies/renames:
   $ hg ci -m 'b -> c'
   $ hg mv c d
   $ hg ci --amend -m 'b -> d'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/b8c6eac7f12e-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/b8c6eac7f12e-adaaa8b1-amend-backup.hg (glob)
   $ hg st --rev '.^' --copies d
   A d
     b
@@ -380,7 +427,7 @@ Follow copies/renames:
   $ hg ci -m 'e = d'
   $ hg cp e f
   $ hg ci --amend -m 'f = d'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/7f9761d65613-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/7f9761d65613-d37aa788-amend-backup.hg (glob)
   $ hg st --rev '.^' --copies f
   A f
     d
@@ -391,7 +438,7 @@ Follow copies/renames:
   $ hg cp a f
   $ mv f.orig f
   $ hg ci --amend -m replacef
-  saved backup bundle to $TESTTMP/.hg/strip-backup/9e8c5f7e3d95-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/9e8c5f7e3d95-90259f67-amend-backup.hg (glob)
   $ hg st --change . --copies
   $ hg log -r . --template "{file_copies}\n"
   
@@ -403,7 +450,7 @@ Move added file (issue3410):
   adding g
   $ hg mv g h
   $ hg ci --amend
-  saved backup bundle to $TESTTMP/.hg/strip-backup/24aa8eacce2b-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/24aa8eacce2b-7059e0f1-amend-backup.hg (glob)
   $ hg st --change . --copies h
   A h
   $ hg log -r . --template "{file_copies}\n"
@@ -423,11 +470,11 @@ Preserve extra dict (issue3430):
   $ echo a >> a
   $ hg ci -ma
   $ hg ci --amend -m "a'"
-  saved backup bundle to $TESTTMP/.hg/strip-backup/3837aa2a2fdb-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/3837aa2a2fdb-2be01fd1-amend-backup.hg (glob)
   $ hg log -r . --template "{branch}\n"
   a
   $ hg ci --amend -m "a''"
-  saved backup bundle to $TESTTMP/.hg/strip-backup/c05c06be7514-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/c05c06be7514-ed28c4cd-amend-backup.hg (glob)
   $ hg log -r . --template "{branch}\n"
   a
 
@@ -442,9 +489,9 @@ first graft something so there's an additional entry:
   $ hg up 11
   5 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ hg graft 12
-  grafting revision 12
+  grafting 12:2647734878ef "fork" (tip)
   $ hg ci --amend -m 'graft amend'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/bd010aea3f39-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/bd010aea3f39-eedb103b-amend-backup.hg (glob)
   $ hg log -r . --debug | grep extra
   extra:       amend_source=bd010aea3f39f3fb2a2f884b9ccb0471cd77398e
   extra:       branch=a
@@ -469,13 +516,10 @@ Test amend with obsolete
 
 Enable obsolete
 
-  $ cat > ${TESTTMP}/obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > evolution=createmarkers,allowunstable
   > EOF
-  $ echo '[extensions]' >> $HGRCPATH
-  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
-
 
 Amend with no files changes
 
@@ -619,7 +663,8 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   zz renamed from z:69a1b67522704ec122181c0890bd16e9d3e7516a
   $ hg debugrename cc
   cc not renamed
-  $ hg ci --amend -m 'merge bar (amend message)'
+  $ HGEDITOR="sh .hg/checkeditform.sh" hg ci --amend -m 'merge bar (amend message)' --edit
+  HGEDITFORM=commit.amend.merge
   $ hg log --config diff.git=1 -pr .
   changeset:   24:832b50f2c271
   tag:         tip
@@ -802,7 +847,8 @@ This shouldn't be possible:
   $ hg branch closewithamend
   marked working directory as branch closewithamend
   (branches are permanent and global, did you want a bookmark?)
-  $ hg add obs.py
+  $ echo foo > foo
+  $ hg add foo
   $ hg ci -m..
   $ hg ci --amend --close-branch -m 'closing'
   abort: can only close branch heads
@@ -838,6 +884,8 @@ Test that amend with --edit invokes editor forcibly
   $ hg parents --template "{desc}\n"
   editor should be suppressed
 
+  $ hg status --rev '.^1::.'
+  A foo
   $ HGEDITOR=cat hg commit --amend -m "editor should be invoked" --edit
   editor should be invoked
   
@@ -847,6 +895,259 @@ Test that amend with --edit invokes editor forcibly
   HG: --
   HG: user: test
   HG: branch 'silliness'
-  HG: changed obs.py
+  HG: added foo
   $ hg parents --template "{desc}\n"
   editor should be invoked
+
+Test that "diff()" in committemplate works correctly for amending
+-----------------------------------------------------------------
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset.commit.amend = {desc}\n
+  >     HG: M: {file_mods}
+  >     HG: A: {file_adds}
+  >     HG: R: {file_dels}
+  >     {splitlines(diff()) % 'HG: {line}\n'}
+  > EOF
+
+  $ hg parents --template "M: {file_mods}\nA: {file_adds}\nR: {file_dels}\n"
+  M: 
+  A: foo
+  R: 
+  $ hg status -amr
+  $ HGEDITOR=cat hg commit --amend -e -m "expecting diff of foo"
+  expecting diff of foo
+  
+  HG: M: 
+  HG: A: foo
+  HG: R: 
+  HG: diff -r 6de0c1bde1c8 foo
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +foo
+
+  $ echo y > y
+  $ hg add y
+  $ HGEDITOR=cat hg commit --amend -e -m "expecting diff of foo and y"
+  expecting diff of foo and y
+  
+  HG: M: 
+  HG: A: foo y
+  HG: R: 
+  HG: diff -r 6de0c1bde1c8 foo
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +foo
+  HG: diff -r 6de0c1bde1c8 y
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +y
+
+  $ hg rm a
+  $ HGEDITOR=cat hg commit --amend -e -m "expecting diff of a, foo and y"
+  expecting diff of a, foo and y
+  
+  HG: M: 
+  HG: A: foo y
+  HG: R: a
+  HG: diff -r 6de0c1bde1c8 a
+  HG: --- a/a	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,2 +0,0 @@
+  HG: -a
+  HG: -a
+  HG: diff -r 6de0c1bde1c8 foo
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +foo
+  HG: diff -r 6de0c1bde1c8 y
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +y
+
+  $ hg rm x
+  $ HGEDITOR=cat hg commit --amend -e -m "expecting diff of a, foo, x and y"
+  expecting diff of a, foo, x and y
+  
+  HG: M: 
+  HG: A: foo y
+  HG: R: a x
+  HG: diff -r 6de0c1bde1c8 a
+  HG: --- a/a	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,2 +0,0 @@
+  HG: -a
+  HG: -a
+  HG: diff -r 6de0c1bde1c8 foo
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +foo
+  HG: diff -r 6de0c1bde1c8 x
+  HG: --- a/x	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,1 +0,0 @@
+  HG: -x
+  HG: diff -r 6de0c1bde1c8 y
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +y
+
+  $ echo cccc >> cc
+  $ hg status -amr
+  M cc
+  $ HGEDITOR=cat hg commit --amend -e -m "cc should be excluded" -X cc
+  cc should be excluded
+  
+  HG: M: 
+  HG: A: foo y
+  HG: R: a x
+  HG: diff -r 6de0c1bde1c8 a
+  HG: --- a/a	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,2 +0,0 @@
+  HG: -a
+  HG: -a
+  HG: diff -r 6de0c1bde1c8 foo
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +foo
+  HG: diff -r 6de0c1bde1c8 x
+  HG: --- a/x	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -1,1 +0,0 @@
+  HG: -x
+  HG: diff -r 6de0c1bde1c8 y
+  HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
+  HG: @@ -0,0 +1,1 @@
+  HG: +y
+
+Check for issue4405
+-------------------
+
+Setup the repo with a file that gets moved in a second commit.
+  $ hg init repo
+  $ cd repo
+  $ touch a0
+  $ hg add a0
+  $ hg commit -m a0
+  $ hg mv a0 a1
+  $ hg commit -m a1
+  $ hg up -q 0
+  $ hg log -G --template '{rev} {desc}'
+  o  1 a1
+  |
+  @  0 a0
+  
+
+Now we branch the repro, but re-use the file contents, so we have a divergence
+in the file revlog topology and the changelog topology.
+  $ hg revert --rev 1 --all
+  removing a0
+  adding a1
+  $ hg ci -qm 'a1-amend'
+  $ hg log -G --template '{rev} {desc}'
+  @  2 a1-amend
+  |
+  | o  1 a1
+  |/
+  o  0 a0
+  
+
+The way mercurial does amends is to create a temporary commit (rev 3) and then
+fold the new and old commits together into another commit (rev 4). During this
+process, _findlimit is called to check how far back to look for the transitive
+closure of file copy information, but due to the divergence of the filelog
+and changelog graph topologies, before _findlimit was fixed, it returned a rev
+which was not far enough back in this case.
+  $ hg mv a1 a2
+  $ hg status --copies --rev 0
+  A a2
+    a0
+  R a0
+  $ hg ci --amend -q
+  $ hg log -G --template '{rev} {desc}'
+  @  4 a1-amend
+  |
+  | o  1 a1
+  |/
+  o  0 a0
+  
+
+Before the fix, the copy information was lost.
+  $ hg status --copies --rev 0
+  A a2
+    a0
+  R a0
+  $ cd ..
+
+Check that amend properly preserve rename from directory rename (issue-4516)
+
+If a parent of the merge renames a full directory, any files added to the old
+directory in the other parent will be renamed to the new directory. For some
+reason, the rename metadata was when amending such merge. This test ensure we
+do not regress. We have a dedicated repo because it needs a setup with renamed
+directory)
+
+  $ hg init issue4516
+  $ cd issue4516
+  $ mkdir olddirname
+  $ echo line1 > olddirname/commonfile.py
+  $ hg add olddirname/commonfile.py
+  $ hg ci -m first
+
+  $ hg branch newdirname
+  marked working directory as branch newdirname
+  (branches are permanent and global, did you want a bookmark?)
+  $ hg mv olddirname newdirname
+  moving olddirname/commonfile.py to newdirname/commonfile.py (glob)
+  $ hg ci -m rename
+
+  $ hg update default
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ echo line1 > olddirname/newfile.py
+  $ hg add olddirname/newfile.py
+  $ hg ci -m log
+
+  $ hg up newdirname
+  1 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  $ # create newdirname/newfile.py
+  $ hg merge default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg ci -m add
+  $ 
+  $ hg debugrename newdirname/newfile.py
+  newdirname/newfile.py renamed from olddirname/newfile.py:690b295714aed510803d3020da9c70fca8336def (glob)
+  $ hg status -C --change .
+  A newdirname/newfile.py
+  $ hg status -C --rev 1
+  A newdirname/newfile.py
+  $ hg status -C --rev 2
+  A newdirname/commonfile.py
+    olddirname/commonfile.py
+  A newdirname/newfile.py
+    olddirname/newfile.py
+  R olddirname/commonfile.py
+  R olddirname/newfile.py
+  $ hg debugindex newdirname/newfile.py
+     rev    offset  length   base linkrev nodeid       p1           p2
+       0         0      88      0       3 34a4d536c0c0 000000000000 000000000000
+
+  $ echo a >> newdirname/commonfile.py
+  $ hg ci --amend -m bug
+  $ hg debugrename newdirname/newfile.py
+  newdirname/newfile.py renamed from olddirname/newfile.py:690b295714aed510803d3020da9c70fca8336def (glob)
+  $ hg debugindex newdirname/newfile.py
+     rev    offset  length   base linkrev nodeid       p1           p2
+       0         0      88      0       3 34a4d536c0c0 000000000000 000000000000
+

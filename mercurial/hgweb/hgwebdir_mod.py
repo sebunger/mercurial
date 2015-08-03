@@ -193,7 +193,7 @@ class hgwebdir(object):
                     static = self.ui.config("web", "static", None,
                                             untrusted=False)
                     if not static:
-                        tp = self.templatepath or templater.templatepath()
+                        tp = self.templatepath or templater.templatepaths()
                         if isinstance(tp, str):
                             tp = [tp]
                         static = [os.path.join(p, 'static') for p in tp]
@@ -292,6 +292,12 @@ class hgwebdir(object):
                         # remove name parts plus accompanying slash
                         path = path[:-len(discarded) - 1]
 
+                        try:
+                            r = hg.repository(self.ui, path)
+                            directory = False
+                        except (IOError, error.RepoError):
+                            pass
+
                 parts = [name]
                 if 'PATH_INFO' in req.env:
                     parts.insert(0, req.env['PATH_INFO'].rstrip('/'))
@@ -356,6 +362,7 @@ class hgwebdir(object):
 
                 contact = get_contact(get)
                 description = get("web", "description", "")
+                seenrepos.add(name)
                 name = get("web", "name", name)
                 row = {'contact': contact or "unknown",
                        'contact_sort': contact.upper() or "unknown",
@@ -370,7 +377,6 @@ class hgwebdir(object):
                        'isdirectory': None,
                        }
 
-                seenrepos.add(name)
                 yield row
 
         sortdefault = None, False

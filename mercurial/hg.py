@@ -8,10 +8,12 @@
 
 from i18n import _
 from lock import release
-from node import hex, nullid
+from node import nullid
+
 import localrepo, bundlerepo, unionrepo, httppeer, sshpeer, statichttprepo
 import bookmarks, lock, util, extensions, error, node, scmutil, phases, url
-import cmdutil, discovery
+import cmdutil, discovery, repoview, exchange
+import ui as uimod
 import merge as mergemod
 import verify as verifymod
 import errno, os, shutil
@@ -24,8 +26,19 @@ def addbranchrevs(lrepo, other, branches, revs):
     peer = other.peer() # a courtesy to callers using a localrepo for other
     hashbranch, branches = branches
     if not hashbranch and not branches:
-        return revs or None, revs and revs[0] or None
-    revs = revs and list(revs) or []
+        x = revs or None
+        if util.safehasattr(revs, 'first'):
+            y =  revs.first()
+        elif revs:
+            y = revs[0]
+        else:
+            y = None
+        return x, y
+    if revs:
+        revs = list(revs)
+    else:
+        revs = []
+
     if not peer.capable('branchmap'):
         if branches:
             raise util.Abort(_("remote branch lookup not supported"))
@@ -149,7 +162,7 @@ def defaultdest(source):
         return ''
     return os.path.basename(os.path.normpath(path))
 
-def share(ui, source, dest=None, update=True):
+def share(ui, source, dest=None, update=True, bookmarks=True):
     '''create a shared repository'''
 
     if not islocal(source):
@@ -184,7 +197,7 @@ def share(ui, source, dest=None, update=True):
 
     requirements = ''
     try:
-        requirements = srcrepo.opener.read('requires')
+        requirements = srcrepo.vfs.read('requires')
     except IOError, inst:
         if inst.errno != errno.ENOENT:
             raise
@@ -197,7 +210,7 @@ def share(ui, source, dest=None, update=True):
 
     default = srcrepo.ui.config('paths', 'default')
     if default:
-        fp = r.opener("hgrc", "w", text=True)
+        fp = r.vfs("hgrc", "w", text=True)
         fp.write("[paths]\n")
         fp.write("default = %s\n" % default)
         fp.close()
@@ -216,6 +229,11 @@ def share(ui, source, dest=None, update=True):
                 continue
         _update(r, uprev)
 
+    if bookmarks:
+        fp = r.vfs('shared', 'w')
+        fp.write('bookmarks\n')
+        fp.close()
+
 def copystore(ui, srcrepo, destpath):
     '''copy files from store of srcrepo in destpath
 
@@ -225,6 +243,12 @@ def copystore(ui, srcrepo, destpath):
     try:
         hardlink = None
         num = 0
+        closetopic = [None]
+        def prog(topic, pos):
+            if pos is None:
+                closetopic[0] = topic
+            else:
+                ui.progress(topic, pos + num)
         srcpublishing = srcrepo.ui.configbool('phases', 'publish', True)
         srcvfs = scmutil.vfs(srcrepo.sharedpath)
         dstvfs = scmutil.vfs(destpath)
@@ -241,12 +265,16 @@ def copystore(ui, srcrepo, destpath):
                     # lock to avoid premature writing to the target
                     destlock = lock.lock(dstvfs, lockfile)
                 hardlink, n = util.copyfiles(srcvfs.join(f), dstvfs.join(f),
-                                             hardlink)
+                                             hardlink, progress=prog)
                 num += n
         if hardlink:
             ui.debug("linked %d files\n" % num)
+            if closetopic[0]:
+                ui.progress(closetopic[0], None)
         else:
             ui.debug("copied %d files\n" % num)
+            if closetopic[0]:
+                ui.progress(closetopic[0], None)
         return destlock
     except: # re-raises
         release(destlock)
@@ -275,7 +303,8 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
     dest: URL of destination repository to create (defaults to base
     name of source repository)
 
-    pull: always pull from source repository, even in local case
+    pull: always pull from source repository, even in local case or if the
+    server prefers streaming
 
     stream: stream raw data uncompressed from repository (fast over
     LAN, slow over WAN)
@@ -363,16 +392,28 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                 raise
 
             destlock = copystore(ui, srcrepo, destpath)
+            # copy bookmarks over
+            srcbookmarks = srcrepo.join('bookmarks')
+            dstbookmarks = os.path.join(destpath, 'bookmarks')
+            if os.path.exists(srcbookmarks):
+                util.copyfile(srcbookmarks, dstbookmarks)
 
             # Recomputing branch cache might be slow on big repos,
             # so just copy it
+            def copybranchcache(fname):
+                srcbranchcache = srcrepo.join('cache/%s' % fname)
+                dstbranchcache = os.path.join(dstcachedir, fname)
+                if os.path.exists(srcbranchcache):
+                    if not os.path.exists(dstcachedir):
+                        os.mkdir(dstcachedir)
+                    util.copyfile(srcbranchcache, dstbranchcache)
+
             dstcachedir = os.path.join(destpath, 'cache')
-            srcbranchcache = srcrepo.sjoin('cache/branch2')
-            dstbranchcache = os.path.join(dstcachedir, 'branch2')
-            if os.path.exists(srcbranchcache):
-                if not os.path.exists(dstcachedir):
-                    os.mkdir(dstcachedir)
-                util.copyfile(srcbranchcache, dstbranchcache)
+            # In local clones we're copying all nodes, not just served
+            # ones. Therefore copy all branch caches over.
+            copybranchcache('branch2')
+            for cachename in repoview.filtertable:
+                copybranchcache('branch2-%s' % cachename)
 
             # we need to re-init the repo after manually copying the data
             # into it
@@ -399,38 +440,28 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                 revs = [srcpeer.lookup(r) for r in rev]
                 checkout = revs[0]
             if destpeer.local():
+                if not stream:
+                    if pull:
+                        stream = False
+                    else:
+                        stream = None
                 destpeer.local().clone(srcpeer, heads=revs, stream=stream)
             elif srcrepo:
-                srcrepo.push(destpeer, revs=revs)
+                exchange.push(srcrepo, destpeer, revs=revs,
+                              bookmarks=srcrepo._bookmarks.keys())
             else:
                 raise util.Abort(_("clone from remote to remote not supported"))
 
         cleandir = None
 
-        # clone all bookmarks except divergent ones
         destrepo = destpeer.local()
-        if destrepo and srcpeer.capable("pushkey"):
-            rb = srcpeer.listkeys('bookmarks')
-            marks = destrepo._bookmarks
-            for k, n in rb.iteritems():
-                try:
-                    m = destrepo.lookup(n)
-                    marks[k] = m
-                except error.RepoLookupError:
-                    pass
-            if rb:
-                marks.write()
-        elif srcrepo and destpeer.capable("pushkey"):
-            for k, n in srcrepo._bookmarks.iteritems():
-                destpeer.pushkey('bookmarks', k, '', hex(n))
-
         if destrepo:
-            fp = destrepo.opener("hgrc", "w", text=True)
-            fp.write("[paths]\n")
+            template = uimod.samplehgrcs['cloned']
+            fp = destrepo.vfs("hgrc", "w", text=True)
             u = util.url(abspath)
             u.passwd = None
             defaulturl = str(u)
-            fp.write("default = %s\n" % defaulturl)
+            fp.write(template % defaulturl)
             fp.close()
 
             destrepo.ui.setconfig('paths', 'default', defaulturl, 'clone')
@@ -655,7 +686,9 @@ def remoteui(src, opts):
         for key, val in src.configitems(sect):
             dst.setconfig(sect, key, val, 'copied')
     v = src.config('web', 'cacerts')
-    if v:
+    if v == '!':
+        dst.setconfig('web', 'cacerts', v, 'copied')
+    elif v:
         dst.setconfig('web', 'cacerts', util.expandpath(v), 'copied')
 
     return dst

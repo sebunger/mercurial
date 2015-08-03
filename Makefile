@@ -7,11 +7,14 @@
 PREFIX=/usr/local
 export PREFIX
 PYTHON=python
+$(eval HGROOT := $(shell pwd))
+HGPYTHONS ?= $(HGROOT)/build/pythons
 PURE=
 PYFILES:=$(shell find mercurial hgext doc -name '*.py')
 DOCFILES=mercurial/help/*.txt
 export LANGUAGE=C
 export LC_ALL=C
+TESTFLAGS ?= $(shell echo $$HGTESTFLAGS)
 
 # Set this to e.g. "mingw32" to use a non-default compiler.
 COMPILER=
@@ -56,7 +59,8 @@ clean:
 	find contrib doc hgext i18n mercurial tests \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
 	rm -f $(addprefix mercurial/,$(notdir $(wildcard mercurial/pure/[a-z]*.py)))
-	rm -f MANIFEST MANIFEST.in mercurial/__version__.py hgext/__index__.py tests/*.err
+	rm -f MANIFEST MANIFEST.in hgext/__index__.py tests/*.err
+	if test -d .hg; then rm -f mercurial/__version__.py; fi
 	rm -rf build mercurial/locale
 	$(MAKE) -C doc clean
 
@@ -97,6 +101,13 @@ tests:
 test-%:
 	cd tests && $(PYTHON) run-tests.py $(TESTFLAGS) $@
 
+testpy-%:
+	@echo Looking for Python $* in $(HGPYTHONS)
+	[ -e $(HGPYTHONS)/$*/bin/python ] || ( \
+	cd $$(mktemp --directory --tmpdir) && \
+        $(MAKE) -f $(HGROOT)/contrib/Makefile.python PYTHONVER=$* PREFIX=$(HGPYTHONS)/$* python )
+	cd tests && $(HGPYTHONS)/$*/bin/python run-tests.py $(TESTFLAGS)
+
 check-code:
 	hg manifest | xargs python contrib/check-code.py
 
@@ -107,7 +118,9 @@ i18n/hg.pot: $(PYFILES) $(DOCFILES) i18n/posplit i18n/hggettext
 	  hgext/*.py hgext/*/__init__.py \
 	  mercurial/fileset.py mercurial/revset.py \
 	  mercurial/templatefilters.py mercurial/templatekw.py \
+	  mercurial/templater.py \
 	  mercurial/filemerge.py \
+	  mercurial/hgweb/webcommands.py \
 	  $(DOCFILES) > i18n/hg.pot.tmp
         # All strings marked for translation in Mercurial contain
         # ASCII characters only. But some files contain string
@@ -135,23 +148,46 @@ i18n/hg.pot: $(PYFILES) $(DOCFILES) i18n/posplit i18n/hggettext
 # Packaging targets
 
 osx:
-	@which -s bdist_mpkg || \
+	python -c 'import bdist_mpkg.script_bdist_mpkg' || \
 	   (echo "Missing bdist_mpkg (easy_install bdist_mpkg)"; false)
-	bdist_mpkg setup.py
-	mkdir -p packages/osx
 	rm -rf dist/mercurial-*.mpkg
-	mv dist/mercurial*macosx*.zip packages/osx
+	python -m bdist_mpkg.script_bdist_mpkg setup.py --
+	python contrib/fixpax.py dist/mercurial-*.mpkg/Contents/Packages/*.pkg/Contents/Archive.pax.gz
+	mkdir -p packages/osx
+	N=`cd dist && echo mercurial-*.mpkg | sed 's,\.mpkg$$,,'` && hdiutil create -srcfolder dist/$$N.mpkg/ -scrub -volname "$$N" -ov packages/osx/$$N.dmg
+	rm -rf dist/mercurial-*.mpkg
 
-fedora:
-	mkdir -p packages/fedora
+fedora20:
+	mkdir -p packages/fedora20
 	contrib/buildrpm
-	cp rpmbuild/RPMS/*/* packages/fedora
-	cp rpmbuild/SRPMS/* packages/fedora
+	cp rpmbuild/RPMS/*/* packages/fedora20
+	cp rpmbuild/SRPMS/* packages/fedora20
 	rm -rf rpmbuild
 
-docker-fedora:
-	mkdir -p packages/fedora
-	contrib/dockerrpm fedora
+docker-fedora20:
+	mkdir -p packages/fedora20
+	contrib/dockerrpm fedora20
+
+fedora21:
+	mkdir -p packages/fedora21
+	contrib/buildrpm
+	cp rpmbuild/RPMS/*/* packages/fedora21
+	cp rpmbuild/SRPMS/* packages/fedora21
+	rm -rf rpmbuild
+
+docker-fedora21:
+	mkdir -p packages/fedora21
+	contrib/dockerrpm fedora21
+
+centos5:
+	mkdir -p packages/centos5
+	contrib/buildrpm --withpython
+	cp rpmbuild/RPMS/*/* packages/centos5
+	cp rpmbuild/SRPMS/* packages/centos5
+
+docker-centos5:
+	mkdir -p packages/centos5
+	contrib/dockerrpm centos5 --withpython
 
 centos6:
 	mkdir -p packages/centos6
@@ -163,6 +199,18 @@ docker-centos6:
 	mkdir -p packages/centos6
 	contrib/dockerrpm centos6
 
+centos7:
+	mkdir -p packages/centos7
+	contrib/buildrpm
+	cp rpmbuild/RPMS/*/* packages/centos7
+	cp rpmbuild/SRPMS/* packages/centos7
+
+docker-centos7:
+	mkdir -p packages/centos7
+	contrib/dockerrpm centos7
+
 .PHONY: help all local build doc clean install install-bin install-doc \
-	install-home install-home-bin install-home-doc dist dist-notests tests \
-	update-pot fedora docker-fedora
+	install-home install-home-bin install-home-doc \
+	dist dist-notests check tests check-code update-pot \
+	osx fedora20 docker-fedora20 fedora21 docker-fedora21 \
+	centos5 docker-centos5 centos6 docker-centos6 centos7 docker-centos7

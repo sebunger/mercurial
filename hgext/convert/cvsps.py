@@ -8,7 +8,6 @@
 import os
 import re
 import cPickle as pickle
-from mercurial import util
 from mercurial.i18n import _
 from mercurial import hook
 from mercurial import util
@@ -632,7 +631,26 @@ def createchangeset(ui, log, fuzz=60, mergefrom=None, mergeto=None):
                     odd.add((l, r))
                 d = -1
                 break
+        # By this point, the changesets are sufficiently compared that
+        # we don't really care about ordering. However, this leaves
+        # some race conditions in the tests, so we compare on the
+        # number of files modified, the files contained in each
+        # changeset, and the branchpoints in the change to ensure test
+        # output remains stable.
 
+        # recommended replacement for cmp from
+        # https://docs.python.org/3.0/whatsnew/3.0.html
+        c = lambda x, y: (x > y) - (x < y)
+        # Sort bigger changes first.
+        if not d:
+            d = c(len(l.entries), len(r.entries))
+        # Try sorting by filename in the change.
+        if not d:
+            d = c([e.file for e in l.entries], [e.file for e in r.entries])
+        # Try and put changes without a branch point before ones with
+        # a branch point.
+        if not d:
+            d = c(len(l.branchpoints), len(r.branchpoints))
         return d
 
     changesets.sort(cscmp)

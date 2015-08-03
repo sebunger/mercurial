@@ -1,0 +1,20 @@
+Description: Use FHS compliant path for data
+ By default, mercurial installs expects its data files next to their
+ py files in /usr/lib/python2.7/dist-packages/mercurial .  Debian puts
+ the data files in the FHS compliant /usr/share/mercurial .  Fix the
+ path only when run from the FHS compliant path
+ (/usr/lib/pythonX.Y/dist-packages/mercurial) so as to not break the
+ testsuite when building the package.
+Author: Javi Merino <vicho@debian.org>
+
+--- a/mercurial/util.py
++++ b/mercurial/util.py
+@@ -621,6 +621,8 @@ def mainfrozen():
+ if mainfrozen():
+     # executable version (py2exe) doesn't support __file__
+     datapath = os.path.dirname(sys.executable)
++elif __file__.startswith("/usr/lib/python"):
++    datapath = "/usr/share/mercurial"
+ else:
+     datapath = os.path.dirname(__file__)
+ 

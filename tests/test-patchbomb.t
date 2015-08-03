@@ -8,6 +8,21 @@ Mercurial-patchbomb/.* -> Mercurial-patchbomb/* (glob)
 --===+[0-9]+=+--$ -> --===*=-- (glob)
 --===+[0-9]+=+$ -> --===*= (glob)
 
+  $ cat > prune-blank-after-boundary.py <<EOF
+  > import sys
+  > skipblank = False
+  > trim = lambda x: x.strip(' \r\n')
+  > for l in sys.stdin:
+  >     if trim(l).endswith('=--') or trim(l).endswith('=='):
+  >         skipblank = True
+  >         print l,
+  >         continue
+  >     if not trim(l) and skipblank:
+  >         continue
+  >     skipblank = False
+  >     print l,
+  > EOF
+  $ FILTERBOUNDARY="python `pwd`/prune-blank-after-boundary.py"
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "patchbomb=" >> $HGRCPATH
 
@@ -67,8 +82,103 @@ Mercurial-patchbomb/.* -> Mercurial-patchbomb/* (glob)
    a |  1 +
    1 files changed, 1 insertions(+), 0 deletions(-)
   
-  are you sure you want to send (yn)? abort: patchbomb canceled
+  are you sure you want to send (yn)? n
+  abort: patchbomb canceled
   [255]
+
+  $ hg --config ui.interactive=1 --config patchbomb.confirm=true email -n -f quux -t foo -c bar -r tip<<EOF
+  > n
+  > EOF
+  this patch series consists of 1 patches.
+  
+  
+  Final summary:
+  
+  From: quux
+  To: foo
+  Cc: bar
+  Subject: [PATCH] a
+   a |  1 +
+   1 files changed, 1 insertions(+), 0 deletions(-)
+  
+  are you sure you want to send (yn)? n
+  abort: patchbomb canceled
+  [255]
+
+
+Test diff.git is respected
+  $ hg --config diff.git=True email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -r tip
+  this patch series consists of 1 patches.
+  
+  
+  displaying [PATCH] a ...
+  Content-Type: text/plain; charset="us-ascii"
+  MIME-Version: 1.0
+  Content-Transfer-Encoding: 7bit
+  Subject: [PATCH] a
+  X-Mercurial-Node: 8580ff50825a50c8f716709acdf8de0deddcd6ab
+  X-Mercurial-Series-Index: 1
+  X-Mercurial-Series-Total: 1
+  Message-Id: <8580ff50825a50c8f716.60@*> (glob)
+  X-Mercurial-Series-Id: <8580ff50825a50c8f716.60@*> (glob)
+  User-Agent: Mercurial-patchbomb/* (glob)
+  Date: Thu, 01 Jan 1970 00:01:00 +0000
+  From: quux
+  To: foo
+  Cc: bar
+  
+  # HG changeset patch
+  # User test
+  # Date 1 0
+  #      Thu Jan 01 00:00:01 1970 +0000
+  # Node ID 8580ff50825a50c8f716709acdf8de0deddcd6ab
+  # Parent  0000000000000000000000000000000000000000
+  a
+  
+  diff --git a/a b/a
+  new file mode 100644
+  --- /dev/null
+  +++ b/a
+  @@ -0,0 +1,1 @@
+  +a
+  
+
+
+Test breaking format changes aren't
+  $ hg --config diff.noprefix=True email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -r tip
+  this patch series consists of 1 patches.
+  
+  
+  displaying [PATCH] a ...
+  Content-Type: text/plain; charset="us-ascii"
+  MIME-Version: 1.0
+  Content-Transfer-Encoding: 7bit
+  Subject: [PATCH] a
+  X-Mercurial-Node: 8580ff50825a50c8f716709acdf8de0deddcd6ab
+  X-Mercurial-Series-Index: 1
+  X-Mercurial-Series-Total: 1
+  Message-Id: <8580ff50825a50c8f716.60@*> (glob)
+  X-Mercurial-Series-Id: <8580ff50825a50c8f716.60@*> (glob)
+  User-Agent: Mercurial-patchbomb/* (glob)
+  Date: Thu, 01 Jan 1970 00:01:00 +0000
+  From: quux
+  To: foo
+  Cc: bar
+  
+  # HG changeset patch
+  # User test
+  # Date 1 0
+  #      Thu Jan 01 00:00:01 1970 +0000
+  # Node ID 8580ff50825a50c8f716709acdf8de0deddcd6ab
+  # Parent  0000000000000000000000000000000000000000
+  a
+  
+  diff -r 000000000000 -r 8580ff50825a a
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/a	Thu Jan 01 00:00:01 1970 +0000
+  @@ -0,0 +1,1 @@
+  +a
+  
 
   $ echo b > b
   $ hg commit -Amb -d '2 0'
@@ -214,7 +324,7 @@ Mercurial-patchbomb/.* -> Mercurial-patchbomb/* (glob)
 
 test bundle and description:
   $ hg email --date '1970-1-1 0:3' -n -f quux -t foo \
-  >  -c bar -s test -r tip -b --desc description
+  >  -c bar -s test -r tip -b --desc description | $FILTERBOUNDARY
   searching for changes
   1 changesets found
   
@@ -254,7 +364,7 @@ test bundle and description:
   --===*=-- (glob)
 
 utf-8 patch:
-  $ python -c 'fp = open("utf", "wb"); fp.write("h\xC3\xB6mma!\n"); fp.close();'
+  $ $PYTHON -c 'fp = open("utf", "wb"); fp.write("h\xC3\xB6mma!\n"); fp.close();'
   $ hg commit -A -d '4 0' -m 'utf-8 content'
   adding description
   adding utf
@@ -338,7 +448,7 @@ mime encoded mbox (base64):
   QEAgLTAsMCArMSwxIEBACitow7ZtbWEhCg==
   
   
-  $ python -c 'print open("mbox").read().split("\n\n")[1].decode("base64")'
+  $ $PYTHON -c 'print open("mbox").read().split("\n\n")[1].decode("base64")'
   # HG changeset patch
   # User test
   # Date 4 0
@@ -363,7 +473,7 @@ mime encoded mbox (base64):
   $ rm mbox
 
 mime encoded mbox (quoted-printable):
-  $ python -c 'fp = open("long", "wb"); fp.write("%s\nfoo\n\nbar\n" % ("x" * 1024)); fp.close();'
+  $ $PYTHON -c 'fp = open("long", "wb"); fp.write("%s\nfoo\n\nbar\n" % ("x" * 1024)); fp.close();'
   $ hg commit -A -d '4 0' -m 'long line'
   adding long
 
@@ -477,7 +587,7 @@ mime encoded mbox (quoted-printable):
   $ rm mbox
 
 iso-8859-1 patch:
-  $ python -c 'fp = open("isolatin", "wb"); fp.write("h\xF6mma!\n"); fp.close();'
+  $ $PYTHON -c 'fp = open("isolatin", "wb"); fp.write("h\xF6mma!\n"); fp.close();'
   $ hg commit -A -d '5 0' -m 'isolatin 8-bit encoding'
   adding isolatin
 
@@ -689,7 +799,7 @@ test diffstat for multiple patches:
   
 
 test inline for single patch:
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i -r 2
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i -r 2 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -732,7 +842,7 @@ test inline for single patch:
 
 
 test inline for single patch (quoted-printable):
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i -r 4
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i -r 4 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -791,7 +901,7 @@ test inline for single patch (quoted-printable):
 
 test inline for multiple patches:
   $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i \
-  >  -r 0:1 -r 4
+  >  -r 0:1 -r 4 | $FILTERBOUNDARY
   this patch series consists of 3 patches.
   
   
@@ -943,7 +1053,7 @@ test inline for multiple patches:
   --===*=-- (glob)
 
 test attach for single patch:
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a -r 2
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a -r 2 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -994,7 +1104,7 @@ test attach for single patch:
   --===*=-- (glob)
 
 test attach for single patch (quoted-printable):
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a -r 4
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a -r 4 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -1061,7 +1171,7 @@ test attach for single patch (quoted-printable):
   --===*=-- (glob)
 
 test attach and body for single patch:
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a --body -r 2
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a --body -r 2 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -1123,7 +1233,7 @@ test attach and body for single patch:
 
 test attach for multiple patches:
   $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -a \
-  >  -r 0:1 -r 4
+  >  -r 0:1 -r 4 | $FILTERBOUNDARY
   this patch series consists of 3 patches.
   
   
@@ -1579,7 +1689,8 @@ tagging csets:
   $ hg tag -r2 two two.diff
 
 test inline for single named patch:
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i -r 2
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i \
+  >   -r 2 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -1621,7 +1732,8 @@ test inline for single named patch:
   --===*=-- (glob)
 
 test inline for multiple named/unnamed patches:
-  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i -r 0:1
+  $ hg email --date '1970-1-1 0:1' -n -f quux -t foo -c bar -s test -i \
+  >    -r 0:1 | $FILTERBOUNDARY
   this patch series consists of 2 patches.
   
   
@@ -1927,7 +2039,7 @@ test single flag for single patch (and no warning when not mailing dirty rev):
   $ hg up -qr1
   $ echo dirt > a
   $ hg email --date '1970-1-1 0:1' -n --flag fooFlag -f quux -t foo -c bar -s test \
-  >  -r 2
+  >  -r 2 | $FILTERBOUNDARY
   this patch series consists of 1 patches.
   
   
@@ -2219,7 +2331,7 @@ test multi-address parsing:
   
 
 test multi-byte domain parsing:
-  $ UUML=`python -c 'import sys; sys.stdout.write("\374")'`
+  $ UUML=`$PYTHON -c 'import sys; sys.stdout.write("\374")'`
   $ HGENCODING=iso-8859-1
   $ export HGENCODING
   $ hg email --date '1980-1-1 0:1' -m tmp.mbox -f quux -t "bar@${UUML}nicode.com" -s test -r 0
@@ -2571,4 +2683,127 @@ dest#branch URIs:
   +d
   
 
-  $ cd ..
+Test introduction configuration
+=================================
+
+  $ echo '[patchbomb]' >> $HGRCPATH
+
+"auto" setting
+----------------
+
+  $ echo 'intro=auto' >> $HGRCPATH
+
+single rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10' | grep "Write the introductory message for the patch series."
+  [1]
+
+single rev + flag
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10' --intro | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+
+Multi rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '9::' | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+"never" setting
+-----------------
+
+  $ echo 'intro=never' >> $HGRCPATH
+
+single rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10' | grep "Write the introductory message for the patch series."
+  [1]
+
+single rev + flag
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10' --intro | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+
+Multi rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '9::' | grep "Write the introductory message for the patch series."
+  [1]
+
+Multi rev + flag
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '9::' --intro | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+"always" setting
+-----------------
+
+  $ echo 'intro=always' >> $HGRCPATH
+
+single rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10' | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+single rev + flag
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10' --intro | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+
+Multi rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '9::' | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+Multi rev + flag
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '9::' --intro | grep "Write the introductory message for the patch series."
+  Write the introductory message for the patch series.
+
+bad value setting
+-----------------
+
+  $ echo 'intro=mpmwearaclownnose' >> $HGRCPATH
+
+single rev
+
+  $ hg email --date '1980-1-1 0:1' -n -t foo -s test -r '10'
+  From [test]: test
+  this patch series consists of 1 patches.
+  
+  warning: invalid patchbomb.intro value "mpmwearaclownnose"
+  (should be one of always, never, auto)
+  Cc: 
+  
+  displaying [PATCH] test ...
+  Content-Type: text/plain; charset="us-ascii"
+  MIME-Version: 1.0
+  Content-Transfer-Encoding: 7bit
+  Subject: [PATCH] test
+  X-Mercurial-Node: 3b6f1ec9dde933a40a115a7990f8b320477231af
+  X-Mercurial-Series-Index: 1
+  X-Mercurial-Series-Total: 1
+  Message-Id: <3b6f1ec9dde933a40a11*> (glob)
+  X-Mercurial-Series-Id: <3b6f1ec9dde933a40a11.*> (glob)
+  User-Agent: Mercurial-patchbomb/* (glob)
+  Date: Tue, 01 Jan 1980 00:01:00 +0000
+  From: test
+  To: foo
+  
+  # HG changeset patch
+  # User test
+  # Date 5 0
+  #      Thu Jan 01 00:00:05 1970 +0000
+  # Branch test
+  # Node ID 3b6f1ec9dde933a40a115a7990f8b320477231af
+  # Parent  2f9fa9b998c5fe3ac2bd9a2b14bfcbeecbc7c268
+  dd
+  
+  diff -r 2f9fa9b998c5 -r 3b6f1ec9dde9 d
+  --- a/d	Thu Jan 01 00:00:04 1970 +0000
+  +++ b/d	Thu Jan 01 00:00:05 1970 +0000
+  @@ -1,1 +1,2 @@
+   d
+  +d
+  

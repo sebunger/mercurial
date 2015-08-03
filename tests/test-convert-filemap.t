@@ -387,15 +387,15 @@ test branch closing revision pruning if branch is pruned
   1 addb
   0 closedefault
   $ glog -R branchpruning-hg1
-  o  5 "closedefault" files:
+  _  5 "closedefault" files:
   |
   o  4 "addb" files: b
   |
-  | o  3 "closeempty" files:
+  | _  3 "closeempty" files:
   | |
   | o  2 "emptybranch" files:
   |/
-  | o  1 "closefoo" files:
+  | _  1 "closefoo" files:
   |/
   o  0 "adda" files: a
   
@@ -422,7 +422,7 @@ exercise incremental conversion at the same time
   1 closeempty
   0 closedefault
   $ glog -R branchpruning-hg2
-  o  1 "closedefault" files:
+  _  1 "closedefault" files:
   |
   o  0 "addb" files: b
   
@@ -637,7 +637,7 @@ test named branch pruning
   $ cd namedbranch
   $ hg --config extensions.mq= strip tip
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/namedbranch/.hg/strip-backup/73899bcbe45c-backup.hg (glob)
+  saved backup bundle to $TESTTMP/namedbranch/.hg/strip-backup/73899bcbe45c-92adf160-backup.hg (glob)
   $ hg up foo
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg merge default

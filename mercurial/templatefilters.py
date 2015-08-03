@@ -66,6 +66,10 @@ def basename(path):
     """
     return os.path.basename(path)
 
+def count(i):
+    """:count: List or text. Returns the length as an integer."""
+    return len(i)
+
 def datefilter(text):
     """:date: Date. Returns a date in a Unix date format, including the
     timezone: "Mon Sep 04 15:13:13 2006 0700".
@@ -195,7 +199,7 @@ def json(obj):
         return '"%s"' % jsonescape(obj)
     elif util.safehasattr(obj, 'keys'):
         out = []
-        for k, v in obj.iteritems():
+        for k, v in sorted(obj.iteritems()):
             s = '%s: %s' % (json(k), json(v))
             out.append(s)
         return '{' + ', '.join(out) + '}'
@@ -204,6 +208,8 @@ def json(obj):
         for i in obj:
             out.append(json(i))
         return '[' + ', '.join(out) + ']'
+    elif util.safehasattr(obj, '__call__'):
+        return json(obj())
     else:
         raise TypeError('cannot encode type %s' % obj.__class__.__name__)
 
@@ -227,6 +233,10 @@ def jsonescape(s):
 def localdate(text):
     """:localdate: Date. Converts a date to local date."""
     return (util.parsedate(text)[0], util.makedate()[1])
+
+def lower(text):
+    """:lower: Any text. Converts the text to lowercase."""
+    return encoding.lower(text)
 
 def nonempty(str):
     """:nonempty: Any text. Returns '(none)' if the string is empty."""
@@ -338,6 +348,10 @@ def tabindent(text):
     """
     return indent(text, '\t')
 
+def upper(text):
+    """:upper: Any text. Converts the text to uppercase."""
+    return encoding.upper(text)
+
 def urlescape(text):
     """:urlescape: Any text. Escapes all "special" characters. For example,
     "foo bar" becomes "foo%20bar".
@@ -366,6 +380,7 @@ filters = {
     "addbreaks": addbreaks,
     "age": age,
     "basename": basename,
+    "count": count,
     "date": datefilter,
     "domain": domain,
     "email": email,
@@ -380,6 +395,7 @@ filters = {
     "json": json,
     "jsonescape": jsonescape,
     "localdate": localdate,
+    "lower": lower,
     "nonempty": nonempty,
     "obfuscate": obfuscate,
     "permissions": permissions,
@@ -395,6 +411,7 @@ filters = {
     "strip": strip,
     "stripdir": stripdir,
     "tabindent": tabindent,
+    "upper": upper,
     "urlescape": urlescape,
     "user": userfilter,
     "emailuser": emailuser,

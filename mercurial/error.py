@@ -16,9 +16,16 @@ imports.
 class RevlogError(Exception):
     pass
 
+class FilteredIndexError(IndexError):
+    pass
+
 class LookupError(RevlogError, KeyError):
     def __init__(self, name, index, message):
         self.name = name
+        self.index = index
+        # this can't be called 'message' because at least some installs of
+        # Python 2.6+ complain about the 'message' property being deprecated
+        self.lookupmessage = message
         if isinstance(name, str) and len(name) == 20:
             from node import short
             name = short(name)
@@ -26,6 +33,9 @@ class LookupError(RevlogError, KeyError):
 
     def __str__(self):
         return RevlogError.__str__(self)
+
+class FilteredLookupError(LookupError):
+    pass
 
 class ManifestLookupError(LookupError):
     pass
@@ -42,14 +52,29 @@ class Abort(Exception):
         Exception.__init__(self, *args)
         self.hint = kw.get('hint')
 
+class HookAbort(Abort):
+    """raised when a validation hook fails, aborting an operation
+
+    Exists to allow more specialized catching."""
+    pass
+
 class ConfigError(Abort):
-    'Exception raised when parsing config files'
+    """Exception raised when parsing config files"""
 
 class OutOfBandError(Exception):
-    'Exception raised when a remote repo reports failure'
+    """Exception raised when a remote repo reports failure"""
 
 class ParseError(Exception):
-    'Exception raised when parsing config files (msg[, pos])'
+    """Raised when parsing config files and {rev,file}sets (msg[, pos])"""
+
+class UnknownIdentifier(ParseError):
+    """Exception raised when a {rev,file}set references an unknown identifier"""
+
+    def __init__(self, function, symbols):
+        from i18n import _
+        ParseError.__init__(self, _("unknown identifier: %s") % function)
+        self.function = function
+        self.symbols = symbols
 
 class RepoError(Exception):
     def __init__(self, *args, **kw):
@@ -57,6 +82,9 @@ class RepoError(Exception):
         self.hint = kw.get('hint')
 
 class RepoLookupError(RepoError):
+    pass
+
+class FilteredRepoLookupError(RepoLookupError):
     pass
 
 class CapabilityError(RepoError):
@@ -102,6 +130,7 @@ class PushRaced(RuntimeError):
 class BundleValueError(ValueError):
     """error raised when bundle2 cannot be processed"""
 
+class UnsupportedPartError(BundleValueError):
     def __init__(self, parttype=None, params=()):
         self.parttype = parttype
         self.params = params
@@ -117,3 +146,21 @@ class ReadOnlyPartError(RuntimeError):
     """error raised when code tries to alter a part being generated"""
     pass
 
+class CensoredNodeError(RevlogError):
+    """error raised when content verification fails on a censored node
+
+    Also contains the tombstone data substituted for the uncensored data.
+    """
+
+    def __init__(self, filename, node, tombstone):
+        from node import short
+        RevlogError.__init__(self, '%s:%s' % (filename, short(node)))
+        self.tombstone = tombstone
+
+class CensoredBaseError(RevlogError):
+    """error raised when a delta is rejected because its base is censored
+
+    A delta based on a censored revision must be formed as single patch
+    operation which replaces the entire base with new content. This ensures
+    the delta may be applied by clones which have not censored the base.
+    """

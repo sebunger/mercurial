@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
   $ hg init test
   $ cd test
@@ -35,6 +35,8 @@ clone via stream
   streaming all changes
   6 files to transfer, 606 bytes of data
   transferred * bytes in * seconds (*/sec) (glob)
+  searching for changes
+  no changes found
   updating to branch default
   4 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg verify -R copy
@@ -125,7 +127,7 @@ pull
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_URL=http://localhost:$HGPORT1/
+  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=http://localhost:$HGPORT1/ (glob)
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -195,6 +197,17 @@ test http authentication
   streaming all changes
   7 files to transfer, 916 bytes of data
   transferred * bytes in * seconds (*/sec) (glob)
+  searching for changes
+  no changes found
+  updating to branch default
+  5 files updated, 0 files merged, 0 files removed, 0 files unresolved
+--pull should override server's preferuncompressed
+  $ hg clone --pull http://user:pass@localhost:$HGPORT2/ dest-pull 2>&1
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 5 changes to 5 files
   updating to branch default
   5 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
@@ -252,6 +265,14 @@ test http authentication
   "GET /?cmd=stream_out HTTP/1.1" 401 -
   "GET /?cmd=stream_out HTTP/1.1" 200 -
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D5fed3813f7f5e1824344fdc9cf8f63bb662c292d
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
+  "GET /?cmd=capabilities HTTP/1.1" 200 -
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D
+  "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
   "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
   "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
@@ -261,13 +282,14 @@ test http authentication
   "GET /?cmd=listkeys HTTP/1.1" 403 - x-hgarg-1:namespace=namespaces
   "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D7f4e523d01f2cc3765ac8934da3d14db775ff872
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=phases
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
   "GET /?cmd=branchmap HTTP/1.1" 200 -
   "GET /?cmd=branchmap HTTP/1.1" 200 -
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=bookmarks
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
   "POST /?cmd=unbundle HTTP/1.1" 200 - x-hgarg-1:heads=686173686564+5eb5abfefeea63c80dd7553bcc3783f37e0c5524
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
 
 #endif
   $ cd ..

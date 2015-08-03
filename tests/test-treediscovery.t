@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" killdaemons || exit 80
+#require killdaemons
 
 Tests discovery against servers without getbundle support:
 
@@ -509,25 +509,28 @@ Both have new stuff in existing named branches:
   "GET /?cmd=branches HTTP/1.1" 200 - x-hgarg-1:nodes=d8f638ac69e9ae8dea4f09f11d696546a912d961
   "GET /?cmd=between HTTP/1.1" 200 - x-hgarg-1:pairs=d8f638ac69e9ae8dea4f09f11d696546a912d961-d57206cc072a18317c1e381fb60aa31bd3401785
   "GET /?cmd=changegroupsubset HTTP/1.1" 200 - x-hgarg-1:bases=d8f638ac69e9ae8dea4f09f11d696546a912d961&heads=d8f638ac69e9ae8dea4f09f11d696546a912d961
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
   "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=heads HTTP/1.1" 200 -
   "GET /?cmd=branches HTTP/1.1" 200 - x-hgarg-1:nodes=d8f638ac69e9ae8dea4f09f11d696546a912d961
   "GET /?cmd=between HTTP/1.1" 200 - x-hgarg-1:pairs=d8f638ac69e9ae8dea4f09f11d696546a912d961-d57206cc072a18317c1e381fb60aa31bd3401785
   "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
   "GET /?cmd=heads HTTP/1.1" 200 -
   "GET /?cmd=branches HTTP/1.1" 200 - x-hgarg-1:nodes=d8f638ac69e9ae8dea4f09f11d696546a912d961
   "GET /?cmd=between HTTP/1.1" 200 - x-hgarg-1:pairs=d8f638ac69e9ae8dea4f09f11d696546a912d961-d57206cc072a18317c1e381fb60aa31bd3401785
-  "GET /?cmd=changegroupsubset HTTP/1.1" 200 - x-hgarg-1:bases=d8f638ac69e9ae8dea4f09f11d696546a912d961&heads=d8f638ac69e9ae8dea4f09f11d696546a912d961+2c8d5d5ec612be65cdfdeac78b7662ab1696324a
+  "GET /?cmd=changegroupsubset HTTP/1.1" 200 - x-hgarg-1:bases=d8f638ac69e9ae8dea4f09f11d696546a912d961&heads=d8f638ac69e9ae8dea4f09f11d696546a912d961
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
   "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=heads HTTP/1.1" 200 -
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
   "GET /?cmd=branchmap HTTP/1.1" 200 -
   "GET /?cmd=branchmap HTTP/1.1" 200 -
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
   "POST /?cmd=unbundle HTTP/1.1" 200 - x-hgarg-1:heads=686173686564+1827a5bb63e602382eb89dd58f2ac9f3b007ad91
   "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
   "GET /?cmd=capabilities HTTP/1.1" 200 -
   "GET /?cmd=heads HTTP/1.1" 200 -
   "GET /?cmd=capabilities HTTP/1.1" 200 -

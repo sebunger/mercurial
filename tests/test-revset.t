@@ -87,37 +87,88 @@
   $ hg ci -Aqm9
 
   $ hg tag -r6 1.0
+  $ hg bookmark -r6 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
   $ hg clone --quiet -U -r 7 . ../remote1
   $ hg clone --quiet -U -r 8 . ../remote2
   $ echo "[paths]" >> .hg/hgrc
   $ echo "default = ../remote1" >> .hg/hgrc
 
+trivial
+
+  $ try 0:1
+  (range
+    ('symbol', '0')
+    ('symbol', '1'))
+  * set:
+  <spanset+ 0:1>
+  0
+  1
+  $ try 3::6
+  (dagrange
+    ('symbol', '3')
+    ('symbol', '6'))
+  * set:
+  <baseset [3, 5, 6]>
+  3
+  5
+  6
+  $ try '0|1|2'
+  (or
+    (or
+      ('symbol', '0')
+      ('symbol', '1'))
+    ('symbol', '2'))
+  * set:
+  <addset
+    <addset
+      <baseset [0]>,
+      <baseset [1]>>,
+    <baseset [2]>>
+  0
+  1
+  2
+
 names that should work without quoting
 
   $ try a
   ('symbol', 'a')
+  * set:
+  <baseset [0]>
   0
   $ try b-a
   (minus
     ('symbol', 'b')
     ('symbol', 'a'))
+  * set:
+  <filteredset
+    <baseset [1]>>
   1
   $ try _a_b_c_
   ('symbol', '_a_b_c_')
+  * set:
+  <baseset [6]>
   6
   $ try _a_b_c_-a
   (minus
     ('symbol', '_a_b_c_')
     ('symbol', 'a'))
+  * set:
+  <filteredset
+    <baseset [6]>>
   6
   $ try .a.b.c.
   ('symbol', '.a.b.c.')
+  * set:
+  <baseset [7]>
   7
   $ try .a.b.c.-a
   (minus
     ('symbol', '.a.b.c.')
     ('symbol', 'a'))
+  * set:
+  <filteredset
+    <baseset [7]>>
   7
   $ try -- '-a-b-c-' # complains
   hg: parse error at 7: not a prefix: end
@@ -139,6 +190,8 @@ names that should work without quoting
   [255]
   $ try é
   ('symbol', '\xc3\xa9')
+  * set:
+  <baseset [9]>
   9
 
 no quoting needed
@@ -154,6 +207,9 @@ quoting needed
   (minus
     ('string', '-a-b-c-')
     ('symbol', 'a'))
+  * set:
+  <filteredset
+    <baseset [4]>>
   4
 
   $ log '1 or 2'
@@ -170,6 +226,10 @@ quoting needed
       ('symbol', '1')
       ('symbol', '2'))
     ('symbol', '3'))
+  * set:
+  <addset
+    <baseset []>,
+    <baseset [3]>>
   3
   $ try '1|2&3'
   (or
@@ -177,6 +237,10 @@ quoting needed
     (and
       ('symbol', '2')
       ('symbol', '3')))
+  * set:
+  <addset
+    <baseset [1]>,
+    <baseset []>>
   1
   $ try '1&2&3' # associativity
   (and
@@ -184,6 +248,8 @@ quoting needed
       ('symbol', '1')
       ('symbol', '2'))
     ('symbol', '3'))
+  * set:
+  <baseset []>
   $ try '1|(2|3)'
   (or
     ('symbol', '1')
@@ -191,6 +257,12 @@ quoting needed
       (or
         ('symbol', '2')
         ('symbol', '3'))))
+  * set:
+  <addset
+    <baseset [1]>,
+    <addset
+      <baseset [2]>,
+      <baseset [3]>>>
   1
   2
   3
@@ -325,10 +397,16 @@ ancestor can accept 0 or more arguments
   (func
     ('symbol', 'grep')
     ('string', '\x08issue\\d+'))
+  * set:
+  <filteredset
+    <fullreposet+ 0:9>>
   $ try 'grep(r"\bissue\d+")'
   (func
     ('symbol', 'grep')
     ('string', '\\bissue\\d+'))
+  * set:
+  <filteredset
+    <fullreposet+ 0:9>>
   6
   $ try 'grep(r"\")'
   hg: parse error at 7: unterminated string
@@ -437,6 +515,126 @@ Test empty set input
   4
   8
   9
+
+Test '%' operator
+
+  $ log '9%'
+  8
+  9
+  $ log '9%5'
+  2
+  4
+  8
+  9
+  $ log '(7 + 9)%(5 + 2)'
+  4
+  6
+  7
+  8
+  9
+
+Test opreand of '%' is optimized recursively (issue4670)
+
+  $ try --optimize '8:9-8%'
+  (onlypost
+    (minus
+      (range
+        ('symbol', '8')
+        ('symbol', '9'))
+      ('symbol', '8')))
+  * optimized:
+  (func
+    ('symbol', 'only')
+    (and
+      (range
+        ('symbol', '8')
+        ('symbol', '9'))
+      (not
+        ('symbol', '8'))))
+  * set:
+  <baseset+ [8, 9]>
+  8
+  9
+
+Test the order of operations
+
+  $ log '7 + 9%5 + 2'
+  7
+  2
+  4
+  8
+  9
+
+Test explicit numeric revision
+  $ log 'rev(-2)'
+  $ log 'rev(-1)'
+  -1
+  $ log 'rev(0)'
+  0
+  $ log 'rev(9)'
+  9
+  $ log 'rev(10)'
+  $ log 'rev(tip)'
+  hg: parse error: rev expects a number
+  [255]
+
+Test hexadecimal revision
+  $ log 'id(2)'
+  abort: 00changelog.i@2: ambiguous identifier!
+  [255]
+  $ log 'id(23268)'
+  4
+  $ log 'id(2785f51eece)'
+  0
+  $ log 'id(d5d0dcbdc4d9ff5dbb2d336f32f0bb561c1a532c)'
+  8
+  $ log 'id(d5d0dcbdc4a)'
+  $ log 'id(d5d0dcbdc4w)'
+  $ log 'id(d5d0dcbdc4d9ff5dbb2d336f32f0bb561c1a532d)'
+  $ log 'id(d5d0dcbdc4d9ff5dbb2d336f32f0bb561c1a532q)'
+  $ log 'id(1.0)'
+  $ log 'id(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)'
+
+Test null revision
+  $ log '(null)'
+  -1
+  $ log '(null:0)'
+  -1
+  0
+  $ log '(0:null)'
+  0
+  -1
+  $ log 'null::0'
+  -1
+  0
+  $ log 'null:tip - 0:'
+  -1
+  $ log 'null: and null::' | head -1
+  -1
+  $ log 'null: or 0:' | head -2
+  -1
+  0
+  $ log 'ancestors(null)'
+  -1
+  $ log 'reverse(null:)' | tail -2
+  0
+  -1
+BROKEN: should be '-1'
+  $ log 'first(null:)'
+BROKEN: should be '-1'
+  $ log 'min(null:)'
+  $ log 'tip:null and all()' | tail -2
+  1
+  0
+
+Test working-directory revision
+  $ hg debugrevspec 'wdir()'
+  None
+BROKEN: should include 'None'
+  $ hg debugrevspec 'tip or wdir()'
+  9
+  $ hg debugrevspec '0:tip and wdir()'
+
   $ log 'outgoing()'
   8
   9
@@ -484,6 +682,9 @@ Test empty set input
   2
   1
   0
+  $ log 'reverse(all()) & filelog(b)'
+  4
+  1
   $ log 'rev(5)'
   5
   $ log 'sort(limit(reverse(all()), 3))'
@@ -572,6 +773,29 @@ test intersecting something with an addset
   5
   8
 
+test that `or` operation combines elements in the right order:
+
+  $ log '3:4 or 2:5'
+  3
+  4
+  2
+  5
+  $ log '3:4 or 5:2'
+  3
+  4
+  5
+  2
+  $ log 'sort(3:4 or 2:5)'
+  2
+  3
+  4
+  5
+  $ log 'sort(3:4 or 5:2)'
+  2
+  3
+  4
+  5
+
 check that conversion to only works
   $ try --optimize '::3 - ::1'
   (minus
@@ -585,6 +809,8 @@ check that conversion to only works
     (list
       ('symbol', '3')
       ('symbol', '1')))
+  * set:
+  <baseset+ [3]>
   3
   $ try --optimize 'ancestors(1) - ancestors(3)'
   (minus
@@ -600,6 +826,8 @@ check that conversion to only works
     (list
       ('symbol', '1')
       ('symbol', '3')))
+  * set:
+  <baseset+ []>
   $ try --optimize 'not ::2 and ::6'
   (and
     (not
@@ -613,6 +841,8 @@ check that conversion to only works
     (list
       ('symbol', '6')
       ('symbol', '2')))
+  * set:
+  <baseset+ [3, 4, 5, 6]>
   3
   4
   5
@@ -632,6 +862,8 @@ check that conversion to only works
     (list
       ('symbol', '6')
       ('symbol', '4')))
+  * set:
+  <baseset+ [3, 5, 6]>
   3
   5
   6
@@ -639,7 +871,7 @@ check that conversion to only works
 we can use patterns when searching for tags
 
   $ log 'tag("1..*")'
-  abort: tag '1..*' does not exist
+  abort: tag '1..*' does not exist!
   [255]
   $ log 'tag("re:1..*")'
   6
@@ -650,11 +882,17 @@ we can use patterns when searching for tags
   $ log 'tag("re:0..*")'
 
   $ log 'tag(unknown)'
-  abort: tag 'unknown' does not exist
+  abort: tag 'unknown' does not exist!
   [255]
+  $ log 'tag("re:unknown")'
+  $ log 'present(tag("unknown"))'
+  $ log 'present(tag("re:unknown"))'
   $ log 'branch(unknown)'
   abort: unknown revision 'unknown'!
   [255]
+  $ log 'branch("re:unknown")'
+  $ log 'present(branch("unknown"))'
+  $ log 'present(branch("re:unknown"))'
   $ log 'user(bob)'
   2
 
@@ -701,6 +939,20 @@ we can use patterns when searching for tags
   2
   3
   1
+
+  $ log 'named("unknown")'
+  abort: namespace 'unknown' does not exist!
+  [255]
+  $ log 'named("re:unknown")'
+  abort: no namespace exists that match 'unknown'!
+  [255]
+  $ log 'present(named("unknown"))'
+  $ log 'present(named("re:unknown"))'
+
+  $ log 'tag()'
+  6
+  $ log 'named("tags")'
+  6
 
 issue2437
 
@@ -770,6 +1022,23 @@ parentrevspec
   hg: parse error: ^ expects a number 0, 1, or 2
   [255]
 
+Bogus function gets suggestions
+  $ log 'add()'
+  hg: parse error: unknown identifier: add
+  (did you mean 'adds'?)
+  [255]
+  $ log 'added()'
+  hg: parse error: unknown identifier: added
+  (did you mean 'adds'?)
+  [255]
+  $ log 'remo()'
+  hg: parse error: unknown identifier: remo
+  (did you mean one of remote, removes?)
+  [255]
+  $ log 'babar()'
+  hg: parse error: unknown identifier: babar
+  [255]
+
 multiple revspecs
 
   $ hg log -r 'tip~1:tip' -r 'tip~2:tip~1' --template '{rev}\n'
@@ -821,6 +1090,8 @@ aliases:
 
   $ echo '[revsetalias]' >> .hg/hgrc
   $ echo 'm = merge()' >> .hg/hgrc
+(revset aliases can override builtin revsets)
+  $ echo 'p2($1) = p1($1)' >> .hg/hgrc
   $ echo 'sincem = descendants(m)' >> .hg/hgrc
   $ echo 'd($1) = reverse(sort($1, date))' >> .hg/hgrc
   $ echo 'rs(ARG1, ARG2) = reverse(sort(ARG1, ARG2))' >> .hg/hgrc
@@ -831,7 +1102,68 @@ aliases:
   (func
     ('symbol', 'merge')
     None)
+  * set:
+  <filteredset
+    <fullreposet+ 0:9>>
   6
+
+  $ HGPLAIN=1
+  $ export HGPLAIN
+  $ try m
+  ('symbol', 'm')
+  abort: unknown revision 'm'!
+  [255]
+
+  $ HGPLAINEXCEPT=revsetalias
+  $ export HGPLAINEXCEPT
+  $ try m
+  ('symbol', 'm')
+  (func
+    ('symbol', 'merge')
+    None)
+  * set:
+  <filteredset
+    <fullreposet+ 0:9>>
+  6
+
+  $ unset HGPLAIN
+  $ unset HGPLAINEXCEPT
+
+  $ try 'p2(.)'
+  (func
+    ('symbol', 'p2')
+    ('symbol', '.'))
+  (func
+    ('symbol', 'p1')
+    ('symbol', '.'))
+  * set:
+  <baseset+ [8]>
+  8
+
+  $ HGPLAIN=1
+  $ export HGPLAIN
+  $ try 'p2(.)'
+  (func
+    ('symbol', 'p2')
+    ('symbol', '.'))
+  * set:
+  <baseset+ []>
+
+  $ HGPLAINEXCEPT=revsetalias
+  $ export HGPLAINEXCEPT
+  $ try 'p2(.)'
+  (func
+    ('symbol', 'p2')
+    ('symbol', '.'))
+  (func
+    ('symbol', 'p1')
+    ('symbol', '.'))
+  * set:
+  <baseset+ [8]>
+  8
+
+  $ unset HGPLAIN
+  $ unset HGPLAINEXCEPT
 
 test alias recursion
 
@@ -842,6 +1174,11 @@ test alias recursion
     (func
       ('symbol', 'merge')
       None))
+  * set:
+  <addset+
+    <filteredset
+      <fullreposet+ 0:9>>,
+    <generatorset+>>
   6
   7
 
@@ -871,6 +1208,12 @@ test infinite recursion
     (or
       ('symbol', '1')
       ('symbol', '2')))
+  * set:
+  <addset
+    <baseset [3]>,
+    <addset
+      <baseset [1]>,
+      <baseset [2]>>>
   3
   1
   2
@@ -891,6 +1234,8 @@ test nesting and variable passing
     (range
       ('symbol', '2')
       ('symbol', '5')))
+  * set:
+  <baseset [5]>
   5
 
 test variable isolation, variable placeholders are rewritten as string
@@ -921,10 +1266,49 @@ far away.
     (range
       ('symbol', '2')
       ('symbol', '5')))
-  hg: parse error: not a function: _aliasarg
+  abort: failed to parse the definition of revset alias "injectparamasstring2": unknown identifier: _aliasarg
   [255]
+  $ hg debugrevspec --debug --config revsetalias.anotherbadone='branch(' "tip"
+  ('symbol', 'tip')
+  warning: failed to parse the definition of revset alias "anotherbadone": at 7: not a prefix: end
+  warning: failed to parse the definition of revset alias "injectparamasstring2": unknown identifier: _aliasarg
+  * set:
+  <baseset [9]>
+  9
   >>> data = file('.hg/hgrc', 'rb').read()
   >>> file('.hg/hgrc', 'wb').write(data.replace('_aliasarg', ''))
+
+  $ try 'tip'
+  ('symbol', 'tip')
+  * set:
+  <baseset [9]>
+  9
+
+  $ hg debugrevspec --debug --config revsetalias.'bad name'='tip' "tip"
+  ('symbol', 'tip')
+  warning: failed to parse the declaration of revset alias "bad name": at 4: invalid token
+  * set:
+  <baseset [9]>
+  9
+  $ echo 'strictreplacing($1, $10) = $10 or desc("$1")' >> .hg/hgrc
+  $ try 'strictreplacing("foo", tip)'
+  (func
+    ('symbol', 'strictreplacing')
+    (list
+      ('string', 'foo')
+      ('symbol', 'tip')))
+  (or
+    ('symbol', 'tip')
+    (func
+      ('symbol', 'desc')
+      ('string', '$1')))
+  * set:
+  <addset
+    <baseset [9]>,
+    <filteredset
+      <filteredset
+        <fullreposet+ 0:9>>>>
+  9
 
   $ try 'd(2:5)'
   (func
@@ -941,6 +1325,8 @@ far away.
           ('symbol', '2')
           ('symbol', '5'))
         ('symbol', 'date'))))
+  * set:
+  <baseset [4, 5, 3, 2]>
   4
   5
   3
@@ -962,6 +1348,8 @@ far away.
           ('symbol', '2')
           ('symbol', '3'))
         ('symbol', 'date'))))
+  * set:
+  <baseset [3, 2]>
   3
   2
   $ try 'rs()'
@@ -1007,8 +1395,66 @@ far away.
           ('symbol', '2')
           ('symbol', '3'))
         ('symbol', 'date'))))
+  * set:
+  <baseset [3, 2]>
   3
   2
+
+issue4553: check that revset aliases override existing hash prefix
+
+  $ hg log -qr e
+  6:e0cc66ef77e8
+
+  $ hg log -qr e --config revsetalias.e="all()"
+  0:2785f51eece5
+  1:d75937da8da0
+  2:5ed5505e9f1c
+  3:8528aa5637f2
+  4:2326846efdab
+  5:904fa392b941
+  6:e0cc66ef77e8
+  7:013af1973af4
+  8:d5d0dcbdc4d9
+  9:24286f4ae135
+
+  $ hg log -qr e: --config revsetalias.e="0"
+  0:2785f51eece5
+  1:d75937da8da0
+  2:5ed5505e9f1c
+  3:8528aa5637f2
+  4:2326846efdab
+  5:904fa392b941
+  6:e0cc66ef77e8
+  7:013af1973af4
+  8:d5d0dcbdc4d9
+  9:24286f4ae135
+
+  $ hg log -qr :e --config revsetalias.e="9"
+  0:2785f51eece5
+  1:d75937da8da0
+  2:5ed5505e9f1c
+  3:8528aa5637f2
+  4:2326846efdab
+  5:904fa392b941
+  6:e0cc66ef77e8
+  7:013af1973af4
+  8:d5d0dcbdc4d9
+  9:24286f4ae135
+
+  $ hg log -qr e:
+  6:e0cc66ef77e8
+  7:013af1973af4
+  8:d5d0dcbdc4d9
+  9:24286f4ae135
+
+  $ hg log -qr :e
+  0:2785f51eece5
+  1:d75937da8da0
+  2:5ed5505e9f1c
+  3:8528aa5637f2
+  4:2326846efdab
+  5:904fa392b941
+  6:e0cc66ef77e8
 
 issue2549 - correct optimizations
 
@@ -1080,6 +1526,98 @@ tests for 'remote()' predicate:
   $ cd ../repo
   $ log 'remote(".a.b.c.", "../remote3")'
 
+tests for concatenation of strings/symbols by "##"
+
+  $ try "278 ## '5f5' ## 1ee ## 'ce5'"
+  (_concat
+    (_concat
+      (_concat
+        ('symbol', '278')
+        ('string', '5f5'))
+      ('symbol', '1ee'))
+    ('string', 'ce5'))
+  ('string', '2785f51eece5')
+  * set:
+  <baseset [0]>
+  0
+
+  $ echo 'cat4($1, $2, $3, $4) = $1 ## $2 ## $3 ## $4' >> .hg/hgrc
+  $ try "cat4(278, '5f5', 1ee, 'ce5')"
+  (func
+    ('symbol', 'cat4')
+    (list
+      (list
+        (list
+          ('symbol', '278')
+          ('string', '5f5'))
+        ('symbol', '1ee'))
+      ('string', 'ce5')))
+  (_concat
+    (_concat
+      (_concat
+        ('symbol', '278')
+        ('string', '5f5'))
+      ('symbol', '1ee'))
+    ('string', 'ce5'))
+  ('string', '2785f51eece5')
+  * set:
+  <baseset [0]>
+  0
+
+(check concatenation in alias nesting)
+
+  $ echo 'cat2($1, $2) = $1 ## $2' >> .hg/hgrc
+  $ echo 'cat2x2($1, $2, $3, $4) = cat2($1 ## $2, $3 ## $4)' >> .hg/hgrc
+  $ log "cat2x2(278, '5f5', 1ee, 'ce5')"
+  0
+
+(check operator priority)
+
+  $ echo 'cat2n2($1, $2, $3, $4) = $1 ## $2 or $3 ## $4~2' >> .hg/hgrc
+  $ log "cat2n2(2785f5, 1eece5, 24286f, 4ae135)"
+  0
+  4
+
+  $ cd ..
+
+prepare repository that has "default" branches of multiple roots
+
+  $ hg init namedbranch
+  $ cd namedbranch
+
+  $ echo default0 >> a
+  $ hg ci -Aqm0
+  $ echo default1 >> a
+  $ hg ci -m1
+
+  $ hg branch -q stable
+  $ echo stable2 >> a
+  $ hg ci -m2
+  $ echo stable3 >> a
+  $ hg ci -m3
+
+  $ hg update -q null
+  $ echo default4 >> a
+  $ hg ci -Aqm4
+  $ echo default5 >> a
+  $ hg ci -m5
+
+"null" revision belongs to "default" branch (issue4683)
+
+  $ log 'branch(null)'
+  0
+  1
+  4
+  5
+
+"null" revision belongs to "default" branch, but it shouldn't appear in set
+unless explicitly specified (issue4682)
+
+  $ log 'children(branch(default))'
+  1
+  2
+  5
+
   $ cd ..
 
 test author/desc/keyword in problematic encoding
@@ -1135,5 +1673,10 @@ test in problematic encoding
   ====
   1
   3
+
+test error message of bad revset
+  $ hg log -r 'foo\\'
+  hg: parse error at 3: syntax error in revset 'foo\\'
+  [255]
 
   $ cd ..

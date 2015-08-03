@@ -51,6 +51,29 @@ annotate -cdnul
   $ hg annotate -cdnul a
   nobody 0 8435f90966e4 Thu Jan 01 00:00:01 1970 +0000:1: a
 
+annotate (JSON)
+
+  $ hg annotate -Tjson a
+  [
+   {
+    "line": "a\n",
+    "rev": 0
+   }
+  ]
+
+  $ hg annotate -Tjson -cdfnul a
+  [
+   {
+    "date": [1.0, 0],
+    "file": "a",
+    "line": "a\n",
+    "line_number": 1,
+    "node": "8435f90966e442695d2ded29fdade2bac5ad8065",
+    "rev": 0,
+    "user": "nobody"
+   }
+  ]
+
   $ cat <<EOF >>a
   > a
   > a
@@ -375,6 +398,88 @@ and its ancestor by overriding "repo._filecommit".
   20: 4 baz:4
   16: 5
 
+annotate clean file
+
+  $ hg annotate -ncr "wdir()" foo
+  11 472b18db256d : foo
+
+annotate modified file
+
+  $ echo foofoo >> foo
+  $ hg annotate -r "wdir()" foo
+  11 : foo
+  20+: foofoo
+
+  $ hg annotate -cr "wdir()" foo
+  472b18db256d : foo
+  b6bedd5477e7+: foofoo
+
+  $ hg annotate -ncr "wdir()" foo
+  11 472b18db256d : foo
+  20 b6bedd5477e7+: foofoo
+
+  $ hg annotate --debug -ncr "wdir()" foo
+  11 472b18db256d1e8282064eab4bfdaf48cbfe83cd : foo
+  20 b6bedd5477e797f25e568a6402d4697f3f895a72+: foofoo
+
+  $ hg annotate -udr "wdir()" foo
+  test Thu Jan 01 00:00:00 1970 +0000: foo
+  test [A-Za-z0-9:+ ]+: foofoo (re)
+
+  $ hg annotate -ncr "wdir()" -Tjson foo
+  [
+   {
+    "line": "foo\n",
+    "node": "472b18db256d1e8282064eab4bfdaf48cbfe83cd",
+    "rev": 11
+   },
+   {
+    "line": "foofoo\n",
+    "node": null,
+    "rev": null
+   }
+  ]
+
+annotate added file
+
+  $ echo bar > bar
+  $ hg add bar
+  $ hg annotate -ncr "wdir()" bar
+  20 b6bedd5477e7+: bar
+
+annotate renamed file
+
+  $ hg rename foo renamefoo2
+  $ hg annotate -ncr "wdir()" renamefoo2
+  11 472b18db256d : foo
+  20 b6bedd5477e7+: foofoo
+
+annotate missing file
+
+  $ rm baz
+#if windows
+  $ hg annotate -ncr "wdir()" baz
+  abort: $TESTTMP\repo\baz: The system cannot find the file specified
+  [255]
+#else
+  $ hg annotate -ncr "wdir()" baz
+  abort: No such file or directory: $TESTTMP/repo/baz
+  [255]
+#endif
+
+annotate removed file
+
+  $ hg rm baz
+#if windows
+  $ hg annotate -ncr "wdir()" baz
+  abort: $TESTTMP\repo\baz: The system cannot find the file specified
+  [255]
+#else
+  $ hg annotate -ncr "wdir()" baz
+  abort: No such file or directory: $TESTTMP/repo/baz
+  [255]
+#endif
+
 Test annotate with whitespace options
 
   $ cd ..
@@ -426,5 +531,78 @@ Annotate with --ignore-blank-lines (similar to no options case)
   0: 
   1:  
   1: b  b
+
+  $ cd ..
+
+Annotate with linkrev pointing to another branch
+------------------------------------------------
+
+create history with a filerev whose linkrev points to another branch
+
+  $ hg init branchedlinkrev
+  $ cd branchedlinkrev
+  $ echo A > a
+  $ hg commit -Am 'contentA'
+  adding a
+  $ echo B >> a
+  $ hg commit -m 'contentB'
+  $ hg up --rev 'desc(contentA)'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo unrelated > unrelated
+  $ hg commit -Am 'unrelated'
+  adding unrelated
+  created new head
+  $ hg graft -r 'desc(contentB)'
+  grafting 1:fd27c222e3e6 "contentB"
+  $ echo C >> a
+  $ hg commit -m 'contentC'
+  $ echo W >> a
+  $ hg log -G
+  @  changeset:   4:072f1e8df249
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     contentC
+  |
+  o  changeset:   3:ff38df03cc4b
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     contentB
+  |
+  o  changeset:   2:62aaf3f6fc06
+  |  parent:      0:f0932f74827e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     unrelated
+  |
+  | o  changeset:   1:fd27c222e3e6
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     contentB
+  |
+  o  changeset:   0:f0932f74827e
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     contentA
+  
+
+Annotate should list ancestor of starting revision only
+
+  $ hg annotate a
+  0: A
+  3: B
+  4: C
+
+  $ hg annotate a -r 'wdir()'
+  0 : A
+  3 : B
+  4 : C
+  4+: W
+
+Even when the starting revision is the linkrev-shadowed one:
+
+  $ hg annotate a -r 3
+  0: A
+  3: B
 
   $ cd ..

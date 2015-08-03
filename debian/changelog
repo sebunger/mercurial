@@ -1,33 +1,91 @@
-mercurial (3.1.2-2+deb8u4) jessie-security; urgency=medium
+mercurial (3.4.2-1~bpo8+1) jessie-backports; urgency=medium
 
-  * CVE-2017-1000115: path traversal via symlink
-  * CVE-2017-1000116: command injection on clients through malicious ssh URLs
+  * Rebuild for jessie-backports.
 
- -- Julien Cristau <jcristau@debian.org>  Mon, 28 Aug 2017 22:08:28 +0200
+ -- Javi Merino <vicho@debian.org>  Mon, 03 Aug 2015 21:10:39 +0100
 
-mercurial (3.1.2-2+deb8u3) jessie-security; urgency=high
+mercurial (3.4.2-1) unstable; urgency=medium
 
-  * CVE-2016-3105:
-    + convert: pass absolute paths to git
+  * New upstream release
+  * Drop "XS-Testsuite" as it's no longer needed
+  * Fix "FTBFS: recipe for target 'override_dh_auto_test' failed"
+    by using rename.  util-linux no longer provides rename.ul (Closes: #790266)
 
- -- Julien Cristau <jcristau@debian.org>  Wed, 04 May 2016 12:16:28 +0200
+ -- Javi Merino <vicho@debian.org>  Wed, 08 Jul 2015 22:31:18 +0100
 
-mercurial (3.1.2-2+deb8u2) jessie-security; urgency=high
+mercurial (3.4-1) unstable; urgency=medium
 
-  * CVE-2016-3630:
-    + parsers: fix list sizing rounding error
-    + parsers: detect short records
-  * CVE-2016-3068:
-    + subrepo: set GIT_ALLOW_PROTOCOL to limit git clone protocols
-  * CVE-2016-3069:
-    + convert: add new, non-clowny interface for shelling out to git
-    + convert: rewrite calls to Git to use the new shelling mechanism
-    + convert: dead code removal - old git calling functions
-    + convert: rewrite gitpipe to use common.commandline
-    + convert: test for shell injection in git calls
-  Closes: #819504
+  * New upstream release
+  * Delete patch for_upstream__fix_typo_in_man_page.patch as it is applied
+    upstream
+  * Update breaks of hgsubversion to versions prior to 1.8-1
+  * Upload to unstable
 
- -- Julien Cristau <jcristau@debian.org>  Mon, 04 Apr 2016 15:41:22 +0200
+ -- Javi Merino <vicho@debian.org>  Sat, 02 May 2015 10:01:10 +0100
+
+mercurial (3.4~rc1-1) experimental; urgency=medium
+
+  * New upstream release
+  * Delete patch for_upstream__lenient_test-shelve.patch which is
+    applied upstream
+  * Remove trailing spaces from empty lines in the descriptions.  It
+    upsets lintian
+  * Add patch for_upstream__fix_typo_in_man_page.patch to fix a typo
+    spotted by lintian
+
+ -- Javi Merino <vicho@debian.org>  Sun, 19 Apr 2015 15:41:25 +0100
+
+mercurial (3.3.2-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Fri, 13 Mar 2015 13:38:04 +0000
+
+mercurial (3.3-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Mon, 09 Feb 2015 05:48:23 +0800
+
+mercurial (3.3~rc1-1) experimental; urgency=medium
+
+  * New upstream release
+  * move the installation of mergetools.rc to mercurial-common.install
+
+ -- Javi Merino <vicho@debian.org>  Sat, 31 Jan 2015 17:48:59 +0100
+
+mercurial (3.2.3-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Fri, 19 Dec 2014 22:29:28 +0000
+
+mercurial (3.2.1-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Fri, 14 Nov 2014 08:35:25 +0000
+
+mercurial (3.2-1) experimental; urgency=medium
+
+  * New upstream release (Closes: #768022)
+  * Replace deb_specific__support_templates_in_fsh.patch,
+    deb_specific__support_help_in_fhs.patch and
+    deb_specific__support_mo_in_fhs.patch with
+    deb_specific__fix_fhs_paths.py as the mechanism to specify the path to
+    datafiles has been unified.
+  * Remove from_upstream__test-
+    patchbomb_t_work_around_Python_change_d579866d6419_issue4188.patch
+    as it is now included upstream
+  * Bump standards-version to 3.9.6 (no change needed)
+  * Build-depend on dh-python
+  * Simplify installation of /etc/mercurial/hgrc.d/cacerts.rc
+  * Remove sample.hgrc from the examples as it's now removed in upstream
+    (full of bad suggestions)
+  * Update breaks for mercurial-git and hgsubversion: current versions
+    don't work
+
+ -- Javi Merino <vicho@debian.org>  Mon, 10 Nov 2014 08:34:13 +0000
 
 mercurial (3.1.2-2+deb8u1) jessie-security; urgency=high
 

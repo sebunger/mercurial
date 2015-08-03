@@ -161,7 +161,7 @@ Cases are run as shown in that table, row by row.
   M foo
 
   $ revtest '-c dirtysub linear'   dirtysub 1 2 -c
-  abort: uncommitted changes
+  abort: uncommitted changes in subrepository 'sub'
   parent=1
   M sub/suba
 
@@ -180,14 +180,10 @@ Test obsolescence behavior
 successors should be taken in account when checking head destination
 
   $ cat << EOF >> $HGRCPATH
-  > [extensions]
-  > obs=$TESTTMP/obs.py
   > [ui]
   > logtemplate={rev}:{node|short} {desc|firstline}
-  > EOF
-  $ cat > $TESTTMP/obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
+  > [experimental]
+  > evolution=createmarkers
   > EOF
 
 Test no-argument update to a successor of an obsoleted changeset

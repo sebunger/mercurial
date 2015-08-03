@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" hardlink || exit 80
+#require hardlink
 
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "relink=" >> $HGRCPATH
@@ -47,7 +47,7 @@ don't sit forever trying to double-lock the source repo
 
 Test files are read in binary mode
 
-  $ python -c "file('.hg/store/data/dummy.i', 'wb').write('a\r\nb\n')"
+  $ $PYTHON -c "file('.hg/store/data/dummy.i', 'wb').write('a\r\nb\n')"
   $ cd ..
 
 
@@ -65,7 +65,7 @@ clone and pull to break links
   $ echo b >> b
   $ hg ci -m changeb
   created new head
-  $ python -c "file('.hg/store/data/dummy.i', 'wb').write('a\nb\r\n')"
+  $ $PYTHON -c "file('.hg/store/data/dummy.i', 'wb').write('a\nb\r\n')"
 
 
 relink
@@ -87,7 +87,7 @@ relink
   pruned down to 2 probably relinkable files
   relinking: data/a.i 1/2 files (50.00%)
   not linkable: data/dummy.i
-  relinked 1 files (1.37 KB reclaimed)
+  relinked 1 files (1.36 KB reclaimed)
   $ cd ..
 
 

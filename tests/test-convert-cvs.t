@@ -1,5 +1,5 @@
+#require cvs
 
-  $ "$TESTDIR/hghave" cvs || exit 80
   $ cvscall()
   > {
   >     cvs -f "$@"
@@ -18,9 +18,11 @@
   >     print "%s hook: %d changesets"%(hooktype,len(changesets))
   > EOF
   $ hookpath=`pwd`
-  $ echo "[hooks]" >> $HGRCPATH
-  $ echo "cvslog=python:$hookpath/cvshooks.py:cvslog" >> $HGRCPATH
-  $ echo "cvschangesets=python:$hookpath/cvshooks.py:cvschangesets" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [hooks]
+  > cvslog = python:$hookpath/cvshooks.py:cvslog
+  > cvschangesets = python:$hookpath/cvshooks.py:cvschangesets
+  > EOF
 
 create cvs repository
 
@@ -31,6 +33,7 @@ create cvs repository
   $ CVS_OPTIONS=-f
   $ export CVS_OPTIONS
   $ cd ..
+  $ rmdir cvsrepo
   $ cvscall -q -d "$CVSROOT" init
 
 create source directory
@@ -394,11 +397,12 @@ testing debugcvsps
   Author: * (glob)
   Branch: HEAD
   Tag: (none) 
+  Branchpoints: branch 
   Log:
   ci1
   
   Members: 
-  	b/c:1.2->1.3 
+  	a:1.1->1.2 
   
   ---------------------
   PatchSet 6 
@@ -406,12 +410,11 @@ testing debugcvsps
   Author: * (glob)
   Branch: HEAD
   Tag: (none) 
-  Branchpoints: branch 
   Log:
   ci1
   
   Members: 
-  	a:1.1->1.2 
+  	b/c:1.2->1.3 
   
   ---------------------
   PatchSet 7 

@@ -4,19 +4,15 @@ Test rebase with obsolete
 
 Enable obsolete
 
-  $ cat > ${TESTTMP}/obs.py << EOF
-  > import mercurial.obsolete
-  > mercurial.obsolete._enabled = True
-  > EOF
   $ cat >> $HGRCPATH << EOF
   > [ui]
   > logtemplate= {rev}:{node|short} {desc|firstline}
+  > [experimental]
+  > evolution=createmarkers,allowunstable
   > [phases]
   > publish=False
   > [extensions]'
   > rebase=
-  > 
-  > obs=${TESTTMP}/obs.py
   > EOF
 
 Setup rebase canonical repo
@@ -60,6 +56,9 @@ simple rebase
   $ hg up 32af7686d403
   3 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg rebase -d eea13746799a
+  rebasing 1:42ccdea3bb16 "B"
+  rebasing 2:5fddd98957c8 "C"
+  rebasing 3:32af7686d403 "D"
   $ hg log -G
   @  10:8eeb3c33ad33 D
   |
@@ -101,9 +100,9 @@ simple rebase
   o  0:cd010b8cd998 A
   
   $ hg debugobsolete
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 e4e5be0395b2cbd471ed22a26b1b6a1a0658a794 0 {'date': '*', 'user': 'test'} (glob)
-  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 2327fea05063f39961b14cb69435a9898dc9a245 0 {'date': '*', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a 8eeb3c33ad33d452c89e5dcf611c347f978fb42b 0 {'date': '*', 'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 e4e5be0395b2cbd471ed22a26b1b6a1a0658a794 0 (*) {'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 2327fea05063f39961b14cb69435a9898dc9a245 0 (*) {'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 8eeb3c33ad33d452c89e5dcf611c347f978fb42b 0 (*) {'user': 'test'} (glob)
 
 
   $ cd ..
@@ -122,9 +121,14 @@ We make a copy of both the first changeset in the rebased and some other in the
 set.
 
   $ hg graft 42ccdea3bb16 32af7686d403
-  grafting revision 1
-  grafting revision 3
+  grafting 1:42ccdea3bb16 "B"
+  grafting 3:32af7686d403 "D"
   $ hg rebase  -s 42ccdea3bb16 -d .
+  rebasing 1:42ccdea3bb16 "B"
+  note: rebase of 1:42ccdea3bb16 created no changes to commit
+  rebasing 2:5fddd98957c8 "C"
+  rebasing 3:32af7686d403 "D"
+  note: rebase of 3:32af7686d403 created no changes to commit
   $ hg log -G
   o  10:5ae4c968c6ac C
   |
@@ -166,19 +170,20 @@ set.
   o  0:cd010b8cd998 A
   
   $ hg debugobsolete
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {'date': '*', 'user': 'test'} (glob)
-  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '*', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {'date': '*', 'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {cd010b8cd998f3981a5a8115f94f8da4ab506089} (*) {'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 (*) {'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {5fddd98957c8a54a4d436dfe1da9d87f21a1b97b} (*) {'user': 'test'} (glob)
 
 
 More complex case were part of the rebase set were already rebased
 
   $ hg rebase --rev 'desc(D)' --dest 'desc(H)'
+  rebasing 9:08483444fef9 "D"
   $ hg debugobsolete
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {'date': '*', 'user': 'test'} (glob)
-  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '*', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {'date': '*', 'user': 'test'} (glob)
-  08483444fef91d6224f6655ee586a65d263ad34c 4596109a6a4328c398bde3a4a3b6737cfade3003 0 {'date': '* *', 'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {cd010b8cd998f3981a5a8115f94f8da4ab506089} (*) {'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 (*) {'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {5fddd98957c8a54a4d436dfe1da9d87f21a1b97b} (*) {'user': 'test'} (glob)
+  08483444fef91d6224f6655ee586a65d263ad34c 4596109a6a4328c398bde3a4a3b6737cfade3003 0 (*) {'user': 'test'} (glob)
   $ hg log -G
   @  11:4596109a6a43 D
   |
@@ -199,14 +204,18 @@ More complex case were part of the rebase set were already rebased
   o  0:cd010b8cd998 A
   
   $ hg rebase --source 'desc(B)' --dest 'tip'
+  rebasing 8:8877864f1edb "B"
+  rebasing 9:08483444fef9 "D"
+  note: rebase of 9:08483444fef9 created no changes to commit
+  rebasing 10:5ae4c968c6ac "C"
   $ hg debugobsolete
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {'date': '* *', 'user': 'test'} (glob)
-  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '* *', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {'date': '* *', 'user': 'test'} (glob)
-  08483444fef91d6224f6655ee586a65d263ad34c 4596109a6a4328c398bde3a4a3b6737cfade3003 0 {'date': '* *', 'user': 'test'} (glob)
-  8877864f1edb05d0e07dc4ba77b67a80a7b86672 462a34d07e599b87ea08676a449373fe4e2e1347 0 {'date': '* *', 'user': 'test'} (glob)
-  08483444fef91d6224f6655ee586a65d263ad34c 0 {'date': '* *', 'user': 'test'} (glob)
-  5ae4c968c6aca831df823664e706c9d4aa34473d 98f6af4ee9539e14da4465128f894c274900b6e5 0 {'date': '* *', 'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {cd010b8cd998f3981a5a8115f94f8da4ab506089} (*) {'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 (*) {'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {5fddd98957c8a54a4d436dfe1da9d87f21a1b97b} (*) {'user': 'test'} (glob)
+  08483444fef91d6224f6655ee586a65d263ad34c 4596109a6a4328c398bde3a4a3b6737cfade3003 0 (*) {'user': 'test'} (glob)
+  8877864f1edb05d0e07dc4ba77b67a80a7b86672 462a34d07e599b87ea08676a449373fe4e2e1347 0 (*) {'user': 'test'} (glob)
+  08483444fef91d6224f6655ee586a65d263ad34c 0 {8877864f1edb05d0e07dc4ba77b67a80a7b86672} (*) {'user': 'test'} (glob)
+  5ae4c968c6aca831df823664e706c9d4aa34473d 98f6af4ee9539e14da4465128f894c274900b6e5 0 (*) {'user': 'test'} (glob)
   $ hg log --rev 'divergent()'
   $ hg log -G
   o  13:98f6af4ee953 C
@@ -251,6 +260,12 @@ collapse rebase
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd collapse
   $ hg rebase  -s 42ccdea3bb16 -d eea13746799a --collapse
+  rebasing 1:42ccdea3bb16 "B"
+  note: rebase of 1:42ccdea3bb16 created no changes to commit
+  rebasing 2:5fddd98957c8 "C"
+  note: rebase of 2:5fddd98957c8 created no changes to commit
+  rebasing 3:32af7686d403 "D"
+  note: rebase of 3:32af7686d403 created no changes to commit
   $ hg log -G
   o  8:4dc2197e807b Collapsed revision
   |
@@ -286,9 +301,9 @@ collapse rebase
   $ hg id --debug -r tip
   4dc2197e807bae9817f09905b50ab288be2dbbcf tip
   $ hg debugobsolete
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 4dc2197e807bae9817f09905b50ab288be2dbbcf 0 {'date': '*', 'user': 'test'} (glob)
-  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 4dc2197e807bae9817f09905b50ab288be2dbbcf 0 {'date': '*', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a 4dc2197e807bae9817f09905b50ab288be2dbbcf 0 {'date': '*', 'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 4dc2197e807bae9817f09905b50ab288be2dbbcf 0 (*) {'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 4dc2197e807bae9817f09905b50ab288be2dbbcf 0 (*) {'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 4dc2197e807bae9817f09905b50ab288be2dbbcf 0 (*) {'user': 'test'} (glob)
 
   $ cd ..
 
@@ -303,7 +318,10 @@ not be rebased.
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd hidden
   $ hg rebase -s 5fddd98957c8 -d eea13746799a
+  rebasing 2:5fddd98957c8 "C"
+  rebasing 3:32af7686d403 "D"
   $ hg rebase -s 42ccdea3bb16 -d 02de42196ebe
+  rebasing 1:42ccdea3bb16 "B"
   $ hg log -G
   o  10:7c6027df6a99 B
   |
@@ -345,9 +363,9 @@ not be rebased.
   o  0:cd010b8cd998 A
   
   $ hg debugobsolete
-  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b e273c5e7d2d29df783dce9f9eaa3ac4adc69c15d 0 {'date': '*', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a cf44d2f5a9f4297a62be94cbdd3dff7c7dc54258 0 {'date': '*', 'user': 'test'} (glob)
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 7c6027df6a99d93f461868e5433f63bde20b6dfb 0 {'date': '*', 'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b e273c5e7d2d29df783dce9f9eaa3ac4adc69c15d 0 (*) {'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a cf44d2f5a9f4297a62be94cbdd3dff7c7dc54258 0 (*) {'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 7c6027df6a99d93f461868e5433f63bde20b6dfb 0 (*) {'user': 'test'} (glob)
 
 Test that rewriting leaving instability behind is allowed
 ---------------------------------------------------------------------
@@ -355,6 +373,7 @@ Test that rewriting leaving instability behind is allowed
   $ hg log -r 'children(8)'
   9:cf44d2f5a9f4 D (no-eol)
   $ hg rebase -r 8
+  rebasing 8:e273c5e7d2d2 "C"
   $ hg log -G
   o  11:0d8f238b634c C
   |
@@ -380,6 +399,10 @@ Test multiple root handling
 ------------------------------------
 
   $ hg rebase --dest 4 --rev '7+11+9'
+  rebasing 7:02de42196ebe "H"
+  rebasing 9:cf44d2f5a9f4 "D"
+  not rebasing ignored 10:7c6027df6a99 "B"
+  rebasing 11:0d8f238b634c "C" (tip)
   $ hg log -G
   o  14:1e8370e38cca C
   |
@@ -446,12 +469,58 @@ test on rebase dropping a merge
 (actual test)
 
   $ hg rebase --dest 6 --rev '((desc(H) + desc(D))::) - desc(M)'
+  rebasing 3:32af7686d403 "D"
+  rebasing 7:02de42196ebe "H"
+  not rebasing ignored 8:53a6a128b2b7 "M"
+  rebasing 9:4bde274eefcf "I" (tip)
   $ hg log -G
   @  12:acd174b7ab39 I
   |
   o  11:6c11a6218c97 H
   |
   | o  10:b5313c85b22e D
+  |/
+  | o    8:53a6a128b2b7 M
+  | |\
+  | | x  7:02de42196ebe H
+  | | |
+  o---+  6:eea13746799a G
+  | | |
+  | | o  5:24b6387c8c8c F
+  | | |
+  o---+  4:9520eea781bc E
+   / /
+  x |  3:32af7686d403 D
+  | |
+  o |  2:5fddd98957c8 C
+  | |
+  o |  1:42ccdea3bb16 B
+  |/
+  o  0:cd010b8cd998 A
+  
+
+Test hidden changesets in the rebase set (issue4504)
+
+  $ hg up --hidden 9
+  3 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ echo J > J
+  $ hg add J
+  $ hg commit -m J
+  $ hg debugobsolete `hg log --rev . -T '{node}'`
+
+  $ hg rebase --rev .~1::. --dest 'max(desc(D))' --traceback
+  rebasing 9:4bde274eefcf "I"
+  rebasing 13:06edfc82198f "J" (tip)
+  $ hg log -G
+  @  15:5ae8a643467b J
+  |
+  o  14:9ad579b4a5de I
+  |
+  | o  12:acd174b7ab39 I
+  | |
+  | o  11:6c11a6218c97 H
+  | |
+  o |  10:b5313c85b22e D
   |/
   | o    8:53a6a128b2b7 M
   | |\

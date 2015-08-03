@@ -19,6 +19,14 @@
   $ hg add t3
   $ hg commit -m "3"
 
+Specifying a revset that evaluates to null will abort
+
+  $ hg push -r '0 & 1' ../a
+  pushing to ../a
+  abort: specified revisions evaluate to an empty set
+  (use different revision arguments)
+  [255]
+
   $ hg push ../a
   pushing to ../a
   searching for changes
@@ -35,6 +43,9 @@
   searching: 2 queries
   query 2; still undecided: 1, sample size is: 1
   2 total queries
+  listing keys for "phases"
+  checking for updated bookmarks
+  listing keys for "bookmarks"
   listing keys for "bookmarks"
   remote has heads on branch 'default' that are not known locally: 1c9246a22a0a
   new remote heads on branch 'default':
@@ -139,6 +150,10 @@
   pushing to ../c
   searching for changes
   2 changesets found
+  uncompressed size of bundle content:
+       308 (changelog)
+       286 (manifests)
+       213  foo
   adding changesets
   adding manifests
   adding file changes
@@ -404,7 +419,7 @@ multiple new heads but also doesn't report too many heads:
   adding c
   created new head
 
-  $ for i in `seq 3`; do hg -R h up -q 0; echo $i > h/b; hg -R h ci -qAm$i; done
+  $ for i in `python $TESTDIR/seq.py 3`; do hg -R h up -q 0; echo $i > h/b; hg -R h ci -qAm$i; done
 
   $ hg -R i push h
   pushing to h

@@ -23,7 +23,7 @@ test qpush on empty series
   $ echo bar > bar
   $ hg add bar
   $ hg qrefresh -m 'patch 2'
-  $ hg qnew --config 'mq.plain=true' bad-patch
+  $ hg qnew --config 'mq.plain=true' -U bad-patch
   $ echo >> foo
   $ hg qrefresh
   $ hg qpop -a
@@ -31,7 +31,7 @@ test qpush on empty series
   popping patch2
   popping patch1
   patch queue now empty
-  $ python -c 'print "\xe9"' > message
+  $ $PYTHON -c 'print "\xe9"' > message
   $ cat .hg/patches/bad-patch >> message
   $ mv message .hg/patches/bad-patch
   $ hg qpush -a && echo 'qpush succeeded?!'
@@ -264,7 +264,10 @@ test qpush --force and backup files
   applying p2
   saving current version of a as a.orig
   patching file a
+  committing files:
   a
+  committing manifest
+  committing changelog
   applying p3
   saving current version of b as b.orig
   saving current version of d as d.orig
@@ -277,8 +280,11 @@ test qpush --force and backup files
   file e already exists
   1 out of 1 hunks FAILED -- saving rejects to file e.rej
   patch failed to apply
+  committing files:
   b
-  patch failed, rejects left in working dir
+  committing manifest
+  committing changelog
+  patch failed, rejects left in working directory
   errors during apply, please fix and refresh p3
   [2]
   $ cat a.orig
@@ -302,7 +308,10 @@ test qpush --force --no-backup
   $ hg qpush --force --no-backup --verbose
   applying p2
   patching file a
+  committing files:
   a
+  committing manifest
+  committing changelog
   now at: p2
   $ test -f a.orig && echo 'error: backup with --no-backup'
   [1]
@@ -316,7 +325,10 @@ test qgoto --force --no-backup
   $ hg qgoto --force --no-backup p2 --verbose
   applying p2
   patching file a
+  committing files:
   a
+  committing manifest
+  committing changelog
   now at: p2
   $ test -f a.orig && echo 'error: backup with --no-backup'
   [1]
@@ -332,25 +344,29 @@ test qpush --keep-changes
   $ echo b >> b
   $ hg qpush --keep-changes
   applying p3
-  errors during apply, please fix and refresh p2
-  [2]
+  abort: conflicting local changes found
+  (did you forget to qrefresh?)
+  [255]
   $ rm b
   $ hg qpush --keep-changes
   applying p3
-  errors during apply, please fix and refresh p2
-  [2]
+  abort: conflicting local changes found
+  (did you forget to qrefresh?)
+  [255]
   $ hg rm -A b
   $ hg qpush --keep-changes
   applying p3
-  errors during apply, please fix and refresh p2
-  [2]
+  abort: conflicting local changes found
+  (did you forget to qrefresh?)
+  [255]
   $ hg revert -aq b
   $ echo d > d
   $ hg add d
   $ hg qpush --keep-changes
   applying p3
-  errors during apply, please fix and refresh p2
-  [2]
+  abort: conflicting local changes found
+  (did you forget to qrefresh?)
+  [255]
   $ hg forget d
   $ rm d
   $ hg qpop
@@ -360,8 +376,9 @@ test qpush --keep-changes
   $ hg qpush -a --keep-changes
   applying p2
   applying p3
-  errors during apply, please fix and refresh p2
-  [2]
+  abort: conflicting local changes found
+  (did you forget to qrefresh?)
+  [255]
   $ hg qtop
   p2
   $ hg parents --template "{rev} {desc}\n"

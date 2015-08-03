@@ -6,7 +6,6 @@ contrib/hgweb.wsgi
 contrib/mercurial.el
 contrib/perf.py
 contrib/python-hook-examples.py
-contrib/sample.hgrc
 contrib/simplemerge
 contrib/tcsh_completion
 contrib/tcsh_completion_build.sh

@@ -1,9 +1,11 @@
-  $ "$TESTDIR/hghave" svn13 || exit 80
+#require svn13
 
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "mq=" >> $HGRCPATH
-  $ echo "[diff]" >> $HGRCPATH
-  $ echo "nodates=1" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > mq =
+  > [diff]
+  > nodates = 1
+  > EOF
 
 fn to create new repository, and cd into it
   $ mkrepo() {
@@ -19,9 +21,9 @@ handle svn subrepos safely
 
   $ SVNREPOPATH=`pwd`/svn-repo-2499/project
 #if windows
-  $ SVNREPOURL=file:///`python -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
+  $ SVNREPOURL=file:///`$PYTHON -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
 #else
-  $ SVNREPOURL=file://`python -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
+  $ SVNREPOURL=file://`$PYTHON -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
 #endif
 
   $ mkdir -p svn-project-2499/trunk
@@ -48,7 +50,7 @@ qnew on repo w/svn subrepo
   $ cd ..
   $ hg status -S        # doesn't show status for svn subrepos (yet)
   $ hg qnew -m1 1.diff
-  abort: uncommitted changes in subrepository sub
+  abort: uncommitted changes in subrepository 'sub'
   [255]
 
   $ cd ..

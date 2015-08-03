@@ -25,8 +25,13 @@ Issue2232: committing a subrepo without .hgsub
   abort: can't commit subrepos without .hgsub
   [255]
 
+  $ hg -R s add s/a
+  $ hg files -S
+  .hgsub
+  a
+  s/a (glob)
+
   $ hg -R s ci -Ams0
-  adding a
   $ hg sum
   parent: 0:f7b1eb17ad24 tip
    0
@@ -50,9 +55,16 @@ test handling .hgsubstate "added" explicitly.
 Revert subrepo and test subrepo fileset keyword:
 
   $ echo b > s/a
+  $ hg revert --dry-run "set:subrepo('glob:s*')"
+  reverting subrepo s
+  reverting s/a (glob)
+  $ cat s/a
+  b
   $ hg revert "set:subrepo('glob:s*')"
   reverting subrepo s
   reverting s/a (glob)
+  $ cat s/a
+  a
   $ rm s/a.orig
 
 Revert subrepo with no backup. The "reverting s/a" line is gone since
@@ -84,7 +96,7 @@ commands that require a clean repo should respect subrepos
 
   $ echo b >> s/a
   $ hg backout tip
-  abort: uncommitted changes in subrepo s
+  abort: uncommitted changes in subrepository 's'
   [255]
   $ hg revert -C -R s s/a
 
@@ -134,7 +146,7 @@ leave sub dirty (and check ui.commitsubrepos=no aborts the commit)
 
   $ echo c > s/a
   $ hg --config ui.commitsubrepos=no ci -m4
-  abort: uncommitted changes in subrepo s
+  abort: uncommitted changes in subrepository 's'
   (use --subrepos for recursive commit)
   [255]
   $ hg id
@@ -304,6 +316,138 @@ should conflict
   t3
   >>>>>>> other: 7af322bc1198  - test: 7
 
+11: remove subrepo t
+
+  $ hg co -C 5
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg revert -r 4 .hgsub # remove t
+  $ hg ci -m11
+  created new head
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+
+local removed, remote changed, keep changed
+
+  $ hg merge 6
+   remote changed subrepository t which local removed
+  use (c)hanged version or (d)elete? c
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+BROKEN: should include subrepo t
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  6747d179aa9a688023c4b0cad32e4c92bb7f34ad t
+  $ hg ci -m 'local removed, remote changed, keep changed'
+BROKEN: should include subrepo t
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+BROKEN: should include subrepo t
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  $ cat t/t
+  t2
+
+local removed, remote changed, keep removed
+
+  $ hg co -C 11
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg merge --config ui.interactive=true 6 <<EOF
+  > d
+  > EOF
+   remote changed subrepository t which local removed
+  use (c)hanged version or (d)elete? d
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  $ hg ci -m 'local removed, remote changed, keep removed'
+  created new head
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+
+local changed, remote removed, keep changed
+
+  $ hg co -C 6
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg merge 11
+   local changed subrepository t which remote removed
+  use (c)hanged version or (d)elete? c
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+BROKEN: should include subrepo t
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+BROKEN: should include subrepo t
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  $ hg ci -m 'local changed, remote removed, keep changed'
+  created new head
+BROKEN: should include subrepo t
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+BROKEN: should include subrepo t
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  $ cat t/t
+  t2
+
+local changed, remote removed, keep removed
+
+  $ hg co -C 6
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg merge --config ui.interactive=true 11 <<EOF
+  > d
+  > EOF
+   local changed subrepository t which remote removed
+  use (c)hanged version or (d)elete? d
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+  $ hg ci -m 'local changed, remote removed, keep removed'
+  created new head
+  $ hg debugsub
+  path s
+   source   s
+   revision e4ece1bf43360ddc8f6a96432201a37b7cd27ae4
+  $ cat .hgsubstate
+  e4ece1bf43360ddc8f6a96432201a37b7cd27ae4 s
+
+clean up to avoid having to fix up the tests below
+
+  $ hg co -C 10
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > strip=
+  > EOF
+  $ hg strip -r 11:15
+  saved backup bundle to $TESTTMP/t/.hg/strip-backup/*-backup.hg (glob)
+
 clone
 
   $ cd ..
@@ -454,6 +598,26 @@ committing into a subrepo makes its store (but not its parent's store) dirty
 
   $ echo foo >> s/ss/a
   $ hg -R s/ss commit -m 'test dirty store detection'
+
+  $ hg out -S -r `hg log -r tip -T "{node|short}"`
+  comparing with $TESTTMP/t (glob)
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s/ss
+  searching for changes
+  changeset:   1:79ea5566a333
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     test dirty store detection
+  
+  comparing with $TESTTMP/t/t
+  searching for changes
+  no changes found
+
   $ hg push
   pushing to $TESTTMP/t (glob)
   pushing subrepo s/ss to $TESTTMP/t/s/ss (glob)
@@ -524,6 +688,24 @@ pull
   (run 'hg update' to get a working copy)
 
 should pull t
+
+  $ hg incoming -S -r `hg log -r tip -T "{node|short}"`
+  comparing with $TESTTMP/t (glob)
+  no changes found
+  comparing with $TESTTMP/t/s
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/s/ss
+  searching for changes
+  no changes found
+  comparing with $TESTTMP/t/t
+  searching for changes
+  changeset:   5:52c0adc0515a
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     13
+  
 
   $ hg up
   pulling subrepo t from $TESTTMP/t/t
@@ -758,6 +940,8 @@ test if untracked file is not overwritten
 
   $ echo issue3276_ok > repo/s/b
   $ hg -R repo2 push -f -q
+  $ touch -t 200001010000 repo/.hgsubstate
+  $ hg -R repo status --config debug.dirstate.delaywrite=2 repo/.hgsubstate
   $ hg -R repo update
   b: untracked file differs
   abort: untracked files in working directory differ from files in requested revision (in subrepo s)
@@ -766,6 +950,7 @@ test if untracked file is not overwritten
   $ cat repo/s/b
   issue3276_ok
   $ rm repo/s/b
+  $ touch -t 200001010000 repo/.hgsubstate
   $ hg -R repo revert --all
   reverting repo/.hgsubstate (glob)
   reverting subrepo s
@@ -879,6 +1064,45 @@ Incoming and outgoing should not use the default path:
   no changes found
   [1]
 
+Check that merge of a new subrepo doesn't write the uncommitted state to
+.hgsubstate (issue4622)
+
+  $ hg init issue1852a/addedsub
+  $ echo zzz > issue1852a/addedsub/zz.txt
+  $ hg -R issue1852a/addedsub ci -Aqm "initial ZZ"
+
+  $ hg clone issue1852a/addedsub issue1852d/addedsub
+  updating to branch default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ echo def > issue1852a/sub/repo/foo
+  $ hg -R issue1852a ci -SAm 'tweaked subrepo'
+  adding tmp/sub/repo/foo_p
+  committing subrepository sub/repo (glob)
+
+  $ echo 'addedsub = addedsub' >> issue1852d/.hgsub
+  $ echo xyz > issue1852d/sub/repo/foo
+  $ hg -R issue1852d pull -u
+  pulling from $TESTTMP/issue1852a (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 2 changes to 2 files
+   subrepository sub/repo diverged (local revision: f42d5c7504a8, remote revision: 46cd4aac504c)
+  (M)erge, keep (l)ocal or keep (r)emote? m
+  pulling subrepo sub/repo from $TESTTMP/issue1852a/sub/repo (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+   subrepository sources for sub/repo differ (glob)
+  use (l)ocal source (f42d5c7504a8) or (r)emote source (46cd4aac504c)? l
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cat issue1852d/.hgsubstate
+  f42d5c7504a811dda50f5cf3e5e16c3330b87172 sub/repo
+
 Check status of files when none of them belong to the first
 subrepository:
 
@@ -976,13 +1200,11 @@ Sticky subrepositories, file changes
    subrepository s diverged (local revision: fc627a69481f, remote revision: 12a213df6fa9)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for s differ
-  use (l)ocal source (fc627a69481f) or (r)emote source (12a213df6fa9)?
-   l
+  use (l)ocal source (fc627a69481f) or (r)emote source (12a213df6fa9)? l
    subrepository t diverged (local revision: e95bcfa18a35, remote revision: 52c0adc0515a)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for t differ
-  use (l)ocal source (e95bcfa18a35) or (r)emote source (52c0adc0515a)?
-   l
+  use (l)ocal source (e95bcfa18a35) or (r)emote source (52c0adc0515a)? l
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id
   925c17564ef8+ tip
@@ -1013,8 +1235,7 @@ Sticky subrepository, revision updates
    subrepository t diverged (local revision: 52c0adc0515a, remote revision: 20a0db6fbf6c)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for t differ (in checked out version)
-  use (l)ocal source (7af322bc1198) or (r)emote source (20a0db6fbf6c)?
-   l
+  use (l)ocal source (7af322bc1198) or (r)emote source (20a0db6fbf6c)? l
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id
   e45c8b14af55+
@@ -1038,13 +1259,11 @@ Sticky subrepository, file changes and revision updates
    subrepository s diverged (local revision: 12a213df6fa9, remote revision: 12a213df6fa9)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for s differ
-  use (l)ocal source (02dcf1d70411) or (r)emote source (12a213df6fa9)?
-   l
+  use (l)ocal source (02dcf1d70411) or (r)emote source (12a213df6fa9)? l
    subrepository t diverged (local revision: 52c0adc0515a, remote revision: 52c0adc0515a)
   (M)erge, keep (l)ocal or keep (r)emote? m
    subrepository sources for t differ
-  use (l)ocal source (7af322bc1198) or (r)emote source (52c0adc0515a)?
-   l
+  use (l)ocal source (7af322bc1198) or (r)emote source (52c0adc0515a)? l
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id
   925c17564ef8+ tip
@@ -1329,7 +1548,7 @@ configuration
   $ echo phasecheck4 >>   t/t
   $ hg commit -S -m phasecheck4
   committing subrepository s
-  committing subrepository s/ss
+  committing subrepository s/ss (glob)
   warning: changes are committed in secret phase from subrepository ss
   committing subrepository t
   warning: changes are committed in secret phase from subrepository s

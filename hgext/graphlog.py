@@ -31,7 +31,7 @@ testedwith = 'internal'
     ('C', 'copies', None, _('show copied files')),
     ('k', 'keyword', [],
      _('do case-insensitive search for a given text'), _('TEXT')),
-    ('r', 'rev', [], _('show the specified revision or range'), _('REV')),
+    ('r', 'rev', [], _('show the specified revision or revset'), _('REV')),
     ('', 'removed', None, _('include revisions where files were removed')),
     ('m', 'only-merges', None, _('show only merges (DEPRECATED)')),
     ('u', 'user', [], _('revisions committed by user'), _('USER')),
@@ -54,4 +54,5 @@ def graphlog(ui, repo, *pats, **opts):
     Nodes printed as an @ character are parents of the working
     directory.
     """
-    return cmdutil.graphlog(ui, repo, *pats, **opts)
+    opts['graph'] = True
+    return commands.log(ui, repo, *pats, **opts)

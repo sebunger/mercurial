@@ -172,7 +172,11 @@ def decodelist(l, sep=' '):
     return []
 
 def encodelist(l, sep=' '):
-    return sep.join(map(hex, l))
+    try:
+        return sep.join(map(hex, l))
+    except TypeError:
+        print l
+        raise
 
 # batched call argument encoding
 
@@ -202,8 +206,10 @@ def unescapearg(escaped):
 # :plain: string with no transformation needed.
 gboptsmap = {'heads':  'nodes',
              'common': 'nodes',
+             'obsmarkers': 'boolean',
              'bundlecaps': 'csv',
-             'listkeys': 'csv'}
+             'listkeys': 'csv',
+             'cg': 'boolean'}
 
 # client side
 
@@ -248,7 +254,7 @@ class wirepeer(peer.peerrepository):
         yield {'nodes': encodelist(nodes)}, f
         d = f.value
         try:
-            yield [bool(int(f)) for f in d]
+            yield [bool(int(b)) for b in d]
         except ValueError:
             self._abort(error.ResponseError(_("unexpected response:"), d))
 
@@ -326,7 +332,7 @@ class wirepeer(peer.peerrepository):
     def changegroup(self, nodes, kind):
         n = encodelist(nodes)
         f = self._callcompressable("changegroup", roots=n)
-        return changegroupmod.unbundle10(f, 'UN')
+        return changegroupmod.cg1unpacker(f, 'UN')
 
     def changegroupsubset(self, bases, heads, kind):
         self.requirecap('changegroupsubset', _('look up remote changes'))
@@ -334,7 +340,7 @@ class wirepeer(peer.peerrepository):
         heads = encodelist(heads)
         f = self._callcompressable("changegroupsubset",
                                    bases=bases, heads=heads)
-        return changegroupmod.unbundle10(f, 'UN')
+        return changegroupmod.cg1unpacker(f, 'UN')
 
     def getbundle(self, source, **kwargs):
         self.requirecap('getbundle', _('look up remote changes'))
@@ -349,16 +355,20 @@ class wirepeer(peer.peerrepository):
                 value = encodelist(value)
             elif keytype == 'csv':
                 value = ','.join(value)
+            elif keytype == 'boolean':
+                value = '%i' % bool(value)
             elif keytype != 'plain':
                 raise KeyError('unknown getbundle option type %s'
                                % keytype)
             opts[key] = value
         f = self._callcompressable("getbundle", **opts)
         bundlecaps = kwargs.get('bundlecaps')
-        if bundlecaps is not None and 'HG2X' in bundlecaps:
-            return bundle2.unbundle20(self.ui, f)
+        if bundlecaps is None:
+            bundlecaps = () # kwargs could have it to None
+        if util.any((cap.startswith('HG2') for cap in bundlecaps)):
+            return bundle2.getunbundler(self.ui, f)
         else:
-            return changegroupmod.unbundle10(f, 'UN')
+            return changegroupmod.cg1unpacker(f, 'UN')
 
     def unbundle(self, cg, heads, source):
         '''Send cg (a readable file-like object representing the
@@ -393,7 +403,7 @@ class wirepeer(peer.peerrepository):
         else:
             # bundle2 push. Send a stream, fetch a stream.
             stream = self._calltwowaystream('unbundle', cg, heads=heads)
-            ret = bundle2.unbundle20(self.ui, stream)
+            ret = bundle2.getunbundler(self.ui, stream)
         return ret
 
     def debugwireargs(self, one, two, three=None, four=None, five=None):
@@ -605,9 +615,9 @@ def _capabilities(repo, proto):
         # otherwise, add 'streamreqs' detailing our local revlog format
         else:
             caps.append('streamreqs=%s' % ','.join(requiredformats))
-    if repo.ui.configbool('experimental', 'bundle2-exp', False):
-        capsblob = bundle2.encodecaps(repo.bundle2caps)
-        caps.append('bundle2-exp=' + urllib.quote(capsblob))
+    if repo.ui.configbool('experimental', 'bundle2-advertise', True):
+        capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo))
+        caps.append('bundle2=' + urllib.quote(capsblob))
     caps.append('unbundle=%s' % ','.join(changegroupmod.bundlepriority))
     caps.append('httpheader=1024')
     return caps
@@ -652,6 +662,8 @@ def getbundle(repo, proto, others):
             opts[k] = decodelist(v)
         elif keytype == 'csv':
             opts[k] = set(v.split(','))
+        elif keytype == 'boolean':
+            opts[k] = bool(v)
         elif keytype != 'plain':
             raise KeyError('unknown getbundle option type %s'
                            % keytype)
@@ -772,7 +784,7 @@ def stream(repo, proto):
                       (len(entries), total_bytes))
         yield '%d %d\n' % (len(entries), total_bytes)
 
-        sopener = repo.sopener
+        sopener = repo.svfs
         oldaudit = sopener.mustaudit
         debugflag = repo.ui.debugflag
         sopener.mustaudit = False
@@ -821,7 +833,7 @@ def unbundle(repo, proto, heads):
             r = exchange.unbundle(repo, gen, their_heads, 'serve',
                                   proto._client())
             if util.safehasattr(r, 'addpart'):
-                # The return looks streameable, we are in the bundle2 case and
+                # The return looks streamable, we are in the bundle2 case and
                 # should return a stream.
                 return streamres(r.getchunks())
             return pushres(r)
@@ -829,35 +841,40 @@ def unbundle(repo, proto, heads):
         finally:
             fp.close()
             os.unlink(tempname)
-    except error.BundleValueError, exc:
-            bundler = bundle2.bundle20(repo.ui)
-            errpart = bundler.newpart('B2X:ERROR:UNSUPPORTEDCONTENT')
+
+    except (error.BundleValueError, util.Abort, error.PushRaced), exc:
+        # handle non-bundle2 case first
+        if not getattr(exc, 'duringunbundle2', False):
+            try:
+                raise
+            except util.Abort:
+                # The old code we moved used sys.stderr directly.
+                # We did not change it to minimise code change.
+                # This need to be moved to something proper.
+                # Feel free to do it.
+                sys.stderr.write("abort: %s\n" % exc)
+                return pushres(0)
+            except error.PushRaced:
+                return pusherr(str(exc))
+
+        bundler = bundle2.bundle20(repo.ui)
+        for out in getattr(exc, '_bundle2salvagedoutput', ()):
+            bundler.addpart(out)
+        try:
+            raise
+        except error.BundleValueError, exc:
+            errpart = bundler.newpart('error:unsupportedcontent')
             if exc.parttype is not None:
                 errpart.addparam('parttype', exc.parttype)
             if exc.params:
                 errpart.addparam('params', '\0'.join(exc.params))
-            return streamres(bundler.getchunks())
-    except util.Abort, inst:
-        # The old code we moved used sys.stderr directly.
-        # We did not change it to minimise code change.
-        # This need to be moved to something proper.
-        # Feel free to do it.
-        if getattr(inst, 'duringunbundle2', False):
-            bundler = bundle2.bundle20(repo.ui)
-            manargs = [('message', str(inst))]
+        except util.Abort, exc:
+            manargs = [('message', str(exc))]
             advargs = []
-            if inst.hint is not None:
-                advargs.append(('hint', inst.hint))
-            bundler.addpart(bundle2.bundlepart('B2X:ERROR:ABORT',
+            if exc.hint is not None:
+                advargs.append(('hint', exc.hint))
+            bundler.addpart(bundle2.bundlepart('error:abort',
                                                manargs, advargs))
-            return streamres(bundler.getchunks())
-        else:
-            sys.stderr.write("abort: %s\n" % inst)
-            return pushres(0)
-    except error.PushRaced, exc:
-        if getattr(exc, 'duringunbundle2', False):
-            bundler = bundle2.bundle20(repo.ui)
-            bundler.newpart('B2X:ERROR:PUSHRACED', [('message', str(exc))])
-            return streamres(bundler.getchunks())
-        else:
-            return pusherr(str(exc))
+        except error.PushRaced, exc:
+            bundler.newpart('error:pushraced', [('message', str(exc))])
+        return streamres(bundler.getchunks())

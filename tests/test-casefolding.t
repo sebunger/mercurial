@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" icasefs || exit 80
+#require icasefs
 
   $ hg debugfs | grep 'case-sensitive:'
   case-sensitive: no
@@ -24,7 +24,10 @@ test case collision on rename (issue750)
   $ echo a > a
   $ hg --debug ci -Am adda
   adding a
+  committing files:
   a
+  committing manifest
+  committing changelog
   committed changeset 0:07f4944404050f47db2e5c5071e0e84e7a27bba9
 
 Case-changing renames should work:
@@ -32,6 +35,15 @@ Case-changing renames should work:
   $ hg mv a A
   $ hg mv A a
   $ hg st
+
+addremove after case-changing rename has no effect (issue4590)
+
+  $ hg mv a A
+  $ hg addremove
+  recording removal of a as rename to A (100% similar)
+  $ hg revert --all
+  forgetting A
+  undeleting a
 
 test changing case of path components
 
@@ -141,6 +153,23 @@ issue 3342: file in nested directory causes unexpected abort
   $ mkdir -p a/B/c/D
   $ echo e > a/B/c/D/e
   $ hg add a/B/c/D/e
+  $ hg ci -m 'add e'
+
+issue 4481: revert across case only renames
+  $ hg mv a/B/c/D/e a/B/c/d/E
+  $ hg ci -m "uppercase E"
+  $ echo 'foo' > a/B/c/D/E
+  $ hg ci -m 'e content change'
+  $ hg revert --all -r 0
+  removing a/B/c/D/E (glob)
+  adding a/B/c/D/e (glob)
+  $ find * | sort
+  a
+  a/B
+  a/B/c
+  a/B/c/D
+  a/B/c/D/e
+  a/B/c/D/e.orig
 
   $ cd ..
 
@@ -194,5 +223,17 @@ case changes.
   adding A
   $ hg qrefresh a # issue 3271, qrefresh with file handled case wrong
   $ hg status # empty status means the qrefresh worked
+
+#if osx
+
+We assume anyone running the tests on a case-insensitive volume on OS
+X will be using HFS+. If that's not true, this test will fail.
+
+  $ rm A
+  >>> open(u'a\u200c'.encode('utf-8'), 'w').write('unicode is fun')
+  $ hg status
+  M A
+
+#endif
 
   $ cd ..

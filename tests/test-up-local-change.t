@@ -55,6 +55,8 @@
   picked tool 'true' for a (binary False symlink False)
   merging a
   my a@c19d34741b0a+ other a@1e71731e6fbb ancestor a@c19d34741b0a
+  launching merge tool: true *$TESTTMP/r2/a* * (glob)
+  merge tool returned: 0
   1 files updated, 1 files merged, 0 files removed, 0 files unresolved
   $ hg parents
   changeset:   1:1e71731e6fbb
@@ -76,6 +78,8 @@
   picked tool 'true' for a (binary False symlink False)
   merging a
   my a@1e71731e6fbb+ other a@c19d34741b0a ancestor a@1e71731e6fbb
+  launching merge tool: true *$TESTTMP/r2/a* * (glob)
+  merge tool returned: 0
   0 files updated, 1 files merged, 1 files removed, 0 files unresolved
   $ hg parents
   changeset:   0:c19d34741b0a
@@ -83,10 +87,6 @@
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     1
   
-  $ hg --debug merge
-  abort: nothing to merge
-  (use 'hg update' instead)
-  [255]
   $ hg parents
   changeset:   0:c19d34741b0a
   user:        test
@@ -109,6 +109,8 @@
   picked tool 'true' for a (binary False symlink False)
   merging a
   my a@c19d34741b0a+ other a@1e71731e6fbb ancestor a@c19d34741b0a
+  launching merge tool: true *$TESTTMP/r2/a* * (glob)
+  merge tool returned: 0
   1 files updated, 1 files merged, 0 files removed, 0 files unresolved
   $ hg parents
   changeset:   1:1e71731e6fbb
@@ -170,52 +172,37 @@ create a second head
   abort: uncommitted changes
   (commit and merge, or update --clean to discard changes)
   [255]
-  $ hg --debug merge
-  abort: uncommitted changes
-  (use 'hg status' to list changes)
-  [255]
-  $ hg --debug merge -f
-    searching for copies back to rev 1
-    unmatched files new in both:
-     b
-  resolving manifests
-   branchmerge: True, force: True, partial: False
-   ancestor: c19d34741b0a, local: 1e71731e6fbb+, remote: 83c51d0caff4
-   preserving a for resolve of a
-   preserving b for resolve of b
-   a: versions differ -> m
-  updating: a 1/2 files (50.00%)
-  picked tool 'true' for a (binary False symlink False)
-  merging a
-  my a@1e71731e6fbb+ other a@83c51d0caff4 ancestor a@c19d34741b0a
-   b: versions differ -> m
-  updating: b 2/2 files (100.00%)
-  picked tool 'true' for b (binary False symlink False)
-  merging b
-  my b@1e71731e6fbb+ other b@83c51d0caff4 ancestor b@000000000000
-  0 files updated, 2 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
-  $ hg parents
-  changeset:   1:1e71731e6fbb
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     2
-  
-  changeset:   2:83c51d0caff4
-  tag:         tip
-  parent:      0:c19d34741b0a
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     3
-  
-  $ hg diff --nodates
-  diff -r 1e71731e6fbb a
-  --- a/a
-  +++ b/a
-  @@ -1,1 +1,1 @@
-  -a2
-  +abc
 
+test conflicting untracked files
+
+  $ hg up -qC 0
+  $ echo untracked > b
+  $ hg st
+  ? b
+  $ hg up 1
+  b: untracked file differs
+  abort: untracked files in working directory differ from files in requested revision
+  [255]
+  $ rm b
+
+test conflicting untracked ignored file
+
+  $ hg up -qC 0
+  $ echo ignored > .hgignore
+  $ hg add .hgignore
+  $ hg ci -m 'add .hgignore'
+  created new head
+  $ echo ignored > ignored
+  $ hg add ignored
+  $ hg ci -m 'add ignored file'
+
+  $ hg up -q 'desc("add .hgignore")'
+  $ echo untracked > ignored
+  $ hg st
+  $ hg up 'desc("add ignored file")'
+  ignored: untracked file differs
+  abort: untracked files in working directory differ from files in requested revision
+  [255]
 
 test a local add
 

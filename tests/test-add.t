@@ -126,6 +126,19 @@ Issue683: peculiarity with hg revert of an removed then added file
   M a
   ? a.orig
 
+Forgotten file can be added back (as either clean or modified)
+
+  $ hg forget b
+  $ hg add b
+  $ hg st -A b
+  C b
+  $ hg forget b
+  $ echo modified > b
+  $ hg add b
+  $ hg st -A b
+  M b
+  $ hg revert -qC b
+
   $ hg add c && echo "unexpected addition of missing file"
   c: * (glob)
   [1]
@@ -155,5 +168,58 @@ forgotten before file with same name is added
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat d
   file d
+
+Test that adding a directory doesn't require case matching (issue4578)
+#if icasefs
+  $ mkdir -p CapsDir1/CapsDir
+  $ echo abc > CapsDir1/CapsDir/AbC.txt
+  $ mkdir CapsDir1/CapsDir/SubDir
+  $ echo def > CapsDir1/CapsDir/SubDir/Def.txt
+
+  $ hg add capsdir1/capsdir
+  adding CapsDir1/CapsDir/AbC.txt (glob)
+  adding CapsDir1/CapsDir/SubDir/Def.txt (glob)
+
+  $ hg forget capsdir1/capsdir/abc.txt
+  removing CapsDir1/CapsDir/AbC.txt (glob)
+
+  $ hg forget capsdir1/capsdir
+  removing CapsDir1/CapsDir/SubDir/Def.txt (glob)
+
+  $ hg add capsdir1
+  adding CapsDir1/CapsDir/AbC.txt (glob)
+  adding CapsDir1/CapsDir/SubDir/Def.txt (glob)
+
+  $ hg ci -m "AbCDef" capsdir1/capsdir
+
+  $ hg status -A capsdir1/capsdir
+  C CapsDir1/CapsDir/AbC.txt
+  C CapsDir1/CapsDir/SubDir/Def.txt
+
+  $ hg files capsdir1/capsdir
+  CapsDir1/CapsDir/AbC.txt (glob)
+  CapsDir1/CapsDir/SubDir/Def.txt (glob)
+
+  $ echo xyz > CapsDir1/CapsDir/SubDir/Def.txt
+  $ hg ci -m xyz capsdir1/capsdir/subdir/def.txt
+
+  $ hg revert -r '.^' capsdir1/capsdir
+  reverting CapsDir1/CapsDir/SubDir/Def.txt (glob)
+
+The conditional tests above mean the hash on the diff line differs on Windows
+and OS X
+  $ hg diff capsdir1/capsdir
+  diff -r * CapsDir1/CapsDir/SubDir/Def.txt (glob)
+  --- a/CapsDir1/CapsDir/SubDir/Def.txt	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/CapsDir1/CapsDir/SubDir/Def.txt	* +0000 (glob)
+  @@ -1,1 +1,1 @@
+  -xyz
+  +def
+
+  $ hg remove -f 'glob:**.txt' -X capsdir1/capsdir
+  $ hg remove -f 'glob:**.txt' -I capsdir1/capsdir
+  removing CapsDir1/CapsDir/AbC.txt (glob)
+  removing CapsDir1/CapsDir/SubDir/Def.txt (glob)
+#endif
 
   $ cd ..

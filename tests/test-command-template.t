@@ -47,6 +47,9 @@ Second branch starting at nullrev:
   fourth (second)
   $ hg log -T '{file_copies % "{source} -> {name}\n"}' -r .
   second -> fourth
+  $ hg log -T '{rev} {ifcontains("fourth", file_copies, "t", "f")}\n' -r .:7
+  8 t
+  7 f
 
 Quoting for ui.logtemplate
 
@@ -91,19 +94,118 @@ Template should precede style option
   $ hg log -l1 --style default -T '{rev}\n'
   8
 
-Default style is like normal output:
+Add a commit with empty description, to ensure that the templates
+following below omit it properly.
+
+  $ echo c >> c
+  $ hg add c
+  $ hg commit -qm ' '
+
+Default style is like normal output. Phases style should be the same
+as default style, except for extra phase lines.
 
   $ hg log > log.out
   $ hg log --style default > style.out
   $ cmp log.out style.out || diff -u log.out style.out
+  $ hg log -T phases > phases.out
+  $ diff -u log.out phases.out | grep "phase:"
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
 
   $ hg log -v > log.out
   $ hg log -v --style default > style.out
   $ cmp log.out style.out || diff -u log.out style.out
+  $ hg log -v -T phases > phases.out
+  $ diff -u log.out phases.out | grep phase:
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+  +phase:       draft
+
+  $ hg log -q > log.out
+  $ hg log -q --style default > style.out
+  $ cmp log.out style.out || diff -u log.out style.out
+  $ hg log -q -T phases > phases.out
+  $ cmp log.out phases.out || diff -u log.out phases.out
 
   $ hg log --debug > log.out
   $ hg log --debug --style default > style.out
   $ cmp log.out style.out || diff -u log.out style.out
+  $ hg log --debug -T phases > phases.out
+  $ cmp log.out phases.out || diff -u log.out phases.out
+
+Default style should also preserve color information (issue2866):
+
+  $ cp $HGRCPATH $HGRCPATH-bak
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > color=
+  > EOF
+
+  $ hg --color=debug log > log.out
+  $ hg --color=debug log --style default > style.out
+  $ cmp log.out style.out || diff -u log.out style.out
+  $ hg --color=debug log -T phases > phases.out
+  $ diff -u log.out phases.out | grep phase:
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+
+  $ hg --color=debug -v log > log.out
+  $ hg --color=debug -v log --style default > style.out
+  $ cmp log.out style.out || diff -u log.out style.out
+  $ hg --color=debug -v log -T phases > phases.out
+  $ diff -u log.out phases.out | grep phase:
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+  +[log.phase|phase:       draft]
+
+  $ hg --color=debug -q log > log.out
+  $ hg --color=debug -q log --style default > style.out
+  $ cmp log.out style.out || diff -u log.out style.out
+  $ hg --color=debug -q log -T phases > phases.out
+  $ cmp log.out phases.out || diff -u log.out phases.out
+
+  $ hg --color=debug --debug log > log.out
+  $ hg --color=debug --debug log --style default > style.out
+  $ cmp log.out style.out || diff -u log.out style.out
+  $ hg --color=debug --debug log -T phases > phases.out
+  $ cmp log.out phases.out || diff -u log.out phases.out
+
+  $ mv $HGRCPATH-bak $HGRCPATH
+
+Remove commit with empty commit message, so as to not pollute further
+tests.
+
+  $ hg --config extensions.strip= strip -q .
 
 Revision with no copies (used to print a traceback):
 
@@ -473,6 +575,369 @@ Test xml styles:
   </log>
 
 
+Test JSON style:
+
+  $ hg log -k nosuch -Tjson
+  []
+
+  $ hg log -qr . -Tjson
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a"
+   }
+  ]
+
+  $ hg log -vpr . -Tjson --stat
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a",
+    "branch": "default",
+    "phase": "draft",
+    "user": "test",
+    "date": [1577872860, 0],
+    "desc": "third",
+    "bookmarks": [],
+    "tags": ["tip"],
+    "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"],
+    "files": ["fourth", "second", "third"],
+    "diffstat": " fourth |  1 +\n second |  1 -\n third  |  1 +\n 3 files changed, 2 insertions(+), 1 deletions(-)\n",
+    "diff": "diff -r 29114dbae42b -r 95c24699272e fourth\n--- /dev/null\tThu Jan 01 00:00:00 1970 +0000\n+++ b/fourth\tWed Jan 01 10:01:00 2020 +0000\n@@ -0,0 +1,1 @@\n+second\ndiff -r 29114dbae42b -r 95c24699272e second\n--- a/second\tMon Jan 12 13:46:40 1970 +0000\n+++ /dev/null\tThu Jan 01 00:00:00 1970 +0000\n@@ -1,1 +0,0 @@\n-second\ndiff -r 29114dbae42b -r 95c24699272e third\n--- /dev/null\tThu Jan 01 00:00:00 1970 +0000\n+++ b/third\tWed Jan 01 10:01:00 2020 +0000\n@@ -0,0 +1,1 @@\n+third\n"
+   }
+  ]
+
+honor --git but not format-breaking diffopts
+  $ hg --config diff.noprefix=True log --git -vpr . -Tjson
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a",
+    "branch": "default",
+    "phase": "draft",
+    "user": "test",
+    "date": [1577872860, 0],
+    "desc": "third",
+    "bookmarks": [],
+    "tags": ["tip"],
+    "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"],
+    "files": ["fourth", "second", "third"],
+    "diff": "diff --git a/second b/fourth\nrename from second\nrename to fourth\ndiff --git a/third b/third\nnew file mode 100644\n--- /dev/null\n+++ b/third\n@@ -0,0 +1,1 @@\n+third\n"
+   }
+  ]
+
+  $ hg log -T json
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a",
+    "branch": "default",
+    "phase": "draft",
+    "user": "test",
+    "date": [1577872860, 0],
+    "desc": "third",
+    "bookmarks": [],
+    "tags": ["tip"],
+    "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"]
+   },
+   {
+    "rev": 7,
+    "node": "29114dbae42b9f078cf2714dbe3a86bba8ec7453",
+    "branch": "default",
+    "phase": "draft",
+    "user": "User Name <user@hostname>",
+    "date": [1000000, 0],
+    "desc": "second",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["0000000000000000000000000000000000000000"]
+   },
+   {
+    "rev": 6,
+    "node": "d41e714fe50d9e4a5f11b4d595d543481b5f980b",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1500001, 0],
+    "desc": "merge",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["13207e5a10d9fd28ec424934298e176197f2c67f", "bbe44766e73d5f11ed2177f1838de10c53ef3e74"]
+   },
+   {
+    "rev": 5,
+    "node": "13207e5a10d9fd28ec424934298e176197f2c67f",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1500000, 0],
+    "desc": "new head",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["10e46f2dcbf4823578cf180f33ecf0b957964c47"]
+   },
+   {
+    "rev": 4,
+    "node": "bbe44766e73d5f11ed2177f1838de10c53ef3e74",
+    "branch": "foo",
+    "phase": "draft",
+    "user": "person",
+    "date": [1400000, 0],
+    "desc": "new branch",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["10e46f2dcbf4823578cf180f33ecf0b957964c47"]
+   },
+   {
+    "rev": 3,
+    "node": "10e46f2dcbf4823578cf180f33ecf0b957964c47",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1300000, 0],
+    "desc": "no user, no domain",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["97054abb4ab824450e9164180baf491ae0078465"]
+   },
+   {
+    "rev": 2,
+    "node": "97054abb4ab824450e9164180baf491ae0078465",
+    "branch": "default",
+    "phase": "draft",
+    "user": "other@place",
+    "date": [1200000, 0],
+    "desc": "no person",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["b608e9d1a3f0273ccf70fb85fd6866b3482bf965"]
+   },
+   {
+    "rev": 1,
+    "node": "b608e9d1a3f0273ccf70fb85fd6866b3482bf965",
+    "branch": "default",
+    "phase": "draft",
+    "user": "A. N. Other <other@place>",
+    "date": [1100000, 0],
+    "desc": "other 1\nother 2\n\nother 3",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["1e4e1b8f71e05681d422154f5421e385fec3454f"]
+   },
+   {
+    "rev": 0,
+    "node": "1e4e1b8f71e05681d422154f5421e385fec3454f",
+    "branch": "default",
+    "phase": "draft",
+    "user": "User Name <user@hostname>",
+    "date": [1000000, 0],
+    "desc": "line 1\nline 2",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["0000000000000000000000000000000000000000"]
+   }
+  ]
+
+  $ hg heads -v -Tjson
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a",
+    "branch": "default",
+    "phase": "draft",
+    "user": "test",
+    "date": [1577872860, 0],
+    "desc": "third",
+    "bookmarks": [],
+    "tags": ["tip"],
+    "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"],
+    "files": ["fourth", "second", "third"]
+   },
+   {
+    "rev": 6,
+    "node": "d41e714fe50d9e4a5f11b4d595d543481b5f980b",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1500001, 0],
+    "desc": "merge",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["13207e5a10d9fd28ec424934298e176197f2c67f", "bbe44766e73d5f11ed2177f1838de10c53ef3e74"],
+    "files": []
+   },
+   {
+    "rev": 4,
+    "node": "bbe44766e73d5f11ed2177f1838de10c53ef3e74",
+    "branch": "foo",
+    "phase": "draft",
+    "user": "person",
+    "date": [1400000, 0],
+    "desc": "new branch",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["10e46f2dcbf4823578cf180f33ecf0b957964c47"],
+    "files": []
+   }
+  ]
+
+  $ hg log --debug -Tjson
+  [
+   {
+    "rev": 8,
+    "node": "95c24699272ef57d062b8bccc32c878bf841784a",
+    "branch": "default",
+    "phase": "draft",
+    "user": "test",
+    "date": [1577872860, 0],
+    "desc": "third",
+    "bookmarks": [],
+    "tags": ["tip"],
+    "parents": ["29114dbae42b9f078cf2714dbe3a86bba8ec7453"],
+    "manifest": "94961b75a2da554b4df6fb599e5bfc7d48de0c64",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": ["fourth", "third"],
+    "removed": ["second"]
+   },
+   {
+    "rev": 7,
+    "node": "29114dbae42b9f078cf2714dbe3a86bba8ec7453",
+    "branch": "default",
+    "phase": "draft",
+    "user": "User Name <user@hostname>",
+    "date": [1000000, 0],
+    "desc": "second",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["0000000000000000000000000000000000000000"],
+    "manifest": "f2dbc354b94e5ec0b4f10680ee0cee816101d0bf",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": ["second"],
+    "removed": []
+   },
+   {
+    "rev": 6,
+    "node": "d41e714fe50d9e4a5f11b4d595d543481b5f980b",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1500001, 0],
+    "desc": "merge",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["13207e5a10d9fd28ec424934298e176197f2c67f", "bbe44766e73d5f11ed2177f1838de10c53ef3e74"],
+    "manifest": "4dc3def4f9b4c6e8de820f6ee74737f91e96a216",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": [],
+    "removed": []
+   },
+   {
+    "rev": 5,
+    "node": "13207e5a10d9fd28ec424934298e176197f2c67f",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1500000, 0],
+    "desc": "new head",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["10e46f2dcbf4823578cf180f33ecf0b957964c47"],
+    "manifest": "4dc3def4f9b4c6e8de820f6ee74737f91e96a216",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": ["d"],
+    "removed": []
+   },
+   {
+    "rev": 4,
+    "node": "bbe44766e73d5f11ed2177f1838de10c53ef3e74",
+    "branch": "foo",
+    "phase": "draft",
+    "user": "person",
+    "date": [1400000, 0],
+    "desc": "new branch",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["10e46f2dcbf4823578cf180f33ecf0b957964c47"],
+    "manifest": "cb5a1327723bada42f117e4c55a303246eaf9ccc",
+    "extra": {"branch": "foo"},
+    "modified": [],
+    "added": [],
+    "removed": []
+   },
+   {
+    "rev": 3,
+    "node": "10e46f2dcbf4823578cf180f33ecf0b957964c47",
+    "branch": "default",
+    "phase": "draft",
+    "user": "person",
+    "date": [1300000, 0],
+    "desc": "no user, no domain",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["97054abb4ab824450e9164180baf491ae0078465"],
+    "manifest": "cb5a1327723bada42f117e4c55a303246eaf9ccc",
+    "extra": {"branch": "default"},
+    "modified": ["c"],
+    "added": [],
+    "removed": []
+   },
+   {
+    "rev": 2,
+    "node": "97054abb4ab824450e9164180baf491ae0078465",
+    "branch": "default",
+    "phase": "draft",
+    "user": "other@place",
+    "date": [1200000, 0],
+    "desc": "no person",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["b608e9d1a3f0273ccf70fb85fd6866b3482bf965"],
+    "manifest": "6e0e82995c35d0d57a52aca8da4e56139e06b4b1",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": ["c"],
+    "removed": []
+   },
+   {
+    "rev": 1,
+    "node": "b608e9d1a3f0273ccf70fb85fd6866b3482bf965",
+    "branch": "default",
+    "phase": "draft",
+    "user": "A. N. Other <other@place>",
+    "date": [1100000, 0],
+    "desc": "other 1\nother 2\n\nother 3",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["1e4e1b8f71e05681d422154f5421e385fec3454f"],
+    "manifest": "4e8d705b1e53e3f9375e0e60dc7b525d8211fe55",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": ["b"],
+    "removed": []
+   },
+   {
+    "rev": 0,
+    "node": "1e4e1b8f71e05681d422154f5421e385fec3454f",
+    "branch": "default",
+    "phase": "draft",
+    "user": "User Name <user@hostname>",
+    "date": [1000000, 0],
+    "desc": "line 1\nline 2",
+    "bookmarks": [],
+    "tags": [],
+    "parents": ["0000000000000000000000000000000000000000"],
+    "manifest": "a0c8bcbbb45c63b90b70ad007bf38961f64f2af0",
+    "extra": {"branch": "default"},
+    "modified": [],
+    "added": ["a"],
+    "removed": []
+   }
+  ]
+
 Error if style not readable:
 
 #if unix-permissions no-root
@@ -532,6 +997,34 @@ Include works:
   2
   1
   0
+
+Check that {phase} works correctly on parents:
+
+  $ cat << EOF > parentphase
+  > changeset_debug = '{rev} ({phase}):{parents}\n'
+  > parent = ' {rev} ({phase})'
+  > EOF
+  $ hg phase -r 5 --public
+  $ hg phase -r 7 --secret --force
+  $ hg log --debug -G --style ./parentphase
+  @  8 (secret): 7 (secret) -1 (public)
+  |
+  o  7 (secret): -1 (public) -1 (public)
+  
+  o    6 (draft): 5 (public) 4 (draft)
+  |\
+  | o  5 (public): 3 (public) -1 (public)
+  | |
+  o |  4 (draft): 3 (public) -1 (public)
+  |/
+  o  3 (public): 2 (public) -1 (public)
+  |
+  o  2 (public): 1 (public) -1 (public)
+  |
+  o  1 (public): 0 (public) -1 (public)
+  |
+  o  0 (public): -1 (public) -1 (public)
+  
 
 Missing non-standard names give no error (backward compatibility):
 
@@ -1418,6 +1911,48 @@ Age filter:
   $ hg log -l1 --template '{date|age}\n'
   7 years from now
 
+Count filter:
+
+  $ hg log -l1 --template '{node|count} {node|short|count}\n'
+  40 12
+
+  $ hg log -l1 --template '{revset("null^")|count} {revset(".")|count} {revset("0::3")|count}\n'
+  0 1 4
+
+  $ hg log -G --template '{rev}: children: {children|count}, \
+  > tags: {tags|count}, file_adds: {file_adds|count}, \
+  > ancestors: {revset("ancestors(%s)", rev)|count}'
+  @  9: children: 0, tags: 1, file_adds: 1, ancestors: 3
+  |
+  o  8: children: 1, tags: 0, file_adds: 2, ancestors: 2
+  |
+  o  7: children: 1, tags: 0, file_adds: 1, ancestors: 1
+  
+  o    6: children: 0, tags: 0, file_adds: 0, ancestors: 7
+  |\
+  | o  5: children: 1, tags: 0, file_adds: 1, ancestors: 5
+  | |
+  o |  4: children: 1, tags: 0, file_adds: 0, ancestors: 5
+  |/
+  o  3: children: 2, tags: 0, file_adds: 0, ancestors: 4
+  |
+  o  2: children: 1, tags: 0, file_adds: 1, ancestors: 3
+  |
+  o  1: children: 1, tags: 0, file_adds: 1, ancestors: 2
+  |
+  o  0: children: 1, tags: 0, file_adds: 1, ancestors: 1
+  
+
+Upper/lower filters:
+
+  $ hg log -r0 --template '{branch|upper}\n'
+  DEFAULT
+  $ hg log -r0 --template '{author|lower}\n'
+  user name <user@hostname>
+  $ hg log -r0 --template '{date|upper}\n'
+  abort: template filter 'upper' is not compatible with keyword 'date'
+  [255]
+
 Error on syntax:
 
   $ echo 'x = "f' >> t
@@ -1454,6 +1989,73 @@ Thrown an error if a template function doesn't exist
   $ hg tip --template '{foo()}\n'
   hg: parse error: unknown function 'foo'
   [255]
+
+Pass generator object created by template function to filter
+
+  $ hg log -l 1 --template '{if(author, author)|user}\n'
+  test
+
+Test diff function:
+
+  $ hg diff -c 8
+  diff -r 29114dbae42b -r 95c24699272e fourth
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/fourth	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +second
+  diff -r 29114dbae42b -r 95c24699272e second
+  --- a/second	Mon Jan 12 13:46:40 1970 +0000
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  @@ -1,1 +0,0 @@
+  -second
+  diff -r 29114dbae42b -r 95c24699272e third
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/third	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +third
+
+  $ hg log -r 8 -T "{diff()}"
+  diff -r 29114dbae42b -r 95c24699272e fourth
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/fourth	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +second
+  diff -r 29114dbae42b -r 95c24699272e second
+  --- a/second	Mon Jan 12 13:46:40 1970 +0000
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  @@ -1,1 +0,0 @@
+  -second
+  diff -r 29114dbae42b -r 95c24699272e third
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/third	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +third
+
+  $ hg log -r 8 -T "{diff('glob:f*')}"
+  diff -r 29114dbae42b -r 95c24699272e fourth
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/fourth	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +second
+
+  $ hg log -r 8 -T "{diff('', 'glob:f*')}"
+  diff -r 29114dbae42b -r 95c24699272e second
+  --- a/second	Mon Jan 12 13:46:40 1970 +0000
+  +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  @@ -1,1 +0,0 @@
+  -second
+  diff -r 29114dbae42b -r 95c24699272e third
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/third	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +third
+
+  $ hg log -r 8 -T "{diff('FOURTH'|lower)}"
+  diff -r 29114dbae42b -r 95c24699272e fourth
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/fourth	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +second
 
   $ cd ..
 
@@ -1641,6 +2243,12 @@ Test date format:
   date: 70 01 01 01 +0000
   date: 70 01 01 00 +0000
 
+Test invalid date:
+
+  $ hg log -R latesttag -T '{date(rev)}\n'
+  hg: parse error: date expects a date information
+  [255]
+
 Test string escaping:
 
   $ hg log -R latesttag -r 0 --template '>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
@@ -1648,6 +2256,106 @@ Test string escaping:
   <>\n<[>
   <>\n<]>
   <>\n<
+
+  $ hg log -R latesttag -r 0 \
+  > --config ui.logtemplate='>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+  $ hg log -R latesttag -r 0 -T esc \
+  > --config templates.esc='>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+  $ cat <<'EOF' > esctmpl
+  > changeset = '>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  > EOF
+  $ hg log -R latesttag -r 0 --style ./esctmpl
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+Test string escaping of quotes:
+
+  $ hg log -Ra -r0 -T '{"\""}\n'
+  "
+  $ hg log -Ra -r0 -T '{"\\\""}\n'
+  \"
+  $ hg log -Ra -r0 -T '{r"\""}\n'
+  \"
+  $ hg log -Ra -r0 -T '{r"\\\""}\n'
+  \\\"
+
+Test compatibility with 2.9.2-3.4 of escaped quoted strings in nested
+_evalifliteral() templates (issue4733):
+
+  $ cd latesttag
+
+  $ hg log -r 2 -T '{if(rev, "\"{rev}")}\n'
+  "2
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"\\\"{rev}\")}")}\n'
+  "2
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"{if(rev, \\\"\\\\\\\"{rev}\\\")}\")}")}\n'
+  "2
+
+  $ hg log -r 2 -T '{if(rev, "\\\"")}\n'
+  \"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"\\\\\\\"\")}")}\n'
+  \"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"{if(rev, \\\"\\\\\\\\\\\\\\\"\\\")}\")}")}\n'
+  \"
+
+  $ hg log -r 2 -T '{if(rev, r"\\\"")}\n'
+  \\\"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, r\"\\\\\\\"\")}")}\n'
+  \\\"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"{if(rev, r\\\"\\\\\\\\\\\\\\\"\\\")}\")}")}\n'
+  \\\"
+
+escaped single quotes and errors:
+
+  $ hg log -r 2 -T "{if(rev, '{if(rev, \'foo\')}')}"'\n'
+  foo
+  $ hg log -r 2 -T "{if(rev, '{if(rev, r\'foo\')}')}"'\n'
+  foo
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \")}")}\n'
+  hg: parse error at 11: unterminated string
+  [255]
+  $ hg log -r 2 -T '{if(rev, \"\\"")}\n'
+  hg: parse error at 11: syntax error
+  [255]
+  $ hg log -r 2 -T '{if(rev, r\"\\"")}\n'
+  hg: parse error at 12: syntax error
+  [255]
+
+  $ cd ..
+
+Test leading backslashes:
+
+  $ cd latesttag
+  $ hg log -r 2 -T '\{rev} {files % "\{file}"} {files % r"\{file}"}\n'
+  {rev} {file} \head1
+  $ hg log -r 2 -T '\\{rev} {files % "\\{file}"} {files % r"\\{file}"}\n'
+  \2 \head1 \\head1
+  $ hg log -r 2 -T '\\\{rev} {files % "\\\{file}"} {files % r"\\\{file}"}\n'
+  \{rev} \{file} \\\head1
+  $ cd ..
+
+Test leading backslashes in "if" expression (issue4714):
+
+  $ cd latesttag
+  $ hg log -r 2 -T '{if("1", "\{rev}")} {if("1", r"\{rev}")}\n'
+  {rev} \2
+  $ hg log -r 2 -T '{if("1", "\\{rev}")} {if("1", r"\\{rev}")}\n'
+  \2 \\2
+  $ hg log -r 2 -T '{if("1", "\\\{rev}")} {if("1", r"\\\{rev}")}\n'
+  \{rev} \\\2
+  $ cd ..
 
 "string-escape"-ed "\x5c\x786e" becomes r"\x6e" (once) or r"n" (twice)
 
@@ -1785,6 +2493,14 @@ Test branches inside if statement:
   $ hg log -r 0 --template '{if(branches, "yes", "no")}\n'
   no
 
+Test get function:
+
+  $ hg log -r 0 --template '{get(extras, "branch")}\n'
+  default
+  $ hg log -r 0 --template '{get(files, "should_fail")}\n'
+  hg: parse error: get() expects a dict as first argument
+  [255]
+
 Test shortest(node) function:
 
   $ echo b > b
@@ -1817,6 +2533,11 @@ Test pad function
 
 Test ifcontains function
 
+  $ hg log --template '{rev} {ifcontains(rev, "2 two 0", "is in the string", "is not")}\n'
+  2 is in the string
+  1 is not
+  0 is in the string
+
   $ hg log --template '{rev} {ifcontains("a", file_adds, "added a", "did not add a")}\n'
   2 did not add a
   1 did not add a
@@ -1839,6 +2560,15 @@ Test revset function
   1 Parents: 0
   0 Parents: 
 
+  $ cat >> .hg/hgrc <<EOF
+  > [revsetalias]
+  > myparents(\$1) = parents(\$1)
+  > EOF
+  $ hg log --template '{rev} Parents: {revset("myparents(%s)", rev)}\n'
+  2 Parents: 1
+  1 Parents: 0
+  0 Parents: 
+
   $ hg log --template 'Rev: {rev}\n{revset("::%s", rev) % "Ancestor: {revision}\n"}\n'
   Rev: 2
   Ancestor: 0
@@ -1852,6 +2582,9 @@ Test revset function
   Rev: 0
   Ancestor: 0
   
+  $ hg log --template '{revset("TIP"|lower)}\n' -l1
+  2
+
 Test current bookmark templating
 
   $ hg book foo
@@ -1869,6 +2602,15 @@ Test current bookmark templating
   2 
   1 
   0 
+  $ hg book -r1 baz
+  $ hg log --template "{rev} {join(bookmarks, ' ')}\n"
+  2 bar foo
+  1 baz
+  0 
+  $ hg log --template "{rev} {ifcontains('foo', bookmarks, 't', 'f')}\n"
+  2 t
+  1 f
+  0 f
 
 Test stringify on sub expressions
 
@@ -1993,4 +2735,10 @@ Test word error messages for not enough and too many arguments
 
   $ hg log -Gv -R a --template "{word('0', desc, 'o', 'h', 'b', 'o', 'y')}"
   hg: parse error: word expects two or three arguments, got 7
+  [255]
+
+Test word for invalid numbers
+
+  $ hg log -Gv -R a --template "{word(2, desc)}"
+  hg: parse error: Use strings like '3' for numbers passed to word function
   [255]

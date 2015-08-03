@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
 Test chains of near empty directories, terminating 3 different ways:
 - a1: file at level 4 (deepest)
@@ -81,11 +81,13 @@ manifest with descending
   </form>
   
   <table class="bigtable">
+  <thead>
   <tr>
     <th class="name">name</th>
     <th class="size">size</th>
     <th class="permissions">permissions</th>
   </tr>
+  </thead>
   <tbody class="stripes2">
   <tr class="fileline">
     <td class="name"><a href="/file/9087c84a0f5d/">[up]</a></td>

@@ -234,6 +234,7 @@ Testing --debug:
   $ hg --cwd c log --debug
   changeset:   1:b6c483daf2907ce5825c0bb50f5716226281cc1a
   tag:         tip
+  phase:       public
   parent:      -1:0000000000000000000000000000000000000000
   parent:      -1:0000000000000000000000000000000000000000
   manifest:    1:23226e7a252cacdc2d99e4fbdc3653441056de49
@@ -246,6 +247,7 @@ Testing --debug:
   
   
   changeset:   0:8580ff50825a50c8f716709acdf8de0deddcd6ab
+  phase:       public
   parent:      -1:0000000000000000000000000000000000000000
   parent:      -1:0000000000000000000000000000000000000000
   manifest:    0:a0c8bcbbb45c63b90b70ad007bf38961f64f2af0
@@ -301,21 +303,20 @@ Testing -h/--help:
    copy          mark files as copied for the next commit
    diff          diff repository (or selected files)
    export        dump the header and diffs for one or more changesets
+   files         list tracked files
    forget        forget the specified files on the next commit
    graft         copy changes from other branches onto the current branch
    grep          search for a pattern in specified files and revisions
    heads         show branch heads
    help          show help for a given topic or a help overview
-   identify      identify the working copy or specified revision
+   identify      identify the working directory or specified revision
    import        import an ordered set of patches
    incoming      show new changesets found in source
    init          create a new repository in the given directory
-   locate        locate files matching specific patterns
    log           show revision history of entire repository or files
    manifest      output the current or given revision of the project manifest
-   merge         merge working directory with another revision
+   merge         merge another revision into working directory
    outgoing      show changesets not found in the destination
-   parents       show the parents of the working directory or revision
    paths         show aliases for remote repositories
    phase         set or show the current phase name
    pull          pull changes from the specified source
@@ -357,7 +358,7 @@ Testing -h/--help:
    templating    Template Usage
    urls          URL Paths
   
-  use "hg -v help" to show builtin aliases and global options
+  (use "hg help -v" to show built-in aliases and global options)
 
 
 
@@ -383,21 +384,20 @@ Testing -h/--help:
    copy          mark files as copied for the next commit
    diff          diff repository (or selected files)
    export        dump the header and diffs for one or more changesets
+   files         list tracked files
    forget        forget the specified files on the next commit
    graft         copy changes from other branches onto the current branch
    grep          search for a pattern in specified files and revisions
    heads         show branch heads
    help          show help for a given topic or a help overview
-   identify      identify the working copy or specified revision
+   identify      identify the working directory or specified revision
    import        import an ordered set of patches
    incoming      show new changesets found in source
    init          create a new repository in the given directory
-   locate        locate files matching specific patterns
    log           show revision history of entire repository or files
    manifest      output the current or given revision of the project manifest
-   merge         merge working directory with another revision
+   merge         merge another revision into working directory
    outgoing      show changesets not found in the destination
-   parents       show the parents of the working directory or revision
    paths         show aliases for remote repositories
    phase         set or show the current phase name
    pull          pull changes from the specified source
@@ -439,7 +439,7 @@ Testing -h/--help:
    templating    Template Usage
    urls          URL Paths
   
-  use "hg -v help" to show builtin aliases and global options
+  (use "hg help -v" to show built-in aliases and global options)
 
 Not tested: --debugger
 

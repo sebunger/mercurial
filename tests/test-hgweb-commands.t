@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
 An attempt at more fully testing the hgweb web interface.
 The following things are tested elsewhere and are therefore omitted:
@@ -726,10 +726,9 @@ Logs and changes
   <ul>
    <li><a href="/help">help</a></li>
   </ul>
-  <p>
   <div class="atom-logo">
   <a href="/atom-log" title="subscribe to atom feed">
-  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed" />
   </a>
   </div>
   </div>
@@ -752,11 +751,13 @@ Logs and changes
   </div>
   
   <table class="bigtable">
+  <thead>
    <tr>
     <th class="age">age</th>
     <th class="author">author</th>
     <th class="description">description</th>
    </tr>
+  </thead>
   <tbody class="stripes2">
    <tr>
     <td class="age">Thu, 01 Jan 1970 00:00:00 +0000</td>
@@ -796,7 +797,7 @@ Logs and changes
                   var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
                   return m ? m[1] : null;
               },
-              '.bigtable > tbody:nth-of-type(2)',
+              '.bigtable > tbody',
               '<tr class="%class%">\
               <td colspan="3" style="text-align: center;">%text%</td>\
               </tr>'
@@ -873,7 +874,8 @@ Logs and changes
   </tr>
   <tr>
    <th class="date">date</th>
-   <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td></tr>
+   <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td>
+  </tr>
   <tr>
    <th class="author">parents</th>
    <td class="author"></td>
@@ -891,11 +893,10 @@ Logs and changes
     <td class="diffstat">
        2 files changed, 2 insertions(+), 0 deletions(-)
   
-      <a id="diffstatexpand" href="javascript:toggleDiffstat()"/>[<tt>+</tt>]</a>
+      <a id="diffstatexpand" href="javascript:toggleDiffstat()">[<tt>+</tt>]</a>
       <div id="diffstatdetails" style="display:none;">
-        <a href="javascript:toggleDiffstat()"/>[<tt>-</tt>]</a>
-        <p>
-        <table class="stripes2">  <tr>
+        <a href="javascript:toggleDiffstat()">[<tt>-</tt>]</a>
+        <table class="diffstat-table stripes2">  <tr>
       <td class="diffstat-file"><a href="#l1.1">da/foo</a></td>
       <td class="diffstat-total" align="right">1</td>
       <td class="diffstat-graph">
@@ -1007,16 +1008,18 @@ Logs and changes
   </form>
   
   <div class="navigate">
-  <a href="/search/?rev=base&revcount=5">less</a>
-  <a href="/search/?rev=base&revcount=20">more</a>
+  <a href="/log?rev=base&revcount=5">less</a>
+  <a href="/log?rev=base&revcount=20">more</a>
   </div>
   
   <table class="bigtable">
+  <thead>
    <tr>
     <th class="age">age</th>
     <th class="author">author</th>
     <th class="description">description</th>
    </tr>
+  </thead>
   <tbody class="stripes2">
    <tr>
     <td class="age">Thu, 01 Jan 1970 00:00:00 +0000</td>
@@ -1028,8 +1031,8 @@ Logs and changes
   </table>
   
   <div class="navigate">
-  <a href="/search/?rev=base&revcount=5">less</a>
-  <a href="/search/?rev=base&revcount=20">more</a>
+  <a href="/log?rev=base&revcount=5">less</a>
+  <a href="/log?rev=base&revcount=20">more</a>
   </div>
   
   </div>
@@ -1869,7 +1872,7 @@ capabilities
   $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '?cmd=capabilities'; echo
   200 Script output follows
   
-  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024
+  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1*%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024 (glob)
 
 heads
 
@@ -2034,7 +2037,7 @@ Stop and restart with HGENCODING=cp932 and preferuncompressed
 commit message with Japanese Kanji 'Noh', which ends with '\x5c'
 
   $ echo foo >> foo
-  $ HGENCODING=cp932 hg ci -m `python -c 'print("\x94\x5c")'`
+  $ HGENCODING=cp932 hg ci -m `$PYTHON -c 'print("\x94\x5c")'`
 
 Graph json escape of multibyte character
 
@@ -2049,7 +2052,7 @@ capabilities
   $ "$TESTDIR/get-with-headers.py" 127.0.0.1:$HGPORT '?cmd=capabilities'; echo
   200 Script output follows
   
-  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch stream-preferred stream unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024
+  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch stream-preferred stream bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1*%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024 (glob)
 
 heads
 
@@ -2175,7 +2178,7 @@ proper status for filtered revision
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
   
-  error: unknown revision '5'
+  error: filtered revision '5' (not in 'served' subset)
 
 
 
@@ -2189,7 +2192,7 @@ proper status for filtered revision
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
   
-  error: unknown revision '4'
+  error: filtered revision '4' (not in 'served' subset)
 
 filtered '0' changeset
 
@@ -2201,12 +2204,12 @@ filtered '0' changeset
   $ hg ci -m 'Babar is in the jungle!'
   created new head
   $ hg graft 0::
-  grafting revision 0
-  grafting revision 1
-  grafting revision 2
-  grafting revision 3
-  grafting revision 4
-  grafting revision 5
+  grafting 0:b4e73ffab476 "0"
+  grafting 1:e06180cbfb0c "1"
+  grafting 2:ab4f1438558b "2"
+  grafting 3:ada793dcc118 "3"
+  grafting 4:b60a39a85a01 "4" (secret)
+  grafting 5:aed2d9c1d0e7 "5"
 (turning the initial root secret (filtered))
   $ hg phase --force --secret 0
   $ PATH_INFO=/graph/; export PATH_INFO

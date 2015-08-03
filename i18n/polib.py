@@ -396,7 +396,7 @@ class _BaseFile(list):
     def ordered_metadata(self):
         """
         Convenience method that returns an ordered version of the metadata
-        dictionnary. The return value is list of tuples (metadata name,
+        dictionary. The return value is list of tuples (metadata name,
         metadata_value).
         """
         # copy the dict first
@@ -437,8 +437,15 @@ class _BaseFile(list):
         # the keys are sorted in the .mo file
         def cmp(_self, other):
             # msgfmt compares entries with msgctxt if it exists
-            self_msgid = _self.msgctxt and _self.msgctxt or _self.msgid
-            other_msgid = other.msgctxt and other.msgctxt or other.msgid
+            if _self.msgctxt:
+                self_msgid = _self.msgctxt
+            else:
+                self_msgid = _self.msgid
+
+            if other.msgctxt:
+                other_msgid = other.msgctxt
+            else:
+                other_msgid = other.msgid
             if self_msgid > other_msgid:
                 return 1
             elif self_msgid < other_msgid:

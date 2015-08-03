@@ -7,7 +7,7 @@
 
 from i18n import _
 import os, sys, time
-import extensions, util, demandimport
+import extensions, util, demandimport, error
 
 def _pythonhook(ui, repo, name, hname, funcname, args, throw):
     '''call python hook. hook is callable object, looked up as
@@ -107,7 +107,7 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
                name, funcname, duration)
     if r:
         if throw:
-            raise util.Abort(_('%s hook failed') % hname)
+            raise error.HookAbort(_('%s hook failed') % hname)
         ui.warn(_('warning: %s hook failed\n') % hname)
     return r
 
@@ -131,10 +131,7 @@ def _exthook(ui, repo, name, cmd, args, throw):
         cwd = repo.root
     else:
         cwd = os.getcwd()
-    if 'HG_URL' in env and env['HG_URL'].startswith('remote:http'):
-        r = util.system(cmd, environ=env, cwd=cwd, out=ui)
-    else:
-        r = util.system(cmd, environ=env, cwd=cwd, out=ui.fout)
+    r = ui.system(cmd, environ=env, cwd=cwd)
 
     duration = time.time() - starttime
     ui.log('exthook', 'exthook-%s: %s finished in %0.2f seconds\n',
@@ -142,7 +139,7 @@ def _exthook(ui, repo, name, cmd, args, throw):
     if r:
         desc, r = util.explainexit(r)
         if throw:
-            raise util.Abort(_('%s hook %s') % (name, desc))
+            raise error.HookAbort(_('%s hook %s') % (name, desc))
         ui.warn(_('warning: %s hook %s\n') % (name, desc))
     return r
 
@@ -203,6 +200,11 @@ def hook(ui, repo, name, throw=False, **args):
                 r = _pythonhook(ui, repo, name, hname, hookfn, args, throw) or r
             else:
                 r = _exthook(ui, repo, hname, cmd, args, throw) or r
+
+            # The stderr is fully buffered on Windows when connected to a pipe.
+            # A forcible flush is required to make small stderr data in the
+            # remote side available to the client immediately.
+            sys.stderr.flush()
     finally:
         if _redirect and oldstdout >= 0:
             os.dup2(oldstdout, stdoutno)

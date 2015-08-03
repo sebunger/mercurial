@@ -105,6 +105,54 @@ check histedit_source
   
   
 
+rollup will fold without preserving the folded commit's message
+
+  $ OLDHGEDITOR=$HGEDITOR
+  $ HGEDITOR=false
+  $ hg histedit d2ae7f538514 --commands - 2>&1 <<EOF | fixbundle
+  > pick d2ae7f538514 b
+  > roll ee283cb5f2d5 e
+  > pick 6de59d13424a f
+  > pick 9c277da72c9b d
+  > EOF
+  0 files updated, 0 files merged, 4 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ HGEDITOR=$OLDHGEDITOR
+
+log after edit
+  $ hg logt --graph
+  @  3:c4a9eb7989fc d
+  |
+  o  2:8e03a72b6f83 f
+  |
+  o  1:391ee782c689 b
+  |
+  o  0:cb9a9f314b8b a
+  
+
+description is taken from rollup target commit
+
+  $ hg log --debug --rev 1
+  changeset:   1:391ee782c68930be438ccf4c6a403daedbfbffa5
+  phase:       draft
+  parent:      0:cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
+  parent:      -1:0000000000000000000000000000000000000000
+  manifest:    1:b5e112a3a8354e269b1524729f0918662d847c38
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  files+:      b e
+  extra:       branch=default
+  extra:       histedit_source=d2ae7f538514cd87c17547b0de4cea71fe1af9fb,ee283cb5f2d5955443f23a27b697a04339e9a39a
+  description:
+  b
+  
+  
+
 check saving last-message.txt
 
   $ cat > $TESTTMP/abortfolding.py <<EOF
@@ -128,11 +176,16 @@ check saving last-message.txt
   > EOF
 
   $ rm -f .hg/last-message.txt
-  $ HGEDITOR="sh $TESTTMP/editor.sh" hg histedit 6de59d13424a --commands - 2>&1 <<EOF | fixbundle
-  > pick 6de59d13424a f
-  > fold 9c277da72c9b d
+  $ hg status --rev '8e03a72b6f83^1::c4a9eb7989fc'
+  A c
+  A d
+  A f
+  $ HGEDITOR="sh $TESTTMP/editor.sh" hg histedit 8e03a72b6f83 --commands - 2>&1 <<EOF
+  > pick 8e03a72b6f83 f
+  > fold c4a9eb7989fc d
   > EOF
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  adding d
   allow non-folding commit
   0 files updated, 0 files merged, 3 files removed, 0 files unresolved
   ==== before editing
@@ -149,13 +202,14 @@ check saving last-message.txt
   HG: --
   HG: user: test
   HG: branch 'default'
-  HG: changed c
-  HG: changed d
-  HG: changed f
+  HG: added c
+  HG: added d
+  HG: added f
   ====
   transaction abort!
   rollback completed
   abort: pretxncommit.abortfolding hook failed
+  [255]
 
   $ cat .hg/last-message.txt
   f
@@ -257,6 +311,7 @@ should effectively drop the changes from +6.
   $ hg resolve --mark file
   (no more unresolved files)
   $ hg histedit --continue
+  251d831eeec5: empty changeset
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/*-backup.hg (glob)
   $ hg logt --graph
@@ -337,7 +392,7 @@ dropped revision.
   HG: changed file
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/fold-with-dropped/.hg/strip-backup/617f94f13c0f-backup.hg (glob)
+  saved backup bundle to $TESTTMP/fold-with-dropped/.hg/strip-backup/617f94f13c0f-3d69522c-backup.hg (glob)
   $ hg logt -G
   @  1:10c647b2cdd5 +4
   |
@@ -400,5 +455,54 @@ Folding with initial rename (issue3729)
   $ hg logt --follow b.txt
   1:cf858d235c76 rename
   0:6c795aa153cb a
+
+  $ cd ..
+
+Folding with swapping
+---------------------
+
+This is an excuse to test hook with histedit temporary commit (issue4422)
+
+
+  $ hg init issue4422
+  $ cd issue4422
+  $ echo a > a.txt
+  $ hg add a.txt
+  $ hg commit -m a
+  $ echo b > b.txt
+  $ hg add b.txt
+  $ hg commit -m b
+  $ echo c > c.txt
+  $ hg add c.txt
+  $ hg commit -m c
+
+  $ hg logt
+  2:a1a953ffb4b0 c
+  1:199b6bb90248 b
+  0:6c795aa153cb a
+
+Setup the proper environment variable symbol for the platform, to be subbed
+into the hook command.
+#if windows
+  $ NODE="%HG_NODE%"
+#else
+  $ NODE="\$HG_NODE"
+#endif
+  $ hg histedit 6c795aa153cb --config hooks.commit="echo commit $NODE" --commands - 2>&1 << EOF | fixbundle
+  > pick 199b6bb90248 b
+  > fold a1a953ffb4b0 c
+  > pick 6c795aa153cb a
+  > EOF
+  0 files updated, 0 files merged, 3 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  commit 9599899f62c05f4377548c32bf1c9f1a39634b0c
+
+  $ hg logt
+  1:9599899f62c0 a
+  0:79b99e9c8e49 b
 
   $ cd ..

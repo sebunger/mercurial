@@ -81,6 +81,7 @@ class _httprequesthandler(BaseHTTPServer.BaseHTTPRequestHandler):
         except Exception:
             self._start_response("500 Internal Server Error", [])
             self._write("Internal Server Error")
+            self._done()
             tb = "".join(traceback.format_exception(*sys.exc_info()))
             self.log_error("Exception happened during processing "
                            "request '%s':\n%s", self.path, tb)
@@ -208,7 +209,7 @@ class _httprequesthandleropenssl(_httprequesthandler):
             OpenSSL.SSL.Context
         except ImportError:
             raise util.Abort(_("SSL support is unavailable"))
-        ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
+        ctx = OpenSSL.SSL.Context(OpenSSL.SSL.TLSv1_METHOD)
         ctx.use_privatekey_file(ssl_cert)
         ctx.use_certificate_file(ssl_cert)
         sock = socket.socket(httpserver.address_family, httpserver.socket_type)
@@ -249,8 +250,9 @@ class _httprequesthandlerssl(_httprequesthandler):
             ssl.wrap_socket
         except ImportError:
             raise util.Abort(_("SSL support is unavailable"))
-        httpserver.socket = ssl.wrap_socket(httpserver.socket, server_side=True,
-            certfile=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
+        httpserver.socket = ssl.wrap_socket(
+            httpserver.socket, server_side=True,
+            certfile=ssl_cert, ssl_version=ssl.PROTOCOL_TLSv1)
 
     def setup(self):
         self.connection = self.request

@@ -16,6 +16,12 @@
   $ hg copy foo baz
   $ hg ci -m 'make bar and baz copies of foo' -d '2 0'
   created new head
+
+Test that template can print all file copies (issue4362)
+  $ hg log -r . --template "{file_copies % ' File: {file_copy}\n'}"
+   File: bar (foo)
+   File: baz (foo)
+
   $ hg bookmark premerge1
   $ hg merge -r 1
   merging baz and foo to baz
@@ -32,6 +38,13 @@
   (branch merge, don't forget to commit)
   $ hg ci -m 'merge remote copy' -d '4 0'
   created new head
+
+Make and delete some tags
+
+  $ hg tag that
+  $ hg tag --remove that
+  $ hg tag this
+
 #if execbit
   $ chmod +x baz
 #else
@@ -44,11 +57,14 @@
   scanning source...
   sorting...
   converting...
-  5 add foo bar
-  4 change foo
-  3 make bar and baz copies of foo
-  2 merge local copy
-  1 merge remote copy
+  8 add foo bar
+  7 change foo
+  6 make bar and baz copies of foo
+  5 merge local copy
+  4 merge remote copy
+  3 Added tag that for changeset 88586c4e9f02
+  2 Removed tag that
+  1 Added tag this for changeset c56a7f387039
   0 mark baz executable
   updating bookmarks
   $ cd new
@@ -60,12 +76,12 @@
 #if execbit
   $ hg bookmarks
      premerge1                 3:973ef48a98a4
-     premerge2                 5:13d9b87cf8f8
+     premerge2                 8:91d107c423ba
 #else
 Different hash because no x bit
   $ hg bookmarks
      premerge1                 3:973ef48a98a4
-     premerge2                 5:df0779bcf33c
+     premerge2                 8:3537b15eaaca
 #endif
   $ cd ..
 

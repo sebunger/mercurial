@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" serve || exit 80
+#require serve
 
 Some tests for hgweb. Tests static files, plain files and different 404's.
 
@@ -272,11 +272,13 @@ try bad style
   </form>
   
   <table class="bigtable">
+  <thead>
   <tr>
     <th class="name">name</th>
     <th class="size">size</th>
     <th class="permissions">permissions</th>
   </tr>
+  </thead>
   <tbody class="stripes2">
   <tr class="fileline">
     <td class="name"><a href="/file/2ef0ac749a14/">[up]</a></td>
@@ -325,14 +327,14 @@ stop and restart
 
 Test the access/error files are opened in append mode
 
-  $ python -c "print len(file('access.log').readlines()), 'log lines written'"
+  $ $PYTHON -c "print len(file('access.log').readlines()), 'log lines written'"
   14 log lines written
 
 static file
 
   $ "$TESTDIR/get-with-headers.py" --twice localhost:$HGPORT 'static/style-gitweb.css' - date etag server
   200 Script output follows
-  content-length: 5262
+  content-length: 5372
   content-type: text/css
   
   body { font-family: sans-serif; font-size: 12px; border:solid #d9d8d1; border-width:1px; margin:10px; }
@@ -421,6 +423,9 @@ static file
   	background-color: #afdffa;
   	border-color: #ccecff #46ace6 #46ace6 #ccecff;
   }
+  span.difflineplus { color:#008800; }
+  span.difflineminus { color:#cc0000; }
+  span.difflineat { color:#990099; }
   
   /* Graph */
   div#wrapper {
@@ -575,8 +580,77 @@ phase changes are refreshed (issue4061)
   
   
 
+no style can be loaded from directories other than the specified paths
+
+  $ mkdir -p x/templates/fallback
+  $ cat <<EOF > x/templates/fallback/map
+  > default = 'shortlog'
+  > shortlog = 'fall back to default\n'
+  > mimetype = 'text/plain'
+  > EOF
+  $ cat <<EOF > x/map
+  > default = 'shortlog'
+  > shortlog = 'access to outside of templates directory\n'
+  > mimetype = 'text/plain'
+  > EOF
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+  $ hg serve -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log \
+  > --config web.style=fallback --config web.templates=x/templates
+  $ cat hg.pid >> $DAEMON_PIDS
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT "?style=`pwd`/x"
+  200 Script output follows
+  
+  fall back to default
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=..'
+  200 Script output follows
+  
+  fall back to default
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=./..'
+  200 Script output follows
+  
+  fall back to default
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=.../.../'
+  200 Script output follows
+  
+  fall back to default
+
 errors
 
   $ cat errors.log
 
+Uncaught exceptions result in a logged error and canned HTTP response
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+  $ hg --config extensions.hgweberror=$TESTDIR/hgweberror.py serve -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
+  $ cat hg.pid >> $DAEMON_PIDS
+
+  $ $TESTDIR/get-with-headers.py localhost:$HGPORT 'raiseerror' transfer-encoding content-type
+  500 Internal Server Error
+  transfer-encoding: chunked
+  
+  Internal Server Error (no-eol)
+  [1]
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+  $ head -1 errors.log
+  .* Exception happened during processing request '/raiseerror': (re)
+
+Uncaught exception after partial content sent
+
+  $ hg --config extensions.hgweberror=$TESTDIR/hgweberror.py serve -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ $TESTDIR/get-with-headers.py localhost:$HGPORT 'raiseerror?partialresponse=1' transfer-encoding content-type
+  200 Script output follows
+  transfer-encoding: chunked
+  content-type: text/plain
+  
+  partial content
+  Internal Server Error (no-eol)
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
   $ cd ..

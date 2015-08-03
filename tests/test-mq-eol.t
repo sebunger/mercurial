@@ -2,10 +2,12 @@
 Test interactions between mq and patch.eol
 
 
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "mq=" >> $HGRCPATH
-  $ echo "[diff]" >> $HGRCPATH
-  $ echo "nodates=1" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > mq =
+  > [diff]
+  > nodates = 1
+  > EOF
 
   $ cat > makepatch.py <<EOF
   > f = file('eol.diff', 'wb')
@@ -42,7 +44,7 @@ Test interactions between mq and patch.eol
 
 Test different --eol values
 
-  $ python -c 'file("a", "wb").write("a\nb\nc\nd\ne")'
+  $ $PYTHON -c 'file("a", "wb").write("a\nb\nc\nd\ne")'
   $ hg ci -Am adda
   adding .hgignore
   adding a
@@ -58,7 +60,7 @@ should fail in strict mode
   Hunk #1 FAILED at 0
   1 out of 1 hunks FAILED -- saving rejects to file a.rej
   patch failed, unable to continue (try -v)
-  patch failed, rejects left in working dir
+  patch failed, rejects left in working directory
   errors during apply, please fix and refresh eol.diff
   [2]
   $ hg qpop
@@ -70,7 +72,7 @@ invalid eol
   $ hg --config patch.eol='LFCR' qpush
   applying eol.diff
   patch failed, unable to continue (try -v)
-  patch failed, rejects left in working dir
+  patch failed, rejects left in working directory
   errors during apply, please fix and refresh eol.diff
   [2]
   $ hg qpop
@@ -84,6 +86,8 @@ force LF
   now at: eol.diff
   $ hg qrefresh
   $ python ../cateol.py .hg/patches/eol.diff
+  # HG changeset patch<LF>
+  # Parent  0d0bf99a8b7a3842c6f8ef09e34f69156c4bd9d0<LF>
   test message<LF>
   <LF>
   diff -r 0d0bf99a8b7a a<LF>
@@ -148,15 +152,15 @@ Test .rej file EOL are left unchanged
 
   $ hg init testeol
   $ cd testeol
-  $ python -c "file('a', 'wb').write('1\r\n2\r\n3\r\n4')"
+  $ $PYTHON -c "file('a', 'wb').write('1\r\n2\r\n3\r\n4')"
   $ hg ci -Am adda
   adding a
-  $ python -c "file('a', 'wb').write('1\r\n2\r\n33\r\n4')"
+  $ $PYTHON -c "file('a', 'wb').write('1\r\n2\r\n33\r\n4')"
   $ hg qnew patch1
   $ hg qpop
   popping patch1
   patch queue now empty
-  $ python -c "file('a', 'wb').write('1\r\n22\r\n33\r\n4')"
+  $ $PYTHON -c "file('a', 'wb').write('1\r\n22\r\n33\r\n4')"
   $ hg ci -m changea
 
   $ hg --config 'patch.eol=LF' qpush
@@ -165,7 +169,7 @@ Test .rej file EOL are left unchanged
   Hunk #1 FAILED at 0
   1 out of 1 hunks FAILED -- saving rejects to file a.rej
   patch failed, unable to continue (try -v)
-  patch failed, rejects left in working dir
+  patch failed, rejects left in working directory
   errors during apply, please fix and refresh patch1
   [2]
   $ hg qpop
@@ -188,7 +192,7 @@ Test .rej file EOL are left unchanged
   Hunk #1 FAILED at 0
   1 out of 1 hunks FAILED -- saving rejects to file a.rej
   patch failed, unable to continue (try -v)
-  patch failed, rejects left in working dir
+  patch failed, rejects left in working directory
   errors during apply, please fix and refresh patch1
   [2]
   $ hg qpop

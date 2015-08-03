@@ -12,11 +12,15 @@ import hbisect
 # This helper class allows us to handle both:
 #  "{files}" (legacy command-line-specific list hack) and
 #  "{files % '{file}\n'}" (hgweb-style with inlining and function support)
+# and to access raw values:
+#  "{ifcontains(file, files, ...)}", "{ifcontains(key, extras, ...)}"
+#  "{get(extras, key)}"
 
 class _hybrid(object):
-    def __init__(self, gen, values, joinfmt=None):
+    def __init__(self, gen, values, makemap, joinfmt=None):
         self.gen = gen
         self.values = values
+        self._makemap = makemap
         if joinfmt:
             self.joinfmt = joinfmt
         else:
@@ -24,14 +28,23 @@ class _hybrid(object):
     def __iter__(self):
         return self.gen
     def __call__(self):
+        makemap = self._makemap
         for x in self.values:
-            yield x
+            yield makemap(x)
+    def __contains__(self, x):
+        return x in self.values
+    def __len__(self):
+        return len(self.values)
+    def __getattr__(self, name):
+        if name != 'get':
+            raise AttributeError(name)
+        return getattr(self.values, name)
 
 def showlist(name, values, plural=None, element=None, **args):
     if not element:
         element = name
     f = _showlist(name, values, plural, **args)
-    return _hybrid(f, [{element: x} for x in values])
+    return _hybrid(f, values, lambda x: {element: x})
 
 def _showlist(name, values, plural=None, **args):
     '''expand set of values.
@@ -98,7 +111,7 @@ def _showlist(name, values, plural=None, **args):
 
 def getfiles(repo, ctx, revcache):
     if 'files' not in revcache:
-        revcache['files'] = repo.status(ctx.p1().node(), ctx.node())[:3]
+        revcache['files'] = repo.status(ctx.p1(), ctx)[:3]
     return revcache['files']
 
 def getlatesttags(repo, ctx, cache):
@@ -197,10 +210,10 @@ def showbookmarks(**args):
     """
     repo = args['ctx']._repo
     bookmarks = args['ctx'].bookmarks()
-    hybrid = showlist('bookmark', bookmarks, **args)
-    for value in hybrid.values:
-        value['current'] = repo._bookmarkcurrent
-    return hybrid
+    current = repo._bookmarkcurrent
+    makemap = lambda v: {'bookmark': v, 'current': current}
+    f = _showlist('bookmark', bookmarks, **args)
+    return _hybrid(f, bookmarks, makemap, lambda x: x['bookmark'])
 
 def showchildren(**args):
     """:children: List of strings. The children of the changeset."""
@@ -239,9 +252,12 @@ def showextras(**args):
     """:extras: List of dicts with key, value entries of the 'extras'
     field of this changeset."""
     extras = args['ctx'].extra()
-    c = [{'key': x[0], 'value': x[1]} for x in sorted(extras.items())]
+    extras = util.sortdict((k, extras[k]) for k in sorted(extras))
+    makemap = lambda k: {'key': k, 'value': extras[k]}
+    c = [makemap(k) for k in extras]
     f = _showlist('extra', c, plural='extras', **args)
-    return _hybrid(f, c, lambda x: '%s=%s' % (x['key'], x['value']))
+    return _hybrid(f, extras, makemap,
+                   lambda x: '%s=%s' % (x['key'], x['value']))
 
 def showfileadds(**args):
     """:file_adds: List of strings. Files added by this changeset."""
@@ -265,9 +281,12 @@ def showfilecopies(**args):
             if rename:
                 copies.append((fn, rename[0]))
 
-    c = [{'name': x[0], 'source': x[1]} for x in copies]
+    copies = util.sortdict(copies)
+    makemap = lambda k: {'name': k, 'source': copies[k]}
+    c = [makemap(k) for k in copies]
     f = _showlist('file_copy', c, plural='file_copies', **args)
-    return _hybrid(f, c, lambda x: '%s (%s)' % (x['name'], x['source']))
+    return _hybrid(f, copies, makemap,
+                   lambda x: '%s (%s)' % (x['name'], x['source']))
 
 # showfilecopiesswitch() displays file copies only if copy records are
 # provided before calling the templater, usually with a --copies
@@ -277,9 +296,12 @@ def showfilecopiesswitch(**args):
     only if the --copied switch is set.
     """
     copies = args['revcache'].get('copies') or []
-    c = [{'name': x[0], 'source': x[1]} for x in copies]
+    copies = util.sortdict(copies)
+    makemap = lambda k: {'name': k, 'source': copies[k]}
+    c = [makemap(k) for k in copies]
     f = _showlist('file_copy', c, plural='file_copies', **args)
-    return _hybrid(f, c, lambda x: '%s (%s)' % (x['name'], x['source']))
+    return _hybrid(f, copies, makemap,
+                   lambda x: '%s (%s)' % (x['name'], x['source']))
 
 def showfiledels(**args):
     """:file_dels: List of strings. Files removed by this changeset."""
@@ -311,9 +333,9 @@ def showlatesttagdistance(repo, ctx, templ, cache, **args):
 
 def showmanifest(**args):
     repo, ctx, templ = args['repo'], args['ctx'], args['templ']
+    mnode = ctx.manifestnode()
     args = args.copy()
-    args.update({'rev': repo.manifest.rev(ctx.changeset()[0]),
-                 'node': hex(ctx.changeset()[0])})
+    args.update({'rev': repo.manifest.rev(mnode), 'node': hex(mnode)})
     return templ('manifest', **args)
 
 def shownode(repo, ctx, templ, **args):
@@ -372,9 +394,20 @@ def showsubrepos(**args):
             subrepos.append(sub) # removed in ctx
     return showlist('subrepo', sorted(subrepos), **args)
 
+def shownames(namespace, **args):
+    """helper method to generate a template keyword for a namespace"""
+    ctx = args['ctx']
+    repo = ctx.repo()
+    ns = repo.names[namespace]
+    names = ns.names(repo, ctx.node())
+    return showlist(ns.templatename, names, plural=namespace, **args)
+
+# don't remove "showtags" definition, even though namespaces will put
+# a helper function for "tags" keyword into "keywords" map automatically,
+# because online help text is built without namespaces initialization
 def showtags(**args):
     """:tags: List of strings. Any tags associated with the changeset."""
-    return showlist('tag', args['ctx'].tags(), **args)
+    return shownames('tags', **args)
 
 # keywords are callables like:
 # fn(repo, ctx, templ, cache, revcache, **args)

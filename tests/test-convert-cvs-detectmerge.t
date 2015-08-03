@@ -1,8 +1,9 @@
+#require cvs
+
 Test config convert.cvsps.mergefrom config setting.
 (Should test similar mergeto feature, but I don't understand it yet.)
 Requires builtin cvsps.
 
-  $ "$TESTDIR/hghave" cvs || exit 80
   $ CVSROOT=`pwd`/cvsrepo
   $ export CVSROOT
 
@@ -22,15 +23,16 @@ XXX copied from test-convert-cvs-synthetic
 
 XXX copied from test-convert-cvs-synthetic
 
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "convert = " >> $HGRCPATH
-  $ echo "[convert]" >> $HGRCPATH
-  $ echo "cvsps.cache=0" >> $HGRCPATH
-  $ echo "cvsps.mergefrom=\[MERGE from (\S+)\]" >> $HGRCPATH
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > convert =
+  > [convert]
+  > cvsps.cache = 0
+  > cvsps.mergefrom = \[MERGE from (\S+)\]
+  > EOF
 
 create cvs repository with one project
 
-  $ mkdir cvsrepo
   $ cvscall -q -d "$CVSROOT" init
   $ mkdir cvsrepo/proj
 

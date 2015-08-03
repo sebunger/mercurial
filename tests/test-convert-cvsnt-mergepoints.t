@@ -1,5 +1,5 @@
+#require cvs
 
-  $ "$TESTDIR/hghave" cvs || exit 80
   $ filterpath()
   > {
   >     eval "$@" | sed "s:$CVSROOT:*REPO*:g"
@@ -32,6 +32,7 @@ create cvs repository
   $ CVS_OPTIONS=-f
   $ export CVS_OPTIONS
   $ cd ..
+  $ rmdir cvsmaster
   $ filterpath cvscall -Q -d "$CVSROOT" init
 
 checkout #1: add foo.txt

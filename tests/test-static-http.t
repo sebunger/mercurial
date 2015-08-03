@@ -1,4 +1,4 @@
-  $ "$TESTDIR/hghave" killdaemons || exit 80
+#require killdaemons
 
 #if windows
   $ hg clone http://localhost:$HGPORT/ copy
@@ -15,36 +15,7 @@
 This server doesn't do range requests so it's basically only good for
 one pull
 
-  $ cat > dumb.py <<EOF
-  > import BaseHTTPServer, SimpleHTTPServer, os, signal, sys
-  > 
-  > def run(server_class=BaseHTTPServer.HTTPServer,
-  >         handler_class=SimpleHTTPServer.SimpleHTTPRequestHandler):
-  >     server_address = ('localhost', int(os.environ['HGPORT']))
-  >     httpd = server_class(server_address, handler_class)
-  >     httpd.serve_forever()
-  > 
-  > signal.signal(signal.SIGTERM, lambda x, y: sys.exit(0))
-  > fp = file('dumb.pid', 'wb')
-  > fp.write(str(os.getpid()) + '\n')
-  > fp.close()
-  > run()
-  > EOF
-  $ python dumb.py 2>/dev/null &
-
-Cannot just read $!, it will not be set to the right value on Windows/MinGW
-
-  $ cat > wait.py <<EOF
-  > import time
-  > while True:
-  >     try:
-  >         if '\n' in file('dumb.pid', 'rb').read():
-  >             break
-  >     except IOError:
-  >         pass
-  >     time.sleep(0.2)
-  > EOF
-  $ python wait.py
+  $ python "$TESTDIR/dumbhttp.py" -p $HGPORT --pid dumb.pid
   $ cat dumb.pid >> $DAEMON_PIDS
   $ hg init remote
   $ cd remote
@@ -97,7 +68,7 @@ check for HTTP opener failures when cachefile does not exist
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  changegroup hook: HG_NODE=4ac2e3648604439c580c69b09ec9d93a88d93432 HG_SOURCE=pull HG_URL=http://localhost:$HGPORT/remote
+  changegroup hook: HG_NODE=4ac2e3648604439c580c69b09ec9d93a88d93432 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=http://localhost:$HGPORT/remote (glob)
   (run 'hg update' to get a working copy)
 
 trying to push
@@ -125,7 +96,7 @@ trying clone -r
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-test with "/" URI (issue 747) and subrepo
+test with "/" URI (issue747) and subrepo
 
   $ hg init
   $ hg init sub
