@@ -1,3 +1,9 @@
+mercurial (3.4.2-1~bpo8+1) jessie-backports; urgency=medium
+
+  * Rebuild for jessie-backports.
+
+ -- Javi Merino <vicho@debian.org>  Mon, 03 Aug 2015 21:10:39 +0100
+
 mercurial (3.4.2-1) unstable; urgency=medium
 
   * New upstream release
