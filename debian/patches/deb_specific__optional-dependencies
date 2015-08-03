@@ -26,7 +26,7 @@ Suggest Debian packages for some optional dependencies.
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -28,11 +28,12 @@ def decodeargs(s):
+@@ -28,14 +28,15 @@ def decodeargs(s):
  class MissingTool(Exception):
      pass
  
@@ -34,7 +34,10 @@ Suggest Debian packages for some optional dependencies.
 +def checktool(exe, name=None, abort=True, debname=None):
      name = name or exe
      if not util.findexe(exe):
-         exc = abort and util.Abort or MissingTool
+         if abort:
+             exc = util.Abort
+         else:
+             exc = MissingTool
 -        raise exc(_('cannot find required "%s" tool') % name)
 +        raise exc(_('cannot find required "%s" tool') % name +
 +                  (debname and _(' (try installing the %s package)') % debname or ''))
@@ -74,9 +77,9 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -94,7 +94,7 @@ class convert_git(converter_source):
-         if not os.path.exists(path + "/objects"):
-             raise NoRepo(_("%s does not look like a Git repository") % path)
+@@ -107,7 +107,7 @@ class convert_git(converter_source):
+         else:
+             self.simopt = ''
  
 -        checktool('git', 'git')
 +        checktool('git', 'git', debname='git-core')
@@ -139,7 +142,7 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1069,6 +1073,8 @@ class svn_sink(converter_sink, commandli
+@@ -1089,6 +1093,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
@@ -150,23 +153,23 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -207,7 +207,8 @@ class _httprequesthandleropenssl(_httpre
+@@ -208,7 +208,8 @@ class _httprequesthandleropenssl(_httpre
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
 -            raise util.Abort(_("SSL support is unavailable"))
 +            raise util.Abort(_("SSL support is unavailable") +
 +                             _(" (try installing the %s package)") % 'python-openssl')
-         ctx = OpenSSL.SSL.Context(OpenSSL.SSL.SSLv23_METHOD)
+         ctx = OpenSSL.SSL.Context(OpenSSL.SSL.TLSv1_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
-@@ -248,7 +249,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -249,7 +250,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:
 -            raise util.Abort(_("SSL support is unavailable"))
 +            raise util.Abort(_("SSL support is unavailable") +
 +                             _(" (try installing the %s package)") % 'python-openssl')
-         httpserver.socket = ssl.wrap_socket(httpserver.socket, server_side=True,
-             certfile=ssl_cert, ssl_version=ssl.PROTOCOL_SSLv23)
- 
+         httpserver.socket = ssl.wrap_socket(
+             httpserver.socket, server_side=True,
+             certfile=ssl_cert, ssl_version=ssl.PROTOCOL_TLSv1)

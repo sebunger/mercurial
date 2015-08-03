@@ -8,14 +8,13 @@ Author: Stefano Rivera <stefanor@debian.org>
 Bug-Debian: http://bugs.debian.org/620087
 Bug-Ubuntu: https://bugs.launchpad.net/bugs/745250
 Forwarded: not-needed
-Last-Update: 2011-03-30
- 
+
 --- a/setup.py
 +++ b/setup.py
-@@ -422,7 +422,6 @@ cmdclass = {'build': hgbuild,
-             'build_ext': hgbuildext,
+@@ -471,7 +471,6 @@ cmdclass = {'build': hgbuild,
              'build_py': hgbuildpy,
              'build_hgextindex': buildhgextindex,
+             'install_lib': hginstalllib,
 -            'install_scripts': hginstallscripts,
              'build_hgexe': buildhgexe,
              }
