@@ -1,6 +1,7 @@
 mercurial (3.5-2) UNRELEASED; urgency=medium
 
   * Update hgsubversion breaks. 1.8.2-1 is compatible with mercurial 3.5-1
+  * mercurial-git 0.8.1-2 doesn't work with mercurial 3.5-1
 
  -- Javi Merino <vicho@debian.org>  Sat, 15 Aug 2015 16:16:24 +0100
 
