@@ -52,7 +52,7 @@ Suggests: qct,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
 Breaks: hgsubversion (<< 1.8.2-1),
  hgview-common (<< 1.8.1),
- mercurial-git (<= 0.8.1-2),
+ mercurial-git (<< 0.8.1-3),
  qct (<< 1.7-2~),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
