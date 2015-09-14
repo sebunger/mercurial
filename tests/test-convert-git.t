@@ -321,8 +321,9 @@ since bar is not touched in this commit, this copy will not be detected
   $ cp bar bar-copied
   $ cp baz baz-copied
   $ cp baz baz-copied2
+  $ cp baz ba-copy
   $ echo baz2 >> baz
-  $ git add bar-copied baz-copied baz-copied2
+  $ git add bar-copied baz-copied baz-copied2 ba-copy
   $ commit -a -m 'rename and copy'
   $ cd ..
 
@@ -340,6 +341,8 @@ input validation
   $ hg -q convert --config convert.git.similarity=100 --datesort git-repo2 fullrepo
   $ hg -R fullrepo status -C --change master
   M baz
+  A ba-copy
+    baz
   A bar-copied
   A baz-copied
     baz
@@ -348,6 +351,13 @@ input validation
   A foo-renamed
     foo
   R foo
+
+Ensure that the modification to the copy source was preserved
+(there was a bug where if the copy dest was alphabetically prior to the copy
+source, the copy source took the contents of the copy dest)
+  $ hg cat -r tip fullrepo/baz
+  baz
+  baz2
 
   $ cd git-repo2
   $ echo bar2 >> bar
@@ -646,10 +656,12 @@ convert using a different remote prefix
   $ git init git-repo7
   Initialized empty Git repository in $TESTTMP/git-repo7/.git/
   $ cd git-repo7
-  $ touch a && git add a && git commit -am "commit a"
+TODO: it'd be nice to use (?) lines instead of grep -v to handle the
+git output variance, but that doesn't currently work in the middle of
+a block, so do this for now.
+  $ touch a && git add a && git commit -am "commit a" | grep -v changed
   [master (root-commit) 8ae5f69] commit a
    Author: nottest <test@example.org>
-   1 file changed, 0 insertions(+), 0 deletions(-)
    create mode 100644 a
   $ cd ..
   $ git clone git-repo7 git-repo7-client

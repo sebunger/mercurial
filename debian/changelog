@@ -1,3 +1,11 @@
+mercurial (3.5.1-1) unstable; urgency=medium
+
+  * Update hgsubversion breaks. 1.8.2-1 is compatible with mercurial 3.5-1
+  * Update breaks of mercurial-git.  0.8.1-3 works with mercurial 3.5-1
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Mon, 14 Sep 2015 22:05:21 +0100
+
 mercurial (3.5-1) unstable; urgency=medium
 
   * New upstream release
