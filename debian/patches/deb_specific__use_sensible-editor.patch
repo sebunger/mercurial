@@ -229,7 +229,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr ""
-@@ -20768,10 +20768,12 @@ msgstr ""
+@@ -20777,10 +20777,12 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -244,7 +244,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -22049,7 +22051,7 @@ msgid ""
+@@ -22058,7 +22060,7 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -253,7 +253,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -22057,7 +22059,7 @@ msgstr ""
+@@ -22066,7 +22068,7 @@ msgstr ""
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
