@@ -1,3 +1,50 @@
+mercurial (3.5.2-2) unstable; urgency=medium
+
+  * Fix "bash completion broken" by installing at as "hg" instead of
+    "mercurial".  Thanks Matthew Gabeler-Lee <cheetah@fastcat.org> for the
+    fix (Closes: #801079)
+
+ -- Javi Merino <vicho@debian.org>  Sun, 18 Oct 2015 14:14:20 +0100
+
+mercurial (3.5.2-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Fri, 02 Oct 2015 08:14:57 +0100
+
+mercurial (3.5.1-2) unstable; urgency=medium
+
+  * Fix "obsolete conffile /etc/bash_completion.d/mercurial" by removing
+    it.  Bash completion is now installed in
+    /usr/share/bash_completion/completions (Closes: #799052)
+
+ -- Javi Merino <vicho@debian.org>  Sun, 20 Sep 2015 13:23:46 +0100
+
+mercurial (3.5.1-1) unstable; urgency=medium
+
+  * Update hgsubversion breaks. 1.8.2-1 is compatible with mercurial 3.5-1
+  * Update breaks of mercurial-git.  0.8.1-3 works with mercurial 3.5-1
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Mon, 14 Sep 2015 22:05:21 +0100
+
+mercurial (3.5-1) unstable; urgency=medium
+
+  * New upstream release
+  * Update hgsubversion breaks to 1.8.1-1
+  * Upload to unstable
+
+ -- Javi Merino <vicho@debian.org>  Mon, 03 Aug 2015 20:18:33 +0100
+
+mercurial (3.5~rc1-1) experimental; urgency=medium
+
+  * New upstream release
+  * Update debian/copyright to match copyright-format 1.0
+  * New version breaks the current versions of mercurial-git and
+    hgsubversion in sid
+
+ -- Javi Merino <vicho@debian.org>  Wed, 22 Jul 2015 10:30:00 +0200
+
 mercurial (3.4.2-1~bpo8+1) jessie-backports; urgency=medium
 
   * Rebuild for jessie-backports.

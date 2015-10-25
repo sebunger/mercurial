@@ -9,7 +9,7 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
 --- a/tests/run-tests.py
 +++ b/tests/run-tests.py
-@@ -1858,7 +1858,7 @@ class TestRunner(object):
+@@ -1994,7 +1994,7 @@ class TestRunner(object):
                   sys.executable)
              mypython = os.path.join(self._tmpbindir, pyexename)
              try:
@@ -17,4 +17,4 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 +                if (mypython == sys.executable) or (os.readlink(mypython) == sys.executable):
                      return
                  os.unlink(mypython)
-             except OSError, err:
+             except OSError as err:
