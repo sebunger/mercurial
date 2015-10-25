@@ -15,6 +15,10 @@ from mercurial.i18n import _
 
 cmdtable = {}
 command = cmdutil.command(cmdtable)
+# Note for extension authors: ONLY specify testedwith = 'internal' for
+# extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
+# be specifying the version(s) of Mercurial they are tested with, or
+# leave the attribute unspecified.
 testedwith = 'internal'
 
 # Commands definition was moved elsewhere to ease demandload job.
@@ -25,7 +29,7 @@ testedwith = 'internal'
       _('FILE')),
     ('s', 'source-type', '', _('source repository type'), _('TYPE')),
     ('d', 'dest-type', '', _('destination repository type'), _('TYPE')),
-    ('r', 'rev', '', _('import up to source revision REV'), _('REV')),
+    ('r', 'rev', [], _('import up to source revision REV'), _('REV')),
     ('A', 'authormap', '', _('remap usernames using this file'), _('FILE')),
     ('', 'filemap', '', _('remap file names using contents of file'),
      _('FILE')),
@@ -188,6 +192,9 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         (forces target IDs to change). It takes a boolean argument and
         defaults to False.
 
+    :convert.hg.startrev: specify the initial Mercurial revision.
+        The default is 0.
+
     :convert.hg.revs: revset specifying the source revisions to convert.
 
     CVS Source
@@ -305,6 +312,10 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         is very expensive for large projects, and is only effective when
         ``convert.git.similarity`` is greater than 0. The default is False.
 
+    :convert.git.remoteprefix: remote refs are converted as bookmarks with
+        ``convert.git.remoteprefix`` as a prefix followed by a /. The default
+        is 'remote'.
+
     Perforce Source
     ###############
 
@@ -315,14 +326,34 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     usually should specify a target directory, because otherwise the
     target may be named ``...-hg``.
 
-    It is possible to limit the amount of source history to be
-    converted by specifying an initial Perforce revision:
+    The following options can be set with ``--config``:
+
+    :convert.p4.encoding: specify the encoding to use when decoding standard
+        output of the Perforce command line tool. The default is default system
+        encoding.
 
     :convert.p4.startrev: specify initial Perforce revision (a
         Perforce changelist number).
 
     Mercurial Destination
     #####################
+
+    The Mercurial destination will recognize Mercurial subrepositories in the
+    destination directory, and update the .hgsubstate file automatically if the
+    destination subrepositories contain the <dest>/<sub>/.hg/shamap file.
+    Converting a repository with subrepositories requires converting a single
+    repository at a time, from the bottom up.
+
+    .. container:: verbose
+
+       An example showing how to convert a repository with subrepositories::
+
+         # so convert knows the type when it sees a non empty destination
+         $ hg init converted
+
+         $ hg convert orig/sub1 converted/sub1
+         $ hg convert orig/sub2 converted/sub2
+         $ hg convert orig converted
 
     The following options are supported:
 
@@ -334,6 +365,17 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
 
     :convert.hg.usebranchnames: preserve branch names. The default is
         True.
+
+    :convert.hg.sourcename: records the given string as a 'convert_source' extra
+        value on each commit made in the target repository. The default is None.
+
+    All Destinations
+    ################
+
+    All destination types accept the following options:
+
+    :convert.skiptags: does not convert tags from the source repo to the target
+        repo. The default is False.
     """
     return convcmd.convert(ui, src, dest, revmapfile, **opts)
 

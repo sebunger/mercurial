@@ -114,9 +114,13 @@ def uisetup(ui):
     entry = extensions.wrapfunction(cmdutil, 'revert',
                                     overrides.overriderevert)
 
+    extensions.wrapcommand(commands.table, 'archive',
+                           overrides.overridearchivecmd)
     extensions.wrapfunction(archival, 'archive', overrides.overridearchive)
     extensions.wrapfunction(subrepo.hgsubrepo, 'archive',
                             overrides.hgsubrepoarchive)
+    extensions.wrapfunction(webcommands, 'archive',
+                            overrides.hgwebarchive)
     extensions.wrapfunction(cmdutil, 'bailifchanged',
                             overrides.overridebailifchanged)
 

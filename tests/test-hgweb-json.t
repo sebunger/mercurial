@@ -2,7 +2,7 @@
 #require serve
 
   $ request() {
-  >   $TESTDIR/get-with-headers.py --json localhost:$HGPORT "$1"
+  >   get-with-headers.py --json localhost:$HGPORT "$1"
   > }
 
   $ hg init test
@@ -1084,6 +1084,10 @@ help/ shows help topics
       {
         "summary": "Specifying Revision Sets",
         "topic": "revsets"
+      },
+      {
+        "summary": "Using Mercurial from scripts and automation",
+        "topic": "scripting"
       },
       {
         "summary": "Subrepositories",

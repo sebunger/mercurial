@@ -86,6 +86,9 @@ follow, until another syntax is selected.</p>
 the form <tt class="docutils literal">*.c</tt> will match a file ending in <tt class="docutils literal">.c</tt> in any directory,
 and a regexp pattern of the form <tt class="docutils literal">\.c$</tt> will do the same. To root a
 regexp pattern, start it with <tt class="docutils literal">^</tt>.</p>
+<p>Subdirectories can have their own .hgignore settings by adding
+<tt class="docutils literal"><span class="pre">subinclude:path/to/subdir/.hgignore</span></tt> to the root <tt class="docutils literal">.hgignore</tt>. See
+<a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for details on <tt class="docutils literal">subinclude:</tt> and <tt class="docutils literal">include:</tt>.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Patterns specified in other than <tt class="docutils literal">.hgignore</tt> are always rooted.

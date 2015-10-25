@@ -835,7 +835,9 @@ the parent of the working directory, negating a previous branch
 change.
 .sp
 Use the command \%\fBhg update\fP\: to switch to an existing branch. Use
-\%\fBhg commit \-\-close\-branch\fP\: to mark this branch as closed.
+\%\fBhg commit \-\-close\-branch\fP\: to mark this branch head as closed.
+When all heads of the branch are closed, the branch will be
+considered closed.
 .sp
 Returns 0 on success.
 .sp
@@ -1259,6 +1261,10 @@ configured editor where you can enter a message. In case your
 commit fails, you will find a backup of your message in
 \fB.hg/last\-message.txt\fP.
 .sp
+The \-\-close\-branch flag can be used to mark the current branch
+head closed. When all heads of a branch are closed, the branch
+will be considered closed and no longer listed.
+.sp
 The \-\-amend flag can be used to amend the parent of the
 working directory with a new commit that contains the changes
 in the parent in addition to those currently reported by \%\fBhg status\fP\:,
@@ -1286,7 +1292,7 @@ mark new/missing files as added/removed before committing
 .TP
 .B \-\-close\-branch
 .
-mark a branch as closed, hiding it from the branch list
+mark a branch head as closed
 .TP
 .B \-\-amend
 .
@@ -1871,6 +1877,8 @@ This only removes files from the current branch, not from the
 entire project history, and it does not delete them from the
 working directory.
 .sp
+To delete the file from the working directory, see \%\fBhg remove\fP\:.
+.sp
 To undo a forget before the next commit, see \%\fBhg add\fP\:.
 .sp
 Examples:
@@ -2362,6 +2370,12 @@ date, description, ...). Note that when none of the hunk applies
 cleanly, \%\fBhg import \-\-partial\fP\: will create an empty changeset,
 importing only the patch metadata.
 .sp
+It is possible to use external patch programs to perform the patch
+by setting the \fBui.patch\fP configuration option. For the default
+internal tool, the fuzz can also be configured via \fBpatch.fuzz\fP.
+See \%\fBhg help config\fP\: for more information about configuration
+files and how to use these options.
+.sp
 To read a patch from standard input, use "\-" as the patch name. If
 a URL is specified, the patch will be downloaded from it.
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
@@ -2405,6 +2419,25 @@ possible):
 hg import \-\-exact proposed\-fix.patch
 .ft P
 .fi
+.IP \(bu 2
+.
+use an external tool to apply a patch which is too fuzzy for
+the default internal tool.
+.INDENT 2.0
+.INDENT 3.5
+.sp
+hg import \-\-config ui.patch="patch \-\-merge" fuzzy.patch
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+.
+change the default fuzzing from 2 to a less strict 7
+.INDENT 2.0
+.INDENT 3.5
+.sp
+hg import \-\-config ui.fuzz=7 fuzz.patch
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .sp
 Returns 0 on success, 1 on partial success (see \-\-partial).
@@ -3292,11 +3325,11 @@ set or show the current phase name:
 .sp
 .nf
 .ft C
-hg phase [\-p|\-d|\-s] [\-f] [\-r] REV...
+hg phase [\-p|\-d|\-s] [\-f] [\-r] [REV...]
 .ft P
 .fi
 .sp
-With no argument, show the phase name of specified revisions.
+With no argument, show the phase name of the current revision(s).
 .sp
 With one of \-p/\-\-public, \-d/\-\-draft or \-s/\-\-secret, change the
 phase value of the specified revisions.
@@ -3312,6 +3345,8 @@ public < draft < secret
 .sp
 Returns 0 on success, 1 if no phases were changed or some could not
 be changed.
+.sp
+(For more information about the phases concept, see \%\fBhg help phases\fP\:.)
 .sp
 Options:
 .INDENT 0.0
@@ -4209,7 +4244,7 @@ hg summary [\-\-remote]
 .fi
 .sp
 This generates a brief summary of the working directory state,
-including parents, branch, commit status, and available updates.
+including parents, branch, commit status, phase and available updates.
 .sp
 With the \-\-remote option, this will check the default paths for
 incoming and outgoing changes. This can be time\-consuming.
@@ -4397,7 +4432,7 @@ hg update [\-c] [\-C] [\-d DATE] [[\-r] REV]
 .sp
 Update the repository\(aqs working directory to the specified
 changeset. If no changeset is specified, update to the tip of the
-current named branch and move the current bookmark (see \%\fBhg help
+current named branch and move the active bookmark (see \%\fBhg help
 bookmarks\fP\:).
 .sp
 Update sets the working directory\(aqs parent revision to the specified
@@ -4908,10 +4943,6 @@ browse command output with an external pager
 .B patchbomb
 .
 command to send changesets as (a series of) patch emails
-.TP
-.B progress
-.
-show progress bars for some actions
 .TP
 .B purge
 .
@@ -5727,6 +5758,10 @@ Neither glob nor regexp patterns are rooted. A glob\-syntax pattern of
 the form \fB*.c\fP will match a file ending in \fB.c\fP in any directory,
 and a regexp pattern of the form \fB\e.c$\fP will do the same. To root a
 regexp pattern, start it with \fB^\fP.
+.sp
+Subdirectories can have their own .hgignore settings by adding
+\fBsubinclude:path/to/subdir/.hgignore\fP to the root \fB.hgignore\fP. See
+\%\fBhg help patterns\fP\: for details on \fBsubinclude:\fP and \fBinclude:\fP.
 .IP Note
 .
 Patterns specified in other than \fB.hgignore\fP are always rooted.
@@ -6239,6 +6274,12 @@ The latter expects null delimited patterns while the former expects line
 feeds. Each string read from the file is itself treated as a file
 pattern.
 .sp
+To read a set of patterns from a file, use \fBinclude:\fP or \fBsubinclude:\fP.
+\fBinclude:\fP will use all the patterns from the given file and treat them as if
+they had been passed in manually.  \fBsubinclude:\fP will only apply the patterns
+against files that are under the subinclude file\(aqs directory. See \%\fBhg help
+hgignore\fP\: for details on the format of these files.
+.sp
 All patterns, except for \fBglob:\fP specified in command line (not for
 \fB\-I\fP or \fB\-X\fP options), can match also against directories: files
 under matched directories are treated as matched.
@@ -6285,6 +6326,16 @@ listfile0:list.txt read list from list.txt with null byte delimiters
 .fi
 .sp
 See also \%\fBhg help filesets\fP\:.
+.sp
+Include examples:
+.sp
+.nf
+.ft C
+include:path/to/mypatternfile    reads patterns to be applied to all paths
+subinclude:path/to/subignorefile reads patterns specifically for paths in the
+                                 subdirectory
+.ft P
+.fi
 .SH WORKING WITH PHASES
 .SS What are phases?
 .sp
@@ -7049,6 +7100,182 @@ hg log \-r "(keyword(bug) or keyword(issue)) and not ancestors(tag())"
 .ft P
 .fi
 .UNINDENT
+.SH USING MERCURIAL FROM SCRIPTS AND AUTOMATION
+.sp
+It is common for machines (as opposed to humans) to consume Mercurial.
+This help topic describes some of the considerations for interfacing
+machines with Mercurial.
+.SS Choosing an Interface
+.sp
+Machines have a choice of several methods to interface with Mercurial.
+These include:
+.INDENT 0.0
+.IP \(bu 2
+.
+Executing the \fBhg\fP process
+.IP \(bu 2
+.
+Querying a HTTP server
+.IP \(bu 2
+.
+Calling out to a command server
+.UNINDENT
+.sp
+Executing \fBhg\fP processes is very similar to how humans interact with
+Mercurial in the shell. It should already be familiar to you.
+.sp
+\%\fBhg serve\fP\: can be used to start a server. By default, this will start
+a "hgweb" HTTP server. This HTTP server has support for machine\-readable
+output, such as JSON. For more, see \%\fBhg help hgweb\fP\:.
+.sp
+\%\fBhg serve\fP\: can also start a "command server." Clients can connect
+to this server and issue Mercurial commands over a special protocol.
+For more details on the command server, including links to client
+libraries, see \%https://mercurial.selenic.com/wiki/CommandServer\:.
+.sp
+\%\fBhg serve\fP\: based interfaces (the hgweb and command servers) have the
+advantage over simple \fBhg\fP process invocations in that they are
+likely more efficient. This is because there is significant overhead
+to spawn new Python processes.
+.IP Tip
+.
+If you need to invoke several \fBhg\fP processes in short order and/or
+performance is important to you, use of a server\-based interface
+is highly recommended.
+.RE
+.SS Environment Variables
+.sp
+As documented in \%\fBhg help environment\fP\:, various environment variables
+influence the operation of Mercurial. The following are particularly
+relevant for machines consuming Mercurial:
+.INDENT 0.0
+.TP
+.B HGPLAIN
+.
+If not set, Mercurial\(aqs output could be influenced by configuration
+settings that impact its encoding, verbose mode, localization, etc.
+.sp
+It is highly recommended for machines to set this variable when
+invoking \fBhg\fP processes.
+.TP
+.B HGENCODING
+.
+If not set, the locale used by Mercurial will be detected from the
+environment. If the determined locale does not support display of
+certain characters, Mercurial may render these character sequences
+incorrectly (often by using "?" as a placeholder for invalid
+characters in the current locale).
+.sp
+Explicitly setting this environment variable is a good practice to
+guarantee consistent results. "utf\-8" is a good choice on UNIX\-like
+environments.
+.TP
+.B HGRCPATH
+.
+If not set, Mercurial will inherit config options from config files
+using the process described in \%\fBhg help config\fP\:. This includes
+inheriting user or system\-wide config files.
+.sp
+When utmost control over the Mercurial configuration is desired, the
+value of \fBHGRCPATH\fP can be set to an explicit file with known good
+configs. In rare cases, the value can be set to an empty file or the
+null device (often \fB/dev/null\fP) to bypass loading of any user or
+system config files. Note that these approaches can have unintended
+consequences, as the user and system config files often define things
+like the username and extensions that may be required to interface
+with a repository.
+.UNINDENT
+.SS Consuming Command Output
+.sp
+It is common for machines to need to parse the output of Mercurial
+commands for relevant data. This section describes the various
+techniques for doing so.
+.SS Parsing Raw Command Output
+.sp
+Likely the simplest and most effective solution for consuming command
+output is to simply invoke \fBhg\fP commands as you would as a user and
+parse their output.
+.sp
+The output of many commands can easily be parsed with tools like
+\fBgrep\fP, \fBsed\fP, and \fBawk\fP.
+.sp
+A potential downside with parsing command output is that the output
+of commands can change when Mercurial is upgraded. While Mercurial
+does generally strive for strong backwards compatibility, command
+output does occasionally change. Having tests for your automated
+interactions with \fBhg\fP commands is generally recommended, but is
+even more important when raw command output parsing is involved.
+.SS Using Templates to Control Output
+.sp
+Many \fBhg\fP commands support templatized output via the
+\fB\-T/\-\-template\fP argument. For more, see \%\fBhg help templates\fP\:.
+.sp
+Templates are useful for explicitly controlling output so that
+you get exactly the data you want formatted how you want it. For
+example, \fBlog \-T {node}\en\fP can be used to print a newline
+delimited list of changeset nodes instead of a human\-tailored
+output containing authors, dates, descriptions, etc.
+.IP Tip
+.
+If parsing raw command output is too complicated, consider
+using templates to make your life easier.
+.RE
+.sp
+The \fB\-T/\-\-template\fP argument allows specifying pre\-defined styles.
+Mercurial ships with the machine\-readable styles \fBjson\fP and \fBxml\fP,
+which provide JSON and XML output, respectively. These are useful for
+producing output that is machine readable as\-is.
+.IP Important
+.
+The \fBjson\fP and \fBxml\fP styles are considered experimental. While
+they may be attractive to use for easily obtaining machine\-readable
+output, their behavior may change in subsequent versions.
+.sp
+These styles may also exhibit unexpected results when dealing with
+certain encodings. Mercurial treats things like filenames as a
+series of bytes and normalizing certain byte sequences to JSON
+or XML with certain encoding settings can lead to surprises.
+.RE
+.SS Command Server Output
+.sp
+If using the command server to interact with Mercurial, you are likely
+using an existing library/API that abstracts implementation details of
+the command server. If so, this interface layer may perform parsing for
+you, saving you the work of implementing it yourself.
+.SS Output Verbosity
+.sp
+Commands often have varying output verbosity, even when machine
+readable styles are being used (e.g. \fB\-T json\fP). Adding
+\fB\-v/\-\-verbose\fP and \fB\-\-debug\fP to the command\(aqs arguments can
+increase the amount of data exposed by Mercurial.
+.sp
+An alternate way to get the data you need is by explicitly specifying
+a template.
+.SS Other Topics
+.INDENT 0.0
+.TP
+.B revsets
+.
+Revisions sets is a functional query language for selecting a set
+of revisions. Think of it as SQL for Mercurial repositories. Revsets
+are useful for querying repositories for specific data.
+.sp
+See \%\fBhg help revsets\fP\: for more.
+.TP
+.B share extension
+.
+The \fBshare\fP extension provides functionality for sharing
+repository data across several working copies. It can even
+automatically "pool" storage for logically related repositories when
+cloning.
+.sp
+Configuring the \fBshare\fP extension can lead to significant resource
+utilization reduction, particularly around disk space and the
+network. This is especially true for continuous integration (CI)
+environments.
+.sp
+See \%\fBhg help \-e share\fP\: for more.
+.UNINDENT
 .SH SUBREPOSITORIES
 .sp
 Subrepositories let you nest external repositories or projects into a
@@ -7181,8 +7408,10 @@ elements. Subversion subrepositories are currently silently ignored.
 .B files
 .
 files does not recurse into subrepos unless \-S/\-\-subrepos is
-specified.  Git and Subversion subrepositories are currently
-silently ignored.
+specified.  However, if you specify the full path of a file or
+directory in a subrepo, it will be displayed even without
+\-S/\-\-subrepos being specified.  Git and Subversion subrepositories
+are currently silently ignored.
 .TP
 .B forget
 .
@@ -7280,6 +7509,11 @@ keywords depends on the exact context of the templater. These
 keywords are usually available for templating a log\-like command:
 .INDENT 0.0
 .TP
+.B activebookmark
+.
+String. The active bookmark, if it is
+associated with the changeset
+.TP
 .B author
 .
 String. The unmodified author of the changeset.
@@ -7291,12 +7525,16 @@ String. The changeset bisection status.
 .B bookmarks
 .
 List of strings. Any bookmarks associated with the
-changeset.
+changeset. Also sets \(aqactive\(aq, the name of the active bookmark.
 .TP
 .B branch
 .
 String. The name of the branch on which the changeset was
 committed.
+.TP
+.B changessincelatesttag
+.
+Integer. All ancestors not in the latest tag.
 .TP
 .B children
 .
@@ -7305,7 +7543,7 @@ List of strings. The children of the changeset.
 .B currentbookmark
 .
 String. The active bookmark, if it is
-associated with the changeset
+associated with the changeset (DEPRECATED)
 .TP
 .B date
 .
@@ -7354,8 +7592,8 @@ changeset.
 .TP
 .B latesttag
 .
-String. Most recent global tag in the ancestors of this
-changeset.
+List of strings. The global tags on the most recent globally
+tagged ancestor of this changeset.
 .TP
 .B latesttagdistance
 .
@@ -7534,6 +7772,12 @@ XML entities.
 Any text. Returns the name before an email address,
 interpreting it as per RFC 5322.
 .TP
+.B revescape
+.
+Any text. Escapes all "special" characters, except @.
+Forward slashes are escaped twice to prevent web servers from prematurely
+unescaping them. For example, "@foo bar/baz" becomes "@foo%20bar%252Fbaz".
+.TP
 .B rfc3339date
 .
 Date. Returns a date using the Internet date format
@@ -7640,6 +7884,13 @@ on whether the item "search" is in "thing".
 Conditionally execute based on
 whether 2 items are equivalent.
 .TP
+.B indent(text, indentchars[, firstline])
+.
+Indents all non\-empty lines
+with the characters given in the indentchars string. An optional
+third parameter will override the indent for the first line only
+if present.
+.TP
 .B join(list, sep)
 .
 Join items in a list with a delimiter.
@@ -7695,6 +7946,10 @@ Also, for any expression that returns a list, there is a list operator:
 expr % "{template}"
 .UNINDENT
 .sp
+As seen in the above example, "{template}" is interpreted as a template.
+To prevent it from being interpreted, you can use an escape character "{"
+or a raw string prefix, "r\(aq...\(aq".
+.sp
 Some sample command line templates:
 .INDENT 0.0
 .IP \(bu 2
@@ -7739,7 +7994,7 @@ Output the description set to a fill\-width of 30:
 .sp
 .nf
 .ft C
-$ hg log \-r 0 \-\-template "{fill(desc, \(aq30\(aq)}"
+$ hg log \-r 0 \-\-template "{fill(desc, 30)}"
 .ft P
 .fi
 .IP \(bu 2
@@ -7790,11 +8045,11 @@ $ hg log \-r 0 \-\-template "{join(extras, \(aq\en\(aq)}\en"
 .fi
 .IP \(bu 2
 .
-Mark the current bookmark with \(aq*\(aq:
+Mark the active bookmark with \(aq*\(aq:
 .sp
 .nf
 .ft C
-$ hg log \-\-template "{bookmarks % \(aq{bookmark}{ifeq(bookmark, current, \e"*\e")} \(aq}\en"
+$ hg log \-\-template "{bookmarks % \(aq{bookmark}{ifeq(bookmark, active, \(aq*\(aq)} \(aq}\en"
 .ft P
 .fi
 .IP \(bu 2
@@ -7812,7 +8067,7 @@ Show only commit descriptions that start with "template":
 .sp
 .nf
 .ft C
-$ hg log \-\-template "{startswith(\e"template\e", firstline(desc))}\en"
+$ hg log \-\-template "{startswith(\(aqtemplate\(aq, firstline(desc))}\en"
 .ft P
 .fi
 .IP \(bu 2
@@ -7821,7 +8076,7 @@ Print the first word of each line of a commit message:
 .sp
 .nf
 .ft C
-$ hg log \-\-template "{word(\e"0\e", desc)}\en"
+$ hg log \-\-template "{word(0, desc)}\en"
 .ft P
 .fi
 .UNINDENT
@@ -8797,7 +9052,7 @@ changeset.secret =
 resolve.unresolved = red bold
 resolve.resolved = green bold
 
-bookmarks.current = green
+bookmarks.active = green
 
 branches.active = none
 branches.closed = black bold
@@ -9090,6 +9345,11 @@ store original revision ID in changeset
 (forces target IDs to change). It takes a boolean argument and
 defaults to False.
 .TP
+.B convert.hg.startrev
+.
+specify the initial Mercurial revision.
+The default is 0.
+.TP
 .B convert.hg.revs
 .
 revset specifying the source revisions to convert.
@@ -9238,6 +9498,12 @@ while detecting copies, look at all
 files in the working copy instead of just changed ones. This
 is very expensive for large projects, and is only effective when
 \fBconvert.git.similarity\fP is greater than 0. The default is False.
+.TP
+.B convert.git.remoteprefix
+.
+remote refs are converted as bookmarks with
+\fBconvert.git.remoteprefix\fP as a prefix followed by a /. The default
+is \(aqremote\(aq.
 .UNINDENT
 .SS Perforce Source
 .sp
@@ -9248,9 +9514,14 @@ and integrations. Note that when a depot path is given you then
 usually should specify a target directory, because otherwise the
 target may be named \fB...\-hg\fP.
 .sp
-It is possible to limit the amount of source history to be
-converted by specifying an initial Perforce revision:
+The following options can be set with \fB\-\-config\fP:
 .INDENT 0.0
+.TP
+.B convert.p4.encoding
+.
+specify the encoding to use when decoding standard
+output of the Perforce command line tool. The default is default system
+encoding.
 .TP
 .B convert.p4.startrev
 .
@@ -9258,6 +9529,25 @@ specify initial Perforce revision (a
 Perforce changelist number).
 .UNINDENT
 .SS Mercurial Destination
+.sp
+The Mercurial destination will recognize Mercurial subrepositories in the
+destination directory, and update the .hgsubstate file automatically if the
+destination subrepositories contain the <dest>/<sub>/.hg/shamap file.
+Converting a repository with subrepositories requires converting a single
+repository at a time, from the bottom up.
+.sp
+An example showing how to convert a repository with subrepositories:
+.sp
+.nf
+.ft C
+# so convert knows the type when it sees a non empty destination
+$ hg init converted
+
+$ hg convert orig/sub1 converted/sub1
+$ hg convert orig/sub2 converted/sub2
+$ hg convert orig converted
+.ft P
+.fi
 .sp
 The following options are supported:
 .INDENT 0.0
@@ -9276,6 +9566,21 @@ branch name for tag revisions, defaults to
 .
 preserve branch names. The default is
 True.
+.TP
+.B convert.hg.sourcename
+.
+records the given string as a \(aqconvert_source\(aq extra
+value on each commit made in the target repository. The default is None.
+.UNINDENT
+.SS All Destinations
+.sp
+All destination types accept the following options:
+.INDENT 0.0
+.TP
+.B convert.skiptags
+.
+does not convert tags from the source repo to the target
+repo. The default is False.
 .UNINDENT
 .sp
 Options:
@@ -9293,7 +9598,7 @@ source repository type
 .
 destination repository type
 .TP
-.BI \-r,  \-\-rev \ <REV>
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 import up to source revision REV
 .TP
@@ -9333,6 +9638,8 @@ preserve source changesets order
 .
 try to reorder closed revisions
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS eol
 .sp
 automatically manage newlines in repository files
@@ -9552,6 +9859,10 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -9697,6 +10008,9 @@ hg sign [OPTION]... [REV]...
 .sp
 If no revision is given, the parent of the working directory is used,
 or tip if no revision is checked out.
+.sp
+The \fBgpg.cmd\fP config setting can be used to specify the command
+to run. A default key can be specified with \fBgpg.key\fP.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
@@ -9929,7 +10243,7 @@ the path to hgk in your configuration file:
 .nf
 .ft C
 [hgk]
-path=/location/of/hgk
+path = /location/of/hgk
 .ft P
 .fi
 .sp
@@ -10823,7 +11137,7 @@ mark new/missing files as added/removed before committing
 .TP
 .B \-\-close\-branch
 .
-mark a branch as closed, hiding it from the branch list
+mark a branch head as closed
 .TP
 .B \-\-amend
 .
@@ -12335,38 +12649,10 @@ do not verify server certificate (ignoring web.cacerts config)
 [+] marked option can be specified multiple times
 .SS progress
 .sp
-show progress bars for some actions
+show progress bars for some actions (DEPRECATED)
 .sp
-This extension uses the progress information logged by hg commands
-to draw progress bars that are as informative as possible. Some progress
-bars only offer indeterminate information, while others have a definite
-end point.
-.sp
-The following settings are available:
-.sp
-.nf
-.ft C
-[progress]
-delay = 3 # number of seconds (float) before showing the progress bar
-changedelay = 1 # changedelay: minimum delay before showing a new topic.
-                # If set to less than 3 * refresh, that value will
-                # be used instead.
-refresh = 0.1 # time in seconds between refreshes of the progress bar
-format = topic bar number estimate # format of the progress bar
-width = <none> # if set, the maximum width of the progress information
-               # (that is, min(width, term width) will be used)
-clear\-complete = True # clear the progress bar after it\(aqs done
-disable = False # if true, don\(aqt show a progress bar
-assume\-tty = False # if true, ALWAYS show a progress bar, unless
-                   # disable is given
-.ft P
-.fi
-.sp
-Valid entries for the format field are topic, bar, number, unit,
-estimate, speed, and item. item defaults to the last 20 characters of
-the item, but this can be changed by adding either \fB\-<num>\fP which
-would take the last num characters, or \fB+<num>\fP for the first num
-characters.
+This extension has been merged into core, you can remove it from your config.
+See hg help config.progress for configuration options.
 .SS purge
 .sp
 command to delete untracked files from the working directory
@@ -12632,7 +12918,7 @@ invoke editor on commit messages
 .
 read collapse commit message from file
 .TP
-.B \-\-keep
+.B \-k,  \-\-keep
 .
 keep original changesets
 .TP
@@ -12734,7 +13020,7 @@ mark new/missing files as added/removed before committing
 .TP
 .B \-\-close\-branch
 .
-mark a branch as closed, hiding it from the branch list
+mark a branch head as closed
 .TP
 .B \-\-amend
 .
@@ -12881,6 +13167,39 @@ same name.
 .SS share
 .sp
 share a common history between several working directories
+.SS Automatic Pooled Storage for Clones
+.sp
+When this extension is active, \%\fBhg clone\fP\: can be configured to
+automatically share/pool storage across multiple clones. This
+mode effectively converts \%\fBhg clone\fP\: to \%\fBhg clone\fP\: + \%\fBhg share\fP\:.
+The benefit of using this mode is the automatic management of
+store paths and intelligent pooling of related repositories.
+.sp
+The following \fBshare.\fP config options influence this feature:
+.INDENT 0.0
+.TP
+.B \fBshare.pool\fP
+.sp
+Filesystem path where shared repository data will be stored. When
+defined, \%\fBhg clone\fP\: will automatically use shared repository
+storage instead of creating a store inside each clone.
+.TP
+.B \fBshare.poolnaming\fP
+.sp
+How directory names in \fBshare.pool\fP are constructed.
+.sp
+"identity" means the name is derived from the first changeset in the
+repository. In this mode, different remotes share storage if their
+root/initial changeset is identical. In this mode, the local shared
+repository is an aggregate of all encountered remote repositories.
+.sp
+"remote" means the name is derived from the source repository\(aqs
+path or URL. In this mode, storage is only shared if the path or URL
+requested in the \%\fBhg clone\fP\: command matches exactly to a repository
+that was cloned before.
+.sp
+The default naming mode is "identity."
+.UNINDENT
 .SS Commands
 .SS share
 .sp
@@ -13020,7 +13339,7 @@ show patch
 .TP
 .B \-i,  \-\-interactive
 .
-interactive mode, only works while creating a shelve(EXPERIMENTAL)
+interactive mode, only works while creating a shelve
 .TP
 .B \-\-stat
 .
@@ -13050,18 +13369,28 @@ This command accepts an optional name of a shelved change to
 restore. If none is given, the most recent shelved change is used.
 .sp
 If a shelved change is applied successfully, the bundle that
-contains the shelved changes is deleted afterwards.
+contains the shelved changes is moved to a backup location
+(.hg/shelve\-backup).
 .sp
 Since you can restore a shelved change on top of an arbitrary
 commit, it is possible that unshelving will result in a conflict
 between your changes and the commits you are unshelving onto. If
 this occurs, you must resolve the conflict, then use
 \fB\-\-continue\fP to complete the unshelve operation. (The bundle
-will not be deleted until you successfully complete the unshelve.)
+will not be moved until you successfully complete the unshelve.)
 .sp
 (Alternatively, you can use \fB\-\-abort\fP to abandon an unshelve
 that causes a conflict. This reverts the unshelved changes, and
-does not delete the bundle.)
+leaves the bundle in place.)
+.sp
+After a successful unshelve, the shelved changes are stored in a
+backup directory. Only the N most recent backups are kept. N
+defaults to 10 but can be overridden using the \fBshelve.maxbackups\fP
+configuration option.
+.sp
+Timestamp in seconds is used to decide order of backups. More
+than \fBmaxbackups\fP backups are kept, if same timestamp
+prevents from deciding exact order of them, for safety.
 .sp
 Options:
 .INDENT 0.0

@@ -526,6 +526,7 @@ Verify strip protects against stripping wc parent when there are uncommitted mod
   branch: default
   commit: 1 modified, 1 unknown, 1 unresolved
   update: (current)
+  phases: 2 draft
   mq:     3 unapplied
 
   $ echo c > b
@@ -553,6 +554,7 @@ Verify strip protects against stripping wc parent when there are uncommitted mod
   branch: default
   commit: 1 modified, 1 unknown
   update: (current)
+  phases: 1 draft
   mq:     3 unapplied
 
 Strip adds, removes, modifies with --keep
@@ -781,17 +783,11 @@ check strip behavior
   removing c
    d: other deleted -> r
   removing d
-  updating: d 2/2 files (100.00%)
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   2 changesets found
   list of changesets:
   6625a516847449b6f0fa3737b9ba56e9f0f3032c
   d8db9d1372214336d2b5570f20ee468d2c72fa8b
-  bundling: 1/2 changesets (50.00%)
-  bundling: 2/2 changesets (100.00%)
-  bundling: 1/2 manifests (50.00%)
-  bundling: 2/2 manifests (100.00%)
-  bundling: d 1/1 files (100.00%)
   saved backup bundle to $TESTTMP/issue4736/.hg/strip-backup/6625a5168474-345bb43d-backup.hg (glob)
   invalid branchheads cache (served): tip differs
   truncating cache/rbc-revs-v1 to 24
@@ -830,3 +826,26 @@ strip backup content
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     mergeCD
   
+
+Error during post-close callback of the strip transaction
+(They should be gracefully handled and reported)
+
+  $ cat > ../crashstrip.py << EOF
+  > from mercurial import error
+  > def reposetup(ui, repo):
+  >     class crashstriprepo(repo.__class__):
+  >         def transaction(self, desc, *args, **kwargs):
+  >             tr = super(crashstriprepo, self).transaction(self, desc, *args, **kwargs)
+  >             if desc == 'strip':
+  >                 def crash(tra): raise error.Abort('boom')
+  >                 tr.addpostclose('crash', crash)
+  >             return tr
+  >     repo.__class__ = crashstriprepo
+  > EOF
+  $ hg strip tip --config extensions.crash=$TESTTMP/crashstrip.py
+  saved backup bundle to $TESTTMP/issue4736/.hg/strip-backup/5c51d8d6557d-70daef06-backup.hg (glob)
+  strip failed, full bundle stored in '$TESTTMP/issue4736/.hg/strip-backup/5c51d8d6557d-70daef06-backup.hg'
+  abort: boom
+  [255]
+
+

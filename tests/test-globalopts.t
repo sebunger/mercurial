@@ -88,6 +88,7 @@ Implicit -R:
   [255]
   $ hg -R b ann a/a
   abort: a/a not under root '$TESTTMP/b' (glob)
+  (consider using '--cwd b')
   [255]
   $ hg log
   abort: no repository found in '$TESTTMP' (.hg not found)!
@@ -354,6 +355,7 @@ Testing -h/--help:
    phases        Working with Phases
    revisions     Specifying Single Revisions
    revsets       Specifying Revision Sets
+   scripting     Using Mercurial from scripts and automation
    subrepos      Subrepositories
    templating    Template Usage
    urls          URL Paths
@@ -435,6 +437,7 @@ Testing -h/--help:
    phases        Working with Phases
    revisions     Specifying Single Revisions
    revsets       Specifying Revision Sets
+   scripting     Using Mercurial from scripts and automation
    subrepos      Subrepositories
    templating    Template Usage
    urls          URL Paths

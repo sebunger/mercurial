@@ -75,6 +75,13 @@ should fail
 
   $ hg ci -m 0 --traceback
 
+  $ hg log -r "heads(. or wdir() & file('**'))"
+  changeset:   0:* (glob)
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0
+  
 should fail
 
   $ hg add a
@@ -99,6 +106,15 @@ should fail
   M a
   ? a.orig
 
+wdir doesn't cause a crash, and can be dynamically selected if dirty
+
+  $ hg log -r "heads(. or wdir() & file('**'))"
+  changeset:   2147483647:ffffffffffff
+  parent:      2:* (glob)
+  parent:      1:* (glob)
+  user:        test
+  date:        * (glob)
+  
 should fail
 
   $ hg add a
@@ -216,9 +232,17 @@ and OS X
   -xyz
   +def
 
+  $ hg mv CapsDir1/CapsDir/abc.txt CapsDir1/CapsDir/ABC.txt
+  moving CapsDir1/CapsDir/AbC.txt to CapsDir1/CapsDir/ABC.txt (glob)
+  $ hg ci -m "case changing rename" CapsDir1/CapsDir/AbC.txt CapsDir1/CapsDir/ABC.txt
+
+  $ hg status -A capsdir1/capsdir
+  M CapsDir1/CapsDir/SubDir/Def.txt
+  C CapsDir1/CapsDir/ABC.txt
+
   $ hg remove -f 'glob:**.txt' -X capsdir1/capsdir
   $ hg remove -f 'glob:**.txt' -I capsdir1/capsdir
-  removing CapsDir1/CapsDir/AbC.txt (glob)
+  removing CapsDir1/CapsDir/ABC.txt (glob)
   removing CapsDir1/CapsDir/SubDir/Def.txt (glob)
 #endif
 

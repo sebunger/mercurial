@@ -29,6 +29,10 @@ revignored = -3
 
 cmdtable = {}
 command = cmdutil.command(cmdtable)
+# Note for extension authors: ONLY specify testedwith = 'internal' for
+# extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
+# be specifying the version(s) of Mercurial they are tested with, or
+# leave the attribute unspecified.
 testedwith = 'internal'
 
 def _savegraft(ctx, extra):
@@ -67,7 +71,7 @@ def _makeextrafn(copiers):
     ('e', 'edit', False, _('invoke editor on commit messages')),
     ('l', 'logfile', '',
      _('read collapse commit message from file'), _('FILE')),
-    ('', 'keep', False, _('keep original changesets')),
+    ('k', 'keep', False, _('keep original changesets')),
     ('', 'keepbranches', False, _('keep original branch names')),
     ('D', 'detach', False, _('(DEPRECATED)')),
     ('i', 'interactive', False, _('(DEPRECATED)')),
@@ -326,7 +330,7 @@ def rebase(ui, repo, **opts):
 
             root = min(rebaseset)
             if not keepf and not repo[root].mutable():
-                raise util.Abort(_("can't rebase immutable changeset %s")
+                raise util.Abort(_("can't rebase public changeset %s")
                                  % repo[root],
                                  hint=_('see "hg help phases" for details'))
 
@@ -358,9 +362,9 @@ def rebase(ui, repo, **opts):
 
         # Keep track of the current bookmarks in order to reset them later
         currentbookmarks = repo._bookmarks.copy()
-        activebookmark = activebookmark or repo._bookmarkcurrent
+        activebookmark = activebookmark or repo._activebookmark
         if activebookmark:
-            bookmarks.unsetcurrent(repo)
+            bookmarks.deactivate(repo)
 
         extrafn = _makeextrafn(extrafns)
 
@@ -498,7 +502,7 @@ def rebase(ui, repo, **opts):
 
         if (activebookmark and
             repo['.'].node() == repo._bookmarks[activebookmark]):
-                bookmarks.setcurrent(repo, activebookmark)
+                bookmarks.activate(repo, activebookmark)
 
     finally:
         release(lock, wlock)
@@ -530,10 +534,9 @@ def concludenode(repo, rev, p1, p2, commitmsg=None, editor=None, extrafn=None):
     '''Commit the wd changes with parents p1 and p2. Reuse commit info from rev
     but also store useful information in extra.
     Return node of committed revision.'''
+    dsguard = cmdutil.dirstateguard(repo, 'rebase')
     try:
-        repo.dirstate.beginparentchange()
         repo.setparents(repo[p1].node(), repo[p2].node())
-        repo.dirstate.endparentchange()
         ctx = repo[rev]
         if commitmsg is None:
             commitmsg = ctx.description()
@@ -552,11 +555,10 @@ def concludenode(repo, rev, p1, p2, commitmsg=None, editor=None, extrafn=None):
             repo.ui.restoreconfig(backup)
 
         repo.dirstate.setbranch(repo[newnode].branch())
+        dsguard.close()
         return newnode
-    except util.Abort:
-        # Invalidate the previous setparents
-        repo.dirstate.invalidate()
-        raise
+    finally:
+        release(dsguard)
 
 def rebasenode(repo, rev, p1, base, state, collapse, target):
     'Rebase a single revision rev on top of p1 using base as merge ancestor'
@@ -836,7 +838,7 @@ def restorestatus(repo):
         _setrebasesetvisibility(repo, state.keys())
         return (originalwd, target, state, skipped,
                 collapse, keep, keepbranches, external, activebookmark)
-    except IOError, err:
+    except IOError as err:
         if err.errno != errno.ENOENT:
             raise
         raise util.Abort(_('no rebase in progress'))
@@ -867,7 +869,7 @@ def abort(repo, originalwd, target, state, activebookmark=None):
     immutable = [d for d in dstates if not repo[d].mutable()]
     cleanup = True
     if immutable:
-        repo.ui.warn(_("warning: can't clean up immutable changesets %s\n")
+        repo.ui.warn(_("warning: can't clean up public changesets %s\n")
                      % ', '.join(str(repo[r]) for r in immutable),
                      hint=_('see "hg help phases" for details'))
         cleanup = False
@@ -893,7 +895,7 @@ def abort(repo, originalwd, target, state, activebookmark=None):
             repair.strip(repo.ui, repo, strippoints)
 
     if activebookmark and activebookmark in repo._bookmarks:
-        bookmarks.setcurrent(repo, activebookmark)
+        bookmarks.activate(repo, activebookmark)
 
     clearstatus(repo)
     repo.ui.warn(_('rebase aborted\n'))
@@ -1024,40 +1026,46 @@ def clearrebased(ui, repo, state, skipped, collapsedas=None):
 def pullrebase(orig, ui, repo, *args, **opts):
     'Call rebase after pull if the latter has been invoked with --rebase'
     if opts.get('rebase'):
-        if opts.get('update'):
-            del opts['update']
-            ui.debug('--update and --rebase are not compatible, ignoring '
-                     'the update flag\n')
-
-        movemarkfrom = repo['.'].node()
-        revsprepull = len(repo)
-        origpostincoming = commands.postincoming
-        def _dummy(*args, **kwargs):
-            pass
-        commands.postincoming = _dummy
+        wlock = lock = None
         try:
-            orig(ui, repo, *args, **opts)
+            wlock = repo.wlock()
+            lock = repo.lock()
+            if opts.get('update'):
+                del opts['update']
+                ui.debug('--update and --rebase are not compatible, ignoring '
+                         'the update flag\n')
+
+            movemarkfrom = repo['.'].node()
+            revsprepull = len(repo)
+            origpostincoming = commands.postincoming
+            def _dummy(*args, **kwargs):
+                pass
+            commands.postincoming = _dummy
+            try:
+                orig(ui, repo, *args, **opts)
+            finally:
+                commands.postincoming = origpostincoming
+            revspostpull = len(repo)
+            if revspostpull > revsprepull:
+                # --rev option from pull conflict with rebase own --rev
+                # dropping it
+                if 'rev' in opts:
+                    del opts['rev']
+                # positional argument from pull conflicts with rebase's own
+                # --source.
+                if 'source' in opts:
+                    del opts['source']
+                rebase(ui, repo, **opts)
+                branch = repo[None].branch()
+                dest = repo[branch].rev()
+                if dest != repo['.'].rev():
+                    # there was nothing to rebase we force an update
+                    hg.update(repo, dest)
+                    if bookmarks.update(repo, [movemarkfrom], repo['.'].node()):
+                        ui.status(_("updating bookmark %s\n")
+                                  % repo._activebookmark)
         finally:
-            commands.postincoming = origpostincoming
-        revspostpull = len(repo)
-        if revspostpull > revsprepull:
-            # --rev option from pull conflict with rebase own --rev
-            # dropping it
-            if 'rev' in opts:
-                del opts['rev']
-            # positional argument from pull conflicts with rebase's own
-            # --source.
-            if 'source' in opts:
-                del opts['source']
-            rebase(ui, repo, **opts)
-            branch = repo[None].branch()
-            dest = repo[branch].rev()
-            if dest != repo['.'].rev():
-                # there was nothing to rebase we force an update
-                hg.update(repo, dest)
-                if bookmarks.update(repo, [movemarkfrom], repo['.'].node()):
-                    ui.status(_("updating bookmark %s\n")
-                              % repo._bookmarkcurrent)
+            release(lock, wlock)
     else:
         if opts.get('tool'):
             raise util.Abort(_('--tool can only be used with --rebase'))
@@ -1118,4 +1126,3 @@ def uisetup(ui):
          _("use 'hg rebase --continue' or 'hg rebase --abort'")])
     # ensure rebased rev are not hidden
     extensions.wrapfunction(repoview, '_getdynamicblockers', _rebasedvisible)
-

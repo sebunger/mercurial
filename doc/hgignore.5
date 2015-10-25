@@ -103,6 +103,10 @@ Neither glob nor regexp patterns are rooted. A glob\-syntax pattern of
 the form \fB*.c\fP will match a file ending in \fB.c\fP in any directory,
 and a regexp pattern of the form \fB\e.c$\fP will do the same. To root a
 regexp pattern, start it with \fB^\fP.
+.sp
+Subdirectories can have their own .hgignore settings by adding
+\fBsubinclude:path/to/subdir/.hgignore\fP to the root \fB.hgignore\fP. See
+\%\fBhg help patterns\fP\: for details on \fBsubinclude:\fP and \fBinclude:\fP.
 .IP Note
 .
 Patterns specified in other than \fB.hgignore\fP are always rooted.
