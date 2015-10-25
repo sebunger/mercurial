@@ -31,7 +31,7 @@ echo Cornelius > trunk/people
 svn add trunk/people
 svn commit -m "Add people"
 cd ..
-rm -r celesteville
+rm -rf celesteville
 
 # Now test hgsubversion
 hg --config extensions.hgsubversion= clone svn://127.0.0.1/celesteville

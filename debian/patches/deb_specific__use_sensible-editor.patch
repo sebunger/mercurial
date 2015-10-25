@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2385,8 +2385,8 @@ def debuginstall(ui):
+@@ -2471,8 +2471,8 @@ def debuginstall(ui):
      editor = util.expandpath(editor)
      cmdpath = util.findexe(shlex.split(editor)[0])
      if not cmdpath:
@@ -26,7 +26,7 @@ Use sensible-editor as default instead of vi.
          else:
 --- a/mercurial/ui.py
 +++ b/mercurial/ui.py
-@@ -882,7 +882,7 @@ class ui(object):
+@@ -914,7 +914,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -349,13 +349,13 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- a/mercurial/help/config.txt
 +++ b/mercurial/help/config.txt
-@@ -1409,7 +1409,8 @@ User interface controls.
-     Print debugging information. True or False. Default is False.
+@@ -1440,7 +1440,8 @@ User interface controls.
+     Print debugging information. (default: False)
  
  ``editor``
--    The editor to use during a commit. Default is ``$EDITOR`` or ``vi``.
-+    The editor to use during a commit. Default is ``$EDITOR`` or
-+    ``sensible-editor``.
+-    The editor to use during a commit. (default: ``$EDITOR`` or ``vi``)
++    The editor to use during a commit. (default: ``$EDITOR`` or
++    ``sensible-editor``)
  
  ``fallbackencoding``
      Encoding to try if it's not possible to decode the changelog using

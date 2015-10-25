@@ -6,9 +6,9 @@ Suggest Debian packages for some optional dependencies.
              import MySQLdb as mysql
              bzmysql._MySQLdb = mysql
          except ImportError as err:
--            raise util.Abort(_('python mysql support not available: %s') % err)
-+            raise util.Abort(_('python mysql support not available: %s') % err +
-+                             _(' (try installing the %s package)') % 'python-mysqldb')
+-            raise error.Abort(_('python mysql support not available: %s') % err)
++            raise error.Abort(_('python mysql support not available: %s') % err +
++                              _(' (try installing the %s package)') % 'python-mysqldb')
  
          bzaccess.__init__(self, ui)
  
@@ -35,12 +35,12 @@ Suggest Debian packages for some optional dependencies.
      name = name or exe
      if not util.findexe(exe):
          if abort:
-             exc = util.Abort
+             exc = error.Abort
          else:
              exc = MissingTool
 -        raise exc(_('cannot find required "%s" tool') % name)
 +        raise exc(_('cannot find required "%s" tool') % name +
-+                  (debname and _(' (try installing the %s package)') % debname or ''))
++                   (debname and _(' (try installing the %s package)') % debname or ''))
  
  class NoRepo(Exception):
      pass
@@ -65,13 +65,13 @@ Suggest Debian packages for some optional dependencies.
 +        checktool('darcs', debname='darcs')
          version = self.run0('--version').splitlines()[0].strip()
          if version < '2.1':
-             raise util.Abort(_('darcs version 2.1 or newer needed (found %r)') %
-                              version)
+             raise error.Abort(_('darcs version 2.1 or newer needed (found %r)')
+                               % version)
  
          if "ElementTree" not in globals():
--            raise util.Abort(_("Python ElementTree module is not available"))
-+            raise util.Abort(_("Python ElementTree module is not available") +
-+                             _(" (try installing the %s package)") % 'python-celementtree')
+-            raise error.Abort(_("Python ElementTree module is not available"))
++            raise error.Abort(_("Python ElementTree module is not available") +
++                              _(" (try installing the %s package)") % 'python-celementtree')
  
          self.path = os.path.realpath(path)
  
@@ -92,9 +92,9 @@ Suggest Debian packages for some optional dependencies.
              if util.findexe('tla'):
                  self.execmd = 'tla'
              else:
--                raise util.Abort(_('cannot find a GNU Arch tool'))
-+                raise util.Abort(_('cannot find a GNU Arch tool') +
-+                                 _(' (try installing the %s package)') % 'tla')
+-                raise error.Abort(_('cannot find a GNU Arch tool'))
++                raise error.Abort(_('cannot find a GNU Arch tool') +
++                                  _(' (try installing the %s package)') % 'tla')
  
          commandline.__init__(self, ui, self.execmd)
  
@@ -157,9 +157,9 @@ Suggest Debian packages for some optional dependencies.
              import OpenSSL
              OpenSSL.SSL.Context
          except ImportError:
--            raise util.Abort(_("SSL support is unavailable"))
-+            raise util.Abort(_("SSL support is unavailable") +
-+                             _(" (try installing the %s package)") % 'python-openssl')
+-            raise error.Abort(_("SSL support is unavailable"))
++            raise error.Abort(_("SSL support is unavailable") +
++                              _(" (try installing the %s package)") % 'python-openssl')
          ctx = OpenSSL.SSL.Context(OpenSSL.SSL.TLSv1_METHOD)
          ctx.use_privatekey_file(ssl_cert)
          ctx.use_certificate_file(ssl_cert)
@@ -167,9 +167,9 @@ Suggest Debian packages for some optional dependencies.
              import ssl
              ssl.wrap_socket
          except ImportError:
--            raise util.Abort(_("SSL support is unavailable"))
-+            raise util.Abort(_("SSL support is unavailable") +
-+                             _(" (try installing the %s package)") % 'python-openssl')
+-            raise error.Abort(_("SSL support is unavailable"))
++            raise error.Abort(_("SSL support is unavailable") +
++                              _(" (try installing the %s package)") % 'python-openssl')
          httpserver.socket = ssl.wrap_socket(
              httpserver.socket, server_side=True,
              certfile=ssl_cert, ssl_version=ssl.PROTOCOL_TLSv1)

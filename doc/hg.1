@@ -482,6 +482,9 @@ merged separately.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
+See \%\fBhg help revert\fP\: for a way to restore files to the state
+of another revision.
+.sp
 Returns 0 on success, 1 if nothing to backout or there are unresolved
 files.
 .sp
@@ -767,6 +770,15 @@ hg book \-r .^ tested
 .fi
 .IP \(bu 2
 .
+rename bookmark turkey to dinner:
+.sp
+.nf
+.ft C
+hg book \-m turkey dinner
+.ft P
+.fi
+.IP \(bu 2
+.
 move the \(aq@\(aq bookmark from another branch:
 .sp
 .nf
@@ -791,7 +803,7 @@ revision
 .
 delete a given bookmark
 .TP
-.BI \-m,  \-\-rename \ <NAME>
+.BI \-m,  \-\-rename \ <OLD>
 .
 rename a given bookmark
 .TP
@@ -903,9 +915,11 @@ destination will have all the nodes you specify with \-\-base
 parameters. To create a bundle containing all changesets, use
 \-a/\-\-all (or \-\-base null).
 .sp
-You can change compression method with the \-t/\-\-type option.
-The available compression methods are: none, bzip2, and
-gzip (by default, bundles are compressed using bzip2).
+You can change bundle format with the \-t/\-\-type option. You can
+specify a compression, a bundle version or both using a dash
+(comp\-version). The available compression methods are: none, bzip2,
+and gzip (by default, bundles are compressed using bzip2). The
+available format are: v1, v2 (default to most suitable).
 .sp
 The bundle file can then be transferred using conventional means
 and applied to another repository with the unbundle or pull
@@ -2197,7 +2211,7 @@ show help for a given topic or a help overview:
 .sp
 .nf
 .ft C
-hg help [\-ec] [TOPIC]
+hg help [\-eck] [TOPIC]
 .ft P
 .fi
 .sp
@@ -2219,7 +2233,7 @@ show only help for extensions
 .
 show only help for commands
 .TP
-.BI \-k,  \-\-keyword \ <VALUE>
+.B \-k,  \-\-keyword
 .
 show topics matching keyword
 .UNINDENT
@@ -3343,8 +3357,7 @@ public < draft < secret
 .ft P
 .fi
 .sp
-Returns 0 on success, 1 if no phases were changed or some could not
-be changed.
+Returns 0 on success, 1 if some phases could not be changed.
 .sp
 (For more information about the phases concept, see \%\fBhg help phases\fP\:.)
 .sp
@@ -3841,6 +3854,9 @@ Modified files are saved with a .orig suffix before reverting.
 To disable these backups, use \-\-no\-backup.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
+.sp
+See \%\fBhg help backout\fP\: for a way to reverse the effect of an
+earlier changeset.
 .sp
 Returns 0 on success.
 .sp
@@ -4522,7 +4538,7 @@ integrity, validating the hashes and checksums of each entry in
 the changelog, manifest, and tracked files, as well as the
 integrity of their crosslinks and indices.
 .sp
-Please see \%http://mercurial.selenic.com/wiki/RepositoryCorruption\:
+Please see \%https://mercurial\-scm.org/wiki/RepositoryCorruption\:
 for more information about recovery from corruption of the
 repository.
 .sp
@@ -4880,6 +4896,10 @@ erase file content at a given revision
 .
 command to display statistics about repository history
 .TP
+.B clonebundles
+.
+advertise pre\-generated bundles to seed clones (experimental)
+.TP
 .B color
 .
 colorize output from some commands
@@ -5039,7 +5059,7 @@ The following predicates are supported:
 .TP
 .B \fBadded()\fP
 .sp
-File that is added according to status.
+File that is added according to \%\fBhg status\fP\:.
 .TP
 .B \fBbinary()\fP
 .sp
@@ -5047,7 +5067,7 @@ File that appears to be binary (contains NUL bytes).
 .TP
 .B \fBclean()\fP
 .sp
-File that is clean according to status.
+File that is clean according to \%\fBhg status\fP\:.
 .TP
 .B \fBcopied()\fP
 .sp
@@ -5055,7 +5075,7 @@ File that is recorded as being copied.
 .TP
 .B \fBdeleted()\fP
 .sp
-File that is deleted according to status.
+File that is deleted according to \%\fBhg status\fP\:.
 .TP
 .B \fBencoding(name)\fP
 .sp
@@ -5083,12 +5103,12 @@ File that matches the active .hgignore pattern.
 .TP
 .B \fBignored()\fP
 .sp
-File that is ignored according to status. These files will only be
+File that is ignored according to \%\fBhg status\fP\:. These files will only be
 considered if this predicate is used.
 .TP
 .B \fBmodified()\fP
 .sp
-File that is modified according to status.
+File that is modified according to \%\fBhg status\fP\:.
 .TP
 .B \fBportable()\fP
 .sp
@@ -5097,11 +5117,11 @@ collisions.)
 .TP
 .B \fBremoved()\fP
 .sp
-File that is removed according to status.
+File that is removed according to \%\fBhg status\fP\:.
 .TP
 .B \fBresolved()\fP
 .sp
-File that is marked resolved according to the resolve state.
+File that is marked resolved according to \%\fBhg resolve \-l\fP\:.
 .TP
 .B \fBsize(expression)\fP
 .sp
@@ -5131,12 +5151,12 @@ File that is marked as a symlink.
 .TP
 .B \fBunknown()\fP
 .sp
-File that is unknown according to status. These files will only be
+File that is unknown according to \%\fBhg status\fP\:. These files will only be
 considered if this predicate is used.
 .TP
 .B \fBunresolved()\fP
 .sp
-File that is marked unresolved according to the resolve state.
+File that is marked unresolved according to \%\fBhg resolve \-l\fP\:.
 .UNINDENT
 .sp
 Some sample queries:
@@ -5238,12 +5258,12 @@ done independently of other development. This is sometimes done
 explicitly with a named branch, but it can also be done locally,
 using bookmarks or clones and anonymous branches.
 .sp
-Example: "The experimental branch".
+Example: "The experimental branch."
 .sp
 (Verb) The action of creating a child changeset which results in
 its parent having more than one child.
 .sp
-Example: "I\(aqm going to branch at X".
+Example: "I\(aqm going to branch at X."
 .TP
 .B Branch, anonymous
 .
@@ -5358,7 +5378,7 @@ See \(aqChangeset, child\(aq.
 .TP
 .B Close changeset
 .
-See \(aqHead, closed branch\(aq
+See \(aqHead, closed branch\(aq.
 .TP
 .B Closed branch
 .
@@ -5369,11 +5389,11 @@ See \(aqBranch, closed\(aq.
 (Noun) An entire or partial copy of a repository. The partial
 clone must be in the form of a revision and its ancestors.
 .sp
-Example: "Is your clone up to date?".
+Example: "Is your clone up to date?"
 .sp
 (Verb) The process of creating a clone, using \%\fBhg clone\fP\:.
 .sp
-Example: "I\(aqm going to clone the repository".
+Example: "I\(aqm going to clone the repository."
 .TP
 .B Closed branch head
 .
@@ -5668,13 +5688,13 @@ branch tip may be different in different cloned repositories.
 .
 (Noun) Another synonym of changeset.
 .sp
-Example: "I\(aqve pushed an update".
+Example: "I\(aqve pushed an update."
 .sp
 (Verb) This term is usually used to describe updating the state of
 the working directory to that of a specific changeset. See
 \%\fBhg help update\fP\:.
 .sp
-Example: "You should update".
+Example: "You should update."
 .TP
 .B Working directory
 .
@@ -5883,7 +5903,7 @@ rendering the page.
 .sp
 Many commands take a \fB{revision}\fP URL parameter. This defines the
 changeset to operate on. This is commonly specified as the short,
-12 digit hexidecimal abbreviation for the full 40 character unique
+12 digit hexadecimal abbreviation for the full 40 character unique
 revision identifier. However, any value described by
 \%\fBhg help revisions\fP\: typically works.
 .SS Commands and URLs
@@ -5974,7 +5994,7 @@ Show how a file changed in a particular commit.
 .sp
 The \fBfilediff\fP template is rendered.
 .sp
-This hander is registered under both the \fB/diff\fP and \fB/filediff\fP
+This handler is registered under both the \fB/diff\fP and \fB/filediff\fP
 paths. \fB/diff\fP is used in modern code.
 .SS /file/{revision}[/{path}]
 .sp
@@ -5997,7 +6017,7 @@ Show how a file changed in a particular commit.
 .sp
 The \fBfilediff\fP template is rendered.
 .sp
-This hander is registered under both the \fB/diff\fP and \fB/filediff\fP
+This handler is registered under both the \fB/diff\fP and \fB/filediff\fP
 paths. \fB/diff\fP is used in modern code.
 .SS /filelog/{revision}/{path}
 .sp
@@ -6149,6 +6169,16 @@ files. It will fail if there are any conflicts and leave markers in
 the partially merged file. Markers will have two sections, one for each side
 of merge.
 .TP
+.B \fB:merge\-local\fP
+.sp
+Like :merge, but resolve all conflicts non\-interactively in favor
+of the local changes.
+.TP
+.B \fB:merge\-other\fP
+.sp
+Like :merge, but resolve all conflicts non\-interactively in favor
+of the other changes.
+.TP
 .B \fB:merge3\fP
 .sp
 Uses the internal non\-interactive simple merge algorithm for merging
@@ -6168,6 +6198,12 @@ the merged version.
 .B \fB:tagmerge\fP
 .sp
 Uses the internal tag merge algorithm (experimental).
+.TP
+.B \fB:union\fP
+.sp
+Uses the internal non\-interactive simple merge algorithm for merging
+files. It will use both left and right sides for conflict regions.
+No markers are inserted.
 .UNINDENT
 .sp
 Internal tools are always available and do not require a GUI but will by default
@@ -6759,11 +6795,11 @@ work around it to return a non\-filtered value.
 .sp
 An alias for limit().
 .TP
-.B \fBfollow([file])\fP
+.B \fBfollow([pattern])\fP
 .sp
 An alias for \fB::.\fP (ancestors of the working directory\(aqs first parent).
-If a filename is specified, the history of the given file is followed,
-including copies.
+If pattern is specified, the histories of files matching given
+pattern is followed, including copies.
 .TP
 .B \fBgrep(regex)\fP
 .sp
@@ -6796,9 +6832,9 @@ string. The match is case\-insensitive.
 .sp
 Last n members of set, defaulting to 1.
 .TP
-.B \fBlimit(set, [n])\fP
+.B \fBlimit(set[, n[, offset]])\fP
 .sp
-First n members of set, defaulting to 1.
+First n members of set, defaulting to 1, starting from offset.
 .TP
 .B \fBmatching(revision [, field])\fP
 .sp
@@ -7540,11 +7576,6 @@ Integer. All ancestors not in the latest tag.
 .
 List of strings. The children of the changeset.
 .TP
-.B currentbookmark
-.
-String. The active bookmark, if it is
-associated with the changeset (DEPRECATED)
-.TP
 .B date
 .
 Date information. The date when the changeset was committed.
@@ -7691,11 +7722,6 @@ component of the path after splitting by the path separator
 .
 List or text. Returns the length as an integer.
 .TP
-.B date
-.
-Date. Returns a date in a Unix date format, including the
-timezone: "Mon Sep 04 15:13:13 2006 0700".
-.TP
 .B domain
 .
 Any text. Finds the first string that looks like an email
@@ -7749,10 +7775,6 @@ Date. Returns the date in ISO 8601 format: "2009\-08\-18 13:00
 Date. Returns the date in ISO 8601 format, including
 seconds: "2009\-08\-18 13:00:13 +0200". See also the rfc3339date
 filter.
-.TP
-.B localdate
-.
-Date. Converts a date to local date.
 .TP
 .B lower
 .
@@ -7813,10 +7835,6 @@ Any text. Split text into a list of lines.
 Any type. Turns the value into text by converting values into
 text and concatenating them.
 .TP
-.B strip
-.
-Any text. Strips all leading and trailing whitespace.
-.TP
 .B stripdir
 .
 Treat the text as path and strip a directory level, if
@@ -7851,7 +7869,8 @@ In addition to filters, there are some basic built\-in functions:
 .B date(date[, fmt])
 .
 Format a date. See \%\fBhg help dates\fP\: for formatting
-strings.
+strings. The default is a Unix date format, including the timezone:
+"Mon Sep 04 15:13:13 2006 0700".
 .TP
 .B diff([includepattern [, excludepattern]])
 .
@@ -7867,7 +7886,7 @@ paragraphs with optional indentation. See the "fill" filter.
 .
 Get an attribute/key from an object. Some keywords
 are complex types. This function allows you to obtain the value of an
-attribute on these type.
+attribute on these types.
 .TP
 .B if(expr, then[, else])
 .
@@ -7901,6 +7920,16 @@ Apply a label to generated content. Content with
 a label applied can result in additional post\-processing, such as
 automatic colorization.
 .TP
+.B latesttag([pattern])
+.
+The global tags matching the given pattern on the
+most recent globally tagged ancestor of this changeset.
+.TP
+.B localdate(date[, tz])
+.
+Converts a date to the specified timezone.
+The default is local date.
+.TP
 .B pad(text, width[, fillchar=\(aq \(aq[, right=False]])
 .
 Pad text with a
@@ -7927,7 +7956,8 @@ if it begins with the content from the "pattern" argument.
 .TP
 .B strip(text[, chars])
 .
-Strip characters from a string.
+Strip characters from a string. By default,
+strips all leading and trailing whitespace.
 .TP
 .B sub(pattern, replacement, expression)
 .
@@ -7986,6 +8016,15 @@ Format date:
 .nf
 .ft C
 $ hg log \-r 0 \-\-template "{date(date, \(aq%Y\(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Display date in UTC:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{localdate(date, \(aqUTC\(aq)|date}\en"
 .ft P
 .fi
 .IP \(bu 2
@@ -8054,11 +8093,29 @@ $ hg log \-\-template "{bookmarks % \(aq{bookmark}{ifeq(bookmark, active, \(aq*\
 .fi
 .IP \(bu 2
 .
+Find the previous release candidate tag, the distance and changes since the tag:
+.sp
+.nf
+.ft C
+$ hg log \-r . \-\-template "{latesttag(\(aqre:^.*\-rc$\(aq) % \(aq{tag}, {changes}, {distance}\(aq}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
 Mark the working copy parent with \(aq@\(aq:
 .sp
 .nf
 .ft C
 $ hg log \-\-template "{ifcontains(rev, revset(\(aq.\(aq), \(aq@\(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Show details of parent revisions:
+.sp
+.nf
+.ft C
+$ hg log \-\-template "{revset(\(aqparents(%d)\(aq, rev) % \(aq{desc|firstline}\en\(aq}"
 .ft P
 .fi
 .IP \(bu 2
@@ -8795,7 +8852,7 @@ Typical uses for censor are due to security or legal requirements, including:
 .sp
 .nf
 .ft C
-* Passwords, private keys, crytographic material
+* Passwords, private keys, cryptographic material
 * Licensed data/code/libraries for which the license has expired
 * Personally Identifiable Information or other private data
 .ft P
@@ -8969,6 +9026,232 @@ exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS clonebundles
+.sp
+advertise pre\-generated bundles to seed clones (experimental)
+.sp
+"clonebundles" is a server\-side extension used to advertise the existence
+of pre\-generated, externally hosted bundle files to clients that are
+cloning so that cloning can be faster, more reliable, and require less
+resources on the server.
+.sp
+Cloning can be a CPU and I/O intensive operation on servers. Traditionally,
+the server, in response to a client\(aqs request to clone, dynamically generates
+a bundle containing the entire repository content and sends it to the client.
+There is no caching on the server and the server will have to redundantly
+generate the same outgoing bundle in response to each clone request. For
+servers with large repositories or with high clone volume, the load from
+clones can make scaling the server challenging and costly.
+.sp
+This extension provides server operators the ability to offload potentially
+expensive clone load to an external service. Here\(aqs how it works.
+.INDENT 0.0
+.IP 1. 3
+.
+A server operator establishes a mechanism for making bundle files available
+on a hosting service where Mercurial clients can fetch them.
+.IP 2. 3
+.
+A manifest file listing available bundle URLs and some optional metadata
+is added to the Mercurial repository on the server.
+.IP 3. 3
+.
+A client initiates a clone against a clone bundles aware server.
+.IP 4. 3
+.
+The client sees the server is advertising clone bundles and fetches the
+manifest listing available bundles.
+.IP 5. 3
+.
+The client filters and sorts the available bundles based on what it
+supports and prefers.
+.IP 6. 3
+.
+The client downloads and applies an available bundle from the
+server\-specified URL.
+.IP 7. 3
+.
+The client reconnects to the original server and performs the equivalent
+of \%\fBhg pull\fP\: to retrieve all repository data not in the bundle. (The
+repository could have been updated between when the bundle was created
+and when the client started the clone.)
+.UNINDENT
+.sp
+Instead of the server generating full repository bundles for every clone
+request, it generates full bundles once and they are subsequently reused to
+bootstrap new clones. The server may still transfer data at clone time.
+However, this is only data that has been added/changed since the bundle was
+created. For large, established repositories, this can reduce server load for
+clones to less than 1% of original.
+.sp
+To work, this extension requires the following of server operators:
+.INDENT 0.0
+.IP \(bu 2
+.
+Generating bundle files of repository content (typically periodically,
+such as once per day).
+.IP \(bu 2
+.
+A file server that clients have network access to and that Python knows
+how to talk to through its normal URL handling facility (typically a
+HTTP server).
+.IP \(bu 2
+.
+A process for keeping the bundles manifest in sync with available bundle
+files.
+.UNINDENT
+.sp
+Strictly speaking, using a static file hosting server isn\(aqt required: a server
+operator could use a dynamic service for retrieving bundle data. However,
+static file hosting services are simple and scalable and should be sufficient
+for most needs.
+.sp
+Bundle files can be generated with the \%\fBhg bundle\fP\: comand. Typically
+\%\fBhg bundle \-\-all\fP\: is used to produce a bundle of the entire repository.
+.sp
+\%\fBhg debugcreatestreamclonebundle\fP\: can be used to produce a special
+\fIstreaming clone bundle\fP. These are bundle files that are extremely efficient
+to produce and consume (read: fast). However, they are larger than
+traditional bundle formats and require that clients support the exact set
+of repository data store formats in use by the repository that created them.
+Typically, a newer server can serve data that is compatible with older clients.
+However, \fIstreaming clone bundles\fP don\(aqt have this guarantee. \fBServer
+operators need to be aware that newer versions of Mercurial may produce
+streaming clone bundles incompatible with older Mercurial versions.\fP
+.sp
+The list of requirements printed by \%\fBhg debugcreatestreamclonebundle\fP\: should
+be specified in the \fBrequirements\fP parameter of the \fIbundle specification
+string\fP for the \fBBUNDLESPEC\fP manifest property described below. e.g.
+\fBBUNDLESPEC=none\-packed1;requirements%3Drevlogv1\fP.
+.sp
+A server operator is responsible for creating a \fB.hg/clonebundles.manifest\fP
+file containing the list of available bundle files suitable for seeding
+clones. If this file does not exist, the repository will not advertise the
+existence of clone bundles when clients connect.
+.sp
+The manifest file contains a newline (
+) delimited list of entries.
+.sp
+Each line in this file defines an available bundle. Lines have the format:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+<URL> [<key>=<value>[ <key>=<value>]]
+.UNINDENT
+.UNINDENT
+.sp
+That is, a URL followed by an optional, space\-delimited list of key=value
+pairs describing additional properties of this bundle. Both keys and values
+are URI encoded.
+.sp
+Keys in UPPERCASE are reserved for use by Mercurial and are defined below.
+All non\-uppercase keys can be used by site installations. An example use
+for custom properties is to use the \fIdatacenter\fP attribute to define which
+data center a file is hosted in. Clients could then prefer a server in the
+data center closest to them.
+.sp
+The following reserved keys are currently defined:
+.INDENT 0.0
+.TP
+.B BUNDLESPEC
+.
+A "bundle specification" string that describes the type of the bundle.
+.sp
+These are string values that are accepted by the "\-\-type" argument of
+\%\fBhg bundle\fP\:.
+.sp
+The values are parsed in strict mode, which means they must be of the
+"<compression>\-<type>" form. See
+mercurial.exchange.parsebundlespec() for more details.
+.sp
+Clients will automatically filter out specifications that are unknown or
+unsupported so they won\(aqt attempt to download something that likely won\(aqt
+apply.
+.sp
+The actual value doesn\(aqt impact client behavior beyond filtering:
+clients will still sniff the bundle type from the header of downloaded
+files.
+.sp
+\fBUse of this key is highly recommended\fP, as it allows clients to
+easily skip unsupported bundles.
+.TP
+.B REQUIRESNI
+.
+Whether Server Name Indication (SNI) is required to connect to the URL.
+SNI allows servers to use multiple certificates on the same IP. It is
+somewhat common in CDNs and other hosting providers. Older Python
+versions do not support SNI. Defining this attribute enables clients
+with older Python versions to filter this entry without experiencing
+an opaque SSL failure at connection time.
+.sp
+If this is defined, it is important to advertise a non\-SNI fallback
+URL or clients running old Python releases may not be able to clone
+with the clonebundles facility.
+.sp
+Value should be "true".
+.UNINDENT
+.sp
+Manifests can contain multiple entries. Assuming metadata is defined, clients
+will filter entries from the manifest that they don\(aqt support. The remaining
+entries are optionally sorted by client preferences
+(\fBexperimental.clonebundleprefers\fP config option). The client then attempts
+to fetch the bundle at the first URL in the remaining list.
+.sp
+\fBErrors when downloading a bundle will fail the entire clone operation:
+clients do not automatically fall back to a traditional clone.\fP The reason
+for this is that if a server is using clone bundles, it is probably doing so
+because the feature is necessary to help it scale. In other words, there
+is an assumption that clone load will be offloaded to another service and
+that the Mercurial server isn\(aqt responsible for serving this clone load.
+If that other service experiences issues and clients start mass falling back to
+the original Mercurial server, the added clone load could overwhelm the server
+due to unexpected load and effectively take it offline. Not having clients
+automatically fall back to cloning from the original server mitigates this
+scenario.
+.sp
+Because there is no automatic Mercurial server fallback on failure of the
+bundle hosting service, it is important for server operators to view the bundle
+hosting service as an extension of the Mercurial server in terms of
+availability and service level agreements: if the bundle hosting service goes
+down, so does the ability for clients to clone. Note: clients will see a
+message informing them how to bypass the clone bundles facility when a failure
+occurs. So server operators should prepare for some people to follow these
+instructions when a failure occurs, thus driving more load to the original
+Mercurial server when the bundle hosting service fails.
+.sp
+The following config options influence the behavior of the clone bundles
+feature:
+.INDENT 0.0
+.TP
+.B ui.clonebundleadvertise
+.
+Whether the server advertises the existence of the clone bundles feature
+to compatible clients that aren\(aqt using it.
+.sp
+When this is enabled (the default), a server will send a message to
+compatible clients performing a traditional clone informing them of the
+available clone bundles feature. Compatible clients are those that support
+bundle2 and are advertising support for the clone bundles feature.
+.TP
+.B ui.clonebundlefallback
+.
+Whether to automatically fall back to a traditional clone in case of
+clone bundles failure. Defaults to false for reasons described above.
+.TP
+.B experimental.clonebundles
+.
+Whether the clone bundles feature is enabled on clients. Defaults to true.
+.TP
+.B experimental.clonebundleprefers
+.
+List of "key=value" properties the client prefers in bundles. Downloaded
+bundle manifests will be sorted by the preferences in this list. e.g.
+the value "BUNDLESPEC=gzip\-v1, BUNDLESPEC=bzip2=v1" will prefer a gzipped
+version 1 bundle type then bzip2 version 1 bundle type.
+.sp
+If not defined, the order in the manifest will be used and the first
+available bundle will be downloaded.
+.UNINDENT
 .SS color
 .sp
 colorize output from some commands
@@ -9504,6 +9787,11 @@ is very expensive for large projects, and is only effective when
 remote refs are converted as bookmarks with
 \fBconvert.git.remoteprefix\fP as a prefix followed by a /. The default
 is \(aqremote\(aq.
+.TP
+.B convert.git.skipsubmodules
+.
+does not convert root level .gitmodules files
+or files with 160000 mode indicating a submodule. Default is False.
 .UNINDENT
 .SS Perforce Source
 .sp
@@ -9588,7 +9876,7 @@ Options:
 .TP
 .BI \-\-authors \ <FILE>
 .
-username mapping filename (DEPRECATED, use \-\-authormap instead)
+username mapping filename (DEPRECATED) (use \-\-authormap instead)
 .TP
 .BI \-s,  \-\-source\-type \ <TYPE>
 .
@@ -9667,7 +9955,7 @@ declared to be binary (\fBBIN\fP) are left unchanged. Additionally,
 \fBnative\fP is an alias for checking out in the platform\(aqs default line
 ending: \fBLF\fP on Unix (including Mac OS X) and \fBCRLF\fP on
 Windows. Note that \fBBIN\fP (do nothing to line endings) is Mercurial\(aqs
-default behaviour; it is only needed if you need to override a later,
+default behavior; it is only needed if you need to override a later,
 more general pattern.
 .sp
 The optional \fB[repository]\fP section specifies the line endings to
@@ -9851,6 +10139,10 @@ revision
 .BI \-c,  \-\-change \ <REV>
 .
 change made by revision
+.TP
+.B \-\-patch
+.
+compare patches for two revisions
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -10286,16 +10578,21 @@ syntax highlighting for hgweb (requires Pygments)
 It depends on the Pygments syntax highlighting library:
 \%http://pygments.org/\:
 .sp
-There is a single configuration option:
+There are the following configuration options:
 .sp
 .nf
 .ft C
 [web]
-pygments_style = <style>
+pygments_style = <style> (default: colorful)
+highlightfiles = <fileset> (default: size(\(aq<5M\(aq))
+highlightonlymatchfilename = <bool> (default False)
 .ft P
 .fi
 .sp
-The default is \(aqcolorful\(aq.
+\fBhighlightonlymatchfilename\fP will only highlight files if their type could
+be identified by their filename. When this is not enabled (the default),
+Pygments will try very hard to identify the file type from content and any
+match (even matches with a low confidence score) will be used.
 .SS histedit
 .sp
 interactive history editing
@@ -10338,7 +10635,7 @@ pick 7c2fd3b9020c Add delta
 #  f, fold = use commit, but combine it with the one above
 #  r, roll = like fold, but discard this commit\(aqs description
 #  d, drop = remove commit from history
-#  m, mess = edit message without changing commit content
+#  m, mess = edit commit message without changing commit content
 #
 .ft P
 .fi
@@ -10364,7 +10661,7 @@ fold 7c2fd3b9020c Add delta
 #  f, fold = use commit, but combine it with the one above
 #  r, roll = like fold, but discard this commit\(aqs description
 #  d, drop = remove commit from history
-#  m, mess = edit message without changing commit content
+#  m, mess = edit commit message without changing commit content
 #
 .ft P
 .fi
@@ -10462,7 +10759,7 @@ repository that Mercurial does not detect to be related to the source
 repo, you can add a \fB\-\-force\fP option.
 .sp
 Histedit rule lines are truncated to 80 characters by default. You
-can customise this behaviour by setting a different length in your
+can customize this behavior by setting a different length in your
 configuration file:
 .sp
 .nf
@@ -10489,9 +10786,9 @@ With \-\-outgoing, this edits changesets not found in the
 destination repository. If URL of the destination is omitted, the
 \(aqdefault\-push\(aq (or \(aqdefault\(aq) path will be used.
 .sp
-For safety, this command is aborted, also if there are ambiguous
-outgoing revisions which may confuse users: for example, there are
-multiple branches containing outgoing revisions.
+For safety, this command is also aborted if there are ambiguous
+outgoing revisions which may confuse users: for example, if there
+are multiple branches containing outgoing revisions.
 .sp
 Use "min(outgoing() and ::.)" or similar revset specification
 instead of \-\-outgoing to specify edit target revision exactly in
@@ -10993,7 +11290,7 @@ refresh contents of top applied patch     qrefresh
 .sp
 By default, mq will automatically use git patches when required to
 avoid losing file mode changes, copy records, binary files or empty
-files creations or deletions. This behaviour can be configured with:
+files creations or deletions. This behavior can be configured with:
 .sp
 .nf
 .ft C
@@ -12475,7 +12772,8 @@ of the specified revisions if any are provided)
 .sp
 With \-b/\-\-bundle, changesets are selected as for \-\-outgoing, but a
 single email containing a binary Mercurial bundle as an attachment
-will be sent.
+will be sent. Use the \fBpatchbomb.bundletype\fP config option to
+control the bundle type as with \%\fBhg bundle \-\-type\fP\:.
 .sp
 With \-m/\-\-mbox, instead of previewing each patchbomb message in a
 pager or sending the messages directly, it will create a UNIX
@@ -12757,7 +13055,7 @@ This extension lets you rebase changesets in an existing Mercurial
 repository.
 .sp
 For more information:
-\%http://mercurial.selenic.com/wiki/RebaseExtension\:
+\%https://mercurial\-scm.org/wiki/RebaseExtension\:
 .SS Commands
 .SS rebase
 .sp
@@ -13810,7 +14108,7 @@ below) when you find them.
 Written by Matt Mackall <\%mpm@selenic.com\:>
 .SH RESOURCES
 .sp
-Main Web Site: \%http://mercurial.selenic.com/\:
+Main Web Site: \%https://mercurial\-scm.org/\:
 .sp
 Source code repository: \%http://selenic.com/hg\:
 .sp
