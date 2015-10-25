@@ -1,8 +1,8 @@
-mercurial (3.6~rc1-1) UNRELEASED; urgency=medium
+mercurial (3.6~rc1-1) experimental; urgency=medium
 
   * First release candidate for mercurial 3.6
 
- -- Javi Merino <vicho@debian.org>  Sun, 25 Oct 2015 15:37:19 +0000
+ -- Javi Merino <vicho@debian.org>  Sun, 25 Oct 2015 17:31:59 +0000
 
 mercurial (3.5.2-2) unstable; urgency=medium
 
