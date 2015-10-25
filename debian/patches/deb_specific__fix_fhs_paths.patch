@@ -9,7 +9,7 @@ Author: Javi Merino <vicho@debian.org>
 
 --- a/mercurial/util.py
 +++ b/mercurial/util.py
-@@ -697,6 +697,8 @@ def mainfrozen():
+@@ -700,6 +700,8 @@ def mainfrozen():
  if mainfrozen():
      # executable version (py2exe) doesn't support __file__
      datapath = os.path.dirname(sys.executable)
