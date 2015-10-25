@@ -1,0 +1,48 @@
+#!/bin/sh
+
+# This actually tests that hgsubversion is not broken and it really
+# belongs in the hgsubversion package (it's there).  I'm copying it
+# here because that way I can test if a new version of mercurial
+# breaks hgsubversion and update Breaks accordingly.  There's probably
+# a better way of doing this.
+
+set -e
+
+SVN_ROOT=$(mktemp --tmpdir -d hgsubversion.XXXXX)
+mkdir -p $SVN_ROOT
+
+PID_FILE=/tmp/svnmock.pid
+
+# Create a local svn server with an empty repo
+svnadmin create $SVN_ROOT/celesteville
+cat > $SVN_ROOT/celesteville/conf/svnserve.conf << EOF
+[general]
+anon-access = write
+EOF
+svnserve -d --pid-file $PID_FILE -r $SVN_ROOT
+
+# Put some content in the repository
+svn co svn://127.0.0.1/celesteville
+cd celesteville
+mkdir trunk tags branches
+svn add trunk tags branches
+svn commit -m "Initial commit"
+echo Cornelius > trunk/people
+svn add trunk/people
+svn commit -m "Add people"
+cd ..
+rm -r celesteville
+
+# Now test hgsubversion
+hg --config extensions.hgsubversion= clone svn://127.0.0.1/celesteville
+cd celesteville
+echo Arthur >> people
+hg commit -u "Babar <babar@jungle.org>" -m "Add more people"
+hg --config extensions.hgsubversion= push
+cd ..
+
+# Kill the server and cleanup
+kill $(cat $PID_FILE)
+rm -rf $SVN_ROOT
+
+rm -r celesteville
