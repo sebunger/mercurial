@@ -234,7 +234,7 @@ Use sensible-editor as default instead of vi.
  msgid ""
  "``editor``\n"
 -"    The editor to use during a commit. (default: ``$EDITOR`` or ``vi``)"
-+"    The editor to use during a commit. (default: ``$EDITOR`` or\n
++"    The editor to use during a commit. (default: ``$EDITOR`` or\n"
 +"    ``sensible-editor``)"
  msgstr ""
  "``editor``\n"
