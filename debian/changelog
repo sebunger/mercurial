@@ -1,6 +1,8 @@
 mercurial (3.6-1) unstable; urgency=medium
 
   * New upstream release
+  * Update hgsubversion breaks. 1.8.3-1 is not compatible with mercurial
+    3.6-1
 
  -- Javi Merino <vicho@debian.org>  Thu, 05 Nov 2015 10:43:33 +0000
 
