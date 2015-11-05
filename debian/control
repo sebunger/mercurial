@@ -54,6 +54,7 @@ Breaks: hgsubversion (<= 1.8.3-1),
  hgview-common (<< 1.8.1),
  mercurial-git (<< 0.8.1-3),
  qct (<< 1.7-2~),
+ mercurial-crecord (<= 0.20140626-1),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.
