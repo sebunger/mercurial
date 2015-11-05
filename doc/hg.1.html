@@ -3848,8 +3848,15 @@ variables are not overridden.</p>
 </dd>
 <dt>HGPLAINEXCEPT</dt>
 <dd><p class="first">This is a comma-separated list of features to preserve when
-HGPLAIN is enabled. Currently the only value supported is &quot;i18n&quot;,
-which preserves internationalization in plain mode.</p>
+HGPLAIN is enabled. Currently the following values are supported:</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">alias</tt></dt>
+<dd>Don't remove aliases.</dd>
+<dt><tt class="docutils literal">i18n</tt></dt>
+<dd>Preserve internationalization.</dd>
+<dt><tt class="docutils literal">revsetalias</tt></dt>
+<dd>Don't remove revset aliases.</dd>
+</dl>
 <p class="last">Setting HGPLAINEXCEPT to anything (even an empty string) will
 enable plain mode.</p>
 </dd>

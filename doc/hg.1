@@ -4765,8 +4765,21 @@ variables are not overridden.
 .B HGPLAINEXCEPT
 .
 This is a comma\-separated list of features to preserve when
-HGPLAIN is enabled. Currently the only value supported is "i18n",
-which preserves internationalization in plain mode.
+HGPLAIN is enabled. Currently the following values are supported:
+.INDENT 7.0
+.TP
+.B \fBalias\fP
+.sp
+Don\(aqt remove aliases.
+.TP
+.B \fBi18n\fP
+.sp
+Preserve internationalization.
+.TP
+.B \fBrevsetalias\fP
+.sp
+Don\(aqt remove revset aliases.
+.UNINDENT
 .sp
 Setting HGPLAINEXCEPT to anything (even an empty string) will
 enable plain mode.
