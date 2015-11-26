@@ -57,7 +57,7 @@ operator could use a dynamic service for retrieving bundle data. However,
 static file hosting services are simple and scalable and should be sufficient
 for most needs.
 
-Bundle files can be generated with the :hg:`bundle` comand. Typically
+Bundle files can be generated with the :hg:`bundle` command. Typically
 :hg:`bundle --all` is used to produce a bundle of the entire repository.
 
 :hg:`debugcreatestreamclonebundle` can be used to produce a special
@@ -210,18 +210,6 @@ def capabilities(orig, repo, proto):
         caps.append('clonebundles')
 
     return caps
-
-@wireproto.wireprotocommand('clonebundles', '')
-def bundles(repo, proto):
-    """Server command for returning info for available bundles to seed clones.
-
-    Clients will parse this response and determine what bundle to fetch.
-
-    Other extensions may wrap this command to filter or dynamically emit
-    data depending on the request. e.g. you could advertise URLs for
-    the closest data center given the client's IP address.
-    """
-    return repo.opener.tryread('clonebundles.manifest')
 
 @exchange.getbundle2partsgenerator('clonebundlesadvertise', 0)
 def advertiseclonebundlespart(bundler, repo, source, bundlecaps=None,
