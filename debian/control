@@ -52,7 +52,7 @@ Suggests: qct,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
 Breaks: hgsubversion (<= 1.8.3-1),
  hgview-common (<< 1.8.1),
- mercurial-git (<= 0.8.2-1),
+ mercurial-git (<< 0.8.3-1),
  qct (<< 1.7-2~),
  mercurial-crecord (<= 0.20140626-1),
 Description: easy-to-use, scalable distributed version control system
