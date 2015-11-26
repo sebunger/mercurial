@@ -1,10 +1,10 @@
-mercurial (3.6.1-1) UNRELEASED; urgency=medium
+mercurial (3.6.1-1) unstable; urgency=medium
 
   * New upstream release
   * mercurial 3.6 breaks mercurial-crecord 0.20150626-1
   * mercurial 3.6 breaks mercurial-git prior to 0.8.3-1
 
- -- Javi Merino <vicho@debian.org>  Thu, 26 Nov 2015 08:22:29 +0000
+ -- Javi Merino <vicho@debian.org>  Thu, 26 Nov 2015 08:30:18 +0000
 
 mercurial (3.6-1) unstable; urgency=medium
 
