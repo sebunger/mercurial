@@ -1,6 +1,6 @@
 mercurial (3.6.1-2) UNRELEASED; urgency=medium
 
-  * Improve autopkgtest for mercurial-git to push commits from the
+  * Improve autopkgtest for mercurial-git to test pushing commits from the
     mercurial clone to git
   * Update breaks of hgsubversion.  hgsubversion 1.8.3-2 works with
     mercurial 3.6
