@@ -1,3 +1,13 @@
+mercurial (3.6.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * Improve autopkgtest for mercurial-git to test pushing commits from the
+    mercurial clone to git
+  * Update breaks of hgsubversion.  hgsubversion 1.8.3-2 works with
+    mercurial 3.6
+
+ -- Javi Merino <vicho@debian.org>  Fri, 04 Dec 2015 07:37:49 +0000
+
 mercurial (3.6.1-1) unstable; urgency=medium
 
   * New upstream release
