@@ -1,3 +1,10 @@
+mercurial (3.6.2-2) UNRELEASED; urgency=medium
+
+  * Fix "mercurial-git autopkgtest fails because of stderr" by allowing
+    the test to output to stderr (Closes: #808376)
+
+ -- Javi Merino <vicho@debian.org>  Sun, 27 Dec 2015 12:18:56 +0100
+
 mercurial (3.6.2-1) unstable; urgency=medium
 
   * New upstream release
