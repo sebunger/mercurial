@@ -5,10 +5,21 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from i18n import _
+from __future__ import absolute_import
+
+import SocketServer
+import errno
+import os
 import struct
-import sys, os, errno, traceback, SocketServer
-import dispatch, encoding, util, error
+import sys
+import traceback
+
+from .i18n import _
+from . import (
+    encoding,
+    error,
+    util,
+)
 
 logfile = None
 
@@ -32,6 +43,10 @@ class channeledoutput(object):
         self.out = out
         self.channel = channel
 
+    @property
+    def name(self):
+        return '<%c-channel>' % self.channel
+
     def write(self, data):
         if not data:
             return
@@ -40,7 +55,7 @@ class channeledoutput(object):
         self.out.flush()
 
     def __getattr__(self, attr):
-        if attr in ('isatty', 'fileno'):
+        if attr in ('isatty', 'fileno', 'tell', 'seek'):
             raise AttributeError(attr)
         return getattr(self.out, attr)
 
@@ -63,6 +78,10 @@ class channeledinput(object):
         self.in_ = in_
         self.out = out
         self.channel = channel
+
+    @property
+    def name(self):
+        return '<%c-channel>' % self.channel
 
     def read(self, size=-1):
         if size < 0:
@@ -120,7 +139,7 @@ class channeledinput(object):
         return l
 
     def __getattr__(self, attr):
-        if attr in ('isatty', 'fileno'):
+        if attr in ('isatty', 'fileno', 'tell', 'seek'):
             raise AttributeError(attr)
         return getattr(self.in_, attr)
 
@@ -174,6 +193,7 @@ class server(object):
     def runcommand(self):
         """ reads a list of \0 terminated arguments, executes
         and writes the return code to the result channel """
+        from . import dispatch  # avoid cycle
 
         length = struct.unpack('>I', self._read(4))[0]
         if not length:
@@ -194,9 +214,17 @@ class server(object):
             self.repo.ui = self.repo.dirstate._ui = repoui
             self.repo.invalidateall()
 
+        # reset last-print time of progress bar per command
+        # (progbar is singleton, we don't have to do for all uis)
+        if copiedui._progbar:
+            copiedui._progbar.resetstate()
+
         for ui in uis:
-            # any kind of interaction must use server channels
-            ui.setconfig('ui', 'nontty', 'true', 'commandserver')
+            # any kind of interaction must use server channels, but chg may
+            # replace channels by fully functional tty files. so nontty is
+            # enforced only if cin is a channel.
+            if not util.safehasattr(self.cin, 'fileno'):
+                ui.setconfig('ui', 'nontty', 'true', 'commandserver')
 
         req = dispatch.request(args[:], copiedui, self.repo, self.cin,
                                self.cout, self.cerr)

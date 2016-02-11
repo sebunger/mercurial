@@ -631,11 +631,8 @@ class hgsubrepo(abstractsubrepo):
         self._initrepo(r, state[0], create)
 
     def storeclean(self, path):
-        lock = self._repo.lock()
-        try:
+        with self._repo.lock():
             return self._storeclean(path)
-        finally:
-            lock.release()
 
     def _storeclean(self, path):
         clean = True
@@ -679,13 +676,10 @@ class hgsubrepo(abstractsubrepo):
         store may be "clean" versus a given remote repo, but not versus another
         '''
         cachefile = _getstorehashcachename(remotepath)
-        lock = self._repo.lock()
-        try:
+        with self._repo.lock():
             storehash = list(self._calcstorehash(remotepath))
             vfs = self._cachestorehashvfs
             vfs.writelines(cachefile, storehash, mode='w', notindexed=True)
-        finally:
-            lock.release()
 
     def _getctx(self):
         '''fetch the context for this subrepo revision, possibly a workingctx
@@ -1300,10 +1294,25 @@ class gitsubrepo(abstractsubrepo):
             self._gitexecutable = 'git'
             out, err = self._gitnodir(['--version'])
         except OSError as e:
-            if e.errno != 2 or os.name != 'nt':
-                raise
-            self._gitexecutable = 'git.cmd'
-            out, err = self._gitnodir(['--version'])
+            genericerror = _("error executing git for subrepo '%s': %s")
+            notfoundhint = _("check git is installed and in your PATH")
+            if e.errno != errno.ENOENT:
+                raise error.Abort(genericerror % (self._path, e.strerror))
+            elif os.name == 'nt':
+                try:
+                    self._gitexecutable = 'git.cmd'
+                    out, err = self._gitnodir(['--version'])
+                except OSError as e2:
+                    if e2.errno == errno.ENOENT:
+                        raise error.Abort(_("couldn't find 'git' or 'git.cmd'"
+                            " for subrepo '%s'") % self._path,
+                            hint=notfoundhint)
+                    else:
+                        raise error.Abort(genericerror % (self._path,
+                            e2.strerror))
+            else:
+                raise error.Abort(_("couldn't find git for subrepo '%s'")
+                    % self._path, hint=notfoundhint)
         versionstatus = self._checkversion(out)
         if versionstatus == 'unknown':
             self.ui.warn(_('cannot retrieve git version\n'))
@@ -1910,7 +1919,7 @@ class gitsubrepo(abstractsubrepo):
             status = self.status(None)
             names = status.modified
             for name in names:
-                bakname = "%s.orig" % name
+                bakname = scmutil.origpath(self.ui, self._subparent, name)
                 self.ui.note(_('saving current version of %s as %s\n') %
                         (name, bakname))
                 self.wvfs.rename(name, bakname)

@@ -42,7 +42,7 @@ a setting into your environment.
 .sp
 See \%\fBhg help config.syntax\fP\: and \%\fBhg help config.files\fP\:
 for information about how and where to override things.
-.SH FORMAT
+.SH STRUCTURE
 .sp
 The configuration files use a simple ini\-file format. A configuration
 file consists of sections, led by a \fB[section]\fP header and followed
@@ -62,10 +62,21 @@ The above entries will be referred to as \fBui.username\fP and
 .sp
 Mercurial reads configuration data from several files, if they exist.
 These files do not exist by default and you will have to create the
-appropriate configuration files yourself: global configuration like
-the username setting is typically put into
-\fB%USERPROFILE%\emercurial.ini\fP or \fB$HOME/.hgrc\fP and local
-configuration is put into the per\-repository \fB<repo>/.hg/hgrc\fP file.
+appropriate configuration files yourself:
+.sp
+Local configuration is put into the per\-repository \fB<repo>/.hg/hgrc\fP file.
+.sp
+Global configuration like the username setting is typically put into:
+.INDENT 0.0
+.IP \(bu 2
+.
+\fB%USERPROFILE%\emercurial.ini\fP (on Windows)
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+.
+\fB$HOME/.hgrc\fP (on Unix, Plan9)
+.UNINDENT
 .sp
 The names of these files depend on the system on which Mercurial is
 installed. \fB*.rc\fP files from a single directory are read in
@@ -134,6 +145,8 @@ The registry key \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eWow6432Node\eMercurial\fP
 is used when running 32\-bit Python on 64\-bit Windows.
 .RE
 .sp
+On Windows 9x, \fB%HOME%\fP is replaced by \fB%APPDATA%\fP.
+.sp
 On Plan9, the following files are consulted:
 .INDENT 0.0
 .IP \(bu 2
@@ -162,23 +175,25 @@ On Plan9, the following files are consulted:
 Per\-repository configuration options only apply in a
 particular repository. This file is not version\-controlled, and
 will not get transferred during a "clone" operation. Options in
-this file override options in all other configuration files. On
-Plan 9 and Unix, most of this file will be ignored if it doesn\(aqt
+this file override options in all other configuration files.
+.sp
+On Plan 9 and Unix, most of this file will be ignored if it doesn\(aqt
 belong to a trusted user or to a trusted group. See
 \%\fBhg help config.trusted\fP\: for more details.
 .sp
-Per\-user configuration file(s) are for the user running Mercurial. On
-Windows 9x, \fB%HOME%\fP is replaced by \fB%APPDATA%\fP. Options in these
-files apply to all Mercurial commands executed by this user in any
+Per\-user configuration file(s) are for the user running Mercurial.  Options
+in these files apply to all Mercurial commands executed by this user in any
 directory. Options in these files override per\-system and per\-installation
 options.
 .sp
 Per\-installation configuration files are searched for in the
 directory where Mercurial is installed. \fB<install\-root>\fP is the
-parent directory of the \fBhg\fP executable (or symlink) being run. For
-example, if installed in \fB/shared/tools/bin/hg\fP, Mercurial will look
-in \fB/shared/tools/etc/mercurial/hgrc\fP. Options in these files apply
-to all Mercurial commands executed by any user in any directory.
+parent directory of the \fBhg\fP executable (or symlink) being run.
+.sp
+For example, if installed in \fB/shared/tools/bin/hg\fP, Mercurial
+will look in \fB/shared/tools/etc/mercurial/hgrc\fP. Options in these
+files apply to all Mercurial commands executed by any user in any
+directory.
 .sp
 Per\-installation configuration files are for the system on
 which Mercurial is running. Options in these files apply to all
@@ -910,32 +925,49 @@ myfeature = ~/.hgext/myfeature.py
 .SS \fBformat\fP
 .INDENT 0.0
 .TP
-.B \fBusestore\fP
+.B \fBusegeneraldelta\fP
 .sp
-Enable or disable the "store" repository format which improves
-compatibility with systems that fold case or otherwise mangle
-filenames. Enabled by default. Disabling this option will allow
-you to store longer filenames in some situations at the expense of
-compatibility and ensures that the on\-disk format of newly created
-repositories will be compatible with Mercurial before version 0.9.4.
-.TP
-.B \fBusefncache\fP
+Enable or disable the "generaldelta" repository format which improves
+repository compression by allowing "revlog" to store delta against arbitrary
+revision instead of the previous stored one. This provides significant
+improvement for repositories with branches.
 .sp
-Enable or disable the "fncache" repository format which enhances
-the "store" repository format (which has to be enabled to use
-fncache) to allow longer filenames and avoids using Windows
-reserved names, e.g. "nul". Enabled by default. Disabling this
-option ensures that the on\-disk format of newly created
-repositories will be compatible with Mercurial before version 1.1.
+Repositories with this on\-disk format require Mercurial version 1.9.
+.sp
+Enabled by default.
 .TP
 .B \fBdotencode\fP
 .sp
 Enable or disable the "dotencode" repository format which enhances
 the "fncache" repository format (which has to be enabled to use
 dotencode) to avoid issues with filenames starting with ._ on
-Mac OS X and spaces on Windows. Enabled by default. Disabling this
-option ensures that the on\-disk format of newly created
-repositories will be compatible with Mercurial before version 1.7.
+Mac OS X and spaces on Windows.
+.sp
+Repositories with this on\-disk format require Mercurial version 1.7.
+.sp
+Enabled by default.
+.TP
+.B \fBusefncache\fP
+.sp
+Enable or disable the "fncache" repository format which enhances
+the "store" repository format (which has to be enabled to use
+fncache) to allow longer filenames and avoids using Windows
+reserved names, e.g. "nul".
+.sp
+Repositories with this on\-disk format require Mercurial version 1.1.
+.sp
+Enabled by default.
+.TP
+.B \fBusestore\fP
+.sp
+Enable or disable the "store" repository format which improves
+compatibility with systems that fold case or otherwise mangle
+filenames. Disabling this option will allow you to store longer filenames
+in some situations at the expense of compatibility.
+.sp
+Repositories with this on\-disk format require Mercurial version 0.9.4.
+.sp
+Enabled by default.
 .UNINDENT
 .SS \fBgraph\fP
 .sp
@@ -982,7 +1014,7 @@ various actions such as starting or finishing a commit. Multiple
 hooks can be run for the same action by appending a suffix to the
 action. Overriding a site\-wide hook can be done by changing its
 value or setting it to an empty string.  Hooks can be prioritized
-by adding a prefix of \fBpriority\fP to the hook name on a new line
+by adding a prefix of \fBpriority.\fP to the hook name on a new line
 and setting the priority. The default priority is 0.
 .sp
 Example \fB.hg/hgrc\fP:
@@ -1008,9 +1040,9 @@ variables it is passed are listed with names of the form \fB$HG_foo\fP.
 .TP
 .B \fBchangegroup\fP
 .sp
-Run after a changegroup has been added via push, pull or unbundle.
-ID of the first new changeset is in \fB$HG_NODE\fP. URL from which
-changes came is in \fB$HG_URL\fP.
+Run after a changegroup has been added via push, pull or unbundle.  ID of the
+first new changeset is in \fB$HG_NODE\fP and last in \fB$HG_NODE_LAST\fP. URL
+from which changes came is in \fB$HG_URL\fP.
 .TP
 .B \fBcommit\fP
 .sp
@@ -1046,7 +1078,7 @@ Run before executing the associated command. The contents of the
 command line are passed as \fB$HG_ARGS\fP. Parsed command line arguments
 are passed as \fB$HG_PATS\fP and \fB$HG_OPTS\fP. These contain string
 representations of the data internally passed to <command>. \fB$HG_OPTS\fP
-is a  dictionary of options (with unspecified options set to their
+is a dictionary of options (with unspecified options set to their
 defaults). \fB$HG_PATS\fP is a list of arguments. If the hook returns
 failure, the command doesn\(aqt execute and Mercurial returns the failure
 code.
@@ -1105,17 +1137,16 @@ transaction from being opened.
 .TP
 .B \fBpretxnclose\fP
 .sp
-Run right before the transaction is actually finalized. Any
-repository change will be visible to the hook program. This lets you
-validate the transaction content or change it. Exit status 0 allows
-the commit to proceed. Non\-zero status will cause the transaction to
-be rolled back. The reason for the transaction opening will be in
-\fB$HG_TXNNAME\fP and a unique identifier for the transaction will be in
-\fBHG_TXNID\fP. The rest of the available data will vary according the
-transaction type. New changesets will add \fB$HG_NODE\fP (id of the
-first added changeset), \fB$HG_URL\fP and \fB$HG_SOURCE\fP variables,
-bookmarks and phases changes will set \fBHG_BOOKMARK_MOVED\fP and
-\fBHG_PHASES_MOVED\fP to \fB1\fP, etc.
+Run right before the transaction is actually finalized. Any repository change
+will be visible to the hook program. This lets you validate the transaction
+content or change it. Exit status 0 allows the commit to proceed. Non\-zero
+status will cause the transaction to be rolled back. The reason for the
+transaction opening will be in \fB$HG_TXNNAME\fP and a unique identifier for
+the transaction will be in \fBHG_TXNID\fP. The rest of the available data will
+vary according the transaction type. New changesets will add \fB$HG_NODE\fP (id
+of the first added changeset), \fB$HG_NODE_LAST\fP (id of the last added
+changeset), \fB$HG_URL\fP and \fB$HG_SOURCE\fP variables, bookmarks and phases
+changes will set \fBHG_BOOKMARK_MOVED\fP and \fBHG_PHASES_MOVED\fP to \fB1\fP, etc.
 .TP
 .B \fBtxnclose\fP
 .sp
@@ -1131,14 +1162,13 @@ docs for details about available variables.
 .TP
 .B \fBpretxnchangegroup\fP
 .sp
-Run after a changegroup has been added via push, pull or unbundle,
-but before the transaction has been committed. Changegroup is
-visible to hook program. This lets you validate incoming changes
-before accepting them. Passed the ID of the first new changeset in
-\fB$HG_NODE\fP. Exit status 0 allows the transaction to commit. Non\-zero
-status will cause the transaction to be rolled back and the push,
-pull or unbundle will fail. URL that was source of changes is in
-\fB$HG_URL\fP.
+Run after a changegroup has been added via push, pull or unbundle, but before
+the transaction has been committed. Changegroup is visible to hook program.
+This lets you validate incoming changes before accepting them. Passed the ID
+of the first new changeset in \fB$HG_NODE\fP and last in \fB$HG_NODE_LAST\fP.
+Exit status 0 allows the transaction to commit. Non\-zero status will cause
+the transaction to be rolled back and the push, pull or unbundle will fail.
+URL that was source of changes is in \fB$HG_URL\fP.
 .TP
 .B \fBpretxncommit\fP
 .sp
@@ -1322,8 +1352,11 @@ The priority in which to evaluate this tool.
 .TP
 .B \fBexecutable\fP
 .sp
-Either just the name of the executable or its pathname.  On Windows,
-the path can use environment variables with ${ProgramFiles} syntax.
+Either just the name of the executable or its pathname.
+.sp
+On Windows, the path can use environment variables with ${ProgramFiles}
+syntax.
+.sp
 (default: the tool name)
 .TP
 .B \fBargs\fP
@@ -1384,6 +1417,8 @@ Attempt to fix up EOL changes caused by the merge tool.
 .B \fBgui\fP
 .sp
 This tool requires a graphical interface to run. (default: False)
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \fBregkey\fP
 .sp
@@ -1438,40 +1473,58 @@ trying to apply a patch.
 .UNINDENT
 .SS \fBpaths\fP
 .sp
-Assigns symbolic names to repositories. The left side is the
-symbolic name, and the right gives the directory or URL that is the
-location of the repository. Default paths can be declared by setting
-the following entries.
-.INDENT 0.0
-.TP
-.B \fBdefault\fP
+Assigns symbolic names and behavior to repositories.
 .sp
-Directory or URL to use when pulling if no source is specified.
-(default: repository from which the current repository was cloned)
-.TP
-.B \fBdefault\-push\fP
-.sp
-Optional. Directory or URL to use when pushing if no destination
-is specified.
-.UNINDENT
-.sp
-Custom paths can be defined by assigning the path to a name that later can be
-used from the command line. Example:
+Options are symbolic names defining the URL or directory that is the
+location of the repository. Example:
 .sp
 .nf
 .ft C
 [paths]
-my_path = http://example.com/path
+my_server = https://example.com/my_repo
+local_path = /home/me/repo
 .ft P
 .fi
 .sp
-To push to the path defined in \fBmy_path\fP run the command:
+These symbolic names can be used from the command line. To pull
+from \fBmy_server\fP: \%\fBhg pull my_server\fP\:. To push to \fBlocal_path\fP:
+\%\fBhg push local_path\fP\:.
+.sp
+Options containing colons (\fB:\fP) denote sub\-options that can influence
+behavior for that specific path. Example:
 .sp
 .nf
 .ft C
-hg push my_path
+[paths]
+my_server = https://example.com/my_path
+my_server:pushurl = ssh://example.com/my_path
 .ft P
 .fi
+.sp
+The following sub\-options can be defined:
+.INDENT 0.0
+.TP
+.B \fBpushurl\fP
+.sp
+The URL to use for push operations. If not defined, the location
+defined by the path\(aqs main entry is used.
+.UNINDENT
+.sp
+The following special named paths exist:
+.INDENT 0.0
+.TP
+.B \fBdefault\fP
+.sp
+The URL or directory to use when no source or remote is specified.
+.sp
+\%\fBhg clone\fP\: will automatically define this path to the location the
+repository was cloned from.
+.TP
+.B \fBdefault\-push\fP
+.sp
+(deprecated) The URL or directory for the default \%\fBhg push\fP\: location.
+\fBdefault:pushurl\fP should be used instead.
+.UNINDENT
 .SS \fBphases\fP
 .sp
 Specifies default handling of phases. See \%\fBhg help phases\fP\: for more
@@ -1608,12 +1661,12 @@ Time in seconds between refreshes of the progress bar. (default: 0.1)
 Format of the progress bar.
 .sp
 Valid entries for the format field are \fBtopic\fP, \fBbar\fP, \fBnumber\fP,
-\fBunit\fP, \fBestimate\fP, speed, and item. item defaults to the last 20
-characters of the item, but this can be changed by adding either \fB\-<num>\fP
-which would take the last num characters, or \fB+<num>\fP for the first num
-characters.
+\fBunit\fP, \fBestimate\fP, \fBspeed\fP, and \fBitem\fP. \fBitem\fP defaults to the
+last 20 characters of the item, but this can be changed by adding either
+\fB\-<num>\fP which would take the last num characters, or \fB+<num>\fP for the
+first num characters.
 .sp
-(default: Topic bar number estimate)
+(default: topic bar number estimate)
 .TP
 .B \fBwidth\fP
 .sp
@@ -1631,6 +1684,14 @@ If true, don\(aqt show a progress bar.
 .B \fBassume\-tty\fP
 .sp
 If true, ALWAYS show a progress bar, unless disable is given.
+.UNINDENT
+.SS \fBrebase\fP
+.INDENT 0.0
+.TP
+.B \fBallowdivergence\fP
+.sp
+Default to False, when True allow creating divergence when performing
+rebase of obsolete changesets.
 .UNINDENT
 .SS \fBrevsetalias\fP
 .sp
@@ -1668,6 +1729,41 @@ present. (default: False)
 .sp
 Instruct HTTP clients not to send request headers longer than this
 many bytes. (default: 1024)
+.TP
+.B \fBbundle1\fP
+.sp
+Whether to allow clients to push and pull using the legacy bundle1
+exchange format. (default: True)
+.TP
+.B \fBbundle1gd\fP
+.sp
+Like \fBbundle1\fP but only used if the repository is using the
+\fIgeneraldelta\fP storage format. (default: True)
+.TP
+.B \fBbundle1.push\fP
+.sp
+Whether to allow clients to push using the legacy bundle1 exchange
+format. (default: True)
+.TP
+.B \fBbundle1gd.push\fP
+.sp
+Like \fBbundle1.push\fP but only used if the repository is using the
+\fIgeneraldelta\fP storage format. (default: True)
+.TP
+.B \fBbundle1.pull\fP
+.sp
+Whether to allow clients to pull using the legacy bundle1 exchange
+format. (default: True)
+.TP
+.B \fBbundle1gd.pull\fP
+.sp
+Like \fBbundle1.pull\fP but only used if the repository is using the
+\fIgeneraldelta\fP storage format. (default: True)
+.sp
+Large repositories using the \fIgeneraldelta\fP storage format should
+consider setting this option because converting \fIgeneraldelta\fP
+repositories to the exchange format required by the bundle1 data
+format can consume a lot of CPU.
 .UNINDENT
 .SS \fBsmtp\fP
 .sp
@@ -1788,6 +1884,17 @@ be prompted to enter a username. If no username is entered, the
 default \fBUSER@HOST\fP is used instead.
 (default: False)
 .TP
+.B \fBclonebundles\fP
+.sp
+Whether the "clone bundles" feature is enabled.
+.sp
+When enabled, \%\fBhg clone\fP\: may download and apply a server\-advertised
+bundle file from a URL instead of using the normal exchange mechanism.
+.sp
+This can likely result in faster and more reliable clones.
+.sp
+(default: True)
+.TP
 .B \fBclonebundlefallback\fP
 .sp
 Whether failure to apply an advertised "clone bundle" from a server
@@ -1803,6 +1910,35 @@ clients don\(aqt overwhelm the server when "clone bundle" application
 fails.
 .sp
 (default: False)
+.TP
+.B \fBclonebundleprefers\fP
+.sp
+Defines preferences for which "clone bundles" to use.
+.sp
+Servers advertising "clone bundles" may advertise multiple available
+bundles. Each bundle may have different attributes, such as the bundle
+type and compression format. This option is used to prefer a particular
+bundle over another.
+.sp
+The following keys are defined by Mercurial:
+.INDENT 7.0
+.TP
+.B BUNDLESPEC
+.
+A bundle type specifier. These are strings passed to \%\fBhg bundle \-t\fP\:.
+e.g. \fBgzip\-v2\fP or \fBbzip2\-v1\fP.
+.TP
+.B COMPRESSION
+.
+The compression format of the bundle. e.g. \fBgzip\fP and \fBbzip2\fP.
+.UNINDENT
+.sp
+Server operators may define custom keys.
+.sp
+Example values: \fBCOMPRESSION=bzip2\fP,
+\fBBUNDLESPEC=gzip\-v2, COMPRESSION=gzip\fP.
+.sp
+By default, the first bundle advertised by the server is used.
 .TP
 .B \fBcommitsubrepos\fP
 .sp
@@ -1823,6 +1959,11 @@ The editor to use during a commit. (default: \fB$EDITOR\fP or \fBvi\fP)
 .sp
 Encoding to try if it\(aqs not possible to decode the changelog using
 UTF\-8. (default: ISO\-8859\-1)
+.TP
+.B \fBgraphnodetemplate\fP
+.sp
+The template used to print changeset nodes in an ASCII revision graph.
+(default: \fB{graphnode}\fP)
 .TP
 .B \fBignore\fP
 .sp
@@ -1872,6 +2013,11 @@ environment variables that govern your locale. If the encoding of the merge
 markers is different from the encoding of the merged files,
 serious problems may occur.
 .TP
+.B \fBorigbackuppath\fP
+.sp
+The path to a directory used to store generated .orig files. If the path is
+not a directory, one will be created.
+.TP
 .B \fBpatch\fP
 .sp
 An optional external tool that \fBhg import\fP and some extensions
@@ -1890,27 +2036,50 @@ will use the \fBpatch\fP program with its 2\-way merge option.
 .sp
 Check for portable filenames. Can be \fBwarn\fP, \fBignore\fP or \fBabort\fP.
 (default: \fBwarn\fP)
-If set to \fBwarn\fP (or \fBtrue\fP), a warning message is printed on POSIX
-platforms, if a file with a non\-portable filename is added (e.g. a file
-with a name that can\(aqt be created on Windows because it contains reserved
-parts like \fBAUX\fP, reserved characters like \fB:\fP, or would cause a case
-collision with an existing file).
-If set to \fBignore\fP (or \fBfalse\fP), no warning is printed.
-If set to \fBabort\fP, the command is aborted.
+.INDENT 7.0
+.TP
+.B \fBwarn\fP
+.sp
+Print a warning message on POSIX platforms, if a file with a non\-portable
+filename is added (e.g. a file with a name that can\(aqt be created on
+Windows because it contains reserved parts like \fBAUX\fP, reserved
+characters like \fB:\fP, or would cause a case collision with an existing
+file).
+.TP
+.B \fBignore\fP
+.sp
+Don\(aqt print a warning.
+.TP
+.B \fBabort\fP
+.sp
+The command is aborted.
+.TP
+.B \fBtrue\fP
+.sp
+Alias for \fBwarn\fP.
+.TP
+.B \fBfalse\fP
+.sp
+Alias for \fBignore\fP.
+.UNINDENT
+.sp
 On Windows, this configuration option is ignored and the command aborted.
 .TP
 .B \fBquiet\fP
 .sp
-Reduce the amount of output printed. (default: False)
+Reduce the amount of output printed.
+(default: False)
 .TP
 .B \fBremotecmd\fP
 .sp
-Remote command to use for clone/push/pull operations. (default: \fBhg\fP)
+Remote command to use for clone/push/pull operations.
+(default: \fBhg\fP)
 .TP
 .B \fBreport_untrusted\fP
 .sp
 Warn if a \fB.hg/hgrc\fP file is ignored due to not being owned by a
-trusted user or group. (default: True)
+trusted user or group.
+(default: True)
 .TP
 .B \fBslash\fP
 .sp
@@ -1963,7 +2132,7 @@ Typically a person\(aqs name and email address, e.g. \fBFred Widget
 username are expanded.
 .sp
 (default: \fB$EMAIL\fP or \fBusername@hostname\fP. If the username in
-hgrc is empty, e.g. if the system admin set \fBusername =\fP  in the
+hgrc is empty, e.g. if the system admin set \fBusername =\fP in the
 system hgrc, it has to be specified manually or in a different
 hgrc file)
 .TP
@@ -2319,6 +2488,34 @@ helps performance.
 Number of CPUs to use for parallel operations. A zero or
 negative value is treated as \fBuse the default\fP.
 (default: 4 or the number of CPUs on the system, whichever is larger)
+.TP
+.B \fBbackgroundclose\fP
+.sp
+Whether to enable closing file handles on background threads during certain
+operations. Some platforms aren\(aqt very efficient at closing file
+handles that have been written or appened to. By performing file closing
+on background threads, file write rate can increase substantially.
+(default: true on Windows, false elsewhere)
+.TP
+.B \fBbackgroundcloseminfilecount\fP
+.sp
+Minimum number of files required to trigger background file closing.
+Operations not writing this many files won\(aqt start background close
+threads.
+(default: 2048)
+.TP
+.B \fBbackgroundclosemaxqueue\fP
+.sp
+The maximum number of opened file handles waiting to be closed in the
+background. This option only has an effect if \fBbackgroundclose\fP is
+enabled.
+(default: 384)
+.TP
+.B \fBbackgroundclosethreadcount\fP
+.sp
+Number of threads to process background file closes. Only relevant if
+\fBbackgroundclose\fP is enabled.
+(default: 4)
 .UNINDENT
 .SH AUTHOR
 .sp
@@ -2331,7 +2528,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2015 Matt Mackall.
+Mercurial is copyright 2005\-2016 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.
