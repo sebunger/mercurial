@@ -153,17 +153,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -208,7 +208,8 @@ class _httprequesthandleropenssl(_httpre
-             import OpenSSL
-             OpenSSL.SSL.Context
-         except ImportError:
--            raise error.Abort(_("SSL support is unavailable"))
-+            raise error.Abort(_("SSL support is unavailable") +
-+                              _(" (try installing the %s package)") % 'python-openssl')
-         ctx = OpenSSL.SSL.Context(OpenSSL.SSL.TLSv1_METHOD)
-         ctx.use_privatekey_file(ssl_cert)
-         ctx.use_certificate_file(ssl_cert)
-@@ -249,7 +250,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -225,7 +225,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:
