@@ -1,11 +1,11 @@
-mercurial (3.7.1-1) UNRELEASED; urgency=medium
+mercurial (3.7.1-1) unstable; urgency=medium
 
   * New upstream release
   * Fix "mercurial-git autopkgtest fails because of stderr" by allowing
     the test to output to stderr (Closes: #808376)
   * Allow the hgsubversion test to output to stderr
 
- -- Javi Merino <vicho@debian.org>  Thu, 11 Feb 2016 20:56:23 +0000
+ -- Javi Merino <vicho@debian.org>  Thu, 11 Feb 2016 22:43:27 +0000
 
 mercurial (3.6.2-1) unstable; urgency=medium
 
