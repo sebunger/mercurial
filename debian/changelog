@@ -5,6 +5,7 @@ mercurial (3.7.2-1) UNRELEASED; urgency=medium
     some architectures
   * Bump standards-version to 3.9.6 (no change needed)
   * Use https for vcs-browser.  Thanks lintian
+  * Update homepage
 
  -- Javi Merino <vicho@debian.org>  Wed, 02 Mar 2016 08:23:15 +0000
 
