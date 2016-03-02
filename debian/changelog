@@ -1,6 +1,8 @@
 mercurial (3.7.2-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * Blacklist test-parse-date.t .  It fails on some of the chroots of
+    some architectures
 
  -- Javi Merino <vicho@debian.org>  Wed, 02 Mar 2016 08:23:15 +0000
 
