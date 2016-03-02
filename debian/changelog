@@ -1,4 +1,4 @@
-mercurial (3.7.2-1) UNRELEASED; urgency=medium
+mercurial (3.7.2-1) unstable; urgency=medium
 
   * New upstream release
   * Blacklist test-parse-date.t .  It fails on some of the chroots of
@@ -7,7 +7,7 @@ mercurial (3.7.2-1) UNRELEASED; urgency=medium
   * Use https for vcs-browser.  Thanks lintian
   * Update homepage
 
- -- Javi Merino <vicho@debian.org>  Wed, 02 Mar 2016 08:23:15 +0000
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Mar 2016 22:28:36 +0000
 
 mercurial (3.7.1-1) unstable; urgency=medium
 
