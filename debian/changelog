@@ -4,6 +4,7 @@ mercurial (3.7.2-1) UNRELEASED; urgency=medium
   * Blacklist test-parse-date.t .  It fails on some of the chroots of
     some architectures
   * Bump standards-version to 3.9.6 (no change needed)
+  * Use https for vcs-browser.  Thanks lintian
 
  -- Javi Merino <vicho@debian.org>  Wed, 02 Mar 2016 08:23:15 +0000
 
