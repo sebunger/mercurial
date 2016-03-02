@@ -16,7 +16,7 @@ Build-Depends: debhelper (>= 9),
  unzip,
  bash-completion,
  netbase,
-Standards-Version: 3.9.6
+Standards-Version: 3.9.7
 Homepage: http://mercurial.selenic.com/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
 Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
