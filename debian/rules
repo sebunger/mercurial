@@ -85,7 +85,6 @@ install-archindep:
 
 override_dh_python2:
 	dh_python2
-	find debian/mercurial/usr/share -type d -empty -delete
 	if test -d debian/mercurial; then \
 		find debian/mercurial/usr/share -type d -empty -delete ; \
 	fi
