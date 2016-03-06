@@ -8,4 +8,3 @@ Restrictions: allow-stderr
 
 Tests: mercurial-git
 Depends: @, mercurial-git, git
-Restrictions: allow-stderr

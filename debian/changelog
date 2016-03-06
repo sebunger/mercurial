@@ -2,6 +2,7 @@ mercurial (3.7.2-3) UNRELEASED; urgency=medium
 
   * Fix "FTBFS when built with dpkg-buildpackage -A".  Thanks Julien
     Cristau for the patch (Closes: #807021)
+  * Avoid allow-stderr in mercurial-git autopkgtest
 
  -- Javi Merino <vicho@debian.org>  Sun, 06 Mar 2016 13:17:25 +0000
 
