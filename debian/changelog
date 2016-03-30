@@ -1,4 +1,4 @@
-mercurial (3.7.3-1) UNRELEASED; urgency=medium
+mercurial (3.7.3-1) unstable; urgency=medium
 
   * New security upstream release fixes CVE-2016-3068, CVE-2016-3069
     and CVE-2016-3630.
@@ -6,7 +6,7 @@ mercurial (3.7.3-1) UNRELEASED; urgency=medium
     Cristau for the patch (Closes: #807021)
   * Avoid allow-stderr in mercurial-git autopkgtest
 
- -- Javi Merino <vicho@debian.org>  Wed, 30 Mar 2016 07:13:02 +0100
+ -- Javi Merino <vicho@debian.org>  Wed, 30 Mar 2016 08:20:07 +0100
 
 mercurial (3.7.2-2) unstable; urgency=medium
 
