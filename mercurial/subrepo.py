@@ -1383,6 +1383,11 @@ class gitsubrepo(abstractsubrepo):
         are not supported and very probably fail.
         """
         self.ui.debug('%s: git %s\n' % (self._relpath, ' '.join(commands)))
+        if env is None:
+            env = os.environ.copy()
+        # fix for Git CVE-2015-7545
+        if 'GIT_ALLOW_PROTOCOL' not in env:
+            env['GIT_ALLOW_PROTOCOL'] = 'file:git:http:https:ssh'
         # unless ui.quiet is set, print git's stderr,
         # which is mostly progress and useful info
         errpipe = None
@@ -1810,9 +1815,9 @@ class gitsubrepo(abstractsubrepo):
         modified, added, removed = [], [], []
         self._gitupdatestat()
         if rev2:
-            command = ['diff-tree', '-r', rev1, rev2]
+            command = ['diff-tree', '--no-renames', '-r', rev1, rev2]
         else:
-            command = ['diff-index', rev1]
+            command = ['diff-index', '--no-renames', rev1]
         out = self._gitcommand(command)
         for line in out.split('\n'):
             tab = line.find('\t')
@@ -1871,7 +1876,7 @@ class gitsubrepo(abstractsubrepo):
     @annotatesubrepoerror
     def diff(self, ui, diffopts, node2, match, prefix, **opts):
         node1 = self._state[1]
-        cmd = ['diff']
+        cmd = ['diff', '--no-renames']
         if opts['stat']:
             cmd.append('--stat')
         else:

@@ -1,5 +1,6 @@
-# Some chroots seem to have problems with TZs
-# https://lists.debian.org/debian-wb-team/2016/03/msg00001.html
+# A bug in glibc doesn't take DST into account under specific
+# circumstances in 32-bit systems
+# https://sourceware.org/bugzilla/show_bug.cgi?id=19738
 test-parse-date.t
 
 # test-clonebundles.t fails in the reproducible-builds setup due to no
