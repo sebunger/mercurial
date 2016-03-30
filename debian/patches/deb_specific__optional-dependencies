@@ -77,9 +77,9 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -107,7 +107,7 @@ class convert_git(converter_source):
+@@ -75,7 +75,7 @@ class convert_git(converter_source, comm
          else:
-             self.simopt = ''
+             self.simopt = []
  
 -        checktool('git', 'git')
 +        checktool('git', 'git', debname='git-core')
