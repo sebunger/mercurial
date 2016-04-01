@@ -1,0 +1,46 @@
+# HG changeset patch
+# User Mateusz Kwapich <mitrandir@fb.com>
+# Date 1458691511 25200
+#      Tue Mar 22 17:05:11 2016 -0700
+# Branch stable
+# Node ID b732e7f2aba4c4c417278c7c7488006301551855
+# Parent  cdda7b96afff3433eafdeeb83ded83a5b25b7a5b
+convert: dead code removal - old git calling functions (SEC)
+
+CVE-2016-3069 (3/5)
+
+--- mercurial-2.2.2.orig/hgext/convert/git.py
++++ mercurial-2.2.2/hgext/convert/git.py
+@@ -14,32 +14,10 @@ from common import NoRepo, commit, conve
+ 
+ class convert_git(converter_source, commandline):
+     # Windows does not support GIT_DIR= construct while other systems
+     # cannot remove environment variable. Just assume none have
+     # both issues.
+-    if util.safehasattr(os, 'unsetenv'):
+-        def gitopen(self, s, noerr=False):
+-            prevgitdir = os.environ.get('GIT_DIR')
+-            os.environ['GIT_DIR'] = self.path
+-            try:
+-                if noerr:
+-                    (stdin, stdout, stderr) = util.popen3(s)
+-                    return stdout
+-                else:
+-                    return util.popen(s, 'rb')
+-            finally:
+-                if prevgitdir is None:
+-                    del os.environ['GIT_DIR']
+-                else:
+-                    os.environ['GIT_DIR'] = prevgitdir
+-    else:
+-        def gitopen(self, s, noerr=False):
+-            if noerr:
+-                (sin, so, se) = util.popen3('GIT_DIR=%s %s' % (self.path, s))
+-                return so
+-            else:
+-                return util.popen('GIT_DIR=%s %s' % (self.path, s), 'rb')
+ 
+     def _gitcmd(self, cmd, *args, **kwargs):
+         return cmd('--git-dir=%s' % self.path, *args, **kwargs)
+ 
+     def gitrun0(self, *args, **kwargs):

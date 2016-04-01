@@ -1,3 +1,21 @@
+mercurial (2.2.2-4+deb7u2) wheezy-security; urgency=high
+
+  * CVE-2016-3630:
+    + mpatch: rewrite pointer overflow checks (prerequisite for the following)
+    + parsers: fix list sizing rounding error
+    + parsers: detect short records
+  * CVE-2016-3068:
+    + subrepo: set GIT_ALLOW_PROTOCOL to limit git clone protocols
+  * CVE-2016-3069:
+    + convert: add new, non-clowny interface for shelling out to git
+    + convert: rewrite calls to Git to use the new shelling mechanism
+    + convert: dead code removal - old git calling functions
+    + convert: rewrite gitpipe to use common.commandline
+    + convert: test for shell injection in git calls
+  Closes: #819504
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 01 Apr 2016 22:51:48 +0200
+
 mercurial (2.2.2-4+deb7u1) wheezy-security; urgency=high
 
   * Fix "CVE-2014-9462" by adding patch
