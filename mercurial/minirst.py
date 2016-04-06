@@ -14,15 +14,20 @@ It cheats in a major way: nested blocks are not really nested. They
 are just indented blocks that look like they are nested. This relies
 on the user to keep the right indentation for the blocks.
 
-Remember to update http://mercurial.selenic.com/wiki/HelpStyleGuide
+Remember to update https://mercurial-scm.org/wiki/HelpStyleGuide
 when adding support for new constructs.
 """
 
-import re
-import util, encoding
-from i18n import _
+from __future__ import absolute_import
 
 import cgi
+import re
+
+from .i18n import _
+from . import (
+    encoding,
+    util,
+)
 
 def section(s):
     return "%s\n%s\n\n" % (s, "\"" * encoding.colwidth(s))
@@ -363,7 +368,7 @@ def inlineliterals(blocks):
     return blocks
 
 def hgrole(blocks):
-    substs = [(':hg:`', '"hg '), ('`', '"')]
+    substs = [(':hg:`', "'hg "), ('`', "'")]
     for b in blocks:
         if b['type'] in ('paragraph', 'section'):
             # Turn :hg:`command` into "hg command". This also works
@@ -510,7 +515,7 @@ def formatblock(block, width):
     if block['type'] == 'bullet':
         if block['lines'][0].startswith('| '):
             # Remove bullet for line blocks and add no extra
-            # indention.
+            # indentation.
             block['lines'][0] = block['lines'][0][2:]
         else:
             m = _bulletre.match(block['lines'][0])
@@ -651,13 +656,37 @@ def formatblocks(blocks, width):
 def format(text, width=80, indent=0, keep=None, style='plain', section=None):
     """Parse and format the text according to width."""
     blocks, pruned = parse(text, indent, keep or [])
+    parents = []
     if section:
         sections = getsections(blocks)
         blocks = []
         i = 0
+        lastparents = []
+        synthetic = []
+        collapse = True
         while i < len(sections):
             name, nest, b = sections[i]
+            del parents[nest:]
+            parents.append(i)
             if name == section:
+                if lastparents != parents:
+                    llen = len(lastparents)
+                    plen = len(parents)
+                    if llen and llen != plen:
+                        collapse = False
+                    s = []
+                    for j in xrange(3, plen - 1):
+                        parent = parents[j]
+                        if (j >= llen or
+                            lastparents[j] != parent):
+                            s.append(len(blocks))
+                            sec = sections[parent][2]
+                            blocks.append(sec[0])
+                            blocks.append(sec[-1])
+                    if s:
+                        synthetic.append(s)
+
+                lastparents = parents[:]
                 blocks.extend(b)
 
                 ## Also show all subnested sections
@@ -665,6 +694,15 @@ def format(text, width=80, indent=0, keep=None, style='plain', section=None):
                     i += 1
                     blocks.extend(sections[i][2])
             i += 1
+        if collapse:
+            synthetic.reverse()
+            for s in synthetic:
+                path = [blocks[i]['lines'][0] for i in s]
+                real = s[-1] + 2
+                realline = blocks[real]['lines']
+                realline[0] = ('"%s"' %
+                               '.'.join(path + [realline[0]]).replace('"', ''))
+                del blocks[s[0]:real]
 
     if style == 'html':
         text = formathtml(blocks)
@@ -705,11 +743,43 @@ def getsections(blocks):
                 nest += i
             level = nest.index(i) + 1
             nest = nest[:level]
+            for i in range(1, len(secs) + 1):
+                sec = secs[-i]
+                if sec[1] < level:
+                    break
+                siblings = [a for a in sec[2] if a['type'] == 'definition']
+                if siblings:
+                    siblingindent = siblings[-1]['indent']
+                    indent = b['indent']
+                    if siblingindent < indent:
+                        level += 1
+                        break
+                    elif siblingindent == indent:
+                        level = sec[1]
+                        break
             secs.append((getname(b), level, [b]))
         else:
             if not secs:
                 # add an initial empty section
                 secs = [('', 0, [])]
+            if b['type'] != 'margin':
+                pointer = 1
+                bindent = b['indent']
+                while pointer < len(secs):
+                    section = secs[-pointer][2][0]
+                    if section['type'] != 'margin':
+                        sindent = section['indent']
+                        if len(section['lines']) > 1:
+                            sindent += len(section['lines'][1]) - \
+                              len(section['lines'][1].lstrip(' '))
+                        if bindent >= sindent:
+                            break
+                    pointer += 1
+                if pointer > 1:
+                    blevel = secs[-pointer][1]
+                    if section['type'] != b['type']:
+                        blevel += 1
+                    secs.append(('', blevel, []))
             secs[-1][2].append(b)
     return secs
 

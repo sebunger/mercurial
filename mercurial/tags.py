@@ -10,14 +10,26 @@
 # Eventually, it could take care of updating (adding/removing/moving)
 # tags too.
 
-from node import nullid, bin, hex, short
-from i18n import _
-import util
-import encoding
-import error
-from array import array
+from __future__ import absolute_import
+
+import array
 import errno
 import time
+
+from .i18n import _
+from .node import (
+    bin,
+    hex,
+    nullid,
+    short,
+)
+from . import (
+    encoding,
+    error,
+    util,
+)
+
+array = array.array
 
 # Tags computation can be expensive and caches exist to make it fast in
 # the common case.
@@ -209,9 +221,13 @@ def _readtags(ui, repo, lines, fn, recode=None, calcnodelines=False):
     '''
     filetags, nodelines = _readtaghist(ui, repo, lines, fn, recode=recode,
                                        calcnodelines=calcnodelines)
+    # util.sortdict().__setitem__ is much slower at replacing then inserting
+    # new entries. The difference can matter if there are thousands of tags.
+    # Create a new sortdict to avoid the performance penalty.
+    newtags = util.sortdict()
     for tag, taghist in filetags.items():
-        filetags[tag] = (taghist[-1], taghist[:-1])
-    return filetags
+        newtags[tag] = (taghist[-1], taghist[:-1])
+    return newtags
 
 def _updatetags(filetags, tagtype, alltags, tagtypes):
     '''Incorporate the tag info read from one file into the two
@@ -263,7 +279,7 @@ def _readtagcache(ui, repo):
     If the cache is not up to date, the caller is responsible for reading tag
     info from each returned head. (See findglobaltags().)
     '''
-    import scmutil  # avoid cycle
+    from . import scmutil  # avoid cycle
 
     try:
         cachefile = repo.vfs(_filename(repo), 'r')

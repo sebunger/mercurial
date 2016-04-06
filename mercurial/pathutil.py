@@ -1,8 +1,16 @@
-import os, errno, stat, posixpath
+from __future__ import absolute_import
 
-import encoding
-import util
-from i18n import _
+import errno
+import os
+import posixpath
+import stat
+
+from .i18n import _
+from . import (
+    encoding,
+    error,
+    util,
+)
 
 def _lowerclean(s):
     return encoding.hfsignoreclean(s.lower())
@@ -15,15 +23,22 @@ class pathauditor(object):
     - under top-level .hg
     - starts at the root of a windows drive
     - contains ".."
+
+    More check are also done about the file system states:
     - traverses a symlink (e.g. a/symlink_here/b)
     - inside a nested repository (a callback can be used to approve
       some nested repositories, e.g., subrepositories)
+
+    The file system checks are only done when 'realfs' is set to True (the
+    default). They should be disable then we are auditing path for operation on
+    stored history.
     '''
 
-    def __init__(self, root, callback=None):
+    def __init__(self, root, callback=None, realfs=True):
         self.audited = set()
         self.auditeddir = set()
         self.root = root
+        self._realfs = realfs
         self.callback = callback
         if os.path.lexists(root) and not util.checkcase(root):
             self.normcase = util.normcase
@@ -40,18 +55,18 @@ class pathauditor(object):
             return
         # AIX ignores "/" at end of path, others raise EISDIR.
         if util.endswithsep(path):
-            raise util.Abort(_("path ends in directory separator: %s") % path)
+            raise error.Abort(_("path ends in directory separator: %s") % path)
         parts = util.splitpath(path)
         if (os.path.splitdrive(path)[0]
             or _lowerclean(parts[0]) in ('.hg', '.hg.', '')
             or os.pardir in parts):
-            raise util.Abort(_("path contains illegal component: %s") % path)
+            raise error.Abort(_("path contains illegal component: %s") % path)
         # Windows shortname aliases
         for p in parts:
             if "~" in p:
                 first, last = p.split("~", 1)
                 if last.isdigit() and first.upper() in ["HG", "HG8B6C"]:
-                    raise util.Abort(_("path contains illegal component: %s")
+                    raise error.Abort(_("path contains illegal component: %s")
                                      % path)
         if '.hg' in _lowerclean(path):
             lparts = [_lowerclean(p.lower()) for p in parts]
@@ -59,7 +74,7 @@ class pathauditor(object):
                 if p in lparts[1:]:
                     pos = lparts.index(p)
                     base = os.path.join(*parts[:pos])
-                    raise util.Abort(_("path '%s' is inside nested repo %r")
+                    raise error.Abort(_("path '%s' is inside nested repo %r")
                                      % (path, base))
 
         normparts = util.splitpath(normpath)
@@ -73,25 +88,8 @@ class pathauditor(object):
             normprefix = os.sep.join(normparts)
             if normprefix in self.auditeddir:
                 break
-            curpath = os.path.join(self.root, prefix)
-            try:
-                st = os.lstat(curpath)
-            except OSError as err:
-                # EINVAL can be raised as invalid path syntax under win32.
-                # They must be ignored for patterns can be checked too.
-                if err.errno not in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
-                    raise
-            else:
-                if stat.S_ISLNK(st.st_mode):
-                    raise util.Abort(
-                        _('path %r traverses symbolic link %r')
-                        % (path, prefix))
-                elif (stat.S_ISDIR(st.st_mode) and
-                      os.path.isdir(os.path.join(curpath, '.hg'))):
-                    if not self.callback or not self.callback(curpath):
-                        raise util.Abort(_("path '%s' is inside nested "
-                                           "repo %r")
-                                         % (path, prefix))
+            if self._realfs:
+                self._checkfs(prefix, path)
             prefixes.append(normprefix)
             parts.pop()
             normparts.pop()
@@ -101,11 +99,31 @@ class pathauditor(object):
         # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
         self.auditeddir.update(prefixes)
 
+    def _checkfs(self, prefix, path):
+        """raise exception if a file system backed check fails"""
+        curpath = os.path.join(self.root, prefix)
+        try:
+            st = os.lstat(curpath)
+        except OSError as err:
+            # EINVAL can be raised as invalid path syntax under win32.
+            # They must be ignored for patterns can be checked too.
+            if err.errno not in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
+                raise
+        else:
+            if stat.S_ISLNK(st.st_mode):
+                msg = _('path %r traverses symbolic link %r') % (path, prefix)
+                raise error.Abort(msg)
+            elif (stat.S_ISDIR(st.st_mode) and
+                  os.path.isdir(os.path.join(curpath, '.hg'))):
+                if not self.callback or not self.callback(curpath):
+                    msg = _("path '%s' is inside nested repo %r")
+                    raise error.Abort(msg % (path, prefix))
+
     def check(self, path):
         try:
             self(path)
             return True
-        except (OSError, util.Abort):
+        except (OSError, error.Abort):
             return False
 
 def canonpath(root, cwd, myname, auditor=None):
@@ -160,10 +178,10 @@ def canonpath(root, cwd, myname, auditor=None):
                 canonpath(root, root, myname, auditor)
                 hint = (_("consider using '--cwd %s'")
                         % os.path.relpath(root, cwd))
-        except util.Abort:
+        except error.Abort:
             pass
 
-        raise util.Abort(_("%s not under root '%s'") % (myname, root),
+        raise error.Abort(_("%s not under root '%s'") % (myname, root),
                          hint=hint)
 
 def normasprefix(path):

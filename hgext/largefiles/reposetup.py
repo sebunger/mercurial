@@ -10,7 +10,7 @@
 import copy
 import os
 
-from mercurial import error, match as match_, util
+from mercurial import error, match as match_, error
 from mercurial.i18n import _
 from mercurial import scmutil, localrepo
 
@@ -263,15 +263,12 @@ def reposetup(ui, repo):
                 force=False, editor=False, extra={}):
             orig = super(lfilesrepo, self).commit
 
-            wlock = self.wlock()
-            try:
+            with self.wlock():
                 lfcommithook = self._lfcommithooks[-1]
                 match = lfcommithook(self, match)
                 result = orig(text=text, user=user, date=date, match=match,
                                 force=force, editor=editor, extra=extra)
                 return result
-            finally:
-                wlock.release()
 
         def push(self, remote, force=False, revs=None, newbranch=False):
             if remote.local():
@@ -280,7 +277,7 @@ def reposetup(ui, repo):
                     msg = _("required features are not"
                             " supported in the destination:"
                             " %s") % (', '.join(sorted(missing)))
-                    raise util.Abort(msg)
+                    raise error.Abort(msg)
             return super(lfilesrepo, self).push(remote, force=force, revs=revs,
                 newbranch=newbranch)
 
@@ -304,7 +301,7 @@ def reposetup(ui, repo):
 
             for f in files:
                 if lfutil.isstandin(f + '/'):
-                    raise util.Abort(
+                    raise error.Abort(
                         _('file "%s" is a largefile standin') % f,
                         hint=('commit the largefile itself instead'))
                 # Scan directories

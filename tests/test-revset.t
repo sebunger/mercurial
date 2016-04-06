@@ -141,7 +141,7 @@ trivial
     ('symbol', '3')
     ('symbol', '6'))
   * set:
-  <baseset [3, 5, 6]>
+  <baseset+ [3, 5, 6]>
   3
   5
   6
@@ -197,11 +197,53 @@ names that should work without quoting
   <filteredset
     <baseset [7]>>
   7
-  $ try -- '-a-b-c-' # complains
-  hg: parse error at 7: not a prefix: end
-  [255]
-  $ log -a-b-c- # succeeds with fallback
+
+names that should be caught by fallback mechanism
+
+  $ try -- '-a-b-c-'
+  ('symbol', '-a-b-c-')
+  * set:
+  <baseset [4]>
   4
+  $ log -a-b-c-
+  4
+  $ try '+a+b+c+'
+  ('symbol', '+a+b+c+')
+  * set:
+  <baseset [3]>
+  3
+  $ try '+a+b+c+:'
+  (rangepost
+    ('symbol', '+a+b+c+'))
+  * set:
+  <spanset+ 3:9>
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+  $ try ':+a+b+c+'
+  (rangepre
+    ('symbol', '+a+b+c+'))
+  * set:
+  <spanset+ 0:3>
+  0
+  1
+  2
+  3
+  $ try -- '-a-b-c-:+a+b+c+'
+  (range
+    ('symbol', '-a-b-c-')
+    ('symbol', '+a+b+c+'))
+  * set:
+  <spanset- 3:4>
+  4
+  3
+  $ log '-a-b-c-:+a+b+c+'
+  4
+  3
 
   $ try -- -a-b-c--a # complains
   (minus
@@ -310,6 +352,9 @@ quoting needed
   [255]
   $ log 'date('
   hg: parse error at 5: not a prefix: end
+  [255]
+  $ log 'date("\xy")'
+  hg: parse error: invalid \x escape
   [255]
   $ log 'date(tip)'
   abort: invalid date: 'tip'
@@ -521,6 +566,16 @@ test ancestors
   $ log 'keyword("test a")'
   $ log 'limit(head(), 1)'
   0
+  $ log 'limit(author("re:bob|test"), 3, 5)'
+  5
+  6
+  7
+  $ log 'limit(author("re:bob|test"), offset=6)'
+  6
+  $ log 'limit(author("re:bob|test"), offset=10)'
+  $ log 'limit(all(), 1, -1)'
+  hg: parse error: negative offset
+  [255]
   $ log 'matching(6)'
   6
   $ log 'matching(6:7, "phase parents user date branch summary files description substate")'
@@ -949,7 +1004,7 @@ test that `or` operation skips duplicated revisions from right-hand side
       ('symbol', '4')))
   * set:
   <addset
-    <baseset [5, 3, 1]>,
+    <baseset- [1, 3, 5]>,
     <generatorset+>>
   5
   3
@@ -972,7 +1027,7 @@ test that `or` operation skips duplicated revisions from right-hand side
   * set:
   <addset+
     <generatorset+>,
-    <baseset [5, 3, 1]>>
+    <baseset- [1, 3, 5]>>
   0
   1
   2
@@ -1107,6 +1162,20 @@ test '0000' != '0' in `_list`
   $ log '0|0000'
   0
   -1
+
+test ',' in `_list`
+  $ log '0,1'
+  hg: parse error: can't use a list in this context
+  (see hg help "revsets.x or y")
+  [255]
+  $ try '0,1,2'
+  (list
+    ('symbol', '0')
+    ('symbol', '1')
+    ('symbol', '2'))
+  hg: parse error: can't use a list in this context
+  (see hg help "revsets.x or y")
+  [255]
 
 test that chained `or` operations make balanced addsets
 
@@ -1283,6 +1352,9 @@ we can use patterns when searching for tags
   $ log 'branch(unknown)'
   abort: unknown revision 'unknown'!
   [255]
+  $ log 'branch("literal:unknown")'
+  abort: branch 'unknown' does not exist!
+  [255]
   $ log 'branch("re:unknown")'
   $ log 'present(branch("unknown"))'
   $ log 'present(branch("re:unknown"))'
@@ -1418,11 +1490,11 @@ parentrevspec
 Bogus function gets suggestions
   $ log 'add()'
   hg: parse error: unknown identifier: add
-  (did you mean 'adds'?)
+  (did you mean adds?)
   [255]
   $ log 'added()'
   hg: parse error: unknown identifier: added
-  (did you mean 'adds'?)
+  (did you mean adds?)
   [255]
   $ log 'remo()'
   hg: parse error: unknown identifier: remo
@@ -1435,7 +1507,7 @@ Bogus function gets suggestions
 Bogus function with a similar internal name doesn't suggest the internal name
   $ log 'matches()'
   hg: parse error: unknown identifier: matches
-  (did you mean 'matching'?)
+  (did you mean matching?)
   [255]
 
 Undocumented functions aren't suggested as similar either
@@ -1473,10 +1545,16 @@ test usage in revpair (with "+")
 (single rev)
 
   $ hg diff -r 'tip^' -r 'tip^'
-  $ hg diff -r 'tip^::tip^ or tip^'
+  $ hg diff -r 'tip^:tip^'
 
 (single rev that does not looks like a range)
 
+  $ hg diff -r 'tip^::tip^ or tip^'
+  diff -r d5d0dcbdc4d9 .hgtags
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/.hgtags	* (glob)
+  @@ -0,0 +1,1 @@
+  +e0cc66ef77e8b6f711815af4e001a6594fde3ba5 1.0
   $ hg diff -r 'tip^ or tip^'
   diff -r d5d0dcbdc4d9 .hgtags
   --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
@@ -1647,13 +1725,12 @@ test chained `or` operations are flattened at parsing phase
   (func
     ('symbol', 'chainedorops')
     (list
-      (list
-        (range
-          ('symbol', '0')
-          ('symbol', '1'))
-        (range
-          ('symbol', '1')
-          ('symbol', '2')))
+      (range
+        ('symbol', '0')
+        ('symbol', '1'))
+      (range
+        ('symbol', '1')
+        ('symbol', '2'))
       (range
         ('symbol', '2')
         ('symbol', '3'))))
@@ -1807,9 +1884,8 @@ far away.
   (func
     ('symbol', 'rs')
     (list
-      (list
-        ('symbol', '2')
-        ('symbol', 'data'))
+      ('symbol', '2')
+      ('symbol', 'data')
       ('symbol', '7')))
   hg: parse error: invalid number of arguments: 3
   [255]
@@ -1817,13 +1893,11 @@ far away.
   (func
     ('symbol', 'rs4')
     (list
-      (list
-        (list
-          (or
-            ('symbol', '2')
-            ('symbol', '3'))
-          ('symbol', 'x'))
-        ('symbol', 'x'))
+      (or
+        ('symbol', '2')
+        ('symbol', '3'))
+      ('symbol', 'x')
+      ('symbol', 'x')
       ('symbol', 'date')))
   (func
     ('symbol', 'reverse')
@@ -1985,11 +2059,9 @@ tests for concatenation of strings/symbols by "##"
   (func
     ('symbol', 'cat4')
     (list
-      (list
-        (list
-          ('symbol', '278')
-          ('string', '5f5'))
-        ('symbol', '1ee'))
+      ('symbol', '278')
+      ('string', '5f5')
+      ('symbol', '1ee')
       ('string', 'ce5')))
   (_concat
     (_concat
@@ -2117,5 +2189,45 @@ test error message of bad revset
   $ hg log -r 'foo\\'
   hg: parse error at 3: syntax error in revset 'foo\\'
   [255]
+
+  $ cd ..
+
+Test registrar.delayregistrar via revset.extpredicate
+
+'extpredicate' decorator shouldn't register any functions until
+'setup()' on it.
+
+  $ cd repo
+
+  $ cat <<EOF > $TESTTMP/custompredicate.py
+  > from mercurial import revset
+  > 
+  > revsetpredicate = revset.extpredicate()
+  > 
+  > @revsetpredicate('custom1()')
+  > def custom1(repo, subset, x):
+  >     return revset.baseset([1])
+  > @revsetpredicate('custom2()')
+  > def custom2(repo, subset, x):
+  >     return revset.baseset([2])
+  > 
+  > def uisetup(ui):
+  >     if ui.configbool('custompredicate', 'enabled'):
+  >         revsetpredicate.setup()
+  > EOF
+  $ cat <<EOF > .hg/hgrc
+  > [extensions]
+  > custompredicate = $TESTTMP/custompredicate.py
+  > EOF
+
+  $ hg debugrevspec "custom1()"
+  hg: parse error: unknown identifier: custom1
+  [255]
+  $ hg debugrevspec "custom2()"
+  hg: parse error: unknown identifier: custom2
+  [255]
+  $ hg debugrevspec "custom1() or custom2()" --config custompredicate.enabled=true
+  1
+  2
 
   $ cd ..

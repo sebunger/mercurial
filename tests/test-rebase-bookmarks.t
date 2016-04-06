@@ -170,13 +170,13 @@ rebase --continue with bookmarks present (issue3802)
   $ hg rebase
   rebasing 3:3d5fa227f4b5 "C" (Y Z)
   merging c
-  warning: conflicts during merge.
-  merging c incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging c! (edit, then use 'hg resolve --mark')
   unresolved conflicts (see hg resolve, then hg rebase --continue)
   [1]
   $ echo 'c' > c
   $ hg resolve --mark c
   (no more unresolved files)
+  continue: hg rebase --continue
   $ hg rebase --continue
   rebasing 3:3d5fa227f4b5 "C" (Y Z)
   saved backup bundle to $TESTTMP/a3/.hg/strip-backup/3d5fa227f4b5-c6ea2371-backup.hg (glob)

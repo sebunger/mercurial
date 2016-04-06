@@ -16,10 +16,10 @@ Build-Depends: debhelper (>= 9),
  unzip,
  bash-completion,
  netbase,
-Standards-Version: 3.9.6
-Homepage: http://mercurial.selenic.com/
+Standards-Version: 3.9.7
+Homepage: https://www.mercurial-scm.org/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
-Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
+Vcs-Browser: https://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
 
 Package: mercurial-common
@@ -50,10 +50,11 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
 Recommends: openssh-client,
 Suggests: qct,
  kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
-Breaks: hgsubversion (<< 1.8.2-1),
+Breaks: hgsubversion (<< 1.8.3-2),
  hgview-common (<< 1.8.1),
- mercurial-git (<< 0.8.1-3),
+ mercurial-git (<< 0.8.3-1),
  qct (<< 1.7-2~),
+ mercurial-crecord (<= 0.20140626-1),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

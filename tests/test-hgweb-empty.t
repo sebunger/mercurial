@@ -28,7 +28,7 @@ Some tests for hgweb in an empty repository
   <div class="container">
   <div class="menu">
   <div class="logo">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" alt="mercurial" /></a>
   </div>
   <ul>
@@ -139,7 +139,7 @@ Some tests for hgweb in an empty repository
   <div class="container">
   <div class="menu">
   <div class="logo">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" alt="mercurial" /></a>
   </div>
   <ul>
@@ -249,7 +249,7 @@ Some tests for hgweb in an empty repository
   <div class="container">
   <div class="menu">
   <div class="logo">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" alt="mercurial" /></a>
   </div>
   <ul>
@@ -294,7 +294,7 @@ Some tests for hgweb in an empty repository
   
   <div id="wrapper">
   <ul id="nodebgs" class="stripes2"></ul>
-  <canvas id="graph" width="480" height="12"></canvas>
+  <canvas id="graph" width="39" height="12"></canvas>
   <ul id="graphnodes"></ul>
   </div>
   
@@ -398,7 +398,7 @@ Some tests for hgweb in an empty repository
   <div class="container">
   <div class="menu">
   <div class="logo">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" alt="mercurial" /></a>
   </div>
   <ul>

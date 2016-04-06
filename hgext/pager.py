@@ -49,9 +49,13 @@ existing attend and ignore options and defaults::
 To ignore global commands like :hg:`version` or :hg:`help`, you have
 to specify them in your user configuration file.
 
-The --pager=... option can also be used to control when the pager is
-used. Use a boolean value like yes, no, on, off, or use auto for
-normal behavior.
+To control whether the pager is used at all for an individual command,
+you can use --pager=<value>::
+
+  - use as needed: `auto`.
+  - require the pager: `yes` or `on`.
+  - suppress the pager: `no` or `off` (any unrecognized value
+  will also work).
 
 '''
 
@@ -65,13 +69,19 @@ from mercurial.i18n import _
 # leave the attribute unspecified.
 testedwith = 'internal'
 
-def _pagersubprocess(ui, p):
+def _runpager(ui, p):
     pager = subprocess.Popen(p, shell=True, bufsize=-1,
                              close_fds=util.closefds, stdin=subprocess.PIPE,
                              stdout=sys.stdout, stderr=sys.stderr)
 
-    stdout = os.dup(sys.stdout.fileno())
-    stderr = os.dup(sys.stderr.fileno())
+    # back up original file objects and descriptors
+    olduifout = ui.fout
+    oldstdout = sys.stdout
+    stdoutfd = os.dup(sys.stdout.fileno())
+    stderrfd = os.dup(sys.stderr.fileno())
+
+    # create new line-buffered stdout so that output can show up immediately
+    ui.fout = sys.stdout = newstdout = os.fdopen(sys.stdout.fileno(), 'wb', 1)
     os.dup2(pager.stdin.fileno(), sys.stdout.fileno())
     if ui._isatty(sys.stderr):
         os.dup2(pager.stdin.fileno(), sys.stderr.fileno())
@@ -81,12 +91,15 @@ def _pagersubprocess(ui, p):
         if util.safehasattr(signal, "SIGINT"):
             signal.signal(signal.SIGINT, signal.SIG_IGN)
         pager.stdin.close()
-        os.dup2(stdout, sys.stdout.fileno())
-        os.dup2(stderr, sys.stderr.fileno())
+        ui.fout = olduifout
+        sys.stdout = oldstdout
+        # close new stdout while it's associated with pager; otherwise stdout
+        # fd would be closed when newstdout is deleted
+        newstdout.close()
+        # restore original fds: stdout is open again
+        os.dup2(stdoutfd, sys.stdout.fileno())
+        os.dup2(stderrfd, sys.stderr.fileno())
         pager.wait()
-
-def _runpager(ui, p):
-    _pagersubprocess(ui, p)
 
 def uisetup(ui):
     if '--debugger' in sys.argv or not ui.formatted():

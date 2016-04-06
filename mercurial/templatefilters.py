@@ -5,10 +5,21 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import cgi, re, os, time, urllib
-import encoding, node, util
-import hbisect
-import templatekw
+from __future__ import absolute_import
+
+import cgi
+import os
+import re
+import time
+import urllib
+
+from . import (
+    encoding,
+    hbisect,
+    node,
+    templatekw,
+    util,
+)
 
 def addbreaks(text):
     """:addbreaks: Any text. Add an XHTML "<br />" tag before the end of
@@ -69,12 +80,6 @@ def basename(path):
 def count(i):
     """:count: List or text. Returns the length as an integer."""
     return len(i)
-
-def datefilter(text):
-    """:date: Date. Returns a date in a Unix date format, including the
-    timezone: "Mon Sep 04 15:13:13 2006 0700".
-    """
-    return util.datestr(text)
 
 def domain(author):
     """:domain: Any text. Finds the first string that looks like an email
@@ -192,7 +197,11 @@ def json(obj):
         return {None: 'null', False: 'false', True: 'true'}[obj]
     elif isinstance(obj, int) or isinstance(obj, float):
         return str(obj)
+    elif isinstance(obj, encoding.localstr):
+        u = encoding.fromlocal(obj).decode('utf-8')  # can round-trip
+        return '"%s"' % jsonescape(u)
     elif isinstance(obj, str):
+        # no encoding.fromlocal() because it may abort if obj can't be decoded
         u = unicode(obj, encoding.encoding, 'replace')
         return '"%s"' % jsonescape(u)
     elif isinstance(obj, unicode):
@@ -214,7 +223,7 @@ def json(obj):
         raise TypeError('cannot encode type %s' % obj.__class__.__name__)
 
 def _uescape(c):
-    if ord(c) < 0x80:
+    if 0x20 <= ord(c) < 0x80:
         return c
     else:
         return '\\u%04x' % ord(c)
@@ -229,10 +238,6 @@ def jsonescape(s):
     for k, v in _escapes:
         s = s.replace(k, v)
     return ''.join(_uescape(c) for c in s)
-
-def localdate(text):
-    """:localdate: Date. Converts a date to local date."""
-    return (util.parsedate(text)[0], util.makedate()[1])
 
 def lower(text):
     """:lower: Any text. Converts the text to lowercase."""
@@ -337,10 +342,6 @@ def stringify(thing):
         return ""
     return str(thing)
 
-def strip(text):
-    """:strip: Any text. Strips all leading and trailing whitespace."""
-    return text.strip()
-
 def stripdir(text):
     """:stripdir: Treat the text as path and strip a directory level, if
     possible. For example, "foo" and "foo/bar" becomes "foo".
@@ -390,7 +391,6 @@ filters = {
     "age": age,
     "basename": basename,
     "count": count,
-    "date": datefilter,
     "domain": domain,
     "email": email,
     "escape": escape,
@@ -403,7 +403,6 @@ filters = {
     "isodatesec": isodatesec,
     "json": json,
     "jsonescape": jsonescape,
-    "localdate": localdate,
     "lower": lower,
     "nonempty": nonempty,
     "obfuscate": obfuscate,
@@ -418,7 +417,6 @@ filters = {
     "splitlines": splitlines,
     "stringescape": stringescape,
     "stringify": stringify,
-    "strip": strip,
     "stripdir": stripdir,
     "tabindent": tabindent,
     "upper": upper,

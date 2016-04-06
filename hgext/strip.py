@@ -6,8 +6,8 @@ repository. See the command help for details.
 from mercurial.i18n import _
 from mercurial.node import nullid
 from mercurial.lock import release
-from mercurial import cmdutil, hg, scmutil, util
-from mercurial import repair, bookmarks, merge
+from mercurial import cmdutil, hg, scmutil, util, error
+from mercurial import repair, bookmarks as bookmarksmod , merge
 
 cmdtable = {}
 command = cmdutil.command(cmdtable)
@@ -38,13 +38,13 @@ def checklocalchanges(repo, force=False, excsuffix=''):
     if not force:
         if s.modified or s.added or s.removed or s.deleted:
             _("local changes found") # i18n tool detection
-            raise util.Abort(_("local changes found" + excsuffix))
+            raise error.Abort(_("local changes found" + excsuffix))
         if checksubstate(repo):
             _("local changed subrepos found") # i18n tool detection
-            raise util.Abort(_("local changed subrepos found" + excsuffix))
+            raise error.Abort(_("local changed subrepos found" + excsuffix))
     return s
 
-def strip(ui, repo, revs, update=True, backup=True, force=None, bookmark=None):
+def strip(ui, repo, revs, update=True, backup=True, force=None, bookmarks=None):
     wlock = lock = None
     try:
         wlock = repo.wlock()
@@ -58,17 +58,20 @@ def strip(ui, repo, revs, update=True, backup=True, force=None, bookmark=None):
                 and p2 in [x.node for x in repo.mq.applied]):
                 urev = p2
             hg.clean(repo, urev)
-            repo.dirstate.write()
+            repo.dirstate.write(repo.currenttransaction())
 
         repair.strip(ui, repo, revs, backup)
 
-        marks = repo._bookmarks
-        if bookmark:
-            if bookmark == repo._activebookmark:
-                bookmarks.deactivate(repo)
-            del marks[bookmark]
-            marks.write()
-            ui.write(_("bookmark '%s' deleted\n") % bookmark)
+        repomarks = repo._bookmarks
+        if bookmarks:
+            with repo.transaction('strip') as tr:
+                if repo._activebookmark in bookmarks:
+                    bookmarksmod.deactivate(repo)
+                for bookmark in bookmarks:
+                    del repomarks[bookmark]
+                repomarks.recordchange(tr)
+            for bookmark in sorted(bookmarks):
+                ui.write(_("bookmark '%s' deleted\n") % bookmark)
     finally:
         release(lock, wlock)
 
@@ -85,9 +88,9 @@ def strip(ui, repo, revs, update=True, backup=True, force=None, bookmark=None):
           ('n', '', None, _('ignored  (DEPRECATED)')),
           ('k', 'keep', None, _("do not modify working directory during "
                                 "strip")),
-          ('B', 'bookmark', '', _("remove revs only reachable from given"
+          ('B', 'bookmark', [], _("remove revs only reachable from given"
                                   " bookmark"))],
-          _('hg strip [-k] [-f] [-n] [-B bookmark] [-r] REV...'))
+          _('hg strip [-k] [-f] [-B bookmark] [-r] REV...'))
 def stripcmd(ui, repo, *revs, **opts):
     """strip changesets and all their descendants from the repository
 
@@ -125,35 +128,40 @@ def stripcmd(ui, repo, *revs, **opts):
     revs = list(revs) + opts.get('rev')
     revs = set(scmutil.revrange(repo, revs))
 
-    wlock = repo.wlock()
-    try:
-        if opts.get('bookmark'):
-            mark = opts.get('bookmark')
-            marks = repo._bookmarks
-            if mark not in marks:
-                raise util.Abort(_("bookmark '%s' not found") % mark)
+    with repo.wlock():
+        bookmarks = set(opts.get('bookmark'))
+        if bookmarks:
+            repomarks = repo._bookmarks
+            if not bookmarks.issubset(repomarks):
+                raise error.Abort(_("bookmark '%s' not found") %
+                    ','.join(sorted(bookmarks - set(repomarks.keys()))))
 
             # If the requested bookmark is not the only one pointing to a
             # a revision we have to only delete the bookmark and not strip
             # anything. revsets cannot detect that case.
-            uniquebm = True
-            for m, n in marks.iteritems():
-                if m != mark and n == repo[mark].node():
-                    uniquebm = False
-                    break
-            if uniquebm:
-                rsrevs = repo.revs("ancestors(bookmark(%s)) - "
-                                   "ancestors(head() and not bookmark(%s)) - "
-                                   "ancestors(bookmark() and not bookmark(%s))",
-                                   mark, mark, mark)
-                revs.update(set(rsrevs))
+            nodetobookmarks = {}
+            for mark, node in repomarks.iteritems():
+                nodetobookmarks.setdefault(node, []).append(mark)
+            for marks in nodetobookmarks.values():
+                if bookmarks.issuperset(marks):
+                    rsrevs = repair.stripbmrevset(repo, marks[0])
+                    revs.update(set(rsrevs))
             if not revs:
-                del marks[mark]
-                marks.write()
-                ui.write(_("bookmark '%s' deleted\n") % mark)
+                lock = tr = None
+                try:
+                    lock = repo.lock()
+                    tr = repo.transaction('bookmark')
+                    for bookmark in bookmarks:
+                        del repomarks[bookmark]
+                    repomarks.recordchange(tr)
+                    tr.close()
+                    for bookmark in sorted(bookmarks):
+                        ui.write(_("bookmark '%s' deleted\n") % bookmark)
+                finally:
+                    release(lock, tr)
 
         if not revs:
-            raise util.Abort(_('empty revision set'))
+            raise error.Abort(_('empty revision set'))
 
         descendants = set(cl.descendants(revs))
         strippedrevs = revs.union(descendants)
@@ -208,18 +216,15 @@ def stripcmd(ui, repo, *revs, **opts):
             changedfiles.extend(dirchanges)
 
             repo.dirstate.rebuild(urev, uctx.manifest(), changedfiles)
-            repo.dirstate.write()
+            repo.dirstate.write(repo.currenttransaction())
 
             # clear resolve state
-            ms = merge.mergestate(repo)
-            ms.reset(repo['.'].node())
+            merge.mergestate.clean(repo, repo['.'].node())
 
             update = False
 
 
         strip(ui, repo, revs, backup=backup, update=update,
-              force=opts.get('force'), bookmark=opts.get('bookmark'))
-    finally:
-        wlock.release()
+              force=opts.get('force'), bookmarks=bookmarks)
 
     return 0

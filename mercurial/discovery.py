@@ -5,10 +5,24 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from node import nullid, short
-from i18n import _
-import util, setdiscovery, treediscovery, phases, obsolete, bookmarks
-import branchmap
+from __future__ import absolute_import
+
+from .i18n import _
+from .node import (
+    nullid,
+    short,
+)
+
+from . import (
+    bookmarks,
+    branchmap,
+    error,
+    obsolete,
+    phases,
+    setdiscovery,
+    treediscovery,
+    util,
+)
 
 def findcommonincoming(repo, remote, heads=None, force=False):
     """Return a tuple (common, anyincoming, heads) used to identify the common
@@ -224,12 +238,42 @@ def _oldheadssummary(repo, remoteheads, outgoing, inc=False):
         unsynced = set()
     return {None: (oldheads, newheads, unsynced)}
 
-def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
-               newbookmarks=[]):
+def _nowarnheads(pushop):
+    # Compute newly pushed bookmarks. We don't warn about bookmarked heads.
+
+    # internal config: bookmarks.pushing
+    newbookmarks = pushop.ui.configlist('bookmarks', 'pushing')
+
+    repo = pushop.repo.unfiltered()
+    remote = pushop.remote
+    localbookmarks = repo._bookmarks
+    remotebookmarks = remote.listkeys('bookmarks')
+    bookmarkedheads = set()
+    for bm in localbookmarks:
+        rnode = remotebookmarks.get(bm)
+        if rnode and rnode in repo:
+            lctx, rctx = repo[bm], repo[rnode]
+            if bookmarks.validdest(repo, rctx, lctx):
+                bookmarkedheads.add(lctx.node())
+        else:
+            if bm in newbookmarks and bm not in remotebookmarks:
+                bookmarkedheads.add(repo[bm].node())
+
+    return bookmarkedheads
+
+def checkheads(pushop):
     """Check that a push won't add any outgoing head
 
     raise Abort error and display ui message as needed.
     """
+
+    repo = pushop.repo.unfiltered()
+    remote = pushop.remote
+    outgoing = pushop.outgoing
+    remoteheads = pushop.remoteheads
+    newbranch = pushop.newbranch
+    inc = bool(pushop.incoming)
+
     # Check for each named branch if we're creating new remote heads.
     # To be a remote head after push, node must be either:
     # - unknown locally
@@ -249,29 +293,18 @@ def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
     # 1. Check for new branches on the remote.
     if newbranches and not newbranch:  # new branch requires --new-branch
         branchnames = ', '.join(sorted(newbranches))
-        raise util.Abort(_("push creates new remote branches: %s!")
+        raise error.Abort(_("push creates new remote branches: %s!")
                            % branchnames,
                          hint=_("use 'hg push --new-branch' to create"
                                 " new remote branches"))
 
-    # 2. Compute newly pushed bookmarks. We don't warn about bookmarked heads.
-    localbookmarks = repo._bookmarks
-    remotebookmarks = remote.listkeys('bookmarks')
-    bookmarkedheads = set()
-    for bm in localbookmarks:
-        rnode = remotebookmarks.get(bm)
-        if rnode and rnode in repo:
-            lctx, rctx = repo[bm], repo[rnode]
-            if bookmarks.validdest(repo, rctx, lctx):
-                bookmarkedheads.add(lctx.node())
-        else:
-            if bm in newbookmarks:
-                bookmarkedheads.add(repo[bm].node())
+    # 2. Find heads that we need not warn about
+    nowarnheads = _nowarnheads(pushop)
 
     # 3. Check for new heads.
     # If there are more heads after the push than before, a suitable
     # error message, depending on unsynced status, is displayed.
-    error = None
+    errormsg = None
     # If there is no obsstore, allfuturecommon won't be used, so no
     # need to compute it.
     if repo.obsstore:
@@ -291,11 +324,13 @@ def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
         candidate_newhs.update(unsyncedheads)
         dhs = None # delta heads, the new heads on branch
         discardedheads = set()
-        if repo.obsstore:
+        if not repo.obsstore:
+            newhs = candidate_newhs
+        else:
             # remove future heads which are actually obsoleted by another
             # pushed element:
             #
-            # XXX as above, There are several cases this case does not handle
+            # XXX as above, There are several cases this code does not handle
             # XXX properly
             #
             # (1) if <nh> is public, it won't be affected by obsolete marker
@@ -306,6 +341,9 @@ def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
             #
             # These two cases will be easy to handle for known changeset but
             # much more tricky for unsynced changes.
+            #
+            # In addition, this code is confused by prune as it only looks for
+            # successors of the heads (none if pruned) leading to issue4354
             newhs = set()
             for nh in candidate_newhs:
                 if nh in repo and repo[nh].phase() <= phases.public:
@@ -317,8 +355,6 @@ def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
                             break
                     else:
                         newhs.add(nh)
-        else:
-            newhs = candidate_newhs
         unsynced = sorted(h for h in unsyncedheads if h not in discardedheads)
         if unsynced:
             if None in unsynced:
@@ -341,27 +377,27 @@ def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
         if remoteheads is None:
             if len(newhs) > 1:
                 dhs = list(newhs)
-                if error is None:
-                    error = (_("push creates new branch '%s' "
-                               "with multiple heads") % (branch))
+                if errormsg is None:
+                    errormsg = (_("push creates new branch '%s' "
+                                  "with multiple heads") % (branch))
                     hint = _("merge or"
                              " see \"hg help push\" for details about"
                              " pushing new heads")
         elif len(newhs) > len(oldhs):
             # remove bookmarked or existing remote heads from the new heads list
-            dhs = sorted(newhs - bookmarkedheads - oldhs)
+            dhs = sorted(newhs - nowarnheads - oldhs)
         if dhs:
-            if error is None:
+            if errormsg is None:
                 if branch not in ('default', None):
-                    error = _("push creates new remote head %s "
-                              "on branch '%s'!") % (short(dhs[0]), branch)
+                    errormsg = _("push creates new remote head %s "
+                                 "on branch '%s'!") % (short(dhs[0]), branch)
                 elif repo[dhs[0]].bookmarks():
-                    error = _("push creates new remote head %s "
-                              "with bookmark '%s'!") % (
-                              short(dhs[0]), repo[dhs[0]].bookmarks()[0])
+                    errormsg = _("push creates new remote head %s "
+                                 "with bookmark '%s'!") % (
+                                 short(dhs[0]), repo[dhs[0]].bookmarks()[0])
                 else:
-                    error = _("push creates new remote head %s!"
-                              ) % short(dhs[0])
+                    errormsg = _("push creates new remote head %s!"
+                                 ) % short(dhs[0])
                 if unsyncedheads:
                     hint = _("pull and merge or"
                              " see \"hg help push\" for details about"
@@ -376,5 +412,5 @@ def checkheads(repo, remote, outgoing, remoteheads, newbranch=False, inc=False,
                 repo.ui.note(_("new remote heads on branch '%s':\n") % branch)
             for h in dhs:
                 repo.ui.note((" %s\n") % short(h))
-    if error:
-        raise util.Abort(error, hint=hint)
+    if errormsg:
+        raise error.Abort(errormsg, hint=hint)

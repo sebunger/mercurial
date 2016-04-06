@@ -6,7 +6,12 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import errno, mimetypes, os
+from __future__ import absolute_import
+
+import BaseHTTPServer
+import errno
+import mimetypes
+import os
 
 HTTP_OK = 200
 HTTP_NOT_MODIFIED = 304
@@ -80,12 +85,9 @@ class ErrorResponse(Exception):
     def __init__(self, code, message=None, headers=[]):
         if message is None:
             message = _statusmessage(code)
-        Exception.__init__(self)
+        Exception.__init__(self, message)
         self.code = code
-        self.message = message
         self.headers = headers
-    def __str__(self):
-        return self.message
 
 class continuereader(object):
     def __init__(self, f, write):
@@ -105,8 +107,7 @@ class continuereader(object):
         raise AttributeError
 
 def _statusmessage(code):
-    from BaseHTTPServer import BaseHTTPRequestHandler
-    responses = BaseHTTPRequestHandler.responses
+    responses = BaseHTTPServer.BaseHTTPRequestHandler.responses
     return responses.get(code, ('Error', 'Unknown error'))[0]
 
 def statusmessage(code, message=None):

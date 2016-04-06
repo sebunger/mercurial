@@ -4,6 +4,7 @@ Restrictions: allow-stderr
 
 Tests: hgsubversion
 Depends: @, hgsubversion
+Restrictions: allow-stderr
 
 Tests: mercurial-git
 Depends: @, mercurial-git, git

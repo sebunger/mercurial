@@ -18,18 +18,16 @@ static const char b85chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	"abcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
 static char b85dec[256];
 
-static void
-b85prep(void)
+static void b85prep(void)
 {
-	int i;
+	unsigned i;
 
 	memset(b85dec, 0, sizeof(b85dec));
 	for (i = 0; i < sizeof(b85chars); i++)
 		b85dec[(int)(b85chars[i])] = i + 1;
 }
 
-static PyObject *
-b85encode(PyObject *self, PyObject *args)
+static PyObject *b85encode(PyObject *self, PyObject *args)
 {
 	const unsigned char *text;
 	PyObject *out;
@@ -76,8 +74,7 @@ b85encode(PyObject *self, PyObject *args)
 	return out;
 }
 
-static PyObject *
-b85decode(PyObject *self, PyObject *args)
+static PyObject *b85decode(PyObject *self, PyObject *args)
 {
 	PyObject *out;
 	const char *text;

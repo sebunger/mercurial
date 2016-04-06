@@ -33,6 +33,8 @@ def update(rev):
     """update the repo to a revision"""
     try:
         check_call(['hg', 'update', '--quiet', '--check', str(rev)])
+        check_output(['make', 'local'],
+                     stderr=None)  # suppress output except for error/warning
     except CalledProcessError as exc:
         print >> sys.stderr, 'update to revision %s failed, aborting' % rev
         sys.exit(exc.returncode)
@@ -51,15 +53,18 @@ def hg(cmd, repo=None):
     fullcmd += cmd
     return check_output(fullcmd, stderr=STDOUT)
 
-def perf(revset, target=None):
+def perf(revset, target=None, contexts=False):
     """run benchmark for this very revset"""
     try:
-        output = hg(['perfrevset', revset], repo=target)
+        args = ['perfrevset', revset]
+        if contexts:
+            args.append('--contexts')
+        output = hg(args, repo=target)
         return parseoutput(output)
     except CalledProcessError as exc:
         print >> sys.stderr, 'abort: cannot run revset benchmark: %s' % exc.cmd
         if exc.output is None:
-            print >> sys.stderr, '(no ouput)'
+            print >> sys.stderr, '(no output)'
         else:
             print >> sys.stderr, exc.output
         return None
@@ -112,7 +117,7 @@ def idxwidth(nbidx):
 def getfactor(main, other, field, sensitivity=0.05):
     """return the relative factor between values for 'field' in main and other
 
-    Return None if the factor is insignicant (less than <sensitivity>
+    Return None if the factor is insignificant (less than <sensitivity>
     variation)."""
     factor = 1
     if main is not None:
@@ -216,7 +221,7 @@ def applyvariants(revset, variant):
 
 helptext="""This script will run multiple variants of provided revsets using
 different revisions in your mercurial repository. After the benchmark are run
-summary output is provided. Use itto demonstrate speed improvements or pin
+summary output is provided. Use it to demonstrate speed improvements or pin
 point regressions. Revsets to run are specified in a file (or from stdin), one
 revsets per line. Line starting with '#' will be ignored, allowing insertion of
 comments."""
@@ -236,6 +241,9 @@ parser.add_option("", "--variants",
                   default=','.join(DEFAULTVARIANTS),
                   help="comma separated list of variant to test "
                        "(eg: plain,min,sorted) (plain = no modification)")
+parser.add_option('', '--contexts',
+                  action='store_true',
+                  help='obtain changectx from results instead of integer revs')
 
 (options, args) = parser.parse_args()
 
@@ -281,7 +289,7 @@ for r in revs:
         varres = {}
         for var in variants:
             varrset = applyvariants(rset, var)
-            data = perf(varrset, target=options.repo)
+            data = perf(varrset, target=options.repo, contexts=options.contexts)
             varres[var] = data
         res.append(varres)
         printresult(variants, idx, varres, len(revsets),

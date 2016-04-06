@@ -68,8 +68,7 @@ Rebasing B onto E - check keep: and phases
   rebasing 1:27547f69f254 "B"
   rebasing 2:965c486023db "C"
   merging A
-  warning: conflicts during merge.
-  merging A incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging A! (edit, then use 'hg resolve --mark')
   unresolved conflicts (see hg resolve, then hg rebase --continue)
   [1]
 
@@ -79,6 +78,7 @@ Solve the conflict and go on:
   $ rm A.orig
   $ hg resolve -m A
   (no more unresolved files)
+  continue: hg rebase --continue
   $ hg rebase --continue
   already rebased 1:27547f69f254 "B" as 45396c49d53b
   rebasing 2:965c486023db "C"
@@ -125,8 +125,7 @@ Rebase F onto E - check keepbranches:
   $ hg rebase -s 5 -d 4 --keepbranches
   rebasing 5:01e6ebbd8272 "F" (tip)
   merging A
-  warning: conflicts during merge.
-  merging A incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging A! (edit, then use 'hg resolve --mark')
   unresolved conflicts (see hg resolve, then hg rebase --continue)
   [1]
 
@@ -136,6 +135,7 @@ Solve the conflict and go on:
   $ rm A.orig
   $ hg resolve -m A
   (no more unresolved files)
+  continue: hg rebase --continue
   $ hg rebase --continue
   rebasing 5:01e6ebbd8272 "F" (tip)
   saved backup bundle to $TESTTMP/a2/.hg/strip-backup/01e6ebbd8272-6fd3a015-backup.hg (glob)

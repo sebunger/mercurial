@@ -297,6 +297,12 @@ Files sees uncommitted adds and removes in subrepos
   sub1/sub2/folder/bar (glob)
   sub1/sub2/x.txt (glob)
 
+  $ hg files
+  .hgsub
+  .hgsubstate
+  foo/bar/abc (glob)
+  main
+
   $ hg files -S -r '.^' sub1/sub2/folder
   sub1/sub2/folder/test.txt (glob)
 
@@ -466,7 +472,7 @@ Find an exact largefile match in a largefiles subrepo
 The local repo enables largefiles if a largefiles repo is cloned
   $ hg showconfig extensions
   abort: repository requires features unknown to this Mercurial: largefiles!
-  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
+  (see https://mercurial-scm.org/wiki/MissingRequirement for more information)
   [255]
   $ hg --config extensions.largefiles= clone -qU . ../lfclone
   $ cat ../lfclone/.hg/hgrc

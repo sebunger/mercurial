@@ -1,4 +1,4 @@
-http://mercurial.selenic.com/bts/issue1175
+https://bz.mercurial-scm.org/1175
 
   $ hg init
   $ touch a
@@ -70,8 +70,7 @@ http://bz.selenic.com/show_bug.cgi?id=4476
   $ hg graft 1
   grafting 1:5974126fad84 "b1"
   merging b
-  warning: conflicts during merge.
-  merging b incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging b! (edit, then use 'hg resolve --mark')
   abort: unresolved conflicts, can't continue
   (use hg resolve and hg graft --continue)
   [255]
@@ -79,6 +78,7 @@ http://bz.selenic.com/show_bug.cgi?id=4476
   $ echo b3 >> b
   $ hg resolve --mark b
   (no more unresolved files)
+  continue: hg graft --continue
   $ hg graft --continue
   grafting 1:5974126fad84 "b1"
   warning: can't find ancestor for 'b' copied from 'a'!

@@ -5,11 +5,26 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from node import short
-from i18n import _
-import util, simplemerge, match, error, templater, templatekw
-import os, tempfile, re, filecmp
-import tagmerge
+from __future__ import absolute_import
+
+import filecmp
+import os
+import re
+import tempfile
+
+from .i18n import _
+from .node import nullid, short
+
+from . import (
+    error,
+    match,
+    scmutil,
+    simplemerge,
+    tagmerge,
+    templatekw,
+    templater,
+    util,
+)
 
 def _toolstr(ui, tool, part, default=""):
     return ui.config("merge-tools", tool + "." + part, default)
@@ -24,7 +39,56 @@ internals = {}
 # Merge tools to document.
 internalsdoc = {}
 
-def internaltool(name, trymerge, onfailure=None):
+# internal tool merge types
+nomerge = None
+mergeonly = 'mergeonly'  # just the full merge, no premerge
+fullmerge = 'fullmerge'  # both premerge and merge
+
+class absentfilectx(object):
+    """Represents a file that's ostensibly in a context but is actually not
+    present in it.
+
+    This is here because it's very specific to the filemerge code for now --
+    other code is likely going to break with the values this returns."""
+    def __init__(self, ctx, f):
+        self._ctx = ctx
+        self._f = f
+
+    def path(self):
+        return self._f
+
+    def size(self):
+        return None
+
+    def data(self):
+        return None
+
+    def filenode(self):
+        return nullid
+
+    _customcmp = True
+    def cmp(self, fctx):
+        """compare with other file context
+
+        returns True if different from fctx.
+        """
+        return not (fctx.isabsent() and
+                    fctx.ctx() == self.ctx() and
+                    fctx.path() == self.path())
+
+    def flags(self):
+        return ''
+
+    def changectx(self):
+        return self._ctx
+
+    def isbinary(self):
+        return False
+
+    def isabsent(self):
+        return True
+
+def internaltool(name, mergetype, onfailure=None, precheck=None):
     '''return a decorator for populating internal merge tool table'''
     def decorator(func):
         fullname = ':' + name
@@ -32,8 +96,9 @@ def internaltool(name, trymerge, onfailure=None):
         internals[fullname] = func
         internals['internal:' + name] = func
         internalsdoc[fullname] = func
-        func.trymerge = trymerge
+        func.mergetype = mergetype
         func.onfailure = onfailure
+        func.precheck = precheck
         return func
     return decorator
 
@@ -55,8 +120,11 @@ def findexternaltool(ui, tool):
     exe = _toolstr(ui, tool, "executable", tool)
     return util.findexe(util.expandpath(exe))
 
-def _picktool(repo, ui, path, binary, symlink):
-    def check(tool, pat, symlink, binary):
+def _picktool(repo, ui, path, binary, symlink, changedelete):
+    def supportscd(tool):
+        return tool in internals and internals[tool].mergetype == nomerge
+
+    def check(tool, pat, symlink, binary, changedelete):
         tmsg = tool
         if pat:
             tmsg += " specified for " + pat
@@ -69,6 +137,10 @@ def _picktool(repo, ui, path, binary, symlink):
             ui.warn(_("tool %s can't handle symlinks\n") % tmsg)
         elif binary and not _toolbool(ui, tool, "binary"):
             ui.warn(_("tool %s can't handle binary\n") % tmsg)
+        elif changedelete and not supportscd(tool):
+            # the nomerge tools are the only tools that support change/delete
+            # conflicts
+            pass
         elif not util.gui() and _toolbool(ui, tool, "gui"):
             ui.warn(_("tool %s requires a GUI\n") % tmsg)
         else:
@@ -80,45 +152,56 @@ def _picktool(repo, ui, path, binary, symlink):
     force = ui.config('ui', 'forcemerge')
     if force:
         toolpath = _findtool(ui, force)
-        if toolpath:
-            return (force, util.shellquote(toolpath))
+        if changedelete and not supportscd(toolpath):
+            return ":prompt", None
         else:
-            # mimic HGMERGE if given tool not found
-            return (force, force)
+            if toolpath:
+                return (force, util.shellquote(toolpath))
+            else:
+                # mimic HGMERGE if given tool not found
+                return (force, force)
 
     # HGMERGE takes next precedence
     hgmerge = os.environ.get("HGMERGE")
     if hgmerge:
-        return (hgmerge, hgmerge)
+        if changedelete and not supportscd(hgmerge):
+            return ":prompt", None
+        else:
+            return (hgmerge, hgmerge)
 
     # then patterns
     for pat, tool in ui.configitems("merge-patterns"):
         mf = match.match(repo.root, '', [pat])
-        if mf(path) and check(tool, pat, symlink, False):
+        if mf(path) and check(tool, pat, symlink, False, changedelete):
             toolpath = _findtool(ui, tool)
             return (tool, util.shellquote(toolpath))
 
     # then merge tools
     tools = {}
+    disabled = set()
     for k, v in ui.configitems("merge-tools"):
         t = k.split('.')[0]
         if t not in tools:
             tools[t] = int(_toolstr(ui, t, "priority", "0"))
+        if _toolbool(ui, t, "disabled", False):
+            disabled.add(t)
     names = tools.keys()
-    tools = sorted([(-p, t) for t, p in tools.items()])
+    tools = sorted([(-p, t) for t, p in tools.items() if t not in disabled])
     uimerge = ui.config("ui", "merge")
     if uimerge:
-        if uimerge not in names:
+        # external tools defined in uimerge won't be able to handle
+        # change/delete conflicts
+        if uimerge not in names and not changedelete:
             return (uimerge, uimerge)
         tools.insert(0, (None, uimerge)) # highest priority
     tools.append((None, "hgmerge")) # the old default, if found
     for p, t in tools:
-        if check(t, None, symlink, binary):
+        if check(t, None, symlink, binary, changedelete):
             toolpath = _findtool(ui, t)
             return (t, util.shellquote(toolpath))
 
     # internal merge or prompt as last resort
-    if symlink or binary:
+    if symlink or binary or changedelete:
         return ":prompt", None
     return ":merge", None
 
@@ -145,42 +228,75 @@ def _matcheol(file, origfile):
             if newdata != data:
                 util.writefile(file, newdata)
 
-@internaltool('prompt', False)
+@internaltool('prompt', nomerge)
 def _iprompt(repo, mynode, orig, fcd, fco, fca, toolconf):
     """Asks the user which of the local or the other version to keep as
     the merged version."""
     ui = repo.ui
     fd = fcd.path()
 
-    if ui.promptchoice(_(" no tool found to merge %s\n"
-                         "keep (l)ocal or take (o)ther?"
-                         "$$ &Local $$ &Other") % fd, 0):
-        return _iother(repo, mynode, orig, fcd, fco, fca, toolconf)
-    else:
-        return _ilocal(repo, mynode, orig, fcd, fco, fca, toolconf)
+    try:
+        if fco.isabsent():
+            index = ui.promptchoice(
+                _("local changed %s which remote deleted\n"
+                  "use (c)hanged version, (d)elete, or leave (u)nresolved?"
+                  "$$ &Changed $$ &Delete $$ &Unresolved") % fd, 2)
+            choice = ['local', 'other', 'unresolved'][index]
+        elif fcd.isabsent():
+            index = ui.promptchoice(
+                _("remote changed %s which local deleted\n"
+                  "use (c)hanged version, leave (d)eleted, or "
+                  "leave (u)nresolved?"
+                  "$$ &Changed $$ &Deleted $$ &Unresolved") % fd, 2)
+            choice = ['other', 'local', 'unresolved'][index]
+        else:
+            index = ui.promptchoice(
+                _("no tool found to merge %s\n"
+                  "keep (l)ocal, take (o)ther, or leave (u)nresolved?"
+                  "$$ &Local $$ &Other $$ &Unresolved") % fd, 2)
+            choice = ['local', 'other', 'unresolved'][index]
 
-@internaltool('local', False)
+        if choice == 'other':
+            return _iother(repo, mynode, orig, fcd, fco, fca, toolconf)
+        elif choice == 'local':
+            return _ilocal(repo, mynode, orig, fcd, fco, fca, toolconf)
+        elif choice == 'unresolved':
+            return _ifail(repo, mynode, orig, fcd, fco, fca, toolconf)
+    except error.ResponseExpected:
+        ui.write("\n")
+        return _ifail(repo, mynode, orig, fcd, fco, fca, toolconf)
+
+@internaltool('local', nomerge)
 def _ilocal(repo, mynode, orig, fcd, fco, fca, toolconf):
     """Uses the local version of files as the merged version."""
-    return 0
+    return 0, fcd.isabsent()
 
-@internaltool('other', False)
+@internaltool('other', nomerge)
 def _iother(repo, mynode, orig, fcd, fco, fca, toolconf):
     """Uses the other version of files as the merged version."""
-    repo.wwrite(fcd.path(), fco.data(), fco.flags())
-    return 0
+    if fco.isabsent():
+        # local changed, remote deleted -- 'deleted' picked
+        repo.wvfs.unlinkpath(fcd.path())
+        deleted = True
+    else:
+        repo.wwrite(fcd.path(), fco.data(), fco.flags())
+        deleted = False
+    return 0, deleted
 
-@internaltool('fail', False)
+@internaltool('fail', nomerge)
 def _ifail(repo, mynode, orig, fcd, fco, fca, toolconf):
     """
     Rather than attempting to merge files that were modified on both
     branches, it marks them as unresolved. The resolve command must be
     used to resolve these conflicts."""
-    return 1
+    # for change/delete conflicts write out the changed version, then fail
+    if fcd.isabsent():
+        repo.wwrite(fcd.path(), fco.data(), fco.flags())
+    return 1, False
 
-def _premerge(repo, toolconf, files, labels=None):
+def _premerge(repo, fcd, fco, fca, toolconf, files, labels=None):
     tool, toolpath, binary, symlink = toolconf
-    if symlink:
+    if symlink or fcd.isabsent() or fco.isabsent():
         return 1
     a, b, c, back = files
 
@@ -213,33 +329,60 @@ def _premerge(repo, toolconf, files, labels=None):
             util.copyfile(back, a) # restore from backup and try again
     return 1 # continue merging
 
-@internaltool('merge', True,
-              _("merging %s incomplete! "
-                "(edit conflicts, then use 'hg resolve --mark')\n"))
+def _mergecheck(repo, mynode, orig, fcd, fco, fca, toolconf):
+    tool, toolpath, binary, symlink = toolconf
+    if symlink:
+        repo.ui.warn(_('warning: internal %s cannot merge symlinks '
+                       'for %s\n') % (tool, fcd.path()))
+        return False
+    if fcd.isabsent() or fco.isabsent():
+        repo.ui.warn(_('warning: internal %s cannot merge change/delete '
+                       'conflict for %s\n') % (tool, fcd.path()))
+        return False
+    return True
+
+def _merge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels, mode):
+    """
+    Uses the internal non-interactive simple merge algorithm for merging
+    files. It will fail if there are any conflicts and leave markers in
+    the partially merged file. Markers will have two sections, one for each side
+    of merge, unless mode equals 'union' which suppresses the markers."""
+    a, b, c, back = files
+
+    ui = repo.ui
+
+    r = simplemerge.simplemerge(ui, a, b, c, label=labels, mode=mode)
+    return True, r, False
+
+@internaltool('union', fullmerge,
+              _("warning: conflicts while merging %s! "
+                "(edit, then use 'hg resolve --mark')\n"),
+              precheck=_mergecheck)
+def _iunion(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
+    """
+    Uses the internal non-interactive simple merge algorithm for merging
+    files. It will use both left and right sides for conflict regions.
+    No markers are inserted."""
+    return _merge(repo, mynode, orig, fcd, fco, fca, toolconf,
+                  files, labels, 'union')
+
+@internaltool('merge', fullmerge,
+              _("warning: conflicts while merging %s! "
+                "(edit, then use 'hg resolve --mark')\n"),
+              precheck=_mergecheck)
 def _imerge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     """
     Uses the internal non-interactive simple merge algorithm for merging
     files. It will fail if there are any conflicts and leave markers in
     the partially merged file. Markers will have two sections, one for each side
     of merge."""
-    tool, toolpath, binary, symlink = toolconf
-    if symlink:
-        repo.ui.warn(_('warning: internal :merge cannot merge symlinks '
-                       'for %s\n') % fcd.path())
-        return False, 1
-    r = _premerge(repo, toolconf, files, labels=labels)
-    if r:
-        a, b, c, back = files
+    return _merge(repo, mynode, orig, fcd, fco, fca, toolconf,
+                  files, labels, 'merge')
 
-        ui = repo.ui
-
-        r = simplemerge.simplemerge(ui, a, b, c, label=labels)
-        return True, r
-    return False, 0
-
-@internaltool('merge3', True,
-              _("merging %s incomplete! "
-                "(edit conflicts, then use 'hg resolve --mark')\n"))
+@internaltool('merge3', fullmerge,
+              _("warning: conflicts while merging %s! "
+                "(edit, then use 'hg resolve --mark')\n"),
+              precheck=_mergecheck)
 def _imerge3(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     """
     Uses the internal non-interactive simple merge algorithm for merging
@@ -252,7 +395,35 @@ def _imerge3(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
         labels.append('base')
     return _imerge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels)
 
-@internaltool('tagmerge', True,
+def _imergeauto(repo, mynode, orig, fcd, fco, fca, toolconf, files,
+                labels=None, localorother=None):
+    """
+    Generic driver for _imergelocal and _imergeother
+    """
+    assert localorother is not None
+    tool, toolpath, binary, symlink = toolconf
+    a, b, c, back = files
+    r = simplemerge.simplemerge(repo.ui, a, b, c, label=labels,
+                                localorother=localorother)
+    return True, r
+
+@internaltool('merge-local', mergeonly, precheck=_mergecheck)
+def _imergelocal(*args, **kwargs):
+    """
+    Like :merge, but resolve all conflicts non-interactively in favor
+    of the local changes."""
+    success, status = _imergeauto(localorother='local', *args, **kwargs)
+    return success, status, False
+
+@internaltool('merge-other', mergeonly, precheck=_mergecheck)
+def _imergeother(*args, **kwargs):
+    """
+    Like :merge, but resolve all conflicts non-interactively in favor
+    of the other changes."""
+    success, status = _imergeauto(localorother='other', *args, **kwargs)
+    return success, status, False
+
+@internaltool('tagmerge', mergeonly,
               _("automatic tag merging of %s failed! "
                 "(use 'hg resolve --tool :merge' or another merge "
                 "tool of your choice)\n"))
@@ -260,9 +431,10 @@ def _itagmerge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     """
     Uses the internal tag merge algorithm (experimental).
     """
-    return tagmerge.merge(repo, fcd, fco, fca)
+    success, status = tagmerge.merge(repo, fcd, fco, fca)
+    return success, status, False
 
-@internaltool('dump', True)
+@internaltool('dump', fullmerge)
 def _idump(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     """
     Creates three versions of the files to merge, containing the
@@ -271,46 +443,45 @@ def _idump(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     ``a.txt``, these files will accordingly be named ``a.txt.local``,
     ``a.txt.other`` and ``a.txt.base`` and they will be placed in the
     same directory as ``a.txt``."""
-    r = _premerge(repo, toolconf, files, labels=labels)
-    if r:
-        a, b, c, back = files
+    a, b, c, back = files
 
-        fd = fcd.path()
+    fd = fcd.path()
 
-        util.copyfile(a, a + ".local")
-        repo.wwrite(fd + ".other", fco.data(), fco.flags())
-        repo.wwrite(fd + ".base", fca.data(), fca.flags())
-    return False, r
+    util.copyfile(a, a + ".local")
+    repo.wwrite(fd + ".other", fco.data(), fco.flags())
+    repo.wwrite(fd + ".base", fca.data(), fca.flags())
+    return False, 1, False
 
 def _xmerge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
-    r = _premerge(repo, toolconf, files, labels=labels)
-    if r:
-        tool, toolpath, binary, symlink = toolconf
-        a, b, c, back = files
-        out = ""
-        env = {'HG_FILE': fcd.path(),
-               'HG_MY_NODE': short(mynode),
-               'HG_OTHER_NODE': str(fco.changectx()),
-               'HG_BASE_NODE': str(fca.changectx()),
-               'HG_MY_ISLINK': 'l' in fcd.flags(),
-               'HG_OTHER_ISLINK': 'l' in fco.flags(),
-               'HG_BASE_ISLINK': 'l' in fca.flags(),
-               }
+    tool, toolpath, binary, symlink = toolconf
+    if fcd.isabsent() or fco.isabsent():
+        repo.ui.warn(_('warning: %s cannot merge change/delete conflict '
+                       'for %s\n') % (tool, fcd.path()))
+        return False, 1, None
+    a, b, c, back = files
+    out = ""
+    env = {'HG_FILE': fcd.path(),
+           'HG_MY_NODE': short(mynode),
+           'HG_OTHER_NODE': str(fco.changectx()),
+           'HG_BASE_NODE': str(fca.changectx()),
+           'HG_MY_ISLINK': 'l' in fcd.flags(),
+           'HG_OTHER_ISLINK': 'l' in fco.flags(),
+           'HG_BASE_ISLINK': 'l' in fca.flags(),
+           }
 
-        ui = repo.ui
+    ui = repo.ui
 
-        args = _toolstr(ui, tool, "args", '$local $base $other')
-        if "$output" in args:
-            out, a = a, back # read input from backup, write to original
-        replace = {'local': a, 'base': b, 'other': c, 'output': out}
-        args = util.interpolate(r'\$', replace, args,
-                                lambda s: util.shellquote(util.localpath(s)))
-        cmd = toolpath + ' ' + args
-        repo.ui.debug('launching merge tool: %s\n' % cmd)
-        r = ui.system(cmd, cwd=repo.root, environ=env)
-        repo.ui.debug('merge tool returned: %s\n' % r)
-        return True, r
-    return False, 0
+    args = _toolstr(ui, tool, "args", '$local $base $other')
+    if "$output" in args:
+        out, a = a, back # read input from backup, write to original
+    replace = {'local': a, 'base': b, 'other': c, 'output': out}
+    args = util.interpolate(r'\$', replace, args,
+                            lambda s: util.shellquote(util.localpath(s)))
+    cmd = toolpath + ' ' + args
+    repo.ui.debug('launching merge tool: %s\n' % cmd)
+    r = ui.system(cmd, cwd=repo.root, environ=env)
+    repo.ui.debug('merge tool returned: %s\n' % r)
+    return True, r, False
 
 def _formatconflictmarker(repo, ctx, template, label, pad):
     """Applies the given template to the ctx, prefixed by the label.
@@ -365,15 +536,18 @@ def _formatlabels(repo, fcd, fco, fca, labels):
         newlabels.append(_formatconflictmarker(repo, ca, tmpl, labels[2], pad))
     return newlabels
 
-def filemerge(repo, mynode, orig, fcd, fco, fca, labels=None):
+def _filemerge(premerge, repo, mynode, orig, fcd, fco, fca, labels=None):
     """perform a 3-way merge in the working directory
 
+    premerge = whether this is a premerge
     mynode = parent node before merge
     orig = original local filename before merge
     fco = other file context
     fca = ancestor file context
     fcd = local file context for current/destination file
-    """
+
+    Returns whether the merge is complete, the return value of the merge, and
+    a boolean indicating whether the file was deleted from disk."""
 
     def temp(prefix, ctx):
         pre = "%s~%s." % (os.path.basename(ctx.path()), prefix)
@@ -385,61 +559,95 @@ def filemerge(repo, mynode, orig, fcd, fco, fca, labels=None):
         return name
 
     if not fco.cmp(fcd): # files identical?
-        return None
+        return True, None, False
 
     ui = repo.ui
     fd = fcd.path()
     binary = fcd.isbinary() or fco.isbinary() or fca.isbinary()
     symlink = 'l' in fcd.flags() + fco.flags()
-    tool, toolpath = _picktool(repo, ui, fd, binary, symlink)
-    ui.debug("picked tool '%s' for %s (binary %s symlink %s)\n" %
-               (tool, fd, binary, symlink))
+    changedelete = fcd.isabsent() or fco.isabsent()
+    tool, toolpath = _picktool(repo, ui, fd, binary, symlink, changedelete)
+    if tool in internals and tool.startswith('internal:'):
+        # normalize to new-style names (':merge' etc)
+        tool = tool[len('internal'):]
+    ui.debug("picked tool '%s' for %s (binary %s symlink %s changedelete %s)\n"
+             % (tool, fd, binary, symlink, changedelete))
 
     if tool in internals:
         func = internals[tool]
-        trymerge = func.trymerge
+        mergetype = func.mergetype
         onfailure = func.onfailure
+        precheck = func.precheck
     else:
         func = _xmerge
-        trymerge = True
+        mergetype = fullmerge
         onfailure = _("merging %s failed!\n")
+        precheck = None
 
     toolconf = tool, toolpath, binary, symlink
 
-    if not trymerge:
-        return func(repo, mynode, orig, fcd, fco, fca, toolconf)
+    if mergetype == nomerge:
+        r, deleted = func(repo, mynode, orig, fcd, fco, fca, toolconf)
+        return True, r, deleted
+
+    if premerge:
+        if orig != fco.path():
+            ui.status(_("merging %s and %s to %s\n") % (orig, fco.path(), fd))
+        else:
+            ui.status(_("merging %s\n") % fd)
+
+    ui.debug("my %s other %s ancestor %s\n" % (fcd, fco, fca))
+
+    if precheck and not precheck(repo, mynode, orig, fcd, fco, fca,
+                                 toolconf):
+        if onfailure:
+            ui.warn(onfailure % fd)
+        return True, 1, False
 
     a = repo.wjoin(fd)
     b = temp("base", fca)
     c = temp("other", fco)
-    back = a + ".orig"
-    util.copyfile(a, back)
-
-    if orig != fco.path():
-        ui.status(_("merging %s and %s to %s\n") % (orig, fco.path(), fd))
+    if not fcd.isabsent():
+        back = scmutil.origpath(ui, repo, a)
+        if premerge:
+            util.copyfile(a, back)
     else:
-        ui.status(_("merging %s\n") % fd)
+        back = None
+    files = (a, b, c, back)
 
-    ui.debug("my %s other %s ancestor %s\n" % (fcd, fco, fca))
+    r = 1
+    try:
+        markerstyle = ui.config('ui', 'mergemarkers', 'basic')
+        if not labels:
+            labels = _defaultconflictlabels
+        if markerstyle != 'basic':
+            labels = _formatlabels(repo, fcd, fco, fca, labels)
 
-    markerstyle = ui.config('ui', 'mergemarkers', 'basic')
-    if not labels:
-        labels = _defaultconflictlabels
-    if markerstyle != 'basic':
-        labels = _formatlabels(repo, fcd, fco, fca, labels)
+        if premerge and mergetype == fullmerge:
+            r = _premerge(repo, fcd, fco, fca, toolconf, files, labels=labels)
+            # complete if premerge successful (r is 0)
+            return not r, r, False
 
-    needcheck, r = func(repo, mynode, orig, fcd, fco, fca, toolconf,
-                        (a, b, c, back), labels=labels)
-    if not needcheck:
+        needcheck, r, deleted = func(repo, mynode, orig, fcd, fco, fca,
+                                     toolconf, files, labels=labels)
+
+        if needcheck:
+            r = _check(r, ui, tool, fcd, files)
+
         if r:
             if onfailure:
                 ui.warn(onfailure % fd)
-        else:
-            util.unlink(back)
 
+        return True, r, deleted
+    finally:
+        if not r and back is not None:
+            util.unlink(back)
         util.unlink(b)
         util.unlink(c)
-        return r
+
+def _check(r, ui, tool, fcd, files):
+    fd = fcd.path()
+    a, b, c, back = files
 
     if not r and (_toolbool(ui, tool, "checkconflicts") or
                   'conflicts' in _toollist(ui, tool, "check")):
@@ -455,25 +663,24 @@ def filemerge(repo, mynode, orig, fcd, fco, fca, labels=None):
             r = 1
 
     if not r and not checked and (_toolbool(ui, tool, "checkchanged") or
-                                  'changed' in _toollist(ui, tool, "check")):
-        if filecmp.cmp(a, back):
+                                  'changed' in
+                                  _toollist(ui, tool, "check")):
+        if back is not None and filecmp.cmp(a, back):
             if ui.promptchoice(_(" output file %s appears unchanged\n"
                                  "was merge successful (yn)?"
                                  "$$ &Yes $$ &No") % fd, 1):
                 r = 1
 
-    if _toolbool(ui, tool, "fixeol"):
+    if back is not None and _toolbool(ui, tool, "fixeol"):
         _matcheol(a, back)
 
-    if r:
-        if onfailure:
-            ui.warn(onfailure % fd)
-    else:
-        util.unlink(back)
-
-    util.unlink(b)
-    util.unlink(c)
     return r
+
+def premerge(repo, mynode, orig, fcd, fco, fca, labels=None):
+    return _filemerge(True, repo, mynode, orig, fcd, fco, fca, labels=labels)
+
+def filemerge(repo, mynode, orig, fcd, fco, fca, labels=None):
+    return _filemerge(False, repo, mynode, orig, fcd, fco, fca, labels=labels)
 
 # tell hggettext to extract docstrings from these functions:
 i18nfunctions = internals.values()

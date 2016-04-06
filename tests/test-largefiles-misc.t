@@ -509,6 +509,18 @@ Test actions on largefiles using relative paths from subdir
   $ hg revert anotherlarge
   $ hg st
   ? sub/anotherlarge.orig
+
+Test orig files go where we want them
+  $ echo moremore >> anotherlarge
+  $ hg revert anotherlarge -v --config 'ui.origbackuppath=.hg/origbackups'
+  creating directory: $TESTTMP/addrm2/.hg/origbackups/.hglf/sub (glob)
+  saving current version of ../.hglf/sub/anotherlarge as $TESTTMP/addrm2/.hg/origbackups/.hglf/sub/anotherlarge.orig (glob)
+  reverting ../.hglf/sub/anotherlarge (glob)
+  creating directory: $TESTTMP/addrm2/.hg/origbackups/sub (glob)
+  found 90c622cf65cebe75c5842f9136c459333faf392e in store
+  found 90c622cf65cebe75c5842f9136c459333faf392e in store
+  $ ls ../.hg/origbackups/sub
+  anotherlarge.orig
   $ cd ..
 
 Test glob logging from the root dir
@@ -934,7 +946,7 @@ enabling largefiles extension.
   $TESTTMP/individualenabling/enabledlocally (glob)
   $ hg -R notenabledlocally root
   abort: repository requires features unknown to this Mercurial: largefiles!
-  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
+  (see https://mercurial-scm.org/wiki/MissingRequirement for more information)
   [255]
 
   $ hg init push-dst
@@ -951,7 +963,7 @@ enabling largefiles extension.
 
   $ hg clone enabledlocally clone-dst
   abort: repository requires features unknown to this Mercurial: largefiles!
-  (see http://mercurial.selenic.com/wiki/MissingRequirement for more information)
+  (see https://mercurial-scm.org/wiki/MissingRequirement for more information)
   [255]
   $ test -d clone-dst
   [1]

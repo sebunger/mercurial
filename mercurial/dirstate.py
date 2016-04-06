@@ -5,11 +5,25 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from node import nullid
-from i18n import _
-import scmutil, util, osutil, parsers, encoding, pathutil
-import os, stat, errno
-import match as matchmod
+from __future__ import absolute_import
+
+import collections
+import errno
+import os
+import stat
+
+from .i18n import _
+from .node import nullid
+from . import (
+    encoding,
+    error,
+    match as matchmod,
+    osutil,
+    parsers,
+    pathutil,
+    scmutil,
+    util,
+)
 
 propertycache = util.propertycache
 filecache = scmutil.filecache
@@ -27,6 +41,39 @@ class rootcache(filecache):
     def join(self, obj, fname):
         return obj._join(fname)
 
+def _getfsnow(vfs):
+    '''Get "now" timestamp on filesystem'''
+    tmpfd, tmpname = vfs.mkstemp()
+    try:
+        return os.fstat(tmpfd).st_mtime
+    finally:
+        os.close(tmpfd)
+        vfs.unlink(tmpname)
+
+def nonnormalentries(dmap):
+    '''Compute the nonnormal dirstate entries from the dmap'''
+    try:
+        return parsers.nonnormalentries(dmap)
+    except AttributeError:
+        return set(fname for fname, e in dmap.iteritems()
+                   if e[0] != 'n' or e[3] == -1)
+
+def _trypending(root, vfs, filename):
+    '''Open  file to be read according to HG_PENDING environment variable
+
+    This opens '.pending' of specified 'filename' only when HG_PENDING
+    is equal to 'root'.
+
+    This returns '(fp, is_pending_opened)' tuple.
+    '''
+    if root == os.environ.get('HG_PENDING'):
+        try:
+            return (vfs('%s.pending' % filename), True)
+        except IOError as inst:
+            if inst.errno != errno.ENOENT:
+                raise
+    return (vfs(filename), False)
+
 class dirstate(object):
 
     def __init__(self, opener, ui, root, validate):
@@ -42,6 +89,10 @@ class dirstate(object):
         # ntpath.join(root, '') of Python 2.7.9 does not add sep if root is
         # UNC path pointing to root share (issue4557)
         self._rootdir = pathutil.normasprefix(root)
+        # internal config: ui.forcecwd
+        forcecwd = ui.config('ui', 'forcecwd')
+        if forcecwd:
+            self._cwd = forcecwd
         self._dirty = False
         self._dirtypl = False
         self._lastnormaltime = 0
@@ -49,6 +100,10 @@ class dirstate(object):
         self._filecache = {}
         self._parentwriters = 0
         self._filename = 'dirstate'
+        self._pendingfilename = '%s.pending' % self._filename
+
+        # for consistent view between _pl() and _read() invocations
+        self._pendingmode = None
 
     def beginparentchange(self):
         '''Marks the beginning of a set of changes that involve changing
@@ -84,6 +139,10 @@ class dirstate(object):
     def _copymap(self):
         self._read()
         return self._copymap
+
+    @propertycache
+    def _nonnormalset(self):
+        return nonnormalentries(self._map)
 
     @propertycache
     def _filefoldmap(self):
@@ -123,14 +182,14 @@ class dirstate(object):
     @propertycache
     def _pl(self):
         try:
-            fp = self._opener(self._filename)
+            fp = self._opendirstatefile()
             st = fp.read(40)
             fp.close()
             l = len(st)
             if l == 40:
                 return st[:20], st[20:40]
             elif l > 0 and l < 40:
-                raise util.Abort(_('working directory state appears damaged!'))
+                raise error.Abort(_('working directory state appears damaged!'))
         except IOError as err:
             if err.errno != errno.ENOENT:
                 raise
@@ -145,15 +204,7 @@ class dirstate(object):
 
     @rootcache('.hgignore')
     def _ignore(self):
-        files = []
-        if os.path.exists(self._join('.hgignore')):
-            files.append(self._join('.hgignore'))
-        for name, path in self._ui.configitems("ui"):
-            if name == 'ignore' or name.startswith('ignore.'):
-                # we need to use os.path.join here rather than self._join
-                # because path is arbitrary and user-specified
-                files.append(os.path.join(self._rootdir, util.expandpath(path)))
-
+        files = self._ignorefiles()
         if not files:
             return util.never
 
@@ -220,6 +271,12 @@ class dirstate(object):
         return os.getcwd()
 
     def getcwd(self):
+        '''Return the path from which a canonical path is calculated.
+
+        This path should be used to resolve file patterns or to convert
+        canonical paths back to file paths for display. It shouldn't be
+        used to get real file paths. Use vfs functions instead.
+        '''
         cwd = self._cwd
         if cwd == self._root:
             return ''
@@ -322,11 +379,20 @@ class dirstate(object):
             f.discard()
             raise
 
+    def _opendirstatefile(self):
+        fp, mode = _trypending(self._root, self._opener, self._filename)
+        if self._pendingmode is not None and self._pendingmode != mode:
+            fp.close()
+            raise error.Abort(_('working directory state may be '
+                                'changed parallelly'))
+        self._pendingmode = mode
+        return fp
+
     def _read(self):
         self._map = {}
         self._copymap = {}
         try:
-            fp = self._opener.open(self._filename)
+            fp = self._opendirstatefile()
             try:
                 st = fp.read()
             finally:
@@ -370,7 +436,7 @@ class dirstate(object):
 
     def invalidate(self):
         for a in ("_map", "_copymap", "_filefoldmap", "_dirfoldmap", "_branch",
-                  "_pl", "_dirs", "_ignore"):
+                  "_pl", "_dirs", "_ignore", "_nonnormalset"):
             if a in self.__dict__:
                 delattr(self, a)
         self._lastnormaltime = 0
@@ -397,32 +463,41 @@ class dirstate(object):
         if self[f] not in "?r" and "_dirs" in self.__dict__:
             self._dirs.delpath(f)
 
+        if "_filefoldmap" in self.__dict__:
+            normed = util.normcase(f)
+            if normed in self._filefoldmap:
+                del self._filefoldmap[normed]
+
     def _addpath(self, f, state, mode, size, mtime):
         oldstate = self[f]
         if state == 'a' or oldstate == 'r':
             scmutil.checkfilename(f)
             if f in self._dirs:
-                raise util.Abort(_('directory %r already in dirstate') % f)
+                raise error.Abort(_('directory %r already in dirstate') % f)
             # shadows
             for d in util.finddirs(f):
                 if d in self._dirs:
                     break
                 if d in self._map and self[d] != 'r':
-                    raise util.Abort(
+                    raise error.Abort(
                         _('file %r in dirstate clashes with %r') % (d, f))
         if oldstate in "?r" and "_dirs" in self.__dict__:
             self._dirs.addpath(f)
         self._dirty = True
         self._map[f] = dirstatetuple(state, mode, size, mtime)
+        if state != 'n' or mtime == -1:
+            self._nonnormalset.add(f)
 
     def normal(self, f):
         '''Mark a file normal and clean.'''
         s = os.lstat(self._join(f))
-        mtime = int(s.st_mtime)
+        mtime = s.st_mtime
         self._addpath(f, 'n', s.st_mode,
                       s.st_size & _rangemask, mtime & _rangemask)
         if f in self._copymap:
             del self._copymap[f]
+        if f in self._nonnormalset:
+            self._nonnormalset.remove(f)
         if mtime > self._lastnormaltime:
             # Remember the most recent modification timeslot for status(),
             # to make sure we won't miss future size-preserving file content
@@ -450,11 +525,13 @@ class dirstate(object):
         self._addpath(f, 'n', 0, -1, -1)
         if f in self._copymap:
             del self._copymap[f]
+        if f in self._nonnormalset:
+            self._nonnormalset.remove(f)
 
     def otherparent(self, f):
         '''Mark as coming from the other parent, always dirty.'''
         if self._pl[1] == nullid:
-            raise util.Abort(_("setting %r to other parent "
+            raise error.Abort(_("setting %r to other parent "
                                "only allowed in merges") % f)
         if f in self and self[f] == 'n':
             # merge-like
@@ -485,6 +562,7 @@ class dirstate(object):
             elif entry[0] == 'n' and entry[2] == -2: # other parent
                 size = -2
         self._map[f] = dirstatetuple('r', 0, size, 0)
+        self._nonnormalset.add(f)
         if size == 0 and f in self._copymap:
             del self._copymap[f]
 
@@ -500,6 +578,8 @@ class dirstate(object):
             self._dirty = True
             self._droppath(f)
             del self._map[f]
+            if f in self._nonnormalset:
+                self._nonnormalset.remove(f)
 
     def _discoverpath(self, path, normed, ignoremissing, exists, storemap):
         if exists is None:
@@ -577,6 +657,7 @@ class dirstate(object):
 
     def clear(self):
         self._map = {}
+        self._nonnormalset = set()
         if "_dirs" in self.__dict__:
             delattr(self, "_dirs")
         self._copymap = {}
@@ -586,36 +667,92 @@ class dirstate(object):
 
     def rebuild(self, parent, allfiles, changedfiles=None):
         if changedfiles is None:
+            # Rebuild entire dirstate
             changedfiles = allfiles
-        oldmap = self._map
-        self.clear()
-        for f in allfiles:
-            if f not in changedfiles:
-                self._map[f] = oldmap[f]
+            lastnormaltime = self._lastnormaltime
+            self.clear()
+            self._lastnormaltime = lastnormaltime
+
+        for f in changedfiles:
+            mode = 0o666
+            if f in allfiles and 'x' in allfiles.flags(f):
+                mode = 0o777
+
+            if f in allfiles:
+                self._map[f] = dirstatetuple('n', mode, -1, 0)
             else:
-                if 'x' in allfiles.flags(f):
-                    self._map[f] = dirstatetuple('n', 0o777, -1, 0)
-                else:
-                    self._map[f] = dirstatetuple('n', 0o666, -1, 0)
+                self._map.pop(f, None)
+                if f in self._nonnormalset:
+                    self._nonnormalset.remove(f)
+
         self._pl = (parent, nullid)
         self._dirty = True
 
-    def write(self):
+    def write(self, tr=False):
         if not self._dirty:
             return
+
+        filename = self._filename
+        if tr is False: # not explicitly specified
+            if (self._ui.configbool('devel', 'all-warnings')
+                or self._ui.configbool('devel', 'check-dirstate-write')):
+                self._ui.develwarn('use dirstate.write with '
+                                   'repo.currenttransaction()')
+
+            if self._opener.lexists(self._pendingfilename):
+                # if pending file already exists, in-memory changes
+                # should be written into it, because it has priority
+                # to '.hg/dirstate' at reading under HG_PENDING mode
+                filename = self._pendingfilename
+        elif tr:
+            # 'dirstate.write()' is not only for writing in-memory
+            # changes out, but also for dropping ambiguous timestamp.
+            # delayed writing re-raise "ambiguous timestamp issue".
+            # See also the wiki page below for detail:
+            # https://www.mercurial-scm.org/wiki/DirstateTransactionPlan
+
+            # emulate dropping timestamp in 'parsers.pack_dirstate'
+            now = _getfsnow(self._opener)
+            dmap = self._map
+            for f, e in dmap.iteritems():
+                if e[0] == 'n' and e[3] == now:
+                    dmap[f] = dirstatetuple(e[0], e[1], e[2], -1)
+                    self._nonnormalset.add(f)
+
+            # emulate that all 'dirstate.normal' results are written out
+            self._lastnormaltime = 0
+
+            # delay writing in-memory changes out
+            tr.addfilegenerator('dirstate', (self._filename,),
+                                self._writedirstate, location='plain')
+            return
+
+        st = self._opener(filename, "w", atomictemp=True)
+        self._writedirstate(st)
+
+    def _writedirstate(self, st):
+        # use the modification time of the newly created temporary file as the
+        # filesystem's notion of 'now'
+        now = util.fstat(st).st_mtime & _rangemask
 
         # enough 'delaywrite' prevents 'pack_dirstate' from dropping
         # timestamp of each entries in dirstate, because of 'now > mtime'
         delaywrite = self._ui.configint('debug', 'dirstate.delaywrite', 0)
         if delaywrite > 0:
-            import time # to avoid useless import
-            time.sleep(delaywrite)
+            # do we have any files to delay for?
+            for f, e in self._map.iteritems():
+                if e[0] == 'n' and e[3] == now:
+                    import time # to avoid useless import
+                    # rather than sleep n seconds, sleep until the next
+                    # multiple of n seconds
+                    clock = time.time()
+                    start = int(clock) - (int(clock) % delaywrite)
+                    end = start + delaywrite
+                    time.sleep(end - clock)
+                    break
 
-        st = self._opener(self._filename, "w", atomictemp=True)
-        # use the modification time of the newly created temporary file as the
-        # filesystem's notion of 'now'
-        now = util.fstat(st).st_mtime
         st.write(parsers.pack_dirstate(self._map, self._copymap, self._pl, now))
+        self._nonnormalset = nonnormalentries(self._map)
         st.close()
         self._lastnormaltime = 0
         self._dirty = self._dirtypl = False
@@ -629,6 +766,37 @@ class dirstate(object):
             if self._ignore(p):
                 return True
         return False
+
+    def _ignorefiles(self):
+        files = []
+        if os.path.exists(self._join('.hgignore')):
+            files.append(self._join('.hgignore'))
+        for name, path in self._ui.configitems("ui"):
+            if name == 'ignore' or name.startswith('ignore.'):
+                # we need to use os.path.join here rather than self._join
+                # because path is arbitrary and user-specified
+                files.append(os.path.join(self._rootdir, util.expandpath(path)))
+        return files
+
+    def _ignorefileandline(self, f):
+        files = collections.deque(self._ignorefiles())
+        visited = set()
+        while files:
+            i = files.popleft()
+            patterns = matchmod.readpatternfile(i, self._ui.warn,
+                                                sourceinfo=True)
+            for pattern, lineno, line in patterns:
+                kind, p = matchmod._patsplit(pattern, 'glob')
+                if kind == "subinclude":
+                    if p not in visited:
+                        files.append(p)
+                    continue
+                m = matchmod.match(self._root, '', [], [pattern],
+                                   warn=self._ui.warn)
+                if m(f):
+                    return (i, lineno, line)
+            visited.add(i)
+        return (None, -1, "")
 
     def _walkexplicit(self, match, subrepos):
         '''Get stat data about the files explicitly specified by match.
@@ -988,16 +1156,15 @@ class dirstate(object):
             if not st and state in "nma":
                 dadd(fn)
             elif state == 'n':
-                mtime = int(st.st_mtime)
                 if (size >= 0 and
                     ((size != st.st_size and size != st.st_size & _rangemask)
                      or ((mode ^ st.st_mode) & 0o100 and checkexec))
                     or size == -2 # other parent
                     or fn in copymap):
                     madd(fn)
-                elif time != mtime and time != mtime & _rangemask:
+                elif time != st.st_mtime and time != st.st_mtime & _rangemask:
                     ladd(fn)
-                elif mtime == lastnormaltime:
+                elif st.st_mtime == lastnormaltime:
                     # fn may have just been marked as normal and it may have
                     # changed in the same second without changing its size.
                     # This can happen if we quickly do multiple commits.
@@ -1032,3 +1199,45 @@ class dirstate(object):
             # that
             return list(files)
         return [f for f in dmap if match(f)]
+
+    def _actualfilename(self, tr):
+        if tr:
+            return self._pendingfilename
+        else:
+            return self._filename
+
+    def _savebackup(self, tr, suffix):
+        '''Save current dirstate into backup file with suffix'''
+        filename = self._actualfilename(tr)
+
+        # use '_writedirstate' instead of 'write' to write changes certainly,
+        # because the latter omits writing out if transaction is running.
+        # output file will be used to create backup of dirstate at this point.
+        self._writedirstate(self._opener(filename, "w", atomictemp=True))
+
+        if tr:
+            # ensure that subsequent tr.writepending returns True for
+            # changes written out above, even if dirstate is never
+            # changed after this
+            tr.addfilegenerator('dirstate', (self._filename,),
+                                self._writedirstate, location='plain')
+
+            # ensure that pending file written above is unlinked at
+            # failure, even if tr.writepending isn't invoked until the
+            # end of this transaction
+            tr.registertmp(filename, location='plain')
+
+        self._opener.write(filename + suffix, self._opener.tryread(filename))
+
+    def _restorebackup(self, tr, suffix):
+        '''Restore dirstate by backup file with suffix'''
+        # this "invalidate()" prevents "wlock.release()" from writing
+        # changes of dirstate out after restoring from backup file
+        self.invalidate()
+        filename = self._actualfilename(tr)
+        self._opener.rename(filename + suffix, filename)
+
+    def _clearbackup(self, tr, suffix):
+        '''Clear backup file with suffix'''
+        filename = self._actualfilename(tr)
+        self._opener.unlink(filename + suffix)

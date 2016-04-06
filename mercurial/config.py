@@ -5,9 +5,16 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from i18n import _
-import error, util
-import os, errno
+from __future__ import absolute_import
+
+import errno
+import os
+
+from .i18n import _
+from . import (
+    error,
+    util,
+)
 
 class config(object):
     def __init__(self, data=None, includepaths=[]):
@@ -23,6 +30,8 @@ class config(object):
         return config(self)
     def __contains__(self, section):
         return section in self._data
+    def hasitem(self, section, item):
+        return item in self._data.get(section, {})
     def __getitem__(self, section):
         return self._data.get(section, {})
     def __iter__(self):

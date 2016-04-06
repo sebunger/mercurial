@@ -61,7 +61,7 @@ commit option
   $ echo grapes >> a
   $ hg commit -d '2 0' -m grapes
 
-  $ hg backout --commit -d '4 0' 1 --tool=:fail
+  $ hg backout -d '4 0' 1 --tool=:fail
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   changeset 3:1c2161e97c0a backs out changeset 1:22cb4f70d813
   $ hg summary
@@ -75,7 +75,7 @@ commit option
   $ echo ypples > a
   $ hg commit -d '5 0' -m ypples
 
-  $ hg backout --commit -d '6 0' 2 --tool=:fail
+  $ hg backout -d '6 0' 2 --tool=:fail
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges
   [1]
@@ -259,6 +259,95 @@ check line 1 is back
   line 2
   line 3
 
+Test visibility of in-memory dirstate changes outside transaction to
+external hook process
+
+  $ cat > $TESTTMP/checkvisibility.sh <<EOF
+  > echo "==== \$1:"
+  > hg parents --template "{rev}:{node|short}\n"
+  > echo "===="
+  > EOF
+
+"hg backout --merge REV1" at REV2 below implies steps below:
+
+(1) update to REV1 (REV2 => REV1)
+(2) revert by REV1^1
+(3) commit backnig out revision (REV3)
+(4) update to REV2 (REV3 => REV2)
+(5) merge with REV3 (REV2 => REV2, REV3)
+
+== test visibility to external preupdate hook
+
+  $ hg update -q -C 2
+  $ hg --config extensions.strip= strip 3
+  saved backup bundle to * (glob)
+
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > preupdate.visibility = sh $TESTTMP/checkvisibility.sh preupdate
+  > EOF
+
+("-m" is needed to avoid writing dirstte changes out at other than
+invocation of the hook to be examined)
+
+  $ hg backout --merge -d '3 0' 1 --tool=true -m 'fixed comment'
+  ==== preupdate:
+  2:6ea3f2a197a2
+  ====
+  reverting a
+  created new head
+  changeset 3:d92a3f57f067 backs out changeset 1:5a50a024c182
+  ==== preupdate:
+  3:d92a3f57f067
+  ====
+  merging with changeset 3:d92a3f57f067
+  ==== preupdate:
+  2:6ea3f2a197a2
+  ====
+  merging a
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > preupdate.visibility =
+  > EOF
+
+== test visibility to external update hook
+
+  $ hg update -q -C 2
+  $ hg --config extensions.strip= strip 3
+  saved backup bundle to * (glob)
+
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > update.visibility = sh $TESTTMP/checkvisibility.sh update
+  > EOF
+
+  $ hg backout --merge -d '3 0' 1 --tool=true -m 'fixed comment'
+  ==== update:
+  1:5a50a024c182
+  ====
+  reverting a
+  created new head
+  changeset 3:d92a3f57f067 backs out changeset 1:5a50a024c182
+  ==== update:
+  2:6ea3f2a197a2
+  ====
+  merging with changeset 3:d92a3f57f067
+  merging a
+  ==== update:
+  2:6ea3f2a197a2
+  3:d92a3f57f067
+  ====
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > update.visibility =
+  > EOF
+
   $ cd ..
 
 backout should not back out subsequent changesets
@@ -282,7 +371,7 @@ backout should not back out subsequent changesets
   phases: 3 draft
 
 without --merge
-  $ hg backout -d '3 0' 1 --tool=true
+  $ hg backout --no-commit -d '3 0' 1 --tool=true
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   changeset 22bca4c721e5 backed out, don't forget to commit.
   $ hg locate b
@@ -422,7 +511,7 @@ named branches
   adding file2
 
 without --merge
-  $ hg backout -r 1 --tool=true
+  $ hg backout --no-commit -r 1 --tool=true
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   changeset bf1602f437f3 backed out, don't forget to commit.
   $ hg branch
@@ -593,6 +682,23 @@ Test usage of `hg resolve` in case of conflict
   use 'hg resolve' to retry unresolved file merges
   [1]
   $ hg status
+  $ hg debugmergestate
+  * version 2 records
+  local: b71750c4b0fdf719734971e3ef90dbeab5919a2d
+  other: a30dd8addae3ce71b8667868478542bc417439e6
+  file: foo (record type "F", state "u", hash 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33)
+    local path: foo (flags "")
+    ancestor path: foo (node f89532f44c247a0e993d63e3a734dd781ab04708)
+    other path: foo (node f50039b486d6fa1a90ae51778388cad161f425ee)
+  $ mv .hg/merge/state2 .hg/merge/state2-moved
+  $ hg debugmergestate
+  * version 1 records
+  local: b71750c4b0fdf719734971e3ef90dbeab5919a2d
+  file: foo (record type "F", state "u", hash 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33)
+    local path: foo (flags "")
+    ancestor path: foo (node f89532f44c247a0e993d63e3a734dd781ab04708)
+    other path: foo (node not stored in v1 format)
+  $ mv .hg/merge/state2-moved .hg/merge/state2
   $ hg resolve -l  # still unresolved
   U foo
   $ hg summary
@@ -603,11 +709,12 @@ Test usage of `hg resolve` in case of conflict
   update: (current)
   phases: 3 draft
   $ hg resolve --all --debug
-  picked tool 'internal:merge' for foo (binary False symlink False)
+  picked tool ':merge' for foo (binary False symlink False changedelete False)
   merging foo
   my foo@b71750c4b0fd+ other foo@a30dd8addae3 ancestor foo@913609522437
    premerge successful
   (no more unresolved files)
+  continue: hg commit
   $ hg status
   M foo
   ? foo.orig
@@ -632,4 +739,24 @@ Test usage of `hg resolve` in case of conflict
   nine
   TEN
 
+--no-commit shouldn't commit
 
+  $ hg init a
+  $ cd a
+  $ for i in 1 2 3; do
+  >   touch $i
+  >   hg ci -Am $i
+  > done
+  adding 1
+  adding 2
+  adding 3
+  $ hg backout --no-commit .
+  removing 3
+  changeset cccc23d9d68f backed out, don't forget to commit.
+  $ hg revert -aq
+
+--no-commit can't be used with --merge
+
+  $ hg backout --merge --no-commit 2
+  abort: cannot use --merge with --no-commit
+  [255]

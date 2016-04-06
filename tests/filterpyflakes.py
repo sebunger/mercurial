@@ -2,7 +2,10 @@
 
 # Filter output by pyflakes to control which warnings we check
 
-import sys, re, os
+from __future__ import absolute_import
+
+import re
+import sys
 
 def makekey(typeandline):
     """
@@ -42,7 +45,7 @@ for line in sys.stdin:
     else:
         continue # no pattern matched, next line
     fn = line.split(':', 1)[0]
-    f = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), fn))
+    f = open(fn)
     data = f.read()
     f.close()
     if 'no-' 'check-code' in data:

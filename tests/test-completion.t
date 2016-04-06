@@ -69,17 +69,21 @@ Do not show debug commands if there are other candidates
 Show debug commands if there are no other candidates
   $ hg debugcomplete debug
   debugancestor
+  debugapplystreamclonebundle
   debugbuilddag
   debugbundle
   debugcheckstate
   debugcommands
   debugcomplete
   debugconfig
+  debugcreatestreamclonebundle
   debugdag
   debugdata
   debugdate
+  debugdeltachain
   debugdirstate
   debugdiscovery
+  debugextensions
   debugfileset
   debugfsinfo
   debuggetbundle
@@ -90,6 +94,7 @@ Show debug commands if there are no other candidates
   debugknown
   debuglabelcomplete
   debuglocks
+  debugmergestate
   debugnamecomplete
   debugobsolete
   debugpathcomplete
@@ -219,7 +224,7 @@ Show all commands + options
   update: clean, check, date, rev, tool
   addremove: similarity, subrepos, include, exclude, dry-run
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
-  backout: merge, commit, parent, rev, edit, tool, include, exclude, message, logfile, date, user
+  backout: merge, commit, no-commit, parent, rev, edit, tool, include, exclude, message, logfile, date, user
   bisect: reset, good, bad, skip, extend, command, noupdate
   bookmarks: force, rev, delete, rename, inactive, template
   branch: force, clean
@@ -229,32 +234,37 @@ Show all commands + options
   config: untrusted, edit, local, global
   copy: after, force, include, exclude, dry-run
   debugancestor: 
+  debugapplystreamclonebundle: 
   debugbuilddag: mergeable-file, overwritten-file, new-file
-  debugbundle: all
+  debugbundle: all, spec
   debugcheckstate: 
   debugcommands: 
   debugcomplete: options
+  debugcreatestreamclonebundle: 
   debugdag: tags, branches, dots, spaces
   debugdata: changelog, manifest, dir
   debugdate: extended
+  debugdeltachain: changelog, manifest, dir, template
   debugdirstate: nodates, datesort
   debugdiscovery: old, nonheads, ssh, remotecmd, insecure
+  debugextensions: template
   debugfileset: rev
   debugfsinfo: 
   debuggetbundle: head, common, type
   debugignore: 
   debugindex: changelog, manifest, dir, format
-  debugindexdot: 
+  debugindexdot: changelog, manifest, dir
   debuginstall: 
   debugknown: 
   debuglabelcomplete: 
   debuglocks: force-lock, force-wlock
+  debugmergestate: 
   debugnamecomplete: 
   debugobsolete: flags, record-parents, rev, date, user
   debugpathcomplete: full, normal, added, removed
   debugpushkey: 
   debugpvec: 
-  debugrebuilddirstate: rev
+  debugrebuilddirstate: rev, minimal
   debugrebuildfncache: 
   debugrename: rev
   debugrevlog: changelog, manifest, dir, dump
@@ -268,7 +278,7 @@ Show all commands + options
   graft: rev, continue, edit, log, force, currentdate, currentuser, date, user, tool, dry-run
   grep: print0, all, text, follow, ignore-case, files-with-matches, line-number, rev, user, date, include, exclude
   heads: rev, topo, active, closed, style, template
-  help: extension, command, keyword
+  help: extension, command, keyword, system
   identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, insecure
   import: strip, base, edit, force, no-commit, bypass, partial, exact, prefix, import-branch, message, logfile, date, user, similarity
   incoming: force, newest-first, bundle, rev, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
@@ -276,7 +286,7 @@ Show all commands + options
   manifest: rev, all, template
   outgoing: force, rev, newest-first, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
   parents: rev, style, template
-  paths: 
+  paths: template
   phase: public, draft, secret, force, rev
   recover: 
   rename: after, force, include, exclude, dry-run

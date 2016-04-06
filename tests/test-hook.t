@@ -81,10 +81,10 @@ pretxncommit and commit hooks can see both parents of merge
   pretxncommit hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b HG_PENDING=$TESTTMP/a
   2:ee9deb46ab31
   pretxnclose hook: HG_PENDING=$TESTTMP/a HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
+  created new head
   txnclose hook: HG_TXNID=TXN:* HG_TXNNAME=commit (glob)
   commit hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
   commit.b hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_PARENT1=cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b
-  created new head
   $ hg merge 1
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
@@ -118,7 +118,7 @@ test generic hooks
   adding manifests
   adding file changes
   added 3 changesets with 2 changes to 2 files
-  changegroup hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
+  changegroup hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_NODE_LAST=07f3376c1e655977439df2a814e3cc14b27abac2 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   incoming hook: HG_NODE=ab228980c14deea8b9555d91c9581127383e40fd HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   incoming hook: HG_NODE=ee9deb46ab31e4cc3310f3cf0c3d668e4d8fffc2 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   incoming hook: HG_NODE=07f3376c1e655977439df2a814e3cc14b27abac2 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
@@ -223,8 +223,8 @@ update hook
   $ echo "update = printenv.py update" >> .hg/hgrc
   $ hg update
   preupdate hook: HG_PARENT1=539e4b31b6dc
-  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   update hook: HG_ERROR=0 HG_PARENT1=539e4b31b6dc
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 pushkey hook
 
@@ -326,7 +326,7 @@ incoming changes no longer there after
   adding file changes
   added 1 changesets with 1 changes to 1 files
   4:539e4b31b6dc
-  pretxnchangegroup.forbid hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PENDING=$TESTTMP/b HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
+  pretxnchangegroup.forbid hook: HG_NODE=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_NODE_LAST=539e4b31b6dc99b3cfbaa6b53cbc1c1f9a1e3a10 HG_PENDING=$TESTTMP/b HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=file:$TESTTMP/a (glob)
   transaction abort!
   rollback completed
   abort: pretxnchangegroup.forbid1 hook exited with status 1
@@ -394,7 +394,7 @@ preoutgoing hook can prevent outgoing changes for local clones
   $ cd "$TESTTMP/b"
 
   $ cat > hooktests.py <<EOF
-  > from mercurial import util
+  > from mercurial import error
   > 
   > uncallable = 0
   > 
@@ -421,7 +421,7 @@ preoutgoing hook can prevent outgoing changes for local clones
   >     raise LocalException('exception from hook')
   > 
   > def aborthook(**args):
-  >     raise util.Abort('raise abort from hook')
+  >     raise error.Abort('raise abort from hook')
   > 
   > def brokenhook(**args):
   >     return 1 + {}
@@ -563,9 +563,9 @@ make sure --traceback works
   foo
   committing manifest
   committing changelog
+  committed changeset 1:52998019f6252a2b893452765fcb0a47351a5708
   calling hook commit.auto: hgext_hookext.autohook
   Automatically installed hook
-  committed changeset 1:52998019f6252a2b893452765fcb0a47351a5708
 
   $ hg showconfig hooks
   hooks.commit.auto=<function autohook at *> (glob)
@@ -628,7 +628,7 @@ make sure --traceback works on hook import failure
   Traceback (most recent call last):
   ImportError: No module named hgext_importfail
   Traceback (most recent call last):
-  Abort: precommit.importfail hook is invalid (import of "importfail" failed)
+  HookLoadError: precommit.importfail hook is invalid (import of "importfail" failed)
   abort: precommit.importfail hook is invalid (import of "importfail" failed)
 
 Issue1827: Hooks Update & Commit not completely post operation
@@ -644,8 +644,8 @@ final release (and dirstate flush).
   $ hg ci -ma
   223eafe2750c tip
   $ hg up 0 --config extensions.largefiles=
-  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   cb9a9f314b8b
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 make sure --verbose (and --quiet/--debug etc.) are propagated to the local ui
 that is passed to pre/post hooks
@@ -681,11 +681,21 @@ new tags must be visible in pretxncommit (issue3210)
   $ hg tag -f foo
   ['a', 'foo', 'tip']
 
-new commits must be visible in pretxnchangegroup (issue3428)
+post-init hooks must not crash (issue4983)
+This also creates the `to` repo for the next test block.
 
   $ cd ..
-  $ hg init to
+  $ cat << EOF >> hgrc-with-post-init-hook
+  > [hooks]
+  > post-init = printenv.py post-init
+  > EOF
+  $ HGRCPATH=hgrc-with-post-init-hook hg init to
+  post-init hook: HG_ARGS=init to HG_OPTS={'insecure': None, 'remotecmd': '', 'ssh': ''} HG_PATS=['to'] HG_RESULT=0
+
+new commits must be visible in pretxnchangegroup (issue3428)
+
   $ echo '[hooks]' >> to/.hg/hgrc
+  $ echo 'prechangegroup = hg --traceback tip' >> to/.hg/hgrc
   $ echo 'pretxnchangegroup = hg --traceback tip' >> to/.hg/hgrc
   $ echo a >> to/a
   $ hg --cwd to ci -Ama
@@ -698,6 +708,12 @@ new commits must be visible in pretxnchangegroup (issue3428)
   $ hg --cwd from push
   pushing to $TESTTMP/to (glob)
   searching for changes
+  changeset:   0:cb9a9f314b8b
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     a
+  
   adding changesets
   adding manifests
   adding file changes
@@ -708,3 +724,25 @@ new commits must be visible in pretxnchangegroup (issue3428)
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     b
   
+  $ cd ..
+
+pretxnclose hook failure should abort the transaction
+
+  $ hg init txnfailure
+  $ cd txnfailure
+  $ touch a && hg commit -Aqm a
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > pretxnclose.error = exit 1
+  > EOF
+  $ hg strip -r 0 --config extensions.strip=
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  saved backup bundle to * (glob)
+  transaction abort!
+  rollback completed
+  strip failed, full bundle stored in * (glob)
+  abort: pretxnclose.error hook exited with status 1
+  [255]
+  $ hg recover
+  no interrupted transaction available
+  [1]

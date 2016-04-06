@@ -620,6 +620,21 @@ log --follow tests
   $ hg up -C 1
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ echo b1 > b1
+
+log -r "follow('set:clean()')"
+
+  $ hg log -r "follow('set:clean()')"
+  changeset:   0:67e992f2c4f3
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     base
+  
+  changeset:   1:3d5bf5654eda
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     r1
+  
+
   $ hg ci -Amb1 -d '1 0'
   adding b1
   created new head
@@ -646,7 +661,26 @@ log -f
   summary:     base
   
 
+log -r follow('glob:b*')
 
+  $ hg log -r "follow('glob:b*')"
+  changeset:   0:67e992f2c4f3
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     base
+  
+  changeset:   1:3d5bf5654eda
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     r1
+  
+  changeset:   3:e62f78d544b4
+  tag:         tip
+  parent:      1:3d5bf5654eda
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     b1
+  
 log -f -r '1 + 4'
 
   $ hg up -C 0
@@ -672,6 +706,16 @@ log -f -r '1 + 4'
   user:        test
   date:        Thu Jan 01 00:00:01 1970 +0000
   summary:     base
+  
+log -r "follow('set:grep(b2)')"
+
+  $ hg log -r "follow('set:grep(b2)')"
+  changeset:   4:ddb82e70d1a1
+  tag:         tip
+  parent:      0:67e992f2c4f3
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     b2
   
 log -f -r null
 
@@ -876,6 +920,116 @@ log -r tip --stat
 
   $ cd ..
 
+Test that log should respect the order of -rREV even if multiple OR conditions
+are specified (issue5100):
+
+  $ hg init revorder
+  $ cd revorder
+
+  $ hg branch -q b0
+  $ echo 0 >> f0
+  $ hg ci -qAm k0 -u u0
+  $ hg branch -q b1
+  $ echo 1 >> f1
+  $ hg ci -qAm k1 -u u1
+  $ hg branch -q b2
+  $ echo 2 >> f2
+  $ hg ci -qAm k2 -u u2
+
+  $ hg update -q b2
+  $ echo 3 >> f2
+  $ hg ci -qAm k2 -u u2
+  $ hg update -q b1
+  $ echo 4 >> f1
+  $ hg ci -qAm k1 -u u1
+  $ hg update -q b0
+  $ echo 5 >> f0
+  $ hg ci -qAm k0 -u u0
+
+ summary of revisions:
+
+  $ hg log -G -T '{rev} {branch} {author} {desc} {files}\n'
+  @  5 b0 u0 k0 f0
+  |
+  | o  4 b1 u1 k1 f1
+  | |
+  | | o  3 b2 u2 k2 f2
+  | | |
+  | | o  2 b2 u2 k2 f2
+  | |/
+  | o  1 b1 u1 k1 f1
+  |/
+  o  0 b0 u0 k0 f0
+  
+
+ log -b BRANCH in ascending order:
+
+  $ hg log -r0:tip -T '{rev} {branch}\n' -b b0 -b b1
+  0 b0
+  1 b1
+  4 b1
+  5 b0
+  $ hg log -r0:tip -T '{rev} {branch}\n' -b b1 -b b0
+  0 b0
+  1 b1
+  4 b1
+  5 b0
+
+ log --only-branch BRANCH in descending order:
+
+  $ hg log -rtip:0 -T '{rev} {branch}\n' --only-branch b1 --only-branch b2
+  4 b1
+  3 b2
+  2 b2
+  1 b1
+  $ hg log -rtip:0 -T '{rev} {branch}\n' --only-branch b2 --only-branch b1
+  4 b1
+  3 b2
+  2 b2
+  1 b1
+
+ log -u USER in ascending order, against compound set:
+
+  $ hg log -r'::head()' -T '{rev} {author}\n' -u u0 -u u2
+  0 u0
+  2 u2
+  3 u2
+  5 u0
+  $ hg log -r'::head()' -T '{rev} {author}\n' -u u2 -u u0
+  0 u0
+  2 u2
+  3 u2
+  5 u0
+
+ log -k TEXT in descending order, against compound set:
+
+  $ hg log -r'5 + reverse(::3)' -T '{rev} {desc}\n' -k k0 -k k1 -k k2
+  5 k0
+  3 k2
+  2 k2
+  1 k1
+  0 k0
+  $ hg log -r'5 + reverse(::3)' -T '{rev} {desc}\n' -k k2 -k k1 -k k0
+  5 k0
+  3 k2
+  2 k2
+  1 k1
+  0 k0
+
+ log FILE in ascending order, against dagrange:
+
+  $ hg log -r1:: -T '{rev} {files}\n' f1 f2
+  1 f1
+  2 f2
+  3 f2
+  4 f1
+  $ hg log -r1:: -T '{rev} {files}\n' f2 f1
+  1 f1
+  2 f2
+  3 f2
+  4 f1
+
+  $ cd ..
 
 User
 
@@ -1229,8 +1383,7 @@ log -p -R repo
   created new head
   $ hg merge 7
   merging foo
-  warning: conflicts during merge.
-  merging foo incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging foo! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]
@@ -1241,8 +1394,7 @@ log -p -R repo
 
   $ hg merge 4
   merging foo
-  warning: conflicts during merge.
-  merging foo incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging foo! (edit, then use 'hg resolve --mark')
   1 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]

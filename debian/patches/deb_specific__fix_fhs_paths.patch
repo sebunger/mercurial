@@ -9,8 +9,8 @@ Author: Javi Merino <vicho@debian.org>
 
 --- a/mercurial/util.py
 +++ b/mercurial/util.py
-@@ -697,6 +697,8 @@ def mainfrozen():
- if mainfrozen():
+@@ -886,6 +886,8 @@ def mainfrozen():
+ if mainfrozen() and getattr(sys, 'frozen', None) != 'macosx_app':
      # executable version (py2exe) doesn't support __file__
      datapath = os.path.dirname(sys.executable)
 +elif __file__.startswith("/usr/lib/python"):

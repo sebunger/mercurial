@@ -50,6 +50,8 @@ revision 4 - hard to merge
   >   cat f
   >   echo "# hg stat"
   >   hg stat
+  >   echo "# hg resolve --list"
+  >   hg resolve --list
   >   rm -f f.orig
   > }
 
@@ -65,10 +67,9 @@ hg merge -r 2
 override $PATH to ensure hgmerge not visible; use $PYTHON in case we're
 running from a devel copy, not a temp installation
 
-  $ PATH="$BINDIR" $PYTHON "$BINDIR"/hg merge -r 2
+  $ PATH="$BINDIR:/usr/sbin" $PYTHON "$BINDIR"/hg merge -r 2
   merging f
-  warning: conflicts during merge.
-  merging f incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]
@@ -83,6 +84,8 @@ running from a devel copy, not a temp installation
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 simplest hgrc using false for merge:
 
@@ -104,6 +107,8 @@ simplest hgrc using false for merge:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 #if unix-permissions
 
@@ -111,10 +116,9 @@ unexecutable file in $PATH shouldn't be found:
 
   $ echo "echo fail" > false
   $ hg up -qC 1
-  $ PATH="`pwd`:$BINDIR" $PYTHON "$BINDIR"/hg merge -r 2
+  $ PATH="`pwd`:$BINDIR:/usr/sbin" $PYTHON "$BINDIR"/hg merge -r 2
   merging f
-  warning: conflicts during merge.
-  merging f incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]
@@ -126,10 +130,9 @@ executable directory in $PATH shouldn't be found:
 
   $ mkdir false
   $ hg up -qC 1
-  $ PATH="`pwd`:$BINDIR" $PYTHON "$BINDIR"/hg merge -r 2
+  $ PATH="`pwd`:$BINDIR:/usr/sbin" $PYTHON "$BINDIR"/hg merge -r 2
   merging f
-  warning: conflicts during merge.
-  merging f incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]
@@ -153,6 +156,8 @@ true with higher .priority gets precedence:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 unless lowered on command line:
 
@@ -174,6 +179,8 @@ unless lowered on command line:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 or false set higher on command line:
 
@@ -195,6 +202,30 @@ or false set higher on command line:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
+
+or true set to disabled:
+  $ beforemerge
+  [merge-tools]
+  false.whatever=
+  true.priority=1
+  # hg update -C 1
+  $ hg merge -r 2 --config merge-tools.true.disabled=yes
+  merging f
+  merging f failed!
+  0 files updated, 0 files merged, 0 files removed, 1 files unresolved
+  use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
+  [1]
+  $ aftermerge
+  # cat f
+  revision 1
+  space
+  # hg stat
+  M f
+  ? f.orig
+  # hg resolve --list
+  U f
 
 or true.executable not found in PATH:
 
@@ -216,6 +247,8 @@ or true.executable not found in PATH:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 or true.executable with bogus path:
 
@@ -237,6 +270,8 @@ or true.executable with bogus path:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 but true.executable set to cat found in PATH works:
 
@@ -263,6 +298,8 @@ but true.executable set to cat found in PATH works:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 and true.executable set to cat with path works:
 
@@ -288,6 +325,8 @@ and true.executable set to cat with path works:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 #if unix-permissions
 
@@ -313,6 +352,8 @@ environment variables in true.executable are handled:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 #endif
 
@@ -339,6 +380,8 @@ merge-patterns specifies new tool false:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 merge-patterns specifies executable not found in PATH and gets warning:
 
@@ -351,6 +394,7 @@ merge-patterns specifies executable not found in PATH and gets warning:
   $ hg merge -r 2 --config merge-patterns.f=true --config merge-tools.true.executable=nonexistentmergetool
   couldn't find merge tool true specified for f
   merging f
+  couldn't find merge tool true specified for f
   merging f failed!
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
@@ -362,6 +406,8 @@ merge-patterns specifies executable not found in PATH and gets warning:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 merge-patterns specifies executable with bogus path and gets warning:
 
@@ -374,6 +420,7 @@ merge-patterns specifies executable with bogus path and gets warning:
   $ hg merge -r 2 --config merge-patterns.f=true --config merge-tools.true.executable=/nonexistent/mergetool
   couldn't find merge tool true specified for f
   merging f
+  couldn't find merge tool true specified for f
   merging f failed!
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
@@ -385,6 +432,8 @@ merge-patterns specifies executable with bogus path and gets warning:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 ui.merge overrules priority
 
@@ -409,6 +458,8 @@ ui.merge specifies false:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 ui.merge specifies internal:fail:
 
@@ -428,6 +479,8 @@ ui.merge specifies internal:fail:
   space
   # hg stat
   M f
+  # hg resolve --list
+  U f
 
 ui.merge specifies :local (without internal prefix):
 
@@ -446,6 +499,8 @@ ui.merge specifies :local (without internal prefix):
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 ui.merge specifies internal:other:
 
@@ -464,6 +519,8 @@ ui.merge specifies internal:other:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 ui.merge specifies internal:prompt:
 
@@ -474,16 +531,106 @@ ui.merge specifies internal:prompt:
   true.executable=cat
   # hg update -C 1
   $ hg merge -r 2 --config ui.merge=internal:prompt
-   no tool found to merge f
-  keep (l)ocal or take (o)ther? l
-  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
-  (branch merge, don't forget to commit)
+  no tool found to merge f
+  keep (l)ocal, take (o)ther, or leave (u)nresolved? u
+  0 files updated, 0 files merged, 0 files removed, 1 files unresolved
+  use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
+  [1]
   $ aftermerge
   # cat f
   revision 1
   space
   # hg stat
   M f
+  # hg resolve --list
+  U f
+
+ui.merge specifies :prompt, with 'leave unresolved' chosen
+
+  $ beforemerge
+  [merge-tools]
+  false.whatever=
+  true.priority=1
+  true.executable=cat
+  # hg update -C 1
+  $ hg merge -r 2 --config ui.merge=:prompt --config ui.interactive=True << EOF
+  > u
+  > EOF
+  no tool found to merge f
+  keep (l)ocal, take (o)ther, or leave (u)nresolved? u
+  0 files updated, 0 files merged, 0 files removed, 1 files unresolved
+  use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
+  [1]
+  $ aftermerge
+  # cat f
+  revision 1
+  space
+  # hg stat
+  M f
+  # hg resolve --list
+  U f
+
+prompt with EOF
+
+  $ beforemerge
+  [merge-tools]
+  false.whatever=
+  true.priority=1
+  true.executable=cat
+  # hg update -C 1
+  $ hg merge -r 2 --config ui.merge=internal:prompt --config ui.interactive=true
+  no tool found to merge f
+  keep (l)ocal, take (o)ther, or leave (u)nresolved? 
+  0 files updated, 0 files merged, 0 files removed, 1 files unresolved
+  use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
+  [1]
+  $ aftermerge
+  # cat f
+  revision 1
+  space
+  # hg stat
+  M f
+  # hg resolve --list
+  U f
+  $ hg resolve --all --config ui.merge=internal:prompt --config ui.interactive=true
+  no tool found to merge f
+  keep (l)ocal, take (o)ther, or leave (u)nresolved? 
+  [1]
+  $ aftermerge
+  # cat f
+  revision 1
+  space
+  # hg stat
+  M f
+  ? f.orig
+  # hg resolve --list
+  U f
+  $ rm f
+  $ hg resolve --all --config ui.merge=internal:prompt --config ui.interactive=true
+  no tool found to merge f
+  keep (l)ocal, take (o)ther, or leave (u)nresolved? 
+  [1]
+  $ aftermerge
+  # cat f
+  revision 1
+  space
+  # hg stat
+  M f
+  # hg resolve --list
+  U f
+  $ hg resolve --all --config ui.merge=internal:prompt
+  no tool found to merge f
+  keep (l)ocal, take (o)ther, or leave (u)nresolved? u
+  [1]
+  $ aftermerge
+  # cat f
+  revision 1
+  space
+  # hg stat
+  M f
+  ? f.orig
+  # hg resolve --list
+  U f
 
 ui.merge specifies internal:dump:
 
@@ -508,6 +655,8 @@ ui.merge specifies internal:dump:
   ? f.local
   ? f.orig
   ? f.other
+  # hg resolve --list
+  U f
 
 f.base:
 
@@ -549,6 +698,8 @@ ui.merge specifies internal:other but is overruled by pattern for false:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 Premerge
 
@@ -573,6 +724,8 @@ ui.merge specifies internal:other but is overruled by --tool=false
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 HGMERGE specifies internal:other but is overruled by --tool=false
 
@@ -596,6 +749,8 @@ HGMERGE specifies internal:other but is overruled by --tool=false
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
   $ unset HGMERGE # make sure HGMERGE doesn't interfere with remaining tests
 
@@ -652,6 +807,8 @@ changed on the filesystem (see also issue4583))
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 update should also have --tool
 
@@ -693,6 +850,8 @@ update should also have --tool
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 Default is silent simplemerge:
 
@@ -713,6 +872,8 @@ Default is silent simplemerge:
   revision 3
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 .premerge=True is same:
 
@@ -733,6 +894,8 @@ Default is silent simplemerge:
   revision 3
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 .premerge=False executes merge-tool:
 
@@ -759,6 +922,8 @@ Default is silent simplemerge:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 premerge=keep keeps conflict markers in:
 
@@ -791,6 +956,8 @@ premerge=keep keeps conflict markers in:
   >>>>>>> other: 81448d39c9a0 - test: revision 4
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 premerge=keep-merge3 keeps conflict markers with base content:
 
@@ -829,6 +996,8 @@ premerge=keep-merge3 keeps conflict markers with base content:
   >>>>>>> other: 81448d39c9a0 - test: revision 4
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 
 Tool execution
@@ -867,6 +1036,8 @@ set tools.args explicit to include $base $local $other $output:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 Merge with "echo mergeresult > $local":
 
@@ -885,6 +1056,8 @@ Merge with "echo mergeresult > $local":
   mergeresult
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 - and $local is the file f:
 
@@ -903,6 +1076,8 @@ Merge with "echo mergeresult > $local":
   mergeresult
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 Merge with "echo mergeresult > $output" - the variable is a bit magic:
 
@@ -921,6 +1096,8 @@ Merge with "echo mergeresult > $output" - the variable is a bit magic:
   mergeresult
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 Merge using tool with a path that must be quoted:
 
@@ -950,6 +1127,8 @@ Merge using tool with a path that must be quoted:
   space
   # hg stat
   M f
+  # hg resolve --list
+  R f
 
 Issue3581: Merging a filename that needs to be quoted
 (This test doesn't work on Windows filesystems even on Linux, so check
@@ -1010,6 +1189,8 @@ cat is a bad merge-tool and doesn't change:
   # hg stat
   M f
   ? f.orig
+  # hg resolve --list
+  U f
 
 #if symlink
 
@@ -1022,7 +1203,7 @@ internal merge cannot handle symlinks and shouldn't try:
   $ hg merge -r 2 --tool internal:merge
   merging f
   warning: internal :merge cannot merge symlinks for f
-  merging f incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges or 'hg update -C .' to abandon
   [1]

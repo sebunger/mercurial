@@ -115,8 +115,6 @@ Check hgweb's load order:
   3) bar extsetup
   4) foo reposetup
   4) bar reposetup
-  4) foo reposetup
-  4) bar reposetup
 
   $ echo 'foo = !' >> $HGRCPATH
   $ echo 'bar = !' >> $HGRCPATH
@@ -208,7 +206,7 @@ Check absolute/relative import of extension specific modules
   > from extroot.bar import s
   > buf.append('from extroot.bar import s: %s' % s)
   > EOF
-  $ hg --config extensions.extroot=$TESTTMP/extroot root
+  $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}; hg --config extensions.extroot=$TESTTMP/extroot root)
   (extroot) from extroot.bar import *: this is extroot.bar
   (extroot) import extroot.sub1.baz: this is extroot.sub1.baz
   (extroot) import extroot: this is extroot.__init__
@@ -289,17 +287,23 @@ hide outer repo
   $ echo "debugextension = $debugpath" >> $HGRCPATH
 
   $ hg help debugextension
-  debugextension extension - only debugcommands
+  hg debugextensions
   
-  no commands defined
+  show information about active extensions
+  
+  options:
+  
+  (some details hidden, use --verbose to show complete help)
 
 
   $ hg --verbose help debugextension
-  debugextension extension - only debugcommands
+  hg debugextensions
   
-  list of commands:
+  show information about active extensions
   
-   foo           yet another foo command
+  options:
+  
+   -T --template TEMPLATE display with template (EXPERIMENTAL)
   
   global options ([+] can be repeated):
   
@@ -328,12 +332,13 @@ hide outer repo
 
 
   $ hg --debug help debugextension
-  debugextension extension - only debugcommands
+  hg debugextensions
   
-  list of commands:
+  show information about active extensions
   
-   debugfoobar   yet another debug command
-   foo           yet another foo command
+  options:
+  
+   -T --template TEMPLATE display with template (EXPERIMENTAL)
   
   global options ([+] can be repeated):
   
@@ -361,6 +366,15 @@ hide outer repo
 
 
   $ echo 'debugextension = !' >> $HGRCPATH
+
+Asking for help about a deprecated extension should do something useful:
+
+  $ hg help glog
+  'glog' is provided by the following extension:
+  
+      graphlog      command to view revision graphs from a shell (DEPRECATED)
+  
+  (use "hg help extensions" for information on enabling extensions)
 
 Extension module help vs command help:
 
@@ -392,6 +406,7 @@ Extension module help vs command help:
    -o --option OPT [+]      pass option to comparison program
    -r --rev REV [+]         revision
    -c --change REV          change made by revision
+      --patch               compare patches for two revisions
    -I --include PATTERN [+] include names matching the given patterns
    -X --exclude PATTERN [+] exclude names matching the given patterns
    -S --subrepos            recurse into subrepositories
@@ -416,7 +431,7 @@ Extension module help vs command help:
   to directories containing snapshots of files to compare.
   
   The extdiff extension also allows you to configure new diff commands, so you
-  do not need to type "hg extdiff -p kdiff3" always.
+  do not need to type 'hg extdiff -p kdiff3' always.
   
     [extdiff]
     # add new command that runs GNU diff(1) in 'context diff' mode
@@ -454,7 +469,7 @@ Extension module help vs command help:
     [diff-tools]
     kdiff3.diffargs=--L1 '$plabel1' --L2 '$clabel' $parent $child
   
-  You can use -I/-X and list of file or directory names like normal "hg diff"
+  You can use -I/-X and list of file or directory names like normal 'hg diff'
   command. The extdiff extension makes snapshots of only needed files, so
   running the external diff program will actually be pretty fast (at least
   faster than having to compare the entire tree).
@@ -546,20 +561,7 @@ Test help topic with same name as extension
 
 Issue811: Problem loading extensions twice (by site and by user)
 
-  $ debugpath=`pwd`/debugissue811.py
-  $ cat > debugissue811.py <<EOF
-  > '''show all loaded extensions
-  > '''
-  > from mercurial import cmdutil, commands, extensions
-  > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command('debugextensions', [], 'hg debugextensions', norepo=True)
-  > def debugextensions(ui):
-  >     "yet another debug command"
-  >     ui.write("%s\n" % '\n'.join([x for x, y in extensions.extensions()]))
-  > EOF
   $ cat <<EOF >> $HGRCPATH
-  > debugissue811 = $debugpath
   > mq =
   > strip =
   > hgext.mq =
@@ -570,9 +572,8 @@ Show extensions:
 (note that mq force load strip, also checking it's not loaded twice)
 
   $ hg debugextensions
-  debugissue811
-  strip
   mq
+  strip
 
 For extensions, which name matches one of its commands, help
 message should ask '-v -e' to get list of built-in aliases
@@ -944,6 +945,15 @@ Older extension is tested with current version, the other only with newer:
   ** Mercurial Distributed SCM (version 1.9.3)
   ** Extensions loaded: throw, older
 
+Ability to point to a different point
+  $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
+  >   --config ui.supportcontact='Your Local Goat Lenders' throw 2>&1 | egrep '^\*\*'
+  ** unknown exception encountered, please report by visiting
+  ** Your Local Goat Lenders
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
+  ** Extensions loaded: throw, older
+
 Declare the version as supporting this hg version, show regular bts link:
   $ hgver=`$PYTHON -c 'from mercurial import util; print util.version().split("+")[0]'`
   $ echo 'testedwith = """'"$hgver"'"""' >> throw.py
@@ -953,7 +963,7 @@ Declare the version as supporting this hg version, show regular bts link:
   $ rm -f throw.pyc throw.pyo
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** unknown exception encountered, please report by visiting
-  ** http://mercurial.selenic.com/wiki/BugTracker
+  ** https://mercurial-scm.org/wiki/BugTracker
   ** Python * (glob)
   ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw
@@ -964,7 +974,7 @@ Patch version is ignored during compatibility check
   $ rm -f throw.pyc throw.pyo
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** unknown exception encountered, please report by visiting
-  ** http://mercurial.selenic.com/wiki/BugTracker
+  ** https://mercurial-scm.org/wiki/BugTracker
   ** Python * (glob)
   ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw
@@ -974,7 +984,7 @@ Test version number support in 'hg version':
   $ rm -f throw.pyc throw.pyo
   $ hg version -v
   Mercurial Distributed SCM (version *) (glob)
-  (see http://mercurial.selenic.com for more information)
+  (see https://mercurial-scm.org for more information)
   
   Copyright (C) 2005-* Matt Mackall and others (glob)
   This is free software; see the source for copying conditions. There is NO
@@ -985,7 +995,7 @@ Test version number support in 'hg version':
 
   $ hg version -v --config extensions.throw=throw.py
   Mercurial Distributed SCM (version *) (glob)
-  (see http://mercurial.selenic.com for more information)
+  (see https://mercurial-scm.org for more information)
   
   Copyright (C) 2005-* Matt Mackall and others (glob)
   This is free software; see the source for copying conditions. There is NO
@@ -998,7 +1008,7 @@ Test version number support in 'hg version':
   $ rm -f throw.pyc throw.pyo
   $ hg version -v --config extensions.throw=throw.py
   Mercurial Distributed SCM (version *) (glob)
-  (see http://mercurial.selenic.com for more information)
+  (see https://mercurial-scm.org for more information)
   
   Copyright (C) 2005-* Matt Mackall and others (glob)
   This is free software; see the source for copying conditions. There is NO
@@ -1007,6 +1017,50 @@ Test version number support in 'hg version':
   Enabled extensions:
   
     throw  1.twentythree
+
+Refuse to load extensions with minimum version requirements
+
+  $ cat > minversion1.py << EOF
+  > from mercurial import util
+  > util.version = lambda: '3.5.2'
+  > minimumhgversion = '3.6'
+  > EOF
+  $ hg --config extensions.minversion=minversion1.py version
+  (third party extension minversion requires version 3.6 or newer of Mercurial; disabling)
+  Mercurial Distributed SCM (version 3.5.2)
+  (see https://mercurial-scm.org for more information)
+  
+  Copyright (C) 2005-* Matt Mackall and others (glob)
+  This is free software; see the source for copying conditions. There is NO
+  warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+  $ cat > minversion2.py << EOF
+  > from mercurial import util
+  > util.version = lambda: '3.6'
+  > minimumhgversion = '3.7'
+  > EOF
+  $ hg --config extensions.minversion=minversion2.py version 2>&1 | egrep '\(third'
+  (third party extension minversion requires version 3.7 or newer of Mercurial; disabling)
+
+Can load version that is only off by point release
+
+  $ cat > minversion2.py << EOF
+  > from mercurial import util
+  > util.version = lambda: '3.6.1'
+  > minimumhgversion = '3.6'
+  > EOF
+  $ hg --config extensions.minversion=minversion3.py version 2>&1 | egrep '\(third'
+  [1]
+
+Can load minimum version identical to current
+
+  $ cat > minversion3.py << EOF
+  > from mercurial import util
+  > util.version = lambda: '3.5'
+  > minimumhgversion = '3.5'
+  > EOF
+  $ hg --config extensions.minversion=minversion3.py version 2>&1 | egrep '\(third'
+  [1]
 
 Restore HGRCPATH
 

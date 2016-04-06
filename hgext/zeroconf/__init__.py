@@ -113,9 +113,10 @@ def zc_create_server(create_server, ui, app):
         repos = app.repos
     except AttributeError:
         # single repo
-        name = app.reponame or os.path.basename(app.repo.root)
-        path = app.repo.ui.config("web", "prefix", "").strip('/')
-        desc = app.repo.ui.config("web", "description", name)
+        with app._obtainrepo() as repo:
+            name = app.reponame or os.path.basename(repo.root)
+            path = repo.ui.config("web", "prefix", "").strip('/')
+            desc = repo.ui.config("web", "description", name)
         publish(name, desc, path, port)
     else:
         # webdir
@@ -162,8 +163,8 @@ def config(orig, self, section, key, default=None, untrusted=False):
                 return path
     return orig(self, section, key, default, untrusted)
 
-def configitems(orig, self, section, untrusted=False):
-    repos = orig(self, section, untrusted)
+def configitems(orig, self, section, *args, **kwargs):
+    repos = orig(self, section, *args, **kwargs)
     if section == "paths":
         repos += getzcpaths()
     return repos

@@ -1,19 +1,23 @@
+#!/usr/bin/env python
 """usage: %s DOC ...
 
 where DOC is the name of a document
 """
 
 import os, sys, textwrap
+
+# This script is executed during installs and may not have C extensions
+# available. Relax C module requirements.
+os.environ['HGMODULEPOLICY'] = 'allow'
 # import from the live mercurial repo
 sys.path.insert(0, "..")
-# fall back to pure modules if required C extensions are not available
-sys.path.append(os.path.join('..', 'mercurial', 'pure'))
 from mercurial import demandimport; demandimport.enable()
 from mercurial import minirst
 from mercurial.commands import table, globalopts
 from mercurial.i18n import gettext, _
 from mercurial.help import helptable, loaddoc
 from mercurial import extensions
+from mercurial import ui as uimod
 
 def get_desc(docstr):
     if not docstr:
@@ -106,7 +110,7 @@ def showdoc(ui):
              "   :depth: 1\n\n")
 
     for extensionname in sorted(allextensionnames()):
-        mod = extensions.load(None, extensionname, None)
+        mod = extensions.load(ui, extensionname, None)
         ui.write(minirst.subsection(extensionname))
         ui.write("%s\n\n" % gettext(mod.__doc__))
         cmdtable = getattr(mod, 'cmdtable', None)
@@ -137,7 +141,7 @@ def helpprinter(ui, helptable, sectionfunc, include=[], exclude=[]):
         if sectionfunc:
             ui.write(sectionfunc(sec))
         if callable(doc):
-            doc = doc()
+            doc = doc(ui)
         ui.write(doc)
         ui.write("\n")
 
@@ -198,7 +202,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         doc = sys.argv[1]
 
+    ui = uimod.ui()
     if doc == 'hg.1.gendoc':
-        showdoc(sys.stdout)
+        showdoc(ui)
     else:
-        showtopic(sys.stdout, sys.argv[1])
+        showtopic(ui, sys.argv[1])

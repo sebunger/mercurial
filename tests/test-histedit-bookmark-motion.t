@@ -70,14 +70,14 @@
   # Commits are listed from least to most recent
   #
   # Commands:
-  #  p, pick = use commit
+  #
   #  e, edit = use commit, but stop for amending
+  #  m, mess = edit commit message without changing commit content
+  #  p, pick = use commit
+  #  d, drop = remove commit from history
   #  f, fold = use commit, but combine it with the one above
   #  r, roll = like fold, but discard this commit's description
-  #  d, drop = remove commit from history
-  #  m, mess = edit message without changing commit content
   #
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg histedit 1 --commands - --verbose << EOF | grep histedit
   > pick 177f92b77385 2 c
   > drop d2ae7f538514 1 b
@@ -85,6 +85,7 @@
   > fold e860deea161a 4 e
   > pick 652413bf663e 5 f
   > EOF
+  saved backup bundle to $TESTTMP/r/.hg/strip-backup/96e494a2d553-3c6c5d92-backup.hg (glob)
   histedit: moving bookmarks also-two from 177f92b77385 to b346ab9a313d
   histedit: moving bookmarks five from 652413bf663e to cacdfd884a93
   histedit: moving bookmarks four from e860deea161a to 59d9f330561f
@@ -92,7 +93,6 @@
   histedit: moving bookmarks two from 177f92b77385 to b346ab9a313d
   histedit: moving bookmarks will-move-backwards from d2ae7f538514 to cb9a9f314b8b
   saved backup bundle to $TESTTMP/r/.hg/strip-backup/d2ae7f538514-48787b8d-backup.hg (glob)
-  saved backup bundle to $TESTTMP/r/.hg/strip-backup/96e494a2d553-3c6c5d92-backup.hg (glob)
   $ hg log --graph
   @  changeset:   3:cacdfd884a93
   |  bookmark:    five
@@ -131,14 +131,14 @@
   # Commits are listed from least to most recent
   #
   # Commands:
-  #  p, pick = use commit
+  #
   #  e, edit = use commit, but stop for amending
+  #  m, mess = edit commit message without changing commit content
+  #  p, pick = use commit
+  #  d, drop = remove commit from history
   #  f, fold = use commit, but combine it with the one above
   #  r, roll = like fold, but discard this commit's description
-  #  d, drop = remove commit from history
-  #  m, mess = edit message without changing commit content
   #
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg histedit 1 --commands - --verbose << EOF | grep histedit
   > pick b346ab9a313d 1 c
   > pick cacdfd884a93 3 f

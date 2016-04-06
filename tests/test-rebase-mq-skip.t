@@ -2,6 +2,8 @@ This emulates the effects of an hg pull --rebase in which the remote repo
 already has one local mq patch
 
   $ cat >> $HGRCPATH <<EOF
+  > [format]
+  > usegeneraldelta=yes
   > [extensions]
   > rebase=
   > mq=
@@ -68,17 +70,17 @@ already has one local mq patch
   $TESTTMP/a/.hg/patches/p0.patch (glob)
   2 changesets found
   uncompressed size of bundle content:
-       344 (changelog)
-       284 (manifests)
-       109  p0
-       109  p1
+       384 (changelog)
+       324 (manifests)
+       129  p0
+       129  p1
   saved backup bundle to $TESTTMP/a/.hg/strip-backup/13a46ce44f60-5da6ecfb-backup.hg (glob)
   2 changesets found
   uncompressed size of bundle content:
-       399 (changelog)
-       284 (manifests)
-       109  p0
-       109  p1
+       439 (changelog)
+       324 (manifests)
+       129  p0
+       129  p1
   adding branch
   adding changesets
   adding manifests
@@ -142,33 +144,34 @@ already has one local mq patch
   $ hg up -q qtip
 
   $ HGMERGE=internal:fail hg rebase
-  rebasing 1:b4bffa6e4776 "r1" (1.diff qbase)
+  rebasing 1:b4bffa6e4776 "r1" (qbase r1)
   note: rebase of 1:b4bffa6e4776 created no changes to commit
-  rebasing 2:c0fd129beb01 "r2" (2.diff)
-  rebasing 3:6ff5b8feed8e "r3" (3.diff)
+  rebasing 2:c0fd129beb01 "r2" (r2)
+  rebasing 3:6ff5b8feed8e "r3" (r3)
   note: rebase of 3:6ff5b8feed8e created no changes to commit
-  rebasing 4:094320fec554 "r4" (4.diff)
+  rebasing 4:094320fec554 "r4" (r4)
   unresolved conflicts (see hg resolve, then hg rebase --continue)
   [1]
 
   $ HGMERGE=internal:local hg resolve --all
   (no more unresolved files)
+  continue: hg rebase --continue
 
   $ hg rebase --continue
-  already rebased 1:b4bffa6e4776 "r1" (1.diff qbase) as 057f55ff8f44
-  already rebased 2:c0fd129beb01 "r2" (2.diff) as 1660ab13ce9a
-  already rebased 3:6ff5b8feed8e "r3" (3.diff) as 1660ab13ce9a
-  rebasing 4:094320fec554 "r4" (4.diff)
+  already rebased 1:b4bffa6e4776 "r1" (qbase r1) as 057f55ff8f44
+  already rebased 2:c0fd129beb01 "r2" (r2) as 1660ab13ce9a
+  already rebased 3:6ff5b8feed8e "r3" (r3) as 1660ab13ce9a
+  rebasing 4:094320fec554 "r4" (r4)
   note: rebase of 4:094320fec554 created no changes to commit
-  rebasing 5:681a378595ba "r5" (5.diff)
-  rebasing 6:512a1f24768b "r6" (6.diff qtip)
+  rebasing 5:681a378595ba "r5" (r5)
+  rebasing 6:512a1f24768b "r6" (qtip r6)
   note: rebase of 6:512a1f24768b created no changes to commit
   saved backup bundle to $TESTTMP/b/.hg/strip-backup/b4bffa6e4776-b9bfb84d-backup.hg (glob)
 
   $ hg tglog
-  @  8: 'r5' tags: 5.diff qtip tip
+  @  8: 'r5' tags: qtip r5 tip
   |
-  o  7: 'r2' tags: 2.diff qbase
+  o  7: 'r2' tags: qbase r2
   |
   o  6: 'branch2-r6' tags: qparent
   |

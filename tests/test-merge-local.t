@@ -59,11 +59,13 @@ Local merge with bad merge tool:
   use 'hg resolve' to retry unresolved file merges
   [1]
 
+  $ hg resolve -m
+  (no more unresolved files)
+
   $ hg co 0
   merging zzz1_merge_ok
   merging zzz2_merge_bad
-  warning: conflicts during merge.
-  merging zzz2_merge_bad incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging zzz2_merge_bad! (edit, then use 'hg resolve --mark')
   2 files updated, 1 files merged, 3 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges
   [1]
@@ -84,23 +86,31 @@ Local merge with bad merge tool:
 
 Local merge with conflicts:
 
+  $ hg resolve -m
+  (no more unresolved files)
+
   $ hg co
   merging zzz1_merge_ok
   merging zzz2_merge_bad
-  warning: conflicts during merge.
-  merging zzz2_merge_bad incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging zzz2_merge_bad! (edit, then use 'hg resolve --mark')
   3 files updated, 1 files merged, 2 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges
   [1]
 
-  $ hg co 0
+  $ hg resolve -m
+  (no more unresolved files)
+
+  $ hg co 0 --config 'ui.origbackuppath=.hg/origbackups'
   merging zzz1_merge_ok
   merging zzz2_merge_bad
-  warning: conflicts during merge.
-  merging zzz2_merge_bad incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging zzz2_merge_bad! (edit, then use 'hg resolve --mark')
   2 files updated, 1 files merged, 3 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges
   [1]
+
+Are orig files from the last commit where we want them?
+  $ ls .hg/origbackups
+  zzz2_merge_bad.orig
 
   $ hg diff --nodates | grep "^[+-][^<>]"
   --- a/zzz1_merge_ok
@@ -122,6 +132,9 @@ Local merge with conflicts:
 Local merge without conflicts:
 
   $ hg revert zzz2_merge_bad
+
+  $ hg resolve -m
+  (no more unresolved files)
 
   $ hg co
   merging zzz1_merge_ok

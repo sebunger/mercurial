@@ -10,13 +10,12 @@
 
 import os
 import platform
-import shutil
 import stat
 import copy
 
 from mercurial import dirstate, httpconnection, match as match_, util, scmutil
 from mercurial.i18n import _
-from mercurial import node
+from mercurial import node, error
 
 shortname = '.hglf'
 shortnameslash = shortname + '/'
@@ -33,10 +32,10 @@ def getminsize(ui, assumelfiles, opt, default=10):
         try:
             lfsize = float(lfsize)
         except ValueError:
-            raise util.Abort(_('largefiles: size must be number (not %s)\n')
+            raise error.Abort(_('largefiles: size must be number (not %s)\n')
                              % lfsize)
     if lfsize is None:
-        raise util.Abort(_('minimum size for largefiles must be specified'))
+        raise error.Abort(_('minimum size for largefiles must be specified'))
     return lfsize
 
 def link(src, dest):
@@ -74,7 +73,7 @@ def usercachepath(ui, hash):
                 if home:
                     path = os.path.join(home, '.cache', longname, hash)
         else:
-            raise util.Abort(_('unknown operating system: %s\n') % os.name)
+            raise error.Abort(_('unknown operating system: %s\n') % os.name)
     return path
 
 def inusercache(ui, hash):
@@ -110,6 +109,11 @@ class largefilesdirstate(dirstate.dirstate):
         return super(largefilesdirstate, self).normallookup(unixpath(f))
     def _ignore(self, f):
         return False
+    def write(self, tr=False):
+        # (1) disable PENDING mode always
+        #     (lfdirstate isn't yet managed as a part of the transaction)
+        # (2) avoid develwarn 'use dirstate.write with ....'
+        super(largefilesdirstate, self).write(None)
 
 def openlfdirstate(ui, repo, create=True):
     '''
@@ -202,14 +206,27 @@ def copyfromcache(repo, hash, filename):
     util.makedirs(os.path.dirname(repo.wjoin(filename)))
     # The write may fail before the file is fully written, but we
     # don't use atomic writes in the working copy.
-    shutil.copy(path, repo.wjoin(filename))
+    dest = repo.wjoin(filename)
+    with open(path, 'rb') as srcfd:
+        with open(dest, 'wb') as destfd:
+            gothash = copyandhash(srcfd, destfd)
+    if gothash != hash:
+        repo.ui.warn(_('%s: data corruption in %s with hash %s\n')
+                     % (filename, path, gothash))
+        util.unlink(dest)
+        return False
     return True
 
 def copytostore(repo, rev, file, uploaded=False):
     hash = readstandin(repo, file, rev)
     if instore(repo, hash):
         return
-    copytostoreabsolute(repo, repo.wjoin(file), hash)
+    absfile = repo.wjoin(file)
+    if os.path.exists(absfile):
+        copytostoreabsolute(repo, absfile, hash)
+    else:
+        repo.ui.warn(_("%s: largefile %s not available from local store\n") %
+                     (file, hash))
 
 def copyalltostore(repo, node):
     '''Copy all largefiles in a given revision to the store'''
@@ -302,6 +319,8 @@ def updatestandin(repo, standin):
         hash = hashfile(file)
         executable = getexecutable(file)
         writestandin(repo, standin, hash, executable)
+    else:
+        raise error.Abort(_('%s: file not found!') % splitstandin(standin))
 
 def readstandin(repo, filename, node=None):
     '''read hex hash from standin for filename at given node, or working
@@ -399,7 +418,8 @@ def synclfdirstate(repo, lfdirstate, lfile, normallookup):
     else:
         state, mtime = '?', -1
     if state == 'n':
-        if normallookup or mtime < 0:
+        if (normallookup or mtime < 0 or
+            not os.path.exists(repo.wjoin(lfile))):
             # state 'n' doesn't ensure 'clean' in this case
             lfdirstate.normallookup(lfile)
         else:
@@ -556,9 +576,16 @@ def updatestandinsbymatch(repo, match):
     for f in match._files:
         fstandin = standin(f)
 
-        # ignore known largefiles and standins
+        # For largefiles, only one of the normal and standin should be
+        # committed (except if one of them is a remove).  In the case of a
+        # standin removal, drop the normal file if it is unknown to dirstate.
+        # Thus, skip plain largefile names but keep the standin.
         if f in lfiles or fstandin in standins:
-            continue
+            if repo.dirstate[fstandin] != 'r':
+                if repo.dirstate[f] != 'r':
+                    continue
+            elif repo.dirstate[f] == '?':
+                continue
 
         actualfiles.append(f)
     match._files = actualfiles

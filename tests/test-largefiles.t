@@ -531,7 +531,7 @@ Test 3364
   ! foo
 hmm.. no precommit invoked, but there is a postcommit??
   $ hg ci -m "will not checkin"
-  nothing changed
+  nothing changed (1 missing files, see 'hg status')
   Invoking status postcommit hook
   ! foo
   C normal3
@@ -1832,6 +1832,27 @@ Test --normal flag
   $ hg add --normal new-largefile
   new-largefile: up to 69 MB of RAM may be required to manage this file
   (use 'hg revert new-largefile' to cancel the pending addition)
+
+Test explicit commit of switch between normal and largefile - make sure both
+the add and the remove is committed.
+
+  $ hg up -qC
+  $ hg forget normal3 large4-renamed
+  $ hg add --large normal3
+  $ hg add large4-renamed
+  $ hg commit -m 'swap' normal3 large4-renamed
+  Invoking status precommit hook
+  A large4-renamed
+  A normal3
+  ? new-largefile
+  ? sub2/large6-renamed
+  $ hg mani
+  .hglf/normal3
+  .hglf/sub2/large6
+  .hglf/sub2/large7
+  large4-renamed
+  sub/normal4
+
   $ cd ..
 
 

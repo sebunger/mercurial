@@ -63,7 +63,7 @@
        2        96      48  .....       2 626a32663c2f 8b89697eba2c 000000000000 (re)
        3       144      48  .....       3 f54c32f13478 626a32663c2f 000000000000 (re)
        4       192      ..  .....       6 de68e904d169 626a32663c2f 000000000000 (re)
-       5       2..      68  .....       7 09bb521d218d de68e904d169 000000000000 (re)
+       5       2..      ..  .....       7 09bb521d218d de68e904d169 000000000000 (re)
        6       3..      54  .....       8 1fde233dfb0f f54c32f13478 000000000000 (re)
 
   $ hg verify
@@ -217,4 +217,27 @@
   checking files
   4 files, 9 changesets, 7 total revisions
   $ cd ..
+
+  $ hg clone test test-9
+  updating to branch default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cd test-9
+  $ hg branch foobar
+  marked working directory as branch foobar
+  (branches are permanent and global, did you want a bookmark?)
+  $ echo file2 >> file2
+  $ hg add file2
+  $ hg commit -m "changeset9"
+  $ echo file3 >> file3
+  $ hg add file3
+  $ hg commit -m "changeset10"
+  $ cd ..
+  $ hg clone -r 9 -u foobar test-9 test-10
+  adding changesets
+  adding manifests
+  adding file changes
+  added 6 changesets with 6 changes to 3 files
+  updating to branch foobar
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
 

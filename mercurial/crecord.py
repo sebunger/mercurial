@@ -8,34 +8,53 @@
 # This code is based on the Mark Edgington's crecord extension.
 # (Itself based on Bryan O'Sullivan's record extension.)
 
-from i18n import _
-import patch as patchmod
-import util, encoding
+from __future__ import absolute_import
 
-import os, re, sys, struct, signal, tempfile, locale, cStringIO
+import cStringIO
+import locale
+import os
+import re
+import signal
+import struct
+import sys
+import tempfile
+
+from .i18n import _
+from . import (
+    encoding,
+    error,
+    patch as patchmod,
+    util,
+)
 
 # This is required for ncurses to display non-ASCII characters in default user
 # locale encoding correctly.  --immerrr
 locale.setlocale(locale.LC_ALL, '')
 
-# os.name is one of: 'posix', 'nt', 'dos', 'os2', 'mac', or 'ce'
-if os.name == 'posix':
+try:
     import curses
-    import fcntl, termios
-else:
+    import fcntl
+    import termios
+    curses.error
+    fcntl.ioctl
+    termios.TIOCGWINSZ
+except ImportError:
     # I have no idea if wcurses works with crecord...
     try:
         import wcurses as curses
+        curses.error
     except ImportError:
-        # wcurses is not shipped on Windows by default
-        pass
+        # wcurses is not shipped on Windows by default, or python is not
+        # compiled with curses
+        curses = False
 
-try:
-    curses
-except NameError:
-    if os.name != 'nt':  # Temporary hack to get running on Windows again
-        raise util.Abort(
-            _('the python curses/wcurses module is not available/installed'))
+def checkcurses(ui):
+    """Return True if the user wants to use curses
+
+    This method returns True if curses is found (and that python is built with
+    it) and that the user has the correct flag for the ui.
+    """
+    return curses and ui.configbool('experimental', 'crecord', False)
 
 _origstdout = sys.__stdout__ # used by gethw()
 
@@ -182,7 +201,7 @@ class patch(patchnode, list): # todo: rename patchroot
 class uiheader(patchnode):
     """patch header
 
-    xxx shoudn't we move this to mercurial/patch.py ?
+    xxx shouldn't we move this to mercurial/patch.py ?
     """
 
     def __init__(self, header):
@@ -437,11 +456,11 @@ def filterpatch(ui, chunks, chunkselector, operation=None):
 
     # if there are no changed files
     if len(headers) == 0:
-        return []
+        return [], {}
     uiheaders = [uiheader(h) for h in headers]
     # let user choose headers/hunks/lines, and mark their applied flags
     # accordingly
-    chunkselector(ui, uiheaders)
+    ret = chunkselector(ui, uiheaders)
     appliedhunklist = []
     for hdr in uiheaders:
         if (hdr.applied and
@@ -459,7 +478,7 @@ def filterpatch(ui, chunks, chunkselector, operation=None):
                 else:
                     fixoffset += hnk.removed - hnk.added
 
-    return appliedhunklist
+    return (appliedhunklist, ret)
 
 def gethw():
     """
@@ -485,9 +504,10 @@ def chunkselector(ui, headerlist):
     f = signal.getsignal(signal.SIGTSTP)
     curses.wrapper(chunkselector.main)
     if chunkselector.initerr is not None:
-        raise util.Abort(chunkselector.initerr)
+        raise error.Abort(chunkselector.initerr)
     # ncurses does not restore signal handler for SIGTSTP
     signal.signal(signal.SIGTSTP, f)
+    return chunkselector.opts
 
 def testdecorator(testfn, f):
     def u(*args, **kwargs):
@@ -508,6 +528,7 @@ def testchunkselector(testfn, ui, headerlist):
         while True:
             if chunkselector.handlekeypressed(testcommands.pop(0), test=True):
                 break
+    return chunkselector.opts
 
 class curseschunkselector(object):
     def __init__(self, headerlist, ui):
@@ -515,6 +536,7 @@ class curseschunkselector(object):
         self.headerlist = patch(headerlist)
 
         self.ui = ui
+        self.opts = {}
 
         self.errorstr = None
         # list of all chunks
@@ -988,13 +1010,16 @@ class curseschunkselector(object):
                             pairname='legend')
                 self.statuswin.refresh()
                 return
+            line1 = ("SELECT CHUNKS: (j/k/up/dn/pgup/pgdn) move cursor; "
+                   "(space/A) toggle hunk/all; (e)dit hunk;")
+            line2 = (" (f)old/unfold; (c)onfirm applied; (q)uit; (?) help "
+                   "| [X]=hunk applied **=folded, toggle [a]mend mode")
+
             printstring(self.statuswin,
-                        "SELECT CHUNKS: (j/k/up/dn/pgup/pgdn) move cursor; "
-                        "(space/A) toggle hunk/all; (e)dit hunk;",
+                        util.ellipsis(line1, self.xscreensize - 1),
                         pairname="legend")
             printstring(self.statuswin,
-                        " (f)old/unfold; (c)onfirm applied; (q)uit; (?) help "
-                        "| [X]=hunk applied **=folded",
+                        util.ellipsis(line2, self.xscreensize - 1),
                         pairname="legend")
         except curses.error:
             pass
@@ -1341,7 +1366,7 @@ can use crecord multiple times to split large changes into smaller changesets.
 the following are valid keystrokes:
 
                 [space] : (un-)select item ([~]/[x] = partly/fully applied)
-                      a : (un-)select all items
+                      A : (un-)select all items
     up/down-arrow [k/j] : go to previous/next unfolded item
         pgup/pgdn [K/J] : go to previous/next item of same type
  right/left-arrow [l/h] : go to child item / parent item
@@ -1350,7 +1375,7 @@ the following are valid keystrokes:
                       F : fold / unfold parent item and all of its ancestors
                       m : edit / resume editing the commit message
                       e : edit the currently selected hunk
-                      a : toggle amend mode (hg rev >= 2.2)
+                      a : toggle amend mode (hg rev >= 2.2), only with commit -i
                       c : confirm selected changes
                       r : review/edit and confirm selected changes
                       q : quit without confirming (no changes will be made)
@@ -1417,11 +1442,40 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         else:
             return False
 
+    def toggleamend(self, opts, test):
+        """Toggle the amend flag.
+
+        When the amend flag is set, a commit will modify the most recently
+        committed changeset, instead of creating a new changeset.  Otherwise, a
+        new changeset will be created (the normal commit behavior).
+
+        """
+        try:
+            ver = float(util.version()[:3])
+        except ValueError:
+            ver = 1
+        if ver < 2.19:
+            msg = ("The amend option is unavailable with hg versions < 2.2\n\n"
+                   "Press any key to continue.")
+        elif opts.get('amend') is None:
+            opts['amend'] = True
+            msg = ("Amend option is turned on -- commiting the currently "
+                   "selected changes will not create a new changeset, but "
+                   "instead update the most recently committed changeset.\n\n"
+                   "Press any key to continue.")
+        elif opts.get('amend') is True:
+            opts['amend'] = None
+            msg = ("Amend option is turned off -- commiting the currently "
+                   "selected changes will create a new changeset.\n\n"
+                   "Press any key to continue.")
+        if not test:
+            self.confirmationwindow(msg)
+
     def recenterdisplayedarea(self):
         """
         once we scrolled with pg up pg down we can be pointing outside of the
         display zone. we print the patch with towin=False to compute the
-        location of the selected item eventhough it is outside of the displayed
+        location of the selected item even though it is outside of the displayed
         zone and then update the scroll.
         """
         self.printitem(towin=False)
@@ -1429,7 +1483,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
 
     def toggleedit(self, item=None, test=False):
         """
-            edit the currently chelected chunk
+            edit the currently selected chunk
         """
         def updateui(self):
             self.numpadlines = self.getnumlinesdisplayed(ignorefolding=True) + 1
@@ -1449,7 +1503,7 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
                 self.ui.write("\n")
                 return None
             # patch comment based on the git one (based on comment at end of
-            # http://mercurial.selenic.com/wiki/recordextension)
+            # https://mercurial-scm.org/wiki/recordextension)
             phelp = '---' + _("""
     to remove '-' lines, make them ' ' lines (context).
     to remove '+' lines, delete them.
@@ -1500,6 +1554,9 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         if not isinstance(item, uihunk):
             return
 
+        # To go back to that hunk or its replacement at the end of the edit
+        itemindex = item.parentitem().hunks.index(item)
+
         beforeadded, beforeremoved = item.added, item.removed
         newpatches = editpatchwitheditor(self, item)
         if newpatches is None:
@@ -1524,6 +1581,8 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         if self.emptypatch():
             header.hunks = hunksbefore + [item] + hunksafter
         self.currentselecteditem = header
+        if len(header.hunks) > itemindex:
+            self.currentselecteditem = header.hunks[itemindex]
 
         if not test:
             updateui(self)
@@ -1553,7 +1612,9 @@ are you sure you want to review/edit and confirm the selected changes [yn]?
         elif keypressed in ["H", "KEY_SLEFT"]:
             self.leftarrowshiftevent()
         elif keypressed in ["q"]:
-            raise util.Abort(_('user quit'))
+            raise error.Abort(_('user quit'))
+        elif keypressed in ['a']:
+            self.toggleamend(self.opts, test)
         elif keypressed in ["c"]:
             if self.confirmcommit():
                 return True

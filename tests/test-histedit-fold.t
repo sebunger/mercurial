@@ -55,12 +55,8 @@ log before edit
   > pick 055a42cdd887 d
   > EOF
   0 files updated, 0 files merged, 4 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 log after edit
   $ hg logt --graph
@@ -118,9 +114,6 @@ rollup will fold without preserving the folded commit's message
   0 files updated, 0 files merged, 4 files removed, 0 files unresolved
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ HGEDITOR=$OLDHGEDITOR
 
@@ -241,14 +234,17 @@ tip before edit
   summary:     f
   
 
-  $ hg histedit e860deea161a --commands - 2>&1 <<EOF | fixbundle
+  $ hg --config progress.debug=1 --debug \
+  > histedit e860deea161a --commands - 2>&1 <<EOF | \
+  > egrep 'editing|unresolved'
   > pick e860deea161a e
   > fold a00ad806cb55 f
   > EOF
+  editing: pick e860deea161a 4 e 1/2 changes (50.00%)
+  editing: fold a00ad806cb55 5 f 2/2 changes (100.00%)
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 tip after edit
   $ hg log --rev .
@@ -296,9 +292,9 @@ folded content is dropped during a merge. The folded commit should properly disa
   > EOF
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   merging file
-  warning: conflicts during merge.
-  merging file incomplete! (edit conflicts, then use 'hg resolve --mark')
-  Fix up the change and run hg histedit --continue
+  warning: conflicts while merging file! (edit, then use 'hg resolve --mark')
+  Fix up the change (fold 251d831eeec5)
+  (hg histedit --continue to resume)
   [1]
 There were conflicts, we keep P1 content. This
 should effectively drop the changes from +6.
@@ -310,9 +306,9 @@ should effectively drop the changes from +6.
   $ hg revert -r 'p1()' file
   $ hg resolve --mark file
   (no more unresolved files)
+  continue: hg histedit --continue
   $ hg histedit --continue
   251d831eeec5: empty changeset
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/*-backup.hg (glob)
   $ hg logt --graph
   @  1:617f94f13c0f +4
@@ -358,9 +354,9 @@ dropped revision.
   > EOF
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   merging file
-  warning: conflicts during merge.
-  merging file incomplete! (edit conflicts, then use 'hg resolve --mark')
-  Fix up the change and run hg histedit --continue
+  warning: conflicts while merging file! (edit, then use 'hg resolve --mark')
+  Fix up the change (fold 251d831eeec5)
+  (hg histedit --continue to resume)
   [1]
   $ cat > file << EOF
   > 1
@@ -371,6 +367,7 @@ dropped revision.
   > EOF
   $ hg resolve --mark file
   (no more unresolved files)
+  continue: hg histedit --continue
   $ hg commit -m '+5.2'
   created new head
   $ echo 6 >> file
@@ -391,8 +388,8 @@ dropped revision.
   HG: branch 'default'
   HG: changed file
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  saved backup bundle to $TESTTMP/fold-with-dropped/.hg/strip-backup/617f94f13c0f-3d69522c-backup.hg (glob)
+  saved backup bundle to $TESTTMP/fold-with-dropped/.hg/strip-backup/55c8d8dc79ce-4066cd98-backup.hg (glob)
+  saved backup bundle to $TESTTMP/fold-with-dropped/.hg/strip-backup/617f94f13c0f-a35700fc-backup.hg (glob)
   $ hg logt -G
   @  1:10c647b2cdd5 +4
   |
@@ -450,7 +447,6 @@ Folding with initial rename (issue3729)
   reverting b.txt
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   1 files updated, 0 files merged, 1 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ hg logt --follow b.txt
   1:cf858d235c76 rename
@@ -494,11 +490,8 @@ into the hook command.
   > pick 6c795aa153cb a
   > EOF
   0 files updated, 0 files merged, 3 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   commit 9599899f62c05f4377548c32bf1c9f1a39634b0c
 
   $ hg logt
@@ -508,5 +501,63 @@ into the hook command.
   $ echo "foo" > amended.txt
   $ hg add amended.txt
   $ hg ci -q --config extensions.largefiles= --amend -I amended.txt
+
+Test that folding multiple changes in a row doesn't show multiple
+editors.
+
+  $ echo foo >> foo
+  $ hg add foo
+  $ hg ci -m foo1
+  $ echo foo >> foo
+  $ hg ci -m foo2
+  $ echo foo >> foo
+  $ hg ci -m foo3
+  $ hg logt
+  4:21679ff7675c foo3
+  3:b7389cc4d66e foo2
+  2:0e01aeef5fa8 foo1
+  1:578c7455730c a
+  0:79b99e9c8e49 b
+  $ cat > "$TESTTMP/editor.sh" <<EOF
+  > echo ran editor >> "$TESTTMP/editorlog.txt"
+  > cat \$1 >> "$TESTTMP/editorlog.txt"
+  > echo END >> "$TESTTMP/editorlog.txt"
+  > echo merged foos > \$1
+  > EOF
+  $ HGEDITOR="sh \"$TESTTMP/editor.sh\"" hg histedit 1 --commands - 2>&1 <<EOF | fixbundle
+  > pick 578c7455730c 1 a
+  > pick 0e01aeef5fa8 2 foo1
+  > fold b7389cc4d66e 3 foo2
+  > fold 21679ff7675c 4 foo3
+  > EOF
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  reverting foo
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  merging foo
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg logt
+  2:e8bedbda72c1 merged foos
+  1:578c7455730c a
+  0:79b99e9c8e49 b
+Editor should have run only once
+  $ cat $TESTTMP/editorlog.txt
+  ran editor
+  foo1
+  ***
+  foo2
+  ***
+  foo3
+  
+  
+  
+  HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+  HG: Leave message empty to abort commit.
+  HG: --
+  HG: user: test
+  HG: branch 'default'
+  HG: added foo
+  END
 
   $ cd ..

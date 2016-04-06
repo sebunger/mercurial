@@ -21,8 +21,9 @@
 #endif
 
 [Setup]
-AppCopyright=Copyright 2005-2015 Matt Mackall and others
+AppCopyright=Copyright 2005-2016 Matt Mackall and others
 AppName=Mercurial
+AppVersion={#VERSION}
 #if ARCH == "x64"
 AppVerName=Mercurial {#VERSION} (64-bit)
 OutputBaseFilename=Mercurial-{#VERSION}-x64
@@ -36,15 +37,15 @@ InfoAfterFile=contrib/win32/postinstall.txt
 LicenseFile=COPYING
 ShowLanguageDialog=yes
 AppPublisher=Matt Mackall and others
-AppPublisherURL=http://mercurial.selenic.com/
-AppSupportURL=http://mercurial.selenic.com/
-AppUpdatesURL=http://mercurial.selenic.com/
+AppPublisherURL=https://mercurial-scm.org/
+AppSupportURL=https://mercurial-scm.org/
+AppUpdatesURL=https://mercurial-scm.org/
 AppID={{4B95A5F1-EF59-4B08-BED8-C891C46121B3}
 AppContact=mercurial@selenic.com
 DefaultDirName={pf}\Mercurial
 SourceDir=..\..
 VersionInfoDescription=Mercurial distributed SCM (version {#VERSION})
-VersionInfoCopyright=Copyright 2005-2015 Matt Mackall and others
+VersionInfoCopyright=Copyright 2005-2016 Matt Mackall and others
 VersionInfoCompany=Matt Mackall and others
 InternalCompressLevel=max
 SolidCompression=true
@@ -83,6 +84,7 @@ Source: dist\add_path.exe; DestDir: {app}
 Source: doc\*.html; DestDir: {app}\Docs
 Source: doc\style.css; DestDir: {app}\Docs
 Source: mercurial\help\*.txt; DestDir: {app}\help
+Source: mercurial\help\internals\*.txt; DestDir: {app}\help\internals
 Source: mercurial\default.d\*.rc; DestDir: {app}\default.d
 Source: mercurial\locale\*.*; DestDir: {app}\locale; Flags: recursesubdirs createallsubdirs skipifsourcedoesntexist
 Source: mercurial\templates\*.*; DestDir: {app}\Templates; Flags: recursesubdirs createallsubdirs
@@ -90,7 +92,7 @@ Source: CONTRIBUTORS; DestDir: {app}; DestName: Contributors.txt
 Source: COPYING; DestDir: {app}; DestName: Copying.txt
 
 [INI]
-Filename: {app}\Mercurial.url; Section: InternetShortcut; Key: URL; String: http://mercurial.selenic.com/
+Filename: {app}\Mercurial.url; Section: InternetShortcut; Key: URL; String: https://mercurial-scm.org/
 Filename: {app}\default.d\editor.rc; Section: ui; Key: editor; String: notepad
 
 [UninstallDelete]

@@ -135,6 +135,9 @@ bookmarks revset
   $ hg log -r 'bookmark(unknown)'
   abort: bookmark 'unknown' does not exist!
   [255]
+  $ hg log -r 'bookmark("literal:unknown")'
+  abort: bookmark 'unknown' does not exist!
+  [255]
   $ hg log -r 'bookmark("re:unknown")'
   abort: no bookmarks exist that match 'unknown'!
   [255]
@@ -511,10 +514,10 @@ test clone with a specific revision
 
 test clone with update to a bookmark
 
-  $ hg clone -u Z . cloned-bookmarks-update
+  $ hg clone -u Z . ../cloned-bookmarks-update
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg -R cloned-bookmarks-update bookmarks
+  $ hg -R ../cloned-bookmarks-update bookmarks
      X2                        1:925d80f479bb
      Y                         2:db815d6d32e6
    * Z                         2:db815d6d32e6
@@ -569,10 +572,40 @@ pull --update works the same as pull && update
 
   $ hg bookmark -r3 Y
   moving bookmark 'Y' forward from db815d6d32e6
-  $ hg -R cloned-bookmarks-update update Y
+  $ cp -r  ../cloned-bookmarks-update ../cloned-bookmarks-manual-update
+
+(manual version)
+
+  $ hg -R ../cloned-bookmarks-manual-update update Y
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark Y)
-  $ hg -R cloned-bookmarks-update pull --update .
+  $ hg -R ../cloned-bookmarks-manual-update pull .
+  pulling from .
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files (+1 heads)
+  updating bookmark Y
+  updating bookmark Z
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+
+(# tests strange but with --date crashing when bookmark have to move)
+
+  $ hg -R ../cloned-bookmarks-manual-update update -d 1986
+  abort: revision matching date not found
+  [255]
+  $ hg -R ../cloned-bookmarks-manual-update update
+  updating to active bookmark Y
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark Y)
+
+(all in one version)
+
+  $ hg -R ../cloned-bookmarks-update update Y
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (activating bookmark Y)
+  $ hg -R ../cloned-bookmarks-update pull --update .
   pulling from .
   searching for changes
   adding changesets
@@ -699,6 +732,19 @@ test non-linear update not clearing active bookmark
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (activating bookmark four)
 
+no-op update doesn't deactive bookmarks
+
+  $ hg up
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg sum
+  parent: 3:9ba5f110a0b3 tip
+   y
+  branch: test
+  bookmarks: *four
+  commit: 2 unknown (clean)
+  update: (current)
+  phases: 4 draft
+
 test clearing divergent bookmarks of linear ancestors
 
   $ hg bookmark Z -r 0
@@ -735,3 +781,61 @@ test clearing only a single divergent bookmark across branches
      foo@2                     2:db815d6d32e6
      four                      3:9ba5f110a0b3
      should-end-on-two         2:db815d6d32e6
+
+pull --update works the same as pull && update (case #2)
+
+It is assumed that "hg pull" itself doesn't update current active
+bookmark ('Y' in tests below).
+
+  $ hg pull -q ../cloned-bookmarks-update
+  divergent bookmark Z stored as Z@2
+
+(pulling revision on another named branch with --update updates
+neither the working directory nor current active bookmark: "no-op"
+case)
+
+  $ echo yy >> y
+  $ hg commit -m yy
+
+  $ hg -R ../cloned-bookmarks-update bookmarks | grep ' Y '
+   * Y                         3:125c9a1d6df6
+  $ hg -R ../cloned-bookmarks-update pull . --update
+  pulling from .
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  divergent bookmark Z stored as Z@default
+  adding remote bookmark foo
+  adding remote bookmark four
+  adding remote bookmark should-end-on-two
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R ../cloned-bookmarks-update parents -T "{rev}:{node|short}\n"
+  3:125c9a1d6df6
+  $ hg -R ../cloned-bookmarks-update bookmarks | grep ' Y '
+   * Y                         3:125c9a1d6df6
+
+(pulling revision on current named/topological branch with --update
+updates the working directory and current active bookmark)
+
+  $ hg update -C -q 125c9a1d6df6
+  $ echo xx >> x
+  $ hg commit -m xx
+
+  $ hg -R ../cloned-bookmarks-update bookmarks | grep ' Y '
+   * Y                         3:125c9a1d6df6
+  $ hg -R ../cloned-bookmarks-update pull . --update
+  pulling from .
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  divergent bookmark Z stored as Z@default
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updating bookmark Y
+  $ hg -R ../cloned-bookmarks-update parents -T "{rev}:{node|short}\n"
+  6:81dcce76aa0b
+  $ hg -R ../cloned-bookmarks-update bookmarks | grep ' Y '
+   * Y                         6:81dcce76aa0b

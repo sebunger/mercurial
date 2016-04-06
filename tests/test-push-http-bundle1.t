@@ -77,7 +77,7 @@ expect success
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
-  remote: changegroup hook: HG_NODE=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:http:127.0.0.1: (glob)
+  remote: changegroup hook: HG_NODE=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_NODE_LAST=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:http:127.0.0.1: (glob)
   % serve errors
   $ hg rollback
   repository tip rolled back to revision 0 (undo serve)
@@ -93,7 +93,7 @@ expect success, server lacks the httpheader capability
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
-  remote: changegroup hook: HG_NODE=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:http:127.0.0.1: (glob)
+  remote: changegroup hook: HG_NODE=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_NODE_LAST=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:http:127.0.0.1: (glob)
   % serve errors
   $ hg rollback
   repository tip rolled back to revision 0 (undo serve)
@@ -109,10 +109,40 @@ expect success, server lacks the unbundlehash capability
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
-  remote: changegroup hook: HG_NODE=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:http:127.0.0.1: (glob)
+  remote: changegroup hook: HG_NODE=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_NODE_LAST=ba677d0156c1196c1a699fa53f390dcfc3ce3872 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:http:127.0.0.1: (glob)
   % serve errors
   $ hg rollback
   repository tip rolled back to revision 0 (undo serve)
+
+expect success, pre-d1b16a746db6 server supports the unbundle capability, but
+has no parameter
+
+  $ cat <<EOF > notcapable-unbundleparam.py
+  > from mercurial import extensions, httppeer
+  > def capable(orig, self, name):
+  >     if name == 'unbundle':
+  >         return True
+  >     return orig(self, name)
+  > def uisetup(ui):
+  >     extensions.wrapfunction(httppeer.httppeer, 'capable', capable)
+  > EOF
+  $ cp $HGRCPATH $HGRCPATH.orig
+  $ cat <<EOF >> $HGRCPATH
+  > [extensions]
+  > notcapable-unbundleparam = `pwd`/notcapable-unbundleparam.py
+  > EOF
+  $ req
+  pushing to http://localhost:$HGPORT/
+  searching for changes
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 1 changesets with 1 changes to 1 files
+  remote: changegroup hook: * (glob)
+  % serve errors
+  $ hg rollback
+  repository tip rolled back to revision 0 (undo serve)
+  $ mv $HGRCPATH.orig $HGRCPATH
 
 expect push success, phase change failure
 

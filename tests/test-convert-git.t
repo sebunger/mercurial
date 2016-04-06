@@ -54,7 +54,7 @@ Remove the directory, then try to replace it with a file (issue754)
   $ hg convert --config extensions.progress= --config progress.assume-tty=1 \
   >   --config progress.delay=0 --config progress.changedelay=0 \
   >   --config progress.refresh=0 --config progress.width=60 \
-  > --datesort git-repo
+  >   --config progress.format='topic, bar, number' --datesort git-repo
   \r (no-eol) (esc)
   scanning [======>                                     ] 1/6\r (no-eol) (esc)
   scanning [=============>                              ] 2/6\r (no-eol) (esc)
@@ -173,7 +173,8 @@ full conversion
   $ hg convert --datesort git-repo2 fullrepo \
   > --config extensions.progress= --config progress.assume-tty=1 \
   > --config progress.delay=0 --config progress.changedelay=0 \
-  > --config progress.refresh=0 --config progress.width=60
+  > --config progress.refresh=0 --config progress.width=60 \
+  > --config progress.format='topic, bar, number'
   \r (no-eol) (esc)
   scanning [===>                                        ] 1/9\r (no-eol) (esc)
   scanning [========>                                   ] 2/9\r (no-eol) (esc)
@@ -533,8 +534,7 @@ test missing .gitmodules
   $ git commit -q -m "remove .gitmodules" .gitmodules
   $ git commit -q -m "missing .gitmodules"
   $ cd ..
-  $ hg convert git-repo6 hg-repo6 --traceback
-  fatal: Path '.gitmodules' does not exist in '*' (glob)
+  $ hg convert git-repo6 hg-repo6 --traceback 2>&1 | grep -v "fatal: Path '.gitmodules' does not exist"
   initializing destination hg-repo6 repository
   scanning source...
   sorting...
@@ -652,6 +652,12 @@ submodules)
   $ hg -R git-repo6-hg tip -T "{file_dels}\n"
   .hgsub .hgsubstate
 
+skip submodules in the conversion
+
+  $ hg convert -q git-repo6 no-submodules --config convert.git.skipsubmodules=True
+  $ hg -R no-submodules manifest --all
+  .gitmodules-renamed
+
 convert using a different remote prefix
   $ git init git-repo7
   Initialized empty Git repository in $TESTTMP/git-repo7/.git/
@@ -678,6 +684,25 @@ a block, so do this for now.
      master                    0:03bf38caa4c6
      origin/master             0:03bf38caa4c6
 
+Run convert when the remote branches have changed
+(there was an old bug where the local convert read branches from the server)
+
+  $ cd git-repo7
+  $ echo a >> a
+  $ git commit -q -am "move master forward"
+  $ cd ..
+  $ rm -rf hg-repo7
+  $ hg convert --config convert.git.remoteprefix=origin git-repo7-client hg-repo7
+  initializing destination hg-repo7 repository
+  scanning source...
+  sorting...
+  converting...
+  0 commit a
+  updating bookmarks
+  $ hg -R hg-repo7 bookmarks
+     master                    0:03bf38caa4c6
+     origin/master             0:03bf38caa4c6
+
 damaged git repository tests:
 In case the hard-coded hashes change, the following commands can be used to
 list the hashes and their corresponding types in the repository:
@@ -689,7 +714,7 @@ damage git repository by renaming a commit object
   $ COMMIT_OBJ=1c/0ce3c5886f83a1d78a7b517cdff5cf9ca17bdd
   $ mv git-repo4/.git/objects/$COMMIT_OBJ git-repo4/.git/objects/$COMMIT_OBJ.tmp
   $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | grep 'abort:'
-  abort: cannot read tags from git-repo4/.git
+  abort: cannot retrieve number of commits in git-repo4/.git
   $ mv git-repo4/.git/objects/$COMMIT_OBJ.tmp git-repo4/.git/objects/$COMMIT_OBJ
 damage git repository by renaming a blob object
 
@@ -704,3 +729,20 @@ damage git repository by renaming a tree object
   $ mv git-repo4/.git/objects/$TREE_OBJ git-repo4/.git/objects/$TREE_OBJ.tmp
   $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | grep 'abort:'
   abort: cannot read changes in 1c0ce3c5886f83a1d78a7b517cdff5cf9ca17bdd
+
+test for escaping the repo name (CVE-2016-3069)
+
+  $ git init '`echo pwned >COMMAND-INJECTION`'
+  Initialized empty Git repository in $TESTTMP/`echo pwned >COMMAND-INJECTION`/.git/
+  $ cd '`echo pwned >COMMAND-INJECTION`'
+  $ git commit -q --allow-empty -m 'empty'
+  $ cd ..
+  $ hg convert '`echo pwned >COMMAND-INJECTION`' 'converted'
+  initializing destination converted repository
+  scanning source...
+  sorting...
+  converting...
+  0 empty
+  updating bookmarks
+  $ test -f COMMAND-INJECTION
+  [1]

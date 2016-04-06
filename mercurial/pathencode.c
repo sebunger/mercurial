@@ -517,8 +517,7 @@ PyObject *lowerencode(PyObject *self, PyObject *args)
 	newlen = _lowerencode(NULL, 0, path, len);
 	ret = PyString_FromStringAndSize(NULL, newlen);
 	if (ret)
-		newlen = _lowerencode(PyString_AS_STRING(ret), newlen,
-				      path, len);
+		_lowerencode(PyString_AS_STRING(ret), newlen, path, len);
 
 	return ret;
 }
@@ -684,6 +683,8 @@ static int sha1hash(char hash[20], const char *str, Py_ssize_t len)
 
 	hashobj = PyObject_CallMethod(shaobj, "digest", "");
 	Py_DECREF(shaobj);
+	if (hashobj == NULL)
+		return -1;
 
 	if (!PyString_Check(hashobj) || PyString_GET_SIZE(hashobj) != 20) {
 		PyErr_SetString(PyExc_TypeError,

@@ -5,9 +5,18 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import copy, os, re
-import util, pathutil
-from i18n import _
+from __future__ import absolute_import
+
+import copy
+import os
+import re
+
+from .i18n import _
+from . import (
+    error,
+    pathutil,
+    util,
+)
 
 propertycache = util.propertycache
 
@@ -29,7 +38,7 @@ def _expandsets(kindpats, ctx, listsubrepos):
     for kind, pat, source in kindpats:
         if kind == 'set':
             if not ctx:
-                raise util.Abort("fileset expression with no context")
+                raise error.Abort("fileset expression with no context")
             s = ctx.getfileset(pat)
             fset.update(s)
 
@@ -218,9 +227,15 @@ class match(object):
         has potential matches in it or one of its subdirectories. This is
         based on the match's primary, included, and excluded patterns.
 
+        Returns the string 'all' if the given directory and all subdirectories
+        should be visited. Otherwise returns True or False indicating whether
+        the given directory should be visited.
+
         This function's behavior is undefined if it has returned False for
         one of the dir's parent directories.
         '''
+        if self.prefix() and dir in self._fileroots:
+            return 'all'
         if dir in self._excluderoots:
             return False
         if (self._includeroots and
@@ -254,7 +269,7 @@ class match(object):
         '''True if the matcher won't always match.
 
         Although it's just the inverse of _always in this implementation,
-        an extenion such as narrowhg might make it return something
+        an extension such as narrowhg might make it return something
         slightly different.'''
         return not self._always
 
@@ -282,7 +297,7 @@ class match(object):
                         files = files.splitlines()
                     files = [f for f in files if f]
                 except EnvironmentError:
-                    raise util.Abort(_("unable to read file list (%s)") % pat)
+                    raise error.Abort(_("unable to read file list (%s)") % pat)
                 for k, p, source in self._normalize(files, default, root, cwd,
                                                     auditor):
                     kindpats.append((k, p, pat))
@@ -294,8 +309,8 @@ class match(object):
                     for k, p, source in self._normalize(includepats, default,
                                                         root, cwd, auditor):
                         kindpats.append((k, p, source or pat))
-                except util.Abort as inst:
-                    raise util.Abort('%s: %s' % (pat, inst[0]))
+                except error.Abort as inst:
+                    raise error.Abort('%s: %s' % (pat, inst[0]))
                 except IOError as inst:
                     if self._warn:
                         self._warn(_("skipping unreadable pattern file "
@@ -579,11 +594,11 @@ def _buildregexmatch(kindpats, globsuffix):
                 _rematcher('(?:%s)' % _regex(k, p, globsuffix))
             except re.error:
                 if s:
-                    raise util.Abort(_("%s: invalid pattern (%s): %s") %
+                    raise error.Abort(_("%s: invalid pattern (%s): %s") %
                                      (s, k, p))
                 else:
-                    raise util.Abort(_("invalid pattern (%s): %s") % (k, p))
-        raise util.Abort(_("invalid pattern"))
+                    raise error.Abort(_("invalid pattern (%s): %s") % (k, p))
+        raise error.Abort(_("invalid pattern"))
 
 def _roots(kindpats):
     '''return roots and exact explicitly listed files from patterns
@@ -617,7 +632,7 @@ def _anypats(kindpats):
 
 _commentre = None
 
-def readpatternfile(filepath, warn):
+def readpatternfile(filepath, warn, sourceinfo=False):
     '''parse a pattern file, returning a list of
     patterns. These patterns should be given to compile()
     to be validated and converted into a match function.
@@ -633,7 +648,11 @@ def readpatternfile(filepath, warn):
     syntax: glob   # defaults following lines to non-rooted globs
     re:pattern     # non-rooted regular expression
     glob:pattern   # non-rooted glob
-    pattern        # pattern of the current default type'''
+    pattern        # pattern of the current default type
+
+    if sourceinfo is set, returns a list of tuples:
+    (pattern, lineno, originalline). This is useful to debug ignore patterns.
+    '''
 
     syntaxes = {'re': 'relre:', 'regexp': 'relre:', 'glob': 'relglob:',
                 'include': 'include', 'subinclude': 'subinclude'}
@@ -641,13 +660,15 @@ def readpatternfile(filepath, warn):
     patterns = []
 
     fp = open(filepath)
-    for line in fp:
+    for lineno, line in enumerate(fp, start=1):
         if "#" in line:
             global _commentre
             if not _commentre:
-                _commentre = re.compile(r'((^|[^\\])(\\\\)*)#.*')
+                _commentre = util.re.compile(r'((?:^|[^\\])(?:\\\\)*)#.*')
             # remove comments prefixed by an even number of escapes
-            line = _commentre.sub(r'\1', line)
+            m = _commentre.search(line)
+            if m:
+                line = line[:m.end(1)]
             # fixup properly escaped comments that survived the above
             line = line.replace("\\#", "#")
         line = line.rstrip()
@@ -674,6 +695,9 @@ def readpatternfile(filepath, warn):
                 linesyntax = rels
                 line = line[len(s) + 1:]
                 break
-        patterns.append(linesyntax + line)
+        if sourceinfo:
+            patterns.append((linesyntax + line, lineno, line))
+        else:
+            patterns.append(linesyntax + line)
     fp.close()
     return patterns

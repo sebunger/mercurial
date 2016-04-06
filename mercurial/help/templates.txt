@@ -43,13 +43,13 @@ In addition to filters, there are some basic built-in functions:
 
 .. functionsmarker
 
-Also, for any expression that returns a list, there is a list operator:
+Also, for any expression that returns a list, there is a list operator::
 
-- expr % "{template}"
+    expr % "{template}"
 
-As seen in the above example, "{template}" is interpreted as a template.
-To prevent it from being interpreted, you can use an escape character "\{"
-or a raw string prefix, "r'...'".
+As seen in the above example, ``{template}`` is interpreted as a template.
+To prevent it from being interpreted, you can use an escape character ``\{``
+or a raw string prefix, ``r'...'``.
 
 Some sample command line templates:
 
@@ -68,6 +68,10 @@ Some sample command line templates:
 - Format date::
 
    $ hg log -r 0 --template "{date(date, '%Y')}\n"
+
+- Display date in UTC::
+
+   $ hg log -r 0 --template "{localdate(date, 'UTC')|date}\n"
 
 - Output the description set to a fill-width of 30::
 
@@ -98,9 +102,17 @@ Some sample command line templates:
 
    $ hg log --template "{bookmarks % '{bookmark}{ifeq(bookmark, active, '*')} '}\n"
 
+- Find the previous release candidate tag, the distance and changes since the tag::
+
+   $ hg log -r . --template "{latesttag('re:^.*-rc$') % '{tag}, {changes}, {distance}'}\n"
+
 - Mark the working copy parent with '@'::
 
    $ hg log --template "{ifcontains(rev, revset('.'), '@')}\n"
+
+- Show details of parent revisions::
+
+   $ hg log --template "{revset('parents(%d)', rev) % '{desc|firstline}\n'}"
 
 - Show only commit descriptions that start with "template"::
 

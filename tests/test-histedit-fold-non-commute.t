@@ -88,14 +88,15 @@ edit the history
   $ hg histedit 3 --commands $EDITED 2>&1 | fixbundle
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   merging e
-  warning: conflicts during merge.
-  merging e incomplete! (edit conflicts, then use 'hg resolve --mark')
-  Fix up the change and run hg histedit --continue
+  warning: conflicts while merging e! (edit, then use 'hg resolve --mark')
+  Fix up the change (fold 39522b764e3d)
+  (hg histedit --continue to resume)
 
 fix up
   $ echo 'I can haz no commute' > e
   $ hg resolve --mark e
   (no more unresolved files)
+  continue: hg histedit --continue
   $ cat > cat.py <<EOF
   > import sys
   > print open(sys.argv[1]).read()
@@ -121,20 +122,18 @@ fix up
   
   
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   merging e
-  warning: conflicts during merge.
-  merging e incomplete! (edit conflicts, then use 'hg resolve --mark')
-  Fix up the change and run hg histedit --continue
+  warning: conflicts while merging e! (edit, then use 'hg resolve --mark')
+  Fix up the change (pick 7b4e2f4b7bcd)
+  (hg histedit --continue to resume)
 
 just continue this time
   $ hg revert -r 'p1()' e
   $ hg resolve --mark e
   (no more unresolved files)
+  continue: hg histedit --continue
   $ hg histedit --continue 2>&1 | fixbundle
   7b4e2f4b7bcd: empty changeset
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 log after edit
   $ hg log --graph
@@ -253,31 +252,30 @@ edit the history
   $ hg histedit 3 --commands $EDITED 2>&1 | fixbundle
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   merging e
-  warning: conflicts during merge.
-  merging e incomplete! (edit conflicts, then use 'hg resolve --mark')
-  Fix up the change and run hg histedit --continue
+  warning: conflicts while merging e! (edit, then use 'hg resolve --mark')
+  Fix up the change (roll 39522b764e3d)
+  (hg histedit --continue to resume)
 
 fix up
   $ echo 'I can haz no commute' > e
   $ hg resolve --mark e
   (no more unresolved files)
+  continue: hg histedit --continue
   $ hg histedit --continue 2>&1 | fixbundle | grep -v '2 files removed'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   merging e
-  warning: conflicts during merge.
-  merging e incomplete! (edit conflicts, then use 'hg resolve --mark')
-  Fix up the change and run hg histedit --continue
+  warning: conflicts while merging e! (edit, then use 'hg resolve --mark')
+  Fix up the change (pick 7b4e2f4b7bcd)
+  (hg histedit --continue to resume)
 
 just continue this time
   $ hg revert -r 'p1()' e
   $ hg resolve --mark e
   (no more unresolved files)
+  continue: hg histedit --continue
   $ hg histedit --continue 2>&1 | fixbundle
   7b4e2f4b7bcd: empty changeset
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 log after edit
   $ hg log --graph

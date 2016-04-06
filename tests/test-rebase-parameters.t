@@ -412,6 +412,16 @@ Specify only revs (from 2 onto 8)
   
   $ cd ..
 
+Rebasing both a single revision and a merge in one command
+
+  $ hg clone -q -u . a aX
+  $ cd aX
+  $ hg rebase -r 3 -r 6
+  rebasing 3:32af7686d403 "D"
+  rebasing 6:eea13746799a "G"
+  saved backup bundle to $TESTTMP/aX/.hg/strip-backup/eea13746799a-ad273fd6-backup.hg (glob)
+  $ cd ..
+
 Test --tool parameter:
 
   $ hg init b
@@ -484,18 +494,18 @@ Test --tool parameter:
 
   $ hg resolve -m c2
   (no more unresolved files)
+  continue: hg rebase --continue
   $ hg rebase -c --tool internal:fail
-  tool option will be ignored
   rebasing 2:e4e3f3546619 "c2b" (tip)
   note: rebase of 2:e4e3f3546619 created no changes to commit
   saved backup bundle to $TESTTMP/b3/.hg/strip-backup/e4e3f3546619-b0841178-backup.hg (glob)
 
   $ hg rebase -i
-  abort: interactive history editing is supported by the 'histedit' extension (see "hg help histedit")
+  abort: interactive history editing is supported by the 'histedit' extension (see "hg --config extensions.histedit= help -e histedit")
   [255]
 
   $ hg rebase --interactive
-  abort: interactive history editing is supported by the 'histedit' extension (see "hg help histedit")
+  abort: interactive history editing is supported by the 'histedit' extension (see "hg --config extensions.histedit= help -e histedit")
   [255]
 
   $ cd ..

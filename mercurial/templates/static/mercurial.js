@@ -50,18 +50,6 @@ function Graph() {
 		this.cell_height = this.box_size;
 	}
 
-	function colorPart(num) {
-		num *= 255
-		num = num < 0 ? 0 : num;
-		num = num > 255 ? 255 : num;
-		var digits = Math.round(num).toString(16);
-		if (num < 16) {
-			return '0' + digits;
-		} else {
-			return digits;
-		}
-	}
-
 	this.setColor = function(color, bg, fg) {
 
 		// Set the colour.
@@ -376,7 +364,7 @@ function ajaxScrollInit(urlFormat,
 
             if (!nextPageVar) {
                 var message = {
-                    class: 'scroll-loading-info',
+                    'class': 'scroll-loading-info',
                     text: 'No more entries'
                 };
                 appendFormatHTML(container, messageFormat, message);
@@ -388,15 +376,19 @@ function ajaxScrollInit(urlFormat,
                 'GET',
                 function onstart() {
                     var message = {
-                        class: 'scroll-loading',
+                        'class': 'scroll-loading',
                         text: 'Loading...'
                     };
                     appendFormatHTML(container, messageFormat, message);
                 },
                 function onsuccess(htmlText) {
                     if (mode == 'graph') {
-                        var addHeight = htmlText.match(/^\s*<canvas id="graph".*height="(\d+)"><\/canvas>$/m)[1];
+                        var sizes = htmlText.match(/^\s*<canvas id="graph" width="(\d+)" height="(\d+)"><\/canvas>$/m);
+                        var addWidth = sizes[1];
+                        var addHeight = sizes[2];
+                        addWidth = parseInt(addWidth);
                         addHeight = parseInt(addHeight);
+                        graph.canvas.width = addWidth;
                         graph.canvas.height = addHeight;
 
                         var dataStr = htmlText.match(/^\s*var data = (.*);$/m)[1];
@@ -423,7 +415,7 @@ function ajaxScrollInit(urlFormat,
                 },
                 function onerror(errorText) {
                     var message = {
-                        class: 'scroll-loading-error',
+                        'class': 'scroll-loading-error',
                         text: 'Error: ' + errorText
                     };
                     appendFormatHTML(container, messageFormat, message);

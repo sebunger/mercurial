@@ -201,7 +201,7 @@ should succeed, slashy names
   
   <div class="container">
   <div class="menu">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
   </div>
   <div class="main">
@@ -701,7 +701,7 @@ should succeed, slashy names
   
   <div class="container">
   <div class="menu">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
   </div>
   <div class="main">
@@ -1152,7 +1152,7 @@ test inexistent and inaccessible repo should be ignored silently
   
   <div class="container">
   <div class="menu">
-  <a href="http://mercurial.selenic.com/">
+  <a href="https://mercurial-scm.org/">
   <img src="/static/hglogo.png" width=75 height=90 border=0 alt="mercurial" /></a>
   </div>
   <div class="main">
@@ -1181,6 +1181,38 @@ test inexistent and inaccessible repo should be ignored silently
   </body>
   </html>
   
+
+test listening address/port specified by web-conf (issue4699):
+
+  $ killdaemons.py
+  $ cat >> paths.conf <<EOF
+  > [web]
+  > address = localhost
+  > port = $HGPORT1
+  > EOF
+  $ hg serve -d --pid-file=hg.pid --web-conf paths.conf \
+  >     -A access-paths.log -E error-paths-9.log
+  listening at http://*:$HGPORT1/ (bound to 127.0.0.1:$HGPORT1) (glob)
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ get-with-headers.py localhost:$HGPORT1 '?style=raw'
+  200 Script output follows
+  
+  
+  
+test --port option overrides web.port:
+
+  $ killdaemons.py
+  $ hg serve -p $HGPORT2 -d -v --pid-file=hg.pid --web-conf paths.conf \
+  >     -A access-paths.log -E error-paths-10.log
+  listening at http://*:$HGPORT2/ (bound to 127.0.0.1:$HGPORT2) (glob)
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ get-with-headers.py localhost:$HGPORT2 '?style=raw'
+  200 Script output follows
+  
+  
+  
+
+  $ killdaemons.py
   $ cat > collections.conf <<EOF
   > [collections]
   > $root=$root
@@ -1245,6 +1277,67 @@ rss-log with basedir /foo/
   $ get-with-headers.py localhost:$HGPORT2 'a/rss-log' | grep '<guid'
       <guid isPermaLink="true">http://hg.example.com:8080/foo/a/rev/8580ff50825a</guid>
 
+Path refreshing works as expected
+
+  $ killdaemons.py
+  $ mkdir $root/refreshtest
+  $ hg init $root/refreshtest/a
+  $ cat > paths.conf << EOF
+  > [paths]
+  > / = $root/refreshtest/*
+  > EOF
+  $ hg serve -p $HGPORT1 -d --pid-file hg.pid --webdir-conf paths.conf
+  $ cat hg.pid >> $DAEMON_PIDS
+
+  $ get-with-headers.py localhost:$HGPORT1 '?style=raw'
+  200 Script output follows
+  
+  
+  /a/
+  
+
+By default refreshing occurs every 20s and a new repo won't be listed
+immediately.
+
+  $ hg init $root/refreshtest/b
+  $ get-with-headers.py localhost:$HGPORT1 '?style=raw'
+  200 Script output follows
+  
+  
+  /a/
+  
+
+Restart the server with no refresh interval. New repo should appear
+immediately.
+
+  $ killdaemons.py
+  $ cat > paths.conf << EOF
+  > [web]
+  > refreshinterval = -1
+  > [paths]
+  > / = $root/refreshtest/*
+  > EOF
+  $ hg serve -p $HGPORT1 -d --pid-file hg.pid --webdir-conf paths.conf
+  $ cat hg.pid >> $DAEMON_PIDS
+
+  $ get-with-headers.py localhost:$HGPORT1 '?style=raw'
+  200 Script output follows
+  
+  
+  /a/
+  /b/
+  
+
+  $ hg init $root/refreshtest/c
+  $ get-with-headers.py localhost:$HGPORT1 '?style=raw'
+  200 Script output follows
+  
+  
+  /a/
+  /b/
+  /c/
+  
+
 paths errors 1
 
   $ cat error-paths-1.log
@@ -1276,6 +1369,14 @@ paths errors 7
 paths errors 8
 
   $ cat error-paths-8.log
+
+paths errors 9
+
+  $ cat error-paths-9.log
+
+paths errors 10
+
+  $ cat error-paths-10.log
 
 collections errors
 

@@ -5,10 +5,21 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-from i18n import _
-import mdiff, parsers, error, revlog, util
-import array, struct
+from __future__ import absolute_import
+
+import array
+import heapq
 import os
+import struct
+
+from .i18n import _
+from . import (
+    error,
+    mdiff,
+    parsers,
+    revlog,
+    util,
+)
 
 propertycache = util.propertycache
 
@@ -333,36 +344,44 @@ class manifestdict(object):
         # zero copy representation of base as a buffer
         addbuf = util.buffer(base)
 
-        # start with a readonly loop that finds the offset of
-        # each line and creates the deltas
-        for f, todelete in changes:
-            # bs will either be the index of the item or the insert point
-            start, end = _msearch(addbuf, f, start)
-            if not todelete:
-                h, fl = self._lm[f]
-                l = "%s\0%s%s\n" % (f, revlog.hex(h), fl)
-            else:
-                if start == end:
-                    # item we want to delete was not found, error out
-                    raise AssertionError(
-                            _("failed to remove %s from manifest") % f)
-                l = ""
-            if dstart is not None and dstart <= start and dend >= start:
-                if dend < end:
+        changes = list(changes)
+        if len(changes) < 1000:
+            # start with a readonly loop that finds the offset of
+            # each line and creates the deltas
+            for f, todelete in changes:
+                # bs will either be the index of the item or the insert point
+                start, end = _msearch(addbuf, f, start)
+                if not todelete:
+                    h, fl = self._lm[f]
+                    l = "%s\0%s%s\n" % (f, revlog.hex(h), fl)
+                else:
+                    if start == end:
+                        # item we want to delete was not found, error out
+                        raise AssertionError(
+                                _("failed to remove %s from manifest") % f)
+                    l = ""
+                if dstart is not None and dstart <= start and dend >= start:
+                    if dend < end:
+                        dend = end
+                    if l:
+                        dline.append(l)
+                else:
+                    if dstart is not None:
+                        delta.append([dstart, dend, "".join(dline)])
+                    dstart = start
                     dend = end
-                if l:
-                    dline.append(l)
-            else:
-                if dstart is not None:
-                    delta.append([dstart, dend, "".join(dline)])
-                dstart = start
-                dend = end
-                dline = [l]
+                    dline = [l]
 
-        if dstart is not None:
-            delta.append([dstart, dend, "".join(dline)])
-        # apply the delta to the base, and get a delta for addrevision
-        deltatext, arraytext = _addlistdelta(base, delta)
+            if dstart is not None:
+                delta.append([dstart, dend, "".join(dline)])
+            # apply the delta to the base, and get a delta for addrevision
+            deltatext, arraytext = _addlistdelta(base, delta)
+        else:
+            # For large changes, it's much cheaper to just build the text and
+            # diff it.
+            arraytext = array.array('c', self.text())
+            deltatext = mdiff.textdiff(base, arraytext)
+
         return arraytext, deltatext
 
 def _msearch(m, s, lo=0, hi=None):
@@ -441,13 +460,14 @@ def _splittopdir(f):
     else:
         return '', f
 
-_noop = lambda: None
+_noop = lambda s: None
 
 class treemanifest(object):
     def __init__(self, dir='', text=''):
         self._dir = dir
         self._node = revlog.nullid
-        self._load = _noop
+        self._loadfunc = _noop
+        self._copyfunc = _noop
         self._dirty = False
         self._dirs = {}
         # Using _lazymanifest here is a little slower than plain old dicts
@@ -475,11 +495,11 @@ class treemanifest(object):
         return (not self._files and (not self._dirs or
                 all(m._isempty() for m in self._dirs.values())))
 
-    def __str__(self):
-        return ('<treemanifest dir=%s, node=%s, loaded=%s, dirty=%s>' %
+    def __repr__(self):
+        return ('<treemanifest dir=%s, node=%s, loaded=%s, dirty=%s at 0x%x>' %
                 (self._dir, revlog.hex(self._node),
-                 bool(self._load is _noop),
-                 self._dirty))
+                 bool(self._loadfunc is _noop),
+                 self._dirty, id(self)))
 
     def dir(self):
         '''The directory that this tree manifest represents, including a
@@ -597,9 +617,17 @@ class treemanifest(object):
             self._files[f] = n[:21] # to match manifestdict's behavior
         self._dirty = True
 
+    def _load(self):
+        if self._loadfunc is not _noop:
+            lf, self._loadfunc = self._loadfunc, _noop
+            lf(self)
+        elif self._copyfunc is not _noop:
+            cf, self._copyfunc = self._copyfunc, _noop
+            cf(self)
+
     def setflag(self, f, flags):
         """Set the flags (symlink, executable) for path f."""
-        assert 'd' not in flags
+        assert 't' not in flags
         self._load()
         dir, subpath = _splittopdir(f)
         if dir:
@@ -614,19 +642,19 @@ class treemanifest(object):
         copy = treemanifest(self._dir)
         copy._node = self._node
         copy._dirty = self._dirty
-        def _load():
-            self._load()
-            for d in self._dirs:
-                copy._dirs[d] = self._dirs[d].copy()
-            copy._files = dict.copy(self._files)
-            copy._flags = dict.copy(self._flags)
-            copy._load = _noop
-        copy._load = _load
-        if self._load == _noop:
-            # Chaining _load if it's _noop is functionally correct, but the
-            # chain may end up excessively long (stack overflow), and
-            # will prevent garbage collection of 'self'.
-            copy._load()
+        if self._copyfunc is _noop:
+            def _copyfunc(s):
+                self._load()
+                for d in self._dirs:
+                    s._dirs[d] = self._dirs[d].copy()
+                s._files = dict.copy(self._files)
+                s._flags = dict.copy(self._flags)
+            if self._loadfunc is _noop:
+                _copyfunc(copy)
+            else:
+                copy._copyfunc = _copyfunc
+        else:
+            copy._copyfunc = self._copyfunc
         return copy
 
     def filesnotin(self, m2):
@@ -722,9 +750,12 @@ class treemanifest(object):
     def _matches(self, match):
         '''recursively generate a new manifest filtered by the match argument.
         '''
-        ret = treemanifest(self._dir)
 
-        if not match.visitdir(self._dir[:-1] or '.'):
+        visit = match.visitdir(self._dir[:-1] or '.')
+        if visit == 'all':
+            return self.copy()
+        ret = treemanifest(self._dir)
+        if not visit:
             return ret
 
         self._load()
@@ -797,7 +828,7 @@ class treemanifest(object):
 
     def parse(self, text, readsubtree):
         for f, n, fl in _parse(text):
-            if fl == 'd':
+            if fl == 't':
                 f = f + '/'
                 self._dirs[f] = readsubtree(self._subpath(f), n)
             elif '/' in f:
@@ -828,18 +859,15 @@ class treemanifest(object):
         """
         self._load()
         flags = self.flags
-        dirs = [(d[:-1], self._dirs[d]._node, 'd') for d in self._dirs]
+        dirs = [(d[:-1], self._dirs[d]._node, 't') for d in self._dirs]
         files = [(f, self._files[f], flags(f)) for f in self._files]
         return _text(sorted(dirs + files), usemanifestv2)
 
     def read(self, gettext, readsubtree):
-        def _load():
-            # Mark as loaded already here, so __setitem__ and setflag() don't
-            # cause infinite loops when they try to load.
-            self._load = _noop
-            self.parse(gettext(), readsubtree)
-            self._dirty = False
-        self._load = _load
+        def _load_for_read(s):
+            s.parse(gettext(), readsubtree)
+            s._dirty = False
+        self._loadfunc = _load_for_read
 
     def writesubtrees(self, m1, m2, writesubtree):
         self._load() # for consistency; should never have any effect here
@@ -970,12 +998,9 @@ class manifest(revlog.revlog):
             # revlog layer.
 
             _checkforbidden(added)
-            # combine the changed lists into one list for sorting
-            work = [(x, False) for x in added]
-            work.extend((x, True) for x in removed)
-            # this could use heapq.merge() (from Python 2.6+) or equivalent
-            # since the lists are already sorted
-            work.sort()
+            # combine the changed lists into one sorted iterator
+            work = heapq.merge([(x, False) for x in added],
+                               [(x, True) for x in removed])
 
             arraytext, deltatext = m.fastdelta(self._mancache[p1][1], work)
             cachedelta = self.rev(p1), deltatext
@@ -1020,3 +1045,8 @@ class manifest(revlog.revlog):
         # Save nodeid so parent manifest can calculate its nodeid
         m.setnode(n)
         return n
+
+    def clearcaches(self):
+        super(manifest, self).clearcaches()
+        self._mancache.clear()
+        self._dirlogcache = {'': self}

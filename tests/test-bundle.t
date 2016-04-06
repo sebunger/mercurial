@@ -1,3 +1,9 @@
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > usegeneraldelta=yes
+  > EOF
+
 Setting up test
 
   $ hg init test
@@ -224,7 +230,7 @@ hg -R bundle://../full.hg verify
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:../full.hg (glob)
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_NODE_LAST=aa35859c02ea8bd48da5da68cd2740ac71afcbaf HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:../full.hg (glob)
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Rollback empty
@@ -247,8 +253,72 @@ Pull full.hg into empty again (using -R; with hook)
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:empty+full.hg (glob)
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_NODE_LAST=aa35859c02ea8bd48da5da68cd2740ac71afcbaf HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:empty+full.hg (glob)
   (run 'hg heads' to see heads, 'hg merge' to merge)
+
+Cannot produce streaming clone bundles with "hg bundle"
+
+  $ hg -R test bundle -t packed1 packed.hg
+  abort: packed bundles cannot be produced by "hg bundle"
+  (use "hg debugcreatestreamclonebundle")
+  [255]
+
+packed1 is produced properly
+
+  $ hg -R test debugcreatestreamclonebundle packed.hg
+  writing 2663 bytes for 6 files
+  bundle requirements: generaldelta, revlogv1
+
+  $ f -B 64 --size --sha1 --hexdump packed.hg
+  packed.hg: size=2826, sha1=e139f97692a142b19cdcff64a69697d5307ce6d4
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........|
+  0010: 00 00 00 00 0a 67 00 16 67 65 6e 65 72 61 6c 64 |.....g..generald|
+  0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 76 31 00 64 61 |elta,revlogv1.da|
+  0030: 74 61 2f 61 64 69 66 66 65 72 65 6e 74 66 69 6c |ta/adifferentfil|
+
+  $ hg debugbundle --spec packed.hg
+  none-packed1;requirements%3Dgeneraldelta%2Crevlogv1
+
+generaldelta requirement is listed in stream clone bundles
+
+  $ hg --config format.generaldelta=true init testgd
+  $ cd testgd
+  $ touch foo
+  $ hg -q commit -A -m initial
+  $ cd ..
+  $ hg -R testgd debugcreatestreamclonebundle packedgd.hg
+  writing 301 bytes for 3 files
+  bundle requirements: generaldelta, revlogv1
+
+  $ f -B 64 --size --sha1 --hexdump packedgd.hg
+  packedgd.hg: size=396, sha1=981f9e589799335304a5a9a44caa3623a48d2a9f
+  0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 03 00 00 |HGS1UN..........|
+  0010: 00 00 00 00 01 2d 00 16 67 65 6e 65 72 61 6c 64 |.....-..generald|
+  0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 76 31 00 64 61 |elta,revlogv1.da|
+  0030: 74 61 2f 66 6f 6f 2e 69 00 36 34 0a 00 03 00 01 |ta/foo.i.64.....|
+
+  $ hg debugbundle --spec packedgd.hg
+  none-packed1;requirements%3Dgeneraldelta%2Crevlogv1
+
+Unpacking packed1 bundles with "hg unbundle" isn't allowed
+
+  $ hg init packed
+  $ hg -R packed unbundle packed.hg
+  abort: packed bundles cannot be applied with "hg unbundle"
+  (use "hg debugapplystreamclonebundle")
+  [255]
+
+packed1 can be consumed from debug command
+
+  $ hg -R packed debugapplystreamclonebundle packed.hg
+  6 files to transfer, 2.60 KB of data
+  transferred 2.60 KB in *.* seconds (* */sec) (glob)
+
+Does not work on non-empty repo
+
+  $ hg -R packed debugapplystreamclonebundle packed.hg
+  abort: cannot apply stream clone bundle on non-empty repo
+  [255]
 
 Create partial clones
 
@@ -437,7 +507,7 @@ recurse infinitely (issue2528)
   abort: empty destination path is not valid
   [255]
 
-test for http://mercurial.selenic.com/bts/issue216
+test for https://bz.mercurial-scm.org/216
 
 Unbundle incremental bundles into fresh empty in one go
 
@@ -551,7 +621,7 @@ test to bundle revisions on the newly created branch (issue3828):
 
   $ cd ..
 
-test for http://mercurial.selenic.com/bts/issue1144
+test for https://bz.mercurial-scm.org/1144
 
 test that verify bundle does not traceback
 
@@ -637,6 +707,8 @@ bundle single branch
   list of changesets:
   1a38c1b849e8b70c756d2d80b0b9a3ac0b7ea11a
   057f4db07f61970e1c11e83be79e9d08adc4dc31
+  bundle2-output-bundle: "HG20", (1 params) 1 parts total
+  bundle2-output-part: "changegroup" (params: 1 mandatory) streamed payload
   bundling: 1/2 changesets (50.00%)
   bundling: 2/2 changesets (100.00%)
   bundling: 1/2 manifests (50.00%)
@@ -656,4 +728,8 @@ bundle single branch
   checking files
   4 files, 3 changesets, 5 total revisions
 
-  $ cd ..
+== Test bundling no commits
+
+  $ hg bundle -r 'public()' no-output.hg
+  abort: no commits to bundle
+  [255]

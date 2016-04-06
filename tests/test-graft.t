@@ -62,6 +62,7 @@ Specify revisions with -r:
   [255]
 
   $ hg graft -r 1 2
+  warning: inconsistent use of --rev might give unexpected revision ordering!
   skipping ancestor revision 2:5c095ad7e90f
   skipping ancestor revision 1:5d205f8b35b6
   [255]
@@ -138,7 +139,7 @@ Graft out of order, skipping a merge and a duplicate
   grafting 4:9c233e8e184d "4"
   grafting 3:4c60f11aa304 "3"
 
-  $ HGEDITOR=cat hg graft 1 5 4 3 'merge()' 2 --debug
+  $ HGEDITOR=cat hg graft 1 5 'merge()' 2 --debug
   skipping ungraftable merge revision 6
   scanning for duplicate grafts
   skipping revision 2:5c095ad7e90f (already grafted to 7:ef0ef43d49e7)
@@ -153,8 +154,8 @@ Graft out of order, skipping a merge and a duplicate
    branchmerge: True, force: True, partial: False
    ancestor: 68795b066622, local: ef0ef43d49e7+, remote: 5d205f8b35b6
    preserving b for resolve of b
-   b: local copied/moved from a -> m
-  picked tool 'internal:merge' for b (binary False symlink False)
+   b: local copied/moved from a -> m (premerge)
+  picked tool ':merge' for b (binary False symlink False changedelete False)
   merging b and a to b
   my b@ef0ef43d49e7+ other a@5d205f8b35b6 ancestor a@68795b066622
    premerge successful
@@ -174,6 +175,8 @@ Graft out of order, skipping a merge and a duplicate
   e
   committing manifest
   committing changelog
+  $ HGEDITOR=cat hg graft 4 3 --log --debug
+  scanning for duplicate grafts
   grafting 4:9c233e8e184d "4"
     searching for copies back to rev 1
   resolving manifests
@@ -183,15 +186,22 @@ Graft out of order, skipping a merge and a duplicate
    d: remote is newer -> g
   getting d
    b: remote unchanged -> k
-   e: versions differ -> m
-  picked tool 'internal:merge' for e (binary False symlink False)
+   e: versions differ -> m (premerge)
+  picked tool ':merge' for e (binary False symlink False changedelete False)
   merging e
   my e@1905859650ec+ other e@9c233e8e184d ancestor e@68795b066622
-  warning: conflicts during merge.
-  merging e incomplete! (edit conflicts, then use 'hg resolve --mark')
+   e: versions differ -> m (merge)
+  picked tool ':merge' for e (binary False symlink False changedelete False)
+  my e@1905859650ec+ other e@9c233e8e184d ancestor e@68795b066622
+  warning: conflicts while merging e! (edit, then use 'hg resolve --mark')
   abort: unresolved conflicts, can't continue
-  (use hg resolve and hg graft --continue)
+  (use hg resolve and hg graft --continue --log)
   [255]
+
+Summary should mention graft:
+
+  $ hg summary |grep graft
+  commit: 2 modified, 2 unknown, 1 unresolved (graft in progress)
 
 Commit while interrupted should fail:
 
@@ -220,8 +230,7 @@ Graft again:
   skipping revision 5:97f8bfe72746 (already grafted to 9:1905859650ec)
   grafting 4:9c233e8e184d "4"
   merging e
-  warning: conflicts during merge.
-  merging e incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging e! (edit, then use 'hg resolve --mark')
   abort: unresolved conflicts, can't continue
   (use hg resolve and hg graft --continue)
   [255]
@@ -238,6 +247,7 @@ Fix up:
   $ echo b > e
   $ hg resolve -m e
   (no more unresolved files)
+  continue: hg graft --continue
 
 Continue with a revision should fail:
 
@@ -332,6 +342,54 @@ Disallow grafting an already grafted cset onto its original branch
   skipping already grafted revision 7:ef0ef43d49e7 (was grafted from 2:5c095ad7e90f)
   [255]
 
+  $ hg extdiff --config extensions.extdiff= --patch -r 2 -r 13
+  --- */hg-5c095ad7e90f.patch	* +0000 (glob)
+  +++ */hg-7a4785234d87.patch	* +0000 (glob)
+  @@ -1,18 +1,18 @@
+   # HG changeset patch
+  -# User test
+  +# User foo
+   # Date 0 0
+   #      Thu Jan 01 00:00:00 1970 +0000
+  -# Node ID 5c095ad7e90f871700f02dd1fa5012cb4498a2d4
+  -# Parent  5d205f8b35b66bc36375c9534ffd3237730e8f04
+  +# Node ID 7a4785234d87ec1aa420ed6b11afe40fa73e12a9
+  +# Parent  b592ea63bb0c19a6c5c44685ee29a2284f9f1b8f
+   2
+   
+  -diff -r 5d205f8b35b6 -r 5c095ad7e90f a
+  +diff -r b592ea63bb0c -r 7a4785234d87 a
+   --- a/a	Thu Jan 01 00:00:00 1970 +0000
+   +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
+   @@ -1,1 +0,0 @@
+  --b
+  -diff -r 5d205f8b35b6 -r 5c095ad7e90f b
+  +-a
+  +diff -r b592ea63bb0c -r 7a4785234d87 b
+   --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+   +++ b/b	Thu Jan 01 00:00:00 1970 +0000
+   @@ -0,0 +1,1 @@
+  -+b
+  ++a
+  [1]
+
+  $ hg extdiff --config extensions.extdiff= --patch -r 2 -r 13 -X .
+  --- */hg-5c095ad7e90f.patch	* +0000 (glob)
+  +++ */hg-7a4785234d87.patch	* +0000 (glob)
+  @@ -1,8 +1,8 @@
+   # HG changeset patch
+  -# User test
+  +# User foo
+   # Date 0 0
+   #      Thu Jan 01 00:00:00 1970 +0000
+  -# Node ID 5c095ad7e90f871700f02dd1fa5012cb4498a2d4
+  -# Parent  5d205f8b35b66bc36375c9534ffd3237730e8f04
+  +# Node ID 7a4785234d87ec1aa420ed6b11afe40fa73e12a9
+  +# Parent  b592ea63bb0c19a6c5c44685ee29a2284f9f1b8f
+   2
+   
+  [1]
+
 Disallow grafting already grafted csets with the same origin onto each other
   $ hg up -q 13
   $ hg graft 2
@@ -373,8 +431,7 @@ Resolve conflicted graft
   [255]
   $ hg resolve --all
   merging a
-  warning: conflicts during merge.
-  merging a incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging a! (edit, then use 'hg resolve --mark')
   [1]
   $ cat a
   <<<<<<< local: aaa4406d4f0a - test: 9
@@ -385,6 +442,7 @@ Resolve conflicted graft
   $ echo b > a
   $ hg resolve -m a
   (no more unresolved files)
+  continue: hg graft --continue
   $ hg graft -c
   grafting 1:5d205f8b35b6 "1"
   $ hg export tip --git
@@ -414,6 +472,7 @@ Resolve conflicted graft with rename
   $ hg resolve --all
   merging a and b to b
   (no more unresolved files)
+  continue: hg graft --continue
   $ hg graft -c
   grafting 2:5c095ad7e90f "2"
   $ hg export tip --git
@@ -699,12 +758,12 @@ graft --continue after --force
   [255]
   $ hg resolve --all
   merging a
-  warning: conflicts during merge.
-  merging a incomplete! (edit conflicts, then use 'hg resolve --mark')
+  warning: conflicts while merging a! (edit, then use 'hg resolve --mark')
   [1]
   $ echo abc > a
   $ hg resolve -m a
   (no more unresolved files)
+  continue: hg graft --continue
   $ hg graft -c
   grafting 28:50a516bb8b57 "28"
   $ cat a

@@ -198,32 +198,31 @@ try to import --push
   now at: appendbar.diff
   $ hg qfin -a
   patch b.diff finalized without changeset message
-  $ touch .hg/patches/2.diff
+  $ touch .hg/patches/append_foo
   $ hg qimport -r 'p1(.)::'
-  abort: patch "2.diff" already exists
-  [255]
   $ hg qapplied
-  3.diff
+  append_foo__1
+  append_bar
   $ hg qfin -a
-  $ rm .hg/patches/2.diff
+  $ rm .hg/patches/append_foo
   $ hg qimport -r 'p1(.)::' -P
   $ hg qpop -a
-  popping 3.diff
-  popping 2.diff
+  popping append_bar
+  popping append_foo
   patch queue now empty
-  $ hg qdel 3.diff
-  $ hg qdel -k 2.diff
+  $ hg qdel append_foo
+  $ hg qdel -k append_bar
 
 qimport -e
 
-  $ hg qimport -e 2.diff
-  adding 2.diff to series file
-  $ hg qdel -k 2.diff
+  $ hg qimport -e append_bar
+  adding append_bar to series file
+  $ hg qdel -k append_bar
 
 qimport -e --name newname oldexisitingpatch
 
-  $ hg qimport -e --name this-name-is-better 2.diff
-  renaming 2.diff to this-name-is-better
+  $ hg qimport -e --name this-name-is-better append_bar
+  renaming append_bar to this-name-is-better
   adding this-name-is-better to series file
   $ hg qser
   this-name-is-better
@@ -290,3 +289,54 @@ check qimport phase:
   $ cd ..
 
   $ killdaemons.py
+
+check patch name generation for non-alpha-numeric summary line
+
+  $ cd repo
+
+  $ hg qpop -a -q
+  patch queue now empty
+  $ hg qseries -v
+  0 U imported_patch_b_diff
+  1 U 0
+  2 U this-name-is-better
+  3 U url.diff
+
+  $ echo bb >> b
+  $ hg commit -m '==++--=='
+
+  $ hg qimport -r tip
+  $ hg qseries -v
+  0 A 1.diff
+  1 U imported_patch_b_diff
+  2 U 0
+  3 U this-name-is-better
+  4 U url.diff
+
+check reserved patch names
+
+  $ hg qpop -qa
+  patch queue now empty
+  $ echo >> b
+  $ hg commit -m 'status'
+  $ echo >> b
+  $ hg commit -m '.'
+  $ echo >> b
+  $ hg commit -m 'taken'
+  $ mkdir .hg/patches/taken
+  $ touch .hg/patches/taken__1
+  $ hg qimport -r -3::
+  $ hg qap
+  1.diff__1
+  2.diff
+  taken__2
+
+check very long patch name
+
+  $ hg qpop -qa
+  patch queue now empty
+  $ echo >> b
+  $ hg commit -m 'abcdefghi pqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi pqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi pqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi pqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi pqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi pqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  $ hg qimport -r .
+  $ hg qap
+  abcdefghi_pqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghi_pqrstuvwxyzabcdefg

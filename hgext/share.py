@@ -38,7 +38,7 @@ The following ``share.`` config options influence this feature:
 '''
 
 from mercurial.i18n import _
-from mercurial import cmdutil, commands, hg, util, extensions, bookmarks
+from mercurial import cmdutil, commands, hg, util, extensions, bookmarks, error
 from mercurial.hg import repository, parseurl
 import errno
 
@@ -73,7 +73,8 @@ def share(ui, source, dest=None, noupdate=False, bookmarks=False):
        the broken clone to reset it to a changeset that still exists.
     """
 
-    return hg.share(ui, source, dest, not noupdate, bookmarks)
+    return hg.share(ui, source, dest=dest, update=not noupdate,
+                    bookmarks=bookmarks)
 
 @command('unshare', [], '')
 def unshare(ui, repo):
@@ -83,7 +84,7 @@ def unshare(ui, repo):
     """
 
     if not repo.shared():
-        raise util.Abort(_("this is not a shared repo"))
+        raise error.Abort(_("this is not a shared repo"))
 
     destlock = lock = None
     lock = repo.lock()
@@ -121,9 +122,9 @@ def clone(orig, ui, source, *args, **opts):
     return orig(ui, source, *args, **opts)
 
 def extsetup(ui):
-    extensions.wrapfunction(bookmarks.bmstore, 'getbkfile', getbkfile)
+    extensions.wrapfunction(bookmarks, '_getbkfile', getbkfile)
     extensions.wrapfunction(bookmarks.bmstore, 'recordchange', recordchange)
-    extensions.wrapfunction(bookmarks.bmstore, 'write', write)
+    extensions.wrapfunction(bookmarks.bmstore, '_writerepo', writerepo)
     extensions.wrapcommand(commands.table, 'clone', clone)
 
 def _hassharedbookmarks(repo):
@@ -149,12 +150,12 @@ def _getsrcrepo(repo):
     srcurl, branches = parseurl(source)
     return repository(repo.ui, srcurl)
 
-def getbkfile(orig, self, repo):
+def getbkfile(orig, repo):
     if _hassharedbookmarks(repo):
         srcrepo = _getsrcrepo(repo)
         if srcrepo is not None:
             repo = srcrepo
-    return orig(self, repo)
+    return orig(repo)
 
 def recordchange(orig, self, tr):
     # Continue with write to local bookmarks file as usual
@@ -166,10 +167,11 @@ def recordchange(orig, self, tr):
             category = 'share-bookmarks'
             tr.addpostclose(category, lambda tr: self._writerepo(srcrepo))
 
-def write(orig, self):
+def writerepo(orig, self, repo):
     # First write local bookmarks file in case we ever unshare
-    orig(self)
+    orig(self, repo)
+
     if _hassharedbookmarks(self._repo):
         srcrepo = _getsrcrepo(self._repo)
         if srcrepo is not None:
-            self._writerepo(srcrepo)
+            orig(self, srcrepo)

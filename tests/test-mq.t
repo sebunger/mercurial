@@ -25,7 +25,7 @@ help
   Known patches are represented as patch files in the .hg/patches directory.
   Applied patches are both patch files and changesets.
   
-  Common tasks (use "hg help command" for more details):
+  Common tasks (use 'hg help command' for more details):
   
     create new patch                          qnew
     import existing patch                     qimport
@@ -39,7 +39,7 @@ help
   
   By default, mq will automatically use git patches when required to avoid
   losing file mode changes, copy records, binary files or empty files creations
-  or deletions. This behaviour can be configured with:
+  or deletions. This behavior can be configured with:
   
     [mq]
     git = auto/keep/yes/no
@@ -49,14 +49,14 @@ help
   will override the [diff] section and always generate git or regular patches,
   possibly losing data in the second case.
   
-  It may be desirable for mq changesets to be kept in the secret phase (see "hg
-  help phases"), which can be enabled with the following setting:
+  It may be desirable for mq changesets to be kept in the secret phase (see 'hg
+  help phases'), which can be enabled with the following setting:
   
     [mq]
     secret = True
   
   You will by default be managing a patch queue named "patches". You can create
-  other, independent patch queues with the "hg qqueue" command.
+  other, independent patch queues with the 'hg qqueue' command.
   
   If the working directory contains uncommitted files, qpush, qpop and qgoto
   abort immediately. If -f/--force is used, the changes are discarded. Setting:
@@ -869,7 +869,7 @@ qpush failure
   1 out of 1 hunks FAILED -- saving rejects to file foo.rej
   patch failed, unable to continue (try -v)
   patch failed, rejects left in working directory
-  errors during apply, please fix and refresh bar
+  errors during apply, please fix and qrefresh bar
   [2]
   $ hg st
   ? foo
@@ -1394,9 +1394,10 @@ qpush should fail, local changes
 
 apply force, should discard changes in hello, but not bye
 
-  $ hg qpush -f --verbose
+  $ hg qpush -f --verbose --config 'ui.origbackuppath=.hg/origbackups'
   applying empty
-  saving current version of hello.txt as hello.txt.orig
+  creating directory: $TESTTMP/forcepush/.hg/origbackups (glob)
+  saving current version of hello.txt as $TESTTMP/forcepush/.hg/origbackups/hello.txt.orig (glob)
   patching file hello.txt
   committing files:
   hello.txt
@@ -1405,7 +1406,6 @@ apply force, should discard changes in hello, but not bye
   now at: empty
   $ hg st
   M bye.txt
-  ? hello.txt.orig
   $ hg diff --config diff.nodates=True
   diff -r ba252371dbc1 bye.txt
   --- a/bye.txt
@@ -1428,6 +1428,10 @@ apply force, should discard changes in hello, but not bye
   +world
   +universe
 
+test that the previous call to qpush with -f (--force) and --config actually put
+the orig files out of the working copy
+  $ ls .hg/origbackups
+  hello.txt.orig
 
 test popping revisions not in working dir ancestry
 

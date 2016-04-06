@@ -62,9 +62,9 @@ def lfconvert(ui, src, dest, *pats, **opts):
         size = lfutil.getminsize(ui, True, opts.get('size'), default=None)
 
     if not hg.islocal(src):
-        raise util.Abort(_('%s is not a local Mercurial repo') % src)
+        raise error.Abort(_('%s is not a local Mercurial repo') % src)
     if not hg.islocal(dest):
-        raise util.Abort(_('%s is not a local Mercurial repo') % dest)
+        raise error.Abort(_('%s is not a local Mercurial repo') % dest)
 
     rsrc = hg.repository(ui, src)
     ui.status(_('initializing destination %s\n') % dest)
@@ -139,14 +139,9 @@ def lfconvert(ui, src, dest, *pats, **opts):
                     path = lfutil.findfile(rsrc, hash)
 
                     if path is None:
-                        raise util.Abort(_("missing largefile for \'%s\' in %s")
+                        raise error.Abort(_("missing largefile for '%s' in %s")
                                           % (realname, realrev))
-                    fp = open(path, 'rb')
-
-                    try:
-                        return (fp.read(), f[1])
-                    finally:
-                        fp.close()
+                    return util.readfile(path), f[1]
 
             class converter(convcmd.converter):
                 def __init__(self, ui, source, dest, revmapfile, opts):
@@ -157,7 +152,7 @@ def lfconvert(ui, src, dest, *pats, **opts):
 
             found, missing = downloadlfiles(ui, rsrc)
             if missing != 0:
-                raise util.Abort(_("all largefiles must be present locally"))
+                raise error.Abort(_("all largefiles must be present locally"))
 
             orig = convcmd.converter
             convcmd.converter = converter
@@ -196,7 +191,7 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
                 islfile |= renamedlfile
                 if 'l' in fctx.flags():
                     if renamedlfile:
-                        raise util.Abort(
+                        raise error.Abort(
                             _('renamed/copied largefile %s becomes symlink')
                             % f)
                     islfile = False
@@ -213,7 +208,7 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
                 if 'l' in fctx.flags():
                     renamed = fctx.renamed()
                     if renamed and renamed[0] in lfiles:
-                        raise util.Abort(_('largefile %s becomes symlink') % f)
+                        raise error.Abort(_('largefile %s becomes symlink') % f)
 
                 # largefile was modified, update standins
                 m = util.sha1('')
@@ -355,7 +350,7 @@ def uploadlfiles(ui, rsrc, rdst, files):
                     total=len(files))
         source = lfutil.findfile(rsrc, hash)
         if not source:
-            raise util.Abort(_('largefile %s missing from store'
+            raise error.Abort(_('largefile %s missing from store'
                                ' (needs to be uploaded)') % hash)
         # XXX check for errors here
         store.put(source, hash)
@@ -431,8 +426,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
     ignore, for false) message forcibly".
     '''
     statuswriter = lfutil.getstatuswriter(ui, repo, printmessage)
-    wlock = repo.wlock()
-    try:
+    with repo.wlock():
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         lfiles = set(lfutil.listlfiles(repo)) | set(lfdirstate)
 
@@ -444,12 +438,14 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
         updated, removed = 0, 0
         for lfile in lfiles:
             abslfile = repo.wjoin(lfile)
+            abslfileorig = scmutil.origpath(ui, repo, abslfile)
             absstandin = repo.wjoin(lfutil.standin(lfile))
+            absstandinorig = scmutil.origpath(ui, repo, absstandin)
             if os.path.exists(absstandin):
-                if (os.path.exists(absstandin + '.orig') and
+                if (os.path.exists(absstandinorig) and
                     os.path.exists(abslfile)):
-                    shutil.copyfile(abslfile, abslfile + '.orig')
-                    util.unlinkpath(absstandin + '.orig')
+                    shutil.copyfile(abslfile, abslfileorig)
+                    util.unlinkpath(absstandinorig)
                 expecthash = lfutil.readstandin(repo, lfile)
                 if expecthash != '':
                     if lfile not in repo[None]: # not switched to normal file
@@ -507,8 +503,6 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
         if lfiles:
             statuswriter(_('%d largefiles updated, %d removed\n') % (updated,
                 removed))
-    finally:
-        wlock.release()
 
 @command('lfpull',
     [('r', 'rev', [], _('pull largefiles for these revisions'))
@@ -539,7 +533,7 @@ def lfpull(ui, repo, source="default", **opts):
 
     revs = opts.get('rev', [])
     if not revs:
-        raise util.Abort(_('no revisions specified'))
+        raise error.Abort(_('no revisions specified'))
     revs = scmutil.revrange(repo, revs)
 
     numcached = 0

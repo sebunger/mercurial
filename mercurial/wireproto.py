@@ -5,12 +5,34 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import urllib, tempfile, os, sys
-from i18n import _
-from node import bin, hex
-import changegroup as changegroupmod, bundle2, pushkey as pushkeymod
-import peer, error, encoding, util, exchange
+from __future__ import absolute_import
 
+import os
+import sys
+import tempfile
+import urllib
+
+from .i18n import _
+from .node import (
+    bin,
+    hex,
+)
+
+from . import (
+    bundle2,
+    changegroup as changegroupmod,
+    encoding,
+    error,
+    exchange,
+    peer,
+    pushkey as pushkeymod,
+    streamclone,
+    util,
+)
+
+bundle2required = _(
+    'incompatible Mercurial client; bundle2 required\n'
+    '(see https://www.mercurial-scm.org/wiki/IncompatibleClient)\n')
 
 class abstractserverproto(object):
     """abstract class that summarizes the protocol API
@@ -58,48 +80,12 @@ class abstractserverproto(object):
         Some protocols may have compressed the contents."""
         raise NotImplementedError()
 
-# abstract batching support
-
-class future(object):
-    '''placeholder for a value to be set later'''
-    def set(self, value):
-        if util.safehasattr(self, 'value'):
-            raise error.RepoError("future is already set")
-        self.value = value
-
-class batcher(object):
-    '''base class for batches of commands submittable in a single request
-
-    All methods invoked on instances of this class are simply queued and
-    return a a future for the result. Once you call submit(), all the queued
-    calls are performed and the results set in their respective futures.
-    '''
-    def __init__(self):
-        self.calls = []
-    def __getattr__(self, name):
-        def call(*args, **opts):
-            resref = future()
-            self.calls.append((name, args, opts, resref,))
-            return resref
-        return call
-    def submit(self):
-        pass
-
-class localbatch(batcher):
-    '''performs the queued calls directly'''
-    def __init__(self, local):
-        batcher.__init__(self)
-        self.local = local
-    def submit(self):
-        for name, args, opts, resref in self.calls:
-            resref.set(getattr(self.local, name)(*args, **opts))
-
-class remotebatch(batcher):
+class remotebatch(peer.batcher):
     '''batches the queued calls; uses as few roundtrips as possible'''
     def __init__(self, remote):
         '''remote must support _submitbatch(encbatch) and
         _submitone(op, encargs)'''
-        batcher.__init__(self)
+        peer.batcher.__init__(self)
         self.remote = remote
     def submit(self):
         req, rsp = [], []
@@ -128,41 +114,10 @@ class remotebatch(batcher):
             encresref.set(encres)
             resref.set(batchable.next())
 
-def batchable(f):
-    '''annotation for batchable methods
-
-    Such methods must implement a coroutine as follows:
-
-    @batchable
-    def sample(self, one, two=None):
-        # Handle locally computable results first:
-        if not one:
-            yield "a local result", None
-        # Build list of encoded arguments suitable for your wire protocol:
-        encargs = [('one', encode(one),), ('two', encode(two),)]
-        # Create future for injection of encoded result:
-        encresref = future()
-        # Return encoded arguments and future:
-        yield encargs, encresref
-        # Assuming the future to be filled with the result from the batched
-        # request now. Decode it:
-        yield decode(encresref.value)
-
-    The decorator returns a function which wraps this coroutine as a plain
-    method, but adds the original method as an attribute called "batchable",
-    which is used by remotebatch to split the call into separate encoding and
-    decoding phases.
-    '''
-    def plain(*args, **opts):
-        batchable = f(*args, **opts)
-        encargsorres, encresref = batchable.next()
-        if not encresref:
-            return encargsorres # a local result in this case
-        self = args[0]
-        encresref.set(self._submitone(f.func_name, encargsorres))
-        return batchable.next()
-    setattr(plain, 'batchable', f)
-    return plain
+# Forward a couple of names from peer to make wireproto interactions
+# slightly more sensible.
+batchable = peer.batchable
+future = peer.future
 
 # list of nodes encoding / decoding
 
@@ -209,14 +164,24 @@ gboptsmap = {'heads':  'nodes',
              'obsmarkers': 'boolean',
              'bundlecaps': 'scsv',
              'listkeys': 'csv',
-             'cg': 'boolean'}
+             'cg': 'boolean',
+             'cbattempted': 'boolean'}
 
 # client side
 
 class wirepeer(peer.peerrepository):
+    """Client-side interface for communicating with a peer repository.
 
+    Methods commonly call wire protocol commands of the same name.
+
+    See also httppeer.py and sshpeer.py for protocol-specific
+    implementations of this interface.
+    """
     def batch(self):
-        return remotebatch(self)
+        if self.capable('batch'):
+            return remotebatch(self)
+        else:
+            return peer.localbatch(self)
     def _submitbatch(self, req):
         cmds = []
         for op, argsdict in req:
@@ -526,6 +491,35 @@ def options(cmd, keys, others):
                          % (cmd, ",".join(others)))
     return opts
 
+def bundle1allowed(repo, action):
+    """Whether a bundle1 operation is allowed from the server.
+
+    Priority is:
+
+    1. server.bundle1gd.<action> (if generaldelta active)
+    2. server.bundle1.<action>
+    3. server.bundle1gd (if generaldelta active)
+    4. server.bundle1
+    """
+    ui = repo.ui
+    gd = 'generaldelta' in repo.requirements
+
+    if gd:
+        v = ui.configbool('server', 'bundle1gd.%s' % action, None)
+        if v is not None:
+            return v
+
+    v = ui.configbool('server', 'bundle1.%s' % action, None)
+    if v is not None:
+        return v
+
+    if gd:
+        v = ui.configbool('server', 'bundle1gd', None)
+        if v is not None:
+            return v
+
+    return ui.configbool('server', 'bundle1', True)
+
 # list of commands
 commands = {}
 
@@ -594,6 +588,17 @@ def branches(repo, proto, nodes):
         r.append(encodelist(b) + "\n")
     return "".join(r)
 
+@wireprotocommand('clonebundles', '')
+def clonebundles(repo, proto):
+    """Server command for returning info for available bundles to seed clones.
+
+    Clients will parse this response and determine what bundle to fetch.
+
+    Extensions may wrap this command to filter or dynamically emit data
+    depending on the request. e.g. you could advertise URLs for the closest
+    data center given the client's IP address.
+    """
+    return repo.opener.tryread('clonebundles.manifest')
 
 wireprotocaps = ['lookup', 'changegroupsubset', 'branchmap', 'pushkey',
                  'known', 'getbundle', 'unbundlehash', 'batch']
@@ -610,7 +615,7 @@ def _capabilities(repo, proto):
     """
     # copy to prevent modification of the global list
     caps = list(wireprotocaps)
-    if _allowstream(repo.ui):
+    if streamclone.allowservergeneration(repo.ui):
         if repo.ui.configbool('server', 'preferuncompressed', False):
             caps.append('stream-preferred')
         requiredformats = repo.requirements & repo.supportedformats
@@ -619,7 +624,7 @@ def _capabilities(repo, proto):
             caps.append('stream')
         # otherwise, add 'streamreqs' detailing our local revlog format
         else:
-            caps.append('streamreqs=%s' % ','.join(requiredformats))
+            caps.append('streamreqs=%s' % ','.join(sorted(requiredformats)))
     if repo.ui.configbool('experimental', 'bundle2-advertise', True):
         capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo))
         caps.append('bundle2=' + urllib.quote(capsblob))
@@ -671,10 +676,20 @@ def getbundle(repo, proto, others):
         elif keytype == 'scsv':
             opts[k] = set(v.split(','))
         elif keytype == 'boolean':
-            opts[k] = bool(v)
+            # Client should serialize False as '0', which is a non-empty string
+            # so it evaluates as a True bool.
+            if v == '0':
+                opts[k] = False
+            else:
+                opts[k] = bool(v)
         elif keytype != 'plain':
             raise KeyError('unknown getbundle option type %s'
                            % keytype)
+
+    if not bundle1allowed(repo, 'pull'):
+        if not exchange.bundle2requested(opts.get('bundlecaps')):
+            return ooberror(bundle2required)
+
     cg = exchange.getbundle(repo, 'serve', **opts)
     return streamres(proto.groupchunks(cg))
 
@@ -736,7 +751,7 @@ def pushkey(repo, proto, namespace, key, old, new):
         try:
             r = repo.pushkey(encoding.tolocal(namespace), encoding.tolocal(key),
                              encoding.tolocal(old), new) or False
-        except util.Abort:
+        except error.Abort:
             r = False
 
         output = proto.restore()
@@ -747,16 +762,13 @@ def pushkey(repo, proto, namespace, key, old, new):
                      encoding.tolocal(old), new)
     return '%s\n' % int(r)
 
-def _allowstream(ui):
-    return ui.configbool('server', 'uncompressed', True, untrusted=True)
-
 @wireprotocommand('stream_out')
 def stream(repo, proto):
     '''If the server supports streaming clone, it advertises the "stream"
     capability with a value representing the version and flags of the repo
     it is serving. Client checks to see if it understands the format.
     '''
-    if not _allowstream(repo.ui):
+    if not streamclone.allowservergeneration(repo.ui):
         return '1\n'
 
     def getstream(it):
@@ -767,7 +779,7 @@ def stream(repo, proto):
     try:
         # LockError may be raised before the first result is yielded. Don't
         # emit output until we're sure we got the lock successfully.
-        it = exchange.generatestreamclone(repo)
+        it = streamclone.generatev1wireproto(repo)
         return streamres(getstream(it))
     except error.LockError:
         return '2\n'
@@ -789,6 +801,10 @@ def unbundle(repo, proto, heads):
             proto.getfile(fp)
             fp.seek(0)
             gen = exchange.readbundle(repo.ui, fp, None)
+            if (isinstance(gen, changegroupmod.cg1unpacker)
+                and not bundle1allowed(repo, 'push')):
+                return ooberror(bundle2required)
+
             r = exchange.unbundle(repo, gen, their_heads, 'serve',
                                   proto._client())
             if util.safehasattr(r, 'addpart'):
@@ -801,12 +817,12 @@ def unbundle(repo, proto, heads):
             fp.close()
             os.unlink(tempname)
 
-    except (error.BundleValueError, util.Abort, error.PushRaced) as exc:
+    except (error.BundleValueError, error.Abort, error.PushRaced) as exc:
         # handle non-bundle2 case first
         if not getattr(exc, 'duringunbundle2', False):
             try:
                 raise
-            except util.Abort:
+            except error.Abort:
                 # The old code we moved used sys.stderr directly.
                 # We did not change it to minimise code change.
                 # This need to be moved to something proper.
@@ -847,7 +863,7 @@ def unbundle(repo, proto, heads):
                 errpart.addparam('parttype', exc.parttype)
             if exc.params:
                 errpart.addparam('params', '\0'.join(exc.params))
-        except util.Abort as exc:
+        except error.Abort as exc:
             manargs = [('message', str(exc))]
             advargs = []
             if exc.hint is not None:

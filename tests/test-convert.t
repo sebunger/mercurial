@@ -57,7 +57,7 @@
         <source ID> <destination ID>
   
       If the file doesn't exist, it's automatically created. It's updated on
-      each commit copied, so "hg convert" can be interrupted and can be run
+      each commit copied, so 'hg convert' can be interrupted and can be run
       repeatedly to copy new commits.
   
       The authormap is a simple text file that maps each source commit author to
@@ -265,6 +265,9 @@
                     remote refs are converted as bookmarks with
                     "convert.git.remoteprefix" as a prefix followed by a /. The
                     default is 'remote'.
+      convert.git.skipsubmodules
+                    does not convert root level .gitmodules files or files with
+                    160000 mode indicating a submodule. Default is False.
   
       Perforce Source
       ###############

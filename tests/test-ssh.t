@@ -1,6 +1,11 @@
 
 This test tries to exercise the ssh functionality with a dummy script
 
+  $ cat <<EOF >> $HGRCPATH
+  > [format]
+  > usegeneraldelta=yes
+  > EOF
+
 creating 'remote' repo
 
   $ hg init remote
@@ -34,14 +39,14 @@ configure for serving
 repo not found error
 
   $ hg clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/nonexistent local
-  remote: abort: there is no Mercurial repository here (.hg not found)!
+  remote: abort: repository nonexistent not found!
   abort: no suitable response from remote hg!
   [255]
 
 non-existent absolute path
 
-  $ hg clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy//`pwd`/nonexistent local
-  remote: abort: there is no Mercurial repository here (.hg not found)!
+  $ hg clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/`pwd`/nonexistent local
+  remote: abort: repository $TESTTMP/nonexistent not found!
   abort: no suitable response from remote hg!
   [255]
 
@@ -119,7 +124,7 @@ pull from wrong ssh URL
 
   $ hg pull -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/doesnotexist
   pulling from ssh://user@dummy/doesnotexist
-  remote: abort: there is no Mercurial repository here (.hg not found)!
+  remote: abort: repository doesnotexist not found!
   abort: no suitable response from remote hg!
   [255]
 
@@ -397,7 +402,8 @@ Test hg-ssh in read-only mode:
   pushing to ssh://user@dummy/*/remote (glob)
   searching for changes
   remote: Permission denied
-  abort: pretxnopen.hg-ssh hook failed
+  remote: pretxnopen.hg-ssh hook failed
+  abort: push failed on remote
   [255]
 
   $ cd ..
@@ -448,8 +454,8 @@ debug output
   running python ".*/dummyssh" user@dummy ('|")hg -R remote serve --stdio('|") (re)
   sending hello command
   sending between command
-  remote: 345
-  remote: capabilities: lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch stream bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1%2Csha512%0Aerror%3Dabort%2Cunsupportedcontent%2Cpushraced%2Cpushkey%0Ahgtagsfnodes%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024
+  remote: 371
+  remote: capabilities: lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch streamreqs=generaldelta,revlogv1 bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1%2Csha512%0Aerror%3Dabort%2Cunsupportedcontent%2Cpushraced%2Cpushkey%0Ahgtagsfnodes%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024
   remote: 1
   query 1; heads
   sending batch command
@@ -471,7 +477,7 @@ debug output
 
   $ cat dummylog
   Got arguments 1:user@dummy 2:hg -R nonexistent serve --stdio
-  Got arguments 1:user@dummy 2:hg -R /$TESTTMP/nonexistent serve --stdio
+  Got arguments 1:user@dummy 2:hg -R $TESTTMP/nonexistent serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R local-stream serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
@@ -481,7 +487,7 @@ debug output
   Got arguments 1:user@dummy 2:hg -R local serve --stdio
   Got arguments 1:user@dummy 2:hg -R $TESTTMP/local serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  changegroup-in-remote hook: HG_BUNDLE2=1 HG_NODE=a28a9d1a809cab7d4e2fde4bee738a9ede948b60 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:ssh:127.0.0.1 (glob)
+  changegroup-in-remote hook: HG_BUNDLE2=1 HG_NODE=a28a9d1a809cab7d4e2fde4bee738a9ede948b60 HG_NODE_LAST=a28a9d1a809cab7d4e2fde4bee738a9ede948b60 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:ssh:127.0.0.1 (glob)
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
@@ -491,7 +497,7 @@ debug output
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  changegroup-in-remote hook: HG_BUNDLE2=1 HG_NODE=1383141674ec756a6056f6a9097618482fe0f4a6 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:ssh:127.0.0.1 (glob)
+  changegroup-in-remote hook: HG_BUNDLE2=1 HG_NODE=1383141674ec756a6056f6a9097618482fe0f4a6 HG_NODE_LAST=1383141674ec756a6056f6a9097618482fe0f4a6 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:ssh:127.0.0.1 (glob)
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   Got arguments 1:user@dummy 2:hg init 'a repo'
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
@@ -499,5 +505,35 @@ debug output
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  changegroup-in-remote hook: HG_BUNDLE2=1 HG_NODE=65c38f4125f9602c8db4af56530cc221d93b8ef8 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:ssh:127.0.0.1 (glob)
+  changegroup-in-remote hook: HG_BUNDLE2=1 HG_NODE=65c38f4125f9602c8db4af56530cc221d93b8ef8 HG_NODE_LAST=65c38f4125f9602c8db4af56530cc221d93b8ef8 HG_SOURCE=serve HG_TXNID=TXN:* HG_URL=remote:ssh:127.0.0.1 (glob)
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+
+remote hook failure is attributed to remote
+
+  $ cat > $TESTTMP/failhook << EOF
+  > def hook(ui, repo, **kwargs):
+  >     ui.write('hook failure!\n')
+  >     ui.flush()
+  >     return 1
+  > EOF
+
+  $ echo "pretxnchangegroup.fail = python:$TESTTMP/failhook:hook" >> remote/.hg/hgrc
+
+  $ hg -q --config ui.ssh="python $TESTDIR/dummyssh" clone ssh://user@dummy/remote hookout
+  $ cd hookout
+  $ touch hookfailure
+  $ hg -q commit -A -m 'remote hook failure'
+  $ hg --config ui.ssh="python $TESTDIR/dummyssh" push
+  pushing to ssh://user@dummy/remote
+  searching for changes
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 1 changesets with 1 changes to 1 files
+  remote: hook failure!
+  remote: transaction abort!
+  remote: rollback completed
+  remote: pretxnchangegroup.fail hook failed
+  abort: push failed on remote
+  [255]
+

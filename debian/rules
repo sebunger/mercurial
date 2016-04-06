@@ -85,7 +85,9 @@ install-archindep:
 
 override_dh_python2:
 	dh_python2
-	find debian/mercurial/usr/share -type d -empty -delete
+	if test -d debian/mercurial; then \
+		find debian/mercurial/usr/share -type d -empty -delete ; \
+	fi
 
 override_dh_auto_clean: mercurial/__version__.py
 	cp -a mercurial/__version__.py mercurial/__version__.py.save

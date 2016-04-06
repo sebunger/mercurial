@@ -12,7 +12,7 @@ import os
 import copy
 
 from mercurial import hg, util, cmdutil, scmutil, match as match_, \
-        archival, pathutil, revset
+        archival, pathutil, revset, error
 from mercurial.i18n import _
 
 import lfutil
@@ -50,8 +50,10 @@ def composenormalfilematcher(match, manifest, exclude=None):
 
 def installnormalfilesmatchfn(manifest):
     '''installmatchfn with a matchfn that ignores all largefiles'''
-    def overridematch(ctx, pats=[], opts={}, globbed=False,
+    def overridematch(ctx, pats=(), opts=None, globbed=False,
             default='relpath', badfn=None):
+        if opts is None:
+            opts = {}
         match = oldmatch(ctx, pats, opts, globbed, default, badfn=badfn)
         return composenormalfilematcher(match, manifest)
     oldmatch = installmatchfn(overridematch)
@@ -139,8 +141,7 @@ def addlargefiles(ui, repo, isaddremove, matcher, **opts):
 
     # Need to lock, otherwise there could be a race condition between
     # when standins are created and added to the repo.
-    wlock = repo.wlock()
-    try:
+    with repo.wlock():
         if not opts.get('dry_run'):
             standins = []
             lfdirstate = lfutil.openlfdirstate(ui, repo)
@@ -159,8 +160,6 @@ def addlargefiles(ui, repo, isaddremove, matcher, **opts):
                     if f in m.files()]
 
         added = [f for f in lfnames if f not in bad]
-    finally:
-        wlock.release()
     return added, bad
 
 def removelargefiles(ui, repo, isaddremove, matcher, **opts):
@@ -197,8 +196,7 @@ def removelargefiles(ui, repo, isaddremove, matcher, **opts):
 
     # Need to lock because standin files are deleted then removed from the
     # repository and we could race in-between.
-    wlock = repo.wlock()
-    try:
+    with repo.wlock():
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         for f in sorted(remove):
             if ui.verbose or not m.exact(f):
@@ -229,8 +227,6 @@ def removelargefiles(ui, repo, isaddremove, matcher, **opts):
                                   False)
 
         lfdirstate.write()
-    finally:
-        wlock.release()
 
     return result
 
@@ -243,7 +239,7 @@ def decodepath(orig, path):
 
 def overrideadd(orig, ui, repo, *pats, **opts):
     if opts.get('normal') and opts.get('large'):
-        raise util.Abort(_('--normal cannot be used with --large'))
+        raise error.Abort(_('--normal cannot be used with --large'))
     return orig(ui, repo, *pats, **opts)
 
 def cmdutiladd(orig, ui, repo, matcher, prefix, explicitonly, **opts):
@@ -287,13 +283,15 @@ def overridedirty(orig, repo, ignoreupdate=False):
         repo._repo.lfstatus = False
 
 def overridelog(orig, ui, repo, *pats, **opts):
-    def overridematchandpats(ctx, pats=[], opts={}, globbed=False,
+    def overridematchandpats(ctx, pats=(), opts=None, globbed=False,
             default='relpath', badfn=None):
         """Matcher that merges root directory with .hglf, suitable for log.
         It is still possible to match .hglf directly.
         For any listed files run log on the standin too.
         matchfn tries both the given filename and with .hglf stripped.
         """
+        if opts is None:
+            opts = {}
         matchandpats = oldmatchandpats(ctx, pats, opts, globbed, default,
                                        badfn=badfn)
         m, p = copy.copy(matchandpats)
@@ -320,7 +318,7 @@ def overridelog(orig, ui, repo, *pats, **opts):
             back = util.pconvert(m.rel(hglf)[:-len(hglf)])
 
             def tostandin(f):
-                # The file may already be a standin, so trucate the back
+                # The file may already be a standin, so truncate the back
                 # prefix and test before mangling it.  This avoids turning
                 # 'glob:../.hglf/foo*' into 'glob:../.hglf/../.hglf/foo*'.
                 if f.startswith(back) and lfutil.splitstandin(f[len(back):]):
@@ -454,11 +452,11 @@ def overridecheckunknownfile(origfn, repo, wctx, mctx, f, f2=None):
 # writing the files into the working copy and lfcommands.updatelfiles
 # will update the largefiles.
 def overridecalculateupdates(origfn, repo, p1, p2, pas, branchmerge, force,
-                             partial, acceptremote, followcopies):
+                             acceptremote, followcopies, matcher=None):
     overwrite = force and not branchmerge
     actions, diverge, renamedelete = origfn(
-        repo, p1, p2, pas, branchmerge, force, partial, acceptremote,
-        followcopies)
+        repo, p1, p2, pas, branchmerge, force, acceptremote,
+        followcopies, matcher=matcher)
 
     if overwrite:
         return actions, diverge, renamedelete
@@ -466,17 +464,20 @@ def overridecalculateupdates(origfn, repo, p1, p2, pas, branchmerge, force,
     # Convert to dictionary with filename as key and action as value.
     lfiles = set()
     for f in actions:
-        splitstandin = f and lfutil.splitstandin(f)
+        splitstandin = lfutil.splitstandin(f)
         if splitstandin in p1:
             lfiles.add(splitstandin)
         elif lfutil.standin(f) in p1:
             lfiles.add(f)
 
-    for lfile in lfiles:
+    for lfile in sorted(lfiles):
         standin = lfutil.standin(lfile)
         (lm, largs, lmsg) = actions.get(lfile, (None, None, None))
         (sm, sargs, smsg) = actions.get(standin, (None, None, None))
         if sm in ('g', 'dc') and lm != 'r':
+            if sm == 'dc':
+                f1, f2, fa, move, anc = sargs
+                sargs = (p2[f2].flags(), False)
             # Case 1: normal file in the working copy, largefile in
             # the second parent
             usermsg = _('remote turned local normal file %s into a largefile\n'
@@ -492,6 +493,9 @@ def overridecalculateupdates(origfn, repo, p1, p2, pas, branchmerge, force,
                 else:
                     actions[standin] = ('r', None, 'replaced by non-standin')
         elif lm in ('g', 'dc') and sm != 'r':
+            if lm == 'dc':
+                f1, f2, fa, move, anc = largs
+                largs = (p2[f2].flags(), False)
             # Case 2: largefile in the working copy, normal file in
             # the second parent
             usermsg = _('remote turned local largefile %s into a normal file\n'
@@ -532,9 +536,11 @@ def mergerecordupdates(orig, repo, actions, branchmerge):
 
 # Override filemerge to prompt the user about how they wish to merge
 # largefiles. This will handle identical edits without prompting the user.
-def overridefilemerge(origfn, repo, mynode, orig, fcd, fco, fca, labels=None):
-    if not lfutil.isstandin(orig):
-        return origfn(repo, mynode, orig, fcd, fco, fca, labels=labels)
+def overridefilemerge(origfn, premerge, repo, mynode, orig, fcd, fco, fca,
+                      labels=None):
+    if not lfutil.isstandin(orig) or fcd.isabsent() or fco.isabsent():
+        return origfn(premerge, repo, mynode, orig, fcd, fco, fca,
+                      labels=labels)
 
     ahash = fca.data().strip().lower()
     dhash = fcd.data().strip().lower()
@@ -549,7 +555,7 @@ def overridefilemerge(origfn, repo, mynode, orig, fcd, fco, fca, labels=None):
                (lfutil.splitstandin(orig), ahash, dhash, ohash),
              0) == 1)):
         repo.wwrite(fcd.path(), fco.data(), fco.flags())
-    return 0
+    return True, 0, False
 
 def copiespathcopies(orig, ctx1, ctx2, match=None):
     copies = orig(ctx1, ctx2, match=match)
@@ -580,7 +586,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
     installnormalfilesmatchfn(repo[None].manifest())
     try:
         result = orig(ui, repo, pats, opts, rename)
-    except util.Abort as e:
+    except error.Abort as e:
         if str(e) != _('no files to copy'):
             raise e
         else:
@@ -613,8 +619,10 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
         wlock = repo.wlock()
 
         manifest = repo[None].manifest()
-        def overridematch(ctx, pats=[], opts={}, globbed=False,
+        def overridematch(ctx, pats=(), opts=None, globbed=False,
                 default='relpath', badfn=None):
+            if opts is None:
+                opts = {}
             newpats = []
             # The patterns were previously mangled to add the standin
             # directory; we need to remove that now
@@ -682,7 +690,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
 
                 lfdirstate.add(destlfile)
         lfdirstate.write()
-    except util.Abort as e:
+    except error.Abort as e:
         if str(e) != _('no files to copy'):
             raise e
         else:
@@ -692,7 +700,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
         wlock.release()
 
     if nolfiles and nonormalfiles:
-        raise util.Abort(_('no files to copy'))
+        raise error.Abort(_('no files to copy'))
 
     return result
 
@@ -709,8 +717,7 @@ def overriderevert(orig, ui, repo, ctx, parents, *pats, **opts):
     # Because we put the standins in a bad state (by updating them)
     # and then return them to a correct state we need to lock to
     # prevent others from changing them in their incorrect state.
-    wlock = repo.wlock()
-    try:
+    with repo.wlock():
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         s = lfutil.lfdirstatestatus(lfdirstate, repo)
         lfdirstate.write()
@@ -722,8 +729,10 @@ def overriderevert(orig, ui, repo, ctx, parents, *pats, **opts):
 
         oldstandins = lfutil.getstandinsstate(repo)
 
-        def overridematch(mctx, pats=[], opts={}, globbed=False,
+        def overridematch(mctx, pats=(), opts=None, globbed=False,
                 default='relpath', badfn=None):
+            if opts is None:
+                opts = {}
             match = oldmatch(mctx, pats, opts, globbed, default, badfn=badfn)
             m = copy.copy(match)
 
@@ -768,9 +777,6 @@ def overriderevert(orig, ui, repo, ctx, parents, *pats, **opts):
         lfcommands.updatelfiles(ui, repo, filelist, printmessage=False,
                                 normallookup=True)
 
-    finally:
-        wlock.release()
-
 # after pulling changesets, we need to take some extra care to get
 # largefiles updated remotely
 def overridepull(orig, ui, repo, source=None, **opts):
@@ -796,9 +802,11 @@ def overridepull(orig, ui, repo, source=None, **opts):
         ui.status(_("%d largefiles cached\n") % numcached)
     return result
 
+revsetpredicate = revset.extpredicate()
+
+@revsetpredicate('pulled()')
 def pulledrevsetsymbol(repo, subset, x):
-    """``pulled()``
-    Changesets that just has been pulled.
+    """Changesets that just has been pulled.
 
     Only available with largefiles from pull --lfrev expressions.
 
@@ -819,7 +827,7 @@ def pulledrevsetsymbol(repo, subset, x):
     try:
         firstpulled = repo.firstpulled
     except AttributeError:
-        raise util.Abort(_("pulled() only available in --lfrev"))
+        raise error.Abort(_("pulled() only available in --lfrev"))
     return revset.baseset([r for r in subset if r >= firstpulled])
 
 def overrideclone(orig, ui, source, dest=None, **opts):
@@ -827,7 +835,7 @@ def overrideclone(orig, ui, source, dest=None, **opts):
     if d is None:
         d = hg.defaultdest(source)
     if opts.get('all_largefiles') and not hg.islocal(d):
-            raise util.Abort(_(
+            raise error.Abort(_(
             '--all-largefiles is incompatible with non-local destination %s') %
             d)
 
@@ -908,13 +916,13 @@ def overridearchive(orig, repo, dest, node, kind, decode=True, matchfn=None,
         lfcommands.cachelfiles(repo.ui, repo, node)
 
     if kind not in archival.archivers:
-        raise util.Abort(_("unknown archive type '%s'") % kind)
+        raise error.Abort(_("unknown archive type '%s'") % kind)
 
     ctx = repo[node]
 
     if kind == 'files':
         if prefix:
-            raise util.Abort(
+            raise error.Abort(
                 _('cannot give prefix when archiving to files'))
     else:
         prefix = archival.tidyprefix(dest, kind, prefix)
@@ -941,7 +949,7 @@ def overridearchive(orig, repo, dest, node, kind, decode=True, matchfn=None,
                 path = lfutil.findfile(repo, getdata().strip())
 
                 if path is None:
-                    raise util.Abort(
+                    raise error.Abort(
                        _('largefile %s not found in repo store or system cache')
                        % lfutil.splitstandin(f))
             else:
@@ -949,16 +957,7 @@ def overridearchive(orig, repo, dest, node, kind, decode=True, matchfn=None,
 
             f = lfutil.splitstandin(f)
 
-            def getdatafn():
-                fd = None
-                try:
-                    fd = open(path, 'rb')
-                    return fd.read()
-                finally:
-                    if fd:
-                        fd.close()
-
-            getdata = getdatafn
+            getdata = lambda: util.readfile(path)
         write(f, 'x' in ff and 0o755 or 0o644, 'l' in ff, getdata)
 
     if subrepos:
@@ -998,7 +997,7 @@ def hgsubrepoarchive(orig, repo, archiver, prefix, match=None):
                 path = lfutil.findfile(repo._repo, getdata().strip())
 
                 if path is None:
-                    raise util.Abort(
+                    raise error.Abort(
                        _('largefile %s not found in repo store or system cache')
                        % lfutil.splitstandin(f))
             else:
@@ -1006,16 +1005,7 @@ def hgsubrepoarchive(orig, repo, archiver, prefix, match=None):
 
             f = lfutil.splitstandin(f)
 
-            def getdatafn():
-                fd = None
-                try:
-                    fd = open(os.path.join(prefix, path), 'rb')
-                    return fd.read()
-                finally:
-                    if fd:
-                        fd.close()
-
-            getdata = getdatafn
+            getdata = lambda: util.readfile(os.path.join(prefix, path))
 
         write(f, 'x' in ff and 0o755 or 0o644, 'l' in ff, getdata)
 
@@ -1035,7 +1025,14 @@ def overridebailifchanged(orig, repo, *args, **kwargs):
     s = repo.status()
     repo.lfstatus = False
     if s.modified or s.added or s.removed or s.deleted:
-        raise util.Abort(_('uncommitted changes'))
+        raise error.Abort(_('uncommitted changes'))
+
+def postcommitstatus(orig, repo, *args, **kwargs):
+    repo.lfstatus = True
+    try:
+        return orig(repo, *args, **kwargs)
+    finally:
+        repo.lfstatus = False
 
 def cmdutilforget(orig, ui, repo, match, prefix, explicitonly):
     normalmatcher = composenormalfilematcher(match, repo[None].manifest())
@@ -1063,8 +1060,7 @@ def cmdutilforget(orig, ui, repo, match, prefix, explicitonly):
 
     # Need to lock because standin files are deleted then removed from the
     # repository and we could race in-between.
-    wlock = repo.wlock()
-    try:
+    with repo.wlock():
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         for f in forget:
             if lfdirstate[f] == 'a':
@@ -1076,8 +1072,6 @@ def cmdutilforget(orig, ui, repo, match, prefix, explicitonly):
         for f in standins:
             util.unlinkpath(repo.wjoin(f), ignoremissing=True)
         rejected = repo[None].forget(standins)
-    finally:
-        wlock.release()
 
     bad.extend(f for f in rejected if f in m.files())
     forgot.extend(f for f in forget if f not in rejected)
@@ -1174,8 +1168,10 @@ def overridesummary(orig, ui, repo, *pats, **opts):
     finally:
         repo.lfstatus = False
 
-def scmutiladdremove(orig, repo, matcher, prefix, opts={}, dry_run=None,
+def scmutiladdremove(orig, repo, matcher, prefix, opts=None, dry_run=None,
                      similarity=None):
+    if opts is None:
+        opts = {}
     if not lfutil.islfilesrepo(repo):
         return orig(repo, matcher, prefix, opts, dry_run, similarity)
     # Get the list of missing largefiles so we can remove them
@@ -1234,8 +1230,7 @@ def overridepurge(orig, ui, repo, *dirs, **opts):
     orig(ui, repo, *dirs, **opts)
     repo.status = oldstatus
 def overriderollback(orig, ui, repo, **opts):
-    wlock = repo.wlock()
-    try:
+    with repo.wlock():
         before = repo.dirstate.parents()
         orphans = set(f for f in repo.dirstate
                       if lfutil.isstandin(f) and repo.dirstate[f] != 'r')
@@ -1269,8 +1264,6 @@ def overriderollback(orig, ui, repo, **opts):
         for lfile in orphans:
             lfdirstate.drop(lfile)
         lfdirstate.write()
-    finally:
-        wlock.release()
     return result
 
 def overridetransplant(orig, ui, repo, *revs, **opts):
@@ -1334,7 +1327,7 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
                 store = basestore._openstore(repo)
                 success, missing = store.get([(lf, hash)])
                 if len(success) != 1:
-                    raise util.Abort(
+                    raise error.Abort(
                         _('largefile %s is not in cache and could not be '
                           'downloaded')  % lf)
             path = lfutil.usercachepath(repo.ui, hash)
@@ -1346,10 +1339,12 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
         err = 0
     return err
 
-def mergeupdate(orig, repo, node, branchmerge, force, partial,
+def mergeupdate(orig, repo, node, branchmerge, force,
                 *args, **kwargs):
-    wlock = repo.wlock()
-    try:
+    matcher = kwargs.get('matcher', None)
+    # note if this is a partial update
+    partial = matcher and not matcher.always()
+    with repo.wlock():
         # branch |       |         |
         #  merge | force | partial | action
         # -------+-------+---------+--------------
@@ -1387,7 +1382,7 @@ def mergeupdate(orig, repo, node, branchmerge, force, partial,
 
         oldstandins = lfutil.getstandinsstate(repo)
 
-        result = orig(repo, node, branchmerge, force, partial, *args, **kwargs)
+        result = orig(repo, node, branchmerge, force, *args, **kwargs)
 
         newstandins = lfutil.getstandinsstate(repo)
         filelist = lfutil.getlfilestoupdate(oldstandins, newstandins)
@@ -1398,8 +1393,6 @@ def mergeupdate(orig, repo, node, branchmerge, force, partial,
                                 normallookup=partial)
 
         return result
-    finally:
-        wlock.release()
 
 def scmutilmarktouched(orig, repo, files, *args, **kwargs):
     result = orig(repo, files, *args, **kwargs)

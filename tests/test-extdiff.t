@@ -46,6 +46,7 @@ Should diff cloned directories:
    -o --option OPT [+]      pass option to comparison program
    -r --rev REV [+]         revision
    -c --change REV          change made by revision
+      --patch               compare patches for two revisions
    -I --include PATTERN [+] include names matching the given patterns
    -X --exclude PATTERN [+] exclude names matching the given patterns
    -S --subrepos            recurse into subrepositories
@@ -68,6 +69,12 @@ Should diff cloned files directly:
   diffing */extdiff.*/a.8a5febb7f867/a a.34eed99112ab/a (glob)
   [1]
 #endif
+
+Specifying an empty revision should abort.
+
+  $ hg extdiff --patch --rev 'ancestor()' --rev 1
+  abort: empty revision on one side of range
+  [255]
 
 Test diff during merge:
 
@@ -118,6 +125,25 @@ Check diff are made from the first parent:
   diffing */extdiff.*/a.2a13a4d2da36/a a.46c0e4daeb72/a (glob)
   diff-like tools yield a non-zero exit code
 #endif
+
+issue3153: ensure using extdiff with removed subrepos doesn't crash:
+
+  $ hg init suba
+  $ cd suba
+  $ echo suba > suba
+  $ hg add
+  adding suba
+  $ hg ci -m "adding suba file"
+  $ cd ..
+  $ echo suba=suba > .hgsub
+  $ hg add
+  adding .hgsub
+  $ hg ci -Sm "adding subrepo"
+  $ echo > .hgsub
+  $ hg ci -m "removing subrepo"
+  $ hg falabala -r 4 -r 5 -S
+  diffing a.398e36faf9c6 a.5ab95fb166c4
+  [1]
 
 issue4463: usage of command line configuration without additional quoting
 
