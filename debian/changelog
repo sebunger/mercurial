@@ -4,6 +4,7 @@ mercurial (3.8.1-1) UNRELEASED; urgency=medium
   * Fixes CVE-2016-3105
   * Bump standards-version to 3.9.8 (no change needed)
   * Re-enable test-parse-date.t in the test-suite
+  * mercurial 3.8.1 breaks current hgsubversion and mercurial-git
 
  -- Javi Merino <vicho@debian.org>  Mon, 02 May 2016 15:19:16 +0100
 
