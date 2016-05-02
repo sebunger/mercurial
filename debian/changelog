@@ -1,6 +1,6 @@
 mercurial (3.8.1-1) UNRELEASED; urgency=medium
 
-  * New upstream release.
+  * New upstream release (Closes: #737498)
   * Fixes CVE-2016-3105
 
  -- Javi Merino <vicho@debian.org>  Mon, 02 May 2016 15:19:16 +0100
