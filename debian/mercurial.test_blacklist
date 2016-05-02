@@ -1,8 +1,3 @@
-# A bug in glibc doesn't take DST into account under specific
-# circumstances in 32-bit systems
-# https://sourceware.org/bugzilla/show_bug.cgi?id=19738
-test-parse-date.t
-
 # test-clonebundles.t fails in the reproducible-builds setup due to no
 #  name resolution:
 # --- /build/mercurial-3.7.2/tests/test-clonebundles.t
