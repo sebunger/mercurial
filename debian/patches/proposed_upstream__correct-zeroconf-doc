@@ -2,8 +2,8 @@ Correct the documentation for the zeroconf extension.
 
 --- a/hgext/zeroconf/__init__.py
 +++ b/hgext/zeroconf/__init__.py
-@@ -7,9 +7,9 @@
- 
+@@ -6,9 +6,9 @@
+ # GNU General Public License version 2 or any later version.
  '''discover and advertise repositories on the local network
  
 -Zeroconf-enabled repositories will be announced in a network without
