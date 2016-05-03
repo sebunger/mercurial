@@ -1,4 +1,4 @@
-mercurial (3.8.1-1) UNRELEASED; urgency=medium
+mercurial (3.8.1-1) unstable; urgency=medium
 
   * New upstream release (Closes: #737498)
   * Fixes CVE-2016-3105
@@ -6,7 +6,7 @@ mercurial (3.8.1-1) UNRELEASED; urgency=medium
   * Re-enable test-parse-date.t in the test-suite
   * mercurial 3.8.1 breaks current hgsubversion and mercurial-git
 
- -- Javi Merino <vicho@debian.org>  Mon, 02 May 2016 15:19:16 +0100
+ -- Javi Merino <vicho@debian.org>  Tue, 03 May 2016 07:45:02 +0100
 
 mercurial (3.7.3-1) unstable; urgency=medium
 
