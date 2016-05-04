@@ -1,3 +1,10 @@
+mercurial (3.1.2-2+deb8u3) jessie-security; urgency=high
+
+  * CVE-2016-3105:
+    + convert: pass absolute paths to git
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 04 May 2016 12:16:28 +0200
+
 mercurial (3.1.2-2+deb8u2) jessie-security; urgency=high
 
   * CVE-2016-3630:
