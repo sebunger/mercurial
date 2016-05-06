@@ -1,0 +1,70 @@
+# HG changeset patch
+# User Blake Burkhart <bburky@bburky.com>
+# Date 1460001466 18000
+#      Wed Apr 06 22:57:46 2016 -0500
+# Branch stable
+# Node ID a56296f55a5e1038ea5016dace2076b693c28a56
+# Parent  27ad6cae7785b59f918f5e3ed33a2f1e88a60d4f
+convert: pass absolute paths to git (SEC)
+
+Fixes CVE-2016-3105 (1/1).
+
+Previously, it was possible for the repository path passed to git-ls-remote
+to be misinterpreted as a URL.
+
+Always passing an absolute path to git is a simple way to avoid this.
+
+Index: mercurial-2.2.2/hgext/convert/git.py
+===================================================================
+--- mercurial-2.2.2.orig/hgext/convert/git.py	2016-05-06 11:03:06.000000000 +0200
++++ mercurial-2.2.2/hgext/convert/git.py	2016-05-06 11:03:06.000000000 +0200
+@@ -41,6 +41,10 @@
+         super(convert_git, self).__init__(ui, path, rev=rev)
+         commandline.__init__(self, ui, 'git')
+ 
++        # Pass an absolute path to git to prevent from ever being interpreted
++        # as a URL
++        path = os.path.abspath(path)
++
+         if os.path.isdir(path + "/.git"):
+             path += "/.git"
+         if not os.path.exists(path + "/objects"):
+Index: mercurial-2.2.2/tests/test-convert-git.t
+===================================================================
+--- mercurial-2.2.2.orig/tests/test-convert-git.t	2016-05-06 11:03:06.000000000 +0200
++++ mercurial-2.2.2/tests/test-convert-git.t	2016-05-06 11:03:06.000000000 +0200
+@@ -308,3 +308,21 @@
+   updating bookmarks
+   $ test -f COMMAND-INJECTION
+   [1]
++
++test for safely passing paths to git (CVE-2016-3105)
++
++  $ git init 'ext::sh -c echo% pwned% >GIT-EXT-COMMAND-INJECTION% #'
++  Initialized empty Git repository in $TESTTMP/ext::sh -c echo% pwned% >GIT-EXT-COMMAND-INJECTION% #/.git/
++  $ cd 'ext::sh -c echo% pwned% >GIT-EXT-COMMAND-INJECTION% #'
++  $ git commit -q --allow-empty -m 'empty'
++  $ cd ..
++  $ hg convert 'ext::sh -c echo% pwned% >GIT-EXT-COMMAND-INJECTION% #' 'converted-git-ext'
++  initializing destination converted-git-ext repository
++  scanning source...
++  sorting...
++  converting...
++  0 empty
++  updating bookmarks
++  $ test -f GIT-EXT-COMMAND-INJECTION
++  [1]
++
+Index: mercurial-2.2.2/tests/test-convert.t
+===================================================================
+--- mercurial-2.2.2.orig/tests/test-convert.t	2016-05-06 11:03:06.000000000 +0200
++++ mercurial-2.2.2/tests/test-convert.t	2016-05-06 11:03:06.000000000 +0200
+@@ -345,7 +345,7 @@
+   assuming destination emptydir-hg
+   initializing destination emptydir-hg repository
+   emptydir does not look like a CVS checkout
+-  emptydir does not look like a Git repository
++  $TESTTMP/emptydir does not look like a Git repository
+   emptydir does not look like a Subversion repository
+   emptydir is not a local Mercurial repository
+   emptydir does not look like a darcs repository

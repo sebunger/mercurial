@@ -1,3 +1,11 @@
+mercurial (2.2.2-4+deb7u3) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the Wheezy LTS Team. 
+  * CVE-2016-3105:
+    + convert: pass absolute paths to git
+ 
+ -- Thorsten Alteholz <debian@alteholz.de>  Fri, 06 May 2016 10:03:02 +0200
+
 mercurial (2.2.2-4+deb7u2) wheezy-security; urgency=high
 
   * CVE-2016-3630:
