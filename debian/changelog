@@ -2,6 +2,7 @@ mercurial (3.8.2-1) UNRELEASED; urgency=medium
 
   * New upstream release
   * revert mercurial-git breaks to 0.8.3-1
+  * update debian/watch URL
 
  -- Javi Merino <vicho@debian.org>  Fri, 27 May 2016 10:23:59 +0200
 
