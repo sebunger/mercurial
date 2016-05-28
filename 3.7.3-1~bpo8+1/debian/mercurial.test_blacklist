@@ -1,0 +1,24 @@
+# A bug in glibc doesn't take DST into account under specific
+# circumstances in 32-bit systems
+# https://sourceware.org/bugzilla/show_bug.cgi?id=19738
+test-parse-date.t
+
+# test-clonebundles.t fails in the reproducible-builds setup due to no
+#  name resolution:
+# --- /build/mercurial-3.7.2/tests/test-clonebundles.t
+# +++ /build/mercurial-3.7.2/tests/test-clonebundles.t.err
+# @@ -52,7 +52,7 @@
+#    $ echo 'http://does.not.exist/bundle.hg' > server/.hg/clonebundles.manifest
+#    $ hg clone http://localhost:$HGPORT 404-url
+#    applying clone bundle from http://does.not.exist/bundle.hg
+# -  error fetching bundle: (.* not known|getaddrinfo failed) (re)
+# +  error fetching bundle: Temporary failure in name resolution
+#    abort: error applying bundle
+#    (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false")
+#    [255]
+#
+# ERROR: test-clonebundles.t output changed
+test-clonebundles.t
+
+# upstream don't run this test and it only fails when pyflakes is installed
+test-check-pyflakes.t
