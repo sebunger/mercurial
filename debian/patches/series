@@ -13,3 +13,12 @@ from_upstream__encoding_add_hfsignoreclean_to_clean_out_HFS-ignored_characters.p
 from_upstream__pathauditor_check_for_codepoints_ignored_on_OS_X.patch
 from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
 from_upstream__sshpeer_more_thorough_shell_quoting.patch
+from_upstream__parsers-fix-list-sizing-rounding-error.patch
+from_upstream__parsers-detect-short-records.patch
+from_upstream__subrepo-set-GIT_ALLOW_PROTOCOL-to-limit-git-clone-protocols.patch
+from_upstream__convert-add-new,-non-clowny-interface-for-shelling-out-to-git.patch
+from_upstream__convert-rewrite-calls-to-Git-to-use-the-new-shelling-mechanism.patch
+from_upstream__convert-dead-code-removal---old-git-calling-functions.patch
+from_upstream__convert-rewrite-gitpipe-to-use-common.commandline.patch
+from_upstream__convert-test-for-shell-injection-in-git-calls.patch
+from_upstream__convert_pass_absolute_paths_to_git.patch

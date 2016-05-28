@@ -1,3 +1,27 @@
+mercurial (3.1.2-2+deb8u3) jessie-security; urgency=high
+
+  * CVE-2016-3105:
+    + convert: pass absolute paths to git
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 04 May 2016 12:16:28 +0200
+
+mercurial (3.1.2-2+deb8u2) jessie-security; urgency=high
+
+  * CVE-2016-3630:
+    + parsers: fix list sizing rounding error
+    + parsers: detect short records
+  * CVE-2016-3068:
+    + subrepo: set GIT_ALLOW_PROTOCOL to limit git clone protocols
+  * CVE-2016-3069:
+    + convert: add new, non-clowny interface for shelling out to git
+    + convert: rewrite calls to Git to use the new shelling mechanism
+    + convert: dead code removal - old git calling functions
+    + convert: rewrite gitpipe to use common.commandline
+    + convert: test for shell injection in git calls
+  Closes: #819504
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 04 Apr 2016 15:41:22 +0200
+
 mercurial (3.1.2-2+deb8u1) jessie-security; urgency=high
 
   * Fix "CVE-2014-9462" by adding patch
