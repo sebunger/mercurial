@@ -1,0 +1,95 @@
+# HG changeset patch
+# User Mateusz Kwapich <mitrandir@fb.com>
+# Date 1458535941 25200
+#      Sun Mar 20 21:52:21 2016 -0700
+# Branch stable
+# Node ID 34d43cb85de8d06764039d8868eee19d00fddeab
+# Parent  b9714d958e89cd6ff1da46b46f39076c03325ac7
+subrepo: set GIT_ALLOW_PROTOCOL to limit git clone protocols (SEC)
+
+CVE-2016-3068 (1/1)
+
+Git's git-remote-ext remote helper provides an ext:: URL scheme that
+allows running arbitrary shell commands. This feature allows
+implementing simple git smart transports with a single shell shell
+command. However, git submodules could clone arbitrary URLs specified
+in the .gitmodules file. This was reported as CVE-2015-7545 and fixed
+in git v2.6.1.
+
+However, if a user directly clones a malicious ext URL, the git client
+will still run arbitrary shell commands.
+
+Mercurial is similarly effected. Mercurial allows specifying git
+repositories as subrepositories. Git ext:: URLs can be specified as
+Mercurial subrepositories allowing arbitrary shell commands to be run
+on `hg clone ...`.
+
+
+The Mercurial community would like to thank Blake Burkhart for
+reporting this issue. The description of the issue is copied from
+Blake's report.
+
+This commit changes submodules to pass the GIT_ALLOW_PROTOCOL env
+variable to git commands  with the same list of allowed protocols that
+git submodule is using.
+
+When the GIT_ALLOW_PROTOCOL env variable is already set, we just pass it
+to git without modifications.
+
+[jcristau: update test output for wheezy version of git]
+
+--- mercurial-2.2.2.orig/mercurial/subrepo.py
++++ mercurial-2.2.2/mercurial/subrepo.py
+@@ -861,10 +861,15 @@ class gitsubrepo(abstractsubrepo):
+ 
+         The methods tries to call the git command. versions previor to 1.6.0
+         are not supported and very probably fail.
+         """
+         self._ui.debug('%s: git %s\n' % (self._relpath, ' '.join(commands)))
++        if env is None:
++            env = os.environ.copy()
++        # fix for Git CVE-2015-7545
++        if 'GIT_ALLOW_PROTOCOL' not in env:
++            env['GIT_ALLOW_PROTOCOL'] = 'file:git:http:https:ssh'
+         # unless ui.quiet is set, print git's stderr,
+         # which is mostly progress and useful info
+         errpipe = None
+         if self._ui.quiet:
+             errpipe = open(os.devnull, 'w')
+--- mercurial-2.2.2.orig/tests/test-subrepo-git.t
++++ mercurial-2.2.2/tests/test-subrepo-git.t
+@@ -510,5 +510,34 @@ Test subrepo already at intended revisio
+ Test forgetting files, not implemented in git subrepo, used to
+ traceback
+   $ hg forget 'notafile*'
+   notafile*: No such file or directory
+   [1]
++
++test for Git CVE-2016-3068
++  $ hg init malicious-subrepository
++  $ cd malicious-subrepository
++  $ echo "s = [git]ext::sh -c echo% pwned% >&2" > .hgsub
++  $ git init s
++  Initialized empty Git repository in $TESTTMP/ta/malicious-subrepository/s/.git/
++  $ cd s
++  $ git commit --allow-empty -m 'empty'
++  [master (root-commit) 153f934] empty
++  $ cd ..
++  $ hg add .hgsub
++  $ hg commit -m "add subrepo"
++  $ cd ..
++  $ env -u GIT_ALLOW_PROTOCOL hg clone malicious-subrepository malicious-subrepository-protected
++  fatal: transport 'ext' not allowed
++  updating to branch default
++  cloning subrepo s from ext::sh -c echo% pwned% >&2
++  abort: git clone error 128 in s
++  [255]
++
++whitelisting of ext should be respected (that's the git submodule behaviour)
++  $ env GIT_ALLOW_PROTOCOL=ext hg clone malicious-subrepository malicious-subrepository-clone-allowed
++  pwned
++  fatal: The remote end hung up unexpectedly
++  updating to branch default
++  cloning subrepo s from ext::sh -c echo% pwned% >&2
++  abort: git clone error 128 in s
++  [255]
