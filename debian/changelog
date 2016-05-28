@@ -1,3 +1,78 @@
+mercurial (3.7.3-1~bpo8+1) jessie-backports; urgency=high
+
+  * Rebuild for jessie-backports.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 06 Apr 2016 12:31:09 +0200
+
+mercurial (3.7.3-1) unstable; urgency=medium
+
+  * New security upstream release fixes CVE-2016-3068, CVE-2016-3069
+    and CVE-2016-3630.
+  * Fix "FTBFS when built with dpkg-buildpackage -A".  Thanks Julien
+    Cristau for the patch (Closes: #807021)
+  * Avoid allow-stderr in mercurial-git autopkgtest
+
+ -- Javi Merino <vicho@debian.org>  Wed, 30 Mar 2016 08:20:07 +0100
+
+mercurial (3.7.2-2) unstable; urgency=medium
+
+  * Don't run test-clonebundle.t when building.  Reproducible builds don't
+    setup name resolution (Closes: #809770)
+
+ -- Javi Merino <vicho@debian.org>  Sat, 05 Mar 2016 12:08:37 +0000
+
+mercurial (3.7.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * Blacklist test-parse-date.t .  It fails on some of the chroots of
+    some architectures
+  * Bump standards-version to 3.9.6 (no change needed)
+  * Use https for vcs-browser.  Thanks lintian
+  * Update homepage
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Mar 2016 22:28:36 +0000
+
+mercurial (3.7.1-1) unstable; urgency=medium
+
+  * New upstream release
+  * Fix "mercurial-git autopkgtest fails because of stderr" by allowing
+    the test to output to stderr (Closes: #808376)
+  * Allow the hgsubversion test to output to stderr
+
+ -- Javi Merino <vicho@debian.org>  Thu, 11 Feb 2016 22:43:27 +0000
+
+mercurial (3.6.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * Improve autopkgtest for mercurial-git to test pushing commits from the
+    mercurial clone to git
+  * Update breaks of hgsubversion.  hgsubversion 1.8.3-2 works with
+    mercurial 3.6
+
+ -- Javi Merino <vicho@debian.org>  Fri, 04 Dec 2015 07:37:49 +0000
+
+mercurial (3.6.1-1) unstable; urgency=medium
+
+  * New upstream release
+  * mercurial 3.6 breaks mercurial-crecord 0.20150626-1
+  * mercurial 3.6 breaks mercurial-git prior to 0.8.3-1
+
+ -- Javi Merino <vicho@debian.org>  Thu, 26 Nov 2015 08:30:18 +0000
+
+mercurial (3.6-1) unstable; urgency=medium
+
+  * New upstream release
+  * Update hgsubversion breaks. 1.8.3-1 is not compatible with mercurial
+    3.6-1
+
+ -- Javi Merino <vicho@debian.org>  Thu, 05 Nov 2015 10:43:33 +0000
+
+mercurial (3.6~rc1-1) experimental; urgency=medium
+
+  * First release candidate for mercurial 3.6
+
+ -- Javi Merino <vicho@debian.org>  Sun, 25 Oct 2015 17:31:59 +0000
+
 mercurial (3.5.2-2~bpo8+1) jessie-backports; urgency=medium
 
   * Rebuild for jessie-backports.

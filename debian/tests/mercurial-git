@@ -1,16 +1,26 @@
 #!/bin/sh
-
+#
 # Basic test to see if the mercurial-git extension still works.
 
+set -e
+
 # Setup a git repository with some content
-git init try
-cd try
+git init --bare git_server
+git clone git_server git_clone 2>&1
+cd git_clone
 git config user.name Babar
 git config user.email babar@jungle.org
 echo a >a
 git add a
 git commit -m a
+git push origin master 2>&1
 cd ..
 
 # Now try to clone it with mercurial-git
-exec hg --config extensions.git= clone try try2
+hg --config extensions.git= clone git_server hg_clone
+
+# Do some changes and push them to the git server
+cd hg_clone
+echo b >>a
+hg commit -u "Babar <babar@jungle.org>" -m "more content to a"
+exec hg --config extensions.git= push
