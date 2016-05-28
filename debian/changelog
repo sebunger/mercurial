@@ -1,6 +1,9 @@
 mercurial (3.8.2-2) UNRELEASED; urgency=medium
 
   * Update hgsubversion breaks to 1.8.6-1
+  * Add
+    from_upstream__strip_invalidate_phase_cache_after_stripping_changese
+    t_issue5235.patch to fix test-obsolete.t on powerpc and i386
 
  -- Javi Merino <vicho@debian.org>  Sat, 28 May 2016 19:28:04 +0200
 
