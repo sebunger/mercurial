@@ -1,0 +1,194 @@
+# HG changeset patch
+# User Mateusz Kwapich <mitrandir@fb.com>
+# Date 1458691511 25200
+#      Tue Mar 22 17:05:11 2016 -0700
+# Branch stable
+# Node ID cdda7b96afff3433eafdeeb83ded83a5b25b7a5b
+# Parent  197eed39e3d5e9a8cadfd9ba5839eb14cc265caa
+convert: rewrite calls to Git to use the new shelling mechanism (SEC)
+
+CVE-2016-3069 (2/5)
+
+One test output changed because we were ignoring git return code in numcommits
+before.
+
+[jcristau: no numcommits in 3.1.2, so the test output change is different, as
+ we now detect no commits and stop there]
+
+--- mercurial-3.1.2.orig/hgext/convert/git.py
++++ mercurial-3.1.2/hgext/convert/git.py
+@@ -121,16 +121,16 @@ class convert_git(converter_source, comm
+         for f in self.catfilepipe:
+             f.close()
+ 
+     def getheads(self):
+         if not self.rev:
+-            heads, ret = self.gitread('git rev-parse --branches --remotes')
+-            heads = heads.splitlines()
++            output, status = self.gitrun('rev-parse', '--branches', '--remotes')
++            heads = output.splitlines()
+         else:
+-            heads, ret = self.gitread("git rev-parse --verify %s" % self.rev)
+-            heads = [heads[:-1]]
+-        if ret:
++            rawhead, status = self.gitrun('rev-parse', '--verify', self.rev)
++            heads = [rawhead[:-1]]
++        if status:
+             raise util.Abort(_('cannot retrieve git heads'))
+         return heads
+ 
+     def catfile(self, rev, type):
+         if rev == hex(nullid):
+@@ -183,30 +183,33 @@ class convert_git(converter_source, comm
+             s = c[sec]
+             if 'url' in s and 'path' in s:
+                 self.submodules.append(submodule(s['path'], '', s['url']))
+ 
+     def retrievegitmodules(self, version):
+-        modules, ret = self.gitread("git show %s:%s" % (version, '.gitmodules'))
++        modules, ret = self.gitrun('show', '%s:%s' % (version, '.gitmodules'))
+         if ret:
+             raise util.Abort(_('cannot read submodules config file in %s') %
+                              version)
+         self.parsegitmodules(modules)
+         for m in self.submodules:
+-            node, ret = self.gitread("git rev-parse %s:%s" % (version, m.path))
++            node, ret = self.gitrun('rev-parse', '%s:%s' % (version, m.path))
+             if ret:
+                 continue
+             m.node = node.strip()
+ 
+     def getchanges(self, version):
+         self.modecache = {}
+-        fh = self.gitopen("git diff-tree -z --root -m -r %s" % version)
++        cmd = ['diff-tree','-z', '--root', '-m', '-r', version]
++        output, status = self.gitrun(*cmd)
++        if status:
++            raise util.Abort(_('cannot read changes in %s') % version)
+         changes = []
+         seen = set()
+         entry = None
+         subexists = False
+         subdeleted = False
+-        for l in fh.read().split('\x00'):
++        for l in output.split('\x00'):
+             if not entry:
+                 if not l.startswith(':'):
+                     continue
+                 entry = l
+                 continue
+@@ -229,12 +232,10 @@ class convert_git(converter_source, comm
+                     subexists = True
+                 else:
+                     self.modecache[(f, h)] = (p and "x") or (s and "l") or ""
+                     changes.append((f, h))
+             entry = None
+-        if fh.close():
+-            raise util.Abort(_('cannot read changes in %s') % version)
+ 
+         if subexists:
+             if subdeleted:
+                 changes.append(('.hgsubstate', hex(nullid)))
+             else:
+@@ -278,25 +279,25 @@ class convert_git(converter_source, comm
+         return c
+ 
+     def gettags(self):
+         tags = {}
+         alltags = {}
+-        fh = self.gitopen('git ls-remote --tags "%s"' % self.path,
+-                          err=subprocess.STDOUT)
++        output, status = self.gitrunlines('ls-remote', '--tags', self.path)
++
++        if status:
++            raise util.Abort(_('cannot read tags from %s') % self.path)
+         prefix = 'refs/tags/'
+ 
+         # Build complete list of tags, both annotated and bare ones
+-        for line in fh:
++        for line in output:
+             line = line.strip()
+             if line.startswith("error:") or line.startswith("fatal:"):
+                 raise util.Abort(_('cannot read tags from %s') % self.path)
+             node, tag = line.split(None, 1)
+             if not tag.startswith(prefix):
+                 continue
+             alltags[tag[len(prefix):]] = node
+-        if fh.close():
+-            raise util.Abort(_('cannot read tags from %s') % self.path)
+ 
+         # Filter out tag objects for annotated tag refs
+         for tag in alltags:
+             if tag.endswith('^{}'):
+                 tags[tag[:-3]] = alltags[tag]
+@@ -309,22 +310,24 @@ class convert_git(converter_source, comm
+         return tags
+ 
+     def getchangedfiles(self, version, i):
+         changes = []
+         if i is None:
+-            fh = self.gitopen("git diff-tree --root -m -r %s" % version)
+-            for l in fh:
++            output, status = self.gitrunlines('diff-tree', '--root', '-m',
++                                              '-r', version)
++            if status:
++                raise util.Abort(_('cannot read changes in %s') % version)
++            for l in output:
+                 if "\t" not in l:
+                     continue
+                 m, f = l[:-1].split("\t")
+                 changes.append(f)
+         else:
+-            fh = self.gitopen('git diff-tree --name-only --root -r %s '
+-                              '"%s^%s" --' % (version, version, i + 1))
+-            changes = [f.rstrip('\n') for f in fh]
+-        if fh.close():
+-            raise util.Abort(_('cannot read changes in %s') % version)
++            output, status = self.gitrunlines('diff-tree', '--name-only',
++                                              '--root', '-r', version,
++                                              '%s^%s' % (version, i + 1), '--')
++            changes = [f.rstrip('\n') for f in output]
+ 
+         return changes
+ 
+     def getbookmarks(self):
+         bookmarks = {}
+@@ -332,18 +335,18 @@ class convert_git(converter_source, comm
+         # Interesting references in git are prefixed
+         prefix = 'refs/heads/'
+         prefixlen = len(prefix)
+ 
+         # factor two commands
+-        gitcmd = { 'remote/': 'git ls-remote --heads origin',
+-                          '': 'git show-ref'}
++        gitcmd = { 'remote/': ['ls-remote', '--heads', 'origin'],
++                          '': ['show-ref']}
+ 
+         # Origin heads
+         for reftype in gitcmd:
+             try:
+-                fh = self.gitopen(gitcmd[reftype], err=subprocess.PIPE)
+-                for line in fh:
++                output, status = self.gitrunlines(*gitcmd[reftype])
++                for line in output:
+                     line = line.strip()
+                     rev, name = line.split(None, 1)
+                     if not name.startswith(prefix):
+                         continue
+                     name = '%s%s' % (reftype, name[prefixlen:])
+--- a/tests/test-convert-git.t	2016-04-01 21:39:43.000000000 +0200
++++ b/tests/test-convert-git.t	2016-04-04 15:32:27.861611001 +0200
+@@ -390,8 +390,11 @@
+ damage git repository by renaming a commit object
+   $ COMMIT_OBJ=1c/0ce3c5886f83a1d78a7b517cdff5cf9ca17bdd
+   $ mv git-repo4/.git/objects/$COMMIT_OBJ git-repo4/.git/objects/$COMMIT_OBJ.tmp
+-  $ hg convert git-repo4 git-repo4-broken-hg 2>&1 | grep 'abort:'
+-  abort: cannot read tags from git-repo4/.git
++  $ hg convert git-repo4 git-repo4-broken-hg
++  initializing destination git-repo4-broken-hg repository
++  scanning source...
++  sorting...
++  converting...
+   $ mv git-repo4/.git/objects/$COMMIT_OBJ.tmp git-repo4/.git/objects/$COMMIT_OBJ
+ damage git repository by renaming a blob object
+ 

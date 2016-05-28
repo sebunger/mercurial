@@ -1,0 +1,20 @@
+Author: Javi Merino <vicho@debian.org>
+Description: Don't rm /usr/bin/python when running the testsuite
+ mercurial tries to delete /usr/bin/python when running the testsuite
+ with "make tests TESTFLAGS=--with-hg=/usr/bin/hg".  If you're doing
+ it as a user, the testsuite fails because it can't remove it.
+ .
+ This fixes it at least in Debian.  I'm unsure about other systems.
+Bug: http://bz.selenic.com/show_bug.cgi?id=4045
+
+--- a/tests/run-tests.py
++++ b/tests/run-tests.py
+@@ -1635,7 +1635,7 @@ class TestRunner(object):
+                  sys.executable)
+             mypython = os.path.join(self._tmpbindir, pyexename)
+             try:
+-                if os.readlink(mypython) == sys.executable:
++                if (mypython == sys.executable) or (os.readlink(mypython) == sys.executable):
+                     return
+                 os.unlink(mypython)
+             except OSError, err:

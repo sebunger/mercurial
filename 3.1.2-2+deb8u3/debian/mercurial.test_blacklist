@@ -1,0 +1,2 @@
+# upstream don't run this test and it only fails when pyflakes is installed
+test-check-pyflakes.t
