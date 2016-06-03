@@ -1,11 +1,11 @@
-mercurial (3.8.3-1) UNRELEASED; urgency=medium
+mercurial (3.8.3-1) unstable; urgency=medium
 
   * New upstream release
   * Delete
     from_upstream__strip_invalidate_phase_cache_after_stripping_changese
     t_issue5235.patch as it's now included upstream
 
- -- Javi Merino <vicho@debian.org>  Fri, 03 Jun 2016 08:13:49 +0100
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Jun 2016 08:26:16 +0100
 
 mercurial (3.8.2-2) unstable; urgency=medium
 
