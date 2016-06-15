@@ -3,9 +3,14 @@ Section: vcs
 Priority: optional
 Maintainer: Mercurial Developers <mercurial-devel@selenic.com>
 Build-Depends:
- debhelper (>= 7),
+ debhelper (>= 9),
  dh-python,
- python-all
+ netbase,
+ python-all,
+ python-all-dev,
+ python-docutils,
+ unzip,
+ zip
 Standards-Version: 3.9.4
 X-Python-Version: >= 2.6
 
@@ -37,6 +42,7 @@ Depends:
  ${misc:Depends},
  ${python:Depends},
 Recommends: mercurial (= ${source:Version}), ca-certificates
+Suggests: wish
 Breaks: mercurial (<< ${source:Version})
 Replaces: mercurial (<< 2.6.3)
 Description: easy-to-use, scalable distributed version control system (common files)

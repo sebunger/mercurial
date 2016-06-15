@@ -18,7 +18,7 @@ def spacejoin(*args):
     return ' '.join(s for s in args if s)
 
 def shouldprint(ui):
-    return not (ui.quiet or ui.plain()) and (
+    return not (ui.quiet or ui.plain('progress')) and (
         ui._isatty(sys.stderr) or ui.configbool('progress', 'assume-tty'))
 
 def fmtremaining(seconds):
@@ -163,7 +163,7 @@ class progbar(object):
         sys.stderr.flush()
 
     def clear(self):
-        if not shouldprint(self.ui):
+        if not self.printed or not self.lastprint or not shouldprint(self.ui):
             return
         sys.stderr.write('\r%s\r' % (' ' * self.width()))
         if self.printed:

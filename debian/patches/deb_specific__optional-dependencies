@@ -2,7 +2,7 @@ Suggest Debian packages for some optional dependencies.
 
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -358,7 +358,8 @@ class bzmysql(bzaccess):
+@@ -369,7 +369,8 @@ class bzmysql(bzaccess):
              import MySQLdb as mysql
              bzmysql._MySQLdb = mysql
          except ImportError as err:
@@ -14,19 +14,19 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -44,7 +44,8 @@ class bzr_source(converter_source):
+@@ -53,7 +53,8 @@ class bzr_source(common.converter_source
              # access bzrlib stuff
              bzrdir
          except NameError:
--            raise NoRepo(_('Bazaar modules could not be loaded'))
-+            raise NoRepo(_('Bazaar modules could not be loaded') +
+-            raise common.NoRepo(_('Bazaar modules could not be loaded'))
++            raise common.NoRepo(_('Bazaar modules could not be loaded') +
 +                         _(' (try installing the %s package)') % 'bzr')
  
          path = os.path.abspath(path)
          self._checkrepotype(path)
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
-@@ -28,14 +28,15 @@ def decodeargs(s):
+@@ -39,14 +39,15 @@ def decodeargs(s):
  class MissingTool(Exception):
      pass
  
@@ -46,7 +46,7 @@ Suggest Debian packages for some optional dependencies.
      pass
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
-@@ -22,7 +22,7 @@ class convert_cvs(converter_source):
+@@ -38,7 +38,7 @@ class convert_cvs(converter_source):
          if not os.path.exists(cvs):
              raise NoRepo(_("%s does not look like a CVS checkout") % path)
  
@@ -57,12 +57,12 @@ Suggest Debian packages for some optional dependencies.
          self.files = {}
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
-@@ -36,14 +36,15 @@ class darcs_source(converter_source, com
+@@ -49,14 +49,15 @@ class darcs_source(common.converter_sour
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo(_("%s does not look like a darcs repository") % path)
  
--        checktool('darcs')
-+        checktool('darcs', debname='darcs')
+-        common.checktool('darcs')
++        common.checktool('darcs', debname='darcs')
          version = self.run0('--version').splitlines()[0].strip()
          if version < '2.1':
              raise error.Abort(_('darcs version 2.1 or newer needed (found %r)')
@@ -77,18 +77,18 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -75,7 +75,7 @@ class convert_git(converter_source, comm
+@@ -80,7 +80,7 @@ class convert_git(common.converter_sourc
          else:
              self.simopt = []
  
--        checktool('git', 'git')
-+        checktool('git', 'git', debname='git-core')
+-        common.checktool('git', 'git')
++        common.checktool('git', 'git', debname="git-core")
  
          self.path = path
          self.submodules = []
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
-@@ -42,7 +42,8 @@ class gnuarch_source(converter_source, c
+@@ -50,7 +50,8 @@ class gnuarch_source(common.converter_so
              if util.findexe('tla'):
                  self.execmd = 'tla'
              else:
@@ -96,30 +96,22 @@ Suggest Debian packages for some optional dependencies.
 +                raise error.Abort(_('cannot find a GNU Arch tool') +
 +                                  _(' (try installing the %s package)') % 'tla')
  
-         commandline.__init__(self, ui, self.execmd)
+         common.commandline.__init__(self, ui, self.execmd)
  
 --- a/hgext/convert/monotone.py
 +++ b/hgext/convert/monotone.py
-@@ -69,7 +69,7 @@ class monotone_source(converter_source,
+@@ -75,7 +75,7 @@ class monotone_source(common.converter_s
          self.files = None
          self.dirs  = None
  
--        checktool('mtn', abort=False)
-+        checktool('mtn', abort=False, debname='monotone')
+-        common.checktool('mtn', abort=False)
++        common.checktool('mtn', abort=False, debname='monotone')
  
      def mtnrun(self, *args, **kwargs):
          if self.automatestdio:
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -20,6 +20,7 @@ from cStringIO import StringIO
- from common import NoRepo, MissingTool, commit, encodeargs, decodeargs
- from common import commandline, converter_source, converter_sink, mapfile
- from common import makedatetimestamp
-+from common import checktool
- 
- try:
-     from svn.core import SubversionException, Pool
-@@ -278,16 +279,19 @@ class svn_source(converter_source):
+@@ -298,16 +298,19 @@ class svn_source(converter_source):
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -142,18 +134,18 @@ Suggest Debian packages for some optional dependencies.
  
          self.lastrevs = {}
  
-@@ -1094,6 +1098,8 @@ class svn_sink(converter_sink, commandli
+@@ -1114,6 +1117,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, path):
-+        checktool('svn', debname='subversion')
-+        checktool('svnadmin', debname='subversion')
++        common.checktool('svn', debname='subversion')
++        common.checktool('svnadmin', debname='subversion')
  
          converter_sink.__init__(self, ui, path)
          commandline.__init__(self, ui, 'svn')
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
-@@ -225,7 +225,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -227,7 +227,8 @@ class _httprequesthandlerssl(_httpreques
              import ssl
              ssl.wrap_socket
          except ImportError:

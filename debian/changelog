@@ -1,3 +1,45 @@
+mercurial (3.8.3-1~bpo8+1) jessie-backports; urgency=medium
+
+  * Rebuild for jessie-backports.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 15 Jun 2016 14:31:25 +0200
+
+mercurial (3.8.3-1) unstable; urgency=medium
+
+  * New upstream release
+  * Delete
+    from_upstream__strip_invalidate_phase_cache_after_stripping_changese
+    t_issue5235.patch as it's now included upstream
+
+ -- Javi Merino <vicho@debian.org>  Fri, 03 Jun 2016 08:26:16 +0100
+
+mercurial (3.8.2-2) unstable; urgency=medium
+
+  * Update hgsubversion breaks to 1.8.6-1
+  * Add
+    from_upstream__strip_invalidate_phase_cache_after_stripping_changese
+    t_issue5235.patch to fix test-obsolete.t on powerpc and i386
+
+ -- Javi Merino <vicho@debian.org>  Sat, 28 May 2016 22:45:03 +0200
+
+mercurial (3.8.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * revert mercurial-git breaks to 0.8.3-1
+  * update debian/watch URL
+
+ -- Javi Merino <vicho@debian.org>  Fri, 27 May 2016 22:01:25 +0200
+
+mercurial (3.8.1-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #737498)
+  * Fixes CVE-2016-3105
+  * Bump standards-version to 3.9.8 (no change needed)
+  * Re-enable test-parse-date.t in the test-suite
+  * mercurial 3.8.1 breaks current hgsubversion and mercurial-git
+
+ -- Javi Merino <vicho@debian.org>  Tue, 03 May 2016 07:45:02 +0100
+
 mercurial (3.7.3-1~bpo8+1) jessie-backports; urgency=high
 
   * Rebuild for jessie-backports.

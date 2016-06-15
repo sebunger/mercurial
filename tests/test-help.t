@@ -241,6 +241,7 @@ Test extension help:
   
       enabled extensions:
   
+       chgserver     command server extension for cHg (EXPERIMENTAL) (?)
        children      command to display child changesets (DEPRECATED)
        rebase        command to move sets of revisions to a different ancestor
   
@@ -271,8 +272,6 @@ Test extension help:
        patchbomb     command to send changesets as (a series of) patch emails
        purge         command to delete untracked files from the working
                      directory
-       record        commands to interactively select changes for
-                     commit/qrefresh
        relink        recreates hardlinks between repository clones
        schemes       extend schemes with shortcuts to repository swarms
        share         share a common history between several working directories
@@ -674,9 +673,49 @@ this is a section and erroring out weirdly.
   > def nohelp(ui, *args, **kwargs):
   >     pass
   > 
+  > def uisetup(ui):
+  >     ui.setconfig('alias', 'shellalias', '!echo hi', 'helpext')
+  >     ui.setconfig('alias', 'hgalias', 'summary', 'helpext')
+  > 
   > EOF
   $ echo '[extensions]' >> $HGRCPATH
   $ echo "helpext = `pwd`/helpext.py" >> $HGRCPATH
+
+Test for aliases
+
+  $ hg help hgalias
+  hg hgalias [--remote]
+  
+  alias for: hg summary
+  
+  summarize working directory state
+  
+      This generates a brief summary of the working directory state, including
+      parents, branch, commit status, phase and available updates.
+  
+      With the --remote option, this will check the default paths for incoming
+      and outgoing changes. This can be time-consuming.
+  
+      Returns 0 on success.
+  
+  defined by: helpext
+  
+  options:
+  
+    --remote check for push and pull
+  
+  (some details hidden, use --verbose to show complete help)
+
+  $ hg help shellalias
+  hg shellalias
+  
+  shell alias for:
+  
+    echo hi
+  
+  defined by: helpext
+  
+  (some details hidden, use --verbose to show complete help)
 
 Test command with no help text
 
@@ -861,6 +900,8 @@ Test list of internal help commands
    debugsub      (no help text available)
    debugsuccessorssets
                  show set of successors for revision
+   debugtemplate
+                 parse and apply a template
    debugwalk     show how files match on given patterns
    debugwireargs
                  (no help text available)
@@ -875,6 +916,7 @@ internals topic renders index of available sub-topics
   
        bundles       container for exchange of repository data
        changegroups  representation of revlog data
+       requirements  repository requirements
        revlogs       revision storage mechanism
 
 sub-topics can be accessed
@@ -1482,6 +1524,78 @@ Test section lookup
       files         List of strings. All files modified, added, or removed by
                     this changeset.
 
+Test section lookup by translated message
+
+str.lower() instead of encoding.lower(str) on translated message might
+make message meaningless, because some encoding uses 0x41(A) - 0x5a(Z)
+as the second or later byte of multi-byte character.
+
+For example, "\x8bL\x98^" (translation of "record" in ja_JP.cp932)
+contains 0x4c (L). str.lower() replaces 0x4c(L) by 0x6c(l) and this
+replacement makes message meaningless.
+
+This tests that section lookup by translated string isn't broken by
+such str.lower().
+
+  $ python <<EOF
+  > def escape(s):
+  >     return ''.join('\u%x' % ord(uc) for uc in s.decode('cp932'))
+  > # translation of "record" in ja_JP.cp932
+  > upper = "\x8bL\x98^"
+  > # str.lower()-ed section name should be treated as different one
+  > lower = "\x8bl\x98^"
+  > with open('ambiguous.py', 'w') as fp:
+  >     fp.write("""# ambiguous section names in ja_JP.cp932
+  > u'''summary of extension
+  > 
+  > %s
+  > ----
+  > 
+  > Upper name should show only this message
+  > 
+  > %s
+  > ----
+  > 
+  > Lower name should show only this message
+  > 
+  > subsequent section
+  > ------------------
+  > 
+  > This should be hidden at "hg help ambiguous" with section name.
+  > '''
+  > """ % (escape(upper), escape(lower)))
+  > EOF
+
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > ambiguous = ./ambiguous.py
+  > EOF
+
+  $ python <<EOF | sh
+  > upper = "\x8bL\x98^"
+  > print "hg --encoding cp932 help -e ambiguous.%s" % upper
+  > EOF
+  \x8bL\x98^ (esc)
+  ----
+  
+  Upper name should show only this message
+  
+
+  $ python <<EOF | sh
+  > lower = "\x8bl\x98^"
+  > print "hg --encoding cp932 help -e ambiguous.%s" % lower
+  > EOF
+  \x8bl\x98^ (esc)
+  ----
+  
+  Lower name should show only this message
+  
+
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > ambiguous = !
+  > EOF
+
 Test dynamic list of merge tools only shows up once
   $ hg help merge-tools
   Merge Tools
@@ -1536,7 +1650,7 @@ Test dynamic list of merge tools only shows up once
         to resolve these conflicts.
   
       ":local"
-        Uses the local version of files as the merged version.
+        Uses the local 'p1()' version of files as the merged version.
   
       ":merge"
         Uses the internal non-interactive simple merge algorithm for merging
@@ -1546,11 +1660,11 @@ Test dynamic list of merge tools only shows up once
   
       ":merge-local"
         Like :merge, but resolve all conflicts non-interactively in favor of the
-        local changes.
+        local 'p1()' changes.
   
       ":merge-other"
         Like :merge, but resolve all conflicts non-interactively in favor of the
-        other changes.
+        other 'p2()' changes.
   
       ":merge3"
         Uses the internal non-interactive simple merge algorithm for merging
@@ -1559,11 +1673,11 @@ Test dynamic list of merge tools only shows up once
         side of the merge and one for the base content.
   
       ":other"
-        Uses the other version of files as the merged version.
+        Uses the other 'p2()' version of files as the merged version.
   
       ":prompt"
-        Asks the user which of the local or the other version to keep as the
-        merged version.
+        Asks the user which of the local 'p1()' or the other 'p2()' version to
+        keep as the merged version.
   
       ":tagmerge"
         Uses the internal tag merge algorithm (experimental).
@@ -2062,6 +2176,13 @@ Dish up an empty repo; serve it cold.
   show help for a given topic or a help overview
   </td></tr>
   <tr><td>
+  <a href="/help/hgalias">
+  hgalias
+  </a>
+  </td><td>
+  summarize working directory state
+  </td></tr>
+  <tr><td>
   <a href="/help/identify">
   identify
   </a>
@@ -2151,6 +2272,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   print the root (top) of the current working directory
+  </td></tr>
+  <tr><td>
+  <a href="/help/shellalias">
+  shellalias
+  </a>
+  </td><td>
+  (no help text available)
   </td></tr>
   <tr><td>
   <a href="/help/tag">
@@ -2495,7 +2623,7 @@ Dish up an empty repo; serve it cold.
   <td>record delete for missing files</td></tr>
   <tr><td>-f</td>
   <td>--force</td>
-  <td>remove (and delete) file even if added or modified</td></tr>
+  <td>forget added files, delete modified files</td></tr>
   <tr><td>-S</td>
   <td>--subrepos</td>
   <td>recurse into subrepositories</td></tr>
@@ -2725,6 +2853,13 @@ Sub-topic indexes rendered properly
   </a>
   </td><td>
   representation of revlog data
+  </td></tr>
+  <tr><td>
+  <a href="/help/internals.requirements">
+  requirements
+  </a>
+  </td><td>
+  repository requirements
   </td></tr>
   <tr><td>
   <a href="/help/internals.revlogs">

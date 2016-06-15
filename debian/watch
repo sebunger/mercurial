@@ -2,4 +2,4 @@
 version=3
 
 opts="uversionmangle=s/-rc/~rc/,pgpsigurlmangle=s/$/.asc/" \
-  http://www.selenic.com/mercurial/release/mercurial-(.*)\.tar\.gz
+  http://mercurial.selenic.com/release/mercurial-(.*)\.tar\.gz

@@ -540,10 +540,10 @@ Amend with no files changes
   |
   | o  12:0   2647734878ef   1970-01-01 00:00 +0000   test
   | |    fork
-  | |
-  o |  11   3334b7925910   1970-01-01 00:00 +0000   test
-  | |    a''
-  | |
+  | ~
+  o  11   3334b7925910   1970-01-01 00:00 +0000   test
+  |    a''
+  ~
   $ hg log -Gl 4 --hidden --style=compact
   @  14[tip]:11   b650e6ee8614   1970-01-01 00:00 +0000   test
   |    babar
@@ -553,10 +553,10 @@ Amend with no files changes
   |
   | o  12:0   2647734878ef   1970-01-01 00:00 +0000   test
   | |    fork
-  | |
-  o |  11   3334b7925910   1970-01-01 00:00 +0000   test
-  | |    a''
-  | |
+  | ~
+  o  11   3334b7925910   1970-01-01 00:00 +0000   test
+  |    a''
+  ~
 
 Amend with files changes
 
@@ -580,10 +580,10 @@ ride of)
   |
   | o  12:0   2647734878ef   1970-01-01 00:00 +0000   test
   | |    fork
-  | |
-  o |  11   3334b7925910   1970-01-01 00:00 +0000   test
-  | |    a''
-  | |
+  | ~
+  o  11   3334b7925910   1970-01-01 00:00 +0000   test
+  |    a''
+  ~
 
 
 Test that amend does not make it easy to create obsolescence cycle
@@ -1156,3 +1156,21 @@ directory)
      rev    offset  length  delta linkrev nodeid       p1           p2
        0         0      88     -1       3 34a4d536c0c0 000000000000 000000000000
 
+Test if amend preserves executable bit changes
+  $ chmod +x newdirname/commonfile.py
+  $ hg ci -m chmod
+  $ hg ci --amend -m "chmod amended"
+  $ hg ci --amend -m "chmod amended second time"
+  $ hg log -p --git -r .
+  changeset:   8:b1326f52dddf
+  branch:      newdirname
+  tag:         tip
+  parent:      5:7fd235f7cb2f
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     chmod amended second time
+  
+  diff --git a/newdirname/commonfile.py b/newdirname/commonfile.py
+  old mode 100644
+  new mode 100755
+  

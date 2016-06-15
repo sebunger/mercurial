@@ -59,6 +59,14 @@ Select files but no hunks
   
   
 
+Abort for untracked
+
+  $ touch untracked
+  $ hg commit -i -m should-fail empty-rw untracked
+  abort: untracked: file not tracked!
+  [255]
+  $ rm untracked
+
 Record empty file
 
   $ hg commit -i -d '0 0' -m empty empty-rw<<EOF
@@ -283,7 +291,7 @@ Modify end of plain file with username unset
   $ unset HGUSER
   $ hg commit -i --config ui.username= -d '8 0' -m end plain
   abort: no username supplied
-  (use "hg config --edit" to set your username)
+  (use 'hg config --edit' to set your username)
   [255]
 
 
@@ -869,6 +877,45 @@ Help, quit
   
   abort: user quit
   [255]
+
+#if gettext
+
+Test translated help message
+
+str.lower() instead of encoding.lower(str) on translated message might
+make message meaningless, because some encoding uses 0x41(A) - 0x5a(Z)
+as the second or later byte of multi-byte character.
+
+For example, "\x8bL\x98^" (translation of "record" in ja_JP.cp932)
+contains 0x4c (L). str.lower() replaces 0x4c(L) by 0x6c(l) and this
+replacement makes message meaningless.
+
+This tests that translated help message is lower()-ed correctly.
+
+  $ LANGUAGE=ja
+  $ export LANGUAGE
+
+  $ cat > $TESTTMP/escape.py <<EOF
+  > from __future__ import absolute_import
+  > import sys
+  > def escape(c):
+  >     o = ord(c)
+  >     if o < 0x80:
+  >         return c
+  >     else:
+  >         return r'\x%02x' % o # escape char setting MSB
+  > for l in sys.stdin:
+  >     sys.stdout.write(''.join(escape(c) for c in l))
+  > EOF
+
+  $ hg commit -i --encoding cp932 2>&1 <<EOF | python $TESTTMP/escape.py | grep '^y - '
+  > ?
+  > q
+  > EOF
+  y - \x82\xb1\x82\xcc\x95\xcf\x8dX\x82\xf0\x8bL\x98^(yes)
+
+  $ LANGUAGE=
+#endif
 
 Skip
 

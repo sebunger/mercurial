@@ -7,7 +7,6 @@
 
 from __future__ import absolute_import
 
-import Queue
 import contextlib
 import errno
 import glob
@@ -276,8 +275,8 @@ class abstractvfs(object):
         with self(path, mode=mode) as fp:
             return fp.readlines()
 
-    def write(self, path, data):
-        with self(path, 'wb') as fp:
+    def write(self, path, data, backgroundclose=False):
+        with self(path, 'wb', backgroundclose=backgroundclose) as fp:
             return fp.write(data)
 
     def writelines(self, path, data, mode='wb', notindexed=False):
@@ -540,7 +539,7 @@ class vfs(abstractvfs):
             # to a directory. Let the posixfile() call below raise IOError.
             if basename:
                 if atomictemp:
-                    util.ensuredirs(dirname, self.createmode, notindexed)
+                    util.makedirs(dirname, self.createmode, notindexed)
                     return util.atomictempfile(f, mode, self.createmode)
                 try:
                     if 'w' in mode:
@@ -557,7 +556,7 @@ class vfs(abstractvfs):
                     if e.errno != errno.ENOENT:
                         raise
                     nlink = 0
-                    util.ensuredirs(dirname, self.createmode, notindexed)
+                    util.makedirs(dirname, self.createmode, notindexed)
                 if nlink > 0:
                     if self._trustnlink is None:
                         self._trustnlink = nlink > 1 or util.checknlink(f)
@@ -584,7 +583,7 @@ class vfs(abstractvfs):
         except OSError:
             pass
 
-        util.ensuredirs(os.path.dirname(linkname), self.createmode)
+        util.makedirs(os.path.dirname(linkname), self.createmode)
 
         if self._cansymlink:
             try:
@@ -913,7 +912,7 @@ def addremove(repo, matcher, prefix, opts=None, dry_run=None, similarity=None):
         if opts.get('subrepos') or matchessubrepo(m, subpath):
             sub = wctx.sub(subpath)
             try:
-                submatch = matchmod.narrowmatcher(subpath, m)
+                submatch = matchmod.subdirmatcher(subpath, m)
                 if sub.addremove(submatch, prefix, opts, dry_run, similarity):
                     ret = 1
             except error.LookupError:
@@ -1320,7 +1319,7 @@ class backgroundfilecloser(object):
         ui.debug('starting %d threads for background file closing\n' %
                  threadcount)
 
-        self._queue = Queue.Queue(maxsize=maxqueue)
+        self._queue = util.queue(maxsize=maxqueue)
         self._running = True
 
         for i in range(threadcount):
@@ -1352,7 +1351,7 @@ class backgroundfilecloser(object):
                 except Exception as e:
                     # Stash so can re-raise from main thread later.
                     self._threadexception = e
-            except Queue.Empty:
+            except util.empty:
                 if not self._running:
                     break
 
