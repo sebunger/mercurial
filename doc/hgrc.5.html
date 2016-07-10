@@ -1399,8 +1399,9 @@ http://server/(.*)-hg/ = http://hg.server/\1/
 </pre>
 <p>rewrites <tt class="docutils literal"><span class="pre">http://server/foo-hg/</span></tt> into <tt class="docutils literal"><span class="pre">http://hg.server/foo/</span></tt>.</p>
 <p>Relative subrepository paths are first made absolute, and the
-rewrite rules are then applied on the full (absolute) path. The rules
-are applied in definition order.</p>
+rewrite rules are then applied on the full (absolute) path. If <tt class="docutils literal">pattern</tt>
+doesn't match the full path, an attempt is made to apply it on the
+relative path alone. The rules are applied in definition order.</p>
 </div>
 <div class="section" id="templatealias">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">templatealias</tt></a></h2>
