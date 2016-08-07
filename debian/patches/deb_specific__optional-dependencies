@@ -168,3 +168,14 @@ Suggest Debian packages for some optional dependencies.
              elif s['allowloaddefaultcerts']:
                  # CAs not defined in config. Try to find system bundles.
                  cafile = _defaultcacerts(ui)
+--- a/tests/test-https.t
++++ b/tests/test-https.t
+@@ -29,7 +29,7 @@ cacert not found
+ 
+   $ hg in --config web.cacerts=no-such.pem https://localhost:$HGPORT/
+   warning: connecting to localhost using legacy security technology (TLS 1.0); see https://mercurial-scm.org/wiki/SecureConnections for more info (?)
+-  abort: could not find web.cacerts: no-such.pem
++  abort: could not find web.cacerts: no-such.pem (try installing the ca-certificates package)
+   [255]
+ 
+ Test server address cannot be reused
