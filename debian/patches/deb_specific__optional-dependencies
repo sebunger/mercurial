@@ -155,3 +155,16 @@ Suggest Debian packages for some optional dependencies.
  
          certfile = ui.config('web', 'certificate')
  
+--- a/mercurial/sslutil.py
++++ b/mercurial/sslutil.py
+@@ -260,7 +260,9 @@ def _hostsettings(ui, hostname):
+                 cafile = util.expandpath(cafile)
+                 if not os.path.exists(cafile):
+                     raise error.Abort(_('could not find web.cacerts: %s') %
+-                                      cafile)
++                                      cafile +
++                                      _(' (try installing the %s package)') %
++                                        'ca-certificates')
+             elif s['allowloaddefaultcerts']:
+                 # CAs not defined in config. Try to find system bundles.
+                 cafile = _defaultcacerts(ui)
