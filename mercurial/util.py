@@ -47,11 +47,17 @@ from . import (
 
 for attr in (
     'empty',
+    'httplib',
+    'httpserver',
+    'pickle',
     'queue',
     'urlerr',
+    'urlparse',
     # we do import urlreq, but we do it outside the loop
     #'urlreq',
     'stringio',
+    'socketserver',
+    'xmlrpclib',
 ):
     globals()[attr] = getattr(pycompat, attr)
 
@@ -63,11 +69,9 @@ if os.name == 'nt':
 else:
     from . import posix as platform
 
-md5 = hashlib.md5
-sha1 = hashlib.sha1
-sha512 = hashlib.sha512
 _ = i18n._
 
+bindunixsocket = platform.bindunixsocket
 cachestat = platform.cachestat
 checkexec = platform.checkexec
 checklink = platform.checklink
@@ -136,9 +140,9 @@ def safehasattr(thing, attr):
     return getattr(thing, attr, _notset) is not _notset
 
 DIGESTS = {
-    'md5': md5,
-    'sha1': sha1,
-    'sha512': sha512,
+    'md5': hashlib.md5,
+    'sha1': hashlib.sha1,
+    'sha512': hashlib.sha512,
 }
 # List of digest types from strongest to weakest
 DIGESTS_BY_STRENGTH = ['sha512', 'sha1', 'md5']
@@ -392,10 +396,26 @@ def versiontuple(v=None, n=4):
     (3, 6, None)
     >>> versiontuple(v, 4)
     (3, 6, None, None)
+
+    >>> v = '3.9-rc'
+    >>> versiontuple(v, 2)
+    (3, 9)
+    >>> versiontuple(v, 3)
+    (3, 9, None)
+    >>> versiontuple(v, 4)
+    (3, 9, None, 'rc')
+
+    >>> v = '3.9-rc+2-02a8fea4289b'
+    >>> versiontuple(v, 2)
+    (3, 9)
+    >>> versiontuple(v, 3)
+    (3, 9, None)
+    >>> versiontuple(v, 4)
+    (3, 9, None, 'rc+2-02a8fea4289b')
     """
     if not v:
         v = version()
-    parts = v.split('+', 1)
+    parts = remod.split('[\+-]', v, 1)
     if len(parts) == 1:
         vparts, extra = parts[0], None
     else:
@@ -420,7 +440,14 @@ def versiontuple(v=None, n=4):
 
 # used by parsedate
 defaultdateformats = (
-    '%Y-%m-%d %H:%M:%S',
+    '%Y-%m-%dT%H:%M:%S', # the 'real' ISO8601
+    '%Y-%m-%dT%H:%M',    #   without seconds
+    '%Y-%m-%dT%H%M%S',   # another awful but legal variant without :
+    '%Y-%m-%dT%H%M',     #   without seconds
+    '%Y-%m-%d %H:%M:%S', # our common legal variant
+    '%Y-%m-%d %H:%M',    #   without seconds
+    '%Y-%m-%d %H%M%S',   # without :
+    '%Y-%m-%d %H%M',     #   without seconds
     '%Y-%m-%d %I:%M:%S%p',
     '%Y-%m-%d %H:%M',
     '%Y-%m-%d %I:%M%p',
@@ -523,6 +550,10 @@ class sortdict(dict):
     def insert(self, index, key, val):
         self._list.insert(index, key)
         dict.__setitem__(self, key, val)
+    def __repr__(self):
+        if not self:
+            return '%s()' % self.__class__.__name__
+        return '%s(%r)' % (self.__class__.__name__, self.items())
 
 class _lrucachenode(object):
     """A node in a doubly linked list.
@@ -1010,10 +1041,21 @@ def checksignature(func):
 
     return check
 
-def copyfile(src, dest, hardlink=False, copystat=False):
+def copyfile(src, dest, hardlink=False, copystat=False, checkambig=False):
     '''copy a file, preserving mode and optionally other stat info like
-    atime/mtime'''
+    atime/mtime
+
+    checkambig argument is used with filestat, and is useful only if
+    destination file is guarded by any lock (e.g. repo.lock or
+    repo.wlock).
+
+    copystat and checkambig should be exclusive.
+    '''
+    assert not (copystat and checkambig)
+    oldstat = None
     if os.path.lexists(dest):
+        if checkambig:
+            oldstat = checkambig and filestat(dest)
         unlink(dest)
     # hardlinks are problematic on CIFS, quietly ignore this flag
     # until we find a way to work around it cleanly (issue4546)
@@ -1035,6 +1077,12 @@ def copyfile(src, dest, hardlink=False, copystat=False):
                 shutil.copystat(src, dest)
             else:
                 shutil.copymode(src, dest)
+                if oldstat and oldstat.stat:
+                    newstat = filestat(dest)
+                    if newstat.isambig(oldstat):
+                        # stat of copied file is ambiguous to original one
+                        advanced = (oldstat.stat.st_mtime + 1) & 0x7fffffff
+                        os.utime(dest, (advanced, advanced))
         except shutil.Error as inst:
             raise Abort(str(inst))
 
@@ -1381,6 +1429,72 @@ def mktempcopy(name, emptyok=False, createmode=None):
         raise
     return temp
 
+class filestat(object):
+    """help to exactly detect change of a file
+
+    'stat' attribute is result of 'os.stat()' if specified 'path'
+    exists. Otherwise, it is None. This can avoid preparative
+    'exists()' examination on client side of this class.
+    """
+    def __init__(self, path):
+        try:
+            self.stat = os.stat(path)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+            self.stat = None
+
+    __hash__ = object.__hash__
+
+    def __eq__(self, old):
+        try:
+            # if ambiguity between stat of new and old file is
+            # avoided, comparision of size, ctime and mtime is enough
+            # to exactly detect change of a file regardless of platform
+            return (self.stat.st_size == old.stat.st_size and
+                    self.stat.st_ctime == old.stat.st_ctime and
+                    self.stat.st_mtime == old.stat.st_mtime)
+        except AttributeError:
+            return False
+
+    def isambig(self, old):
+        """Examine whether new (= self) stat is ambiguous against old one
+
+        "S[N]" below means stat of a file at N-th change:
+
+        - S[n-1].ctime  < S[n].ctime: can detect change of a file
+        - S[n-1].ctime == S[n].ctime
+          - S[n-1].ctime  < S[n].mtime: means natural advancing (*1)
+          - S[n-1].ctime == S[n].mtime: is ambiguous (*2)
+          - S[n-1].ctime  > S[n].mtime: never occurs naturally (don't care)
+        - S[n-1].ctime  > S[n].ctime: never occurs naturally (don't care)
+
+        Case (*2) above means that a file was changed twice or more at
+        same time in sec (= S[n-1].ctime), and comparison of timestamp
+        is ambiguous.
+
+        Base idea to avoid such ambiguity is "advance mtime 1 sec, if
+        timestamp is ambiguous".
+
+        But advancing mtime only in case (*2) doesn't work as
+        expected, because naturally advanced S[n].mtime in case (*1)
+        might be equal to manually advanced S[n-1 or earlier].mtime.
+
+        Therefore, all "S[n-1].ctime == S[n].ctime" cases should be
+        treated as ambiguous regardless of mtime, to avoid overlooking
+        by confliction between such mtime.
+
+        Advancing mtime "if isambig(oldstat)" ensures "S[n-1].mtime !=
+        S[n].mtime", even if size of a file isn't changed.
+        """
+        try:
+            return (self.stat.st_ctime == old.stat.st_ctime)
+        except AttributeError:
+            return False
+
+    def __ne__(self, other):
+        return not self == other
+
 class atomictempfile(object):
     '''writable file object that atomically updates a file
 
@@ -1389,14 +1503,20 @@ class atomictempfile(object):
     the temporary copy to the original name, making the changes
     visible. If the object is destroyed without being closed, all your
     writes are discarded.
+
+    checkambig argument of constructor is used with filestat, and is
+    useful only if target file is guarded by any lock (e.g. repo.lock
+    or repo.wlock).
     '''
-    def __init__(self, name, mode='w+b', createmode=None):
+    def __init__(self, name, mode='w+b', createmode=None, checkambig=False):
         self.__name = name      # permanent name
         self._tempname = mktempcopy(name, emptyok=('w' in mode),
                                     createmode=createmode)
         self._fp = posixfile(self._tempname, mode)
+        self._checkambig = checkambig
 
         # delegated methods
+        self.read = self._fp.read
         self.write = self._fp.write
         self.seek = self._fp.seek
         self.tell = self._fp.tell
@@ -1405,7 +1525,17 @@ class atomictempfile(object):
     def close(self):
         if not self._fp.closed:
             self._fp.close()
-            rename(self._tempname, localpath(self.__name))
+            filename = localpath(self.__name)
+            oldstat = self._checkambig and filestat(filename)
+            if oldstat and oldstat.stat:
+                rename(self._tempname, filename)
+                newstat = filestat(filename)
+                if newstat.isambig(oldstat):
+                    # stat of changed file is ambiguous to original one
+                    advanced = (oldstat.stat.st_mtime + 1) & 0x7fffffff
+                    os.utime(filename, (advanced, advanced))
+            else:
+                rename(self._tempname, filename)
 
     def discard(self):
         if not self._fp.closed:
@@ -1418,6 +1548,15 @@ class atomictempfile(object):
     def __del__(self):
         if safehasattr(self, '_fp'): # constructor actually did something
             self.discard()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exctype, excvalue, traceback):
+        if exctype is not None:
+            self.discard()
+        else:
+            self.close()
 
 def makedirs(name, mode=None, notindexed=False):
     """recursive directory creation with parent mode inheritance
@@ -1614,24 +1753,39 @@ def shortdate(date=None):
     """turn (timestamp, tzoff) tuple into iso 8631 date."""
     return datestr(date, format='%Y-%m-%d')
 
-def parsetimezone(tz):
-    """parse a timezone string and return an offset integer"""
-    if tz[0] in "+-" and len(tz) == 5 and tz[1:].isdigit():
-        sign = (tz[0] == "+") and 1 or -1
-        hours = int(tz[1:3])
-        minutes = int(tz[3:5])
-        return -sign * (hours * 60 + minutes) * 60
-    if tz == "GMT" or tz == "UTC":
-        return 0
-    return None
+def parsetimezone(s):
+    """find a trailing timezone, if any, in string, and return a
+       (offset, remainder) pair"""
+
+    if s.endswith("GMT") or s.endswith("UTC"):
+        return 0, s[:-3].rstrip()
+
+    # Unix-style timezones [+-]hhmm
+    if len(s) >= 5 and s[-5] in "+-" and s[-4:].isdigit():
+        sign = (s[-5] == "+") and 1 or -1
+        hours = int(s[-4:-2])
+        minutes = int(s[-2:])
+        return -sign * (hours * 60 + minutes) * 60, s[:-5].rstrip()
+
+    # ISO8601 trailing Z
+    if s.endswith("Z") and s[-2:-1].isdigit():
+        return 0, s[:-1]
+
+    # ISO8601-style [+-]hh:mm
+    if (len(s) >= 6 and s[-6] in "+-" and s[-3] == ":" and
+        s[-5:-3].isdigit() and s[-2:].isdigit()):
+        sign = (s[-6] == "+") and 1 or -1
+        hours = int(s[-5:-3])
+        minutes = int(s[-2:])
+        return -sign * (hours * 60 + minutes) * 60, s[:-6]
+
+    return None, s
 
 def strdate(string, format, defaults=[]):
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
     # NOTE: unixtime = localunixtime + offset
-    offset, date = parsetimezone(string.split()[-1]), string
-    if offset is not None:
-        date = " ".join(string.split()[:-1])
+    offset, date = parsetimezone(string)
 
     # add missing elements from defaults
     usenow = False # default to using biased defaults

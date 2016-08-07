@@ -1,3 +1,10 @@
+mercurial (3.9-1) unstable; urgency=medium
+
+  * New upstream release
+  * Fix release URL in debian/watch
+
+ -- Javi Merino <vicho@debian.org>  Sun, 07 Aug 2016 11:54:04 +0100
+
 mercurial (3.8.4-1) unstable; urgency=medium
 
   * New upstream release

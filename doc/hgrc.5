@@ -1072,6 +1072,16 @@ the python data internally passed to <command>. \fB$HG_OPTS\fP is a
 dictionary of options (with unspecified options set to their defaults).
 \fB$HG_PATS\fP is a list of arguments. Hook failure is ignored.
 .TP
+.B \fBfail\-<command>\fP
+.sp
+Run after a failed invocation of an associated command. The contents
+of the command line are passed as \fB$HG_ARGS\fP. Parsed command line
+arguments are passed as \fB$HG_PATS\fP and \fB$HG_OPTS\fP. These contain
+string representations of the python data internally passed to
+<command>. \fB$HG_OPTS\fP is a dictionary of options (with unspecified
+options set to their defaults). \fB$HG_PATS\fP is a list of arguments.
+Hook failure is ignored.
+.TP
 .B \fBpre\-<command>\fP
 .sp
 Run before executing the associated command. The contents of the
@@ -1248,6 +1258,8 @@ If a Python hook returns a "true" value or raises an exception, this
 is treated as a failure.
 .SS \fBhostfingerprints\fP
 .sp
+(Deprecated. Use \fB[hostsecurity]\fP\(aqs \fBfingerprints\fP options instead.)
+.sp
 Fingerprints of the certificates of known HTTPS servers.
 .sp
 A HTTPS connection to a server with a fingerprint configured here will
@@ -1268,6 +1280,134 @@ For example:
 [hostfingerprints]
 hg.intevation.de = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
 hg.intevation.org = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
+.ft P
+.fi
+.SS \fBhostsecurity\fP
+.sp
+Used to specify global and per\-host security settings for connecting to
+other machines.
+.sp
+The following options control default behavior for all hosts.
+.INDENT 0.0
+.TP
+.B \fBciphers\fP
+.sp
+Defines the cryptographic ciphers to use for connections.
+.sp
+Value must be a valid OpenSSL Cipher List Format as documented at
+\%https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER\-LIST\-FORMAT\:.
+.sp
+This setting is for advanced users only. Setting to incorrect values
+can significantly lower connection security or decrease performance.
+You have been warned.
+.sp
+This option requires Python 2.7.
+.TP
+.B \fBminimumprotocol\fP
+.sp
+Defines the minimum channel encryption protocol to use.
+.sp
+By default, the highest version of TLS supported by both client and server
+is used.
+.sp
+Allowed values are: \fBtls1.0\fP, \fBtls1.1\fP, \fBtls1.2\fP.
+.sp
+When running on an old Python version, only \fBtls1.0\fP is allowed since
+old versions of Python only support up to TLS 1.0.
+.sp
+When running a Python that supports modern TLS versions, the default is
+\fBtls1.1\fP. \fBtls1.0\fP can still be used to allow TLS 1.0. However, this
+weakens security and should only be used as a feature of last resort if
+a server does not support TLS 1.1+.
+.UNINDENT
+.sp
+Options in the \fB[hostsecurity]\fP section can have the form
+\fBhostname\fP:\fBsetting\fP. This allows multiple settings to be defined on a
+per\-host basis.
+.sp
+The following per\-host settings can be defined.
+.INDENT 0.0
+.TP
+.B \fBciphers\fP
+.sp
+This behaves like \fBciphers\fP as described above except it only applies
+to the host on which it is defined.
+.TP
+.B \fBfingerprints\fP
+.sp
+A list of hashes of the DER encoded peer/remote certificate. Values have
+the form \fBalgorithm\fP:\fBfingerprint\fP. e.g.
+\fBsha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2\fP.
+.sp
+The following algorithms/prefixes are supported: \fBsha1\fP, \fBsha256\fP,
+\fBsha512\fP.
+.sp
+Use of \fBsha256\fP or \fBsha512\fP is preferred.
+.sp
+If a fingerprint is specified, the CA chain is not validated for this
+host and Mercurial will require the remote certificate to match one
+of the fingerprints specified. This means if the server updates its
+certificate, Mercurial will abort until a new fingerprint is defined.
+This can provide stronger security than traditional CA\-based validation
+at the expense of convenience.
+.sp
+This option takes precedence over \fBverifycertsfile\fP.
+.TP
+.B \fBminimumprotocol\fP
+.sp
+This behaves like \fBminimumprotocol\fP as described above except it
+only applies to the host on which it is defined.
+.TP
+.B \fBverifycertsfile\fP
+.sp
+Path to file a containing a list of PEM encoded certificates used to
+verify the server certificate. Environment variables and \fB~user\fP
+constructs are expanded in the filename.
+.sp
+The server certificate or the certificate\(aqs certificate authority (CA)
+must match a certificate from this file or certificate verification
+will fail and connections to the server will be refused.
+.sp
+If defined, only certificates provided by this file will be used:
+\fBweb.cacerts\fP and any system/default certificates will not be
+used.
+.sp
+This option has no effect if the per\-host \fBfingerprints\fP option
+is set.
+.sp
+The format of the file is as follows:
+.sp
+.nf
+.ft C
+\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+\&... (certificate in base64 PEM encoding) ...
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+\&... (certificate in base64 PEM encoding) ...
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+.ft P
+.fi
+.UNINDENT
+.sp
+For example:
+.sp
+.nf
+.ft C
+[hostsecurity]
+hg.example.com:fingerprints = sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2
+hg2.example.com:fingerprints = sha1:914f1aff87249c09b6859b88b1906d30756491ca, sha1:fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
+foo.example.com:verifycertsfile = /etc/ssl/trusted\-ca\-certs.pem
+.ft P
+.fi
+.sp
+To change the default minimum protocol version to TLS 1.2 but to allow TLS 1.1
+when connecting to \fBhg.example.com\fP:
+.sp
+.nf
+.ft C
+[hostsecurity]
+minimumprotocol = tls1.2
+hg.example.com:minimumprotocol = tls1.1
 .ft P
 .fi
 .SS \fBhttp_proxy\fP
@@ -1310,8 +1450,8 @@ Controls behavior when an ignored file on disk has the same name as a tracked
 file in the changeset being merged or updated to, and has different
 contents. Options are \fBabort\fP, \fBwarn\fP and \fBignore\fP. With \fBabort\fP,
 abort on such files. With \fBwarn\fP, warn on such files and back them up as
-.orig. With \fBignore\fP, don\(aqt print a warning and back them up as
-.orig. (default: \fBabort\fP)
+\fB.orig\fP. With \fBignore\fP, don\(aqt print a warning and back them up as
+\fB.orig\fP. (default: \fBabort\fP)
 .TP
 .B \fBcheckunknown\fP
 .sp
@@ -1534,6 +1674,19 @@ The following sub\-options can be defined:
 .sp
 The URL to use for push operations. If not defined, the location
 defined by the path\(aqs main entry is used.
+.TP
+.B \fBpushrev\fP
+.sp
+A revset defining which revisions to push by default.
+.sp
+When \%\fBhg push\fP\: is executed without a \fB\-r\fP argument, the revset
+defined by this sub\-option is evaluated to determine what to push.
+.sp
+For example, a value of \fB.\fP will push the working directory\(aqs
+revision by default.
+.sp
+Revsets specifying bookmarks will not result in the bookmark being
+pushed.
 .UNINDENT
 .sp
 The following special named paths exist:
@@ -1810,17 +1963,6 @@ Optional. Port to connect to on mail server. (default: 465 if
 Optional. Method to enable TLS when connecting to mail server: starttls,
 smtps or none. (default: none)
 .TP
-.B \fBverifycert\fP
-.sp
-Optional. Verification for the certificate of mail server, when
-\fBtls\fP is starttls or smtps. "strict", "loose" or False. For
-"strict" or "loose", the certificate is verified as same as the
-verification for HTTPS connections (see \fB[hostfingerprints]\fP and
-\fB[web] cacerts\fP also). For "strict", sending email is also
-aborted, if there is no configuration for mail server in
-\fB[hostfingerprints]\fP and \fB[web] cacerts\fP.  \-\-insecure for
-\%\fBhg email\fP\: overwrites this as "loose". (default: strict)
-.TP
 .B \fBusername\fP
 .sp
 Optional. User name for authenticating with the SMTP server.
@@ -2015,7 +2157,7 @@ Possible values are \(aqtext\(aq and \(aqcurses\(aq.
 .TP
 .B \fBinterface.chunkselector\fP
 .sp
-Select the interface for change recording (e.g. \%\fBhg commit\fP\: \-i).
+Select the interface for change recording (e.g. \%\fBhg commit \-i\fP\:).
 Possible values are \(aqtext\(aq and \(aqcurses\(aq.
 This config overrides the interface specified by ui.interface.
 .TP
@@ -2152,6 +2294,14 @@ Name of style to use for command output.
 A URL where users should report a Mercurial traceback. Use this if you are a
 large organisation with its own Mercurial deployment process and crash
 reports should be addressed to your internal support.
+.TP
+.B \fBtextwidth\fP
+.sp
+Maximum width of help text. A longer line generated by \fBhg help\fP or
+\fBhg subcommand \-\-help\fP will be broken after white space to get this
+width or the terminal width, whichever comes first.
+A non\-positive value will disable this and the terminal width will be
+used. (default: 78)
 .TP
 .B \fBtimeout\fP
 .sp
@@ -2396,6 +2546,15 @@ Whether to hide the repository in the hgwebdir index.
 .B \fBipv6\fP
 .sp
 Whether to use IPv6. (default: False)
+.TP
+.B \fBlabels\fP
+.sp
+List of string \fIlabels\fP associated with the repository.
+.sp
+Labels are exposed as a template keyword and can be used to customize
+output. e.g. the \fBindex\fP template can group or filter repositories
+by labels and the \fBsummary\fP template can display additional content
+if a specific label is present.
 .TP
 .B \fBlogoimg\fP
 .sp

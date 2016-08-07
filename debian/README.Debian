@@ -3,8 +3,7 @@ Mercurial for Debian
 
 Table of contents
 * Documentation
-* Extensions provided in this package and their dependencies
-* Other extensions
+* Extensions
 * Emacs support
 
 
@@ -13,7 +12,7 @@ Documentation
 
 Mercurial documentation is available on the web at:
    http://hgbook.red-bean.com/ and
-   http://mercurial.selenic.com/wiki/
+   https://www.mercurial-scm.org/wiki
 
 Extensions
 **********
@@ -33,3 +32,5 @@ This package installs a mercurial.el file in the example directory
 (/usr/share/doc/mercurial/examples/). However, with emacs22 or better,
 vc-hg.el provided directly by emacs is better. This is why mercurial.el
 is not installed by default anymore.
+
+ -- Javi Merino <merino.jav@gmail.com>, Sun, 17 Jul 2016 13:35:02 +0100
