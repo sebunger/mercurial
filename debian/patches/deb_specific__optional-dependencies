@@ -2,7 +2,7 @@ Suggest Debian packages for some optional dependencies.
 
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -369,7 +369,8 @@ class bzmysql(bzaccess):
+@@ -370,7 +370,8 @@ class bzmysql(bzaccess):
              import MySQLdb as mysql
              bzmysql._MySQLdb = mysql
          except ImportError as err:
@@ -14,7 +14,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -53,7 +53,8 @@ class bzr_source(common.converter_source
+@@ -54,7 +54,8 @@ class bzr_source(common.converter_source
              # access bzrlib stuff
              bzrdir
          except NameError:
@@ -77,7 +77,7 @@ Suggest Debian packages for some optional dependencies.
  
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
-@@ -80,7 +80,7 @@ class convert_git(common.converter_sourc
+@@ -81,7 +81,7 @@ class convert_git(common.converter_sourc
          else:
              self.simopt = []
  
@@ -88,7 +88,7 @@ Suggest Debian packages for some optional dependencies.
          self.submodules = []
 --- a/hgext/convert/gnuarch.py
 +++ b/hgext/convert/gnuarch.py
-@@ -50,7 +50,8 @@ class gnuarch_source(common.converter_so
+@@ -51,7 +51,8 @@ class gnuarch_source(common.converter_so
              if util.findexe('tla'):
                  self.execmd = 'tla'
              else:
@@ -146,12 +146,12 @@ Suggest Debian packages for some optional dependencies.
 --- a/mercurial/hgweb/server.py
 +++ b/mercurial/hgweb/server.py
 @@ -227,7 +227,8 @@ class _httprequesthandlerssl(_httpreques
-             import ssl
-             ssl.wrap_socket
+             from .. import sslutil
+             sslutil.modernssl
          except ImportError:
 -            raise error.Abort(_("SSL support is unavailable"))
 +            raise error.Abort(_("SSL support is unavailable") +
 +                              _(" (try installing the %s package)") % 'python-openssl')
-         httpserver.socket = ssl.wrap_socket(
-             httpserver.socket, server_side=True,
-             certfile=ssl_cert, ssl_version=ssl.PROTOCOL_TLSv1)
+ 
+         certfile = ui.config('web', 'certificate')
+ 
