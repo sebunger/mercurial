@@ -1,4 +1,4 @@
-mercurial (3.9.0-1) UNRELEASED; urgency=medium
+mercurial (3.9-1) UNRELEASED; urgency=medium
 
   * New upstream release
   * Fix release URL in debian/watch
