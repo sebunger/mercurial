@@ -1,3 +1,12 @@
+mercurial (3.9.1-1) unstable; urgency=medium
+
+  * New upstream release signed with a new gpg key
+  * Fix "FTBFS: Tests failures" by fixing test-gpg.t's output to take into
+    account gpg 2.1's messages when importing classic gpg keyring files.
+    (Closes: #835730)
+
+ -- Javi Merino <vicho@debian.org>  Sat, 03 Sep 2016 09:04:00 +0300
+
 mercurial (3.9-1) unstable; urgency=medium
 
   * New upstream release

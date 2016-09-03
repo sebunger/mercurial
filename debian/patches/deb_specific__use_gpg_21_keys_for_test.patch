@@ -1,0 +1,21 @@
+Description: Fix gpg test output to match gpg 2.1
+ The gpg test uses private/public keyring like "classic" gpg.  Debian
+ has moved to "modern" gpg, which automatically migrates the key on
+ first use, and it spits it out on first invocation.
+Author: Javi Merino <vicho@debian.org>
+Bug-Debian: http://bugs.debian.org/835730
+Forwarded: not-needed
+
+--- a/tests/test-gpg.t
++++ b/tests/test-gpg.t
+@@ -18,6 +18,10 @@ Test the GPG extension
+   $ hg sigs
+ 
+   $ HGEDITOR=cat hg sign -e 0
++  gpg: starting migration from earlier GnuPG versions
++  gpg: porting secret keys from '*/tests/gpg/secring.gpg' to gpg-agent (glob)
++  gpg: key A22D09A74E24F1F2: secret key imported
++  gpg: migration succeeded
+   signing 0:e63c23eaa88a
+   Added signature for changeset e63c23eaa88a
+   
