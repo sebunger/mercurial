@@ -353,7 +353,7 @@ def processbundle(repo, unbundler, transactiongetter=None, op=None):
     try:
         for nbpart, part in iterparts:
             _processpart(op, part)
-    except BaseException as exc:
+    except Exception as exc:
         for nbpart, part in iterparts:
             # consume the bundle content
             part.seek(0, 2)
@@ -382,6 +382,7 @@ def _processpart(op, part):
     The part is guaranteed to have been fully consumed when the function exits
     (even if an exception is raised)."""
     status = 'unknown' # used by debug output
+    hardabort = False
     try:
         try:
             handler = parthandlermapping.get(part.type)
@@ -436,9 +437,15 @@ def _processpart(op, part):
                 outpart = op.reply.newpart('output', data=output,
                                            mandatory=False)
                 outpart.addparam('in-reply-to', str(part.id), mandatory=False)
+    # If exiting or interrupted, do not attempt to seek the stream in the
+    # finally block below. This makes abort faster.
+    except (SystemExit, KeyboardInterrupt):
+        hardabort = True
+        raise
     finally:
         # consume the part content to not corrupt the stream.
-        part.seek(0, 2)
+        if not hardabort:
+            part.seek(0, 2)
 
 
 def decodecaps(blob):
@@ -690,7 +697,7 @@ class unbundle20(unpackermixin):
 
     def _processallparams(self, paramsblock):
         """"""
-        params = {}
+        params = util.sortdict()
         for p in paramsblock.split(' '):
             p = p.split('=', 1)
             p = [urlreq.unquote(i) for i in p]
@@ -1115,8 +1122,8 @@ class unbundlepart(unpackermixin):
         self.mandatoryparams = tuple(mandatoryparams)
         self.advisoryparams  = tuple(advisoryparams)
         # user friendly UI
-        self.params = dict(self.mandatoryparams)
-        self.params.update(dict(self.advisoryparams))
+        self.params = util.sortdict(self.mandatoryparams)
+        self.params.update(self.advisoryparams)
         self.mandatorykeys = frozenset(p[0] for p in mandatoryparams)
 
     def _payloadchunks(self, chunknum=0):
@@ -1294,6 +1301,9 @@ def writebundle(ui, cg, filename, bundletype, vfs=None, compression=None):
         bundle.setcompression(compression)
         part = bundle.newpart('changegroup', data=cg.getchunks())
         part.addparam('version', cg.version)
+        if 'clcount' in cg.extras:
+            part.addparam('nbchanges', str(cg.extras['clcount']),
+                          mandatory=False)
         chunkiter = bundle.getchunks()
     else:
         # compression argument is only for the bundle2 case
@@ -1453,7 +1463,7 @@ def handlecheckheads(op, inpart):
     # Trigger a transaction so that we are guaranteed to have the lock now.
     if op.ui.configbool('experimental', 'bundle2lazylocking'):
         op.gettransaction()
-    if heads != op.repo.heads():
+    if sorted(heads) != sorted(op.repo.heads()):
         raise error.PushRaced('repository changed while pushing - '
                               'please try again')
 
@@ -1461,7 +1471,7 @@ def handlecheckheads(op, inpart):
 def handleoutput(op, inpart):
     """forward output captured on the server to the client"""
     for line in inpart.read().splitlines():
-        op.ui.status(('remote: %s\n' % line))
+        op.ui.status(_('remote: %s\n') % line)
 
 @parthandler('replycaps')
 def handlereplycaps(op, inpart):

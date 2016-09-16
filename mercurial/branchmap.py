@@ -358,12 +358,12 @@ class revbranchcache(object):
         self._repo = repo
         self._names = [] # branch names in local encoding with static index
         self._rbcrevs = array('c') # structs of type _rbcrecfmt
-        self._rbcsnameslen = 0
+        self._rbcsnameslen = 0 # length of names read at _rbcsnameslen
         try:
             bndata = repo.vfs.read(_rbcnames)
             self._rbcsnameslen = len(bndata) # for verification before writing
             self._names = [encoding.tolocal(bn) for bn in bndata.split('\0')]
-        except (IOError, OSError) as inst:
+        except (IOError, OSError):
             if readonly:
                 # don't try to use cache - fall back to the slow path
                 self.branchinfo = self._branchinfo
@@ -380,7 +380,8 @@ class revbranchcache(object):
                                len(repo.changelog))
         if self._rbcrevslen == 0:
             self._names = []
-        self._rbcnamescount = len(self._names) # number of good names on disk
+        self._rbcnamescount = len(self._names) # number of names read at
+                                               # _rbcsnameslen
         self._namesreverse = dict((b, r) for r, b in enumerate(self._names))
 
     def _clear(self):
@@ -402,10 +403,9 @@ class revbranchcache(object):
         if rev == nullrev:
             return changelog.branchinfo(rev)
 
-        # if requested rev is missing, add and populate all missing revs
+        # if requested rev isn't allocated, grow and cache the rev info
         if len(self._rbcrevs) < rbcrevidx + _rbcrecsize:
-            self._rbcrevs.extend('\0' * (len(changelog) * _rbcrecsize -
-                                         len(self._rbcrevs)))
+            return self._branchinfo(rev)
 
         # fast path: extract data from cache, use it if node is matching
         reponode = changelog.node(rev)[:_rbcnodelen]
@@ -417,13 +417,17 @@ class revbranchcache(object):
         if cachenode == '\0\0\0\0':
             pass
         elif cachenode == reponode:
-            if branchidx < self._rbcnamescount:
+            try:
                 return self._names[branchidx], close
-            # referenced branch doesn't exist - rebuild is expensive but needed
-            self._repo.ui.debug("rebuilding corrupted revision branch cache\n")
-            self._clear()
+            except IndexError:
+                # recover from invalid reference to unknown branch
+                self._repo.ui.debug("referenced branch names not found"
+                    " - rebuilding revision branch cache from scratch\n")
+                self._clear()
         else:
             # rev/node map has changed, invalidate the cache from here up
+            self._repo.ui.debug("history modification detected - truncating "
+                "revision branch cache to revision %s\n" % rev)
             truncate = rbcrevidx + _rbcrecsize
             del self._rbcrevs[truncate:]
             self._rbcrevslen = min(self._rbcrevslen, truncate)
@@ -452,6 +456,10 @@ class revbranchcache(object):
         rbcrevidx = rev * _rbcrecsize
         rec = array('c')
         rec.fromstring(pack(_rbcrecfmt, node, branchidx))
+        if len(self._rbcrevs) < rbcrevidx + _rbcrecsize:
+            self._rbcrevs.extend('\0' *
+                                 (len(self._repo.changelog) * _rbcrecsize -
+                                  len(self._rbcrevs)))
         self._rbcrevs[rbcrevidx:rbcrevidx + _rbcrecsize] = rec
         self._rbcrevslen = min(self._rbcrevslen, rev)
 

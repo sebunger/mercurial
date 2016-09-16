@@ -5,3 +5,4 @@ proposed_upstream__correct-zeroconf-doc
 deb_specific__disable_libdir_replacement.patch
 for_upstream__dont_rm_usr_bin_python_when_running_testsuite.patch
 deb_specific__fix_fhs_paths.patch
+# deb_specific__use_gpg_21_keys_for_test.patch

@@ -94,6 +94,23 @@ class _demandmod(object):
         if not self._module:
             head, globals, locals, after, level, modrefs = self._data
             mod = _hgextimport(_import, head, globals, locals, None, level)
+            if mod is self:
+                # In this case, _hgextimport() above should imply
+                # _demandimport(). Otherwise, _hgextimport() never
+                # returns _demandmod. This isn't intentional behavior,
+                # in fact. (see also issue5304 for detail)
+                #
+                # If self._module is already bound at this point, self
+                # should be already _load()-ed while _hgextimport().
+                # Otherwise, there is no way to import actual module
+                # as expected, because (re-)invoking _hgextimport()
+                # should cause same result.
+                # This is reason why _load() returns without any more
+                # setup but assumes self to be already bound.
+                mod = self._module
+                assert mod and mod is not self, "%s, %s" % (self, mod)
+                return
+
             # load submodules
             def subload(mod, p):
                 h, t = p, None
@@ -188,15 +205,23 @@ def _demandimport(name, globals=None, locals=None, fromlist=None, level=level):
             if globalname and isinstance(symbol, _demandmod):
                 symbol._addref(globalname)
 
-        if level >= 0:
-            # The "from a import b,c,d" or "from .a import b,c,d"
-            # syntax gives errors with some modules for unknown
-            # reasons. Work around the problem.
-            if name:
-                return _hgextimport(_origimport, name, globals, locals,
-                                    fromlist, level)
+        def chainmodules(rootmod, modname):
+            # recurse down the module chain, and return the leaf module
+            mod = rootmod
+            for comp in modname.split('.')[1:]:
+                if getattr(mod, comp, nothing) is nothing:
+                    setattr(mod, comp,
+                            _demandmod(comp, mod.__dict__, mod.__dict__))
+                mod = getattr(mod, comp)
+            return mod
 
-            if _pypy:
+        if level >= 0:
+            if name:
+                # "from a import b" or "from .a import b" style
+                rootmod = _hgextimport(_origimport, name, globals, locals,
+                                       level=level)
+                mod = chainmodules(rootmod, name)
+            elif _pypy:
                 # PyPy's __import__ throws an exception if invoked
                 # with an empty name and no fromlist.  Recreate the
                 # desired behaviour by hand.
@@ -220,12 +245,7 @@ def _demandimport(name, globals=None, locals=None, fromlist=None, level=level):
         # But, we still need to support lazy loading of standard library and 3rd
         # party modules. So handle level == -1.
         mod = _hgextimport(_origimport, name, globals, locals)
-        # recurse down the module chain
-        for comp in name.split('.')[1:]:
-            if getattr(mod, comp, nothing) is nothing:
-                setattr(mod, comp,
-                        _demandmod(comp, mod.__dict__, mod.__dict__))
-            mod = getattr(mod, comp)
+        mod = chainmodules(mod, name)
 
         for x in fromlist:
             processfromitem(mod, x)

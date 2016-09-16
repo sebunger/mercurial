@@ -2557,7 +2557,7 @@ the parent of each patch before applying it, and will abort if the
 resulting changeset has a different ID than the one recorded in
 the patch. This will guard against various ways that portable
 patch formats and mail systems might fail to transfer Mercurial
-data or metadata. See \(aq:hg: bundle\(aq for lossless transmission.
+data or metadata. See \%\fBhg bundle\fP\: for lossless transmission.
 .sp
 Use \-\-partial to ensure a changeset will be created from the patch
 even if some hunks fail to apply. Hunks that fail to apply will be
@@ -3631,6 +3631,9 @@ to add those changes to the repository, you should use \%\fBhg pull
 If SOURCE is omitted, the \(aqdefault\(aq path will be used.
 See \%\fBhg help urls\fP\: for more information.
 .sp
+Specifying bookmark as \fB.\fP is equivalent to specifying the active
+bookmark\(aqs name.
+.sp
 Returns 0 on success, 1 if an update had unresolved files.
 .sp
 Options:
@@ -4076,7 +4079,10 @@ out" some or all of an earlier change. See \%\fBhg backout\fP\: for a
 related method.
 .sp
 Modified files are saved with a .orig suffix before reverting.
-To disable these backups, use \-\-no\-backup.
+To disable these backups, use \-\-no\-backup. It is possible to store
+the backup files in a custom directory relative to the root of the
+repository by setting the \fBui.origbackuppath\fP configuration
+option.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
@@ -4168,6 +4174,11 @@ unbundle
 To avoid permanent data loss, rollback will refuse to rollback a
 commit transaction if it isn\(aqt checked out. Use \-\-force to
 override this protection.
+.sp
+The rollback command can be entirely disabled by setting the
+\fBui.rollback\fP configuration setting to false. If you\(aqre here
+because you want to use rollback and it\(aqs disabled, you can
+re\-enable the command by setting \fBui.rollback\fP to true.
 .sp
 This command is not intended for use on public repositories. Once
 changes are visible for pull by other users, rolling a transaction
@@ -5172,10 +5183,6 @@ http authentication with factotum
 .B gpg
 .
 commands to sign and verify changesets
-.TP
-.B hgcia
-.
-hooks for integrating with the CIA.vc notification service
 .TP
 .B hgk
 .
@@ -7256,7 +7263,7 @@ Changesets in set with no parent changeset in set.
 .sp
 Changeset in secret phase.
 .TP
-.B \fBsort(set[, [\-]key...])\fP
+.B \fBsort(set[, [\-]key... [, ...]])\fP
 .sp
 Sort set by keys. The default sort order is ascending, specify a key
 as \fB\-key\fP to sort in descending order.
@@ -7278,7 +7285,14 @@ The keys can be:
 .IP \(bu 2
 .
 \fBdate\fP for the commit date
+.IP \(bu 2
+.
+\fBtopo\fP for a reverse topographical sort
 .UNINDENT
+.sp
+The \fBtopo\fP sort order cannot be combined with other sort keys. This sort
+takes one optional argument, \fBtopo.firstbranch\fP, which takes a revset that
+specifies what topographical branches to prioritize in the sort.
 .TP
 .B \fBsubrepo([pattern])\fP
 .sp
@@ -7455,7 +7469,7 @@ output, such as JSON. For more, see \%\fBhg help hgweb\fP\:.
 \%\fBhg serve\fP\: can also start a "command server." Clients can connect
 to this server and issue Mercurial commands over a special protocol.
 For more details on the command server, including links to client
-libraries, see \%https://mercurial.selenic.com/wiki/CommandServer\:.
+libraries, see \%https://www.mercurial\-scm.org/wiki/CommandServer\:.
 .sp
 \%\fBhg serve\fP\: based interfaces (the hgweb and command servers) have the
 advantage over simple \fBhg\fP process invocations in that they are
@@ -8246,6 +8260,10 @@ Execute a revision set query. See
 .
 Format ReStructuredText.
 .TP
+.B separate(sep, args)
+.
+Add a separator between non\-empty arguments.
+.TP
 .B shortest(node, minlength=4)
 .
 Obtain the shortest representation of
@@ -8309,6 +8327,26 @@ leftpad(s, w) = pad(s, w, \(aq \(aq, True)
 defines two symbol aliases, \fBr\fP and \fBrn\fP, and a function alias
 \fBleftpad()\fP.
 .sp
+It\(aqs also possible to specify complete template strings, using the
+\fBtemplates\fP section. The syntax used is the general template string syntax.
+.sp
+For example,
+.sp
+.nf
+.ft C
+[templates]
+nodedate = "{node|short}: {date(date, "%Y\-%m\-%d")}\en"
+.ft P
+.fi
+.sp
+defines a template, \fBnodedate\fP, which can be called like:
+.sp
+.nf
+.ft C
+$ hg log \-r . \-Tnodedate
+.ft P
+.fi
+.sp
 Some sample command line templates:
 .INDENT 0.0
 .IP \(bu 2
@@ -8327,6 +8365,15 @@ Join the list of files with a ", ":
 .nf
 .ft C
 $ hg log \-r 0 \-\-template "files: {join(files, \(aq, \(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Separate non\-empty arguments by a " ":
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{separate(\(aq \(aq, node, bookmarks, tags}\en"
 .ft P
 .fi
 .IP \(bu 2
@@ -10903,48 +10950,6 @@ exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS hgcia
-.sp
-hooks for integrating with the CIA.vc notification service
-.sp
-This is meant to be run as a changegroup or incoming hook. To
-configure it, set the following options in your hgrc:
-.sp
-.nf
-.ft C
-[cia]
-# your registered CIA user name
-user = foo
-# the name of the project in CIA
-project = foo
-# the module (subproject) (optional)
-#module = foo
-# Append a diffstat to the log message (optional)
-#diffstat = False
-# Template to use for log messages (optional)
-#template = {desc}\en{baseurl}{webroot}/rev/{node}\-\- {diffstat}
-# Style to use (optional)
-#style = foo
-# The URL of the CIA notification service (optional)
-# You can use mailto: URLs to send by email, e.g.
-# mailto:cia@cia.vc
-# Make sure to set email.from if you do this.
-#url = http://cia.vc/
-# print message instead of sending it (optional)
-#test = False
-# number of slashes to strip for url paths
-#strip = 0
-
-[hooks]
-# one of these:
-changegroup.cia = python:hgcia.hook
-#incoming.cia = python:hgcia.hook
-
-[web]
-# If you want hyperlinks (optional)
-baseurl = http://server/path/to/repo
-.ft P
-.fi
 .SS hgk
 .sp
 browse the repository in a graphical way
@@ -11405,6 +11410,79 @@ first revision to be edited
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS journal
+.sp
+Track previous positions of bookmarks (EXPERIMENTAL)
+.sp
+This extension adds a new command: \fIhg journal\fP, which shows you where
+bookmarks were previously located.
+.SS Commands
+.SS journal
+.sp
+show the previous position of bookmarks and the working copy:
+.sp
+.nf
+.ft C
+hg journal [OPTION]... [BOOKMARKNAME]
+.ft P
+.fi
+.sp
+The journal is used to see the previous commits that bookmarks and the
+working copy pointed to. By default the previous locations for the working
+copy.  Passing a bookmark name will show all the previous positions of
+that bookmark. Use the \-\-all switch to show previous locations for all
+bookmarks and the working copy; each line will then include the bookmark
+name, or \(aq.\(aq for the working copy, as well.
+.sp
+If \fIname\fP starts with \fIre:\fP, the remainder of the name is treated as
+a regular expression. To match a name that actually starts with \fIre:\fP,
+use the prefix \fIliteral:\fP.
+.sp
+By default hg journal only shows the commit hash and the command that was
+running at that time. \-v/\-\-verbose will show the prior hash, the user, and
+the time at which it happened.
+.sp
+Use \-c/\-\-commits to output log information on each commit hash; at this
+point you can use the usual \fI\-\-patch\fP, \fI\-\-git\fP, \fI\-\-stat\fP and \fI\-\-template\fP
+switches to alter the log output for these.
+.sp
+\fIhg journal \-T json\fP can be used to produce machine readable output.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-all
+.
+show history for all names
+.TP
+.B \-c,  \-\-commits
+.
+show commit metadata
+.TP
+.B \-p,  \-\-patch
+.
+show patch
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.BI \-l,  \-\-limit \ <NUM>
+.
+limit number of changes displayed
+.TP
+.B \-\-stat
+.
+output diffstat\-style summary of changes
+.TP
+.BI \-\-style \ <STYLE>
+.
+display using template map file (DEPRECATED)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.UNINDENT
 .SS keyword
 .sp
 expand keywords in tracked files
