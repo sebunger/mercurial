@@ -1811,20 +1811,22 @@ specifying revisions.</p>
 </div>
 <div class="section" id="grep">
 <h2>grep</h2>
-<p>search for a pattern in specified files and revisions:</p>
+<p>search revision history for a pattern in specified files:</p>
 <pre class="literal-block">
 hg grep [OPTION]... PATTERN [FILE]...
 </pre>
-<p>Search revisions of files for a regular expression.</p>
-<p>This command behaves differently than Unix grep. It only accepts
-Python/Perl regexps. It searches repository history, not the
-working directory. It always prints the revision number in which a
-match appears.</p>
-<p>By default, grep only prints output for the first revision of a
+<p>Search revision history for a regular expression in the specified
+files or the entire project.</p>
+<p>By default, grep prints the most recent revision number for each
 file in which it finds a match. To get it to print every revision
-that contains a change in match status (&quot;-&quot; for a match that
-becomes a non-match, or &quot;+&quot; for a non-match that becomes a match),
-use the --all flag.</p>
+that contains a change in match status (&quot;-&quot; for a match that becomes
+a non-match, or &quot;+&quot; for a non-match that becomes a match), use the
+--all flag.</p>
+<p>PATTERN can be any Python (roughly Perl-compatible) regular
+expression.</p>
+<p>If no FILEs are specified (and -f/--follow isn't set), all files in
+the repository are searched, including those that don't exist in the
+current branch or have been deleted in a prior changeset.</p>
 <p>Returns 0 if a match is found, 1 otherwise.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
