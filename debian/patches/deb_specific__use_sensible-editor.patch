@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- a/mercurial/commands.py
 +++ b/mercurial/commands.py
-@@ -2803,15 +2803,15 @@ def debuginstall(ui, **opts):
+@@ -2761,15 +2761,15 @@ def debuginstall(ui, **opts):
      editor = util.expandpath(editor)
      fm.write('editor', _("checking commit editor... (%s)\n"), editor)
      cmdpath = util.findexe(shlex.split(editor)[0])
@@ -214,7 +214,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- a/i18n/pt_BR.po
 +++ b/i18n/pt_BR.po
-@@ -23348,11 +23348,12 @@ msgstr ""
+@@ -23359,11 +23359,12 @@ msgstr ""
  
  msgid ""
  "``editor``\n"
@@ -229,7 +229,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -24851,7 +24852,7 @@ msgid ""
+@@ -24862,7 +24863,7 @@ msgid ""
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -238,7 +238,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -24859,7 +24860,7 @@ msgstr ""
+@@ -24870,7 +24871,7 @@ msgstr ""
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
@@ -247,7 +247,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "PYTHONPATH\n"
-@@ -34055,10 +34056,10 @@ msgstr "o número de cpus deve ser um in
+@@ -34080,10 +34081,10 @@ msgstr "o número de cpus deve ser um in
  #~ msgid " (check that you compiled the extensions)\n"
  #~ msgstr " (verifique se você compilou as extensões)\n"
  
@@ -347,7 +347,7 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- a/mercurial/help/config.txt
 +++ b/mercurial/help/config.txt
-@@ -1722,7 +1722,8 @@ User interface controls.
+@@ -1743,7 +1743,8 @@ User interface controls.
      Print debugging information. (default: False)
  
  ``editor``

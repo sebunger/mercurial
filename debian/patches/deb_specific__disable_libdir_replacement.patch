@@ -11,7 +11,7 @@ Forwarded: not-needed
 
 --- a/setup.py
 +++ b/setup.py
-@@ -534,7 +534,6 @@ cmdclass = {'build': hgbuild,
+@@ -537,7 +537,6 @@ cmdclass = {'build': hgbuild,
              'build_scripts': hgbuildscripts,
              'build_hgextindex': buildhgextindex,
              'install_lib': hginstalllib,
