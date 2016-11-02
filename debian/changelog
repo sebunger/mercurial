@@ -1,8 +1,8 @@
-mercurial (4.0-1) UNRELEASED; urgency=medium
+mercurial (4.0-1) unstable; urgency=medium
 
   * New upstream release
 
- -- Javi Merino <vicho@debian.org>  Wed, 02 Nov 2016 04:57:54 -0600
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Nov 2016 05:50:33 -0600
 
 mercurial (4.0~rc1-1) experimental; urgency=medium
 
