@@ -203,8 +203,10 @@ Inability to verify peer certificate will result in abort
 pull without cacert
 
   $ cd copy-pull
-  $ echo '[hooks]' >> .hg/hgrc
-  $ echo "changegroup = printenv.py changegroup" >> .hg/hgrc
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > changegroup = sh -c "printenv.py changegroup"
+  > EOF
   $ hg pull $DISABLECACERTS
   pulling from https://localhost:$HGPORT/
   warning: connecting to localhost using legacy security technology (TLS 1.0); see https://mercurial-scm.org/wiki/SecureConnections for more info (?)
@@ -230,7 +232,7 @@ cacert configured in local repo
   $ cp copy-pull/.hg/hgrc copy-pull/.hg/hgrc.bu
   $ echo "[web]" >> copy-pull/.hg/hgrc
   $ echo "cacerts=$CERTSDIR/pub.pem" >> copy-pull/.hg/hgrc
-  $ hg -R copy-pull pull --traceback
+  $ hg -R copy-pull pull
   pulling from https://localhost:$HGPORT/
   warning: connecting to localhost using legacy security technology (TLS 1.0); see https://mercurial-scm.org/wiki/SecureConnections for more info (?)
   searching for changes
@@ -554,7 +556,7 @@ from the shell. So don't kill it.
 
 Test unvalidated https through proxy
 
-  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --insecure --traceback
+  $ http_proxy=http://localhost:$HGPORT1/ hg -R copy-pull pull --insecure
   pulling from https://localhost:$HGPORT/
   warning: connecting to localhost using legacy security technology (TLS 1.0); see https://mercurial-scm.org/wiki/SecureConnections for more info (?)
   warning: connection security to localhost is disabled per current settings; communication is susceptible to eavesdropping and tampering

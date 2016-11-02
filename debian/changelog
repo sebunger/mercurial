@@ -1,3 +1,17 @@
+mercurial (4.0-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Nov 2016 05:50:33 -0600
+
+mercurial (4.0~rc1-1) experimental; urgency=medium
+
+  * First release candidate for mercurial 4.0
+  * Remove deb_specific__use_gpg_21_keys_for_test.patch as test-gpg now
+    migrates the secret keys at the beginning of the test
+
+ -- Javi Merino <vicho@debian.org>  Sun, 23 Oct 2016 18:15:45 +0100
+
 mercurial (3.9.2-1) unstable; urgency=medium
 
   * New upstream release

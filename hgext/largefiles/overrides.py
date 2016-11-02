@@ -883,11 +883,8 @@ def hgclone(orig, ui, opts, *args, **kwargs):
 
         # If largefiles is required for this repo, permanently enable it locally
         if 'largefiles' in repo.requirements:
-            fp = repo.vfs('hgrc', 'a', text=True)
-            try:
+            with repo.vfs('hgrc', 'a', text=True) as fp:
                 fp.write('\n[extensions]\nlargefiles=\n')
-            finally:
-                fp.close()
 
         # Caching is implicitly limited to 'rev' option, since the dest repo was
         # truncated at that point.  The user may expect a download count with
@@ -1339,30 +1336,28 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
     m.visitdir = lfvisitdirfn
 
     for f in ctx.walk(m):
-        fp = cmdutil.makefileobj(repo, opts.get('output'), ctx.node(),
-                                 pathname=f)
-        lf = lfutil.splitstandin(f)
-        if lf is None or origmatchfn(f):
-            # duplicating unreachable code from commands.cat
-            data = ctx[f].data()
-            if opts.get('decode'):
-                data = repo.wwritedata(f, data)
-            fp.write(data)
-        else:
-            hash = lfutil.readstandin(repo, lf, ctx.rev())
-            if not lfutil.inusercache(repo.ui, hash):
-                store = storefactory.openstore(repo)
-                success, missing = store.get([(lf, hash)])
-                if len(success) != 1:
-                    raise error.Abort(
-                        _('largefile %s is not in cache and could not be '
-                          'downloaded')  % lf)
-            path = lfutil.usercachepath(repo.ui, hash)
-            fpin = open(path, "rb")
-            for chunk in util.filechunkiter(fpin, 128 * 1024):
-                fp.write(chunk)
-            fpin.close()
-        fp.close()
+        with cmdutil.makefileobj(repo, opts.get('output'), ctx.node(),
+                                 pathname=f) as fp:
+            lf = lfutil.splitstandin(f)
+            if lf is None or origmatchfn(f):
+                # duplicating unreachable code from commands.cat
+                data = ctx[f].data()
+                if opts.get('decode'):
+                    data = repo.wwritedata(f, data)
+                fp.write(data)
+            else:
+                hash = lfutil.readstandin(repo, lf, ctx.rev())
+                if not lfutil.inusercache(repo.ui, hash):
+                    store = storefactory.openstore(repo)
+                    success, missing = store.get([(lf, hash)])
+                    if len(success) != 1:
+                        raise error.Abort(
+                            _('largefile %s is not in cache and could not be '
+                              'downloaded')  % lf)
+                path = lfutil.usercachepath(repo.ui, hash)
+                with open(path, "rb") as fpin:
+                    for chunk in util.filechunkiter(fpin):
+                        fp.write(chunk)
         err = 0
     return err
 
@@ -1390,7 +1385,8 @@ def mergeupdate(orig, repo, node, branchmerge, force,
         lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
         unsure, s = lfdirstate.status(matchmod.always(repo.root,
                                                     repo.getcwd()),
-                                      [], False, False, False)
+                                      [], False, True, False)
+        oldclean = set(s.clean)
         pctx = repo['.']
         for lfile in unsure + s.modified:
             lfileabs = repo.wvfs.join(lfile)
@@ -1402,9 +1398,13 @@ def mergeupdate(orig, repo, node, branchmerge, force,
                                 lfutil.getexecutable(lfileabs))
             if (standin in pctx and
                 lfhash == lfutil.readstandin(repo, lfile, '.')):
-                lfdirstate.normal(lfile)
+                oldclean.add(lfile)
         for lfile in s.added:
             lfutil.updatestandin(repo, lfutil.standin(lfile))
+        # mark all clean largefiles as dirty, just in case the update gets
+        # interrupted before largefiles and lfdirstate are synchronized
+        for lfile in oldclean:
+            lfdirstate.normallookup(lfile)
         lfdirstate.write()
 
         oldstandins = lfutil.getstandinsstate(repo)
@@ -1413,6 +1413,13 @@ def mergeupdate(orig, repo, node, branchmerge, force,
 
         newstandins = lfutil.getstandinsstate(repo)
         filelist = lfutil.getlfilestoupdate(oldstandins, newstandins)
+
+        # to avoid leaving all largefiles as dirty and thus rehash them, mark
+        # all the ones that didn't change as clean
+        for lfile in oldclean.difference(filelist):
+            lfdirstate.normal(lfile)
+        lfdirstate.write()
+
         if branchmerge or force or partial:
             filelist.extend(s.deleted + s.removed)
 
