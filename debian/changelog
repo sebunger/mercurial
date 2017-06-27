@@ -1,3 +1,12 @@
+mercurial (2.2.2-4+deb7u4) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the LTS Security Team.
+  * CVE-2017-9462: "hg serve --stdio" allows remote authenticated users to
+    launch the Python debugger, and consequently execute arbitrary code,
+    by using --debugger as a repository name. (Closes: #861243)
+
+ -- Antoine Beaupré <anarcat@debian.org>  Tue, 27 Jun 2017 14:57:43 -0400
+
 mercurial (2.2.2-4+deb7u3) wheezy-security; urgency=high
 
   * Non-maintainer upload by the Wheezy LTS Team. 
