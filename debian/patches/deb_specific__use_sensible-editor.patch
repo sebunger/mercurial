@@ -1,7 +1,9 @@
 Use sensible-editor as default instead of vi.
 
---- a/hgeditor
-+++ b/hgeditor
+Index: mercurial-4.3.1/hgeditor
+===================================================================
+--- mercurial-4.3.1.orig/hgeditor	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/hgeditor	2017-08-11 05:03:26.398393624 +0200
 @@ -7,7 +7,7 @@
  # only for Mercurial, modify this:
  case "${EDITOR}" in
@@ -11,42 +13,24 @@ Use sensible-editor as default instead of vi.
          ;;
      emacs)
          EDITOR="$EDITOR -nw"
---- a/mercurial/commands.py
-+++ b/mercurial/commands.py
-@@ -2781,15 +2781,15 @@ def debuginstall(ui, **opts):
-     editor = util.expandpath(editor)
-     fm.write('editor', _("checking commit editor... (%s)\n"), editor)
-     cmdpath = util.findexe(shlex.split(editor)[0])
--    fm.condwrite(not cmdpath and editor == 'vi', 'vinotfound',
-+    fm.condwrite(not cmdpath and editor == 'sensible-editor', 'vinotfound',
-                  _(" No commit editor set and can't find %s in PATH\n"
-                    " (specify a commit editor in your configuration"
--                   " file)\n"), not cmdpath and editor == 'vi' and editor)
--    fm.condwrite(not cmdpath and editor != 'vi', 'editornotfound',
-+                   " file)\n"), not cmdpath and editor == 'sensible-editor' and editor)
-+    fm.condwrite(not cmdpath and editor != 'sensible-editor', 'editornotfound',
-                  _(" Can't find editor '%s' in PATH\n"
-                    " (specify a commit editor in your configuration"
-                    " file)\n"), not cmdpath and editor)
--    if not cmdpath and editor != 'vi':
-+    if not cmdpath and editor != 'sensible-editor':
-         problems += 1
- 
-     # check username
---- a/mercurial/ui.py
-+++ b/mercurial/ui.py
-@@ -1074,7 +1074,7 @@ class ui(object):
+Index: mercurial-4.3.1/mercurial/ui.py
+===================================================================
+--- mercurial-4.3.1.orig/mercurial/ui.py	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/mercurial/ui.py	2017-08-11 05:06:00.064939648 +0200
+@@ -1463,7 +1463,7 @@
              # avoid confusion.
              editor = 'E'
          else:
 -            editor = 'vi'
 +            editor = 'sensible-editor'
-         return (os.environ.get("HGEDITOR") or
-                 self.config("ui", "editor") or
-                 os.environ.get("VISUAL") or
---- a/i18n/da.po
-+++ b/i18n/da.po
-@@ -8752,7 +8752,7 @@ msgstr ""
+         return (encoding.environ.get("HGEDITOR") or
+                 self.config("ui", "editor", editor))
+ 
+Index: mercurial-4.3.1/i18n/da.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/da.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/da.po	2017-08-11 05:03:26.402393690 +0200
+@@ -8752,7 +8752,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -55,7 +39,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -13521,7 +13521,8 @@ msgstr ""
+@@ -13521,7 +13521,8 @@
  
  msgid ""
  "``editor``\n"
@@ -65,7 +49,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -14194,7 +14195,7 @@ msgid ""
+@@ -14194,7 +14195,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -74,9 +58,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
---- a/i18n/de.po
-+++ b/i18n/de.po
-@@ -11683,8 +11683,8 @@ msgstr " (Vorlagen scheinen falsch insta
+Index: mercurial-4.3.1/i18n/de.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/de.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/de.po	2017-08-11 05:03:26.406393756 +0200
+@@ -11683,8 +11683,8 @@
  msgid "checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -87,7 +73,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
-@@ -17242,7 +17242,8 @@ msgstr ""
+@@ -17242,7 +17242,8 @@
  
  msgid ""
  "``editor``\n"
@@ -97,7 +83,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -18120,7 +18121,7 @@ msgid ""
+@@ -18120,7 +18121,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -106,7 +92,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -18129,7 +18130,7 @@ msgstr ""
+@@ -18129,7 +18130,7 @@
  "    variablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge) "
  "ermittelt.\n"
  "    Der erste nicht-leere wird verwendet. Wenn alle Angaben leer sind,\n"
@@ -115,9 +101,11 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "PYTHONPATH\n"
---- a/i18n/el.po
-+++ b/i18n/el.po
-@@ -274,7 +274,7 @@ msgid ""
+Index: mercurial-4.3.1/i18n/el.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/el.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/el.po	2017-08-11 05:03:26.406393756 +0200
+@@ -274,7 +274,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -126,7 +114,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -6364,7 +6364,7 @@ msgstr ""
+@@ -6364,7 +6364,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -135,9 +123,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
---- a/i18n/fr.po
-+++ b/i18n/fr.po
-@@ -299,7 +299,7 @@ msgid ""
+Index: mercurial-4.3.1/i18n/fr.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/fr.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/fr.po	2017-08-11 05:03:26.406393756 +0200
+@@ -299,7 +299,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -146,7 +136,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -8201,7 +8201,7 @@ msgstr ""
+@@ -8201,7 +8201,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -155,9 +145,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
---- a/i18n/it.po
-+++ b/i18n/it.po
-@@ -7156,8 +7156,8 @@ msgstr ""
+Index: mercurial-4.3.1/i18n/it.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/it.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/it.po	2017-08-11 05:03:26.406393756 +0200
+@@ -7156,8 +7156,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Sto controllando l'editor per il commit...\n"
  
@@ -168,7 +160,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr ""
-@@ -10461,7 +10461,7 @@ msgid ""
+@@ -10461,7 +10461,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -177,9 +169,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
---- a/i18n/ja.po
-+++ b/i18n/ja.po
-@@ -22953,10 +22953,12 @@ msgstr ""
+Index: mercurial-4.3.1/i18n/ja.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/ja.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/ja.po	2017-08-11 05:03:26.410393822 +0200
+@@ -23224,10 +23224,12 @@
  
  msgid ""
  "``editor``\n"
@@ -194,7 +188,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -24376,7 +24378,7 @@ msgid ""
+@@ -24672,7 +24674,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -203,7 +197,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    コミットログ入力時のように、 エディタでファイルを開き、\n"
-@@ -24384,7 +24386,7 @@ msgstr ""
+@@ -24680,7 +24682,7 @@
  "    そこで使用されるエディタは、 HGEDITOR、 VISUAL\n"
  "    あるいは EDITOR 環境変数に設定されたものを(この順序で)使用します。\n"
  "    最初の空で無い値に設定された環境変数の値を使用します。\n"
@@ -212,9 +206,11 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "PYTHONPATH\n"
---- a/i18n/pt_BR.po
-+++ b/i18n/pt_BR.po
-@@ -23489,11 +23489,12 @@ msgstr ""
+Index: mercurial-4.3.1/i18n/pt_BR.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/pt_BR.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/pt_BR.po	2017-08-11 05:03:26.414393889 +0200
+@@ -23986,11 +23986,12 @@
  
  msgid ""
  "``editor``\n"
@@ -229,7 +225,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -24992,7 +24993,7 @@ msgid ""
+@@ -25536,7 +25537,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -238,7 +234,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -25000,7 +25001,7 @@ msgstr ""
+@@ -25544,7 +25545,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
@@ -247,7 +243,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "PYTHONPATH\n"
-@@ -34428,10 +34429,10 @@ msgstr "o número de cpus deve ser um in
+@@ -36726,10 +36727,10 @@
  #~ msgid " (check that you compiled the extensions)\n"
  #~ msgstr " (verifique se você compilou as extensões)\n"
  
@@ -260,9 +256,11 @@ Use sensible-editor as default instead of vi.
  
  #~ msgid " Can't find editor '%s' in PATH\n"
  #~ msgstr " Não é possível localizar editor '%s' no PATH\n"
---- a/i18n/sv.po
-+++ b/i18n/sv.po
-@@ -9509,8 +9509,8 @@ msgstr " (mallar verkar vara inkorrekt i
+Index: mercurial-4.3.1/i18n/sv.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/sv.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/sv.po	2017-08-11 05:03:26.414393889 +0200
+@@ -9509,8 +9509,8 @@
  msgid "checking commit editor...\n"
  msgstr "kontrollerar arkiveringseditor...\n"
  
@@ -273,7 +271,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (specificera en arkiveringseditor i din konfigurationsfil)\n"
-@@ -14851,7 +14851,8 @@ msgstr ""
+@@ -14851,7 +14851,8 @@
  
  msgid ""
  "``editor``\n"
@@ -283,7 +281,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -15563,7 +15564,7 @@ msgid ""
+@@ -15563,7 +15564,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -292,9 +290,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
---- a/i18n/zh_CN.po
-+++ b/i18n/zh_CN.po
-@@ -5778,7 +5778,7 @@ msgstr ""
+Index: mercurial-4.3.1/i18n/zh_CN.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/zh_CN.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/zh_CN.po	2017-08-11 05:03:26.414393889 +0200
+@@ -5778,7 +5778,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
  
@@ -303,7 +303,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
-@@ -8666,7 +8666,7 @@ msgid ""
+@@ -8666,7 +8666,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -312,9 +312,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
---- a/i18n/zh_TW.po
-+++ b/i18n/zh_TW.po
-@@ -6759,8 +6759,8 @@ msgstr ""
+Index: mercurial-4.3.1/i18n/zh_TW.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/zh_TW.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/zh_TW.po	2017-08-11 05:03:26.418393955 +0200
+@@ -6759,8 +6759,8 @@
  msgid "Checking commit editor...\n"
  msgstr "檢查提交訊息編輯器...\n"
  
@@ -325,7 +327,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (在你的設定檔指明一個用來編輯提交訊息的編輯器)\n"
-@@ -9709,7 +9709,7 @@ msgid ""
+@@ -9709,7 +9709,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -334,9 +336,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
---- a/mercurial/help/environment.txt
-+++ b/mercurial/help/environment.txt
-@@ -104,7 +104,7 @@ EDITOR
+Index: mercurial-4.3.1/mercurial/help/environment.txt
+===================================================================
+--- mercurial-4.3.1.orig/mercurial/help/environment.txt	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/mercurial/help/environment.txt	2017-08-11 05:03:26.418393955 +0200
+@@ -104,7 +104,7 @@
      editor it uses is determined by looking at the environment
      variables HGEDITOR, VISUAL and EDITOR, in that order. The first
      non-empty one is chosen. If all of them are empty, the editor
@@ -345,9 +349,11 @@ Use sensible-editor as default instead of vi.
  
  PYTHONPATH
      This is used by Python to find imported modules and may need to be
---- a/mercurial/help/config.txt
-+++ b/mercurial/help/config.txt
-@@ -1743,7 +1743,8 @@ User interface controls.
+Index: mercurial-4.3.1/mercurial/help/config.txt
+===================================================================
+--- mercurial-4.3.1.orig/mercurial/help/config.txt	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/mercurial/help/config.txt	2017-08-11 05:03:26.418393955 +0200
+@@ -1941,7 +1941,8 @@
      Print debugging information. (default: False)
  
  ``editor``
@@ -357,9 +363,11 @@ Use sensible-editor as default instead of vi.
  
  ``fallbackencoding``
      Encoding to try if it's not possible to decode the changelog using
---- a/i18n/ro.po
-+++ b/i18n/ro.po
-@@ -7722,7 +7722,7 @@ msgstr ""
+Index: mercurial-4.3.1/i18n/ro.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/ro.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/ro.po	2017-08-11 05:03:26.418393955 +0200
+@@ -7722,7 +7722,7 @@
  msgid "Checking commit editor...\n"
  msgstr "Se verifică editorul pentru commit...\n"
  
@@ -368,7 +376,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid " (specify a commit editor in your configuration file)\n"
-@@ -11925,7 +11925,8 @@ msgstr ""
+@@ -11925,7 +11925,8 @@
  
  msgid ""
  "``editor``\n"
@@ -378,7 +386,7 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
-@@ -12570,7 +12571,7 @@ msgid ""
+@@ -12570,7 +12571,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -387,9 +395,11 @@ Use sensible-editor as default instead of vi.
  msgstr ""
  
  msgid ""
---- a/i18n/ru.po
-+++ b/i18n/ru.po
-@@ -12451,8 +12451,8 @@ msgstr " (шаблоны, похоже,
+Index: mercurial-4.3.1/i18n/ru.po
+===================================================================
+--- mercurial-4.3.1.orig/i18n/ru.po	2017-08-11 05:03:26.426394088 +0200
++++ mercurial-4.3.1/i18n/ru.po	2017-08-11 05:03:26.422394021 +0200
+@@ -12451,8 +12451,8 @@
  msgid "checking commit editor...\n"
  msgstr "проверка редактора сообщений фиксации...\n"
  
@@ -400,7 +410,7 @@ Use sensible-editor as default instead of vi.
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (задайте редактор сообщений в вашем конфиге)\n"
-@@ -19448,10 +19448,12 @@ msgstr ""
+@@ -19448,10 +19448,12 @@
  
  msgid ""
  "``editor``\n"
@@ -415,7 +425,7 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -20669,14 +20671,14 @@ msgid ""
+@@ -20669,14 +20671,14 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -432,3 +442,26 @@ Use sensible-editor as default instead of vi.
  
  msgid ""
  "PYTHONPATH\n"
+Index: mercurial-4.3.1/mercurial/debugcommands.py
+===================================================================
+--- mercurial-4.3.1.orig/mercurial/debugcommands.py	2017-08-11 05:07:24.122332797 +0200
++++ mercurial-4.3.1/mercurial/debugcommands.py	2017-08-11 05:07:00.917948181 +0200
+@@ -1099,15 +1099,15 @@
+     editor = util.expandpath(editor)
+     fm.write('editor', _("checking commit editor... (%s)\n"), editor)
+     cmdpath = util.findexe(pycompat.shlexsplit(editor)[0])
+-    fm.condwrite(not cmdpath and editor == 'vi', 'vinotfound',
++    fm.condwrite(not cmdpath and editor == 'sensible-editor', 'vinotfound',
+                  _(" No commit editor set and can't find %s in PATH\n"
+                    " (specify a commit editor in your configuration"
+                    " file)\n"), not cmdpath and editor == 'vi' and editor)
+-    fm.condwrite(not cmdpath and editor != 'vi', 'editornotfound',
++    fm.condwrite(not cmdpath and editor != 'sensible-editor', 'editornotfound',
+                  _(" Can't find editor '%s' in PATH\n"
+                    " (specify a commit editor in your configuration"
+                    " file)\n"), not cmdpath and editor)
+-    if not cmdpath and editor != 'vi':
++    if not cmdpath and editor != 'sensible-editor':
+         problems += 1
+ 
+     # check username

@@ -17,3 +17,8 @@ test-clonebundles.t
 
 # upstream don't run this test and it only fails when pyflakes is installed
 test-check-pyflakes.t
+
+# This test tries to test combinations of configurations involving TLS 1.0/1.1,
+# but these are disabled by default in unstable now, so none of the test
+# scenarios are possible to correctly construct.
+test-https.t

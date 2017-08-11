@@ -1,4 +1,3 @@
-hgeditor
 contrib/dumprevlog
 contrib/hgsh
 contrib/hgweb.fcgi
@@ -12,4 +11,5 @@ contrib/tcsh_completion_build.sh
 contrib/undumprevlog
 contrib/vim
 contrib/zsh_completion
+hgeditor
 hgweb.cgi

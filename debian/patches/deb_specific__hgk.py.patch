@@ -1,12 +1,14 @@
 Set default hgk path for hgk outside bin.
 
---- a/hgext/hgk.py
-+++ b/hgext/hgk.py
-@@ -343,6 +343,6 @@ def view(ui, repo, *etc, **opts):
+Index: mercurial-4.3.1/hgext/hgk.py
+===================================================================
+--- mercurial-4.3.1.orig/hgext/hgk.py	2017-08-11 05:08:13.663154020 +0200
++++ mercurial-4.3.1/hgext/hgk.py	2017-08-11 05:08:13.659153953 +0200
+@@ -345,6 +345,6 @@
      if repo.filtername is None:
          optstr += '--hidden'
  
 -    cmd = ui.config("hgk", "path", "hgk") + " %s %s" % (optstr, " ".join(etc))
 +    cmd = ui.config("hgk", "path", "/usr/share/mercurial/hgk") + " %s %s" % (optstr, " ".join(etc))
      ui.debug("running %s\n" % cmd)
-     ui.system(cmd)
+     ui.system(cmd, blockedtag='hgk_view')
