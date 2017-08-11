@@ -49,7 +49,7 @@ Depends:
 Recommends: openssh-client
 Suggests: kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff, qct
 Breaks:
- hgsubversion (<< 1.8.6-1),
+ hgsubversion (<< 1.8.7+1517-b3e41b0d50a2-1),
  hgview-common (<< 1.8.1),
  mercurial-crecord (<= 0.20140626-1),
  mercurial-git (<= 0.8.3-1),
