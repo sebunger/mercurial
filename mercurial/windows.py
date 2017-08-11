@@ -17,7 +17,9 @@ import sys
 from .i18n import _
 from . import (
     encoding,
-    osutil,
+    error,
+    policy,
+    pycompat,
     win32,
 )
 
@@ -26,6 +28,8 @@ try:
     winreg.CloseKey
 except ImportError:
     import winreg
+
+osutil = policy.importmod(r'osutil')
 
 executablepath = win32.executablepath
 getuser = win32.getuser
@@ -38,7 +42,6 @@ samefile = win32.samefile
 setsignalhandler = win32.setsignalhandler
 spawndetached = win32.spawndetached
 split = os.path.split
-termwidth = win32.termwidth
 testpid = win32.testpid
 unlink = win32.unlink
 
@@ -61,8 +64,14 @@ class mixedfilemodewrapper(object):
     OPWRITE = 2
 
     def __init__(self, fp):
-        object.__setattr__(self, '_fp', fp)
-        object.__setattr__(self, '_lastop', 0)
+        object.__setattr__(self, r'_fp', fp)
+        object.__setattr__(self, r'_lastop', 0)
+
+    def __enter__(self):
+        return self._fp.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._fp.__exit__(exc_type, exc_val, exc_tb)
 
     def __getattr__(self, name):
         return getattr(self._fp, name)
@@ -74,42 +83,42 @@ class mixedfilemodewrapper(object):
         self._fp.seek(0, os.SEEK_CUR)
 
     def seek(self, *args, **kwargs):
-        object.__setattr__(self, '_lastop', self.OPNONE)
+        object.__setattr__(self, r'_lastop', self.OPNONE)
         return self._fp.seek(*args, **kwargs)
 
     def write(self, d):
         if self._lastop == self.OPREAD:
             self._noopseek()
 
-        object.__setattr__(self, '_lastop', self.OPWRITE)
+        object.__setattr__(self, r'_lastop', self.OPWRITE)
         return self._fp.write(d)
 
     def writelines(self, *args, **kwargs):
         if self._lastop == self.OPREAD:
             self._noopeseek()
 
-        object.__setattr__(self, '_lastop', self.OPWRITE)
+        object.__setattr__(self, r'_lastop', self.OPWRITE)
         return self._fp.writelines(*args, **kwargs)
 
     def read(self, *args, **kwargs):
         if self._lastop == self.OPWRITE:
             self._noopseek()
 
-        object.__setattr__(self, '_lastop', self.OPREAD)
+        object.__setattr__(self, r'_lastop', self.OPREAD)
         return self._fp.read(*args, **kwargs)
 
     def readline(self, *args, **kwargs):
         if self._lastop == self.OPWRITE:
             self._noopseek()
 
-        object.__setattr__(self, '_lastop', self.OPREAD)
+        object.__setattr__(self, r'_lastop', self.OPREAD)
         return self._fp.readline(*args, **kwargs)
 
     def readlines(self, *args, **kwargs):
         if self._lastop == self.OPWRITE:
             self._noopseek()
 
-        object.__setattr__(self, '_lastop', self.OPREAD)
+        object.__setattr__(self, r'_lastop', self.OPREAD)
         return self._fp.readlines(*args, **kwargs)
 
 def posixfile(name, mode='r', buffering=-1):
@@ -129,6 +138,9 @@ def posixfile(name, mode='r', buffering=-1):
     except WindowsError as err:
         # convert to a friendlier exception
         raise IOError(err.errno, '%s: %s' % (name, err.strerror))
+
+# may be wrapped by win32mbcs extension
+listdir = osutil.listdir
 
 class winstdout(object):
     '''stdout on windows misbehaves if sent through a pipe'''
@@ -169,17 +181,14 @@ class winstdout(object):
         except IOError as inst:
             if inst.errno != errno.EINVAL:
                 raise
-            self.close()
             raise IOError(errno.EPIPE, 'Broken pipe')
-
-sys.__stdout__ = sys.stdout = winstdout(sys.stdout)
 
 def _is_win_9x():
     '''return true if run on windows 95, 98 or me.'''
     try:
         return sys.getwindowsversion()[3] == 1
     except AttributeError:
-        return 'command' in os.environ.get('comspec', '')
+        return 'command' in encoding.environ.get('comspec', '')
 
 def openhardlinks():
     return not _is_win_9x()
@@ -195,7 +204,14 @@ def sshargs(sshcmd, host, user, port):
     '''Build argument list for ssh or Plink'''
     pflag = 'plink' in sshcmd.lower() and '-P' or '-p'
     args = user and ("%s@%s" % (user, host)) or host
-    return port and ("%s %s %s" % (args, pflag, port)) or args
+    if args.startswith('-') or args.startswith('/'):
+        raise error.Abort(
+            _('illegal ssh hostname or username starting with - or /: %s') %
+            args)
+    args = shellquote(args)
+    if port:
+        args = '%s %s %s' % (pflag, shellquote(port), args)
+    return args
 
 def setflags(f, l, x):
     pass
@@ -217,7 +233,7 @@ def setbinary(fd):
         msvcrt.setmode(fno(), os.O_BINARY)
 
 def pconvert(path):
-    return path.replace(os.sep, '/')
+    return path.replace(pycompat.ossep, '/')
 
 def localpath(path):
     return path.replace('/', '\\')
@@ -305,8 +321,8 @@ def findexe(command):
     PATH isn't searched if command is an absolute or relative path.
     An extension from PATHEXT is found and added if not present.
     If command isn't found None is returned.'''
-    pathext = os.environ.get('PATHEXT', '.COM;.EXE;.BAT;.CMD')
-    pathexts = [ext for ext in pathext.lower().split(os.pathsep)]
+    pathext = encoding.environ.get('PATHEXT', '.COM;.EXE;.BAT;.CMD')
+    pathexts = [ext for ext in pathext.lower().split(pycompat.ospathsep)]
     if os.path.splitext(command)[1].lower() in pathexts:
         pathexts = ['']
 
@@ -318,16 +334,16 @@ def findexe(command):
                 return executable
         return None
 
-    if os.sep in command:
+    if pycompat.ossep in command:
         return findexisting(command)
 
-    for path in os.environ.get('PATH', '').split(os.pathsep):
+    for path in encoding.environ.get('PATH', '').split(pycompat.ospathsep):
         executable = findexisting(os.path.join(path, command))
         if executable is not None:
             return executable
     return findexisting(os.path.expanduser(os.path.expandvars(command)))
 
-_wantedkinds = set([stat.S_IFREG, stat.S_IFLNK])
+_wantedkinds = {stat.S_IFREG, stat.S_IFLNK}
 
 def statfiles(files):
     '''Stat each file in files. Yield each stat, or None if a file
@@ -345,7 +361,7 @@ def statfiles(files):
         if cache is None:
             try:
                 dmap = dict([(normcase(n), s)
-                             for n, k, s in osutil.listdir(dir, True)
+                             for n, k, s in listdir(dir, True)
                              if getkind(s.st_mode) in _wantedkinds])
             except OSError as err:
                 # Python >= 2.5 returns ENOENT and adds winerror field
@@ -372,7 +388,7 @@ def groupname(gid=None):
 def removedirs(name):
     """special version of os.removedirs that does not remove symlinked
     directories or junction points if they actually contain files"""
-    if osutil.listdir(name):
+    if listdir(name):
         return
     os.rmdir(name)
     head, tail = os.path.split(name)
@@ -380,25 +396,12 @@ def removedirs(name):
         head, tail = os.path.split(head)
     while head and tail:
         try:
-            if osutil.listdir(head):
+            if listdir(head):
                 return
             os.rmdir(head)
         except (ValueError, OSError):
             break
         head, tail = os.path.split(head)
-
-def unlinkpath(f, ignoremissing=False):
-    """unlink and remove the directory if it is empty"""
-    try:
-        unlink(f)
-    except OSError as e:
-        if not (ignoremissing and e.errno == errno.ENOENT):
-            raise
-    # try removing directories that might now be empty
-    try:
-        removedirs(os.path.dirname(f))
-    except OSError:
-        pass
 
 def rename(src, dst):
     '''atomically rename file src to dst, replacing dst if it exists'''
@@ -444,7 +447,7 @@ def lookupreg(key, valname=None, scope=None):
         try:
             val = winreg.QueryValueEx(winreg.OpenKey(s, key), valname)[0]
             # never let a Unicode string escape into the wild
-            return encoding.tolocal(val.encode('UTF-8'))
+            return encoding.unitolocal(val)
         except EnvironmentError:
             pass
 

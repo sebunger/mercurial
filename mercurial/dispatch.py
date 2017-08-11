@@ -7,15 +7,13 @@
 
 from __future__ import absolute_import, print_function
 
-import atexit
 import difflib
 import errno
+import getopt
 import os
 import pdb
 import re
-import shlex
 import signal
-import socket
 import sys
 import time
 import traceback
@@ -25,27 +23,26 @@ from .i18n import _
 
 from . import (
     cmdutil,
+    color,
     commands,
     demandimport,
     encoding,
     error,
     extensions,
     fancyopts,
-    fileset,
+    help,
     hg,
     hook,
     profiling,
-    revset,
-    templatefilters,
-    templatekw,
-    templater,
+    pycompat,
+    scmutil,
     ui as uimod,
     util,
 )
 
 class request(object):
     def __init__(self, args, ui=None, repo=None, fin=None, fout=None,
-                 ferr=None):
+                 ferr=None, prereposetups=None):
         self.args = args
         self.ui = ui
         self.repo = repo
@@ -55,9 +52,45 @@ class request(object):
         self.fout = fout
         self.ferr = ferr
 
+        # reposetups which run before extensions, useful for chg to pre-fill
+        # low-level repo state (for example, changelog) before extensions.
+        self.prereposetups = prereposetups or []
+
+    def _runexithandlers(self):
+        exc = None
+        handlers = self.ui._exithandlers
+        try:
+            while handlers:
+                func, args, kwargs = handlers.pop()
+                try:
+                    func(*args, **kwargs)
+                except: # re-raises below
+                    if exc is None:
+                        exc = sys.exc_info()[1]
+                    self.ui.warn(('error in exit handlers:\n'))
+                    self.ui.traceback(force=True)
+        finally:
+            if exc is not None:
+                raise exc
+
 def run():
     "run the command in sys.argv"
-    sys.exit((dispatch(request(sys.argv[1:])) or 0) & 255)
+    req = request(pycompat.sysargv[1:])
+    err = None
+    try:
+        status = (dispatch(req) or 0) & 255
+    except error.StdioError as err:
+        status = -1
+    if util.safehasattr(req.ui, 'fout'):
+        try:
+            req.ui.fout.flush()
+        except IOError as err:
+            status = -1
+    if util.safehasattr(req.ui, 'ferr'):
+        if err is not None and err.errno != errno.EPIPE:
+            req.ui.ferr.write('abort: %s\n' % err.strerror)
+        req.ui.ferr.flush()
+    sys.exit(status & 255)
 
 def _getsimilar(symbols, value):
     sim = lambda x: difflib.SequenceMatcher(None, value, x).ratio()
@@ -88,6 +121,9 @@ def _formatparse(write, inst):
     if inst.hint:
         write(_("(%s)\n") % inst.hint)
 
+def _formatargs(args):
+    return ' '.join(util.shellquote(a) for a in args)
+
 def dispatch(req):
     "run the command specified in req.args"
     if req.ferr:
@@ -95,11 +131,11 @@ def dispatch(req):
     elif req.ui:
         ferr = req.ui.ferr
     else:
-        ferr = sys.stderr
+        ferr = util.stderr
 
     try:
         if not req.ui:
-            req.ui = uimod.ui()
+            req.ui = uimod.ui.load()
         if '--traceback' in req.args:
             req.ui.setconfig('ui', 'traceback', 'on', '--traceback')
 
@@ -119,23 +155,43 @@ def dispatch(req):
         _formatparse(ferr.write, inst)
         return -1
 
-    msg = ' '.join(' ' in a and repr(a) or a for a in req.args)
-    starttime = time.time()
+    msg = _formatargs(req.args)
+    starttime = util.timer()
     ret = None
     try:
         ret = _runcatch(req)
-    except KeyboardInterrupt:
+    except error.ProgrammingError as inst:
+        req.ui.warn(_('** ProgrammingError: %s\n') % inst)
+        if inst.hint:
+            req.ui.warn(_('** (%s)\n') % inst.hint)
+        raise
+    except KeyboardInterrupt as inst:
         try:
-            req.ui.warn(_("interrupted!\n"))
+            if isinstance(inst, error.SignalInterrupt):
+                msg = _("killed!\n")
+            else:
+                msg = _("interrupted!\n")
+            req.ui.warn(msg)
+        except error.SignalInterrupt:
+            # maybe pager would quit without consuming all the output, and
+            # SIGPIPE was raised. we cannot print anything in this case.
+            pass
         except IOError as inst:
             if inst.errno != errno.EPIPE:
                 raise
         ret = -1
     finally:
-        duration = time.time() - starttime
+        duration = util.timer() - starttime
         req.ui.flush()
-        req.ui.log("commandfinish", "%s exited %s after %0.2f seconds\n",
+        if req.ui.logblockedtimes:
+            req.ui._blockedtimes['command_duration'] = duration * 1000
+            req.ui.log('uiblocked', 'ui blocked ms', **req.ui._blockedtimes)
+        req.ui.log("commandfinish", "%s exited %d after %0.2f seconds\n",
                    msg, ret or 0, duration)
+        try:
+            req._runexithandlers()
+        except: # exiting, so no re-raises
+            ret = ret or -1
     return ret
 
 def _runcatch(req):
@@ -152,6 +208,37 @@ def _runcatch(req):
         pass # happens if called in a thread
 
     def _runcatchfunc():
+        realcmd = None
+        try:
+            cmdargs = fancyopts.fancyopts(req.args[:], commands.globalopts, {})
+            cmd = cmdargs[0]
+            aliases, entry = cmdutil.findcmd(cmd, commands.table, False)
+            realcmd = aliases[0]
+        except (error.UnknownCommand, error.AmbiguousCommand,
+                IndexError, getopt.GetoptError):
+            # Don't handle this here. We know the command is
+            # invalid, but all we're worried about for now is that
+            # it's not a command that server operators expect to
+            # be safe to offer to users in a sandbox.
+            pass
+        if realcmd == 'serve' and '--stdio' in cmdargs:
+            # We want to constrain 'hg serve --stdio' instances pretty
+            # closely, as many shared-ssh access tools want to grant
+            # access to run *only* 'hg -R $repo serve --stdio'. We
+            # restrict to exactly that set of arguments, and prohibit
+            # any repo name that starts with '--' to prevent
+            # shenanigans wherein a user does something like pass
+            # --debugger or --config=ui.debugger=1 as a repo
+            # name. This used to actually run the debugger.
+            if (len(req.args) != 4 or
+                req.args[0] != '-R' or
+                req.args[1].startswith('--') or
+                req.args[2] != 'serve' or
+                req.args[3] != '--stdio'):
+                raise error.Abort(
+                    _('potentially unsafe serve --stdio invocation: %r') %
+                    (req.args,))
+
         try:
             debugger = 'pdb'
             debugtrace = {
@@ -210,141 +297,59 @@ def _runcatch(req):
             if '--debugger' in req.args:
                 traceback.print_exc()
                 debugmortem[debugger](sys.exc_info()[2])
-            ui.traceback()
             raise
 
-    return callcatch(ui, _runcatchfunc)
+    return _callcatch(ui, _runcatchfunc)
 
-def callcatch(ui, func):
-    """call func() with global exception handling
-
-    return func() if no exception happens. otherwise do some error handling
-    and return an exit code accordingly.
+def _callcatch(ui, func):
+    """like scmutil.callcatch but handles more high-level exceptions about
+    config parsing and commands. besides, use handlecommandexception to handle
+    uncaught exceptions.
     """
     try:
-        return func()
-    # Global exception handling, alphabetically
-    # Mercurial-specific first, followed by built-in and library exceptions
+        return scmutil.callcatch(ui, func)
     except error.AmbiguousCommand as inst:
         ui.warn(_("hg: command '%s' is ambiguous:\n    %s\n") %
                 (inst.args[0], " ".join(inst.args[1])))
+    except error.CommandError as inst:
+        if inst.args[0]:
+            ui.pager('help')
+            msgbytes = pycompat.bytestr(inst.args[1])
+            ui.warn(_("hg %s: %s\n") % (inst.args[0], msgbytes))
+            commands.help_(ui, inst.args[0], full=False, command=True)
+        else:
+            ui.pager('help')
+            ui.warn(_("hg: %s\n") % inst.args[1])
+            commands.help_(ui, 'shortlist')
     except error.ParseError as inst:
         _formatparse(ui.warn, inst)
         return -1
-    except error.LockHeld as inst:
-        if inst.errno == errno.ETIMEDOUT:
-            reason = _('timed out waiting for lock held by %s') % inst.locker
-        else:
-            reason = _('lock held by %s') % inst.locker
-        ui.warn(_("abort: %s: %s\n") % (inst.desc or inst.filename, reason))
-    except error.LockUnavailable as inst:
-        ui.warn(_("abort: could not lock %s: %s\n") %
-               (inst.desc or inst.filename, inst.strerror))
-    except error.CommandError as inst:
-        if inst.args[0]:
-            ui.warn(_("hg %s: %s\n") % (inst.args[0], inst.args[1]))
-            commands.help_(ui, inst.args[0], full=False, command=True)
-        else:
-            ui.warn(_("hg: %s\n") % inst.args[1])
-            commands.help_(ui, 'shortlist')
-    except error.OutOfBandError as inst:
-        if inst.args:
-            msg = _("abort: remote error:\n")
-        else:
-            msg = _("abort: remote error\n")
-        ui.warn(msg)
-        if inst.args:
-            ui.warn(''.join(inst.args))
-        if inst.hint:
-            ui.warn('(%s)\n' % inst.hint)
-    except error.RepoError as inst:
-        ui.warn(_("abort: %s!\n") % inst)
-        if inst.hint:
-            ui.warn(_("(%s)\n") % inst.hint)
-    except error.ResponseError as inst:
-        ui.warn(_("abort: %s") % inst.args[0])
-        if not isinstance(inst.args[1], basestring):
-            ui.warn(" %r\n" % (inst.args[1],))
-        elif not inst.args[1]:
-            ui.warn(_(" empty string\n"))
-        else:
-            ui.warn("\n%r\n" % util.ellipsis(inst.args[1]))
-    except error.CensoredNodeError as inst:
-        ui.warn(_("abort: file censored %s!\n") % inst)
-    except error.RevlogError as inst:
-        ui.warn(_("abort: %s!\n") % inst)
-    except error.SignalInterrupt:
-        ui.warn(_("killed!\n"))
     except error.UnknownCommand as inst:
-        ui.warn(_("hg: unknown command '%s'\n") % inst.args[0])
+        nocmdmsg = _("hg: unknown command '%s'\n") % inst.args[0]
         try:
             # check if the command is in a disabled extension
             # (but don't check for extensions themselves)
-            commands.help_(ui, inst.args[0], unknowncmd=True)
+            formatted = help.formattedhelp(ui, commands, inst.args[0],
+                                           unknowncmd=True)
+            ui.warn(nocmdmsg)
+            ui.write(formatted)
         except (error.UnknownCommand, error.Abort):
             suggested = False
             if len(inst.args) == 2:
                 sim = _getsimilar(inst.args[1], inst.args[0])
                 if sim:
+                    ui.warn(nocmdmsg)
                     _reportsimilar(ui.warn, sim)
                     suggested = True
             if not suggested:
+                ui.pager('help')
+                ui.warn(nocmdmsg)
                 commands.help_(ui, 'shortlist')
-    except error.InterventionRequired as inst:
-        ui.warn("%s\n" % inst)
-        if inst.hint:
-            ui.warn(_("(%s)\n") % inst.hint)
-        return 1
-    except error.Abort as inst:
-        ui.warn(_("abort: %s\n") % inst)
-        if inst.hint:
-            ui.warn(_("(%s)\n") % inst.hint)
-    except ImportError as inst:
-        ui.warn(_("abort: %s!\n") % inst)
-        m = str(inst).split()[-1]
-        if m in "mpatch bdiff".split():
-            ui.warn(_("(did you forget to compile extensions?)\n"))
-        elif m in "zlib".split():
-            ui.warn(_("(is your Python install correct?)\n"))
-    except IOError as inst:
-        if util.safehasattr(inst, "code"):
-            ui.warn(_("abort: %s\n") % inst)
-        elif util.safehasattr(inst, "reason"):
-            try: # usually it is in the form (errno, strerror)
-                reason = inst.reason.args[1]
-            except (AttributeError, IndexError):
-                # it might be anything, for example a string
-                reason = inst.reason
-            if isinstance(reason, unicode):
-                # SSLError of Python 2.7.9 contains a unicode
-                reason = reason.encode(encoding.encoding, 'replace')
-            ui.warn(_("abort: error: %s\n") % reason)
-        elif (util.safehasattr(inst, "args")
-              and inst.args and inst.args[0] == errno.EPIPE):
-            pass
-        elif getattr(inst, "strerror", None):
-            if getattr(inst, "filename", None):
-                ui.warn(_("abort: %s: %s\n") % (inst.strerror, inst.filename))
-            else:
-                ui.warn(_("abort: %s\n") % inst.strerror)
-        else:
-            raise
-    except OSError as inst:
-        if getattr(inst, "filename", None) is not None:
-            ui.warn(_("abort: %s: '%s'\n") % (inst.strerror, inst.filename))
-        else:
-            ui.warn(_("abort: %s\n") % inst.strerror)
+    except IOError:
+        raise
     except KeyboardInterrupt:
         raise
-    except MemoryError:
-        ui.warn(_("abort: out of memory\n"))
-    except SystemExit as inst:
-        # Commands shouldn't sys.exit directly, but give a return code.
-        # Just in case catch this and and pass exit code to caller.
-        return inst.code
-    except socket.error as inst:
-        ui.warn(_("abort: %s\n") % inst.args[-1])
-    except:  # perhaps re-raises
+    except:  # probably re-raises
         if not handlecommandexception(ui):
             raise
 
@@ -362,10 +367,10 @@ def aliasargs(fn, givenargs):
             if num < len(givenargs):
                 return givenargs[num]
             raise error.Abort(_('too few arguments for command alias'))
-        cmd = re.sub(r'\$(\d+|\$)', replacer, cmd)
+        cmd = re.sub(br'\$(\d+|\$)', replacer, cmd)
         givenargs = [x for i, x in enumerate(givenargs)
                      if i not in nums]
-        args = shlex.split(cmd)
+        args = pycompat.shlexsplit(cmd)
     return args + givenargs
 
 def aliasinterpolate(name, args, cmd):
@@ -432,12 +437,13 @@ class cmdalias(object):
                         return ''
                 cmd = re.sub(r'\$(\d+|\$)', _checkvar, self.definition[1:])
                 cmd = aliasinterpolate(self.name, args, cmd)
-                return ui.system(cmd, environ=env)
+                return ui.system(cmd, environ=env,
+                                 blockedtag='alias_%s' % self.name)
             self.fn = fn
             return
 
         try:
-            args = shlex.split(self.definition)
+            args = pycompat.shlexsplit(self.definition)
         except ValueError as inst:
             self.badalias = (_("error in definition for alias '%s': %s")
                              % (self.name, inst))
@@ -474,11 +480,12 @@ class cmdalias(object):
 
     @property
     def args(self):
-        args = map(util.expandpath, self.givenargs)
+        args = pycompat.maplist(util.expandpath, self.givenargs)
         return aliasargs(self.fn, args)
 
     def __getattr__(self, name):
-        adefaults = {'norepo': True, 'optionalrepo': False, 'inferrepo': False}
+        adefaults = {r'norepo': True,
+                     r'optionalrepo': False, r'inferrepo': False}
         if name not in adefaults:
             raise AttributeError(name)
         if self.badalias or util.safehasattr(self, 'shell'):
@@ -536,7 +543,7 @@ def _parse(ui, args):
 
     try:
         args = fancyopts.fancyopts(args, commands.globalopts, options)
-    except fancyopts.getopt.GetoptError as inst:
+    except getopt.GetoptError as inst:
         raise error.CommandError(None, inst)
 
     if args:
@@ -547,7 +554,8 @@ def _parse(ui, args):
         args = aliasargs(entry[0], args)
         defaults = ui.config("defaults", cmd)
         if defaults:
-            args = map(util.expandpath, shlex.split(defaults)) + args
+            args = pycompat.maplist(
+                util.expandpath, pycompat.shlexsplit(defaults)) + args
         c = list(entry[1])
     else:
         cmd = None
@@ -559,7 +567,7 @@ def _parse(ui, args):
 
     try:
         args = fancyopts.fancyopts(args, c, cmdoptions, gnu=True)
-    except fancyopts.getopt.GetoptError as inst:
+    except getopt.GetoptError as inst:
         raise error.CommandError(cmd, inst)
 
     # separate global options back out
@@ -665,7 +673,7 @@ def _getlocal(ui, rpath, wd=None):
     """
     if wd is None:
         try:
-            wd = os.getcwd()
+            wd = pycompat.getcwd()
         except OSError as e:
             raise error.Abort(_("error getting current working directory: %s") %
                               e.strerror)
@@ -689,7 +697,7 @@ def _checkshellalias(lui, ui, args):
 
     try:
         args = fancyopts.fancyopts(args, commands.globalopts, options)
-    except fancyopts.getopt.GetoptError:
+    except getopt.GetoptError:
         return
 
     if not args:
@@ -712,31 +720,6 @@ def _checkshellalias(lui, ui, args):
         return lambda: runcommand(lui, None, cmd, args[:1], ui, options, d,
                                   [], {})
 
-def _cmdattr(ui, cmd, func, attr):
-    try:
-        return getattr(func, attr)
-    except AttributeError:
-        ui.deprecwarn("missing attribute '%s', use @command decorator "
-                      "to register '%s'" % (attr, cmd), '3.8')
-        return False
-
-_loaded = set()
-
-# list of (objname, loadermod, loadername) tuple:
-# - objname is the name of an object in extension module, from which
-#   extra information is loaded
-# - loadermod is the module where loader is placed
-# - loadername is the name of the function, which takes (ui, extensionname,
-#   extraobj) arguments
-extraloaders = [
-    ('cmdtable', commands, 'loadcmdtable'),
-    ('filesetpredicate', fileset, 'loadpredicate'),
-    ('revsetpredicate', revset, 'loadpredicate'),
-    ('templatefilter', templatefilters, 'loadfilter'),
-    ('templatefunc', templater, 'loadfunction'),
-    ('templatekeyword', templatekw, 'loadkeyword'),
-]
-
 def _dispatch(req):
     args = req.args
     ui = req.ui
@@ -749,106 +732,117 @@ def _dispatch(req):
     rpath = _earlygetopt(["-R", "--repository", "--repo"], args)
     path, lui = _getlocal(ui, rpath)
 
-    # Configure extensions in phases: uisetup, extsetup, cmdtable, and
-    # reposetup. Programs like TortoiseHg will call _dispatch several
-    # times so we keep track of configured extensions in _loaded.
-    extensions.loadall(lui)
-    exts = [ext for ext in extensions.extensions() if ext[0] not in _loaded]
-    # Propagate any changes to lui.__class__ by extensions
-    ui.__class__ = lui.__class__
-
-    # (uisetup and extsetup are handled in extensions.loadall)
-
-    for name, module in exts:
-        for objname, loadermod, loadername in extraloaders:
-            extraobj = getattr(module, objname, None)
-            if extraobj is not None:
-                getattr(loadermod, loadername)(ui, name, extraobj)
-        _loaded.add(name)
-
-    # (reposetup is handled in hg.repository)
-
-    addaliases(lui, commands.table)
-
-    # All aliases and commands are completely defined, now.
-    # Check abbreviation/ambiguity of shell alias.
-    shellaliasfn = _checkshellalias(lui, ui, args)
-    if shellaliasfn:
-        with profiling.maybeprofile(lui):
-            return shellaliasfn()
-
-    # check for fallback encoding
-    fallback = lui.config('ui', 'fallbackencoding')
-    if fallback:
-        encoding.fallbackencoding = fallback
-
-    fullargs = args
-    cmd, func, args, options, cmdoptions = _parse(lui, args)
-
-    if options["config"]:
-        raise error.Abort(_("option --config may not be abbreviated!"))
-    if options["cwd"]:
-        raise error.Abort(_("option --cwd may not be abbreviated!"))
-    if options["repository"]:
-        raise error.Abort(_(
-            "option -R has to be separated from other options (e.g. not -qR) "
-            "and --repository may only be abbreviated as --repo!"))
-
-    if options["encoding"]:
-        encoding.encoding = options["encoding"]
-    if options["encodingmode"]:
-        encoding.encodingmode = options["encodingmode"]
-    if options["time"]:
-        def get_times():
-            t = os.times()
-            if t[4] == 0.0: # Windows leaves this as zero, so use time.clock()
-                t = (t[0], t[1], t[2], t[3], time.clock())
-            return t
-        s = get_times()
-        def print_time():
-            t = get_times()
-            ui.warn(_("time: real %.3f secs (user %.3f+%.3f sys %.3f+%.3f)\n") %
-                (t[4]-s[4], t[0]-s[0], t[2]-s[2], t[1]-s[1], t[3]-s[3]))
-        atexit.register(print_time)
-
-    uis = set([ui, lui])
+    uis = {ui, lui}
 
     if req.repo:
         uis.add(req.repo.ui)
 
-    if options['verbose'] or options['debug'] or options['quiet']:
-        for opt in ('verbose', 'debug', 'quiet'):
-            val = str(bool(options[opt]))
-            for ui_ in uis:
-                ui_.setconfig('ui', opt, val, '--' + opt)
-
-    if options['profile']:
+    if '--profile' in args:
         for ui_ in uis:
             ui_.setconfig('profiling', 'enabled', 'true', '--profile')
 
-    if options['traceback']:
+    profile = lui.configbool('profiling', 'enabled')
+    with profiling.profile(lui, enabled=profile) as profiler:
+        # Configure extensions in phases: uisetup, extsetup, cmdtable, and
+        # reposetup
+        extensions.loadall(lui)
+        # Propagate any changes to lui.__class__ by extensions
+        ui.__class__ = lui.__class__
+
+        # (uisetup and extsetup are handled in extensions.loadall)
+
+        # (reposetup is handled in hg.repository)
+
+        addaliases(lui, commands.table)
+
+        # All aliases and commands are completely defined, now.
+        # Check abbreviation/ambiguity of shell alias.
+        shellaliasfn = _checkshellalias(lui, ui, args)
+        if shellaliasfn:
+            return shellaliasfn()
+
+        # check for fallback encoding
+        fallback = lui.config('ui', 'fallbackencoding')
+        if fallback:
+            encoding.fallbackencoding = fallback
+
+        fullargs = args
+        cmd, func, args, options, cmdoptions = _parse(lui, args)
+
+        if options["config"]:
+            raise error.Abort(_("option --config may not be abbreviated!"))
+        if options["cwd"]:
+            raise error.Abort(_("option --cwd may not be abbreviated!"))
+        if options["repository"]:
+            raise error.Abort(_(
+                "option -R has to be separated from other options (e.g. not "
+                "-qR) and --repository may only be abbreviated as --repo!"))
+
+        if options["encoding"]:
+            encoding.encoding = options["encoding"]
+        if options["encodingmode"]:
+            encoding.encodingmode = options["encodingmode"]
+        if options["time"]:
+            def get_times():
+                t = os.times()
+                if t[4] == 0.0:
+                    # Windows leaves this as zero, so use time.clock()
+                    t = (t[0], t[1], t[2], t[3], time.clock())
+                return t
+            s = get_times()
+            def print_time():
+                t = get_times()
+                ui.warn(
+                    _("time: real %.3f secs (user %.3f+%.3f sys %.3f+%.3f)\n") %
+                    (t[4]-s[4], t[0]-s[0], t[2]-s[2], t[1]-s[1], t[3]-s[3]))
+            ui.atexit(print_time)
+        if options["profile"]:
+            profiler.start()
+
+        if options['verbose'] or options['debug'] or options['quiet']:
+            for opt in ('verbose', 'debug', 'quiet'):
+                val = str(bool(options[opt]))
+                if pycompat.ispy3:
+                    val = val.encode('ascii')
+                for ui_ in uis:
+                    ui_.setconfig('ui', opt, val, '--' + opt)
+
+        if options['traceback']:
+            for ui_ in uis:
+                ui_.setconfig('ui', 'traceback', 'on', '--traceback')
+
+        if options['noninteractive']:
+            for ui_ in uis:
+                ui_.setconfig('ui', 'interactive', 'off', '-y')
+
+        if cmdoptions.get('insecure', False):
+            for ui_ in uis:
+                ui_.insecureconnections = True
+
+        # setup color handling before pager, because setting up pager
+        # might cause incorrect console information
+        coloropt = options['color']
         for ui_ in uis:
-            ui_.setconfig('ui', 'traceback', 'on', '--traceback')
+            if coloropt:
+                ui_.setconfig('ui', 'color', coloropt, '--color')
+            color.setup(ui_)
 
-    if options['noninteractive']:
-        for ui_ in uis:
-            ui_.setconfig('ui', 'interactive', 'off', '-y')
+        if util.parsebool(options['pager']):
+            # ui.pager() expects 'internal-always-' prefix in this case
+            ui.pager('internal-always-' + cmd)
+        elif options['pager'] != 'auto':
+            ui.disablepager()
 
-    if cmdoptions.get('insecure', False):
-        for ui_ in uis:
-            ui_.insecureconnections = True
+        if options['version']:
+            return commands.version_(ui)
+        if options['help']:
+            return commands.help_(ui, cmd, command=cmd is not None)
+        elif not cmd:
+            return commands.help_(ui, 'shortlist')
 
-    if options['version']:
-        return commands.version_(ui)
-    if options['help']:
-        return commands.help_(ui, cmd, command=cmd is not None)
-    elif not cmd:
-        return commands.help_(ui, 'shortlist')
-
-    with profiling.maybeprofile(lui):
         repo = None
         cmdpats = args[:]
-        if not _cmdattr(ui, cmd, func, 'norepo'):
+        if not func.norepo:
             # use the repo from the request only if we don't have -R
             if not rpath and not cwd:
                 repo = req.repo
@@ -860,7 +854,8 @@ def _dispatch(req):
                 repo.ui.ferr = ui.ferr
             else:
                 try:
-                    repo = hg.repository(ui, path=path)
+                    repo = hg.repository(ui, path=path,
+                                         presetupfuncs=req.prereposetups)
                     if not repo.local():
                         raise error.Abort(_("repository '%s' is not local")
                                           % path)
@@ -871,9 +866,8 @@ def _dispatch(req):
                 except error.RepoError:
                     if rpath and rpath[-1]: # invalid -R path
                         raise
-                    if not _cmdattr(ui, cmd, func, 'optionalrepo'):
-                        if (_cmdattr(ui, cmd, func, 'inferrepo') and
-                            args and not path):
+                    if not func.optionalrepo:
+                        if func.inferrepo and args and not path:
                             # try to infer -R from command args
                             repos = map(cmdutil.findrepo, args)
                             guess = repos[0]
@@ -883,7 +877,7 @@ def _dispatch(req):
                         if not path:
                             raise error.RepoError(_("no repository found in"
                                                     " '%s' (.hg not found)")
-                                                  % os.getcwd())
+                                                  % pycompat.getcwd())
                         raise
             if repo:
                 ui = repo.ui
@@ -893,9 +887,10 @@ def _dispatch(req):
         elif rpath:
             ui.warn(_("warning: --repository ignored\n"))
 
-        msg = ' '.join(' ' in a and repr(a) or a for a in fullargs)
+        msg = _formatargs(fullargs)
         ui.log("command", '%s\n', msg)
-        d = lambda: util.checksignature(func)(ui, *args, **cmdoptions)
+        strcmdopt = pycompat.strkwargs(cmdoptions)
+        d = lambda: util.checksignature(func)(ui, *args, **strcmdopt)
         try:
             return runcommand(lui, repo, cmd, fullargs, ui, options, d,
                               cmdpats, cmdoptions)
@@ -922,9 +917,11 @@ def _exceptionwarning(ui):
     # version number and try updating.
     ct = util.versiontuple(n=2)
     worst = None, ct, ''
-    if ui.config('ui', 'supportcontact', None) is None:
+    if ui.config('ui', 'supportcontact') is None:
         for name, mod in extensions.extensions():
             testedwith = getattr(mod, 'testedwith', '')
+            if pycompat.ispy3 and isinstance(testedwith, str):
+                testedwith = testedwith.encode(u'utf-8')
             report = getattr(mod, 'buglink', _('the extension author.'))
             if not testedwith.strip():
                 # We found an untested extension. It's likely the culprit.
@@ -945,7 +942,7 @@ def _exceptionwarning(ui):
                 worst = name, nearest, report
     if worst[0] is not None:
         name, testedwith, report = worst
-        if not isinstance(testedwith, str):
+        if not isinstance(testedwith, (bytes, str)):
             testedwith = '.'.join([str(c) for c in testedwith])
         warning = (_('** Unknown exception encountered with '
                      'possibly-broken third-party extension %s\n'
@@ -954,12 +951,17 @@ def _exceptionwarning(ui):
                      '** If that fixes the bug please report it to %s\n')
                    % (name, testedwith, name, report))
     else:
-        bugtracker = ui.config('ui', 'supportcontact', None)
+        bugtracker = ui.config('ui', 'supportcontact')
         if bugtracker is None:
             bugtracker = _("https://mercurial-scm.org/wiki/BugTracker")
         warning = (_("** unknown exception encountered, "
                      "please report by visiting\n** ") + bugtracker + '\n')
-    warning += ((_("** Python %s\n") % sys.version.replace('\n', '')) +
+    if pycompat.ispy3:
+        sysversion = sys.version.encode(u'utf-8')
+    else:
+        sysversion = sys.version
+    sysversion = sysversion.replace('\n', '')
+    warning += ((_("** Python %s\n") % sysversion) +
                 (_("** Mercurial Distributed SCM (version %s)\n") %
                  util.version()) +
                 (_("** Extensions loaded: %s\n") %

@@ -18,10 +18,11 @@ from mercurial import (
     commands,
     error,
     extensions,
+    registrar,
 )
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
 # be specifying the version(s) of Mercurial they are tested with, or
@@ -32,7 +33,7 @@ testedwith = 'ships-with-hg-core'
 @command("record",
          # same options as commit + white space diff options
         [c for c in commands.table['^commit|ci'][1][:]
-            if c[1] != "interactive"] + commands.diffwsopts,
+            if c[1] != "interactive"] + cmdutil.diffwsopts,
           _('hg record [OPTION]... [FILE]...'))
 def record(ui, repo, *pats, **opts):
     '''interactively select changes to commit
@@ -42,7 +43,8 @@ def record(ui, repo, *pats, **opts):
 
     See :hg:`help dates` for a list of formats valid for -d/--date.
 
-    You will be prompted for whether to record changes to each
+    If using the text interface (see :hg:`help config`),
+    you will be prompted for whether to record changes to each
     modified file, and for files with multiple changes, for each
     change to use. For each query, the following responses are
     possible::
@@ -67,12 +69,9 @@ def record(ui, repo, *pats, **opts):
                          'commit')
 
     opts["interactive"] = True
-    backup = ui.backupconfig('experimental', 'crecord')
-    try:
-        ui.setconfig('experimental', 'crecord', False, 'record')
+    overrides = {('experimental', 'crecord'): False}
+    with ui.configoverride(overrides, 'record'):
         return commands.commit(ui, repo, *pats, **opts)
-    finally:
-        ui.restoreconfig(backup)
 
 def qrefresh(origfn, ui, repo, *pats, **opts):
     if not opts['interactive']:
@@ -116,13 +115,10 @@ def _qrecord(cmdsuggest, ui, repo, patch, *pats, **opts):
         opts['checkname'] = False
         mq.new(ui, repo, patch, *pats, **opts)
 
-    backup = ui.backupconfig('experimental', 'crecord')
-    try:
-        ui.setconfig('experimental', 'crecord', False, 'record')
+    overrides = {('experimental', 'crecord'): False}
+    with ui.configoverride(overrides, 'record'):
         cmdutil.dorecord(ui, repo, committomq, cmdsuggest, False,
                          cmdutil.recordfilter, *pats, **opts)
-    finally:
-        ui.restoreconfig(backup)
 
 def qnew(origfn, ui, repo, patch, *args, **opts):
     if opts['interactive']:
@@ -140,7 +136,7 @@ def uisetup(ui):
         (qrecord,
          # same options as qnew, but copy them so we don't get
          # -i/--interactive for qrecord and add white space diff options
-         mq.cmdtable['^qnew'][1][:] + commands.diffwsopts,
+         mq.cmdtable['^qnew'][1][:] + cmdutil.diffwsopts,
          _('hg qrecord [OPTION]... PATCH [FILE]...'))
 
     _wrapcmd('qnew', mq.cmdtable, qnew, _("interactively record a new patch"))

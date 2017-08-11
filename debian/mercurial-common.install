@@ -1,13 +1,8 @@
-debian/tmp/usr/lib
-
-contrib/mq.el usr/share/emacs/site-lisp
-
-contrib/logo-droplets.svg usr/share/mercurial
-contrib/hgk usr/share/mercurial/
-
 contrib/hg-ssh usr/bin
-
-mercurial/default.d/mergetools.rc etc/mercurial/hgrc.d/
-
-debian/hgrc etc/mercurial/
+contrib/hgk usr/share/mercurial/
+contrib/logo-droplets.svg usr/share/mercurial
+contrib/mq.el usr/share/emacs/site-lisp
 debian/cacerts.rc etc/mercurial/hgrc.d/
+debian/hgrc etc/mercurial/
+debian/tmp/usr/lib
+mercurial/default.d/mergetools.rc etc/mercurial/hgrc.d/

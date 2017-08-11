@@ -46,6 +46,8 @@ Revert interactive tests
   > y
   > y
   > y
+  > ?
+  > y
   > n
   > n
   > EOF
@@ -53,6 +55,7 @@ Revert interactive tests
   reverting folder1/g (glob)
   removing folder1/i (glob)
   reverting folder2/h (glob)
+  remove added file folder1/i (Yn)? y
   diff --git a/f b/f
   2 hunks, 2 lines changed
   examine changes to 'f'? [Ynesfdaq?] y
@@ -86,6 +89,17 @@ Revert interactive tests
    3
    4
    5
+  revert change 3/6 to 'folder1/g'? [Ynesfdaq?] ?
+  
+  y - yes, revert this change
+  n - no, skip this change
+  e - edit this change manually
+  s - skip remaining changes to this file
+  f - revert remaining changes to this file
+  d - done, skip remaining changes and files
+  a - revert all changes to all remaining files
+  q - quit, reverting no changes
+  ? - ? (display help)
   revert change 3/6 to 'folder1/g'? [Ynesfdaq?] y
   
   @@ -1,5 +2,6 @@
@@ -137,7 +151,7 @@ Test that --interactive lift the need for --all
   $ ls folder1/
   g
 
-Test that a noop revert doesn't do an unecessary backup
+Test that a noop revert doesn't do an unnecessary backup
   $ (echo y; echo n) | hg revert -i -r 2 folder1/g
   diff --git a/folder1/g b/folder1/g
   1 hunks, 1 lines changed
@@ -174,6 +188,7 @@ Test --no-backup
   $ hg update -C 6
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg revert -i -r 2 --all -- << EOF
+  > n
   > y
   > y
   > y
@@ -186,6 +201,7 @@ Test --no-backup
   reverting folder1/g (glob)
   removing folder1/i (glob)
   reverting folder2/h (glob)
+  remove added file folder1/i (Yn)? n
   diff --git a/f b/f
   2 hunks, 2 lines changed
   examine changes to 'f'? [Ynesfdaq?] y
@@ -258,9 +274,9 @@ Test --no-backup
   $ hg st
   M f
   M folder1/g
-  R folder1/i
   $ hg revert --interactive f << EOF
   > y
+  > ?
   > y
   > n
   > n
@@ -276,6 +292,17 @@ Test --no-backup
    3
    4
    5
+  discard change 1/2 to 'f'? [Ynesfdaq?] ?
+  
+  y - yes, discard this change
+  n - no, skip this change
+  e - edit this change manually
+  s - skip remaining changes to this file
+  f - discard remaining changes to this file
+  d - done, skip remaining changes and files
+  a - discard all changes to all remaining files
+  q - quit, discarding no changes
+  ? - ? (display help)
   discard change 1/2 to 'f'? [Ynesfdaq?] y
   
   @@ -2,6 +1,5 @@
@@ -290,7 +317,6 @@ Test --no-backup
   $ hg st
   M f
   M folder1/g
-  R folder1/i
   ? f.orig
   $ cat f
   a
@@ -307,7 +333,7 @@ Test --no-backup
   5
   $ rm f.orig
   $ hg update -C .
-  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
 Check editing files newly added by a revert
 
@@ -378,29 +404,29 @@ Check the experimental config to invert the selection:
   3 hunks, 3 lines changed
   examine changes to 'folder1/g'? [Ynesfdaq?] y
   
-  @@ -1,5 +1,4 @@
-  -firstline
+  @@ -1,4 +1,5 @@
+  +firstline
    c
    1
    2
    3
   discard change 1/3 to 'folder1/g'? [Ynesfdaq?] y
   
-  @@ -2,7 +1,7 @@
+  @@ -1,7 +2,7 @@
    c
    1
    2
    3
-  - 3
-  +4
+  -4
+  + 3
    5
    d
   discard change 2/3 to 'folder1/g'? [Ynesfdaq?] y
   
-  @@ -7,3 +6,2 @@
+  @@ -6,2 +7,3 @@
    5
    d
-  -lastline
+  +lastline
   discard change 3/3 to 'folder1/g'? [Ynesfdaq?] n
   
   $ hg diff --nodates
@@ -424,14 +450,13 @@ Check the experimental config to invert the selection:
   > n
   > EOF
   forgetting newfile
-  forget added file newfile (yn)? n
+  forget added file newfile (Yn)? n
   $ hg status
   A newfile
   $ hg revert -i <<EOF
   > y
   > EOF
   forgetting newfile
-  forget added file newfile (yn)? y
+  forget added file newfile (Yn)? y
   $ hg status
   ? newfile
-

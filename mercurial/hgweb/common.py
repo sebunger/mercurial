@@ -8,11 +8,17 @@
 
 from __future__ import absolute_import
 
+import base64
 import errno
 import mimetypes
 import os
+import uuid
 
-from .. import util
+from .. import (
+    encoding,
+    pycompat,
+    util,
+)
 
 httpserver = util.httpserver
 
@@ -85,11 +91,13 @@ permhooks = [checkauthz]
 
 
 class ErrorResponse(Exception):
-    def __init__(self, code, message=None, headers=[]):
+    def __init__(self, code, message=None, headers=None):
         if message is None:
             message = _statusmessage(code)
         Exception.__init__(self, message)
         self.code = code
+        if headers is None:
+            headers = []
         self.headers = headers
 
 class continuereader(object):
@@ -127,6 +135,17 @@ def get_stat(spath, fn):
 def get_mtime(spath):
     return get_stat(spath, "00changelog.i").st_mtime
 
+def ispathsafe(path):
+    """Determine if a path is safe to use for filesystem access."""
+    parts = path.split('/')
+    for part in parts:
+        if (part in ('', os.curdir, os.pardir) or
+            pycompat.ossep in part or
+            pycompat.osaltsep is not None and pycompat.osaltsep in part):
+            return False
+
+    return True
+
 def staticfile(directory, fname, req):
     """return a file inside directory with guessed Content-Type header
 
@@ -136,12 +155,10 @@ def staticfile(directory, fname, req):
     Return an empty string if fname is illegal or file not found.
 
     """
-    parts = fname.split('/')
-    for part in parts:
-        if (part in ('', os.curdir, os.pardir) or
-            os.sep in part or os.altsep is not None and os.altsep in part):
-            return
-    fpath = os.path.join(*parts)
+    if not ispathsafe(fname):
+        return
+
+    fpath = os.path.join(*fname.split('/'))
     if isinstance(directory, str):
         directory = [directory]
     for d in directory:
@@ -151,9 +168,9 @@ def staticfile(directory, fname, req):
     try:
         os.stat(path)
         ct = mimetypes.guess_type(path)[0] or "text/plain"
-        fp = open(path, 'rb')
-        data = fp.read()
-        fp.close()
+        with open(path, 'rb') as fh:
+            data = fh.read()
+
         req.respond(HTTP_OK, ct, body=data)
     except TypeError:
         raise ErrorResponse(HTTP_SERVER_ERROR, 'illegal filename')
@@ -187,10 +204,29 @@ def get_contact(config):
     """
     return (config("web", "contact") or
             config("ui", "username") or
-            os.environ.get("EMAIL") or "")
+            encoding.environ.get("EMAIL") or "")
 
 def caching(web, req):
     tag = 'W/"%s"' % web.mtime
     if req.env.get('HTTP_IF_NONE_MATCH') == tag:
         raise ErrorResponse(HTTP_NOT_MODIFIED)
     req.headers.append(('ETag', tag))
+
+def cspvalues(ui):
+    """Obtain the Content-Security-Policy header and nonce value.
+
+    Returns a 2-tuple of the CSP header value and the nonce value.
+
+    First value is ``None`` if CSP isn't enabled. Second value is ``None``
+    if CSP isn't enabled or if the CSP header doesn't need a nonce.
+    """
+    # Don't allow untrusted CSP setting since it be disable protections
+    # from a trusted/global source.
+    csp = ui.config('web', 'csp', untrusted=False)
+    nonce = None
+
+    if csp and '%nonce%' in csp:
+        nonce = base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip('=')
+        csp = csp.replace('%nonce%', nonce)
+
+    return csp, nonce

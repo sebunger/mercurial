@@ -1,3 +1,22 @@
+mercurial (4.3.1-1) unstable; urgency=high
+
+  * Urgency high because of important security fixes.
+  * New upstream release (closes: #868014).
+    - CVE-2017-1000115: Mercurial's symlink auditing was incomplete prior
+      to 4.3, and could be abused to write to files outside the
+      repository (closes: #871709).
+    - CVE-2017-1000116: Mercurial was not sanitizing hostnames passed to
+      ssh, allowing shell injection attacks by specifying a hostname
+      starting with -oProxyCommand (closes: #871710).
+    - CVE-2017-9462: previously fixed in 4.1.3 upstream (closes: #861243).
+  * Blacklist test-https.t due to TLS 1.0/1.1 being disabled in OpenSSL in
+    unstable.
+  * Fix license definitions in debian/copyright.
+  * Bump Standards-Version to 4.0.0 (no changes).
+  * Run wrap-and-sort -t -s.
+
+ -- Tristan Seligmann <mithrandi@debian.org>  Fri, 11 Aug 2017 05:00:16 +0200
+
 mercurial (4.0-1) unstable; urgency=medium
 
   * New upstream release

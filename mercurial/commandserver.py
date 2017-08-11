@@ -11,17 +11,17 @@ import errno
 import gc
 import os
 import random
-import select
 import signal
 import socket
 import struct
-import sys
 import traceback
 
 from .i18n import _
 from . import (
     encoding,
     error,
+    pycompat,
+    selectors2,
     util,
 )
 
@@ -54,8 +54,8 @@ class channeledoutput(object):
     def write(self, data):
         if not data:
             return
-        self.out.write(struct.pack('>cI', self.channel, len(data)))
-        self.out.write(data)
+        # single write() to guarantee the same atomicity as the underlying file
+        self.out.write(struct.pack('>cI', self.channel, len(data)) + data)
         self.out.flush()
 
     def __getattr__(self, attr):
@@ -153,10 +153,10 @@ class server(object):
     based stream to fout.
     """
     def __init__(self, ui, repo, fin, fout):
-        self.cwd = os.getcwd()
+        self.cwd = pycompat.getcwd()
 
         # developer config: cmdserver.log
-        logpath = ui.config("cmdserver", "log", None)
+        logpath = ui.config("cmdserver", "log")
         if logpath:
             global logfile
             if logpath == '-':
@@ -304,8 +304,8 @@ def _protectio(ui):
     ui.flush()
     newfiles = []
     nullfd = os.open(os.devnull, os.O_RDWR)
-    for f, sysf, mode in [(ui.fin, sys.stdin, 'rb'),
-                          (ui.fout, sys.stdout, 'wb')]:
+    for f, sysf, mode in [(ui.fin, util.stdin, pycompat.sysstr('rb')),
+                          (ui.fout, util.stdout, pycompat.sysstr('wb'))]:
         if f is sysf:
             newfd = os.dup(f.fileno())
             os.dup2(nullfd, f.fileno())
@@ -409,13 +409,12 @@ class unixservicehandler(object):
 
     def bindsocket(self, sock, address):
         util.bindunixsocket(sock, address)
+        sock.listen(socket.SOMAXCONN)
+        self.ui.status(_('listening at %s\n') % address)
+        self.ui.flush()  # avoid buffering of status message
 
     def unlinksocket(self, address):
         os.unlink(address)
-
-    def printbanner(self, address):
-        self.ui.status(_('listening at %s\n') % address)
-        self.ui.flush()  # avoid buffering of status message
 
     def shouldexit(self):
         """True if server should shut down; checked per pollinterval"""
@@ -447,19 +446,24 @@ class unixforkingservice(object):
         self._sock = None
         self._oldsigchldhandler = None
         self._workerpids = set()  # updated by signal handler; do not iterate
+        self._socketunlinked = None
 
     def init(self):
         self._sock = socket.socket(socket.AF_UNIX)
         self._servicehandler.bindsocket(self._sock, self.address)
-        self._sock.listen(socket.SOMAXCONN)
         o = signal.signal(signal.SIGCHLD, self._sigchldhandler)
         self._oldsigchldhandler = o
-        self._servicehandler.printbanner(self.address)
+        self._socketunlinked = False
+
+    def _unlinksocket(self):
+        if not self._socketunlinked:
+            self._servicehandler.unlinksocket(self.address)
+            self._socketunlinked = True
 
     def _cleanup(self):
         signal.signal(signal.SIGCHLD, self._oldsigchldhandler)
         self._sock.close()
-        self._servicehandler.unlinksocket(self.address)
+        self._unlinksocket()
         # don't kill child processes as they have active clients, just wait
         self._reapworkers(0)
 
@@ -470,14 +474,28 @@ class unixforkingservice(object):
             self._cleanup()
 
     def _mainloop(self):
+        exiting = False
         h = self._servicehandler
-        while not h.shouldexit():
+        selector = selectors2.DefaultSelector()
+        selector.register(self._sock, selectors2.EVENT_READ)
+        while True:
+            if not exiting and h.shouldexit():
+                # clients can no longer connect() to the domain socket, so
+                # we stop queuing new requests.
+                # for requests that are queued (connect()-ed, but haven't been
+                # accept()-ed), handle them before exit. otherwise, clients
+                # waiting for recv() will receive ECONNRESET.
+                self._unlinksocket()
+                exiting = True
+            ready = selector.select(timeout=h.pollinterval)
+            if not ready:
+                # only exit if we completed all queued requests
+                if exiting:
+                    break
+                continue
             try:
-                ready = select.select([self._sock], [], [], h.pollinterval)[0]
-                if not ready:
-                    continue
                 conn, _addr = self._sock.accept()
-            except (select.error, socket.error) as inst:
+            except socket.error as inst:
                 if inst.args[0] == errno.EINTR:
                     continue
                 raise
@@ -500,6 +518,7 @@ class unixforkingservice(object):
                         self.ui.traceback(force=True)
                     finally:
                         os._exit(255)
+        selector.close()
 
     def _sigchldhandler(self, signal, frame):
         self._reapworkers(os.WNOHANG)
@@ -530,15 +549,3 @@ class unixforkingservice(object):
             _serverequest(self.ui, self.repo, conn, h.createcmdserver)
         finally:
             gc.collect()  # trigger __del__ since worker process uses os._exit
-
-_servicemap = {
-    'pipe': pipeservice,
-    'unix': unixforkingservice,
-    }
-
-def createservice(ui, repo, opts):
-    mode = opts['cmdserver']
-    try:
-        return _servicemap[mode](ui, repo, opts)
-    except KeyError:
-        raise error.Abort(_('unknown mode %s') % mode)

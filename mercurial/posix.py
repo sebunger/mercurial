@@ -23,6 +23,8 @@ import unicodedata
 from .i18n import _
 from . import (
     encoding,
+    error,
+    pycompat,
 )
 
 posixfile = open
@@ -79,7 +81,7 @@ def nlinks(name):
 def parsepatchoutput(output_line):
     """parses the output produced by patch and returns the filename"""
     pf = output_line[14:]
-    if os.sys.platform == 'OpenVMS':
+    if pycompat.sysplatform == 'OpenVMS':
         if pf[0] == '`':
             pf = pf[1:-1] # Remove the quotes
     else:
@@ -90,21 +92,28 @@ def parsepatchoutput(output_line):
 def sshargs(sshcmd, host, user, port):
     '''Build argument list for ssh'''
     args = user and ("%s@%s" % (user, host)) or host
-    return port and ("%s -p %s" % (args, port)) or args
+    if '-' in args[:1]:
+        raise error.Abort(
+            _('illegal ssh hostname or username starting with -: %s') % args)
+    args = shellquote(args)
+    if port:
+        args = '-p %s %s' % (shellquote(port), args)
+    return args
 
 def isexec(f):
     """check whether a file is executable"""
     return (os.lstat(f).st_mode & 0o100 != 0)
 
 def setflags(f, l, x):
-    s = os.lstat(f).st_mode
+    st = os.lstat(f)
+    s = st.st_mode
     if l:
         if not stat.S_ISLNK(s):
             # switch file to link
             fp = open(f)
             data = fp.read()
             fp.close()
-            os.unlink(f)
+            unlink(f)
             try:
                 os.symlink(data, f)
             except OSError:
@@ -117,13 +126,21 @@ def setflags(f, l, x):
     if stat.S_ISLNK(s):
         # switch link to file
         data = os.readlink(f)
-        os.unlink(f)
+        unlink(f)
         fp = open(f, "w")
         fp.write(data)
         fp.close()
         s = 0o666 & ~umask # avoid restatting for chmod
 
     sx = s & 0o100
+    if st.st_nlink > 1 and bool(x) != bool(sx):
+        # the file is a hardlink, break it
+        with open(f, "rb") as fp:
+            data = fp.read()
+        unlink(f)
+        with open(f, "wb") as fp:
+            fp.write(data)
+
     if x and not sx:
         # Turn on +x for every +r bit when making a file executable
         # and obey umask.
@@ -160,31 +177,109 @@ def checkexec(path):
 
     try:
         EXECFLAGS = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-        fh, fn = tempfile.mkstemp(dir=path, prefix='hg-checkexec-')
+        cachedir = os.path.join(path, '.hg', 'cache')
+        if os.path.isdir(cachedir):
+            checkisexec = os.path.join(cachedir, 'checkisexec')
+            checknoexec = os.path.join(cachedir, 'checknoexec')
+
+            try:
+                m = os.stat(checkisexec).st_mode
+            except OSError as e:
+                if e.errno != errno.ENOENT:
+                    raise
+                # checkisexec does not exist - fall through ...
+            else:
+                # checkisexec exists, check if it actually is exec
+                if m & EXECFLAGS != 0:
+                    # ensure checkisexec exists, check it isn't exec
+                    try:
+                        m = os.stat(checknoexec).st_mode
+                    except OSError as e:
+                        if e.errno != errno.ENOENT:
+                            raise
+                        open(checknoexec, 'w').close() # might fail
+                        m = os.stat(checknoexec).st_mode
+                    if m & EXECFLAGS == 0:
+                        # check-exec is exec and check-no-exec is not exec
+                        return True
+                    # checknoexec exists but is exec - delete it
+                    unlink(checknoexec)
+                # checkisexec exists but is not exec - delete it
+                unlink(checkisexec)
+
+            # check using one file, leave it as checkisexec
+            checkdir = cachedir
+        else:
+            # check directly in path and don't leave checkisexec behind
+            checkdir = path
+            checkisexec = None
+        fh, fn = tempfile.mkstemp(dir=checkdir, prefix='hg-checkexec-')
         try:
             os.close(fh)
-            m = os.stat(fn).st_mode & 0o777
-            new_file_has_exec = m & EXECFLAGS
-            os.chmod(fn, m ^ EXECFLAGS)
-            exec_flags_cannot_flip = ((os.stat(fn).st_mode & 0o777) == m)
+            m = os.stat(fn).st_mode
+            if m & EXECFLAGS == 0:
+                os.chmod(fn, m & 0o777 | EXECFLAGS)
+                if os.stat(fn).st_mode & EXECFLAGS != 0:
+                    if checkisexec is not None:
+                        os.rename(fn, checkisexec)
+                        fn = None
+                    return True
         finally:
-            os.unlink(fn)
+            if fn is not None:
+                unlink(fn)
     except (IOError, OSError):
         # we don't care, the user probably won't be able to commit anyway
         return False
-    return not (new_file_has_exec or exec_flags_cannot_flip)
 
 def checklink(path):
     """check whether the given path is on a symlink-capable filesystem"""
     # mktemp is not racy because symlink creation will fail if the
     # file already exists
     while True:
-        name = tempfile.mktemp(dir=path, prefix='hg-checklink-')
+        cachedir = os.path.join(path, '.hg', 'cache')
+        checklink = os.path.join(cachedir, 'checklink')
+        # try fast path, read only
+        if os.path.islink(checklink):
+            return True
+        if os.path.isdir(cachedir):
+            checkdir = cachedir
+        else:
+            checkdir = path
+            cachedir = None
+        fscheckdir = pycompat.fsdecode(checkdir)
+        name = tempfile.mktemp(dir=fscheckdir,
+                               prefix=r'checklink-')
+        name = pycompat.fsencode(name)
         try:
-            fd = tempfile.NamedTemporaryFile(dir=path, prefix='hg-checklink-')
+            fd = None
+            if cachedir is None:
+                fd = tempfile.NamedTemporaryFile(dir=fscheckdir,
+                                                 prefix=r'hg-checklink-')
+                target = pycompat.fsencode(os.path.basename(fd.name))
+            else:
+                # create a fixed file to link to; doesn't matter if it
+                # already exists.
+                target = 'checklink-target'
+                try:
+                    open(os.path.join(cachedir, target), 'w').close()
+                except IOError as inst:
+                    if inst[0] == errno.EACCES:
+                        # If we can't write to cachedir, just pretend
+                        # that the fs is readonly and by association
+                        # that the fs won't support symlinks. This
+                        # seems like the least dangerous way to avoid
+                        # data loss.
+                        return False
+                    raise
             try:
-                os.symlink(os.path.basename(fd.name), name)
-                os.unlink(name)
+                os.symlink(target, name)
+                if cachedir is None:
+                    unlink(name)
+                else:
+                    try:
+                        os.rename(name, checklink)
+                    except OSError:
+                        unlink(name)
                 return True
             except OSError as inst:
                 # link creation might race, try again
@@ -192,13 +287,14 @@ def checklink(path):
                     continue
                 raise
             finally:
-                fd.close()
+                if fd is not None:
+                    fd.close()
         except AttributeError:
             return False
         except OSError as inst:
             # sshfs might report failure while successfully creating the link
             if inst[0] == errno.EIO and os.path.exists(name):
-                os.unlink(name)
+                unlink(name)
             return False
 
 def checkosfilename(path):
@@ -236,7 +332,7 @@ normcasespec = encoding.normcasespecs.lower
 # fallback normcase function for non-ASCII strings
 normcasefallback = normcase
 
-if sys.platform == 'darwin':
+if pycompat.sysplatform == 'darwin':
 
     def normcase(path):
         '''
@@ -287,7 +383,7 @@ if sys.platform == 'darwin':
         # drop HFS+ ignored characters
         return encoding.hfsignoreclean(enc)
 
-if sys.platform == 'cygwin':
+if pycompat.sysplatform == 'cygwin':
     # workaround for cygwin, in which mount point part of path is
     # treated as case sensitive, even though underlying NTFS is case
     # insensitive.
@@ -302,7 +398,7 @@ if sys.platform == 'cygwin':
     # use upper-ing as normcase as same as NTFS workaround
     def normcase(path):
         pathlen = len(path)
-        if (pathlen == 0) or (path[0] != os.sep):
+        if (pathlen == 0) or (path[0] != pycompat.ossep):
             # treat as relative
             return encoding.upper(path)
 
@@ -314,7 +410,7 @@ if sys.platform == 'cygwin':
             mplen = len(mp)
             if mplen == pathlen: # mount point itself
                 return mp
-            if path[mplen] == os.sep:
+            if path[mplen] == pycompat.ossep:
                 return mp + encoding.upper(path[mplen:])
 
         return encoding.upper(path)
@@ -337,11 +433,11 @@ if sys.platform == 'cygwin':
 
 _needsshellquote = None
 def shellquote(s):
-    if os.sys.platform == 'OpenVMS':
+    if pycompat.sysplatform == 'OpenVMS':
         return '"%s"' % s
     global _needsshellquote
     if _needsshellquote is None:
-        _needsshellquote = re.compile(r'[^a-zA-Z0-9._/+-]').search
+        _needsshellquote = re.compile(br'[^a-zA-Z0-9._/+-]').search
     if s and not _needsshellquote(s):
         # "s" shouldn't have to be quoted
         return s
@@ -356,7 +452,7 @@ def popen(command, mode='r'):
 
 def testpid(pid):
     '''return False if pid dead, True if running or not sure'''
-    if os.sys.platform == 'OpenVMS':
+    if pycompat.sysplatform == 'OpenVMS':
         return True
     try:
         os.kill(pid, 0)
@@ -380,7 +476,7 @@ def findexe(command):
     If command is a basename then PATH is searched for command.
     PATH isn't searched if command is an absolute or relative path.
     If command isn't found None is returned.'''
-    if sys.platform == 'OpenVMS':
+    if pycompat.sysplatform == 'OpenVMS':
         return command
 
     def findexisting(executable):
@@ -389,13 +485,13 @@ def findexe(command):
             return executable
         return None
 
-    if os.sep in command:
+    if pycompat.ossep in command:
         return findexisting(command)
 
-    if sys.platform == 'plan9':
+    if pycompat.sysplatform == 'plan9':
         return findexisting(os.path.join('/bin', command))
 
-    for path in os.environ.get('PATH', '').split(os.pathsep):
+    for path in encoding.environ.get('PATH', '').split(pycompat.ospathsep):
         executable = findexisting(os.path.join(path, command))
         if executable is not None:
             return executable
@@ -404,7 +500,7 @@ def findexe(command):
 def setsignalhandler():
     pass
 
-_wantedkinds = set([stat.S_IFREG, stat.S_IFLNK])
+_wantedkinds = {stat.S_IFREG, stat.S_IFLNK}
 
 def statfiles(files):
     '''Stat each file in files. Yield each stat, or None if a file does not
@@ -424,7 +520,7 @@ def statfiles(files):
 
 def getuser():
     '''return name of current user'''
-    return getpass.getuser()
+    return pycompat.fsencode(getpass.getuser())
 
 def username(uid=None):
     """Return the name of the user with the given uid.
@@ -463,51 +559,8 @@ def spawndetached(args):
 def gethgcmd():
     return sys.argv[:1]
 
-def termwidth():
-    try:
-        import array
-        import termios
-        for dev in (sys.stderr, sys.stdout, sys.stdin):
-            try:
-                try:
-                    fd = dev.fileno()
-                except AttributeError:
-                    continue
-                if not os.isatty(fd):
-                    continue
-                try:
-                    arri = fcntl.ioctl(fd, termios.TIOCGWINSZ, '\0' * 8)
-                    width = array.array('h', arri)[1]
-                    if width > 0:
-                        return width
-                except AttributeError:
-                    pass
-            except ValueError:
-                pass
-            except IOError as e:
-                if e[0] == errno.EINVAL:
-                    pass
-                else:
-                    raise
-    except ImportError:
-        pass
-    return 80
-
 def makedir(path, notindexed):
     os.mkdir(path)
-
-def unlinkpath(f, ignoremissing=False):
-    """unlink and remove the directory if it is empty"""
-    try:
-        os.unlink(f)
-    except OSError as e:
-        if not (ignoremissing and e.errno == errno.ENOENT):
-            raise
-    # try removing directories that might now be empty
-    try:
-        os.removedirs(os.path.dirname(f))
-    except OSError:
-        pass
 
 def lookupreg(key, name=None, scope=None):
     return None
@@ -570,7 +623,14 @@ def poll(fds):
 
     In unsupported cases, it will raise a NotImplementedError"""
     try:
-        res = select.select(fds, fds, fds)
+        while True:
+            try:
+                res = select.select(fds, fds, fds)
+                break
+            except select.error as inst:
+                if inst.args[0] == errno.EINTR:
+                    continue
+                raise
     except ValueError: # out of range file descriptor
         raise NotImplementedError()
     return sorted(list(set(sum(res, []))))

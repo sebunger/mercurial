@@ -19,6 +19,7 @@ from .common import (
     HTTP_NOT_FOUND,
     HTTP_OK,
     HTTP_SERVER_ERROR,
+    cspvalues,
     get_contact,
     get_mtime,
     ismember,
@@ -136,7 +137,7 @@ class hgwebdir(object):
         if self.baseui:
             u = self.baseui.copy()
         else:
-            u = uimod.ui()
+            u = uimod.ui.load()
             u.setconfig('ui', 'report_untrusted', 'off', 'hgwebdir')
             u.setconfig('ui', 'nontty', 'true', 'hgwebdir')
             # displaying bundling progress bar while serving feels wrong and may
@@ -186,7 +187,8 @@ class hgwebdir(object):
         self.lastrefresh = time.time()
 
     def run(self):
-        if not os.environ.get('GATEWAY_INTERFACE', '').startswith("CGI/1."):
+        if not encoding.environ.get('GATEWAY_INTERFACE',
+                                    '').startswith("CGI/1."):
             raise RuntimeError("This function is only intended to be "
                                "called while running as a CGI script.")
         wsgicgi.launch(self)
@@ -218,7 +220,8 @@ class hgwebdir(object):
         return False
 
     def run_wsgi(self, req):
-        with profiling.maybeprofile(self.ui):
+        profile = self.ui.configbool('profiling', 'enabled')
+        with profiling.profile(self.ui, enabled=profile):
             for r in self._runwsgi(req):
                 yield r
 
@@ -226,8 +229,12 @@ class hgwebdir(object):
         try:
             self.refresh()
 
+            csp, nonce = cspvalues(self.ui)
+            if csp:
+                req.headers.append(('Content-Security-Policy', csp))
+
             virtual = req.env.get("PATH_INFO", "").strip('/')
-            tmpl = self.templater(req)
+            tmpl = self.templater(req, nonce)
             ctype = tmpl('mimetype', encoding=encoding.encoding)
             ctype = templater.stringify(ctype)
 
@@ -248,15 +255,32 @@ class hgwebdir(object):
                 return []
 
             # top-level index
-            elif not virtual:
+
+            repos = dict(self.repos)
+
+            if (not virtual or virtual == 'index') and virtual not in repos:
                 req.respond(HTTP_OK, ctype)
                 return self.makeindex(req, tmpl)
 
             # nested indexes and hgwebs
 
-            repos = dict(self.repos)
-            virtualrepo = virtual
-            while virtualrepo:
+            if virtual.endswith('/index') and virtual not in repos:
+                subdir = virtual[:-len('index')]
+                if any(r.startswith(subdir) for r in repos):
+                    req.respond(HTTP_OK, ctype)
+                    return self.makeindex(req, tmpl, subdir)
+
+            def _virtualdirs():
+                # Check the full virtual path, each parent, and the root ('')
+                if virtual != '':
+                    yield virtual
+
+                    for p in util.finddirs(virtual):
+                        yield p
+
+                yield ''
+
+            for virtualrepo in _virtualdirs():
                 real = repos.get(virtualrepo)
                 if real:
                     req.env['REPO_NAME'] = virtualrepo
@@ -269,11 +293,6 @@ class hgwebdir(object):
                         raise ErrorResponse(HTTP_SERVER_ERROR, msg)
                     except error.RepoError as inst:
                         raise ErrorResponse(HTTP_SERVER_ERROR, str(inst))
-
-                up = virtualrepo.rfind('/')
-                if up < 0:
-                    break
-                virtualrepo = virtualrepo[:up]
 
             # browse subdirectories
             subdir = virtual + '/'
@@ -296,10 +315,10 @@ class hgwebdir(object):
         def archivelist(ui, nodeid, url):
             allowed = ui.configlist("web", "allow_archive", untrusted=True)
             archives = []
-            for i in [('zip', '.zip'), ('gz', '.tar.gz'), ('bz2', '.tar.bz2')]:
-                if i[0] in allowed or ui.configbool("web", "allow" + i[0],
+            for typ, spec in hgweb_mod.archivespecs.iteritems():
+                if typ in allowed or ui.configbool("web", "allow" + typ,
                                                     untrusted=True):
-                    archives.append({"type" : i[0], "extension": i[1],
+                    archives.append({"type" : typ, "extension": spec[2],
                                      "node": nodeid, "url": url})
             return archives
 
@@ -346,8 +365,7 @@ class hgwebdir(object):
                             pass
 
                 parts = [name]
-                if 'PATH_INFO' in req.env:
-                    parts.insert(0, req.env['PATH_INFO'].rstrip('/'))
+                parts.insert(0, '/' + subdir.rstrip('/'))
                 if req.env['SCRIPT_NAME']:
                     parts.insert(0, req.env['SCRIPT_NAME'])
                 url = re.sub(r'/+', '/', '/'.join(parts) + '/')
@@ -386,7 +404,7 @@ class hgwebdir(object):
                 except Exception as e:
                     u.warn(_('error reading %s/.hg/hgrc: %s\n') % (path, e))
                     continue
-                def get(section, name, default=None):
+                def get(section, name, default=uimod._unset):
                     return u.config(section, name, default, untrusted=True)
 
                 if u.configbool("web", "hidden", untrusted=True):
@@ -465,7 +483,7 @@ class hgwebdir(object):
                     sortcolumn=sortcolumn, descending=descending,
                     **dict(sort))
 
-    def templater(self, req):
+    def templater(self, req, nonce):
 
         def motd(**map):
             if self.motd is not None:
@@ -509,6 +527,7 @@ class hgwebdir(object):
             "staticurl": staticurl,
             "sessionvars": sessionvars,
             "style": style,
+            "nonce": nonce,
         }
         tmpl = templater.templater.frommapfile(mapfile, defaults=defaults)
         return tmpl

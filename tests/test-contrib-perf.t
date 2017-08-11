@@ -50,6 +50,9 @@ perfstatus
    perfancestorset
                  (no help text available)
    perfannotate  (no help text available)
+   perfbdiff     benchmark a bdiff between revisions
+   perfbookmarks
+                 benchmark parsing bookmarks from disk to memory
    perfbranchmap
                  benchmark the update of a branchmap
    perfcca       (no help text available)
@@ -92,10 +95,16 @@ perfstatus
    perfparents   (no help text available)
    perfpathcopies
                  (no help text available)
+   perfphases    benchmark phasesets computation
    perfrawfiles  (no help text available)
-   perfrevlog    Benchmark reading a series of revisions from a revlog.
+   perfrevlogchunks
+                 Benchmark operations on revlog chunks.
+   perfrevlogindex
+                 Benchmark operations against a revlog index.
    perfrevlogrevision
                  Benchmark obtaining a revlog revision.
+   perfrevlogrevisions
+                 Benchmark reading a series of revisions from a revlog.
    perfrevrange  (no help text available)
    perfrevset    benchmark the execution time of a revset
    perfstartup   (no help text available)
@@ -106,12 +115,16 @@ perfstatus
    perfvolatilesets
                  benchmark the computation of various volatile set
    perfwalk      (no help text available)
+   perfwrite     microbenchmark ui.write
   
   (use 'hg help -v perfstatusext' to show built-in aliases and global options)
   $ hg perfaddremove
   $ hg perfancestors
   $ hg perfancestorset 2
   $ hg perfannotate a
+  $ hg perfbdiff -c 1
+  $ hg perfbdiff --alldata 1
+  $ hg perfbookmarks
   $ hg perfbranchmap
   $ hg perfcca
   $ hg perfchangegroupchangelog
@@ -139,8 +152,10 @@ perfstatus
   $ hg perfnodelookup 2
   $ hg perfpathcopies 1 2
   $ hg perfrawfiles 2
-  $ hg perfrevlog .hg/store/data/a.i
+  $ hg perfrevlogindex -c
+  $ hg perfrevlogrevisions .hg/store/data/a.i
   $ hg perfrevlogrevision -m 0
+  $ hg perfrevlogchunks -c
   $ hg perfrevrange
   $ hg perfrevset 'all()'
   $ hg perfstartup
@@ -155,6 +170,6 @@ Check perf.py for historical portability
 
   $ cd "$TESTDIR/.."
 
-  $ (hg files -r 1.2 glob:mercurial/*.c glob:mercurial/*.py;
-  >  hg files -r tip glob:mercurial/*.c glob:mercurial/*.py) |
+  $ (testrepohg files -r 1.2 glob:mercurial/*.c glob:mercurial/*.py;
+  >  testrepohg files -r tip glob:mercurial/*.c glob:mercurial/*.py) |
   > "$TESTDIR"/check-perf-code.py contrib/perf.py

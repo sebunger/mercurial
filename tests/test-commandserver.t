@@ -135,6 +135,19 @@ typical client does not want echo-back messages, so test without it:
   summary:     1
   
 
+check that "histedit --commands=-" can read rules from the input channel:
+
+  >>> import cStringIO
+  >>> from hgclient import readchannel, runcommand, check
+  >>> @check
+  ... def serverinput(server):
+  ...     readchannel(server)
+  ...     rules = 'pick eff892de26ec\n'
+  ...     runcommand(server, ['histedit', '0', '--commands=-',
+  ...                         '--config', 'extensions.histedit='],
+  ...                input=cStringIO.StringIO(rules))
+  *** runcommand histedit 0 --commands=- --config extensions.histedit=
+
 check that --cwd doesn't persist between requests:
 
   $ mkdir foo
@@ -174,11 +187,9 @@ check that local configs for the cached repo aren't inherited when -R is used:
   ...     runcommand(server, ['-R', 'foo', 'showconfig', 'ui', 'defaults'])
   *** runcommand showconfig
   bundle.mainreporoot=$TESTTMP/repo
-  defaults.backout=-d "0 0"
-  defaults.commit=-d "0 0"
-  defaults.shelve=--date "0 0"
-  defaults.tag=-d "0 0"
   devel.all-warnings=true
+  devel.default-date=0 0
+  extensions.fsmonitor= (fsmonitor !)
   largefiles.usercache=$TESTTMP/.cache/largefiles
   ui.slash=True
   ui.interactive=False
@@ -186,12 +197,10 @@ check that local configs for the cached repo aren't inherited when -R is used:
   ui.usehttp2=true (?)
   ui.foo=bar
   ui.nontty=true
+  web.address=localhost
+  web\.ipv6=(?:True|False) (re)
   *** runcommand init foo
   *** runcommand -R foo showconfig ui defaults
-  defaults.backout=-d "0 0"
-  defaults.commit=-d "0 0"
-  defaults.shelve=--date "0 0"
-  defaults.tag=-d "0 0"
   ui.slash=True
   ui.interactive=False
   ui.mergemarkers=detailed
@@ -223,11 +232,11 @@ check that local configs for the cached repo aren't inherited when -R is used:
   ...                         'id'],
   ...                input=stringio('some input'))
   *** runcommand --config hooks.pre-identify=python:hook.hook id
-  hook talking
-  now try to read something: 'some input'
   eff892de26ec tip
 
+Clean hook cached version
   $ rm hook.py*
+  $ rm -Rf __pycache__
 
   $ echo a >> a
   >>> import os
@@ -508,6 +517,7 @@ changelog and manifest would have invalid node:
   *** runcommand up null
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   *** runcommand phase -df tip
+  obsoleted 1 changesets
   *** runcommand log --hidden
   changeset:   1:731265503d86
   tag:         tip
@@ -566,19 +576,19 @@ changelog and manifest would have invalid node:
 
   $ cat <<EOF > dbgui.py
   > import os, sys
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command("debuggetpass", norepo=True)
+  > command = registrar.command(cmdtable)
+  > @command(b"debuggetpass", norepo=True)
   > def debuggetpass(ui):
   >     ui.write("%s\\n" % ui.getpass())
-  > @command("debugprompt", norepo=True)
+  > @command(b"debugprompt", norepo=True)
   > def debugprompt(ui):
   >     ui.write("%s\\n" % ui.prompt("prompt:"))
-  > @command("debugreadstdin", norepo=True)
+  > @command(b"debugreadstdin", norepo=True)
   > def debugreadstdin(ui):
   >     ui.write("read: %r\n" % sys.stdin.read(1))
-  > @command("debugwritestdout", norepo=True)
+  > @command(b"debugwritestdout", norepo=True)
   > def debugwritestdout(ui):
   >     os.write(1, "low-level stdout fd and\n")
   >     sys.stdout.write("stdout should be redirected to /dev/null\n")
@@ -596,6 +606,12 @@ changelog and manifest would have invalid node:
   ...     runcommand(server, ['debuggetpass', '--config',
   ...                         'ui.interactive=True'],
   ...                input=stringio('1234\n'))
+  ...     runcommand(server, ['debuggetpass', '--config',
+  ...                         'ui.interactive=True'],
+  ...                input=stringio('\n'))
+  ...     runcommand(server, ['debuggetpass', '--config',
+  ...                         'ui.interactive=True'],
+  ...                input=stringio(''))
   ...     runcommand(server, ['debugprompt', '--config',
   ...                         'ui.interactive=True'],
   ...                input=stringio('5678\n'))
@@ -603,6 +619,11 @@ changelog and manifest would have invalid node:
   ...     runcommand(server, ['debugwritestdout'])
   *** runcommand debuggetpass --config ui.interactive=True
   password: 1234
+  *** runcommand debuggetpass --config ui.interactive=True
+  password: 
+  *** runcommand debuggetpass --config ui.interactive=True
+  password: abort: response expected
+   [255]
   *** runcommand debugprompt --config ui.interactive=True
   prompt: 5678
   *** runcommand debugreadstdin
@@ -804,7 +825,7 @@ cases.
   $ echo foo > foo
   $ hg add foo
 
-(failuer before finalization)
+(failure before finalization)
 
   >>> from hgclient import readchannel, runcommand, check
   >>> @check
@@ -823,7 +844,7 @@ cases.
   *** runcommand log
   *** runcommand verify -q
 
-(failuer after finalization)
+(failure after finalization)
 
   >>> from hgclient import readchannel, runcommand, check
   >>> @check
@@ -887,3 +908,80 @@ cases.
   *** runcommand log
   0 bar (bar)
   *** runcommand verify -q
+
+  $ cd ..
+
+Test symlink traversal over cached audited paths:
+-------------------------------------------------
+
+#if symlink
+
+set up symlink hell
+
+  $ mkdir merge-symlink-out
+  $ hg init merge-symlink
+  $ cd merge-symlink
+  $ touch base
+  $ hg commit -qAm base
+  $ ln -s ../merge-symlink-out a
+  $ hg commit -qAm 'symlink a -> ../merge-symlink-out'
+  $ hg up -q 0
+  $ mkdir a
+  $ touch a/poisoned
+  $ hg commit -qAm 'file a/poisoned'
+  $ hg log -G -T '{rev}: {desc}\n'
+  @  2: file a/poisoned
+  |
+  | o  1: symlink a -> ../merge-symlink-out
+  |/
+  o  0: base
+  
+
+try trivial merge after update: cache of audited paths should be discarded,
+and the merge should fail (issue5628)
+
+  $ hg up -q null
+  >>> from hgclient import readchannel, runcommand, check
+  >>> @check
+  ... def merge(server):
+  ...     readchannel(server)
+  ...     # audit a/poisoned as a good path
+  ...     runcommand(server, ['up', '-qC', '2'])
+  ...     runcommand(server, ['up', '-qC', '1'])
+  ...     # here a is a symlink, so a/poisoned is bad
+  ...     runcommand(server, ['merge', '2'])
+  *** runcommand up -qC 2
+  *** runcommand up -qC 1
+  *** runcommand merge 2
+  abort: path 'a/poisoned' traverses symbolic link 'a'
+   [255]
+  $ ls ../merge-symlink-out
+
+cache of repo.auditor should be discarded, so matcher would never traverse
+symlinks:
+
+  $ hg up -qC 0
+  $ touch ../merge-symlink-out/poisoned
+  >>> from hgclient import readchannel, runcommand, check
+  >>> @check
+  ... def files(server):
+  ...     readchannel(server)
+  ...     runcommand(server, ['up', '-qC', '2'])
+  ...     # audit a/poisoned as a good path
+  ...     runcommand(server, ['files', 'a/poisoned'])
+  ...     runcommand(server, ['up', '-qC', '0'])
+  ...     runcommand(server, ['up', '-qC', '1'])
+  ...     # here 'a' is a symlink, so a/poisoned should be warned
+  ...     runcommand(server, ['files', 'a/poisoned'])
+  *** runcommand up -qC 2
+  *** runcommand files a/poisoned
+  a/poisoned
+  *** runcommand up -qC 0
+  *** runcommand up -qC 1
+  *** runcommand files a/poisoned
+  abort: path 'a/poisoned' traverses symbolic link 'a'
+   [255]
+
+  $ cd ..
+
+#endif

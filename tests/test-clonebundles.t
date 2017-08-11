@@ -31,8 +31,8 @@ Missing manifest should not result in server lookup
 
   $ cat server/access.log
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D (glob)
-  * - - [*] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bundlecaps=HG20%2Cbundle2%3DHG20%250Achangegroup%253D01%252C02%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=1&common=0000000000000000000000000000000000000000&heads=aaff8d2ffbbf07a46dd1f05d8ae7877e3f56e2a2&listkeys=phases%2Cbookmarks (glob)
+  * - - [*] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bundlecaps=HG20%2Cbundle2%3DHG20%250Achangegroup%253D01%252C02%250Adigests%253Dmd5%252Csha1%252Csha512%250Aerror%253Dabort%252Cunsupportedcontent%252Cpushraced%252Cpushkey%250Ahgtagsfnodes%250Alistkeys%250Apushkey%250Aremote-changegroup%253Dhttp%252Chttps&cg=1&common=0000000000000000000000000000000000000000&heads=aaff8d2ffbbf07a46dd1f05d8ae7877e3f56e2a2&listkeys=phases%2Cbookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
 
 Empty manifest file results in retrieval
 (the extension only checks if the manifest file exists)
@@ -51,7 +51,8 @@ Manifest file with invalid URL aborts
   $ echo 'http://does.not.exist/bundle.hg' > server/.hg/clonebundles.manifest
   $ hg clone http://localhost:$HGPORT 404-url
   applying clone bundle from http://does.not.exist/bundle.hg
-  error fetching bundle: (.* not known|getaddrinfo failed|No address associated with hostname) (re)
+  error fetching bundle: (.* not known|No address associated with hostname) (re) (no-windows !)
+  error fetching bundle: [Errno 11004] getaddrinfo failed (windows !)
   abort: error applying bundle
   (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false")
   [255]
@@ -61,14 +62,14 @@ Server is not running aborts
   $ echo "http://localhost:$HGPORT1/bundle.hg" > server/.hg/clonebundles.manifest
   $ hg clone http://localhost:$HGPORT server-not-runner
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
-  error fetching bundle: (.* refused.*|Protocol not supported) (re)
+  error fetching bundle: (.* refused.*|Protocol not supported|(.* )?Cannot assign requested address) (re)
   abort: error applying bundle
   (if this error persists, consider contacting the server operator or disable clone bundles via "--config ui.clonebundles=false")
   [255]
 
 Server returns 404
 
-  $ python $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
+  $ "$PYTHON" $TESTDIR/dumbhttp.py -p $HGPORT1 --pid http.pid
   $ cat http.pid >> $DAEMON_PIDS
   $ hg clone http://localhost:$HGPORT running-404
   applying clone bundle from http://localhost:$HGPORT1/bundle.hg
@@ -196,7 +197,7 @@ by old clients.
 
 Feature works over SSH
 
-  $ hg clone -U -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/server ssh-full-clone
+  $ hg clone -U -e "\"$PYTHON\" \"$TESTDIR/dummyssh\"" ssh://user@dummy/server ssh-full-clone
   applying clone bundle from http://localhost:$HGPORT1/full.hg
   adding changesets
   adding manifests

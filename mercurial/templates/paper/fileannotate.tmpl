@@ -28,7 +28,7 @@
 <li><a href="{url|urlescape}comparison/{symrev}/{file|urlescape}{sessionvars%urlparameter}">comparison</a></li>
 <li class="active">annotate</li>
 <li><a href="{url|urlescape}log/{symrev}/{file|urlescape}{sessionvars%urlparameter}">file log</a></li>
-<li><a href="{url|urlescape}raw-annotate/{symrev}/{file|urlescape}">raw</a></li>
+<li><a href="{url|urlescape}raw-file/{symrev}/{file|urlescape}">raw</a></li>
 </ul>
 <ul>
 <li><a href="{url|urlescape}help{sessionvars%urlparameter}">help</a></li>
@@ -42,11 +42,7 @@
  {branch%changelogbranchname}{tags%changelogtag}{bookmarks%changelogtag}
 </h3>
 
-<form class="search" action="{url|urlescape}log">
-{sessionvars%hiddenformentry}
-<p><input name="rev" id="search1" type="text" size="30" /></p>
-<div id="hint">{searchhint}</div>
-</form>
+{searchform}
 
 <div class="description">{desc|strip|escape|websub|nonempty}</div>
 
@@ -77,12 +73,17 @@
  <th class="line">&nbsp;&nbsp;line source</th>
 </tr>
 </thead>
-<tbody class="stripes2">
+<tbody class="stripes2 sourcelines"
+       data-logurl="{url|urlescape}log/{symrev}/{file|urlescape}"
+       data-selectabletag="TR"
+       data-ishead="{ishead}">
   {annotate%annotateline}
 </tbody>
 </table>
 </div>
 </div>
 </div>
+
+<script type="text/javascript" src="{staticurl|urlescape}followlines.js"></script>
 
 {footer}

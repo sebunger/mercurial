@@ -151,10 +151,10 @@ qimport -f
 
 build diff with CRLF
 
-  $ python ../writelines.py b 5 'a\n' 5 'a\r\n'
+  $ $PYTHON ../writelines.py b 5 'a\n' 5 'a\r\n'
   $ hg ci -Am addb
   adding b
-  $ python ../writelines.py b 2 'a\n' 10 'b\n' 2 'a\r\n'
+  $ $PYTHON ../writelines.py b 2 'a\n' 10 'b\n' 2 'a\r\n'
   $ hg diff > b.diff
   $ hg up -C
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -247,10 +247,27 @@ qimport -e --name with --force
   this-name-is-better
   url.diff
 
+import patch of bad filename
+
+  $ touch '../ bad.diff'
+  $ hg qimport '../ bad.diff'
+  abort: patch name cannot begin or end with whitespace
+  [255]
+  $ touch '.hg/patches/ bad.diff'
+  $ hg qimport -e ' bad.diff'
+  abort: patch name cannot begin or end with whitespace
+  [255]
+
 qimport with bad name, should abort before reading file
 
   $ hg qimport non-existent-file --name .hg
   abort: patch name cannot begin with ".hg"
+  [255]
+  $ hg qimport non-existent-file --name ' foo'
+  abort: patch name cannot begin or end with whitespace
+  [255]
+  $ hg qimport non-existent-file --name 'foo '
+  abort: patch name cannot begin or end with whitespace
   [255]
 
 qimport http:// patch with leading slashes in url

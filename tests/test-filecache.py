@@ -10,24 +10,30 @@ if subprocess.call(['python', '%s/hghave' % os.environ['TESTDIR'],
 from mercurial import (
     extensions,
     hg,
-    scmutil,
+    localrepo,
     ui as uimod,
     util,
+    vfs as vfsmod,
 )
-
-filecache = scmutil.filecache
 
 class fakerepo(object):
     def __init__(self):
         self._filecache = {}
 
-    def join(self, p):
-        return p
+    class fakevfs(object):
+
+        def join(self, p):
+            return p
+
+    vfs = fakevfs()
+
+    def unfiltered(self):
+        return self
 
     def sjoin(self, p):
         return p
 
-    @filecache('x', 'y')
+    @localrepo.repofilecache('x', 'y')
     def cached(self):
         print('creating')
         return 'string from function'
@@ -73,7 +79,7 @@ def basic(repo):
     # atomic replace file, size doesn't change
     # hopefully st_mtime doesn't change as well so this doesn't use the cache
     # because of inode change
-    f = scmutil.opener('.')('x', 'w', atomictemp=True)
+    f = vfsmod.vfs('.')('x', 'w', atomictemp=True)
     f.write('b')
     f.close()
 
@@ -97,7 +103,7 @@ def basic(repo):
     # should recreate the object
     repo.cached
 
-    f = scmutil.opener('.')('y', 'w', atomictemp=True)
+    f = vfsmod.vfs('.')('y', 'w', atomictemp=True)
     f.write('B')
     f.close()
 
@@ -105,10 +111,10 @@ def basic(repo):
     print("* file y changed inode")
     repo.cached
 
-    f = scmutil.opener('.')('x', 'w', atomictemp=True)
+    f = vfsmod.vfs('.')('x', 'w', atomictemp=True)
     f.write('c')
     f.close()
-    f = scmutil.opener('.')('y', 'w', atomictemp=True)
+    f = vfsmod.vfs('.')('y', 'w', atomictemp=True)
     f.write('C')
     f.close()
 
@@ -141,7 +147,7 @@ def fakeuncacheable():
 def test_filecache_synced():
     # test old behavior that caused filecached properties to go out of sync
     os.system('hg init && echo a >> a && hg ci -qAm.')
-    repo = hg.repository(uimod.ui())
+    repo = hg.repository(uimod.ui.load())
     # first rollback clears the filecache, but changelog to stays in __dict__
     repo.rollback()
     repo.commit('.')
@@ -197,15 +203,15 @@ def antiambiguity():
         repetition = 3
 
         # repeat changing via checkambigatclosing, to examine whether
-        # st_mtime is advanced multiple times as expecetd
+        # st_mtime is advanced multiple times as expected
         for i in xrange(repetition):
             # explicit closing
-            fp = scmutil.checkambigatclosing(open(filename, 'a'))
+            fp = vfsmod.checkambigatclosing(open(filename, 'a'))
             fp.write('FOO')
             fp.close()
 
             # implicit closing by "with" statement
-            with scmutil.checkambigatclosing(open(filename, 'a')) as fp:
+            with vfsmod.checkambigatclosing(open(filename, 'a')) as fp:
                 fp.write('BAR')
 
         newstat = os.stat(filename)
@@ -214,7 +220,7 @@ def antiambiguity():
             continue
 
         # st_mtime should be advanced "repetition * 2" times, because
-        # all changes occured at same time (in sec)
+        # all changes occurred at same time (in sec)
         expected = (oldstat.st_mtime + repetition * 2) & 0x7fffffff
         if newstat.st_mtime != expected:
             print("'newstat.st_mtime %s is not %s (as %s + %s * 2)" %

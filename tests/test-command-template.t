@@ -134,6 +134,28 @@ But negate binds closer still:
     ('string', '\n'))
   -3
 
+Keyword arguments:
+
+  $ hg debugtemplate -r0 -v '{foo=bar|baz}'
+  (template
+    (keyvalue
+      ('symbol', 'foo')
+      (|
+        ('symbol', 'bar')
+        ('symbol', 'baz'))))
+  hg: parse error: can't use a key-value pair in this context
+  [255]
+
+  $ hg debugtemplate '{pad("foo", width=10, left=true)}\n'
+         foo
+
+Call function which takes named arguments by filter syntax:
+
+  $ hg debugtemplate '{" "|separate}'
+  $ hg debugtemplate '{("not", "an", "argument", "list")|separate}'
+  hg: parse error: unknown method 'list'
+  [255]
+
 Second branch starting at nullrev:
 
   $ hg update null
@@ -187,14 +209,29 @@ Make sure user/global hgrc does not affect tests
 
 Add some simple styles to settings
 
-  $ echo '[templates]' >> .hg/hgrc
-  $ printf 'simple = "{rev}\\n"\n' >> .hg/hgrc
-  $ printf 'simple2 = {rev}\\n\n' >> .hg/hgrc
+  $ cat <<'EOF' >> .hg/hgrc
+  > [templates]
+  > simple = "{rev}\n"
+  > simple2 = {rev}\n
+  > rev = "should not precede {rev} keyword\n"
+  > EOF
 
   $ hg log -l1 -Tsimple
   8
   $ hg log -l1 -Tsimple2
   8
+  $ hg log -l1 -Trev
+  should not precede 8 keyword
+  $ hg log -l1 -T '{simple}'
+  8
+
+Map file shouldn't see user templates:
+
+  $ cat <<EOF > tmpl
+  > changeset = 'nothing expanded:{simple}\n'
+  > EOF
+  $ hg log -l1 --style ./tmpl
+  nothing expanded:
 
 Test templates and style maps in files:
 
@@ -219,6 +256,38 @@ Test template map inheritance
   date:        Wed Jan 01 10:01:00 2020 +0000
   summary:     third
   
+
+Test docheader, docfooter and separator in template map
+
+  $ cat <<'EOF' > map-myjson
+  > docheader = '\{\n'
+  > docfooter = '\n}\n'
+  > separator = ',\n'
+  > changeset = ' {dict(rev, node|short)|json}'
+  > EOF
+  $ hg log -l2 -T./map-myjson
+  {
+   {"node": "95c24699272e", "rev": 8},
+   {"node": "29114dbae42b", "rev": 7}
+  }
+
+Test docheader, docfooter and separator in [templates] section
+
+  $ cat <<'EOF' >> .hg/hgrc
+  > [templates]
+  > myjson = ' {dict(rev, node|short)|json}'
+  > myjson:docheader = '\{\n'
+  > myjson:docfooter = '\n}\n'
+  > myjson:separator = ',\n'
+  > :docheader = 'should not be selected as a docheader for literal templates\n'
+  > EOF
+  $ hg log -l2 -Tmyjson
+  {
+   {"node": "95c24699272e", "rev": 8},
+   {"node": "29114dbae42b", "rev": 7}
+  }
+  $ hg log -l1 -T'{rev}\n'
+  8
 
 Template should precede style option
 
@@ -1108,11 +1177,11 @@ Error if no style:
 
   $ hg log --style notexist
   abort: style 'notexist' not found
-  (available styles: bisect, changelog, compact, default, phases, status, xml)
+  (available styles: bisect, changelog, compact, default, phases, show, status, xml)
   [255]
 
   $ hg log -T list
-  available styles: bisect, changelog, compact, default, phases, status, xml
+  available styles: bisect, changelog, compact, default, phases, show, status, xml
   abort: specify a template
   [255]
 
@@ -1158,7 +1227,10 @@ Check that recursive reference does not fall into RuntimeError (issue4758):
 
  common mistake:
 
-  $ hg log -T '{changeset}\n'
+  $ cat << EOF > issue4758
+  > changeset = '{changeset}\n'
+  > EOF
+  $ hg log --style ./issue4758
   abort: recursive reference 'changeset' in template
   [255]
 
@@ -1174,7 +1246,10 @@ Check that recursive reference does not fall into RuntimeError (issue4758):
 
  buildmap() -> gettemplate(), where no thunk was made:
 
-  $ hg log -T '{files % changeset}\n'
+  $ cat << EOF > issue4758
+  > changeset = '{files % changeset}\n'
+  > EOF
+  $ hg log --style ./issue4758
   abort: recursive reference 'changeset' in template
   [255]
 
@@ -2662,13 +2737,21 @@ Behind the scenes, this will throw ValueError
   hg: parse error: date expects a date information
   [255]
 
+  $ hg tip -T '{author|email|shortdate}\n'
+  abort: template filter 'shortdate' is not compatible with keyword 'author'
+  [255]
+
+  $ hg tip -T '{get(extras, "branch")|shortdate}\n'
+  abort: incompatible use of template filter 'shortdate'
+  [255]
+
 Error in nested template:
 
   $ hg log -T '{"date'
   hg: parse error at 2: unterminated string
   [255]
 
-  $ hg log -T '{"foo{date|=}"}'
+  $ hg log -T '{"foo{date|?}"}'
   hg: parse error at 11: syntax error
   [255]
 
@@ -2682,6 +2765,16 @@ Pass generator object created by template function to filter
 
   $ hg log -l 1 --template '{if(author, author)|user}\n'
   test
+
+Test index keyword:
+
+  $ hg log -l 2 -T '{index + 10}{files % " {index}:{file}"}\n'
+  10 0:a 1:b 2:fifth 3:fourth 4:third
+  11 0:a
+
+  $ hg branches -T '{index} {branch}\n'
+  0 default
+  1 foo
 
 Test diff function:
 
@@ -3348,6 +3441,18 @@ color effect can be specified without quoting:
   $ hg log --color=always -l 1 --template '{label(red, "text\n")}'
   \x1b[0;31mtext\x1b[0m (esc)
 
+color effects can be nested (issue5413)
+
+  $ hg debugtemplate --color=always \
+  > '{label(red, "red{label(magenta, "ma{label(cyan, "cyan")}{label(yellow, "yellow")}genta")}")}\n'
+  \x1b[0;31mred\x1b[0;35mma\x1b[0;36mcyan\x1b[0m\x1b[0;31m\x1b[0;35m\x1b[0;33myellow\x1b[0m\x1b[0;31m\x1b[0;35mgenta\x1b[0m (esc)
+
+pad() should interact well with color codes (issue5416)
+
+  $ hg debugtemplate --color=always \
+  > '{pad(label(red, "red"), 5, label(cyan, "-"))}\n'
+  \x1b[0;31mred\x1b[0m\x1b[0;36m-\x1b[0m\x1b[0;36m-\x1b[0m (esc)
+
 label should be no-op if color is disabled:
 
   $ hg log --color=never -l 1 --template '{label(red, "text\n")}'
@@ -3360,6 +3465,37 @@ Test branches inside if statement:
   $ hg log -r 0 --template '{if(branches, "yes", "no")}\n'
   no
 
+Test dict constructor:
+
+  $ hg log -r 0 -T '{dict(y=node|short, x=rev)}\n'
+  y=f7769ec2ab97 x=0
+  $ hg log -r 0 -T '{dict(x=rev, y=node|short) % "{key}={value}\n"}'
+  x=0
+  y=f7769ec2ab97
+  $ hg log -r 0 -T '{dict(x=rev, y=node|short)|json}\n'
+  {"x": 0, "y": "f7769ec2ab97"}
+  $ hg log -r 0 -T '{dict()|json}\n'
+  {}
+
+  $ hg log -r 0 -T '{dict(rev, node=node|short)}\n'
+  rev=0 node=f7769ec2ab97
+  $ hg log -r 0 -T '{dict(rev, node|short)}\n'
+  rev=0 node=f7769ec2ab97
+
+  $ hg log -r 0 -T '{dict(rev, rev=rev)}\n'
+  hg: parse error: duplicated dict key 'rev' inferred
+  [255]
+  $ hg log -r 0 -T '{dict(node, node|short)}\n'
+  hg: parse error: duplicated dict key 'node' inferred
+  [255]
+  $ hg log -r 0 -T '{dict(1 + 2)}'
+  hg: parse error: dict key cannot be inferred
+  [255]
+
+  $ hg log -r 0 -T '{dict(x=rev, x=node)}'
+  hg: parse error: dict got multiple values for keyword argument 'x'
+  [255]
+
 Test get function:
 
   $ hg log -r 0 --template '{get(extras, "branch")}\n'
@@ -3369,6 +3505,13 @@ Test get function:
   $ hg log -r 0 --template '{get(files, "should_fail")}\n'
   hg: parse error: get() expects a dict as first argument
   [255]
+
+Test json filter applied to hybrid object:
+
+  $ hg log -r0 -T '{files|json}\n'
+  ["a"]
+  $ hg log -r0 -T '{extras|json}\n'
+  {"branch": "default"}
 
 Test localdate(date, tz) function:
 
@@ -3413,6 +3556,9 @@ Test shortest(node) function:
   hg: parse error: shortest() expects an integer minlength
   [255]
 
+  $ hg log -r 'wdir()' -T '{node|shortest}\n'
+  ffff
+
   $ cd ..
 
 Test shortest(node) with the repo having short hash collision:
@@ -3444,8 +3590,11 @@ Test shortest(node) with the repo having short hash collision:
   9:c5623987d205cd6d9d8389bfc40fff9dbb670b48
   10:c562ddd9c94164376c20b86b0b4991636a3bf84f
   $ hg debugobsolete a00be79088084cb3aff086ab799f8790e01a976b
+  obsoleted 1 changesets
   $ hg debugobsolete c5623987d205cd6d9d8389bfc40fff9dbb670b48
+  obsoleted 1 changesets
   $ hg debugobsolete c562ddd9c94164376c20b86b0b4991636a3bf84f
+  obsoleted 1 changesets
 
  nodes starting with '11' (we don't have the revision number '11' though)
 
@@ -3513,6 +3662,15 @@ Test width argument passed to pad function
   0          test
   $ hg log -r 0 -T '{pad(rev, "not an int")}\n'
   hg: parse error: pad() expects an integer width
+  [255]
+
+Test invalid fillchar passed to pad function
+
+  $ hg log -r 0 -T '{pad(rev, 10, "")}\n'
+  hg: parse error: pad() expects a single fill character
+  [255]
+  $ hg log -r 0 -T '{pad(rev, 10, "--")}\n'
+  hg: parse error: pad() expects a single fill character
   [255]
 
 Test boolean argument passed to pad function
@@ -3707,7 +3865,7 @@ Test relpath function
   a
   $ cd ..
   $ hg log -R r -r0 -T '{files % "{file|relpath}\n"}'
-  r/a (glob)
+  r/a
   $ cd r
 
 Test active bookmark templating
@@ -3739,10 +3897,37 @@ Test active bookmark templating
 
 Test namespaces dict
 
-  $ hg log -T '{rev}{namespaces % " {namespace}={join(names, ",")}"}\n'
-  2 bookmarks=bar,foo tags=tip branches=text.{rev}
-  1 bookmarks=baz tags= branches=text.{rev}
-  0 bookmarks= tags= branches=default
+  $ hg --config extensions.revnamesext=$TESTDIR/revnamesext.py log -T '{rev}\n{namespaces % " {namespace} color={colorname} builtin={builtin}\n  {join(names, ",")}\n"}\n'
+  2
+   bookmarks color=bookmark builtin=True
+    bar,foo
+   tags color=tag builtin=True
+    tip
+   branches color=branch builtin=True
+    text.{rev}
+   revnames color=revname builtin=False
+    r2
+  
+  1
+   bookmarks color=bookmark builtin=True
+    baz
+   tags color=tag builtin=True
+    
+   branches color=branch builtin=True
+    text.{rev}
+   revnames color=revname builtin=False
+    r1
+  
+  0
+   bookmarks color=bookmark builtin=True
+    
+   tags color=tag builtin=True
+    
+   branches color=branch builtin=True
+    default
+   revnames color=revname builtin=False
+    r0
+  
   $ hg log -r2 -T '{namespaces % "{namespace}: {names}\n"}'
   bookmarks: bar foo
   tags: tip
@@ -3794,6 +3979,11 @@ Test splitlines
   |  foo other 3
   o  foo line 1
      foo line 2
+
+  $ hg log -R a -r0 -T '{desc|splitlines}\n'
+  line 1 line 2
+  $ hg log -R a -r0 -T '{join(desc|splitlines, "|")}\n'
+  line 1|line 2
 
 Test startswith
   $ hg log -Gv -R a --template "{startswith(desc)}"
@@ -4066,7 +4256,7 @@ Set up repository for non-ascii encoding tests:
 
   $ hg init nonascii
   $ cd nonascii
-  $ python <<EOF
+  $ $PYTHON <<EOF
   > open('latin1', 'w').write('\xe9')
   > open('utf-8', 'w').write('\xc3\xa9')
   > EOF
@@ -4099,6 +4289,11 @@ utf8 filter:
   $ hg log -T "invalid type: {rev|utf8}\n" -r0
   abort: template filter 'utf8' is not compatible with keyword 'rev'
   [255]
+
+pad width:
+
+  $ HGENCODING=utf-8 hg debugtemplate "{pad('`cat utf-8`', 2, '-')}\n"
+  \xc3\xa9- (esc)
 
   $ cd ..
 

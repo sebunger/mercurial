@@ -1,4 +1,4 @@
-# template-filters.py - common template expansion filters
+# templatefilters.py - common template expansion filters
 #
 # Copyright 2005-2008 Matt Mackall <mpm@selenic.com>
 #
@@ -16,6 +16,7 @@ from . import (
     encoding,
     hbisect,
     node,
+    pycompat,
     registrar,
     templatekw,
     util,
@@ -23,6 +24,9 @@ from . import (
 
 urlerr = util.urlerr
 urlreq = util.urlreq
+
+if pycompat.ispy3:
+    long = int
 
 # filters are callables like:
 #   fn(obj)
@@ -218,26 +222,25 @@ def indent(text, prefix):
     return "".join(indenter())
 
 @templatefilter('json')
-def json(obj):
-    if obj is None or obj is False or obj is True:
-        return {None: 'null', False: 'false', True: 'true'}[obj]
-    elif isinstance(obj, int) or isinstance(obj, float):
-        return str(obj)
-    elif isinstance(obj, str):
-        return '"%s"' % encoding.jsonescape(obj, paranoid=True)
+def json(obj, paranoid=True):
+    if obj is None:
+        return 'null'
+    elif obj is False:
+        return 'false'
+    elif obj is True:
+        return 'true'
+    elif isinstance(obj, (int, long, float)):
+        return pycompat.bytestr(obj)
+    elif isinstance(obj, bytes):
+        return '"%s"' % encoding.jsonescape(obj, paranoid=paranoid)
     elif util.safehasattr(obj, 'keys'):
-        out = []
-        for k, v in sorted(obj.iteritems()):
-            s = '%s: %s' % (json(k), json(v))
-            out.append(s)
+        out = ['"%s": %s' % (encoding.jsonescape(k, paranoid=paranoid),
+                             json(v, paranoid))
+               for k, v in sorted(obj.iteritems())]
         return '{' + ', '.join(out) + '}'
     elif util.safehasattr(obj, '__iter__'):
-        out = []
-        for i in obj:
-            out.append(json(i))
+        out = [json(i, paranoid) for i in obj]
         return '[' + ', '.join(out) + ']'
-    elif util.safehasattr(obj, '__call__'):
-        return json(obj())
     else:
         raise TypeError('cannot encode type %s' % obj.__class__.__name__)
 
@@ -341,22 +344,23 @@ def shortdate(text):
 @templatefilter('splitlines')
 def splitlines(text):
     """Any text. Split text into a list of lines."""
-    return templatekw.showlist('line', text.splitlines(), 'lines')
+    return templatekw.hybridlist(text.splitlines(), name='line')
 
 @templatefilter('stringescape')
 def stringescape(text):
-    return text.encode('string_escape')
+    return util.escapestr(text)
 
 @templatefilter('stringify')
 def stringify(thing):
     """Any type. Turns the value into text by converting values into
     text and concatenating them.
     """
-    if util.safehasattr(thing, '__iter__') and not isinstance(thing, str):
+    thing = templatekw.unwraphybrid(thing)
+    if util.safehasattr(thing, '__iter__') and not isinstance(thing, bytes):
         return "".join([stringify(t) for t in thing if t is not None])
     if thing is None:
         return ""
-    return str(thing)
+    return pycompat.bytestr(thing)
 
 @templatefilter('stripdir')
 def stripdir(text):

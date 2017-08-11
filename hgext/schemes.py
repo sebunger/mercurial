@@ -46,22 +46,24 @@ import re
 
 from mercurial.i18n import _
 from mercurial import (
-    cmdutil,
     error,
     extensions,
     hg,
+    pycompat,
+    registrar,
     templater,
     util,
 )
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
 # be specifying the version(s) of Mercurial they are tested with, or
 # leave the attribute unspecified.
 testedwith = 'ships-with-hg-core'
 
+_partre = re.compile(br'\{(\d+)\}')
 
 class ShortRepository(object):
     def __init__(self, url, scheme, templater):
@@ -69,7 +71,7 @@ class ShortRepository(object):
         self.templater = templater
         self.url = url
         try:
-            self.parts = max(map(int, re.findall(r'\{(\d+)\}', self.url)))
+            self.parts = max(map(int, _partre.findall(self.url)))
         except ValueError:
             self.parts = 0
 
@@ -114,7 +116,7 @@ def extsetup(ui):
     schemes.update(dict(ui.configitems('schemes')))
     t = templater.engine(lambda x: x)
     for scheme, url in schemes.items():
-        if (os.name == 'nt' and len(scheme) == 1 and scheme.isalpha()
+        if (pycompat.osname == 'nt' and len(scheme) == 1 and scheme.isalpha()
             and os.path.exists('%s:\\' % scheme)):
             raise error.Abort(_('custom scheme %s:// conflicts with drive '
                                'letter %s:\\\n') % (scheme, scheme.upper()))

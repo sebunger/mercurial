@@ -64,7 +64,9 @@ def getip():
     # Generic method, sometimes gives useless results
     try:
         dumbip = socket.gethostbyaddr(socket.gethostname())[2][0]
-        if not dumbip.startswith('127.') and ':' not in dumbip:
+        if ':' in dumbip:
+            dumbip = '127.0.0.1'
+        if not dumbip.startswith('127.'):
             return dumbip
     except (socket.gaierror, socket.herror):
         dumbip = '127.0.0.1'
@@ -165,12 +167,12 @@ def getzcpaths():
                                   value.properties.get("path", "/"))
         yield "zc-" + name, url
 
-def config(orig, self, section, key, default=None, untrusted=False):
+def config(orig, self, section, key, *args, **kwargs):
     if section == "paths" and key.startswith("zc-"):
         for name, path in getzcpaths():
             if name == key:
                 return path
-    return orig(self, section, key, default, untrusted)
+    return orig(self, section, key, *args, **kwargs)
 
 def configitems(orig, self, section, *args, **kwargs):
     repos = orig(self, section, *args, **kwargs)

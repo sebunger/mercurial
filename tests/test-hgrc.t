@@ -35,9 +35,9 @@ Issue1199: Can't use '%' in hgrc (eg url encoded username)
   # path aliases to other clones of this repo in URLs or filesystem paths
   # (see 'hg help config.paths' for more info)
   #
-  # default-push = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone     = /home/jdoe/jdoes-clone
+  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-clone        = /home/jdoe/jdoes-clone
   
   [ui]
   # name and email (local to this repository, optional), e.g.
@@ -46,7 +46,6 @@ Issue1199: Can't use '%' in hgrc (eg url encoded username)
   default = $TESTTMP/foo%bar (glob)
   $ hg showconfig
   bundle.mainreporoot=$TESTTMP/foobar (glob)
-  extensions.chgserver= (?)
   paths.default=$TESTTMP/foo%bar (glob)
   $ cd ..
 
@@ -72,7 +71,7 @@ issue1829: wrong indentation
   Mercurial Distributed SCM (version *) (glob)
   (see https://mercurial-scm.org for more information)
   
-  Copyright (C) 2005-2016 Matt Mackall and others
+  Copyright (C) 2005-* Matt Mackall and others (glob)
   This is free software; see the source for copying conditions. There is NO
   warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
   $ unset FAKEPATH
@@ -81,7 +80,6 @@ make sure global options given on the cmdline take precedence
 
   $ hg showconfig --config ui.verbose=True --quiet
   bundle.mainreporoot=$TESTTMP
-  extensions.chgserver= (?)
   ui.verbose=False
   ui.debug=False
   ui.quiet=True
@@ -113,7 +111,6 @@ username expansion
 
   $ hg showconfig
   bundle.mainreporoot=$TESTTMP
-  extensions.chgserver= (?)
   ui.username=$FAKEUSER
 
   $ unset FAKEUSER
@@ -159,7 +156,6 @@ customized hgrc
   $TESTTMP/hgrc:13: alias.log=log -g
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:11: defaults.identify=-n
-  --config: extensions.chgserver= (?)
   $TESTTMP/hgrc:2: ui.debug=true
   $TESTTMP/hgrc:3: ui.fallbackencoding=ASCII
   $TESTTMP/hgrc:4: ui.quiet=true
@@ -175,8 +171,21 @@ plain hgrc
   $ hg showconfig --config ui.traceback=True --debug
   read config from: $TESTTMP/hgrc
   repo: bundle.mainreporoot=$TESTTMP
-  --config: extensions.chgserver= (?)
   --config: ui.traceback=True
+  --verbose: ui.verbose=False
+  --debug: ui.debug=True
+  --quiet: ui.quiet=False
+
+with environment variables
+
+  $ PAGER=p1 EDITOR=e1 VISUAL=e2 hg showconfig --debug
+  set config by: $EDITOR
+  set config by: $VISUAL
+  set config by: $PAGER
+  read config from: $TESTTMP/hgrc
+  repo: bundle.mainreporoot=$TESTTMP
+  $PAGER: pager.pager=p1
+  $VISUAL: ui.editor=e2
   --verbose: ui.verbose=False
   --debug: ui.debug=True
   --quiet: ui.quiet=False
@@ -199,7 +208,6 @@ plain mode with exceptions
   read config from: $TESTTMP/hgrc
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
-  --config: extensions.chgserver= (?)
   --config: ui.traceback=True
   --verbose: ui.verbose=False
   --debug: ui.debug=True
@@ -210,7 +218,6 @@ plain mode with exceptions
   read config from: $TESTTMP/hgrc
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
-  --config: extensions.chgserver= (?)
   --config: ui.traceback=True
   --verbose: ui.verbose=False
   --debug: ui.debug=True
@@ -221,7 +228,6 @@ plain mode with exceptions
   read config from: $TESTTMP/hgrc
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
-  --config: extensions.chgserver= (?)
   --config: ui.traceback=True
   --verbose: ui.verbose=False
   --debug: ui.debug=True

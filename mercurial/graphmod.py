@@ -21,7 +21,8 @@ from __future__ import absolute_import
 
 from .node import nullrev
 from . import (
-    revset,
+    dagop,
+    smartset,
     util,
 )
 
@@ -67,9 +68,9 @@ def dagwalker(repo, revs):
             if gp is None:
                 # precompute slow query as we know reachableroots() goes
                 # through all revs (issue4782)
-                if not isinstance(revs, revset.baseset):
-                    revs = revset.baseset(revs)
-                gp = gpcache[mpar] = sorted(set(revset.reachableroots(
+                if not isinstance(revs, smartset.baseset):
+                    revs = smartset.baseset(revs)
+                gp = gpcache[mpar] = sorted(set(dagop.reachableroots(
                     repo, revs, [mpar])))
             if not gp:
                 parents.append((MISSINGPARENT, mpar))
@@ -181,6 +182,9 @@ def asciiedges(type, char, lines, state, rev, parents):
     knownparents = []
     newparents = []
     for ptype, parent in parents:
+        if parent == rev:
+            # self reference (should only be seen in null rev)
+            continue
         if parent in seen:
             knownparents.append(parent)
         else:
@@ -190,8 +194,7 @@ def asciiedges(type, char, lines, state, rev, parents):
     ncols = len(seen)
     nextseen = seen[:]
     nextseen[nodeidx:nodeidx + 1] = newparents
-    edges = [(nodeidx, nextseen.index(p))
-             for p in knownparents if p != nullrev]
+    edges = [(nodeidx, nextseen.index(p)) for p in knownparents]
 
     seen[:] = nextseen
     while len(newparents) > 2:
@@ -270,7 +273,7 @@ def _getpaddingline(echars, idx, ncols, edges):
         # | | |             | | |
         line.extend(echars[idx * 2:(idx + 1) * 2])
     else:
-        line.extend('  ')
+        line.extend([' ', ' '])
     # all edges to the right of the current node
     remainder = ncols - idx - 1
     if remainder > 0:
@@ -407,14 +410,17 @@ def ascii(ui, state, type, char, text, coldata):
     # shift_interline is the line containing the non-vertical
     # edges between this entry and the next
     shift_interline = echars[:idx * 2]
-    shift_interline.extend(' ' * (2 + coldiff))
+    for i in xrange(2 + coldiff):
+        shift_interline.append(' ')
     count = ncols - idx - 1
     if coldiff == -1:
-        shift_interline.extend('/ ' * count)
+        for i in xrange(count):
+            shift_interline.extend(['/', ' '])
     elif coldiff == 0:
         shift_interline.extend(echars[(idx + 1) * 2:ncols * 2])
     else:
-        shift_interline.extend(r'\ ' * count)
+        for i in xrange(count):
+            shift_interline.extend(['\\', ' '])
 
     # draw edges from the current node to its parents
     _drawedges(echars, edges, nodeline, shift_interline)

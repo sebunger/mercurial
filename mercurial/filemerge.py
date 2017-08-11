@@ -16,6 +16,7 @@ from .i18n import _
 from .node import nullid, short
 
 from . import (
+    encoding,
     error,
     formatter,
     match,
@@ -34,7 +35,9 @@ def _toolstr(ui, tool, part, default=""):
 def _toolbool(ui, tool, part, default=False):
     return ui.configbool("merge-tools", tool + "." + part, default)
 
-def _toollist(ui, tool, part, default=[]):
+def _toollist(ui, tool, part, default=None):
+    if default is None:
+        default = []
     return ui.configlist("merge-tools", tool + "." + part, default)
 
 internals = {}
@@ -45,6 +48,17 @@ internalsdoc = {}
 nomerge = None
 mergeonly = 'mergeonly'  # just the full merge, no premerge
 fullmerge = 'fullmerge'  # both premerge and merge
+
+_localchangedotherdeletedmsg = _(
+    "local%(l)s changed %(fd)s which other%(o)s deleted\n"
+    "use (c)hanged version, (d)elete, or leave (u)nresolved?"
+    "$$ &Changed $$ &Delete $$ &Unresolved")
+
+_otherchangedlocaldeletedmsg = _(
+    "other%(o)s changed %(fd)s which local%(l)s deleted\n"
+    "use (c)hanged version, leave (d)eleted, or "
+    "leave (u)nresolved?"
+    "$$ &Changed $$ &Deleted $$ &Unresolved")
 
 class absentfilectx(object):
     """Represents a file that's ostensibly in a context but is actually not
@@ -130,7 +144,7 @@ def _picktool(repo, ui, path, binary, symlink, changedelete):
     def check(tool, pat, symlink, binary, changedelete):
         tmsg = tool
         if pat:
-            tmsg += " specified for " + pat
+            tmsg = _("%s (for pattern %s)") % (tool, pat)
         if not _findtool(ui, tool):
             if pat: # explicitly requested tool deserves a warning
                 ui.warn(_("couldn't find merge tool %s\n") % tmsg)
@@ -165,7 +179,7 @@ def _picktool(repo, ui, path, binary, symlink, changedelete):
                 return (force, force)
 
     # HGMERGE takes next precedence
-    hgmerge = os.environ.get("HGMERGE")
+    hgmerge = encoding.environ.get("HGMERGE")
     if hgmerge:
         if changedelete and not supportscd(hgmerge):
             return ":prompt", None
@@ -189,7 +203,8 @@ def _picktool(repo, ui, path, binary, symlink, changedelete):
         if _toolbool(ui, t, "disabled", False):
             disabled.add(t)
     names = tools.keys()
-    tools = sorted([(-p, t) for t, p in tools.items() if t not in disabled])
+    tools = sorted([(-p, tool) for tool, p in tools.items()
+                    if tool not in disabled])
     uimerge = ui.config("ui", "merge")
     if uimerge:
         # external tools defined in uimerge won't be able to handle
@@ -205,6 +220,9 @@ def _picktool(repo, ui, path, binary, symlink, changedelete):
 
     # internal merge or prompt as last resort
     if symlink or binary or changedelete:
+        if not changedelete and len(tools):
+            # any tool is rejected by capability for symlink or binary
+            ui.warn(_("no tool found to merge %s\n") % path)
         return ":prompt", None
     return ":merge", None
 
@@ -243,21 +261,16 @@ def _iprompt(repo, mynode, orig, fcd, fco, fca, toolconf, labels=None):
     try:
         if fco.isabsent():
             index = ui.promptchoice(
-                _("local%(l)s changed %(fd)s which other%(o)s deleted\n"
-                  "use (c)hanged version, (d)elete, or leave (u)nresolved?"
-                  "$$ &Changed $$ &Delete $$ &Unresolved") % prompts, 2)
+                _localchangedotherdeletedmsg % prompts, 2)
             choice = ['local', 'other', 'unresolved'][index]
         elif fcd.isabsent():
             index = ui.promptchoice(
-                _("other%(o)s changed %(fd)s which local%(l)s deleted\n"
-                  "use (c)hanged version, leave (d)eleted, or "
-                  "leave (u)nresolved?"
-                  "$$ &Changed $$ &Deleted $$ &Unresolved") % prompts, 2)
+                _otherchangedlocaldeletedmsg % prompts, 2)
             choice = ['other', 'local', 'unresolved'][index]
         else:
             index = ui.promptchoice(
-                _("no tool found to merge %(fd)s\n"
-                  "keep (l)ocal%(l)s, take (o)ther%(o)s, or leave (u)nresolved?"
+                _("keep (l)ocal%(l)s, take (o)ther%(o)s, or leave (u)nresolved"
+                  " for %(fd)s?"
                   "$$ &Local $$ &Other $$ &Unresolved") % prompts, 2)
             choice = ['local', 'other', 'unresolved'][index]
 
@@ -285,10 +298,10 @@ def _iother(repo, mynode, orig, fcd, fco, fca, toolconf, labels=None):
     """Uses the other `p2()` version of files as the merged version."""
     if fco.isabsent():
         # local changed, remote deleted -- 'deleted' picked
-        repo.wvfs.unlinkpath(fcd.path())
+        _underlyingfctxifabsent(fcd).remove()
         deleted = True
     else:
-        repo.wwrite(fcd.path(), fco.data(), fco.flags())
+        _underlyingfctxifabsent(fcd).write(fco.data(), fco.flags())
         deleted = False
     return 0, deleted
 
@@ -300,8 +313,18 @@ def _ifail(repo, mynode, orig, fcd, fco, fca, toolconf, labels=None):
     used to resolve these conflicts."""
     # for change/delete conflicts write out the changed version, then fail
     if fcd.isabsent():
-        repo.wwrite(fcd.path(), fco.data(), fco.flags())
+        _underlyingfctxifabsent(fcd).write(fco.data(), fco.flags())
     return 1, False
+
+def _underlyingfctxifabsent(filectx):
+    """Sometimes when resolving, our fcd is actually an absentfilectx, but
+    we want to write to it (to do the resolve). This helper returns the
+    underyling workingfilectx in that case.
+    """
+    if filectx.isabsent():
+        return filectx.changectx()[filectx.path()]
+    else:
+        return filectx
 
 def _premerge(repo, fcd, fco, fca, toolconf, files, labels=None):
     tool, toolpath, binary, symlink = toolconf
@@ -451,7 +474,11 @@ def _idump(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     perform a merge manually. If the file to be merged is named
     ``a.txt``, these files will accordingly be named ``a.txt.local``,
     ``a.txt.other`` and ``a.txt.base`` and they will be placed in the
-    same directory as ``a.txt``."""
+    same directory as ``a.txt``.
+
+    This implies permerge. Therefore, files aren't dumped, if premerge
+    runs successfully. Use :forcedump to forcibly write files out.
+    """
     a, b, c, back = files
 
     fd = fcd.path()
@@ -460,6 +487,15 @@ def _idump(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     repo.wwrite(fd + ".other", fco.data(), fco.flags())
     repo.wwrite(fd + ".base", fca.data(), fca.flags())
     return False, 1, False
+
+@internaltool('forcedump', mergeonly)
+def _forcedump(repo, mynode, orig, fcd, fco, fca, toolconf, files,
+                labels=None):
+    """
+    Creates three versions of the files as same as :dump, but omits premerge.
+    """
+    return _idump(repo, mynode, orig, fcd, fco, fca, toolconf, files,
+                labels=labels)
 
 def _xmerge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     tool, toolpath, binary, symlink = toolconf
@@ -487,8 +523,11 @@ def _xmerge(repo, mynode, orig, fcd, fco, fca, toolconf, files, labels=None):
     args = util.interpolate(r'\$', replace, args,
                             lambda s: util.shellquote(util.localpath(s)))
     cmd = toolpath + ' ' + args
+    if _toolbool(ui, tool, "gui"):
+        repo.ui.status(_('running merge tool %s for file %s\n') %
+                       (tool, fcd.path()))
     repo.ui.debug('launching merge tool: %s\n' % cmd)
-    r = ui.system(cmd, cwd=repo.root, environ=env)
+    r = ui.system(cmd, cwd=repo.root, environ=env, blockedtag='mergetool')
     repo.ui.debug('merge tool returned: %s\n' % r)
     return True, r, False
 
@@ -505,22 +544,16 @@ def _formatconflictmarker(repo, ctx, template, label, pad):
     props['templ'] = template
     props['ctx'] = ctx
     props['repo'] = repo
-    templateresult = template('conflictmarker', **props)
+    templateresult = template.render(props)
 
     label = ('%s:' % label).ljust(pad + 1)
-    mark = '%s %s' % (label, templater.stringify(templateresult))
+    mark = '%s %s' % (label, templateresult)
 
     if mark:
         mark = mark.splitlines()[0] # split for safety
 
     # 8 for the prefix of conflict marker lines (e.g. '<<<<<<< ')
     return util.ellipsis(mark, 80 - 8)
-
-_defaultconflictmarker = ('{node|short} '
-                          '{ifeq(tags, "tip", "", "{tags} ")}'
-                          '{if(bookmarks, "{bookmarks} ")}'
-                          '{ifeq(branch, "default", "", "{branch} ")}'
-                          '- {author|user}: {desc|firstline}')
 
 _defaultconflictlabels = ['local', 'other']
 
@@ -534,8 +567,9 @@ def _formatlabels(repo, fcd, fco, fca, labels):
     ca = fca.changectx()
 
     ui = repo.ui
-    template = ui.config('ui', 'mergemarkertemplate', _defaultconflictmarker)
-    tmpl = formatter.maketemplater(ui, 'conflictmarker', template)
+    template = ui.config('ui', 'mergemarkertemplate')
+    template = templater.unquotestring(template)
+    tmpl = formatter.maketemplater(ui, template)
 
     pad = max(len(l) for l in labels)
 
@@ -575,10 +609,11 @@ def _filemerge(premerge, repo, mynode, orig, fcd, fco, fca, labels=None):
     a boolean indicating whether the file was deleted from disk."""
 
     def temp(prefix, ctx):
-        pre = "%s~%s." % (os.path.basename(ctx.path()), prefix)
-        (fd, name) = tempfile.mkstemp(prefix=pre)
+        fullbase, ext = os.path.splitext(ctx.path())
+        pre = "%s~%s." % (os.path.basename(fullbase), prefix)
+        (fd, name) = tempfile.mkstemp(prefix=pre, suffix=ext)
         data = repo.wwritedata(ctx.path(), ctx.data())
-        f = os.fdopen(fd, "wb")
+        f = os.fdopen(fd, pycompat.sysstr("wb"))
         f.write(data)
         f.close()
         return name
@@ -596,7 +631,8 @@ def _filemerge(premerge, repo, mynode, orig, fcd, fco, fca, labels=None):
         # normalize to new-style names (':merge' etc)
         tool = tool[len('internal'):]
     ui.debug("picked tool '%s' for %s (binary %s symlink %s changedelete %s)\n"
-             % (tool, fd, binary, symlink, changedelete))
+             % (tool, fd, pycompat.bytestr(binary), pycompat.bytestr(symlink),
+                    pycompat.bytestr(changedelete)))
 
     if tool in internals:
         func = internals[tool]
@@ -642,7 +678,7 @@ def _filemerge(premerge, repo, mynode, orig, fcd, fco, fca, labels=None):
 
     r = 1
     try:
-        markerstyle = ui.config('ui', 'mergemarkers', 'basic')
+        markerstyle = ui.config('ui', 'mergemarkers')
         if not labels:
             labels = _defaultconflictlabels
         if markerstyle != 'basic':

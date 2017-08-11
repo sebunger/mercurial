@@ -39,11 +39,7 @@
 <h2 class="breadcrumb"><a href="/">Mercurial</a> {pathdef%breadcrumb}</h2>
 <h3>graph</h3>
 
-<form class="search" action="{url|urlescape}log">
-{sessionvars%hiddenformentry}
-<p><input name="rev" id="search1" type="text" size="30" /></p>
-<div id="hint">{searchhint}</div>
-</form>
+{searchform}
 
 <div class="navigate">
 <a href="{url|urlescape}graph/{symrev}{lessvars%urlparameter}">less</a>
@@ -59,7 +55,7 @@
 <ul id="graphnodes"></ul>
 </div>
 
-<script type="text/javascript">
+<script type="text/javascript"{if(nonce, ' nonce="{nonce}"')}>
 <!-- hide script content
 
 var data = {jsdata|json};
@@ -121,7 +117,7 @@ graph.render(data);
 | rev {rev}: {changenav%navgraph}
 </div>
 
-<script type="text/javascript">
+<script type="text/javascript"{if(nonce, ' nonce="{nonce}"')}>
     ajaxScrollInit(
             '{url|urlescape}graph/{rev}?revcount=%next%&style={style}',
             {revcount}+60,

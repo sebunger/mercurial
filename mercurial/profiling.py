@@ -8,22 +8,32 @@
 from __future__ import absolute_import, print_function
 
 import contextlib
-import os
-import sys
-import time
 
 from .i18n import _
 from . import (
+    encoding,
     error,
+    extensions,
     util,
 )
 
+def _loadprofiler(ui, profiler):
+    """load profiler extension. return profile method, or None on failure"""
+    extname = profiler
+    extensions.loadall(ui, whitelist=[extname])
+    try:
+        mod = extensions.find(extname)
+    except KeyError:
+        return None
+    else:
+        return getattr(mod, 'profile', None)
+
 @contextlib.contextmanager
 def lsprofile(ui, fp):
-    format = ui.config('profiling', 'format', default='text')
-    field = ui.config('profiling', 'sort', default='inlinetime')
-    limit = ui.configint('profiling', 'limit', default=30)
-    climit = ui.configint('profiling', 'nested', default=0)
+    format = ui.config('profiling', 'format')
+    field = ui.config('profiling', 'sort')
+    limit = ui.configint('profiling', 'limit')
+    climit = ui.configint('profiling', 'nested')
 
     if format not in ['text', 'kcachegrind']:
         ui.warn(_("unrecognized profiling format '%s'"
@@ -62,12 +72,12 @@ def flameprofile(ui, fp):
             'flamegraph not available - install from '
             'https://github.com/evanhempel/python-flamegraph'))
     # developer config: profiling.freq
-    freq = ui.configint('profiling', 'freq', default=1000)
+    freq = ui.configint('profiling', 'freq')
     filter_ = None
     collapse_recursion = True
     thread = flamegraph.ProfileThread(fp, 1.0 / freq,
                                       filter_, collapse_recursion)
-    start_time = time.clock()
+    start_time = util.timer()
     try:
         thread.start()
         yield
@@ -75,18 +85,14 @@ def flameprofile(ui, fp):
         thread.stop()
         thread.join()
         print('Collected %d stack frames (%d unique) in %2.2f seconds.' % (
-            time.clock() - start_time, thread.num_frames(),
+            util.timer() - start_time, thread.num_frames(),
             thread.num_frames(unique=True)))
 
 @contextlib.contextmanager
 def statprofile(ui, fp):
-    try:
-        import statprof
-    except ImportError:
-        raise error.Abort(_(
-            'statprof not available - install using "easy_install statprof"'))
+    from . import statprof
 
-    freq = ui.configint('profiling', 'freq', default=1000)
+    freq = ui.configint('profiling', 'freq')
     if freq > 0:
         # Cannot reset when profiler is already active. So silently no-op.
         if statprof.state.profile_level == 0:
@@ -94,71 +100,139 @@ def statprofile(ui, fp):
     else:
         ui.warn(_("invalid sampling frequency '%s' - ignoring\n") % freq)
 
-    statprof.start()
+    statprof.start(mechanism='thread')
+
     try:
         yield
     finally:
-        statprof.stop()
-        statprof.display(fp)
+        data = statprof.stop()
 
-@contextlib.contextmanager
-def profile(ui):
+        profformat = ui.config('profiling', 'statformat')
+
+        formats = {
+            'byline': statprof.DisplayFormats.ByLine,
+            'bymethod': statprof.DisplayFormats.ByMethod,
+            'hotpath': statprof.DisplayFormats.Hotpath,
+            'json': statprof.DisplayFormats.Json,
+            'chrome': statprof.DisplayFormats.Chrome,
+        }
+
+        if profformat in formats:
+            displayformat = formats[profformat]
+        else:
+            ui.warn(_('unknown profiler output format: %s\n') % profformat)
+            displayformat = statprof.DisplayFormats.Hotpath
+
+        kwargs = {}
+
+        def fraction(s):
+            if isinstance(s, (float, int)):
+                return float(s)
+            if s.endswith('%'):
+                v = float(s[:-1]) / 100
+            else:
+                v = float(s)
+            if 0 <= v <= 1:
+                return v
+            raise ValueError(s)
+
+        if profformat == 'chrome':
+            showmin = ui.configwith(fraction, 'profiling', 'showmin', 0.005)
+            showmax = ui.configwith(fraction, 'profiling', 'showmax', 0.999)
+            kwargs.update(minthreshold=showmin, maxthreshold=showmax)
+        elif profformat == 'hotpath':
+            # inconsistent config: profiling.showmin
+            limit = ui.configwith(fraction, 'profiling', 'showmin', 0.05)
+            kwargs['limit'] = limit
+
+        statprof.display(fp, data=data, format=displayformat, **kwargs)
+
+class profile(object):
     """Start profiling.
 
     Profiling is active when the context manager is active. When the context
     manager exits, profiling results will be written to the configured output.
     """
-    profiler = os.getenv('HGPROF')
-    if profiler is None:
-        profiler = ui.config('profiling', 'type', default='ls')
-    if profiler not in ('ls', 'stat', 'flame'):
-        ui.warn(_("unrecognized profiler '%s' - ignored\n") % profiler)
-        profiler = 'ls'
+    def __init__(self, ui, enabled=True):
+        self._ui = ui
+        self._output = None
+        self._fp = None
+        self._fpdoclose = True
+        self._profiler = None
+        self._enabled = enabled
+        self._entered = False
+        self._started = False
 
-    output = ui.config('profiling', 'output')
+    def __enter__(self):
+        self._entered = True
+        if self._enabled:
+            self.start()
+        return self
 
-    if output == 'blackbox':
-        fp = util.stringio()
-    elif output:
-        path = ui.expandpath(output)
-        fp = open(path, 'wb')
-    else:
-        fp = sys.stderr
+    def start(self):
+        """Start profiling.
 
-    try:
-        if profiler == 'ls':
-            proffn = lsprofile
-        elif profiler == 'flame':
-            proffn = flameprofile
-        else:
-            proffn = statprofile
+        The profiling will stop at the context exit.
 
-        with proffn(ui, fp):
-            yield
+        If the profiler was already started, this has no effect."""
+        if not self._entered:
+            raise error.ProgrammingError()
+        if self._started:
+            return
+        self._started = True
+        profiler = encoding.environ.get('HGPROF')
+        proffn = None
+        if profiler is None:
+            profiler = self._ui.config('profiling', 'type', default='stat')
+        if profiler not in ('ls', 'stat', 'flame'):
+            # try load profiler from extension with the same name
+            proffn = _loadprofiler(self._ui, profiler)
+            if proffn is None:
+                self._ui.warn(_("unrecognized profiler '%s' - ignored\n")
+                              % profiler)
+                profiler = 'stat'
 
-    finally:
-        if output:
-            if output == 'blackbox':
-                val = 'Profile:\n%s' % fp.getvalue()
+        self._output = self._ui.config('profiling', 'output')
+
+        try:
+            if self._output == 'blackbox':
+                self._fp = util.stringio()
+            elif self._output:
+                path = self._ui.expandpath(self._output)
+                self._fp = open(path, 'wb')
+            else:
+                self._fpdoclose = False
+                self._fp = self._ui.ferr
+
+            if proffn is not None:
+                pass
+            elif profiler == 'ls':
+                proffn = lsprofile
+            elif profiler == 'flame':
+                proffn = flameprofile
+            else:
+                proffn = statprofile
+
+            self._profiler = proffn(self._ui, self._fp)
+            self._profiler.__enter__()
+        except: # re-raises
+            self._closefp()
+            raise
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        propagate = None
+        if self._profiler is not None:
+            propagate = self._profiler.__exit__(exception_type, exception_value,
+                                                traceback)
+            if self._output == 'blackbox':
+                val = 'Profile:\n%s' % self._fp.getvalue()
                 # ui.log treats the input as a format string,
                 # so we need to escape any % signs.
                 val = val.replace('%', '%%')
-                ui.log('profile', val)
-            fp.close()
+                self._ui.log('profile', val)
+        self._closefp()
+        return propagate
 
-@contextlib.contextmanager
-def maybeprofile(ui):
-    """Profile if enabled, else do nothing.
-
-    This context manager can be used to optionally profile if profiling
-    is enabled. Otherwise, it does nothing.
-
-    The purpose of this context manager is to make calling code simpler:
-    just use a single code path for calling into code you may want to profile
-    and this function determines whether to start profiling.
-    """
-    if ui.configbool('profiling', 'enabled'):
-        with profile(ui):
-            yield
-    else:
-        yield
+    def _closefp(self):
+        if self._fpdoclose and self._fp is not None:
+            self._fp.close()

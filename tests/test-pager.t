@@ -1,7 +1,11 @@
   $ cat >> fakepager.py <<EOF
   > import sys
+  > printed = False
   > for line in sys.stdin:
   >     sys.stdout.write('paged! %r\n' % line)
+  >     printed = True
+  > if not printed:
+  >     sys.stdout.write('paged empty output!\n')
   > EOF
 
 Enable ui.formatted because pager won't fire without it, and set up
@@ -10,10 +14,9 @@ pager was running.
   $ cat >> $HGRCPATH <<EOF
   > [ui]
   > formatted = yes
-  > [extensions]
-  > pager=
+  > color = no
   > [pager]
-  > pager = python $TESTTMP/fakepager.py
+  > pager = $PYTHON $TESTTMP/fakepager.py
   > EOF
 
   $ hg init repo
@@ -21,12 +24,12 @@ pager was running.
   $ echo a >> a
   $ hg add a
   $ hg ci -m 'add a'
-  $ for x in `python $TESTDIR/seq.py 1 10`; do
+  $ for x in `$PYTHON $TESTDIR/seq.py 1 10`; do
   >   echo a $x >> a
   >   hg ci -m "modify a $x"
   > done
 
-By default diff and log are paged, but summary is not:
+By default diff and log are paged, but id is not:
 
   $ hg diff -c 2 --pager=yes
   paged! 'diff -r f4be7687d414 -r bce265549556 a\n'
@@ -50,26 +53,69 @@ By default diff and log are paged, but summary is not:
   paged! 'summary:     modify a 9\n'
   paged! '\n'
 
-  $ hg summary
-  parent: 10:46106edeeb38 tip
-   modify a 10
-  branch: default
-  commit: (clean)
-  update: (current)
-  phases: 11 draft
+  $ hg id
+  46106edeeb38 tip
 
-We can enable the pager on summary:
+We can control the pager from the config
 
-  $ hg --config pager.attend-summary=yes summary
-  paged! 'parent: 10:46106edeeb38 tip\n'
-  paged! ' modify a 10\n'
-  paged! 'branch: default\n'
-  paged! 'commit: (clean)\n'
-  paged! 'update: (current)\n'
-  paged! 'phases: 11 draft\n'
+  $ hg log --limit 1 --config 'ui.paginate=False'
+  changeset:   10:46106edeeb38
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     modify a 10
+  
+  $ hg log --limit 1 --config 'ui.paginate=0'
+  changeset:   10:46106edeeb38
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     modify a 10
+  
+  $ hg log --limit 1 --config 'ui.paginate=1'
+  paged! 'changeset:   10:46106edeeb38\n'
+  paged! 'tag:         tip\n'
+  paged! 'user:        test\n'
+  paged! 'date:        Thu Jan 01 00:00:00 1970 +0000\n'
+  paged! 'summary:     modify a 10\n'
+  paged! '\n'
 
-If we completely change the attend list that's respected:
+explicit --pager=on should take precedence over other configurations
+(issue5580)
 
+  $ cat >> $HGRCPATH <<EOF
+  > [ui]
+  > paginate = false
+  > EOF
+  $ hg log --limit 1 --pager=on
+  paged! 'changeset:   10:46106edeeb38\n'
+  paged! 'tag:         tip\n'
+  paged! 'user:        test\n'
+  paged! 'date:        Thu Jan 01 00:00:00 1970 +0000\n'
+  paged! 'summary:     modify a 10\n'
+  paged! '\n'
+
+  $ cat >> $HGRCPATH <<EOF
+  > [ui]
+  > # true is default value of ui.paginate
+  > paginate = true
+  > EOF
+  $ hg log --limit 1 --pager=off
+  changeset:   10:46106edeeb38
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     modify a 10
+  
+
+We can enable the pager on id:
+
+BROKEN: should be paged
+  $ hg --config pager.attend-id=yes id
+  46106edeeb38 tip
+
+Setting attend-$COMMAND to a false value works, even with pager in
+core:
   $ hg --config pager.attend-diff=no diff -c 2
   diff -r f4be7687d414 -r bce265549556 a
   --- a/a	Thu Jan 01 00:00:00 1970 +0000
@@ -79,17 +125,9 @@ If we completely change the attend list that's respected:
    a 1
   +a 2
 
-  $ hg --config pager.attend=summary diff -c 2
-  diff -r f4be7687d414 -r bce265549556 a
-  --- a/a	Thu Jan 01 00:00:00 1970 +0000
-  +++ b/a	Thu Jan 01 00:00:00 1970 +0000
-  @@ -1,2 +1,3 @@
-   a
-   a 1
-  +a 2
+Command aliases should have same behavior as main command
 
-If 'log' is in attend, then 'history' should also be paged:
-  $ hg history --limit 2 --config pager.attend=log
+  $ hg history --limit 2
   paged! 'changeset:   10:46106edeeb38\n'
   paged! 'tag:         tip\n'
   paged! 'user:        test\n'
@@ -102,61 +140,40 @@ If 'log' is in attend, then 'history' should also be paged:
   paged! 'summary:     modify a 9\n'
   paged! '\n'
 
-Possible bug: history is explicitly ignored in pager config, but
-because log is in the attend list it still gets pager treatment.
+Abbreviated command alias should also be paged
 
-  $ hg history --limit 2 --config pager.attend=log \
-  >   --config pager.ignore=history
+  $ hg hist -l 1
   paged! 'changeset:   10:46106edeeb38\n'
   paged! 'tag:         tip\n'
   paged! 'user:        test\n'
   paged! 'date:        Thu Jan 01 00:00:00 1970 +0000\n'
   paged! 'summary:     modify a 10\n'
   paged! '\n'
-  paged! 'changeset:   9:6dd8ea7dd621\n'
-  paged! 'user:        test\n'
-  paged! 'date:        Thu Jan 01 00:00:00 1970 +0000\n'
-  paged! 'summary:     modify a 9\n'
-  paged! '\n'
 
-Possible bug: history is explicitly marked as attend-history=no, but
-it doesn't fail to get paged because log is still in the attend list.
+Attend for an abbreviated command does not work
 
-  $ hg history --limit 2 --config pager.attend-history=no
-  paged! 'changeset:   10:46106edeeb38\n'
-  paged! 'tag:         tip\n'
-  paged! 'user:        test\n'
-  paged! 'date:        Thu Jan 01 00:00:00 1970 +0000\n'
-  paged! 'summary:     modify a 10\n'
-  paged! '\n'
-  paged! 'changeset:   9:6dd8ea7dd621\n'
-  paged! 'user:        test\n'
-  paged! 'date:        Thu Jan 01 00:00:00 1970 +0000\n'
-  paged! 'summary:     modify a 9\n'
-  paged! '\n'
+  $ hg --config pager.attend-ident=true ident
+  46106edeeb38 tip
 
-Possible bug: disabling pager for log but enabling it for history
-doesn't result in history being paged.
+  $ hg --config extensions.pager= --config pager.attend-ident=true ident
+  46106edeeb38 tip
 
-  $ hg history --limit 2 --config pager.attend-log=no \
-  > --config pager.attend-history=yes
-  changeset:   10:46106edeeb38
-  tag:         tip
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     modify a 10
-  
-  changeset:   9:6dd8ea7dd621
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     modify a 9
-  
+Pager should not start if stdout is not a tty.
+
+  $ hg log -l1 -q --config ui.formatted=False
+  10:46106edeeb38
+
+Pager should be disabled if pager.pager is empty (otherwise the output would
+be silently lost.)
+
+  $ hg log -l1 -q --config pager.pager=
+  10:46106edeeb38
 
 Pager with color enabled allows colors to come through by default,
 even though stdout is no longer a tty.
   $ cat >> $HGRCPATH <<EOF
-  > [extensions]
-  > color=
+  > [ui]
+  > color = always
   > [color]
   > mode = ansi
   > EOF
@@ -178,6 +195,33 @@ even though stdout is no longer a tty.
   paged! 'summary:     modify a 8\n'
   paged! '\n'
 
+An invalid pager command name is reported sensibly if we don't have to
+use shell=True in the subprocess call:
+  $ hg log --limit 3 --config pager.pager=this-command-better-never-exist
+  missing pager command 'this-command-better-never-exist', skipping pager
+  \x1b[0;33mchangeset:   10:46106edeeb38\x1b[0m (esc)
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     modify a 10
+  
+  \x1b[0;33mchangeset:   9:6dd8ea7dd621\x1b[0m (esc)
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     modify a 9
+  
+  \x1b[0;33mchangeset:   8:cff05a6312fe\x1b[0m (esc)
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     modify a 8
+  
+
+A complicated pager command gets worse behavior. Bonus points if you can
+improve this.
+  $ hg log --limit 3 \
+  >   --config pager.pager='this-command-better-never-exist --seriously' \
+  >  2>/dev/null || true
+
 Pager works with shell aliases.
 
   $ cat >> $HGRCPATH <<EOF
@@ -187,8 +231,9 @@ Pager works with shell aliases.
 
   $ hg echoa
   a
+BROKEN: should be paged
   $ hg --config pager.attend-echoa=yes echoa
-  paged! 'a\n'
+  a
 
 Pager works with hg aliases including environment variables.
 
@@ -202,13 +247,18 @@ Pager works with hg aliases including environment variables.
   $ A=2 hg --config pager.attend-printa=yes printa
   paged! '2\n'
 
+Something that's explicitly attended is still not paginated if the
+pager is globally set to off using a flag:
+  $ A=2 hg --config pager.attend-printa=yes printa --pager=no
+  2
+
 Pager should not override the exit code of other commands
 
   $ cat >> $TESTTMP/fortytwo.py <<'EOF'
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command('fortytwo', [], 'fortytwo', norepo=True)
+  > command = registrar.command(cmdtable)
+  > @command(b'fortytwo', [], 'fortytwo', norepo=True)
   > def fortytwo(ui, *opts):
   >     ui.write('42\n')
   >     return 42
@@ -222,3 +272,96 @@ Pager should not override the exit code of other commands
   $ hg fortytwo --pager=on
   paged! '42\n'
   [42]
+
+A command that asks for paging using ui.pager() directly works:
+  $ hg blame a
+  paged! ' 0: a\n'
+  paged! ' 1: a 1\n'
+  paged! ' 2: a 2\n'
+  paged! ' 3: a 3\n'
+  paged! ' 4: a 4\n'
+  paged! ' 5: a 5\n'
+  paged! ' 6: a 6\n'
+  paged! ' 7: a 7\n'
+  paged! ' 8: a 8\n'
+  paged! ' 9: a 9\n'
+  paged! '10: a 10\n'
+but not with HGPLAIN
+  $ HGPLAIN=1 hg blame a
+   0: a
+   1: a 1
+   2: a 2
+   3: a 3
+   4: a 4
+   5: a 5
+   6: a 6
+   7: a 7
+   8: a 8
+   9: a 9
+  10: a 10
+explicit flags work too:
+  $ hg blame --pager=no a
+   0: a
+   1: a 1
+   2: a 2
+   3: a 3
+   4: a 4
+   5: a 5
+   6: a 6
+   7: a 7
+   8: a 8
+   9: a 9
+  10: a 10
+
+A command with --output option:
+
+  $ hg cat -r0 a
+  paged! 'a\n'
+  $ hg cat -r0 a --output=-
+  paged! 'a\n'
+  $ hg cat -r0 a --output=out
+  $ rm out
+
+Put annotate in the ignore list for pager:
+  $ cat >> $HGRCPATH <<EOF
+  > [pager]
+  > ignore = annotate
+  > EOF
+  $ hg blame a
+   0: a
+   1: a 1
+   2: a 2
+   3: a 3
+   4: a 4
+   5: a 5
+   6: a 6
+   7: a 7
+   8: a 8
+   9: a 9
+  10: a 10
+
+Environment variables like LESS and LV are set automatically:
+  $ cat > $TESTTMP/printlesslv.py <<EOF
+  > import os, sys
+  > sys.stdin.read()
+  > for name in ['LESS', 'LV']:
+  >     sys.stdout.write(('%s=%s\n') % (name, os.environ.get(name, '-')))
+  > sys.stdout.flush()
+  > EOF
+
+  $ cat >> $HGRCPATH <<EOF
+  > [alias]
+  > noop = log -r 0 -T ''
+  > [ui]
+  > formatted=1
+  > [pager]
+  > pager = $PYTHON $TESTTMP/printlesslv.py
+  > EOF
+  $ unset LESS
+  $ unset LV
+  $ hg noop --pager=on
+  LESS=FRX
+  LV=-c
+  $ LESS=EFGH hg noop --pager=on
+  LESS=EFGH
+  LV=-c

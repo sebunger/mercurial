@@ -1,10 +1,11 @@
 Source: mercurial
 Section: vcs
 Priority: optional
-Maintainer: Mercurial Developers <mercurial-devel@selenic.com>
+Maintainer: Mercurial Developers <mercurial-devel@mercurial-scm.org>
 Build-Depends:
  debhelper (>= 9),
  dh-python,
+ less,
  netbase,
  python-all,
  python-all-dev,
@@ -12,7 +13,7 @@ Build-Depends:
  unzip,
  zip
 Standards-Version: 3.9.4
-X-Python-Version: >= 2.6
+X-Python-Version: >= 2.7
 
 Package: mercurial
 Depends:

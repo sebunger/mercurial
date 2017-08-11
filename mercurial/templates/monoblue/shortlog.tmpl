@@ -9,13 +9,7 @@
     <div class="page-header">
         <h1 class="breadcrumb"><a href="/">Mercurial</a> {pathdef%breadcrumb} / shortlog</h1>
 
-        <form action="{url|urlescape}log">
-            {sessionvars%hiddenformentry}
-            <dl class="search">
-                <dt><label>Search: </label></dt>
-                <dd><input type="text" name="rev" /></dd>
-            </dl>
-        </form>
+        {searchform}
 
         <ul class="page-nav">
             <li><a href="{url|urlescape}summary{sessionvars%urlparameter}">summary</a></li>
@@ -41,7 +35,7 @@
     {changenav%navshort}
     </div>
 
-    <script type="text/javascript">
+    <script type="text/javascript"{if(nonce, ' nonce="{nonce}"')}>
     ajaxScrollInit(
             '{url|urlescape}shortlog/%next%{sessionvars%urlparameter}',
             '{nextentry%"{node}"}', <!-- NEXTHASH

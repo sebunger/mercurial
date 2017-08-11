@@ -155,6 +155,7 @@ Update to link without local change should get us a symlink (issue3316):
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg up
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updated to "521a1e40188f: symlink"
   1 other heads for branch "default"
   $ hg st
   ? a.orig
@@ -171,11 +172,12 @@ Update to link with local change should cause a merge prompt (issue3200):
    preserving a for resolve of a
    a: versions differ -> m (premerge)
   (couldn't find merge tool hgmerge|tool hgmerge can't handle symlinks) (re)
-  picked tool ':prompt' for a (binary False symlink True changedelete False)
   no tool found to merge a
-  keep (l)ocal [working copy], take (o)ther [destination], or leave (u)nresolved? u
+  picked tool ':prompt' for a (binary False symlink True changedelete False)
+  keep (l)ocal [working copy], take (o)ther [destination], or leave (u)nresolved for a? u
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
   use 'hg resolve' to retry unresolved file merges
+  updated to "521a1e40188f: symlink"
   1 other heads for branch "default"
   [1]
   $ hg diff --git
@@ -367,14 +369,14 @@ h: l vs l, different
   2
   =======
   1
-  >>>>>>> merge rev:    2e60aa20b912  - test: 1
+  >>>>>>> merge rev:    2e60aa20b912 - test: 1
   $ tellmeabout b
   b is a plain file with content:
   <<<<<<< working copy: 0c617753b41b - test: 2
   2
   =======
   1
-  >>>>>>> merge rev:    2e60aa20b912  - test: 1
+  >>>>>>> merge rev:    2e60aa20b912 - test: 1
   $ tellmeabout c
   c is a plain file with content:
   x
@@ -418,14 +420,14 @@ h: l vs l, different
   [1]
   $ tellmeabout a
   a is a plain file with content:
-  <<<<<<< working copy: 2e60aa20b912  - test: 1
+  <<<<<<< working copy: 2e60aa20b912 - test: 1
   1
   =======
   2
   >>>>>>> merge rev:    0c617753b41b - test: 2
   $ tellmeabout b
   b is an executable file with content:
-  <<<<<<< working copy: 2e60aa20b912  - test: 1
+  <<<<<<< working copy: 2e60aa20b912 - test: 1
   1
   =======
   2

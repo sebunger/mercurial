@@ -56,6 +56,7 @@ ones.
 
   - ``<repo>/.hg/hgrc`` (per-repository)
   - ``$HOME/.hgrc`` (per-user)
+  - ``${XDG_CONFIG_HOME:-$HOME/.config}/hg/hgrc`` (per-user)
   - ``<install-root>/etc/mercurial/hgrc`` (per-installation)
   - ``<install-root>/etc/mercurial/hgrc.d/*.rc`` (per-installation)
   - ``/etc/mercurial/hgrc`` (per-system)
@@ -276,7 +277,7 @@ run arbitrary commands. As an example, ::
 will let you do ``hg echo foo`` to have ``foo`` printed in your
 terminal. A better example might be::
 
-   purge = !$HG status --no-status --unknown -0 re: | xargs -0 rm
+   purge = !$HG status --no-status --unknown -0 re: | xargs -0 rm -f
 
 which will make ``hg purge`` delete all unknown files in the
 repository in the same manner as the purge extension.
@@ -322,12 +323,32 @@ related options for the diff command.
 ``auth``
 --------
 
-Authentication credentials for HTTP authentication. This section
-allows you to store usernames and passwords for use when logging
-*into* HTTP servers. See :hg:`help config.web` if
-you want to configure *who* can login to your HTTP server.
+Authentication credentials and other authentication-like configuration
+for HTTP connections. This section allows you to store usernames and
+passwords for use when logging *into* HTTP servers. See
+:hg:`help config.web` if you want to configure *who* can login to
+your HTTP server.
 
-Each line has the following format::
+The following options apply to all hosts.
+
+``cookiefile``
+    Path to a file containing HTTP cookie lines. Cookies matching a
+    host will be sent automatically.
+
+    The file format uses the Mozilla cookies.txt format, which defines cookies
+    on their own lines. Each line contains 7 fields delimited by the tab
+    character (domain, is_domain_cookie, path, is_secure, expires, name,
+    value). For more info, do an Internet search for "Netscape cookies.txt
+    format."
+
+    Note: the cookies parser does not handle port numbers on domains. You
+    will need to remove ports from the domain for the cookie to be recognized.
+    This could result in a cookie being disclosed to an unwanted server.
+
+    The cookies file is read-only.
+
+Other options in this section are grouped by name and have the following
+format::
 
     <name>.<argument> = <value>
 
@@ -385,6 +406,44 @@ Supported arguments:
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
 
+``color``
+---------
+
+Configure the Mercurial color mode. For details about how to define your custom
+effect and style see :hg:`help color`.
+
+``mode``
+    String: control the method used to output color. One of ``auto``, ``ansi``,
+    ``win32``, ``terminfo`` or ``debug``. In auto mode, Mercurial will
+    use ANSI mode by default (or win32 mode prior to Windows 10) if it detects a
+    terminal. Any invalid value will disable color.
+
+``pagermode``
+    String: optional override of ``color.mode`` used with pager.
+
+    On some systems, terminfo mode may cause problems when using
+    color with ``less -R`` as a pager program. less with the -R option
+    will only display ECMA-48 color codes, and terminfo mode may sometimes
+    emit codes that less doesn't understand. You can work around this by
+    either using ansi mode (or auto mode), or by using less -r (which will
+    pass through all terminal control codes, not just color control
+    codes).
+
+    On some systems (such as MSYS in Windows), the terminal may support
+    a different color mode than the pager program.
+
+``commands``
+------------
+
+``status.relative``
+    Make paths in :hg:`status` output relative to the current directory.
+    (default: False)
+
+``update.requiredest``
+    Require that the user pass a destination when running :hg:`update`.
+    For example, :hg:`update .::` will be allowed, but a plain :hg:`update`
+    will be disallowed.
+    (default: False)
 
 ``committemplate``
 ------------------
@@ -417,6 +476,28 @@ one shown by default::
        "HG: changed {file}\n"                 }{file_dels %
        "HG: removed {file}\n"                 }{if(files, "",
        "HG: no files changed\n")}
+
+``diff()``
+    String: show the diff (see :hg:`help templates` for detail)
+
+Sometimes it is helpful to show the diff of the changeset in the editor without
+having to prefix 'HG: ' to each line so that highlighting works correctly. For
+this, Mercurial provides a special string which will ignore everything below
+it::
+
+     HG: ------------------------ >8 ------------------------
+
+For example, the template configuration below will show the diff below the
+extra message::
+
+    [committemplate]
+    changeset = {desc}\n\n
+        HG: Enter commit message.  Lines beginning with 'HG:' are removed.
+        HG: {extramsg}
+        HG: ------------------------ >8 ------------------------
+        HG: Do not touch the line above.
+        HG: Everything below will be removed.
+        {diff()}
 
 .. note::
 
@@ -678,8 +759,8 @@ or ``foo = !`` when path is not supplied.
 Example for ``~/.hgrc``::
 
   [extensions]
-  # (the color extension will get loaded from Mercurial's path)
-  color =
+  # (the churn extension will get loaded from Mercurial's path)
+  churn =
   # (this extension will get loaded from the file specified)
   myfeature = ~/.hgext/myfeature.py
 
@@ -779,28 +860,32 @@ Example ``.hg/hgrc``::
   priority.incoming.autobuild = 1
 
 Most hooks are run with environment variables set that give useful
-additional information. For each hook below, the environment
-variables it is passed are listed with names of the form ``$HG_foo``.
+additional information. For each hook below, the environment variables
+it is passed are listed with names in the form ``$HG_foo``. The
+``$HG_HOOKTYPE`` and ``$HG_HOOKNAME`` variables are set for all hooks.
+They contain the type of hook which triggered the run and the full name
+of the hook in the config, respectively. In the example above, this will
+be ``$HG_HOOKTYPE=incoming`` and ``$HG_HOOKNAME=incoming.email``.
 
 ``changegroup``
-  Run after a changegroup has been added via push, pull or unbundle.  ID of the
-  first new changeset is in ``$HG_NODE`` and last in ``$HG_NODE_LAST``. URL
-  from which changes came is in ``$HG_URL``.
+  Run after a changegroup has been added via push, pull or unbundle.  The ID of
+  the first new changeset is in ``$HG_NODE`` and last is in ``$HG_NODE_LAST``.
+  The URL from which changes came is in ``$HG_URL``.
 
 ``commit``
-  Run after a changeset has been created in the local repository. ID
+  Run after a changeset has been created in the local repository. The ID
   of the newly created changeset is in ``$HG_NODE``. Parent changeset
   IDs are in ``$HG_PARENT1`` and ``$HG_PARENT2``.
 
 ``incoming``
   Run after a changeset has been pulled, pushed, or unbundled into
   the local repository. The ID of the newly arrived changeset is in
-  ``$HG_NODE``. URL that was source of changes came is in ``$HG_URL``.
+  ``$HG_NODE``. The URL that was source of the changes is in ``$HG_URL``.
 
 ``outgoing``
-  Run after sending changes from local repository to another. ID of
-  first changeset sent is in ``$HG_NODE``. Source of operation is in
-  ``$HG_SOURCE``; Also see :hg:`help config.hooks.preoutgoing` hook.
+  Run after sending changes from the local repository to another. The ID of
+  first changeset sent is in ``$HG_NODE``. The source of operation is in
+  ``$HG_SOURCE``. Also see :hg:`help config.hooks.preoutgoing`.
 
 ``post-<command>``
   Run after successful invocations of the associated command. The
@@ -832,93 +917,94 @@ variables it is passed are listed with names of the form ``$HG_foo``.
 
 ``prechangegroup``
   Run before a changegroup is added via push, pull or unbundle. Exit
-  status 0 allows the changegroup to proceed. Non-zero status will
-  cause the push, pull or unbundle to fail. URL from which changes
+  status 0 allows the changegroup to proceed. A non-zero status will
+  cause the push, pull or unbundle to fail. The URL from which changes
   will come is in ``$HG_URL``.
 
 ``precommit``
   Run before starting a local commit. Exit status 0 allows the
-  commit to proceed. Non-zero status will cause the commit to fail.
+  commit to proceed. A non-zero status will cause the commit to fail.
   Parent changeset IDs are in ``$HG_PARENT1`` and ``$HG_PARENT2``.
 
 ``prelistkeys``
   Run before listing pushkeys (like bookmarks) in the
-  repository. Non-zero status will cause failure. The key namespace is
+  repository. A non-zero status will cause failure. The key namespace is
   in ``$HG_NAMESPACE``.
 
 ``preoutgoing``
   Run before collecting changes to send from the local repository to
-  another. Non-zero status will cause failure. This lets you prevent
-  pull over HTTP or SSH. Also prevents against local pull, push
-  (outbound) or bundle commands, but not effective, since you can
-  just copy files instead then. Source of operation is in
-  ``$HG_SOURCE``. If "serve", operation is happening on behalf of remote
-  SSH or HTTP repository. If "push", "pull" or "bundle", operation
-  is happening on behalf of repository on same system.
+  another. A non-zero status will cause failure. This lets you prevent
+  pull over HTTP or SSH. It can also prevent propagating commits (via
+  local pull, push (outbound) or bundle commands), but not completely,
+  since you can just copy files instead. The source of operation is in
+  ``$HG_SOURCE``. If "serve", the operation is happening on behalf of a remote
+  SSH or HTTP repository. If "push", "pull" or "bundle", the operation
+  is happening on behalf of a repository on same system.
 
 ``prepushkey``
   Run before a pushkey (like a bookmark) is added to the
-  repository. Non-zero status will cause the key to be rejected. The
+  repository. A non-zero status will cause the key to be rejected. The
   key namespace is in ``$HG_NAMESPACE``, the key is in ``$HG_KEY``,
   the old value (if any) is in ``$HG_OLD``, and the new value is in
   ``$HG_NEW``.
 
 ``pretag``
   Run before creating a tag. Exit status 0 allows the tag to be
-  created. Non-zero status will cause the tag to fail. ID of
-  changeset to tag is in ``$HG_NODE``. Name of tag is in ``$HG_TAG``. Tag is
-  local if ``$HG_LOCAL=1``, in repository if ``$HG_LOCAL=0``.
+  created. A non-zero status will cause the tag to fail. The ID of the
+  changeset to tag is in ``$HG_NODE``. The name of tag is in ``$HG_TAG``. The
+  tag is local if ``$HG_LOCAL=1``, or in the repository if ``$HG_LOCAL=0``.
 
 ``pretxnopen``
   Run before any new repository transaction is open. The reason for the
-  transaction will be in ``$HG_TXNNAME`` and a unique identifier for the
+  transaction will be in ``$HG_TXNNAME``, and a unique identifier for the
   transaction will be in ``HG_TXNID``. A non-zero status will prevent the
   transaction from being opened.
 
 ``pretxnclose``
   Run right before the transaction is actually finalized. Any repository change
   will be visible to the hook program. This lets you validate the transaction
-  content or change it. Exit status 0 allows the commit to proceed. Non-zero
+  content or change it. Exit status 0 allows the commit to proceed. A non-zero
   status will cause the transaction to be rolled back. The reason for the
-  transaction opening will be in ``$HG_TXNNAME`` and a unique identifier for
+  transaction opening will be in ``$HG_TXNNAME``, and a unique identifier for
   the transaction will be in ``HG_TXNID``. The rest of the available data will
-  vary according the transaction type. New changesets will add ``$HG_NODE`` (id
-  of the first added changeset), ``$HG_NODE_LAST`` (id of the last added
-  changeset), ``$HG_URL`` and ``$HG_SOURCE`` variables, bookmarks and phases
-  changes will set ``HG_BOOKMARK_MOVED`` and ``HG_PHASES_MOVED`` to ``1``, etc.
+  vary according the transaction type. New changesets will add ``$HG_NODE``
+  (the ID of the first added changeset), ``$HG_NODE_LAST`` (the ID of the last
+  added changeset), ``$HG_URL`` and ``$HG_SOURCE`` variables.  Bookmark and
+  phase changes will set ``HG_BOOKMARK_MOVED`` and ``HG_PHASES_MOVED`` to ``1``
+  respectively, etc.
 
 ``txnclose``
   Run after any repository transaction has been committed. At this
   point, the transaction can no longer be rolled back. The hook will run
-  after the lock is released. See :hg:`help config.hooks.pretxnclose` docs for
+  after the lock is released. See :hg:`help config.hooks.pretxnclose` for
   details about available variables.
 
 ``txnabort``
   Run when a transaction is aborted. See :hg:`help config.hooks.pretxnclose`
-  docs for details about available variables.
+  for details about available variables.
 
 ``pretxnchangegroup``
   Run after a changegroup has been added via push, pull or unbundle, but before
-  the transaction has been committed. Changegroup is visible to hook program.
-  This lets you validate incoming changes before accepting them. Passed the ID
-  of the first new changeset in ``$HG_NODE`` and last in ``$HG_NODE_LAST``.
-  Exit status 0 allows the transaction to commit. Non-zero status will cause
-  the transaction to be rolled back and the push, pull or unbundle will fail.
-  URL that was source of changes is in ``$HG_URL``.
+  the transaction has been committed. The changegroup is visible to the hook
+  program. This allows validation of incoming changes before accepting them.
+  The ID of the first new changeset is in ``$HG_NODE`` and last is in
+  ``$HG_NODE_LAST``. Exit status 0 allows the transaction to commit. A non-zero
+  status will cause the transaction to be rolled back, and the push, pull or
+  unbundle will fail. The URL that was the source of changes is in ``$HG_URL``.
 
 ``pretxncommit``
-  Run after a changeset has been created but the transaction not yet
-  committed. Changeset is visible to hook program. This lets you
-  validate commit message and changes. Exit status 0 allows the
-  commit to proceed. Non-zero status will cause the transaction to
-  be rolled back. ID of changeset is in ``$HG_NODE``. Parent changeset
-  IDs are in ``$HG_PARENT1`` and ``$HG_PARENT2``.
+  Run after a changeset has been created, but before the transaction is
+  committed. The changeset is visible to the hook program. This allows
+  validation of the commit message and changes. Exit status 0 allows the
+  commit to proceed. A non-zero status will cause the transaction to
+  be rolled back. The ID of the new changeset is in ``$HG_NODE``. The parent
+  changeset IDs are in ``$HG_PARENT1`` and ``$HG_PARENT2``.
 
 ``preupdate``
   Run before updating the working directory. Exit status 0 allows
-  the update to proceed. Non-zero status will prevent the update.
-  Changeset ID of first new parent is in ``$HG_PARENT1``. If merge, ID
-  of second new parent is in ``$HG_PARENT2``.
+  the update to proceed. A non-zero status will prevent the update.
+  The changeset ID of first new parent is in ``$HG_PARENT1``. If updating to a
+  merge, the ID of second new parent is in ``$HG_PARENT2``.
 
 ``listkeys``
   Run after listing pushkeys (like bookmarks) in the repository. The
@@ -932,20 +1018,20 @@ variables it is passed are listed with names of the form ``$HG_foo``.
   value is in ``$HG_NEW``.
 
 ``tag``
-  Run after a tag is created. ID of tagged changeset is in ``$HG_NODE``.
-  Name of tag is in ``$HG_TAG``. Tag is local if ``$HG_LOCAL=1``, in
-  repository if ``$HG_LOCAL=0``.
+  Run after a tag is created. The ID of the tagged changeset is in ``$HG_NODE``.
+  The name of tag is in ``$HG_TAG``. The tag is local if ``$HG_LOCAL=1``, or in
+  the repository if ``$HG_LOCAL=0``.
 
 ``update``
-  Run after updating the working directory. Changeset ID of first
-  new parent is in ``$HG_PARENT1``. If merge, ID of second new parent is
-  in ``$HG_PARENT2``. If the update succeeded, ``$HG_ERROR=0``. If the
-  update failed (e.g. because conflicts not resolved), ``$HG_ERROR=1``.
+  Run after updating the working directory. The changeset ID of first
+  new parent is in ``$HG_PARENT1``. If updating to a merge, the ID of second new
+  parent is in ``$HG_PARENT2``. If the update succeeded, ``$HG_ERROR=0``. If the
+  update failed (e.g. because conflicts were not resolved), ``$HG_ERROR=1``.
 
 .. note::
 
    It is generally better to use standard hooks rather than the
-   generic pre- and post- command hooks as they are guaranteed to be
+   generic pre- and post- command hooks, as they are guaranteed to be
    called in the appropriate contexts for influencing transactions.
    Also, hooks like "commit" will be called in all contexts that
    generate a commit (e.g. tag) and not just the commit command.
@@ -1047,6 +1133,7 @@ The following per-host settings can be defined.
     A list of hashes of the DER encoded peer/remote certificate. Values have
     the form ``algorithm``:``fingerprint``. e.g.
     ``sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2``.
+    In addition, colons (``:``) can appear in the fingerprint part.
 
     The following algorithms/prefixes are supported: ``sha1``, ``sha256``,
     ``sha512``.
@@ -1096,6 +1183,7 @@ For example::
     [hostsecurity]
     hg.example.com:fingerprints = sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2
     hg2.example.com:fingerprints = sha1:914f1aff87249c09b6859b88b1906d30756491ca, sha1:fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
+    hg3.example.com:fingerprints = sha256:9a:b0:dc:e2:75:ad:8a:b7:84:58:e5:1f:07:32:f1:87:e6:bd:24:22:af:b7:ce:8e:9c:b4:10:cf:b9:f4:0e:d2
     foo.example.com:verifycertsfile = /etc/ssl/trusted-ca-certs.pem
 
 To change the default minimum protocol version to TLS 1.2 but to allow TLS 1.1
@@ -1276,6 +1364,27 @@ Supported arguments:
     the executable name of the tool.
     (default: None)
 
+``pager``
+---------
+
+Setting used to control when to paginate and with what external tool. See
+:hg:`help pager` for details.
+
+``pager``
+    Define the external tool used as pager.
+
+    If no pager is set, Mercurial uses the environment variable $PAGER.
+    If neither pager.pager, nor $PAGER is set, a default pager will be
+    used, typically `less` on Unix and `more` on Windows. Example::
+
+      [pager]
+      pager = less -FRX
+
+``ignore``
+    List of commands to disable the pager for. Example::
+
+      [pager]
+      ignore = version, help, update
 
 ``patch``
 ---------
@@ -1401,7 +1510,7 @@ profiling is done using lsprof.
 
 ``type``
     The type of profiler to use.
-    (default: ls)
+    (default: stat)
 
     ``ls``
       Use Python's built-in instrumenting profiler. This profiler
@@ -1409,9 +1518,9 @@ profiling is done using lsprof.
       first line of a function. This restriction makes it difficult to
       identify the expensive parts of a non-trivial function.
     ``stat``
-      Use a third-party statistical profiler, statprof. This profiler
-      currently runs only on Unix systems, and is most useful for
-      profiling commands that run for longer than about 0.1 seconds.
+      Use a statistical profiler, statprof. This profiler is most
+      useful for profiling commands that run for longer than about 0.1
+      seconds.
 
 ``format``
     Profiling format.  Specific to the ``ls`` instrumenting profiler.
@@ -1425,6 +1534,20 @@ profiling is done using lsprof.
       Format profiling data for kcachegrind use: when saving to a
       file, the generated file can directly be loaded into
       kcachegrind.
+
+``statformat``
+    Profiling format for the ``stat`` profiler.
+    (default: hotpath)
+
+    ``hotpath``
+      Show a tree-based display containing the hot path of execution (where
+      most time was spent).
+    ``bymethod``
+      Show a table of methods ordered by how frequently they are active.
+    ``byline``
+      Show a table of lines in files ordered by how frequently they are active.
+    ``json``
+      Render profiling data as JSON.
 
 ``frequency``
     Sampling frequency.  Specific to the ``stat`` sampling profiler.
@@ -1450,6 +1573,28 @@ profiling is done using lsprof.
     This can help explain the difference between Total and Inline.
     Specific to the ``ls`` instrumenting profiler.
     (default: 5)
+
+``showmin``
+    Minimum fraction of samples an entry must have for it to be displayed.
+    Can be specified as a float between ``0.0`` and ``1.0`` or can have a
+    ``%`` afterwards to allow values up to ``100``. e.g. ``5%``.
+
+    Only used by the ``stat`` profiler.
+
+    For the ``hotpath`` format, default is ``0.05``.
+    For the ``chrome`` format, default is ``0.005``.
+
+    The option is unused on other formats.
+
+``showmax``
+    Maximum fraction of samples an entry can have before it is ignored in
+    display. Values format is the same as ``showmin``.
+
+    Only used by the ``stat`` profiler.
+
+    For the ``chrome`` format, default is ``0.999``.
+
+    The option is unused on other formats.
 
 ``progress``
 ------------
@@ -1509,6 +1654,21 @@ Alias definitions for revsets. See :hg:`help revsets` for details.
 
 Controls generic server settings.
 
+``compressionengines``
+    List of compression engines and their relative priority to advertise
+    to clients.
+
+    The order of compression engines determines their priority, the first
+    having the highest priority. If a compression engine is not listed
+    here, it won't be advertised to clients.
+
+    If not set (the default), built-in defaults are used. Run
+    :hg:`debuginstall` to list available compression engines and their
+    default wire protocol priority.
+
+    Older Mercurial clients only support zlib compression and this setting
+    has no effect for legacy clients.
+
 ``uncompressed``
     Whether to allow clients to clone a repository using the
     uncompressed streaming protocol. This transfers about 40% more
@@ -1521,9 +1681,30 @@ Controls generic server settings.
     the write lock while determining what data to transfer.
     (default: True)
 
+``uncompressedallowsecret``
+    Whether to allow stream clones when the repository contains secret
+    changesets. (default: False)
+
 ``preferuncompressed``
     When set, clients will try to use the uncompressed streaming
     protocol. (default: False)
+
+``disablefullbundle``
+    When set, servers will refuse attempts to do pull-based clones.
+    If this option is set, ``preferuncompressed`` and/or clone bundles
+    are highly recommended. Partial clones will still be allowed.
+    (default: False)
+
+``concurrent-push-mode``
+    Level of allowed race condition between two pushing clients.
+
+    - 'strict': push is abort if another client touched the repository
+      while the push was preparing. (default)
+    - 'check-related': push is only aborted if it affects head that got also
+      affected while the push was preparing.
+
+    This requires compatible client (version 4.3 and later). Old client will
+    use 'strict'.
 
 ``validate``
     Whether to validate the completeness of pushed changesets by
@@ -1577,6 +1758,18 @@ Controls generic server settings.
     but sends more bytes to clients.
 
     This option only impacts the HTTP server.
+
+``zstdlevel``
+    Integer between ``1`` and ``22`` that controls the zstd compression level
+    for wire protocol commands. ``1`` is the minimal amount of compression and
+    ``22`` is the highest amount of compression.
+
+    The default (``3``) should be significantly faster than zlib while likely
+    delivering better compression ratios.
+
+    This option only impacts the HTTP server.
+
+    See also ``server.zliblevel``.
 
 ``smtp``
 --------
@@ -1733,6 +1926,11 @@ User interface controls.
 
     By default, the first bundle advertised by the server is used.
 
+``color``
+    When to colorize output. Possible value are Boolean ("yes" or "no"), or
+    "debug", or "always". (default: "yes"). "yes" will use color whenever it
+    seems possible. See :hg:`help color` for details.
+
 ``commitsubrepos``
     Whether to commit modified subrepositories when committing the
     parent repository. If False and one subrepository has uncommitted
@@ -1807,6 +2005,10 @@ User interface controls.
 ``origbackuppath``
     The path to a directory used to store generated .orig files. If the path is
     not a directory, one will be created.
+
+``paginate``
+  Control the pagination of command output (default: True). See :hg:`help pager`
+  for details.
 
 ``patch``
     An optional external tool that ``hg import`` and some extensions
@@ -1902,6 +2104,15 @@ User interface controls.
     occurs. Setting this to True will make Mercurial print a traceback
     on all exceptions, even those recognized by Mercurial (such as
     IOError or MemoryError). (default: False)
+
+``tweakdefaults``
+
+    By default Mercurial's behavior changes very little from release
+    to release, but over time the recommended config settings
+    shift. Enable this config to opt in to get automatic tweaks to
+    Mercurial's behavior over time. This config setting will have no
+    effet if ``HGPLAIN` is set or ``HGPLAINEXCEPT`` is set and does
+    not include ``tweakdefaults``. (default: False)
 
 ``username``
     The committer of a changeset created when running "commit".
@@ -2047,6 +2258,20 @@ The full set of options is:
 ``contact``
     Name or email address of the person in charge of the repository.
     (default: ui.username or ``$EMAIL`` or "unknown" if unset or empty)
+
+``csp``
+    Send a ``Content-Security-Policy`` HTTP header with this value.
+
+    The value may contain a special string ``%nonce%``, which will be replaced
+    by a randomly-generated one-time use value. If the value contains
+    ``%nonce%``, ``web.cache`` will be disabled, as caching undermines the
+    one-time property of the nonce. This nonce will also be inserted into
+    ``<script>`` elements containing inline JavaScript.
+
+    Note: lots of HTML content sent by the server is derived from repository
+    data. Please consider the potential for malicious repository data to
+    "inject" itself into generated HTML content as part of your security
+    threat model.
 
 ``deny_push``
     Whether to deny pushing to the repository. If empty or not set,

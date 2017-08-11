@@ -10,26 +10,26 @@ remote content, then finally forgotten.
 
 Create base changeset
 
-  $ python $TESTDIR/generate-working-copy-states.py state 3 1
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 3 1
   $ hg addremove -q --similarity 0
   $ hg commit -qm 'base'
 
 Create remote changeset
 
-  $ python $TESTDIR/generate-working-copy-states.py state 3 2
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 3 2
   $ hg addremove -q --similarity 0
   $ hg commit -qm 'remote'
 
 Create local changeset
 
   $ hg update -q 0
-  $ python $TESTDIR/generate-working-copy-states.py state 3 3
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 3 3
   $ hg addremove -q --similarity 0
   $ hg commit -qm 'local'
 
 Set up working directory
 
-  $ python $TESTDIR/generate-working-copy-states.py state 3 wc
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 3 wc
   $ hg addremove -q --similarity 0
   $ hg forget *_*_*_*-untracked
   $ rm *_*_*_missing-*
@@ -286,7 +286,7 @@ missing_missing_content3_missing-tracked becomes removed ('R'), even though
 the remote side did not touch the file
 
   $ checkstatus() {
-  >   for f in `python $TESTDIR/generate-working-copy-states.py filelist 3`
+  >   for f in `$PYTHON $TESTDIR/generate-working-copy-states.py filelist 3`
   >   do
   >     echo
   >     hg status -A $f
@@ -379,7 +379,7 @@ the remote side did not touch the file
   content1
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M content1_content2_content1_content4-untracked
   content2
@@ -409,7 +409,7 @@ the remote side did not touch the file
   content1
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M content1_content2_content2_content4-untracked
   content2
@@ -439,7 +439,7 @@ the remote side did not touch the file
   content1
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M content1_content2_content3_content3-untracked
   content2
@@ -451,7 +451,7 @@ the remote side did not touch the file
   content1
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M content1_content2_content3_content4-untracked
   content2
@@ -481,7 +481,7 @@ the remote side did not touch the file
   content1
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M content1_content2_missing_content4-untracked
   content2
@@ -564,7 +564,7 @@ the remote side did not touch the file
   ||||||| base
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M missing_content2_content2_content4-untracked
   content2
@@ -587,7 +587,7 @@ the remote side did not touch the file
   ||||||| base
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M missing_content2_content3_content3-untracked
   content2
@@ -598,7 +598,7 @@ the remote side did not touch the file
   ||||||| base
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M missing_content2_content3_content4-untracked
   content2
@@ -621,7 +621,7 @@ the remote side did not touch the file
   ||||||| base
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M missing_content2_missing_content4-untracked
   <<<<<<< working copy: 0447570f1af6 - test: local
@@ -629,7 +629,7 @@ the remote side did not touch the file
   ||||||| base
   =======
   content2
-  >>>>>>> merge rev:    85100b8c675b  - test: remote
+  >>>>>>> merge rev:    85100b8c675b - test: remote
   
   M missing_content2_missing_missing-tracked
   content2
@@ -667,7 +667,7 @@ the remote side did not touch the file
   missing_missing_missing_missing-untracked: * (glob)
   <missing>
 
-  $ for f in `python $TESTDIR/generate-working-copy-states.py filelist 3`
+  $ for f in `$PYTHON $TESTDIR/generate-working-copy-states.py filelist 3`
   > do
   >   if test -f ${f}.orig
   >   then
@@ -784,7 +784,7 @@ Set up working directory again
 
   $ hg -q update --clean 2
   $ hg --config extensions.purge= purge
-  $ python $TESTDIR/generate-working-copy-states.py state 3 wc
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 3 wc
   $ hg addremove -q --similarity 0
   $ hg forget *_*_*_*-untracked
   $ rm *_*_*_missing-*

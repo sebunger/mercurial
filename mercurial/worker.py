@@ -11,17 +11,22 @@ import errno
 import os
 import signal
 import sys
-import threading
 
 from .i18n import _
-from . import error
+from . import (
+    encoding,
+    error,
+    pycompat,
+    scmutil,
+    util,
+)
 
 def countcpus():
     '''try to count the number of CPUs on the system'''
 
     # posix
     try:
-        n = int(os.sysconf('SC_NPROCESSORS_ONLN'))
+        n = int(os.sysconf(r'SC_NPROCESSORS_ONLN'))
         if n > 0:
             return n
     except (AttributeError, ValueError):
@@ -29,7 +34,7 @@ def countcpus():
 
     # windows
     try:
-        n = int(os.environ['NUMBER_OF_PROCESSORS'])
+        n = int(encoding.environ['NUMBER_OF_PROCESSORS'])
         if n > 0:
             return n
     except (KeyError, ValueError):
@@ -48,7 +53,7 @@ def _numworkers(ui):
             raise error.Abort(_('number of cpus must be an integer'))
     return min(max(countcpus(), 4), 32)
 
-if os.name == 'posix':
+if pycompat.osname == 'posix':
     _startupcost = 0.01
 else:
     _startupcost = 1e30
@@ -85,25 +90,12 @@ def _posixworker(ui, func, staticargs, args):
     workers = _numworkers(ui)
     oldhandler = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    pids, problem = [], [0]
-    for pargs in partition(args, workers):
-        pid = os.fork()
-        if pid == 0:
-            signal.signal(signal.SIGINT, oldhandler)
-            try:
-                os.close(rfd)
-                for i, item in func(*(staticargs + (pargs,))):
-                    os.write(wfd, '%d %s\n' % (i, item))
-                os._exit(0)
-            except KeyboardInterrupt:
-                os._exit(255)
-                # other exceptions are allowed to propagate, we rely
-                # on lock.py's pid checks to avoid release callbacks
-        pids.append(pid)
-    pids.reverse()
-    os.close(wfd)
-    fp = os.fdopen(rfd, 'rb', 0)
+    pids, problem = set(), [0]
     def killworkers():
+        # unregister SIGCHLD handler as all children will be killed. This
+        # function shouldn't be interrupted by another SIGCHLD; otherwise pids
+        # could be updated while iterating, which would cause inconsistency.
+        signal.signal(signal.SIGCHLD, oldchldhandler)
         # if one worker bails, there's no good reason to wait for the rest
         for p in pids:
             try:
@@ -111,24 +103,88 @@ def _posixworker(ui, func, staticargs, args):
             except OSError as err:
                 if err.errno != errno.ESRCH:
                     raise
-    def waitforworkers():
-        for _pid in pids:
-            st = _exitstatus(os.wait()[1])
+    def waitforworkers(blocking=True):
+        for pid in pids.copy():
+            p = st = 0
+            while True:
+                try:
+                    p, st = os.waitpid(pid, (0 if blocking else os.WNOHANG))
+                    break
+                except OSError as e:
+                    if e.errno == errno.EINTR:
+                        continue
+                    elif e.errno == errno.ECHILD:
+                        # child would already be reaped, but pids yet been
+                        # updated (maybe interrupted just after waitpid)
+                        pids.discard(pid)
+                        break
+                    else:
+                        raise
+            if not p:
+                # skip subsequent steps, because child process should
+                # be still running in this case
+                continue
+            pids.discard(p)
+            st = _exitstatus(st)
             if st and not problem[0]:
                 problem[0] = st
-                killworkers()
-    t = threading.Thread(target=waitforworkers)
-    t.start()
+    def sigchldhandler(signum, frame):
+        waitforworkers(blocking=False)
+        if problem[0]:
+            killworkers()
+    oldchldhandler = signal.signal(signal.SIGCHLD, sigchldhandler)
+    ui.flush()
+    parentpid = os.getpid()
+    for pargs in partition(args, workers):
+        # make sure we use os._exit in all worker code paths. otherwise the
+        # worker may do some clean-ups which could cause surprises like
+        # deadlock. see sshpeer.cleanup for example.
+        # override error handling *before* fork. this is necessary because
+        # exception (signal) may arrive after fork, before "pid =" assignment
+        # completes, and other exception handler (dispatch.py) can lead to
+        # unexpected code path without os._exit.
+        ret = -1
+        try:
+            pid = os.fork()
+            if pid == 0:
+                signal.signal(signal.SIGINT, oldhandler)
+                signal.signal(signal.SIGCHLD, oldchldhandler)
+
+                def workerfunc():
+                    os.close(rfd)
+                    for i, item in func(*(staticargs + (pargs,))):
+                        os.write(wfd, '%d %s\n' % (i, item))
+                    return 0
+
+                ret = scmutil.callcatch(ui, workerfunc)
+        except: # parent re-raises, child never returns
+            if os.getpid() == parentpid:
+                raise
+            exctype = sys.exc_info()[0]
+            force = not issubclass(exctype, KeyboardInterrupt)
+            ui.traceback(force=force)
+        finally:
+            if os.getpid() != parentpid:
+                try:
+                    ui.flush()
+                except: # never returns, no re-raises
+                    pass
+                finally:
+                    os._exit(ret & 255)
+        pids.add(pid)
+    os.close(wfd)
+    fp = os.fdopen(rfd, pycompat.sysstr('rb'), 0)
     def cleanup():
         signal.signal(signal.SIGINT, oldhandler)
-        t.join()
+        waitforworkers()
+        signal.signal(signal.SIGCHLD, oldchldhandler)
         status = problem[0]
         if status:
             if status < 0:
                 os.kill(os.getpid(), -status)
             sys.exit(status)
     try:
-        for line in fp:
+        for line in util.iterfile(fp):
             l = line.split(' ', 1)
             yield int(l[0]), l[1][:-1]
     except: # re-raises
@@ -147,7 +203,7 @@ def _posixexitstatus(code):
     elif os.WIFSIGNALED(code):
         return -os.WTERMSIG(code)
 
-if os.name != 'nt':
+if pycompat.osname != 'nt':
     _platformworker = _posixworker
     _exitstatus = _posixexitstatus
 

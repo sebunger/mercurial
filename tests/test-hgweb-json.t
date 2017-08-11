@@ -1443,7 +1443,7 @@ help/ shows help topics
         "topic": "branches"
       },
       {
-        "summary": "create a changegroup file",
+        "summary": "create a bundle file",
         "topic": "bundle"
       },
       {
@@ -1535,7 +1535,7 @@ help/ shows help topics
         "topic": "tags"
       },
       {
-        "summary": "apply one or more changegroup files",
+        "summary": "apply one or more bundle files",
         "topic": "unbundle"
       },
       {
@@ -1548,6 +1548,14 @@ help/ shows help topics
       }
     ],
     "topics": [
+      {
+        "summary": "Bundle File Formats",
+        "topic": "bundlespec"
+      },
+      {
+        "summary": "Colorizing Outputs",
+        "topic": "color"
+      },
       {
         "summary": "Configuration Files",
         "topic": "config"
@@ -1593,8 +1601,8 @@ help/ shows help topics
         "topic": "merge-tools"
       },
       {
-        "summary": "Specifying Multiple Revisions",
-        "topic": "multirevs"
+        "summary": "Pager Support",
+        "topic": "pager"
       },
       {
         "summary": "File Name Patterns",
@@ -1605,12 +1613,8 @@ help/ shows help topics
         "topic": "phases"
       },
       {
-        "summary": "Specifying Single Revisions",
+        "summary": "Specifying Revisions",
         "topic": "revisions"
-      },
-      {
-        "summary": "Specifying Revision Sets",
-        "topic": "revsets"
       },
       {
         "summary": "Using Mercurial from scripts and automation",

@@ -1,10 +1,12 @@
 Setup
 
   $ cat <<EOF >> $HGRCPATH
+  > [ui]
+  > color = yes
+  > formatted = always
+  > paginate = never
   > [color]
   > mode = ansi
-  > [extensions]
-  > color =
   > EOF
   $ hg init repo
   $ cd repo
@@ -35,7 +37,55 @@ Setup
 
 default context
 
-  $ hg diff --nodates --color=always
+  $ hg diff --nodates
+  \x1b[0;1mdiff -r cf9f4ba66af2 a\x1b[0m (esc)
+  \x1b[0;31;1m--- a/a\x1b[0m (esc)
+  \x1b[0;32;1m+++ b/a\x1b[0m (esc)
+  \x1b[0;35m@@ -2,7 +2,7 @@\x1b[0m (esc)
+   c
+   a
+   a
+  \x1b[0;31m-b\x1b[0m (esc)
+  \x1b[0;32m+dd\x1b[0m (esc)
+   a
+   a
+   c
+
+(check that 'ui.color=yes' match '--color=auto')
+
+  $ hg diff --nodates --config ui.formatted=no
+  diff -r cf9f4ba66af2 a
+  --- a/a
+  +++ b/a
+  @@ -2,7 +2,7 @@
+   c
+   a
+   a
+  -b
+  +dd
+   a
+   a
+   c
+
+(check that 'ui.color=no' disable color)
+
+  $ hg diff --nodates --config ui.formatted=yes --config ui.color=no
+  diff -r cf9f4ba66af2 a
+  --- a/a
+  +++ b/a
+  @@ -2,7 +2,7 @@
+   c
+   a
+   a
+  -b
+  +dd
+   a
+   a
+   c
+
+(check that 'ui.color=always' force color)
+
+  $ hg diff --nodates --config ui.formatted=no --config ui.color=always
   \x1b[0;1mdiff -r cf9f4ba66af2 a\x1b[0m (esc)
   \x1b[0;31;1m--- a/a\x1b[0m (esc)
   \x1b[0;32;1m+++ b/a\x1b[0m (esc)
@@ -51,7 +101,7 @@ default context
 
 --unified=2
 
-  $ hg diff --nodates -U 2  --color=always
+  $ hg diff --nodates -U 2
   \x1b[0;1mdiff -r cf9f4ba66af2 a\x1b[0m (esc)
   \x1b[0;31;1m--- a/a\x1b[0m (esc)
   \x1b[0;32;1m+++ b/a\x1b[0m (esc)
@@ -65,10 +115,11 @@ default context
 
 diffstat
 
-  $ hg diff --stat --color=always
+  $ hg diff --stat
    a |  2 \x1b[0;32m+\x1b[0m\x1b[0;31m-\x1b[0m (esc)
    1 files changed, 1 insertions(+), 1 deletions(-)
   $ cat <<EOF >> $HGRCPATH
+  > [extensions]
   > record =
   > [ui]
   > interactive = true
@@ -81,7 +132,7 @@ diffstat
 record
 
   $ chmod +x a
-  $ hg record --color=always -m moda a <<EOF
+  $ hg record -m moda a <<EOF
   > y
   > y
   > EOF
@@ -111,7 +162,7 @@ record
 
 qrecord
 
-  $ hg qrecord --color=always -m moda patch <<EOF
+  $ hg qrecord -m moda patch <<EOF
   > y
   > y
   > EOF
@@ -151,7 +202,7 @@ issue3712: test colorization of subrepo diff
   $ echo aa >> a
   $ echo bb >> sub/b
 
-  $ hg diff --color=always -S
+  $ hg diff -S
   \x1b[0;1mdiff --git a/a b/a\x1b[0m (esc)
   \x1b[0;31;1m--- a/a\x1b[0m (esc)
   \x1b[0;32;1m+++ b/a\x1b[0m (esc)
@@ -176,7 +227,7 @@ test tabs
   > mid	tab
   > 	all		tabs	
   > EOF
-  $ hg diff --nodates --color=always
+  $ hg diff --nodates
   \x1b[0;1mdiff --git a/a b/a\x1b[0m (esc)
   \x1b[0;31;1m--- a/a\x1b[0m (esc)
   \x1b[0;32;1m+++ b/a\x1b[0m (esc)
@@ -192,7 +243,7 @@ test tabs
   \x1b[0;32m+\x1b[0m	\x1b[0;32mall\x1b[0m		\x1b[0;32mtabs\x1b[0m\x1b[0;1;41m	\x1b[0m (esc)
   $ echo "[color]" >> $HGRCPATH
   $ echo "diff.tab = bold magenta" >> $HGRCPATH
-  $ hg diff --nodates --color=always
+  $ hg diff --nodates
   \x1b[0;1mdiff --git a/a b/a\x1b[0m (esc)
   \x1b[0;31;1m--- a/a\x1b[0m (esc)
   \x1b[0;32;1m+++ b/a\x1b[0m (esc)

@@ -9,11 +9,13 @@ Bug-Debian: http://bugs.debian.org/620087
 Bug-Ubuntu: https://bugs.launchpad.net/bugs/745250
 Forwarded: not-needed
 
---- a/setup.py
-+++ b/setup.py
-@@ -537,7 +537,6 @@ cmdclass = {'build': hgbuild,
-             'build_scripts': hgbuildscripts,
+Index: mercurial-4.3.1/setup.py
+===================================================================
+--- mercurial-4.3.1.orig/setup.py	2017-08-11 05:08:30.215428426 +0200
++++ mercurial-4.3.1/setup.py	2017-08-11 05:08:30.215428426 +0200
+@@ -699,7 +699,6 @@
              'build_hgextindex': buildhgextindex,
+             'install': hginstall,
              'install_lib': hginstalllib,
 -            'install_scripts': hginstallscripts,
              'build_hgexe': buildhgexe,

@@ -29,7 +29,7 @@ Create an extension to test bundle2 remote-changegroup parts
   >           from the given file.
   >       - raw-remote-changegroup <python expression>
   >           Creates a remote-changegroup part with the data given in the
-  >           python expression as parameters. The python expression is
+  >           Python expression as parameters. The Python expression is
   >           evaluated with eval, and is expected to be a dict.
   >     """
   >     def newpart(name, data=''):
@@ -39,7 +39,7 @@ Create an extension to test bundle2 remote-changegroup parts
   >         part = bundler.newpart(name, data=data)
   >         return part
   > 
-  >     for line in open(repo.join('bundle2maker'), 'r'):
+  >     for line in open(repo.vfs.join('bundle2maker'), 'r'):
   >         line = line.strip()
   >         try:
   >             verb, args = line.split(None, 1)
@@ -74,12 +74,12 @@ Create an extension to test bundle2 remote-changegroup parts
 
 Start a simple HTTP server to serve bundles
 
-  $ python "$TESTDIR/dumbhttp.py" -p $HGPORT --pid dumb.pid
+  $ $PYTHON "$TESTDIR/dumbhttp.py" -p $HGPORT --pid dumb.pid
   $ cat dumb.pid >> $DAEMON_PIDS
 
   $ cat >> $HGRCPATH << EOF
   > [ui]
-  > ssh=python "$TESTDIR/dummyssh"
+  > ssh=$PYTHON "$TESTDIR/dummyssh"
   > logtemplate={rev}:{node|short} {phase} {author} {bookmarks} {desc|firstline}
   > EOF
 

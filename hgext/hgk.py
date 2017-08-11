@@ -45,15 +45,15 @@ from mercurial.node import (
     short,
 )
 from mercurial import (
-    cmdutil,
     commands,
     obsolete,
     patch,
+    registrar,
     scmutil,
 )
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
 # be specifying the version(s) of Mercurial they are tested with, or
@@ -71,8 +71,10 @@ testedwith = 'ships-with-hg-core'
     inferrepo=True)
 def difftree(ui, repo, node1=None, node2=None, *files, **opts):
     """diff trees from two commits"""
-    def __difftree(repo, node1, node2, files=[]):
+    def __difftree(repo, node1, node2, files=None):
         assert node2 is not None
+        if files is None:
+            files = []
         mmap = repo[node1].manifest()
         mmap2 = repo[node2].manifest()
         m = scmutil.match(repo[node1], files)
@@ -345,4 +347,4 @@ def view(ui, repo, *etc, **opts):
 
     cmd = ui.config("hgk", "path", "hgk") + " %s %s" % (optstr, " ".join(etc))
     ui.debug("running %s\n" % cmd)
-    ui.system(cmd)
+    ui.system(cmd, blockedtag='hgk_view')

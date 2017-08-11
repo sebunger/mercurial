@@ -16,6 +16,21 @@
   $ echo 1.2 > foo
   $ hg ci -Am m
 
+Should respect config to disable dirty update
+  $ hg co -qC 0
+  $ echo 2 > foo
+  $ hg --config experimental.updatecheck=abort pull -u ../tt
+  pulling from ../tt
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  abort: uncommitted changes
+  [255]
+  $ hg --config extensions.strip= strip --no-backup tip
+  $ hg co -qC tip
+
 Should not update to the other topological branch:
 
   $ hg pull -u ../tt
@@ -26,6 +41,7 @@ Should not update to the other topological branch:
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updated to "800c91d5bfc1: m"
   1 other heads for branch "default"
 
   $ cd ../tt
@@ -40,6 +56,7 @@ Should not update to the other branch:
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updated to "107cefe13e42: m"
   1 other heads for branch "default"
 
   $ HGMERGE=true hg merge
@@ -130,7 +147,7 @@ explicit destination of the update.
 
 Test that updating deactivates current active bookmark, if the
 destination of the update is explicitly specified, and it doesn't
-match with the name of any exsiting bookmarks.
+match with the name of any existing bookmarks.
 
   $ cd ../t
   $ hg bookmark -d active-after-pull

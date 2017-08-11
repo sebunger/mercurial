@@ -158,6 +158,7 @@ from . import (
     changegroup,
     error,
     obsolete,
+    phases,
     pushkey,
     pycompat,
     tags,
@@ -178,18 +179,20 @@ _fpartid = '>I'
 _fpayloadsize = '>i'
 _fpartparamcount = '>BB'
 
+_fphasesentry = '>i20s'
+
 preferedchunksize = 4096
 
 _parttypeforbidden = re.compile('[^a-zA-Z0-9_:-]')
 
 def outdebug(ui, message):
     """debug regarding output stream (bundling)"""
-    if ui.configbool('devel', 'bundle2.debug', False):
+    if ui.configbool('devel', 'bundle2.debug'):
         ui.debug('bundle2-output: %s\n' % message)
 
 def indebug(ui, message):
     """debug on input stream (unbundling)"""
-    if ui.configbool('devel', 'bundle2.debug', False):
+    if ui.configbool('devel', 'bundle2.debug'):
         ui.debug('bundle2-input: %s\n' % message)
 
 def validateparttype(parttype):
@@ -271,6 +274,8 @@ class unbundlerecords(object):
     def __nonzero__(self):
         return bool(self._sequences)
 
+    __bool__ = __nonzero__
+
 class bundleoperation(object):
     """an object that represents a single bundling process
 
@@ -305,23 +310,26 @@ def _notransaction():
     to be created"""
     raise TransactionUnavailable()
 
-def applybundle(repo, unbundler, tr, source=None, url=None, op=None):
+def applybundle(repo, unbundler, tr, source=None, url=None, **kwargs):
     # transform me into unbundler.apply() as soon as the freeze is lifted
-    tr.hookargs['bundle2'] = '1'
-    if source is not None and 'source' not in tr.hookargs:
-        tr.hookargs['source'] = source
-    if url is not None and 'url' not in tr.hookargs:
-        tr.hookargs['url'] = url
-    return processbundle(repo, unbundler, lambda: tr, op=op)
+    if isinstance(unbundler, unbundle20):
+        tr.hookargs['bundle2'] = '1'
+        if source is not None and 'source' not in tr.hookargs:
+            tr.hookargs['source'] = source
+        if url is not None and 'url' not in tr.hookargs:
+            tr.hookargs['url'] = url
+        return processbundle(repo, unbundler, lambda: tr)
+    else:
+        # the transactiongetter won't be used, but we might as well set it
+        op = bundleoperation(repo, lambda: tr)
+        _processchangegroup(op, unbundler, tr, source, url, **kwargs)
+        return op
 
 def processbundle(repo, unbundler, transactiongetter=None, op=None):
     """This function process a bundle, apply effect to/from a repo
 
     It iterates over each part then searches for and uses the proper handling
     code to process the part. Parts are processed in order.
-
-    This is very early version of this function that will be strongly reworked
-    before final usage.
 
     Unknown Mandatory part will abort the process.
 
@@ -341,8 +349,8 @@ def processbundle(repo, unbundler, transactiongetter=None, op=None):
     if repo.ui.debugflag:
         msg = ['bundle2-input-bundle:']
         if unbundler.params:
-            msg.append(' %i params')
-        if op.gettransaction is None:
+            msg.append(' %i params' % len(unbundler.params))
+        if op.gettransaction is None or op.gettransaction is _notransaction:
             msg.append(' no-transaction')
         else:
             msg.append(' with-transaction')
@@ -355,9 +363,19 @@ def processbundle(repo, unbundler, transactiongetter=None, op=None):
         for nbpart, part in iterparts:
             _processpart(op, part)
     except Exception as exc:
-        for nbpart, part in iterparts:
-            # consume the bundle content
-            part.seek(0, 2)
+        # Any exceptions seeking to the end of the bundle at this point are
+        # almost certainly related to the underlying stream being bad.
+        # And, chances are that the exception we're handling is related to
+        # getting in that bad state. So, we swallow the seeking error and
+        # re-raise the original error.
+        seekerror = False
+        try:
+            for nbpart, part in iterparts:
+                # consume the bundle content
+                part.seek(0, 2)
+        except Exception:
+            seekerror = True
+
         # Small hack to let caller code distinguish exceptions from bundle2
         # processing from processing the old format. This is mostly
         # needed to handle different return codes to unbundle according to the
@@ -371,11 +389,24 @@ def processbundle(repo, unbundler, transactiongetter=None, op=None):
             replycaps = op.reply.capabilities
         exc._replycaps = replycaps
         exc._bundle2salvagedoutput = salvaged
-        raise
+
+        # Re-raising from a variable loses the original stack. So only use
+        # that form if we need to.
+        if seekerror:
+            raise exc
+        else:
+            raise
     finally:
         repo.ui.debug('bundle2-input-bundle: %i parts total\n' % nbpart)
 
     return op
+
+def _processchangegroup(op, cg, tr, source, url, **kwargs):
+    ret = cg.apply(op.repo, tr, source, url, **kwargs)
+    op.records.add('changegroup', {
+        'return': ret,
+    })
+    return ret
 
 def _processpart(op, part):
     """process a single part from a bundle
@@ -485,11 +516,11 @@ def encodecaps(caps):
     return '\n'.join(chunks)
 
 bundletypes = {
-    "": ("", None),       # only when using unbundle on ssh and old http servers
+    "": ("", 'UN'),       # only when using unbundle on ssh and old http servers
                           # since the unification ssh accepts a header but there
                           # is no capability signaling it.
     "HG20": (), # special-cased below
-    "HG10UN": ("HG10UN", None),
+    "HG10UN": ("HG10UN", 'UN'),
     "HG10BZ": ("HG10", 'BZ'),
     "HG10GZ": ("HG10GZ", 'GZ'),
 }
@@ -511,15 +542,17 @@ class bundle20(object):
         self._params = []
         self._parts = []
         self.capabilities = dict(capabilities)
-        self._compressor = util.compressors[None]()
+        self._compengine = util.compengines.forbundletype('UN')
+        self._compopts = None
 
-    def setcompression(self, alg):
+    def setcompression(self, alg, compopts=None):
         """setup core part compression to <alg>"""
-        if alg is None:
+        if alg in (None, 'UN'):
             return
-        assert not any(n.lower() == 'Compression' for n, v in self._params)
+        assert not any(n.lower() == 'compression' for n, v in self._params)
         self.addparam('Compression', alg)
-        self._compressor = util.compressors[alg]()
+        self._compengine = util.compengines.forbundletype(alg)
+        self._compopts = compopts
 
     @property
     def nbparts(self):
@@ -571,12 +604,9 @@ class bundle20(object):
         yield _pack(_fstreamparamsize, len(param))
         if param:
             yield param
-        # starting compression
-        for chunk in self._getcorechunk():
-            data = self._compressor.compress(chunk)
-            if data:
-                yield data
-        yield self._compressor.flush()
+        for chunk in self._compengine.compressstream(self._getcorechunk(),
+                                                     self._compopts):
+            yield chunk
 
     def _paramchunk(self):
         """return a encoded version of all stream parameters"""
@@ -619,41 +649,27 @@ class unpackermixin(object):
 
     def __init__(self, fp):
         self._fp = fp
-        self._seekable = (util.safehasattr(fp, 'seek') and
-                          util.safehasattr(fp, 'tell'))
 
     def _unpack(self, format):
-        """unpack this struct format from the stream"""
+        """unpack this struct format from the stream
+
+        This method is meant for internal usage by the bundle2 protocol only.
+        They directly manipulate the low level stream including bundle2 level
+        instruction.
+
+        Do not use it to implement higher-level logic or methods."""
         data = self._readexact(struct.calcsize(format))
         return _unpack(format, data)
 
     def _readexact(self, size):
-        """read exactly <size> bytes from the stream"""
+        """read exactly <size> bytes from the stream
+
+        This method is meant for internal usage by the bundle2 protocol only.
+        They directly manipulate the low level stream including bundle2 level
+        instruction.
+
+        Do not use it to implement higher-level logic or methods."""
         return changegroup.readexactly(self._fp, size)
-
-    def seek(self, offset, whence=0):
-        """move the underlying file pointer"""
-        if self._seekable:
-            return self._fp.seek(offset, whence)
-        else:
-            raise NotImplementedError(_('File pointer is not seekable'))
-
-    def tell(self):
-        """return the file offset, or None if file is not seekable"""
-        if self._seekable:
-            try:
-                return self._fp.tell()
-            except IOError as e:
-                if e.errno == errno.ESPIPE:
-                    self._seekable = False
-                else:
-                    raise
-        return None
-
-    def close(self):
-        """close underlying file"""
-        if util.safehasattr(self._fp, 'close'):
-            return self._fp.close()
 
 def getunbundler(ui, fp, magicstring=None):
     """return a valid unbundler object for a given magicstring"""
@@ -661,6 +677,9 @@ def getunbundler(ui, fp, magicstring=None):
         magicstring = changegroup.readexactly(fp, 4)
     magic, version = magicstring[0:2], magicstring[2:4]
     if magic != 'HG':
+        ui.debug(
+            "error: invalid magic: %r (version %r), should be 'HG'\n"
+            % (magic, version))
         raise error.Abort(_('not a Mercurial bundle'))
     unbundlerclass = formatmap.get(version)
     if unbundlerclass is None:
@@ -680,7 +699,7 @@ class unbundle20(unpackermixin):
     def __init__(self, ui, fp):
         """If header is specified, we do not read it out of the stream."""
         self.ui = ui
-        self._decompressor = util.decompressors[None]
+        self._compengine = util.compengines.forbundletype('UN')
         self._compressed = None
         super(unbundle20, self).__init__(fp)
 
@@ -754,9 +773,9 @@ class unbundle20(unpackermixin):
             params = self._readexact(paramssize)
             self._processallparams(params)
             yield params
-            assert self._decompressor is util.decompressors[None]
+            assert self._compengine.bundletype == 'UN'
         # From there, payload might need to be decompressed
-        self._fp = self._decompressor(self._fp)
+        self._fp = self._compengine.decompressorreader(self._fp)
         emptycount = 0
         while emptycount < 2:
             # so we can brainlessly loop
@@ -780,7 +799,7 @@ class unbundle20(unpackermixin):
         # make sure param have been loaded
         self.params
         # From there, payload need to be decompressed
-        self._fp = self._decompressor(self._fp)
+        self._fp = self._compengine.decompressorreader(self._fp)
         indebug(self.ui, 'start extraction of bundle2 parts')
         headerblock = self._readpartheader()
         while headerblock is not None:
@@ -807,6 +826,11 @@ class unbundle20(unpackermixin):
         self.params # load params
         return self._compressed
 
+    def close(self):
+        """close underlying file"""
+        if util.safehasattr(self._fp, 'close'):
+            return self._fp.close()
+
 formatmap = {'20': unbundle20}
 
 b2streamparamsmap = {}
@@ -822,10 +846,10 @@ def b2streamparamhandler(name):
 @b2streamparamhandler('compression')
 def processcompression(unbundler, param, value):
     """read compression parameter and install payload decompression"""
-    if value not in util.decompressors:
+    if value not in util.compengines.supportedbundletypes:
         raise error.BundleUnknownFeatureError(params=(param,),
                                               values=(value,))
-    unbundler._decompressor = util.decompressors[value]
+    unbundler._compengine = util.compengines.forbundletype(value)
     if value is not None:
         unbundler._compressed = True
 
@@ -857,7 +881,7 @@ class bundlepart(object):
         self._seenparams = set()
         for pname, __ in self._mandatoryparams + self._advisoryparams:
             if pname in self._seenparams:
-                raise RuntimeError('duplicated params: %s' % pname)
+                raise error.ProgrammingError('duplicated params: %s' % pname)
             self._seenparams.add(pname)
         # status of the part's generation:
         # - None: not started,
@@ -865,6 +889,11 @@ class bundlepart(object):
         # - True: generation done.
         self._generated = None
         self.mandatory = mandatory
+
+    def __repr__(self):
+        cls = "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
+        return ('<%s object at %x; id: %s; type: %s; mandatory: %s>'
+                % (cls, id(self), self.id, self.type, self.mandatory))
 
     def copy(self):
         """return a copy of the part
@@ -897,6 +926,13 @@ class bundlepart(object):
         return tuple(self._advisoryparams)
 
     def addparam(self, name, value='', mandatory=True):
+        """add a parameter to the part
+
+        If 'mandatory' is set to True, the remote handler must claim support
+        for this parameter or the unbundling will be aborted.
+
+        The 'name' and 'value' cannot exceed 255 bytes each.
+        """
         if self._generated is not None:
             raise error.ReadOnlyPartError('part is being generated')
         if name in self._seenparams:
@@ -910,7 +946,7 @@ class bundlepart(object):
     # methods used to generates the bundle2 stream
     def getchunks(self, ui):
         if self._generated is not None:
-            raise RuntimeError('part can only be consumed once')
+            raise error.ProgrammingError('part can only be consumed once')
         self._generated = False
 
         if ui.debugflag:
@@ -988,7 +1024,7 @@ class bundlepart(object):
             # backup exception data for later
             ui.debug('bundle2-input-stream-interrupt: encoding exception %s'
                      % exc)
-            exc_info = sys.exc_info()
+            tb = sys.exc_info()[2]
             msg = 'unexpected error: %s' % exc
             interpart = bundlepart('error:abort', [('message', msg)],
                                    mandatory=False)
@@ -999,10 +1035,7 @@ class bundlepart(object):
             outdebug(ui, 'closing payload chunk')
             # abort current part payload
             yield _pack(_fpayloadsize, 0)
-            if pycompat.ispy3:
-                raise exc_info[0](exc_info[1]).with_traceback(exc_info[2])
-            else:
-                exec("""raise exc_info[0], exc_info[1], exc_info[2]""")
+            pycompat.raisewithtb(exc, tb)
         # end of payload
         outdebug(ui, 'closing payload chunk')
         yield _pack(_fpayloadsize, 0)
@@ -1079,7 +1112,7 @@ class interruptoperation(object):
 
     @property
     def repo(self):
-        raise RuntimeError('no repo access from stream interruption')
+        raise error.ProgrammingError('no repo access from stream interruption')
 
     def gettransaction(self):
         raise TransactionUnavailable('no repo access from stream interruption')
@@ -1089,6 +1122,8 @@ class unbundlepart(unpackermixin):
 
     def __init__(self, ui, header, fp):
         super(unbundlepart, self).__init__(fp)
+        self._seekable = (util.safehasattr(fp, 'seek') and
+                          util.safehasattr(fp, 'tell'))
         self.ui = ui
         # unbundle state attr
         self._headerdata = header
@@ -1136,11 +1171,11 @@ class unbundlepart(unpackermixin):
         '''seek to specified chunk and start yielding data'''
         if len(self._chunkindex) == 0:
             assert chunknum == 0, 'Must start with chunk 0'
-            self._chunkindex.append((0, super(unbundlepart, self).tell()))
+            self._chunkindex.append((0, self._tellfp()))
         else:
             assert chunknum < len(self._chunkindex), \
                    'Unknown chunk %d' % chunknum
-            super(unbundlepart, self).seek(self._chunkindex[chunknum][1])
+            self._seekfp(self._chunkindex[chunknum][1])
 
         pos = self._chunkindex[chunknum][0]
         payloadsize = self._unpack(_fpayloadsize)[0]
@@ -1158,8 +1193,7 @@ class unbundlepart(unpackermixin):
                 chunknum += 1
                 pos += payloadsize
                 if chunknum == len(self._chunkindex):
-                    self._chunkindex.append((pos,
-                                             super(unbundlepart, self).tell()))
+                    self._chunkindex.append((pos, self._tellfp()))
                 yield result
             payloadsize = self._unpack(_fpayloadsize)[0]
             indebug(self.ui, 'payload chunk size: %i' % payloadsize)
@@ -1252,6 +1286,37 @@ class unbundlepart(unpackermixin):
                 raise error.Abort(_('Seek failed\n'))
             self._pos = newpos
 
+    def _seekfp(self, offset, whence=0):
+        """move the underlying file pointer
+
+        This method is meant for internal usage by the bundle2 protocol only.
+        They directly manipulate the low level stream including bundle2 level
+        instruction.
+
+        Do not use it to implement higher-level logic or methods."""
+        if self._seekable:
+            return self._fp.seek(offset, whence)
+        else:
+            raise NotImplementedError(_('File pointer is not seekable'))
+
+    def _tellfp(self):
+        """return the file offset, or None if file is not seekable
+
+        This method is meant for internal usage by the bundle2 protocol only.
+        They directly manipulate the low level stream including bundle2 level
+        instruction.
+
+        Do not use it to implement higher-level logic or methods."""
+        if self._seekable:
+            try:
+                return self._fp.tell()
+            except IOError as e:
+                if e.errno == errno.ESPIPE:
+                    self._seekable = False
+                else:
+                    raise
+        return None
+
 # These are only the static capabilities.
 # Check the 'getrepocaps' function for the rest.
 capabilities = {'HG20': (),
@@ -1277,6 +1342,9 @@ def getrepocaps(repo, allowpushback=False):
         caps['obsmarkers'] = supportedformat
     if allowpushback:
         caps['pushback'] = ()
+    cpmode = repo.ui.config('server', 'concurrent-push-mode')
+    if cpmode == 'check-related':
+        caps['checkheads'] = ('related',)
     return caps
 
 def bundle2caps(remote):
@@ -1293,7 +1361,104 @@ def obsmarkersversion(caps):
     obscaps = caps.get('obsmarkers', ())
     return [int(c[1:]) for c in obscaps if c.startswith('V')]
 
-def writebundle(ui, cg, filename, bundletype, vfs=None, compression=None):
+def writenewbundle(ui, repo, source, filename, bundletype, outgoing, opts,
+                   vfs=None, compression=None, compopts=None):
+    if bundletype.startswith('HG10'):
+        cg = changegroup.getchangegroup(repo, source, outgoing, version='01')
+        return writebundle(ui, cg, filename, bundletype, vfs=vfs,
+                           compression=compression, compopts=compopts)
+    elif not bundletype.startswith('HG20'):
+        raise error.ProgrammingError('unknown bundle type: %s' % bundletype)
+
+    caps = {}
+    if 'obsolescence' in opts:
+        caps['obsmarkers'] = ('V1',)
+    bundle = bundle20(ui, caps)
+    bundle.setcompression(compression, compopts)
+    _addpartsfromopts(ui, repo, bundle, source, outgoing, opts)
+    chunkiter = bundle.getchunks()
+
+    return changegroup.writechunks(ui, chunkiter, filename, vfs=vfs)
+
+def _addpartsfromopts(ui, repo, bundler, source, outgoing, opts):
+    # We should eventually reconcile this logic with the one behind
+    # 'exchange.getbundle2partsgenerator'.
+    #
+    # The type of input from 'getbundle' and 'writenewbundle' are a bit
+    # different right now. So we keep them separated for now for the sake of
+    # simplicity.
+
+    # we always want a changegroup in such bundle
+    cgversion = opts.get('cg.version')
+    if cgversion is None:
+        cgversion = changegroup.safeversion(repo)
+    cg = changegroup.getchangegroup(repo, source, outgoing,
+                                    version=cgversion)
+    part = bundler.newpart('changegroup', data=cg.getchunks())
+    part.addparam('version', cg.version)
+    if 'clcount' in cg.extras:
+        part.addparam('nbchanges', str(cg.extras['clcount']),
+                      mandatory=False)
+    if opts.get('phases') and repo.revs('%ln and secret()',
+                                        outgoing.missingheads):
+        part.addparam('targetphase', '%d' % phases.secret, mandatory=False)
+
+    addparttagsfnodescache(repo, bundler, outgoing)
+
+    if opts.get('obsolescence', False):
+        obsmarkers = repo.obsstore.relevantmarkers(outgoing.missing)
+        buildobsmarkerspart(bundler, obsmarkers)
+
+    if opts.get('phases', False):
+        headsbyphase = phases.subsetphaseheads(repo, outgoing.missing)
+        phasedata = []
+        for phase in phases.allphases:
+            for head in headsbyphase[phase]:
+                phasedata.append(_pack(_fphasesentry, phase, head))
+        bundler.newpart('phase-heads', data=''.join(phasedata))
+
+def addparttagsfnodescache(repo, bundler, outgoing):
+    # we include the tags fnode cache for the bundle changeset
+    # (as an optional parts)
+    cache = tags.hgtagsfnodescache(repo.unfiltered())
+    chunks = []
+
+    # .hgtags fnodes are only relevant for head changesets. While we could
+    # transfer values for all known nodes, there will likely be little to
+    # no benefit.
+    #
+    # We don't bother using a generator to produce output data because
+    # a) we only have 40 bytes per head and even esoteric numbers of heads
+    # consume little memory (1M heads is 40MB) b) we don't want to send the
+    # part if we don't have entries and knowing if we have entries requires
+    # cache lookups.
+    for node in outgoing.missingheads:
+        # Don't compute missing, as this may slow down serving.
+        fnode = cache.getfnode(node, computemissing=False)
+        if fnode is not None:
+            chunks.extend([node, fnode])
+
+    if chunks:
+        bundler.newpart('hgtagsfnodes', data=''.join(chunks))
+
+def buildobsmarkerspart(bundler, markers):
+    """add an obsmarker part to the bundler with <markers>
+
+    No part is created if markers is empty.
+    Raises ValueError if the bundler doesn't support any known obsmarker format.
+    """
+    if not markers:
+        return None
+
+    remoteversions = obsmarkersversion(bundler.capabilities)
+    version = obsolete.commonversion(remoteversions)
+    if version is None:
+        raise ValueError('bundler does not support common obsmarker format')
+    stream = obsolete.encodemarkers(markers, True, version=version)
+    return bundler.newpart('obsmarkers', data=stream)
+
+def writebundle(ui, cg, filename, bundletype, vfs=None, compression=None,
+                compopts=None):
     """Write a bundle file and return its filename.
 
     Existing files will not be overwritten.
@@ -1304,7 +1469,7 @@ def writebundle(ui, cg, filename, bundletype, vfs=None, compression=None):
 
     if bundletype == "HG20":
         bundle = bundle20(ui)
-        bundle.setcompression(compression)
+        bundle.setcompression(compression, compopts)
         part = bundle.newpart('changegroup', data=cg.getchunks())
         part.addparam('version', cg.version)
         if 'clcount' in cg.extras:
@@ -1318,37 +1483,50 @@ def writebundle(ui, cg, filename, bundletype, vfs=None, compression=None):
             raise error.Abort(_('old bundle types only supports v1 '
                                 'changegroups'))
         header, comp = bundletypes[bundletype]
-        if comp not in util.compressors:
+        if comp not in util.compengines.supportedbundletypes:
             raise error.Abort(_('unknown stream compression type: %s')
                               % comp)
-        z = util.compressors[comp]()
-        subchunkiter = cg.getchunks()
+        compengine = util.compengines.forbundletype(comp)
         def chunkiter():
             yield header
-            for chunk in subchunkiter:
-                data = z.compress(chunk)
-                if data:
-                    yield data
-            yield z.flush()
+            for chunk in compengine.compressstream(cg.getchunks(), compopts):
+                yield chunk
         chunkiter = chunkiter()
 
     # parse the changegroup data, otherwise we will block
     # in case of sshrepo because we don't know the end of the stream
     return changegroup.writechunks(ui, chunkiter, filename, vfs=vfs)
 
-@parthandler('changegroup', ('version', 'nbchanges', 'treemanifest'))
+def combinechangegroupresults(op):
+    """logic to combine 0 or more addchangegroup results into one"""
+    results = [r.get('return', 0)
+               for r in op.records['changegroup']]
+    changedheads = 0
+    result = 1
+    for ret in results:
+        # If any changegroup result is 0, return 0
+        if ret == 0:
+            result = 0
+            break
+        if ret < -1:
+            changedheads += ret + 1
+        elif ret > 1:
+            changedheads += ret - 1
+    if changedheads > 0:
+        result = 1 + changedheads
+    elif changedheads < 0:
+        result = -1 + changedheads
+    return result
+
+@parthandler('changegroup', ('version', 'nbchanges', 'treemanifest',
+                             'targetphase'))
 def handlechangegroup(op, inpart):
     """apply a changegroup part on the repo
 
     This is a very early implementation that will massive rework before being
     inflicted to any end-user.
     """
-    # Make sure we trigger a transaction creation
-    #
-    # The addchangegroup function will get a transaction object by itself, but
-    # we need to make sure we trigger the creation of a transaction object used
-    # for the whole processing scope.
-    op.gettransaction()
+    tr = op.gettransaction()
     unpackerversion = inpart.params.get('version', '01')
     # We should raise an appropriate exception here
     cg = changegroup.getunbundler(unpackerversion, inpart, None)
@@ -1366,8 +1544,12 @@ def handlechangegroup(op, inpart):
         op.repo.requirements.add('treemanifest')
         op.repo._applyopenerreqs()
         op.repo._writerequirements()
-    ret = cg.apply(op.repo, 'bundle2', 'bundle2', expectedtotal=nbchangesets)
-    op.records.add('changegroup', {'return': ret})
+    extrakwargs = {}
+    targetphase = inpart.params.get('targetphase')
+    if targetphase is not None:
+        extrakwargs['targetphase'] = int(targetphase)
+    ret = _processchangegroup(op, cg, tr, 'bundle2', 'bundle2',
+                              expectedtotal=nbchangesets, **extrakwargs)
     if op.reply is not None:
         # This is definitely not the final form of this
         # return. But one need to start somewhere.
@@ -1424,19 +1606,13 @@ def handleremotechangegroup(op, inpart):
 
     real_part = util.digestchecker(url.open(op.ui, raw_url), size, digests)
 
-    # Make sure we trigger a transaction creation
-    #
-    # The addchangegroup function will get a transaction object by itself, but
-    # we need to make sure we trigger the creation of a transaction object used
-    # for the whole processing scope.
-    op.gettransaction()
+    tr = op.gettransaction()
     from . import exchange
     cg = exchange.readbundle(op.repo.ui, real_part, raw_url)
     if not isinstance(cg, changegroup.cg1unpacker):
         raise error.Abort(_('%s: not a bundle version 1.0') %
             util.hidepassword(raw_url))
-    ret = cg.apply(op.repo, 'bundle2', 'bundle2')
-    op.records.add('changegroup', {'return': ret})
+    ret = _processchangegroup(op, cg, tr, 'bundle2', 'bundle2')
     if op.reply is not None:
         # This is definitely not the final form of this
         # return. But one need to start somewhere.
@@ -1474,6 +1650,35 @@ def handlecheckheads(op, inpart):
     if sorted(heads) != sorted(op.repo.heads()):
         raise error.PushRaced('repository changed while pushing - '
                               'please try again')
+
+@parthandler('check:updated-heads')
+def handlecheckupdatedheads(op, inpart):
+    """check for race on the heads touched by a push
+
+    This is similar to 'check:heads' but focus on the heads actually updated
+    during the push. If other activities happen on unrelated heads, it is
+    ignored.
+
+    This allow server with high traffic to avoid push contention as long as
+    unrelated parts of the graph are involved."""
+    h = inpart.read(20)
+    heads = []
+    while len(h) == 20:
+        heads.append(h)
+        h = inpart.read(20)
+    assert not h
+    # trigger a transaction so that we are guaranteed to have the lock now.
+    if op.ui.configbool('experimental', 'bundle2lazylocking'):
+        op.gettransaction()
+
+    currentheads = set()
+    for ls in op.repo.branchmap().itervalues():
+        currentheads.update(ls)
+
+    for h in heads:
+        if h not in currentheads:
+            raise error.PushRaced('repository changed while pushing - '
+                                  'please try again')
 
 @parthandler('output')
 def handleoutput(op, inpart):
@@ -1564,6 +1769,25 @@ def handlepushkey(op, inpart):
                 kwargs[key] = inpart.params[key]
         raise error.PushkeyFailed(partid=str(inpart.id), **kwargs)
 
+def _readphaseheads(inpart):
+    headsbyphase = [[] for i in phases.allphases]
+    entrysize = struct.calcsize(_fphasesentry)
+    while True:
+        entry = inpart.read(entrysize)
+        if len(entry) < entrysize:
+            if entry:
+                raise error.Abort(_('bad phase-heads bundle part'))
+            break
+        phase, node = struct.unpack(_fphasesentry, entry)
+        headsbyphase[phase].append(node)
+    return headsbyphase
+
+@parthandler('phase-heads')
+def handlephases(op, inpart):
+    """apply phases from bundle part to repo"""
+    headsbyphase = _readphaseheads(inpart)
+    phases.updatephases(op.repo.unfiltered(), op.gettransaction(), headsbyphase)
+
 @parthandler('reply:pushkey', ('return', 'in-reply-to'))
 def handlepushkeyreply(op, inpart):
     """retrieve the result of a pushkey request"""
@@ -1576,7 +1800,7 @@ def handleobsmarker(op, inpart):
     """add a stream of obsmarkers to the repo"""
     tr = op.gettransaction()
     markerdata = inpart.read()
-    if op.ui.config('experimental', 'obsmarkers-exchange-debug', False):
+    if op.ui.config('experimental', 'obsmarkers-exchange-debug'):
         op.ui.write(('obsmarker-exchange: %i bytes received\n')
                     % len(markerdata))
     # The mergemarkers call will crash if marker creation is not enabled.
@@ -1585,6 +1809,7 @@ def handleobsmarker(op, inpart):
         op.repo.ui.debug('ignoring obsolescence markers, feature not enabled')
         return
     new = op.repo.obsstore.mergemarkers(tr, markerdata)
+    op.repo.invalidatevolatilesets()
     if new:
         op.repo.ui.status(_('%i new obsolescence markers\n') % new)
     op.records.add('obsmarkers', {'new': new})

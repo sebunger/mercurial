@@ -13,17 +13,21 @@ import socket
 import struct
 
 from mercurial.i18n import _
-from mercurial import pathutil
+from mercurial import (
+    pathutil,
+    util,
+)
 
 _version = 4
 _versionformat = ">I"
 
 class state(object):
     def __init__(self, repo):
-        self._opener = repo.opener
+        self._vfs = repo.vfs
         self._ui = repo.ui
         self._rootdir = pathutil.normasprefix(repo.root)
         self._lastclock = None
+        self._identity = util.filestat(None)
 
         self.mode = self._ui.config('fsmonitor', 'mode', default='on')
         self.walk_on_invalidate = self._ui.configbool(
@@ -33,11 +37,14 @@ class state(object):
 
     def get(self):
         try:
-            file = self._opener('fsmonitor.state', 'rb')
+            file = self._vfs('fsmonitor.state', 'rb')
         except IOError as inst:
+            self._identity = util.filestat(None)
             if inst.errno != errno.ENOENT:
                 raise
             return None, None, None
+
+        self._identity = util.filestat.fromfp(file)
 
         versionbytes = file.read(4)
         if len(versionbytes) < 4:
@@ -59,6 +66,12 @@ class state(object):
             state = file.read().split('\0')
             # state = hostname\0clock\0ignorehash\0 + list of files, each
             # followed by a \0
+            if len(state) < 3:
+                self._ui.log(
+                    'fsmonitor', 'fsmonitor: state file truncated (expected '
+                    '3 chunks, found %d), nuking state\n', len(state))
+                self.invalidate()
+                return None, None, None
             diskhostname = state[0]
             hostname = socket.gethostname()
             if diskhostname != hostname:
@@ -84,13 +97,21 @@ class state(object):
             self.invalidate()
             return
 
+        # Read the identity from the file on disk rather than from the open file
+        # pointer below, because the latter is actually a brand new file.
+        identity = util.filestat.frompath(self._vfs.join('fsmonitor.state'))
+        if identity != self._identity:
+            self._ui.debug('skip updating fsmonitor.state: identity mismatch\n')
+            return
+
         try:
-            file = self._opener('fsmonitor.state', 'wb')
+            file = self._vfs('fsmonitor.state', 'wb', atomictemp=True,
+                checkambig=True)
         except (IOError, OSError):
             self._ui.warn(_("warning: unable to write out fsmonitor state\n"))
             return
 
-        try:
+        with file:
             file.write(struct.pack(_versionformat, _version))
             file.write(socket.gethostname() + '\0')
             file.write(clock + '\0')
@@ -98,8 +119,6 @@ class state(object):
             if notefiles:
                 file.write('\0'.join(notefiles))
                 file.write('\0')
-        finally:
-            file.close()
 
     def invalidate(self):
         try:
@@ -107,6 +126,7 @@ class state(object):
         except OSError as inst:
             if inst.errno != errno.ENOENT:
                 raise
+        self._identity = util.filestat(None)
 
     def setlastclock(self, clock):
         self._lastclock = clock

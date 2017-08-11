@@ -1,15 +1,22 @@
+#require no-windows
+
+ATTENTION: logtoprocess runs commands asynchronously. Be sure to append "| cat"
+to hg commands, to wait for the output, if you want to test its output.
+Otherwise the test will be flaky.
+
 Test if logtoprocess correctly captures command-related log calls.
 
   $ hg init
   $ cat > $TESTTMP/foocommand.py << EOF
-  > from mercurial import cmdutil
+  > from mercurial import registrar
   > from time import sleep
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command('foo', [])
+  > command = registrar.command(cmdtable)
+  > @command(b'foo', [])
   > def foo(ui, repo):
   >     ui.log('foo', 'a message: %(bar)s\n', bar='spam')
   > EOF
+  $ cp $HGRCPATH $HGRCPATH.bak
   $ cat >> $HGRCPATH << EOF
   > [extensions]
   > logtoprocess=
@@ -33,9 +40,8 @@ Test if logtoprocess correctly captures command-related log calls.
 Running a command triggers both a ui.log('command') and a
 ui.log('commandfinish') call. The foo command also uses ui.log.
 
-Use head to ensure we wait for all lines to be produced, and sort to avoid
-ordering issues between the various processes we spawn:
-  $ hg foo | head -n 17 | sort
+Use sort to avoid ordering issues between the various processes we spawn:
+  $ hg foo | cat | sort
   
   
   
@@ -52,3 +58,18 @@ ordering issues between the various processes we spawn:
   logtoprocess commandfinish output:
   logtoprocess foo output:
   spam
+
+Confirm that logging blocked time catches stdio properly:
+  $ cp $HGRCPATH.bak $HGRCPATH
+  $ cat >> $HGRCPATH << EOF
+  > [extensions]
+  > logtoprocess=
+  > pager=
+  > [logtoprocess]
+  > uiblocked=echo "\$EVENT stdio \$OPT_STDIO_BLOCKED ms command \$OPT_COMMAND_DURATION ms"
+  > [ui]
+  > logblockedtimes=True
+  > EOF
+
+  $ hg log | cat
+  uiblocked stdio [0-9]+.[0-9]* ms command [0-9]+.[0-9]* ms (re)

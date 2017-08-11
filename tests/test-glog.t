@@ -82,18 +82,18 @@ o  (0) root
   > }
 
   $ cat > printrevset.py <<EOF
-  > from mercurial import extensions, revset, commands, cmdutil
+  > from mercurial import extensions, revsetlang, commands, cmdutil
   > 
   > def uisetup(ui):
   >     def printrevset(orig, ui, repo, *pats, **opts):
   >         if opts.get('print_revset'):
   >             expr = cmdutil.getgraphlogrevs(repo, pats, opts)[1]
   >             if expr:
-  >                 tree = revset.parse(expr)
+  >                 tree = revsetlang.parse(expr)
   >             else:
   >                 tree = []
   >             ui.write('%r\n' % (opts.get('rev', []),))
-  >             ui.write(revset.prettyformat(tree) + '\n')
+  >             ui.write(revsetlang.prettyformat(tree) + '\n')
   >             return 0
   >         return orig(ui, repo, *pats, **opts)
   >     entry = extensions.wrapcommand(commands.table, 'log', printrevset)
@@ -1513,7 +1513,7 @@ glog always reorders nodes which explains the difference with log
       ('symbol', 'date')
       ('string', '2 0 to 4 0')))
   $ hg log -G -d 'brace ) in a date'
-  abort: invalid date: 'brace ) in a date'
+  hg: parse error: invalid date: 'brace ) in a date'
   [255]
   $ testlog --prune 31 --prune 32
   []
@@ -2294,6 +2294,7 @@ Test --hidden
   > EOF
 
   $ hg debugobsolete `hg id --debug -i -r 8`
+  obsoleted 1 changesets
   $ testlog
   []
   []
@@ -2398,7 +2399,7 @@ working-directory revision
 
 node template with changeset_printer:
 
-  $ hg log -Gqr 5:7 --config ui.graphnodetemplate='{rev}'
+  $ hg log -Gqr 5:7 --config ui.graphnodetemplate='"{rev}"'
   7  7:02dbb8e276b8
   |
   6    6:fc281d8ff18d
@@ -3424,3 +3425,39 @@ the right node styles are used (issue5174):
      summary:     0
   
 
+  $ cd ..
+
+Multiple roots (issue5440):
+
+  $ hg init multiroots
+  $ cd multiroots
+  $ cat <<EOF > .hg/hgrc
+  > [ui]
+  > logtemplate = '{rev} {desc}\n\n'
+  > EOF
+
+  $ touch foo
+  $ hg ci -Aqm foo
+  $ hg co -q null
+  $ touch bar
+  $ hg ci -Aqm bar
+
+  $ hg log -Gr null:
+  @  1 bar
+  |
+  | o  0 foo
+  |/
+  o  -1
+  
+  $ hg log -Gr null+0
+  o  0 foo
+  |
+  o  -1
+  
+  $ hg log -Gr null+1
+  @  1 bar
+  |
+  o  -1
+  
+
+  $ cd ..

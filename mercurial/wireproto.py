@@ -10,13 +10,13 @@ from __future__ import absolute_import
 import hashlib
 import itertools
 import os
-import sys
 import tempfile
 
 from .i18n import _
 from .node import (
     bin,
     hex,
+    nullid,
 )
 
 from . import (
@@ -27,6 +27,7 @@ from . import (
     exchange,
     peer,
     pushkey as pushkeymod,
+    pycompat,
     streamclone,
     util,
 )
@@ -34,9 +35,10 @@ from . import (
 urlerr = util.urlerr
 urlreq = util.urlreq
 
-bundle2required = _(
-    'incompatible Mercurial client; bundle2 required\n'
-    '(see https://www.mercurial-scm.org/wiki/IncompatibleClient)\n')
+bundle2requiredmain = _('incompatible Mercurial client; bundle2 required')
+bundle2requiredhint = _('see https://www.mercurial-scm.org/wiki/'
+                        'IncompatibleClient')
+bundle2required = '%s\n(%s)\n' % (bundle2requiredmain, bundle2requiredhint)
 
 class abstractserverproto(object):
     """abstract class that summarizes the protocol API
@@ -77,21 +79,6 @@ class abstractserverproto(object):
     #    """reinstall previous stdout and stderr and return intercepted stdout
     #    """
     #    raise NotImplementedError()
-
-    def groupchunks(self, fh):
-        """Generator of chunks to send to the client.
-
-        Some protocols may have compressed the contents.
-        """
-        raise NotImplementedError()
-
-    def compresschunks(self, chunks):
-        """Generator of possible compressed chunks to send to the client.
-
-        This is like ``groupchunks()`` except it accepts a generator as
-        its argument.
-        """
-        raise NotImplementedError()
 
 class remotebatch(peer.batcher):
     '''batches the queued calls; uses as few roundtrips as possible'''
@@ -424,7 +411,7 @@ class wirepeer(peer.peerrepository):
         remote server as a bundle.
 
         When pushing a bundle10 stream, return an integer indicating the
-        result of the push (see localrepository.addchangegroup()).
+        result of the push (see changegroup.apply()).
 
         When pushing a bundle20 stream, return a bundle20 stream.
 
@@ -529,10 +516,19 @@ class streamres(object):
     """wireproto reply: binary stream
 
     The call was successful and the result is a stream.
-    Iterate on the `self.gen` attribute to retrieve chunks.
+
+    Accepts either a generator or an object with a ``read(size)`` method.
+
+    ``v1compressible`` indicates whether this data can be compressed to
+    "version 1" clients (technically: HTTP peers using
+    application/mercurial-0.1 media type). This flag should NOT be used on
+    new commands because new clients should support a more modern compression
+    mechanism.
     """
-    def __init__(self, gen):
+    def __init__(self, gen=None, reader=None, v1compressible=False):
         self.gen = gen
+        self.reader = reader
+        self.v1compressible = v1compressible
 
 class pushres(object):
     """wireproto reply: success with simple integer return
@@ -581,8 +577,8 @@ def options(cmd, keys, others):
             opts[k] = others[k]
             del others[k]
     if others:
-        sys.stderr.write("warning: %s ignored unexpected arguments %s\n"
-                         % (cmd, ",".join(others)))
+        util.stderr.write("warning: %s ignored unexpected arguments %s\n"
+                          % (cmd, ",".join(others)))
     return opts
 
 def bundle1allowed(repo, action):
@@ -608,11 +604,60 @@ def bundle1allowed(repo, action):
         return v
 
     if gd:
-        v = ui.configbool('server', 'bundle1gd', None)
+        v = ui.configbool('server', 'bundle1gd')
         if v is not None:
             return v
 
-    return ui.configbool('server', 'bundle1', True)
+    return ui.configbool('server', 'bundle1')
+
+def supportedcompengines(ui, proto, role):
+    """Obtain the list of supported compression engines for a request."""
+    assert role in (util.CLIENTROLE, util.SERVERROLE)
+
+    compengines = util.compengines.supportedwireengines(role)
+
+    # Allow config to override default list and ordering.
+    if role == util.SERVERROLE:
+        configengines = ui.configlist('server', 'compressionengines')
+        config = 'server.compressionengines'
+    else:
+        # This is currently implemented mainly to facilitate testing. In most
+        # cases, the server should be in charge of choosing a compression engine
+        # because a server has the most to lose from a sub-optimal choice. (e.g.
+        # CPU DoS due to an expensive engine or a network DoS due to poor
+        # compression ratio).
+        configengines = ui.configlist('experimental',
+                                      'clientcompressionengines')
+        config = 'experimental.clientcompressionengines'
+
+    # No explicit config. Filter out the ones that aren't supposed to be
+    # advertised and return default ordering.
+    if not configengines:
+        attr = 'serverpriority' if role == util.SERVERROLE else 'clientpriority'
+        return [e for e in compengines
+                if getattr(e.wireprotosupport(), attr) > 0]
+
+    # If compression engines are listed in the config, assume there is a good
+    # reason for it (like server operators wanting to achieve specific
+    # performance characteristics). So fail fast if the config references
+    # unusable compression engines.
+    validnames = set(e.name() for e in compengines)
+    invalidnames = set(e for e in configengines if e not in validnames)
+    if invalidnames:
+        raise error.Abort(_('invalid compression engine defined in %s: %s') %
+                          (config, ', '.join(sorted(invalidnames))))
+
+    compengines = [e for e in compengines if e.name() in configengines]
+    compengines = sorted(compengines,
+                         key=lambda e: configengines.index(e.name()))
+
+    if not compengines:
+        raise error.Abort(_('%s config option does not specify any known '
+                            'compression engines') % config,
+                          hint=_('usable compression engines: %s') %
+                          ', '.sorted(validnames))
+
+    return compengines
 
 # list of commands
 commands = {}
@@ -692,7 +737,7 @@ def clonebundles(repo, proto):
     depending on the request. e.g. you could advertise URLs for the closest
     data center given the client's IP address.
     """
-    return repo.opener.tryread('clonebundles.manifest')
+    return repo.vfs.tryread('clonebundles.manifest')
 
 wireprotocaps = ['lookup', 'changegroupsubset', 'branchmap', 'pushkey',
                  'known', 'getbundle', 'unbundlehash', 'batch']
@@ -709,24 +754,37 @@ def _capabilities(repo, proto):
     """
     # copy to prevent modification of the global list
     caps = list(wireprotocaps)
-    if streamclone.allowservergeneration(repo.ui):
-        if repo.ui.configbool('server', 'preferuncompressed', False):
+    if streamclone.allowservergeneration(repo):
+        if repo.ui.configbool('server', 'preferuncompressed'):
             caps.append('stream-preferred')
         requiredformats = repo.requirements & repo.supportedformats
         # if our local revlogs are just revlogv1, add 'stream' cap
-        if not requiredformats - set(('revlogv1',)):
+        if not requiredformats - {'revlogv1'}:
             caps.append('stream')
         # otherwise, add 'streamreqs' detailing our local revlog format
         else:
             caps.append('streamreqs=%s' % ','.join(sorted(requiredformats)))
-    if repo.ui.configbool('experimental', 'bundle2-advertise', True):
+    if repo.ui.configbool('experimental', 'bundle2-advertise'):
         capsblob = bundle2.encodecaps(bundle2.getrepocaps(repo))
         caps.append('bundle2=' + urlreq.quote(capsblob))
     caps.append('unbundle=%s' % ','.join(bundle2.bundlepriority))
-    caps.append(
-        'httpheader=%d' % repo.ui.configint('server', 'maxhttpheaderlen', 1024))
-    if repo.ui.configbool('experimental', 'httppostargs', False):
-        caps.append('httppostargs')
+
+    if proto.name == 'http':
+        caps.append('httpheader=%d' %
+                    repo.ui.configint('server', 'maxhttpheaderlen'))
+        if repo.ui.configbool('experimental', 'httppostargs'):
+            caps.append('httppostargs')
+
+        # FUTURE advertise 0.2rx once support is implemented
+        # FUTURE advertise minrx and mintx after consulting config option
+        caps.append('httpmediatype=0.1rx,0.1tx,0.2tx')
+
+        compengines = supportedcompengines(repo.ui, proto, util.SERVERROLE)
+        if compengines:
+            comptypes = ','.join(urlreq.quote(e.wireprotosupport().name)
+                                 for e in compengines)
+            caps.append('compression=%s' % comptypes)
+
     return caps
 
 # If you are writing an extension and consider wrapping this function. Wrap
@@ -739,14 +797,14 @@ def capabilities(repo, proto):
 def changegroup(repo, proto, roots):
     nodes = decodelist(roots)
     cg = changegroupmod.changegroup(repo, nodes, 'serve')
-    return streamres(proto.groupchunks(cg))
+    return streamres(reader=cg, v1compressible=True)
 
 @wireprotocommand('changegroupsubset', 'bases heads')
 def changegroupsubset(repo, proto, bases, heads):
     bases = decodelist(bases)
     heads = decodelist(heads)
     cg = changegroupmod.changegroupsubset(repo, bases, heads, 'serve')
-    return streamres(proto.groupchunks(cg))
+    return streamres(reader=cg, v1compressible=True)
 
 @wireprotocommand('debugwireargs', 'one two *')
 def debugwireargs(repo, proto, one, two, others):
@@ -778,10 +836,40 @@ def getbundle(repo, proto, others):
 
     if not bundle1allowed(repo, 'pull'):
         if not exchange.bundle2requested(opts.get('bundlecaps')):
-            return ooberror(bundle2required)
+            if proto.name == 'http':
+                return ooberror(bundle2required)
+            raise error.Abort(bundle2requiredmain,
+                              hint=bundle2requiredhint)
 
-    chunks = exchange.getbundlechunks(repo, 'serve', **opts)
-    return streamres(proto.compresschunks(chunks))
+    try:
+        if repo.ui.configbool('server', 'disablefullbundle'):
+            # Check to see if this is a full clone.
+            clheads = set(repo.changelog.heads())
+            heads = set(opts.get('heads', set()))
+            common = set(opts.get('common', set()))
+            common.discard(nullid)
+            if not common and clheads == heads:
+                raise error.Abort(
+                    _('server has pull-based clones disabled'),
+                    hint=_('remove --pull if specified or upgrade Mercurial'))
+
+        chunks = exchange.getbundlechunks(repo, 'serve', **opts)
+    except error.Abort as exc:
+        # cleanly forward Abort error to the client
+        if not exchange.bundle2requested(opts.get('bundlecaps')):
+            if proto.name == 'http':
+                return ooberror(str(exc) + '\n')
+            raise # cannot do better for bundle1 + ssh
+        # bundle2 request expect a bundle2 reply
+        bundler = bundle2.bundle20(repo.ui)
+        manargs = [('message', str(exc))]
+        advargs = []
+        if exc.hint is not None:
+            advargs.append(('hint', exc.hint))
+        bundler.addpart(bundle2.bundlepart('error:abort',
+                                           manargs, advargs))
+        return streamres(gen=bundler.getchunks(), v1compressible=True)
+    return streamres(gen=chunks, v1compressible=True)
 
 @wireprotocommand('heads')
 def heads(repo, proto):
@@ -824,7 +912,7 @@ def known(repo, proto, nodes, others):
 def pushkey(repo, proto, namespace, key, old, new):
     # compatibility with pre-1.8 clients which were accidentally
     # sending raw binary nodes rather than utf-8-encoded hex
-    if len(new) == 20 and new.encode('string-escape') != new:
+    if len(new) == 20 and util.escapestr(new) != new:
         # looks like it could be a binary node
         try:
             new.decode('utf-8')
@@ -858,7 +946,7 @@ def stream(repo, proto):
     capability with a value representing the version and flags of the repo
     it is serving. Client checks to see if it understands the format.
     '''
-    if not streamclone.allowservergeneration(repo.ui):
+    if not streamclone.allowservergeneration(repo):
         return '1\n'
 
     def getstream(it):
@@ -870,7 +958,7 @@ def stream(repo, proto):
         # LockError may be raised before the first result is yielded. Don't
         # emit output until we're sure we got the lock successfully.
         it = streamclone.generatev1wireproto(repo)
-        return streamres(getstream(it))
+        return streamres(gen=getstream(it))
     except error.LockError:
         return '2\n'
 
@@ -885,7 +973,7 @@ def unbundle(repo, proto, heads):
 
         # write bundle data to temporary file because it can be big
         fd, tempname = tempfile.mkstemp(prefix='hg-unbundle-')
-        fp = os.fdopen(fd, 'wb+')
+        fp = os.fdopen(fd, pycompat.sysstr('wb+'))
         r = 0
         try:
             proto.getfile(fp)
@@ -893,14 +981,21 @@ def unbundle(repo, proto, heads):
             gen = exchange.readbundle(repo.ui, fp, None)
             if (isinstance(gen, changegroupmod.cg1unpacker)
                 and not bundle1allowed(repo, 'push')):
-                return ooberror(bundle2required)
+                if proto.name == 'http':
+                    # need to special case http because stderr do not get to
+                    # the http client on failed push so we need to abuse some
+                    # other error type to make sure the message get to the
+                    # user.
+                    return ooberror(bundle2required)
+                raise error.Abort(bundle2requiredmain,
+                                  hint=bundle2requiredhint)
 
             r = exchange.unbundle(repo, gen, their_heads, 'serve',
                                   proto._client())
             if util.safehasattr(r, 'addpart'):
                 # The return looks streamable, we are in the bundle2 case and
                 # should return a stream.
-                return streamres(r.getchunks())
+                return streamres(gen=r.getchunks())
             return pushres(r)
 
         finally:
@@ -913,11 +1008,13 @@ def unbundle(repo, proto, heads):
             try:
                 raise
             except error.Abort:
-                # The old code we moved used sys.stderr directly.
+                # The old code we moved used util.stderr directly.
                 # We did not change it to minimise code change.
                 # This need to be moved to something proper.
                 # Feel free to do it.
-                sys.stderr.write("abort: %s\n" % exc)
+                util.stderr.write("abort: %s\n" % exc)
+                if exc.hint is not None:
+                    util.stderr.write("(%s)\n" % exc.hint)
                 return pushres(0)
             except error.PushRaced:
                 return pusherr(str(exc))
@@ -962,4 +1059,4 @@ def unbundle(repo, proto, heads):
                                                manargs, advargs))
         except error.PushRaced as exc:
             bundler.newpart('error:pushraced', [('message', str(exc))])
-        return streamres(bundler.getchunks())
+        return streamres(gen=bundler.getchunks())

@@ -6,19 +6,19 @@ import code
 import mercurial
 import sys
 from mercurial import (
-    cmdutil,
     demandimport,
+    registrar,
 )
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 
 def pdb(ui, repo, msg, **opts):
     objects = {
         'mercurial': mercurial,
         'repo': repo,
         'cl': repo.changelog,
-        'mf': repo.manifest,
+        'mf': repo.manifestlog,
     }
 
     code.interact(msg, local=objects)
@@ -27,7 +27,7 @@ def ipdb(ui, repo, msg, **opts):
     import IPython
 
     cl = repo.changelog
-    mf = repo.manifest
+    mf = repo.manifestlog
     cl, mf # use variables to appease pyflakes
 
     IPython.embed()

@@ -2,9 +2,12 @@ Test basic extension support
 
   $ cat > foobar.py <<EOF
   > import os
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
+  > command = registrar.command(cmdtable)
+  > configtable = {}
+  > configitem = registrar.configitem(configtable)
+  > configitem('tests', 'foo', default="Foo")
   > def uisetup(ui):
   >     ui.write("uisetup called\\n")
   >     ui.flush()
@@ -12,10 +15,12 @@ Test basic extension support
   >     ui.write("reposetup called for %s\\n" % os.path.basename(repo.root))
   >     ui.write("ui %s= repo.ui\\n" % (ui == repo.ui and "=" or "!"))
   >     ui.flush()
-  > @command('foo', [], 'hg foo')
+  > @command(b'foo', [], 'hg foo')
   > def foo(ui, *args, **kwargs):
-  >     ui.write("Foo\\n")
-  > @command('bar', [], 'hg bar', norepo=True)
+  >     foo = ui.config('tests', 'foo')
+  >     ui.write(foo)
+  >     ui.write("\\n")
+  > @command(b'bar', [], 'hg bar', norepo=True)
   > def bar(ui, *args, **kwargs):
   >     ui.write("Bar\\n")
   > EOF
@@ -77,15 +82,25 @@ Check that extensions are loaded in phases:
   >     print "3) %s extsetup" % name
   > def reposetup(ui, repo):
   >    print "4) %s reposetup" % name
+  > 
+  > # custom predicate to check registration of functions at loading
+  > from mercurial import (
+  >     registrar,
+  >     smartset,
+  > )
+  > revsetpredicate = registrar.revsetpredicate()
+  > @revsetpredicate(name, safe=True) # safe=True for query via hgweb
+  > def custompredicate(repo, subset, x):
+  >     return smartset.baseset([r for r in subset if r in {0}])
   > EOF
 
   $ cp foo.py bar.py
   $ echo 'foo = foo.py' >> $HGRCPATH
   $ echo 'bar = bar.py' >> $HGRCPATH
 
-Command with no output, we just want to see the extensions loaded:
+Check normal command's load order of extensions and registration of functions
 
-  $ hg paths
+  $ hg log -r "foo() and bar()" -q
   1) foo imported
   1) bar imported
   2) foo uisetup
@@ -94,20 +109,21 @@ Command with no output, we just want to see the extensions loaded:
   3) bar extsetup
   4) foo reposetup
   4) bar reposetup
+  0:c24b9ac61126
 
-Check hgweb's load order:
+Check hgweb's load order of extensions and registration of functions
 
   $ cat > hgweb.cgi <<EOF
-  > #!/usr/bin/env python
+  > #!$PYTHON
   > from mercurial import demandimport; demandimport.enable()
   > from mercurial.hgweb import hgweb
   > from mercurial.hgweb import wsgicgi
   > application = hgweb('.', 'test repo')
   > wsgicgi.launch(application)
   > EOF
+  $ . "$TESTDIR/cgienv"
 
-  $ REQUEST_METHOD='GET' PATH_INFO='/' SCRIPT_NAME='' QUERY_STRING='' \
-  >    SERVER_PORT='80' SERVER_NAME='localhost' python hgweb.cgi \
+  $ PATH_INFO='/' SCRIPT_NAME='' $PYTHON hgweb.cgi \
   >    | grep '^[0-9]) ' # ignores HTML output
   1) foo imported
   1) bar imported
@@ -117,6 +133,18 @@ Check hgweb's load order:
   3) bar extsetup
   4) foo reposetup
   4) bar reposetup
+
+(check that revset predicate foo() and bar() are available)
+
+#if msys
+  $ PATH_INFO='//shortlog'
+#else
+  $ PATH_INFO='/shortlog'
+#endif
+  $ export PATH_INFO
+  $ SCRIPT_NAME='' QUERY_STRING='rev=foo() and bar()' $PYTHON hgweb.cgi \
+  >     | grep '<a href="/rev/[0-9a-z]*">'
+     <a href="/rev/c24b9ac61126">add file</a>
 
   $ echo 'foo = !' >> $HGRCPATH
   $ echo 'bar = !' >> $HGRCPATH
@@ -136,7 +164,6 @@ Check "from __future__ import absolute_import" support for external libraries
   $ touch $TESTTMP/libroot/mod/__init__.py
   $ echo "s = 'libroot/mod/ambig.py'" > $TESTTMP/libroot/mod/ambig.py
 
-#if absimport
   $ cat > $TESTTMP/libroot/mod/ambigabs.py <<EOF
   > from __future__ import absolute_import
   > import ambig # should load "libroot/ambig.py"
@@ -150,7 +177,6 @@ Check "from __future__ import absolute_import" support for external libraries
   $ (PYTHONPATH=${PYTHONPATH}${PATHSEP}${TESTTMP}/libroot; hg --config extensions.loadabs=loadabs.py root)
   ambigabs.s=libroot/ambig.py
   $TESTTMP/a (glob)
-#endif
 
 #if no-py3k
   $ cat > $TESTTMP/libroot/mod/ambigrel.py <<EOF
@@ -219,6 +245,7 @@ Check absolute/relative import of extension specific modules
 
 #if no-py3k
   $ rm "$TESTTMP"/extroot/foo.*
+  $ rm -Rf "$TESTTMP/extroot/__pycache__"
   $ cat > $TESTTMP/extroot/foo.py <<EOF
   > # test relative import
   > buf = []
@@ -249,12 +276,12 @@ Check absolute/relative import of extension specific modules
   $TESTTMP/a (glob)
 #endif
 
-#if demandimport absimport
+#if demandimport
 
-Examine whether module loading is delayed until actual refering, even
+Examine whether module loading is delayed until actual referring, even
 though module is imported with "absolute_import" feature.
 
-Files below in each packages are used for descirbed purpose:
+Files below in each packages are used for described purpose:
 
 - "called": examine whether "from MODULE import ATTR" works correctly
 - "unused": examine whether loading is delayed correctly
@@ -309,6 +336,23 @@ importing with "absolute_import" feature isn't tested, because "level
   > from __future__ import absolute_import
   > from extlibroot.recursedown.abs import detail as absdetail
   > from .legacy import detail as legacydetail
+  > EOF
+
+Setup package that re-exports an attribute of its submodule as the same
+name. This leaves 'shadowing.used' pointing to 'used.detail', but still
+the submodule 'used' should be somehow accessible. (issue5617)
+
+  $ mkdir -p $TESTTMP/extlibroot/shadowing
+  $ cat > $TESTTMP/extlibroot/shadowing/used.py <<EOF
+  > detail = "this is extlibroot.shadowing.used"
+  > EOF
+  $ cat > $TESTTMP/extlibroot/shadowing/proxied.py <<EOF
+  > from __future__ import absolute_import
+  > from extlibroot.shadowing.used import detail
+  > EOF
+  $ cat > $TESTTMP/extlibroot/shadowing/__init__.py <<EOF
+  > from __future__ import absolute_import
+  > from .used import detail as used
   > EOF
 
 Setup extension local modules to be imported with "absolute_import"
@@ -380,21 +424,21 @@ Setup main procedure of extension.
 
   $ cat > $TESTTMP/absextroot/__init__.py <<EOF
   > from __future__ import absolute_import
-  > from mercurial import cmdutil
+  > from mercurial import registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
+  > command = registrar.command(cmdtable)
   > 
   > # "absolute" and "relative" shouldn't be imported before actual
   > # command execution, because (1) they import same modules, and (2)
   > # preceding import (= instantiate "demandmod" object instead of
   > # real "module" object) might hide problem of succeeding import.
   > 
-  > @command('showabsolute', [], norepo=True)
+  > @command(b'showabsolute', [], norepo=True)
   > def showabsolute(ui, *args, **opts):
   >     from absextroot import absolute
   >     ui.write('ABS: %s\n' % '\nABS: '.join(absolute.getresult()))
   > 
-  > @command('showrelative', [], norepo=True)
+  > @command(b'showrelative', [], norepo=True)
   > def showrelative(ui, *args, **opts):
   >     from . import relative
   >     ui.write('REL: %s\n' % '\nREL: '.join(relative.getresult()))
@@ -403,6 +447,7 @@ Setup main procedure of extension.
   > from extlibroot.lsub1.lsub2 import used as lused, unused as lunused
   > from extlibroot.lsub1.lsub2.called import func as lfunc
   > from extlibroot.recursedown import absdetail, legacydetail
+  > from extlibroot.shadowing import proxied
   > 
   > def uisetup(ui):
   >     result = []
@@ -410,6 +455,7 @@ Setup main procedure of extension.
   >     result.append(lfunc())
   >     result.append(absdetail)
   >     result.append(legacydetail)
+  >     result.append(proxied.detail)
   >     ui.write('LIB: %s\n' % '\nLIB: '.join(result))
   > EOF
 
@@ -420,6 +466,7 @@ Examine module importing.
   LIB: this is extlibroot.lsub1.lsub2.called.func()
   LIB: this is extlibroot.recursedown.abs.used
   LIB: this is extlibroot.recursedown.legacy.used
+  LIB: this is extlibroot.shadowing.used
   ABS: this is absextroot.xsub1.xsub2.used
   ABS: this is absextroot.xsub1.xsub2.called.func()
 
@@ -428,6 +475,7 @@ Examine module importing.
   LIB: this is extlibroot.lsub1.lsub2.called.func()
   LIB: this is extlibroot.recursedown.abs.used
   LIB: this is extlibroot.recursedown.legacy.used
+  LIB: this is extlibroot.shadowing.used
   REL: this is absextroot.xsub1.xsub2.used
   REL: this is absextroot.xsub1.xsub2.called.func()
   REL: this relimporter imports 'this is absextroot.relimportee'
@@ -444,14 +492,14 @@ See also issue5208 for detail about example case on Python 3.x.
   > EOF
 
   $ cat > $TESTTMP/checkrelativity.py <<EOF
-  > from mercurial import cmdutil
+  > from mercurial import registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
+  > command = registrar.command(cmdtable)
   > 
   > # demand import avoids failure of importing notexist here
   > import extlibroot.lsub1.lsub2.notexist
   > 
-  > @command('checkrelativity', [], norepo=True)
+  > @command(b'checkrelativity', [], norepo=True)
   > def checkrelativity(ui, *args, **opts):
   >     try:
   >         ui.write(extlibroot.lsub1.lsub2.notexist.text)
@@ -487,14 +535,14 @@ hide outer repo
   $ cat > debugextension.py <<EOF
   > '''only debugcommands
   > '''
-  > from mercurial import cmdutil
+  > from mercurial import registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command('debugfoobar', [], 'hg debugfoobar')
+  > command = registrar.command(cmdtable)
+  > @command(b'debugfoobar', [], 'hg debugfoobar')
   > def debugfoobar(ui, repo, *args, **opts):
   >     "yet another debug command"
   >     pass
-  > @command('foo', [], 'hg foo')
+  > @command(b'foo', [], 'hg foo')
   > def foo(ui, repo, *args, **opts):
   >     """yet another foo command
   >     This command has been DEPRECATED since forever.
@@ -532,6 +580,8 @@ hide outer repo
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -543,6 +593,8 @@ hide outer repo
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
 
 
@@ -567,6 +619,8 @@ hide outer repo
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -578,6 +632,8 @@ hide outer repo
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
 
 
@@ -718,35 +774,27 @@ Extension module help vs command help:
 Test help topic with same name as extension
 
   $ cat > multirevs.py <<EOF
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
+  > command = registrar.command(cmdtable)
   > """multirevs extension
   > Big multi-line module docstring."""
-  > @command('multirevs', [], 'ARG', norepo=True)
+  > @command(b'multirevs', [], 'ARG', norepo=True)
   > def multirevs(ui, repo, arg, *args, **opts):
   >     """multirevs command"""
   >     pass
   > EOF
   $ echo "multirevs = multirevs.py" >> $HGRCPATH
 
-  $ hg help multirevs
-  Specifying Multiple Revisions
-  """""""""""""""""""""""""""""
+  $ hg help multirevs | tail
+        bookmark (this works because the last revision of the revset is used):
   
-      When Mercurial accepts more than one revision, they may be specified
-      individually, or provided as a topologically continuous range, separated
-      by the ":" character.
+          hg update :@
   
-      The syntax of range notation is [BEGIN]:[END], where BEGIN and END are
-      revision identifiers. Both BEGIN and END are optional. If BEGIN is not
-      specified, it defaults to revision number 0. If END is not specified, it
-      defaults to the tip. The range ":" thus means "all revisions".
+      - Show diff between tags 1.3 and 1.5 (this works because the first and the
+        last revisions of the revset are used):
   
-      If BEGIN is greater than END, revisions are treated in reverse order.
-  
-      A range acts as a closed interval. This means that a range of 3:5 gives 3,
-      4 and 5. Similarly, a range of 9:6 gives 9, 8, 7, and 6.
+          hg diff -r 1.3::1.5
   
   use 'hg help -c multirevs' to see help for the multirevs command
 
@@ -803,14 +851,14 @@ along with extension help itself
   > This is an awesome 'dodo' extension. It does nothing and
   > writes 'Foo foo'
   > """
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command('dodo', [], 'hg dodo')
+  > command = registrar.command(cmdtable)
+  > @command(b'dodo', [], 'hg dodo')
   > def dodo(ui, *args, **kwargs):
   >     """Does nothing"""
   >     ui.write("I do nothing. Yay\\n")
-  > @command('foofoo', [], 'hg foofoo')
+  > @command(b'foofoo', [], 'hg foofoo')
   > def foofoo(ui, *args, **kwargs):
   >     """Writes 'Foo foo'"""
   >     ui.write("Foo foo\\n")
@@ -853,6 +901,8 @@ extension help itself
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -864,6 +914,8 @@ extension help itself
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
 Make sure that single '-v' option shows help and built-ins only for 'dodo' command
   $ hg help -v dodo
@@ -886,6 +938,8 @@ Make sure that single '-v' option shows help and built-ins only for 'dodo' comma
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -897,6 +951,8 @@ Make sure that single '-v' option shows help and built-ins only for 'dodo' comma
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
 In case when extension name doesn't match any of its commands,
 help message should ask for '-v' to get list of built-in aliases
@@ -906,14 +962,14 @@ along with extension help
   > This is an awesome 'dudu' extension. It does something and
   > also writes 'Beep beep'
   > """
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
-  > @command('something', [], 'hg something')
+  > command = registrar.command(cmdtable)
+  > @command(b'something', [], 'hg something')
   > def something(ui, *args, **kwargs):
   >     """Does something"""
   >     ui.write("I do something. Yaaay\\n")
-  > @command('beep', [], 'hg beep')
+  > @command(b'beep', [], 'hg beep')
   > def beep(ui, *args, **kwargs):
   >     """Writes 'Beep beep'"""
   >     ui.write("Beep beep\\n")
@@ -957,6 +1013,8 @@ help options '-v' and '-v -e' should be equivalent
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -968,6 +1026,8 @@ help options '-v' and '-v -e' should be equivalent
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
   $ hg help -v -e dudu
   dudu extension -
@@ -989,6 +1049,8 @@ help options '-v' and '-v -e' should be equivalent
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -1000,6 +1062,8 @@ help options '-v' and '-v -e' should be equivalent
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
 Disabled extension commands:
 
@@ -1045,6 +1109,69 @@ Disabled extensions:
   $ hg help patchbomb
   patchbomb extension - command to send changesets as (a series of) patch emails
   
+  The series is started off with a "[PATCH 0 of N]" introduction, which
+  describes the series as a whole.
+  
+  Each patch email has a Subject line of "[PATCH M of N] ...", using the first
+  line of the changeset description as the subject text. The message contains
+  two or three body parts:
+  
+  - The changeset description.
+  - [Optional] The result of running diffstat on the patch.
+  - The patch itself, as generated by 'hg export'.
+  
+  Each message refers to the first in the series using the In-Reply-To and
+  References headers, so they will show up as a sequence in threaded mail and
+  news readers, and in mail archives.
+  
+  To configure other defaults, add a section like this to your configuration
+  file:
+  
+    [email]
+    from = My Name <my@email>
+    to = recipient1, recipient2, ...
+    cc = cc1, cc2, ...
+    bcc = bcc1, bcc2, ...
+    reply-to = address1, address2, ...
+  
+  Use "[patchbomb]" as configuration section name if you need to override global
+  "[email]" address settings.
+  
+  Then you can use the 'hg email' command to mail a series of changesets as a
+  patchbomb.
+  
+  You can also either configure the method option in the email section to be a
+  sendmail compatible mailer or fill out the [smtp] section so that the
+  patchbomb extension can automatically send patchbombs directly from the
+  commandline. See the [email] and [smtp] sections in hgrc(5) for details.
+  
+  By default, 'hg email' will prompt for a "To" or "CC" header if you do not
+  supply one via configuration or the command line.  You can override this to
+  never prompt by configuring an empty value:
+  
+    [email]
+    cc =
+  
+  You can control the default inclusion of an introduction message with the
+  "patchbomb.intro" configuration option. The configuration is always
+  overwritten by command line flags like --intro and --desc:
+  
+    [patchbomb]
+    intro=auto   # include introduction message if more than 1 patch (default)
+    intro=never  # never include an introduction message
+    intro=always # always include an introduction message
+  
+  You can specify a template for flags to be added in subject prefixes. Flags
+  specified by --flag option are exported as "{flags}" keyword:
+  
+    [patchbomb]
+    flagtemplate = "{separate(' ',
+                              ifeq(branch, 'default', '', branch|upper),
+                              flags)}"
+  
+  You can set patchbomb to always ask for confirmation by setting
+  "patchbomb.confirm" to true.
+  
   (use 'hg help extensions' for information on enabling extensions)
 
 
@@ -1078,11 +1205,11 @@ Broken disabled extension and command:
   [255]
 
   $ cat > throw.py <<EOF
-  > from mercurial import cmdutil, commands, util
+  > from mercurial import commands, registrar, util
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
+  > command = registrar.command(cmdtable)
   > class Bogon(Exception): pass
-  > @command('throw', [], 'hg throw', norepo=True)
+  > @command(b'throw', [], 'hg throw', norepo=True)
   > def throw(ui, **opts):
   >     """throws an exception"""
   >     raise Bogon()
@@ -1112,6 +1239,7 @@ empty declaration of supported version, extension complains:
 If the extension specifies a buglink, show that:
   $ echo 'buglink = "http://example.com/bts"' >> throw.py
   $ rm -f throw.pyc throw.pyo
+  $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension throw
   ** which supports versions unknown of Mercurial.
@@ -1127,6 +1255,7 @@ If the extensions declare outdated versions, accuse the older extension first:
   $ echo "testedwith = '1.9.3'" >> older.py
   $ echo "testedwith = '2.1.1'" >> throw.py
   $ rm -f throw.pyc throw.pyo
+  $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
   >   throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension older
@@ -1140,6 +1269,7 @@ If the extensions declare outdated versions, accuse the older extension first:
 One extension only tested with older, one only with newer versions:
   $ echo "util.version = lambda:'2.1'" >> older.py
   $ rm -f older.pyc older.pyo
+  $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
   >   throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension older
@@ -1153,6 +1283,7 @@ One extension only tested with older, one only with newer versions:
 Older extension is tested with current version, the other only with newer:
   $ echo "util.version = lambda:'1.9.3'" >> older.py
   $ rm -f older.pyc older.pyo
+  $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py --config extensions.older=older.py \
   >   throw 2>&1 | egrep '^\*\*'
   ** Unknown exception encountered with possibly-broken third-party extension throw
@@ -1179,6 +1310,7 @@ Declare the version as supporting this hg version, show regular bts link:
   >   echo "unable to fetch a mercurial version. Make sure __version__ is correct";
   > fi
   $ rm -f throw.pyc throw.pyo
+  $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** unknown exception encountered, please report by visiting
   ** https://mercurial-scm.org/wiki/BugTracker
@@ -1190,6 +1322,7 @@ Patch version is ignored during compatibility check
   $ echo "testedwith = '3.2'" >> throw.py
   $ echo "util.version = lambda:'3.2.2'" >> throw.py
   $ rm -f throw.pyc throw.pyo
+  $ rm -Rf __pycache__
   $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
   ** unknown exception encountered, please report by visiting
   ** https://mercurial-scm.org/wiki/BugTracker
@@ -1200,6 +1333,7 @@ Patch version is ignored during compatibility check
 Test version number support in 'hg version':
   $ echo '__version__ = (1, 2, 3)' >> throw.py
   $ rm -f throw.pyc throw.pyo
+  $ rm -Rf __pycache__
   $ hg version -v
   Mercurial Distributed SCM (version *) (glob)
   (see https://mercurial-scm.org for more information)
@@ -1224,6 +1358,7 @@ Test version number support in 'hg version':
     throw  external  1.2.3
   $ echo 'getversion = lambda: "1.twentythree"' >> throw.py
   $ rm -f throw.pyc throw.pyo
+  $ rm -Rf __pycache__
   $ hg version -v --config extensions.throw=throw.py --config extensions.strip=
   Mercurial Distributed SCM (version *) (glob)
   (see https://mercurial-scm.org for more information)
@@ -1455,7 +1590,7 @@ disabling in command line overlays with all configuration
 
   $ cd ..
 
-Test compatibility with extension commands that don't use @command (issue5137)
+Prohibit registration of commands that don't use @command (issue5137)
 
   $ hg init deprecated
   $ cd deprecated
@@ -1473,27 +1608,19 @@ Test compatibility with extension commands that don't use @command (issue5137)
   > mq = !
   > hgext.mq = !
   > hgext/mq = !
-  > [alias]
-  > deprecatedalias = deprecatedcmd
   > EOF
 
-  $ hg deprecatedcmd
-  devel-warn: missing attribute 'norepo', use @command decorator to register 'deprecatedcmd'
-  (compatibility will be dropped after Mercurial-3.8, update your code.) at: * (glob)
+  $ hg deprecatedcmd > /dev/null
+  *** failed to import extension deprecatedcmd from $TESTTMP/deprecated/deprecatedcmd.py: missing attributes: norepo, optionalrepo, inferrepo
+  *** (use @command decorator to register 'deprecatedcmd')
+  hg: unknown command 'deprecatedcmd'
+  [255]
 
-  $ hg deprecatedalias
-  devel-warn: missing attribute 'norepo', use @command decorator to register 'deprecatedalias'
-  (compatibility will be dropped after Mercurial-3.8, update your code.) at: * (glob)
+ the extension shouldn't be loaded at all so the mq works:
 
- no warning unless command is executed:
-
-  $ hg paths
-
- but mq iterates over command table:
-
-  $ hg --config extensions.mq= paths
-  devel-warn: missing attribute 'norepo', use @command decorator to register 'deprecatedcmd'
-  (compatibility will be dropped after Mercurial-3.8, update your code.) at: * (glob)
+  $ hg qseries --config extensions.mq= > /dev/null
+  *** failed to import extension deprecatedcmd from $TESTTMP/deprecated/deprecatedcmd.py: missing attributes: norepo, optionalrepo, inferrepo
+  *** (use @command decorator to register 'deprecatedcmd')
 
   $ cd ..
 
@@ -1519,4 +1646,70 @@ Test synopsis and docstring extending
   $ hg help bookmarks | grep GREPME
   hg bookmarks [OPTIONS]... [NAME]... GREPME [--foo] [-x]
       GREPME make sure that this is in the help!
+  $ cd ..
 
+Show deprecation warning for the use of cmdutil.command
+
+  $ cat > nonregistrar.py <<EOF
+  > from mercurial import cmdutil
+  > cmdtable = {}
+  > command = cmdutil.command(cmdtable)
+  > @command(b'foo', [], norepo=True)
+  > def foo(ui):
+  >     pass
+  > EOF
+
+  $ hg --config extensions.nonregistrar=`pwd`/nonregistrar.py version > /dev/null
+  devel-warn: cmdutil.command is deprecated, use registrar.command to register 'foo'
+  (compatibility will be dropped after Mercurial-4.6, update your code.) * (glob)
+
+Make sure a broken uisetup doesn't globally break hg:
+  $ cat > $TESTTMP/baduisetup.py <<EOF
+  > from mercurial import (
+  >     bdiff,
+  >     extensions,
+  > )
+  > 
+  > def blockswrapper(orig, *args, **kwargs):
+  >     return orig(*args, **kwargs)
+  > 
+  > def uisetup(ui):
+  >     extensions.wrapfunction(bdiff, 'blocks', blockswrapper)
+  > EOF
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > baduisetup = $TESTTMP/baduisetup.py
+  > EOF
+
+Even though the extension fails during uisetup, hg is still basically usable:
+  $ hg version
+  \*\*\* failed to set up extension baduisetup: No module named (mercurial\.)?bdiff (re)
+  Mercurial Distributed SCM (version *) (glob)
+  (see https://mercurial-scm.org for more information)
+  
+  Copyright (C) 2005-2017 Matt Mackall and others
+  This is free software; see the source for copying conditions. There is NO
+  warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+  $ hg version --traceback
+  Traceback (most recent call last):
+    File "*/mercurial/extensions.py", line *, in _runuisetup (glob)
+      uisetup(ui)
+    File "$TESTTMP/baduisetup.py", line 10, in uisetup
+      extensions.wrapfunction(bdiff, 'blocks', blockswrapper)
+    File "*/mercurial/extensions.py", line *, in wrapfunction (glob)
+      origfn = getattr(container, funcname)
+    File "*/hgdemandimport/demandimportpy2.py", line *, in __getattr__ (glob)
+      self._load()
+    File "*/hgdemandimport/demandimportpy2.py", line *, in _load (glob)
+      mod = _hgextimport(_origimport, head, globals, locals, None, level)
+    File "*/hgdemandimport/demandimportpy2.py", line *, in _hgextimport (glob)
+      return importfunc(name, globals, *args, **kwargs)
+  ImportError: No module named (mercurial\.)?bdiff (re)
+  \*\*\* failed to set up extension baduisetup: No module named (mercurial\.)?bdiff (re)
+  Mercurial Distributed SCM (version *) (glob)
+  (see https://mercurial-scm.org for more information)
+  
+  Copyright (C) 2005-2017 Matt Mackall and others
+  This is free software; see the source for copying conditions. There is NO
+  warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

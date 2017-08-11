@@ -75,7 +75,7 @@ file containing the list of available bundle files suitable for seeding
 clones. If this file does not exist, the repository will not advertise the
 existence of clone bundles when clients connect.
 
-The manifest file contains a newline (\n) delimited list of entries.
+The manifest file contains a newline (\\n) delimited list of entries.
 
 Each line in this file defines an available bundle. Lines have the format:
 
@@ -136,7 +136,7 @@ REQUIRESNI
 Manifests can contain multiple entries. Assuming metadata is defined, clients
 will filter entries from the manifest that they don't support. The remaining
 entries are optionally sorted by client preferences
-(``experimental.clonebundleprefers`` config option). The client then attempts
+(``ui.clonebundleprefers`` config option). The client then attempts
 to fetch the bundle at the first URL in the remaining list.
 
 **Errors when downloading a bundle will fail the entire clone operation:
@@ -177,7 +177,7 @@ def capabilities(orig, repo, proto):
     # Only advertise if a manifest exists. This does add some I/O to requests.
     # But this should be cheaper than a wasted network round trip due to
     # missing file.
-    if repo.opener.exists('clonebundles.manifest'):
+    if repo.vfs.exists('clonebundles.manifest'):
         caps.append('clonebundles')
 
     return caps

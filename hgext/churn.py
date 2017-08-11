@@ -17,23 +17,20 @@ import time
 from mercurial.i18n import _
 from mercurial import (
     cmdutil,
-    commands,
     encoding,
     patch,
+    registrar,
     scmutil,
     util,
 )
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
 # be specifying the version(s) of Mercurial they are tested with, or
 # leave the attribute unspecified.
 testedwith = 'ships-with-hg-core'
-
-def maketemplater(ui, repo, tmpl):
-    return cmdutil.changeset_templater(ui, repo, False, None, tmpl, None, False)
 
 def changedlines(ui, repo, ctx1, ctx2, fns):
     added, removed = 0, 0
@@ -55,7 +52,7 @@ def countrate(ui, repo, amap, *pats, **opts):
             return date.strftime(opts['dateformat'])
     else:
         tmpl = opts.get('oldtemplate') or opts.get('template')
-        tmpl = maketemplater(ui, repo, tmpl)
+        tmpl = cmdutil.makelogtemplater(ui, repo, tmpl)
         def getkey(ctx):
             ui.pushbuffer()
             tmpl.show(ctx)
@@ -114,7 +111,7 @@ def countrate(ui, repo, amap, *pats, **opts):
     ('s', 'sort', False, _('sort by key (default: sort by count)')),
     ('', 'diffstat', False, _('display added/removed lines separately')),
     ('', 'aliases', '', _('file with email aliases'), _('FILE')),
-    ] + commands.walkopts,
+    ] + cmdutil.walkopts,
     _("hg churn [-d DATE] [-r REV] [--aliases FILE] [FILE]"),
     inferrepo=True)
 def churn(ui, repo, *pats, **opts):
@@ -133,7 +130,7 @@ def churn(ui, repo, *pats, **opts):
     Examples::
 
       # display count of changed lines for every committer
-      hg churn -t "{author|email}"
+      hg churn -T "{author|email}"
 
       # display daily activity graph
       hg churn -f "%H" -s -c

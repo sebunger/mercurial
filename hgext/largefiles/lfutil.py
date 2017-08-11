@@ -19,12 +19,16 @@ from mercurial.i18n import _
 
 from mercurial import (
     dirstate,
+    encoding,
     error,
     httpconnection,
     match as matchmod,
     node,
+    pycompat,
     scmutil,
+    sparse,
     util,
+    vfs as vfsmod,
 )
 
 shortname = '.hglf'
@@ -54,10 +58,9 @@ def link(src, dest):
         util.oslink(src, dest)
     except OSError:
         # if hardlinks fail, fallback on atomic copy
-        with open(src, 'rb') as srcf:
-            with util.atomictempfile(dest) as dstf:
-                for chunk in util.filechunkiter(srcf):
-                    dstf.write(chunk)
+        with open(src, 'rb') as srcf, util.atomictempfile(dest) as dstf:
+            for chunk in util.filechunkiter(srcf):
+                dstf.write(chunk)
         os.chmod(dest, os.stat(src).st_mode)
 
 def usercachepath(ui, hash):
@@ -72,23 +75,25 @@ def _usercachedir(ui):
     path = ui.configpath(longname, 'usercache', None)
     if path:
         return path
-    if os.name == 'nt':
-        appdata = os.getenv('LOCALAPPDATA', os.getenv('APPDATA'))
+    if pycompat.osname == 'nt':
+        appdata = encoding.environ.get('LOCALAPPDATA',\
+                        encoding.environ.get('APPDATA'))
         if appdata:
             return os.path.join(appdata, longname)
     elif platform.system() == 'Darwin':
-        home = os.getenv('HOME')
+        home = encoding.environ.get('HOME')
         if home:
             return os.path.join(home, 'Library', 'Caches', longname)
-    elif os.name == 'posix':
-        path = os.getenv('XDG_CACHE_HOME')
+    elif pycompat.osname == 'posix':
+        path = encoding.environ.get('XDG_CACHE_HOME')
         if path:
             return os.path.join(path, longname)
-        home = os.getenv('HOME')
+        home = encoding.environ.get('HOME')
         if home:
             return os.path.join(home, '.cache', longname)
     else:
-        raise error.Abort(_('unknown operating system: %s\n') % os.name)
+        raise error.Abort(_('unknown operating system: %s\n')
+                          % pycompat.osname)
     raise error.Abort(_('unknown %s usercache location') % longname)
 
 def inusercache(ui, hash):
@@ -140,9 +145,10 @@ def openlfdirstate(ui, repo, create=True):
     '''
     vfs = repo.vfs
     lfstoredir = longname
-    opener = scmutil.opener(vfs.join(lfstoredir))
+    opener = vfsmod.vfs(vfs.join(lfstoredir))
     lfdirstate = largefilesdirstate(opener, ui, repo.root,
-                                     repo.dirstate._validate)
+                                    repo.dirstate._validate,
+                                    lambda: sparse.matcher(repo))
 
     # If the largefiles dirstate does not exist, populate and create
     # it. This ensures that we create it on the first meaningful
@@ -160,16 +166,16 @@ def openlfdirstate(ui, repo, create=True):
     return lfdirstate
 
 def lfdirstatestatus(lfdirstate, repo):
-    wctx = repo['.']
+    pctx = repo['.']
     match = matchmod.always(repo.root, repo.getcwd())
     unsure, s = lfdirstate.status(match, [], False, False, False)
     modified, clean = s.modified, s.clean
     for lfile in unsure:
         try:
-            fctx = wctx[standin(lfile)]
+            fctx = pctx[standin(lfile)]
         except LookupError:
             fctx = None
-        if not fctx or fctx.data().strip() != hashfile(repo.wjoin(lfile)):
+        if not fctx or readasstandin(fctx) != hashfile(repo.wjoin(lfile)):
             modified.append(lfile)
         else:
             clean.append(lfile)
@@ -197,7 +203,7 @@ def storepath(repo, hash, forcelocal=False):
     file with the given hash.'''
     if not forcelocal and repo.shared():
         return repo.vfs.reljoin(repo.sharedpath, longname, hash)
-    return repo.join(longname, hash)
+    return repo.vfs.join(longname, hash)
 
 def findstorepath(repo, hash):
     '''Search through the local store path(s) to find the file for the given
@@ -229,10 +235,9 @@ def copyfromcache(repo, hash, filename):
     wvfs.makedirs(wvfs.dirname(wvfs.join(filename)))
     # The write may fail before the file is fully written, but we
     # don't use atomic writes in the working copy.
-    with open(path, 'rb') as srcfd:
-        with wvfs(filename, 'wb') as destfd:
-            gothash = copyandhash(
-                util.filechunkiter(srcfd), destfd)
+    with open(path, 'rb') as srcfd, wvfs(filename, 'wb') as destfd:
+        gothash = copyandhash(
+            util.filechunkiter(srcfd), destfd)
     if gothash != hash:
         repo.ui.warn(_('%s: data corruption in %s with hash %s\n')
                      % (filename, path, gothash))
@@ -240,9 +245,9 @@ def copyfromcache(repo, hash, filename):
         return False
     return True
 
-def copytostore(repo, rev, file, uploaded=False):
+def copytostore(repo, ctx, file, fstandin):
     wvfs = repo.wvfs
-    hash = readstandin(repo, file, rev)
+    hash = readasstandin(ctx[fstandin])
     if instore(repo, hash):
         return
     if wvfs.exists(file):
@@ -256,9 +261,9 @@ def copyalltostore(repo, node):
 
     ctx = repo[node]
     for filename in ctx.files():
-        if isstandin(filename) and filename in ctx.manifest():
-            realfile = splitstandin(filename)
-            copytostore(repo, ctx.node(), realfile)
+        realfile = splitstandin(filename)
+        if realfile is not None and filename in ctx.manifest():
+            copytostore(repo, ctx, realfile, filename)
 
 def copytostoreabsolute(repo, file, hash):
     if inusercache(repo.ui, hash):
@@ -291,8 +296,6 @@ def getstandinmatcher(repo, rmatcher=None):
         if not pats:
             pats = [wvfs.join(standindir)]
         match = scmutil.match(repo[None], pats, badfn=badfn)
-        # if pats is empty, it would incorrectly always match, so clear _always
-        match._always = False
     else:
         # no patterns: relative to repo root
         match = scmutil.match(repo[None], [wvfs.join(standindir)], badfn=badfn)
@@ -337,19 +340,24 @@ def splitstandin(filename):
     else:
         return None
 
-def updatestandin(repo, standin):
-    file = repo.wjoin(splitstandin(standin))
-    if repo.wvfs.exists(splitstandin(standin)):
+def updatestandin(repo, lfile, standin):
+    """Re-calculate hash value of lfile and write it into standin
+
+    This assumes that "lfutil.standin(lfile) == standin", for efficiency.
+    """
+    file = repo.wjoin(lfile)
+    if repo.wvfs.exists(lfile):
         hash = hashfile(file)
         executable = getexecutable(file)
         writestandin(repo, standin, hash, executable)
     else:
-        raise error.Abort(_('%s: file not found!') % splitstandin(standin))
+        raise error.Abort(_('%s: file not found!') % lfile)
 
-def readstandin(repo, filename, node=None):
-    '''read hex hash from standin for filename at given node, or working
-    directory if no node is given'''
-    return repo[node][standin(filename)].data().strip()
+def readasstandin(fctx):
+    '''read hex hash from given filectx of standin file
+
+    This encapsulates how "standin" data is stored into storage layer.'''
+    return fctx.data().strip()
 
 def writestandin(repo, standin, hash, executable):
     '''write hash to <repo.root>/<standin>'''
@@ -364,17 +372,11 @@ def copyandhash(instream, outfile):
         outfile.write(data)
     return hasher.hexdigest()
 
-def hashrepofile(repo, file):
-    return hashfile(repo.wjoin(file))
-
 def hashfile(file):
     if not os.path.exists(file):
         return ''
-    hasher = hashlib.sha1('')
     with open(file, 'rb') as fd:
-        for data in util.filechunkiter(fd):
-            hasher.update(data)
-    return hasher.hexdigest()
+        return hexsha1(fd)
 
 def getexecutable(filename):
     mode = os.stat(filename).st_mode
@@ -395,11 +397,11 @@ def urljoin(first, second, *arg):
         url = join(url, a)
     return url
 
-def hexsha1(data):
+def hexsha1(fileobj):
     """hexsha1 returns the hex-encoded sha1 sum of the data in the file-like
     object data"""
     h = hashlib.sha1()
-    for chunk in util.filechunkiter(data):
+    for chunk in util.filechunkiter(fileobj):
         h.update(chunk)
     return h.hexdigest()
 
@@ -425,10 +427,11 @@ class storeprotonotcapable(Exception):
 def getstandinsstate(repo):
     standins = []
     matcher = getstandinmatcher(repo)
+    wctx = repo[None]
     for standin in repo.dirstate.walk(matcher, [], False, False):
         lfile = splitstandin(standin)
         try:
-            hash = readstandin(repo, lfile)
+            hash = readasstandin(wctx[standin])
         except IOError:
             hash = None
         standins.append((lfile, hash))
@@ -473,12 +476,17 @@ def markcommitted(orig, ctx, node):
 
     lfdirstate = openlfdirstate(repo.ui, repo)
     for f in ctx.files():
-        if isstandin(f):
-            lfile = splitstandin(f)
+        lfile = splitstandin(f)
+        if lfile is not None:
             synclfdirstate(repo, lfdirstate, lfile, False)
     lfdirstate.write()
 
     # As part of committing, copy all of the largefiles into the cache.
+    #
+    # Using "node" instead of "ctx" implies additional "repo[node]"
+    # lookup while copyalltostore(), but can omit redundant check for
+    # files comming from the 2nd parent, which should exist in store
+    # at merging.
     copyalltostore(repo, node)
 
 def getlfilestoupdate(oldstandins, newstandins):
@@ -518,7 +526,7 @@ def getlfilestoupload(repo, missing, addfunc):
                     files.add(f)
         for fn in files:
             if isstandin(fn) and fn in ctx:
-                addfunc(fn, ctx[fn].data().strip())
+                addfunc(fn, readasstandin(ctx[fn]))
     repo.ui.progress(_('finding outgoing largefiles'), None)
 
 def updatestandinsbymatch(repo, match):
@@ -549,13 +557,13 @@ def updatestandinsbymatch(repo, match):
         # removed/renamed)
         for lfile in lfiles:
             if lfile in modifiedfiles:
-                if repo.wvfs.exists(standin(lfile)):
+                fstandin = standin(lfile)
+                if repo.wvfs.exists(fstandin):
                     # this handles the case where a rebase is being
                     # performed and the working copy is not updated
                     # yet.
                     if repo.wvfs.exists(lfile):
-                        updatestandin(repo,
-                            standin(lfile))
+                        updatestandin(repo, lfile, fstandin)
 
         return match
 
@@ -581,7 +589,7 @@ def updatestandinsbymatch(repo, match):
     for fstandin in standins:
         lfile = splitstandin(fstandin)
         if lfdirstate[lfile] != 'r':
-            updatestandin(repo, fstandin)
+            updatestandin(repo, lfile, fstandin)
 
     # Cook up a new matcher that only matches regular files or
     # standins corresponding to the big files requested by the

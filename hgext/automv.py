@@ -4,7 +4,7 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-"""Check for unrecorded moves at commit time (EXPERIMENTAL)
+"""check for unrecorded moves at commit time (EXPERIMENTAL)
 
 This extension checks at commit/amend time if any of the committed files
 comes from an unrecorded mv.
@@ -32,8 +32,16 @@ from mercurial import (
     copies,
     error,
     extensions,
+    registrar,
     scmutil,
     similar
+)
+
+configtable = {}
+configitem = registrar.configitem(configtable)
+
+configitem('automv', 'similarity',
+    default=95,
 )
 
 def extsetup(ui):
@@ -48,7 +56,7 @@ def mvcheck(orig, ui, repo, *pats, **opts):
     renames = None
     disabled = opts.pop('no_automv', False)
     if not disabled:
-        threshold = ui.configint('automv', 'similarity', 95)
+        threshold = ui.configint('automv', 'similarity')
         if not 0 <= threshold <= 100:
             raise error.Abort(_('automv.similarity must be between 0 and 100'))
         if threshold > 0:

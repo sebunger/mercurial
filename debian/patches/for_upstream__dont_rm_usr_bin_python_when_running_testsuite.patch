@@ -7,9 +7,11 @@ Description: Don't rm /usr/bin/python when running the testsuite
  This fixes it at least in Debian.  I'm unsure about other systems.
 Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
---- a/tests/run-tests.py
-+++ b/tests/run-tests.py
-@@ -2307,7 +2307,7 @@ class TestRunner(object):
+Index: mercurial-4.3.1/tests/run-tests.py
+===================================================================
+--- mercurial-4.3.1.orig/tests/run-tests.py	2017-08-11 05:08:33.659485523 +0200
++++ mercurial-4.3.1/tests/run-tests.py	2017-08-11 05:08:33.655485456 +0200
+@@ -2576,7 +2576,7 @@
                   sys.executable)
              mypython = os.path.join(self._tmpbindir, pyexename)
              try:

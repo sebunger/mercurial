@@ -4,7 +4,7 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-"""Send ui.log() data to a subprocess (EXPERIMENTAL)
+"""send ui.log() data to a subprocess (EXPERIMENTAL)
 
 This extension lets you specify a shell command per ui.log() event,
 sending all remaining arguments to as environment variables to that command.
@@ -27,7 +27,7 @@ For example::
 
 would log the warning message and traceback of any failed command dispatch.
 
-Scripts are run asychronously as detached daemon processes; mercurial will
+Scripts are run asynchronously as detached daemon processes; mercurial will
 not ensure that they exit cleanly.
 
 """
@@ -39,6 +39,8 @@ import os
 import platform
 import subprocess
 import sys
+
+from mercurial import encoding
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
@@ -117,7 +119,7 @@ def uisetup(ui):
                 optpairs = (
                     ('OPT_{0}'.format(key.upper()), str(value))
                     for key, value in opts.iteritems())
-                env = dict(itertools.chain(os.environ.items(),
+                env = dict(itertools.chain(encoding.environ.items(),
                                            msgpairs, optpairs),
                            EVENT=event, HGPID=str(os.getpid()))
                 # Connect stdin to /dev/null to prevent child processes messing

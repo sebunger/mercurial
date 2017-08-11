@@ -40,7 +40,7 @@ Amending changeset with changes in working dir:
   $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit --amend -m 'amend base1'
   pretxncommit 43f1ba15f28a50abf0aae529cf8a16bfced7b149
   43f1ba15f28a tip
-  saved backup bundle to $TESTTMP/.hg/strip-backup/489edb5b847d-f1bf3ab8-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/489edb5b847d-f1bf3ab8-amend.hg (glob)
   $ echo 'pretxncommit.foo = ' >> $HGRCPATH
   $ hg diff -c .
   diff -r ad120869acf0 -r 43f1ba15f28a a
@@ -93,7 +93,7 @@ Check proper abort for empty message
 
 Add new file:
   $ hg ci --amend -m 'amend base1 new file'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/43f1ba15f28a-7a3b3496-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/43f1ba15f28a-7a3b3496-amend.hg (glob)
 
 Remove file that was added in amended commit:
 (and test logfile option)
@@ -102,7 +102,7 @@ Remove file that was added in amended commit:
   $ hg rm b
   $ echo 'amend base1 remove new file' > ../logfile
   $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg ci --amend --logfile ../logfile
-  saved backup bundle to $TESTTMP/.hg/strip-backup/b8e3cb2b3882-0b55739a-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/b8e3cb2b3882-0b55739a-amend.hg (glob)
 
   $ hg cat b
   b: no such file in rev 74609c7f506e
@@ -117,13 +117,12 @@ No changes, just a different message:
   a
   committing manifest
   committing changelog
-  stripping amended changeset 74609c7f506e
   1 changesets found
   uncompressed size of bundle content:
        254 (changelog)
        163 (manifests)
        129  a
-  saved backup bundle to $TESTTMP/.hg/strip-backup/74609c7f506e-1bfde511-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/74609c7f506e-1bfde511-amend.hg (glob)
   1 changesets found
   uncompressed size of bundle content:
        250 (changelog)
@@ -169,10 +168,10 @@ Test -u/-d:
   > EOF
   $ HGEDITOR="sh .hg/checkeditform.sh" hg ci --amend -u foo -d '1 0'
   HGEDITFORM=commit.amend.normal
-  saved backup bundle to $TESTTMP/.hg/strip-backup/1cd866679df8-5f5bcb85-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/1cd866679df8-5f5bcb85-amend.hg (glob)
   $ echo a >> a
   $ hg ci --amend -u foo -d '1 0'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/780e6f23e03d-83b10a27-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/780e6f23e03d-83b10a27-amend.hg (glob)
   $ hg log -r .
   changeset:   1:5f357c7560ab
   tag:         tip
@@ -261,13 +260,12 @@ then, test editing custom commit message
   a
   committing manifest
   committing changelog
-  stripping amended changeset 5f357c7560ab
   1 changesets found
   uncompressed size of bundle content:
        249 (changelog)
        163 (manifests)
        131  a
-  saved backup bundle to $TESTTMP/.hg/strip-backup/5f357c7560ab-e7c84ade-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/5f357c7560ab-e7c84ade-amend.hg (glob)
   1 changesets found
   uncompressed size of bundle content:
        257 (changelog)
@@ -303,14 +301,12 @@ Same, but with changes in working dir (different code path):
   a
   committing manifest
   committing changelog
-  stripping intermediate changeset a0ea9b1a4c8c
-  stripping amended changeset 7ab3bf440b54
   2 changesets found
   uncompressed size of bundle content:
        464 (changelog)
        322 (manifests)
        249  a
-  saved backup bundle to $TESTTMP/.hg/strip-backup/7ab3bf440b54-8e3b5088-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/7ab3bf440b54-8e3b5088-amend.hg (glob)
   1 changesets found
   uncompressed size of bundle content:
        257 (changelog)
@@ -337,13 +333,13 @@ Moving bookmarks, preserve active bookmark:
   $ hg book book1
   $ hg book book2
   $ hg ci --amend -m 'move bookmarks'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/ea22a388757c-e51094db-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/ea22a388757c-e51094db-amend.hg (glob)
   $ hg book
      book1                     1:6cec5aa930e2
    * book2                     1:6cec5aa930e2
   $ echo a >> a
   $ hg ci --amend -m 'move bookmarks'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/6cec5aa930e2-e9b06de4-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/6cec5aa930e2-e9b06de4-amend.hg (glob)
   $ hg book
      book1                     1:48bb6e53a15f
    * book2                     1:48bb6e53a15f
@@ -379,7 +375,7 @@ Moving branches:
   $ hg branch default -f
   marked working directory as branch default
   $ hg ci --amend -m 'back to default'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/8ac881fbf49d-fd962fef-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/8ac881fbf49d-fd962fef-amend.hg (glob)
   $ hg branches
   default                        2:ce12b0b57d46
 
@@ -395,7 +391,7 @@ Close branch:
   $ echo b >> b
   $ hg ci -mb
   $ hg ci --amend --close-branch -m 'closing branch foo'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/c962248fa264-6701c392-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/c962248fa264-6701c392-amend.hg (glob)
 
 Same thing, different code path:
 
@@ -404,7 +400,7 @@ Same thing, different code path:
   reopening closed branch head 4
   $ echo b >> b
   $ hg ci --amend --close-branch
-  saved backup bundle to $TESTTMP/.hg/strip-backup/027371728205-49c0c55d-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/027371728205-49c0c55d-amend.hg (glob)
   $ hg branches
   default                        2:ce12b0b57d46
 
@@ -425,7 +421,7 @@ Follow copies/renames:
   $ hg ci -m 'b -> c'
   $ hg mv c d
   $ hg ci --amend -m 'b -> d'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/b8c6eac7f12e-adaaa8b1-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/b8c6eac7f12e-adaaa8b1-amend.hg (glob)
   $ hg st --rev '.^' --copies d
   A d
     b
@@ -433,7 +429,7 @@ Follow copies/renames:
   $ hg ci -m 'e = d'
   $ hg cp e f
   $ hg ci --amend -m 'f = d'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/7f9761d65613-d37aa788-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/7f9761d65613-d37aa788-amend.hg (glob)
   $ hg st --rev '.^' --copies f
   A f
     d
@@ -444,7 +440,7 @@ Follow copies/renames:
   $ hg cp a f
   $ mv f.orig f
   $ hg ci --amend -m replacef
-  saved backup bundle to $TESTTMP/.hg/strip-backup/9e8c5f7e3d95-90259f67-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/9e8c5f7e3d95-90259f67-amend.hg (glob)
   $ hg st --change . --copies
   $ hg log -r . --template "{file_copies}\n"
   
@@ -456,7 +452,7 @@ Move added file (issue3410):
   adding g
   $ hg mv g h
   $ hg ci --amend
-  saved backup bundle to $TESTTMP/.hg/strip-backup/24aa8eacce2b-7059e0f1-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/24aa8eacce2b-7059e0f1-amend.hg (glob)
   $ hg st --change . --copies h
   A h
   $ hg log -r . --template "{file_copies}\n"
@@ -476,11 +472,11 @@ Preserve extra dict (issue3430):
   $ echo a >> a
   $ hg ci -ma
   $ hg ci --amend -m "a'"
-  saved backup bundle to $TESTTMP/.hg/strip-backup/3837aa2a2fdb-2be01fd1-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/3837aa2a2fdb-2be01fd1-amend.hg (glob)
   $ hg log -r . --template "{branch}\n"
   a
   $ hg ci --amend -m "a''"
-  saved backup bundle to $TESTTMP/.hg/strip-backup/c05c06be7514-ed28c4cd-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/c05c06be7514-ed28c4cd-amend.hg (glob)
   $ hg log -r . --template "{branch}\n"
   a
 
@@ -497,7 +493,7 @@ first graft something so there's an additional entry:
   $ hg graft 12
   grafting 12:2647734878ef "fork" (tip)
   $ hg ci --amend -m 'graft amend'
-  saved backup bundle to $TESTTMP/.hg/strip-backup/bd010aea3f39-eedb103b-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/.hg/strip-backup/bd010aea3f39-eedb103b-amend.hg (glob)
   $ hg log -r . --debug | grep extra
   extra:       amend_source=bd010aea3f39f3fb2a2f884b9ccb0471cd77398e
   extra:       branch=a
@@ -614,6 +610,7 @@ Test that rewriting leaving instability behind is allowed
   parent:      11:3334b7925910
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
+  trouble:     unstable
   summary:     babar
   
 
@@ -638,7 +635,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   (no more unresolved files)
   $ hg ci -m 'merge bar'
   $ hg log --config diff.git=1 -pr .
-  changeset:   23:69c24fe01e35
+  changeset:   23:163cfd7219f7
   tag:         tip
   parent:      22:30d96aeaf27b
   parent:      21:1aa437659d19
@@ -657,7 +654,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
    dd
   +=======
   +cc
-  +>>>>>>> merge rev:    1aa437659d19  bar - test: aazzcc
+  +>>>>>>> merge rev:    1aa437659d19 bar - test: aazzcc
   diff --git a/z b/zz
   rename from z
   rename to zz
@@ -671,7 +668,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   $ HGEDITOR="sh .hg/checkeditform.sh" hg ci --amend -m 'merge bar (amend message)' --edit
   HGEDITFORM=commit.amend.merge
   $ hg log --config diff.git=1 -pr .
-  changeset:   24:cfa2fbef3169
+  changeset:   24:bca52d4ed186
   tag:         tip
   parent:      22:30d96aeaf27b
   parent:      21:1aa437659d19
@@ -690,7 +687,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
    dd
   +=======
   +cc
-  +>>>>>>> merge rev:    1aa437659d19  bar - test: aazzcc
+  +>>>>>>> merge rev:    1aa437659d19 bar - test: aazzcc
   diff --git a/z b/zz
   rename from z
   rename to zz
@@ -704,7 +701,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
   $ hg mv zz z
   $ hg ci --amend -m 'merge bar (undo rename)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   26:c34de68b014c
+  changeset:   26:12594a98ca3f
   tag:         tip
   parent:      22:30d96aeaf27b
   parent:      21:1aa437659d19
@@ -723,7 +720,7 @@ Amend a merge changeset (with renames and conflicts from the second parent):
    dd
   +=======
   +cc
-  +>>>>>>> merge rev:    1aa437659d19  bar - test: aazzcc
+  +>>>>>>> merge rev:    1aa437659d19 bar - test: aazzcc
   
   $ hg debugrename z
   z not renamed
@@ -740,9 +737,9 @@ Amend a merge changeset (with renames during the merge):
   $ echo aa >> aaa
   $ hg ci -m 'merge bar again'
   $ hg log --config diff.git=1 -pr .
-  changeset:   28:37d40dcef03b
+  changeset:   28:dffde028b388
   tag:         tip
-  parent:      26:c34de68b014c
+  parent:      26:12594a98ca3f
   parent:      27:4c94d5bc65f5
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -775,9 +772,9 @@ Amend a merge changeset (with renames during the merge):
   $ hg mv aaa aa
   $ hg ci --amend -m 'merge bar again (undo rename)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   30:537c6d1b3633
+  changeset:   30:18e3ba160489
   tag:         tip
-  parent:      26:c34de68b014c
+  parent:      26:12594a98ca3f
   parent:      27:4c94d5bc65f5
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -817,9 +814,9 @@ Amend a merge changeset (with manifest-level conflicts):
   use (c)hanged version, (d)elete, or leave (u)nresolved? c
   $ hg ci -m 'merge bar (with conflicts)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   33:7afcba911942
+  changeset:   33:b4c3035e2544
   tag:         tip
-  parent:      32:6075d69d215d
+  parent:      32:4b216ca5ba97
   parent:      31:67db8847a540
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -829,9 +826,9 @@ Amend a merge changeset (with manifest-level conflicts):
   $ hg rm aa
   $ hg ci --amend -m 'merge bar (with conflicts, amended)'
   $ hg log --config diff.git=1 -pr .
-  changeset:   35:376965e47ddd
+  changeset:   35:1205ed810051
   tag:         tip
-  parent:      32:6075d69d215d
+  parent:      32:4b216ca5ba97
   parent:      31:67db8847a540
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -927,7 +924,7 @@ Test that "diff()" in committemplate works correctly for amending
   HG: M: 
   HG: A: foo
   HG: R: 
-  HG: diff -r 376965e47ddd foo
+  HG: diff -r 1205ed810051 foo
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
@@ -941,12 +938,12 @@ Test that "diff()" in committemplate works correctly for amending
   HG: M: 
   HG: A: foo y
   HG: R: 
-  HG: diff -r 376965e47ddd foo
+  HG: diff -r 1205ed810051 foo
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
   HG: +foo
-  HG: diff -r 376965e47ddd y
+  HG: diff -r 1205ed810051 y
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
@@ -959,18 +956,18 @@ Test that "diff()" in committemplate works correctly for amending
   HG: M: 
   HG: A: foo y
   HG: R: a
-  HG: diff -r 376965e47ddd a
+  HG: diff -r 1205ed810051 a
   HG: --- a/a	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -1,2 +0,0 @@
   HG: -a
   HG: -a
-  HG: diff -r 376965e47ddd foo
+  HG: diff -r 1205ed810051 foo
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
   HG: +foo
-  HG: diff -r 376965e47ddd y
+  HG: diff -r 1205ed810051 y
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
@@ -983,23 +980,23 @@ Test that "diff()" in committemplate works correctly for amending
   HG: M: 
   HG: A: foo y
   HG: R: a x
-  HG: diff -r 376965e47ddd a
+  HG: diff -r 1205ed810051 a
   HG: --- a/a	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -1,2 +0,0 @@
   HG: -a
   HG: -a
-  HG: diff -r 376965e47ddd foo
+  HG: diff -r 1205ed810051 foo
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
   HG: +foo
-  HG: diff -r 376965e47ddd x
+  HG: diff -r 1205ed810051 x
   HG: --- a/x	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -1,1 +0,0 @@
   HG: -x
-  HG: diff -r 376965e47ddd y
+  HG: diff -r 1205ed810051 y
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
@@ -1014,23 +1011,23 @@ Test that "diff()" in committemplate works correctly for amending
   HG: M: 
   HG: A: foo y
   HG: R: a x
-  HG: diff -r 376965e47ddd a
+  HG: diff -r 1205ed810051 a
   HG: --- a/a	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -1,2 +0,0 @@
   HG: -a
   HG: -a
-  HG: diff -r 376965e47ddd foo
+  HG: diff -r 1205ed810051 foo
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
   HG: +foo
-  HG: diff -r 376965e47ddd x
+  HG: diff -r 1205ed810051 x
   HG: --- a/x	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -1,1 +0,0 @@
   HG: -x
-  HG: diff -r 376965e47ddd y
+  HG: diff -r 1205ed810051 y
   HG: --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   HG: +++ b/y	Thu Jan 01 00:00:00 1970 +0000
   HG: @@ -0,0 +1,1 @@
@@ -1146,7 +1143,7 @@ directory)
   R olddirname/newfile.py
   $ hg debugindex newdirname/newfile.py
      rev    offset  length  delta linkrev nodeid       p1           p2
-       0         0      88     -1       3 34a4d536c0c0 000000000000 000000000000
+       0         0      89     -1       3 34a4d536c0c0 000000000000 000000000000
 
   $ echo a >> newdirname/commonfile.py
   $ hg ci --amend -m bug
@@ -1154,7 +1151,7 @@ directory)
   newdirname/newfile.py renamed from olddirname/newfile.py:690b295714aed510803d3020da9c70fca8336def (glob)
   $ hg debugindex newdirname/newfile.py
      rev    offset  length  delta linkrev nodeid       p1           p2
-       0         0      88     -1       3 34a4d536c0c0 000000000000 000000000000
+       0         0      89     -1       3 34a4d536c0c0 000000000000 000000000000
 
 #if execbit
 

@@ -14,6 +14,7 @@ DOCFILES=mercurial/help/*.txt
 export LANGUAGE=C
 export LC_ALL=C
 TESTFLAGS ?= $(shell echo $$HGTESTFLAGS)
+OSXVERSIONFLAGS ?= $(shell echo $$OSXVERSIONFLAGS)
 
 # Set this to e.g. "mingw32" to use a non-default compiler.
 COMPILER=
@@ -62,9 +63,8 @@ doc:
 
 cleanbutpackages:
 	-$(PYTHON) setup.py clean --all # ignore errors from this command
-	find contrib doc hgext hgext3rd i18n mercurial tests \
+	find contrib doc hgext hgext3rd i18n mercurial tests hgdemandimport \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
-	rm -f $(addprefix mercurial/,$(notdir $(wildcard mercurial/pure/[a-z]*.py)))
 	rm -f MANIFEST MANIFEST.in hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi
@@ -141,7 +141,7 @@ i18n/hg.pot: $(PYFILES) $(DOCFILES) i18n/posplit i18n/hggettext
         # xgettext "parse" and ignore them.
 	echo $(PYFILES) | xargs \
 	  xgettext --package-name "Mercurial" \
-	  --msgid-bugs-address "<mercurial-devel@selenic.com>" \
+	  --msgid-bugs-address "<mercurial-devel@mercurial-scm.org>" \
 	  --copyright-holder "Matt Mackall <mpm@selenic.com> and others" \
 	  --from-code ISO-8859-1 --join --sort-by-file --add-comments=i18n: \
 	  -d hg -p i18n -o hg.pot.tmp
@@ -159,14 +159,36 @@ i18n/hg.pot: $(PYFILES) $(DOCFILES) i18n/posplit i18n/hggettext
 # Packaging targets
 
 osx:
+	rm -rf build/mercurial
 	/usr/bin/python2.7 setup.py install --optimize=1 \
 	  --root=build/mercurial/ --prefix=/usr/local/ \
 	  --install-lib=/Library/Python/2.7/site-packages/
 	make -C doc all install DESTDIR="$(PWD)/build/mercurial/"
+        # Place a bogon .DS_Store file in the target dir so we can be
+        # sure it doesn't get included in the final package.
+	touch build/mercurial/.DS_Store
+        # install zsh completions - this location appears to be
+        # searched by default as of macOS Sierra.
+	install -d build/mercurial/usr/local/share/zsh/site-functions/
+	install -m 0644 contrib/zsh_completion build/mercurial/usr/local/share/zsh/site-functions/_hg
+        # install bash completions - there doesn't appear to be a
+        # place that's searched by default for bash, so we'll follow
+        # the lead of Apple's git install and just put it in a
+        # location of our own.
+	install -d build/mercurial/usr/local/hg/contrib/
+	install -m 0644 contrib/bash_completion build/mercurial/usr/local/hg/contrib/hg-completion.bash
+	make -C contrib/chg \
+	  HGPATH=/usr/local/bin/hg \
+	  PYTHON=/usr/bin/python2.7 \
+	  HG=/usr/local/bin/hg \
+	  HGEXTDIR=/Library/Python/2.7/site-packages/hgext \
+	  DESTDIR=../../build/mercurial \
+	  PREFIX=/usr/local \
+	  clean install
 	mkdir -p $${OUTPUTDIR:-dist}
-	HGVER=$$((cat build/mercurial/Library/Python/2.7/site-packages/mercurial/__version__.py; echo 'print(version)') | python) && \
+	HGVER=$(shell python contrib/genosxversion.py $(OSXVERSIONFLAGS) build/mercurial/Library/Python/2.7/site-packages/mercurial/__version__.py ) && \
 	OSXVER=$$(sw_vers -productVersion | cut -d. -f1,2) && \
-	pkgbuild --root build/mercurial/ \
+	pkgbuild --filter \\.DS_Store --root build/mercurial/ \
 	  --identifier org.mercurial-scm.mercurial \
 	  --version "$${HGVER}" \
 	  build/mercurial.pkg && \
@@ -182,9 +204,16 @@ deb:
 ppa:
 	contrib/builddeb --source-only
 
-docker-debian-jessie:
+contrib/docker/debian-%: contrib/docker/debian.template
+	sed "s/__CODENAME__/$*/" $< > $@
+
+docker-debian-jessie: contrib/docker/debian-jessie
 	mkdir -p packages/debian-jessie
 	contrib/dockerdeb debian jessie
+
+docker-debian-stretch: contrib/docker/debian-stretch
+	mkdir -p packages/debian-stretch
+	contrib/dockerdeb debian stretch
 
 contrib/docker/ubuntu-%: contrib/docker/ubuntu.template
 	sed "s/__CODENAME__/$*/" $< > $@
@@ -195,17 +224,23 @@ docker-ubuntu-trusty: contrib/docker/ubuntu-trusty
 docker-ubuntu-trusty-ppa: contrib/docker/ubuntu-trusty
 	contrib/dockerdeb ubuntu trusty --source-only
 
-docker-ubuntu-wily: contrib/docker/ubuntu-wily
-	contrib/dockerdeb ubuntu wily
-
-docker-ubuntu-wily-ppa: contrib/docker/ubuntu-wily
-	contrib/dockerdeb ubuntu wily --source-only
-
 docker-ubuntu-xenial: contrib/docker/ubuntu-xenial
 	contrib/dockerdeb ubuntu xenial
 
 docker-ubuntu-xenial-ppa: contrib/docker/ubuntu-xenial
 	contrib/dockerdeb ubuntu xenial --source-only
+
+docker-ubuntu-yakkety: contrib/docker/ubuntu-yakkety
+	contrib/dockerdeb ubuntu yakkety
+
+docker-ubuntu-yakkety-ppa: contrib/docker/ubuntu-yakkety
+	contrib/dockerdeb ubuntu yakkety --source-only
+
+docker-ubuntu-zesty: contrib/docker/ubuntu-zesty
+	contrib/dockerdeb ubuntu zesty
+
+docker-ubuntu-zesty-ppa: contrib/docker/ubuntu-zesty
+	contrib/dockerdeb ubuntu zesty --source-only
 
 fedora20:
 	mkdir -p packages/fedora20
@@ -241,13 +276,13 @@ docker-centos5:
 
 centos6:
 	mkdir -p packages/centos6
-	contrib/buildrpm
+	contrib/buildrpm --withpython
 	cp rpmbuild/RPMS/*/* packages/centos6
 	cp rpmbuild/SRPMS/* packages/centos6
 
 docker-centos6:
 	mkdir -p packages/centos6
-	contrib/dockerrpm centos6
+	contrib/dockerrpm centos6 --withpython
 
 centos7:
 	mkdir -p packages/centos7
@@ -259,8 +294,22 @@ docker-centos7:
 	mkdir -p packages/centos7
 	contrib/dockerrpm centos7
 
+linux-wheels: linux-wheels-x86_64 linux-wheels-i686
+
+linux-wheels-x86_64:
+	docker run -e "HGTEST_JOBS=$(shell nproc)" --rm -ti -v `pwd`:/src quay.io/pypa/manylinux1_x86_64 /src/contrib/build-linux-wheels.sh
+
+linux-wheels-i686:
+	docker run -e "HGTEST_JOBS=$(shell nproc)" --rm -ti -v `pwd`:/src quay.io/pypa/manylinux1_i686 linux32 /src/contrib/build-linux-wheels.sh
+
 .PHONY: help all local build doc cleanbutpackages clean install install-bin \
 	install-doc install-home install-home-bin install-home-doc \
 	dist dist-notests check tests check-code update-pot \
-	osx fedora20 docker-fedora20 fedora21 docker-fedora21 \
-	centos5 docker-centos5 centos6 docker-centos6 centos7 docker-centos7
+	osx deb ppa docker-debian-jessie docker-debian-stretch \
+	docker-ubuntu-trusty docker-ubuntu-trusty-ppa \
+	docker-ubuntu-xenial docker-ubuntu-xenial-ppa \
+	docker-ubuntu-yakkety docker-ubuntu-yakkety-ppa \
+	docker-ubuntu-zesty docker-ubuntu-zesty-ppa \
+	fedora20 docker-fedora20 fedora21 docker-fedora21 \
+	centos5 docker-centos5 centos6 docker-centos6 centos7 docker-centos7 \
+	linux-wheels

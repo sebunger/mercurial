@@ -23,7 +23,7 @@ Check that obsolete properly strip heads
   $ mkcommit base
   $ hg phase --public .
   $ cd ..
-  $ cp -r remote base
+  $ cp -R remote base
   $ hg clone remote local
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -47,6 +47,7 @@ setup
   $ mkcommit new
   created new head
   $ hg debugobsolete --flags 1 `getid old` `getid new`
+  obsoleted 1 changesets
   $ hg log -G --hidden
   @  71e3228bffe1 (draft) add new
   |
@@ -54,7 +55,7 @@ setup
   |/
   o  b4952fcf48cf (public) add base
   
-  $ cp -r ../remote ../backup1
+  $ cp -R ../remote ../backup1
 
 old exists remotely as draft. It is obsoleted by new that we now push.
 Push should not warn about creating new head
@@ -73,7 +74,7 @@ old head is now public (public local version)
 setup
 
   $ rm -fr ../remote
-  $ cp -r ../backup1 ../remote
+  $ cp -R ../backup1 ../remote
   $ hg -R ../remote phase --public c70b08862e08
   $ hg pull -v
   pulling from $TESTTMP/remote (glob)
@@ -104,7 +105,7 @@ TODO: Not implemented yet.
 # setup
 #
 #   $ rm -fr ../remote
-#   $ cp -r ../backup1 ../remote
+#   $ cp -R ../backup1 ../remote
 #   $ hg -R ../remote phase --public c70b08862e08
 #   $ hg phase --draft --force c70b08862e08
 #   $ hg log -G --hidden
@@ -131,7 +132,7 @@ old head is obsolete but replacement is not pushed
 setup
 
   $ rm -fr ../remote
-  $ cp -r ../backup1 ../remote
+  $ cp -R ../backup1 ../remote
   $ hg phase --draft --force '(0::) - 0'
   $ hg up -q '.^'
   $ mkcommit other
@@ -188,6 +189,7 @@ setup. (The obsolete marker is known locally only
   $ mkcommit desc2
   created new head
   $ hg debugobsolete `getid old` `getid new`
+  obsoleted 1 changesets
   $ hg log -G --hidden
   @  5fe37041cc2b (draft) add desc2
   |
@@ -206,7 +208,7 @@ setup. (The obsolete marker is known locally only
   |/
   @  b4952fcf48cf (public) add base
   
-  $ cp -r ../remote ../backup2
+  $ cp -R ../remote ../backup2
 
 Push should not warn about adding new heads. We create one, but we'll delete
 one anyway.
@@ -226,7 +228,7 @@ Remote head is unknown but obsoleted by a local changeset
 setup
 
   $ rm -fr ../remote
-  $ cp -r ../backup1 ../remote
+  $ cp -R ../backup1 ../remote
   $ cd ..
   $ rm -rf local
   $ hg clone remote local -r 0
@@ -254,12 +256,60 @@ setup
   @  b4952fcf48cf (public) add base
   
 
-Push should not complain about new heads.
+We do not have enought data to take the right decision, we should fail
 
-  $ hg push --traceback
+  $ hg push
+  pushing to $TESTTMP/remote (glob)
+  searching for changes
+  remote has heads on branch 'default' that are not known locally: c70b08862e08
+  abort: push creates new remote head 71e3228bffe1!
+  (pull and merge or see 'hg help push' for details about pushing new heads)
+  [255]
+
+Pulling the missing data makes it work
+
+  $ hg pull
+  pulling from $TESTTMP/remote (glob)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files (+1 heads)
+  (run 'hg heads' to see heads)
+  $ hg push
   pushing to $TESTTMP/remote (glob)
   searching for changes
   adding changesets
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
+
+Old head is pruned without parent data and new unrelated head added
+===================================================================
+
+setup
+
+  $ cd ..
+  $ rm -R remote local
+  $ cp -R backup1 remote
+  $ hg clone remote local -qr c70b08862e08
+  $ cd local
+  $ hg up -q '.^'
+  $ mkcommit new-unrelated
+  created new head
+  $ hg debugobsolete `getid old`
+  obsoleted 1 changesets
+  $ hg log -G --hidden
+  @  350a93b716be (draft) add new-unrelated
+  |
+  | x  c70b08862e08 (draft) add old
+  |/
+  o  b4952fcf48cf (public) add base
+  
+
+  $ hg push
+  pushing to $TESTTMP/remote (glob)
+  searching for changes
+  abort: push creates new remote head 350a93b716be!
+  (merge or see 'hg help push' for details about pushing new heads)
+  [255]

@@ -94,6 +94,9 @@ On Unix, the following files are consulted:
 \fB$HOME/.hgrc\fP (per\-user)
 .IP \(bu 2
 .
+\fB${XDG_CONFIG_HOME:\-$HOME/.config}/hg/hgrc\fP (per\-user)
+.IP \(bu 2
+.
 \fB<install\-root>/etc/mercurial/hgrc\fP (per\-installation)
 .IP \(bu 2
 .
@@ -379,7 +382,7 @@ terminal. A better example might be:
 .sp
 .nf
 .ft C
-purge = !$HG status \-\-no\-status \-\-unknown \-0 re: | xargs \-0 rm
+purge = !$HG status \-\-no\-status \-\-unknown \-0 re: | xargs \-0 rm \-f
 .ft P
 .fi
 .sp
@@ -426,12 +429,35 @@ Ignore changes whose lines are all blank.
 .UNINDENT
 .SS \fBauth\fP
 .sp
-Authentication credentials for HTTP authentication. This section
-allows you to store usernames and passwords for use when logging
-\fIinto\fP HTTP servers. See \%\fBhg help config.web\fP\: if
-you want to configure \fIwho\fP can login to your HTTP server.
+Authentication credentials and other authentication\-like configuration
+for HTTP connections. This section allows you to store usernames and
+passwords for use when logging \fIinto\fP HTTP servers. See
+\%\fBhg help config.web\fP\: if you want to configure \fIwho\fP can login to
+your HTTP server.
 .sp
-Each line has the following format:
+The following options apply to all hosts.
+.INDENT 0.0
+.TP
+.B \fBcookiefile\fP
+.sp
+Path to a file containing HTTP cookie lines. Cookies matching a
+host will be sent automatically.
+.sp
+The file format uses the Mozilla cookies.txt format, which defines cookies
+on their own lines. Each line contains 7 fields delimited by the tab
+character (domain, is_domain_cookie, path, is_secure, expires, name,
+value). For more info, do an Internet search for "Netscape cookies.txt
+format."
+.sp
+Note: the cookies parser does not handle port numbers on domains. You
+will need to remove ports from the domain for the cookie to be recognized.
+This could result in a cookie being disclosed to an unwanted server.
+.sp
+The cookies file is read\-only.
+.UNINDENT
+.sp
+Other options in this section are grouped by name and have the following
+format:
 .sp
 .nf
 .ft C
@@ -504,6 +530,49 @@ static\-http and static\-https respectively, as well.
 .sp
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
+.SS \fBcolor\fP
+.sp
+Configure the Mercurial color mode. For details about how to define your custom
+effect and style see \%\fBhg help color\fP\:.
+.INDENT 0.0
+.TP
+.B \fBmode\fP
+.sp
+String: control the method used to output color. One of \fBauto\fP, \fBansi\fP,
+\fBwin32\fP, \fBterminfo\fP or \fBdebug\fP. In auto mode, Mercurial will
+use ANSI mode by default (or win32 mode prior to Windows 10) if it detects a
+terminal. Any invalid value will disable color.
+.TP
+.B \fBpagermode\fP
+.sp
+String: optional override of \fBcolor.mode\fP used with pager.
+.sp
+On some systems, terminfo mode may cause problems when using
+color with \fBless \-R\fP as a pager program. less with the \-R option
+will only display ECMA\-48 color codes, and terminfo mode may sometimes
+emit codes that less doesn\(aqt understand. You can work around this by
+either using ansi mode (or auto mode), or by using less \-r (which will
+pass through all terminal control codes, not just color control
+codes).
+.sp
+On some systems (such as MSYS in Windows), the terminal may support
+a different color mode than the pager program.
+.UNINDENT
+.SS \fBcommands\fP
+.INDENT 0.0
+.TP
+.B \fBstatus.relative\fP
+.sp
+Make paths in \%\fBhg status\fP\: output relative to the current directory.
+(default: False)
+.TP
+.B \fBupdate.requiredest\fP
+.sp
+Require that the user pass a destination when running \%\fBhg update\fP\:.
+For example, \%\fBhg update .::\fP\: will be allowed, but a plain \%\fBhg update\fP\:
+will be disallowed.
+(default: False)
+.UNINDENT
 .SS \fBcommittemplate\fP
 .INDENT 0.0
 .TP
@@ -542,6 +611,39 @@ changeset = {desc}\en\en
    "HG: changed {file}\en"                 }{file_dels %
    "HG: removed {file}\en"                 }{if(files, "",
    "HG: no files changed\en")}
+.ft P
+.fi
+.INDENT 0.0
+.TP
+.B \fBdiff()\fP
+.sp
+String: show the diff (see \%\fBhg help templates\fP\: for detail)
+.UNINDENT
+.sp
+Sometimes it is helpful to show the diff of the changeset in the editor without
+having to prefix \(aqHG: \(aq to each line so that highlighting works correctly. For
+this, Mercurial provides a special string which will ignore everything below
+it:
+.sp
+.nf
+.ft C
+HG: \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- >8 \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+.ft P
+.fi
+.sp
+For example, the template configuration below will show the diff below the
+extra message:
+.sp
+.nf
+.ft C
+[committemplate]
+changeset = {desc}\en\en
+    HG: Enter commit message.  Lines beginning with \(aqHG:\(aq are removed.
+    HG: {extramsg}
+    HG: \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- >8 \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+    HG: Do not touch the line above.
+    HG: Everything below will be removed.
+    {diff()}
 .ft P
 .fi
 .IP Note
@@ -916,8 +1018,8 @@ Example for \fB~/.hgrc\fP:
 .nf
 .ft C
 [extensions]
-# (the color extension will get loaded from Mercurial\(aqs path)
-color =
+# (the churn extension will get loaded from Mercurial\(aqs path)
+churn =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 .ft P
@@ -1034,19 +1136,23 @@ priority.incoming.autobuild = 1
 .fi
 .sp
 Most hooks are run with environment variables set that give useful
-additional information. For each hook below, the environment
-variables it is passed are listed with names of the form \fB$HG_foo\fP.
+additional information. For each hook below, the environment variables
+it is passed are listed with names in the form \fB$HG_foo\fP. The
+\fB$HG_HOOKTYPE\fP and \fB$HG_HOOKNAME\fP variables are set for all hooks.
+They contain the type of hook which triggered the run and the full name
+of the hook in the config, respectively. In the example above, this will
+be \fB$HG_HOOKTYPE=incoming\fP and \fB$HG_HOOKNAME=incoming.email\fP.
 .INDENT 0.0
 .TP
 .B \fBchangegroup\fP
 .sp
-Run after a changegroup has been added via push, pull or unbundle.  ID of the
-first new changeset is in \fB$HG_NODE\fP and last in \fB$HG_NODE_LAST\fP. URL
-from which changes came is in \fB$HG_URL\fP.
+Run after a changegroup has been added via push, pull or unbundle.  The ID of
+the first new changeset is in \fB$HG_NODE\fP and last is in \fB$HG_NODE_LAST\fP.
+The URL from which changes came is in \fB$HG_URL\fP.
 .TP
 .B \fBcommit\fP
 .sp
-Run after a changeset has been created in the local repository. ID
+Run after a changeset has been created in the local repository. The ID
 of the newly created changeset is in \fB$HG_NODE\fP. Parent changeset
 IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
@@ -1054,13 +1160,13 @@ IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .sp
 Run after a changeset has been pulled, pushed, or unbundled into
 the local repository. The ID of the newly arrived changeset is in
-\fB$HG_NODE\fP. URL that was source of changes came is in \fB$HG_URL\fP.
+\fB$HG_NODE\fP. The URL that was source of the changes is in \fB$HG_URL\fP.
 .TP
 .B \fBoutgoing\fP
 .sp
-Run after sending changes from local repository to another. ID of
-first changeset sent is in \fB$HG_NODE\fP. Source of operation is in
-\fB$HG_SOURCE\fP; Also see \%\fBhg help config.hooks.preoutgoing\fP\: hook.
+Run after sending changes from the local repository to another. The ID of
+first changeset sent is in \fB$HG_NODE\fP. The source of operation is in
+\fB$HG_SOURCE\fP. Also see \%\fBhg help config.hooks.preoutgoing\fP\:.
 .TP
 .B \fBpost\-<command>\fP
 .sp
@@ -1096,37 +1202,37 @@ code.
 .B \fBprechangegroup\fP
 .sp
 Run before a changegroup is added via push, pull or unbundle. Exit
-status 0 allows the changegroup to proceed. Non\-zero status will
-cause the push, pull or unbundle to fail. URL from which changes
+status 0 allows the changegroup to proceed. A non\-zero status will
+cause the push, pull or unbundle to fail. The URL from which changes
 will come is in \fB$HG_URL\fP.
 .TP
 .B \fBprecommit\fP
 .sp
 Run before starting a local commit. Exit status 0 allows the
-commit to proceed. Non\-zero status will cause the commit to fail.
+commit to proceed. A non\-zero status will cause the commit to fail.
 Parent changeset IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
 .B \fBprelistkeys\fP
 .sp
 Run before listing pushkeys (like bookmarks) in the
-repository. Non\-zero status will cause failure. The key namespace is
+repository. A non\-zero status will cause failure. The key namespace is
 in \fB$HG_NAMESPACE\fP.
 .TP
 .B \fBpreoutgoing\fP
 .sp
 Run before collecting changes to send from the local repository to
-another. Non\-zero status will cause failure. This lets you prevent
-pull over HTTP or SSH. Also prevents against local pull, push
-(outbound) or bundle commands, but not effective, since you can
-just copy files instead then. Source of operation is in
-\fB$HG_SOURCE\fP. If "serve", operation is happening on behalf of remote
-SSH or HTTP repository. If "push", "pull" or "bundle", operation
-is happening on behalf of repository on same system.
+another. A non\-zero status will cause failure. This lets you prevent
+pull over HTTP or SSH. It can also prevent propagating commits (via
+local pull, push (outbound) or bundle commands), but not completely,
+since you can just copy files instead. The source of operation is in
+\fB$HG_SOURCE\fP. If "serve", the operation is happening on behalf of a remote
+SSH or HTTP repository. If "push", "pull" or "bundle", the operation
+is happening on behalf of a repository on same system.
 .TP
 .B \fBprepushkey\fP
 .sp
 Run before a pushkey (like a bookmark) is added to the
-repository. Non\-zero status will cause the key to be rejected. The
+repository. A non\-zero status will cause the key to be rejected. The
 key namespace is in \fB$HG_NAMESPACE\fP, the key is in \fB$HG_KEY\fP,
 the old value (if any) is in \fB$HG_OLD\fP, and the new value is in
 \fB$HG_NEW\fP.
@@ -1134,14 +1240,14 @@ the old value (if any) is in \fB$HG_OLD\fP, and the new value is in
 .B \fBpretag\fP
 .sp
 Run before creating a tag. Exit status 0 allows the tag to be
-created. Non\-zero status will cause the tag to fail. ID of
-changeset to tag is in \fB$HG_NODE\fP. Name of tag is in \fB$HG_TAG\fP. Tag is
-local if \fB$HG_LOCAL=1\fP, in repository if \fB$HG_LOCAL=0\fP.
+created. A non\-zero status will cause the tag to fail. The ID of the
+changeset to tag is in \fB$HG_NODE\fP. The name of tag is in \fB$HG_TAG\fP. The
+tag is local if \fB$HG_LOCAL=1\fP, or in the repository if \fB$HG_LOCAL=0\fP.
 .TP
 .B \fBpretxnopen\fP
 .sp
 Run before any new repository transaction is open. The reason for the
-transaction will be in \fB$HG_TXNNAME\fP and a unique identifier for the
+transaction will be in \fB$HG_TXNNAME\fP, and a unique identifier for the
 transaction will be in \fBHG_TXNID\fP. A non\-zero status will prevent the
 transaction from being opened.
 .TP
@@ -1149,52 +1255,53 @@ transaction from being opened.
 .sp
 Run right before the transaction is actually finalized. Any repository change
 will be visible to the hook program. This lets you validate the transaction
-content or change it. Exit status 0 allows the commit to proceed. Non\-zero
+content or change it. Exit status 0 allows the commit to proceed. A non\-zero
 status will cause the transaction to be rolled back. The reason for the
-transaction opening will be in \fB$HG_TXNNAME\fP and a unique identifier for
+transaction opening will be in \fB$HG_TXNNAME\fP, and a unique identifier for
 the transaction will be in \fBHG_TXNID\fP. The rest of the available data will
-vary according the transaction type. New changesets will add \fB$HG_NODE\fP (id
-of the first added changeset), \fB$HG_NODE_LAST\fP (id of the last added
-changeset), \fB$HG_URL\fP and \fB$HG_SOURCE\fP variables, bookmarks and phases
-changes will set \fBHG_BOOKMARK_MOVED\fP and \fBHG_PHASES_MOVED\fP to \fB1\fP, etc.
+vary according the transaction type. New changesets will add \fB$HG_NODE\fP
+(the ID of the first added changeset), \fB$HG_NODE_LAST\fP (the ID of the last
+added changeset), \fB$HG_URL\fP and \fB$HG_SOURCE\fP variables.  Bookmark and
+phase changes will set \fBHG_BOOKMARK_MOVED\fP and \fBHG_PHASES_MOVED\fP to \fB1\fP
+respectively, etc.
 .TP
 .B \fBtxnclose\fP
 .sp
 Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
-after the lock is released. See \%\fBhg help config.hooks.pretxnclose\fP\: docs for
+after the lock is released. See \%\fBhg help config.hooks.pretxnclose\fP\: for
 details about available variables.
 .TP
 .B \fBtxnabort\fP
 .sp
 Run when a transaction is aborted. See \%\fBhg help config.hooks.pretxnclose\fP\:
-docs for details about available variables.
+for details about available variables.
 .TP
 .B \fBpretxnchangegroup\fP
 .sp
 Run after a changegroup has been added via push, pull or unbundle, but before
-the transaction has been committed. Changegroup is visible to hook program.
-This lets you validate incoming changes before accepting them. Passed the ID
-of the first new changeset in \fB$HG_NODE\fP and last in \fB$HG_NODE_LAST\fP.
-Exit status 0 allows the transaction to commit. Non\-zero status will cause
-the transaction to be rolled back and the push, pull or unbundle will fail.
-URL that was source of changes is in \fB$HG_URL\fP.
+the transaction has been committed. The changegroup is visible to the hook
+program. This allows validation of incoming changes before accepting them.
+The ID of the first new changeset is in \fB$HG_NODE\fP and last is in
+\fB$HG_NODE_LAST\fP. Exit status 0 allows the transaction to commit. A non\-zero
+status will cause the transaction to be rolled back, and the push, pull or
+unbundle will fail. The URL that was the source of changes is in \fB$HG_URL\fP.
 .TP
 .B \fBpretxncommit\fP
 .sp
-Run after a changeset has been created but the transaction not yet
-committed. Changeset is visible to hook program. This lets you
-validate commit message and changes. Exit status 0 allows the
-commit to proceed. Non\-zero status will cause the transaction to
-be rolled back. ID of changeset is in \fB$HG_NODE\fP. Parent changeset
-IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
+Run after a changeset has been created, but before the transaction is
+committed. The changeset is visible to the hook program. This allows
+validation of the commit message and changes. Exit status 0 allows the
+commit to proceed. A non\-zero status will cause the transaction to
+be rolled back. The ID of the new changeset is in \fB$HG_NODE\fP. The parent
+changeset IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
 .B \fBpreupdate\fP
 .sp
 Run before updating the working directory. Exit status 0 allows
-the update to proceed. Non\-zero status will prevent the update.
-Changeset ID of first new parent is in \fB$HG_PARENT1\fP. If merge, ID
-of second new parent is in \fB$HG_PARENT2\fP.
+the update to proceed. A non\-zero status will prevent the update.
+The changeset ID of first new parent is in \fB$HG_PARENT1\fP. If updating to a
+merge, the ID of second new parent is in \fB$HG_PARENT2\fP.
 .TP
 .B \fBlistkeys\fP
 .sp
@@ -1211,21 +1318,21 @@ value is in \fB$HG_NEW\fP.
 .TP
 .B \fBtag\fP
 .sp
-Run after a tag is created. ID of tagged changeset is in \fB$HG_NODE\fP.
-Name of tag is in \fB$HG_TAG\fP. Tag is local if \fB$HG_LOCAL=1\fP, in
-repository if \fB$HG_LOCAL=0\fP.
+Run after a tag is created. The ID of the tagged changeset is in \fB$HG_NODE\fP.
+The name of tag is in \fB$HG_TAG\fP. The tag is local if \fB$HG_LOCAL=1\fP, or in
+the repository if \fB$HG_LOCAL=0\fP.
 .TP
 .B \fBupdate\fP
 .sp
-Run after updating the working directory. Changeset ID of first
-new parent is in \fB$HG_PARENT1\fP. If merge, ID of second new parent is
-in \fB$HG_PARENT2\fP. If the update succeeded, \fB$HG_ERROR=0\fP. If the
-update failed (e.g. because conflicts not resolved), \fB$HG_ERROR=1\fP.
+Run after updating the working directory. The changeset ID of first
+new parent is in \fB$HG_PARENT1\fP. If updating to a merge, the ID of second new
+parent is in \fB$HG_PARENT2\fP. If the update succeeded, \fB$HG_ERROR=0\fP. If the
+update failed (e.g. because conflicts were not resolved), \fB$HG_ERROR=1\fP.
 .UNINDENT
 .IP Note
 .
 It is generally better to use standard hooks rather than the
-generic pre\- and post\- command hooks as they are guaranteed to be
+generic pre\- and post\- command hooks, as they are guaranteed to be
 called in the appropriate contexts for influencing transactions.
 Also, hooks like "commit" will be called in all contexts that
 generate a commit (e.g. tag) and not just the commit command.
@@ -1338,6 +1445,7 @@ to the host on which it is defined.
 A list of hashes of the DER encoded peer/remote certificate. Values have
 the form \fBalgorithm\fP:\fBfingerprint\fP. e.g.
 \fBsha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2\fP.
+In addition, colons (\fB:\fP) can appear in the fingerprint part.
 .sp
 The following algorithms/prefixes are supported: \fBsha1\fP, \fBsha256\fP,
 \fBsha512\fP.
@@ -1396,6 +1504,7 @@ For example:
 [hostsecurity]
 hg.example.com:fingerprints = sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2
 hg2.example.com:fingerprints = sha1:914f1aff87249c09b6859b88b1906d30756491ca, sha1:fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
+hg3.example.com:fingerprints = sha256:9a:b0:dc:e2:75:ad:8a:b7:84:58:e5:1f:07:32:f1:87:e6:bd:24:22:af:b7:ce:8e:9c:b4:10:cf:b9:f4:0e:d2
 foo.example.com:verifycertsfile = /etc/ssl/trusted\-ca\-certs.pem
 .ft P
 .fi
@@ -1612,6 +1721,38 @@ String to append to the value read from the registry, typically
 the executable name of the tool.
 (default: None)
 .UNINDENT
+.SS \fBpager\fP
+.sp
+Setting used to control when to paginate and with what external tool. See
+\%\fBhg help pager\fP\: for details.
+.INDENT 0.0
+.TP
+.B \fBpager\fP
+.sp
+Define the external tool used as pager.
+.sp
+If no pager is set, Mercurial uses the environment variable $PAGER.
+If neither pager.pager, nor $PAGER is set, a default pager will be
+used, typically \fIless\fP on Unix and \fImore\fP on Windows. Example:
+.sp
+.nf
+.ft C
+[pager]
+pager = less \-FRX
+.ft P
+.fi
+.TP
+.B \fBignore\fP
+.sp
+List of commands to disable the pager for. Example:
+.sp
+.nf
+.ft C
+[pager]
+ignore = version, help, update
+.ft P
+.fi
+.UNINDENT
 .SS \fBpatch\fP
 .sp
 Settings used when applying patches, for instance through the \(aqimport\(aq
@@ -1756,7 +1897,7 @@ This is equivalent to passing \fB\-\-profile\fP on the command line.
 .B \fBtype\fP
 .sp
 The type of profiler to use.
-(default: ls)
+(default: stat)
 .INDENT 7.0
 .TP
 .B \fBls\fP
@@ -1768,9 +1909,9 @@ identify the expensive parts of a non\-trivial function.
 .TP
 .B \fBstat\fP
 .sp
-Use a third\-party statistical profiler, statprof. This profiler
-currently runs only on Unix systems, and is most useful for
-profiling commands that run for longer than about 0.1 seconds.
+Use a statistical profiler, statprof. This profiler is most
+useful for profiling commands that run for longer than about 0.1
+seconds.
 .UNINDENT
 .TP
 .B \fBformat\fP
@@ -1790,6 +1931,30 @@ not kept.
 Format profiling data for kcachegrind use: when saving to a
 file, the generated file can directly be loaded into
 kcachegrind.
+.UNINDENT
+.TP
+.B \fBstatformat\fP
+.sp
+Profiling format for the \fBstat\fP profiler.
+(default: hotpath)
+.INDENT 7.0
+.TP
+.B \fBhotpath\fP
+.sp
+Show a tree\-based display containing the hot path of execution (where
+most time was spent).
+.TP
+.B \fBbymethod\fP
+.sp
+Show a table of methods ordered by how frequently they are active.
+.TP
+.B \fBbyline\fP
+.sp
+Show a table of lines in files ordered by how frequently they are active.
+.TP
+.B \fBjson\fP
+.sp
+Render profiling data as JSON.
 .UNINDENT
 .TP
 .B \fBfrequency\fP
@@ -1821,6 +1986,30 @@ Show at most this number of lines of drill\-down info after each main entry.
 This can help explain the difference between Total and Inline.
 Specific to the \fBls\fP instrumenting profiler.
 (default: 5)
+.TP
+.B \fBshowmin\fP
+.sp
+Minimum fraction of samples an entry must have for it to be displayed.
+Can be specified as a float between \fB0.0\fP and \fB1.0\fP or can have a
+\fB%\fP afterwards to allow values up to \fB100\fP. e.g. \fB5%\fP.
+.sp
+Only used by the \fBstat\fP profiler.
+.sp
+For the \fBhotpath\fP format, default is \fB0.05\fP.
+For the \fBchrome\fP format, default is \fB0.005\fP.
+.sp
+The option is unused on other formats.
+.TP
+.B \fBshowmax\fP
+.sp
+Maximum fraction of samples an entry can have before it is ignored in
+display. Values format is the same as \fBshowmin\fP.
+.sp
+Only used by the \fBstat\fP profiler.
+.sp
+For the \fBchrome\fP format, default is \fB0.999\fP.
+.sp
+The option is unused on other formats.
 .UNINDENT
 .SS \fBprogress\fP
 .sp
@@ -1887,6 +2076,22 @@ Alias definitions for revsets. See \%\fBhg help revsets\fP\: for details.
 Controls generic server settings.
 .INDENT 0.0
 .TP
+.B \fBcompressionengines\fP
+.sp
+List of compression engines and their relative priority to advertise
+to clients.
+.sp
+The order of compression engines determines their priority, the first
+having the highest priority. If a compression engine is not listed
+here, it won\(aqt be advertised to clients.
+.sp
+If not set (the default), built\-in defaults are used. Run
+\%\fBhg debuginstall\fP\: to list available compression engines and their
+default wire protocol priority.
+.sp
+Older Mercurial clients only support zlib compression and this setting
+has no effect for legacy clients.
+.TP
 .B \fBuncompressed\fP
 .sp
 Whether to allow clients to clone a repository using the
@@ -1900,10 +2105,39 @@ extra data transfer overhead. This mode will also temporarily hold
 the write lock while determining what data to transfer.
 (default: True)
 .TP
+.B \fBuncompressedallowsecret\fP
+.sp
+Whether to allow stream clones when the repository contains secret
+changesets. (default: False)
+.TP
 .B \fBpreferuncompressed\fP
 .sp
 When set, clients will try to use the uncompressed streaming
 protocol. (default: False)
+.TP
+.B \fBdisablefullbundle\fP
+.sp
+When set, servers will refuse attempts to do pull\-based clones.
+If this option is set, \fBpreferuncompressed\fP and/or clone bundles
+are highly recommended. Partial clones will still be allowed.
+(default: False)
+.TP
+.B \fBconcurrent\-push\-mode\fP
+.sp
+Level of allowed race condition between two pushing clients.
+.INDENT 7.0
+.IP \(bu 2
+.
+\(aqstrict\(aq: push is abort if another client touched the repository
+while the push was preparing. (default)
+.IP \(bu 2
+.
+\(aqcheck\-related\(aq: push is only aborted if it affects head that got also
+affected while the push was preparing.
+.UNINDENT
+.sp
+This requires compatible client (version 4.3 and later). Old client will
+use \(aqstrict\(aq.
 .TP
 .B \fBvalidate\fP
 .sp
@@ -1966,6 +2200,19 @@ bandwidth and CPU used. Lowering the compression lowers CPU utilization
 but sends more bytes to clients.
 .sp
 This option only impacts the HTTP server.
+.TP
+.B \fBzstdlevel\fP
+.sp
+Integer between \fB1\fP and \fB22\fP that controls the zstd compression level
+for wire protocol commands. \fB1\fP is the minimal amount of compression and
+\fB22\fP is the highest amount of compression.
+.sp
+The default (\fB3\fP) should be significantly faster than zlib while likely
+delivering better compression ratios.
+.sp
+This option only impacts the HTTP server.
+.sp
+See also \fBserver.zliblevel\fP.
 .UNINDENT
 .SS \fBsmtp\fP
 .sp
@@ -2139,6 +2386,12 @@ Example values: \fBCOMPRESSION=bzip2\fP,
 .sp
 By default, the first bundle advertised by the server is used.
 .TP
+.B \fBcolor\fP
+.sp
+When to colorize output. Possible value are Boolean ("yes" or "no"), or
+"debug", or "always". (default: "yes"). "yes" will use color whenever it
+seems possible. See \%\fBhg help color\fP\: for details.
+.TP
 .B \fBcommitsubrepos\fP
 .sp
 Whether to commit modified subrepositories when committing the
@@ -2227,6 +2480,11 @@ serious problems may occur.
 .sp
 The path to a directory used to store generated .orig files. If the path is
 not a directory, one will be created.
+.TP
+.B \fBpaginate\fP
+.sp
+Control the pagination of command output (default: True). See \%\fBhg help pager\fP\:
+for details.
 .TP
 .B \fBpatch\fP
 .sp
@@ -2341,6 +2599,21 @@ Mercurial always prints a traceback when an unknown exception
 occurs. Setting this to True will make Mercurial print a traceback
 on all exceptions, even those recognized by Mercurial (such as
 IOError or MemoryError). (default: False)
+.UNINDENT
+.sp
+\fBtweakdefaults\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+By default Mercurial\(aqs behavior changes very little from release
+to release, but over time the recommended config settings
+shift. Enable this config to opt in to get automatic tweaks to
+Mercurial\(aqs behavior over time. This config setting will have no
+effet if \fBHGPLAIN\(ga is set or \(ga\(gaHGPLAINEXCEPT\fP is set and does
+not include \fBtweakdefaults\fP. (default: False)
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
 .TP
 .B \fBusername\fP
 .sp
@@ -2512,6 +2785,21 @@ This setting can be overridden by a \fBcontext\fP request parameter to the
 .sp
 Name or email address of the person in charge of the repository.
 (default: ui.username or \fB$EMAIL\fP or "unknown" if unset or empty)
+.TP
+.B \fBcsp\fP
+.sp
+Send a \fBContent\-Security\-Policy\fP HTTP header with this value.
+.sp
+The value may contain a special string \fB%nonce%\fP, which will be replaced
+by a randomly\-generated one\-time use value. If the value contains
+\fB%nonce%\fP, \fBweb.cache\fP will be disabled, as caching undermines the
+one\-time property of the nonce. This nonce will also be inserted into
+\fB<script>\fP elements containing inline JavaScript.
+.sp
+Note: lots of HTML content sent by the server is derived from repository
+data. Please consider the potential for malicious repository data to
+"inject" itself into generated HTML content as part of your security
+threat model.
 .TP
 .B \fBdeny_push\fP
 .sp
@@ -2750,7 +3038,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2016 Matt Mackall.
+Mercurial is copyright 2005\-2017 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

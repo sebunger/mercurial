@@ -2,38 +2,33 @@ Source: mercurial
 Section: vcs
 Priority: optional
 Maintainer: Python Applications Packaging Team <python-apps-team@lists.alioth.debian.org>
-Uploaders: Vincent Danjean <vdanjean@debian.org>,
+Uploaders:
+ Vincent Danjean <vdanjean@debian.org>,
  Javi Merino <vicho@debian.org>,
- Tristan Seligmann <mithrandi@debian.org>
-Build-Depends: debhelper (>= 9),
+ Tristan Seligmann <mithrandi@debian.org>,
+Build-Depends:
+ bash-completion,
+ debhelper (>= 9),
  dh-python,
- patchutils (>= 0.2.25),
  gettext,
+ netbase,
+ patchutils (>= 0.2.25),
  python-all-dev (>= 2.6.6-3~),
  python-docutils,
  python-roman,
- zip,
  unzip,
- bash-completion,
- netbase,
-Standards-Version: 3.9.8
+ zip,
+Standards-Version: 4.0.0
 Homepage: https://www.mercurial-scm.org/
 Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/mercurial/trunk/
 Vcs-Browser: https://anonscm.debian.org/viewvc/python-apps/packages/mercurial/trunk/
 X-Python-Version: >= 2.4
 
 Package: mercurial-common
-Architecture: all 
-Depends:
- ${misc:Depends},
- ${python:Depends},
- libjs-excanvas
-Recommends: mercurial (>= ${source:Version}), ca-certificates
-Suggests:
- wish,
- python-mysqldb, 
- python-pygments,
- python-openssl
+Architecture: all
+Depends: libjs-excanvas, ${misc:Depends}, ${python:Depends}
+Recommends: ca-certificates, mercurial (>= ${source:Version})
+Suggests: python-mysqldb, python-openssl, python-pygments, wish
 Breaks: mercurial (<< ${source:Version})
 Replaces: mercurial (<< 2.6.3)
 Description: easy-to-use, scalable distributed version control system (common files)
@@ -44,17 +39,21 @@ Description: easy-to-use, scalable distributed version control system (common fi
  and is generally useless without the mercurial package.
 
 Package: mercurial
-Architecture: any 
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, ucf (>= 2.0020),
- mercurial-common (= ${source:Version})
-Recommends: openssh-client,
-Suggests: qct,
- kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff
-Breaks: hgsubversion (<< 1.8.6-1),
+Architecture: any
+Depends:
+ mercurial-common (= ${source:Version}),
+ ucf (>= 2.0020),
+ ${misc:Depends},
+ ${python:Depends},
+ ${shlibs:Depends},
+Recommends: openssh-client
+Suggests: kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff, qct
+Breaks:
+ hgsubversion (<< 1.8.7+1517-b3e41b0d50a2-1),
  hgview-common (<< 1.8.1),
+ mercurial-crecord (<= 0.20140626-1),
  mercurial-git (<= 0.8.3-1),
  qct (<< 1.7-2~),
- mercurial-crecord (<= 0.20140626-1),
 Description: easy-to-use, scalable distributed version control system
  Mercurial is a fast, lightweight Source Control Management system designed
  for efficient handling of very large distributed projects.

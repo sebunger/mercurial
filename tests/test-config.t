@@ -58,12 +58,12 @@ Test case sensitive configuration
   [
    {
     "name": "Section.KeY",
-    "source": "*.hgrc:16", (glob)
+    "source": "*.hgrc:*", (glob)
     "value": "Case Sensitive"
    },
    {
     "name": "Section.key",
-    "source": "*.hgrc:17", (glob)
+    "source": "*.hgrc:*", (glob)
     "value": "lower case"
    }
   ]
@@ -71,7 +71,7 @@ Test case sensitive configuration
   [
    {
     "name": "Section.KeY",
-    "source": "*.hgrc:16", (glob)
+    "source": "*.hgrc:*", (glob)
     "value": "Case Sensitive"
    }
   ]
@@ -83,6 +83,32 @@ Test case sensitive configuration
     "value": "*" (glob)
    }
   ]
+
+Test empty config source:
+
+  $ cat <<EOF > emptysource.py
+  > def reposetup(ui, repo):
+  >     ui.setconfig('empty', 'source', 'value')
+  > EOF
+  $ cp .hg/hgrc .hg/hgrc.orig
+  $ cat <<EOF >> .hg/hgrc
+  > [extensions]
+  > emptysource = `pwd`/emptysource.py
+  > EOF
+
+  $ hg config --debug empty.source
+  read config from: * (glob)
+  none: value
+  $ hg config empty.source -Tjson
+  [
+   {
+    "name": "empty.source",
+    "source": "",
+    "value": "value"
+   }
+  ]
+
+  $ cp .hg/hgrc.orig .hg/hgrc
 
 Test "%unset"
 
@@ -132,3 +158,56 @@ sub-options in [paths] aren't expanded
   $ hg showconfig paths
   paths.foo:suboption=~/foo
   paths.foo=$TESTTMP/foo
+
+edit failure
+
+  $ HGEDITOR=false hg config --edit
+  abort: edit failed: false exited with status 1
+  [255]
+
+config affected by environment variables
+
+  $ EDITOR=e1 VISUAL=e2 hg config --debug | grep 'ui\.editor'
+  $VISUAL: ui.editor=e2
+
+  $ VISUAL=e2 hg config --debug --config ui.editor=e3 | grep 'ui\.editor'
+  --config: ui.editor=e3
+
+  $ PAGER=p1 hg config --debug | grep 'pager\.pager'
+  $PAGER: pager.pager=p1
+
+  $ PAGER=p1 hg config --debug --config pager.pager=p2 | grep 'pager\.pager'
+  --config: pager.pager=p2
+
+verify that aliases are evaluated as well
+
+  $ hg init aliastest
+  $ cd aliastest
+  $ cat > .hg/hgrc << EOF
+  > [ui]
+  > user = repo user
+  > EOF
+  $ touch index
+  $ unset HGUSER
+  $ hg ci -Am test
+  adding index
+  $ hg log --template '{author}\n'
+  repo user
+  $ cd ..
+
+alias has lower priority
+
+  $ hg init aliaspriority
+  $ cd aliaspriority
+  $ cat > .hg/hgrc << EOF
+  > [ui]
+  > user = alias user
+  > username = repo user
+  > EOF
+  $ touch index
+  $ unset HGUSER
+  $ hg ci -Am test
+  adding index
+  $ hg log --template '{author}\n'
+  repo user
+  $ cd ..

@@ -35,9 +35,10 @@ from . import (
     node as nodemod,
     pathutil,
     phases,
+    pycompat,
     revlog,
-    scmutil,
     util,
+    vfs as vfsmod,
 )
 
 class bundlerevlog(revlog.revlog):
@@ -49,7 +50,7 @@ class bundlerevlog(revlog.revlog):
         #
         # To differentiate a rev in the bundle from a rev in the revlog, we
         # check revision against repotiprev.
-        opener = scmutil.readonlyvfs(opener)
+        opener = vfsmod.readonlyvfs(opener)
         revlog.revlog.__init__(self, opener, indexfile)
         self.bundle = bundle
         n = len(self)
@@ -64,6 +65,7 @@ class bundlerevlog(revlog.revlog):
             cs = chunkdata['cs']
             deltabase = chunkdata['deltabase']
             delta = chunkdata['delta']
+            flags = chunkdata['flags']
 
             size = len(delta)
             start = bundle.tell() - size
@@ -86,7 +88,7 @@ class bundlerevlog(revlog.revlog):
 
             baserev = self.rev(deltabase)
             # start, size, full unc. size, base (unused), link, p1, p2, node
-            e = (revlog.offset_type(start, 0), size, -1, baserev, link,
+            e = (revlog.offset_type(start, flags), size, -1, baserev, link,
                  self.rev(p1), self.rev(p2), node)
             self.index.insert(-1, e)
             self.nodemap[node] = n
@@ -113,10 +115,10 @@ class bundlerevlog(revlog.revlog):
         elif rev1 <= self.repotiprev and rev2 <= self.repotiprev:
             return revlog.revlog.revdiff(self, rev1, rev2)
 
-        return mdiff.textdiff(self.revision(self.node(rev1)),
-                              self.revision(self.node(rev2)))
+        return mdiff.textdiff(self.revision(rev1, raw=True),
+                              self.revision(rev2, raw=True))
 
-    def revision(self, nodeorrev):
+    def revision(self, nodeorrev, raw=False):
         """return an uncompressed revision of a given node or revision
         number.
         """
@@ -130,32 +132,35 @@ class bundlerevlog(revlog.revlog):
         if node == nullid:
             return ""
 
-        text = None
+        rawtext = None
         chain = []
         iterrev = rev
         # reconstruct the revision if it is from a changegroup
         while iterrev > self.repotiprev:
             if self._cache and self._cache[1] == iterrev:
-                text = self._cache[2]
+                rawtext = self._cache[2]
                 break
             chain.append(iterrev)
             iterrev = self.index[iterrev][3]
-        if text is None:
-            text = self.baserevision(iterrev)
+        if rawtext is None:
+            rawtext = self.baserevision(iterrev)
 
         while chain:
             delta = self._chunk(chain.pop())
-            text = mdiff.patches(text, [delta])
+            rawtext = mdiff.patches(rawtext, [delta])
 
-        self._checkhash(text, node, rev)
-        self._cache = (node, rev, text)
+        text, validatehash = self._processflags(rawtext, self.flags(rev),
+                                                'read', raw=raw)
+        if validatehash:
+            self.checkhash(text, node, rev=rev)
+        self._cache = (node, rev, rawtext)
         return text
 
     def baserevision(self, nodeorrev):
         # Revlog subclasses may override 'revision' method to modify format of
         # content retrieved from revlog. To use bundlerevlog with such class one
         # needs to override 'baserevision' and make more specific call here.
-        return revlog.revlog.revision(self, nodeorrev)
+        return revlog.revlog.revision(self, nodeorrev, raw=True)
 
     def addrevision(self, text, transaction, link, p1=None, p2=None, d=None):
         raise NotImplementedError
@@ -183,13 +188,13 @@ class bundlechangelog(bundlerevlog, changelog.changelog):
         oldfilter = self.filteredrevs
         try:
             self.filteredrevs = ()
-            return changelog.changelog.revision(self, nodeorrev)
+            return changelog.changelog.revision(self, nodeorrev, raw=True)
         finally:
             self.filteredrevs = oldfilter
 
-class bundlemanifest(bundlerevlog, manifest.manifest):
+class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
     def __init__(self, opener, bundle, linkmapper, dirlogstarts=None, dir=''):
-        manifest.manifest.__init__(self, opener, dir=dir)
+        manifest.manifestrevlog.__init__(self, opener, dir=dir)
         bundlerevlog.__init__(self, opener, self.indexfile, bundle,
                               linkmapper)
         if dirlogstarts is None:
@@ -205,9 +210,9 @@ class bundlemanifest(bundlerevlog, manifest.manifest):
             node = self.node(node)
 
         if node in self.fulltextcache:
-            result = self.fulltextcache[node].tostring()
+            result = '%s' % self.fulltextcache[node]
         else:
-            result = manifest.manifest.revision(self, nodeorrev)
+            result = manifest.manifestrevlog.revision(self, nodeorrev, raw=True)
         return result
 
     def dirlog(self, d):
@@ -225,7 +230,7 @@ class bundlefilelog(bundlerevlog, filelog.filelog):
                               linkmapper)
 
     def baserevision(self, nodeorrev):
-        return filelog.filelog.revision(self, nodeorrev)
+        return filelog.filelog.revision(self, nodeorrev, raw=True)
 
 class bundlepeer(localrepo.localpeer):
     def canpush(self):
@@ -235,7 +240,7 @@ class bundlephasecache(phases.phasecache):
     def __init__(self, *args, **kwargs):
         super(bundlephasecache, self).__init__(*args, **kwargs)
         if util.safehasattr(self, 'opener'):
-            self.opener = scmutil.readonlyvfs(self.opener)
+            self.opener = vfsmod.readonlyvfs(self.opener)
 
     def write(self):
         raise NotImplementedError
@@ -268,7 +273,7 @@ class bundlerepository(localrepo.localrepository):
                                             suffix=".hg10un")
             self.tempfile = temp
 
-            with os.fdopen(fdtemp, 'wb') as fptemp:
+            with os.fdopen(fdtemp, pycompat.sysstr('wb')) as fptemp:
                 fptemp.write(header)
                 while True:
                     chunk = read(2**18)
@@ -359,7 +364,7 @@ class bundlerepository(localrepo.localrepository):
 
     @localrepo.unfilteredpropertycache
     def filestart(self):
-        self.manifest
+        self.manifestlog
         return self.filestart
 
     def url(self):
@@ -392,7 +397,7 @@ class bundlerepository(localrepo.localrepository):
         return bundlepeer(self)
 
     def getcwd(self):
-        return os.getcwd() # always outside the repo
+        return pycompat.getcwd() # always outside the repo
 
     # Check if parents exist in localrepo before setting
     def setparents(self, p1, p2=nullid):
@@ -409,16 +414,16 @@ def instance(ui, path, create):
     if create:
         raise error.Abort(_('cannot create new bundle repository'))
     # internal config: bundle.mainreporoot
-    parentpath = ui.config("bundle", "mainreporoot", "")
+    parentpath = ui.config("bundle", "mainreporoot")
     if not parentpath:
         # try to find the correct path to the working directory repo
-        parentpath = cmdutil.findrepo(os.getcwd())
+        parentpath = cmdutil.findrepo(pycompat.getcwd())
         if parentpath is None:
             parentpath = ''
     if parentpath:
         # Try to make the full path relative so we get a nice, short URL.
         # In particular, we don't want temp dir names in test outputs.
-        cwd = os.getcwd()
+        cwd = pycompat.getcwd()
         if parentpath == cwd:
             parentpath = ''
         else:

@@ -136,7 +136,7 @@ Base setup for the rest of the testing
   #  p, pick = use commit
   #  d, drop = remove commit from history
   #  f, fold = use commit, but combine it with the one above
-  #  r, roll = like fold, but discard this commit's description
+  #  r, roll = like fold, but discard this commit's description and date
   #
   $ hg histedit 1 --commands - --verbose <<EOF | grep histedit
   > pick 177f92b77385 2 c
@@ -170,13 +170,13 @@ Base setup for the rest of the testing
   o  0:cb9a9f314b8b a
   
   $ hg debugobsolete
-  96e494a2d553dd05902ba1cee1d94d4cb7b8faed 0 {b346ab9a313db8537ecf96fca3ca3ca984ef3bd7} (*) {'user': 'test'} (glob)
-  b558abc46d09c30f57ac31e85a8a3d64d2e906e4 0 {96e494a2d553dd05902ba1cee1d94d4cb7b8faed} (*) {'user': 'test'} (glob)
   d2ae7f538514cd87c17547b0de4cea71fe1af9fb 0 {cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b} (*) {'user': 'test'} (glob)
   177f92b773850b59254aa5e923436f921b55483b b346ab9a313db8537ecf96fca3ca3ca984ef3bd7 0 (*) {'user': 'test'} (glob)
   055a42cdd88768532f9cf79daa407fc8d138de9b 59d9f330561fd6c88b1a6b32f0e45034d88db784 0 (*) {'user': 'test'} (glob)
   e860deea161a2f77de56603b340ebbb4536308ae 59d9f330561fd6c88b1a6b32f0e45034d88db784 0 (*) {'user': 'test'} (glob)
   652413bf663ef2a641cab26574e46d5f5a64a55a cacdfd884a9321ec4e1de275ef3949fa953a1f83 0 (*) {'user': 'test'} (glob)
+  96e494a2d553dd05902ba1cee1d94d4cb7b8faed 0 {b346ab9a313db8537ecf96fca3ca3ca984ef3bd7} (*) {'user': 'test'} (glob)
+  b558abc46d09c30f57ac31e85a8a3d64d2e906e4 0 {96e494a2d553dd05902ba1cee1d94d4cb7b8faed} (*) {'user': 'test'} (glob)
 
 
 Ensure hidden revision does not prevent histedit
@@ -339,7 +339,7 @@ phases.new-commit option is.
 
 New-commit as draft (default)
 
-  $ cp -r base simple-draft
+  $ cp -R base simple-draft
   $ cd simple-draft
   $ hg histedit -r 'b449568bf7fc' --commands - << EOF
   > edit b449568bf7fc 11 f
@@ -378,7 +378,7 @@ New-commit as draft (default)
 
 New-commit as secret (config)
 
-  $ cp -r base simple-secret
+  $ cp -R base simple-secret
   $ cd simple-secret
   $ cat >> .hg/hgrc << EOF
   > [phases]
@@ -425,7 +425,7 @@ Changeset reordering
 If a secret changeset is put before a draft one, all descendant should be secret.
 It seems more important to present the secret phase.
 
-  $ cp -r base reorder
+  $ cp -R base reorder
   $ cd reorder
   $ hg histedit -r 'b449568bf7fc' --commands - << EOF
   > pick b449568bf7fc 11 f
@@ -462,7 +462,7 @@ better safe than sorry). Folding between same phase changeset still works
 
 Note that there is a few reordering in this series for more extensive test
 
-  $ cp -r base folding
+  $ cp -R base folding
   $ cd folding
   $ cat >> .hg/hgrc << EOF
   > [phases]
@@ -503,3 +503,76 @@ Note that there is a few reordering in this series for more extensive test
   abort: cannot edit history that contains merges
   [255]
   $ cd ..
+
+Check abort behavior
+-------------------------------------------
+
+We checks that abort properly clean the repository so the same histedit can be
+attempted later.
+
+  $ cp -R base abort
+  $ cd abort
+  $ hg histedit -r 'b449568bf7fc' --commands - << EOF
+  > pick b449568bf7fc 13 f
+  > pick 7395e1ff83bd 15 h
+  > pick 6b70183d2492 14 g
+  > pick b605fb7503f2 16 i
+  > roll 3a6c53ee7f3d 17 j
+  > edit ee118ab9fa44 18 k
+  > EOF
+  Editing (ee118ab9fa44), you may commit or record as needed now.
+  (hg histedit --continue to resume)
+  [1]
+
+  $ hg histedit --abort
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  saved backup bundle to $TESTTMP/abort/.hg/strip-backup/4dc06258baa6-dff4ef05-backup.hg (glob)
+
+  $ hg log -G
+  @  18:ee118ab9fa44 (secret) k
+  |
+  o  17:3a6c53ee7f3d (secret) j
+  |
+  o  16:b605fb7503f2 (secret) i
+  |
+  o  15:7395e1ff83bd (draft) h
+  |
+  o  14:6b70183d2492 (draft) g
+  |
+  o  13:b449568bf7fc (draft) f
+  |
+  o  12:40db8afa467b (public) c
+  |
+  o  0:cb9a9f314b8b (public) a
+  
+  $ hg histedit -r 'b449568bf7fc' --commands - << EOF --config experimental.evolution.track-operation=1
+  > pick b449568bf7fc 13 f
+  > pick 7395e1ff83bd 15 h
+  > pick 6b70183d2492 14 g
+  > pick b605fb7503f2 16 i
+  > pick 3a6c53ee7f3d 17 j
+  > edit ee118ab9fa44 18 k
+  > EOF
+  Editing (ee118ab9fa44), you may commit or record as needed now.
+  (hg histedit --continue to resume)
+  [1]
+  $ hg histedit --continue --config experimental.evolution.track-operation=1
+  $ hg log -G
+  @  23:175d6b286a22 (secret) k
+  |
+  o  22:44ca09d59ae4 (secret) j
+  |
+  o  21:31747692a644 (secret) i
+  |
+  o  20:9985cd4f21fa (draft) g
+  |
+  o  19:4dc06258baa6 (draft) h
+  |
+  o  13:b449568bf7fc (draft) f
+  |
+  o  12:40db8afa467b (public) c
+  |
+  o  0:cb9a9f314b8b (public) a
+  
+  $ hg debugobsolete --rev .
+  ee118ab9fa44ebb86be85996548b5517a39e5093 175d6b286a224c23f192e79a581ce83131a53fa2 0 (*) {'operation': 'histedit', 'user': 'test'} (glob)

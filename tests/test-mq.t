@@ -25,7 +25,7 @@ help
   Known patches are represented as patch files in the .hg/patches directory.
   Applied patches are both patch files and changesets.
   
-  Common tasks (use 'hg help command' for more details):
+  Common tasks (use 'hg help COMMAND' for more details):
   
     create new patch                          qnew
     import existing patch                     qimport
@@ -365,10 +365,10 @@ pop/push -a in subdir
 
 setting columns & formatted tests truncating (issue1912)
 
-  $ COLUMNS=4 hg qseries --config ui.formatted=true
+  $ COLUMNS=4 hg qseries --config ui.formatted=true --color=no
   test.patch
   test2.patch
-  $ COLUMNS=20 hg qseries --config ui.formatted=true -vs
+  $ COLUMNS=20 hg qseries --config ui.formatted=true -vs --color=no
   0 A test.patch: f...
   1 A test2.patch: 
   $ hg qpop
@@ -888,9 +888,10 @@ mq revset
   $ hg log -r 'mq()' --template '{rev}\n'
   1
   2
-  $ hg help revsets | grep -i mq
+  $ hg help revisions.mq
       "mq()"
         Changesets managed by MQ.
+  
 
 bad node in status
 
@@ -931,27 +932,17 @@ git patches
 #endif
   $ hg add new
   $ hg qrefresh
-#if execbit
+
   $ cat .hg/patches/new
   new file
   
   diff --git a/new b/new
-  new file mode 100755
+  new file mode 100755 (execbit !)
+  new file mode 100644 (no-execbit !)
   --- /dev/null
   +++ b/new
   @@ -0,0 +1,1 @@
   +foo
-#else
-  $ cat .hg/patches/new
-  new file
-  
-  diff --git a/new b/new
-  new file mode 100644
-  --- /dev/null
-  +++ b/new
-  @@ -0,0 +1,1 @@
-  +foo
-#endif
 
   $ hg qnew -m'copy file' copy
   $ hg cp new copy
@@ -1136,9 +1127,9 @@ create a git binary patch
   > path = sys.argv[1]
   > open(path, 'wb').write('BIN\x00ARY')
   > EOF
-  $ python writebin.py bucephalus
+  $ $PYTHON writebin.py bucephalus
 
-  $ python "$TESTDIR/md5sum.py" bucephalus
+  $ $PYTHON "$TESTDIR/md5sum.py" bucephalus
   8ba2a2f3e77b55d03051ff9c24ad65e7  bucephalus
   $ hg add bucephalus
   $ hg qnew -f --git addbucephalus
@@ -1157,7 +1148,7 @@ check binary patches can be popped and pushed
   applying addbucephalus
   now at: addbucephalus
   $ test -f bucephalus
-  $ python "$TESTDIR/md5sum.py" bucephalus
+  $ $PYTHON "$TESTDIR/md5sum.py" bucephalus
   8ba2a2f3e77b55d03051ff9c24ad65e7  bucephalus
 
 
@@ -1583,7 +1574,7 @@ Test that secret mq patch does not break hgweb
   $ PATH_INFO=/tags; export PATH_INFO
 #endif
   $ QUERY_STRING='style=raw'
-  $ python hgweb.cgi | grep '^tip'
+  $ $PYTHON hgweb.cgi | grep '^tip'
   tip	[0-9a-f]{40} (re)
 
   $ cd ..

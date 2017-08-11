@@ -7,14 +7,9 @@
 
 from __future__ import absolute_import
 
-import array
 import difflib
 import re
 import struct
-
-from . import policy
-policynocffi = policy.policynocffi
-modulepolicy = policy.policy
 
 def splitnewlines(text):
     '''like str.splitlines, but only split on newlines.'''
@@ -55,15 +50,9 @@ def _normalizeblocks(a, b, blocks):
     r.append(prev)
     return r
 
-def _tostring(c):
-    if type(c) is array.array:
-        # this copy overhead isn't ideal
-        return c.tostring()
-    return str(c)
-
 def bdiff(a, b):
-    a = _tostring(a).splitlines(True)
-    b = _tostring(b).splitlines(True)
+    a = bytes(a).splitlines(True)
+    b = bytes(b).splitlines(True)
 
     if not a:
         s = "".join(b)
@@ -100,70 +89,3 @@ def fixws(text, allws):
         text = re.sub('[ \t\r]+', ' ', text)
         text = text.replace(' \n', '\n')
     return text
-
-if modulepolicy not in policynocffi:
-    try:
-        from _bdiff_cffi import ffi, lib
-    except ImportError:
-        if modulepolicy == 'cffi': # strict cffi import
-            raise
-    else:
-        def blocks(sa, sb):
-            a = ffi.new("struct bdiff_line**")
-            b = ffi.new("struct bdiff_line**")
-            ac = ffi.new("char[]", str(sa))
-            bc = ffi.new("char[]", str(sb))
-            l = ffi.new("struct bdiff_hunk*")
-            try:
-                an = lib.bdiff_splitlines(ac, len(sa), a)
-                bn = lib.bdiff_splitlines(bc, len(sb), b)
-                if not a[0] or not b[0]:
-                    raise MemoryError
-                count = lib.bdiff_diff(a[0], an, b[0], bn, l)
-                if count < 0:
-                    raise MemoryError
-                rl = [None] * count
-                h = l.next
-                i = 0
-                while h:
-                    rl[i] = (h.a1, h.a2, h.b1, h.b2)
-                    h = h.next
-                    i += 1
-            finally:
-                lib.free(a[0])
-                lib.free(b[0])
-                lib.bdiff_freehunks(l.next)
-            return rl
-
-        def bdiff(sa, sb):
-            a = ffi.new("struct bdiff_line**")
-            b = ffi.new("struct bdiff_line**")
-            ac = ffi.new("char[]", str(sa))
-            bc = ffi.new("char[]", str(sb))
-            l = ffi.new("struct bdiff_hunk*")
-            try:
-                an = lib.bdiff_splitlines(ac, len(sa), a)
-                bn = lib.bdiff_splitlines(bc, len(sb), b)
-                if not a[0] or not b[0]:
-                    raise MemoryError
-                count = lib.bdiff_diff(a[0], an, b[0], bn, l)
-                if count < 0:
-                    raise MemoryError
-                rl = []
-                h = l.next
-                la = lb = 0
-                while h:
-                    if h.a1 != la or h.b1 != lb:
-                        lgt = (b[0] + h.b1).l - (b[0] + lb).l
-                        rl.append(struct.pack(">lll", (a[0] + la).l - a[0].l,
-                            (a[0] + h.a1).l - a[0].l, lgt))
-                        rl.append(str(ffi.buffer((b[0] + lb).l, lgt)))
-                    la = h.a2
-                    lb = h.b2
-                    h = h.next
-
-            finally:
-                lib.free(a[0])
-                lib.free(b[0])
-                lib.bdiff_freehunks(l.next)
-            return "".join(rl)
