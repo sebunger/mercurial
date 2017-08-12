@@ -528,11 +528,12 @@ class changectx(basectx):
 
     @propertycache
     def _manifest(self):
-        return self._repo.manifest.read(self._changeset.manifest)
+        return self._repo.manifestlog[self._changeset.manifest].read()
 
     @propertycache
     def _manifestdelta(self):
-        return self._repo.manifest.readdelta(self._changeset.manifest)
+        mfnode = self._changeset.manifest
+        return self._repo.manifestlog[mfnode].readdelta()
 
     @propertycache
     def _parents(self):
@@ -823,7 +824,7 @@ class basefilectx(object):
         """
         repo = self._repo
         cl = repo.unfiltered().changelog
-        ma = repo.manifest
+        mfl = repo.manifestlog
         # fetch the linkrev
         fr = filelog.rev(fnode)
         lkr = filelog.linkrev(fr)
@@ -848,7 +849,7 @@ class basefilectx(object):
                 if path in ac[3]: # checking the 'files' field.
                     # The file has been touched, check if the content is
                     # similar to the one we search for.
-                    if fnode == ma.readfast(ac[0]).get(path):
+                    if fnode == mfl[ac[0]].readfast().get(path):
                         return a
             # In theory, we should never get out of that loop without a result.
             # But if manifest uses a buggy file revision (not children of the
@@ -929,7 +930,7 @@ class basefilectx(object):
         def lines(text):
             if text.endswith("\n"):
                 return text.count("\n")
-            return text.count("\n") + 1
+            return text.count("\n") + int(bool(text))
 
         if linenumber:
             def decorate(text, rev):
@@ -939,8 +940,7 @@ class basefilectx(object):
                 return ([(rev, False)] * lines(text), text)
 
         def pair(parent, child):
-            blocks = mdiff.allblocks(parent[1], child[1], opts=diffopts,
-                                     refine=True)
+            blocks = mdiff.allblocks(parent[1], child[1], opts=diffopts)
             for (a1, a2, b1, b2), t in blocks:
                 # Changed blocks ('!') or blocks made only of blank lines ('~')
                 # belong to the child.
@@ -990,15 +990,29 @@ class basefilectx(object):
         # bit recursion-hostile. Instead we do an iterative
         # depth-first search.
 
+        # 1st DFS pre-calculates pcache and needed
         visit = [base]
-        hist = {}
         pcache = {}
         needed = {base: 1}
         while visit:
+            f = visit.pop()
+            if f in pcache:
+                continue
+            pl = parents(f)
+            pcache[f] = pl
+            for p in pl:
+                needed[p] = needed.get(p, 0) + 1
+                if p not in pcache:
+                    visit.append(p)
+
+        # 2nd DFS does the actual annotate
+        visit[:] = [base]
+        hist = {}
+        while visit:
             f = visit[-1]
-            pcached = f in pcache
-            if not pcached:
-                pcache[f] = parents(f)
+            if f in hist:
+                visit.pop()
+                continue
 
             ready = True
             pl = pcache[f]
@@ -1006,18 +1020,11 @@ class basefilectx(object):
                 if p not in hist:
                     ready = False
                     visit.append(p)
-                if not pcached:
-                    needed[p] = needed.get(p, 0) + 1
             if ready:
                 visit.pop()
-                reusable = f in hist
-                if reusable:
-                    curr = hist[f]
-                else:
-                    curr = decorate(f.data(), f)
+                curr = decorate(f.data(), f)
                 for p in pl:
-                    if not reusable:
-                        curr = pair(hist[p], curr)
+                    curr = pair(hist[p], curr)
                     if needed[p] == 1:
                         del hist[p]
                         del needed[p]
@@ -1025,7 +1032,7 @@ class basefilectx(object):
                         needed[p] -= 1
 
                 hist[f] = curr
-                pcache[f] = []
+                del pcache[f]
 
         return zip(hist[base][0], hist[base][1].splitlines(True))
 
@@ -1501,7 +1508,7 @@ class workingctx(committablectx):
 
         # Only a case insensitive filesystem needs magic to translate user input
         # to actual case in the filesystem.
-        if not util.checkcase(r.root):
+        if not util.fscasesensitive(r.root):
             return matchmod.icasefsmatcher(r.root, r.getcwd(), pats, include,
                                            exclude, default, r.auditor, self,
                                            listsubrepos=listsubrepos,

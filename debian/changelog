@@ -1,10 +1,30 @@
-mercurial (3.9.1-1~bpo8+1) jessie-backports; urgency=medium
+mercurial (4.0-1+deb9u1) stretch-security; urgency=high
 
-  * Rebuild for jessie-backports.
-  * Disable deb_specific__use_gpg_21_keys_for_test.patch, jessie doesn't use
-    gnupg 2.x.
+  * CVE-2017-1000116: command injection on clients through malicious ssh URLs
+  * CVE-2017-1000115: path traversal via symlink
+  * CVE-2017-9462: protect against malicious 'hg serve --stdio' invocations
 
- -- Julien Cristau <jcristau@debian.org>  Fri, 16 Sep 2016 22:28:34 +0200
+ -- Julien Cristau <jcristau@debian.org>  Sat, 12 Aug 2017 18:21:47 -0400
+
+mercurial (4.0-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Wed, 02 Nov 2016 05:50:33 -0600
+
+mercurial (4.0~rc1-1) experimental; urgency=medium
+
+  * First release candidate for mercurial 4.0
+  * Remove deb_specific__use_gpg_21_keys_for_test.patch as test-gpg now
+    migrates the secret keys at the beginning of the test
+
+ -- Javi Merino <vicho@debian.org>  Sun, 23 Oct 2016 18:15:45 +0100
+
+mercurial (3.9.2-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Javi Merino <vicho@debian.org>  Sat, 22 Oct 2016 19:40:13 +0100
 
 mercurial (3.9.1-1) unstable; urgency=medium
 
@@ -27,12 +47,6 @@ mercurial (3.8.4-1) unstable; urgency=medium
   * New upstream release
 
  -- Javi Merino <vicho@debian.org>  Sun, 10 Jul 2016 12:38:01 +0100
-
-mercurial (3.8.3-1~bpo8+1) jessie-backports; urgency=medium
-
-  * Rebuild for jessie-backports.
-
- -- Julien Cristau <jcristau@debian.org>  Wed, 15 Jun 2016 14:31:25 +0200
 
 mercurial (3.8.3-1) unstable; urgency=medium
 
@@ -69,12 +83,6 @@ mercurial (3.8.1-1) unstable; urgency=medium
   * mercurial 3.8.1 breaks current hgsubversion and mercurial-git
 
  -- Javi Merino <vicho@debian.org>  Tue, 03 May 2016 07:45:02 +0100
-
-mercurial (3.7.3-1~bpo8+1) jessie-backports; urgency=high
-
-  * Rebuild for jessie-backports.
-
- -- Julien Cristau <jcristau@debian.org>  Wed, 06 Apr 2016 12:31:09 +0200
 
 mercurial (3.7.3-1) unstable; urgency=medium
 
@@ -145,12 +153,6 @@ mercurial (3.6~rc1-1) experimental; urgency=medium
 
  -- Javi Merino <vicho@debian.org>  Sun, 25 Oct 2015 17:31:59 +0000
 
-mercurial (3.5.2-2~bpo8+1) jessie-backports; urgency=medium
-
-  * Rebuild for jessie-backports.
-
- -- Javi Merino <vicho@debian.org>  Sun, 25 Oct 2015 12:26:00 +0000
-
 mercurial (3.5.2-2) unstable; urgency=medium
 
   * Fix "bash completion broken" by installing at as "hg" instead of
@@ -197,12 +199,6 @@ mercurial (3.5~rc1-1) experimental; urgency=medium
     hgsubversion in sid
 
  -- Javi Merino <vicho@debian.org>  Wed, 22 Jul 2015 10:30:00 +0200
-
-mercurial (3.4.2-1~bpo8+1) jessie-backports; urgency=medium
-
-  * Rebuild for jessie-backports.
-
- -- Javi Merino <vicho@debian.org>  Mon, 03 Aug 2015 21:10:39 +0100
 
 mercurial (3.4.2-1) unstable; urgency=medium
 
@@ -286,26 +282,6 @@ mercurial (3.2-1) experimental; urgency=medium
     don't work
 
  -- Javi Merino <vicho@debian.org>  Mon, 10 Nov 2014 08:34:13 +0000
-
-mercurial (3.1.2-2+deb8u1) jessie-security; urgency=high
-
-  * Fix "CVE-2014-9462" by adding patch
-    from_upstream__sshpeer_more_thorough_shell_quoting.patch
-    (Closes: #783237)
-
- -- Javi Merino <vicho@debian.org>  Fri, 01 May 2015 19:14:56 +0100
-
-mercurial (3.1.2-2) unstable; urgency=high
-
-  * Fix "CVE-2014-9390: Errors in handling case-sensitive directories
-    allow for remote code execution on pull" by adding patches
-    from_upstream__encoding_add_hfsignoreclean_to_clean_out_HFS-ignored_characters.patch,
-    from_upstream__pathauditor_check_for_codepoints_ignored_on_OS_X.patch,
-    and
-    from_upstream__pathauditor_check_for_Windows_shortname_aliases.patch
-    (Closes: #773640)
-
- -- Javi Merino <vicho@debian.org>  Tue, 23 Dec 2014 16:01:50 +0100
 
 mercurial (3.1.2-1) unstable; urgency=medium
 

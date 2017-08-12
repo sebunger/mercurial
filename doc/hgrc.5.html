@@ -1315,6 +1315,11 @@ collected during profiling, while 'profiling report' stands for a
 statistical text report generated from the profiling data. The
 profiling is done using lsprof.</p>
 <dl class="docutils">
+<dt><tt class="docutils literal">enabled</tt></dt>
+<dd><p class="first">Enable the profiler.
+(default: false)</p>
+<p class="last">This is equivalent to passing <tt class="docutils literal"><span class="pre">--profile</span></tt> on the command line.</p>
+</dd>
 <dt><tt class="docutils literal">type</tt></dt>
 <dd><p class="first">The type of profiler to use.
 (default: ls)</p>
@@ -1458,6 +1463,18 @@ format. (default: True)</dd>
 consider setting this option because converting <em>generaldelta</em>
 repositories to the exchange format required by the bundle1 data
 format can consume a lot of CPU.</p>
+</dd>
+<dt><tt class="docutils literal">zliblevel</tt></dt>
+<dd><p class="first">Integer between <tt class="docutils literal"><span class="pre">-1</span></tt> and <tt class="docutils literal">9</tt> that controls the zlib compression level
+for wire protocol commands that send zlib compressed output (notably the
+commands that send repository history data).</p>
+<p>The default (<tt class="docutils literal"><span class="pre">-1</span></tt>) uses the default zlib compression level, which is
+likely equivalent to <tt class="docutils literal">6</tt>. <tt class="docutils literal">0</tt> means no compression. <tt class="docutils literal">9</tt> means
+maximum compression.</p>
+<p>Setting this option allows server operators to make trade-offs between
+bandwidth and CPU used. Lowering the compression lowers CPU utilization
+but sends more bytes to clients.</p>
+<p class="last">This option only impacts the HTTP server.</p>
 </dd>
 </dl>
 </div>

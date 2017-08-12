@@ -4,9 +4,9 @@ This test is a duplicate of 'test-http.t', feel free to factor out
 parts that are not bundle1/bundle2 specific.
 
   $ cat << EOF >> $HGRCPATH
-  > [experimental]
+  > [devel]
   > # This test is dedicated to interaction through old bundle
-  > bundle2-exp = False
+  > legacy.exchange = bundle1
   > EOF
 
   $ hg init test
@@ -127,8 +127,10 @@ incoming via HTTP
 pull
 
   $ cd copy-pull
-  $ echo '[hooks]' >> .hg/hgrc
-  $ echo "changegroup = printenv.py changegroup" >> .hg/hgrc
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > changegroup = sh -c "printenv.py changegroup"
+  > EOF
   $ hg pull
   pulling from http://localhost:$HGPORT1/
   searching for changes

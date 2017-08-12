@@ -110,8 +110,13 @@ def has_baz():
 def has_bzr():
     try:
         import bzrlib
+        import bzrlib.bzrdir
+        import bzrlib.errors
+        import bzrlib.revision
+        import bzrlib.revisionspec
+        bzrlib.revisionspec.RevisionSpec
         return bzrlib.__doc__ is not None
-    except ImportError:
+    except (AttributeError, ImportError):
         return False
 
 @checkvers("bzr", "Canonical's Bazaar client >= %s", (1.14,))
@@ -341,6 +346,26 @@ def has_hardlink():
     finally:
         os.unlink(fn)
 
+@check("rmcwd", "can remove current working directory")
+def has_rmcwd():
+    ocwd = os.getcwd()
+    temp = tempfile.mkdtemp(dir='.', prefix=tempprefix)
+    try:
+        os.chdir(temp)
+        # On Linux, 'rmdir .' isn't allowed, but the other names are okay.
+        # On Solaris and Windows, the cwd can't be removed by any names.
+        os.rmdir(os.getcwd())
+        return True
+    except OSError:
+        return False
+    finally:
+        os.chdir(ocwd)
+        # clean up temp dir on platforms where cwd can't be removed
+        try:
+            os.rmdir(temp)
+        except OSError:
+            pass
+
 @check("tla", "GNU Arch tla client")
 def has_tla():
     return matchoutput('tla --version 2>&1', br'The GNU Arch Revision')
@@ -348,6 +373,14 @@ def has_tla():
 @check("gpg", "gpg client")
 def has_gpg():
     return matchoutput('gpg --version 2>&1', br'GnuPG')
+
+@check("gpg2", "gpg client v2")
+def has_gpg2():
+    return matchoutput('gpg --version 2>&1', br'GnuPG[^0-9]+2\.')
+
+@check("gpg21", "gpg client v2.1+")
+def has_gpg21():
+    return matchoutput('gpg --version 2>&1', br'GnuPG[^0-9]+2\.(?!0)')
 
 @check("unix-permissions", "unix-style permissions")
 def has_unix_permissions():
@@ -522,6 +555,10 @@ def has_debhelper():
                          br'other supported Python versions')
     return dpkg and dh and dh_py2
 
+@check("demandimport", "demandimport enabled")
+def has_demandimport():
+    return os.environ.get('HGDEMANDIMPORT') != 'disable'
+
 @check("absimport", "absolute_import in __future__")
 def has_absimport():
     import __future__
@@ -539,6 +576,16 @@ def has_py3k():
 @check("py3exe", "a Python 3.x interpreter is available")
 def has_python3exe():
     return 'PYTHON3' in os.environ
+
+@check("py3pygments", "Pygments available on Python 3.x")
+def has_py3pygments():
+    if has_py3k():
+        return has_pygments()
+    elif has_python3exe():
+        # just check exit status (ignoring output)
+        py3 = os.environ['PYTHON3']
+        return matchoutput('%s -c "import pygments"' % py3, br'')
+    return False
 
 @check("pure", "running with pure Python code")
 def has_pure():
@@ -559,3 +606,7 @@ def has_hypothesis():
         return True
     except ImportError:
         return False
+
+@check("unziplinks", "unzip(1) understands and extracts symlinks")
+def unzip_understands_symlinks():
+    return matchoutput('unzip --help', br'Info-ZIP')

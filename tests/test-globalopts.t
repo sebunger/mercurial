@@ -307,7 +307,7 @@ Testing -h/--help:
    files         list tracked files
    forget        forget the specified files on the next commit
    graft         copy changes from other branches onto the current branch
-   grep          search for a pattern in specified files and revisions
+   grep          search revision history for a pattern in specified files
    heads         show branch heads
    help          show help for a given topic or a help overview
    identify      identify the working directory or specified revision
@@ -361,7 +361,7 @@ Testing -h/--help:
    templating    Template Usage
    urls          URL Paths
   
-  (use "hg help -v" to show built-in aliases and global options)
+  (use 'hg help -v' to show built-in aliases and global options)
 
 
 
@@ -390,7 +390,7 @@ Testing -h/--help:
    files         list tracked files
    forget        forget the specified files on the next commit
    graft         copy changes from other branches onto the current branch
-   grep          search for a pattern in specified files and revisions
+   grep          search revision history for a pattern in specified files
    heads         show branch heads
    help          show help for a given topic or a help overview
    identify      identify the working directory or specified revision
@@ -444,7 +444,7 @@ Testing -h/--help:
    templating    Template Usage
    urls          URL Paths
   
-  (use "hg help -v" to show built-in aliases and global options)
+  (use 'hg help -v' to show built-in aliases and global options)
 
 Not tested: --debugger
 
