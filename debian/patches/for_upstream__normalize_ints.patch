@@ -1,0 +1,19 @@
+Index: mercurial-4.3.1/tests/test-context.py
+===================================================================
+--- mercurial-4.3.1.orig/tests/test-context.py	2017-08-11 00:46:53.000000000 +0200
++++ mercurial-4.3.1/tests/test-context.py	2017-08-12 11:13:01.089138397 +0200
+@@ -24,11 +24,10 @@
+ repo[None].add(['foo'])
+ repo.commit(text='commit1', date="0 0")
+ 
++d = repo[None]['foo'].date()
+ if os.name == 'nt':
+-    d = repo[None]['foo'].date()
+-    print("workingfilectx.date = (%d, %d)" % (d[0], d[1]))
+-else:
+-    print("workingfilectx.date =", repo[None]['foo'].date())
++    d = d[:2]
++print("workingfilectx.date = (%d, %d)" % d)
+ 
+ # test memctx with non-ASCII commit message
+ 
