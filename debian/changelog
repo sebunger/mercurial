@@ -1,3 +1,9 @@
+mercurial (4.3.1-2) unstable; urgency=high
+
+  * Fix or disable some failing tests (closes: #823056, #850234).
+
+ -- Tristan Seligmann <mithrandi@debian.org>  Sat, 12 Aug 2017 14:34:47 +0200
+
 mercurial (4.3.1-1) unstable; urgency=high
 
   * Urgency high because of important security fixes.
