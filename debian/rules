@@ -10,6 +10,10 @@
 PYVERS=$(shell pyversions -vs)
 PYVER_DEFAULT=$(shell pyversions -vd)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
+ifeq ($(DEB_HOST_ARCH),mips64el)
+        # Work around #871514
+        export DEB_CFLAGS_MAINT_APPEND = -mno-lra
+endif
 
 override_dh_auto_build:
 	$(MAKE) all
