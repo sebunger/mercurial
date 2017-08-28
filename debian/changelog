@@ -1,3 +1,12 @@
+mercurial (2.2.2-4+deb7u5) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the LTS Security Team.
+  * CVE-2017-1000115: path traversal via symlink (Closes: #871709)
+  * CVE-2017-1000116: command injection on clients through malicious ssh
+    URLs (Closes: #871710)
+
+ -- Antoine Beaupré <anarcat@debian.org>  Mon, 28 Aug 2017 13:52:40 -0400
+
 mercurial (2.2.2-4+deb7u4) wheezy-security; urgency=high
 
   * Non-maintainer upload by the LTS Security Team.

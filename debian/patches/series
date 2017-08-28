@@ -25,3 +25,5 @@ from_upstream__convert-dead-code-removal---old-git-calling-functions.patch
 from_upstream__convert-test-for-shell-injection-in-git-calls.patch
 from_upstream__convert_pass_absolute_paths_to_git.patch
 CVE-2017-9462-77eaf9539499.patch
+CVE-2017-1000115.patch
+CVE-2017-1000116.patch
