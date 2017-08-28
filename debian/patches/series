@@ -22,3 +22,4 @@ from_upstream__convert-dead-code-removal---old-git-calling-functions.patch
 from_upstream__convert-rewrite-gitpipe-to-use-common.commandline.patch
 from_upstream__convert-test-for-shell-injection-in-git-calls.patch
 from_upstream__convert_pass_absolute_paths_to_git.patch
+from_upstream__security_201708.patch
