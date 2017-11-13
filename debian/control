@@ -16,6 +16,7 @@ Build-Depends:
  python-all-dev (>= 2.6.6-3~),
  python-docutils,
  python-roman,
+ rename,
  unzip,
  zip,
 Standards-Version: 4.0.0

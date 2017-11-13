@@ -2,6 +2,7 @@ mercurial (4.4.1-1) unstable; urgency=medium
 
   * New upstream release.
     - Refresh patches, remove patches applied upstream.
+  * Replace rename with file-rename as this is gone from perl.
 
  -- Tristan Seligmann <mithrandi@debian.org>  Mon, 13 Nov 2017 06:19:31 +0200
 

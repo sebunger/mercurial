@@ -45,7 +45,7 @@ endif
 
 	http_proxy='' dh_auto_test -- TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
 
-	rename 's/\.deb-backup$$//' $(CURDIR)/tests/*
+	file-rename 's/\.deb-backup$$//' $(CURDIR)/tests/*
 endif
 
 override_dh_auto_install: $(PYVERS:%=install-python%)
