@@ -78,6 +78,7 @@ unbundle tampered bundle
   adding manifests
   adding file changes
   added 5 changesets with 6 changes to 6 files (+4 heads)
+  new changesets b7da9bf6b037:fc1393d727bc
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 attack .hg/test
@@ -108,6 +109,7 @@ attack back/test where back symlinks to ..
 #else
 ('back' will be a file and cause some other system specific error)
   $ hg update -Cr2
+  back: is both a file and a directory
   abort: * (glob)
   [255]
 #endif
@@ -116,9 +118,13 @@ attack ../test
 
   $ hg manifest -r3
   ../test
+  $ mkdir ../test
+  $ echo data > ../test/file
   $ hg update -Cr3
   abort: path contains illegal component: ../test (glob)
   [255]
+  $ cat ../test/file
+  data
 
 attack /tmp/test
 

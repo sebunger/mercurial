@@ -180,17 +180,17 @@ def peer(uiorrepo, opts, path, create=False):
 def defaultdest(source):
     '''return default destination of clone if none is given
 
-    >>> defaultdest('foo')
+    >>> defaultdest(b'foo')
     'foo'
-    >>> defaultdest('/foo/bar')
+    >>> defaultdest(b'/foo/bar')
     'bar'
-    >>> defaultdest('/')
+    >>> defaultdest(b'/')
     ''
-    >>> defaultdest('')
+    >>> defaultdest(b'')
     ''
-    >>> defaultdest('http://example.org/')
+    >>> defaultdest(b'http://example.org/')
     ''
-    >>> defaultdest('http://example.org/foo/')
+    >>> defaultdest(b'http://example.org/foo/')
     'foo'
     '''
     path = util.url(source).path
@@ -243,7 +243,9 @@ def share(ui, source, dest=None, update=True, bookmarks=True, defaultpath=None,
         try:
             sharedpath = os.path.relpath(sharedpath, destvfs.base)
             requirements += 'relshared\n'
-        except IOError as e:
+        except (IOError, ValueError) as e:
+            # ValueError is raised on Windows if the drive letters differ on
+            # each path
             raise error.Abort(_('cannot calculate relative path'),
                               hint=str(e))
     else:
@@ -255,6 +257,43 @@ def share(ui, source, dest=None, update=True, bookmarks=True, defaultpath=None,
     r = repository(ui, destwvfs.base)
     postshare(srcrepo, r, bookmarks=bookmarks, defaultpath=defaultpath)
     _postshareupdate(r, update, checkout=checkout)
+    return r
+
+def unshare(ui, repo):
+    """convert a shared repository to a normal one
+
+    Copy the store data to the repo and remove the sharedpath data.
+    """
+
+    destlock = lock = None
+    lock = repo.lock()
+    try:
+        # we use locks here because if we race with commit, we
+        # can end up with extra data in the cloned revlogs that's
+        # not pointed to by changesets, thus causing verify to
+        # fail
+
+        destlock = copystore(ui, repo, repo.path)
+
+        sharefile = repo.vfs.join('sharedpath')
+        util.rename(sharefile, sharefile + '.old')
+
+        repo.requirements.discard('shared')
+        repo.requirements.discard('relshared')
+        repo._writerequirements()
+    finally:
+        destlock and destlock.release()
+        lock and lock.release()
+
+    # update store, spath, svfs and sjoin of repo
+    repo.unfiltered().__init__(repo.baseui, repo.root)
+
+    # TODO: figure out how to access subrepos that exist, but were previously
+    #       removed from .hgsub
+    c = repo['.']
+    subs = c.substate
+    for s in sorted(subs):
+        c.sub(s).unshare()
 
 def postshare(sourcerepo, destrepo, bookmarks=True, defaultpath=None):
     """Called after a new shared repo is created.
@@ -641,11 +680,11 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
         destrepo = destpeer.local()
         if destrepo:
             template = uimod.samplehgrcs['cloned']
-            fp = destrepo.vfs("hgrc", "w", text=True)
+            fp = destrepo.vfs("hgrc", "wb")
             u = util.url(abspath)
             u.passwd = None
-            defaulturl = str(u)
-            fp.write(template % defaulturl)
+            defaulturl = bytes(u)
+            fp.write(util.tonativeeol(template % defaulturl))
             fp.close()
 
             destrepo.ui.setconfig('paths', 'default', defaulturl, 'clone')
@@ -757,7 +796,7 @@ def updatetotally(ui, repo, checkout, brev, clean=False, updatecheck=None):
     This returns whether conflict is detected at updating or not.
     """
     if updatecheck is None:
-        updatecheck = ui.config('experimental', 'updatecheck')
+        updatecheck = ui.config('commands', 'update.check')
         if updatecheck not in ('abort', 'none', 'linear', 'noconflict'):
             # If not configured, or invalid value configured
             updatecheck = 'linear'

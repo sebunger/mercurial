@@ -41,7 +41,23 @@ add subrepo clone
   $ echo 's = [git]../gitroot' > .hgsub
   $ git clone -q ../gitroot s
   $ hg add .hgsub
+
+git subrepo is disabled by default
+
   $ hg commit -m 'new git subrepo'
+  abort: git subrepos not allowed
+  (see 'hg help config.subrepos' for details)
+  [255]
+
+so enable it
+
+  $ cat >> $HGRCPATH <<EOF
+  > [subrepos]
+  > git:allowed = true
+  > EOF
+
+  $ hg commit -m 'new git subrepo'
+
   $ hg debugsub
   path s
    source   ../gitroot
@@ -86,9 +102,29 @@ clone root
   path s
    source   ../gitroot
    revision 126f2a14290cd5ce061fdedc430170e8d39e1c5a
+  $ cd ..
+
+clone with subrepo disabled (update should fail)
+
+  $ hg clone t -U tc2 --config subrepos.allowed=false
+  $ hg update -R tc2 --config subrepos.allowed=false
+  abort: subrepos not enabled
+  (see 'hg help config.subrepos' for details)
+  [255]
+  $ ls tc2
+  a
+
+  $ hg clone t tc3 --config subrepos.allowed=false
+  updating to branch default
+  abort: subrepos not enabled
+  (see 'hg help config.subrepos' for details)
+  [255]
+  $ ls tc3
+  a
 
 update to previous substate
 
+  $ cd tc
   $ hg update 1 -q
   $ cat s/g
   g
@@ -173,6 +209,7 @@ user a pulls, merges, commits
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
+  new changesets 089416c11d73
   (run 'hg heads' to see heads, 'hg merge' to merge)
   $ hg merge 2>/dev/null
    subrepository s diverged (local revision: 7969594, remote revision: aa84837)
@@ -399,11 +436,13 @@ Don't crash if the subrepo is missing
 Don't crash if subrepo is a broken symlink
   $ ln -s broken s
   $ hg status -S
+  abort: subrepo 's' traverses symbolic link
+  [255]
   $ hg push -q
-  abort: subrepo s is missing (in subrepository "s")
+  abort: subrepo 's' traverses symbolic link
   [255]
   $ hg commit --subrepos -qm missing
-  abort: subrepo s is missing (in subrepository "s")
+  abort: subrepo 's' traverses symbolic link
   [255]
   $ rm s
 #endif
@@ -885,9 +924,9 @@ revert moves orig files to the right place
   $ hg revert --all --verbose --config 'ui.origbackuppath=.hg/origbackups'
   reverting subrepo ../gitroot
   creating directory: $TESTTMP/tc/.hg/origbackups (glob)
-  saving current version of foobar as $TESTTMP/tc/.hg/origbackups/foobar.orig (glob)
+  saving current version of foobar as $TESTTMP/tc/.hg/origbackups/foobar (glob)
   $ ls .hg/origbackups
-  foobar.orig
+  foobar
   $ rm -rf .hg/origbackups
 
 show file at specific revision

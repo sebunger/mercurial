@@ -63,6 +63,14 @@ Preparing the 'main' repo which depends on the subrepo 'sub1'
                                                               \r (no-eol) (esc)
   \r (no-eol) (esc)
   updating [===========================================>] 3/3\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  linking [ <=>                                           ] 1\r (no-eol) (esc)
+  linking [  <=>                                          ] 2\r (no-eol) (esc)
+  linking [   <=>                                         ] 3\r (no-eol) (esc)
+  linking [    <=>                                        ] 4\r (no-eol) (esc)
+  linking [     <=>                                       ] 5\r (no-eol) (esc)
+  linking [      <=>                                      ] 6\r (no-eol) (esc)
   updating [===========================================>] 1/1\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   updating to branch default
@@ -96,6 +104,7 @@ are also available as siblings of 'main'.
   adding manifests
   adding file changes
   added 1 changesets with 3 changes to 3 files
+  new changesets 7f491f53a367
   updating to branch default
   abort: HTTP Error 404: Not Found
   [255]
@@ -154,7 +163,25 @@ Clone main
                                                               \r (no-eol) (esc)
   \r (no-eol) (esc)
   updating [===========================================>] 3/3\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  linking [ <=>                                           ] 1\r (no-eol) (esc)
+  linking [  <=>                                          ] 2\r (no-eol) (esc)
+  linking [   <=>                                         ] 3\r (no-eol) (esc)
+  linking [    <=>                                        ] 4\r (no-eol) (esc)
+  linking [     <=>                                       ] 5\r (no-eol) (esc)
+  linking [      <=>                                      ] 6\r (no-eol) (esc)
+  linking [       <=>                                     ] 7\r (no-eol) (esc)
+  linking [        <=>                                    ] 8\r (no-eol) (esc)
   updating [===========================================>] 3/3\r (no-eol) (esc)
+                                                              \r (no-eol) (esc)
+  \r (no-eol) (esc)
+  linking [         <=>                                   ] 1\r (no-eol) (esc)
+  linking [          <=>                                  ] 2\r (no-eol) (esc)
+  linking [           <=>                                 ] 3\r (no-eol) (esc)
+  linking [            <=>                                ] 4\r (no-eol) (esc)
+  linking [             <=>                               ] 5\r (no-eol) (esc)
+  linking [              <=>                              ] 6\r (no-eol) (esc)
   updating [===========================================>] 1/1\r (no-eol) (esc)
                                                               \r (no-eol) (esc)
   updating to branch default

@@ -60,3 +60,21 @@ No repo:
   [255]
 
 #endif
+
+#if rmcwd
+
+Current directory removed:
+
+  $ mkdir $TESTTMP/repo1
+  $ cd $TESTTMP/repo1
+  $ rm -rf $TESTTMP/repo1
+
+The output could be one of the following and something else:
+ chg: abort: failed to getcwd (errno = *) (glob)
+ abort: error getting current working directory: * (glob)
+ sh: 0: getcwd() failed: No such file or directory
+Since the exact behavior depends on the shell, only check it returns non-zero.
+  $ HGDEMANDIMPORT=disable hg version -q 2>/dev/null || false
+  [1]
+
+#endif

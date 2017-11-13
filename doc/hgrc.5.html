@@ -68,18 +68,19 @@
 <li><a class="reference internal" href="#server" id="id36"><tt class="docutils literal">server</tt></a></li>
 <li><a class="reference internal" href="#smtp" id="id37"><tt class="docutils literal">smtp</tt></a></li>
 <li><a class="reference internal" href="#subpaths" id="id38"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#templatealias" id="id39"><tt class="docutils literal">templatealias</tt></a></li>
-<li><a class="reference internal" href="#templates" id="id40"><tt class="docutils literal">templates</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id41"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id42"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id43"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id44"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id45"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#subrepos" id="id39"><tt class="docutils literal">subrepos</tt></a></li>
+<li><a class="reference internal" href="#templatealias" id="id40"><tt class="docutils literal">templatealias</tt></a></li>
+<li><a class="reference internal" href="#templates" id="id41"><tt class="docutils literal">templates</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id42"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id43"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id44"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id45"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id46"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id46">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id47">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id48">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id47">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id48">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id49">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -364,6 +365,8 @@ related options for the diff command.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">ignorews</tt></dt>
 <dd>Ignore white space when comparing lines.</dd>
+<dt><tt class="docutils literal">ignorewseol</tt></dt>
+<dd>Ignore white space at the end of a line when comparing lines.</dd>
 <dt><tt class="docutils literal">ignorewsamount</tt></dt>
 <dd>Ignore changes in the amount of white space.</dd>
 <dt><tt class="docutils literal">ignoreblanklines</tt></dt>
@@ -477,6 +480,17 @@ a different color mode than the pager program.</p>
 <dt><tt class="docutils literal">status.relative</tt></dt>
 <dd>Make paths in <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a> output relative to the current directory.
 (default: False)</dd>
+<dt><tt class="docutils literal">update.check</tt></dt>
+<dd>Determines what level of checking <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> will perform before moving
+to a destination revision. Valid values are <tt class="docutils literal">abort</tt>, <tt class="docutils literal">none</tt>,
+<tt class="docutils literal">linear</tt>, and <tt class="docutils literal">noconflict</tt>. <tt class="docutils literal">abort</tt> always fails if the working
+directory has uncommitted changes. <tt class="docutils literal">none</tt> performs no checking, and may
+result in a merge with uncommitted changes. <tt class="docutils literal">linear</tt> allows any update
+as long as it follows a straight line in the revision history, and may
+trigger a merge with uncommitted changes. <tt class="docutils literal">noconflict</tt> will allow any
+update which would not trigger a merge with uncommitted changes, if any
+are present.
+(default: <tt class="docutils literal">linear</tt>)</dd>
 <dt><tt class="docutils literal">update.requiredest</tt></dt>
 <dd>Require that the user pass a destination when running <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a>.
 For example, <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update .::</tt></a> will be allowed, but a plain <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a>
@@ -957,11 +971,46 @@ vary according the transaction type. New changesets will add <tt class="docutils
 added changeset), <tt class="docutils literal">$HG_URL</tt> and <tt class="docutils literal">$HG_SOURCE</tt> variables.  Bookmark and
 phase changes will set <tt class="docutils literal">HG_BOOKMARK_MOVED</tt> and <tt class="docutils literal">HG_PHASES_MOVED</tt> to <tt class="docutils literal">1</tt>
 respectively, etc.</dd>
+<dt><tt class="docutils literal"><span class="pre">pretxnclose-bookmark</span></tt></dt>
+<dd>Run right before a bookmark change is actually finalized. Any repository
+change will be visible to the hook program. This lets you validate the
+transaction content or change it. Exit status 0 allows the commit to
+proceed. A non-zero status will cause the transaction to be rolled back.
+The name of the bookmark will be available in <tt class="docutils literal">$HG_BOOKMARK</tt>, the new
+bookmark location will be available in <tt class="docutils literal">$HG_NODE</tt> while the previous
+location will be available in <tt class="docutils literal">$HG_OLDNODE</tt>. In case of a bookmark
+creation <tt class="docutils literal">$HG_OLDNODE</tt> will be empty. In case of deletion <tt class="docutils literal">$HG_NODE</tt>
+will be empty.
+In addition, the reason for the transaction opening will be in
+<tt class="docutils literal">$HG_TXNNAME</tt>, and a unique identifier for the transaction will be in
+<tt class="docutils literal">HG_TXNID</tt>.</dd>
+<dt><tt class="docutils literal"><span class="pre">pretxnclose-phase</span></tt></dt>
+<dd>Run right before a phase change is actually finalized. Any repository change
+will be visible to the hook program. This lets you validate the transaction
+content or change it. Exit status 0 allows the commit to proceed.  A non-zero
+status will cause the transaction to be rolled back. The hook is called
+multiple times, once for each revision affected by a phase change.
+The affected node is available in <tt class="docutils literal">$HG_NODE</tt>, the phase in <tt class="docutils literal">$HG_PHASE</tt>
+while the previous <tt class="docutils literal">$HG_OLDPHASE</tt>. In case of new node, <tt class="docutils literal">$HG_OLDPHASE</tt>
+will be empty.  In addition, the reason for the transaction opening will be in
+<tt class="docutils literal">$HG_TXNNAME</tt>, and a unique identifier for the transaction will be in
+<tt class="docutils literal">HG_TXNID</tt>. The hook is also run for newly added revisions. In this case
+the <tt class="docutils literal">$HG_OLDPHASE</tt> entry will be empty.</dd>
 <dt><tt class="docutils literal">txnclose</tt></dt>
 <dd>Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
 after the lock is released. See <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help config.hooks.pretxnclose</tt></a> for
 details about available variables.</dd>
+<dt><tt class="docutils literal"><span class="pre">txnclose-bookmark</span></tt></dt>
+<dd>Run after any bookmark change has been committed. At this point, the
+transaction can no longer be rolled back. The hook will run after the lock
+is released. See <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help <span class="pre">config.hooks.pretxnclose-bookmark</span></tt></a> for details
+about available variables.</dd>
+<dt><tt class="docutils literal"><span class="pre">txnclose-phase</span></tt></dt>
+<dd>Run after any phase change has been committed. At this point, the
+transaction can no longer be rolled back. The hook will run after the lock
+is released. See <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help <span class="pre">config.hooks.pretxnclose-phase</span></tt></a> for details about
+available variables.</dd>
 <dt><tt class="docutils literal">txnabort</tt></dt>
 <dd>Run when a transaction is aborted. See <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help config.hooks.pretxnclose</tt></a>
 for details about available variables.</dd>
@@ -1182,6 +1231,16 @@ abort on such files. With <tt class="docutils literal">warn</tt>, warn on such f
 as a tracked file in the changeset being merged or updated to, and has
 different contents. Similar to <tt class="docutils literal">merge.checkignored</tt>, except for files that
 are not ignored. (default: <tt class="docutils literal">abort</tt>)</dd>
+<dt><tt class="docutils literal"><span class="pre">on-failure</span></tt></dt>
+<dd>When set to <tt class="docutils literal">continue</tt> (the default), the merge process attempts to
+merge all unresolved files using the merge chosen tool, regardless of
+whether previous file merge attempts during the process succeeded or not.
+Setting this to <tt class="docutils literal">prompt</tt> will prompt after any merge failure continue
+or halt the merge process. Setting this to <tt class="docutils literal">halt</tt> will automatically
+halt the merge process on any merge tool failure. The merge process
+can be restarted by using the <tt class="docutils literal">resolve</tt> command. When a merge is
+halted, the repository is left in a normal <tt class="docutils literal">unresolved</tt> merge state.
+(default: <tt class="docutils literal">continue</tt>)</dd>
 </dl>
 </div>
 <div class="section" id="merge-patterns">
@@ -1526,6 +1585,9 @@ have a definite end point.</p>
 <dt><tt class="docutils literal">changedelay</tt></dt>
 <dd>Minimum delay before showing a new topic. When set to less than 3 * refresh,
 that value will be used instead. (default: 1)</dd>
+<dt><tt class="docutils literal">estimateinterval</tt></dt>
+<dd>Maximum sampling interval in seconds for speed and estimated time
+calculation. (default: 60)</dd>
 <dt><tt class="docutils literal">refresh</tt></dt>
 <dd>Time in seconds between refreshes of the progress bar. (default: 0.1)</dd>
 <dt><tt class="docutils literal">format</tt></dt>
@@ -1551,7 +1613,7 @@ term width) will be used).</dd>
 <div class="section" id="rebase">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">rebase</tt></a></h2>
 <dl class="docutils">
-<dt><tt class="docutils literal">allowdivergence</tt></dt>
+<dt><tt class="docutils literal">evolution.allowdivergence</tt></dt>
 <dd>Default to False, when True allow creating divergence when performing
 rebase of obsolete changesets.</dd>
 </dl>
@@ -1707,6 +1769,43 @@ rewrite rules are then applied on the full (absolute) path. If <tt class="docuti
 doesn't match the full path, an attempt is made to apply it on the
 relative path alone. The rules are applied in definition order.</p>
 </div>
+<div class="section" id="subrepos">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">subrepos</tt></a></h2>
+<p>This section contains options that control the behavior of the
+subrepositories feature. See also <a class="reference external" href="hg.1.html#subrepos"><tt class="docutils literal">hg help subrepos</tt></a>.</p>
+<p>Security note: auditing in Mercurial is known to be insufficient to
+prevent clone-time code execution with carefully constructed Git
+subrepos. It is unknown if a similar detect is present in Subversion
+subrepos. Both Git and Subversion subrepos are disabled by default
+out of security concerns. These subrepo types can be enabled using
+the respective options below.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">allowed</tt></dt>
+<dd><p class="first">Whether subrepositories are allowed in the working directory.</p>
+<p class="last">When false, commands involving subrepositories (like <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a>)
+will fail for all subrepository types.
+(default: true)</p>
+</dd>
+<dt><tt class="docutils literal">hg:allowed</tt></dt>
+<dd>Whether Mercurial subrepositories are allowed in the working
+directory. This option only has an effect if <tt class="docutils literal">subrepos.allowed</tt>
+is true.
+(default: true)</dd>
+<dt><tt class="docutils literal">git:allowed</tt></dt>
+<dd><p class="first">Whether Git subrepositories are allowed in the working directory.
+This option only has an effect if <tt class="docutils literal">subrepos.allowed</tt> is true.</p>
+<p class="last">See the security note above before enabling Git subrepos.
+(default: false)</p>
+</dd>
+<dt><tt class="docutils literal">svn:allowed</tt></dt>
+<dd><p class="first">Whether Subversion subrepositories are allowed in the working
+directory. This option only has an effect if <tt class="docutils literal">subrepos.allowed</tt>
+is true.</p>
+<p class="last">See the security note above before enabling Subversion subrepos.
+(default: false)</p>
+</dd>
+</dl>
+</div>
 <div class="section" id="templatealias">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">templatealias</tt></a></h2>
 <p>Alias definitions for templates. See <a class="reference external" href="hg.1.html#templates"><tt class="docutils literal">hg help templates</tt></a> for details.</p>
@@ -1854,7 +1953,9 @@ serious problems may occur.</p>
 </dd>
 <dt><tt class="docutils literal">origbackuppath</tt></dt>
 <dd>The path to a directory used to store generated .orig files. If the path is
-not a directory, one will be created.</dd>
+not a directory, one will be created.  If set, files stored in this
+directory have the same name as the original file and do not have a .orig
+suffix.</dd>
 <dt><tt class="docutils literal">paginate</tt></dt>
 <dd>Control the pagination of command output (default: True). See <a class="reference external" href="hg.1.html#pager"><tt class="docutils literal">hg help pager</tt></a>
 for details.</dd>

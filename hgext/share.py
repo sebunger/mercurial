@@ -34,7 +34,7 @@ The following ``share.`` config options influence this feature:
     requested in the :hg:`clone` command matches exactly to a repository
     that was cloned before.
 
-    The default naming mode is "identity."
+    The default naming mode is "identity".
 '''
 
 from __future__ import absolute_import
@@ -90,8 +90,9 @@ def share(ui, source, dest=None, noupdate=False, bookmarks=False,
        the broken clone to reset it to a changeset that still exists.
     """
 
-    return hg.share(ui, source, dest=dest, update=not noupdate,
-                    bookmarks=bookmarks, relative=relative)
+    hg.share(ui, source, dest=dest, update=not noupdate,
+             bookmarks=bookmarks, relative=relative)
+    return 0
 
 @command('unshare', [], '')
 def unshare(ui, repo):
@@ -103,38 +104,17 @@ def unshare(ui, repo):
     if not repo.shared():
         raise error.Abort(_("this is not a shared repo"))
 
-    destlock = lock = None
-    lock = repo.lock()
-    try:
-        # we use locks here because if we race with commit, we
-        # can end up with extra data in the cloned revlogs that's
-        # not pointed to by changesets, thus causing verify to
-        # fail
-
-        destlock = hg.copystore(ui, repo, repo.path)
-
-        sharefile = repo.vfs.join('sharedpath')
-        util.rename(sharefile, sharefile + '.old')
-
-        repo.requirements.discard('shared')
-        repo.requirements.discard('relshared')
-        repo._writerequirements()
-    finally:
-        destlock and destlock.release()
-        lock and lock.release()
-
-    # update store, spath, svfs and sjoin of repo
-    repo.unfiltered().__init__(repo.baseui, repo.root)
+    hg.unshare(ui, repo)
 
 # Wrap clone command to pass auto share options.
 def clone(orig, ui, source, *args, **opts):
-    pool = ui.config('share', 'pool', None)
+    pool = ui.config('share', 'pool')
     if pool:
         pool = util.expandpath(pool)
 
     opts[r'shareopts'] = {
         'pool': pool,
-        'mode': ui.config('share', 'poolnaming', 'identity'),
+        'mode': ui.config('share', 'poolnaming'),
     }
 
     return orig(ui, source, *args, **opts)
