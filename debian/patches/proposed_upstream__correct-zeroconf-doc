@@ -1,9 +1,9 @@
 Correct the documentation for the zeroconf extension.
 
-Index: mercurial-4.3.1/hgext/zeroconf/__init__.py
+Index: mercurial-4.4.1/hgext/zeroconf/__init__.py
 ===================================================================
---- mercurial-4.3.1.orig/hgext/zeroconf/__init__.py	2017-08-11 05:08:26.583368212 +0200
-+++ mercurial-4.3.1/hgext/zeroconf/__init__.py	2017-08-11 05:08:26.579368145 +0200
+--- mercurial-4.4.1.orig/hgext/zeroconf/__init__.py	2017-11-13 07:05:02.206288143 +0200
++++ mercurial-4.4.1/hgext/zeroconf/__init__.py	2017-11-13 07:05:02.202288075 +0200
 @@ -6,9 +6,9 @@
  # GNU General Public License version 2 or any later version.
  '''discover and advertise repositories on the local network

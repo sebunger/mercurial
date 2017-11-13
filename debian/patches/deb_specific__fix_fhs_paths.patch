@@ -7,11 +7,11 @@ Description: Use FHS compliant path for data
  testsuite when building the package.
 Author: Javi Merino <vicho@debian.org>
 
-Index: mercurial-4.3.1/mercurial/util.py
+Index: mercurial-4.4.1/mercurial/util.py
 ===================================================================
---- mercurial-4.3.1.orig/mercurial/util.py	2017-08-11 05:08:43.163643090 +0200
-+++ mercurial-4.3.1/mercurial/util.py	2017-08-11 05:09:20.020254166 +0200
-@@ -988,6 +988,8 @@
+--- mercurial-4.4.1.orig/mercurial/util.py	2017-11-13 07:05:09.546415215 +0200
++++ mercurial-4.4.1/mercurial/util.py	2017-11-13 07:05:09.542415144 +0200
+@@ -1094,6 +1094,8 @@
  if mainfrozen() and getattr(sys, 'frozen', None) != 'macosx_app':
      # executable version (py2exe) doesn't support __file__
      datapath = os.path.dirname(pycompat.sysexecutable)

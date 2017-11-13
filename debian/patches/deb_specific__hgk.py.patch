@@ -1,14 +1,15 @@
 Set default hgk path for hgk outside bin.
 
-Index: mercurial-4.3.1/hgext/hgk.py
+Index: mercurial-4.4.1/hgext/hgk.py
 ===================================================================
---- mercurial-4.3.1.orig/hgext/hgk.py	2017-08-11 05:08:13.663154020 +0200
-+++ mercurial-4.3.1/hgext/hgk.py	2017-08-11 05:08:13.659153953 +0200
-@@ -345,6 +345,6 @@
-     if repo.filtername is None:
-         optstr += '--hidden'
+--- mercurial-4.4.1.orig/hgext/hgk.py	2017-11-13 07:03:35.564787794 +0200
++++ mercurial-4.4.1/hgext/hgk.py	2017-11-13 07:04:16.637499141 +0200
+@@ -65,7 +65,7 @@
+ configitem = registrar.configitem(configtable)
  
--    cmd = ui.config("hgk", "path", "hgk") + " %s %s" % (optstr, " ".join(etc))
-+    cmd = ui.config("hgk", "path", "/usr/share/mercurial/hgk") + " %s %s" % (optstr, " ".join(etc))
-     ui.debug("running %s\n" % cmd)
-     ui.system(cmd, blockedtag='hgk_view')
+ configitem('hgk', 'path',
+-    default='hgk',
++    default='/usr/share/mercurial/hgk',
+ )
+ 
+ @command('debug-diff-tree',
