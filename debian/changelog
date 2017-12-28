@@ -1,3 +1,10 @@
+mercurial (2.2.2-4+deb7u6) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the LTS Security Team.
+  * CVE-2017-17458: arbitrary code execution via craft subrepository
+
+ -- Roberto C. Sanchez <roberto@debian.org>  Thu, 28 Dec 2017 11:36:50 -0500
+
 mercurial (2.2.2-4+deb7u5) wheezy-security; urgency=high
 
   * Non-maintainer upload by the LTS Security Team.
