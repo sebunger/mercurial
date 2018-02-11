@@ -9,11 +9,11 @@ Bug-Debian: http://bugs.debian.org/620087
 Bug-Ubuntu: https://bugs.launchpad.net/bugs/745250
 Forwarded: not-needed
 
-Index: mercurial-4.4.1/setup.py
+Index: mercurial-4.5/setup.py
 ===================================================================
---- mercurial-4.4.1.orig/setup.py	2017-11-13 07:05:05.674348183 +0200
-+++ mercurial-4.4.1/setup.py	2017-11-13 07:05:05.670348114 +0200
-@@ -753,7 +753,6 @@
+--- mercurial-4.5.orig/setup.py	2018-02-11 07:36:52.182893969 +0200
++++ mercurial-4.5/setup.py	2018-02-11 07:36:52.182893969 +0200
+@@ -778,7 +778,6 @@
              'build_hgextindex': buildhgextindex,
              'install': hginstall,
              'install_lib': hginstalllib,
