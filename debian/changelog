@@ -1,8 +1,9 @@
-mercurial (4.5-1) UNRELEASED; urgency=medium
+mercurial (4.5-1) unstable; urgency=medium
 
   * New upstream release.
+    - Drop libjs-excanvas as no longer used by upstream.
 
- -- Tristan Seligmann <mithrandi@debian.org>  Sun, 11 Feb 2018 07:19:27 +0200
+ -- Tristan Seligmann <mithrandi@debian.org>  Sun, 11 Feb 2018 08:51:26 +0200
 
 mercurial (4.4.1-1) unstable; urgency=medium
 
