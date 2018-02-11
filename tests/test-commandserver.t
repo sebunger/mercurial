@@ -137,6 +137,20 @@ typical client does not want echo-back messages, so test without it:
   summary:     1
   
 
+check strict parsing of early options:
+
+  >>> import os
+  >>> from hgclient import check, readchannel, runcommand
+  >>> os.environ['HGPLAIN'] = '+strictflags'
+  >>> @check
+  ... def cwd(server):
+  ...     readchannel(server)
+  ...     runcommand(server, ['log', '-b', '--config=alias.log=!echo pwned',
+  ...                         'default'])
+  *** runcommand log -b --config=alias.log=!echo pwned default
+  abort: unknown revision '--config=alias.log=!echo pwned'!
+   [255]
+
 check that "histedit --commands=-" can read rules from the input channel:
 
   >>> import cStringIO
@@ -193,6 +207,7 @@ check that local configs for the cached repo aren't inherited when -R is used:
   devel.default-date=0 0
   extensions.fsmonitor= (fsmonitor !)
   largefiles.usercache=$TESTTMP/.cache/largefiles
+  lfs.usercache=$TESTTMP/.cache/lfs
   ui.slash=True
   ui.interactive=False
   ui.mergemarkers=detailed

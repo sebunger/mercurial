@@ -646,6 +646,14 @@ def _getcheckunknownconfig(repo, section, name):
     return config
 
 def _checkunknownfile(repo, wctx, mctx, f, f2=None):
+    if wctx.isinmemory():
+        # Nothing to do in IMM because nothing in the "working copy" can be an
+        # unknown file.
+        #
+        # Note that we should bail out here, not in ``_checkunknownfiles()``,
+        # because that function does other useful work.
+        return False
+
     if f2 is None:
         f2 = f
     return (repo.wvfs.audit.check(f)
@@ -653,7 +661,7 @@ def _checkunknownfile(repo, wctx, mctx, f, f2=None):
         and repo.dirstate.normalize(f) not in repo.dirstate
         and mctx[f2].cmp(wctx[f]))
 
-def _checkunknowndirs(repo, f):
+class _unknowndirschecker(object):
     """
     Look for any unknown files or directories that may have a path conflict
     with a file.  If any path prefix of the file exists as a file or link,
@@ -663,23 +671,46 @@ def _checkunknowndirs(repo, f):
     Returns the shortest path at which a conflict occurs, or None if there is
     no conflict.
     """
+    def __init__(self):
+        # A set of paths known to be good.  This prevents repeated checking of
+        # dirs.  It will be updated with any new dirs that are checked and found
+        # to be safe.
+        self._unknowndircache = set()
 
-    # Check for path prefixes that exist as unknown files.
-    for p in reversed(list(util.finddirs(f))):
-        if (repo.wvfs.audit.check(p)
-                and repo.wvfs.isfileorlink(p)
-                and repo.dirstate.normalize(p) not in repo.dirstate):
-            return p
+        # A set of paths that are known to be absent.  This prevents repeated
+        # checking of subdirectories that are known not to exist. It will be
+        # updated with any new dirs that are checked and found to be absent.
+        self._missingdircache = set()
 
-    # Check if the file conflicts with a directory containing unknown files.
-    if repo.wvfs.audit.check(f) and repo.wvfs.isdir(f):
-        # Does the directory contain any files that are not in the dirstate?
-        for p, dirs, files in repo.wvfs.walk(f):
-            for fn in files:
-                relf = repo.dirstate.normalize(repo.wvfs.reljoin(p, fn))
-                if relf not in repo.dirstate:
-                    return f
-    return None
+    def __call__(self, repo, wctx, f):
+        if wctx.isinmemory():
+            # Nothing to do in IMM for the same reason as ``_checkunknownfile``.
+            return False
+
+        # Check for path prefixes that exist as unknown files.
+        for p in reversed(list(util.finddirs(f))):
+            if p in self._missingdircache:
+                return
+            if p in self._unknowndircache:
+                continue
+            if repo.wvfs.audit.check(p):
+                if (repo.wvfs.isfileorlink(p)
+                        and repo.dirstate.normalize(p) not in repo.dirstate):
+                    return p
+                if not repo.wvfs.lexists(p):
+                    self._missingdircache.add(p)
+                    return
+                self._unknowndircache.add(p)
+
+        # Check if the file conflicts with a directory containing unknown files.
+        if repo.wvfs.audit.check(f) and repo.wvfs.isdir(f):
+            # Does the directory contain any files that are not in the dirstate?
+            for p, dirs, files in repo.wvfs.walk(f):
+                for fn in files:
+                    relf = repo.dirstate.normalize(repo.wvfs.reljoin(p, fn))
+                    if relf not in repo.dirstate:
+                        return f
+        return None
 
 def _checkunknownfiles(repo, wctx, mctx, force, actions, mergeforce):
     """
@@ -701,12 +732,13 @@ def _checkunknownfiles(repo, wctx, mctx, force, actions, mergeforce):
             elif config == 'warn':
                 warnconflicts.update(conflicts)
 
+        checkunknowndirs = _unknowndirschecker()
         for f, (m, args, msg) in actions.iteritems():
             if m in ('c', 'dc'):
                 if _checkunknownfile(repo, wctx, mctx, f):
                     fileconflicts.add(f)
                 elif pathconfig and f not in wctx:
-                    path = _checkunknowndirs(repo, f)
+                    path = checkunknowndirs(repo, wctx, f)
                     if path is not None:
                         pathconflicts.add(path)
             elif m == 'dg':
@@ -895,34 +927,21 @@ def checkpathconflicts(repo, wctx, mctx, actions):
     # can't be updated to cleanly.
     invalidconflicts = set()
 
+    # The set of directories that contain files that are being created.
+    createdfiledirs = set()
+
     # The set of files deleted by all the actions.
     deletedfiles = set()
 
     for f, (m, args, msg) in actions.items():
         if m in ('c', 'dc', 'm', 'cm'):
             # This action may create a new local file.
+            createdfiledirs.update(util.finddirs(f))
             if mf.hasdir(f):
                 # The file aliases a local directory.  This might be ok if all
                 # the files in the local directory are being deleted.  This
                 # will be checked once we know what all the deleted files are.
                 remoteconflicts.add(f)
-            for p in util.finddirs(f):
-                if p in mf:
-                    if p in mctx:
-                        # The file is in a directory which aliases both a local
-                        # and a remote file.  This is an internal inconsistency
-                        # within the remote manifest.
-                        invalidconflicts.add(p)
-                    else:
-                        # The file is in a directory which aliases a local file.
-                        # We will need to rename the local file.
-                        localconflicts.add(p)
-                if p in actions and actions[p][0] in ('c', 'dc', 'm', 'cm'):
-                    # The file is in a directory which aliases a remote file.
-                    # This is an internal inconsistency within the remote
-                    # manifest.
-                    invalidconflicts.add(p)
-
         # Track the names of all deleted files.
         if m == 'r':
             deletedfiles.add(f)
@@ -933,6 +952,24 @@ def checkpathconflicts(repo, wctx, mctx, actions):
         if m == 'dm':
             f2, flags = args
             deletedfiles.add(f2)
+
+    # Check all directories that contain created files for path conflicts.
+    for p in createdfiledirs:
+        if p in mf:
+            if p in mctx:
+                # A file is in a directory which aliases both a local
+                # and a remote file.  This is an internal inconsistency
+                # within the remote manifest.
+                invalidconflicts.add(p)
+            else:
+                # A file is in a directory which aliases a local file.
+                # We will need to rename the local file.
+                localconflicts.add(p)
+        if p in actions and actions[p][0] in ('c', 'dc', 'm', 'cm'):
+            # The file is in a directory which aliases a remote file.
+            # This is an internal inconsistency within the remote
+            # manifest.
+            invalidconflicts.add(p)
 
     # Rename all local conflicting files that have not been deleted.
     for p in localconflicts:
@@ -1308,10 +1345,6 @@ def batchremove(repo, wctx, actions):
         repo.ui.warn(_("current directory was removed\n"
                        "(consider changing to repo root: %s)\n") % repo.root)
 
-    # It's necessary to flush here in case we're inside a worker fork and will
-    # quit after this function.
-    wctx.flushall()
-
 def batchget(repo, mctx, wctx, actions):
     """apply gets to the working directory
 
@@ -1343,7 +1376,9 @@ def batchget(repo, mctx, wctx, actions):
                 if repo.wvfs.lexists(absf):
                     util.rename(absf, orig)
             wctx[f].clearunknown()
-            wctx[f].write(fctx(f).data(), flags, backgroundclose=True)
+            atomictemp = ui.configbool("experimental", "update.atomic-file")
+            wctx[f].write(fctx(f).data(), flags, backgroundclose=True,
+                          atomictemp=atomictemp)
             if i == 100:
                 yield i, f
                 i = 0
@@ -1351,9 +1386,6 @@ def batchget(repo, mctx, wctx, actions):
     if i > 0:
         yield i, f
 
-    # It's necessary to flush here in case we're inside a worker fork and will
-    # quit after this function.
-    wctx.flushall()
 
 def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     """apply the merge action list to the working directory
@@ -1454,10 +1486,6 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
         z += 1
         progress(_updating, z, item=f, total=numupdates, unit=_files)
 
-    # We should flush before forking into worker processes, since those workers
-    # flush when they complete, and we don't want to duplicate work.
-    wctx.flushall()
-
     # get in parallel
     prog = worker.worker(repo.ui, cost, batchget, (repo, mctx, wctx),
                          actions['g'])
@@ -1530,6 +1558,9 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     usemergedriver = not overwrite and mergeactions and ms.mergedriver
 
     if usemergedriver:
+        if wctx.isinmemory():
+            raise error.InMemoryMergeConflictsError("in-memory merge does not "
+                                                    "support mergedriver")
         ms.commit()
         proceed = driverpreprocess(repo, ms, wctx, labels=labels)
         # the driver might leave some files unresolved
@@ -1825,8 +1856,9 @@ def update(repo, node, branchmerge, force, ancestor=None,
             if not force and (wc.files() or wc.deleted()):
                 raise error.Abort(_("uncommitted changes"),
                                  hint=_("use 'hg status' to list changes"))
-            for s in sorted(wc.substate):
-                wc.sub(s).bailifchanged()
+            if not wc.isinmemory():
+                for s in sorted(wc.substate):
+                    wc.sub(s).bailifchanged()
 
         elif not overwrite:
             if p1 == p2: # no-op update
@@ -1941,7 +1973,7 @@ def update(repo, node, branchmerge, force, ancestor=None,
         ### apply phase
         if not branchmerge: # just jump to the new rev
             fp1, fp2, xp1, xp2 = fp2, nullid, xp2, ''
-        if not partial:
+        if not partial and not wc.isinmemory():
             repo.hook('preupdate', throw=True, parent1=xp1, parent2=xp2)
             # note that we're in the middle of an update
             repo.vfs.write('updatestate', p2.hex())
@@ -1979,9 +2011,8 @@ def update(repo, node, branchmerge, force, ancestor=None,
                   'see "hg help -e fsmonitor")\n'))
 
         stats = applyupdates(repo, actions, wc, p2, overwrite, labels=labels)
-        wc.flushall()
 
-        if not partial:
+        if not partial and not wc.isinmemory():
             with repo.dirstate.parentchange():
                 repo.setparents(fp1, fp2)
                 recordupdates(repo, actions, branchmerge)

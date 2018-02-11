@@ -55,6 +55,7 @@ from . import (
     encoding,
     error,
     extensions,
+    node,
     pycompat,
     util,
 )
@@ -63,7 +64,7 @@ _log = commandserver.log
 
 def _hashlist(items):
     """return sha1 hexdigest for a list"""
-    return hashlib.sha1(str(items)).hexdigest()
+    return node.hex(hashlib.sha1(str(items)).digest())
 
 # sensitive config sections affecting confighash
 _configsections = [
@@ -220,8 +221,8 @@ def _loadnewui(srcui, args):
         newui._csystem = srcui._csystem
 
     # command line args
-    args = args[:]
-    dispatch._parseconfig(newui, dispatch._earlygetopt(['--config'], args))
+    options = dispatch._earlyparseopts(newui, args)
+    dispatch._parseconfig(newui, options['config'])
 
     # stolen from tortoisehg.util.copydynamicconfig()
     for section, name, value in srcui.walkconfig():
@@ -232,9 +233,9 @@ def _loadnewui(srcui, args):
         newui.setconfig(section, name, value, source)
 
     # load wd and repo config, copied from dispatch.py
-    cwds = dispatch._earlygetopt(['--cwd'], args)
-    cwd = cwds and os.path.realpath(cwds[-1]) or None
-    rpath = dispatch._earlygetopt(["-R", "--repository", "--repo"], args)
+    cwd = options['cwd']
+    cwd = cwd and os.path.realpath(cwd) or None
+    rpath = options['repository']
     path, newlui = dispatch._getlocal(newui, rpath, wd=cwd)
 
     return (newui, newlui)

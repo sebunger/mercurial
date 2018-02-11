@@ -44,8 +44,8 @@ supportedkinds = ('file', 'symlink')
 class bzr_source(common.converter_source):
     """Reads Bazaar repositories by using the Bazaar Python libraries"""
 
-    def __init__(self, ui, path, revs=None):
-        super(bzr_source, self).__init__(ui, path, revs=revs)
+    def __init__(self, ui, repotype, path, revs=None):
+        super(bzr_source, self).__init__(ui, repotype, path, revs=revs)
 
         if not os.path.exists(os.path.join(path, '.bzr')):
             raise common.NoRepo(_('%s does not look like a Bazaar repository')
@@ -205,6 +205,13 @@ class bzr_source(common.converter_source):
         changes = []
         renames = {}
         seen = set()
+
+        # Fall back to the deprecated attribute for legacy installations.
+        try:
+            inventory = origin.root_inventory
+        except AttributeError:
+            inventory = origin.inventory
+
         # Process the entries by reverse lexicographic name order to
         # handle nested renames correctly, most specific first.
         curchanges = sorted(current.iter_changes(origin),
@@ -229,10 +236,9 @@ class bzr_source(common.converter_source):
                     renaming = paths[0] != paths[1]
                     # neither an add nor an delete - a move
                     # rename all directory contents manually
-                    subdir = origin.root_inventory.path2id(paths[0])
+                    subdir = inventory.path2id(paths[0])
                     # get all child-entries of the directory
-                    for name, entry in origin.root_inventory.iter_entries(
-                            subdir):
+                    for name, entry in inventory.iter_entries(subdir):
                         # hg does not track directory renames
                         if entry.kind == 'directory':
                             continue

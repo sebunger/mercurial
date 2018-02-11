@@ -1004,7 +1004,13 @@ set branch name even if it shadows an existing branch
 .B \-C,  \-\-clean
 .
 reset branch name to parent branch name
+.TP
+.BI \-r,  \-\-rev \ <VALUE[+]>
+.
+change branches of the given revs (EXPERIMENTAL)
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS branches
 .sp
 list repository named branches:
@@ -2476,7 +2482,8 @@ directory has uncommitted changes, the branch name (if not default),
 a list of tags, and a list of bookmarks.
 .sp
 When REV is not given, print a summary of the current state of the
-repository.
+repository including the working directory. Specify \-r. to get information
+of the working directory parent without scanning uncommitted changes.
 .sp
 Specifying a path to a repository root or Mercurial bundle will
 cause lookup to operate on that repository/bundle.
@@ -3050,7 +3057,7 @@ used as the starting revision.
 File history is shown without following rename or copy history of
 files. Use \-f/\-\-follow with a filename to follow history across
 renames and copies. \-\-follow without a filename will only show
-ancestors or descendants of the starting revision.
+ancestors of the starting revision.
 .sp
 By default this command prints revision number and changeset id,
 tags, non\-trivial parents, user, date and time, and a summary for
@@ -3393,7 +3400,7 @@ explicit revision with which to merge with must be provided.
 .sp
 See \%\fBhg help resolve\fP\: for information on handling file conflicts.
 .sp
-To undo an uncommitted merge, use \%\fBhg update \-\-clean .\fP\: which
+To undo an uncommitted merge, use \%\fBhg merge \-\-abort\fP\: which
 will check out a clean copy of the original merge parent, losing
 all changes.
 .sp
@@ -3413,6 +3420,10 @@ revision to merge
 .B \-P,  \-\-preview
 .
 review revisions to merge (no merge is performed)
+.TP
+.B \-\-abort
+.
+abort the ongoing merge
 .TP
 .BI \-t,  \-\-tool \ <VALUE>
 .
@@ -3737,7 +3748,7 @@ Options:
 .TP
 .B \-u,  \-\-update
 .
-update to new branch head if changesets were pulled
+update to new branch head if new descendants were pulled
 .TP
 .B \-f,  \-\-force
 .
@@ -4184,7 +4195,7 @@ hg revert [OPTION]... [\-r REV] [NAME]...
 .
 To check out earlier revisions, you should use \%\fBhg update REV\fP\:.
 To cancel an uncommitted merge (and lose your changes),
-use \%\fBhg update \-\-clean .\fP\:.
+use \%\fBhg merge \-\-abort\fP\:.
 .RE
 .sp
 With no revision specified, revert the specified files or directories
@@ -4235,7 +4246,7 @@ do not save backup copies of files
 .TP
 .B \-i,  \-\-interactive
 .
-interactively select the changes (EXPERIMENTAL)
+interactively select the changes
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -4353,7 +4364,7 @@ longer periods of time.
 .sp
 Please note that the server does not implement access control.
 This means that, by default, anybody can read from the server and
-nobody can write to it by default. Set the \fBweb.allow_push\fP
+nobody can write to it by default. Set the \fBweb.allow\-push\fP
 option to \fB*\fP to allow everybody to push to the server. You
 should use a real web server if you need to authenticate users.
 .sp
@@ -4887,7 +4898,7 @@ the working directory is updated to the requested changeset.
 .UNINDENT
 .sp
 To cancel an uncommitted merge (and lose your changes), use
-\%\fBhg update \-\-clean .\fP\:.
+\%\fBhg merge \-\-abort\fP\:.
 .sp
 Use null as the changeset to remove the working directory (like
 \%\fBhg clone \-U\fP\:).
@@ -5465,8 +5476,19 @@ defaults, verbose mode, debug mode, quiet mode, tracebacks, and
 localization. This can be useful when scripting against Mercurial
 in the face of existing user configuration.
 .sp
+In addition to the features disabled by \fBHGPLAIN=\fP, the following
+values can be specified to adjust behavior:
+.INDENT 7.0
+.TP
+.B \fB+strictflags\fP
+.sp
+Restrict parsing of command line flags.
+.UNINDENT
+.sp
 Equivalent options set via command line flags or environment
 variables are not overridden.
+.sp
+See \%\fBhg help scripting\fP\: for details.
 .TP
 .B HGPLAINEXCEPT
 .
@@ -5477,6 +5499,10 @@ HGPLAIN is enabled. Currently the following values are supported:
 .B \fBalias\fP
 .sp
 Don\(aqt remove aliases.
+.TP
+.B \fBcolor\fP
+.sp
+Don\(aqt disable colored output.
 .TP
 .B \fBi18n\fP
 .sp
@@ -5643,6 +5669,10 @@ command to allow external programs to compare revisions
 .
 http authentication with factotum
 .TP
+.B githelp
+.
+try mapping git commands to Mercurial commands
+.TP
 .B gpg
 .
 commands to sign and verify changesets
@@ -5734,7 +5764,8 @@ Identifiers such as filenames or patterns must be quoted with single
 or double quotes if they contain characters outside of
 \fB[.*{}[]?/\e_a\-zA\-Z0\-9\ex80\-\exff]\fP or if they match one of the
 predefined predicates. This generally applies to file patterns other
-than globs and arguments for predicates.
+than globs and arguments for predicates. Pattern prefixes such as
+\fBpath:\fP may be specified without quoting.
 .sp
 Special characters can be used in quoted identifiers by escaping them,
 e.g., \fB\en\fP is interpreted as a newline. To prevent them from being
@@ -5956,10 +5987,138 @@ Remove files listed in foo.lst that contain the letter a or b:
 .sp
 .nf
 .ft C
-hg remove "set: \(aqlistfile:foo.lst\(aq and (**a* or **b*)"
+hg remove "set: listfile:foo.lst and (**a* or **b*)"
 .ft P
 .fi
 .UNINDENT
+.SH COMMAND\-LINE FLAGS
+.sp
+Most Mercurial commands accept various flags.
+.SS Flag names
+.sp
+Flags for each command are listed in \%\fBhg help\fP\: for that command.
+Additionally, some flags, such as \-\-repository, are global and can be used with
+any command \- those are seen in \%\fBhg help \-v\fP\:, and can be specified before or
+after the command.
+.sp
+Every flag has at least a long name, such as \-\-repository. Some flags may also
+have a short one\-letter name, such as the equivalent \-R. Using the short or long
+name is equivalent and has the same effect.
+.sp
+Flags that have a short name can also be bundled together \- for instance, to
+specify both \-\-edit (short \-e) and \-\-interactive (short \-i), one could use:
+.sp
+.nf
+.ft C
+hg commit \-ei
+.ft P
+.fi
+.sp
+If any of the bundled flags takes a value (i.e. is not a boolean), it must be
+last, followed by the value:
+.sp
+.nf
+.ft C
+hg commit \-im \(aqMessage\(aq
+.ft P
+.fi
+.SS Flag types
+.sp
+Mercurial command\-line flags can be strings, numbers, booleans, or lists of
+strings.
+.SS Specifying flag values
+.sp
+The following syntaxes are allowed, assuming a flag \(aqflagname\(aq with short name
+\(aqf\(aq:
+.sp
+.nf
+.ft C
+\-\-flagname=foo
+\-\-flagname foo
+\-f foo
+\-ffoo
+.ft P
+.fi
+.sp
+This syntax applies to all non\-boolean flags (strings, numbers or lists).
+.SS Specifying boolean flags
+.sp
+Boolean flags do not take a value parameter. To specify a boolean, use the flag
+name to set it to true, or the same name prefixed with \(aqno\-\(aq to set it to
+false:
+.sp
+.nf
+.ft C
+hg commit \-\-interactive
+hg commit \-\-no\-interactive
+.ft P
+.fi
+.SS Specifying list flags
+.sp
+List flags take multiple values. To specify them, pass the flag multiple times:
+.sp
+.nf
+.ft C
+hg files \-\-include mercurial \-\-include tests
+.ft P
+.fi
+.SS Setting flag defaults
+.sp
+In order to set a default value for a flag in an hgrc file, it is recommended to
+use aliases:
+.sp
+.nf
+.ft C
+[alias]
+commit = commit \-\-interactive
+.ft P
+.fi
+.sp
+For more information on hgrc files, see \%\fBhg help config\fP\:.
+.SS Overriding flags on the command line
+.sp
+If the same non\-list flag is specified multiple times on the command line, the
+latest specification is used:
+.sp
+.nf
+.ft C
+hg commit \-m "Ignored value" \-m "Used value"
+.ft P
+.fi
+.sp
+This includes the use of aliases \- e.g., if one has:
+.sp
+.nf
+.ft C
+[alias]
+committemp = commit \-m "Ignored value"
+.ft P
+.fi
+.sp
+then the following command will override that \-m:
+.sp
+.nf
+.ft C
+hg committemp \-m "Used value"
+.ft P
+.fi
+.SS Overriding flag defaults
+.sp
+Every flag has a default value, and you may also set your own defaults in hgrc
+as described above.
+Except for list flags, defaults can be overridden on the command line simply by
+specifying the flag in that location.
+.SS Hidden flags
+.sp
+Some flags are not shown in a command\(aqs help by default \- specifically, those
+that are deemed to be experimental, deprecated or advanced. To show all flags,
+add the \-\-verbose flag for the help command:
+.sp
+.nf
+.ft C
+hg help \-\-verbose commit
+.ft P
+.fi
 .SH GLOSSARY
 .INDENT 0.0
 .TP
@@ -6783,10 +6942,15 @@ Show information about the graphical topology of the repository.
 Information rendered by this handler can be used to create visual
 representations of repository topology.
 .sp
-The \fBrevision\fP URL parameter controls the starting changeset.
+The \fBrevision\fP URL parameter controls the starting changeset. If it\(aqs
+absent, the default is \fBtip\fP.
 .sp
 The \fBrevcount\fP query string argument can define the number of changesets
 to show information for.
+.sp
+The \fBgraphtop\fP query string argument can specify the starting changeset
+for producing \fBjsdata\fP variable that is used for rendering graph in
+JavaScript. By default it has the same value as \fBrevision\fP.
 .sp
 This handler will render the \fBgraph\fP template.
 .SS /help[/{topic}]
@@ -7704,10 +7868,10 @@ work around it to return a non\-filtered value.
 .sp
 An alias for limit().
 .TP
-.B \fBfollow([pattern[, startrev]])\fP
+.B \fBfollow([file[, startrev]])\fP
 .sp
 An alias for \fB::.\fP (ancestors of the working directory\(aqs first parent).
-If pattern is specified, the histories of files matching given
+If file pattern is specified, the histories of files matching given
 pattern in the revision given by startrev are followed, including copies.
 .TP
 .B \fBfollowlines(file, fromline:toline[, startrev=., descend=False])\fP
@@ -8155,6 +8319,42 @@ consequences, as the user and system config files often define things
 like the username and extensions that may be required to interface
 with a repository.
 .UNINDENT
+.SS Command\-line Flags
+.sp
+Mercurial\(aqs default command\-line parser is designed for humans, and is not
+robust against malicious input. For instance, you can start a debugger by
+passing \fB\-\-debugger\fP as an option value:
+.sp
+.nf
+.ft C
+$ REV=\-\-debugger sh \-c \(aqhg log \-r "$REV"\(aq
+.ft P
+.fi
+.sp
+This happens because several command\-line flags need to be scanned without
+using a concrete command table, which may be modified while loading repository
+settings and extensions.
+.sp
+Since Mercurial 4.4.2, the parsing of such flags may be restricted by setting
+\fBHGPLAIN=+strictflags\fP. When this feature is enabled, all early options
+(e.g. \fB\-R/\-\-repository\fP, \fB\-\-cwd\fP, \fB\-\-config\fP) must be specified first
+amongst the other global options, and cannot be injected to an arbitrary
+location:
+.sp
+.nf
+.ft C
+$ HGPLAIN=+strictflags hg \-R "$REPO" log \-r "$REV"
+.ft P
+.fi
+.sp
+In earlier Mercurial versions where \fB+strictflags\fP isn\(aqt available, you
+can mitigate the issue by concatenating an option value with its flag:
+.sp
+.nf
+.ft C
+$ hg log \-r"$REV" \-\-keyword="$KEYWORD"
+.ft P
+.fi
 .SS Consuming Command Output
 .sp
 It is common for machines to need to parse the output of Mercurial
@@ -8353,7 +8553,7 @@ archive does not recurse in subrepositories unless
 .TP
 .B cat
 .
-cat currently only handles exact file matches in subrepos.
+Git subrepositories only support exact file matches.
 Subversion subrepositories are currently ignored.
 .TP
 .B commit
@@ -8631,10 +8831,6 @@ of your configuration file.
 .
 String. The changeset phase name.
 .TP
-.B phaseidx
-.
-Integer. The changeset phase index.
-.TP
 .B rev
 .
 Integer. The repository\-local changeset revision number.
@@ -8650,6 +8846,11 @@ List of strings. Any tags associated with the changeset.
 .B termwidth
 .
 Integer. The width of the current terminal.
+.TP
+.B verbosity
+.
+String. The current output verbosity in \(aqdebug\(aq, \(aqquiet\(aq, \(aqverbose\(aq,
+or \(aq\(aq.
 .UNINDENT
 .sp
 The "date" keyword does not produce human\-readable output. If you
@@ -8683,9 +8884,8 @@ given date/time and the current date/time.
 .B basename
 .
 Any text. Treats the text as a path, and returns the last
-component of the path after splitting by the path separator
-(ignoring trailing separators). For example, "foo/bar/baz" becomes
-"baz" and "foo/bar//" becomes "bar".
+component of the path after splitting by the path separator.
+For example, "foo/bar/baz" becomes "baz" and "foo/bar//" becomes "".
 .TP
 .B count
 .
@@ -8794,6 +8994,10 @@ is not a valid bisection status.
 .B shortdate
 .
 Date. Returns a date like "2006\-09\-18".
+.TP
+.B slashpath
+.
+Any text. Replaces the native path separator with slash.
 .TP
 .B splitlines
 .
@@ -11467,6 +11671,39 @@ warn_update_file_count = (integer)
 If \fBwarn_when_unused\fP is set and fsmonitor isn\(aqt enabled, a warning will
 be printed during working directory updates if this many files will be
 created.
+.SS githelp
+.sp
+try mapping git commands to Mercurial commands
+.sp
+Tries to map a given git command to a Mercurial command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+$ hg githelp \-\- git checkout master
+hg update master
+.UNINDENT
+.UNINDENT
+.sp
+If an unknown command or parameter combination is detected, an error is
+produced.
+.SS Commands
+.SS githelp
+.sp
+suggests the Mercurial equivalent of the given git command:
+.sp
+.nf
+.ft C
+hg githelp
+.ft P
+.fi
+.sp
+Usage: hg githelp \-\- <git command>
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: git
+.UNINDENT
+.UNINDENT
 .SS gpg
 .sp
 commands to sign and verify changesets
@@ -12144,6 +12381,10 @@ force outgoing even for unrelated repositories
 .BI \-r,  \-\-rev \ <REV[+]>
 .
 first revision to be edited
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -12645,6 +12886,130 @@ do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS lfs
+.sp
+lfs \- large file support (EXPERIMENTAL)
+.sp
+This extension allows large files to be tracked outside of the normal
+repository storage and stored on a centralized server, similar to the
+\fBlargefiles\fP extension.  The \fBgit\-lfs\fP protocol is used when
+communicating with the server, so existing git infrastructure can be
+harnessed.  Even though the files are stored outside of the repository,
+they are still integrity checked in the same manner as normal files.
+.sp
+The files stored outside of the repository are downloaded on demand,
+which reduces the time to clone, and possibly the local disk usage.
+This changes fundamental workflows in a DVCS, so careful thought
+should be given before deploying it.  \%\fBhg convert\fP\: can be used to
+convert LFS repositories to normal repositories that no longer
+require this extension, and do so without changing the commit hashes.
+This allows the extension to be disabled if the centralized workflow
+becomes burdensome.  However, the pre and post convert clones will
+not be able to communicate with each other unless the extension is
+enabled on both.
+.sp
+To start a new repository, or to add LFS files to an existing one, just
+create an \fB.hglfs\fP file as described below in the root directory of
+the repository.  Typically, this file should be put under version
+control, so that the settings will propagate to other repositories with
+push and pull.  During any commit, Mercurial will consult this file to
+determine if an added or modified file should be stored externally.  The
+type of storage depends on the characteristics of the file at each
+commit.  A file that is near a size threshold may switch back and forth
+between LFS and normal storage, as needed.
+.sp
+Alternately, both normal repositories and largefile controlled
+repositories can be converted to LFS by using \%\fBhg convert\fP\: and the
+\fBlfs.track\fP config option described below.  The \fB.hglfs\fP file
+should then be created and added, to control subsequent LFS selection.
+The hashes are also unchanged in this case.  The LFS and non\-LFS
+repositories can be distinguished because the LFS repository will
+abort any command if this extension is disabled.
+.sp
+Committed LFS files are held locally, until the repository is pushed.
+Prior to pushing the normal repository data, the LFS files that are
+tracked by the outgoing commits are automatically uploaded to the
+configured central server.  No LFS files are transferred on
+\%\fBhg pull\fP\: or \%\fBhg clone\fP\:.  Instead, the files are downloaded on
+demand as they need to be read, if a cached copy cannot be found
+locally.  Both committing and downloading an LFS file will link the
+file to a usercache, to speed up future access.  See the \fIusercache\fP
+config setting described below.
+.sp
+.hglfs:
+.sp
+.nf
+.ft C
+The extension reads its configuration from a versioned \(ga\(ga.hglfs\(ga\(ga
+configuration file found in the root of the working directory. The
+\(ga\(ga.hglfs\(ga\(ga file uses the same syntax as all other Mercurial
+configuration files. It uses a single section, \(ga\(ga[track]\(ga\(ga.
+
+The \(ga\(ga[track]\(ga\(ga section specifies which files are stored as LFS (or
+not). Each line is keyed by a file pattern, with a predicate value.
+The first file pattern match is used, so put more specific patterns
+first.  The available predicates are \(ga\(gaall()\(ga\(ga, \(ga\(ganone()\(ga\(ga, and
+\(ga\(gasize()\(ga\(ga. See "hg help filesets.size" for the latter.
+
+Example versioned \(ga\(ga.hglfs\(ga\(ga file::
+
+  [track]
+  # No Makefile or python file, anywhere, will be LFS
+  **Makefile = none()
+  **.py = none()
+
+  **.zip = all()
+  **.exe = size(">1MB")
+
+  # Catchall for everything not matched above
+  ** = size(">10MB")
+.ft P
+.fi
+.sp
+Configs:
+.sp
+.nf
+.ft C
+[lfs]
+# Remote endpoint. Multiple protocols are supported:
+# \- http(s)://user:pass@example.com/path
+#   git\-lfs endpoint
+# \- file:///tmp/path
+#   local filesystem, usually for testing
+# if unset, lfs will prompt setting this when it must use this value.
+# (default: unset)
+url = https://example.com/repo.git/info/lfs
+
+# Which files to track in LFS.  Path tests are "**.extname" for file
+# extensions, and "path:under/some/directory" for path prefix.  Both
+# are relative to the repository root.
+# File size can be tested with the "size()" fileset, and tests can be
+# joined with fileset operators.  (See "hg help filesets.operators".)
+#
+# Some examples:
+# \- all()                       # everything
+# \- none()                      # nothing
+# \- size(">20MB")               # larger than 20MB
+# \- !**.txt                     # anything not a *.txt file
+# \- **.zip | **.tar.gz | **.7z  # some types of compressed files
+# \- path:bin                    # files under "bin" in the project root
+# \- (**.php & size(">2MB")) | (**.js & size(">5MB")) | **.tar.gz
+#     | (path:bin & !path:/bin/README) | size(">1GB")
+# (default: none())
+#
+# This is ignored if there is a tracked \(aq.hglfs\(aq file, and this setting
+# will eventually be deprecated and removed.
+track = size(">10M")
+
+# how many times to retry before giving up on transferring an object
+retry = 5
+
+# the local directory to store lfs files for sharing across local clones.
+# If not set, the cache is located in an OS specific cache location.
+usercache = /path/to/global/cache
+.ft P
+.fi
+.SS Commands
 .SS logtoprocess
 .sp
 send ui.log() data to a subprocess (EXPERIMENTAL)
@@ -14509,6 +14874,11 @@ rebase will use \fB\-\-base .\fP as above.
 .UNINDENT
 .UNINDENT
 .sp
+If \fB\-\-source\fP or \fB\-\-rev\fP is used, special names \fBSRC\fP and \fBALLSRC\fP
+can be used in \fB\-\-dest\fP. Destination would be calculated per source
+revision with \fBSRC\fP substituted by that single source revision and
+\fBALLSRC\fP substituted by all source revisions.
+.sp
 Rebase will destroy original changesets unless you use \fB\-\-keep\fP.
 It will also move your bookmarks (even if you do).
 .sp
@@ -14585,6 +14955,15 @@ move a named branch while preserving its name:
 hg rebase \-r "branch(featureX)" \-d 1.3 \-\-keepbranches
 .ft P
 .fi
+.IP \(bu 2
+.
+stabilize orphaned changesets so history looks linear:
+.sp
+.nf
+.ft C
+hg rebase \-r \(aqorphan()\-obsolete()\(aq \-d \(aqfirst(max((successors(max(roots(ALLSRC) & ::SRC)^)\-obsolete())::) + max(::((roots(ALLSRC) & ::SRC)^)\-obsolete()))\(aq
+.ft P
+.fi
 .UNINDENT
 .sp
 Configuration Options:
@@ -14609,6 +14988,17 @@ unexpectedly:
 .ft C
 [rebase]
 singletransaction = True
+.ft P
+.fi
+.sp
+By default, rebase writes to the working copy, but you can configure it to
+run in\-memory for for better performance, and to allow it to run if the
+working copy is dirty:
+.sp
+.nf
+.ft C
+[rebase]
+experimental.inmemory = True
 .ft P
 .fi
 .sp
@@ -14680,13 +15070,9 @@ continue an interrupted rebase
 .
 abort an interrupted rebase
 .TP
-.BI \-\-style \ <STYLE>
-.
-display using template map file (DEPRECATED)
-.TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template
+display with template (EXPERIMENTAL)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -15447,6 +15833,47 @@ tools/tests/**
 .ft P
 .fi
 .SS Commands
+.SS split
+.sp
+command to split a changeset into smaller ones (EXPERIMENTAL)
+.SS Commands
+.SS split
+.sp
+split a changeset into smaller ones:
+.sp
+.nf
+.ft C
+hg split [\-\-no\-rebase] [[\-r] REV]
+.ft P
+.fi
+.sp
+Repeatedly prompt changes and commit message for new changesets until there
+is nothing left in the original changeset.
+.sp
+If \-\-rev was not given, split the working directory parent.
+.sp
+By default, rebase connected non\-obsoleted descendants onto the new
+changeset. Use \-\-no\-rebase to avoid the rebase.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+revision to split
+.TP
+.B \-\-rebase
+.
+rebase descendants after split (default: True)
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.UNINDENT
 .SS strip
 .sp
 strip changesets and their descendants from history
@@ -15656,6 +16083,20 @@ files to their uncommitted state. This means that files modified, added or
 removed in the changeset will be left unchanged, and so will remain modified,
 added and removed in the working directory.
 .SS Commands
+.SS unamend
+.sp
+undo the most recent amend operation on a current changeset:
+.sp
+.nf
+.ft C
+hg unamend
+.ft P
+.fi
+.sp
+This command will roll back to the previous version of a changeset,
+leaving working directory in state in which it was before running
+\fIhg amend\fP (e.g. files modified as part of an amend will be
+marked as modified \fIhg status\fP)
 .SS uncommit
 .sp
 uncommit part or all of a local changeset:
@@ -15894,7 +16335,7 @@ Source code repository: \%https://www.mercurial\-scm.org/repo/hg\:
 Mailing list: \%https://www.mercurial\-scm.org/mailman/listinfo/mercurial/\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2017 Matt Mackall.
+Copyright (C) 2005\-2018 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

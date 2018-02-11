@@ -1626,6 +1626,13 @@ rebase of obsolete changesets.</dd>
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">server</tt></a></h2>
 <p>Controls generic server settings.</p>
 <dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">bookmarks-pushkey-compat</span></tt></dt>
+<dd><p class="first">Trigger pushkey hook when being pushed bookmark updates. This config exist
+for compatibility purpose (default to True)</p>
+<p class="last">If you use <tt class="docutils literal">pushkey</tt> and <tt class="docutils literal"><span class="pre">pre-pushkey</span></tt> hooks to control bookmark
+movement we recommend you migrate them to <tt class="docutils literal"><span class="pre">txnclose-bookmark</span></tt> and
+<tt class="docutils literal"><span class="pre">pretxnclose-bookmark</span></tt>.</p>
+</dd>
 <dt><tt class="docutils literal">compressionengines</tt></dt>
 <dd><p class="first">List of compression engines and their relative priority to advertise
 to clients.</p>
@@ -2004,15 +2011,20 @@ On Windows, this configuration option is ignored and the command aborted.</div>
 trusted user or group.
 (default: True)</dd>
 <dt><tt class="docutils literal">slash</tt></dt>
-<dd>Display paths using a slash (<tt class="docutils literal">/</tt>) as the path separator. This
+<dd><p class="first">(Deprecated. Use <tt class="docutils literal">slashpath</tt> template filter instead.)</p>
+<p class="last">Display paths using a slash (<tt class="docutils literal">/</tt>) as the path separator. This
 only makes a difference on systems where the default path
 separator is not the slash character (e.g. Windows uses the
 backslash character (<tt class="docutils literal">\</tt>)).
-(default: False)</dd>
+(default: False)</p>
+</dd>
 <dt><tt class="docutils literal">statuscopies</tt></dt>
 <dd>Display copies in the status command.</dd>
 <dt><tt class="docutils literal">ssh</tt></dt>
 <dd>Command to use for SSH connections. (default: <tt class="docutils literal">ssh</tt>)</dd>
+<dt><tt class="docutils literal">ssherrorhint</tt></dt>
+<dd>A hint shown to the user in the case of SSH error (e.g.
+<tt class="docutils literal">Please see <span class="pre">http://company/internalwiki/ssh.html</span></tt>)</dd>
 <dt><tt class="docutils literal">strict</tt></dt>
 <dd>Require exact command names, instead of allowing unambiguous
 abbreviations. (default: False)</dd>
@@ -2031,6 +2043,9 @@ used. (default: 78)</dd>
 <dt><tt class="docutils literal">timeout</tt></dt>
 <dd>The timeout used when a lock is held (in seconds), a negative value
 means no timeout. (default: 600)</dd>
+<dt><tt class="docutils literal">timeout.warn</tt></dt>
+<dd>Time (in seconds) before a warning is printed about held lock. A negative
+value means no warning. (default: 0)</dd>
 <dt><tt class="docutils literal">traceback</tt></dt>
 <dd>Mercurial always prints a traceback when an unknown exception
 occurs. Setting this to True will make Mercurial print a traceback
@@ -2076,7 +2091,7 @@ checks.</p>
 you want it to accept pushes from anybody, you can use the following
 command line:</p>
 <pre class="literal-block">
-$ hg --config web.allow_push=* --config web.push_ssl=False serve
+$ hg --config web.allow-push=* --config web.push_ssl=False serve
 </pre>
 <p>Note that this will allow anybody to push anything to the server and
 that this should not be used for public servers.</p>
@@ -2097,15 +2112,15 @@ revisions.
 <dd>(DEPRECATED) Whether to allow .tar.gz downloading of repository
 revisions.
 (default: False)</dd>
-<dt><tt class="docutils literal">allowpull</tt></dt>
+<dt><tt class="docutils literal"><span class="pre">allow-pull</span></tt></dt>
 <dd>Whether to allow pulling from the repository. (default: True)</dd>
-<dt><tt class="docutils literal">allow_push</tt></dt>
+<dt><tt class="docutils literal"><span class="pre">allow-push</span></tt></dt>
 <dd>Whether to allow pushing to the repository. If empty or not set,
 pushing is not allowed. If the special value <tt class="docutils literal">*</tt>, any remote
 user can push, including unauthenticated users. Otherwise, the
 remote user must have been authenticated, and the authenticated
 user name must be present in this list. The contents of the
-allow_push list are examined after the deny_push list.</dd>
+allow-push list are examined after the deny_push list.</dd>
 <dt><tt class="docutils literal">allow_read</tt></dt>
 <dd>If the user has not already been denied repository access due to
 the contents of deny_read, this list determines whether to grant
@@ -2186,7 +2201,7 @@ threat model.</p>
 push is not denied. If the special value <tt class="docutils literal">*</tt>, all remote users are
 denied push. Otherwise, unauthenticated users are all denied, and
 any authenticated user name present in this list is also denied. The
-contents of the deny_push list are examined before the allow_push list.</dd>
+contents of the deny_push list are examined before the allow-push list.</dd>
 <dt><tt class="docutils literal">deny_read</tt></dt>
 <dd>Whether to deny reading/viewing of the repository. If this list is
 not empty, unauthenticated users are all denied, and any
@@ -2316,6 +2331,9 @@ bold = s/\*\b(\S+)\b\*/&lt;b&gt;\1&lt;\/b&gt;/
 directory updates in parallel on Unix-like systems, which greatly
 helps performance.</p>
 <dl class="docutils">
+<dt><tt class="docutils literal">enabled</tt></dt>
+<dd>Whether to enable workers code to be used.
+(default: true)</dd>
 <dt><tt class="docutils literal">numcpus</tt></dt>
 <dd>Number of CPUs to use for parallel operations. A zero or
 negative value is treated as <tt class="docutils literal">use the default</tt>.
@@ -2355,7 +2373,7 @@ enabled.
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2017 Matt Mackall.
+Mercurial is copyright 2005-2018 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <span class="target" id="common"></span><!-- Common link and substitution definitions. -->

@@ -1,9 +1,9 @@
 Use sensible-editor as default instead of vi.
 
-Index: mercurial-4.4.1/hgeditor
+Index: mercurial-4.5/hgeditor
 ===================================================================
---- mercurial-4.4.1.orig/hgeditor	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/hgeditor	2017-11-13 07:03:25.708617065 +0200
+--- mercurial-4.5.orig/hgeditor	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/hgeditor	2018-02-11 07:35:18.781242928 +0200
 @@ -7,7 +7,7 @@
  # only for Mercurial, modify this:
  case "${EDITOR}" in
@@ -13,11 +13,11 @@ Index: mercurial-4.4.1/hgeditor
          ;;
      emacs)
          EDITOR="$EDITOR -nw"
-Index: mercurial-4.4.1/mercurial/ui.py
+Index: mercurial-4.5/mercurial/ui.py
 ===================================================================
---- mercurial-4.4.1.orig/mercurial/ui.py	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/mercurial/ui.py	2017-11-13 07:03:25.708617065 +0200
-@@ -1512,7 +1512,7 @@
+--- mercurial-4.5.orig/mercurial/ui.py	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/mercurial/ui.py	2018-02-11 07:35:18.781242928 +0200
+@@ -1524,7 +1524,7 @@
              # avoid confusion.
              editor = 'E'
          else:
@@ -26,10 +26,10 @@ Index: mercurial-4.4.1/mercurial/ui.py
          return (encoding.environ.get("HGEDITOR") or
                  self.config("ui", "editor", editor))
  
-Index: mercurial-4.4.1/i18n/da.po
+Index: mercurial-4.5/i18n/da.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/da.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/da.po	2017-11-13 07:03:25.708617065 +0200
+--- mercurial-4.5.orig/i18n/da.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/da.po	2018-02-11 07:35:18.781242928 +0200
 @@ -8752,7 +8752,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
@@ -58,11 +58,11 @@ Index: mercurial-4.4.1/i18n/da.po
  msgstr ""
  
  msgid ""
-Index: mercurial-4.4.1/i18n/de.po
+Index: mercurial-4.5/i18n/de.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/de.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/de.po	2017-11-13 07:03:25.712617135 +0200
-@@ -11683,8 +11683,8 @@
+--- mercurial-4.5.orig/i18n/de.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/de.po	2018-02-11 07:35:18.785242998 +0200
+@@ -11606,8 +11606,8 @@
  msgid "checking commit editor...\n"
  msgstr "Prüfe Editor für Versionsmeldungen...\n"
  
@@ -73,7 +73,7 @@ Index: mercurial-4.4.1/i18n/de.po
  
  msgid " (specify a commit editor in your configuration file)\n"
  msgstr " (Gib einen Editor in der .hgrc Datei an!)\n"
-@@ -17242,7 +17242,8 @@
+@@ -17165,7 +17165,8 @@
  
  msgid ""
  "``editor``\n"
@@ -83,7 +83,7 @@ Index: mercurial-4.4.1/i18n/de.po
  msgstr ""
  
  msgid ""
-@@ -18120,7 +18121,7 @@
+@@ -18043,7 +18044,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -92,7 +92,7 @@ Index: mercurial-4.4.1/i18n/de.po
  msgstr ""
  "EDITOR\n"
  "    Manchmal muss Mercurial eine Textdatei in einem Editor öffnen, damit\n"
-@@ -18129,7 +18130,7 @@
+@@ -18052,7 +18053,7 @@
  "    variablen HGEDITOR, VISUAL und EDITOR (in dieser Reihenfolge) "
  "ermittelt.\n"
  "    Der erste nicht-leere wird verwendet. Wenn alle Angaben leer sind,\n"
@@ -101,10 +101,10 @@ Index: mercurial-4.4.1/i18n/de.po
  
  msgid ""
  "PYTHONPATH\n"
-Index: mercurial-4.4.1/i18n/el.po
+Index: mercurial-4.5/i18n/el.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/el.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/el.po	2017-11-13 07:03:25.712617135 +0200
+--- mercurial-4.5.orig/i18n/el.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/el.po	2018-02-11 07:35:18.785242998 +0200
 @@ -274,7 +274,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
@@ -123,10 +123,10 @@ Index: mercurial-4.4.1/i18n/el.po
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
-Index: mercurial-4.4.1/i18n/fr.po
+Index: mercurial-4.5/i18n/fr.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/fr.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/fr.po	2017-11-13 07:03:25.712617135 +0200
+--- mercurial-4.5.orig/i18n/fr.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/fr.po	2018-02-11 07:35:18.785242998 +0200
 @@ -299,7 +299,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
@@ -145,10 +145,10 @@ Index: mercurial-4.4.1/i18n/fr.po
  msgstr ""
  
  msgid " (specify a commit editor in your .hgrc file)\n"
-Index: mercurial-4.4.1/i18n/it.po
+Index: mercurial-4.5/i18n/it.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/it.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/it.po	2017-11-13 07:03:25.716617204 +0200
+--- mercurial-4.5.orig/i18n/it.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/it.po	2018-02-11 07:35:18.785242998 +0200
 @@ -7156,8 +7156,8 @@
  msgid "Checking commit editor...\n"
  msgstr "Sto controllando l'editor per il commit...\n"
@@ -169,10 +169,10 @@ Index: mercurial-4.4.1/i18n/it.po
  msgstr ""
  
  msgid ""
-Index: mercurial-4.4.1/i18n/ja.po
+Index: mercurial-4.5/i18n/ja.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/ja.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/ja.po	2017-11-13 07:03:25.720617274 +0200
+--- mercurial-4.5.orig/i18n/ja.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/ja.po	2018-02-11 07:35:18.789243068 +0200
 @@ -23224,10 +23224,12 @@
  
  msgid ""
@@ -206,11 +206,11 @@ Index: mercurial-4.4.1/i18n/ja.po
  
  msgid ""
  "PYTHONPATH\n"
-Index: mercurial-4.4.1/i18n/pt_BR.po
+Index: mercurial-4.5/i18n/pt_BR.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/pt_BR.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/pt_BR.po	2017-11-13 07:03:25.720617274 +0200
-@@ -26089,11 +26089,12 @@
+--- mercurial-4.5.orig/i18n/pt_BR.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/pt_BR.po	2018-02-11 07:35:18.793243140 +0200
+@@ -26859,11 +26859,12 @@
  
  msgid ""
  "``editor``\n"
@@ -225,7 +225,7 @@ Index: mercurial-4.4.1/i18n/pt_BR.po
  
  msgid ""
  "``fallbackencoding``\n"
-@@ -27663,7 +27664,7 @@
+@@ -28490,7 +28491,7 @@
  "    editor it uses is determined by looking at the environment\n"
  "    variables HGEDITOR, VISUAL and EDITOR, in that order. The first\n"
  "    non-empty one is chosen. If all of them are empty, the editor\n"
@@ -234,7 +234,7 @@ Index: mercurial-4.4.1/i18n/pt_BR.po
  msgstr ""
  "EDITOR\n"
  "    Algumas vezes o Mercurial precisa abrir em um editor um arquivo\n"
-@@ -27671,7 +27672,7 @@
+@@ -28498,7 +28499,7 @@
  "    mensagens de consolidação. O editor usado é determinado pela\n"
  "    consulta às variáveis de ambiente HGEDITOR, VISUAL e EDITOR,\n"
  "    nessa ordem. O primeiro valor não vazio é escolhido. Se todos\n"
@@ -243,7 +243,7 @@ Index: mercurial-4.4.1/i18n/pt_BR.po
  
  msgid ""
  "PYTHONPATH\n"
-@@ -39019,10 +39020,10 @@
+@@ -40457,10 +40458,10 @@
  #~ msgid " (check that you compiled the extensions)\n"
  #~ msgstr " (verifique se você compilou as extensões)\n"
  
@@ -256,10 +256,10 @@ Index: mercurial-4.4.1/i18n/pt_BR.po
  
  #~ msgid " Can't find editor '%s' in PATH\n"
  #~ msgstr " Não é possível localizar editor '%s' no PATH\n"
-Index: mercurial-4.4.1/i18n/sv.po
+Index: mercurial-4.5/i18n/sv.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/sv.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/sv.po	2017-11-13 07:03:25.724617343 +0200
+--- mercurial-4.5.orig/i18n/sv.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/sv.po	2018-02-11 07:35:18.793243140 +0200
 @@ -9509,8 +9509,8 @@
  msgid "checking commit editor...\n"
  msgstr "kontrollerar arkiveringseditor...\n"
@@ -290,10 +290,10 @@ Index: mercurial-4.4.1/i18n/sv.po
  msgstr ""
  
  msgid ""
-Index: mercurial-4.4.1/i18n/zh_CN.po
+Index: mercurial-4.5/i18n/zh_CN.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/zh_CN.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/zh_CN.po	2017-11-13 07:03:25.724617343 +0200
+--- mercurial-4.5.orig/i18n/zh_CN.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/zh_CN.po	2018-02-11 07:35:18.793243140 +0200
 @@ -5778,7 +5778,7 @@
  msgid "Checking commit editor...\n"
  msgstr ""
@@ -312,10 +312,10 @@ Index: mercurial-4.4.1/i18n/zh_CN.po
  msgstr ""
  
  msgid ""
-Index: mercurial-4.4.1/i18n/zh_TW.po
+Index: mercurial-4.5/i18n/zh_TW.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/zh_TW.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/zh_TW.po	2017-11-13 07:03:25.724617343 +0200
+--- mercurial-4.5.orig/i18n/zh_TW.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/zh_TW.po	2018-02-11 07:35:18.797243210 +0200
 @@ -6759,8 +6759,8 @@
  msgid "Checking commit editor...\n"
  msgstr "檢查提交訊息編輯器...\n"
@@ -336,11 +336,11 @@ Index: mercurial-4.4.1/i18n/zh_TW.po
  msgstr ""
  
  msgid ""
-Index: mercurial-4.4.1/mercurial/help/environment.txt
+Index: mercurial-4.5/mercurial/help/environment.txt
 ===================================================================
---- mercurial-4.4.1.orig/mercurial/help/environment.txt	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/mercurial/help/environment.txt	2017-11-13 07:03:25.724617343 +0200
-@@ -104,7 +104,7 @@
+--- mercurial-4.5.orig/mercurial/help/environment.txt	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/mercurial/help/environment.txt	2018-02-11 07:35:18.797243210 +0200
+@@ -114,7 +114,7 @@
      editor it uses is determined by looking at the environment
      variables HGEDITOR, VISUAL and EDITOR, in that order. The first
      non-empty one is chosen. If all of them are empty, the editor
@@ -349,11 +349,11 @@ Index: mercurial-4.4.1/mercurial/help/environment.txt
  
  PYTHONPATH
      This is used by Python to find imported modules and may need to be
-Index: mercurial-4.4.1/mercurial/help/config.txt
+Index: mercurial-4.5/mercurial/help/config.txt
 ===================================================================
---- mercurial-4.4.1.orig/mercurial/help/config.txt	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/mercurial/help/config.txt	2017-11-13 07:03:25.724617343 +0200
-@@ -2051,7 +2051,8 @@
+--- mercurial-4.5.orig/mercurial/help/config.txt	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/mercurial/help/config.txt	2018-02-11 07:35:18.797243210 +0200
+@@ -2059,7 +2059,8 @@
      Print debugging information. (default: False)
  
  ``editor``
@@ -363,10 +363,10 @@ Index: mercurial-4.4.1/mercurial/help/config.txt
  
  ``fallbackencoding``
      Encoding to try if it's not possible to decode the changelog using
-Index: mercurial-4.4.1/i18n/ro.po
+Index: mercurial-4.5/i18n/ro.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/ro.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/ro.po	2017-11-13 07:03:25.724617343 +0200
+--- mercurial-4.5.orig/i18n/ro.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/ro.po	2018-02-11 07:35:18.797243210 +0200
 @@ -7722,7 +7722,7 @@
  msgid "Checking commit editor...\n"
  msgstr "Se verifică editorul pentru commit...\n"
@@ -395,10 +395,10 @@ Index: mercurial-4.4.1/i18n/ro.po
  msgstr ""
  
  msgid ""
-Index: mercurial-4.4.1/i18n/ru.po
+Index: mercurial-4.5/i18n/ru.po
 ===================================================================
---- mercurial-4.4.1.orig/i18n/ru.po	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/i18n/ru.po	2017-11-13 07:03:25.728617412 +0200
+--- mercurial-4.5.orig/i18n/ru.po	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/i18n/ru.po	2018-02-11 07:35:18.801243280 +0200
 @@ -12451,8 +12451,8 @@
  msgid "checking commit editor...\n"
  msgstr "проверка редактора сообщений фиксации...\n"
@@ -442,11 +442,11 @@ Index: mercurial-4.4.1/i18n/ru.po
  
  msgid ""
  "PYTHONPATH\n"
-Index: mercurial-4.4.1/mercurial/debugcommands.py
+Index: mercurial-4.5/mercurial/debugcommands.py
 ===================================================================
---- mercurial-4.4.1.orig/mercurial/debugcommands.py	2017-11-13 07:03:25.728617412 +0200
-+++ mercurial-4.4.1/mercurial/debugcommands.py	2017-11-13 07:03:25.728617412 +0200
-@@ -1098,15 +1098,15 @@
+--- mercurial-4.5.orig/mercurial/debugcommands.py	2018-02-11 07:35:18.805243352 +0200
++++ mercurial-4.5/mercurial/debugcommands.py	2018-02-11 07:35:18.801243280 +0200
+@@ -1241,15 +1241,15 @@
      editor = util.expandpath(editor)
      fm.write('editor', _("checking commit editor... (%s)\n"), editor)
      cmdpath = util.findexe(pycompat.shlexsplit(editor)[0])
