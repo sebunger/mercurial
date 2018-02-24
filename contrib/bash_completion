@@ -78,6 +78,7 @@ _hg_repos()
 _hg_status()
 {
     local files="$("$hg" status -n$1 . 2>/dev/null)"
+    local IFS=$'\n'
     COMPREPLY=(${COMPREPLY[@]:-} $(compgen -W '$files' -- "$cur"))
 }
 
@@ -303,6 +304,15 @@ _hg_cmd_qpush()
 	return
     fi
     _hg_ext_mq_patchlist qunapplied
+}
+
+_hg_cmd_qgoto()
+{
+    if [[ "$prev" = @(-n|--name) ]]; then
+	_hg_ext_mq_queues
+	return
+    fi
+    _hg_ext_mq_patchlist qseries
 }
 
 _hg_cmd_qdelete()

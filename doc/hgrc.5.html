@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="generator" content="AsciiDoc 8.2.2">
+<meta name="generator" content="AsciiDoc 8.2.5">
 <title>HGRC(5)</title>
 </head>
 <body>
@@ -12,41 +12,43 @@
 <tt>&lt;<a href="mailto:bos@serpentine.com">bos@serpentine.com</a>&gt;</tt><br />
 </p>
 <hr />
-<h2>NAME</h2>
+<h2><a name="_name"></a>NAME</h2>
 <p>hgrc - configuration files for Mercurial</p>
 <hr />
-<h2>SYNOPSIS</h2>
+<h2><a name="_synopsis"></a>SYNOPSIS</h2>
 <p>The Mercurial system uses a set of configuration files to control
 aspects of its behaviour.</p>
 <hr />
-<h2>FILES</h2>
+<h2><a name="_files"></a>FILES</h2>
 <p>Mercurial reads configuration data from several files, if they exist.
 The names of these files depend on the system on which Mercurial is
-installed.</p>
+installed.  *.rc files from a single directory are read in
+alphabetical order, later ones overriding earlier ones.  Where
+multiple paths are given below, settings from later paths override
+earlier ones.</p>
 <dl>
 <dt>
-(Unix)    &lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc
+(Unix) &lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc
 </dt>
 <dt>
-(Unix)    &lt;install-root&gt;/etc/mercurial/hgrc
+(Unix) &lt;install-root&gt;/etc/mercurial/hgrc
 </dt>
 <dd>
 <p>
     Per-installation configuration files, searched for in the
-    directory where Mercurial is installed.  For example, if installed
-    in /shared/tools, Mercurial will look in
-    /shared/tools/etc/mercurial/hgrc.  Options in these files apply to
-    all Mercurial commands executed by any user in any directory.
+    directory where Mercurial is installed.  &lt;install-root&gt; is the
+    parent directory of the hg executable (or symlink) being run.
+    For example, if installed in /shared/tools/bin/hg, Mercurial will
+    look in /shared/tools/etc/mercurial/hgrc.  Options in these files
+    apply to all Mercurial commands executed by any user in any
+    directory.
 </p>
 </dd>
 <dt>
-(Unix)    /etc/mercurial/hgrc.d/*.rc
+(Unix) /etc/mercurial/hgrc.d/*.rc
 </dt>
 <dt>
-(Unix)    /etc/mercurial/hgrc
-</dt>
-<dt>
-(Windows) C:\Mercurial\Mercurial.ini
+(Unix) /etc/mercurial/hgrc
 </dt>
 <dd>
 <p>
@@ -57,22 +59,52 @@ installed.</p>
 </p>
 </dd>
 <dt>
-(Unix)    $HOME/.hgrc
+(Windows) &lt;install-dir&gt;\Mercurial.ini
 </dt>
 <dt>
-(Windows) C:\Documents and Settings\USERNAME\Mercurial.ini
+or else
 </dt>
 <dt>
-(Windows) $HOME\Mercurial.ini
+(Windows) HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial
+</dt>
+<dt>
+or else
+</dt>
+<dt>
+(Windows) C:\Mercurial\Mercurial.ini
 </dt>
 <dd>
 <p>
-    Per-user configuration file, for the user running Mercurial.
-    Options in this file apply to all Mercurial commands executed by
-    any user in any directory.  Options in this file override
+    Per-installation/system configuration files, for the system on
+    which Mercurial is running.  Options in these files apply to all
+    Mercurial commands executed by any user in any directory.
+    Registry keys contain PATH-like strings, every part of which must
+    reference a Mercurial.ini file or be a directory where *.rc files
+    will be read.
+</p>
+</dd>
+<dt>
+(Unix) $HOME/.hgrc
+</dt>
+<dt>
+(Windows) %HOME%\Mercurial.ini
+</dt>
+<dt>
+(Windows) %HOME%\.hgrc
+</dt>
+<dt>
+(Windows) %USERPROFILE%\Mercurial.ini
+</dt>
+<dt>
+(Windows) %USERPROFILE%\.hgrc
+</dt>
+<dd>
+<p>
+    Per-user configuration file(s), for the user running Mercurial.
+    On Windows 9x, %HOME% is replaced by %APPDATA%.
+    Options in these files apply to all Mercurial commands executed
+    by this user in any directory.  Options in thes files override
     per-installation and per-system options.
-    On Windows system, one of these is chosen exclusively according
-    to definition of HOME environment variable.
 </p>
 </dd>
 <dt>
@@ -91,7 +123,7 @@ installed.</p>
 </dd>
 </dl>
 <hr />
-<h2>SYNTAX</h2>
+<h2><a name="_syntax"></a>SYNTAX</h2>
 <p>A configuration file consists of sections, led by a "[section]" header
 and followed by "name: value" entries; "name=value" is also accepted.</p>
 <pre>[spam]
@@ -106,7 +138,7 @@ values in the same section, or values in a special DEFAULT section.</p>
 <p>Lines beginning with "#" or ";" are ignored and may be used to provide
 comments.</p>
 <hr />
-<h2>SECTIONS</h2>
+<h2><a name="_sections"></a>SECTIONS</h2>
 <p>This section describes the different sections that may appear in a
 Mercurial "hgrc" file, the purpose of each section, its possible
 keys, and their possible values.</p>
@@ -145,18 +177,22 @@ name of an empty temporary file, where the filtered data must be
 written by the command.</pre>
 <pre>NOTE: the tempfile mechanism is recommended for Windows systems,
 where the standard shell I/O redirection operators often have
-strange effects.  In particular, if you are doing line ending
-conversion on Windows using the popular dos2unix and unix2dos
-programs, you *must* use the tempfile mechanism, as using pipes will
-corrupt the contents of your files.</pre>
-<pre>Tempfile example:</pre>
-<pre>[encode]
-# convert files to unix line ending conventions on checkin
-**.txt = tempfile: dos2unix -n INFILE OUTFILE</pre>
-<pre>[decode]
-# convert files to windows line ending conventions when writing
-# them to the working dir
-**.txt = tempfile: unix2dos -n INFILE OUTFILE</pre>
+strange effects and may corrupt the contents of your files.</pre>
+<pre>The most common usage is for LF &lt;-&gt; CRLF translation on Windows.
+For this, use the "smart" convertors which check for binary files:</pre>
+<pre>[extensions]
+hgext.win32text =
+[encode]
+** = cleverencode:
+[decode]
+** = cleverdecode:</pre>
+<pre>or if you only want to translate certain files:</pre>
+<pre>[extensions]
+hgext.win32text =
+[encode]
+**.txt = dumbencode:
+[decode]
+**.txt = dumbdecode:</pre>
 </dd>
 <dt>
 defaults
@@ -311,6 +347,9 @@ after the "=".</pre>
 <pre>Otherwise, give a name that you choose, followed by "=", followed by
 the path to the ".py" file (including the file name extension) that
 defines the extension.</pre>
+<pre>To explicitly disable an extension that is enabled in an hgrc of
+broader scope, prepend its path with '!', as in
+'hgext.foo = !/ext/path' or 'hgext.foo = !' when no path is supplied.</pre>
 <pre>Example for ~/.hgrc:</pre>
 <pre>[extensions]
 # (the mq extension will get loaded from mercurial's path)
@@ -336,6 +375,86 @@ usestore
 </p>
 </dd>
 </dl>
+</dd>
+<dt>
+merge-patterns
+</dt>
+<dd>
+<p>
+  This section specifies merge tools to associate with particular file
+  patterns. Tools matched here will take precedence over the default
+  merge tool. Patterns are globs by default, rooted at the repository root.
+</p>
+<pre>Example:</pre>
+<pre>[merge-patterns]
+**.c = kdiff3
+**.jpg = myimgmerge</pre>
+</dd>
+<dt>
+merge-tools
+</dt>
+<dd>
+<p>
+  This section configures external merge tools to use for file-level
+  merges.
+</p>
+<pre>Example ~/.hgrc:</pre>
+<pre>[merge-tools]
+# Override stock tool location
+kdiff3.executable = ~/bin/kdiff3
+# Specify command line
+kdiff3.args = $base $local $other -o $output
+# Give higher priority
+kdiff3.priority = 1</pre>
+<pre># Define new tool
+myHtmlTool.args = -m $local $other $base $output
+myHtmlTool.regkey = Software\FooSoftware\HtmlMerge
+myHtmlTool.priority = 1</pre>
+<pre>Supported arguments:
+priority;;
+  The priority in which to evaluate this tool.
+  Default: 0.
+executable;;
+  Either just the name of the executable or its pathname.
+  Default: the tool name.
+args;;
+  The arguments to pass to the tool executable. You can refer to the files
+  being merged as well as the output file through these variables: $base,
+  $local, $other, $output.
+  Default: $local $base $other
+premerge;;
+  Attempt to run internal non-interactive 3-way merge tool before
+  launching external tool.
+  Default: True
+binary;;
+  This tool can merge binary files.  Defaults to False, unless tool
+  was selected by file pattern match.
+symlink;;
+  This tool can merge symlinks.  Defaults to False, even if tool was
+  selected by file pattern match.
+checkconflicts;;
+  Check whether there are conflicts even though the tool reported
+  success.
+  Default: False
+checkchanged;;
+  Check whether outputs were written even though the tool reported
+  success.
+  Default: False
+fixeol;;
+  Attempt to fix up EOL changes caused by the merge tool.
+  Default: False
+gui:;
+  This tool requires a graphical interface to run. Default: False
+regkey;;
+  Windows registry key which describes install location of this tool.
+  Mercurial will search for this key first under HKEY_CURRENT_USER and
+  then under HKEY_LOCAL_MACHINE.  Default: None
+regname;;
+  Name of value to read from specified registry key.  Defaults to the
+  unnamed (default) value.
+regappend;;
+  String to append to the value read from the registry, typically the
+  executable name of the tool.  Default: None</pre>
 </dd>
 <dt>
 hooks
@@ -444,7 +563,7 @@ preoutgoing
 </dt>
 <dd>
 <p>
-    Run before computing changes to send from the local repository to
+    Run before collecting changes to send from the local repository to
     another.  Non-zero status will cause failure.  This lets you
     prevent pull over http or ssh.  Also prevents against local pull,
     push (outbound) or bundle commands, but not effective, since you
@@ -754,6 +873,17 @@ ui
 </p>
 <dl>
 <dt>
+archivemeta
+</dt>
+<dd>
+<p>
+    Whether to include the .hg_archival.txt file containing metadata
+    (hashes for the repository base and for tip) in archives created by
+    the hg archive command or downloaded via hgweb.
+    Default is true.
+</p>
+</dd>
+<dt>
 debug
 </dt>
 <dd>
@@ -813,108 +943,75 @@ merge
 <dd>
 <p>
     The conflict resolution program to use during a manual merge.
-    Default is "hgmerge".
+    There are some internal tools available:
 </p>
 </dd>
 <dt>
-patch
+internal:local
 </dt>
 <dd>
 <p>
-    command to use to apply patches. Look for <em>gpatch</em> or <em>patch</em> in PATH if
-    unset.
+        keep the local version
 </p>
 </dd>
 <dt>
-quiet
+internal:other
 </dt>
 <dd>
 <p>
-    Reduce the amount of output printed.  True or False.  Default is False.
+        use the other version
 </p>
 </dd>
 <dt>
-remotecmd
+internal:merge
 </dt>
 <dd>
 <p>
-    remote command to use for clone/push/pull operations. Default is <em>hg</em>.
+        use the internal non-interactive merge tool
 </p>
 </dd>
 <dt>
-report_untrusted
+internal:fail
 </dt>
 <dd>
 <p>
-    Warn if a .hg/hgrc file is ignored due to not being owned by a
-    trusted user or group.  True or False.  Default is True.
+        fail to merge
 </p>
-</dd>
-<dt>
-slash
-</dt>
-<dd>
-<p>
-    Display paths using a slash ("/") as the path separator.  This only
-    makes a difference on systems where the default path separator is not
-    the slash character (e.g. Windows uses the backslash character ("\")).
-    Default is False.
-</p>
-</dd>
-<dt>
-ssh
-</dt>
-<dd>
-<p>
-    command to use for SSH connections. Default is <em>ssh</em>.
-</p>
-</dd>
-<dt>
-strict
-</dt>
-<dd>
-<p>
-    Require exact command names, instead of allowing unambiguous
-    abbreviations.  True or False.  Default is False.
-</p>
-</dd>
-<dt>
-style
-</dt>
-<dd>
-<p>
-    Name of style to use for command output.
-</p>
-</dd>
-<dt>
-timeout
-</dt>
-<dd>
-<p>
-    The timeout used when a lock is held (in seconds), a negative value
-    means no timeout. Default is 600.
-</p>
-</dd>
-<dt>
-username
-</dt>
-<dd>
-<p>
-    The committer of a changeset created when running "commit".
-    Typically a person's name and email address, e.g. "Fred Widget
-    &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
-    If the username in hgrc is empty, it has to be specified manually or
-    in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username ="
-    in the system hgrc).
-</p>
-</dd>
-<dt>
-verbose
-</dt>
-<dd>
-<p>
-    Increase the amount of output printed.  True or False.  Default is False.
-</p>
+<pre>  See the merge-tools section for more information on configuring tools.
+patch;;
+  command to use to apply patches. Look for 'gpatch' or 'patch' in PATH if
+  unset.
+quiet;;
+  Reduce the amount of output printed.  True or False.  Default is False.
+remotecmd;;
+  remote command to use for clone/push/pull operations. Default is 'hg'.
+report_untrusted;;
+  Warn if a .hg/hgrc file is ignored due to not being owned by a
+  trusted user or group.  True or False.  Default is True.
+slash;;
+  Display paths using a slash ("/") as the path separator.  This only
+  makes a difference on systems where the default path separator is not
+  the slash character (e.g. Windows uses the backslash character ("\")).
+  Default is False.
+ssh;;
+  command to use for SSH connections. Default is 'ssh'.
+strict;;
+  Require exact command names, instead of allowing unambiguous
+  abbreviations.  True or False.  Default is False.
+style;;
+  Name of style to use for command output.
+timeout;;
+  The timeout used when a lock is held (in seconds), a negative value
+  means no timeout. Default is 600.
+username;;
+  The committer of a changeset created when running "commit".
+  Typically a person's name and email address, e.g. "Fred Widget
+  &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
+  If the username in hgrc is empty, it has to be specified manually or
+  in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username ="
+  in the system hgrc).
+verbose;;
+  Increase the amount of output printed.  True or False.  Default is False.</pre>
 </dd>
 </dl>
 </dd>
@@ -1016,7 +1113,7 @@ contact
 <dd>
 <p>
     Name or email address of the person in charge of the repository.
-    Default is "unknown".
+    Defaults to ui.username or $EMAIL or "unknown" if unset or empty.
 </p>
 </dd>
 <dt>
@@ -1108,6 +1205,14 @@ port
 </p>
 </dd>
 <dt>
+prefix
+</dt>
+<dd>
+<p>
+    Prefix path to serve from. Default is '' (server root).
+</p>
+</dd>
+<dt>
 push_ssl
 </dt>
 <dd>
@@ -1156,14 +1261,14 @@ templates
 </dd>
 </dl>
 <hr />
-<h2>AUTHOR</h2>
+<h2><a name="_author"></a>AUTHOR</h2>
 <p>Bryan O'Sullivan &lt;bos@serpentine.com&gt;.</p>
 <p>Mercurial was written by Matt Mackall &lt;mpm@selenic.com&gt;.</p>
 <hr />
-<h2>SEE ALSO</h2>
+<h2><a name="_see_also"></a>SEE ALSO</h2>
 <p>hg(1), hgignore(5)</p>
 <hr />
-<h2>COPYING</h2>
+<h2><a name="_copying"></a>COPYING</h2>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
 Mercurial is copyright 2005-2007 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
@@ -1171,7 +1276,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 19-Oct-2007 18:26:10 CDT
+Last updated 2008-03-24 18:05:47 CDT
 </small></p>
 </body>
 </html>

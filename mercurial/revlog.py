@@ -10,9 +10,9 @@ This software may be used and distributed according to the terms
 of the GNU General Public License, incorporated herein by reference.
 """
 
-from node import *
+from node import bin, hex, nullid, nullrev, short
 from i18n import _
-import binascii, changegroup, errno, ancestor, mdiff, os
+import changegroup, errno, ancestor, mdiff
 import sha, struct, util, zlib
 
 _pack = struct.pack
@@ -31,8 +31,13 @@ REVLOG_DEFAULT_VERSION = REVLOG_DEFAULT_FORMAT | REVLOG_DEFAULT_FLAGS
 
 class RevlogError(Exception):
     pass
+
 class LookupError(RevlogError):
-    pass
+    def __init__(self, name, index, message):
+        self.name = name
+        if isinstance(name, str) and len(name) == 20:
+            name = short(name)
+        RevlogError.__init__(self, _('%s@%s: %s') % (index, name, message))
 
 def getoffset(q):
     return int(q >> 16)
@@ -107,8 +112,6 @@ class lazyparser(object):
     # lazyparser is not safe to use on windows if win32 extensions not
     # available. it keeps file handle open, which make it not possible
     # to break hardlinks on local cloned repos.
-    safe_to_use = os.name != 'nt' or (not util.is_win_9x() and
-                                      hasattr(util, 'win32api'))
 
     def __init__(self, dataf, size):
         self.dataf = dataf
@@ -321,7 +324,7 @@ class revlogoldio(object):
             e = _unpack(indexformatv0, cur)
             # transform to revlogv1 format
             e2 = (offset_type(e[0], 0), e[1], -1, e[2], e[3],
-                  nodemap[e[4]], nodemap[e[5]], e[6])
+                  nodemap.get(e[4], nullrev), nodemap.get(e[5], nullrev), e[6])
             index.append(e2)
             nodemap[e[6]] = n
             n += 1
@@ -357,7 +360,7 @@ class revlogio(object):
         except AttributeError:
             size = 0
 
-        if lazyparser.safe_to_use and not inline and size > 1000000:
+        if util.openhardlinks() and not inline and size > 1000000:
             # big index, let's parse it on demand
             parser = lazyparser(fp, size)
             index = lazyindex(parser)
@@ -516,7 +519,7 @@ class revlog(object):
         try:
             return self.nodemap[node]
         except KeyError:
-            raise LookupError(_('%s: no node %s') % (self.indexfile, hex(node)))
+            raise LookupError(node, self.indexfile, _('no node'))
     def node(self, rev):
         return self.index[rev][7]
     def linkrev(self, node):
@@ -836,7 +839,8 @@ class revlog(object):
                 for n in self.nodemap:
                     if n.startswith(bin_id) and hex(n).startswith(id):
                         if node is not None:
-                            raise LookupError(_("Ambiguous identifier"))
+                            raise LookupError(id, self.indexfile,
+                                              _('ambiguous identifier'))
                         node = n
                 if node is not None:
                     return node
@@ -855,7 +859,7 @@ class revlog(object):
         if n:
             return n
 
-        raise LookupError(_("No match found"))
+        raise LookupError(id, self.indexfile, _('no match found'))
 
     def cmp(self, node, text):
         """compare text with a given file revision"""
@@ -929,19 +933,19 @@ class revlog(object):
             raise RevlogError(_('incompatible revision flag %x') %
                               (self.index[rev][0] & 0xFFFF))
 
-        if self._inline:
-            # we probably have the whole chunk cached
-            df = None
-        else:
-            df = self.opener(self.datafile)
+        df = None
 
         # do we have useful data cached?
         if self._cache and self._cache[1] >= base and self._cache[1] < rev:
             base = self._cache[1]
             text = str(self._cache[2])
             self._loadindex(base, rev + 1)
+            if not self._inline and rev > base + 1:
+                df = self.opener(self.datafile)
         else:
             self._loadindex(base, rev + 1)
+            if not self._inline and rev > base:
+                df = self.opener(self.datafile)
             text = self.chunk(base, df=df)
 
         bins = [self.chunk(r, df) for r in xrange(base + 1, rev + 1)]
@@ -973,15 +977,18 @@ class revlog(object):
 
         tr.add(self.datafile, dataoff)
         df = self.opener(self.datafile, 'w')
-        calc = self._io.size
-        for r in xrange(self.count()):
-            start = self.start(r) + (r + 1) * calc
-            length = self.length(r)
-            fp.seek(start)
-            d = fp.read(length)
-            df.write(d)
+        try:
+            calc = self._io.size
+            for r in xrange(self.count()):
+                start = self.start(r) + (r + 1) * calc
+                length = self.length(r)
+                fp.seek(start)
+                d = fp.read(length)
+                df.write(d)
+        finally:
+            df.close()
+
         fp.close()
-        df.close()
         fp = self.opener(self.indexfile, 'w', atomictemp=True)
         self.version &= ~(REVLOGNGINLINEDATA)
         self._inline = False
@@ -1009,7 +1016,12 @@ class revlog(object):
         if not self._inline:
             dfh = self.opener(self.datafile, "a")
         ifh = self.opener(self.indexfile, "a+")
-        return self._addrevision(text, transaction, link, p1, p2, d, ifh, dfh)
+        try:
+            return self._addrevision(text, transaction, link, p1, p2, d, ifh, dfh)
+        finally:
+            if dfh:
+                dfh.close()
+            ifh.close()
 
     def _addrevision(self, text, transaction, link, p1, p2, d, ifh, dfh):
         node = hash(text, p1, p2)
@@ -1150,104 +1162,119 @@ class revlog(object):
             transaction.add(self.datafile, end)
             dfh = self.opener(self.datafile, "a")
 
-        # loop through our set of deltas
-        chain = None
-        for chunk in revs:
-            node, p1, p2, cs = struct.unpack("20s20s20s20s", chunk[:80])
-            link = linkmapper(cs)
-            if node in self.nodemap:
-                # this can happen if two branches make the same change
-                # if unique:
-                #    raise RevlogError(_("already have %s") % hex(node[:4]))
-                chain = node
-                continue
-            delta = buffer(chunk, 80)
-            del chunk
+        try:
+            # loop through our set of deltas
+            chain = None
+            for chunk in revs:
+                node, p1, p2, cs = struct.unpack("20s20s20s20s", chunk[:80])
+                link = linkmapper(cs)
+                if node in self.nodemap:
+                    # this can happen if two branches make the same change
+                    # if unique:
+                    #    raise RevlogError(_("already have %s") % hex(node[:4]))
+                    chain = node
+                    continue
+                delta = buffer(chunk, 80)
+                del chunk
 
-            for p in (p1, p2):
-                if not p in self.nodemap:
-                    raise LookupError(_("unknown parent %s") % short(p))
+                for p in (p1, p2):
+                    if not p in self.nodemap:
+                        raise LookupError(p, self.indexfile, _('unknown parent'))
 
-            if not chain:
-                # retrieve the parent revision of the delta chain
-                chain = p1
-                if not chain in self.nodemap:
-                    raise LookupError(_("unknown base %s") % short(chain[:4]))
+                if not chain:
+                    # retrieve the parent revision of the delta chain
+                    chain = p1
+                    if not chain in self.nodemap:
+                        raise LookupError(chain, self.indexfile, _('unknown base'))
 
-            # full versions are inserted when the needed deltas become
-            # comparable to the uncompressed text or when the previous
-            # version is not the one we have a delta against. We use
-            # the size of the previous full rev as a proxy for the
-            # current size.
+                # full versions are inserted when the needed deltas become
+                # comparable to the uncompressed text or when the previous
+                # version is not the one we have a delta against. We use
+                # the size of the previous full rev as a proxy for the
+                # current size.
 
-            if chain == prev:
-                cdelta = compress(delta)
-                cdeltalen = len(cdelta[0]) + len(cdelta[1])
-                textlen = mdiff.patchedsize(textlen, delta)
+                if chain == prev:
+                    cdelta = compress(delta)
+                    cdeltalen = len(cdelta[0]) + len(cdelta[1])
+                    textlen = mdiff.patchedsize(textlen, delta)
 
-            if chain != prev or (end - start + cdeltalen) > textlen * 2:
-                # flush our writes here so we can read it in revision
-                if dfh:
-                    dfh.flush()
-                ifh.flush()
-                text = self.revision(chain)
-                if len(text) == 0:
-                    # skip over trivial delta header
-                    text = buffer(delta, 12)
-                else:
-                    text = mdiff.patches(text, [delta])
-                del delta
-                chk = self._addrevision(text, transaction, link, p1, p2, None,
-                                        ifh, dfh)
-                if not dfh and not self._inline:
-                    # addrevision switched from inline to conventional
-                    # reopen the index
-                    dfh = self.opener(self.datafile, "a")
-                    ifh = self.opener(self.indexfile, "a")
-                if chk != node:
-                    raise RevlogError(_("consistency error adding group"))
-                textlen = len(text)
-            else:
-                e = (offset_type(end, 0), cdeltalen, textlen, base,
-                     link, self.rev(p1), self.rev(p2), node)
-                self.index.insert(-1, e)
-                self.nodemap[node] = r
-                entry = self._io.packentry(e, self.node, self.version, r)
-                if self._inline:
-                    ifh.write(entry)
-                    ifh.write(cdelta[0])
-                    ifh.write(cdelta[1])
-                    self.checkinlinesize(transaction, ifh)
-                    if not self._inline:
+                if chain != prev or (end - start + cdeltalen) > textlen * 2:
+                    # flush our writes here so we can read it in revision
+                    if dfh:
+                        dfh.flush()
+                    ifh.flush()
+                    text = self.revision(chain)
+                    if len(text) == 0:
+                        # skip over trivial delta header
+                        text = buffer(delta, 12)
+                    else:
+                        text = mdiff.patches(text, [delta])
+                    del delta
+                    chk = self._addrevision(text, transaction, link, p1, p2, None,
+                                            ifh, dfh)
+                    if not dfh and not self._inline:
+                        # addrevision switched from inline to conventional
+                        # reopen the index
                         dfh = self.opener(self.datafile, "a")
                         ifh = self.opener(self.indexfile, "a")
+                    if chk != node:
+                        raise RevlogError(_("consistency error adding group"))
+                    textlen = len(text)
                 else:
-                    dfh.write(cdelta[0])
-                    dfh.write(cdelta[1])
-                    ifh.write(entry)
+                    e = (offset_type(end, 0), cdeltalen, textlen, base,
+                         link, self.rev(p1), self.rev(p2), node)
+                    self.index.insert(-1, e)
+                    self.nodemap[node] = r
+                    entry = self._io.packentry(e, self.node, self.version, r)
+                    if self._inline:
+                        ifh.write(entry)
+                        ifh.write(cdelta[0])
+                        ifh.write(cdelta[1])
+                        self.checkinlinesize(transaction, ifh)
+                        if not self._inline:
+                            dfh = self.opener(self.datafile, "a")
+                            ifh = self.opener(self.indexfile, "a")
+                    else:
+                        dfh.write(cdelta[0])
+                        dfh.write(cdelta[1])
+                        ifh.write(entry)
 
-            t, r, chain, prev = r, r + 1, node, node
-            base = self.base(t)
-            start = self.start(base)
-            end = self.end(t)
+                t, r, chain, prev = r, r + 1, node, node
+                base = self.base(t)
+                start = self.start(base)
+                end = self.end(t)
+        finally:
+            if dfh:
+                dfh.close()
+            ifh.close()
 
         return node
 
-    def strip(self, rev, minlink):
-        if self.count() == 0 or rev >= self.count():
+    def strip(self, minlink):
+        """truncate the revlog on the first revision with a linkrev >= minlink
+
+        This function is called when we're stripping revision minlink and
+        its descendants from the repository.
+
+        We have to remove all revisions with linkrev >= minlink, because
+        the equivalent changelog revisions will be renumbered after the
+        strip.
+
+        So we truncate the revlog on the first of these revisions, and
+        trust that the caller has saved the revisions that shouldn't be
+        removed and that it'll readd them after this truncation.
+        """
+        if self.count() == 0:
             return
 
         if isinstance(self.index, lazyindex):
             self._loadindexmap()
 
-        # When stripping away a revision, we need to make sure it
-        # does not actually belong to an older changeset.
-        # The minlink parameter defines the oldest revision
-        # we're allowed to strip away.
-        while minlink > self.index[rev][4]:
-            rev += 1
-            if rev >= self.count():
-                return
+        for rev in xrange(0, self.count()):
+            if self.index[rev][4] >= minlink:
+                break
+        else:
+            return
 
         # first truncate the files on disk
         end = self.start(rev)
