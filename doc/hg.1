@@ -2588,9 +2588,8 @@ will appear in files:.
 .IP Note
 .
 for performance reasons, log FILE may omit duplicate changes
-made on branches and will not show deletions. To see all
-changes including duplicates and deletions, use the \-\-removed
-switch.
+made on branches and will not show removals or mode changes. To
+see all such changes, use the \-\-removed switch.
 .RE
 .sp
 Some examples:
@@ -2660,7 +2659,7 @@ hg log \-T list
 .fi
 .IP \(bu 2
 .
-check if a given changeset is included is a tagged release:
+check if a given changeset is included in a tagged release:
 .sp
 .nf
 .ft C
