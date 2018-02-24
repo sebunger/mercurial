@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" unix-permissions || exit 80
-
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > convert=
@@ -122,7 +120,7 @@
       to a named branch.
   
       Mercurial Source
-      ''''''''''''''''
+      ################
   
       The Mercurial source recognizes the following configuration options, which
       you can set on the command line with "--config":
@@ -140,7 +138,7 @@
                     revision identifier and defaults to 0.
   
       CVS Source
-      ''''''''''
+      ##########
   
       CVS source will use a sandbox (i.e. a checked-out copy) from CVS to
       indicate the starting point of what will be converted. Direct access to
@@ -180,8 +178,8 @@
                     or delete them.
       hook.cvschangesets
                     Specify a Python function to be called after the changesets
-                    are calculated from the the CVS log. The function is passed
-                    a list with the changeset entries, and can modify the
+                    are calculated from the CVS log. The function is passed a
+                    list with the changeset entries, and can modify the
                     changesets in-place, or add or delete them.
   
       An additional "debugcvsps" Mercurial command allows the builtin changeset
@@ -190,7 +188,7 @@
       more details.
   
       Subversion Source
-      '''''''''''''''''
+      #################
   
       Subversion source detects classical trunk/branches/tags layouts. By
       default, the supplied "svn://repo/path/" source URL is converted as a
@@ -222,7 +220,7 @@
                     specify start Subversion revision number. The default is 0.
   
       Perforce Source
-      '''''''''''''''
+      ###############
   
       The Perforce (P4) importer can be given a p4 depot path or a client
       specification as source. It will convert all files in the source to a flat
@@ -238,7 +236,7 @@
                     number).
   
       Mercurial Destination
-      '''''''''''''''''''''
+      #####################
   
       The following options are supported:
   
@@ -293,24 +291,27 @@
   pulling from ../a
   searching for changes
   no changes found
+
+conversion to existing file should fail
+
   $ touch bogusfile
-
-should fail
-
   $ hg convert a bogusfile
   initializing destination bogusfile repository
   abort: cannot create new bundle repository
   [255]
+
+#if unix-permissions
+
+conversion to dir without permissions should fail
+
   $ mkdir bogusdir
   $ chmod 000 bogusdir
-
-should fail
 
   $ hg convert a bogusdir
   abort: Permission denied: bogusdir
   [255]
 
-should succeed
+user permissions should succeed
 
   $ chmod 700 bogusdir
   $ hg convert a bogusdir
@@ -323,6 +324,8 @@ should succeed
   2 c
   1 d
   0 e
+
+#endif
 
 test pre and post conversion actions
 
@@ -393,3 +396,52 @@ test bogus URL
   $ hg convert -q bzr+ssh://foobar@selenic.com/baz baz
   abort: bzr+ssh://foobar@selenic.com/baz: missing or unsupported repository
   [255]
+
+test revset converted() lookup
+
+  $ hg --config convert.hg.saverev=True convert a c  
+  initializing destination c repository
+  scanning source...
+  sorting...
+  converting...
+  4 a
+  3 b
+  2 c
+  1 d
+  0 e
+  $ echo f > c/f
+  $ hg -R c ci -d'0 0' -Amf
+  adding f
+  created new head
+  $ hg -R c log -r "converted(09d945a62ce6)"
+  changeset:   1:98c3dd46a874
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     b
+  
+  $ hg -R c log -r "converted()"
+  changeset:   0:31ed57b2037c
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     a
+  
+  changeset:   1:98c3dd46a874
+  user:        test
+  date:        Thu Jan 01 00:00:01 1970 +0000
+  summary:     b
+  
+  changeset:   2:3b9ca06ef716
+  user:        test
+  date:        Thu Jan 01 00:00:02 1970 +0000
+  summary:     c
+  
+  changeset:   3:4e0debd37cf2
+  user:        test
+  date:        Thu Jan 01 00:00:03 1970 +0000
+  summary:     d
+  
+  changeset:   4:9de3bc9349c5
+  user:        test
+  date:        Thu Jan 01 00:00:04 1970 +0000
+  summary:     e
+  

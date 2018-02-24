@@ -1,5 +1,3 @@
-  $ "$TESTDIR/hghave" system-sh || exit 80
-
   $ hg init test
   $ cd test
 
@@ -214,13 +212,11 @@ tag and branch using same name
 
 test custom commit messages
 
-  $ cat > editor << '__EOF__'
-  > #!/bin/sh
+  $ cat > editor.sh << '__EOF__'
   > echo "custom tag message" > "$1"
   > echo "second line" >> "$1"
   > __EOF__
-  $ chmod +x editor
-  $ HGEDITOR="'`pwd`'"/editor hg tag custom-tag -e
+  $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg tag custom-tag -e
   $ hg log -l1 --template "{desc}\n"
   custom tag message
   second line
@@ -235,7 +231,7 @@ local tag with .hgtags modified
   $ hg st
   M .hgtags
   ? .hgtags.orig
-  ? editor
+  ? editor.sh
   $ hg tag --local baz
   $ hg revert --no-backup .hgtags
 
@@ -252,7 +248,6 @@ tagging when at named-branch-head that's not a topo-head
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg tag new-topo-head
 
-
 tagging on null rev
 
   $ hg up null
@@ -263,6 +258,12 @@ tagging on null rev
 
   $ hg init empty
   $ hg tag -R empty nullrev
+  abort: null revision specified
+  [255]
+
+  $ hg tag -R empty -r 00000000000 -f nulltag
+  abort: null revision specified
+  [255]
 
   $ cd ..
 
@@ -304,12 +305,15 @@ tagging on an uncommitted merge (issue2542)
 commit hook on tag used to be run without write lock - issue3344
 
   $ hg init repo-tag
+  $ touch repo-tag/test
+  $ hg -R repo-tag commit -A -m "test"
+  adding test
   $ hg init repo-tag-target
-  $ hg -R repo-tag --config hooks.commit="hg push \"`pwd`/repo-tag-target\"" tag tag
+  $ hg -R repo-tag --config hooks.commit="\"hg\" push \"`pwd`/repo-tag-target\"" tag tag
   pushing to $TESTTMP/repo-tag-target
   searching for changes
   adding changesets
   adding manifests
   adding file changes
-  added 1 changesets with 1 changes to 1 files
+  added 2 changesets with 2 changes to 2 files
 

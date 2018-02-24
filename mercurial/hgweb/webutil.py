@@ -10,6 +10,9 @@ import os, copy
 from mercurial import match, patch, scmutil, error, ui, util
 from mercurial.i18n import _
 from mercurial.node import hex, nullid
+from common import ErrorResponse
+from common import HTTP_NOT_FOUND
+import difflib
 
 def up(p):
     if p[0] != "/":
@@ -98,16 +101,23 @@ def nodebranchdict(repo, ctx):
     branches = []
     branch = ctx.branch()
     # If this is an empty repo, ctx.node() == nullid,
-    # ctx.branch() == 'default', but branchtags() is
-    # an empty dict. Using dict.get avoids a traceback.
-    if repo.branchtags().get(branch) == ctx.node():
+    # ctx.branch() == 'default'.
+    try:
+        branchnode = repo.branchtip(branch)
+    except error.RepoLookupError:
+        branchnode = None
+    if branchnode == ctx.node():
         branches.append({"name": branch})
     return branches
 
 def nodeinbranch(repo, ctx):
     branches = []
     branch = ctx.branch()
-    if branch != 'default' and repo.branchtags().get(branch) != ctx.node():
+    try:
+        branchnode = repo.branchtip(branch)
+    except error.RepoLookupError:
+        branchnode = None
+    if branch != 'default' and branchnode != ctx.node():
         branches.append({"name": branch})
     return branches
 
@@ -146,11 +156,15 @@ def changectx(repo, req):
     return ctx
 
 def filectx(repo, req):
+    if 'file' not in req.form:
+        raise ErrorResponse(HTTP_NOT_FOUND, 'file not given')
     path = cleanpath(repo, req.form['file'][0])
     if 'node' in req.form:
         changeid = req.form['node'][0]
-    else:
+    elif 'filenode' in req.form:
         changeid = req.form['filenode'][0]
+    else:
+        raise ErrorResponse(HTTP_NOT_FOUND, 'node or filenode not given')
     try:
         fctx = repo[changeid][path]
     except error.RepoError:
@@ -212,6 +226,53 @@ def diffs(repo, tmpl, ctx, files, parity, style):
     blockno = blockcount.next()
     yield tmpl('diffblock', parity=parity.next(), blockno=blockno,
                lines=prettyprintlines(''.join(block), blockno))
+
+def compare(tmpl, context, leftlines, rightlines):
+    '''Generator function that provides side-by-side comparison data.'''
+
+    def compline(type, leftlineno, leftline, rightlineno, rightline):
+        lineid = leftlineno and ("l%s" % leftlineno) or ''
+        lineid += rightlineno and ("r%s" % rightlineno) or ''
+        return tmpl('comparisonline',
+                    type=type,
+                    lineid=lineid,
+                    leftlinenumber="% 6s" % (leftlineno or ''),
+                    leftline=leftline or '',
+                    rightlinenumber="% 6s" % (rightlineno or ''),
+                    rightline=rightline or '')
+
+    def getblock(opcodes):
+        for type, llo, lhi, rlo, rhi in opcodes:
+            len1 = lhi - llo
+            len2 = rhi - rlo
+            count = min(len1, len2)
+            for i in xrange(count):
+                yield compline(type=type,
+                               leftlineno=llo + i + 1,
+                               leftline=leftlines[llo + i],
+                               rightlineno=rlo + i + 1,
+                               rightline=rightlines[rlo + i])
+            if len1 > len2:
+                for i in xrange(llo + count, lhi):
+                    yield compline(type=type,
+                                   leftlineno=i + 1,
+                                   leftline=leftlines[i],
+                                   rightlineno=None,
+                                   rightline=None)
+            elif len2 > len1:
+                for i in xrange(rlo + count, rhi):
+                    yield compline(type=type,
+                                   leftlineno=None,
+                                   leftline=None,
+                                   rightlineno=i + 1,
+                                   rightline=rightlines[i])
+
+    s = difflib.SequenceMatcher(None, leftlines, rightlines)
+    if context < 0:
+        yield tmpl('comparisonblock', lines=getblock(s.get_opcodes()))
+    else:
+        for oc in s.get_grouped_opcodes(n=context):
+            yield tmpl('comparisonblock', lines=getblock(oc))
 
 def diffstatgen(ctx):
     '''Generator function that provides the diffstat data.'''

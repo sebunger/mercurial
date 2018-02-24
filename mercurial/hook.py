@@ -66,7 +66,7 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
                              (hname, funcname))
     try:
         try:
-            # redirect IO descriptors the the ui descriptors so hooks
+            # redirect IO descriptors to the ui descriptors so hooks
             # that write directly to these don't mess up the command
             # protocol when running through the command server
             old = sys.stdout, sys.stderr, sys.stdin
@@ -138,6 +138,9 @@ def redirect(state):
     _redirect = state
 
 def hook(ui, repo, name, throw=False, **args):
+    if not ui.callhooks:
+        return False
+
     r = False
 
     oldstdout = -1
@@ -166,7 +169,11 @@ def hook(ui, repo, name, throw=False, **args):
                     path = util.expandpath(path)
                     if repo:
                         path = os.path.join(repo.root, path)
-                    mod = extensions.loadpath(path, 'hghook.%s' % hname)
+                    try:
+                        mod = extensions.loadpath(path, 'hghook.%s' % hname)
+                    except Exception:
+                        ui.write(_("loading %s hook failed:\n") % hname)
+                        raise
                     hookfn = getattr(mod, cmd)
                 else:
                     hookfn = cmd[7:].strip()

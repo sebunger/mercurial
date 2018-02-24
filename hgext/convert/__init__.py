@@ -13,6 +13,8 @@ import subversion
 from mercurial import commands, templatekw
 from mercurial.i18n import _
 
+testedwith = 'internal'
+
 # Commands definition was moved elsewhere to ease demandload job.
 
 def convert(ui, src, dest=None, revmapfile=None, **opts):
@@ -136,7 +138,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     repository from "default" to a named branch.
 
     Mercurial Source
-    ''''''''''''''''
+    ################
 
     The Mercurial source recognizes the following configuration
     options, which you can set on the command line with ``--config``:
@@ -153,7 +155,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         It takes a hg revision identifier and defaults to 0.
 
     CVS Source
-    ''''''''''
+    ##########
 
     CVS source will use a sandbox (i.e. a checked-out copy) from CVS
     to indicate the starting point of what will be converted. Direct
@@ -195,7 +197,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         delete them.
 
     :hook.cvschangesets: Specify a Python function to be called after
-        the changesets are calculated from the the CVS log. The
+        the changesets are calculated from the CVS log. The
         function is passed a list with the changeset entries, and can
         modify the changesets in-place, or add or delete them.
 
@@ -205,7 +207,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
     the command help for more details.
 
     Subversion Source
-    '''''''''''''''''
+    #################
 
     Subversion source detects classical trunk/branches/tags layouts.
     By default, the supplied ``svn://repo/path/`` source URL is
@@ -237,7 +239,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         The default is 0.
 
     Perforce Source
-    '''''''''''''''
+    ###############
 
     The Perforce (P4) importer can be given a p4 depot path or a
     client specification as source. It will convert all files in the
@@ -253,7 +255,7 @@ def convert(ui, src, dest=None, revmapfile=None, **opts):
         Perforce changelist number).
 
     Mercurial Destination
-    '''''''''''''''''''''
+    #####################
 
     The following options are supported:
 
@@ -328,7 +330,8 @@ cmdtable = {
           ('', 'root', '', _('specify cvsroot')),
           # Options specific to builtin cvsps
           ('', 'parents', '', _('show parent changesets')),
-          ('', 'ancestors', '', _('show current changeset in ancestor branches')),
+          ('', 'ancestors', '',
+           _('show current changeset in ancestor branches')),
           # Options that are ignored for compatibility with cvsps-2.1
           ('A', 'cvs-direct', None, _('ignored for compatibility')),
          ],

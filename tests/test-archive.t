@@ -20,10 +20,10 @@
   >     hg serve -p $HGPORT -d --pid-file=hg.pid -E errors.log
   >     cat hg.pid >> $DAEMON_PIDS
   >     echo % $1 allowed should give 200
-  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "/archive/tip.$2" | head -n 1
+  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "archive/tip.$2" | head -n 1
   >     echo % $3 and $4 disallowed should both give 403
-  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "/archive/tip.$3" | head -n 1
-  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "/archive/tip.$4" | head -n 1
+  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "archive/tip.$3" | head -n 1
+  >     "$TESTDIR/get-with-headers.py" localhost:$HGPORT "archive/tip.$4" | head -n 1
   >     "$TESTDIR/killdaemons.py"
   >     cat errors.log
   >     cp .hg/hgrc-base .hg/hgrc
@@ -56,7 +56,7 @@ check http return codes
 
 invalid arch type should give 404
 
-  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT "/archive/tip.invalid" | head -n 1
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT "archive/tip.invalid" | head -n 1
   404 Unsupported archive type: None
 
   $ TIP=`hg id -v | cut -f1 -d' '`
@@ -102,7 +102,10 @@ invalid arch type should give 404
   test/baz/bletch
   test/foo
 
-  $ hg archive -t tbz2 -X baz test.tar.bz2
+  $ hg archive --debug -t tbz2 -X baz test.tar.bz2
+  archiving: 0/2 files (0.00%)
+  archiving: bar 1/2 files (50.00%)
+  archiving: foo 2/2 files (100.00%)
   $ bunzip2 -dc test.tar.bz2 | tar tf - 2>/dev/null
   test/.hg_archival.txt
   test/bar
@@ -265,3 +268,5 @@ old file -- date clamped to 1980
   *0*80*00:00*old/old (glob)
   *-----* (glob)
   \s*147\s+2 files (re)
+
+  $ cd ..
