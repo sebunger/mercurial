@@ -34,9 +34,30 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .sp
 The Mercurial system uses a set of configuration files to control
 aspects of its behavior.
+.sp
+The configuration files use a simple ini\-file format. A configuration
+file consists of sections, led by a \fB[section]\fP header and followed
+by \fBname = value\fP entries:
+.sp
+.nf
+.ft C
+[ui]
+username = Firstname Lastname <firstname.lastname@example.net>
+verbose = True
+.ft P
+.fi
+.sp
+The above entries will be referred to as \fBui.username\fP and
+\fBui.verbose\fP, respectively. See the Syntax section below.
 .SH FILES
 .sp
 Mercurial reads configuration data from several files, if they exist.
+These files do not exist by default and you will have to create the
+appropriate configuration files yourself: global configuration like
+the username setting is typically put into
+\fB%USERPROFILE%\emercurial.ini\fP or \fB$HOME/.hgrc\fP and local
+configuration is put into the per\-repository \fB<repo>/.hg/hgrc\fP file.
+.sp
 The names of these files depend on the system on which Mercurial is
 installed. \fB*.rc\fP files from a single directory are read in
 alphabetical order, later ones overriding earlier ones. Where multiple
@@ -56,7 +77,7 @@ will not get transferred during a "clone" operation. Options in
 this file override options in all other configuration files. On
 Unix, most of this file will be ignored if it doesn\(aqt belong to a
 trusted user or to a trusted group. See the documentation for the
-\%trusted\: section below for more details.
+\fB[trusted]\fP section below for more details.
 .UNINDENT
 .UNINDENT
 .sp
@@ -112,8 +133,8 @@ to all Mercurial commands executed by any user in any directory.
 .UNINDENT
 .sp
 .nf
-(Windows) \fB<install\-dir>\eMercurial.ini\fP
-(Windows) \fB<install\-dir>\ehgrc.d\e*.rc\fP
+(Windows) \fB<install\-dir>\eMercurial.ini\fP \fBor\fP
+(Windows) \fB<install\-dir>\ehgrc.d\e*.rc\fP \fBor\fP
 (Windows) \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP
 .fi
 .sp
@@ -151,7 +172,7 @@ they are treated as continuations of that entry. Leading whitespace is
 removed from values. Empty lines are skipped. Lines beginning with
 \fB#\fP or \fB;\fP are ignored and may be used to provide comments.
 .sp
-Configuration keys can be set multiple times, in which case mercurial
+Configuration keys can be set multiple times, in which case Mercurial
 will use the value that was configured last. As an example:
 .sp
 .nf
@@ -166,7 +187,8 @@ eggs=small
 This would set the configuration key named \fBeggs\fP to \fBsmall\fP.
 .sp
 It is also possible to define a section multiple times. A section can
-be redefined on the same and/or on different hgrc files. For example:
+be redefined on the same and/or on different configuration files. For
+example:
 .sp
 .nf
 .ft C
@@ -236,19 +258,23 @@ quotation marks at the beginning of a word is counted as a quotation
 .SH SECTIONS
 .sp
 This section describes the different sections that may appear in a
-Mercurial "hgrc" file, the purpose of each section, its possible keys,
-and their possible values.
+Mercurial configuration file, the purpose of each section, its possible
+keys, and their possible values.
 .SS \fBalias\fP
 .sp
 Defines command aliases.
 Aliases allow you to define your own commands in terms of other
-commands (or aliases), optionally including arguments.
+commands (or aliases), optionally including arguments. Positional
+arguments in the form of \fB$1\fP, \fB$2\fP, etc in the alias definition
+are expanded by Mercurial before execution. Positional arguments not
+already used by \fB$N\fP in the definition are put at the end of the
+command to be executed.
 .sp
 Alias definitions consist of lines of the form:
 .sp
 .nf
 .ft C
-<alias> = <command> [<argument]...
+<alias> = <command> [<argument>]...
 .ft P
 .fi
 .sp
@@ -274,12 +300,41 @@ It is possible to create aliases with the same names as
 existing commands, which will then override the original
 definitions. This is almost always a bad idea!
 .RE
+.sp
+An alias can start with an exclamation point (\fB!\fP) to make it a
+shell alias. A shell alias is executed with the shell and will let you
+run arbitrary commands. As an example,
+.sp
+.nf
+.ft C
+echo = !echo
+.ft P
+.fi
+.sp
+will let you do \fBhg echo foo\fP to have \fBfoo\fP printed in your
+terminal. A better example might be:
+.sp
+.nf
+.ft C
+purge = !$HG status \-\-no\-status \-\-unknown \-0 | xargs \-0 rm
+.ft P
+.fi
+.sp
+which will make \fBhg purge\fP delete all unknown files in the
+repository in the same manner as the purge extension.
+.sp
+Shell aliases are executed in an environment where \fB$HG\fP expand to
+the path of the Mercurial that was used to execute the alias. This is
+useful when you want to call further Mercurial commands in a shell
+alias, as was done above for the purge alias. In addition,
+\fB$HG_ARGS\fP expand to the arguments given to Mercurial. In the \fBhg
+echo foo\fP call above, \fB$HG_ARGS\fP would expand to \fBecho foo\fP.
 .SS \fBauth\fP
 .sp
 Authentication credentials for HTTP authentication. This section
 allows you to store usernames and passwords for use when logging
-\fIinto\fP HTTP servers. See the \%web\: configuration section if you want to
-configure \fIwho\fP can login to your HTTP server.
+\fIinto\fP HTTP servers. See the \fB[web]\fP configuration section if
+you want to configure \fIwho\fP can login to your HTTP server.
 .sp
 Each line has the following format:
 .sp
@@ -484,7 +539,7 @@ email addresses.
 .B \fBmethod\fP
 .sp
 Optional. Method to use to send email messages. If value is \fBsmtp\fP
-(default), use SMTP (see the \%SMTP\: section for configuration).
+(default), use SMTP (see the \fB[smtp]\fP section for configuration).
 Otherwise, use as name of program to run that acts like sendmail
 (takes \fB\-f\fP option for sender, list of recipients on command line,
 message on stdin). Normally, setting this to \fBsendmail\fP or
@@ -835,6 +890,12 @@ Run before starting a local commit. Exit status 0 allows the
 commit to proceed. Non\-zero status will cause the commit to fail.
 Parent changeset IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
+.B \fBprelistkeys\fP
+.sp
+Run before listing pushkeys (like bookmarks) in the
+repository. Non\-zero status will cause failure. The key namespace is
+in \fB$HG_NAMESPACE\fP.
+.TP
 .B \fBpreoutgoing\fP
 .sp
 Run before collecting changes to send from the local repository to
@@ -845,6 +906,14 @@ just copy files instead then. Source of operation is in
 \fB$HG_SOURCE\fP. If "serve", operation is happening on behalf of remote
 SSH or HTTP repository. If "push", "pull" or "bundle", operation
 is happening on behalf of repository on same system.
+.TP
+.B \fBprepushkey\fP
+.sp
+Run before a pushkey (like a bookmark) is added to the
+repository. Non\-zero status will cause the key to be rejected. The
+key namespace is in \fB$HG_NAMESPACE\fP, the key is in \fB$HG_KEY\fP,
+the old value (if any) is in \fB$HG_OLD\fP, and the new value is in
+\fB$HG_NEW\fP.
 .TP
 .B \fBpretag\fP
 .sp
@@ -879,6 +948,19 @@ Run before updating the working directory. Exit status 0 allows
 the update to proceed. Non\-zero status will prevent the update.
 Changeset ID of first new parent is in \fB$HG_PARENT1\fP. If merge, ID
 of second new parent is in \fB$HG_PARENT2\fP.
+.TP
+.B \fBlistkeys\fP
+.sp
+Run after listing pushkeys (like bookmarks) in the repository. The
+key namespace is in \fB$HG_NAMESPACE\fP. \fB$HG_VALUES\fP is a
+dictionary containing the keys and values.
+.TP
+.B \fBpushkey\fP
+.sp
+Run after a pushkey (like a bookmark) is added to the
+repository. The key namespace is in \fB$HG_NAMESPACE\fP, the key is in
+\fB$HG_KEY\fP, the old value (if any) is in \fB$HG_OLD\fP, and the new
+value is in \fB$HG_NEW\fP.
 .TP
 .B \fBtag\fP
 .sp
@@ -1061,6 +1143,9 @@ File path where profiling data or report should be saved. If the
 file exists, it is replaced. Default: None, data is printed on
 stderr
 .UNINDENT
+.SS \fBrevsetalias\fP
+.sp
+Alias definitions for revsets. See \%\fBhg help revsets\fP\: for details.
 .SS \fBserver\fP
 .sp
 Controls generic server settings.
@@ -1181,7 +1266,7 @@ in the same format as a repository\-wide .hgignore file. This
 option supports hook syntax, so if you want to specify multiple
 ignore files, you can do so by setting something like
 \fBignore.other = ~/.hgignore2\fP. For details of the ignore file
-format, see the \%\fBhgignore\fP(5)\: man page.
+format, see the \fBhgignore(5)\fP man page.
 .TP
 .B \fBinteractive\fP
 .sp
@@ -1195,12 +1280,20 @@ Template string for commands that print changesets.
 .sp
 The conflict resolution program to use during a manual merge.
 For more information on merge tools see \%\fBhg help merge\-tools\fP\:.
-For configuring merge tools see the \%merge\-tools\: section.
+For configuring merge tools see the \fB[merge\-tools]\fP section.
 .TP
-.B \fBpatch\fP
+.B \fBportablefilenames\fP
 .sp
-command to use to apply patches. Look for \fBgpatch\fP or \fBpatch\fP in
-PATH if unset.
+Check for portable filenames. Can be \fBwarn\fP, \fBignore\fP or \fBabort\fP.
+Default is \fBwarn\fP.
+If set to \fBwarn\fP (or \fBtrue\fP), a warning message is printed on POSIX
+platforms, if a file with a non\-portable filename is added (e.g. a file
+with a name that can\(aqt be created on Windows because it contains reserved
+parts like \fBAUX\fP, reserved characters like \fB:\fP, or would cause a case
+collision with an existing file).
+If set to \fBignore\fP (or \fBfalse\fP), no warning is printed.
+If set to \fBabort\fP, the command is aborted.
+On Windows, this configuration option is ignored and the command aborted.
 .TP
 .B \fBquiet\fP
 .sp
@@ -1384,6 +1477,10 @@ Otherwise you will have to generate this file manually.
 To disable SSL verification temporarily, specify \fB\-\-insecure\fP from
 command line.
 .TP
+.B \fBcache\fP
+.sp
+Whether to support caching in hgweb. Defaults to True.
+.TP
 .B \fBcontact\fP
 .sp
 Name or email address of the person in charge of the repository.
@@ -1441,6 +1538,11 @@ Default is False.
 .B \fBipv6\fP
 .sp
 Whether to use IPv6. Default is False.
+.TP
+.B \fBlogourl\fP
+.sp
+Base URL to use for logos. If unset, \fBhttp://mercurial.selenic.com/\fP
+will be used.
 .TP
 .B \fBname\fP
 .sp

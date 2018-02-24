@@ -107,9 +107,9 @@ def _exthook(ui, repo, name, cmd, args, throw):
     if 'HG_URL' in env and env['HG_URL'].startswith('remote:http'):
         r = util.system(cmd, environ=env, cwd=cwd, out=ui)
     else:
-        r = util.system(cmd, environ=env, cwd=cwd)
+        r = util.system(cmd, environ=env, cwd=cwd, out=ui.fout)
     if r:
-        desc, r = util.explain_exit(r)
+        desc, r = util.explainexit(r)
         if throw:
             raise util.Abort(_('%s hook %s') % (name, desc))
         ui.warn(_('warning: %s hook %s\n') % (name, desc))

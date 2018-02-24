@@ -5,6 +5,15 @@
   $ echo 123 > e
   $ hg add a c e
   $ hg commit -m "first" a c e
+
+nothing changed
+
+  $ hg revert
+  abort: no files or directories specified
+  (use --all to revert all files)
+  [255]
+  $ hg revert --all
+
   $ echo 123 > b
 
 should show b unknown
@@ -185,7 +194,8 @@ Issue241: update and revert produces inconsistent repositories
 should fail - no arguments
 
   $ hg revert -rtip
-  abort: no files or directories specified; use --all to revert the whole repo
+  abort: no files or directories specified
+  (use --all to revert all files, or 'hg update 1' to update)
   [255]
 
 should succeed
