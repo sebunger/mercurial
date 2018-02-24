@@ -1,4 +1,4 @@
-import sys, os, struct, subprocess, cStringIO, re
+import sys, os, struct, subprocess, cStringIO, re, shutil
 
 def connect(path=None):
     cmdline = ['hg', 'serve', '--cmdserver', 'pipe']
@@ -120,6 +120,40 @@ diff -r 000000000000 -r c103a3dec114 a
     runcommand(server, ['import', '-'], input=cStringIO.StringIO(patch))
     runcommand(server, ['log'])
 
+def cwd(server):
+    """ check that --cwd doesn't persist between requests """
+    readchannel(server)
+    os.mkdir('foo')
+    f = open('foo/bar', 'w')
+    f.write('a')
+    f.close()
+    runcommand(server, ['--cwd', 'foo', 'st', 'bar'])
+    runcommand(server, ['st', 'foo/bar'])
+    os.remove('foo/bar')
+
+def localhgrc(server):
+    """ check that local configs for the cached repo aren't inherited when -R
+    is used """
+    readchannel(server)
+
+    # the cached repo local hgrc contains ui.foo=bar, so showconfig should show it
+    runcommand(server, ['showconfig'])
+
+    # but not for this repo
+    runcommand(server, ['init', 'foo'])
+    runcommand(server, ['-R', 'foo', 'showconfig'])
+    shutil.rmtree('foo')
+
+def hook(**args):
+    print 'hook talking'
+    print 'now try to read something: %r' % sys.stdin.read()
+
+def hookoutput(server):
+    readchannel(server)
+    runcommand(server, ['--config',
+                        'hooks.pre-identify=python:test-commandserver.hook', 'id'],
+               input=cStringIO.StringIO('some input'))
+
 if __name__ == '__main__':
     os.system('hg init')
 
@@ -128,3 +162,10 @@ if __name__ == '__main__':
     check(checkruncommand)
     check(inputeof)
     check(serverinput)
+    check(cwd)
+
+    hgrc = open('.hg/hgrc', 'a')
+    hgrc.write('[ui]\nfoo=bar\n')
+    hgrc.close()
+    check(localhgrc)
+    check(hookoutput)

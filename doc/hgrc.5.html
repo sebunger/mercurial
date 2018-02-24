@@ -318,7 +318,9 @@ argument, q.v., is then subsequently consulted.</dd>
 <dd>Optional. Username to authenticate with. If not given, and the
 remote site requires basic or digest authentication, the user will
 be prompted for it. Environment variables are expanded in the
-username letting you do <tt class="docutils literal">foo.username = $USER</tt>.</dd>
+username letting you do <tt class="docutils literal">foo.username = $USER</tt>. If the URI
+includes a username, only <tt class="docutils literal">[auth]</tt> entries with a matching
+username or without a username will be considered.</dd>
 <dt><tt class="docutils literal">password</tt></dt>
 <dd>Optional. Password to authenticate with. If not given, and the
 remote site requires basic or digest authentication, the user
@@ -1091,6 +1093,12 @@ push, including unauthenticated users. Otherwise, the remote user
 must have been authenticated, and the authenticated user name must
 be present in this list. The contents of the allow_push list are
 examined after the deny_push list.</dd>
+<dt><tt class="docutils literal">guessmime</tt></dt>
+<dd>Control MIME types for raw download of file content.
+Set to True to let hgweb guess the content type from the file
+extension. This will serve HTML files as <tt class="docutils literal">text/html</tt> and might
+allow cross-site scripting attacks when serving untrusted
+repositories. Default is False.</dd>
 <dt><tt class="docutils literal">allow_read</tt></dt>
 <dd>If the user has not already been denied repository access due to
 the contents of deny_read, this list determines whether to grant

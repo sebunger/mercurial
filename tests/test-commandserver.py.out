@@ -36,3 +36,19 @@ user:        test
 date:        Thu Jan 01 00:00:00 1970 +0000
 summary:     1
 
+? bar
+? foo/bar
+bundle.mainreporoot=$TESTTMP
+defaults.backout=-d "0 0"
+defaults.commit=-d "0 0"
+defaults.tag=-d "0 0"
+ui.slash=True
+ui.foo=bar
+bundle.mainreporoot=$TESTTMP/foo
+defaults.backout=-d "0 0"
+defaults.commit=-d "0 0"
+defaults.tag=-d "0 0"
+ui.slash=True
+hook talking
+now try to read something: 'some input'
+eff892de26ec tip

@@ -608,11 +608,15 @@ def _dispatch(req):
         for cfg in cfgs:
             req.repo.ui.setconfig(*cfg)
 
-    for opt in ('verbose', 'debug', 'quiet', 'traceback'):
-        val = bool(options[opt])
-        if val:
+    if options['verbose'] or options['debug'] or options['quiet']:
+        for opt in ('verbose', 'debug', 'quiet'):
+            val = str(bool(options[opt]))
             for ui_ in uis:
-                ui_.setconfig('ui', opt, str(val))
+                ui_.setconfig('ui', opt, val)
+
+    if options['traceback']:
+        for ui_ in uis:
+            ui_.setconfig('ui', 'traceback', 'on')
 
     if options['noninteractive']:
         for ui_ in uis:
@@ -633,7 +637,7 @@ def _dispatch(req):
     cmdpats = args[:]
     if cmd not in commands.norepo.split():
         # use the repo from the request only if we don't have -R
-        if not rpath:
+        if not rpath and not cwd:
             repo = req.repo
 
         if repo:
@@ -658,7 +662,7 @@ def _dispatch(req):
                             req.args = ['--repository', guess] + fullargs
                             return _dispatch(req)
                     if not path:
-                        raise error.RepoError(_("no repository found in %r"
+                        raise error.RepoError(_("no repository found in '%s'"
                                                 " (.hg not found)") % os.getcwd())
                     raise
         if repo:
