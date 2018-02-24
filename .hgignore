@@ -7,6 +7,7 @@ syntax: glob
 *.mergebackup
 *.o
 *.so
+*.pyd
 *.pyc
 *.swp
 *.prof
@@ -29,3 +30,4 @@ cscope.*
 
 syntax: regexp
 ^\.pc/
+^\.(pydev)?project

@@ -12,8 +12,8 @@ of the GNU General Public License, incorporated herein by reference.
 
 from node import hex, nullid, short
 from i18n import _
-import changegroup, util, os, struct, bz2, tempfile, shutil, mdiff
-import repo, localrepo, changelog, manifest, filelog, revlog
+import changegroup, util, os, struct, bz2, zlib, tempfile, shutil, mdiff
+import repo, localrepo, changelog, manifest, filelog, revlog, context
 
 class bundlerevlog(revlog.revlog):
     def __init__(self, opener, indexfile, bundlefile,
@@ -34,12 +34,12 @@ class bundlerevlog(revlog.revlog):
             for chunk in changegroup.chunkiter(bundlefile):
                 pos = bundlefile.tell()
                 yield chunk, pos - len(chunk)
-        n = self.count()
+        n = len(self)
         prev = None
         for chunk, start in chunkpositer():
             size = len(chunk)
             if size < 80:
-                raise util.Abort("invalid changegroup")
+                raise util.Abort(_("invalid changegroup"))
             start += 80
             size -= 80
             node, p1, p2, cs = struct.unpack("20s20s20s20s", chunk[:80])
@@ -127,7 +127,7 @@ class bundlerevlog(revlog.revlog):
 
     def addrevision(self, text, transaction, link, p1=None, p2=None, d=None):
         raise NotImplementedError
-    def addgroup(self, revs, linkmapper, transaction, unique=0):
+    def addgroup(self, revs, linkmapper, transaction):
         raise NotImplementedError
     def strip(self, rev, minlink):
         raise NotImplementedError
@@ -173,14 +173,17 @@ class bundlerepository(localrepo.localrepository):
             raise util.Abort(_("%s: not a Mercurial bundle file") % bundlename)
         elif not header.startswith("HG10"):
             raise util.Abort(_("%s: unknown bundle version") % bundlename)
-        elif header == "HG10BZ":
+        elif (header == "HG10BZ") or (header == "HG10GZ"):
             fdtemp, temp = tempfile.mkstemp(prefix="hg-bundle-",
                                             suffix=".hg10un", dir=self.path)
             self.tempfile = temp
             fptemp = os.fdopen(fdtemp, 'wb')
             def generator(f):
-                zd = bz2.BZ2Decompressor()
-                zd.decompress("BZ")
+                if header == "HG10BZ":
+                    zd = bz2.BZ2Decompressor()
+                    zd.decompress("BZ")
+                elif header == "HG10GZ":
+                    zd = zlib.decompressobj()
                 for chunk in f:
                     yield zd.decompress(chunk)
             gen = generator(util.filechunkiter(self.bundlefile, 4096))
@@ -210,19 +213,20 @@ class bundlerepository(localrepo.localrepository):
             self.changelog = bundlechangelog(self.sopener, self.bundlefile)
             self.manstart = self.bundlefile.tell()
             return self.changelog
-        if name == 'manifest':
+        elif name == 'manifest':
             self.bundlefile.seek(self.manstart)
             self.manifest = bundlemanifest(self.sopener, self.bundlefile,
                                            self.changelog.rev)
             self.filestart = self.bundlefile.tell()
             return self.manifest
-        if name == 'manstart':
+        elif name == 'manstart':
             self.changelog
             return self.manstart
-        if name == 'filestart':
+        elif name == 'filestart':
             self.manifest
             return self.filestart
-        return localrepo.localrepository.__getattr__(self, name)
+        else:
+            raise AttributeError(name)
 
     def url(self):
         return self._url
@@ -263,6 +267,9 @@ class bundlerepository(localrepo.localrepository):
 
     def cancopy(self):
         return False
+
+    def getcwd(self):
+        return os.getcwd() # always outside the repo
 
 def instance(ui, path, create):
     if create:

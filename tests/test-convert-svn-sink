@@ -1,6 +1,6 @@
 #!/bin/sh
 
-"$TESTDIR/hghave" svn svn-bindings || exit 80
+"$TESTDIR/hghave" svn svn-bindings no-outer-repo || exit 80
 
 fixpath()
 {
@@ -128,6 +128,7 @@ hg --cwd b ci -d '4 0' -Amright-2
 hg --cwd b up -C 2
 hg --cwd b merge
 hg --cwd b revert -r 2 b
+hg resolve -m b
 hg --cwd b ci -d '5 0' -m 'merge'
 
 hg convert -d svn b

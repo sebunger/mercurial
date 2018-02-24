@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="generator" content="AsciiDoc 8.2.5">
+<meta name="generator" content="AsciiDoc 8.2.7">
 <title>HGIGNORE(5)</title>
 </head>
 <body>
@@ -22,21 +22,21 @@ that it is not currently managing.</p>
 <hr />
 <h2><a name="_description"></a>DESCRIPTION</h2>
 <p>Mercurial ignores every unmanaged file that matches any pattern in an
-ignore file.  The patterns in an ignore file do not apply to files
-managed by Mercurial.  To control Mercurial's handling of files that
-it manages, see the hg(1) man page.  Look for the "-I" and "-X"
+ignore file. The patterns in an ignore file do not apply to files
+managed by Mercurial. To control Mercurial's handling of files that
+it manages, see the hg(1) man page. Look for the "-I" and "-X"
 options.</p>
 <p>In addition, a Mercurial configuration file can point to a set of
-per-user or global ignore files.  See the hgrc(5) man page for details
-of how to configure these files.  Look for the "ignore" entry in the
+per-user or global ignore files. See the hgrc(5) man page for details
+of how to configure these files. Look for the "ignore" entry in the
 "ui" section.</p>
 <hr />
 <h2><a name="_syntax"></a>SYNTAX</h2>
 <p>An ignore file is a plain text file consisting of a list of patterns,
-with one pattern per line.  Empty lines are skipped.  The "#"
+with one pattern per line. Empty lines are skipped. The "#"
 character is treated as a comment character, and the "\" character is
 treated as an escape character.</p>
-<p>Mercurial supports several pattern syntaxes.  The default syntax used
+<p>Mercurial supports several pattern syntaxes. The default syntax used
 is Python/Perl-style regular expressions.</p>
 <p>To change the syntax used, use a line of the following form:</p>
 <p>syntax: NAME</p>
@@ -61,9 +61,9 @@ glob
 </dl>
 <p>The chosen syntax stays in effect when parsing all patterns that
 follow, until another syntax is selected.</p>
-<p>Neither glob nor regexp patterns are rooted.  A glob-syntax pattern of
+<p>Neither glob nor regexp patterns are rooted. A glob-syntax pattern of
 the form "*.c" will match a file ending in ".c" in any directory, and
-a regexp pattern of the form "\.c$" will do the same.  To root a
+a regexp pattern of the form "\.c$" will do the same. To root a
 regexp pattern, start it with "^".</p>
 <hr />
 <h2><a name="_example"></a>EXAMPLE</h2>
@@ -78,8 +78,8 @@ syntax: regexp
 ^\.pc/</pre>
 <hr />
 <h2><a name="_author"></a>AUTHOR</h2>
-<p>Vadim Gelfer &lt;vadim.gelfer@gmail.com&gt;</p>
-<p>Mercurial was written by Matt Mackall &lt;mpm@selenic.com&gt;.</p>
+<p>Vadim Gelfer &lt;<a href="mailto:vadim.gelfer@gmail.com">vadim.gelfer@gmail.com</a>&gt;</p>
+<p>Mercurial was written by Matt Mackall &lt;<a href="mailto:mpm@selenic.com">mpm@selenic.com</a>&gt;.</p>
 <hr />
 <h2><a name="_see_also"></a>SEE ALSO</h2>
 <p>hg(1), hgrc(5)</p>
@@ -92,7 +92,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 2008-05-22 15:49:09 CDT
+Last updated 2008-12-31 17:38:54 CDT
 </small></p>
 </body>
 </html>

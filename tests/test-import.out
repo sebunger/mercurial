@@ -13,6 +13,16 @@ applying ../tip.patch
 summary:     second change
 % committer should be same
 user:        someone
+% import exported patch with external patcher
+requesting all changes
+adding changesets
+adding manifests
+adding file changes
+added 1 changesets with 2 changes to 2 files
+updating working directory
+2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+applying ../tip.patch
+line2
 % import of plain diff should fail without message
 requesting all changes
 adding changesets
@@ -260,3 +270,26 @@ a
 adding a
 applying patch from stdin
 bb
+% test paths outside repo root
+applying patch from stdin
+abort: ../outside/foo not under root
+% test import with similarity (issue295)
+adding a
+applying ../rename.diff
+patching file a
+patching file b
+removing a
+adding b
+recording removal of a as rename to b (88% similar)
+A b
+  a
+R a
+undeleting a
+forgetting b
+applying ../rename.diff
+patching file a
+patching file b
+removing a
+adding b
+A b
+R a

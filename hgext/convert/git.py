@@ -14,7 +14,7 @@ class convert_git(converter_source):
             prevgitdir = os.environ.get('GIT_DIR')
             os.environ['GIT_DIR'] = self.path
             try:
-                return util.popen(s)
+                return util.popen(s, 'rb')
             finally:
                 if prevgitdir is None:
                     del os.environ['GIT_DIR']
@@ -22,7 +22,7 @@ class convert_git(converter_source):
                     os.environ['GIT_DIR'] = prevgitdir
     else:
         def gitcmd(self, s):
-            return util.popen('GIT_DIR=%s %s' % (self.path, s))
+            return util.popen('GIT_DIR=%s %s' % (self.path, s), 'rb')
 
     def __init__(self, ui, path, rev=None):
         super(convert_git, self).__init__(ui, path, rev=rev)
@@ -32,20 +32,20 @@ class convert_git(converter_source):
         if not os.path.exists(path + "/objects"):
             raise NoRepo("%s does not look like a Git repo" % path)
 
-        checktool('git-rev-parse', 'git')
+        checktool('git', 'git')
 
         self.path = path
 
     def getheads(self):
         if not self.rev:
-            return self.gitcmd('git-rev-parse --branches').read().splitlines()
+            return self.gitcmd('git rev-parse --branches --remotes').read().splitlines()
         else:
-            fh = self.gitcmd("git-rev-parse --verify %s" % self.rev)
+            fh = self.gitcmd("git rev-parse --verify %s" % self.rev)
             return [fh.read()[:-1]]
 
     def catfile(self, rev, type):
         if rev == "0" * 40: raise IOError()
-        fh = self.gitcmd("git-cat-file %s %s" % (type, rev))
+        fh = self.gitcmd("git cat-file %s %s" % (type, rev))
         return fh.read()
 
     def getfile(self, name, rev):
@@ -56,22 +56,26 @@ class convert_git(converter_source):
 
     def getchanges(self, version):
         self.modecache = {}
-        fh = self.gitcmd("git-diff-tree --root -m -r %s" % version)
+        fh = self.gitcmd("git diff-tree -z --root -m -r %s" % version)
         changes = []
         seen = {}
-        for l in fh:
-            if "\t" not in l:
+        entry = None
+        for l in fh.read().split('\x00'):
+            if not entry:
+                if not l.startswith(':'):
+                    continue
+                entry = l
                 continue
-            m, f = l[:-1].split("\t")
-            if f in seen:
-                continue
-            seen[f] = 1
-            m = m.split()
-            h = m[3]
-            p = (m[1] == "100755")
-            s = (m[1] == "120000")
-            self.modecache[(f, h)] = (p and "x") or (s and "l") or ""
-            changes.append((f, h))
+            f = l
+            if f not in seen:
+                seen[f] = 1
+                entry = entry.split()
+                h = entry[3]
+                p = (entry[1] == "100755")
+                s = (entry[1] == "120000")
+                self.modecache[(f, h)] = (p and "x") or (s and "l") or ""
+                changes.append((f, h))
+            entry = None
         return (changes, {})
 
     def getcommit(self, version):
@@ -109,7 +113,7 @@ class convert_git(converter_source):
 
     def gettags(self):
         tags = {}
-        fh = self.gitcmd('git-ls-remote --tags "%s"' % self.path)
+        fh = self.gitcmd('git ls-remote --tags "%s"' % self.path)
         prefix = 'refs/tags/'
         for line in fh:
             line = line.strip()
@@ -126,7 +130,7 @@ class convert_git(converter_source):
     def getchangedfiles(self, version, i):
         changes = []
         if i is None:
-            fh = self.gitcmd("git-diff-tree --root -m -r %s" % version)
+            fh = self.gitcmd("git diff-tree --root -m -r %s" % version)
             for l in fh:
                 if "\t" not in l:
                     continue
@@ -134,7 +138,7 @@ class convert_git(converter_source):
                 changes.append(f)
             fh.close()
         else:
-            fh = self.gitcmd('git-diff-tree --name-only --root -r %s "%s^%s" --'
+            fh = self.gitcmd('git diff-tree --name-only --root -r %s "%s^%s" --'
                              % (version, version, i+1))
             changes = [f.rstrip('\n') for f in fh]
             fh.close()

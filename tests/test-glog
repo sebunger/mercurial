@@ -70,6 +70,8 @@
 # |/
 # o  (0) root
 
+"$TESTDIR/hghave" no-outer-repo || exit 80
+
 set -e
 
 commit()
@@ -144,3 +146,23 @@ hg glog 5
 
 echo % unused arguments
 hg glog -q foo bar || echo failed
+
+echo % from outer space
+cd ..
+hg glog -l1 repo
+hg glog -l1 repo/0
+hg glog -l1 repo/missing
+
+echo % file log with revs != cset revs
+hg init flog
+cd flog
+echo one >one
+hg add one
+hg commit -mone
+echo two >two
+hg add two
+hg commit -mtwo
+echo more >two
+hg commit -mmore
+hg glog two
+
