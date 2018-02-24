@@ -559,13 +559,13 @@ hg bisect \-\-skip 23
 .fi
 .IP \(bu 2
 .
-skip all revisions that do not touch directories \fBfoo\fP or \fBbar\fP
-.INDENT 2.0
-.INDENT 3.5
+skip all revisions that do not touch directories \fBfoo\fP or \fBbar\fP:
 .sp
-hg bisect \-\-skip \(aq!( file("path:foo") & file("path:bar") )\(aq
-.UNINDENT
-.UNINDENT
+.nf
+.ft C
+hg bisect \-\-skip "!( file(\(aqpath:foo\(aq) & file(\(aqpath:bar\(aq) )"
+.ft P
+.fi
 .IP \(bu 2
 .
 forget the current bisection:
@@ -585,7 +585,7 @@ revision:
 hg bisect \-\-reset
 hg bisect \-\-bad 34
 hg bisect \-\-good 12
-hg bisect \-\-command \(aqmake && make tests\(aq
+hg bisect \-\-command "make && make tests"
 .ft P
 .fi
 .IP \(bu 2
@@ -2871,7 +2871,7 @@ branch that is not present at the destination. This allows you to
 only create a new branch without forcing other changes.
 .IP Note
 .
-Extra care should be used with the \-f/\-\-force option,
+Extra care should be taken with the \-f/\-\-force option,
 which will push all new heads on all branches, an action which will
 almost always cause confusion for collaborators.
 .RE
@@ -2967,10 +2967,15 @@ center;
 |l|l|l|l|l|.
 _
 T{
+opt/state
 T}	T{
+A
 T}	T{
+C
 T}	T{
+M
 T}	T{
+!
 T}
 _
 T{
@@ -3943,7 +3948,7 @@ Lastly, there is Mercurial\(aqs internal format:
 .INDENT 0.0
 .IP \(bu 2
 .
-\fB1165432709 0\fP (Wed Dec 6 13:18:29 2006 UTC)
+\fB1165411109 0\fP (Wed Dec 6 13:18:29 2006 UTC)
 .UNINDENT
 .sp
 This is the internal representation format for dates. The first number
@@ -5543,7 +5548,7 @@ resynchronize draft changesets relative to a remote repository:
 .sp
 .nf
 .ft C
-hg phase \-fd \(aqoutgoing(URL)\(aq
+hg phase \-fd "outgoing(URL)"
 .ft P
 .fi
 .UNINDENT
@@ -7494,16 +7499,16 @@ Examples:
 .nf
 .ft C
 # display count of changed lines for every committer
-hg churn \-t \(aq{author|email}\(aq
+hg churn \-t "{author|email}"
 
 # display daily activity graph
-hg churn \-f \(aq%H\(aq \-s \-c
+hg churn \-f "%H" \-s \-c
 
 # display activity of developers by month
-hg churn \-f \(aq%Y\-%m\(aq \-s \-c
+hg churn \-f "%Y\-%m" \-s \-c
 
 # display count of lines changed in every year
-hg churn \-f \(aq%Y\(aq \-s
+hg churn \-f "%Y" \-s
 .ft P
 .fi
 .sp
@@ -8900,6 +8905,10 @@ Use "min(outgoing() and ::.)" or similar revset specification
 instead of \-\-outgoing to specify edit target revision exactly in
 such ambiguous situation. See \%\fBhg help revsets\fP\: for detail about
 selecting revisions.
+.sp
+Returns 0 on success, 1 if user intervention is required (not only
+for intentional "edit" command, but also for resolving unexpected
+conflicts).
 .sp
 Options:
 .INDENT 0.0
@@ -11113,7 +11122,8 @@ the intended source branch).
 If a rebase is interrupted to manually resolve a merge, it can be
 continued with \-\-continue/\-c or aborted with \-\-abort/\-a.
 .sp
-Returns 0 on success, 1 if nothing to rebase.
+Returns 0 on success, 1 if nothing to rebase or there are
+unresolved conflicts.
 .sp
 Options:
 .INDENT 0.0
@@ -11552,7 +11562,7 @@ keep shelve after unshelving
 .sp
 strip changesets and their descendents from history
 .sp
-This extension allows to strip changesets and all their descendants from the
+This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.
 .SS Commands
 .SS strip
@@ -11668,7 +11678,7 @@ $1 and the patch as $2.
 \-\-source/\-s specifies another repository to use for selecting changesets,
 just as if it temporarily had been pulled.
 If \-\-branch/\-b is specified, these revisions will be used as
-heads when deciding which changsets to transplant, just as if only
+heads when deciding which changesets to transplant, just as if only
 these revisions had been pulled.
 If \-\-all/\-a is specified, all the revisions up to the heads specified
 with \-\-branch will be transplanted.
