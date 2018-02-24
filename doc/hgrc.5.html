@@ -271,16 +271,19 @@ against the URI with its scheme stripped as well, and the schemes
 argument, q.v., is then subsequently consulted.</dd>
 <dt><tt class="docutils literal">username</tt></dt>
 <dd>Optional. Username to authenticate with. If not given, and the
-remote site requires basic or digest authentication, the user
-will be prompted for it.</dd>
+remote site requires basic or digest authentication, the user will
+be prompted for it. Environment variables are expanded in the
+username letting you do <tt class="docutils literal">foo.username = $USER</tt>.</dd>
 <dt><tt class="docutils literal">password</tt></dt>
 <dd>Optional. Password to authenticate with. If not given, and the
 remote site requires basic or digest authentication, the user
 will be prompted for it.</dd>
 <dt><tt class="docutils literal">key</tt></dt>
-<dd>Optional. PEM encoded client certificate key file.</dd>
+<dd>Optional. PEM encoded client certificate key file. Environment
+variables are expanded in the filename.</dd>
 <dt><tt class="docutils literal">cert</tt></dt>
-<dd>Optional. PEM encoded client certificate chain file.</dd>
+<dd>Optional. PEM encoded client certificate chain file. Environment
+variables are expanded in the filename.</dd>
 <dt><tt class="docutils literal">schemes</tt></dt>
 <dd>Optional. Space separated list of URI schemes to use this
 authentication entry with. Only used if the prefix doesn't include
@@ -338,8 +341,8 @@ format. We suggest you use the <tt class="docutils literal">eol</tt> extension f
 <p>(defaults are deprecated. Don't use them. Use aliases instead)</p>
 <p>Use the <tt class="docutils literal">[defaults]</tt> section to define command defaults, i.e. the
 default options/arguments to pass to the specified commands.</p>
-<p>The following example makes <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log</tt></a> run in verbose mode, and <a class="reference external" href="hg.1.html#hg"><tt class="docutils literal">hg hg
-status</tt></a> show only the modified files, by default:</p>
+<p>The following example makes <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log</tt></a> run in verbose mode, and
+<a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a> show only the modified files, by default:</p>
 <pre class="literal-block">
 [defaults]
 log = -v

@@ -138,9 +138,6 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
     if not fco.cmp(fcd.data()): # files identical?
         return None
 
-    if fca == fco: # backwards, use working dir parent as ancestor
-        fca = fcd.parents()[0]
-
     ui = repo.ui
     fd = fcd.path()
     binary = isbin(fcd) or isbin(fco) or isbin(fca)
@@ -228,7 +225,8 @@ def filemerge(repo, mynode, orig, fcd, fco, fca):
 
     if not r and (_toolbool(ui, tool, "checkconflicts") or
                   'conflicts' in _toollist(ui, tool, "check")):
-        if re.match("^(<<<<<<< .*|=======|>>>>>>> .*)$", fcd.data()):
+        if re.search("^(<<<<<<< .*|=======|>>>>>>> .*)$", fcd.data(),
+                     re.MULTILINE):
             r = 1
 
     checked = False

@@ -781,8 +781,10 @@ will be committed.
 If you are committing the result of a merge, do not provide any
 filenames or \-I/\-X filters.
 .sp
-If no commit message is specified, the configured editor is
-started to prompt you for a message.
+If no commit message is specified, Mercurial starts your
+configured editor where you can enter a message. In case your
+commit fails, you will find a backup of your message in
+\fB.hg/last\-message.txt\fP.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
@@ -1182,7 +1184,7 @@ show topological heads only
 .TP
 .B \-a,  \-\-active
 .
-show active branchheads only [DEPRECATED]
+show active branchheads only (DEPRECATED)
 .TP
 .B \-c,  \-\-closed
 .
@@ -2013,42 +2015,39 @@ aliases: mv
 .TP
 .B \fBresolve [OPTION]... [FILE]...\fP
 .sp
-This command includes several actions that are often useful while
-performing a merge, after running \fBmerge\fP but before running
-\fBcommit\fP.  (It is only meaningful if your working directory has
-two parents.)  It is most relevant for merges with unresolved
-conflicts, which are typically a result of non\-interactive merging with
-\fBinternal:merge\fP or a command\-line merge tool like \fBdiff3\fP.
+Merges with unresolved conflicts are often the result of
+non\-interactive merging using the \fBinternal:merge\fP hgrc setting,
+or a command\-line merge tool like \fBdiff3\fP. The resolve command
+is used to manage the files involved in a merge, after \%\fBhg merge\fP\:
+has been run, and before \%\fBhg commit\fP\: is run (i.e. the working
+directory must have two parents).
 .sp
-The available actions are:
+The resolve command can be used in the following ways:
 .INDENT 7.0
-.INDENT 3.5
-.INDENT 0.0
-.IP 1. 3
+.IP \(bu 2
 .
-list files that were merged with conflicts (U, for unresolved)
-and without conflicts (R, for resolved): \fBhg resolve \-l\fP
-(this is like \fBstatus\fP for merges)
-.IP 2. 3
+\%\fBhg resolve FILE...\fP\:: attempt to re\-merge the specified files,
+discarding any previous merge attempts. Re\-merging is not
+performed for files already marked as resolved. Use \fB\-\-all/\-a\fP
+to selects all unresolved files.
+.IP \(bu 2
 .
-record that you have resolved conflicts in certain files:
-\fBhg resolve \-m [file ...]\fP (default: mark all unresolved files)
-.IP 3. 3
+\%\fBhg resolve \-m [FILE]\fP\:: mark a file as having been resolved
+(e.g. after having manually fixed\-up the files). The default is
+to mark all unresolved files.
+.IP \(bu 2
 .
-forget that you have resolved conflicts in certain files:
-\fBhg resolve \-u [file ...]\fP (default: unmark all resolved files)
-.IP 4. 3
+\%\fBhg resolve \-u [FILE]...\fP\:: mark a file as unresolved. The
+default is to mark all resolved files.
+.IP \(bu 2
 .
-discard your current attempt(s) at resolving conflicts and
-restart the merge from scratch: \fBhg resolve file...\fP
-(or \fB\-a\fP for all unresolved files)
-.UNINDENT
-.UNINDENT
+\%\fBhg resolve \-l\fP\:: list files which had or still have conflicts.
+In the printed list, \fBU\fP = unresolved and \fBR\fP = resolved.
 .UNINDENT
 .sp
-Note that Mercurial will not let you commit files with unresolved merge
-conflicts.  You must use \fBhg resolve \-m ...\fP before you can commit
-after a conflicting merge.
+Note that Mercurial will not let you commit files with unresolved
+merge conflicts. You must use \%\fBhg resolve \-m ...\fP\: before you can
+commit after a conflicting merge.
 .sp
 Returns 0 on success, 1 if any files fail a resolve attempt.
 .sp
@@ -2069,7 +2068,7 @@ mark files as resolved
 .TP
 .B \-u,  \-\-unmark
 .
-unmark files as resolved
+mark files as unresolved
 .TP
 .B \-n,  \-\-no\-status
 .
@@ -3582,6 +3581,11 @@ i.e. a 12\-byte hexadecimal string.
 .
 Date. Returns a date like "2006\-09\-18".
 .TP
+.B stringify
+.
+Any type. Turns the value into text by converting values into
+text and concatenating them.
+.TP
 .B strip
 .
 Any text. Strips all leading and trailing whitespace.
@@ -4010,6 +4014,18 @@ assigned.
 .B Branch head
 .
 See \(aqHead, branch\(aq.
+.TP
+.B Branch, inactive
+.
+If a named branch has no topological heads, it is considered to be
+inactive. As an example, a feature branch becomes inactive when it
+is merged into the default branch. The \%\fBhg branches\fP\: command
+shows inactive branches by default, though they can be hidden with
+\%\fBhg branches \-\-active\fP\:.
+.sp
+NOTE: this concept is deprecated because it is too implicit.
+Branches should now be explicitly closed using \%\fBhg commit
+\-\-close\-branch\fP\: when they are no longer needed.
 .TP
 .B Branch, named
 .
