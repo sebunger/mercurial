@@ -110,6 +110,81 @@ clone from invalid URL
   abort: HTTP Error 404: Not Found
   [255]
 
+test http authentication
+
+  $ cd test
+  $ cat << EOT > userpass.py
+  > import base64
+  > from mercurial.hgweb import common
+  > def perform_authentication(hgweb, req, op):
+  >     auth = req.env.get('HTTP_AUTHORIZATION')
+  >     if not auth:
+  >         raise common.ErrorResponse(common.HTTP_UNAUTHORIZED, 'who',
+  >                 [('WWW-Authenticate', 'Basic Realm="mercurial"')])
+  >     if base64.b64decode(auth.split()[1]).split(':', 1) != ['user', 'pass']: 
+  >         raise common.ErrorResponse(common.HTTP_FORBIDDEN, 'no')
+  > def extsetup():
+  >     common.permhooks.insert(0, perform_authentication)
+  > EOT
+  $ hg --config extensions.x=userpass.py serve -p $HGPORT2 -d --pid-file=pid
+  $ cat pid >> $DAEMON_PIDS
+
+  $ hg id http://localhost:$HGPORT2/  
+  abort: http authorization required
+  [255]
+  $ hg id http://user@localhost:$HGPORT2/ 
+  abort: http authorization required
+  [255]
+  $ hg id http://user:pass@localhost:$HGPORT2/
+  5fed3813f7f5
+  $ echo '[auth]' >> .hg/hgrc 
+  $ echo 'l.schemes=http' >> .hg/hgrc
+  $ echo 'l.prefix=lo' >> .hg/hgrc
+  $ echo 'l.username=user' >> .hg/hgrc
+  $ echo 'l.password=pass' >> .hg/hgrc
+  $ hg id http://localhost:$HGPORT2/ 
+  5fed3813f7f5
+  $ hg id http://localhost:$HGPORT2/  
+  5fed3813f7f5
+  $ hg id http://user@localhost:$HGPORT2/ 
+  5fed3813f7f5
+  $ hg id http://user:pass@localhost:$HGPORT2/
+  5fed3813f7f5
+  $ hg id http://user2@localhost:$HGPORT2/ 
+  abort: http authorization required
+  [255]
+  $ hg id http://user:pass2@localhost:$HGPORT2/
+  abort: HTTP Error 403: no
+  [255]
+
+  $ cd ..
+
+clone of serve with repo in root and unserved subrepo (issue2970)
+
+  $ hg --cwd test init sub
+  $ hg --cwd test/sub tag something
+  $ echo sub = sub > test/.hgsub
+  $ hg --cwd test add .hgsub
+  $ hg --cwd test commit -qm 'add subrepo'
+  $ hg clone http://localhost:$HGPORT noslash-clone
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 7 changes to 7 files
+  updating to branch default
+  abort: HTTP Error 404: Not Found
+  [255]
+  $ hg clone http://localhost:$HGPORT/ slash-clone
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 7 changes to 7 files
+  updating to branch default
+  abort: HTTP Error 404: Not Found
+  [255]
+
 check error log
 
   $ cat error.log
