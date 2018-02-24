@@ -226,13 +226,25 @@ def runinteger(context, mapping, data):
 def runstring(context, mapping, data):
     return data
 
+def _recursivesymbolblocker(key):
+    def showrecursion(**args):
+        raise error.Abort(_("recursive reference '%s' in template") % key)
+    return showrecursion
+
+def _runrecursivesymbol(context, mapping, key):
+    raise error.Abort(_("recursive reference '%s' in template") % key)
+
 def runsymbol(context, mapping, key):
     v = mapping.get(key)
     if v is None:
         v = context._defaults.get(key)
     if v is None:
+        # put poison to cut recursion. we can't move this to parsing phase
+        # because "x = {x}" is allowed if "x" is a keyword. (issue4758)
+        safemapping = mapping.copy()
+        safemapping[key] = _recursivesymbolblocker(key)
         try:
-            v = context.process(key, mapping)
+            v = context.process(key, safemapping)
         except TemplateNotFound:
             v = ''
     if callable(v):
@@ -281,8 +293,8 @@ def buildmap(exp, context):
 def runmap(context, mapping, data):
     func, data, ctmpl = data
     d = func(context, mapping, data)
-    if callable(d):
-        d = d()
+    if util.safehasattr(d, 'itermaps'):
+        d = d.itermaps()
 
     lm = mapping.copy()
 
@@ -336,7 +348,7 @@ def diff(context, mapping, args):
     specifying files to include or exclude."""
     if len(args) > 2:
         # i18n: "diff" is a keyword
-        raise error.ParseError(_("diff expects one, two or no arguments"))
+        raise error.ParseError(_("diff expects zero, one, or two arguments"))
 
     def getpatterns(i):
         if i < len(args):
@@ -432,7 +444,7 @@ def get(context, mapping, args):
         raise error.ParseError(_("get() expects a dict as first argument"))
 
     key = args[1][0](context, mapping, args[1][1])
-    yield dictarg.get(key)
+    return dictarg.get(key)
 
 def if_(context, mapping, args):
     """:if(expr, then[, else]): Conditionally execute based on the result of
@@ -483,9 +495,9 @@ def join(context, mapping, args):
         raise error.ParseError(_("join expects one or two arguments"))
 
     joinset = args[0][0](context, mapping, args[0][1])
-    if callable(joinset):
+    if util.safehasattr(joinset, 'itermaps'):
         jf = joinset.joinfmt
-        joinset = [jf(x) for x in joinset()]
+        joinset = [jf(x) for x in joinset.itermaps()]
 
     joiner = " "
     if len(args) > 1:
@@ -817,7 +829,13 @@ class engine(object):
     def _load(self, t):
         '''load, parse, and cache a template'''
         if t not in self._cache:
-            self._cache[t] = compiletemplate(self._loader(t), self)
+            # put poison to cut recursion while compiling 't'
+            self._cache[t] = [(_runrecursivesymbol, t)]
+            try:
+                self._cache[t] = compiletemplate(self._loader(t), self)
+            except: # re-raises
+                del self._cache[t]
+                raise
         return self._cache[t]
 
     def process(self, t, mapping):
@@ -832,7 +850,7 @@ def stylelist():
     paths = templatepaths()
     if not paths:
         return _('no templates found, try `hg debuginstall` for more info')
-    dirlist =  os.listdir(paths[0])
+    dirlist = os.listdir(paths[0])
     stylelist = []
     for file in dirlist:
         split = file.split(".")

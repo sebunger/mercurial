@@ -31,33 +31,34 @@
 <div class="contents htmlonly topic" id="contents">
 <p class="topic-title first">Contents</p>
 <ul class="simple">
-<li><a class="reference internal" href="#description" id="id3">Description</a></li>
-<li><a class="reference internal" href="#troubleshooting" id="id4">Troubleshooting</a></li>
-<li><a class="reference internal" href="#format" id="id5">Format</a></li>
-<li><a class="reference internal" href="#files" id="id6">Files</a></li>
-<li><a class="reference internal" href="#syntax" id="id7">Syntax</a></li>
-<li><a class="reference internal" href="#sections" id="id8">Sections</a><ul>
-<li><a class="reference internal" href="#alias" id="id9"><tt class="docutils literal">alias</tt></a></li>
-<li><a class="reference internal" href="#annotate" id="id10"><tt class="docutils literal">annotate</tt></a></li>
-<li><a class="reference internal" href="#auth" id="id11"><tt class="docutils literal">auth</tt></a></li>
-<li><a class="reference internal" href="#committemplate" id="id12"><tt class="docutils literal">committemplate</tt></a></li>
-<li><a class="reference internal" href="#decode-encode" id="id13"><tt class="docutils literal">decode/encode</tt></a></li>
-<li><a class="reference internal" href="#defaults" id="id14"><tt class="docutils literal">defaults</tt></a></li>
-<li><a class="reference internal" href="#diff" id="id15"><tt class="docutils literal">diff</tt></a></li>
-<li><a class="reference internal" href="#email" id="id16"><tt class="docutils literal">email</tt></a></li>
-<li><a class="reference internal" href="#extensions" id="id17"><tt class="docutils literal">extensions</tt></a></li>
-<li><a class="reference internal" href="#id1" id="id18"><tt class="docutils literal">format</tt></a></li>
-<li><a class="reference internal" href="#graph" id="id19"><tt class="docutils literal">graph</tt></a></li>
-<li><a class="reference internal" href="#hooks" id="id20"><tt class="docutils literal">hooks</tt></a></li>
-<li><a class="reference internal" href="#hostfingerprints" id="id21"><tt class="docutils literal">hostfingerprints</tt></a></li>
-<li><a class="reference internal" href="#http-proxy" id="id22"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id23"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id24"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#patch" id="id25"><tt class="docutils literal">patch</tt></a></li>
-<li><a class="reference internal" href="#paths" id="id26"><tt class="docutils literal">paths</tt></a></li>
-<li><a class="reference internal" href="#phases" id="id27"><tt class="docutils literal">phases</tt></a></li>
-<li><a class="reference internal" href="#profiling" id="id28"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#progress" id="id29"><tt class="docutils literal">progress</tt></a></li>
+<li><a class="reference internal" href="#description" id="id2">Description</a></li>
+<li><a class="reference internal" href="#troubleshooting" id="id3">Troubleshooting</a></li>
+<li><a class="reference internal" href="#structure" id="id4">Structure</a></li>
+<li><a class="reference internal" href="#files" id="id5">Files</a></li>
+<li><a class="reference internal" href="#syntax" id="id6">Syntax</a></li>
+<li><a class="reference internal" href="#sections" id="id7">Sections</a><ul>
+<li><a class="reference internal" href="#alias" id="id8"><tt class="docutils literal">alias</tt></a></li>
+<li><a class="reference internal" href="#annotate" id="id9"><tt class="docutils literal">annotate</tt></a></li>
+<li><a class="reference internal" href="#auth" id="id10"><tt class="docutils literal">auth</tt></a></li>
+<li><a class="reference internal" href="#committemplate" id="id11"><tt class="docutils literal">committemplate</tt></a></li>
+<li><a class="reference internal" href="#decode-encode" id="id12"><tt class="docutils literal">decode/encode</tt></a></li>
+<li><a class="reference internal" href="#defaults" id="id13"><tt class="docutils literal">defaults</tt></a></li>
+<li><a class="reference internal" href="#diff" id="id14"><tt class="docutils literal">diff</tt></a></li>
+<li><a class="reference internal" href="#email" id="id15"><tt class="docutils literal">email</tt></a></li>
+<li><a class="reference internal" href="#extensions" id="id16"><tt class="docutils literal">extensions</tt></a></li>
+<li><a class="reference internal" href="#format" id="id17"><tt class="docutils literal">format</tt></a></li>
+<li><a class="reference internal" href="#graph" id="id18"><tt class="docutils literal">graph</tt></a></li>
+<li><a class="reference internal" href="#hooks" id="id19"><tt class="docutils literal">hooks</tt></a></li>
+<li><a class="reference internal" href="#hostfingerprints" id="id20"><tt class="docutils literal">hostfingerprints</tt></a></li>
+<li><a class="reference internal" href="#http-proxy" id="id21"><tt class="docutils literal">http_proxy</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id22"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id23"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
+<li><a class="reference internal" href="#patch" id="id24"><tt class="docutils literal">patch</tt></a></li>
+<li><a class="reference internal" href="#paths" id="id25"><tt class="docutils literal">paths</tt></a></li>
+<li><a class="reference internal" href="#phases" id="id26"><tt class="docutils literal">phases</tt></a></li>
+<li><a class="reference internal" href="#profiling" id="id27"><tt class="docutils literal">profiling</tt></a></li>
+<li><a class="reference internal" href="#progress" id="id28"><tt class="docutils literal">progress</tt></a></li>
+<li><a class="reference internal" href="#rebase" id="id29"><tt class="docutils literal">rebase</tt></a></li>
 <li><a class="reference internal" href="#revsetalias" id="id30"><tt class="docutils literal">revsetalias</tt></a></li>
 <li><a class="reference internal" href="#server" id="id31"><tt class="docutils literal">server</tt></a></li>
 <li><a class="reference internal" href="#smtp" id="id32"><tt class="docutils literal">smtp</tt></a></li>
@@ -87,8 +88,8 @@ a setting into your environment.</p>
 <p>See <a class="reference external" href="hg.1.html#config.syntax"><tt class="docutils literal">hg help config.syntax</tt></a> and <a class="reference external" href="hg.1.html#config.files"><tt class="docutils literal">hg help config.files</tt></a>
 for information about how and where to override things.</p>
 </div>
-<div class="section" id="format">
-<h1><a class="toc-backref" href="#contents">Format</a></h1>
+<div class="section" id="structure">
+<h1><a class="toc-backref" href="#contents">Structure</a></h1>
 <p>The configuration files use a simple ini-file format. A configuration
 file consists of sections, led by a <tt class="docutils literal">[section]</tt> header and followed
 by <tt class="docutils literal">name = value</tt> entries:</p>
@@ -104,10 +105,19 @@ verbose = True
 <h1><a class="toc-backref" href="#contents">Files</a></h1>
 <p>Mercurial reads configuration data from several files, if they exist.
 These files do not exist by default and you will have to create the
-appropriate configuration files yourself: global configuration like
-the username setting is typically put into
-<tt class="docutils literal"><span class="pre">%USERPROFILE%\mercurial.ini</span></tt> or <tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt> and local
-configuration is put into the per-repository <tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> file.</p>
+appropriate configuration files yourself:</p>
+<p>Local configuration is put into the per-repository <tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> file.</p>
+<p>Global configuration like the username setting is typically put into:</p>
+<div class="windows container">
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">%USERPROFILE%\mercurial.ini</span></tt> (on Windows)</li>
+</ul>
+</div>
+<div class="unix-plan9 container">
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt> (on Unix, Plan9)</li>
+</ul>
+</div>
 <p>The names of these files depend on the system on which Mercurial is
 installed. <tt class="docutils literal">*.rc</tt> files from a single directory are read in
 alphabetical order, later ones overriding earlier ones. Where multiple
@@ -144,6 +154,8 @@ ones.</p>
 is used when running 32-bit Python on 64-bit Windows.</p>
 </div>
 </div>
+<div class="windows container">
+On Windows 9x, <tt class="docutils literal">%HOME%</tt> is replaced by <tt class="docutils literal">%APPDATA%</tt>.</div>
 <div class="verbose-plan9 container">
 <p>On Plan9, the following files are consulted:</p>
 <ul class="simple">
@@ -159,21 +171,23 @@ is used when running 32-bit Python on 64-bit Windows.</p>
 <p>Per-repository configuration options only apply in a
 particular repository. This file is not version-controlled, and
 will not get transferred during a &quot;clone&quot; operation. Options in
-this file override options in all other configuration files. On
-Plan 9 and Unix, most of this file will be ignored if it doesn't
+this file override options in all other configuration files.</p>
+<div class="unix-plan9 container">
+On Plan 9 and Unix, most of this file will be ignored if it doesn't
 belong to a trusted user or to a trusted group. See
-<a class="reference external" href="hg.1.html#config.trusted"><tt class="docutils literal">hg help config.trusted</tt></a> for more details.</p>
-<p>Per-user configuration file(s) are for the user running Mercurial. On
-Windows 9x, <tt class="docutils literal">%HOME%</tt> is replaced by <tt class="docutils literal">%APPDATA%</tt>. Options in these
-files apply to all Mercurial commands executed by this user in any
+<a class="reference external" href="hg.1.html#config.trusted"><tt class="docutils literal">hg help config.trusted</tt></a> for more details.</div>
+<p>Per-user configuration file(s) are for the user running Mercurial.  Options
+in these files apply to all Mercurial commands executed by this user in any
 directory. Options in these files override per-system and per-installation
 options.</p>
 <p>Per-installation configuration files are searched for in the
 directory where Mercurial is installed. <tt class="docutils literal"><span class="pre">&lt;install-root&gt;</span></tt> is the
-parent directory of the <strong>hg</strong> executable (or symlink) being run. For
-example, if installed in <tt class="docutils literal">/shared/tools/bin/hg</tt>, Mercurial will look
-in <tt class="docutils literal">/shared/tools/etc/mercurial/hgrc</tt>. Options in these files apply
-to all Mercurial commands executed by any user in any directory.</p>
+parent directory of the <strong>hg</strong> executable (or symlink) being run.</p>
+<div class="unix-plan9 container">
+For example, if installed in <tt class="docutils literal">/shared/tools/bin/hg</tt>, Mercurial
+will look in <tt class="docutils literal">/shared/tools/etc/mercurial/hgrc</tt>. Options in these
+files apply to all Mercurial commands executed by any user in any
+directory.</div>
 <p>Per-installation configuration files are for the system on
 which Mercurial is running. Options in these files apply to all
 Mercurial commands executed by any user in any directory. Registry
@@ -548,11 +562,13 @@ with the name of a temporary file that contains the data to be
 filtered by the command. The string <tt class="docutils literal">OUTFILE</tt> is replaced with the name
 of an empty temporary file, where the filtered data must be written by
 the command.</p>
+<div class="windows container">
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The tempfile mechanism is recommended for Windows systems,
 where the standard shell I/O redirection operators often have
 strange effects and may corrupt the contents of your files.</p>
+</div>
 </div>
 <p>This filter mechanism is used internally by the <tt class="docutils literal">eol</tt> extension to
 translate line ending characters between Windows (CRLF) and Unix (LF)
@@ -672,30 +688,41 @@ color =
 myfeature = ~/.hgext/myfeature.py
 </pre>
 </div>
-<div class="section" id="id1">
+<div class="section" id="format">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">format</tt></a></h2>
 <dl class="docutils">
-<dt><tt class="docutils literal">usestore</tt></dt>
-<dd>Enable or disable the &quot;store&quot; repository format which improves
-compatibility with systems that fold case or otherwise mangle
-filenames. Enabled by default. Disabling this option will allow
-you to store longer filenames in some situations at the expense of
-compatibility and ensures that the on-disk format of newly created
-repositories will be compatible with Mercurial before version 0.9.4.</dd>
-<dt><tt class="docutils literal">usefncache</tt></dt>
-<dd>Enable or disable the &quot;fncache&quot; repository format which enhances
-the &quot;store&quot; repository format (which has to be enabled to use
-fncache) to allow longer filenames and avoids using Windows
-reserved names, e.g. &quot;nul&quot;. Enabled by default. Disabling this
-option ensures that the on-disk format of newly created
-repositories will be compatible with Mercurial before version 1.1.</dd>
+<dt><tt class="docutils literal">usegeneraldelta</tt></dt>
+<dd><p class="first">Enable or disable the &quot;generaldelta&quot; repository format which improves
+repository compression by allowing &quot;revlog&quot; to store delta against arbitrary
+revision instead of the previous stored one. This provides significant
+improvement for repositories with branches.</p>
+<p>Repositories with this on-disk format require Mercurial version 1.9.</p>
+<p class="last">Enabled by default.</p>
+</dd>
 <dt><tt class="docutils literal">dotencode</tt></dt>
-<dd>Enable or disable the &quot;dotencode&quot; repository format which enhances
+<dd><p class="first">Enable or disable the &quot;dotencode&quot; repository format which enhances
 the &quot;fncache&quot; repository format (which has to be enabled to use
 dotencode) to avoid issues with filenames starting with ._ on
-Mac OS X and spaces on Windows. Enabled by default. Disabling this
-option ensures that the on-disk format of newly created
-repositories will be compatible with Mercurial before version 1.7.</dd>
+Mac OS X and spaces on Windows.</p>
+<p>Repositories with this on-disk format require Mercurial version 1.7.</p>
+<p class="last">Enabled by default.</p>
+</dd>
+<dt><tt class="docutils literal">usefncache</tt></dt>
+<dd><p class="first">Enable or disable the &quot;fncache&quot; repository format which enhances
+the &quot;store&quot; repository format (which has to be enabled to use
+fncache) to allow longer filenames and avoids using Windows
+reserved names, e.g. &quot;nul&quot;.</p>
+<p>Repositories with this on-disk format require Mercurial version 1.1.</p>
+<p class="last">Enabled by default.</p>
+</dd>
+<dt><tt class="docutils literal">usestore</tt></dt>
+<dd><p class="first">Enable or disable the &quot;store&quot; repository format which improves
+compatibility with systems that fold case or otherwise mangle
+filenames. Disabling this option will allow you to store longer filenames
+in some situations at the expense of compatibility.</p>
+<p>Repositories with this on-disk format require Mercurial version 0.9.4.</p>
+<p class="last">Enabled by default.</p>
+</dd>
 </dl>
 </div>
 <div class="section" id="graph">
@@ -731,7 +758,7 @@ various actions such as starting or finishing a commit. Multiple
 hooks can be run for the same action by appending a suffix to the
 action. Overriding a site-wide hook can be done by changing its
 value or setting it to an empty string.  Hooks can be prioritized
-by adding a prefix of <tt class="docutils literal">priority</tt> to the hook name on a new line
+by adding a prefix of <tt class="docutils literal">priority.</tt> to the hook name on a new line
 and setting the priority. The default priority is 0.</p>
 <p>Example <tt class="docutils literal">.hg/hgrc</tt>:</p>
 <pre class="literal-block">
@@ -750,9 +777,9 @@ additional information. For each hook below, the environment
 variables it is passed are listed with names of the form <tt class="docutils literal">$HG_foo</tt>.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">changegroup</tt></dt>
-<dd>Run after a changegroup has been added via push, pull or unbundle.
-ID of the first new changeset is in <tt class="docutils literal">$HG_NODE</tt>. URL from which
-changes came is in <tt class="docutils literal">$HG_URL</tt>.</dd>
+<dd>Run after a changegroup has been added via push, pull or unbundle.  ID of the
+first new changeset is in <tt class="docutils literal">$HG_NODE</tt> and last in <tt class="docutils literal">$HG_NODE_LAST</tt>. URL
+from which changes came is in <tt class="docutils literal">$HG_URL</tt>.</dd>
 <dt><tt class="docutils literal">commit</tt></dt>
 <dd>Run after a changeset has been created in the local repository. ID
 of the newly created changeset is in <tt class="docutils literal">$HG_NODE</tt>. Parent changeset
@@ -778,7 +805,7 @@ dictionary of options (with unspecified options set to their defaults).
 command line are passed as <tt class="docutils literal">$HG_ARGS</tt>. Parsed command line arguments
 are passed as <tt class="docutils literal">$HG_PATS</tt> and <tt class="docutils literal">$HG_OPTS</tt>. These contain string
 representations of the data internally passed to &lt;command&gt;. <tt class="docutils literal">$HG_OPTS</tt>
-is a  dictionary of options (with unspecified options set to their
+is a dictionary of options (with unspecified options set to their
 defaults). <tt class="docutils literal">$HG_PATS</tt> is a list of arguments. If the hook returns
 failure, the command doesn't execute and Mercurial returns the failure
 code.</dd>
@@ -821,17 +848,16 @@ transaction will be in <tt class="docutils literal">$HG_TXNNAME</tt> and a uniqu
 transaction will be in <tt class="docutils literal">HG_TXNID</tt>. A non-zero status will prevent the
 transaction from being opened.</dd>
 <dt><tt class="docutils literal">pretxnclose</tt></dt>
-<dd>Run right before the transaction is actually finalized. Any
-repository change will be visible to the hook program. This lets you
-validate the transaction content or change it. Exit status 0 allows
-the commit to proceed. Non-zero status will cause the transaction to
-be rolled back. The reason for the transaction opening will be in
-<tt class="docutils literal">$HG_TXNNAME</tt> and a unique identifier for the transaction will be in
-<tt class="docutils literal">HG_TXNID</tt>. The rest of the available data will vary according the
-transaction type. New changesets will add <tt class="docutils literal">$HG_NODE</tt> (id of the
-first added changeset), <tt class="docutils literal">$HG_URL</tt> and <tt class="docutils literal">$HG_SOURCE</tt> variables,
-bookmarks and phases changes will set <tt class="docutils literal">HG_BOOKMARK_MOVED</tt> and
-<tt class="docutils literal">HG_PHASES_MOVED</tt> to <tt class="docutils literal">1</tt>, etc.</dd>
+<dd>Run right before the transaction is actually finalized. Any repository change
+will be visible to the hook program. This lets you validate the transaction
+content or change it. Exit status 0 allows the commit to proceed. Non-zero
+status will cause the transaction to be rolled back. The reason for the
+transaction opening will be in <tt class="docutils literal">$HG_TXNNAME</tt> and a unique identifier for
+the transaction will be in <tt class="docutils literal">HG_TXNID</tt>. The rest of the available data will
+vary according the transaction type. New changesets will add <tt class="docutils literal">$HG_NODE</tt> (id
+of the first added changeset), <tt class="docutils literal">$HG_NODE_LAST</tt> (id of the last added
+changeset), <tt class="docutils literal">$HG_URL</tt> and <tt class="docutils literal">$HG_SOURCE</tt> variables, bookmarks and phases
+changes will set <tt class="docutils literal">HG_BOOKMARK_MOVED</tt> and <tt class="docutils literal">HG_PHASES_MOVED</tt> to <tt class="docutils literal">1</tt>, etc.</dd>
 <dt><tt class="docutils literal">txnclose</tt></dt>
 <dd>Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
@@ -841,14 +867,13 @@ details about available variables.</dd>
 <dd>Run when a transaction is aborted. See <a class="reference external" href="hg.1.html#config.pretxnclose"><tt class="docutils literal">hg help config.pretxnclose</tt></a>
 docs for details about available variables.</dd>
 <dt><tt class="docutils literal">pretxnchangegroup</tt></dt>
-<dd>Run after a changegroup has been added via push, pull or unbundle,
-but before the transaction has been committed. Changegroup is
-visible to hook program. This lets you validate incoming changes
-before accepting them. Passed the ID of the first new changeset in
-<tt class="docutils literal">$HG_NODE</tt>. Exit status 0 allows the transaction to commit. Non-zero
-status will cause the transaction to be rolled back and the push,
-pull or unbundle will fail. URL that was source of changes is in
-<tt class="docutils literal">$HG_URL</tt>.</dd>
+<dd>Run after a changegroup has been added via push, pull or unbundle, but before
+the transaction has been committed. Changegroup is visible to hook program.
+This lets you validate incoming changes before accepting them. Passed the ID
+of the first new changeset in <tt class="docutils literal">$HG_NODE</tt> and last in <tt class="docutils literal">$HG_NODE_LAST</tt>.
+Exit status 0 allows the transaction to commit. Non-zero status will cause
+the transaction to be rolled back and the push, pull or unbundle will fail.
+URL that was source of changes is in <tt class="docutils literal">$HG_URL</tt>.</dd>
 <dt><tt class="docutils literal">pretxncommit</tt></dt>
 <dd>Run after a changeset has been created but the transaction not yet
 committed. Changeset is visible to hook program. This lets you
@@ -990,9 +1015,12 @@ myHtmlTool.priority = 1
 <dd>The priority in which to evaluate this tool.
 (default: 0)</dd>
 <dt><tt class="docutils literal">executable</tt></dt>
-<dd>Either just the name of the executable or its pathname.  On Windows,
-the path can use environment variables with ${ProgramFiles} syntax.
-(default: the tool name)</dd>
+<dd><p class="first">Either just the name of the executable or its pathname.</p>
+<div class="windows container">
+On Windows, the path can use environment variables with ${ProgramFiles}
+syntax.</div>
+<p class="last">(default: the tool name)</p>
+</dd>
 <dt><tt class="docutils literal">args</tt></dt>
 <dd>The arguments to pass to the tool executable. You can refer to the
 files being merged as well as the output file through these
@@ -1033,6 +1061,9 @@ was selected by file pattern match)</dd>
 (default: False)</dd>
 <dt><tt class="docutils literal">gui</tt></dt>
 <dd>This tool requires a graphical interface to run. (default: False)</dd>
+</dl>
+<div class="windows container">
+<dl class="docutils">
 <dt><tt class="docutils literal">regkey</tt></dt>
 <dd>Windows registry key which describes install location of this
 tool. Mercurial will search for this key first under
@@ -1052,6 +1083,7 @@ is to search for 32bit applications on 64bit operating systems.
 the executable name of the tool.
 (default: None)</dd>
 </dl>
+</div>
 </div>
 <div class="section" id="patch">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">patch</tt></a></h2>
@@ -1077,28 +1109,41 @@ trying to apply a patch.
 </div>
 <div class="section" id="paths">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">paths</tt></a></h2>
-<p>Assigns symbolic names to repositories. The left side is the
-symbolic name, and the right gives the directory or URL that is the
-location of the repository. Default paths can be declared by setting
-the following entries.</p>
-<dl class="docutils">
-<dt><tt class="docutils literal">default</tt></dt>
-<dd>Directory or URL to use when pulling if no source is specified.
-(default: repository from which the current repository was cloned)</dd>
-<dt><tt class="docutils literal"><span class="pre">default-push</span></tt></dt>
-<dd>Optional. Directory or URL to use when pushing if no destination
-is specified.</dd>
-</dl>
-<p>Custom paths can be defined by assigning the path to a name that later can be
-used from the command line. Example:</p>
+<p>Assigns symbolic names and behavior to repositories.</p>
+<p>Options are symbolic names defining the URL or directory that is the
+location of the repository. Example:</p>
 <pre class="literal-block">
 [paths]
-my_path = http://example.com/path
+my_server = https://example.com/my_repo
+local_path = /home/me/repo
 </pre>
-<p>To push to the path defined in <tt class="docutils literal">my_path</tt> run the command:</p>
+<p>These symbolic names can be used from the command line. To pull
+from <tt class="docutils literal">my_server</tt>: <a class="reference external" href="hg.1.html#pull"><tt class="docutils literal">hg pull my_server</tt></a>. To push to <tt class="docutils literal">local_path</tt>:
+<a class="reference external" href="hg.1.html#push"><tt class="docutils literal">hg push local_path</tt></a>.</p>
+<p>Options containing colons (<tt class="docutils literal">:</tt>) denote sub-options that can influence
+behavior for that specific path. Example:</p>
 <pre class="literal-block">
-hg push my_path
+[paths]
+my_server = https://example.com/my_path
+my_server:pushurl = ssh://example.com/my_path
 </pre>
+<p>The following sub-options can be defined:</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">pushurl</tt></dt>
+<dd>The URL to use for push operations. If not defined, the location
+defined by the path's main entry is used.</dd>
+</dl>
+<p>The following special named paths exist:</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">default</tt></dt>
+<dd><p class="first">The URL or directory to use when no source or remote is specified.</p>
+<p class="last"><a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> will automatically define this path to the location the
+repository was cloned from.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">default-push</span></tt></dt>
+<dd>(deprecated) The URL or directory for the default <a class="reference external" href="hg.1.html#push"><tt class="docutils literal">hg push</tt></a> location.
+<tt class="docutils literal">default:pushurl</tt> should be used instead.</dd>
+</dl>
 </div>
 <div class="section" id="phases">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">phases</tt></a></h2>
@@ -1202,11 +1247,11 @@ that value will be used instead. (default: 1)</dd>
 <dt><tt class="docutils literal">format</tt></dt>
 <dd><p class="first">Format of the progress bar.</p>
 <p>Valid entries for the format field are <tt class="docutils literal">topic</tt>, <tt class="docutils literal">bar</tt>, <tt class="docutils literal">number</tt>,
-<tt class="docutils literal">unit</tt>, <tt class="docutils literal">estimate</tt>, speed, and item. item defaults to the last 20
-characters of the item, but this can be changed by adding either <tt class="docutils literal"><span class="pre">-&lt;num&gt;</span></tt>
-which would take the last num characters, or <tt class="docutils literal">+&lt;num&gt;</tt> for the first num
-characters.</p>
-<p class="last">(default: Topic bar number estimate)</p>
+<tt class="docutils literal">unit</tt>, <tt class="docutils literal">estimate</tt>, <tt class="docutils literal">speed</tt>, and <tt class="docutils literal">item</tt>. <tt class="docutils literal">item</tt> defaults to the
+last 20 characters of the item, but this can be changed by adding either
+<tt class="docutils literal"><span class="pre">-&lt;num&gt;</span></tt> which would take the last num characters, or <tt class="docutils literal">+&lt;num&gt;</tt> for the
+first num characters.</p>
+<p class="last">(default: topic bar number estimate)</p>
 </dd>
 <dt><tt class="docutils literal">width</tt></dt>
 <dd>If set, the maximum width of the progress information (that is, min(width,
@@ -1217,6 +1262,14 @@ term width) will be used).</dd>
 <dd>If true, don't show a progress bar.</dd>
 <dt><tt class="docutils literal"><span class="pre">assume-tty</span></tt></dt>
 <dd>If true, ALWAYS show a progress bar, unless disable is given.</dd>
+</dl>
+</div>
+<div class="section" id="rebase">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">rebase</tt></a></h2>
+<dl class="docutils">
+<dt><tt class="docutils literal">allowdivergence</tt></dt>
+<dd>Default to False, when True allow creating divergence when performing
+rebase of obsolete changesets.</dd>
 </dl>
 </div>
 <div class="section" id="revsetalias">
@@ -1248,6 +1301,29 @@ present. (default: False)</dd>
 <dt><tt class="docutils literal">maxhttpheaderlen</tt></dt>
 <dd>Instruct HTTP clients not to send request headers longer than this
 many bytes. (default: 1024)</dd>
+<dt><tt class="docutils literal">bundle1</tt></dt>
+<dd>Whether to allow clients to push and pull using the legacy bundle1
+exchange format. (default: True)</dd>
+<dt><tt class="docutils literal">bundle1gd</tt></dt>
+<dd>Like <tt class="docutils literal">bundle1</tt> but only used if the repository is using the
+<em>generaldelta</em> storage format. (default: True)</dd>
+<dt><tt class="docutils literal">bundle1.push</tt></dt>
+<dd>Whether to allow clients to push using the legacy bundle1 exchange
+format. (default: True)</dd>
+<dt><tt class="docutils literal">bundle1gd.push</tt></dt>
+<dd>Like <tt class="docutils literal">bundle1.push</tt> but only used if the repository is using the
+<em>generaldelta</em> storage format. (default: True)</dd>
+<dt><tt class="docutils literal">bundle1.pull</tt></dt>
+<dd>Whether to allow clients to pull using the legacy bundle1 exchange
+format. (default: True)</dd>
+<dt><tt class="docutils literal">bundle1gd.pull</tt></dt>
+<dd><p class="first">Like <tt class="docutils literal">bundle1.pull</tt> but only used if the repository is using the
+<em>generaldelta</em> storage format. (default: True)</p>
+<p class="last">Large repositories using the <em>generaldelta</em> storage format should
+consider setting this option because converting <em>generaldelta</em>
+repositories to the exchange format required by the bundle1 data
+format can consume a lot of CPU.</p>
+</dd>
 </dl>
 </div>
 <div class="section" id="smtp">
@@ -1339,6 +1415,13 @@ neither <tt class="docutils literal">$HGUSER</tt> nor <tt class="docutils litera
 be prompted to enter a username. If no username is entered, the
 default <tt class="docutils literal">USER&#64;HOST</tt> is used instead.
 (default: False)</dd>
+<dt><tt class="docutils literal">clonebundles</tt></dt>
+<dd><p class="first">Whether the &quot;clone bundles&quot; feature is enabled.</p>
+<p>When enabled, <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> may download and apply a server-advertised
+bundle file from a URL instead of using the normal exchange mechanism.</p>
+<p>This can likely result in faster and more reliable clones.</p>
+<p class="last">(default: True)</p>
+</dd>
 <dt><tt class="docutils literal">clonebundlefallback</tt></dt>
 <dd><p class="first">Whether failure to apply an advertised &quot;clone bundle&quot; from a server
 should result in fallback to a regular clone.</p>
@@ -1352,6 +1435,25 @@ clients don't overwhelm the server when &quot;clone bundle&quot; application
 fails.</p>
 <p class="last">(default: False)</p>
 </dd>
+<dt><tt class="docutils literal">clonebundleprefers</tt></dt>
+<dd><p class="first">Defines preferences for which &quot;clone bundles&quot; to use.</p>
+<p>Servers advertising &quot;clone bundles&quot; may advertise multiple available
+bundles. Each bundle may have different attributes, such as the bundle
+type and compression format. This option is used to prefer a particular
+bundle over another.</p>
+<p>The following keys are defined by Mercurial:</p>
+<dl class="docutils">
+<dt>BUNDLESPEC</dt>
+<dd>A bundle type specifier. These are strings passed to <a class="reference external" href="hg.1.html#bundle"><tt class="docutils literal">hg bundle <span class="pre">-t</span></tt></a>.
+e.g. <tt class="docutils literal"><span class="pre">gzip-v2</span></tt> or <tt class="docutils literal"><span class="pre">bzip2-v1</span></tt>.</dd>
+<dt>COMPRESSION</dt>
+<dd>The compression format of the bundle. e.g. <tt class="docutils literal">gzip</tt> and <tt class="docutils literal">bzip2</tt>.</dd>
+</dl>
+<p>Server operators may define custom keys.</p>
+<p>Example values: <tt class="docutils literal">COMPRESSION=bzip2</tt>,
+<tt class="docutils literal"><span class="pre">BUNDLESPEC=gzip-v2,</span> COMPRESSION=gzip</tt>.</p>
+<p class="last">By default, the first bundle advertised by the server is used.</p>
+</dd>
 <dt><tt class="docutils literal">commitsubrepos</tt></dt>
 <dd>Whether to commit modified subrepositories when committing the
 parent repository. If False and one subrepository has uncommitted
@@ -1364,6 +1466,9 @@ changes, abort the commit.
 <dt><tt class="docutils literal">fallbackencoding</tt></dt>
 <dd>Encoding to try if it's not possible to decode the changelog using
 UTF-8. (default: ISO-8859-1)</dd>
+<dt><tt class="docutils literal">graphnodetemplate</tt></dt>
+<dd>The template used to print changeset nodes in an ASCII revision graph.
+(default: <tt class="docutils literal">{graphnode}</tt>)</dd>
 <dt><tt class="docutils literal">ignore</tt></dt>
 <dd>A file to read per-user ignore patterns from. This file should be
 in the same format as a repository-wide .hgignore file. Filenames
@@ -1399,6 +1504,9 @@ environment variables that govern your locale. If the encoding of the merge
 markers is different from the encoding of the merged files,
 serious problems may occur.</p>
 </dd>
+<dt><tt class="docutils literal">origbackuppath</tt></dt>
+<dd>The path to a directory used to store generated .orig files. If the path is
+not a directory, one will be created.</dd>
 <dt><tt class="docutils literal">patch</tt></dt>
 <dd><p class="first">An optional external tool that <tt class="docutils literal">hg import</tt> and some extensions
 will use for applying patches. By default Mercurial uses an
@@ -1412,23 +1520,37 @@ arguments. For example, setting this option to <tt class="docutils literal">patc
 will use the <tt class="docutils literal">patch</tt> program with its 2-way merge option.</p>
 </dd>
 <dt><tt class="docutils literal">portablefilenames</tt></dt>
-<dd>Check for portable filenames. Can be <tt class="docutils literal">warn</tt>, <tt class="docutils literal">ignore</tt> or <tt class="docutils literal">abort</tt>.
-(default: <tt class="docutils literal">warn</tt>)
-If set to <tt class="docutils literal">warn</tt> (or <tt class="docutils literal">true</tt>), a warning message is printed on POSIX
-platforms, if a file with a non-portable filename is added (e.g. a file
-with a name that can't be created on Windows because it contains reserved
-parts like <tt class="docutils literal">AUX</tt>, reserved characters like <tt class="docutils literal">:</tt>, or would cause a case
-collision with an existing file).
-If set to <tt class="docutils literal">ignore</tt> (or <tt class="docutils literal">false</tt>), no warning is printed.
-If set to <tt class="docutils literal">abort</tt>, the command is aborted.
-On Windows, this configuration option is ignored and the command aborted.</dd>
+<dd><p class="first">Check for portable filenames. Can be <tt class="docutils literal">warn</tt>, <tt class="docutils literal">ignore</tt> or <tt class="docutils literal">abort</tt>.
+(default: <tt class="docutils literal">warn</tt>)</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">warn</tt></dt>
+<dd>Print a warning message on POSIX platforms, if a file with a non-portable
+filename is added (e.g. a file with a name that can't be created on
+Windows because it contains reserved parts like <tt class="docutils literal">AUX</tt>, reserved
+characters like <tt class="docutils literal">:</tt>, or would cause a case collision with an existing
+file).</dd>
+<dt><tt class="docutils literal">ignore</tt></dt>
+<dd>Don't print a warning.</dd>
+<dt><tt class="docutils literal">abort</tt></dt>
+<dd>The command is aborted.</dd>
+<dt><tt class="docutils literal">true</tt></dt>
+<dd>Alias for <tt class="docutils literal">warn</tt>.</dd>
+<dt><tt class="docutils literal">false</tt></dt>
+<dd>Alias for <tt class="docutils literal">ignore</tt>.</dd>
+</dl>
+<div class="windows last container">
+On Windows, this configuration option is ignored and the command aborted.</div>
+</dd>
 <dt><tt class="docutils literal">quiet</tt></dt>
-<dd>Reduce the amount of output printed. (default: False)</dd>
+<dd>Reduce the amount of output printed.
+(default: False)</dd>
 <dt><tt class="docutils literal">remotecmd</tt></dt>
-<dd>Remote command to use for clone/push/pull operations. (default: <tt class="docutils literal">hg</tt>)</dd>
+<dd>Remote command to use for clone/push/pull operations.
+(default: <tt class="docutils literal">hg</tt>)</dd>
 <dt><tt class="docutils literal">report_untrusted</tt></dt>
 <dd>Warn if a <tt class="docutils literal">.hg/hgrc</tt> file is ignored due to not being owned by a
-trusted user or group. (default: True)</dd>
+trusted user or group.
+(default: True)</dd>
 <dt><tt class="docutils literal">slash</tt></dt>
 <dd>Display paths using a slash (<tt class="docutils literal">/</tt>) as the path separator. This
 only makes a difference on systems where the default path
@@ -1462,7 +1584,7 @@ Typically a person's name and email address, e.g. <tt class="docutils literal">F
 &lt;fred&#64;example.com&gt;</tt>. Environment variables in the
 username are expanded.</p>
 <p class="last">(default: <tt class="docutils literal">$EMAIL</tt> or <tt class="docutils literal">username&#64;hostname</tt>. If the username in
-hgrc is empty, e.g. if the system admin set <tt class="docutils literal">username =</tt>  in the
+hgrc is empty, e.g. if the system admin set <tt class="docutils literal">username =</tt> in the
 system hgrc, it has to be specified manually or in a different
 hgrc file)</p>
 </dd>
@@ -1715,6 +1837,26 @@ helps performance.</p>
 <dd>Number of CPUs to use for parallel operations. A zero or
 negative value is treated as <tt class="docutils literal">use the default</tt>.
 (default: 4 or the number of CPUs on the system, whichever is larger)</dd>
+<dt><tt class="docutils literal">backgroundclose</tt></dt>
+<dd>Whether to enable closing file handles on background threads during certain
+operations. Some platforms aren't very efficient at closing file
+handles that have been written or appened to. By performing file closing
+on background threads, file write rate can increase substantially.
+(default: true on Windows, false elsewhere)</dd>
+<dt><tt class="docutils literal">backgroundcloseminfilecount</tt></dt>
+<dd>Minimum number of files required to trigger background file closing.
+Operations not writing this many files won't start background close
+threads.
+(default: 2048)</dd>
+<dt><tt class="docutils literal">backgroundclosemaxqueue</tt></dt>
+<dd>The maximum number of opened file handles waiting to be closed in the
+background. This option only has an effect if <tt class="docutils literal">backgroundclose</tt> is
+enabled.
+(default: 384)</dd>
+<dt><tt class="docutils literal">backgroundclosethreadcount</tt></dt>
+<dd>Number of threads to process background file closes. Only relevant if
+<tt class="docutils literal">backgroundclose</tt> is enabled.
+(default: 4)</dd>
 </dl>
 </div>
 </div>
@@ -1730,7 +1872,7 @@ negative value is treated as <tt class="docutils literal">use the default</tt>.
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2015 Matt Mackall.
+Mercurial is copyright 2005-2016 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <span class="target" id="common"></span><!-- Common link and substitution definitions. -->

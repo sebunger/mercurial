@@ -126,9 +126,9 @@ def trywritehiddencache(repo, hideable, hidden):
         fh = repo.vfs.open(cachefile, 'w+b', atomictemp=True)
         _writehiddencache(fh, newhash, hidden)
     except (IOError, OSError):
-        repo.ui.debug('error writing hidden changesets cache')
+        repo.ui.debug('error writing hidden changesets cache\n')
     except error.LockHeld:
-        repo.ui.debug('cannot obtain lock to write hidden changesets cache')
+        repo.ui.debug('cannot obtain lock to write hidden changesets cache\n')
     finally:
         if fh:
             fh.close()
@@ -150,6 +150,13 @@ def tryreadcache(repo, hideable):
                 count = len(data) / 4
                 hidden = frozenset(struct.unpack('>%ii' % count, data))
         return hidden
+    except struct.error:
+        repo.ui.debug('corrupted hidden cache\n')
+        # No need to fix the content as it will get rewritten
+        return None
+    except (IOError, OSError):
+        repo.ui.debug('cannot read hidden cache\n')
+        return None
     finally:
         if fh:
             fh.close()
@@ -300,22 +307,16 @@ class repoview(object):
         # some cache may be implemented later
         unfi = self._unfilteredrepo
         unfichangelog = unfi.changelog
+        # bypass call to changelog.method
+        unfiindex = unfichangelog.index
+        unfilen = len(unfiindex) - 1
+        unfinode = unfiindex[unfilen - 1][7]
+
         revs = filterrevs(unfi, self.filtername)
         cl = self._clcache
-        newkey = (len(unfichangelog), unfichangelog.tip(), hash(revs),
-                  unfichangelog._delayed)
-        if cl is not None:
-            # we need to check curkey too for some obscure reason.
-            # MQ test show a corruption of the underlying repo (in _clcache)
-            # without change in the cachekey.
-            oldfilter = cl.filteredrevs
-            try:
-                cl.filteredrevs = ()  # disable filtering for tip
-                curkey = (len(cl), cl.tip(), hash(oldfilter), cl._delayed)
-            finally:
-                cl.filteredrevs = oldfilter
-            if newkey != self._clcachekey or newkey != curkey:
-                cl = None
+        newkey = (unfilen, unfinode, hash(revs), unfichangelog._delayed)
+        if cl is not None and newkey != self._clcachekey:
+            cl = None
         # could have been made None by the previous if
         if cl is None:
             cl = copy.copy(unfichangelog)
