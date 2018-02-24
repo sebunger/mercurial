@@ -657,6 +657,7 @@ def runchildren(options, tests):
 
     optcopy = dict(options.__dict__)
     optcopy['jobs'] = 1
+    del optcopy['blacklist']
     if optcopy['with_hg'] is None:
         optcopy['with_hg'] = os.path.join(BINDIR, "hg")
     optcopy.pop('anycoverage', None)
@@ -843,6 +844,13 @@ def main():
     os.environ['CDPATH'] = ''
     os.environ['COLUMNS'] = '80'
     os.environ['http_proxy'] = ''
+
+    # unset env related to hooks
+    for k in os.environ.keys():
+        if k.startswith('HG_'):
+            # can't remove on solaris
+            os.environ[k] = ''
+            del os.environ[k]
 
     global TESTDIR, HGTMP, INST, BINDIR, PYTHONDIR, COVERAGE_FILE
     TESTDIR = os.environ["TESTDIR"] = os.getcwd()

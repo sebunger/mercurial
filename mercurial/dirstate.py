@@ -398,9 +398,6 @@ class dirstate(object):
         write = cs.write
         write("".join(self._pl))
         for f, e in self._map.iteritems():
-            if f in copymap:
-                f = "%s\0%s" % (f, copymap[f])
-
             if e[0] == 'n' and e[3] == now:
                 # The file was last modified "simultaneously" with the current
                 # write to dirstate (i.e. within the same second for file-
@@ -412,7 +409,10 @@ class dirstate(object):
                 # contents of the file. This prevents mistakenly treating such
                 # files as clean.
                 e = (e[0], 0, -1, -1)   # mark entry as 'unset'
+                self._map[f] = e
 
+            if f in copymap:
+                f = "%s\0%s" % (f, copymap[f])
             e = pack(_format, e[0], e[1], e[2], e[3], len(f))
             write(e)
             write(f)

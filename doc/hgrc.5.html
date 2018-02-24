@@ -154,6 +154,10 @@ that included files can include other files. Filenames are relative to
 the configuration file in which the <tt class="docutils literal"><span class="pre">%include</span></tt> directive is found.</p>
 <p>A line with <tt class="docutils literal"><span class="pre">%unset</span> <span class="pre">name</span></tt> will remove <tt class="docutils literal"><span class="pre">name</span></tt> from the current
 section, if it has been set previously.</p>
+<p>The values are either free-form text strings, lists of text strings,
+or Boolean values. Lists are split on whitespace and commas. Boolean
+values can be set to true using any of &quot;1&quot;, &quot;yes&quot;, &quot;true&quot;, or &quot;on&quot; and
+to false using &quot;0&quot;, &quot;no&quot;, &quot;false&quot;, or &quot;off&quot; (all case insensitive).</p>
 </div>
 <div class="section" id="sections">
 <h1><a class="toc-backref" href="#contents">Sections</a></h1>
