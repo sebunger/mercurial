@@ -1847,14 +1847,17 @@ def debugdiscovery(ui, repo, remoteurl="default", **opts):
         localrevs = opts.get('local_head')
         doit(localrevs, remoterevs)
 
-@command('debugfileset', [], ('REVSPEC'))
-def debugfileset(ui, repo, expr):
+@command('debugfileset',
+    [('r', 'rev', '', _('apply the filespec on this revision'), _('REV'))],
+    _('[-r REV] FILESPEC'))
+def debugfileset(ui, repo, expr, **opts):
     '''parse and apply a fileset specification'''
+    ctx = scmutil.revsingle(repo, opts.get('rev'), None)
     if ui.verbose:
         tree = fileset.parse(expr)[0]
         ui.note(tree, "\n")
 
-    for f in fileset.getfileset(repo[None], expr):
+    for f in fileset.getfileset(ctx, expr):
         ui.write("%s\n" % f)
 
 @command('debugfsinfo', [], _('[PATH]'))
@@ -1994,6 +1997,10 @@ def debuginstall(ui):
         ui.write(" %s\n" % inst)
         ui.write(_(" (check that your locale is properly set)\n"))
         problems += 1
+
+    # Python lib
+    ui.status(_("checking Python lib (%s)...\n")
+              % os.path.dirname(os.__file__))
 
     # compiled modules
     ui.status(_("checking installed modules (%s)...\n")
@@ -4266,7 +4273,7 @@ def merge(ui, repo, node=None, **opts):
                              hint=_("run 'hg heads .' to see heads"))
 
         parent = repo.dirstate.p1()
-        if len(nbhs) == 1:
+        if len(nbhs) <= 1:
             if len(bheads) > 1:
                 raise util.Abort(_("heads are bookmarked - "
                                    "please merge with an explicit rev"),
@@ -5772,7 +5779,7 @@ def update(ui, repo, node=None, rev=None, clean=False, date=None, check=False):
     current named branch and move the current bookmark (see :hg:`help
     bookmarks`).
 
-    Update sets the working directory's parent revison to the specified
+    Update sets the working directory's parent revision to the specified
     changeset (see :hg:`help parents`).
 
     If the changeset is not a descendant or ancestor of the working
