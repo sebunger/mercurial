@@ -270,15 +270,20 @@ Update and expand
   xxx $
   ignore $Id$
 
-Check whether expansion is filewise
+Check whether expansion is filewise and file mode is preserved
 
   $ echo '$Id$' > c
   $ echo 'tests for different changenodes' >> c
+  $ chmod 600 c
+  $ ls -l c | cut -b 1-10
+  -rw-------
 
 commit file c
 
   $ hg commit -A -mcndiff -d '1 0' -u 'User Name <user@example.com>'
   adding c
+  $ ls -l c | cut -b 1-10
+  -rw-------
 
 force expansion
 
@@ -439,6 +444,8 @@ record added file alone
   r
   committed changeset 3:899491280810
   overwriting r expanding keywords
+ - status call required for dirstate.normallookup() check
+  $ hg status r
   $ hg --verbose rollback
   repository tip rolled back to revision 2 (undo commit)
   working directory now based on revision 2
@@ -829,6 +836,8 @@ kwexpand/kwshrink on selected files
   $ hg copy a x/a
   $ hg --verbose kwshrink a
   overwriting a shrinking keywords
+ - sleep required for dirstate.normal() check
+  $ sleep 1
   $ hg status a
   $ hg --verbose kwexpand a
   overwriting a expanding keywords
