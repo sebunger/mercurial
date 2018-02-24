@@ -218,14 +218,16 @@ def _runcatch(req):
 
 def aliasargs(fn, givenargs):
     args = getattr(fn, 'args', [])
-    if args and givenargs:
+    if args:
         cmd = ' '.join(map(util.shellquote, args))
 
         nums = []
         def replacer(m):
             num = int(m.group(1)) - 1
             nums.append(num)
-            return givenargs[num]
+            if num < len(givenargs):
+                return givenargs[num]
+            raise util.Abort(_('too few arguments for command alias'))
         cmd = re.sub(r'\$(\d+|\$)', replacer, cmd)
         givenargs = [x for i, x in enumerate(givenargs)
                      if i not in nums]

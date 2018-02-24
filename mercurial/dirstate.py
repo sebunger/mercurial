@@ -78,13 +78,11 @@ class dirstate(object):
         return self._copymap
 
     @propertycache
-    def _normroot(self):
-        return util.normcase(self._root)
-
-    @propertycache
     def _foldmap(self):
         f = {}
         for name in self._map:
+            f[util.normcase(name)] = name
+        for name in self._dirs:
             f[util.normcase(name)] = name
         f['.'] = '.' # prevents useless util.fspath() invocation
         return f
@@ -405,8 +403,17 @@ class dirstate(object):
             if isknown or not os.path.lexists(os.path.join(self._root, path)):
                 folded = path
             else:
-                folded = self._foldmap.setdefault(normed,
-                                util.fspath(normed, self._normroot))
+                # recursively normalize leading directory components
+                # against dirstate
+                if '/' in normed:
+                    d, f = normed.rsplit('/', 1)
+                    d = self._normalize(d, isknown)
+                    r = self._root + "/" + d
+                    folded = d + "/" + util.fspath(f, r)
+                else:
+                    folded = util.fspath(normed, self._root)
+                self._foldmap[normed] = folded
+
         return folded
 
     def normalize(self, path, isknown=False):
@@ -552,7 +559,7 @@ class dirstate(object):
         elif match.files() and not match.anypats(): # match.match, no patterns
             skipstep3 = True
 
-        if self._checkcase:
+        if not exact and self._checkcase:
             normalize = self._normalize
             skipstep3 = False
         else:

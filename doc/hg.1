@@ -5274,7 +5274,7 @@ secret : changeset should not be pushed, pulled, or cloned
 These phases are ordered (public < draft < secret) and no changeset
 can be in a lower phase than its ancestors. For instance, if a
 changeset is public, all its ancestors are also public. Lastly,
-changeset phases only be changed towards the public phase.
+changeset phases should only be changed towards the public phase.
 .SH HOW ARE PHASES MANAGED?
 .sp
 For the most part, phases should work transparently. By default, a
@@ -7630,7 +7630,8 @@ meld =
 # (see http://www.vim.org/scripts/script.php?script_id=102) Non
 # English user, be sure to put "let g:DirDiffDynamicDiffText = 1" in
 # your .vimrc
-vimdiff = gvim \-f \(aq+next\(aq \(aq+execute "DirDiff" argv(0) argv(1)\(aq
+vimdiff = gvim \-f "+next" \e
+          "+execute \(aqDirDiff\(aq fnameescape(argv(0)) fnameescape(argv(1))"
 .ft P
 .fi
 .sp
@@ -9461,13 +9462,17 @@ force removal of changesets, discard uncommitted changes (no backup)
 .
 bundle only changesets with local revision number greater than REV which are not descendants of REV (DEPRECATED)
 .TP
-.B \-n,  \-\-no\-backup
+.B \-\-no\-backup
 .
 no backups
 .TP
 .B \-\-nobackup
 .
 no backups (DEPRECATED)
+.TP
+.B \-n
+.
+ignored  (DEPRECATED)
 .TP
 .B \-k,  \-\-keep
 .

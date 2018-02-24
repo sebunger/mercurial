@@ -519,7 +519,18 @@ cleaning up
   $ hg qpush --move test.patch # already applied
   abort: cannot push to a previous patch: test.patch
   [255]
-  $ hg qpush
+  $ sed '2i\
+  > # make qtip index different in series and fullseries
+  > ' `hg root`/.hg/patches/series > $TESTTMP/sedtmp
+  $ cp $TESTTMP/sedtmp `hg root`/.hg/patches/series
+  $ cat `hg root`/.hg/patches/series
+  # comment
+  # make qtip index different in series and fullseries
+  
+  test.patch
+  test1b.patch
+  test2.patch
+  $ hg qpush --move test2.patch
   applying test2.patch
   now at: test2.patch
 
@@ -527,11 +538,12 @@ cleaning up
 series after move
 
   $ cat `hg root`/.hg/patches/series
+  # comment
+  # make qtip index different in series and fullseries
+  
   test.patch
   test1b.patch
   test2.patch
-  # comment
-  
 
 
 pop, qapplied, qunapplied
@@ -1474,9 +1486,27 @@ Test that qfinish change phase when mq.secret=true
   1: secret
   2: secret
 
+Test that qfinish respect phases.new-commit setting
+
+  $ echo '[phases]' >> $HGRCPATH
+  $ echo 'new-commit=secret' >> $HGRCPATH
+  $ hg qfinish qbase
+  patch add-file2 finalized without changeset message
+  $ hg phase 'all()'
+  0: draft
+  1: secret
+  2: secret
+
+(restore env for next test)
+
+  $ sed -e 's/new-commit=secret//' $HGRCPATH > $TESTTMP/sedtmp
+  $ cp $TESTTMP/sedtmp $HGRCPATH
+  $ hg qimport -r 1 --name  add-file2
+
 Test that qfinish preserve phase when mq.secret=false
 
-  $ sed -i.bak -e 's/secret=true/secret=false/' $HGRCPATH
+  $ sed -e 's/secret=true/secret=false/' $HGRCPATH > $TESTTMP/sedtmp
+  $ cp $TESTTMP/sedtmp $HGRCPATH
   $ hg qfinish qbase
   patch add-file2 finalized without changeset message
   $ hg phase 'all()'

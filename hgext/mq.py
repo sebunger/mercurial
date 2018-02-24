@@ -843,8 +843,9 @@ class queue(object):
         if qfinished and repo.ui.configbool('mq', 'secret', False):
             # only use this logic when the secret option is added
             oldqbase = repo[qfinished[0]]
-            if oldqbase.p1().phase() < phases.secret:
-                phases.advanceboundary(repo, phases.draft, qfinished)
+            tphase = repo.ui.config('phases', 'new-commit', phases.draft)
+            if oldqbase.phase() > tphase and oldqbase.p1().phase() <= tphase:
+                phases.advanceboundary(repo, tphase, qfinished)
 
     def delete(self, repo, patches, opts):
         if not patches and not opts.get('rev'):
@@ -1043,8 +1044,7 @@ class queue(object):
                 repo.dirstate.write()
 
             self.removeundo(repo)
-            for rev in revs:
-                repair.strip(self.ui, repo, rev, backup)
+            repair.strip(self.ui, repo, revs, backup)
             # strip may have unbundled a set of backed up revisions after
             # the actual strip
             self.removeundo(repo)
@@ -1192,22 +1192,27 @@ class queue(object):
                 root = self.series[start]
                 target = patchheader(self.join(root), self.plainmode).parent
                 if not target:
-                    raise util.Abort(_("%s does not have a parent recorded" % root))
+                    raise util.Abort(
+                        _("%s does not have a parent recorded") % root)
                 if not repo[target] == repo['.']:
                     hg.update(repo, target)
 
             if move:
                 if not patch:
                     raise util.Abort(_("please specify the patch to move"))
-                for i, rpn in enumerate(self.fullseries[start:]):
+                for fullstart, rpn in enumerate(self.fullseries):
+                    # strip markers for patch guards
+                    if self.guard_re.split(rpn, 1)[0] == self.series[start]:
+                        break
+                for i, rpn in enumerate(self.fullseries[fullstart:]):
                     # strip markers for patch guards
                     if self.guard_re.split(rpn, 1)[0] == patch:
                         break
-                index = start + i
+                index = fullstart + i
                 assert index < len(self.fullseries)
                 fullpatch = self.fullseries[index]
                 del self.fullseries[index]
-                self.fullseries.insert(start, fullpatch)
+                self.fullseries.insert(fullstart, fullpatch)
                 self.parseseries()
                 self.seriesdirty = True
 
@@ -2762,8 +2767,9 @@ def save(ui, repo, **opts):
           ('b', 'backup', None, _('bundle only changesets with local revision'
                                   ' number greater than REV which are not'
                                   ' descendants of REV (DEPRECATED)')),
-          ('n', 'no-backup', None, _('no backups')),
+          ('', 'no-backup', None, _('no backups')),
           ('', 'nobackup', None, _('no backups (DEPRECATED)')),
+          ('n', '', None, _('ignored  (DEPRECATED)')),
           ('k', 'keep', None, _("do not modify working copy during strip"))],
           _('hg strip [-k] [-f] [-n] REV...'))
 def strip(ui, repo, *revs, **opts):
