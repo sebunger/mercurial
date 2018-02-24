@@ -15,17 +15,22 @@ aspects of its behaviour.
 FILES
 -----
 
-Mercurial reads configuration data from two files:
+Mercurial reads configuration data from three files:
+
+/etc/mercurial/hgrc::
+    Options in this global configuration file apply to all Mercurial
+    commands executed by any user in any directory.
 
 $HOME/.hgrc::
-    Global configuration options that apply to all Mercurial commands,
-    no matter where they are run.
+    Per-user configuration options that apply to all Mercurial commands,
+    no matter from which directory they are run.  Values in this file
+    override global settings.
 
 <repo>/.hg/hgrc::
     Per-repository configuration options that only apply in a
     particular repository.  This file is not version-controlled, and
     will not get transferred during a "clone" operation.  Values in
-    this file override global values.
+    this file override global and per-user settings.
 
 SYNTAX
 ------
@@ -65,6 +70,8 @@ hooks::
   commit;;
     Run after a changeset has been created. Passed the ID of the newly
     created changeset.
+  changegroup;;
+    Run after a changegroup has been added via push or pull.
 
 http_proxy::
   Used to access web-based Mercurial repositories through a HTTP
@@ -85,30 +92,54 @@ paths::
   symbolic name, and the right gives the directory or URL that is the
   location of the repository.
 
-tags::
-  Tags that are local to a repository and not distributed or version
-  controlled.  The left side is the tag name, and the right is the
-  ID of the changeset to identify.
-
 ui::
   User interface controls.
   debug;;
-    Print debugging information.  True or False.  Default is True.
+    Print debugging information.  True or False.  Default is False.
   editor;;
-    The editor to use during a commit.  Default is "vi".
+    The editor to use during a commit.  Default is $EDITOR or "vi".
+  interactive;;
+    Allow to prompt the user.  True or False.  Default is True.
   merge;;
     The conflict resolution program to use during a manual merge.
-    Default is "hgeditor".
+    Default is "hgmerge".
   quiet;;
-    Reduce the amount of output printed.  True or False.  Default is
-    False.
+    Reduce the amount of output printed.  True or False.  Default is False.
   username;;
     The committer of a changeset created when running "commit".
     Typically a person's name and email address, e.g. "Fred Widget
-    <fred@example.com>".  Default is username@hostname.
+    <fred@example.com>".  Default is $EMAIL or username@hostname.
   verbose;;
-    Increase the amount of output printed.  True or False.  Default is
-    False.
+    Increase the amount of output printed.  True or False.  Default is False.
+  ssh;;
+    command to use for SSH connections. Default is 'ssh'.
+  remotecmd;;
+    remote command to use for clone/push/pull operations. Default is 'hg'.
+
+
+web::
+  Web interface configuration.
+  name;;
+    Repository name to use in the web interface. Default is current
+    working directory.
+  address;;
+    Interface address to bind to. Default is all.
+  port;;
+    Port to listen on. Default is 8000.
+  ipv6;;
+    Whether to use IPv6. Default is false.
+  accesslog;;
+    Where to output the access log. Default is stdout.
+  errorlog;;
+    Where to output the error log. Default is stderr.
+  templates;;
+    Where to find the HTML templates. Default is install path.
+  maxchanges;;
+    Maximum number of changes to list on the changelog. Default is 10.
+  maxfiles;;
+    Maximum number of files to list per changeset. Default is 10.
+  allowpull;;
+    Whether to allow pulling from the repository. Default is true.
 
 AUTHOR
 ------

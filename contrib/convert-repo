@@ -20,7 +20,7 @@
 # This updates the mapfile on each commit copied, so it can be
 # interrupted and can be run repeatedly to copy new commits.
 
-import sys, os, zlib, sha
+import sys, os, zlib, sha, time
 from mercurial import hg, ui, util
 
 class convert_git:
@@ -31,20 +31,23 @@ class convert_git:
         h = file(self.path + "/.git/HEAD").read()[:-1]
         return [h]
 
+    def catfile(self, rev, type):
+        if rev == "0" * 40: raise IOError()
+        path = os.getcwd()
+        os.chdir(self.path)
+        fh = os.popen("git-cat-file %s %s 2>/dev/null" % (type, rev))
+        os.chdir(path)
+        return fh.read()
+
     def getfile(self, name, rev):
-        a = file(self.path + ("/.git/objects/%s/%s"
-                              % (rev[:2], rev[2:]))).read()
-        b = zlib.decompress(a)
-        if sha.sha(b).hexdigest() != rev: raise "bad hash"
-        head, text = b.split('\0', 1)
-        return text
+        return self.catfile(rev, "blob")
 
     def getchanges(self, version):
         path = os.getcwd()
         os.chdir(self.path)
-        fh = os.popen("git-diff-tree -m -r %s" % (version))
+        fh = os.popen("git-diff-tree --root -m -r %s" % (version))
         os.chdir(path)
-        
+
         changes = []
         for l in fh:
             if "\t" not in l: continue
@@ -56,7 +59,7 @@ class convert_git:
         return changes
 
     def getcommit(self, version):
-        c = self.getfile("", version) # read the commit hash
+        c = self.catfile(version, "commit") # read the commit hash
         end = c.find("\n\n")
         message = c[end+2:]
         l = c[:end].splitlines()
@@ -69,7 +72,7 @@ class convert_git:
                 date = " ".join(p[-2:])
                 author = " ".join(p[:-2])
                 if author[0] == "<": author = author[1:-1]
-            if n == "committer": 
+            if n == "committer":
                 p = v.split()
                 date = " ".join(p[-2:])
                 committer = " ".join(p[:-2])
@@ -77,6 +80,18 @@ class convert_git:
                 message += "\ncommitter: %s %s\n" % (committer, date)
             if n == "parent": parents.append(v)
         return (parents, author, date, message)
+
+    def gettags(self):
+        tags = {}
+        for f in os.listdir(self.path + "/.git/refs/tags"):
+            try:
+                h = file(self.path + "/.git/refs/tags/" + f).read().strip()
+                p, a, d, m = self.getcommit(h)
+                if not p: p = [h] # git is ugly, don't blame me
+                tags[f] = p[0]
+            except:
+                pass
+        return tags
 
 class convert_mercurial:
     def __init__(self, path):
@@ -88,22 +103,22 @@ class convert_mercurial:
         h = self.repo.changelog.heads()
         h = [ hg.hex(x) for x in h ]
         return h
-        
+
     def putfile(self, f, e, data):
         self.repo.wfile(f, "w").write(data)
+        if self.repo.dirstate.state(f) == '?':
+            self.repo.dirstate.update([f], "a")
+
         util.set_exec(self.repo.wjoin(f), e)
 
     def delfile(self, f):
         try:
             os.unlink(self.repo.wjoin(f))
-            self.repo.remove([f])
+            #self.repo.remove([f])
         except:
             pass
 
     def putcommit(self, files, parents, author, dest, text):
-        if not parents: parents = ["0" * 40]
-        if len(parents) < 2: parents.append("0" * 40)
-
         seen = {}
         pl = []
         for p in parents:
@@ -112,16 +127,44 @@ class convert_mercurial:
                 seen[p] = 1
         parents = pl
 
+        if len(parents) < 2: parents.append("0" * 40)
+        if len(parents) < 2: parents.append("0" * 40)
         p2 = parents.pop(0)
-        c = self.repo.changelog.count()
+
         while parents:
             p1 = p2
             p2 = parents.pop(0)
-            self.repo.rawcommit(files, text, author, dest, 
+            self.repo.rawcommit(files, text, author, dest,
                                 hg.bin(p1), hg.bin(p2))
             text = "(octopus merge fixup)\n"
 
-        return hg.hex(self.repo.changelog.node(c))
+        return hg.hex(self.repo.changelog.tip())
+
+    def puttags(self, tags):
+        try:
+            old = self.repo.wfile(".hgtags").read()
+            oldlines = old.splitlines(1)
+            oldlines.sort()
+        except:
+            oldlines = []
+
+        k = tags.keys()
+        k.sort()
+        newlines = []
+        for tag in k:
+            newlines.append("%s %s\n" % (tags[tag], tag))
+
+        newlines.sort()
+
+        if newlines != oldlines:
+            print "updating tags"
+            f = self.repo.wfile(".hgtags", "w")
+            f.write("".join(newlines))
+            f.close()
+            if not oldlines: self.repo.add([".hgtags"])
+            date = "%s 0" % time.mktime(time.gmtime())
+            self.repo.rawcommit([".hgtags"], "update tags", "convert-repo",
+                                date, self.repo.changelog.tip(), hg.nullid)
 
 class convert:
     def __init__(self, source, dest, mapfile):
@@ -155,6 +198,7 @@ class convert:
         visit = parents.keys()
         seen = {}
         children = {}
+
         while visit:
             n = visit.pop(0)
             if n in seen: continue
@@ -169,7 +213,7 @@ class convert:
 
         s = []
         removed = {}
-        visit = parents.keys()
+        visit = children.keys()
         while visit:
             n = visit.pop(0)
             if n in removed: continue
@@ -222,6 +266,15 @@ class convert:
             desc = self.commitcache[c][3].splitlines()[0]
             print num, desc
             self.copy(c)
+
+        tags = self.source.gettags()
+        ctags = {}
+        for k in tags:
+            v = tags[k]
+            if v in self.map:
+                ctags[k] = self.map[v]
+
+        self.dest.puttags(ctags)
 
 gitpath, hgpath, mapfile = sys.argv[1:]
 

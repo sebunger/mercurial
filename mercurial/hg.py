@@ -10,25 +10,39 @@ import util
 from revlog import *
 from demandload import *
 demandload(globals(), "re lock urllib urllib2 transaction time socket")
-demandload(globals(), "tempfile httprangereader bdiff")
-demandload(globals(), "bisect select")
+demandload(globals(), "tempfile httprangereader bdiff urlparse")
+demandload(globals(), "bisect errno select stat")
 
 class filelog(revlog):
     def __init__(self, opener, path):
         revlog.__init__(self, opener,
-                        os.path.join("data", path + ".i"),
-                        os.path.join("data", path + ".d"))
+                        os.path.join("data", self.encodedir(path + ".i")),
+                        os.path.join("data", self.encodedir(path + ".d")))
+
+    # This avoids a collision between a file named foo and a dir named
+    # foo.i or foo.d
+    def encodedir(self, path):
+        return (path
+                .replace(".hg/", ".hg.hg/")
+                .replace(".i/", ".i.hg/")
+                .replace(".d/", ".d.hg/"))
+
+    def decodedir(self, path):
+        return (path
+                .replace(".d.hg/", ".d/")
+                .replace(".i.hg/", ".i/")
+                .replace(".hg.hg/", ".hg/"))
 
     def read(self, node):
         t = self.revision(node)
-        if t[:2] != '\1\n':
+        if not t.startswith('\1\n'):
             return t
         s = t.find('\1\n', 2)
         return t[s+2:]
 
     def readmeta(self, node):
         t = self.revision(node)
-        if t[:2] != '\1\n':
+        if not t.startswith('\1\n'):
             return t
         s = t.find('\1\n', 2)
         mt = t[2:s]
@@ -38,7 +52,7 @@ class filelog(revlog):
         return m
 
     def add(self, text, meta, transaction, link, p1=None, p2=None):
-        if meta or text[:2] == '\1\n':
+        if meta or text.startswith('\1\n'):
             mt = ""
             if meta:
                 mt = [ "%s: %s\n" % (k, v) for k,v in meta.items() ]
@@ -125,7 +139,8 @@ class manifest(revlog):
         else:
             return mdiff.textdiff(a, b)
 
-    def add(self, map, flags, transaction, link, p1=None, p2=None,changed=None):
+    def add(self, map, flags, transaction, link, p1=None, p2=None,
+            changed=None):
         # directly generate the mdiff delta from the data collected during
         # the bisect loop below
         def gendelta(delta):
@@ -137,7 +152,8 @@ class manifest(revlog):
                 l = delta[i][4]
                 if l == None:
                     l = ""
-                while i < len(delta) - 1 and start <= delta[i+1][2] and end >= delta[i+1][2]:
+                while i < len(delta) - 1 and start <= delta[i+1][2] \
+                          and end >= delta[i+1][2]:
                     if delta[i+1][3] > end:
                         end = delta[i+1][3]
                     if delta[i+1][4]:
@@ -177,7 +193,8 @@ class manifest(revlog):
 
         # if we're using the listcache, make sure it is valid and
         # parented by the same node we're diffing against
-        if not changed or not self.listcache or not p1 or self.mapcache[0] != p1:
+        if not changed or not self.listcache or not p1 or \
+               self.mapcache[0] != p1:
             files = map.keys()
             files.sort()
 
@@ -201,14 +218,15 @@ class manifest(revlog):
 
             for w in work:
                 f = w[0]
-                # bs will either be the index of the item or the insertion point
+                # bs will either be the index of the item or the insert point
                 bs = bisect.bisect(addlist, f, bs)
                 if bs < len(addlist):
                     fn = addlist[bs][:addlist[bs].index('\0')]
                 else:
                     fn = None
                 if w[1] == 0:
-                    l = "%s\000%s%s\n" % (f, hex(map[f]), flags[f] and "x" or '')
+                    l = "%s\000%s%s\n" % (f, hex(map[f]),
+                                          flags[f] and "x" or '')
                 else:
                     l = None
                 start = bs
@@ -216,7 +234,8 @@ class manifest(revlog):
                     # item not found, insert a new one
                     end = bs
                     if w[1] == 1:
-                        sys.stderr.write("failed to remove %s from manifest" % f)
+                        sys.stderr.write("failed to remove %s from manifest\n"
+                                         % f)
                         sys.exit(1)
                 else:
                     # item is found, replace/delete the existing line
@@ -231,7 +250,7 @@ class manifest(revlog):
 
         text = "".join(self.addlist)
         if cachedelta and mdiff.patch(self.listcache[0], cachedelta) != text:
-            sys.stderr.write("manifest delta failure")
+            sys.stderr.write("manifest delta failure\n")
             sys.exit(1)
         n = self.addrevision(text, transaction, link, p1, p2, cachedelta)
         self.mapcache = (n, map, flags)
@@ -261,7 +280,10 @@ class changelog(revlog):
 
     def add(self, manifest, list, desc, transaction, p1=None, p2=None,
                   user=None, date=None):
-        date = date or "%d %d" % (time.time(), time.timezone)
+        if not date:
+            if time.daylight: offset = time.altzone
+            else: offset = time.timezone
+            date = "%d %d" % (time.time(), offset)
         list.sort()
         l = [hex(manifest), user, date] + list + ["", desc]
         text = "\n".join(l)
@@ -276,6 +298,41 @@ class dirstate:
         self.map = None
         self.pl = None
         self.copies = {}
+        self.ignorefunc = None
+
+    def wjoin(self, f):
+        return os.path.join(self.root, f)
+
+    def getcwd(self):
+        cwd = os.getcwd()
+        if cwd == self.root: return ''
+        return cwd[len(self.root) + 1:]
+
+    def ignore(self, f):
+        if not self.ignorefunc:
+            bigpat = []
+            try:
+                l = file(self.wjoin(".hgignore"))
+                for pat in l:
+                    p = pat.rstrip()
+                    if p:
+                        try:
+                            re.compile(p)
+                        except:
+                            self.ui.warn("ignoring invalid ignore"
+                                         + " regular expression '%s'\n" % p)
+                        else:
+                            bigpat.append(p)
+            except IOError: pass
+
+            if bigpat:
+                s = "(?:%s)" % (")|(?:".join(bigpat))
+                r = re.compile(s)
+                self.ignorefunc = r.search
+            else:
+                self.ignorefunc = util.never
+
+        return self.ignorefunc(f)
 
     def __del__(self):
         if self.dirty:
@@ -297,8 +354,12 @@ class dirstate:
             self.read()
         return self.pl
 
+    def markdirty(self):
+        if not self.dirty:
+            self.dirty = 1
+
     def setparents(self, p1, p2 = nullid):
-        self.dirty = 1
+        self.markdirty()
         self.pl = p1, p2
 
     def state(self, key):
@@ -333,13 +394,13 @@ class dirstate:
 
     def copy(self, source, dest):
         self.read()
-        self.dirty = 1
+        self.markdirty()
         self.copies[dest] = source
 
     def copied(self, file):
         return self.copies.get(file, None)
 
-    def update(self, files, state):
+    def update(self, files, state, **kw):
         ''' current states:
         n  normal
         m  needs merging
@@ -348,18 +409,20 @@ class dirstate:
 
         if not files: return
         self.read()
-        self.dirty = 1
+        self.markdirty()
         for f in files:
             if state == "r":
                 self.map[f] = ('r', 0, 0, 0)
             else:
                 s = os.stat(os.path.join(self.root, f))
-                self.map[f] = (state, s.st_mode, s.st_size, s.st_mtime)
+                st_size = kw.get('st_size', s.st_size)
+                st_mtime = kw.get('st_mtime', s.st_mtime)
+                self.map[f] = (state, s.st_mode, st_size, st_mtime)
 
     def forget(self, files):
         if not files: return
         self.read()
-        self.dirty = 1
+        self.markdirty()
         for f in files:
             try:
                 del self.map[f]
@@ -369,7 +432,7 @@ class dirstate:
 
     def clear(self):
         self.map = {}
-        self.dirty = 1
+        self.markdirty()
 
     def write(self):
         st = self.opener("dirstate", "w")
@@ -382,61 +445,154 @@ class dirstate:
             st.write(e + f)
         self.dirty = 0
 
-    def changes(self, files, ignore):
+    def filterfiles(self, files):
+        ret = {}
+        unknown = []
+
+        for x in files:
+            if x is '.':
+                return self.map.copy()
+            if x not in self.map:
+                unknown.append(x)
+            else:
+                ret[x] = self.map[x]
+
+        if not unknown:
+            return ret
+
+        b = self.map.keys()
+        b.sort()
+        blen = len(b)
+
+        for x in unknown:
+            bs = bisect.bisect(b, x)
+            if bs != 0 and  b[bs-1] == x:
+                ret[x] = self.map[x]
+                continue
+            while bs < blen:
+                s = b[bs]
+                if len(s) > len(x) and s.startswith(x) and s[len(x)] == '/':
+                    ret[s] = self.map[s]
+                else:
+                    break
+                bs += 1
+        return ret
+
+    def walk(self, files = None, match = util.always, dc=None):
         self.read()
-        dc = self.map.copy()
-        lookup, changed, added, unknown = [], [], [], []
 
-        # compare all files by default
-        if not files: files = [self.root]
+        # walk all files by default
+        if not files:
+            files = [self.root]
+            if not dc:
+                dc = self.map.copy()
+        elif not dc:
+            dc = self.filterfiles(files)
 
-        # recursive generator of all files listed
-        def walk(files):
-            for f in util.unique(files):
-                f = os.path.join(self.root, f)
-                if os.path.isdir(f):
+        known = {'.hg': 1}
+        def seen(fn):
+            if fn in known: return True
+            known[fn] = 1
+        def traverse():
+            for ff in util.unique(files):
+                f = os.path.join(self.root, ff)
+                try:
+                    st = os.stat(f)
+                except OSError, inst:
+                    if ff not in dc: self.ui.warn('%s: %s\n' % (
+                        util.pathto(self.getcwd(), ff),
+                        inst.strerror))
+                    continue
+                if stat.S_ISDIR(st.st_mode):
                     for dir, subdirs, fl in os.walk(f):
                         d = dir[len(self.root) + 1:]
+                        nd = util.normpath(d)
+                        if nd == '.': nd = ''
+                        if seen(nd):
+                            subdirs[:] = []
+                            continue
                         for sd in subdirs:
-                            if ignore(os.path.join(d, sd +'/')):
+                            ds = os.path.join(nd, sd +'/')
+                            if self.ignore(ds) or not match(ds):
                                 subdirs.remove(sd)
+                        subdirs.sort()
+                        fl.sort()
                         for fn in fl:
                             fn = util.pconvert(os.path.join(d, fn))
-                            yield fn
+                            yield 'f', fn
+                elif stat.S_ISREG(st.st_mode):
+                    yield 'f', ff
                 else:
-                    yield f[len(self.root) + 1:]
+                    kind = 'unknown'
+                    if stat.S_ISCHR(st.st_mode): kind = 'character device'
+                    elif stat.S_ISBLK(st.st_mode): kind = 'block device'
+                    elif stat.S_ISFIFO(st.st_mode): kind = 'fifo'
+                    elif stat.S_ISLNK(st.st_mode): kind = 'symbolic link'
+                    elif stat.S_ISSOCK(st.st_mode): kind = 'socket'
+                    self.ui.warn('%s: unsupported file type (type is %s)\n' % (
+                        util.pathto(self.getcwd(), ff),
+                        kind))
 
-            for k in dc.keys():
-                yield k
+            ks = dc.keys()
+            ks.sort()
+            for k in ks:
+                yield 'm', k
 
-        for fn in util.unique(walk(files)):
-            try: s = os.stat(os.path.join(self.root, fn))
-            except: continue
+        # yield only files that match: all in dirstate, others only if
+        # not in .hgignore
 
-            if fn in dc:
-                c = dc[fn]
+        for src, fn in util.unique(traverse()):
+            fn = util.normpath(fn)
+            if seen(fn): continue
+            if fn not in dc and self.ignore(fn):
+                continue
+            if match(fn):
+                yield src, fn
+
+    def changes(self, files=None, match=util.always):
+        self.read()
+        if not files:
+            dc = self.map.copy()
+        else:
+            dc = self.filterfiles(files)
+        lookup, modified, added, unknown = [], [], [], []
+        removed, deleted = [], []
+
+        for src, fn in self.walk(files, match, dc=dc):
+            try:
+                s = os.stat(os.path.join(self.root, fn))
+            except OSError:
+                continue
+            if not stat.S_ISREG(s.st_mode):
+                continue
+            c = dc.get(fn)
+            if c:
                 del dc[fn]
-
                 if c[0] == 'm':
-                    changed.append(fn)
+                    modified.append(fn)
                 elif c[0] == 'a':
                     added.append(fn)
                 elif c[0] == 'r':
                     unknown.append(fn)
                 elif c[2] != s.st_size or (c[1] ^ s.st_mode) & 0100:
-                    changed.append(fn)
-                elif c[1] != s.st_mode or c[3] != s.st_mtime:
+                    modified.append(fn)
+                elif c[3] != s.st_mtime:
                     lookup.append(fn)
             else:
-                if not ignore(fn): unknown.append(fn)
+                unknown.append(fn)
 
-        return (lookup, changed, added, dc.keys(), unknown)
+        for fn, c in [(fn, c) for fn, c in dc.items() if match(fn)]:
+            if c[0] == 'r':
+                removed.append(fn)
+            else:
+                deleted.append(fn)
+        return (lookup, modified, added, removed + deleted, unknown)
 
 # used to avoid circular references so destructors work
 def opener(base):
     p = base
     def o(path, mode="r"):
-        if p[:7] == "http://":
+        if p.startswith("http://"):
             f = os.path.join(p, urllib.quote(path))
             return httprangereader.httprangereader(f)
 
@@ -465,7 +621,7 @@ class RepoError(Exception): pass
 class localrepository:
     def __init__(self, ui, path=None, create=0):
         self.remote = 0
-        if path and path[:7] == "http://":
+        if path and path.startswith("http://"):
             self.remote = 1
             self.path = path
         else:
@@ -481,7 +637,7 @@ class localrepository:
             if not create and not os.path.isdir(self.path):
                 raise RepoError("repository %s not found" % self.path)
 
-        self.root = path
+        self.root = os.path.abspath(path)
         self.ui = ui
 
         if create:
@@ -492,7 +648,6 @@ class localrepository:
         self.wopener = opener(self.root)
         self.manifest = manifest(self.opener)
         self.changelog = changelog(self.opener)
-        self.ignorefunc = None
         self.tagscache = None
         self.nodetagscache = None
 
@@ -501,29 +656,6 @@ class localrepository:
             try:
                 self.ui.readconfig(self.opener("hgrc"))
             except IOError: pass
-
-    def ignore(self, f):
-        if not self.ignorefunc:
-            bigpat = ["^.hg/$"]
-            try:
-                l = file(self.wjoin(".hgignore"))
-                for pat in l:
-                    if pat != "\n":
-                        p = util.pconvert(pat[:-1])
-                        try:
-                            r = re.compile(p)
-                        except:
-                            self.ui.warn("ignoring invalid ignore"
-                                         + " regular expression '%s'\n" % p)
-                        else:
-                            bigpat.append(util.pconvert(pat[:-1]))
-            except IOError: pass
-
-            s = "(?:%s)" % (")|(?:".join(bigpat))
-            r = re.compile(s)
-            self.ignorefunc = r.search
-
-        return self.ignorefunc(f)
 
     def hook(self, name, **args):
         s = self.ui.config("hooks", name)
@@ -620,6 +752,9 @@ class localrepository:
         if self.remote: return -1
         return os.stat(self.path).st_dev
 
+    def local(self):
+        return not self.remote
+
     def join(self, f):
         return os.path.join(self.path, f)
 
@@ -631,9 +766,7 @@ class localrepository:
         return filelog(self.opener, f)
 
     def getcwd(self):
-        cwd = os.getcwd()
-        if cwd == self.root: return ''
-        return cwd[len(self.root) + 1:]
+        return self.dirstate.getcwd()
 
     def wfile(self, f, mode='r'):
         return self.wopener(f, mode)
@@ -644,11 +777,15 @@ class localrepository:
             ds = self.opener("dirstate").read()
         except IOError:
             ds = ""
-        self.opener("undo.dirstate", "w").write(ds)
+        self.opener("journal.dirstate", "w").write(ds)
 
-        return transaction.transaction(self.ui.warn,
-                                       self.opener, self.join("journal"),
-                                       self.join("undo"))
+        def after():
+            util.rename(self.join("journal"), self.join("undo"))
+            util.rename(self.join("journal.dirstate"),
+                        self.join("undo.dirstate"))
+
+        return transaction.transaction(self.ui.warn, self.opener,
+                                       self.join("journal"), after)
 
     def recover(self):
         lock = self.lock()
@@ -724,7 +861,8 @@ class localrepository:
         if update_dirstate:
             self.dirstate.setparents(n, nullid)
 
-    def commit(self, files = None, text = "", user = None, date = None):
+    def commit(self, files = None, text = "", user = None, date = None,
+               match = util.always, force=False):
         commit = []
         remove = []
         if files:
@@ -737,16 +875,16 @@ class localrepository:
                 else:
                     self.ui.warn("%s not tracked!\n" % f)
         else:
-            (c, a, d, u) = self.changes(None, None)
+            (c, a, d, u) = self.changes(match = match)
             commit = c + a
             remove = d
 
-        if not commit and not remove:
+        if not commit and not remove and not force:
             self.ui.status("nothing changed\n")
-            return
+            return None
 
         if not self.hook("precommit"):
-            return 1
+            return None
 
         p1, p2 = self.dirstate.parents()
         c1 = self.changelog.read(p1)
@@ -787,7 +925,8 @@ class localrepository:
         for f in remove:
             if f in m1:
                 del m1[f]
-        mn = self.manifest.add(m1, mf1, tr, linkrev, c1[0], c2[0], (new,remove))
+        mn = self.manifest.add(m1, mf1, tr, linkrev, c1[0], c2[0],
+                               (new, remove))
 
         # add changeset
         new = new.keys()
@@ -799,12 +938,11 @@ class localrepository:
             edittext += "".join(["HG: removed %s\n" % f for f in remove])
             edittext = self.ui.edit(edittext)
             if not edittext.rstrip():
-                return 1
+                return None
             text = edittext
 
         user = user or self.ui.username()
         n = self.changelog.add(mn, new, text, tr, p1, p2, user, date)
-
         tr.close()
 
         self.dirstate.setparents(n)
@@ -812,9 +950,19 @@ class localrepository:
         self.dirstate.forget(remove)
 
         if not self.hook("commit", node=hex(n)):
-            return 1
+            return None
+        return n
 
-    def changes(self, node1, node2, files=None):
+    def walk(self, node = None, files = [], match = util.always):
+        if node:
+            for fn in self.manifest.read(self.changelog.read(node)[0]):
+                if match(fn): yield 'm', fn
+        else:
+            for src, fn in self.dirstate.walk(files, match):
+                yield src, fn
+
+    def changes(self, node1 = None, node2 = None, files = [],
+                match = util.always):
         mf2, u = None, []
 
         def fcmp(fn, mf):
@@ -822,16 +970,23 @@ class localrepository:
             t2 = self.file(fn).revision(mf[fn])
             return cmp(t1, t2)
 
+        def mfmatches(node):
+            mf = dict(self.manifest.read(node))
+            for fn in mf.keys():
+                if not match(fn):
+                    del mf[fn]
+            return mf
+
         # are we comparing the working directory?
         if not node2:
-            l, c, a, d, u = self.dirstate.changes(files, self.ignore)
+            l, c, a, d, u = self.dirstate.changes(files, match)
 
             # are we comparing working dir against its parent?
             if not node1:
                 if l:
                     # do a full compare of any files that might have changed
                     change = self.changelog.read(self.dirstate.parents()[0])
-                    mf2 = self.manifest.read(change[0])
+                    mf2 = mfmatches(change[0])
                     for f in l:
                         if fcmp(f, mf2):
                             c.append(f)
@@ -846,20 +1001,20 @@ class localrepository:
         if not node2:
             if not mf2:
                 change = self.changelog.read(self.dirstate.parents()[0])
-                mf2 = self.manifest.read(change[0]).copy()
+                mf2 = mfmatches(change[0])
             for f in a + c + l:
                 mf2[f] = ""
             for f in d:
                 if f in mf2: del mf2[f]
         else:
             change = self.changelog.read(node2)
-            mf2 = self.manifest.read(change[0])
+            mf2 = mfmatches(change[0])
 
         # flush lists from dirstate before comparing manifests
         c, a = [], []
 
         change = self.changelog.read(node1)
-        mf1 = self.manifest.read(change[0]).copy()
+        mf1 = mfmatches(change[0])
 
         for fn in mf2:
             if mf1.has_key(fn):
@@ -883,8 +1038,8 @@ class localrepository:
             if not os.path.exists(p):
                 self.ui.warn("%s does not exist!\n" % f)
             elif not os.path.isfile(p):
-                self.ui.warn("%s not added: mercurial only supports files currently\n" % f)
-            elif self.dirstate.state(f) == 'n':
+                self.ui.warn("%s not added: only files supported currently\n" % f)
+            elif self.dirstate.state(f) in 'an':
                 self.ui.warn("%s already tracked!\n" % f)
             else:
                 self.dirstate.update([f], "a")
@@ -911,9 +1066,9 @@ class localrepository:
 
     def copy(self, source, dest):
         p = self.wjoin(dest)
-        if not os.path.exists(dest):
+        if not os.path.exists(p):
             self.ui.warn("%s does not exist!\n" % dest)
-        elif not os.path.isfile(dest):
+        elif not os.path.isfile(p):
             self.ui.warn("copy failed: %s is not a file\n" % dest)
         else:
             if self.dirstate.state(dest) == '?':
@@ -922,6 +1077,112 @@ class localrepository:
 
     def heads(self):
         return self.changelog.heads()
+
+    # branchlookup returns a dict giving a list of branches for
+    # each head.  A branch is defined as the tag of a node or
+    # the branch of the node's parents.  If a node has multiple
+    # branch tags, tags are eliminated if they are visible from other
+    # branch tags.
+    #
+    # So, for this graph:  a->b->c->d->e
+    #                       \         /
+    #                        aa -----/
+    # a has tag 2.6.12
+    # d has tag 2.6.13
+    # e would have branch tags for 2.6.12 and 2.6.13.  Because the node
+    # for 2.6.12 can be reached from the node 2.6.13, that is eliminated
+    # from the list.
+    #
+    # It is possible that more than one head will have the same branch tag.
+    # callers need to check the result for multiple heads under the same
+    # branch tag if that is a problem for them (ie checkout of a specific
+    # branch).
+    #
+    # passing in a specific branch will limit the depth of the search
+    # through the parents.  It won't limit the branches returned in the
+    # result though.
+    def branchlookup(self, heads=None, branch=None):
+        if not heads:
+            heads = self.heads()
+        headt = [ h for h in heads ]
+        chlog = self.changelog
+        branches = {}
+        merges = []
+        seenmerge = {}
+
+        # traverse the tree once for each head, recording in the branches
+        # dict which tags are visible from this head.  The branches
+        # dict also records which tags are visible from each tag
+        # while we traverse.
+        while headt or merges:
+            if merges:
+                n, found = merges.pop()
+                visit = [n]
+            else:
+                h = headt.pop()
+                visit = [h]
+                found = [h]
+                seen = {}
+            while visit:
+                n = visit.pop()
+                if n in seen:
+                    continue
+                pp = chlog.parents(n)
+                tags = self.nodetags(n)
+                if tags:
+                    for x in tags:
+                        if x == 'tip':
+                            continue
+                        for f in found:
+                            branches.setdefault(f, {})[n] = 1
+                        branches.setdefault(n, {})[n] = 1
+                        break
+                    if n not in found:
+                        found.append(n)
+                    if branch in tags:
+                        continue
+                seen[n] = 1
+                if pp[1] != nullid and n not in seenmerge:
+                    merges.append((pp[1], [x for x in found]))
+                    seenmerge[n] = 1
+                if pp[0] != nullid:
+                    visit.append(pp[0])
+        # traverse the branches dict, eliminating branch tags from each
+        # head that are visible from another branch tag for that head.
+        out = {}
+        viscache = {}
+        for h in heads:
+            def visible(node):
+                if node in viscache:
+                    return viscache[node]
+                ret = {}
+                visit = [node]
+                while visit:
+                    x = visit.pop()
+                    if x in viscache:
+                        ret.update(viscache[x])
+                    elif x not in ret:
+                        ret[x] = 1
+                        if x in branches:
+                            visit[len(visit):] = branches[x].keys()
+                viscache[node] = ret
+                return ret
+            if h not in branches:
+                continue
+            # O(n^2), but somewhat limited.  This only searches the
+            # tags visible from a specific head, not all the tags in the
+            # whole repo.
+            for b in branches[h]:
+                vis = False
+                for bb in branches[h].keys():
+                    if b != bb:
+                        if b in visible(bb):
+                            vis = True
+                            break
+                if not vis:
+                    l = out.setdefault(h, [])
+                    l[len(l):] = self.nodetags(b)
+        return out
 
     def branches(self, nodes):
         if not nodes: nodes = [self.changelog.tip()]
@@ -981,17 +1242,22 @@ class localrepository:
 
         return nl
 
-    def findincoming(self, remote, base={}):
+    def findincoming(self, remote, base=None, heads=None):
         m = self.changelog.nodemap
         search = []
         fetch = []
         seen = {}
         seenbranch = {}
+        if base == None:
+            base = {}
 
         # assume we're closer to the tip than the root
         # and start by examining the heads
         self.ui.status("searching for changes\n")
-        heads = remote.heads()
+
+        if not heads:
+            heads = remote.heads()
+
         unknown = []
         for h in heads:
             if h not in m:
@@ -1093,9 +1359,11 @@ class localrepository:
 
         return fetch
 
-    def findoutgoing(self, remote):
-        base = {}
-        self.findincoming(remote, base)
+    def findoutgoing(self, remote, base=None, heads=None):
+        if base == None:
+            base = {}
+            self.findincoming(remote, base, heads)
+
         remain = dict.fromkeys(self.changelog.nodemap)
 
         # prune everything remote has from the tree
@@ -1135,12 +1403,27 @@ class localrepository:
         cg = remote.changegroup(fetch)
         return self.addchangegroup(cg)
 
-    def push(self, remote):
+    def push(self, remote, force=False):
         lock = remote.lock()
-        update = self.findoutgoing(remote)
+
+        base = {}
+        heads = remote.heads()
+        inc = self.findincoming(remote, base, heads)
+        if not force and inc:
+            self.ui.warn("abort: unsynced remote changes!\n")
+            self.ui.status("(did you forget to sync? use push -f to force)\n")
+            return 1
+
+        update = self.findoutgoing(remote, base)
         if not update:
             self.ui.status("no changes found\n")
             return 1
+        elif not force:
+            if len(heads) < len(self.changelog.heads()):
+                self.ui.warn("abort: push creates new remote branches!\n")
+                self.ui.status("(did you forget to merge?" +
+                               " use push -f to force)\n")
+                return 1
 
         cg = self.changegroup(update)
         return remote.addchangegroup(cg)
@@ -1150,6 +1433,9 @@ class localrepository:
             def __init__(self, generator):
                 self.g = generator
                 self.buf = ""
+            def fillbuf(self):
+                self.buf += "".join(self.g)
+
             def read(self, l):
                 while l > len(self.buf):
                     try:
@@ -1230,7 +1516,7 @@ class localrepository:
         mo = self.manifest.addgroup(getgroup(), revmap, tr)
 
         # process the files
-        self.ui.status("adding file revisions\n")
+        self.ui.status("adding file changes\n")
         while 1:
             f = getchunk()
             if not f: break
@@ -1241,11 +1527,15 @@ class localrepository:
             revisions += fl.count() - o
             files += 1
 
-        self.ui.status(("modified %d files, added %d changesets" +
-                        " and %d new revisions\n")
-                       % (files, changesets, revisions))
+        self.ui.status(("added %d changesets" +
+                        " with %d changes to %d files\n")
+                       % (changesets, revisions, files))
 
         tr.close()
+
+        if not self.hook("changegroup"):
+            return 1
+
         return
 
     def update(self, node, allow=False, force=False, choose=None,
@@ -1253,7 +1543,7 @@ class localrepository:
         pl = self.dirstate.parents()
         if not force and pl[1] != nullid:
             self.ui.warn("aborting: outstanding uncommitted merges\n")
-            return
+            return 1
 
         p1, p2 = pl[0], node
         pa = self.changelog.ancestor(p1, p2)
@@ -1267,7 +1557,7 @@ class localrepository:
         ma = self.manifest.read(man)
         mfa = self.manifest.readflags(man)
 
-        (c, a, d, u) = self.changes(None, None)
+        (c, a, d, u) = self.changes()
 
         # is this a jump, or a merge?  i.e. is there a linear path
         # from p1 to p2?
@@ -1407,7 +1697,7 @@ class localrepository:
                 get[f] = merge[f][1]
             merge = {}
 
-        if linear_path:
+        if linear_path or force:
             # we don't need to do any magic, just jump to the new rev
             mode = 'n'
             p1, p2 = p2, nullid
@@ -1422,7 +1712,8 @@ class localrepository:
                     if f in merge: cf = " (resolve)"
                     self.ui.status(" %s%s\n" % (f, cf))
                 self.ui.warn("aborting update spanning branches!\n")
-                self.ui.status("(use update -m to perform a branch merge)\n")
+                self.ui.status("(use update -m to merge across branches" +
+                               " or -C to lose changes)\n")
                 return 1
             # we have to remember what files we needed to get/change
             # because any file that's different from either one of its
@@ -1459,14 +1750,29 @@ class localrepository:
             self.merge3(f, m, o)
             util.set_exec(self.wjoin(f), flag)
             if moddirstate:
-                self.dirstate.update([f], 'm')
+                if mode == 'm':
+                    # only update dirstate on branch merge, otherwise we
+                    # could mark files with changes as unchanged
+                    self.dirstate.update([f], mode)
+                elif p2 == nullid:
+                    # update dirstate from parent1's manifest
+                    m1n = self.changelog.read(p1)[0]
+                    m1 = self.manifest.read(m1n)
+                    f_len = len(self.file(f).read(m1[f]))
+                    self.dirstate.update([f], mode, st_size=f_len, st_mtime=0)
+                else:
+                    self.ui.warn("Second parent without branch merge!?\n"
+                                 "Dirstate for file %s may be wrong.\n" % f)
 
         remove.sort()
         for f in remove:
             self.ui.note("removing %s\n" % f)
-            os.unlink(f)
+            try:
+                os.unlink(self.wjoin(f))
+            except OSError, inst:
+                self.ui.warn("update failed to remove %s: %s!\n" % (f, inst))
             # try removing directories that might now be empty
-            try: os.removedirs(os.path.dirname(f))
+            try: os.removedirs(os.path.dirname(self.wjoin(f)))
             except: pass
         if moddirstate:
             if mode == 'n':
@@ -1495,8 +1801,8 @@ class localrepository:
         self.ui.debug("file %s: other %s ancestor %s\n" %
                               (fn, short(other), short(base)))
 
-        cmd = self.ui.config("ui", "merge") or \
-              os.environ.get("HGMERGE", "hgmerge")
+        cmd = (os.environ.get("HGMERGE") or self.ui.config("ui", "merge")
+               or "hgmerge")
         r = os.system("%s %s %s %s" % (cmd, a, b, c))
         if r:
             self.ui.warn("merging %s failed!\n" % fn)
@@ -1629,7 +1935,7 @@ class localrepository:
             # cross-check
             for node in filenodes[f]:
                 self.ui.warn("node %s in manifests not in %s\n"
-                             % (hex(n), f))
+                             % (hex(node), f))
                 errors += 1
 
         self.ui.status("%d files, %d changesets, %d total revisions\n" %
@@ -1639,9 +1945,17 @@ class localrepository:
             self.ui.warn("%d integrity errors encountered!\n" % errors)
             return 1
 
-class httprepository:
+class remoterepository:
+    def local(self):
+        return False
+
+class httprepository(remoterepository):
     def __init__(self, ui, path):
-        self.url = path
+        # fix missing / after hostname
+        s = urlparse.urlsplit(path)
+        partial = s[2]
+        if not partial: partial = "/"
+        self.url = urlparse.urlunsplit((s[0], s[1], partial, '', ''))
         self.ui = ui
         no_list = [ "localhost", "127.0.0.1" ]
         host = ui.config("http_proxy", "host")
@@ -1667,8 +1981,11 @@ class httprepository:
         # Note: urllib2 takes proxy values from the environment and those will
         # take precedence
         for env in ["HTTP_PROXY", "http_proxy", "no_proxy"]:
-            if os.environ.has_key(env):
-                del os.environ[env]
+            try:
+                if os.environ.has_key(env):
+                    del os.environ[env]
+            except OSError:
+                pass
 
         proxy_handler = urllib2.BaseHandler()
         if host and not no_proxy:
@@ -1692,7 +2009,23 @@ class httprepository:
         q.update(args)
         qs = urllib.urlencode(q)
         cu = "%s?%s" % (self.url, qs)
-        return urllib2.urlopen(cu)
+        resp = urllib2.urlopen(cu)
+        proto = resp.headers['content-type']
+
+        # accept old "text/plain" and "application/hg-changegroup" for now
+        if not proto.startswith('application/mercurial') and \
+               not proto.startswith('text/plain') and \
+               not proto.startswith('application/hg-changegroup'):
+            raise RepoError("'%s' does not appear to be an hg repository"
+                            % self.url)
+
+        if proto.startswith('application/mercurial'):
+            version = proto[22:]
+            if float(version) > 0.1:
+                raise RepoError("'%s' uses newer protocol %s" %
+                                (self.url, version))
+
+        return resp
 
     def heads(self):
         d = self.do_cmd("heads").read()
@@ -1734,7 +2067,7 @@ class httprepository:
                 self.buf = ""
             def read(self, l):
                 while l > len(self.buf):
-                    r = f.read(4096)
+                    r = self.f.read(4096)
                     if r:
                         self.buf += self.zd.decompress(r)
                     else:
@@ -1755,14 +2088,14 @@ class remotelock:
         if self.repo:
             self.release()
 
-class sshrepository:
+class sshrepository(remoterepository):
     def __init__(self, ui, path):
         self.url = path
         self.ui = ui
 
-        m = re.match(r'ssh://(([^@]+)@)?([^:/]+)(:(\d+))?(/(.*))?', path)
+        m = re.match(r'ssh://(([^@]+)@)?([^:/]+)(:(\d+))?(/(.*))', path)
         if not m:
-            raise RepoError("couldn't parse destination %s\n" % path)
+            raise RepoError("couldn't parse destination %s" % path)
 
         self.user = m.group(2)
         self.host = m.group(3)
@@ -1773,8 +2106,13 @@ class sshrepository:
         args = self.port and ("%s -p %s") % (args, self.port) or args
         path = self.path or ""
 
-        cmd = "ssh %s 'hg -R %s serve --stdio'"
-        cmd = cmd % (args, path)
+        if not path:
+            raise RepoError("no remote repository path specified")
+
+        sshcmd = self.ui.config("ui", "ssh", "ssh")
+        remotecmd = self.ui.config("ui", "remotecmd", "hg")
+        cmd = "%s %s '%s -R %s serve --stdio'"
+        cmd = cmd % (sshcmd, args, remotecmd, path)
 
         self.pipeo, self.pipei, self.pipee = os.popen3(cmd)
 
@@ -1787,11 +2125,14 @@ class sshrepository:
             self.ui.status("remote: ", l)
 
     def __del__(self):
-        self.pipeo.close()
-        self.pipei.close()
-        for l in self.pipee:
-            self.ui.status("remote: ", l)
-        self.pipee.close()
+        try:
+            self.pipeo.close()
+            self.pipei.close()
+            for l in self.pipee:
+                self.ui.status("remote: ", l)
+            self.pipee.close()
+        except:
+            pass
 
     def dev(self):
         return -1
@@ -1870,10 +2211,15 @@ class sshrepository:
         l = int(self.pipei.readline())
         return self.pipei.read(l) != ""
 
+class httpsrepository(httprepository):
+    pass
+
 def repository(ui, path=None, create=0):
     if path:
         if path.startswith("http://"):
             return httprepository(ui, path)
+        if path.startswith("https://"):
+            return httpsrepository(ui, path)
         if path.startswith("hg://"):
             return httprepository(ui, path.replace("hg://", "http://"))
         if path.startswith("old-http://"):

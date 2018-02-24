@@ -12,8 +12,10 @@ demandload(globals(), "re socket sys util")
 class ui:
     def __init__(self, verbose=False, debug=False, quiet=False,
                  interactive=True):
+        self.overlay = {}
         self.cdata = ConfigParser.SafeConfigParser()
-        self.cdata.read(os.path.expanduser("~/.hgrc"))
+        self.cdata.read([os.path.normpath(hgrc) for hgrc in
+                         "/etc/mercurial/hgrc", os.path.expanduser("~/.hgrc")])
 
         self.quiet = self.configbool("ui", "quiet")
         self.verbose = self.configbool("ui", "verbose")
@@ -28,14 +30,21 @@ class ui:
     def readconfig(self, fp):
         self.cdata.readfp(fp)
 
-    def config(self, section, val, default=None):
-        if self.cdata.has_option(section, val):
-            return self.cdata.get(section, val)
+    def setconfig(self, section, name, val):
+        self.overlay[(section, name)] = val
+
+    def config(self, section, name, default=None):
+        if self.overlay.has_key((section, name)):
+            return self.overlay[(section, name)]
+        if self.cdata.has_option(section, name):
+            return self.cdata.get(section, name)
         return default
 
-    def configbool(self, section, val, default=False):
-        if self.cdata.has_option(section, val):
-            return self.cdata.getboolean(section, val)
+    def configbool(self, section, name, default=False):
+        if self.overlay.has_key((section, name)):
+            return self.overlay[(section, name)]
+        if self.cdata.has_option(section, name):
+            return self.cdata.getboolean(section, name)
         return default
 
     def configitems(self, section):
@@ -44,8 +53,8 @@ class ui:
         return []
 
     def username(self):
-        return (self.config("ui", "username") or
-                os.environ.get("HGUSER") or
+        return (os.environ.get("HGUSER") or
+                self.config("ui", "username") or
                 os.environ.get("EMAIL") or
                 (os.environ.get("LOGNAME",
                                 os.environ.get("USERNAME", "unknown"))
@@ -93,8 +102,8 @@ class ui:
         f.write(text)
         f.close()
 
-        editor = (self.config("ui", "editor") or
-                  os.environ.get("HGEDITOR") or
+        editor = (os.environ.get("HGEDITOR") or
+                  self.config("ui", "editor") or
                   os.environ.get("EDITOR", "vi"))
 
         os.environ["HGUSER"] = self.username()

@@ -1,6 +1,4 @@
-#!/bin/bash
-
-set -x
+#!/bin/sh
 
 # No local source
 hg clone a b
