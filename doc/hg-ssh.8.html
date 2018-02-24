@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.12: http://docutils.sourceforge.net/" />
+<title>hg-ssh</title>
+<meta name="author" content="Thomas Arendsen Hein &lt;thomas&#64;intevation.de&gt;" />
+<meta name="organization" content="Mercurial" />
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+<body>
+<div class="document" id="hg-ssh">
+<span id="hg-ssh-8"></span>
+<h1 class="title">hg-ssh</h1>
+<h2 class="subtitle" id="restricted-ssh-login-shell-for-mercurial">restricted ssh login shell for Mercurial</h2>
+<table class="docinfo" frame="void" rules="none">
+<col class="docinfo-name" />
+<col class="docinfo-content" />
+<tbody valign="top">
+<tr><th class="docinfo-name">Author:</th>
+<td>Thomas Arendsen Hein &lt;<a class="reference external" href="mailto:thomas&#64;intevation.de">thomas&#64;intevation.de</a>&gt;</td></tr>
+<tr><th class="docinfo-name">Organization:</th>
+<td>Mercurial</td></tr>
+<tr class="field"><th class="docinfo-name">Manual section:</th><td class="field-body">8</td>
+</tr>
+<tr class="field"><th class="docinfo-name">Manual group:</th><td class="field-body">Mercurial Manual</td>
+</tr>
+</tbody>
+</table>
+<div class="contents htmlonly topic" id="contents">
+<p class="topic-title first">Contents</p>
+<ul class="simple">
+<li><a class="reference internal" href="#synopsis" id="id1">Synopsis</a></li>
+<li><a class="reference internal" href="#description" id="id2">Description</a></li>
+<li><a class="reference internal" href="#bugs" id="id3">Bugs</a></li>
+<li><a class="reference internal" href="#see-also" id="id4">See Also</a></li>
+<li><a class="reference internal" href="#author" id="id5">Author</a></li>
+<li><a class="reference internal" href="#resources" id="id6">Resources</a></li>
+<li><a class="reference internal" href="#copying" id="id7">Copying</a></li>
+</ul>
+</div>
+<div class="section" id="synopsis">
+<h1><a class="toc-backref" href="#contents">Synopsis</a></h1>
+<p><strong>hg-ssh</strong> repositories...</p>
+</div>
+<div class="section" id="description">
+<h1><a class="toc-backref" href="#contents">Description</a></h1>
+<p><strong>hg-ssh</strong> is a wrapper for ssh access to a limited set of mercurial repos.</p>
+<p>To be used in ~/.ssh/authorized_keys with the &quot;command&quot; option, see sshd(8):
+command=&quot;hg-ssh path/to/repo1 /path/to/repo2 ~/repo3 ~user/repo4&quot; ssh-dss ...
+(probably together with these other useful options:
+no-port-forwarding,no-X11-forwarding,no-agent-forwarding)</p>
+<p>This allows pull/push over ssh from/to the repositories given as arguments.</p>
+<p>If all your repositories are subdirectories of a common directory, you can
+allow shorter paths with:
+command=&quot;cd path/to/my/repositories &amp;&amp; hg-ssh repo1 subdir/repo2&quot;</p>
+<p>You can use pattern matching of your normal shell, e.g.:
+command=&quot;cd repos &amp;&amp; hg-ssh user/thomas/* projects/{mercurial,foo}&quot;</p>
+<p>You can also add a --read-only flag to allow read-only access to a key, e.g.:
+command=&quot;hg-ssh --read-only repos/*&quot;</p>
+</div>
+<div class="section" id="bugs">
+<h1><a class="toc-backref" href="#contents">Bugs</a></h1>
+<p>Probably lots, please post them to the mailing list (see <a class="reference internal" href="#resources">Resources</a>
+below) when you find them.</p>
+</div>
+<div class="section" id="see-also">
+<h1><a class="toc-backref" href="#contents">See Also</a></h1>
+<p><a class="reference external" href="hg.1.html"><strong>hg</strong>(1)</a></p>
+</div>
+<div class="section" id="author">
+<h1><a class="toc-backref" href="#contents">Author</a></h1>
+<p>Written by Matt Mackall &lt;<a class="reference external" href="mailto:mpm&#64;selenic.com">mpm&#64;selenic.com</a>&gt;</p>
+</div>
+<div class="section" id="resources">
+<h1><a class="toc-backref" href="#contents">Resources</a></h1>
+<p>Main Web Site: <a class="reference external" href="https://mercurial-scm.org/">https://mercurial-scm.org/</a></p>
+<p>Source code repository: <a class="reference external" href="http://selenic.com/hg">http://selenic.com/hg</a></p>
+<p>Mailing list: <a class="reference external" href="http://selenic.com/mailman/listinfo/mercurial">http://selenic.com/mailman/listinfo/mercurial</a></p>
+</div>
+<div class="section" id="copying">
+<h1><a class="toc-backref" href="#contents">Copying</a></h1>
+<p>Copyright (C) 2005-2016 Matt Mackall.
+Free use of this software is granted under the terms of the GNU General
+Public License version 2 or any later version.</p>
+<span class="target" id="common"></span><!-- Common link and substitution definitions. -->
+</div>
+</div>
+</body>
+</html>
