@@ -2077,7 +2077,7 @@ changed files and full commit message are shown.</p>
 recent changeset at the top.
 'o' is a changeset, '&#64;' is a working directory parent, 'x' is obsolete,
 and '+' represents a fork where the changeset from the lines below is a
-parent of the 'o' merge on the same same line.</p>
+parent of the 'o' merge on the same line.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">log -p/--patch may generate unexpected diff output for merge
@@ -4681,8 +4681,8 @@ use the prefix <cite>literal:</cite>.</p>
 <dt><tt class="docutils literal">closed()</tt></dt>
 <dd>Changeset is closed.</dd>
 <dt><tt class="docutils literal">contains(pattern)</tt></dt>
-<dd><p class="first">Revision contains a file matching pattern. See <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a>
-for information about file patterns.</p>
+<dd><p class="first">The revision's manifest contains a file matching pattern (but might not
+modify it). See <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for information about file patterns.</p>
 <p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
 relative to the current directory and match against a file exactly
 for efficiency.</p>
@@ -4721,9 +4721,10 @@ instead.</p>
 </dd>
 <dt><tt class="docutils literal">filelog(pattern)</tt></dt>
 <dd><p class="first">Changesets connected to the specified filelog.</p>
-<p>For performance reasons, <tt class="docutils literal">filelog()</tt> does not show every changeset
-that affects the requested file(s). See <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg help log</tt></a> for details. For
-a slower, more accurate result, use <tt class="docutils literal">file()</tt>.</p>
+<p>For performance reasons, visits only revisions mentioned in the file-level
+filelog, rather than filtering through all changesets (much faster, but
+doesn't include deletes or duplicate changes). For a slower, more accurate
+result, use <tt class="docutils literal">file()</tt>.</p>
 <p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
 relative to the current directory and match against a file exactly
 for efficiency.</p>
