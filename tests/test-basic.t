@@ -1,24 +1,44 @@
 Create a repository:
 
   $ hg config
-  defaults.backout=-d "0 0"
-  defaults.commit=-d "0 0"
-  defaults.shelve=--date "0 0"
-  defaults.tag=-d "0 0"
   devel.all-warnings=true
-  extensions.chgserver= (?)
+  devel.default-date=0 0
+  extensions.fsmonitor= (fsmonitor !)
   largefiles.usercache=$TESTTMP/.cache/largefiles (glob)
   ui.slash=True
   ui.interactive=False
   ui.mergemarkers=detailed
   ui.promptecho=True
+  web.address=localhost
+  web\.ipv6=(?:True|False) (re)
   $ hg init t
   $ cd t
 
-Make a changeset:
+Prepare a changeset:
 
   $ echo a > a
   $ hg add a
+
+  $ hg status
+  A a
+
+Writes to stdio succeed and fail appropriately
+
+#if devfull
+  $ hg status 2>/dev/full
+  A a
+
+  $ hg status >/dev/full
+  abort: No space left on device
+  [255]
+
+  $ hg status >/dev/full 2>&1
+  [1]
+
+  $ hg status ENOENT 2>/dev/full
+  [1]
+#endif
+
   $ hg commit -m test
 
 This command is ancient:
@@ -35,13 +55,13 @@ Verify that updating to revision 0 via commands.update() works properly
 
   $ cat <<EOF > update_to_rev0.py
   > from mercurial import ui, hg, commands
-  > myui = ui.ui()
+  > myui = ui.ui.load()
   > repo = hg.repository(myui, path='.')
   > commands.update(myui, repo, rev=0)
   > EOF
   $ hg up null
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
-  $ python ./update_to_rev0.py
+  $ $PYTHON ./update_to_rev0.py
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg identify -n
   0

@@ -73,6 +73,7 @@ Show debug commands if there are no other candidates
   debugbuilddag
   debugbundle
   debugcheckstate
+  debugcolor
   debugcommands
   debugcomplete
   debugconfig
@@ -98,6 +99,7 @@ Show debug commands if there are no other candidates
   debugnamecomplete
   debugobsolete
   debugpathcomplete
+  debugpickmergetool
   debugpushkey
   debugpvec
   debugrebuilddirstate
@@ -106,9 +108,12 @@ Show debug commands if there are no other candidates
   debugrevlog
   debugrevspec
   debugsetparents
+  debugssl
   debugsub
   debugsuccessorssets
   debugtemplate
+  debugupdatecaches
+  debugupgraderepo
   debugwalk
   debugwireargs
 
@@ -128,6 +133,7 @@ Show the alias of a debug command if there are no other candidates
 
 Show the global options
   $ hg debugcomplete --options | sort
+  --color
   --config
   --cwd
   --debug
@@ -137,6 +143,7 @@ Show the global options
   --help
   --hidden
   --noninteractive
+  --pager
   --profile
   --quiet
   --repository
@@ -156,6 +163,7 @@ Show the options for the "serve" command
   --address
   --certificate
   --cmdserver
+  --color
   --config
   --cwd
   --daemon
@@ -170,6 +178,7 @@ Show the options for the "serve" command
   --ipv6
   --name
   --noninteractive
+  --pager
   --pid-file
   --port
   --prefix
@@ -178,6 +187,7 @@ Show the options for the "serve" command
   --repository
   --stdio
   --style
+  --subrepos
   --templates
   --time
   --traceback
@@ -188,6 +198,7 @@ Show the options for the "serve" command
   -A
   -E
   -R
+  -S
   -a
   -d
   -h
@@ -207,11 +218,11 @@ Show an error if we use --options with an ambiguous abbreviation
 Show all commands + options
   $ hg debugcommands
   add: include, exclude, subrepos, dry-run
-  annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, ignore-all-space, ignore-space-change, ignore-blank-lines, include, exclude, template
+  annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, ignore-all-space, ignore-space-change, ignore-blank-lines, include, exclude, template
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, ssh, remotecmd, insecure
   commit: addremove, close-branch, amend, secret, edit, interactive, include, exclude, message, logfile, date, user, subrepos
-  diff: rev, change, text, git, nodates, noprefix, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, unified, stat, root, include, exclude, subrepos
-  export: output, switch-parent, rev, text, git, nodates
+  diff: rev, change, text, git, binary, nodates, noprefix, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, unified, stat, root, include, exclude, subrepos
+  export: output, switch-parent, rev, text, git, binary, nodates
   forget: include, exclude
   init: ssh, remotecmd, insecure
   log: follow, follow-first, date, copies, keyword, rev, removed, only-merges, user, only-branch, branch, prune, patch, git, limit, no-merges, stat, graph, style, template, include, exclude
@@ -219,10 +230,10 @@ Show all commands + options
   pull: update, force, rev, bookmark, branch, ssh, remotecmd, insecure
   push: force, rev, bookmark, branch, new-branch, ssh, remotecmd, insecure
   remove: after, force, subrepos, include, exclude
-  serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate
-  status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, copies, print0, rev, change, include, exclude, subrepos, template
+  serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate, subrepos
+  status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, terse, copies, print0, rev, change, include, exclude, subrepos, template
   summary: remote
-  update: clean, check, date, rev, tool
+  update: clean, check, merge, date, rev, tool
   addremove: similarity, subrepos, include, exclude, dry-run
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
   backout: merge, commit, no-commit, parent, rev, edit, tool, include, exclude, message, logfile, date, user
@@ -231,14 +242,15 @@ Show all commands + options
   branch: force, clean
   branches: active, closed, template
   bundle: force, rev, branch, base, all, type, ssh, remotecmd, insecure
-  cat: output, rev, decode, include, exclude
+  cat: output, rev, decode, include, exclude, template
   config: untrusted, edit, local, global, template
   copy: after, force, include, exclude, dry-run
   debugancestor: 
   debugapplystreamclonebundle: 
   debugbuilddag: mergeable-file, overwritten-file, new-file
-  debugbundle: all, spec
+  debugbundle: all, part-type, spec
   debugcheckstate: 
+  debugcolor: style
   debugcommands: 
   debugcomplete: options
   debugcreatestreamclonebundle: 
@@ -261,19 +273,23 @@ Show all commands + options
   debuglocks: force-lock, force-wlock
   debugmergestate: 
   debugnamecomplete: 
-  debugobsolete: flags, record-parents, rev, index, delete, date, user, template
+  debugobsolete: flags, record-parents, rev, exclusive, index, delete, date, user, template
   debugpathcomplete: full, normal, added, removed
+  debugpickmergetool: rev, changedelete, include, exclude, tool
   debugpushkey: 
   debugpvec: 
   debugrebuilddirstate: rev, minimal
   debugrebuildfncache: 
   debugrename: rev
   debugrevlog: changelog, manifest, dir, dump
-  debugrevspec: optimize, show-stage, no-optimized, verify-optimized
+  debugrevspec: optimize, show-revs, show-set, show-stage, no-optimized, verify-optimized
   debugsetparents: 
+  debugssl: 
   debugsub: rev
-  debugsuccessorssets: 
+  debugsuccessorssets: closest
   debugtemplate: rev, define
+  debugupdatecaches: 
+  debugupgraderepo: optimize, run
   debugwalk: include, exclude
   debugwireargs: three, four, five, ssh, remotecmd, insecure
   files: rev, print0, include, exclude, template, subrepos
@@ -281,7 +297,7 @@ Show all commands + options
   grep: print0, all, text, follow, ignore-case, files-with-matches, line-number, rev, user, date, template, include, exclude
   heads: rev, topo, active, closed, style, template
   help: extension, command, keyword, system
-  identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, insecure
+  identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, insecure, template
   import: strip, base, edit, force, no-commit, bypass, partial, exact, prefix, import-branch, message, logfile, date, user, similarity
   incoming: force, newest-first, bundle, rev, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
   locate: rev, print0, fullpath, include, exclude
@@ -347,6 +363,21 @@ Test debugnamecomplete
   fo
   tip
   $ hg debugnamecomplete f
+  fee
+  fie
+  fo
+
+Test debuglabelcomplete, a deprecated name for debugnamecomplete that is still
+used for completions in some shells.
+
+  $ hg debuglabelcomplete
+  Fum
+  default
+  fee
+  fie
+  fo
+  tip
+  $ hg debuglabelcomplete f
   fee
   fie
   fo

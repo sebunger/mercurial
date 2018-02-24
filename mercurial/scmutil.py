@@ -7,38 +7,42 @@
 
 from __future__ import absolute_import
 
-import contextlib
 import errno
 import glob
 import hashlib
 import os
 import re
-import shutil
-import stat
-import tempfile
-import threading
+import socket
+import weakref
 
 from .i18n import _
-from .node import wdirrev
+from .node import (
+    hex,
+    nullid,
+    wdirid,
+    wdirrev,
+)
+
 from . import (
     encoding,
     error,
     match as matchmod,
-    osutil,
+    obsolete,
+    obsutil,
     pathutil,
     phases,
-    revset,
+    pycompat,
+    revsetlang,
     similar,
     util,
 )
 
-if os.name == 'nt':
+if pycompat.osname == 'nt':
     from . import scmwindows as scmplatform
 else:
     from . import scmposix as scmplatform
 
-systemrcpath = scmplatform.systemrcpath
-userrcpath = scmplatform.userrcpath
+termsize = scmplatform.termsize
 
 class status(tuple):
     '''Named tuple with a list of files per status. The 'deleted', 'unknown'
@@ -125,10 +129,6 @@ def nochangesfound(ui, repo, excluded=None):
     secretlist = []
     if excluded:
         for n in excluded:
-            if n not in repo:
-                # discovery should not have included the filtered revision,
-                # we have to explicitly exclude it until discovery is cleanup.
-                continue
             ctx = repo[n]
             if ctx.phase() >= phases.secret and not ctx.extinct():
                 secretlist.append(n)
@@ -138,6 +138,114 @@ def nochangesfound(ui, repo, excluded=None):
                   % len(secretlist))
     else:
         ui.status(_("no changes found\n"))
+
+def callcatch(ui, func):
+    """call func() with global exception handling
+
+    return func() if no exception happens. otherwise do some error handling
+    and return an exit code accordingly. does not handle all exceptions.
+    """
+    try:
+        try:
+            return func()
+        except: # re-raises
+            ui.traceback()
+            raise
+    # Global exception handling, alphabetically
+    # Mercurial-specific first, followed by built-in and library exceptions
+    except error.LockHeld as inst:
+        if inst.errno == errno.ETIMEDOUT:
+            reason = _('timed out waiting for lock held by %r') % inst.locker
+        else:
+            reason = _('lock held by %r') % inst.locker
+        ui.warn(_("abort: %s: %s\n") % (inst.desc or inst.filename, reason))
+        if not inst.locker:
+            ui.warn(_("(lock might be very busy)\n"))
+    except error.LockUnavailable as inst:
+        ui.warn(_("abort: could not lock %s: %s\n") %
+               (inst.desc or inst.filename, inst.strerror))
+    except error.OutOfBandError as inst:
+        if inst.args:
+            msg = _("abort: remote error:\n")
+        else:
+            msg = _("abort: remote error\n")
+        ui.warn(msg)
+        if inst.args:
+            ui.warn(''.join(inst.args))
+        if inst.hint:
+            ui.warn('(%s)\n' % inst.hint)
+    except error.RepoError as inst:
+        ui.warn(_("abort: %s!\n") % inst)
+        if inst.hint:
+            ui.warn(_("(%s)\n") % inst.hint)
+    except error.ResponseError as inst:
+        ui.warn(_("abort: %s") % inst.args[0])
+        if not isinstance(inst.args[1], basestring):
+            ui.warn(" %r\n" % (inst.args[1],))
+        elif not inst.args[1]:
+            ui.warn(_(" empty string\n"))
+        else:
+            ui.warn("\n%r\n" % util.ellipsis(inst.args[1]))
+    except error.CensoredNodeError as inst:
+        ui.warn(_("abort: file censored %s!\n") % inst)
+    except error.RevlogError as inst:
+        ui.warn(_("abort: %s!\n") % inst)
+    except error.InterventionRequired as inst:
+        ui.warn("%s\n" % inst)
+        if inst.hint:
+            ui.warn(_("(%s)\n") % inst.hint)
+        return 1
+    except error.WdirUnsupported:
+        ui.warn(_("abort: working directory revision cannot be specified\n"))
+    except error.Abort as inst:
+        ui.warn(_("abort: %s\n") % inst)
+        if inst.hint:
+            ui.warn(_("(%s)\n") % inst.hint)
+    except ImportError as inst:
+        ui.warn(_("abort: %s!\n") % inst)
+        m = str(inst).split()[-1]
+        if m in "mpatch bdiff".split():
+            ui.warn(_("(did you forget to compile extensions?)\n"))
+        elif m in "zlib".split():
+            ui.warn(_("(is your Python install correct?)\n"))
+    except IOError as inst:
+        if util.safehasattr(inst, "code"):
+            ui.warn(_("abort: %s\n") % inst)
+        elif util.safehasattr(inst, "reason"):
+            try: # usually it is in the form (errno, strerror)
+                reason = inst.reason.args[1]
+            except (AttributeError, IndexError):
+                # it might be anything, for example a string
+                reason = inst.reason
+            if isinstance(reason, unicode):
+                # SSLError of Python 2.7.9 contains a unicode
+                reason = encoding.unitolocal(reason)
+            ui.warn(_("abort: error: %s\n") % reason)
+        elif (util.safehasattr(inst, "args")
+              and inst.args and inst.args[0] == errno.EPIPE):
+            pass
+        elif getattr(inst, "strerror", None):
+            if getattr(inst, "filename", None):
+                ui.warn(_("abort: %s: %s\n") % (inst.strerror, inst.filename))
+            else:
+                ui.warn(_("abort: %s\n") % inst.strerror)
+        else:
+            raise
+    except OSError as inst:
+        if getattr(inst, "filename", None) is not None:
+            ui.warn(_("abort: %s: '%s'\n") % (inst.strerror, inst.filename))
+        else:
+            ui.warn(_("abort: %s\n") % inst.strerror)
+    except MemoryError:
+        ui.warn(_("abort: out of memory\n"))
+    except SystemExit as inst:
+        # Commands shouldn't sys.exit directly, but give a return code.
+        # Just in case catch this and and pass exit code to caller.
+        return inst.code
+    except socket.error as inst:
+        ui.warn(_("abort: %s\n") % inst.args[-1])
+
+    return -1
 
 def checknewlabel(repo, lbl, kind):
     # Do not use the "kind" parameter in ui output.
@@ -173,10 +281,10 @@ def checkportable(ui, f):
 def checkportabilityalert(ui):
     '''check if the user's config requests nothing, a warning, or abort for
     non-portable filenames'''
-    val = ui.config('ui', 'portablefilenames', 'warn')
+    val = ui.config('ui', 'portablefilenames')
     lval = val.lower()
     bval = util.parsebool(val)
-    abort = os.name == 'nt' or lval == 'abort'
+    abort = pycompat.osname == 'nt' or lval == 'abort'
     warn = bval or lval == 'warn'
     if bval is None and not (warn or abort or lval == 'ignore'):
         raise error.ConfigError(
@@ -227,460 +335,9 @@ def filteredhash(repo, maxrev):
     if revs:
         s = hashlib.sha1()
         for rev in revs:
-            s.update('%s;' % rev)
+            s.update('%d;' % rev)
         key = s.digest()
     return key
-
-class abstractvfs(object):
-    """Abstract base class; cannot be instantiated"""
-
-    def __init__(self, *args, **kwargs):
-        '''Prevent instantiation; don't call this from subclasses.'''
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
-
-    def tryread(self, path):
-        '''gracefully return an empty string for missing files'''
-        try:
-            return self.read(path)
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
-        return ""
-
-    def tryreadlines(self, path, mode='rb'):
-        '''gracefully return an empty array for missing files'''
-        try:
-            return self.readlines(path, mode=mode)
-        except IOError as inst:
-            if inst.errno != errno.ENOENT:
-                raise
-        return []
-
-    @util.propertycache
-    def open(self):
-        '''Open ``path`` file, which is relative to vfs root.
-
-        Newly created directories are marked as "not to be indexed by
-        the content indexing service", if ``notindexed`` is specified
-        for "write" mode access.
-        '''
-        return self.__call__
-
-    def read(self, path):
-        with self(path, 'rb') as fp:
-            return fp.read()
-
-    def readlines(self, path, mode='rb'):
-        with self(path, mode=mode) as fp:
-            return fp.readlines()
-
-    def write(self, path, data, backgroundclose=False):
-        with self(path, 'wb', backgroundclose=backgroundclose) as fp:
-            return fp.write(data)
-
-    def writelines(self, path, data, mode='wb', notindexed=False):
-        with self(path, mode=mode, notindexed=notindexed) as fp:
-            return fp.writelines(data)
-
-    def append(self, path, data):
-        with self(path, 'ab') as fp:
-            return fp.write(data)
-
-    def basename(self, path):
-        """return base element of a path (as os.path.basename would do)
-
-        This exists to allow handling of strange encoding if needed."""
-        return os.path.basename(path)
-
-    def chmod(self, path, mode):
-        return os.chmod(self.join(path), mode)
-
-    def dirname(self, path):
-        """return dirname element of a path (as os.path.dirname would do)
-
-        This exists to allow handling of strange encoding if needed."""
-        return os.path.dirname(path)
-
-    def exists(self, path=None):
-        return os.path.exists(self.join(path))
-
-    def fstat(self, fp):
-        return util.fstat(fp)
-
-    def isdir(self, path=None):
-        return os.path.isdir(self.join(path))
-
-    def isfile(self, path=None):
-        return os.path.isfile(self.join(path))
-
-    def islink(self, path=None):
-        return os.path.islink(self.join(path))
-
-    def isfileorlink(self, path=None):
-        '''return whether path is a regular file or a symlink
-
-        Unlike isfile, this doesn't follow symlinks.'''
-        try:
-            st = self.lstat(path)
-        except OSError:
-            return False
-        mode = st.st_mode
-        return stat.S_ISREG(mode) or stat.S_ISLNK(mode)
-
-    def reljoin(self, *paths):
-        """join various elements of a path together (as os.path.join would do)
-
-        The vfs base is not injected so that path stay relative. This exists
-        to allow handling of strange encoding if needed."""
-        return os.path.join(*paths)
-
-    def split(self, path):
-        """split top-most element of a path (as os.path.split would do)
-
-        This exists to allow handling of strange encoding if needed."""
-        return os.path.split(path)
-
-    def lexists(self, path=None):
-        return os.path.lexists(self.join(path))
-
-    def lstat(self, path=None):
-        return os.lstat(self.join(path))
-
-    def listdir(self, path=None):
-        return os.listdir(self.join(path))
-
-    def makedir(self, path=None, notindexed=True):
-        return util.makedir(self.join(path), notindexed)
-
-    def makedirs(self, path=None, mode=None):
-        return util.makedirs(self.join(path), mode)
-
-    def makelock(self, info, path):
-        return util.makelock(info, self.join(path))
-
-    def mkdir(self, path=None):
-        return os.mkdir(self.join(path))
-
-    def mkstemp(self, suffix='', prefix='tmp', dir=None, text=False):
-        fd, name = tempfile.mkstemp(suffix=suffix, prefix=prefix,
-                                    dir=self.join(dir), text=text)
-        dname, fname = util.split(name)
-        if dir:
-            return fd, os.path.join(dir, fname)
-        else:
-            return fd, fname
-
-    def readdir(self, path=None, stat=None, skip=None):
-        return osutil.listdir(self.join(path), stat, skip)
-
-    def readlock(self, path):
-        return util.readlock(self.join(path))
-
-    def rename(self, src, dst, checkambig=False):
-        """Rename from src to dst
-
-        checkambig argument is used with util.filestat, and is useful
-        only if destination file is guarded by any lock
-        (e.g. repo.lock or repo.wlock).
-        """
-        dstpath = self.join(dst)
-        oldstat = checkambig and util.filestat(dstpath)
-        if oldstat and oldstat.stat:
-            ret = util.rename(self.join(src), dstpath)
-            newstat = util.filestat(dstpath)
-            if newstat.isambig(oldstat):
-                # stat of renamed file is ambiguous to original one
-                advanced = (oldstat.stat.st_mtime + 1) & 0x7fffffff
-                os.utime(dstpath, (advanced, advanced))
-            return ret
-        return util.rename(self.join(src), dstpath)
-
-    def readlink(self, path):
-        return os.readlink(self.join(path))
-
-    def removedirs(self, path=None):
-        """Remove a leaf directory and all empty intermediate ones
-        """
-        return util.removedirs(self.join(path))
-
-    def rmtree(self, path=None, ignore_errors=False, forcibly=False):
-        """Remove a directory tree recursively
-
-        If ``forcibly``, this tries to remove READ-ONLY files, too.
-        """
-        if forcibly:
-            def onerror(function, path, excinfo):
-                if function is not os.remove:
-                    raise
-                # read-only files cannot be unlinked under Windows
-                s = os.stat(path)
-                if (s.st_mode & stat.S_IWRITE) != 0:
-                    raise
-                os.chmod(path, stat.S_IMODE(s.st_mode) | stat.S_IWRITE)
-                os.remove(path)
-        else:
-            onerror = None
-        return shutil.rmtree(self.join(path),
-                             ignore_errors=ignore_errors, onerror=onerror)
-
-    def setflags(self, path, l, x):
-        return util.setflags(self.join(path), l, x)
-
-    def stat(self, path=None):
-        return os.stat(self.join(path))
-
-    def unlink(self, path=None):
-        return util.unlink(self.join(path))
-
-    def unlinkpath(self, path=None, ignoremissing=False):
-        return util.unlinkpath(self.join(path), ignoremissing)
-
-    def utime(self, path=None, t=None):
-        return os.utime(self.join(path), t)
-
-    def walk(self, path=None, onerror=None):
-        """Yield (dirpath, dirs, files) tuple for each directories under path
-
-        ``dirpath`` is relative one from the root of this vfs. This
-        uses ``os.sep`` as path separator, even you specify POSIX
-        style ``path``.
-
-        "The root of this vfs" is represented as empty ``dirpath``.
-        """
-        root = os.path.normpath(self.join(None))
-        # when dirpath == root, dirpath[prefixlen:] becomes empty
-        # because len(dirpath) < prefixlen.
-        prefixlen = len(pathutil.normasprefix(root))
-        for dirpath, dirs, files in os.walk(self.join(path), onerror=onerror):
-            yield (dirpath[prefixlen:], dirs, files)
-
-    @contextlib.contextmanager
-    def backgroundclosing(self, ui, expectedcount=-1):
-        """Allow files to be closed asynchronously.
-
-        When this context manager is active, ``backgroundclose`` can be passed
-        to ``__call__``/``open`` to result in the file possibly being closed
-        asynchronously, on a background thread.
-        """
-        # This is an arbitrary restriction and could be changed if we ever
-        # have a use case.
-        vfs = getattr(self, 'vfs', self)
-        if getattr(vfs, '_backgroundfilecloser', None):
-            raise error.Abort(
-                _('can only have 1 active background file closer'))
-
-        with backgroundfilecloser(ui, expectedcount=expectedcount) as bfc:
-            try:
-                vfs._backgroundfilecloser = bfc
-                yield bfc
-            finally:
-                vfs._backgroundfilecloser = None
-
-class vfs(abstractvfs):
-    '''Operate files relative to a base directory
-
-    This class is used to hide the details of COW semantics and
-    remote file access from higher level code.
-    '''
-    def __init__(self, base, audit=True, expandpath=False, realpath=False):
-        if expandpath:
-            base = util.expandpath(base)
-        if realpath:
-            base = os.path.realpath(base)
-        self.base = base
-        self.mustaudit = audit
-        self.createmode = None
-        self._trustnlink = None
-
-    @property
-    def mustaudit(self):
-        return self._audit
-
-    @mustaudit.setter
-    def mustaudit(self, onoff):
-        self._audit = onoff
-        if onoff:
-            self.audit = pathutil.pathauditor(self.base)
-        else:
-            self.audit = util.always
-
-    @util.propertycache
-    def _cansymlink(self):
-        return util.checklink(self.base)
-
-    @util.propertycache
-    def _chmod(self):
-        return util.checkexec(self.base)
-
-    def _fixfilemode(self, name):
-        if self.createmode is None or not self._chmod:
-            return
-        os.chmod(name, self.createmode & 0o666)
-
-    def __call__(self, path, mode="r", text=False, atomictemp=False,
-                 notindexed=False, backgroundclose=False, checkambig=False):
-        '''Open ``path`` file, which is relative to vfs root.
-
-        Newly created directories are marked as "not to be indexed by
-        the content indexing service", if ``notindexed`` is specified
-        for "write" mode access.
-
-        If ``backgroundclose`` is passed, the file may be closed asynchronously.
-        It can only be used if the ``self.backgroundclosing()`` context manager
-        is active. This should only be specified if the following criteria hold:
-
-        1. There is a potential for writing thousands of files. Unless you
-           are writing thousands of files, the performance benefits of
-           asynchronously closing files is not realized.
-        2. Files are opened exactly once for the ``backgroundclosing``
-           active duration and are therefore free of race conditions between
-           closing a file on a background thread and reopening it. (If the
-           file were opened multiple times, there could be unflushed data
-           because the original file handle hasn't been flushed/closed yet.)
-
-        ``checkambig`` argument is passed to atomictemplfile (valid
-        only for writing), and is useful only if target file is
-        guarded by any lock (e.g. repo.lock or repo.wlock).
-        '''
-        if self._audit:
-            r = util.checkosfilename(path)
-            if r:
-                raise error.Abort("%s: %r" % (r, path))
-        self.audit(path)
-        f = self.join(path)
-
-        if not text and "b" not in mode:
-            mode += "b" # for that other OS
-
-        nlink = -1
-        if mode not in ('r', 'rb'):
-            dirname, basename = util.split(f)
-            # If basename is empty, then the path is malformed because it points
-            # to a directory. Let the posixfile() call below raise IOError.
-            if basename:
-                if atomictemp:
-                    util.makedirs(dirname, self.createmode, notindexed)
-                    return util.atomictempfile(f, mode, self.createmode,
-                                               checkambig=checkambig)
-                try:
-                    if 'w' in mode:
-                        util.unlink(f)
-                        nlink = 0
-                    else:
-                        # nlinks() may behave differently for files on Windows
-                        # shares if the file is open.
-                        with util.posixfile(f):
-                            nlink = util.nlinks(f)
-                            if nlink < 1:
-                                nlink = 2 # force mktempcopy (issue1922)
-                except (OSError, IOError) as e:
-                    if e.errno != errno.ENOENT:
-                        raise
-                    nlink = 0
-                    util.makedirs(dirname, self.createmode, notindexed)
-                if nlink > 0:
-                    if self._trustnlink is None:
-                        self._trustnlink = nlink > 1 or util.checknlink(f)
-                    if nlink > 1 or not self._trustnlink:
-                        util.rename(util.mktempcopy(f), f)
-        fp = util.posixfile(f, mode)
-        if nlink == 0:
-            self._fixfilemode(f)
-
-        if checkambig:
-            if mode in ('r', 'rb'):
-                raise error.Abort(_('implementation error: mode %s is not'
-                                    ' valid for checkambig=True') % mode)
-            fp = checkambigatclosing(fp)
-
-        if backgroundclose:
-            if not self._backgroundfilecloser:
-                raise error.Abort(_('backgroundclose can only be used when a '
-                                  'backgroundclosing context manager is active')
-                                  )
-
-            fp = delayclosedfile(fp, self._backgroundfilecloser)
-
-        return fp
-
-    def symlink(self, src, dst):
-        self.audit(dst)
-        linkname = self.join(dst)
-        try:
-            os.unlink(linkname)
-        except OSError:
-            pass
-
-        util.makedirs(os.path.dirname(linkname), self.createmode)
-
-        if self._cansymlink:
-            try:
-                os.symlink(src, linkname)
-            except OSError as err:
-                raise OSError(err.errno, _('could not symlink to %r: %s') %
-                              (src, err.strerror), linkname)
-        else:
-            self.write(dst, src)
-
-    def join(self, path, *insidef):
-        if path:
-            return os.path.join(self.base, path, *insidef)
-        else:
-            return self.base
-
-opener = vfs
-
-class auditvfs(object):
-    def __init__(self, vfs):
-        self.vfs = vfs
-
-    @property
-    def mustaudit(self):
-        return self.vfs.mustaudit
-
-    @mustaudit.setter
-    def mustaudit(self, onoff):
-        self.vfs.mustaudit = onoff
-
-    @property
-    def options(self):
-        return self.vfs.options
-
-    @options.setter
-    def options(self, value):
-        self.vfs.options = value
-
-class filtervfs(abstractvfs, auditvfs):
-    '''Wrapper vfs for filtering filenames with a function.'''
-
-    def __init__(self, vfs, filter):
-        auditvfs.__init__(self, vfs)
-        self._filter = filter
-
-    def __call__(self, path, *args, **kwargs):
-        return self.vfs(self._filter(path), *args, **kwargs)
-
-    def join(self, path, *insidef):
-        if path:
-            return self.vfs.join(self._filter(self.vfs.reljoin(path, *insidef)))
-        else:
-            return self.vfs.join(path)
-
-filteropener = filtervfs
-
-class readonlyvfs(abstractvfs, auditvfs):
-    '''Wrapper vfs preventing any writing.'''
-
-    def __init__(self, vfs):
-        auditvfs.__init__(self, vfs)
-
-    def __call__(self, path, mode='r', *args, **kw):
-        if mode not in ('r', 'rb'):
-            raise error.Abort(_('this vfs is read only'))
-        return self.vfs(path, mode, *args, **kw)
-
-    def join(self, path, *insidef):
-        return self.vfs.join(path, *insidef)
 
 def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
     '''yield every hg repository under path, always recursively.
@@ -730,48 +387,17 @@ def walkrepos(path, followsym=False, seen_dirs=None, recurse=False):
                         newdirs.append(d)
             dirs[:] = newdirs
 
-def osrcpath():
-    '''return default os-specific hgrc search path'''
-    path = []
-    defaultpath = os.path.join(util.datapath, 'default.d')
-    if os.path.isdir(defaultpath):
-        for f, kind in osutil.listdir(defaultpath):
-            if f.endswith('.rc'):
-                path.append(os.path.join(defaultpath, f))
-    path.extend(systemrcpath())
-    path.extend(userrcpath())
-    path = [os.path.normpath(f) for f in path]
-    return path
+def binnode(ctx):
+    """Return binary node id for a given basectx"""
+    node = ctx.node()
+    if node is None:
+        return wdirid
+    return node
 
-_rcpath = None
-
-def rcpath():
-    '''return hgrc search path. if env var HGRCPATH is set, use it.
-    for each item in path, if directory, use files ending in .rc,
-    else use item.
-    make HGRCPATH empty to only look in .hg/hgrc of current repo.
-    if no HGRCPATH, use default os-specific path.'''
-    global _rcpath
-    if _rcpath is None:
-        if 'HGRCPATH' in encoding.environ:
-            _rcpath = []
-            for p in os.environ['HGRCPATH'].split(os.pathsep):
-                if not p:
-                    continue
-                p = util.expandpath(p)
-                if os.path.isdir(p):
-                    for f, kind in osutil.listdir(p):
-                        if f.endswith('.rc'):
-                            _rcpath.append(os.path.join(p, f))
-                else:
-                    _rcpath.append(p)
-        else:
-            _rcpath = osrcpath()
-    return _rcpath
-
-def intrev(rev):
-    """Return integer for a given revision that can be used in comparison or
+def intrev(ctx):
+    """Return integer for a given basectx that can be used in comparison or
     arithmetic operation"""
+    rev = ctx.rev()
     if rev is None:
         return wdirrev
     return rev
@@ -786,7 +412,7 @@ def revsingle(repo, revspec, default='.'):
     return repo[l.last()]
 
 def _pairspec(revspec):
-    tree = revset.parse(revspec)
+    tree = revsetlang.parse(revspec)
     return tree and tree[0] in ('range', 'rangepre', 'rangepost', 'rangeall')
 
 def revpair(repo, revs):
@@ -832,7 +458,7 @@ def revrange(repo, specs):
     revision numbers.
 
     It is assumed the revsets are already formatted. If you have arguments
-    that need to be expanded in the revset, call ``revset.formatspec()``
+    that need to be expanded in the revset, call ``revsetlang.formatspec()``
     and pass the result as an element of ``specs``.
 
     Specifying a single revset is allowed.
@@ -843,10 +469,9 @@ def revrange(repo, specs):
     allspecs = []
     for spec in specs:
         if isinstance(spec, int):
-            spec = revset.formatspec('rev(%d)', spec)
+            spec = revsetlang.formatspec('rev(%d)', spec)
         allspecs.append(spec)
-    m = revset.matchany(repo.ui, allspecs, repo)
-    return m(repo)
+    return repo.anyrevs(allspecs, user=True)
 
 def meaningfulparents(repo, ctx):
     """Return list of meaningful (or all if debug) parentrevs for rev.
@@ -860,7 +485,7 @@ def meaningfulparents(repo, ctx):
         return parents
     if repo.ui.debugflag:
         return [parents[0], repo['null']]
-    if parents[0].rev() >= intrev(ctx.rev()) - 1:
+    if parents[0].rev() >= intrev(ctx) - 1:
         return []
     return parents
 
@@ -927,7 +552,7 @@ def origpath(ui, repo, filepath):
     Fetch user defined path from config file: [ui] origbackuppath = <path>
     Fall back to default (filepath) if not specified
     '''
-    origbackuppath = ui.config('ui', 'origbackuppath', None)
+    origbackuppath = ui.config('ui', 'origbackuppath')
     if origbackuppath is None:
         return filepath + ".orig"
 
@@ -940,6 +565,86 @@ def origpath(ui, repo, filepath):
         util.makedirs(origbackupdir)
 
     return fullorigpath + ".orig"
+
+class _containsnode(object):
+    """proxy __contains__(node) to container.__contains__ which accepts revs"""
+
+    def __init__(self, repo, revcontainer):
+        self._torev = repo.changelog.rev
+        self._revcontains = revcontainer.__contains__
+
+    def __contains__(self, node):
+        return self._revcontains(self._torev(node))
+
+def cleanupnodes(repo, mapping, operation):
+    """do common cleanups when old nodes are replaced by new nodes
+
+    That includes writing obsmarkers or stripping nodes, and moving bookmarks.
+    (we might also want to move working directory parent in the future)
+
+    mapping is {oldnode: [newnode]} or a iterable of nodes if they do not have
+    replacements. operation is a string, like "rebase".
+    """
+    if not util.safehasattr(mapping, 'items'):
+        mapping = {n: () for n in mapping}
+
+    with repo.transaction('cleanup') as tr:
+        # Move bookmarks
+        bmarks = repo._bookmarks
+        bmarkchanges = []
+        allnewnodes = [n for ns in mapping.values() for n in ns]
+        for oldnode, newnodes in mapping.items():
+            oldbmarks = repo.nodebookmarks(oldnode)
+            if not oldbmarks:
+                continue
+            from . import bookmarks # avoid import cycle
+            if len(newnodes) > 1:
+                # usually a split, take the one with biggest rev number
+                newnode = next(repo.set('max(%ln)', newnodes)).node()
+            elif len(newnodes) == 0:
+                # move bookmark backwards
+                roots = list(repo.set('max((::%n) - %ln)', oldnode,
+                                      list(mapping)))
+                if roots:
+                    newnode = roots[0].node()
+                else:
+                    newnode = nullid
+            else:
+                newnode = newnodes[0]
+            repo.ui.debug('moving bookmarks %r from %s to %s\n' %
+                          (oldbmarks, hex(oldnode), hex(newnode)))
+            # Delete divergent bookmarks being parents of related newnodes
+            deleterevs = repo.revs('parents(roots(%ln & (::%n))) - parents(%n)',
+                                   allnewnodes, newnode, oldnode)
+            deletenodes = _containsnode(repo, deleterevs)
+            for name in oldbmarks:
+                bmarkchanges.append((name, newnode))
+                for b in bookmarks.divergent2delete(repo, deletenodes, name):
+                    bmarkchanges.append((b, None))
+
+        if bmarkchanges:
+            bmarks.applychanges(repo, tr, bmarkchanges)
+
+        # Obsolete or strip nodes
+        if obsolete.isenabled(repo, obsolete.createmarkersopt):
+            # If a node is already obsoleted, and we want to obsolete it
+            # without a successor, skip that obssolete request since it's
+            # unnecessary. That's the "if s or not isobs(n)" check below.
+            # Also sort the node in topology order, that might be useful for
+            # some obsstore logic.
+            # NOTE: the filtering and sorting might belong to createmarkers.
+            # Unfiltered repo is needed since nodes in mapping might be hidden.
+            unfi = repo.unfiltered()
+            isobs = unfi.obsstore.successors.__contains__
+            torev = unfi.changelog.rev
+            sortfunc = lambda ns: torev(ns[0])
+            rels = [(unfi[n], tuple(unfi[m] for m in s))
+                    for n, s in sorted(mapping.items(), key=sortfunc)
+                    if s or not isobs(n)]
+            obsolete.createmarkers(repo, rels, operation=operation)
+        else:
+            from . import repair # avoid import cycle
+            repair.delayedstrip(repo.ui, repo, list(mapping), operation)
 
 def addremove(repo, matcher, prefix, opts=None, dry_run=None, similarity=None):
     if opts is None:
@@ -1033,7 +738,7 @@ def _interestingfiles(repo, matcher):
     This is different from dirstate.status because it doesn't care about
     whether files are modified or clean.'''
     added, unknown, deleted, removed, forgotten = [], [], [], [], []
-    audit_path = pathutil.pathauditor(repo.root)
+    audit_path = pathutil.pathauditor(repo.root, cached=True)
 
     ctx = repo[None]
     dirstate = repo.dirstate
@@ -1221,11 +926,11 @@ class filecache(object):
         function to call the appropriate join function on 'obj' (an instance
         of the class that its member function was decorated).
         """
-        return obj.join(fname)
+        raise NotImplementedError
 
     def __call__(self, func):
         self.func = func
-        self.name = func.__name__
+        self.name = func.__name__.encode('ascii')
         return self
 
     def __get__(self, obj, type=None):
@@ -1297,174 +1002,104 @@ def gdinitconfig(ui):
     """helper function to know if a repo should be created as general delta
     """
     # experimental config: format.generaldelta
-    return (ui.configbool('format', 'generaldelta', False)
-            or ui.configbool('format', 'usegeneraldelta', True))
+    return (ui.configbool('format', 'generaldelta')
+            or ui.configbool('format', 'usegeneraldelta'))
 
 def gddeltaconfig(ui):
     """helper function to know if incoming delta should be optimised
     """
     # experimental config: format.generaldelta
-    return ui.configbool('format', 'generaldelta', False)
+    return ui.configbool('format', 'generaldelta')
 
-class closewrapbase(object):
-    """Base class of wrapper, which hooks closing
+class simplekeyvaluefile(object):
+    """A simple file with key=value lines
 
-    Do not instantiate outside of the vfs layer.
+    Keys must be alphanumerics and start with a letter, values must not
+    contain '\n' characters"""
+    firstlinekey = '__firstline'
+
+    def __init__(self, vfs, path, keys=None):
+        self.vfs = vfs
+        self.path = path
+
+    def read(self, firstlinenonkeyval=False):
+        """Read the contents of a simple key-value file
+
+        'firstlinenonkeyval' indicates whether the first line of file should
+        be treated as a key-value pair or reuturned fully under the
+        __firstline key."""
+        lines = self.vfs.readlines(self.path)
+        d = {}
+        if firstlinenonkeyval:
+            if not lines:
+                e = _("empty simplekeyvalue file")
+                raise error.CorruptedState(e)
+            # we don't want to include '\n' in the __firstline
+            d[self.firstlinekey] = lines[0][:-1]
+            del lines[0]
+
+        try:
+            # the 'if line.strip()' part prevents us from failing on empty
+            # lines which only contain '\n' therefore are not skipped
+            # by 'if line'
+            updatedict = dict(line[:-1].split('=', 1) for line in lines
+                                                      if line.strip())
+            if self.firstlinekey in updatedict:
+                e = _("%r can't be used as a key")
+                raise error.CorruptedState(e % self.firstlinekey)
+            d.update(updatedict)
+        except ValueError as e:
+            raise error.CorruptedState(str(e))
+        return d
+
+    def write(self, data, firstline=None):
+        """Write key=>value mapping to a file
+        data is a dict. Keys must be alphanumerical and start with a letter.
+        Values must not contain newline characters.
+
+        If 'firstline' is not None, it is written to file before
+        everything else, as it is, not in a key=value form"""
+        lines = []
+        if firstline is not None:
+            lines.append('%s\n' % firstline)
+
+        for k, v in data.items():
+            if k == self.firstlinekey:
+                e = "key name '%s' is reserved" % self.firstlinekey
+                raise error.ProgrammingError(e)
+            if not k[0].isalpha():
+                e = "keys must start with a letter in a key-value file"
+                raise error.ProgrammingError(e)
+            if not k.isalnum():
+                e = "invalid key name in a simple key-value file"
+                raise error.ProgrammingError(e)
+            if '\n' in v:
+                e = "invalid value in a simple key-value file"
+                raise error.ProgrammingError(e)
+            lines.append("%s=%s\n" % (k, v))
+        with self.vfs(self.path, mode='wb', atomictemp=True) as fp:
+            fp.write(''.join(lines))
+
+_reportobsoletedsource = [
+    'debugobsolete',
+    'pull',
+    'push',
+    'serve',
+    'unbundle',
+]
+
+def registersummarycallback(repo, otr, txnname=''):
+    """register a callback to issue a summary after the transaction is closed
     """
-    def __init__(self, fh):
-        object.__setattr__(self, '_origfh', fh)
-
-    def __getattr__(self, attr):
-        return getattr(self._origfh, attr)
-
-    def __setattr__(self, attr, value):
-        return setattr(self._origfh, attr, value)
-
-    def __delattr__(self, attr):
-        return delattr(self._origfh, attr)
-
-    def __enter__(self):
-        return self._origfh.__enter__()
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
-
-    def close(self):
-        raise NotImplementedError('attempted instantiating ' + str(type(self)))
-
-class delayclosedfile(closewrapbase):
-    """Proxy for a file object whose close is delayed.
-
-    Do not instantiate outside of the vfs layer.
-    """
-    def __init__(self, fh, closer):
-        super(delayclosedfile, self).__init__(fh)
-        object.__setattr__(self, '_closer', closer)
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self._closer.close(self._origfh)
-
-    def close(self):
-        self._closer.close(self._origfh)
-
-class backgroundfilecloser(object):
-    """Coordinates background closing of file handles on multiple threads."""
-    def __init__(self, ui, expectedcount=-1):
-        self._running = False
-        self._entered = False
-        self._threads = []
-        self._threadexception = None
-
-        # Only Windows/NTFS has slow file closing. So only enable by default
-        # on that platform. But allow to be enabled elsewhere for testing.
-        defaultenabled = os.name == 'nt'
-        enabled = ui.configbool('worker', 'backgroundclose', defaultenabled)
-
-        if not enabled:
-            return
-
-        # There is overhead to starting and stopping the background threads.
-        # Don't do background processing unless the file count is large enough
-        # to justify it.
-        minfilecount = ui.configint('worker', 'backgroundcloseminfilecount',
-                                    2048)
-        # FUTURE dynamically start background threads after minfilecount closes.
-        # (We don't currently have any callers that don't know their file count)
-        if expectedcount > 0 and expectedcount < minfilecount:
-            return
-
-        # Windows defaults to a limit of 512 open files. A buffer of 128
-        # should give us enough headway.
-        maxqueue = ui.configint('worker', 'backgroundclosemaxqueue', 384)
-        threadcount = ui.configint('worker', 'backgroundclosethreadcount', 4)
-
-        ui.debug('starting %d threads for background file closing\n' %
-                 threadcount)
-
-        self._queue = util.queue(maxsize=maxqueue)
-        self._running = True
-
-        for i in range(threadcount):
-            t = threading.Thread(target=self._worker, name='backgroundcloser')
-            self._threads.append(t)
-            t.start()
-
-    def __enter__(self):
-        self._entered = True
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self._running = False
-
-        # Wait for threads to finish closing so open files don't linger for
-        # longer than lifetime of context manager.
-        for t in self._threads:
-            t.join()
-
-    def _worker(self):
-        """Main routine for worker thread."""
-        while True:
-            try:
-                fh = self._queue.get(block=True, timeout=0.100)
-                # Need to catch or the thread will terminate and
-                # we could orphan file descriptors.
-                try:
-                    fh.close()
-                except Exception as e:
-                    # Stash so can re-raise from main thread later.
-                    self._threadexception = e
-            except util.empty:
-                if not self._running:
-                    break
-
-    def close(self, fh):
-        """Schedule a file for closing."""
-        if not self._entered:
-            raise error.Abort(_('can only call close() when context manager '
-                              'active'))
-
-        # If a background thread encountered an exception, raise now so we fail
-        # fast. Otherwise we may potentially go on for minutes until the error
-        # is acted on.
-        if self._threadexception:
-            e = self._threadexception
-            self._threadexception = None
-            raise e
-
-        # If we're not actively running, close synchronously.
-        if not self._running:
-            fh.close()
-            return
-
-        self._queue.put(fh, block=True, timeout=None)
-
-class checkambigatclosing(closewrapbase):
-    """Proxy for a file object, to avoid ambiguity of file stat
-
-    See also util.filestat for detail about "ambiguity of file stat".
-
-    This proxy is useful only if the target file is guarded by any
-    lock (e.g. repo.lock or repo.wlock)
-
-    Do not instantiate outside of the vfs layer.
-    """
-    def __init__(self, fh):
-        super(checkambigatclosing, self).__init__(fh)
-        object.__setattr__(self, '_oldstat', util.filestat(fh.name))
-
-    def _checkambig(self):
-        oldstat = self._oldstat
-        if oldstat.stat:
-            newstat = util.filestat(self._origfh.name)
-            if newstat.isambig(oldstat):
-                # stat of changed file is ambiguous to original one
-                advanced = (oldstat.stat.st_mtime + 1) & 0x7fffffff
-                os.utime(self._origfh.name, (advanced, advanced))
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self._origfh.__exit__(exc_type, exc_value, exc_tb)
-        self._checkambig()
-
-    def close(self):
-        self._origfh.close()
-        self._checkambig()
+    for source in _reportobsoletedsource:
+        if txnname.startswith(source):
+            reporef = weakref.ref(repo)
+            def reportsummary(tr):
+                """the actual callback reporting the summary"""
+                repo = reporef()
+                obsoleted = obsutil.getobsoleted(repo, tr)
+                if obsoleted:
+                    repo.ui.status(_('obsoleted %i changesets\n')
+                                   % len(obsoleted))
+            otr.addpostclose('00-txnreport', reportsummary)
+            break

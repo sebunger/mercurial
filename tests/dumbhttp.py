@@ -7,22 +7,30 @@ Small and dumb HTTP server for use in tests.
 """
 
 import optparse
+import os
 import signal
+import socket
 import sys
 
 from mercurial import (
-    cmdutil,
+    server,
     util,
 )
 
 httpserver = util.httpserver
 OptionParser = optparse.OptionParser
 
+if os.environ.get('HGIPV6', '0') == '1':
+    class simplehttpserver(httpserver.httpserver):
+        address_family = socket.AF_INET6
+else:
+    simplehttpserver = httpserver.httpserver
+
 class simplehttpservice(object):
     def __init__(self, host, port):
         self.address = (host, port)
     def init(self):
-        self.httpd = httpserver.httpserver(
+        self.httpd = simplehttpserver(
             self.address, httpserver.simplehttprequesthandler)
     def run(self):
         self.httpd.serve_forever()
@@ -51,5 +59,5 @@ if __name__ == '__main__':
             'daemon': not options.foreground,
             'daemon_postexec': options.daemon_postexec}
     service = simplehttpservice(options.host, options.port)
-    cmdutil.service(opts, initfn=service.init, runfn=service.run,
-                    runargs=[sys.executable, __file__] + sys.argv[1:])
+    server.runservice(opts, initfn=service.init, runfn=service.run,
+                      runargs=[sys.executable, __file__] + sys.argv[1:])

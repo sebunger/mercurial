@@ -9,14 +9,35 @@ from __future__ import absolute_import
 
 import contextlib
 import errno
+import os
 import socket
 import time
 import warnings
 
 from . import (
+    encoding,
     error,
+    pycompat,
     util,
 )
+
+def _getlockprefix():
+    """Return a string which is used to differentiate pid namespaces
+
+    It's useful to detect "dead" processes and remove stale locks with
+    confidence. Typically it's just hostname. On modern linux, we include an
+    extra Linux-specific pid namespace identifier.
+    """
+    result = socket.gethostname()
+    if pycompat.ispy3:
+        result = result.encode(pycompat.sysstr(encoding.encoding), 'replace')
+    if pycompat.sysplatform.startswith('linux'):
+        try:
+            result += '/%x' % os.stat('/proc/self/ns/pid').st_ino
+        except OSError as ex:
+            if ex.errno not in (errno.ENOENT, errno.EACCES, errno.ENOTDIR):
+                raise
+    return result
 
 class lock(object):
     '''An advisory lock held by one process to control access to a set
@@ -99,8 +120,8 @@ class lock(object):
             self.held += 1
             return
         if lock._host is None:
-            lock._host = socket.gethostname()
-        lockname = '%s:%s' % (lock._host, self.pid)
+            lock._host = _getlockprefix()
+        lockname = '%s:%d' % (lock._host, self.pid)
         retry = 5
         while not self.held and retry:
             retry -= 1
@@ -110,6 +131,9 @@ class lock(object):
             except (OSError, IOError) as why:
                 if why.errno == errno.EEXIST:
                     locker = self._readlock()
+                    if locker is None:
+                        continue
+
                     # special case where a parent process holds the lock -- this
                     # is different from the pid being different because we do
                     # want the unlock and postrelease functions to be called,
@@ -126,6 +150,12 @@ class lock(object):
                 else:
                     raise error.LockUnavailable(why.errno, why.strerror,
                                                 why.filename, self.desc)
+
+        if not self.held:
+            # use empty locker to mean "busy for frequent lock/unlock
+            # by many processes"
+            raise error.LockHeld(errno.EAGAIN,
+                                 self.vfs.join(self.f), self.desc, "")
 
     def _readlock(self):
         """read lock and return its value

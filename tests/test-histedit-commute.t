@@ -72,7 +72,7 @@ show the edit commands offered
   #  p, pick = use commit
   #  d, drop = remove commit from history
   #  f, fold = use commit, but combine it with the one above
-  #  r, roll = like fold, but discard this commit's description
+  #  r, roll = like fold, but discard this commit's description and date
   #
 
 edit the history
@@ -350,7 +350,7 @@ Verify that revsetalias entries work with histedit:
   #  p, pick = use commit
   #  d, drop = remove commit from history
   #  f, fold = use commit, but combine it with the one above
-  #  r, roll = like fold, but discard this commit's description
+  #  r, roll = like fold, but discard this commit's description and date
   #
 
 should also work if a commit message is missing
@@ -417,8 +417,7 @@ Now, let's try to fold the second commit into the first:
   > EOF
 
   $ HGEDITOR="sh ./editor.sh" hg histedit 0
-  saved backup bundle to $TESTTMP/issue4251/.hg/strip-backup/*-backup.hg (glob)
-  saved backup bundle to $TESTTMP/issue4251/.hg/strip-backup/*-backup.hg (glob)
+  saved backup bundle to $TESTTMP/issue4251/.hg/strip-backup/b0f4233702ca-4cf5af69-histedit.hg (glob)
 
   $ hg --config diff.git=yes export 0
   # HG changeset patch

@@ -212,6 +212,18 @@ verify that largefiles doesn't break filesets
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     add files
   
+sharing a largefile repo automatically enables largefiles on the share
+
+  $ hg share --config extensions.share= . ../shared_lfrepo
+  updating working directory
+  getting changed largefiles
+  1 largefiles updated, 0 removed
+  3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ cat ../shared_lfrepo/.hg/hgrc
+  
+  [extensions]
+  largefiles=
+
 verify that large files in subrepos handled properly
   $ hg init subrepo
   $ echo "subrepo = subrepo" > .hgsub
@@ -258,7 +270,7 @@ verify that large files in subrepos handled properly
   update: (current)
   phases: 3 draft
   $ hg ci -m "this commit should fail without -S"
-  abort: uncommitted changes in subrepository 'subrepo'
+  abort: uncommitted changes in subrepository "subrepo"
   (use --subrepos for recursive commit)
   [255]
 
@@ -467,7 +479,7 @@ Test actions on largefiles using relative paths from subdir
   summary:     anotherlarge
   
   $ hg --debug log -T '{rev}: {desc}\n' ../sub/anotherlarge
-  updated patterns: ['../.hglf/sub/../sub/anotherlarge', '../sub/anotherlarge']
+  updated patterns: ../.hglf/sub/../sub/anotherlarge, ../sub/anotherlarge
   1: anotherlarge
 
   $ hg log -G anotherlarge
@@ -486,18 +498,18 @@ Test actions on largefiles using relative paths from subdir
   summary:     anotherlarge
   
   $ hg --debug log -T '{rev}: {desc}\n' -G glob:another*
-  updated patterns: ['glob:../.hglf/sub/another*', 'glob:another*']
+  updated patterns: glob:../.hglf/sub/another*, glob:another*
   @  1: anotherlarge
   |
   ~
 
 #if no-msys
   $ hg --debug log -T '{rev}: {desc}\n' 'glob:../.hglf/sub/another*' # no-msys
-  updated patterns: ['glob:../.hglf/sub/another*']
+  updated patterns: glob:../.hglf/sub/another*
   1: anotherlarge
 
   $ hg --debug log -G -T '{rev}: {desc}\n' 'glob:../.hglf/sub/another*' # no-msys
-  updated patterns: ['glob:../.hglf/sub/another*']
+  updated patterns: glob:../.hglf/sub/another*
   @  1: anotherlarge
   |
   ~
@@ -545,10 +557,10 @@ Test glob logging from the root dir
 
 Log from outer space
   $ hg --debug log -R addrm2 -T '{rev}: {desc}\n' 'addrm2/sub/anotherlarge'
-  updated patterns: ['addrm2/.hglf/sub/anotherlarge', 'addrm2/sub/anotherlarge']
+  updated patterns: addrm2/.hglf/sub/anotherlarge, addrm2/sub/anotherlarge
   1: anotherlarge
   $ hg --debug log -R addrm2 -T '{rev}: {desc}\n' 'addrm2/.hglf/sub/anotherlarge'
-  updated patterns: ['addrm2/.hglf/sub/anotherlarge']
+  updated patterns: addrm2/.hglf/sub/anotherlarge
   1: anotherlarge
 
 
@@ -1063,6 +1075,10 @@ largefiles (issue4547)
   $ hg -R subrepo-root status -S
   M large
   M no-largefiles/normal1
+  $ hg -R subrepo-root extdiff -p echo -S --config extensions.extdiff=
+  "*\\no-largefiles\\normal1" "*\\no-largefiles\\normal1" (glob) (windows !)
+  */no-largefiles/normal1 */no-largefiles/normal1 (glob) (no-windows !)
+  [1]
   $ hg -R subrepo-root revert --all
   reverting subrepo-root/.hglf/large (glob)
   reverting subrepo no-largefiles

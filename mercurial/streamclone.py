@@ -8,12 +8,12 @@
 from __future__ import absolute_import
 
 import struct
-import time
 
 from .i18n import _
 from . import (
     branchmap,
     error,
+    phases,
     store,
     util,
 )
@@ -81,11 +81,21 @@ def canperformstreamclone(pullop, bailifbundle2supported=False):
         streamreqs = remote.capable('streamreqs')
         # This is weird and shouldn't happen with modern servers.
         if not streamreqs:
+            pullop.repo.ui.warn(_(
+                'warning: stream clone requested but server has them '
+                'disabled\n'))
             return False, None
 
         streamreqs = set(streamreqs.split(','))
         # Server requires something we don't support. Bail.
-        if streamreqs - repo.supportedformats:
+        missingreqs = streamreqs - repo.supportedformats
+        if missingreqs:
+            pullop.repo.ui.warn(_(
+                'warning: stream clone requested but client is missing '
+                'requirements: %s\n') % ', '.join(sorted(missingreqs)))
+            pullop.repo.ui.warn(
+                _('(see https://www.mercurial-scm.org/wiki/MissingRequirement '
+                  'for more information)\n'))
             return False, None
         requirements = streamreqs
 
@@ -153,9 +163,18 @@ def maybeperformlegacystreamclone(pullop):
 
         repo.invalidate()
 
-def allowservergeneration(ui):
+def allowservergeneration(repo):
     """Whether streaming clones are allowed from the server."""
-    return ui.configbool('server', 'uncompressed', True, untrusted=True)
+    if not repo.ui.configbool('server', 'uncompressed', untrusted=True):
+        return False
+
+    # The way stream clone works makes it impossible to hide secret changesets.
+    # So don't allow this by default.
+    secret = phases.hassecret(repo)
+    if secret:
+        return repo.ui.configbool('server', 'uncompressedallowsecret')
+
+    return True
 
 # This is it's own function so extensions can override it.
 def _walkstreamfiles(repo):
@@ -194,25 +213,22 @@ def generatev1(repo):
                   (len(entries), total_bytes))
 
     svfs = repo.svfs
-    oldaudit = svfs.mustaudit
     debugflag = repo.ui.debugflag
-    svfs.mustaudit = False
 
     def emitrevlogdata():
-        try:
-            for name, size in entries:
-                if debugflag:
-                    repo.ui.debug('sending %s (%d bytes)\n' % (name, size))
-                # partially encode name over the wire for backwards compat
-                yield '%s\0%d\n' % (store.encodedir(name), size)
+        for name, size in entries:
+            if debugflag:
+                repo.ui.debug('sending %s (%d bytes)\n' % (name, size))
+            # partially encode name over the wire for backwards compat
+            yield '%s\0%d\n' % (store.encodedir(name), size)
+            # auditing at this stage is both pointless (paths are already
+            # trusted by the local repo) and expensive
+            with svfs(name, 'rb', auditpath=False) as fp:
                 if size <= 65536:
-                    with svfs(name, 'rb') as fp:
-                        yield fp.read(size)
+                    yield fp.read(size)
                 else:
-                    for chunk in util.filechunkiter(svfs(name), limit=size):
+                    for chunk in util.filechunkiter(fp, limit=size):
                         yield chunk
-        finally:
-            svfs.mustaudit = oldaudit
 
     return len(entries), total_bytes, emitrevlogdata()
 
@@ -286,18 +302,18 @@ def generatebundlev1(repo, compression='UN'):
 def consumev1(repo, fp, filecount, bytecount):
     """Apply the contents from version 1 of a streaming clone file handle.
 
-    This takes the output from "streamout" and applies it to the specified
+    This takes the output from "stream_out" and applies it to the specified
     repository.
 
-    Like "streamout," the status line added by the wire protocol is not handled
-    by this function.
+    Like "stream_out," the status line added by the wire protocol is not
+    handled by this function.
     """
     with repo.lock():
         repo.ui.status(_('%d files to transfer, %s of data\n') %
                        (filecount, util.bytecount(bytecount)))
         handled_bytes = 0
         repo.ui.progress(_('clone'), 0, total=bytecount, unit=_('bytes'))
-        start = time.time()
+        start = util.timer()
 
         # TODO: get rid of (potential) inconsistency
         #
@@ -340,7 +356,7 @@ def consumev1(repo, fp, filecount, bytecount):
             # streamclone-ed file at next access
             repo.invalidate(clearfilecache=True)
 
-        elapsed = time.time() - start
+        elapsed = util.timer() - start
         if elapsed <= 0:
             elapsed = 0.001
         repo.ui.progress(_('clone'), None)

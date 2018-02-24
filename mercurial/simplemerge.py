@@ -19,14 +19,14 @@
 from __future__ import absolute_import
 
 import os
-import sys
 
 from .i18n import _
 from . import (
     error,
     mdiff,
-    scmutil,
+    pycompat,
     util,
+    vfs as vfsmod,
 )
 
 class CantReprocessAndShowBase(Exception):
@@ -275,7 +275,7 @@ class Merge3Text(object):
     def minimize(self, merge_regions):
         """Trim conflict regions of lines where A and B sides match.
 
-        Lines where both A and B have made the same changes at the begining
+        Lines where both A and B have made the same changes at the beginning
         or the end of each merge region are eliminated from the conflict
         region and are instead considered the same.
         """
@@ -438,10 +438,10 @@ def simplemerge(ui, local, base, other, **opts):
 
     local = os.path.realpath(local)
     if not opts.get('print'):
-        opener = scmutil.opener(os.path.dirname(local))
+        opener = vfsmod.vfs(os.path.dirname(local))
         out = opener(os.path.basename(local), "w", atomictemp=True)
     else:
-        out = sys.stdout
+        out = ui.fout
 
     m3 = Merge3Text(basetext, localtext, othertext)
     extrakwargs = {
@@ -456,7 +456,8 @@ def simplemerge(ui, local, base, other, **opts):
         extrakwargs['base_marker'] = '|||||||'
         extrakwargs['name_base'] = name_base
         extrakwargs['minimize'] = False
-    for line in m3.merge_lines(name_a=name_a, name_b=name_b, **extrakwargs):
+    for line in m3.merge_lines(name_a=name_a, name_b=name_b,
+                               **pycompat.strkwargs(extrakwargs)):
         out.write(line)
 
     if not opts.get('print'):

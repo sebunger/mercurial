@@ -58,7 +58,7 @@ Set up the repo
 
 Logs and changes
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log/?style=atom'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log/?style=atom'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -244,7 +244,7 @@ Logs and changes
    </entry>
   
   </feed>
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log/?style=rss'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log/?style=rss'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -422,7 +422,7 @@ Logs and changes
   
     </channel>
   </rss> (no-eol)
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log/1/?style=atom'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log/1/?style=atom'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -522,7 +522,7 @@ Logs and changes
    </entry>
   
   </feed>
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log/1/?style=rss'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log/1/?style=rss'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -618,7 +618,7 @@ Logs and changes
   
     </channel>
   </rss> (no-eol)
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log/1/foo/?style=atom'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log/1/foo/?style=atom'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -673,7 +673,7 @@ Logs and changes
    </entry>
   
   </feed>
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log/1/foo/?style=rss'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log/1/foo/?style=rss'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -686,7 +686,7 @@ Logs and changes
       <description>foo revision history</description>
       <item>
       <title>base</title>
-      <link>http://*:$HGPORT/log2ef0ac749a14/foo</link> (glob)
+      <link>http://*:$HGPORT/log/2ef0ac749a14/foo</link> (glob)
       <description><![CDATA[base(websub)]]></description>
       <author>&#116;&#101;&#115;&#116;</author>
       <pubDate>Thu, 01 Jan 1970 00:00:00 +0000</pubDate>
@@ -694,7 +694,7 @@ Logs and changes
   
     </channel>
   </rss>
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'shortlog/'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'shortlog/'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -746,6 +746,7 @@ Logs and changes
   <div class="main">
   <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>log</h3>
+  
   
   <form class="search" action="/log">
   
@@ -829,13 +830,12 @@ Logs and changes
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'rev/0/'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'rev/0/'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -883,9 +883,10 @@ Logs and changes
    <span class="tag">1.0</span> <span class="tag">anotherthing</span> 
   </h3>
   
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -961,13 +962,12 @@ Logs and changes
   
   </div>
   </div>
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'rev/1/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'rev/1/?style=raw'
   200 Script output follows
   
   
@@ -984,7 +984,7 @@ Logs and changes
   @@ -0,0 +1,1 @@
   +2ef0ac749a14e4f57a5a822464a0902c6f7f448f 1.0
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=base'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=base'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -1027,9 +1027,10 @@ Logs and changes
   
   </p>
   
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" value="base"></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="base" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -1068,18 +1069,17 @@ Logs and changes
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=stable&style=raw' | grep 'revision:'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=stable&style=raw' | grep 'revision:'
   revision:    2
 
 Search with revset syntax
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=tip^&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=tip^&style=raw'
   200 Script output follows
   
   
@@ -1096,7 +1096,7 @@ Search with revset syntax
   branch:      stable
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=last(all(),2)^&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=last(all(),2)^&style=raw'
   200 Script output follows
   
   
@@ -1120,7 +1120,7 @@ Search with revset syntax
   branch:      default
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=last(all(,2)^&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=last(all(,2)^&style=raw'
   200 Script output follows
   
   
@@ -1130,7 +1130,7 @@ Search with revset syntax
   # Mode literal keyword search
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=last(al(),2)^&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=last(al(),2)^&style=raw'
   200 Script output follows
   
   
@@ -1140,7 +1140,7 @@ Search with revset syntax
   # Mode literal keyword search
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=bookmark(anotherthing)&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=bookmark(anotherthing)&style=raw'
   200 Script output follows
   
   
@@ -1158,7 +1158,7 @@ Search with revset syntax
   bookmark:    anotherthing
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=bookmark(abc)&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=bookmark(abc)&style=raw'
   200 Script output follows
   
   
@@ -1168,7 +1168,7 @@ Search with revset syntax
   # Mode literal keyword search
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=deadbeef:&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=deadbeef:&style=raw'
   200 Script output follows
   
   
@@ -1179,7 +1179,7 @@ Search with revset syntax
   
   
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=user("test")&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=user("test")&style=raw'
   200 Script output follows
   
   
@@ -1220,7 +1220,7 @@ Search with revset syntax
   bookmark:    anotherthing
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=user("re:test")&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=user("re:test")&style=raw'
   200 Script output follows
   
   
@@ -1233,11 +1233,11 @@ Search with revset syntax
 
 File-related
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file/1/foo/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file/1/foo/?style=raw'
   200 Script output follows
   
   foo
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'annotate/1/foo/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'annotate/1/foo/?style=raw'
   200 Script output follows
   
   
@@ -1246,7 +1246,7 @@ File-related
   
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file/1/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file/1/?style=raw'
   200 Script output follows
   
   
@@ -1262,7 +1262,7 @@ File-related
   $ hg parents --template "{node|short}\n" -r 1 foo
   2ef0ac749a14
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file/1/foo'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file/1/foo'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -1315,9 +1315,10 @@ File-related
    
   </h3>
   
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -1346,19 +1347,26 @@ File-related
   <div class="overflow">
   <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="javascript:toggleLinewrap()">on</a></div>
   <div class="sourcefirst"> line source</div>
-  <pre class="sourcelines stripes4 wrap bottomline">
-  <span id="l1">foo</span><a href="#l1"></a></pre>
+  <pre class="sourcelines stripes4 wrap bottomline"
+       data-logurl="/log/1/foo"
+       data-selectabletag="SPAN"
+       data-ishead="0">
+  
+  <span id="l1">foo</span><a href="#l1"></a>
+  </pre>
   </div>
+  
+  <script type="text/javascript" src="/static/followlines.js"></script>
+  
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'filediff/0/foo/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'filediff/0/foo/?style=raw'
   200 Script output follows
   
   
@@ -1372,7 +1380,7 @@ File-related
   
   
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'filediff/1/foo/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'filediff/1/foo/?style=raw'
   200 Script output follows
   
   
@@ -1388,7 +1396,7 @@ File-related
   $ hg parents --template "{node|short}\n" -r 2 foo
   2ef0ac749a14
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file/2/foo'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file/2/foo'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -1441,9 +1449,10 @@ File-related
    <span class="branchname">stable</span> 
   </h3>
   
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -1472,13 +1481,20 @@ File-related
   <div class="overflow">
   <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="javascript:toggleLinewrap()">on</a></div>
   <div class="sourcefirst"> line source</div>
-  <pre class="sourcelines stripes4 wrap bottomline">
-  <span id="l1">another</span><a href="#l1"></a></pre>
+  <pre class="sourcelines stripes4 wrap bottomline"
+       data-logurl="/log/2/foo"
+       data-selectabletag="SPAN"
+       data-ishead="1">
+  
+  <span id="l1">another</span><a href="#l1"></a>
+  </pre>
   </div>
+  
+  <script type="text/javascript" src="/static/followlines.js"></script>
+  
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
@@ -1488,23 +1504,23 @@ File-related
 
 Overviews
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'raw-tags'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'raw-tags'
   200 Script output follows
   
   tip	cad8025a2e87f88c06259790adfa15acb4080123
   1.0	2ef0ac749a14e4f57a5a822464a0902c6f7f448f
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'raw-branches'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'raw-branches'
   200 Script output follows
   
   unstable	cad8025a2e87f88c06259790adfa15acb4080123	open
   stable	1d22e65f027e5a0609357e7d8e7508cd2ba5d2fe	inactive
   default	a4f92ed23982be056b9852de5dfe873eaac7f0de	inactive
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'raw-bookmarks'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'raw-bookmarks'
   200 Script output follows
   
   something	cad8025a2e87f88c06259790adfa15acb4080123
   anotherthing	2ef0ac749a14e4f57a5a822464a0902c6f7f448f
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'summary/?style=gitweb'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'summary/?style=gitweb'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -1527,15 +1543,10 @@ Overviews
   <div class="page_header">
   <a href="https://mercurial-scm.org/" title="Mercurial" style="float: right;">Mercurial</a>
   <a href="/">Mercurial</a>  / summary
-  <form action="/log">
-  <input type="hidden" name="style" value="gitweb" />
-  <div class="search">
-  <input type="text" name="rev"  />
-  </div>
-  </form>
   </div>
   
   <div class="page_nav">
+  <div>
   summary |
   <a href="/shortlog?style=gitweb">shortlog</a> |
   <a href="/log?style=gitweb">changelog</a> |
@@ -1545,7 +1556,16 @@ Overviews
   <a href="/branches?style=gitweb">branches</a> |
   <a href="/file?style=gitweb">files</a> |
   <a href="/help?style=gitweb">help</a>
-  <br/>
+  </div>
+  
+  <div class="search">
+  <form id="searchform" action="/log">
+  <input type="hidden" name="style" value="gitweb" />
+  <input name="rev" type="text" value="" size="40" />
+  <div id="hint">Find changesets by keywords (author, files, the commit message), revision
+  number or hash, or <a href="/help/revsets">revset expression</a>.</div>
+  </form>
+  </div>
   </div>
   
   <div class="title">&nbsp;</div>
@@ -1690,7 +1710,6 @@ Overviews
     <td colspan="3"><a class="list" href="/branches?style=gitweb">...</a></td>
   </tr>
   </table>
-  <script type="text/javascript">process_dates()</script>
   <div class="page_footer">
   <div class="page_footer_text">test</div>
   <div class="rss_logo">
@@ -1703,7 +1722,7 @@ Overviews
   </body>
   </html>
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'graph/?style=gitweb'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'graph/?style=gitweb'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -1729,13 +1748,8 @@ Overviews
   <a href="/">Mercurial</a>  / graph
   </div>
   
-  <form action="/log">
-  <input type="hidden" name="style" value="gitweb" />
-  <div class="search">
-  <input type="text" name="rev"  />
-  </div>
-  </form>
   <div class="page_nav">
+  <div>
   <a href="/summary?style=gitweb">summary</a> |
   <a href="/shortlog/tip?style=gitweb">shortlog</a> |
   <a href="/log/tip?style=gitweb">changelog</a> |
@@ -1748,7 +1762,17 @@ Overviews
   <br/>
   <a href="/graph/tip?revcount=30&style=gitweb">less</a>
   <a href="/graph/tip?revcount=120&style=gitweb">more</a>
-  | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/tip?style=gitweb">tip</a> <br/>
+  | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/tip?style=gitweb">tip</a> 
+  </div>
+  
+  <div class="search">
+  <form id="searchform" action="/log">
+  <input type="hidden" name="style" value="gitweb" />
+  <input name="rev" type="text" value="" size="40" />
+  <div id="hint">Find changesets by keywords (author, files, the commit message), revision
+  number or hash, or <a href="/help/revsets">revset expression</a>.</div>
+  </form>
+  </div>
   </div>
   
   <div class="title">&nbsp;</div>
@@ -1818,7 +1842,7 @@ Overviews
   // stop hiding script -->
   </script>
   
-  <div class="page_nav">
+  <div class="extra_nav">
   <a href="/graph/tip?revcount=30&style=gitweb">less</a>
   <a href="/graph/tip?revcount=120&style=gitweb">more</a>
   | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/tip?style=gitweb">tip</a> 
@@ -1835,7 +1859,6 @@ Overviews
       );
   </script>
   
-  <script type="text/javascript">process_dates()</script>
   <div class="page_footer">
   <div class="page_footer_text">test</div>
   <div class="rss_logo">
@@ -1850,7 +1873,7 @@ Overviews
   
 raw graph
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'graph/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'graph/?style=raw'
   200 Script output follows
   
   
@@ -1900,28 +1923,28 @@ raw graph
 
 capabilities
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=capabilities'; echo
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=capabilities'; echo
   200 Script output follows
   
-  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1%2Csha512%0Aerror%3Dabort%2Cunsupportedcontent%2Cpushraced%2Cpushkey%0Ahgtagsfnodes%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024
+  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1%2Csha512%0Aerror%3Dabort%2Cunsupportedcontent%2Cpushraced%2Cpushkey%0Ahgtagsfnodes%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024 httpmediatype=0.1rx,0.1tx,0.2tx compression=*zlib (glob)
 
 heads
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=heads'
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=heads'
   200 Script output follows
   
   cad8025a2e87f88c06259790adfa15acb4080123
 
 branches
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=branches&nodes=0000000000000000000000000000000000000000'
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=branches&nodes=0000000000000000000000000000000000000000'
   200 Script output follows
   
   0000000000000000000000000000000000000000 0000000000000000000000000000000000000000 0000000000000000000000000000000000000000 0000000000000000000000000000000000000000
 
 changegroup
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=changegroup&roots=0000000000000000000000000000000000000000'
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=changegroup&roots=0000000000000000000000000000000000000000'
   200 Script output follows
   
   x\x9c\xbd\x94MHTQ\x14\xc7'+\x9d\xc66\x81\x89P\xc1\xa3\x14\xcct\xba\xef\xbe\xfb\xde\xbb\xcfr0\xb3"\x02\x11[%\x98\xdcO\xa7\xd2\x19\x98y\xd2\x07h"\x96\xa0e\xda\xa6lUY-\xca\x08\xa2\x82\x16\x96\xd1\xa2\xf0#\xc8\x95\x1b\xdd$!m*"\xc8\x82\xea\xbe\x9c\x01\x85\xc9\x996\x1d\xf8\xc1\xe3~\x9d\xff9\xef\x7f\xaf\xcf\xe7\xbb\x19\xfc4\xec^\xcb\x9b\xfbz\xa6\xbe\xb3\x90_\xef/\x8d\x9e\xad\xbe\xe4\xcb0\xd2\xec\xad\x12X:\xc8\x12\x12\xd9:\x95\xba	\x1cG\xb7$\xc5\xc44\x1c(\x1d\x03\x03\xdb\x84\x0cK#\xe0\x8a\xb8\x1b\x00\x1a\x08p\xb2SF\xa3\x01\x8f\x00%q\xa1Ny{k!8\xe5t>[{\xe2j\xddl\xc3\xcf\xee\xd0\xddW\x9ff3U\x9djobj\xbb\x87E\x88\x05l\x001\x12\x18\x13\xc6 \xb7(\xe3\x02a\x80\x81\xcel.u\x9b\x1b\x8c\x91\x80Z\x0c\x15\x15 (esc)
@@ -1932,14 +1955,14 @@ changegroup
 
 stream_out
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=stream_out'
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=stream_out'
   200 Script output follows
   
   1
 
 failing unbundle, requires POST request
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=unbundle'
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=unbundle'
   405 push requires POST request
   
   0
@@ -1948,7 +1971,7 @@ failing unbundle, requires POST request
 
 Static files
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'static/style.css'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'static/style.css'
   200 Script output follows
   
   a { text-decoration:none; }
@@ -2084,7 +2107,7 @@ repository root. (issue4568)
   > --cwd .. -R `pwd`
   $ cat hg.pid >> $DAEMON_PIDS
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'log?rev=adds("foo")&style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'log?rev=adds("foo")&style=raw'
   200 Script output follows
   
   
@@ -2117,7 +2140,7 @@ commit message with Japanese Kanji 'Noh', which ends with '\x5c'
 
 Graph json escape of multibyte character
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'graph/' > out
+  $ get-with-headers.py $LOCALIP:$HGPORT 'graph/' > out
   >>> from __future__ import print_function
   >>> for line in open("out"):
   ...     if line.startswith("var data ="):
@@ -2128,14 +2151,14 @@ capabilities
 
 (plain version to check the format)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=capabilities' | dd ibs=75 count=1 2> /dev/null; echo
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=capabilities' | dd ibs=75 count=1 2> /dev/null; echo
   200 Script output follows
   
   lookup changegroupsubset branchmap pushkey known
 
 (spread version to check the content)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT '?cmd=capabilities' | tr ' ' '\n'; echo
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=capabilities' | tr ' ' '\n'; echo
   200
   Script
   output
@@ -2154,6 +2177,8 @@ capabilities
   bundle2=HG20%0Achangegroup%3D01%2C02%0Adigests%3Dmd5%2Csha1%2Csha512%0Aerror%3Dabort%2Cunsupportedcontent%2Cpushraced%2Cpushkey%0Ahgtagsfnodes%0Alistkeys%0Apushkey%0Aremote-changegroup%3Dhttp%2Chttps
   unbundle=HG10GZ,HG10BZ,HG10UN
   httpheader=1024
+  httpmediatype=0.1rx,0.1tx,0.2tx
+  compression=*zlib (glob)
 
 heads
 
@@ -2199,27 +2224,32 @@ Test graph paging
 
 Test paging
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT \
+  $ get-with-headers.py $LOCALIP:$HGPORT \
   >   'graph/?style=raw' | grep changeset
   changeset:   aed2d9c1d0e7
   changeset:   b60a39a85a01
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT \
+  $ get-with-headers.py $LOCALIP:$HGPORT \
   >   'graph/?style=raw&revcount=3' | grep changeset
   changeset:   aed2d9c1d0e7
   changeset:   b60a39a85a01
   changeset:   ada793dcc118
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT \
+  $ get-with-headers.py $LOCALIP:$HGPORT \
   >   'graph/e06180cbfb0?style=raw&revcount=3' | grep changeset
   changeset:   e06180cbfb0c
   changeset:   b4e73ffab476
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT \
+  $ get-with-headers.py $LOCALIP:$HGPORT \
   >   'graph/b4e73ffab47?style=raw&revcount=3' | grep changeset
   changeset:   b4e73ffab476
 
   $ cat errors.log
+
+MSYS changes environment variables starting with '/' into 'C:/MinGW/msys/1.0',
+which changes the status line to '400 no such method: C:'.
+
+#if no-msys
 
 bookmarks view doesn't choke on bookmarks on secret changesets (issue3774)
 
@@ -2235,7 +2265,7 @@ bookmarks view doesn't choke on bookmarks on secret changesets (issue3774)
   $ . "$TESTDIR/cgienv"
   $ PATH_INFO=/bookmarks; export PATH_INFO
   $ QUERY_STRING='style=raw'
-  $ python hgweb.cgi | grep -v ETag:
+  $ $PYTHON hgweb.cgi | grep -v ETag:
   Status: 200 Script output follows\r (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
@@ -2244,7 +2274,7 @@ listbookmarks hides secret bookmarks
 
   $ PATH_INFO=/; export PATH_INFO
   $ QUERY_STRING='cmd=listkeys&namespace=bookmarks'
-  $ python hgweb.cgi
+  $ $PYTHON hgweb.cgi
   Status: 200 Script output follows\r (esc)
   Content-Type: application/mercurial-0.1\r (esc)
   Content-Length: 0\r (esc)
@@ -2254,7 +2284,7 @@ search works with filtering
 
   $ PATH_INFO=/log; export PATH_INFO
   $ QUERY_STRING='rev=babar'
-  $ python hgweb.cgi > search
+  $ $PYTHON hgweb.cgi > search
   $ grep Status search
   Status: 200 Script output follows\r (esc)
 
@@ -2262,7 +2292,7 @@ summary works with filtering (issue3810)
 
   $ PATH_INFO=/summary; export PATH_INFO
   $ QUERY_STRING='style=monoblue'; export QUERY_STRING
-  $ python hgweb.cgi > summary.out
+  $ $PYTHON hgweb.cgi > summary.out
   $ grep "^Status" summary.out
   Status: 200 Script output follows\r (esc)
 
@@ -2273,7 +2303,7 @@ proper status for filtered revision
 
   $ PATH_INFO=/rev/5; export PATH_INFO
   $ QUERY_STRING='style=raw'
-  $ python hgweb.cgi #> search
+  $ $PYTHON hgweb.cgi #> search
   Status: 404 Not Found\r (esc)
   ETag: W/"*"\r (glob) (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
@@ -2287,7 +2317,7 @@ proper status for filtered revision
 
   $ PATH_INFO=/rev/4; export PATH_INFO
   $ QUERY_STRING='style=raw'
-  $ python hgweb.cgi #> search
+  $ $PYTHON hgweb.cgi #> search
   Status: 404 Not Found\r (esc)
   ETag: W/"*"\r (glob) (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
@@ -2315,11 +2345,11 @@ filtered '0' changeset
   $ hg phase --force --secret 0
   $ PATH_INFO=/graph/; export PATH_INFO
   $ QUERY_STRING=''
-  $ python hgweb.cgi | grep Status
+  $ $PYTHON hgweb.cgi | grep Status
   Status: 200 Script output follows\r (esc)
 (check rendered revision)
   $ QUERY_STRING='style=raw'
-  $ python hgweb.cgi | grep -v ETag
+  $ $PYTHON hgweb.cgi | grep -v ETag
   Status: 200 Script output follows\r (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
@@ -2386,7 +2416,7 @@ filtered '0' changeset
   node:        (0, 6) (color 1)
   
   
-
+#endif
 
 
   $ cd ..

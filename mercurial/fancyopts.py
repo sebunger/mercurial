@@ -7,13 +7,14 @@
 
 from __future__ import absolute_import
 
-import getopt
-
 from .i18n import _
-from . import error
+from . import (
+    error,
+    pycompat,
+)
 
 # Set of flags to not apply boolean negation logic on
-nevernegate = set([
+nevernegate = {
     # avoid --no-noninteractive
     'noninteractive',
     # These two flags are special because they cause hg to do one
@@ -21,7 +22,7 @@ nevernegate = set([
     # like aliases anyway.
     'help',
     'version',
-    ])
+}
 
 def gnugetopt(args, options, longoptions):
     """Parse options mostly like getopt.gnu_getopt.
@@ -34,13 +35,14 @@ def gnugetopt(args, options, longoptions):
         stopindex = args.index('--')
         extraargs = args[stopindex + 1:]
         args = args[:stopindex]
-    opts, parseargs = getopt.getopt(args, options, longoptions)
+    opts, parseargs = pycompat.getoptb(args, options, longoptions)
     args = []
     while parseargs:
         arg = parseargs.pop(0)
-        if arg and arg[0] == '-' and len(arg) > 1:
+        if arg and arg[0:1] == '-' and len(arg) > 1:
             parseargs.insert(0, arg)
-            topts, newparseargs = getopt.getopt(parseargs, options, longoptions)
+            topts, newparseargs = pycompat.getoptb(parseargs,\
+                                            options, longoptions)
             opts = opts + topts
             parseargs = newparseargs
         else:
@@ -125,7 +127,7 @@ def fancyopts(args, options, state, gnu=False):
     if gnu:
         parse = gnugetopt
     else:
-        parse = getopt.getopt
+        parse = pycompat.getoptb
     opts, args = parse(args, shortlist, namelist)
 
     # transfer result to state

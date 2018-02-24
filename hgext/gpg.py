@@ -14,15 +14,16 @@ import tempfile
 from mercurial.i18n import _
 from mercurial import (
     cmdutil,
-    commands,
     error,
     match,
     node as hgnode,
+    pycompat,
+    registrar,
     util,
 )
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
 # be specifying the version(s) of Mercurial they are tested with, or
@@ -44,11 +45,11 @@ class gpg(object):
         try:
             # create temporary files
             fd, sigfile = tempfile.mkstemp(prefix="hg-gpg-", suffix=".sig")
-            fp = os.fdopen(fd, 'wb')
+            fp = os.fdopen(fd, pycompat.sysstr('wb'))
             fp.write(sig)
             fp.close()
             fd, datafile = tempfile.mkstemp(prefix="hg-gpg-", suffix=".txt")
-            fp = os.fdopen(fd, 'wb')
+            fp = os.fdopen(fd, pycompat.sysstr('wb'))
             fp.write(data)
             fp.close()
             gpgcmd = ("%s --logger-fd 1 --status-fd 1 --verify "
@@ -220,7 +221,7 @@ def keystr(ui, key):
           ('m', 'message', '',
            _('use text as commit message'), _('TEXT')),
           ('e', 'edit', False, _('invoke editor on commit messages')),
-         ] + commands.commitopts2,
+         ] + cmdutil.commitopts2,
          _('hg sign [OPTION]... [REV]...'))
 def sign(ui, repo, *revs, **opts):
     """add a signature for the current or given revision
@@ -280,7 +281,7 @@ def _dosign(ui, repo, *revs, **opts):
             raise error.Abort(_("working copy of .hgsigs is changed "),
                              hint=_("please commit .hgsigs manually"))
 
-    sigsfile = repo.wfile(".hgsigs", "ab")
+    sigsfile = repo.wvfs(".hgsigs", "ab")
     sigsfile.write(sigmessage)
     sigsfile.close()
 

@@ -13,15 +13,16 @@ import os
 from .i18n import _
 from . import (
     error,
+    pycompat,
     util,
 )
 
 class config(object):
-    def __init__(self, data=None, includepaths=[]):
+    def __init__(self, data=None, includepaths=None):
         self._data = {}
         self._source = {}
         self._unset = []
-        self._includepaths = includepaths
+        self._includepaths = includepaths or []
         if data:
             for k in data._data:
                 self._data[k] = data[k].copy()
@@ -67,8 +68,11 @@ class config(object):
     def sections(self):
         return sorted(self._data.keys())
     def items(self, section):
-        return self._data.get(section, {}).items()
+        return list(self._data.get(section, {}).iteritems())
     def set(self, section, item, value, source=""):
+        if pycompat.ispy3:
+            assert not isinstance(value, str), (
+                'config values may not be unicode strings on Python 3')
         if section not in self:
             self._data[section] = util.sortdict()
         self._data[section][item] = value
@@ -90,13 +94,13 @@ class config(object):
             self._source.pop((section, item), None)
 
     def parse(self, src, data, sections=None, remap=None, include=None):
-        sectionre = util.re.compile(r'\[([^\[]+)\]')
-        itemre = util.re.compile(r'([^=\s][^=]*?)\s*=\s*(.*\S|)')
-        contre = util.re.compile(r'\s+(\S|\S.*\S)\s*$')
-        emptyre = util.re.compile(r'(;|#|\s*$)')
-        commentre = util.re.compile(r'(;|#)')
-        unsetre = util.re.compile(r'%unset\s+(\S+)')
-        includere = util.re.compile(r'%include\s+(\S|\S.*\S)\s*$')
+        sectionre = util.re.compile(br'\[([^\[]+)\]')
+        itemre = util.re.compile(br'([^=\s][^=]*?)\s*=\s*(.*\S|)')
+        contre = util.re.compile(br'\s+(\S|\S.*\S)\s*$')
+        emptyre = util.re.compile(br'(;|#|\s*$)')
+        commentre = util.re.compile(br'(;|#)')
+        unsetre = util.re.compile(br'%unset\s+(\S+)')
+        includere = util.re.compile(br'%include\s+(\S|\S.*\S)\s*$')
         section = ""
         item = None
         line = 0
@@ -169,5 +173,92 @@ class config(object):
 
     def read(self, path, fp=None, sections=None, remap=None):
         if not fp:
-            fp = util.posixfile(path)
-        self.parse(path, fp.read(), sections, remap, self.read)
+            fp = util.posixfile(path, 'rb')
+        assert getattr(fp, 'mode', r'rb') == r'rb', (
+            'config files must be opened in binary mode, got fp=%r mode=%r' % (
+                fp, fp.mode))
+        self.parse(path, fp.read(),
+                   sections=sections, remap=remap, include=self.read)
+
+def parselist(value):
+    """parse a configuration value as a list of comma/space separated strings
+
+    >>> parselist('this,is "a small" ,test')
+    ['this', 'is', 'a small', 'test']
+    """
+
+    def _parse_plain(parts, s, offset):
+        whitespace = False
+        while offset < len(s) and (s[offset:offset + 1].isspace()
+                                   or s[offset:offset + 1] == ','):
+            whitespace = True
+            offset += 1
+        if offset >= len(s):
+            return None, parts, offset
+        if whitespace:
+            parts.append('')
+        if s[offset:offset + 1] == '"' and not parts[-1]:
+            return _parse_quote, parts, offset + 1
+        elif s[offset:offset + 1] == '"' and parts[-1][-1] == '\\':
+            parts[-1] = parts[-1][:-1] + s[offset:offset + 1]
+            return _parse_plain, parts, offset + 1
+        parts[-1] += s[offset:offset + 1]
+        return _parse_plain, parts, offset + 1
+
+    def _parse_quote(parts, s, offset):
+        if offset < len(s) and s[offset:offset + 1] == '"': # ""
+            parts.append('')
+            offset += 1
+            while offset < len(s) and (s[offset:offset + 1].isspace() or
+                    s[offset:offset + 1] == ','):
+                offset += 1
+            return _parse_plain, parts, offset
+
+        while offset < len(s) and s[offset:offset + 1] != '"':
+            if (s[offset:offset + 1] == '\\' and offset + 1 < len(s)
+                    and s[offset + 1:offset + 2] == '"'):
+                offset += 1
+                parts[-1] += '"'
+            else:
+                parts[-1] += s[offset:offset + 1]
+            offset += 1
+
+        if offset >= len(s):
+            real_parts = _configlist(parts[-1])
+            if not real_parts:
+                parts[-1] = '"'
+            else:
+                real_parts[0] = '"' + real_parts[0]
+                parts = parts[:-1]
+                parts.extend(real_parts)
+            return None, parts, offset
+
+        offset += 1
+        while offset < len(s) and s[offset:offset + 1] in [' ', ',']:
+            offset += 1
+
+        if offset < len(s):
+            if offset + 1 == len(s) and s[offset:offset + 1] == '"':
+                parts[-1] += '"'
+                offset += 1
+            else:
+                parts.append('')
+        else:
+            return None, parts, offset
+
+        return _parse_plain, parts, offset
+
+    def _configlist(s):
+        s = s.rstrip(' ,')
+        if not s:
+            return []
+        parser, parts, offset = _parse_plain, [''], 0
+        while parser:
+            parser, parts, offset = parser(parts, s, offset)
+        return parts
+
+    if value is not None and isinstance(value, bytes):
+        result = _configlist(value.lstrip(' ,\n'))
+    else:
+        result = value
+    return result or []

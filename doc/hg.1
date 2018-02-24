@@ -83,6 +83,10 @@ suppress output
 .
 enable additional output
 .TP
+.BI \-\-color \ <TYPE>
+.
+when to colorize (boolean, always, auto, never, or debug)
+.TP
 .BI \-\-config \ <CONFIG[+]>
 .
 set/override config option (use \(aqsection.name=value\(aq)
@@ -126,6 +130,10 @@ display help and exit
 .B \-\-hidden
 .
 consider hidden changesets
+.TP
+.BI \-\-pager \ <TYPE>
+.
+when to paginate (boolean, always, auto, or never) (default: auto)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -390,6 +398,10 @@ list the changeset
 .B \-l,  \-\-line\-number
 .
 show line number at the first appearance
+.TP
+.BI \-\-skip \ <REV[+]>
+.
+revision to not display (EXPERIMENTAL)
 .TP
 .B \-w,  \-\-ignore\-all\-space
 .
@@ -798,7 +810,7 @@ hg log \-\-graph \-r "bisect(range)"
 .fi
 .UNINDENT
 .sp
-See \%\fBhg help revsets\fP\: for more about the \fIbisect()\fP keyword.
+See \%\fBhg help revisions.bisect\fP\: for more about the \fIbisect()\fP predicate.
 .sp
 Returns 0 on success.
 .sp
@@ -1021,16 +1033,15 @@ display with template (EXPERIMENTAL)
 .UNINDENT
 .SS bundle
 .sp
-create a changegroup file:
+create a bundle file:
 .sp
 .nf
 .ft C
-hg bundle [\-f] [\-t TYPE] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]
+hg bundle [\-f] [\-t BUNDLESPEC] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]
 .ft P
 .fi
 .sp
-Generate a changegroup file collecting changesets to be added
-to a repository.
+Generate a bundle file containing data to be added to a repository.
 .sp
 To create a bundle containing all changesets, use \-a/\-\-all
 (or \-\-base null). Otherwise, hg assumes the destination will have
@@ -1038,11 +1049,10 @@ all the nodes you specify with \-\-base parameters. Otherwise, hg
 will assume the repository has all the nodes in destination, or
 default\-push/default if no destination is specified.
 .sp
-You can change bundle format with the \-t/\-\-type option. You can
-specify a compression, a bundle version or both using a dash
-(comp\-version). The available compression methods are: none, bzip2,
-and gzip (by default, bundles are compressed using bzip2). The
-available formats are: v1, v2 (default to most suitable).
+You can change bundle format with the \-t/\-\-type option. See
+\%\fBhg help bundlespec\fP\: for documentation on this format. By default,
+the most appropriate format is used and compression defaults to
+bzip2.
 .sp
 The bundle file can then be transferred using conventional means
 and applied to another repository with the unbundle or pull
@@ -1173,6 +1183,10 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -1741,6 +1755,10 @@ treat all files as text
 .
 use git extended diff format
 .TP
+.B \-\-binary
+.
+generate binary diffs in git mode (default)
+.TP
 .B \-\-nodates
 .
 omit dates from diff headers
@@ -1927,6 +1945,10 @@ treat all files as text
 .B \-g,  \-\-git
 .
 use git extended diff format
+.TP
+.B \-\-binary
+.
+generate binary diffs in git mode (default)
 .TP
 .B \-\-nodates
 .
@@ -2193,8 +2215,7 @@ hg log \-r "sort(all(), date)"
 .fi
 .UNINDENT
 .sp
-See \%\fBhg help revisions\fP\: and \%\fBhg help revsets\fP\: for more about
-specifying revisions.
+See \%\fBhg help revisions\fP\: for more about specifying revisions.
 .sp
 Returns 0 on successful completion.
 .sp
@@ -2523,6 +2544,10 @@ specify hg command to run on the remote side
 .B \-\-insecure
 .
 do not verify server certificate (ignoring web.cacerts config)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
 .sp
 aliases: id
 .UNINDENT
@@ -2539,8 +2564,9 @@ hg import [OPTION]... PATCH...
 Import a list of patches and commit them individually (unless
 \-\-no\-commit is specified).
 .sp
-To read a patch from standard input, use "\-" as the patch name. If
-a URL is specified, the patch will be downloaded from there.
+To read a patch from standard input (stdin), use "\-" as the patch
+name. If a URL is specified, the patch will be downloaded from
+there.
 .sp
 Import first applies changes to the working directory (unless
 \-\-bypass is specified), import will abort if there are outstanding
@@ -2621,6 +2647,15 @@ import all the patches in an Unix\-style mbox:
 .nf
 .ft C
 hg import incoming\-patches.mbox
+.ft P
+.fi
+.IP \(bu 2
+.
+import patches from stdin:
+.sp
+.nf
+.ft C
+hg import \-
 .ft P
 .fi
 .IP \(bu 2
@@ -3016,6 +3051,8 @@ recent changeset at the top.
 \(aqo\(aq is a changeset, \(aq@\(aq is a working directory parent, \(aqx\(aq is obsolete,
 and \(aq+\(aq represents a fork where the changeset from the lines below is a
 parent of the \(aqo\(aq merge on the same line.
+Paths in the DAG are represented with \(aq|\(aq, \(aq/\(aq and so forth. \(aq:\(aq in place
+of a \(aq|\(aq indicates one or more revisions in a path are omitted.
 .IP Note
 .
 \%\fBhg log \-\-patch\fP\: may generate unexpected diff output for merge
@@ -3135,8 +3172,8 @@ hg log \-r "last(tagged())::" \-\-template "{desc|firstline}\en"
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
-See \%\fBhg help revisions\fP\: and \%\fBhg help revsets\fP\: for more about
-specifying and ordering revisions.
+See \%\fBhg help revisions\fP\: for more about specifying and ordering
+revisions.
 .sp
 See \%\fBhg help templates\fP\: for more about pre\-packaged styles and
 specifying custom templates.
@@ -4008,6 +4045,8 @@ default is to mark all resolved files.
 .
 \%\fBhg resolve \-l\fP\:: list files which had or still have conflicts.
 In the printed list, \fBU\fP = unresolved and \fBR\fP = resolved.
+You can use \fBset:unresolved()\fP or \fBset:resolved()\fP to filter
+the list. See \%\fBhg help filesets\fP\: for details.
 .UNINDENT
 .IP Note
 .
@@ -4304,11 +4343,11 @@ name of file to write process ID to
 .TP
 .B \-\-stdio
 .
-for remote clients
+for remote clients (ADVANCED)
 .TP
 .BI \-\-cmdserver \ <MODE>
 .
-for remote clients
+for remote clients (ADVANCED)
 .TP
 .BI \-t,  \-\-templates \ <TEMPLATE>
 .
@@ -4325,6 +4364,10 @@ use IPv6 in addition to IPv4
 .BI \-\-certificate \ <FILE>
 .
 SSL certificate file
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -4374,6 +4417,16 @@ I = ignored
   = origin of the previous file (with \-\-copies)
 .ft P
 .fi
+.sp
+The \-t/\-\-terse option abbreviates the output by showing directory name
+if all the files in it share the same status. The option expects a value
+which can be a string formed by using \(aqm\(aq, \(aqa\(aq, \(aqr\(aq, \(aqd\(aq, \(aqu\(aq, \(aqi\(aq, \(aqc\(aq
+where, \(aqm\(aq stands for \(aqmodified\(aq, \(aqa\(aq for \(aqadded\(aq, \(aqr\(aq for \(aqremoved\(aq,
+\(aqd\(aq for \(aqdeleted\(aq, \(aqu\(aq for \(aqunknown\(aq, \(aqi\(aq for \(aqignored\(aq and \(aqc\(aq for clean.
+.sp
+It terses the output of only those status which are passed. The ignored
+files are not considered while tersing until \(aqi\(aq is there in \-\-terse value
+or the \-\-ignored option is used.
 .sp
 Examples:
 .INDENT 0.0
@@ -4457,6 +4510,10 @@ show only ignored files
 .B \-n,  \-\-no\-status
 .
 hide status prefix
+.TP
+.BI \-t,  \-\-terse \ <VALUE>
+.
+show the terse output (EXPERIMENTAL)
 .TP
 .B \-C,  \-\-copies
 .
@@ -4666,7 +4723,7 @@ display with template
 .UNINDENT
 .SS unbundle
 .sp
-apply one or more changegroup files:
+apply one or more bundle files:
 .sp
 .nf
 .ft C
@@ -4674,8 +4731,7 @@ hg unbundle [\-u] FILE...
 .ft P
 .fi
 .sp
-Apply one or more compressed changegroup files generated by the
-bundle command.
+Apply one or more bundle files generated by \%\fBhg bundle\fP\:.
 .sp
 Returns 0 on success, 1 if an update has unresolved files.
 .sp
@@ -4692,7 +4748,7 @@ update working directory (or switch revisions):
 .sp
 .nf
 .ft C
-hg update [\-c] [\-C] [\-d DATE] [[\-r] REV]
+hg update [\-C|\-c|\-m] [\-d DATE] [[\-r] REV]
 .ft P
 .fi
 .sp
@@ -4705,17 +4761,18 @@ Update sets the working directory\(aqs parent revision to the specified
 changeset (see \%\fBhg help parents\fP\:).
 .sp
 If the changeset is not a descendant or ancestor of the working
-directory\(aqs parent, the update is aborted. With the \-c/\-\-check
-option, the working directory is checked for uncommitted changes; if
-none are found, the working directory is updated to the specified
-changeset.
+directory\(aqs parent and there are uncommitted changes, the update is
+aborted. With the \-c/\-\-check option, the working directory is checked
+for uncommitted changes; if none are found, the working directory is
+updated to the specified changeset.
 .sp
-The following rules apply when the working directory contains
-uncommitted changes:
+The \-C/\-\-clean, \-c/\-\-check, and \-m/\-\-merge options control what
+happens if the working directory contains uncommitted changes.
+At most of one of them can be specified.
 .INDENT 0.0
 .IP 1. 3
 .
-If neither \-c/\-\-check nor \-C/\-\-clean is specified, and if
+If no option is specified, and if
 the requested changeset is an ancestor or descendant of
 the working directory\(aqs parent, the uncommitted changes
 are merged into the requested changeset and the merged
@@ -4725,9 +4782,14 @@ branch), the update is aborted and the uncommitted changes
 are preserved.
 .IP 2. 3
 .
+With the \-m/\-\-merge option, the update is allowed even if the
+requested changeset is not an ancestor or descendant of
+the working directory\(aqs parent.
+.IP 3. 3
+.
 With the \-c/\-\-check option, the update is aborted and the
 uncommitted changes are preserved.
-.IP 3. 3
+.IP 4. 3
 .
 With the \-C/\-\-clean option, uncommitted changes are discarded and
 the working directory is updated to the requested changeset.
@@ -4756,6 +4818,10 @@ discard uncommitted changes (no backup)
 .B \-c,  \-\-check
 .
 require clean working directory
+.TP
+.B \-m,  \-\-merge
+.
+merge uncommitted changes
 .TP
 .BI \-d,  \-\-date \ <DATE>
 .
@@ -4812,6 +4878,297 @@ Options:
 .
 display with template (EXPERIMENTAL)
 .UNINDENT
+.SH BUNDLE FILE FORMATS
+.sp
+Mercurial supports generating standalone "bundle" files that hold repository
+data. These "bundles" are typically saved locally and used later or exchanged
+between different repositories, possibly on different machines. Example
+commands using bundles are \%\fBhg bundle\fP\: and \%\fBhg unbundle\fP\:.
+.sp
+Generation of bundle files is controlled by a "bundle specification"
+("bundlespec") string. This string tells the bundle generation process how
+to create the bundle.
+.sp
+A "bundlespec" string is composed of the following elements:
+.INDENT 0.0
+.TP
+.B type
+.
+A string denoting the bundle format to use.
+.TP
+.B compression
+.
+Denotes the compression engine to use compressing the raw bundle data.
+.TP
+.B parameters
+.
+Arbitrary key\-value parameters to further control bundle generation.
+.UNINDENT
+.sp
+A "bundlespec" string has the following formats:
+.INDENT 0.0
+.TP
+.B <type>
+.
+The literal bundle format string is used.
+.TP
+.B <compression>\-<type>
+.
+The compression engine and format are delimited by a hyphen (\fB\-\fP).
+.UNINDENT
+.sp
+Optional parameters follow the \fB<type>\fP. Parameters are URI escaped
+\fBkey=value\fP pairs. Each pair is delimited by a semicolon (\fB;\fP). The
+first parameter begins after a \fB;\fP immediately following the \fB<type>\fP
+value.
+.SS Available Types
+.sp
+The following bundle <type> strings are available:
+.INDENT 0.0
+.TP
+.B v1
+.
+Produces a legacy "changegroup" version 1 bundle.
+.sp
+This format is compatible with nearly all Mercurial clients because it is
+the oldest. However, it has some limitations, which is why it is no longer
+the default for new repositories.
+.sp
+\fBv1\fP bundles can be used with modern repositories using the "generaldelta"
+storage format. However, it may take longer to produce the bundle and the
+resulting bundle may be significantly larger than a \fBv2\fP bundle.
+.sp
+\fBv1\fP bundles can only use the \fBgzip\fP, \fBbzip2\fP, and \fBnone\fP compression
+formats.
+.TP
+.B v2
+.
+Produces a version 2 bundle.
+.sp
+Version 2 bundles are an extensible format that can store additional
+repository data (such as bookmarks and phases information) and they can
+store data more efficiently, resulting in smaller bundles.
+.sp
+Version 2 bundles can also use modern compression engines, such as
+\fBzstd\fP, making them faster to compress and often smaller.
+.UNINDENT
+.SS Available Compression Engines
+.sp
+The following bundle <compression> engines can be used:
+.INDENT 0.0
+.TP
+.B \fBbzip2\fP
+.sp
+An algorithm that produces smaller bundles than \fBgzip\fP.
+.sp
+All Mercurial clients should support this format.
+.sp
+This engine will likely produce smaller bundles than \fBgzip\fP but
+will be significantly slower, both during compression and
+decompression.
+.sp
+If available, the \fBzstd\fP engine can yield similar or better
+compression at much higher speeds.
+.TP
+.B \fBgzip\fP
+.sp
+zlib compression using the DEFLATE algorithm.
+.sp
+All Mercurial clients should support this format. The compression
+algorithm strikes a reasonable balance between compression ratio
+and size.
+.TP
+.B \fBnone\fP
+.sp
+No compression is performed.
+.sp
+Use this compression engine to explicitly disable compression.
+.UNINDENT
+.SS Examples
+.INDENT 0.0
+.TP
+.B \fBv2\fP
+.sp
+Produce a \fBv2\fP bundle using default options, including compression.
+.TP
+.B \fBnone\-v1\fP
+.sp
+Produce a \fBv1\fP bundle with no compression.
+.TP
+.B \fBzstd\-v2\fP
+.sp
+Produce a \fBv2\fP bundle with zstandard compression using default
+settings.
+.TP
+.B \fBzstd\-v1\fP
+.sp
+This errors because \fBzstd\fP is not supported for \fBv1\fP types.
+.UNINDENT
+.SH COLORIZING OUTPUTS
+.sp
+Mercurial colorizes output from several commands.
+.sp
+For example, the diff command shows additions in green and deletions
+in red, while the status command shows modified files in magenta. Many
+other commands have analogous colors. It is possible to customize
+these colors.
+.sp
+To enable color (default) whenever possible use:
+.sp
+.nf
+.ft C
+[ui]
+color = yes
+.ft P
+.fi
+.sp
+To disable color use:
+.sp
+.nf
+.ft C
+[ui]
+color = no
+.ft P
+.fi
+.sp
+See \%\fBhg help config.ui.color\fP\: for details.
+.sp
+The default pager on Windows does not support color, so enabling the pager
+will effectively disable color.  See \%\fBhg help config.ui.paginate\fP\: to disable
+the pager.  Alternately, MSYS and Cygwin shells provide \fIless\fP as a pager,
+which can be configured to support ANSI color mode.  Windows 10 natively
+supports ANSI color mode.
+.SS Mode
+.sp
+Mercurial can use various systems to display color. The supported modes are
+\fBansi\fP, \fBwin32\fP, and \fBterminfo\fP.  See \%\fBhg help config.color\fP\: for details
+about how to control the mode.
+.SS Effects
+.sp
+Other effects in addition to color, like bold and underlined text, are
+also available. By default, the terminfo database is used to find the
+terminal codes used to change color and effect.  If terminfo is not
+available, then effects are rendered with the ECMA\-48 SGR control
+function (aka ANSI escape codes).
+.sp
+The available effects in terminfo mode are \(aqblink\(aq, \(aqbold\(aq, \(aqdim\(aq,
+\(aqinverse\(aq, \(aqinvisible\(aq, \(aqitalic\(aq, \(aqstandout\(aq, and \(aqunderline\(aq; in
+ECMA\-48 mode, the options are \(aqbold\(aq, \(aqinverse\(aq, \(aqitalic\(aq, and
+\(aqunderline\(aq.  How each is rendered depends on the terminal emulator.
+Some may not be available for a given terminal type, and will be
+silently ignored.
+.sp
+If the terminfo entry for your terminal is missing codes for an effect
+or has the wrong codes, you can add or override those codes in your
+configuration:
+.sp
+.nf
+.ft C
+[color]
+terminfo.dim = \eE[2m
+.ft P
+.fi
+.sp
+where \(aqE\(aq is substituted with an escape character.
+.SS Labels
+.sp
+Text receives color effects depending on the labels that it has. Many
+default Mercurial commands emit labelled text. You can also define
+your own labels in templates using the label function, see \%\fBhg help
+templates\fP\:. A single portion of text may have more than one label. In
+that case, effects given to the last label will override any other
+effects. This includes the special "none" effect, which nullifies
+other effects.
+.sp
+Labels are normally invisible. In order to see these labels and their
+position in the text, use the global \-\-color=debug option. The same
+anchor text may be associated to multiple labels, e.g.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+[log.changeset changeset.secret|changeset:   22611:6f0a53c8f587]
+.UNINDENT
+.UNINDENT
+.sp
+The following are the default effects for some default labels. Default
+effects may be overridden from your configuration file:
+.sp
+.nf
+.ft C
+[color]
+status.modified = blue bold underline red_background
+status.added = green bold
+status.removed = red bold blue_background
+status.deleted = cyan bold underline
+status.unknown = magenta bold underline
+status.ignored = black bold
+
+# \(aqnone\(aq turns off all effects
+status.clean = none
+status.copied = none
+
+qseries.applied = blue bold underline
+qseries.unapplied = black bold
+qseries.missing = red bold
+
+diff.diffline = bold
+diff.extended = cyan bold
+diff.file_a = red bold
+diff.file_b = green bold
+diff.hunk = magenta
+diff.deleted = red
+diff.inserted = green
+diff.changed = white
+diff.tab =
+diff.trailingwhitespace = bold red_background
+
+# Blank so it inherits the style of the surrounding label
+changeset.public =
+changeset.draft =
+changeset.secret =
+
+resolve.unresolved = red bold
+resolve.resolved = green bold
+
+bookmarks.active = green
+
+branches.active = none
+branches.closed = black bold
+branches.current = green
+branches.inactive = none
+
+tags.normal = green
+tags.local = black bold
+
+rebase.rebased = blue
+rebase.remaining = red bold
+
+shelve.age = cyan
+shelve.newest = green bold
+shelve.name = blue bold
+
+histedit.remaining = red bold
+.ft P
+.fi
+.SS Custom colors
+.sp
+Because there are only eight standard colors, Mercurial allows you
+to define color names for other color slots which might be available
+for your terminal type, assuming terminfo mode.  For instance:
+.sp
+.nf
+.ft C
+color.brightblue = 12
+color.pink = 207
+color.orange = 202
+.ft P
+.fi
+.sp
+to set \(aqbrightblue\(aq to color slot 12 (useful for 16 color terminals
+that have brighter colors defined in the upper eight) and, \(aqpink\(aq and
+\(aqorange\(aq to colors in 256\-color xterm\(aqs default color cube.  These
+defined colors may then be used as any of the pre\-defined eight,
+including appending \(aq_background\(aq to set the background to that color.
 .SH DATE FORMATS
 .sp
 Some commands allow the user to specify a date, e.g.:
@@ -4958,7 +5315,7 @@ Windows) is searched.
 .
 This is the name of the editor to run when committing. See EDITOR.
 .sp
-(deprecated, use configuration file)
+(deprecated, see \%\fBhg help config.ui.editor\fP\:)
 .TP
 .B HGENCODING
 .
@@ -4990,7 +5347,7 @@ An executable to use for resolving merge conflicts. The program
 will be executed with three arguments: local file, remote file,
 ancestor file.
 .sp
-(deprecated, use configuration file)
+(deprecated, see \%\fBhg help config.ui.merge\fP\:)
 .TP
 .B HGRCPATH
 .
@@ -5072,7 +5429,7 @@ interactive prompt
 LOGNAME (with \fB@hostname\fP appended)
 .UNINDENT
 .sp
-(deprecated, use configuration file)
+(deprecated, see \%\fBhg help config.ui.username\fP\:)
 .TP
 .B EMAIL
 .
@@ -5179,10 +5536,6 @@ command to display statistics about repository history
 .
 advertise pre\-generated bundles to seed clones
 .TP
-.B color
-.
-colorize output from some commands
-.TP
 .B convert
 .
 import revisions from foreign VCS repositories into Mercurial
@@ -5230,10 +5583,6 @@ manage a stack of patches
 .B notify
 .
 hooks for sending email push notifications
-.TP
-.B pager
-.
-browse command output with an external pager
 .TP
 .B patchbomb
 .
@@ -5300,6 +5649,9 @@ Special characters can be used in quoted identifiers by escaping them,
 e.g., \fB\en\fP is interpreted as a newline. To prevent them from being
 interpreted, strings can be prefixed with \fBr\fP, e.g. \fBr\(aq...\(aq\fP.
 .sp
+See also \%\fBhg help patterns\fP\:.
+.SS Operators
+.sp
 There is a single prefix operator:
 .INDENT 0.0
 .TP
@@ -5324,6 +5676,7 @@ forms: \fBx | y\fP and \fBx + y\fP.
 .sp
 Files in x but not in y.
 .UNINDENT
+.SS Predicates
 .sp
 The following predicates are supported:
 .INDENT 0.0
@@ -5398,6 +5751,11 @@ File that is removed according to \%\fBhg status\fP\:.
 .sp
 File that is marked resolved according to \%\fBhg resolve \-l\fP\:.
 .TP
+.B \fBrevs(revs, pattern)\fP
+.sp
+Evaluate set in the specified revisions. If the revset match multiple
+revs, this will return file matching pattern in any of the revision.
+.TP
 .B \fBsize(expression)\fP
 .sp
 File size matches the given expression. Examples:
@@ -5414,6 +5772,16 @@ size(\(aq>= .5MB\(aq) \- files at least 524288 bytes
 .IP \(bu 2
 .
 size(\(aq4k \- 1MB\(aq) \- files from 4096 bytes to 1048576 bytes
+.UNINDENT
+.TP
+.B \fBstatus(base, rev, pattern)\fP
+.sp
+Evaluate predicate using status change between \fBbase\fP and
+\fBrev\fP. Examples:
+.INDENT 7.0
+.IP \(bu 2
+.
+\fBstatus(3, 7, added())\fP \- matches files added from "3" to "7"
 .UNINDENT
 .TP
 .B \fBsubrepo([pattern])\fP
@@ -5433,6 +5801,7 @@ considered if this predicate is used.
 .sp
 File that is marked unresolved according to \%\fBhg resolve \-l\fP\:.
 .UNINDENT
+.SS Examples
 .sp
 Some sample queries:
 .INDENT 0.0
@@ -5483,6 +5852,15 @@ hg revert "set:copied() and binary() and size(\(aq>1M\(aq)"
 .fi
 .IP \(bu 2
 .
+Revert files that were added to the working directory:
+.sp
+.nf
+.ft C
+hg revert "set:revs(\(aqwdir()\(aq, added())"
+.ft P
+.fi
+.IP \(bu 2
+.
 Remove files listed in foo.lst that contain the letter a or b:
 .sp
 .nf
@@ -5491,8 +5869,6 @@ hg remove "set: \(aqlistfile:foo.lst\(aq and (**a* or **b*)"
 .ft P
 .fi
 .UNINDENT
-.sp
-See also \%\fBhg help patterns\fP\:.
 .SH GLOSSARY
 .INDENT 0.0
 .TP
@@ -6382,6 +6758,8 @@ No arguments are accepted.
 .sp
 The \fBtags\fP template is rendered.
 .SH TECHNICAL IMPLEMENTATION TOPICS
+.sp
+To access a subtopic, use "hg help internals.{subtopic\-name}"
 .INDENT 0.0
 .INDENT 3.5
 .INDENT 0.0
@@ -6389,6 +6767,10 @@ The \fBtags\fP template is rendered.
 .B bundles
 .
 Bundles
+.TP
+.B censor
+.
+Censor
 .TP
 .B changegroups
 .
@@ -6453,12 +6835,19 @@ perform a merge manually. If the file to be merged is named
 \fBa.txt\fP, these files will accordingly be named \fBa.txt.local\fP,
 \fBa.txt.other\fP and \fBa.txt.base\fP and they will be placed in the
 same directory as \fBa.txt\fP.
+.sp
+This implies permerge. Therefore, files aren\(aqt dumped, if premerge
+runs successfully. Use :forcedump to forcibly write files out.
 .TP
 .B \fB:fail\fP
 .sp
 Rather than attempting to merge files that were modified on both
 branches, it marks them as unresolved. The resolve command must be
 used to resolve these conflicts.
+.TP
+.B \fB:forcedump\fP
+.sp
+Creates three versions of the files as same as :dump, but omits premerge.
 .TP
 .B \fB:local\fP
 .sp
@@ -6549,7 +6938,7 @@ If the file to be merged is not binary and is not a symlink, then
 internal \fB:merge\fP is used.
 .IP 8. 3
 .
-The merge of the file fails and must be resolved before commit.
+Otherwise, \fB:prompt\fP is used.
 .UNINDENT
 .IP Note
 .
@@ -6563,21 +6952,72 @@ default unless the file is binary or a symlink.
 .sp
 See the merge\-tools and ui sections of hgrc(5) for details on the
 configuration of merge tools.
-.SH SPECIFYING MULTIPLE REVISIONS
+.SH PAGER SUPPORT
 .sp
-When Mercurial accepts more than one revision, they may be specified
-individually, or provided as a topologically continuous range,
-separated by the ":" character.
+Some Mercurial commands can produce a lot of output, and Mercurial will
+attempt to use a pager to make those commands more pleasant.
 .sp
-The syntax of range notation is [BEGIN]:[END], where BEGIN and END are
-revision identifiers. Both BEGIN and END are optional. If BEGIN is not
-specified, it defaults to revision number 0. If END is not specified,
-it defaults to the tip. The range ":" thus means "all revisions".
+To set the pager that should be used, set the application variable:
 .sp
-If BEGIN is greater than END, revisions are treated in reverse order.
+.nf
+.ft C
+[pager]
+pager = less \-FRX
+.ft P
+.fi
 .sp
-A range acts as a closed interval. This means that a range of 3:5
-gives 3, 4 and 5. Similarly, a range of 9:6 gives 9, 8, 7, and 6.
+If no pager is set in the user or repository configuration, Mercurial uses the
+environment variable $PAGER. If $PAGER is not set, pager.pager from the default
+or system configuration is used. If none of these are set, a default pager will
+be used, typically \fIless\fP on Unix and \fImore\fP on Windows.
+.sp
+On Windows, \fImore\fP is not color aware, so using it effectively disables color.
+MSYS and Cygwin shells provide \fIless\fP as a pager, which can be configured to
+support ANSI color codes.  See \%\fBhg help config.color.pagermode\fP\: to configure
+the color mode when invoking a pager.
+.sp
+You can disable the pager for certain commands by adding them to the
+pager.ignore list:
+.sp
+.nf
+.ft C
+[pager]
+ignore = version, help, update
+.ft P
+.fi
+.sp
+To ignore global commands like \%\fBhg version\fP\: or \%\fBhg help\fP\:, you have
+to specify them in your user configuration file.
+.sp
+To control whether the pager is used at all for an individual command,
+you can use \-\-pager=<value>:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+use as needed: \fIauto\fP.
+.IP \(bu 2
+.
+require the pager: \fIyes\fP or \fIon\fP.
+.IP \(bu 2
+.
+suppress the pager: \fIno\fP or \fIoff\fP (any unrecognized value
+will also work).
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+To globally turn off all attempts to use a pager, set:
+.sp
+.nf
+.ft C
+[ui]
+paginate = never
+.ft P
+.fi
+.sp
+which will prevent the pager from running.
 .SH FILE NAME PATTERNS
 .sp
 Mercurial accepts several notations for identifying one or more files
@@ -6595,7 +7035,10 @@ Please see \%\fBhg help hgignore\fP\: for details.
 .sp
 To use a plain path name without any pattern matching, start it with
 \fBpath:\fP. These path names must completely match starting at the
-current repository root.
+current repository root, and when the path points to a directory, it is matched
+recursively. To match all files in a directory non\-recursively (not including
+any files in subdirectories), \fBrootfilesin:\fP can be used, specifying an
+absolute path (relative to the repository root).
 .sp
 To use an extended glob, start a name with \fBglob:\fP. Globs are rooted
 at the current directory; a glob such as \fB*.c\fP will only match files
@@ -6621,14 +7064,17 @@ hgignore\fP\: for details on the format of these files.
 All patterns, except for \fBglob:\fP specified in command line (not for
 \fB\-I\fP or \fB\-X\fP options), can match also against directories: files
 under matched directories are treated as matched.
+For \fB\-I\fP and \fB\-X\fP options, \fBglob:\fP will match directories recursively.
 .sp
 Plain examples:
 .sp
 .nf
 .ft C
-path:foo/bar   a name bar in a directory named foo in the root
-               of the repository
-path:path:name a file or directory named "path:name"
+path:foo/bar        a name bar in a directory named foo in the root
+                    of the repository
+path:path:name      a file or directory named "path:name"
+rootfilesin:foo/bar the files in a directory called foo/bar, but not any files
+                    in its subdirectories and not a file bar in directory foo
 .ft P
 .fi
 .sp
@@ -6640,6 +7086,9 @@ glob:*.c       any name ending in ".c" in the current directory
 *.c            any name ending in ".c" in the current directory
 **.c           any name ending in ".c" in any subdirectory of the
                current directory including itself.
+foo/*          any file in directory foo
+foo/**         any file in directory foo plus all its subdirectories,
+               recursively
 foo/*.c        any name ending in ".c" in the directory foo
 foo/**.c       any name ending in ".c" in any subdirectory of foo
                including itself.
@@ -6821,17 +7270,16 @@ hg phase \-fd "outgoing(URL)"
 .UNINDENT
 .sp
 See \%\fBhg help phase\fP\: for more information on manually manipulating phases.
-.SH SPECIFYING SINGLE REVISIONS
+.SH SPECIFYING REVISIONS
 .sp
-Mercurial supports several ways to specify individual revisions.
+Mercurial supports several ways to specify revisions.
+.SS Specifying single revisions
 .sp
 A plain integer is treated as a revision number. Negative integers are
 treated as sequential offsets from the tip, with \-1 denoting the tip,
 \-2 denoting the revision prior to the tip, and so forth.
 .sp
-A 40\-digit hexadecimal string is treated as a unique revision
-identifier.
-.sp
+A 40\-digit hexadecimal string is treated as a unique revision identifier.
 A hexadecimal string less than 40 characters long is treated as a
 unique revision identifier and is referred to as a short\-form
 identifier. A short\-form identifier is only valid if it is the prefix
@@ -6852,10 +7300,16 @@ The reserved name "." indicates the working directory parent. If no
 working directory is checked out, it is equivalent to null. If an
 uncommitted merge is in progress, "." is the revision of the first
 parent.
-.SH SPECIFYING REVISION SETS
+.sp
+Finally, commands that expect a single revision (like \fBhg update\fP) also
+accept revsets (see below for details). When given a revset, they use the
+last revision of the revset. A few commands accept two single revisions
+(like \fBhg diff\fP). When given a revset, they use the first and the last
+revisions of the revset.
+.SS Specifying multiple revisions
 .sp
 Mercurial supports a functional language for selecting a set of
-revisions.
+revisions. Expressions in this language are called revsets.
 .sp
 The language supports a number of predicates which are joined by infix
 operators. Parenthesis can be used for grouping.
@@ -6867,7 +7321,7 @@ one of the predefined predicates.
 Special characters can be used in quoted identifiers by escaping them,
 e.g., \fB\en\fP is interpreted as a newline. To prevent them from being
 interpreted, strings can be prefixed with \fBr\fP, e.g. \fBr\(aq...\(aq\fP.
-.SS Prefix
+.SS Operators
 .sp
 There is a single prefix operator:
 .INDENT 0.0
@@ -6876,7 +7330,6 @@ There is a single prefix operator:
 .sp
 Changesets not in x. Short form is \fB! x\fP.
 .UNINDENT
-.SS Infix
 .sp
 These are the supported infix operators:
 .INDENT 0.0
@@ -6924,6 +7377,7 @@ for n == 2, the second parent of changeset in x.
 .B \fBx~n\fP
 .sp
 The nth first ancestor of x; \fBx~0\fP is x; \fBx~3\fP is \fBx^^^\fP.
+For n < 0, the nth unambiguous descendent of x.
 .TP
 .B \fBx ## y\fP
 .sp
@@ -6938,15 +7392,14 @@ For example:
 .ft C
 [revsetalias]
 issue(a1) = grep(r\(aq\ebissue[ :]?\(aq ## a1 ## r\(aq\eb|\ebbug\e(\(aq ## a1 ## r\(aq\e)\(aq)
-
-\(ga\(gaissue(1234)\(ga\(ga is equivalent to
-\(ga\(gagrep(r\(aq\ebissue[ :]?1234\eb|\ebbug\e(1234\e)\(aq)\(ga\(ga
-in this case. This matches against all of "issue 1234", "issue:1234",
-"issue1234" and "bug(1234)".
 .ft P
 .fi
+.sp
+\fBissue(1234)\fP is equivalent to
+\fBgrep(r\(aq\ebissue[ :]?1234\eb|\ebbug\e(1234\e)\(aq)\fP
+in this case. This matches against all of "issue 1234", "issue:1234",
+"issue1234" and "bug(1234)".
 .UNINDENT
-.SS Postfix
 .sp
 There is a single postfix operator:
 .INDENT 0.0
@@ -6955,6 +7408,20 @@ There is a single postfix operator:
 .sp
 Equivalent to \fBx^1\fP, the first parent of each changeset in x.
 .UNINDENT
+.SS Patterns
+.sp
+Where noted, predicates that perform string matching can accept a pattern
+string. The pattern may be either a literal, or a regular expression. If the
+pattern starts with \fBre:\fP, the remainder of the pattern is treated as a
+regular expression. Otherwise, it is treated as a literal. To match a pattern
+that actually starts with \fBre:\fP, use the prefix \fBliteral:\fP.
+.sp
+Matching is case\-sensitive, unless otherwise noted.  To perform a case\-
+insensitive match on a case\-sensitive predicate, use a regular expression,
+prefixed with \fB(?i)\fP.
+.sp
+For example, \fBtag(r\(aqre:(?i)release\(aq)\fP matches "release" or "RELEASE"
+or "Release", etc
 .SS Predicates
 .sp
 The following predicates are supported:
@@ -6980,9 +7447,13 @@ Accepts 0 or more changesets.
 Will return empty list when passed no args.
 Greatest common ancestor of a single changeset is that changeset.
 .TP
-.B \fBancestors(set)\fP
+.B \fBancestors(set[, depth])\fP
 .sp
-Changesets that are ancestors of a changeset in set.
+Changesets that are ancestors of changesets in set, including the
+given changesets themselves.
+.sp
+If depth is specified, the result only includes changesets up to
+the specified generation.
 .TP
 .B \fBauthor(string)\fP
 .sp
@@ -7019,18 +7490,15 @@ Changesets marked in the specified bisect status:
 .sp
 The named bookmark or all bookmarks.
 .sp
-If \fIname\fP starts with \fIre:\fP, the remainder of the name is treated as
-a regular expression. To match a bookmark that actually starts with \fIre:\fP,
-use the prefix \fIliteral:\fP.
+Pattern matching is supported for \fIname\fP. See \%\fBhg help revisions.patterns\fP\:.
 .TP
 .B \fBbranch(string or set)\fP
 .sp
 All changesets belonging to the given branch or the branches of the given
 changesets.
 .sp
-If \fIstring\fP starts with \fIre:\fP, the remainder of the name is treated as
-a regular expression. To match a branch that actually starts with \fIre:\fP,
-use the prefix \fIliteral:\fP.
+Pattern matching is supported for \fIstring\fP. See
+\%\fBhg help revisions.patterns\fP\:.
 .TP
 .B \fBbranchpoint()\fP
 .sp
@@ -7077,10 +7545,17 @@ Changesets within the interval, see \%\fBhg help dates\fP\:.
 .B \fBdesc(string)\fP
 .sp
 Search commit message for string. The match is case\-insensitive.
-.TP
-.B \fBdescendants(set)\fP
 .sp
-Changesets which are descendants of changesets in set.
+Pattern matching is supported for \fIstring\fP. See
+\%\fBhg help revisions.patterns\fP\:.
+.TP
+.B \fBdescendants(set[, depth])\fP
+.sp
+Changesets which are descendants of changesets in set, including the
+given changesets themselves.
+.sp
+If depth is specified, the result only includes changesets up to
+the specified generation.
 .TP
 .B \fBdestination([set])\fP
 .sp
@@ -7105,9 +7580,8 @@ Obsolete changesets with obsolete descendants only.
 Changesets with the given label in the extra metadata, with the given
 optional value.
 .sp
-If \fIvalue\fP starts with \fIre:\fP, the remainder of the value is treated as
-a regular expression. To match a value that actually starts with \fIre:\fP,
-use the prefix \fIliteral:\fP.
+Pattern matching is supported for \fIvalue\fP. See
+\%\fBhg help revisions.patterns\fP\:.
 .TP
 .B \fBfile(pattern)\fP
 .sp
@@ -7144,6 +7618,18 @@ An alias for \fB::.\fP (ancestors of the working directory\(aqs first parent).
 If pattern is specified, the histories of files matching given
 pattern in the revision given by startrev are followed, including copies.
 .TP
+.B \fBfollowlines(file, fromline:toline[, startrev=., descend=False])\fP
+.sp
+Changesets modifying \fIfile\fP in line range (\(aqfromline\(aq, \(aqtoline\(aq).
+.sp
+Line range corresponds to \(aqfile\(aq content at \(aqstartrev\(aq and should hence be
+consistent with file size. If startrev is not specified, working directory\(aqs
+parent is used.
+.sp
+By default, ancestors of \(aqstartrev\(aq are returned. If \(aqdescend\(aq is True,
+descendants of \(aqstartrev\(aq are returned though renames are (currently) not
+followed in this direction.
+.TP
 .B \fBgrep(regex)\fP
 .sp
 Like \fBkeyword(string)\fP but accepts a regex. Use \fBgrep(r\(aq...\(aq)\fP
@@ -7170,6 +7656,9 @@ Revision non\-ambiguously specified by the given hex string prefix.
 .sp
 Search commit message, user name, and names of changed files for
 string. The match is case\-insensitive.
+.sp
+For a regular expression or case sensitive search of these fields, use
+\fBgrep(regex)\fP.
 .TP
 .B \fBlast(set, [n])\fP
 .sp
@@ -7228,9 +7717,8 @@ directory.
 .sp
 The changesets in a given namespace.
 .sp
-If \fInamespace\fP starts with \fIre:\fP, the remainder of the string is treated as
-a regular expression. To match a namespace that actually starts with \fIre:\fP,
-use the prefix \fIliteral:\fP.
+Pattern matching is supported for \fInamespace\fP. See
+\%\fBhg help revisions.patterns\fP\:.
 .TP
 .B \fBobsolete()\fP
 .sp
@@ -7347,13 +7835,16 @@ specifies what topographical branches to prioritize in the sort.
 Changesets that add, modify or remove the given subrepo.  If no subrepo
 pattern is named, any subrepo changes are returned.
 .TP
+.B \fBsuccessors(set)\fP
+.sp
+All successors for set, including the given set themselves
+.TP
 .B \fBtag([name])\fP
 .sp
 The specified tag by name, or all tagged revisions if no name is given.
 .sp
-If \fIname\fP starts with \fIre:\fP, the remainder of the name is treated as
-a regular expression. To match a tag that actually starts with \fIre:\fP,
-use the prefix \fIliteral:\fP.
+Pattern matching is supported for \fIname\fP. See
+\%\fBhg help revisions.patterns\fP\:.
 .TP
 .B \fBunstable()\fP
 .sp
@@ -7363,9 +7854,8 @@ Non\-obsolete changesets with obsolete ancestors.
 .sp
 User name contains string. The match is case\-insensitive.
 .sp
-If \fIstring\fP starts with \fIre:\fP, the remainder of the string is treated as
-a regular expression. To match a user that actually contains \fIre:\fP, use
-the prefix \fIliteral:\fP.
+Pattern matching is supported for \fIstring\fP. See
+\%\fBhg help revisions.patterns\fP\:.
 .UNINDENT
 .SS Aliases
 .sp
@@ -7469,6 +7959,26 @@ release:
 .nf
 .ft C
 hg log \-r "(keyword(bug) or keyword(issue)) and not ancestors(tag())"
+.ft P
+.fi
+.IP \(bu 2
+.
+Update to commit that bookmark @ is pointing too, without activating the
+bookmark (this works because the last revision of the revset is used):
+.sp
+.nf
+.ft C
+hg update :@
+.ft P
+.fi
+.IP \(bu 2
+.
+Show diff between tags 1.3 and 1.5 (this works because the first and the
+last revisions of the revset are used):
+.sp
+.nf
+.ft C
+hg diff \-r 1.3::1.5
 .ft P
 .fi
 .UNINDENT
@@ -7817,6 +8327,12 @@ when the parent repository is being pushed. This ensures new
 subrepository changes are available when referenced by top\-level
 repositories.  Push is a no\-op for Subversion subrepositories.
 .TP
+.B serve
+.
+serve does not recurse into subrepositories unless
+\-S/\-\-subrepos is specified.  Git and Subversion subrepositories
+are currently silently ignored.
+.TP
 .B status
 .
 status does not recurse into subrepositories unless
@@ -7875,6 +8391,7 @@ $ hg log \-r1 \-\-template "{node}\en"
 b56ce7b07c52de7d5fd79fb89701ea538af65746
 .ft P
 .fi
+.SS Keywords
 .sp
 Strings in curly braces are called keywords. The availability of
 keywords depends on the exact context of the templater. These
@@ -7962,10 +8479,15 @@ changeset.
 String. The character representing the changeset node in
 an ASCII revision graph
 .TP
+.B index
+.
+Integer. The current iteration of the loop. (0 indexed)
+.TP
 .B latesttag
 .
 List of strings. The global tags on the most recent globally
-tagged ancestor of this changeset.
+tagged ancestor of this changeset.  If no such tags exist, the list
+consists of the single string "null".
 .TP
 .B latesttagdistance
 .
@@ -7980,6 +8502,10 @@ namespace.
 .
 String. The changeset identification hash, as a 40 hexadecimal
 digit string.
+.TP
+.B obsolete
+.
+String. Whether the changeset is obsolete.
 .TP
 .B p1node
 .
@@ -8017,6 +8543,10 @@ String. The changeset phase name.
 .
 Integer. The changeset phase index.
 .TP
+.B predecessors
+.
+Returns the list if the closest visible successors
+.TP
 .B rev
 .
 Integer. The repository\-local changeset revision number.
@@ -8024,6 +8554,13 @@ Integer. The repository\-local changeset revision number.
 .B subrepos
 .
 List of strings. Updated subrepositories in the changeset.
+.TP
+.B successorssets
+.
+Returns a string of sets of successors for a changectx
+.sp
+Format used is: [ctx1, ctx2], [ctx3] if ctx has been splitted into ctx1 and
+ctx2 while also diverged into ctx3
 .TP
 .B tags
 .
@@ -8047,6 +8584,7 @@ $ hg tip \-\-template "{date|isodate}\en"
 2008\-08\-21 18:22 +0000
 .ft P
 .fi
+.SS Filters
 .sp
 List of filters:
 .INDENT 0.0
@@ -8216,6 +8754,7 @@ Any text. Converts from the local character encoding to UTF\-8.
 .sp
 Note that a filter is nothing more than a function call, i.e.
 \fBexpr|filter\fP is equivalent to \fBfilter(expr)\fP.
+.SS Functions
 .sp
 In addition to filters, there are some basic built\-in functions:
 .INDENT 0.0
@@ -8225,6 +8764,11 @@ In addition to filters, there are some basic built\-in functions:
 Format a date. See \%\fBhg help dates\fP\: for formatting
 strings. The default is a Unix date format, including the timezone:
 "Mon Sep 04 15:13:13 2006 0700".
+.TP
+.B dict([[key=]value...])
+.
+Construct a dict from key\-value pairs. A key may be omitted if
+a value expression can provide an unambiguous name.
 .TP
 .B diff([includepattern [, excludepattern]])
 .
@@ -8283,6 +8827,8 @@ automatic colorization.
 .
 The global tags matching the given pattern on the
 most recent globally tagged ancestor of this changeset.
+If no such tags exist, the "{tag}" template resolves to
+the string "null".
 .TP
 .B localdate(date[, tz])
 .
@@ -8310,7 +8856,7 @@ Execute a revision set query. See
 .TP
 .B rstdoc(text, style)
 .
-Format ReStructuredText.
+Format reStructuredText.
 .TP
 .B separate(sep, args)
 .
@@ -8340,6 +8886,7 @@ using regular expressions.
 .
 Return the nth word from a string.
 .UNINDENT
+.SS Operators
 .sp
 We provide a limited set of infix arithmetic operations on integers:
 .sp
@@ -8352,7 +8899,7 @@ We provide a limited set of infix arithmetic operations on integers:
 .ft P
 .fi
 .sp
-Division fulfils the law x = x / y + mod(x, y).
+Division fulfills the law x = x / y + mod(x, y).
 .sp
 Also, for any expression that returns a list, there is a list operator:
 .sp
@@ -8365,6 +8912,7 @@ expr % "{template}"
 As seen in the above example, \fB{template}\fP is interpreted as a template.
 To prevent it from being interpreted, you can use an escape character \fB\e{\fP
 or a raw string prefix, \fBr\(aq...\(aq\fP.
+.SS Aliases
 .sp
 New keywords and functions can be defined in the \fBtemplatealias\fP section of
 a Mercurial configuration file:
@@ -8411,6 +8959,32 @@ defines a template, \fBnodedate\fP, which can be called like:
 $ hg log \-r . \-Tnodedate
 .ft P
 .fi
+.sp
+A template defined in \fBtemplates\fP section can also be referenced from
+another template:
+.sp
+.nf
+.ft C
+$ hg log \-r . \-T "{rev} {nodedate}"
+.ft P
+.fi
+.sp
+but be aware that the keywords cannot be overridden by templates. For example,
+a template defined as \fBtemplates.rev\fP cannot be referenced as \fB{rev}\fP.
+.sp
+A template defined in \fBtemplates\fP section may have sub templates which
+are inserted before/after/between items:
+.sp
+.nf
+.ft C
+[templates]
+myjson = \(aq {dict(rev, node|short)|json}\(aq
+myjson:docheader = \(aq\e{\en\(aq
+myjson:docfooter = \(aq\en}\en\(aq
+myjson:separator = \(aq,\en\(aq
+.ft P
+.fi
+.SS Examples
 .sp
 Some sample command line templates:
 .INDENT 0.0
@@ -8882,9 +9456,72 @@ lake = !@hobbit
 /misty/mountains/cave/ring = !gollum
 .ft P
 .fi
+.SS amend
+.sp
+provide the amend command (EXPERIMENTAL)
+.sp
+This extension provides an \fBamend\fP command that is similar to
+\fBcommit \-\-amend\fP but does not prompt an editor.
+.SS Commands
+.SS amend
+.sp
+amend the working copy parent with all or specified outstanding changes:
+.sp
+.nf
+.ft C
+hg amend [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Similar to \%\fBhg commit \-\-amend\fP\:, but reuse the commit message without
+invoking editor, unless \fB\-\-edit\fP was set.
+.sp
+See \%\fBhg help commit\fP\: for more details.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-A,  \-\-addremove
+.
+mark new/missing files as added/removed before committing
+.TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
+.TP
+.B \-i,  \-\-interactive
+.
+use interactive mode
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS automv
 .sp
-Check for unrecorded moves at commit time (EXPERIMENTAL)
+check for unrecorded moves at commit time (EXPERIMENTAL)
 .sp
 This extension checks at commit/amend time if any of the committed files
 comes from an unrecorded mv.
@@ -8955,16 +9592,19 @@ the Mercurial template mechanism.
 The bug references can optionally include an update for Bugzilla of the
 hours spent working on the bug. Bugs can also be marked fixed.
 .sp
-Three basic modes of access to Bugzilla are provided:
+Four basic modes of access to Bugzilla are provided:
 .INDENT 0.0
 .IP 1. 3
 .
-Access via the Bugzilla XMLRPC interface. Requires Bugzilla 3.4 or later.
+Access via the Bugzilla REST\-API. Requires bugzilla 5.0 or later.
 .IP 2. 3
+.
+Access via the Bugzilla XMLRPC interface. Requires Bugzilla 3.4 or later.
+.IP 3. 3
 .
 Check data via the Bugzilla XMLRPC interface and submit bug change
 via email to Bugzilla email interface. Requires Bugzilla 3.4 or later.
-.IP 3. 3
+.IP 4. 3
 .
 Writing directly to the Bugzilla database. Only Bugzilla installations
 using MySQL are supported. Requires Python MySQLdb.
@@ -8995,6 +9635,10 @@ user, the email associated with the Bugzilla username used to log into
 Bugzilla is used instead as the source of the comment. Marking bugs fixed
 works on all supported Bugzilla versions.
 .sp
+Access via the REST\-API needs either a Bugzilla username and password
+or an apikey specified in the configuration. Comments are made under
+the given username or the user associated with the apikey in Bugzilla.
+.sp
 Configuration items common to all access modes:
 .INDENT 0.0
 .TP
@@ -9002,6 +9646,10 @@ Configuration items common to all access modes:
 .
 The access type to use. Values recognized are:
 .INDENT 7.0
+.TP
+.B \fBrestapi\fP
+.sp
+Bugzilla REST\-API, Bugzilla 5.0 and later.
 .TP
 .B \fBxmlrpc\fP
 .sp
@@ -9127,7 +9775,7 @@ The \fB[usermap]\fP section is used to specify mappings of Mercurial
 committer email to Bugzilla user email. See also \fBbugzilla.usermap\fP.
 Contains entries of the form \fBcommitter = Bugzilla user\fP.
 .sp
-XMLRPC access mode configuration:
+XMLRPC and REST\-API access mode configuration:
 .INDENT 0.0
 .TP
 .B bugzilla.bzurl
@@ -9143,6 +9791,16 @@ The username to use to log into Bugzilla via XMLRPC. Default
 .B bugzilla.password
 .
 The password for Bugzilla login.
+.UNINDENT
+.sp
+REST\-API access mode uses the options listed above as well as:
+.INDENT 0.0
+.TP
+.B bugzilla.apikey
+.
+An apikey generated on the Bugzilla instance for api access.
+Using an apikey removes the need to store the user and password
+options.
 .UNINDENT
 .sp
 XMLRPC+email access mode uses the XMLRPC access mode configuration items,
@@ -9350,48 +10008,6 @@ censor file from specified revision
 .
 replacement tombstone data
 .UNINDENT
-.SS chgserver
-.sp
-command server extension for cHg (EXPERIMENTAL)
-.INDENT 0.0
-.TP
-.B \(aqS\(aq channel (read/write)
-.
-propagate ui.system() request to client
-.TP
-.B \(aqattachio\(aq command
-.
-attach client\(aqs stdio passed by sendmsg()
-.TP
-.B \(aqchdir\(aq command
-.
-change current directory
-.TP
-.B \(aqgetpager\(aq command
-.
-checks if pager is enabled and which pager should be executed
-.TP
-.B \(aqsetenv\(aq command
-.
-replace os.environ completely
-.TP
-.B \(aqsetumask\(aq command
-.
-set umask
-.TP
-.B \(aqvalidate\(aq command
-.
-reload the config and check if the server is up to date
-.UNINDENT
-.SS Config
-.sp
-.nf
-.ft C
-[chgserver]
-idletimeout = 3600 # seconds, after which an idle server will exit
-skiphash = False   # whether to skip config or env change checks
-.ft P
-.fi
 .SS children
 .sp
 command to display child changesets (DEPRECATED)
@@ -9470,7 +10086,7 @@ Examples:
 .nf
 .ft C
 # display count of changed lines for every committer
-hg churn \-t "{author|email}"
+hg churn \-T "{author|email}"
 
 # display daily activity graph
 hg churn \-f "%H" \-s \-c
@@ -9643,8 +10259,7 @@ file containing the list of available bundle files suitable for seeding
 clones. If this file does not exist, the repository will not advertise the
 existence of clone bundles when clients connect.
 .sp
-The manifest file contains a newline (
-) delimited list of entries.
+The manifest file contains a newline (n) delimited list of entries.
 .sp
 Each line in this file defines an available bundle. Lines have the format:
 .INDENT 0.0
@@ -9713,7 +10328,7 @@ Value should be "true".
 Manifests can contain multiple entries. Assuming metadata is defined, clients
 will filter entries from the manifest that they don\(aqt support. The remaining
 entries are optionally sorted by client preferences
-(\fBexperimental.clonebundleprefers\fP config option). The client then attempts
+(\fBui.clonebundleprefers\fP config option). The client then attempts
 to fetch the bundle at the first URL in the remaining list.
 .sp
 \fBErrors when downloading a bundle will fail the entire clone operation:
@@ -9737,180 +10352,9 @@ message informing them how to bypass the clone bundles facility when a failure
 occurs. So server operators should prepare for some people to follow these
 instructions when a failure occurs, thus driving more load to the original
 Mercurial server when the bundle hosting service fails.
-.SS color
+.SS commitextras
 .sp
-colorize output from some commands
-.sp
-The color extension colorizes output from several Mercurial commands.
-For example, the diff command shows additions in green and deletions
-in red, while the status command shows modified files in magenta. Many
-other commands have analogous colors. It is possible to customize
-these colors.
-.SS Effects
-.sp
-Other effects in addition to color, like bold and underlined text, are
-also available. By default, the terminfo database is used to find the
-terminal codes used to change color and effect.  If terminfo is not
-available, then effects are rendered with the ECMA\-48 SGR control
-function (aka ANSI escape codes).
-.sp
-The available effects in terminfo mode are \(aqblink\(aq, \(aqbold\(aq, \(aqdim\(aq,
-\(aqinverse\(aq, \(aqinvisible\(aq, \(aqitalic\(aq, \(aqstandout\(aq, and \(aqunderline\(aq; in
-ECMA\-48 mode, the options are \(aqbold\(aq, \(aqinverse\(aq, \(aqitalic\(aq, and
-\(aqunderline\(aq.  How each is rendered depends on the terminal emulator.
-Some may not be available for a given terminal type, and will be
-silently ignored.
-.sp
-If the terminfo entry for your terminal is missing codes for an effect
-or has the wrong codes, you can add or override those codes in your
-configuration:
-.sp
-.nf
-.ft C
-[color]
-terminfo.dim = \eE[2m
-.ft P
-.fi
-.sp
-where \(aqE\(aq is substituted with an escape character.
-.SS Labels
-.sp
-Text receives color effects depending on the labels that it has. Many
-default Mercurial commands emit labelled text. You can also define
-your own labels in templates using the label function, see \%\fBhg help
-templates\fP\:. A single portion of text may have more than one label. In
-that case, effects given to the last label will override any other
-effects. This includes the special "none" effect, which nullifies
-other effects.
-.sp
-Labels are normally invisible. In order to see these labels and their
-position in the text, use the global \-\-color=debug option. The same
-anchor text may be associated to multiple labels, e.g.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-[log.changeset changeset.secret|changeset:   22611:6f0a53c8f587]
-.UNINDENT
-.UNINDENT
-.sp
-The following are the default effects for some default labels. Default
-effects may be overridden from your configuration file:
-.sp
-.nf
-.ft C
-[color]
-status.modified = blue bold underline red_background
-status.added = green bold
-status.removed = red bold blue_background
-status.deleted = cyan bold underline
-status.unknown = magenta bold underline
-status.ignored = black bold
-
-# \(aqnone\(aq turns off all effects
-status.clean = none
-status.copied = none
-
-qseries.applied = blue bold underline
-qseries.unapplied = black bold
-qseries.missing = red bold
-
-diff.diffline = bold
-diff.extended = cyan bold
-diff.file_a = red bold
-diff.file_b = green bold
-diff.hunk = magenta
-diff.deleted = red
-diff.inserted = green
-diff.changed = white
-diff.tab =
-diff.trailingwhitespace = bold red_background
-
-# Blank so it inherits the style of the surrounding label
-changeset.public =
-changeset.draft =
-changeset.secret =
-
-resolve.unresolved = red bold
-resolve.resolved = green bold
-
-bookmarks.active = green
-
-branches.active = none
-branches.closed = black bold
-branches.current = green
-branches.inactive = none
-
-tags.normal = green
-tags.local = black bold
-
-rebase.rebased = blue
-rebase.remaining = red bold
-
-shelve.age = cyan
-shelve.newest = green bold
-shelve.name = blue bold
-
-histedit.remaining = red bold
-.ft P
-.fi
-.SS Custom colors
-.sp
-Because there are only eight standard colors, this module allows you
-to define color names for other color slots which might be available
-for your terminal type, assuming terminfo mode.  For instance:
-.sp
-.nf
-.ft C
-color.brightblue = 12
-color.pink = 207
-color.orange = 202
-.ft P
-.fi
-.sp
-to set \(aqbrightblue\(aq to color slot 12 (useful for 16 color terminals
-that have brighter colors defined in the upper eight) and, \(aqpink\(aq and
-\(aqorange\(aq to colors in 256\-color xterm\(aqs default color cube.  These
-defined colors may then be used as any of the pre\-defined eight,
-including appending \(aq_background\(aq to set the background to that color.
-.SS Modes
-.sp
-By default, the color extension will use ANSI mode (or win32 mode on
-Windows) if it detects a terminal. To override auto mode (to enable
-terminfo mode, for example), set the following configuration option:
-.sp
-.nf
-.ft C
-[color]
-mode = terminfo
-.ft P
-.fi
-.sp
-Any value other than \(aqansi\(aq, \(aqwin32\(aq, \(aqterminfo\(aq, or \(aqauto\(aq will
-disable color.
-.sp
-Note that on some systems, terminfo mode may cause problems when using
-color with the pager extension and less \-R. less with the \-R option
-will only display ECMA\-48 color codes, and terminfo mode may sometimes
-emit codes that less doesn\(aqt understand. You can work around this by
-either using ansi mode (or auto mode), or by using less \-r (which will
-pass through all terminal control codes, not just color control
-codes).
-.sp
-On some systems (such as MSYS in Windows), the terminal may support
-a different color mode than the pager (activated via the "pager"
-extension). It is possible to define separate modes depending on whether
-the pager is active:
-.sp
-.nf
-.ft C
-[color]
-mode = auto
-pagermode = ansi
-.ft P
-.fi
-.sp
-If \fBpagermode\fP is not defined, the \fBmode\fP will be used.
-.SS Commands
+adds a new flag extras to commit (ADVANCED)
 .SS convert
 .sp
 import revisions from foreign VCS repositories into Mercurial
@@ -10105,8 +10549,8 @@ original_branch_name new_branch_name
 .sp
 where "original_branch_name" is the name of the branch in the
 source repository, and "new_branch_name" is the name of the branch
-is the destination repository. No whitespace is allowed in the
-branch names. This can be used to (for instance) move code in one
+is the destination repository. No whitespace is allowed in the new
+branch name. This can be used to (for instance) move code in one
 repository from "default" to a named branch.
 .SS Mercurial Source
 .sp
@@ -10162,6 +10606,14 @@ allowed between commits with identical user and log message in
 a single changeset. When very large files were checked in as
 part of a changeset then the default may not be long enough.
 The default is 60.
+.TP
+.B convert.cvsps.logencoding
+.
+Specify encoding name to be used for
+transcoding CVS log messages. Multiple encoding names can be
+specified as a list (see \%\fBhg help config.Syntax\fP\:), but only
+the first acceptable encoding in the list is used per CVS log
+entries. This transcoding is executed before cvslog hook below.
 .TP
 .B convert.cvsps.mergeto
 .
@@ -10280,11 +10732,65 @@ files in the working copy instead of just changed ones. This
 is very expensive for large projects, and is only effective when
 \fBconvert.git.similarity\fP is greater than 0. The default is False.
 .TP
+.B convert.git.renamelimit
+.
+perform rename and copy detection up to this
+many changed files in a commit. Increasing this will make rename
+and copy detection more accurate but will significantly slow down
+computation on large projects. The option is only relevant if
+\fBconvert.git.similarity\fP is greater than 0. The default is
+\fB400\fP.
+.TP
+.B convert.git.committeractions
+.
+list of actions to take when processing
+author and committer values.
+.sp
+Git commits have separate author (who wrote the commit) and committer
+(who applied the commit) fields. Not all destinations support separate
+author and committer fields (including Mercurial). This config option
+controls what to do with these author and committer fields during
+conversion.
+.sp
+A value of \fBmessagedifferent\fP will append a \fBcommitter: ...\fP
+line to the commit message if the Git committer is different from the
+author. The prefix of that line can be specified using the syntax
+\fBmessagedifferent=<prefix>\fP. e.g. \fBmessagedifferent=git\-committer:\fP.
+When a prefix is specified, a space will always be inserted between the
+prefix and the value.
+.sp
+\fBmessagealways\fP behaves like \fBmessagedifferent\fP except it will
+always result in a \fBcommitter: ...\fP line being appended to the commit
+message. This value is mutually exclusive with \fBmessagedifferent\fP.
+.sp
+\fBdropcommitter\fP will remove references to the committer. Only
+references to the author will remain. Actions that add references
+to the committer will have no effect when this is set.
+.sp
+\fBreplaceauthor\fP will replace the value of the author field with
+the committer. Other actions that add references to the committer
+will still take effect when this is set.
+.sp
+The default is \fBmessagedifferent\fP.
+.TP
+.B convert.git.extrakeys
+.
+list of extra keys from commit metadata to copy to
+the destination. Some Git repositories store extra metadata in commits.
+By default, this non\-default metadata will be lost during conversion.
+Setting this config option can retain that metadata. Some built\-in
+keys such as \fBparent\fP and \fBbranch\fP are not allowed to be copied.
+.TP
 .B convert.git.remoteprefix
 .
 remote refs are converted as bookmarks with
 \fBconvert.git.remoteprefix\fP as a prefix followed by a /. The default
 is \(aqremote\(aq.
+.TP
+.B convert.git.saverev
+.
+whether to store the original Git commit ID in the
+metadata of the destination commit. The default is True.
 .TP
 .B convert.git.skipsubmodules
 .
@@ -10729,7 +11235,7 @@ Options:
 .
 a specific revision you would like to pull
 .TP
-.B \-e,  \-\-edit
+.B \-\-edit
 .
 invoke editor on commit messages
 .TP
@@ -11156,7 +11662,7 @@ pick 7c2fd3b9020c Add delta
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
 #  f, fold = use commit, but combine it with the one above
-#  r, roll = like fold, but discard this commit\(aqs description
+#  r, roll = like fold, but discard this commit\(aqs description and date
 #  d, drop = remove commit from history
 #  m, mess = edit commit message without changing commit content
 #
@@ -11182,7 +11688,7 @@ fold 7c2fd3b9020c Add delta
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
 #  f, fold = use commit, but combine it with the one above
-#  r, roll = like fold, but discard this commit\(aqs description
+#  r, roll = like fold, but discard this commit\(aqs description and date
 #  d, drop = remove commit from history
 #  m, mess = edit commit message without changing commit content
 #
@@ -11201,11 +11707,11 @@ Add delta
 .ft P
 .fi
 .sp
-Edit the commit message to your liking, then close the editor. For
-this example, let\(aqs assume that the commit message was changed to
-\fBAdd beta and delta.\fP After histedit has run and had a chance to
-remove any old or temporary revisions it needed, the history looks
-like this:
+Edit the commit message to your liking, then close the editor. The date used
+for the commit will be the later of the two commits\(aq dates. For this example,
+let\(aqs assume that the commit message was changed to \fBAdd beta and delta.\fP
+After histedit has run and had a chance to remove any old or temporary
+revisions it needed, the history looks like this:
 .sp
 .nf
 .ft C
@@ -11231,9 +11737,10 @@ The \fBedit\fP operation will drop you back to a command prompt,
 allowing you to edit files freely, or even use \fBhg record\fP to commit
 some changes as a separate commit. When you\(aqre done, any remaining
 uncommitted changes will be committed as well. When done, run \fBhg
-histedit \-\-continue\fP to finish this step. You\(aqll be prompted for a
-new commit message, but the default commit message will be the
-original message for the \fBedit\fP ed revision.
+histedit \-\-continue\fP to finish this step. If there are uncommitted
+changes, you\(aqll be prompted for a new commit message, but the default
+commit message will be the original message for the \fBedit\fP ed
+revision, and the date of the original commit will be preserved.
 .sp
 The \fBmessage\fP operation will give you a chance to revise a commit
 message without changing the contents. It\(aqs a shortcut for doing
@@ -11314,6 +11821,19 @@ the drop to be implicit for missing commits by adding:
 dropmissing = True
 .ft P
 .fi
+.sp
+By default, histedit will close the transaction after each action. For
+performance purposes, you can configure histedit to use a single transaction
+across the entire histedit. WARNING: This setting introduces a significant risk
+of losing the work you\(aqve done in a histedit if the histedit aborts
+unexpectedly:
+.sp
+.nf
+.ft C
+[histedit]
+singletransaction = True
+.ft P
+.fi
 .SS Commands
 .SS histedit
 .sp
@@ -11340,13 +11860,13 @@ You can:
 \fImess\fP to reword the changeset commit message
 .IP \(bu 2
 .
-\fIfold\fP to combine it with the preceding changeset
+\fIfold\fP to combine it with the preceding changeset (using the later date)
 .IP \(bu 2
 .
-\fIroll\fP like fold, but discarding this commit\(aqs description
+\fIroll\fP like fold, but discarding this commit\(aqs description and date
 .IP \(bu 2
 .
-\fIedit\fP to edit this changeset
+\fIedit\fP to edit this changeset (preserving date)
 .UNINDENT
 .sp
 There are a number of ways to select the root changeset:
@@ -11499,7 +12019,7 @@ first revision to be edited
 [+] marked option can be specified multiple times
 .SS journal
 .sp
-Track previous positions of bookmarks (EXPERIMENTAL)
+track previous positions of bookmarks (EXPERIMENTAL)
 .sp
 This extension adds a new command: \fIhg journal\fP, which shows you where
 bookmarks were previously located.
@@ -11997,7 +12517,7 @@ do not verify server certificate (ignoring web.cacerts config)
 [+] marked option can be specified multiple times
 .SS logtoprocess
 .sp
-Send ui.log() data to a subprocess (EXPERIMENTAL)
+send ui.log() data to a subprocess (EXPERIMENTAL)
 .sp
 This extension lets you specify a shell command per ui.log() event,
 sending all remaining arguments to as environment variables to that command.
@@ -12024,7 +12544,7 @@ commandexception = echo "$MSG2$MSG3" > /var/log/mercurial_exceptions.log
 .sp
 would log the warning message and traceback of any failed command dispatch.
 .sp
-Scripts are run asychronously as detached daemon processes; mercurial will
+Scripts are run asynchronously as detached daemon processes; mercurial will
 not ensure that they exit cleanly.
 .SS mq
 .sp
@@ -12037,7 +12557,7 @@ applied patches (subset of known patches).
 Known patches are represented as patch files in the .hg/patches
 directory. Applied patches are both patch files and changesets.
 .sp
-Common tasks (use \%\fBhg help command\fP\: for more details):
+Common tasks (use \%\fBhg help COMMAND\fP\: for more details):
 .sp
 .nf
 .ft C
@@ -12321,6 +12841,10 @@ treat all files as text
 .B \-g,  \-\-git
 .
 use git extended diff format
+.TP
+.B \-\-binary
+.
+generate binary diffs in git mode (default)
 .TP
 .B \-\-nodates
 .
@@ -13372,68 +13896,16 @@ references. See also \fBnotify.strip\fP.
 .UNINDENT
 .SS pager
 .sp
-browse command output with an external pager
+browse command output with an external pager (DEPRECATED)
 .sp
-To set the pager that should be used, set the application variable:
-.sp
-.nf
-.ft C
-[pager]
-pager = less \-FRX
-.ft P
-.fi
-.sp
-If no pager is set, the pager extensions uses the environment variable
-$PAGER. If neither pager.pager, nor $PAGER is set, no pager is used.
-.sp
-You can disable the pager for certain commands by adding them to the
-pager.ignore list:
-.sp
-.nf
-.ft C
-[pager]
-ignore = version, help, update
-.ft P
-.fi
-.sp
-You can also enable the pager only for certain commands using
-pager.attend. Below is the default list of commands to be paged:
-.sp
-.nf
-.ft C
-[pager]
-attend = annotate, cat, diff, export, glog, log, qdiff
-.ft P
-.fi
-.sp
-Setting pager.attend to an empty value will cause all commands to be
-paged.
-.sp
-If pager.attend is present, pager.ignore will be ignored.
-.sp
-Lastly, you can enable and disable paging for individual commands with
-the attend\-<command> option. This setting takes precedence over
-existing attend and ignore options and defaults:
+Forcibly enable paging for individual commands that don\(aqt typically
+request pagination with the attend\-<command> option. This setting
+takes precedence over ignore options and defaults:
 .sp
 .nf
 .ft C
 [pager]
 attend\-cat = false
-.ft P
-.fi
-.sp
-To ignore global commands like \%\fBhg version\fP\: or \%\fBhg help\fP\:, you have
-to specify them in your user configuration file.
-.sp
-To control whether the pager is used at all for an individual command,
-you can use \-\-pager=<value>:
-.sp
-.nf
-.ft C
-\- use as needed: \(gaauto\(ga.
-\- require the pager: \(gayes\(ga or \(gaon\(ga.
-\- suppress the pager: \(gano\(ga or \(gaoff\(ga (any unrecognized value
-will also work).
 .ft P
 .fi
 .SS patchbomb
@@ -13512,6 +13984,18 @@ intro=always # always include an introduction message
 .ft P
 .fi
 .sp
+You can specify a template for flags to be added in subject prefixes. Flags
+specified by \-\-flag option are exported as \fB{flags}\fP keyword:
+.sp
+.nf
+.ft C
+[patchbomb]
+flagtemplate = "{separate(\(aq \(aq,
+                          ifeq(branch, \(aqdefault\(aq, \(aq\(aq, branch|upper),
+                          flags)}"
+.ft P
+.fi
+.sp
 You can set patchbomb to always ask for confirmation by setting
 \fBpatchbomb.confirm\fP to true.
 .SS Commands
@@ -13550,6 +14034,9 @@ will be created. You can include a patch both as text in the email
 body and as a regular or an inline attachment by combining the
 \-a/\-\-attach or \-i/\-\-inline with the \-\-body option.
 .sp
+With \-B/\-\-bookmark changesets reachable by the given bookmark are
+selected.
+.sp
 With \-o/\-\-outgoing, emails will be generated for patches not found
 in the destination repository (or only those which are ancestors
 of the specified revisions if any are provided)
@@ -13568,9 +14055,7 @@ files.
 With \-n/\-\-test, all steps will run, but mail will not be sent.
 You will be prompted for an email recipient address, a subject and
 an introductory message describing the patches of your patchbomb.
-Then when all is done, patchbomb messages are displayed. If the
-PAGER environment variable is set, your pager will be fired up once
-for each patchbomb message, so you can verify everything is alright.
+Then when all is done, patchbomb messages are displayed.
 .sp
 In case email sending fails, you will find a backup of your series
 introductory message in \fB.hg/last\-email.txt\fP.
@@ -13591,6 +14076,8 @@ hg email \-o               # send all patches not in default
 hg email \-o DEST          # send all patches not in DEST
 hg email \-o \-r 3000       # send all ancestors of 3000 not in default
 hg email \-o \-r 3000 DEST  # send all ancestors of 3000 not in DEST
+
+hg email \-B feature       # send all ancestors of feature bookmark
 
 hg email \-b               # send bundle of all patches not in default
 hg email \-b DEST          # send bundle of all patches not in DEST
@@ -13626,6 +14113,10 @@ send changes not found in the target repository
 .B \-b,  \-\-bundle
 .
 send changes not in target as a binary bundle
+.TP
+.BI \-B,  \-\-bookmark \ <VALUE>
+.
+send changes only reachable by given bookmark
 .TP
 .BI \-\-bundlename \ <NAME>
 .
@@ -13962,6 +14453,33 @@ hg rebase \-r "branch(featureX)" \-d 1.3 \-\-keepbranches
 .fi
 .UNINDENT
 .sp
+Configuration Options:
+.sp
+You can make rebase require a destination if you set the following config
+option:
+.sp
+.nf
+.ft C
+[commands]
+rebase.requiredest = True
+.ft P
+.fi
+.sp
+By default, rebase will close the transaction after each commit. For
+performance purposes, you can configure rebase to use a single transaction
+across the entire rebase. WARNING: This setting introduces a significant
+risk of losing the work you\(aqve done in a rebase if the rebase aborts
+unexpectedly:
+.sp
+.nf
+.ft C
+[rebase]
+singletransaction = True
+.ft P
+.fi
+.sp
+Return Values:
+.sp
 Returns 0 on success, 1 if nothing to rebase or there are
 unresolved conflicts.
 .sp
@@ -14072,7 +14590,8 @@ will be candidates for recording.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
-You will be prompted for whether to record changes to each
+If using the text interface (see \%\fBhg help config\fP\:),
+you will be prompted for whether to record changes to each
 modified file, and for files with multiple changes, for each
 change to use. For each query, the following responses are
 possible:
@@ -14161,6 +14680,126 @@ ignore changes whose lines are all blank
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS releasenotes
+.sp
+generate release notes from commit messages (EXPERIMENTAL)
+.sp
+It is common to maintain files detailing changes in a project between
+releases. Maintaining these files can be difficult and time consuming.
+The \%\fBhg releasenotes\fP\: command provided by this extension makes the
+process simpler by automating it.
+.SS Commands
+.SS releasenotes
+.sp
+parse release notes from commit messages into an output file:
+.sp
+.nf
+.ft C
+hg releasenotes [\-r REV] FILE
+.ft P
+.fi
+.sp
+Given an output file and set of revisions, this command will parse commit
+messages for release notes then add them to the output file.
+.sp
+Release notes are defined in commit messages as ReStructuredText
+directives. These have the form:
+.sp
+.nf
+.ft C
+\&.. directive:: title
+
+   content
+.ft P
+.fi
+.sp
+Each \fBdirective\fP maps to an output section in a generated release notes
+file, which itself is ReStructuredText. For example, the \fB.. feature::\fP
+directive would map to a \fBNew Features\fP section.
+.sp
+Release note directives can be either short\-form or long\-form. In short\-
+form, \fBtitle\fP is omitted and the release note is rendered as a bullet
+list. In long form, a sub\-section with the title \fBtitle\fP is added to the
+section.
+.sp
+The \fBFILE\fP argument controls the output file to write gathered release
+notes to. The format of the file is:
+.sp
+.nf
+.ft C
+Section 1
+=========
+
+\&...
+
+Section 2
+=========
+
+\&...
+.ft P
+.fi
+.sp
+Only sections with defined release notes are emitted.
+.sp
+If a section only has short\-form notes, it will consist of bullet list:
+.sp
+.nf
+.ft C
+Section
+=======
+
+* Release note 1
+* Release note 2
+.ft P
+.fi
+.sp
+If a section has long\-form notes, sub\-sections will be emitted:
+.sp
+.nf
+.ft C
+Section
+=======
+
+Note 1 Title
+\-\-\-\-\-\-\-\-\-\-\-\-
+
+Description of the first long\-form note.
+
+Note 2 Title
+\-\-\-\-\-\-\-\-\-\-\-\-
+
+Description of the second long\-form note.
+.ft P
+.fi
+.sp
+If the \fBFILE\fP argument points to an existing file, that file will be
+parsed for release notes having the format that would be generated by this
+command. The notes from the processed commit messages will be \fImerged\fP
+into this parsed set.
+.sp
+During release notes merging:
+.INDENT 0.0
+.IP \(bu 2
+.
+Duplicate items are automatically ignored
+.IP \(bu 2
+.
+Items that are different are automatically ignored if the similarity is
+greater than a threshold.
+.UNINDENT
+.sp
+This means that the release notes file can be updated independently from
+this command and changes should not be lost when running this command on
+that file. A particular use case for this is to tweak the wording of a
+release note after it has been added to the release notes file.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+revisions to process for release notes
+.UNINDENT
 .SS relink
 .sp
 recreates hardlinks between repository clones
@@ -14321,6 +14960,10 @@ do not create a working directory
 .B \-B,  \-\-bookmarks
 .
 also share bookmarks
+.TP
+.B \-\-relative
+.
+point to source using a relative path (EXPERIMENTAL)
 .UNINDENT
 .SS unshare
 .sp
@@ -14372,7 +15015,7 @@ When no files are specified, "hg shelve" saves all not\-clean
 files. If specific files or directories are named, only changes to
 those files are shelved.
 .sp
-In bare shelve(when no files are specified, without interactive,
+In bare shelve (when no files are specified, without interactive,
 include and exclude option), shelving remembers information if the
 working directory was on newly created branch, in other words working
 directory was on different branch than its first parent. In this
@@ -14457,7 +15100,7 @@ restore a shelved change to the working directory:
 .sp
 .nf
 .ft C
-hg unshelve [SHELVED]
+hg unshelve [[\-n] SHELVED]
 .ft P
 .fi
 .sp
@@ -14507,6 +15150,10 @@ continue an incomplete unshelve operation
 .
 keep shelve after unshelving
 .TP
+.BI \-n,  \-\-name \ <NAME>
+.
+restore shelved change with given name
+.TP
 .BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
@@ -14515,6 +15162,139 @@ specify merge tool
 .
 set date for temporary commits (DEPRECATED)
 .UNINDENT
+.SS show
+.sp
+unified command to show various repository information (EXPERIMENTAL)
+.sp
+This extension provides the \%\fBhg show\fP\: command, which provides a central
+command for displaying commonly\-accessed repository data and views of that
+data.
+.sp
+The following config options can influence operation.
+.SS \fBcommands\fP
+.INDENT 0.0
+.TP
+.B \fBshow.aliasprefix\fP
+.sp
+List of strings that will register aliases for views. e.g. \fBs\fP will
+effectively set config options \fBalias.s<view> = show <view>\fP for all
+views. i.e. \fIhg swork\fP would execute \fIhg show work\fP.
+.sp
+Aliases that would conflict with existing registrations will not be
+performed.
+.UNINDENT
+.SS Commands
+.SS show
+.sp
+show various repository information:
+.sp
+.nf
+.ft C
+hg show VIEW
+.ft P
+.fi
+.sp
+A requested view of repository data is displayed.
+.sp
+If no view is requested, the list of available views is shown and the
+command aborts.
+.IP Note
+.
+There are no backwards compatibility guarantees for the output of this
+command. Output may change in any future Mercurial release.
+.sp
+Consumers wanting stable command output should specify a template via
+\fB\-T/\-\-template\fP.
+.RE
+.sp
+List of available views:
+.sp
+bookmarks   bookmarks and their associated changeset
+.sp
+stack       current line of work
+.sp
+work        changesets that aren\(aqt finished
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.UNINDENT
+.SS sparse
+.sp
+allow sparse checkouts of the working directory (EXPERIMENTAL)
+.sp
+(This extension is not yet protected by backwards compatibility
+guarantees. Any aspect may break in future releases until this
+notice is removed.)
+.sp
+This extension allows the working directory to only consist of a
+subset of files for the revision. This allows specific files or
+directories to be explicitly included or excluded. Many repository
+operations have performance proportional to the number of files in
+the working directory. So only realizing a subset of files in the
+working directory can improve performance.
+.SS Sparse Config Files
+.sp
+The set of files that are part of a sparse checkout are defined by
+a sparse config file. The file defines 3 things: includes (files to
+include in the sparse checkout), excludes (files to exclude from the
+sparse checkout), and profiles (links to other config files).
+.sp
+The file format is newline delimited. Empty lines and lines beginning
+with \fB#\fP are ignored.
+.sp
+Lines beginning with \fB%include \(ga\(ga denote another sparse config file
+to include. e.g. \(ga\(ga%include tests.sparse\fP. The filename is relative
+to the repository root.
+.sp
+The special lines \fB[include]\fP and \fB[exclude]\fP denote the section
+for includes and excludes that follow, respectively. It is illegal to
+have \fB[include]\fP after \fB[exclude]\fP.
+.sp
+Non\-special lines resemble file patterns to be added to either includes
+or excludes. The syntax of these lines is documented by \%\fBhg help patterns\fP\:.
+Patterns are interpreted as \fBglob:\fP by default and match against the
+root of the repository.
+.sp
+Exclusion patterns take precedence over inclusion patterns. So even
+if a file is explicitly included, an \fB[exclude]\fP entry can remove it.
+.sp
+For example, say you have a repository with 3 directories, \fBfrontend/\fP,
+\fBbackend/\fP, and \fBtools/\fP. \fBfrontend/\fP and \fBbackend/\fP correspond
+to different projects and it is uncommon for someone working on one
+to need the files for the other. But \fBtools/\fP contains files shared
+between both projects. Your sparse config files may resemble:
+.sp
+.nf
+.ft C
+# frontend.sparse
+frontend/**
+tools/**
+
+# backend.sparse
+backend/**
+tools/**
+.ft P
+.fi
+.sp
+Say the backend grows in size. Or there\(aqs a directory with thousands
+of files you wish to exclude. You can modify the profile to exclude
+certain files:
+.sp
+.nf
+.ft C
+[include]
+backend/**
+tools/**
+
+[exclude]
+tools/tests/**
+.ft P
+.fi
+.SS Commands
 .SS strip
 .sp
 strip changesets and their descendants from history
@@ -14921,7 +15701,7 @@ Source code repository: \%https://www.mercurial\-scm.org/repo/hg\:
 Mailing list: \%https://www.mercurial\-scm.org/mailman/listinfo/mercurial/\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2016 Matt Mackall.
+Copyright (C) 2005\-2017 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

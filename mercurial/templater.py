@@ -13,12 +13,16 @@ import types
 
 from .i18n import _
 from . import (
+    color,
     config,
+    encoding,
     error,
     minirst,
     parser,
+    pycompat,
     registrar,
     revset as revsetmod,
+    revsetlang,
     templatefilters,
     templatekw,
     util,
@@ -29,14 +33,15 @@ from . import (
 elements = {
     # token-type: binding-strength, primary, prefix, infix, suffix
     "(": (20, None, ("group", 1, ")"), ("func", 1, ")"), None),
+    "%": (16, None, None, ("%", 16), None),
+    "|": (15, None, None, ("|", 15), None),
+    "*": (5, None, None, ("*", 5), None),
+    "/": (5, None, None, ("/", 5), None),
+    "+": (4, None, None, ("+", 4), None),
+    "-": (4, None, ("negate", 19), ("-", 4), None),
+    "=": (3, None, None, ("keyvalue", 3), None),
     ",": (2, None, None, ("list", 2), None),
-    "|": (5, None, None, ("|", 5), None),
-    "%": (6, None, None, ("%", 6), None),
     ")": (0, None, None, None, None),
-    "+": (3, None, None, ("+", 3), None),
-    "-": (3, None, ("negate", 10), ("-", 3), None),
-    "*": (4, None, None, ("*", 4), None),
-    "/": (4, None, None, ("/", 4), None),
     "integer": (0, "integer", None, None, None),
     "symbol": (0, "symbol", None, None, None),
     "string": (0, "string", None, None, None),
@@ -48,11 +53,12 @@ def tokenize(program, start, end, term=None):
     """Parse a template expression into a stream of tokens, which must end
     with term if specified"""
     pos = start
+    program = pycompat.bytestr(program)
     while pos < end:
         c = program[pos]
         if c.isspace(): # skip inter-token whitespace
             pass
-        elif c in "(,)%|+-*/": # handle simple operators
+        elif c in "(=,)%|+-*/": # handle simple operators
             yield (c, None, pos)
         elif c in '"\'': # handle quoted templates
             s = pos + 1
@@ -279,6 +285,18 @@ def gettemplate(exp, context):
         return context._load(exp[1])
     raise error.ParseError(_("expected template specifier"))
 
+def findsymbolicname(arg):
+    """Find symbolic name for the given compiled expression; returns None
+    if nothing found reliably"""
+    while True:
+        func, data = arg
+        if func is runsymbol:
+            return data
+        elif func is runfilter:
+            arg = data[0]
+        else:
+            return None
+
 def evalfuncarg(context, mapping, arg):
     func, data = arg
     # func() may return string, generator of strings or arbitrary object such
@@ -353,7 +371,7 @@ def runsymbol(context, mapping, key, default=''):
         except TemplateNotFound:
             v = default
     if callable(v):
-        return v(**mapping)
+        return v(**pycompat.strkwargs(mapping))
     return v
 
 def buildtemplate(exp, context):
@@ -365,14 +383,15 @@ def runtemplate(context, mapping, template):
         yield func(context, mapping, data)
 
 def buildfilter(exp, context):
-    arg = compileexp(exp[1], context, methods)
     n = getsymbol(exp[2])
     if n in context._filters:
         filt = context._filters[n]
+        arg = compileexp(exp[1], context, methods)
         return (runfilter, (arg, filt))
     if n in funcs:
         f = funcs[n]
-        return (f, [arg])
+        args = _buildfuncargs(exp[1], context, methods, n, f._argspec)
+        return (f, args)
     raise error.ParseError(_("unknown function '%s'") % n)
 
 def runfilter(context, mapping, data):
@@ -381,12 +400,13 @@ def runfilter(context, mapping, data):
     try:
         return filt(thing)
     except (ValueError, AttributeError, TypeError):
-        if isinstance(arg[1], tuple):
-            dt = arg[1][1]
+        sym = findsymbolicname(arg)
+        if sym:
+            msg = (_("template filter '%s' is not compatible with keyword '%s'")
+                   % (filt.func_name, sym))
         else:
-            dt = arg[1]
-        raise error.Abort(_("template filter '%s' is not compatible with "
-                           "keyword '%s'") % (filt.func_name, dt))
+            msg = _("incompatible use of template filter '%s'") % filt.func_name
+        raise error.Abort(msg)
 
 def buildmap(exp, context):
     func, data = compileexp(exp[1], context, methods)
@@ -407,17 +427,18 @@ def runmap(context, mapping, data):
             else:
                 raise error.ParseError(_("%r is not iterable") % d)
 
-    for i in diter:
+    for i, v in enumerate(diter):
         lm = mapping.copy()
-        if isinstance(i, dict):
-            lm.update(i)
+        lm['index'] = i
+        if isinstance(v, dict):
+            lm.update(v)
             lm['originalnode'] = mapping.get('node')
             yield tfunc(context, lm, tdata)
         else:
             # v is not an iterable of dicts, this happen when 'key'
             # has been fully expanded already and format is useless.
             # If so, return the expanded value.
-            yield i
+            yield v
 
 def buildnegate(exp, context):
     arg = compileexp(exp[1], context, exprmethods)
@@ -446,16 +467,57 @@ def runarithmetic(context, mapping, data):
 
 def buildfunc(exp, context):
     n = getsymbol(exp[1])
-    args = [compileexp(x, context, exprmethods) for x in getlist(exp[2])]
     if n in funcs:
         f = funcs[n]
+        args = _buildfuncargs(exp[2], context, exprmethods, n, f._argspec)
         return (f, args)
     if n in context._filters:
+        args = _buildfuncargs(exp[2], context, exprmethods, n, argspec=None)
         if len(args) != 1:
             raise error.ParseError(_("filter %s expects one argument") % n)
         f = context._filters[n]
         return (runfilter, (args[0], f))
     raise error.ParseError(_("unknown function '%s'") % n)
+
+def _buildfuncargs(exp, context, curmethods, funcname, argspec):
+    """Compile parsed tree of function arguments into list or dict of
+    (func, data) pairs
+
+    >>> context = engine(lambda t: (runsymbol, t))
+    >>> def fargs(expr, argspec):
+    ...     x = _parseexpr(expr)
+    ...     n = getsymbol(x[1])
+    ...     return _buildfuncargs(x[2], context, exprmethods, n, argspec)
+    >>> fargs('a(l=1, k=2)', 'k l m').keys()
+    ['l', 'k']
+    >>> args = fargs('a(opts=1, k=2)', '**opts')
+    >>> args.keys(), args['opts'].keys()
+    (['opts'], ['opts', 'k'])
+    """
+    def compiledict(xs):
+        return util.sortdict((k, compileexp(x, context, curmethods))
+                             for k, x in xs.iteritems())
+    def compilelist(xs):
+        return [compileexp(x, context, curmethods) for x in xs]
+
+    if not argspec:
+        # filter or function with no argspec: return list of positional args
+        return compilelist(getlist(exp))
+
+    # function with argspec: return dict of named args
+    _poskeys, varkey, _keys, optkey = argspec = parser.splitargspec(argspec)
+    treeargs = parser.buildargsdict(getlist(exp), funcname, argspec,
+                                    keyvaluenode='keyvalue', keynode='symbol')
+    compargs = util.sortdict()
+    if varkey:
+        compargs[varkey] = compilelist(treeargs.pop(varkey))
+    if optkey:
+        compargs[optkey] = compiledict(treeargs.pop(optkey))
+    compargs.update(compiledict(treeargs))
+    return compargs
+
+def buildkeyvaluepair(exp, content):
+    raise error.ParseError(_("can't use a key-value pair in this context"))
 
 # dict of template built-in functions
 funcs = {}
@@ -483,6 +545,24 @@ def date(context, mapping, args):
     except (TypeError, ValueError):
         # i18n: "date" is a keyword
         raise error.ParseError(_("date expects a date information"))
+
+@templatefunc('dict([[key=]value...])', argspec='*args **kwargs')
+def dict_(context, mapping, args):
+    """Construct a dict from key-value pairs. A key may be omitted if
+    a value expression can provide an unambiguous name."""
+    data = util.sortdict()
+
+    for v in args['args']:
+        k = findsymbolicname(v)
+        if not k:
+            raise error.ParseError(_('dict key cannot be inferred'))
+        if k in data or k in args['kwargs']:
+            raise error.ParseError(_("duplicated dict key '%s' inferred") % k)
+        data[k] = evalfuncarg(context, mapping, v)
+
+    data.update((k, evalfuncarg(context, mapping, v))
+                for k, v in args['kwargs'].iteritems())
+    return templatekw.hybriddict(data)
 
 @templatefunc('diff([includepattern [, excludepattern]])')
 def diff(context, mapping, args):
@@ -516,7 +596,7 @@ def files(context, mapping, args):
     ctx = mapping['ctx']
     m = ctx.match([raw])
     files = list(ctx.matches(m))
-    return templatekw.showlist("file", files, **mapping)
+    return templatekw.showlist("file", files, mapping)
 
 @templatefunc('fill(text[, width[, initialident[, hangindent]]])')
 def fill(context, mapping, args):
@@ -542,31 +622,51 @@ def fill(context, mapping, args):
 
     return templatefilters.fill(text, width, initindent, hangindent)
 
-@templatefunc('pad(text, width[, fillchar=\' \'[, left=False]])')
+@templatefunc('formatnode(node)')
+def formatnode(context, mapping, args):
+    """Obtain the preferred form of a changeset hash. (DEPRECATED)"""
+    if len(args) != 1:
+        # i18n: "formatnode" is a keyword
+        raise error.ParseError(_("formatnode expects one argument"))
+
+    ui = mapping['ui']
+    node = evalstring(context, mapping, args[0])
+    if ui.debugflag:
+        return node
+    return templatefilters.short(node)
+
+@templatefunc('pad(text, width[, fillchar=\' \'[, left=False]])',
+              argspec='text width fillchar left')
 def pad(context, mapping, args):
     """Pad text with a
     fill character."""
-    if not (2 <= len(args) <= 4):
+    if 'text' not in args or 'width' not in args:
         # i18n: "pad" is a keyword
         raise error.ParseError(_("pad() expects two to four arguments"))
 
-    width = evalinteger(context, mapping, args[1],
+    width = evalinteger(context, mapping, args['width'],
                         # i18n: "pad" is a keyword
                         _("pad() expects an integer width"))
 
-    text = evalstring(context, mapping, args[0])
+    text = evalstring(context, mapping, args['text'])
 
     left = False
     fillchar = ' '
-    if len(args) > 2:
-        fillchar = evalstring(context, mapping, args[2])
-    if len(args) > 3:
-        left = evalboolean(context, mapping, args[3])
+    if 'fillchar' in args:
+        fillchar = evalstring(context, mapping, args['fillchar'])
+        if len(color.stripeffects(fillchar)) != 1:
+            # i18n: "pad" is a keyword
+            raise error.ParseError(_("pad() expects a single fill character"))
+    if 'left' in args:
+        left = evalboolean(context, mapping, args['left'])
 
+    fillwidth = width - encoding.colwidth(color.stripeffects(text))
+    if fillwidth <= 0:
+        return text
     if left:
-        return text.rjust(width, fillchar)
+        return fillchar * fillwidth + text
     else:
-        return text.ljust(width, fillchar)
+        return text + fillchar * fillwidth
 
 @templatefunc('indent(text, indentchars[, firstline])')
 def indent(context, mapping, args):
@@ -695,7 +795,9 @@ def label(context, mapping, args):
 @templatefunc('latesttag([pattern])')
 def latesttag(context, mapping, args):
     """The global tags matching the given pattern on the
-    most recent globally tagged ancestor of this changeset."""
+    most recent globally tagged ancestor of this changeset.
+    If no such tags exist, the "{tag}" template resolves to
+    the string "null"."""
     if len(args) > 1:
         # i18n: "latesttag" is a keyword
         raise error.ParseError(_("latesttag expects at most one argument"))
@@ -772,12 +874,12 @@ def revset(context, mapping, args):
     repo = ctx.repo()
 
     def query(expr):
-        m = revsetmod.match(repo.ui, expr)
+        m = revsetmod.match(repo.ui, expr, repo=repo)
         return m(repo)
 
     if len(args) > 1:
         formatargs = [evalfuncarg(context, mapping, a) for a in args[1:]]
-        revs = query(revsetmod.formatspec(raw, *formatargs))
+        revs = query(revsetlang.formatspec(raw, *formatargs))
         revs = list(revs)
     else:
         revsetcache = mapping['cache'].setdefault("revsetcache", {})
@@ -792,7 +894,7 @@ def revset(context, mapping, args):
 
 @templatefunc('rstdoc(text, style)')
 def rstdoc(context, mapping, args):
-    """Format ReStructuredText."""
+    """Format reStructuredText."""
     if len(args) != 2:
         # i18n: "rstdoc" is a keyword
         raise error.ParseError(_("rstdoc expects two arguments"))
@@ -802,16 +904,16 @@ def rstdoc(context, mapping, args):
 
     return minirst.format(text, style=style, keep=['verbose'])
 
-@templatefunc('separate(sep, args)')
+@templatefunc('separate(sep, args)', argspec='sep *args')
 def separate(context, mapping, args):
     """Add a separator between non-empty arguments."""
-    if not args:
+    if 'sep' not in args:
         # i18n: "separate" is a keyword
         raise error.ParseError(_("separate expects at least one argument"))
 
-    sep = evalstring(context, mapping, args[0])
+    sep = evalstring(context, mapping, args['sep'])
     first = True
-    for arg in args[1:]:
+    for arg in args['args']:
         argstr = evalstring(context, mapping, arg)
         if not argstr:
             continue
@@ -858,6 +960,9 @@ def shortest(context, mapping, args):
                 return True
         except error.RevlogError:
             return False
+        except error.WdirUnsupported:
+            # single 'ff...' match
+            return True
 
     shortest = node
     startlength = max(6, minlength)
@@ -958,6 +1063,7 @@ exprmethods = {
     "|": buildfilter,
     "%": buildmap,
     "func": buildfunc,
+    "keyvalue": buildkeyvaluepair,
     "+": lambda e, c: buildarithmetic(e, c, lambda a, b: a + b),
     "-": lambda e, c: buildarithmetic(e, c, lambda a, b: a - b),
     "negate": buildnegate,
@@ -994,20 +1100,22 @@ stringify = templatefilters.stringify
 
 def _flatten(thing):
     '''yield a single stream from a possibly nested set of iterators'''
-    if isinstance(thing, str):
+    thing = templatekw.unwraphybrid(thing)
+    if isinstance(thing, bytes):
         yield thing
     elif thing is None:
         pass
     elif not util.safehasattr(thing, '__iter__'):
-        yield str(thing)
+        yield pycompat.bytestr(thing)
     else:
         for i in thing:
-            if isinstance(i, str):
+            i = templatekw.unwraphybrid(i)
+            if isinstance(i, bytes):
                 yield i
             elif i is None:
                 pass
             elif not util.safehasattr(i, '__iter__'):
-                yield str(i)
+                yield pycompat.bytestr(i)
             else:
                 for j in _flatten(i):
                     yield j
@@ -1190,7 +1298,12 @@ class templater(object):
                               (self.map[t][1], inst.args[1]))
         return self.cache[t]
 
+    def render(self, mapping):
+        """Render the default unnamed template and return result as string"""
+        return stringify(self('', **mapping))
+
     def __call__(self, t, **mapping):
+        mapping = pycompat.byteskwargs(mapping)
         ttype = t in self.map and self.map[t][0] or 'default'
         if ttype not in self.ecache:
             try:
@@ -1243,8 +1356,8 @@ def stylemap(styles, paths=None):
         # only plain name is allowed to honor template paths
         if (not style
             or style in (os.curdir, os.pardir)
-            or os.sep in style
-            or os.altsep and os.altsep in style):
+            or pycompat.ossep in style
+            or pycompat.osaltsep and pycompat.osaltsep in style):
             continue
         locations = [os.path.join(style, 'map'), 'map-' + style]
         locations.append('map')

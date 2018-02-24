@@ -61,6 +61,13 @@ check http return codes
   $ hg serve -p $HGPORT -d --pid-file=hg.pid -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS
 
+check archive links' order
+
+  $ get-with-headers.py localhost:$HGPORT "?revcount=1" | grep '/archive/tip.'
+  <a href="/archive/tip.zip">zip</a>
+  <a href="/archive/tip.tar.gz">gz</a>
+  <a href="/archive/tip.tar.bz2">bz2</a>
+
 invalid arch type should give 404
 
   $ get-with-headers.py localhost:$HGPORT "archive/tip.invalid" | head -n 1
@@ -92,13 +99,13 @@ invalid arch type should give 404
   > except AttributeError:
   >     stdout = sys.stdout
   > try:
-  >     f = util.urlreq.urlopen('http://127.0.0.1:%s/?%s'
+  >     f = util.urlreq.urlopen('http://$LOCALIP:%s/?%s'
   >                     % (os.environ['HGPORT'], requeststr))
   >     stdout.write(f.read())
   > except util.urlerr.httperror as e:
   >     sys.stderr.write(str(e) + '\n')
   > EOF
-  $ python getarchive.py "$TIP" gz | gunzip | tar tf - 2>/dev/null
+  $ $PYTHON getarchive.py "$TIP" gz | gunzip | tar tf - 2>/dev/null
   test-archive-1701ef1f1510/.hg_archival.txt
   test-archive-1701ef1f1510/.hgsub
   test-archive-1701ef1f1510/.hgsubstate
@@ -106,7 +113,7 @@ invalid arch type should give 404
   test-archive-1701ef1f1510/baz/bletch
   test-archive-1701ef1f1510/foo
   test-archive-1701ef1f1510/subrepo/sub
-  $ python getarchive.py "$TIP" bz2 | bunzip2 | tar tf - 2>/dev/null
+  $ $PYTHON getarchive.py "$TIP" bz2 | bunzip2 | tar tf - 2>/dev/null
   test-archive-1701ef1f1510/.hg_archival.txt
   test-archive-1701ef1f1510/.hgsub
   test-archive-1701ef1f1510/.hgsubstate
@@ -114,7 +121,7 @@ invalid arch type should give 404
   test-archive-1701ef1f1510/baz/bletch
   test-archive-1701ef1f1510/foo
   test-archive-1701ef1f1510/subrepo/sub
-  $ python getarchive.py "$TIP" zip > archive.zip
+  $ $PYTHON getarchive.py "$TIP" zip > archive.zip
   $ unzip -t archive.zip
   Archive:  archive.zip
       testing: test-archive-1701ef1f1510/.hg_archival.txt*OK (glob)
@@ -128,19 +135,19 @@ invalid arch type should give 404
 
 test that we can download single directories and files
 
-  $ python getarchive.py "$TIP" gz baz | gunzip | tar tf - 2>/dev/null
+  $ $PYTHON getarchive.py "$TIP" gz baz | gunzip | tar tf - 2>/dev/null
   test-archive-1701ef1f1510/baz/bletch
-  $ python getarchive.py "$TIP" gz foo | gunzip | tar tf - 2>/dev/null
+  $ $PYTHON getarchive.py "$TIP" gz foo | gunzip | tar tf - 2>/dev/null
   test-archive-1701ef1f1510/foo
 
 test that we detect file patterns that match no files
 
-  $ python getarchive.py "$TIP" gz foobar
+  $ $PYTHON getarchive.py "$TIP" gz foobar
   HTTP Error 404: file(s) not found: foobar
 
 test that we reject unsafe patterns
 
-  $ python getarchive.py "$TIP" gz relre:baz
+  $ $PYTHON getarchive.py "$TIP" gz relre:baz
   HTTP Error 404: file(s) not found: relre:baz
 
   $ killdaemons.py
@@ -224,7 +231,7 @@ rename them afterwards.
   $ sleep 1
   $ hg archive -t tgz tip.tar.gz
   $ mv tip.tar.gz tip2.tar.gz
-  $ python md5comp.py tip1.tar.gz tip2.tar.gz
+  $ $PYTHON md5comp.py tip1.tar.gz tip2.tar.gz
   True
 
   $ hg archive -t zip -p /illegal test.zip
@@ -320,14 +327,11 @@ old file -- date clamped to 1980
   $ hg add old
   $ hg commit -m old
   $ hg archive ../old.zip
-  $ unzip -l ../old.zip
+  $ unzip -l ../old.zip | grep -v -- ----- | egrep -v files$
   Archive:  ../old.zip
   \s*Length.* (re)
-  *-----* (glob)
   *172*80*00:00*old/.hg_archival.txt (glob)
   *0*80*00:00*old/old (glob)
-  *-----* (glob)
-  \s*172\s+2 files (re)
 
 show an error when a provided pattern matches no files
 
@@ -360,12 +364,12 @@ configured as GMT.
 
   $ hg -R repo archive --prefix tar-extracted archive.tar
   $ (TZ=UTC-3; export TZ; tar xf archive.tar)
-  $ python show_mtime.py tar-extracted/a
+  $ $PYTHON show_mtime.py tar-extracted/a
   456789012
 
   $ hg -R repo archive --prefix zip-extracted archive.zip
   $ (TZ=UTC-3; export TZ; unzip -q archive.zip)
-  $ python show_mtime.py zip-extracted/a
+  $ $PYTHON show_mtime.py zip-extracted/a
   456789012
 
   $ cd ..

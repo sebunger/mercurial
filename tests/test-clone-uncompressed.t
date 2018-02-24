@@ -49,6 +49,77 @@ Clone with background file closing enabled
   bundle2-input-bundle: 1 parts total
   checking for updated bookmarks
 
+Cannot stream clone when there are secret changesets
+
+  $ hg -R server phase --force --secret -r tip
+  $ hg clone --uncompressed -U http://localhost:$HGPORT secret-denied
+  warning: stream clone requested but server has them disabled
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+
+  $ killdaemons.py
+
+Streaming of secrets can be overridden by server config
+
+  $ cd server
+  $ hg --config server.uncompressedallowsecret=true serve -p $HGPORT -d --pid-file=hg.pid
+  $ cat hg.pid > $DAEMON_PIDS
+  $ cd ..
+
+  $ hg clone --uncompressed -U http://localhost:$HGPORT secret-allowed
+  streaming all changes
+  1027 files to transfer, 96.3 KB of data
+  transferred 96.3 KB in * seconds (*/sec) (glob)
+  searching for changes
+  no changes found
+
+  $ killdaemons.py
+
+Verify interaction between preferuncompressed and secret presence
+
+  $ cd server
+  $ hg --config server.preferuncompressed=true serve -p $HGPORT -d --pid-file=hg.pid
+  $ cat hg.pid > $DAEMON_PIDS
+  $ cd ..
+
+  $ hg clone -U http://localhost:$HGPORT preferuncompressed-secret
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+
+  $ killdaemons.py
+
+Clone not allowed when full bundles disabled and can't serve secrets
+
+  $ cd server
+  $ hg --config server.disablefullbundle=true serve -p $HGPORT -d --pid-file=hg.pid
+  $ cat hg.pid > $DAEMON_PIDS
+  $ cd ..
+
+  $ hg clone --uncompressed http://localhost:$HGPORT secret-full-disabled
+  warning: stream clone requested but server has them disabled
+  requesting all changes
+  remote: abort: server has pull-based clones disabled
+  abort: pull failed on remote
+  (remove --pull if specified or upgrade Mercurial)
+  [255]
+
+Local stream clone with secrets involved
+(This is just a test over behavior: if you have access to the repo's files,
+there is no security so it isn't important to prevent a clone here.)
+
+  $ hg clone -U --uncompressed server local-secret
+  warning: stream clone requested but server has them disabled
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
 
 Stream clone while repo is changing:
 
@@ -60,12 +131,12 @@ while cloning
 
   $ cat > delayer.py <<EOF
   > import time
-  > from mercurial import extensions, scmutil
+  > from mercurial import extensions, vfs
   > def __call__(orig, self, path, *args, **kwargs):
   >     if path == 'data/f1.i':
   >         time.sleep(2)
   >     return orig(self, path, *args, **kwargs)
-  > extensions.wrapfunction(scmutil.vfs, '__call__', __call__)
+  > extensions.wrapfunction(vfs.vfs, '__call__', __call__)
   > EOF
 
 prepare repo with small and big file to cover both code paths in emitrevlogdata

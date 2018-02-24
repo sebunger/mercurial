@@ -206,7 +206,7 @@ Amend option works
   > X
   > EOF
   $ hg commit -i  -m "newly added file" -d "0 0"
-  saved backup bundle to $TESTTMP/a/.hg/strip-backup/2b0e9be4d336-28bbe4e2-amend-backup.hg (glob)
+  saved backup bundle to $TESTTMP/a/.hg/strip-backup/2b0e9be4d336-28bbe4e2-amend.hg (glob)
   $ hg diff -c .
   diff -r a6735021574d -r c1d239d165ae x
   --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
@@ -318,14 +318,33 @@ reflect this edition.
   foo
   hello world
   lower
+
+Check spacemovesdown
+
+  $ cat <<EOF >> $HGRCPATH
+  > [experimental]
+  > spacemovesdown = true
+  > EOF
+  $ cat <<EOF >testModeCommands
+  > TOGGLE
+  > TOGGLE
+  > X
+  > EOF
+  $ hg status -q
+  M b
+  M x
+  $ hg commit -i -m "nothing to commit?" -d "0 0"
+  no changes to record
+  [1]
+
 Check ui.interface logic for the chunkselector
 
 The default interface is text
   $ cp $HGRCPATH.pretest $HGRCPATH
   $ chunkselectorinterface() {
-  > python <<EOF
-  > from mercurial import hg, ui, parsers;\
-  > repo = hg.repository(ui.ui(), ".");\
+  > $PYTHON <<EOF
+  > from mercurial import hg, ui;\
+  > repo = hg.repository(ui.ui.load(), ".");\
   > print repo.ui.interface("chunkselector")
   > EOF
   > }

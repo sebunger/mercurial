@@ -495,7 +495,7 @@ Write the python script to disk
 
 check list of planned files
 
-  $ python $TESTDIR/generate-working-copy-states.py filelist 2
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py filelist 2
   content1_content1_content1-tracked
   content1_content1_content1-untracked
   content1_content1_content3-tracked
@@ -550,7 +550,7 @@ Generate appropriate repo state
 
 Generate base changeset
 
-  $ python $TESTDIR/generate-working-copy-states.py state 2 1
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 2 1
   $ hg addremove --similarity 0
   adding content1_content1_content1-tracked
   adding content1_content1_content1-untracked
@@ -597,7 +597,7 @@ Generate base changeset
 
 (create a simple text version of the content)
 
-  $ python ../dircontent.py > ../content-base.txt
+  $ $PYTHON ../dircontent.py > ../content-base.txt
   $ cat ../content-base.txt
   content1 content1_content1_content1-tracked
   content1 content1_content1_content1-untracked
@@ -622,7 +622,7 @@ Generate base changeset
 
 Create parent changeset
 
-  $ python $TESTDIR/generate-working-copy-states.py state 2 2
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 2 2
   $ hg addremove --similarity 0
   removing content1_missing_content1-tracked
   removing content1_missing_content1-untracked
@@ -661,7 +661,7 @@ Create parent changeset
 
 (create a simple text version of the content)
 
-  $ python ../dircontent.py > ../content-parent.txt
+  $ $PYTHON ../dircontent.py > ../content-parent.txt
   $ cat ../content-parent.txt
   content1 content1_content1_content1-tracked
   content1 content1_content1_content1-untracked
@@ -686,7 +686,7 @@ Create parent changeset
 
 Setup working directory
 
-  $ python $TESTDIR/generate-working-copy-states.py state 2 wc
+  $ $PYTHON $TESTDIR/generate-working-copy-states.py state 2 wc
   $ hg addremove --similarity 0
   adding content1_missing_content1-tracked
   adding content1_missing_content1-untracked
@@ -754,7 +754,7 @@ Setup working directory
 
 (create a simple text version of the content)
 
-  $ python ../dircontent.py > ../content-wc.txt
+  $ $PYTHON ../dircontent.py > ../content-wc.txt
   $ cat ../content-wc.txt
   content1 content1_content1_content1-tracked
   content1 content1_content1_content1-untracked
@@ -784,7 +784,7 @@ Test revert --all to parent content
 
 (setup from reference repo)
 
-  $ cp -r revert-ref revert-parent-all
+  $ cp -R revert-ref revert-parent-all
   $ cd revert-parent-all
 
 check revert output
@@ -818,7 +818,7 @@ Compare resulting directory with revert target.
 The diff is filtered to include change only. The only difference should be
 additional `.orig` backup file when applicable.
 
-  $ python ../dircontent.py > ../content-parent-all.txt
+  $ $PYTHON ../dircontent.py > ../content-parent-all.txt
   $ cd ..
   $ diff -U 0 -- content-parent.txt content-parent-all.txt | grep _
   +content3 content1_content1_content3-tracked.orig
@@ -841,7 +841,7 @@ Test revert --all to "base" content
 
 (setup from reference repo)
 
-  $ cp -r revert-ref revert-base-all
+  $ cp -R revert-ref revert-base-all
   $ cd revert-base-all
 
 check revert output
@@ -875,7 +875,7 @@ Compare resulting directory with revert target.
 The diff is filtered to include change only. The only difference should be
 additional `.orig` backup file when applicable.
 
-  $ python ../dircontent.py > ../content-base-all.txt
+  $ $PYTHON ../dircontent.py > ../content-base-all.txt
   $ cd ..
   $ diff -U 0 -- content-base.txt content-base-all.txt | grep _
   +content3 content1_content1_content3-tracked.orig
@@ -896,13 +896,13 @@ Test revert to parent content with explicit file name
 
 (setup from reference repo)
 
-  $ cp -r revert-ref revert-parent-explicit
+  $ cp -R revert-ref revert-parent-explicit
   $ cd revert-parent-explicit
 
 revert all files individually and check the output
 (output is expected to be different than in the --all case)
 
-  $ for file in `python $TESTDIR/generate-working-copy-states.py filelist 2`; do
+  $ for file in `$PYTHON $TESTDIR/generate-working-copy-states.py filelist 2`; do
   >   echo '### revert for:' $file;
   >   hg revert $file;
   >   echo
@@ -979,7 +979,7 @@ revert all files individually and check the output
 check resulting directory against the --all run
 (There should be no difference)
 
-  $ python ../dircontent.py > ../content-parent-explicit.txt
+  $ $PYTHON ../dircontent.py > ../content-parent-explicit.txt
   $ cd ..
   $ diff -U 0 -- content-parent-all.txt content-parent-explicit.txt | grep _
   [1]
@@ -989,13 +989,13 @@ Test revert to "base" content with explicit file name
 
 (setup from reference repo)
 
-  $ cp -r revert-ref revert-base-explicit
+  $ cp -R revert-ref revert-base-explicit
   $ cd revert-base-explicit
 
 revert all files individually and check the output
 (output is expected to be different than in the --all case)
 
-  $ for file in `python $TESTDIR/generate-working-copy-states.py filelist 2`; do
+  $ for file in `$PYTHON $TESTDIR/generate-working-copy-states.py filelist 2`; do
   >   echo '### revert for:' $file;
   >   hg revert $file --rev 'desc(base)';
   >   echo
@@ -1072,7 +1072,7 @@ revert all files individually and check the output
 check resulting directory against the --all run
 (There should be no difference)
 
-  $ python ../dircontent.py > ../content-base-explicit.txt
+  $ $PYTHON ../dircontent.py > ../content-base-explicit.txt
   $ cd ..
   $ diff -U 0 -- content-base-all.txt content-base-explicit.txt | grep _
   [1]

@@ -15,6 +15,7 @@ import socket
 
 from .i18n import _
 from . import (
+    encoding,
     error,
     httpconnection as httpconnectionmod,
     keepalive,
@@ -79,7 +80,8 @@ class passwordmgr(object):
 
 class proxyhandler(urlreq.proxyhandler):
     def __init__(self, ui):
-        proxyurl = ui.config("http_proxy", "host") or os.getenv('http_proxy')
+        proxyurl = (ui.config("http_proxy", "host") or
+                        encoding.environ.get('http_proxy'))
         # XXX proxyauthinfo = None
 
         if proxyurl:
@@ -97,7 +99,7 @@ class proxyhandler(urlreq.proxyhandler):
             no_list.extend([p.lower() for
                             p in ui.configlist("http_proxy", "no")])
             no_list.extend([p.strip().lower() for
-                            p in os.getenv("no_proxy", '').split(',')
+                            p in encoding.environ.get("no_proxy", '').split(',')
                             if p.strip()])
             # "http_proxy.always" config is for running tests on localhost
             if ui.configbool("http_proxy", "always"):
@@ -111,17 +113,6 @@ class proxyhandler(urlreq.proxyhandler):
                       (proxy.host, proxy.port))
         else:
             proxies = {}
-
-        # urllib2 takes proxy values from the environment and those
-        # will take precedence if found. So, if there's a config entry
-        # defining a proxy, drop the environment ones
-        if ui.config("http_proxy", "host"):
-            for env in ["HTTP_PROXY", "http_proxy", "no_proxy"]:
-                try:
-                    if env in os.environ:
-                        del os.environ[env]
-                except OSError:
-                    pass
 
         urlreq.proxyhandler.__init__(self, proxies)
         self.ui = ui
@@ -426,6 +417,35 @@ class httpbasicauthhandler(urlreq.httpbasicauthhandler):
         else:
             return None
 
+class cookiehandler(urlreq.basehandler):
+    def __init__(self, ui):
+        self.cookiejar = None
+
+        cookiefile = ui.config('auth', 'cookiefile')
+        if not cookiefile:
+            return
+
+        cookiefile = util.expandpath(cookiefile)
+        try:
+            cookiejar = util.cookielib.MozillaCookieJar(cookiefile)
+            cookiejar.load()
+            self.cookiejar = cookiejar
+        except util.cookielib.LoadError as e:
+            ui.warn(_('(error loading cookie file %s: %s; continuing without '
+                      'cookies)\n') % (cookiefile, str(e)))
+
+    def http_request(self, request):
+        if self.cookiejar:
+            self.cookiejar.add_cookie_header(request)
+
+        return request
+
+    def https_request(self, request):
+        if self.cookiejar:
+            self.cookiejar.add_cookie_header(request)
+
+        return request
+
 handlerfuncs = []
 
 def opener(ui, authinfo=None):
@@ -434,7 +454,7 @@ def opener(ui, authinfo=None):
     authinfo will be added to the password manager
     '''
     # experimental config: ui.usehttp2
-    if ui.configbool('ui', 'usehttp2', False):
+    if ui.configbool('ui', 'usehttp2'):
         handlers = [
             httpconnectionmod.http2handler(
                 ui,
@@ -459,6 +479,7 @@ def opener(ui, authinfo=None):
     handlers.extend((httpbasicauthhandler(passmgr),
                      httpdigestauthhandler(passmgr)))
     handlers.extend([h(ui, passmgr) for h in handlerfuncs])
+    handlers.append(cookiehandler(ui))
     opener = urlreq.buildopener(*handlers)
 
     # The user agent should should *NOT* be used by servers for e.g.
@@ -475,6 +496,11 @@ def opener(ui, authinfo=None):
     # user agent they deem appropriate.
     agent = 'mercurial/proto-1.0 (Mercurial %s)' % util.version()
     opener.addheaders = [('User-agent', agent)]
+
+    # This header should only be needed by wire protocol requests. But it has
+    # been sent on all requests since forever. We keep sending it for backwards
+    # compatibility reasons. Modern versions of the wire protocol use
+    # X-HgProto-<N> for advertising client support.
     opener.addheaders.append(('Accept', 'application/mercurial-0.1'))
     return opener
 

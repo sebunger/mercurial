@@ -1,11 +1,11 @@
 HG = $(CURDIR)/../../hg
 
 TARGET = chg
-SRCS = chg.c hgclient.c util.c
+SRCS = chg.c hgclient.c procutil.c util.c
 OBJS = $(SRCS:.c=.o)
 
 CFLAGS ?= -O2 -Wall -Wextra -pedantic -g
-CPPFLAGS ?= -D_FORTIFY_SOURCE=2
+CPPFLAGS ?= -D_FORTIFY_SOURCE=2 -D_GNU_SOURCE
 override CFLAGS += -std=gnu99
 ifdef HGPATH
 override CPPFLAGS += -DHGPATH=\"$(HGPATH)\"
@@ -24,8 +24,9 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
-chg.o: hgclient.h util.h
-hgclient.o: hgclient.h util.h
+chg.o: hgclient.h procutil.h util.h
+hgclient.o: hgclient.h procutil.h util.h
+procutil.o: procutil.h util.h
 util.o: util.h
 
 .PHONY: install
@@ -40,7 +41,6 @@ serve:
 	[ -d $(CHGSOCKDIR) ] || ( umask 077; mkdir $(CHGSOCKDIR) )
 	$(HG) serve --cwd / --cmdserver chgunix \
 		--address $(CHGSOCKNAME) \
-		--config extensions.chgserver= \
 		--config cmdserver.log=/dev/stderr
 
 .PHONY: clean

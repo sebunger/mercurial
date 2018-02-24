@@ -73,6 +73,43 @@ Preparing the 'main' repo which depends on the subrepo 'sub1'
   adding main/main (glob)
   $ hg commit -R main -m "main import"
 
+#if serve
+
+Unfortunately, subrepos not at their nominal location cannot be cloned.  But
+they are still served from their location within the local repository.  The only
+reason why 'main' can be cloned via the filesystem is because 'sub1' and 'sub2'
+are also available as siblings of 'main'.
+
+  $ hg serve -R main --debug -S -p $HGPORT -d --pid-file=hg1.pid -E error.log -A access.log
+  adding  = $TESTTMP/main (glob)
+  adding sub1 = $TESTTMP/main/sub1 (glob)
+  adding sub1/sub2 = $TESTTMP/main/sub1/sub2 (glob)
+  listening at http://*:$HGPORT/ (bound to *:$HGPORT) (glob) (?)
+  adding  = $TESTTMP/main (glob) (?)
+  adding sub1 = $TESTTMP/main/sub1 (glob) (?)
+  adding sub1/sub2 = $TESTTMP/main/sub1/sub2 (glob) (?)
+  $ cat hg1.pid >> $DAEMON_PIDS
+
+  $ hg clone http://localhost:$HGPORT httpclone --config progress.disable=True
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 3 changes to 3 files
+  updating to branch default
+  abort: HTTP Error 404: Not Found
+  [255]
+
+  $ cat access.log
+  * "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
+  * "GET /?cmd=batch HTTP/1.1" 200 - * (glob)
+  * "GET /?cmd=getbundle HTTP/1.1" 200 - * (glob)
+  * "GET /../sub1?cmd=capabilities HTTP/1.1" 404 - (glob)
+
+  $ killdaemons.py
+  $ rm hg1.pid error.log access.log
+#endif
+
 Cleaning both repositories, just as a clone -U
 
   $ hg up -C -R sub2 null
@@ -134,9 +171,9 @@ Largefiles is NOT enabled in the clone if the source repo doesn't require it
   # path aliases to other clones of this repo in URLs or filesystem paths
   # (see 'hg help config.paths' for more info)
   #
-  # default-push = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone     = /home/jdoe/jdoes-clone
+  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-clone        = /home/jdoe/jdoes-clone
   
   [ui]
   # name and email (local to this repository, optional), e.g.
@@ -200,6 +237,37 @@ Check that deep archiving works
   adding sub1/sub2/folder/test.txt
   committing subrepository sub1
   committing subrepository sub1/sub2 (glob)
+
+  $ rm -r main
+  $ hg archive -S -qr 'wdir()' ../wdir
+  $ cat ../wdir/.hg_archival.txt
+  repo: 7f491f53a367861f47ee64a80eb997d1f341b77a
+  node: 9bb10eebee29dc0f1201dcf5977b811a540255fd+
+  branch: default
+  latesttag: null
+  latesttagdistance: 4
+  changessincelatesttag: 4
+  $ hg update -Cq .
+
+A deleted subrepo file is flagged as dirty, like the top level repo
+
+  $ rm -r ../wdir sub1/sub2/folder/test.txt
+  $ hg archive -S -qr 'wdir()' ../wdir
+  $ cat ../wdir/.hg_archival.txt
+  repo: 7f491f53a367861f47ee64a80eb997d1f341b77a
+  node: 9bb10eebee29dc0f1201dcf5977b811a540255fd+
+  branch: default
+  latesttag: null
+  latesttagdistance: 4
+  changessincelatesttag: 4
+  $ hg update -Cq .
+  $ rm -r ../wdir
+
+  $ hg archive -S -qr 'wdir()' ../wdir \
+  >            --config 'experimental.archivemetatemplate=archived {node|short}\n'
+  $ cat ../wdir/.hg_archival.txt
+  archived ffffffffffff
+  $ rm -r ../wdir
 
 .. but first take a detour through some deep removal testing
 
@@ -695,9 +763,9 @@ The local repo enables largefiles if a largefiles repo is cloned
   # path aliases to other clones of this repo in URLs or filesystem paths
   # (see 'hg help config.paths' for more info)
   #
-  # default-push = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork      = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone     = /home/jdoe/jdoes-clone
+  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
+  # my-clone        = /home/jdoe/jdoes-clone
   
   [ui]
   # name and email (local to this repository, optional), e.g.

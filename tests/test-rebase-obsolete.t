@@ -175,7 +175,7 @@ set.
   32af7686d403cf45b5d95f2d70cebea587ac806a 0 {5fddd98957c8a54a4d436dfe1da9d87f21a1b97b} (*) {'user': 'test'} (glob)
 
 
-More complex case were part of the rebase set were already rebased
+More complex case where part of the rebase set were already rebased
 
   $ hg rebase --rev 'desc(D)' --dest 'desc(H)'
   rebasing 9:08483444fef9 "D"
@@ -272,6 +272,35 @@ More complex case were part of the rebase set were already rebased
   D
   
   
+Start rebase from a commit that is obsolete but not hidden only because it's
+a working copy parent. We should be moved back to the starting commit as usual
+even though it is hidden (until we're moved there).
+
+  $ hg --hidden up -qr 'first(hidden())'
+  $ hg rebase --rev 13 --dest 15
+  rebasing 13:98f6af4ee953 "C"
+  $ hg log -G
+  o  16:294a2b93eb4d C
+  |
+  o  15:627d46148090 D
+  |
+  | o  12:462a34d07e59 B
+  | |
+  | o  11:4596109a6a43 D
+  | |
+  | o  7:02de42196ebe H
+  | |
+  +---o  6:eea13746799a G
+  | |/
+  | o  5:24b6387c8c8c F
+  | |
+  o |  4:9520eea781bc E
+  |/
+  | @  1:42ccdea3bb16 B
+  |/
+  o  0:cd010b8cd998 A
+  
+
   $ cd ..
 
 collapse rebase
@@ -526,6 +555,7 @@ Test hidden changesets in the rebase set (issue4504)
   $ hg add J
   $ hg commit -m J
   $ hg debugobsolete `hg log --rev . -T '{node}'`
+  obsoleted 1 changesets
 
   $ hg rebase --rev .~1::. --dest 'max(desc(D))' --traceback --config experimental.rebaseskipobsolete=off
   rebasing 9:4bde274eefcf "I"
@@ -681,6 +711,7 @@ Even when the chain include missing node
   o  0:4a2df7238c3b A
   
   $ hg debugobsolete `hg log -r 7 -T '{node}\n'` --config experimental.evolution=all
+  obsoleted 1 changesets
   $ hg rebase -d 6 -r "4::"
   rebasing 4:ff2c4d47b71d "C"
   note: not rebasing 7:360bbaa7d3ce "O", it has no successor
@@ -708,6 +739,7 @@ should display a friendly error message
   $ hg commit -m nonrelevant
   created new head
   $ hg debugobsolete `hg log -r 11 -T '{node}\n'` --config experimental.evolution=all
+  obsoleted 1 changesets
   $ hg rebase -r . -d 10
   note: not rebasing 11:f44da1f4954c "nonrelevant" (tip), it has no successor
 
@@ -761,7 +793,7 @@ If a rebase is going to create divergence, it should abort
   o  0:4a2df7238c3b A
   
   $ hg summary
-  parent: 15:73568ab6879d tip
+  parent: 15:73568ab6879d tip (unstable)
    bar foo
   branch: default
   commit: (clean)
@@ -832,6 +864,7 @@ Create the changes that we will rebase
   $ hg add L
   $ hg commit -m "dummy change"
   $ hg debugobsolete `hg log -r ".^" -T '{node}'` `hg log -r 19 -T '{node}'` --config experimental.evolution=all
+  obsoleted 1 changesets
 
   $ hg log -G -r 17::
   @  22:7bdc8a87673d dummy change
@@ -873,7 +906,7 @@ rebase source is obsoleted (issue5198)
   $ hg up 9520eea781bc
   1 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ echo 1 >> E
-  $ hg commit --amend -m "E'"
+  $ hg commit --amend -m "E'" -d "0 0"
   $ hg log -G
   @  9:69abe8906104 E'
   |
@@ -938,14 +971,19 @@ equivalents in destination
   $ hg up 2 && hg log -r .  # working dir is at rev 2 again
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   2:1e9a3c00cbe9 b (no-eol)
-  $ hg rebase -r 2 -d 3
+  $ hg rebase -r 2 -d 3 --config experimental.evolution.track-operation=1
   note: not rebasing 2:1e9a3c00cbe9 "b" (mybook), already in destination as 3:be1832deae9a "b"
 Check that working directory was updated to rev 3 although rev 2 was skipped
 during the rebase operation
   $ hg log -r .
   3:be1832deae9a b (no-eol)
 
-Check that bookmark was moved to rev 3 although rev 2 was skipped
-during the rebase operation
+Check that bookmark was not moved to rev 3 if rev 2 was skipped during the
+rebase operation. This makes sense because if rev 2 has a successor, the
+operation generating that successor (ex. rebase) should be responsible for
+moving bookmarks. If the bookmark is on a precursor, like rev 2, that means the
+user manually moved it back. In that case we should not move it again.
   $ hg bookmarks
-     mybook                    3:be1832deae9a
+     mybook                    2:1e9a3c00cbe9
+  $ hg debugobsolete --rev tip
+  1e9a3c00cbe90d236ac05ef61efcc5e40b7412bc be1832deae9ac531caa7438b8dcf6055a122cd8e 0 (*) {'user': 'test'} (glob)

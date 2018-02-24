@@ -90,10 +90,10 @@ class mercurial_sink(common.converter_sink):
             self.wlock.release()
 
     def revmapfile(self):
-        return self.repo.join("shamap")
+        return self.repo.vfs.join("shamap")
 
     def authorfile(self):
-        return self.repo.join("authormap")
+        return self.repo.vfs.join("authormap")
 
     def setbranch(self, branch, pbranches):
         if not self.clonebranches:
@@ -345,14 +345,14 @@ class mercurial_sink(common.converter_sink):
                 if commit.rev != node:
                     ctx = self.repo[node]
                     if ctx.phase() < phases.draft:
-                        phases.retractboundary(self.repo, tr, phases.draft,
-                                               [ctx.node()])
+                        phases.registernew(self.repo, tr, phases.draft,
+                                           [ctx.node()])
 
             text = "(octopus merge fixup)\n"
             p2 = node
 
         if self.filemapmode and nparents == 1:
-            man = self.repo.manifest
+            man = self.repo.manifestlog._revlog
             mnode = self.repo.changelog.read(nodemod.bin(p2))[0]
             closed = 'close' in commit.extra
             if not closed and not man.cmp(m1node, man.revision(mnode)):
@@ -425,9 +425,9 @@ class mercurial_sink(common.converter_sink):
             tr = self.repo.transaction('bookmark')
             self.ui.status(_("updating bookmarks\n"))
             destmarks = self.repo._bookmarks
-            for bookmark in updatedbookmark:
-                destmarks[bookmark] = nodemod.bin(updatedbookmark[bookmark])
-            destmarks.recordchange(tr)
+            changes = [(bookmark, nodemod.bin(updatedbookmark[bookmark]))
+                       for bookmark in updatedbookmark]
+            destmarks.applychanges(self.repo, tr, changes)
             tr.close()
         finally:
             lockmod.release(lock, wlock, tr)
@@ -625,7 +625,7 @@ class mercurial_source(common.converter_source):
 
     def converted(self, rev, destrev):
         if self.convertfp is None:
-            self.convertfp = open(self.repo.join('shamap'), 'a')
+            self.convertfp = open(self.repo.vfs.join('shamap'), 'a')
         self.convertfp.write('%s %s\n' % (destrev, rev))
         self.convertfp.flush()
 

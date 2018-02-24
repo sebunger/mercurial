@@ -100,7 +100,7 @@ def rephere(m):
 
 testpats = [
   [
-    (r'pushd|popd', "don't use 'pushd' or 'popd', use 'cd'"),
+    (r'\b(push|pop)d\b', "don't use 'pushd' or 'popd', use 'cd'"),
     (r'\W\$?\(\([^\)\n]*\)\)', "don't use (()) or $(()), use 'expr'"),
     (r'grep.*-q', "don't use 'grep -q', redirect to /dev/null"),
     (r'(?<!hg )grep.* -a', "don't use 'grep -a', use in-line python"),
@@ -116,6 +116,7 @@ testpats = [
     (r'printf.*[^\\]\\x', "don't use printf \\x, use Python"),
     (r'\$\(.*\)', "don't use $(expr), use `expr`"),
     (r'rm -rf \*', "don't use naked rm -rf, target a directory"),
+    (r'\[[^\]]+==', '[ foo == bar ] is a bashism, use [ foo = bar ] instead'),
     (r'(^|\|\s*)grep (-\w\s+)*[^|]*[(|]\w',
      "use egrep for extended grep syntax"),
     (r'/bin/', "don't use explicit paths for tools"),
@@ -137,12 +138,15 @@ testpats = [
      "put a backslash-escaped newline after sed 'i' command"),
     (r'^diff *-\w*[uU].*$\n(^  \$ |^$)', "prefix diff -u/-U with cmp"),
     (r'^\s+(if)? diff *-\w*[uU]', "prefix diff -u/-U with cmp"),
+    (r'[\s="`\']python\s(?!bindings)', "don't use 'python', use '$PYTHON'"),
     (r'seq ', "don't use 'seq', use $TESTDIR/seq.py"),
     (r'\butil\.Abort\b', "directly use error.Abort"),
     (r'\|&', "don't use |&, use 2>&1"),
     (r'\w =  +\w', "only one space after = allowed"),
     (r'\bsed\b.*[^\\]\\n', "don't use 'sed ... \\n', use a \\ and a newline"),
-    (r'env.*-u', "don't use 'env -u VAR', use 'unset VAR'")
+    (r'env.*-u', "don't use 'env -u VAR', use 'unset VAR'"),
+    (r'cp.* -r ', "don't use 'cp -r', use 'cp -R'"),
+    (r'grep.* -[ABC] ', "don't use grep's context flags"),
   ],
   # warnings
   [
@@ -189,8 +193,10 @@ utestpats = [
     (r'^  .*: largefile \S+ not available from file:.*/.*[^)]$', winglobmsg),
     (r'^  .*file://\$TESTTMP',
      'write "file:/*/$TESTTMP" + (glob) to match on windows too'),
-    (r'^  [^$>].*27\.0\.0\.1.*[^)]$',
-     'use (glob) to match localhost IP on hosts without 127.0.0.1 too'),
+    (r'^  [^$>].*27\.0\.0\.1',
+     'use $LOCALIP not an explicit loopback address'),
+    (r'^  [^$>].*\$LOCALIP.*[^)]$',
+     'mark $LOCALIP output lines with (glob) to help tests in BSD jails'),
     (r'^  (cat|find): .*: No such file or directory',
      'use test -f to test for file existence'),
     (r'^  diff -[^ -]*p',
@@ -209,8 +215,8 @@ utestpats = [
   ],
   # warnings
   [
-    (r'^  (?!.*127\.0\.0\.1)[^*?/\n]* \(glob\)$',
-     "glob match with no glob string (?, *, /, and 127.0.0.1)"),
+    (r'^  (?!.*\$LOCALIP)[^*?/\n]* \(glob\)$',
+     "glob match with no glob string (?, *, /, and $LOCALIP)"),
   ]
 ]
 
@@ -236,7 +242,7 @@ pypats = [
     (r'lambda\s*\(.*,.*\)',
      "tuple parameter unpacking not available in Python 3+"),
     (r'(?<!def)\s+(cmp)\(', "cmp is not available in Python 3+"),
-    (r'\breduce\s*\(.*', "reduce is not available in Python 3+"),
+    (r'(?<!\.)\breduce\s*\(.*', "reduce is not available in Python 3+"),
     (r'\bdict\(.*=', 'dict() is different in Py2 and 3 and is slower than {}',
      'dict-from-generator'),
     (r'\.has_key\b', "dict.has_key is not available in Python 3+"),
@@ -295,8 +301,10 @@ pypats = [
      "comparison with singleton, use 'is' or 'is not' instead"),
     (r'^\s*(while|if) [01]:',
      "use True/False for constant Boolean expression"),
+    (r'^\s*if False(:| +and)', 'Remove code instead of using `if False`'),
     (r'(?:(?<!def)\s+|\()hasattr\(',
-     'hasattr(foo, bar) is broken, use util.safehasattr(foo, bar) instead'),
+     'hasattr(foo, bar) is broken on py2, use util.safehasattr(foo, bar) '
+     'instead', r'#.*hasattr-py3-only'),
     (r'opener\([^)]*\).read\(',
      "use opener.read() instead"),
     (r'opener\([^)]*\).write\(',
@@ -317,24 +325,29 @@ pypats = [
      'legacy exception syntax; use "as" instead of ","'),
     (r':\n(    )*( ){1,3}[^ ]', "must indent 4 spaces"),
     (r'release\(.*wlock, .*lock\)', "wrong lock release order"),
-    (r'\b__bool__\b', "__bool__ should be __nonzero__ in Python 2"),
+    (r'\bdef\s+__bool__\b', "__bool__ should be __nonzero__ in Python 2"),
     (r'os\.path\.join\(.*, *(""|\'\')\)',
      "use pathutil.normasprefix(path) instead of os.path.join(path, '')"),
     (r'\s0[0-7]+\b', 'legacy octal syntax; use "0o" prefix instead of "0"'),
     # XXX only catch mutable arguments on the first line of the definition
     (r'def.*[( ]\w+=\{\}', "don't use mutable default arguments"),
     (r'\butil\.Abort\b', "directly use error.Abort"),
+    (r'^@(\w*\.)?cachefunc', "module-level @cachefunc is risky, please avoid"),
     (r'^import Queue', "don't use Queue, use util.queue + util.empty"),
     (r'^import cStringIO', "don't use cStringIO.StringIO, use util.stringio"),
     (r'^import urllib', "don't use urllib, use util.urlreq/util.urlerr"),
     (r'^import SocketServer', "don't use SockerServer, use util.socketserver"),
-    (r'^import urlparse', "don't use urlparse, use util.urlparse"),
+    (r'^import urlparse', "don't use urlparse, use util.urlreq"),
     (r'^import xmlrpclib', "don't use xmlrpclib, use util.xmlrpclib"),
     (r'^import cPickle', "don't use cPickle, use util.pickle"),
     (r'^import pickle', "don't use pickle, use util.pickle"),
     (r'^import httplib', "don't use httplib, use util.httplib"),
     (r'^import BaseHTTPServer', "use util.httpserver instead"),
+    (r'^(from|import) mercurial\.(cext|pure|cffi)',
+     "use mercurial.policy.importmod instead"),
     (r'\.next\(\)', "don't use .next(), use next(...)"),
+    (r'([a-z]*).revision\(\1\.node\(',
+     "don't convert rev to node before passing to revision(nodeorrev)"),
 
     # rules depending on implementation of repquote()
     (r' x+[xpqo%APM][\'"]\n\s+[\'"]x',
@@ -367,6 +380,13 @@ pyfilters = [
          ((?P<quote>('''|\"\"\"|(?<!')'(?!')|(?<!")"(?!")))
           (?P<text>(([^\\]|\\.)*?))
           (?P=quote))""", reppython),
+]
+
+# extension non-filter patterns
+pyextnfpats = [
+    [(r'^"""\n?[A-Z]', "don't capitalize docstring title")],
+    # warnings
+    [],
 ]
 
 txtfilters = []
@@ -450,6 +470,27 @@ allfilespats = [
   [
     (r'(http|https)://[a-zA-Z0-9./]*selenic.com/',
      'use mercurial-scm.org domain URL'),
+    (r'mercurial@selenic\.com',
+     'use mercurial-scm.org domain for mercurial ML address'),
+    (r'mercurial-devel@selenic\.com',
+     'use mercurial-scm.org domain for mercurial-devel ML address'),
+  ],
+  # warnings
+  [],
+]
+
+py3pats = [
+  [
+    (r'os\.environ', "use encoding.environ instead (py3)", r'#.*re-exports'),
+    (r'os\.name', "use pycompat.osname instead (py3)"),
+    (r'os\.getcwd', "use pycompat.getcwd instead (py3)"),
+    (r'os\.sep', "use pycompat.ossep instead (py3)"),
+    (r'os\.pathsep', "use pycompat.ospathsep instead (py3)"),
+    (r'os\.altsep', "use pycompat.osaltsep instead (py3)"),
+    (r'sys\.platform', "use pycompat.sysplatform instead (py3)"),
+    (r'getopt\.getopt', "use pycompat.getoptb instead (py3)"),
+    (r'os\.getenv', "use encoding.environ.get instead"),
+    (r'os\.setenv', "modifying the environ dict is not preferred"),
   ],
   # warnings
   [],
@@ -457,6 +498,9 @@ allfilespats = [
 
 checks = [
     ('python', r'.*\.(py|cgi)$', r'^#!.*python', pyfilters, pypats),
+    ('python', r'.*hgext.*\.py$', '', [], pyextnfpats),
+    ('python 3', r'.*(hgext|mercurial)/(?!demandimport|policy|pycompat).*\.py',
+     '', pyfilters, py3pats),
     ('test script', r'(.*/)?test-[^.~]*$', '', testfilters, testpats),
     ('c', r'.*\.[ch]$', '', cfilters, cpats),
     ('unified test', r'.*\.t$', '', utestfilters, utestpats),
@@ -636,7 +680,7 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
     return result
 
 def main():
-    parser = optparse.OptionParser("%prog [options] [files]")
+    parser = optparse.OptionParser("%prog [options] [files | -]")
     parser.add_option("-w", "--warnings", action="store_true",
                       help="include warning-level checks")
     parser.add_option("-p", "--per-file", type="int",
@@ -654,6 +698,9 @@ def main():
 
     if len(args) == 0:
         check = glob.glob("*")
+    elif args == ['-']:
+        # read file list from stdin
+        check = sys.stdin.read().splitlines()
     else:
         check = args
 

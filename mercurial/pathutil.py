@@ -9,6 +9,7 @@ from .i18n import _
 from . import (
     encoding,
     error,
+    pycompat,
     util,
 )
 
@@ -32,20 +33,25 @@ class pathauditor(object):
     The file system checks are only done when 'realfs' is set to True (the
     default). They should be disable then we are auditing path for operation on
     stored history.
+
+    If 'cached' is set to True, audited paths and sub-directories are cached.
+    Be careful to not keep the cache of unmanaged directories for long because
+    audited paths may be replaced with symlinks.
     '''
 
-    def __init__(self, root, callback=None, realfs=True):
+    def __init__(self, root, callback=None, realfs=True, cached=False):
         self.audited = set()
         self.auditeddir = set()
         self.root = root
         self._realfs = realfs
+        self._cached = cached
         self.callback = callback
         if os.path.lexists(root) and not util.fscasesensitive(root):
             self.normcase = util.normcase
         else:
             self.normcase = lambda x: x
 
-    def __call__(self, path):
+    def __call__(self, path, mode=None):
         '''Check the relative path.
         path may contain a pattern (e.g. foodir/**.txt)'''
 
@@ -84,21 +90,22 @@ class pathauditor(object):
         normparts.pop()
         prefixes = []
         # It's important that we check the path parts starting from the root.
-        # This means we won't accidentaly traverse a symlink into some other
+        # This means we won't accidentally traverse a symlink into some other
         # filesystem (which is potentially expensive to access).
         for i in range(len(parts)):
-            prefix = os.sep.join(parts[:i + 1])
-            normprefix = os.sep.join(normparts[:i + 1])
+            prefix = pycompat.ossep.join(parts[:i + 1])
+            normprefix = pycompat.ossep.join(normparts[:i + 1])
             if normprefix in self.auditeddir:
                 continue
             if self._realfs:
                 self._checkfs(prefix, path)
             prefixes.append(normprefix)
 
-        self.audited.add(normpath)
-        # only add prefixes to the cache after checking everything: we don't
-        # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
-        self.auditeddir.update(prefixes)
+        if self._cached:
+            self.audited.add(normpath)
+            # only add prefixes to the cache after checking everything: we don't
+            # want to add "foo/bar/baz" before checking if there's a "foo/.hg"
+            self.auditeddir.update(prefixes)
 
     def _checkfs(self, prefix, path):
         """raise exception if a file system backed check fails"""
@@ -132,7 +139,7 @@ def canonpath(root, cwd, myname, auditor=None):
     if util.endswithsep(root):
         rootsep = root
     else:
-        rootsep = root + os.sep
+        rootsep = root + pycompat.ossep
     name = myname
     if not os.path.isabs(name):
         name = os.path.join(root, cwd, name)
@@ -202,8 +209,8 @@ def normasprefix(path):
     '/'
     '''
     d, p = os.path.splitdrive(path)
-    if len(p) != len(os.sep):
-        return path + os.sep
+    if len(p) != len(pycompat.ossep):
+        return path + pycompat.ossep
     else:
         return path
 

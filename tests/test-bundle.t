@@ -232,7 +232,7 @@ hg -R bundle://../full.hg verify
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_NODE_LAST=aa35859c02ea8bd48da5da68cd2740ac71afcbaf HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle?../full.hg (glob)
+  changegroup hook: HG_HOOKNAME=changegroup HG_HOOKTYPE=changegroup HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_NODE_LAST=aa35859c02ea8bd48da5da68cd2740ac71afcbaf HG_SOURCE=pull HG_TXNID=TXN:$ID$ HG_URL=bundle*../full.hg (glob)
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Rollback empty
@@ -255,7 +255,7 @@ Pull full.hg into empty again (using -R; with hook)
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_NODE_LAST=aa35859c02ea8bd48da5da68cd2740ac71afcbaf HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=bundle:empty+full.hg (glob)
+  changegroup hook: HG_HOOKNAME=changegroup HG_HOOKTYPE=changegroup HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_NODE_LAST=aa35859c02ea8bd48da5da68cd2740ac71afcbaf HG_SOURCE=pull HG_TXNID=TXN:$ID$ HG_URL=bundle:empty+full.hg
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Cannot produce streaming clone bundles with "hg bundle"
@@ -268,13 +268,13 @@ Cannot produce streaming clone bundles with "hg bundle"
 packed1 is produced properly
 
   $ hg -R test debugcreatestreamclonebundle packed.hg
-  writing 2663 bytes for 6 files
+  writing 2664 bytes for 6 files
   bundle requirements: generaldelta, revlogv1
 
   $ f -B 64 --size --sha1 --hexdump packed.hg
-  packed.hg: size=2826, sha1=e139f97692a142b19cdcff64a69697d5307ce6d4
+  packed.hg: size=2827, sha1=9d14cb90c66a21462d915ab33656f38b9deed686
   0000: 48 47 53 31 55 4e 00 00 00 00 00 00 00 06 00 00 |HGS1UN..........|
-  0010: 00 00 00 00 0a 67 00 16 67 65 6e 65 72 61 6c 64 |.....g..generald|
+  0010: 00 00 00 00 0a 68 00 16 67 65 6e 65 72 61 6c 64 |.....h..generald|
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 76 31 00 64 61 |elta,revlogv1.da|
   0030: 74 61 2f 61 64 69 66 66 65 72 65 6e 74 66 69 6c |ta/adifferentfil|
 
@@ -301,6 +301,20 @@ generaldelta requirement is not listed in stream clone bundles unless used
 
   $ hg debugbundle --spec packednongd.hg
   none-packed1;requirements%3Drevlogv1
+
+Warning emitted when packed bundles contain secret changesets
+
+  $ hg init testsecret
+  $ cd testsecret
+  $ touch foo
+  $ hg -q commit -A -m initial
+  $ hg phase --force --secret -r .
+  $ cd ..
+
+  $ hg -R testsecret debugcreatestreamclonebundle packedsecret.hg
+  (warning: stream clone bundle will contain secret revisions)
+  writing 301 bytes for 3 files
+  bundle requirements: generaldelta, revlogv1
 
 Unpacking packed1 bundles with "hg unbundle" isn't allowed
 

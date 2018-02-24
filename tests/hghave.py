@@ -150,7 +150,7 @@ def has_cvsnt():
 
 @check("darcs", "darcs client")
 def has_darcs():
-    return matchoutput('darcs --version', br'2\.[2-9]', True)
+    return matchoutput('darcs --version', br'\b2\.([2-9]|\d{2})', True)
 
 @check("mtn", "monotone client (>= 1.0)")
 def has_mtn():
@@ -247,7 +247,7 @@ def gethgversion():
     return (int(m.group(1)), int(m.group(2)))
 
 @checkvers("hg", "Mercurial >= %s",
-            list([(1.0 * x) / 10 for x in range(9, 40)]))
+            list([(1.0 * x) / 10 for x in range(9, 99)]))
 def has_hg_range(v):
     major, minor = v.split('.')[0:2]
     return gethgversion() >= (int(major), int(minor))
@@ -277,6 +277,17 @@ def has_gettext():
 @check("git", "git command line client")
 def has_git():
     return matchoutput('git --version 2>&1', br'^git version')
+
+def getgitversion():
+    m = matchoutput('git --version 2>&1', br'git version (\d+)\.(\d+)')
+    if not m:
+        return (0, 0)
+    return (int(m.group(1)), int(m.group(2)))
+
+@checkvers("git", "git client (with ext::sh support) version >= %s", (1.9,))
+def has_git_range(v):
+    major, minor = v.split('.')[0:2]
+    return getgitversion() >= (int(major), int(minor))
 
 @check("docutils", "Docutils text processing library")
 def has_docutils():
@@ -346,6 +357,15 @@ def has_hardlink():
     finally:
         os.unlink(fn)
 
+@check("hardlink-whitelisted", "hardlinks on whitelisted filesystems")
+def has_hardlink_whitelisted():
+    from mercurial import util
+    try:
+        fstype = util.getfstype('.')
+    except OSError:
+        return False
+    return fstype in util._hardlinkfswhitelist
+
 @check("rmcwd", "can remove current working directory")
 def has_rmcwd():
     ocwd = os.getcwd()
@@ -413,6 +433,12 @@ def has_pyflakes():
                        br"<stdin>:1: 're' imported but unused",
                        True)
 
+@check("pylint", "Pylint python linter")
+def has_pylint():
+    return matchoutput("pylint --help",
+                       br"Usage:  pylint",
+                       True)
+
 @check("pygments", "Pygments source highlighting library")
 def has_pygments():
     try:
@@ -449,7 +475,7 @@ def has_sslcontext():
 @check("defaultcacerts", "can verify SSL certs by system's CA certs store")
 def has_defaultcacerts():
     from mercurial import sslutil, ui as uimod
-    ui = uimod.ui()
+    ui = uimod.ui.load()
     return sslutil._defaultcacerts(ui) or sslutil._canloaddefaultcerts
 
 @check("defaultcacertsloaded", "detected presence of loaded system CA certs")
@@ -462,7 +488,7 @@ def has_defaultcacertsloaded():
     if not has_sslcontext():
         return False
 
-    ui = uimod.ui()
+    ui = uimod.ui.load()
     cafile = sslutil._defaultcacerts(ui)
     ctx = ssl.create_default_context()
     if cafile:
@@ -487,7 +513,7 @@ def has_system_sh():
 
 @check("serve", "platform and python can manage 'hg serve -d'")
 def has_serve():
-    return os.name != 'nt' # gross approximation
+    return True
 
 @check("test-repo", "running tests from repository")
 def has_test_repo():
@@ -559,16 +585,6 @@ def has_debhelper():
 def has_demandimport():
     return os.environ.get('HGDEMANDIMPORT') != 'disable'
 
-@check("absimport", "absolute_import in __future__")
-def has_absimport():
-    import __future__
-    from mercurial import util
-    return util.safehasattr(__future__, "absolute_import")
-
-@check("py27+", "running with Python 2.7+")
-def has_python27ornewer():
-    return sys.version_info[0:2] >= (2, 7)
-
 @check("py3k", "running with Python 3.x")
 def has_py3k():
     return 3 == sys.version_info[0]
@@ -594,7 +610,7 @@ def has_pure():
         os.environ.get("HGTEST_RUN_TESTS_PURE") == "--pure",
     ])
 
-@check("slow", "allow slow tests")
+@check("slow", "allow slow tests (use --allow-slow-tests)")
 def has_slow():
     return os.environ.get('HGTEST_SLOW') == 'slow'
 
@@ -610,3 +626,29 @@ def has_hypothesis():
 @check("unziplinks", "unzip(1) understands and extracts symlinks")
 def unzip_understands_symlinks():
     return matchoutput('unzip --help', br'Info-ZIP')
+
+@check("zstd", "zstd Python module available")
+def has_zstd():
+    try:
+        import mercurial.zstd
+        mercurial.zstd.__version__
+        return True
+    except ImportError:
+        return False
+
+@check("devfull", "/dev/full special file")
+def has_dev_full():
+    return os.path.exists('/dev/full')
+
+@check("virtualenv", "Python virtualenv support")
+def has_virtualenv():
+    try:
+        import virtualenv
+        virtualenv.ACTIVATE_SH
+        return True
+    except ImportError:
+        return False
+
+@check("fsmonitor", "running tests with fsmonitor")
+def has_fsmonitor():
+    return 'HGFSMONITOR_TESTS' in os.environ

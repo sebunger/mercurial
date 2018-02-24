@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 no bookmarks
 
@@ -310,7 +311,44 @@ bookmark with integer name
   abort: cannot use an integer as a name
   [255]
 
+bookmark with a name that matches a node id
+  $ hg bookmark 925d80f479bb db815d6d32e6
+  bookmark 925d80f479bb matches a changeset hash
+  (did you leave a -r out of an 'hg bookmark' command?)
+  bookmark db815d6d32e6 matches a changeset hash
+  (did you leave a -r out of an 'hg bookmark' command?)
+  $ hg bookmark -d 925d80f479bb
+  $ hg bookmark -d db815d6d32e6
+
+  $ cd ..
+
+bookmark with a name that matches an ambiguous node id
+
+  $ hg init ambiguous
+  $ cd ambiguous
+  $ echo 0 > a
+  $ hg ci -qAm 0
+  $ for i in 1057 2857 4025; do
+  >   hg up -q 0
+  >   echo $i > a
+  >   hg ci -qm $i
+  > done
+  $ hg up -q null
+  $ hg log -r0: -T '{rev}:{node}\n'
+  0:b4e73ffab476aa0ee32ed81ca51e07169844bc6a
+  1:c56256a09cd28e5764f32e8e2810d0f01e2e357a
+  2:c5623987d205cd6d9d8389bfc40fff9dbb670b48
+  3:c562ddd9c94164376c20b86b0b4991636a3bf84f
+
+  $ hg bookmark -r0 c562
+  $ hg bookmarks
+     c562                      0:b4e73ffab476
+
+  $ cd ..
+
 incompatible options
+
+  $ cd repo
 
   $ hg bookmark -m Y -d Z
   abort: --delete and --rename are incompatible
@@ -551,12 +589,17 @@ create bundle with two heads
 
 update to active bookmark if it's not the parent
 
+(it is known issue that fsmonitor can't handle nested repositories. In
+this test scenario, cloned-bookmark-default and tobundle exist in the
+working directory of current repository)
+
   $ hg summary
   parent: 2:db815d6d32e6 
    2
   branch: default
   bookmarks: *Z Y x  y
-  commit: 1 added, 1 unknown (new branch head)
+  commit: 1 added, 1 unknown (new branch head) (no-fsmonitor !)
+  commit: 1 added, * unknown (new branch head) (glob) (fsmonitor !)
   update: 2 new changesets (update)
   phases: 5 draft
   $ hg update
@@ -572,8 +615,8 @@ pull --update works the same as pull && update
 
   $ hg bookmark -r3 Y
   moving bookmark 'Y' forward from db815d6d32e6
-  $ cp -r  ../cloned-bookmarks-update ../cloned-bookmarks-manual-update
-  $ cp -r  ../cloned-bookmarks-update ../cloned-bookmarks-manual-update-with-divergence
+  $ cp -R ../cloned-bookmarks-update ../cloned-bookmarks-manual-update
+  $ cp -R ../cloned-bookmarks-update ../cloned-bookmarks-manual-update-with-divergence
 
 (manual version)
 
@@ -630,7 +673,7 @@ We warn about divergent during bare update to the active bookmark
      Z                         2:db815d6d32e6
      x  y                      2:db815d6d32e6
   $ hg -R ../cloned-bookmarks-manual-update-with-divergence pull
-  pulling from $TESTTMP
+  pulling from $TESTTMP/repo (glob)
   searching for changes
   adding changesets
   adding manifests
@@ -662,7 +705,7 @@ test wrongly formated bookmark
 
 test missing revisions
 
-  $ echo "925d80f479bc z" > .hg/bookmarks
+  $ echo "925d80f479b925d80f479bc925d80f479bccabab z" > .hg/bookmarks
   $ hg book
   no bookmarks set
 
@@ -734,7 +777,11 @@ tipmost surviving ancestor of the stripped revision.
      summary:     0
   
 
-no-op update doesn't deactive bookmarks
+no-op update doesn't deactivate bookmarks
+
+(it is known issue that fsmonitor can't handle nested repositories. In
+this test scenario, cloned-bookmark-default and tobundle exist in the
+working directory of current repository)
 
   $ hg bookmarks
    * four                      3:9ba5f110a0b3
@@ -748,7 +795,8 @@ no-op update doesn't deactive bookmarks
    y
   branch: test
   bookmarks: *four
-  commit: 2 unknown (clean)
+  commit: 2 unknown (clean) (no-fsmonitor !)
+  commit: * unknown (clean) (glob) (fsmonitor !)
   update: (current)
   phases: 4 draft
 
@@ -895,3 +943,58 @@ ensure changelog is written before bookmarks
   $ touch $TESTTMP/unpause
 
   $ cd ..
+
+check whether HG_PENDING makes pending changes only in related
+repositories visible to an external hook.
+
+(emulate a transaction running concurrently by copied
+.hg/bookmarks.pending in subsequent test)
+
+  $ cat > $TESTTMP/savepending.sh <<EOF
+  > cp .hg/bookmarks.pending .hg/bookmarks.pending.saved
+  > exit 1 # to avoid adding new bookmark for subsequent tests
+  > EOF
+
+  $ hg init unrelated
+  $ cd unrelated
+  $ echo a > a
+  $ hg add a
+  $ hg commit -m '#0'
+  $ hg --config hooks.pretxnclose="sh $TESTTMP/savepending.sh" bookmarks INVISIBLE
+  transaction abort!
+  rollback completed
+  abort: pretxnclose hook exited with status 1
+  [255]
+  $ cp .hg/bookmarks.pending.saved .hg/bookmarks.pending
+
+(check visible bookmarks while transaction running in repo)
+
+  $ cat > $TESTTMP/checkpending.sh <<EOF
+  > echo "@repo"
+  > hg -R "$TESTTMP/repo" bookmarks
+  > echo "@unrelated"
+  > hg -R "$TESTTMP/unrelated" bookmarks
+  > exit 1 # to avoid adding new bookmark for subsequent tests
+  > EOF
+
+  $ cd ../repo
+  $ hg --config hooks.pretxnclose="sh $TESTTMP/checkpending.sh" bookmarks NEW
+  @repo
+   * NEW                       6:81dcce76aa0b
+     X2                        1:925d80f479bb
+     Y                         4:125c9a1d6df6
+     Z                         5:5fb12f0f2d51
+     Z@1                       1:925d80f479bb
+     Z@2                       4:125c9a1d6df6
+     foo                       3:9ba5f110a0b3
+     foo@1                     0:f7b1eb17ad24
+     foo@2                     2:db815d6d32e6
+     four                      3:9ba5f110a0b3
+     should-end-on-two         2:db815d6d32e6
+     x  y                      2:db815d6d32e6
+  @unrelated
+  no bookmarks set
+  transaction abort!
+  rollback completed
+  abort: pretxnclose hook exited with status 1
+  [255]

@@ -29,14 +29,15 @@ Different encoding:
 
 Test keyword search in translated help text:
 
-  $ HGENCODING=UTF-8 LANGUAGE=de hg help -k blättern
+  $ HGENCODING=UTF-8 LANGUAGE=de hg help -k Aktualisiert
   Themen:
   
-   extensions Benutzung erweiterter Funktionen
+   subrepos Unterarchive
   
-  Erweiterungen:
+  Befehle:
   
-   pager Verwendet einen externen Pager zum Bl\xc3\xa4ttern in der Ausgabe von Befehlen (esc)
+   pull   Ruft \xc3\x84nderungen von der angegebenen Quelle ab (esc)
+   update Aktualisiert das Arbeitsverzeichnis (oder wechselt die Version)
 
 #endif
 
@@ -44,6 +45,6 @@ Check Mercurial specific translation problems in each *.po files, and
 tool itself by doctest
 
   $ cd "$TESTDIR"/../i18n
-  $ python check-translation.py *.po
-  $ python check-translation.py --doctest
+  $ $PYTHON check-translation.py *.po
+  $ $PYTHON check-translation.py --doctest
   $ cd $TESTTMP

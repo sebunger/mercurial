@@ -24,6 +24,7 @@ from . import (
     store,
     url,
     util,
+    vfs as vfsmod,
 )
 
 urlerr = util.urlerr
@@ -86,7 +87,7 @@ def build_opener(ui, authinfo):
     urlopener = url.opener(ui, authinfo)
     urlopener.add_handler(byterange.HTTPRangeHandler())
 
-    class statichttpvfs(scmutil.abstractvfs):
+    class statichttpvfs(vfsmod.abstractvfs):
         def __init__(self, base):
             self.base = base
 
@@ -121,12 +122,13 @@ class statichttprepository(localrepo.localrepository):
         u = util.url(path.rstrip('/') + "/.hg")
         self.path, authinfo = u.authinfo()
 
-        opener = build_opener(ui, authinfo)
-        self.opener = opener(self.path)
-        self.vfs = self.opener
+        vfsclass = build_opener(ui, authinfo)
+        self.vfs = vfsclass(self.path)
+        self.cachevfs = vfsclass(self.vfs.join('cache'))
         self._phasedefaults = []
 
         self.names = namespaces.namespaces()
+        self.filtername = None
 
         try:
             requirements = scmutil.readrequires(self.vfs, self.supported)
@@ -148,7 +150,7 @@ class statichttprepository(localrepo.localrepository):
                 raise error.RepoError(msg)
 
         # setup store
-        self.store = store.store(requirements, self.path, opener)
+        self.store = store.store(requirements, self.path, vfsclass)
         self.spath = self.store.path
         self.svfs = self.store.opener
         self.sjoin = self.store.join
@@ -164,6 +166,8 @@ class statichttprepository(localrepo.localrepository):
         self.encodepats = None
         self.decodepats = None
         self._transref = None
+        # Cache of types representing filtered repos.
+        self._filteredrepotypes = {}
 
     def _restrictcapabilities(self, caps):
         caps = super(statichttprepository, self)._restrictcapabilities(caps)
@@ -177,6 +181,10 @@ class statichttprepository(localrepo.localrepository):
 
     def peer(self):
         return statichttppeer(self)
+
+    def wlock(self, wait=True):
+        raise error.LockUnavailable(0, _('lock not available'), 'lock',
+                                    _('cannot lock static-http repository'))
 
     def lock(self, wait=True):
         raise error.Abort(_('cannot lock static-http repository'))

@@ -12,7 +12,6 @@ prints it to ``stderr`` on exit.
 '''
 
 from __future__ import absolute_import
-import atexit
 
 def memusage(ui):
     """Report memory usage of the current process."""
@@ -25,8 +24,8 @@ def memusage(ui):
             key = parts[0][2:-1].lower()
             if key in result:
                 result[key] = int(parts[1])
-    ui.write_err(", ".join(["%s: %.1f MiB" % (key, value / 1024.0)
-                            for key, value in result.iteritems()]) + "\n")
+    ui.write_err(", ".join(["%s: %.1f MiB" % (k, v / 1024.0)
+                            for k, v in result.iteritems()]) + "\n")
 
 def extsetup(ui):
-    atexit.register(memusage, ui)
+    ui.atexit(memusage, ui)

@@ -28,11 +28,11 @@ Test server address cannot be reused
 
 #if windows
   $ hg serve -p $HGPORT1 2>&1
-  abort: cannot start server at ':$HGPORT1': * (glob)
+  abort: cannot start server at 'localhost:$HGPORT1': * (glob)
   [255]
 #else
   $ hg serve -p $HGPORT1 2>&1
-  abort: cannot start server at ':$HGPORT1': Address already in use
+  abort: cannot start server at 'localhost:$HGPORT1': Address already in use
   [255]
 #endif
   $ cd ..
@@ -58,6 +58,26 @@ clone via stream
 try to clone via stream, should use pull instead
 
   $ hg clone --uncompressed http://localhost:$HGPORT1/ copy2
+  warning: stream clone requested but server has them disabled
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 4 changes to 4 files
+  updating to branch default
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+try to clone via stream but missing requirements, so should use pull instead
+
+  $ cat > $TESTTMP/removesupportedformat.py << EOF
+  > from mercurial import localrepo
+  > def extsetup(ui):
+  >     localrepo.localrepository.supportedformats.remove('generaldelta')
+  > EOF
+
+  $ hg clone --config extensions.rsf=$TESTTMP/removesupportedformat.py --uncompressed http://localhost:$HGPORT/ copy3
+  warning: stream clone requested but client is missing requirements: generaldelta
+  (see https://www.mercurial-scm.org/wiki/MissingRequirement for more information)
   requesting all changes
   adding changesets
   adding manifests
@@ -138,7 +158,7 @@ pull
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
-  changegroup hook: HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_NODE_LAST=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_TXNID=TXN:* HG_URL=http://localhost:$HGPORT1/ (glob)
+  changegroup hook: HG_HOOKNAME=changegroup HG_HOOKTYPE=changegroup HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_NODE_LAST=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_TXNID=TXN:$ID$ HG_URL=http://localhost:$HGPORT1/
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -238,66 +258,66 @@ test http authentication
 
   $ sed 's/.*] "/"/' < ../access.log
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=branchmap HTTP/1.1" 200 -
-  "GET /?cmd=stream_out HTTP/1.1" 401 -
-  "GET /?cmd=stream_out HTTP/1.1" 200 -
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
-  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D5fed3813f7f5e1824344fdc9cf8f63bb662c292d
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
+  "GET /?cmd=branchmap HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=stream_out HTTP/1.1" 401 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=stream_out HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D5fed3813f7f5e1824344fdc9cf8f63bb662c292d x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=bookmarks
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
-  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D
-  "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:common=0000000000000000000000000000000000000000&heads=5fed3813f7f5e1824344fdc9cf8f63bb662c292d x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces
-  "GET /?cmd=listkeys HTTP/1.1" 403 - x-hgarg-1:namespace=namespaces
+  "GET /?cmd=lookup HTTP/1.1" 200 - x-hgarg-1:key=tip x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 403 - x-hgarg-1:namespace=namespaces x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "GET /?cmd=capabilities HTTP/1.1" 200 -
-  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D7f4e523d01f2cc3765ac8934da3d14db775ff872
-  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=phases
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
-  "GET /?cmd=branchmap HTTP/1.1" 200 -
-  "GET /?cmd=branchmap HTTP/1.1" 200 -
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks
+  "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D7f4e523d01f2cc3765ac8934da3d14db775ff872 x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 401 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=branchmap HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=branchmap HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   "POST /?cmd=unbundle HTTP/1.1" 200 - x-hgarg-1:heads=686173686564+5eb5abfefeea63c80dd7553bcc3783f37e0c5524* (glob)
-  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases
+  "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=phases x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
 
   $ cd ..
 
@@ -331,5 +351,55 @@ clone of serve with repo in root and unserved subrepo (issue2970)
   [255]
 
 check error log
+
+  $ cat error.log
+
+Check error reporting while pulling/cloning
+
+  $ $RUNTESTDIR/killdaemons.py
+  $ hg -R test serve -p $HGPORT -d --pid-file=hg3.pid -E error.log --config extensions.crash=${TESTDIR}/crashgetbundler.py
+  $ cat hg3.pid >> $DAEMON_PIDS
+  $ hg clone http://localhost:$HGPORT/ abort-clone
+  requesting all changes
+  abort: remote error:
+  this is an exercise
+  [255]
+  $ cat error.log
+
+disable pull-based clones
+
+  $ hg -R test serve -p $HGPORT1 -d --pid-file=hg4.pid -E error.log --config server.disablefullbundle=True
+  $ cat hg4.pid >> $DAEMON_PIDS
+  $ hg clone http://localhost:$HGPORT1/ disable-pull-clone
+  requesting all changes
+  abort: remote error:
+  server has pull-based clones disabled
+  [255]
+
+... but keep stream clones working
+
+  $ hg clone --uncompressed --noupdate http://localhost:$HGPORT1/ test-stream-clone
+  streaming all changes
+  * files to transfer, * of data (glob)
+  transferred * in * seconds (* KB/sec) (glob)
+  searching for changes
+  no changes found
+
+... and also keep partial clones and pulls working
+  $ hg clone http://localhost:$HGPORT1 --rev 0 test-partial-clone
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 4 changes to 4 files
+  updating to branch default
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg pull -R test-partial-clone
+  pulling from http://localhost:$HGPORT1/
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 3 changes to 3 files
+  (run 'hg update' to get a working copy)
 
   $ cat error.log

@@ -112,7 +112,7 @@ used all HGPORTs, kill all daemons
 #endif
 
 vanilla clients locked out from largefiles ssh repos
-  $ hg --config extensions.largefiles=! clone -e "python \"$TESTDIR/dummyssh\"" ssh://user@dummy/r4 r5
+  $ hg --config extensions.largefiles=! clone -e "\"$PYTHON\" \"$TESTDIR/dummyssh\"" ssh://user@dummy/r4 r5
   remote: 
   remote: This repository uses the largefiles extension.
   remote: 
@@ -347,7 +347,7 @@ largefiles should batch verify remote calls
   searching 2 changesets for largefiles
   verified existence of 2 revisions of 2 largefiles
   $ tail -1 access.log
-  127.0.0.1 - - [*] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=statlfile+sha%3D972a1a11f19934401291cc99117ec614933374ce%3Bstatlfile+sha%3Dc801c9cfe94400963fcb683246217d5db77f9a9a (glob)
+  $LOCALIP - - [*] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=statlfile+sha%3D972a1a11f19934401291cc99117ec614933374ce%3Bstatlfile+sha%3Dc801c9cfe94400963fcb683246217d5db77f9a9a x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   $ hg -R batchverifyclone update
   getting changed largefiles
   2 largefiles updated, 0 removed
@@ -384,11 +384,11 @@ available locally.
   searching 3 changesets for largefiles
   verified existence of 3 revisions of 3 largefiles
   $ tail -1 access.log
-  127.0.0.1 - - [*] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=statlfile+sha%3Dc8559c3c9cfb42131794b7d8009230403b9b454c (glob)
+  $LOCALIP - - [*] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=statlfile+sha%3Dc8559c3c9cfb42131794b7d8009230403b9b454c x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
 
   $ killdaemons.py
 
-largefiles should not ask for password again after succesfull authorization
+largefiles should not ask for password again after successful authorization
 
   $ hg init credentialmain
   $ cd credentialmain
@@ -441,7 +441,7 @@ a large file from the server rather than to get it from the cache
   1 largefiles updated, 0 removed
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-  $ rm hg.pid access.log
   $ killdaemons.py
+  $ rm hg.pid access.log
 
 #endif

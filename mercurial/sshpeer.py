@@ -12,6 +12,7 @@ import re
 from .i18n import _
 from . import (
     error,
+    pycompat,
     util,
     wireproto,
 )
@@ -62,7 +63,7 @@ class doublepipe(object):
     large read for data not yet emitted by the server.
 
     The main pipe is expected to be a 'bufferedinputpipe' from the util module
-    that handle all the os specific bites. This class lives in this module
+    that handle all the os specific bits. This class lives in this module
     because it focus on behavior specific to the ssh protocol."""
 
     def __init__(self, ui, main, side):
@@ -91,7 +92,15 @@ class doublepipe(object):
         return self._call('write', data)
 
     def read(self, size):
-        return self._call('read', size)
+        r = self._call('read', size)
+        if size != 0 and not r:
+            # We've observed a condition that indicates the
+            # stdout closed unexpectedly. Check stderr one
+            # more time and snag anything that's there before
+            # letting anyone know the main part of the pipe
+            # closed prematurely.
+            _forwardoutput(self._ui, self._side)
+        return r
 
     def readline(self):
         return self._call('readline')
@@ -130,6 +139,8 @@ class sshpeer(wireproto.wirepeer):
         if u.scheme != 'ssh' or not u.host or u.path is None:
             self._abort(error.RepoError(_("couldn't parse location %s") % path))
 
+        util.checksafessh(path)
+
         self.user = u.user
         if u.passwd is not None:
             self._abort(error.RepoError(_("password in URL not supported")))
@@ -137,20 +148,17 @@ class sshpeer(wireproto.wirepeer):
         self.port = u.port
         self.path = u.path or "."
 
-        sshcmd = self.ui.config("ui", "ssh", "ssh")
-        remotecmd = self.ui.config("ui", "remotecmd", "hg")
+        sshcmd = self.ui.config("ui", "ssh")
+        remotecmd = self.ui.config("ui", "remotecmd")
 
-        args = util.sshargs(sshcmd,
-                            _serverquote(self.host),
-                            _serverquote(self.user),
-                            _serverquote(self.port))
+        args = util.sshargs(sshcmd, self.host, self.user, self.port)
 
         if create:
             cmd = '%s %s %s' % (sshcmd, args,
                 util.shellquote("%s init %s" %
                     (_serverquote(remotecmd), _serverquote(self.path))))
             ui.debug('running %s\n' % cmd)
-            res = ui.system(cmd)
+            res = ui.system(cmd, blockedtag='sshpeer')
             if res != 0:
                 self._abort(error.RepoError(_("could not create remote repo")))
 
@@ -251,6 +259,7 @@ class sshpeer(wireproto.wirepeer):
         yield wireproto.unescapearg(work)
 
     def _callstream(self, cmd, **args):
+        args = pycompat.byteskwargs(args)
         self.ui.debug("sending %s command\n" % cmd)
         self.pipeo.write("%s\n" % cmd)
         _func, names = wireproto.commands[cmd]

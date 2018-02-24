@@ -203,7 +203,7 @@ divergent bookmarks
 
 (test that too many divergence of bookmark)
 
-  $ python $TESTDIR/seq.py 1 100 | while read i; do hg bookmarks -r 000000000000 "X@${i}"; done
+  $ $PYTHON $TESTDIR/seq.py 1 100 | while read i; do hg bookmarks -r 000000000000 "X@${i}"; done
   $ hg pull ../a
   pulling from ../a
   searching for changes
@@ -231,7 +231,7 @@ divergent bookmarks
      @1                        2:0d2164f0ce0d
      @foo                      2:0d2164f0ce0d
 
-  $ python $TESTDIR/seq.py 1 100 | while read i; do hg bookmarks -d "X@${i}"; done
+  $ $PYTHON $TESTDIR/seq.py 1 100 | while read i; do hg bookmarks -d "X@${i}"; done
   $ hg bookmarks -d "@1"
 
   $ hg push -f ../a
@@ -306,6 +306,12 @@ race conditions
   $ hg serve -R pull-race -p $HGPORT -d --pid-file=pull-race.pid -E main-error.log
   $ cat pull-race.pid >> $DAEMON_PIDS
 
+  $ cat <<EOF > $TESTTMP/out_makecommit.sh
+  > #!/bin/sh
+  > hg ci -Am5
+  > echo committed in pull-race
+  > EOF
+
   $ hg clone -q http://localhost:$HGPORT/ pull-race2
   $ cd pull-race
   $ hg up -q Y
@@ -314,7 +320,7 @@ race conditions
   $ echo c5 > f3
   $ cat <<EOF > .hg/hgrc
   > [hooks]
-  > outgoing.makecommit = hg ci -Am5; echo committed in pull-race
+  > outgoing.makecommit = sh $TESTTMP/out_makecommit.sh
   > EOF
 
 (new config needs a server restart)
@@ -347,12 +353,21 @@ race conditions
 Update a bookmark right after the initial lookup -B (issue4689)
 
   $ echo c6 > ../pull-race/f3 # to be committed during the race
+  $ cat <<EOF > $TESTTMP/listkeys_makecommit.sh
+  > #!/bin/sh
+  > if hg st | grep -q M; then
+  >     hg commit -m race
+  >     echo committed in pull-race
+  > else
+  >     exit 0
+  > fi
+  > EOF
   $ cat <<EOF > ../pull-race/.hg/hgrc
   > [hooks]
   > # If anything to commit, commit it right after the first key listing used
   > # during lookup. This makes the commit appear before the actual getbundle
   > # call.
-  > listkeys.makecommit= ((hg st | grep -q M) && (hg commit -m race; echo commited in pull-race)) || exit 0
+  > listkeys.makecommit= sh $TESTTMP/listkeys_makecommit.sh
   > EOF
 
 (new config need server restart)
@@ -460,6 +475,7 @@ Update to a successor works
   $ hg id --debug -r 5
   c922c0139ca03858f655e4a2af4dd02796a63969 tip Y
   $ hg debugobsolete f6fc62dde3c0771e29704af56ba4d8af77abcc2f cccccccccccccccccccccccccccccccccccccccc
+  obsoleted 1 changesets
   $ hg debugobsolete cccccccccccccccccccccccccccccccccccccccc 4efff6d98829d9c824c621afd6e3f01865f5439f
   $ hg push http://localhost:$HGPORT2/
   pushing to http://localhost:$HGPORT2/
@@ -469,6 +485,7 @@ Update to a successor works
   remote: adding file changes
   remote: added 2 changesets with 2 changes to 1 files (+1 heads)
   remote: 2 new obsolescence markers
+  remote: obsoleted 1 changesets
   updating bookmark Y
   $ hg -R ../a book
      @                         1:0d2164f0ce0d
@@ -550,7 +567,7 @@ hgweb
 
   $ cd ..
 
-Test to show result of bookmarks comparision
+Test to show result of bookmarks comparison
 
   $ mkdir bmcomparison
   $ cd bmcomparison
@@ -581,12 +598,12 @@ Test to show result of bookmarks comparision
 be exchanged)
 
   $ hg -R repo1 incoming -B
-  comparing with $TESTTMP/bmcomparison/source
+  comparing with $TESTTMP/bmcomparison/source (glob)
   searching for changed bookmarks
   no changed bookmarks found
   [1]
   $ hg -R repo1 outgoing -B
-  comparing with $TESTTMP/bmcomparison/source
+  comparing with $TESTTMP/bmcomparison/source (glob)
   searching for changed bookmarks
   no changed bookmarks found
   [1]
@@ -793,7 +810,7 @@ Check hook preventing push (issue4455)
   > ssh=ssh://user@dummy/issue4455-dest
   > http=http://localhost:$HGPORT/
   > [ui]
-  > ssh=python "$TESTDIR/dummyssh"
+  > ssh=$PYTHON "$TESTDIR/dummyssh"
   > EOF
   $ cat >> ../issue4455-dest/.hg/hgrc << EOF
   > [hooks]

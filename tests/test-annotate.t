@@ -56,21 +56,18 @@ annotate (JSON)
   $ hg annotate -Tjson a
   [
    {
-    "line": "a\n",
-    "rev": 0
+    "abspath": "a",
+    "lines": [{"line": "a\n", "rev": 0}],
+    "path": "a"
    }
   ]
 
   $ hg annotate -Tjson -cdfnul a
   [
    {
-    "date": [1.0, 0],
-    "file": "a",
-    "line": "a\n",
-    "line_number": 1,
-    "node": "8435f90966e442695d2ded29fdade2bac5ad8065",
-    "rev": 0,
-    "user": "nobody"
+    "abspath": "a",
+    "lines": [{"date": [1.0, 0], "file": "a", "line": "a\n", "line_number": 1, "node": "8435f90966e442695d2ded29fdade2bac5ad8065", "rev": 0, "user": "nobody"}],
+    "path": "a"
    }
   ]
 
@@ -87,6 +84,37 @@ annotate (JSON)
   > b6
   > EOF
   $ hg ci -mb2 -d '2 0'
+
+annotate multiple files (JSON)
+
+  $ hg annotate -Tjson a b
+  [
+   {
+    "abspath": "a",
+    "lines": [{"line": "a\n", "rev": 0}, {"line": "a\n", "rev": 1}, {"line": "a\n", "rev": 1}],
+    "path": "a"
+   },
+   {
+    "abspath": "b",
+    "lines": [{"line": "a\n", "rev": 0}, {"line": "a\n", "rev": 1}, {"line": "a\n", "rev": 1}, {"line": "b4\n", "rev": 3}, {"line": "b5\n", "rev": 3}, {"line": "b6\n", "rev": 3}],
+    "path": "b"
+   }
+  ]
+
+annotate multiple files (template)
+
+  $ hg annotate -T'== {abspath} ==\n{lines % "{rev}: {line}"}' a b
+  == a ==
+  0: a
+  1: a
+  1: a
+  == b ==
+  0: a
+  1: a
+  1: a
+  3: b4
+  3: b5
+  3: b6
 
 annotate -n b
 
@@ -216,6 +244,79 @@ annotate after rename merge with -l
   4 b:5: c
   3 b:5: b5
   7 b:7: d
+
+--skip nothing (should be the same as no --skip at all)
+
+  $ hg annotate -nlf b --skip '1::0'
+  0 a:1: a
+  6 b:2: z
+  1 a:3: a
+  3 b:4: b4
+  4 b:5: c
+  3 b:5: b5
+  7 b:7: d
+
+--skip a modified line. Note a slight behavior difference in pure - this is
+because the pure code comes up with slightly different deltas internally.
+
+  $ hg annotate -nlf b --skip 6
+  0 a:1: a
+  1 a:2: z (no-pure !)
+  0 a:1: z (pure !)
+  1 a:3: a
+  3 b:4: b4
+  4 b:5: c
+  3 b:5: b5
+  7 b:7: d
+
+--skip added lines (and test multiple skip)
+
+  $ hg annotate -nlf b --skip 3
+  0 a:1: a
+  6 b:2: z
+  1 a:3: a
+  1 a:3: b4
+  4 b:5: c
+  1 a:3: b5
+  7 b:7: d
+
+  $ hg annotate -nlf b --skip 4
+  0 a:1: a
+  6 b:2: z
+  1 a:3: a
+  3 b:4: b4
+  1 a:3: c
+  3 b:5: b5
+  7 b:7: d
+
+  $ hg annotate -nlf b --skip 3 --skip 4
+  0 a:1: a
+  6 b:2: z
+  1 a:3: a
+  1 a:3: b4
+  1 a:3: c
+  1 a:3: b5
+  7 b:7: d
+
+  $ hg annotate -nlf b --skip 'merge()'
+  0 a:1: a
+  6 b:2: z
+  1 a:3: a
+  3 b:4: b4
+  4 b:5: c
+  3 b:5: b5
+  3 b:5: d
+
+--skip everything -- use the revision the file was introduced in
+
+  $ hg annotate -nlf b --skip 'all()'
+  0 a:1: a
+  0 a:1: z
+  0 a:1: a
+  0 a:1: b4
+  0 a:1: c
+  0 a:1: b5
+  0 a:1: d
 
 Issue2807: alignment of line numbers with -l
 
@@ -429,14 +530,9 @@ annotate modified file
   $ hg annotate -ncr "wdir()" -Tjson foo
   [
    {
-    "line": "foo\n",
-    "node": "472b18db256d1e8282064eab4bfdaf48cbfe83cd",
-    "rev": 11
-   },
-   {
-    "line": "foofoo\n",
-    "node": null,
-    "rev": null
+    "abspath": "foo",
+    "lines": [{"line": "foo\n", "node": "472b18db256d1e8282064eab4bfdaf48cbfe83cd", "rev": 11}, {"line": "foofoo\n", "node": null, "rev": null}],
+    "path": "foo"
    }
   ]
 
@@ -457,28 +553,292 @@ annotate renamed file
 annotate missing file
 
   $ rm baz
-#if windows
+
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo\baz: The system cannot find the file specified
+  abort: $TESTTMP\repo\baz: The system cannot find the file specified (windows !)
+  abort: No such file or directory: $TESTTMP/repo/baz (no-windows !)
   [255]
-#else
-  $ hg annotate -ncr "wdir()" baz
-  abort: No such file or directory: $TESTTMP/repo/baz
-  [255]
-#endif
 
 annotate removed file
 
   $ hg rm baz
-#if windows
+
   $ hg annotate -ncr "wdir()" baz
-  abort: $TESTTMP\repo\baz: The system cannot find the file specified
+  abort: $TESTTMP\repo\baz: The system cannot find the file specified (windows !)
+  abort: No such file or directory: $TESTTMP/repo/baz (no-windows !)
   [255]
-#else
-  $ hg annotate -ncr "wdir()" baz
-  abort: No such file or directory: $TESTTMP/repo/baz
+
+  $ hg revert --all --no-backup --quiet
+  $ hg id -n
+  20
+
+Test followlines() revset; we usually check both followlines(pat, range) and
+followlines(pat, range, descend=True) to make sure both give the same result
+when they should.
+
+  $ echo a >> foo
+  $ hg ci -m 'foo: add a'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5, startrev=20)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5, startrev=19)'
+  16: baz:0
+  19: baz:3
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5, startrev=19, descend=True)'
+  19: baz:3
+  20: baz:4
+  $ printf "0\n0\n" | cat - baz > baz1
+  $ mv baz1 baz
+  $ hg ci -m 'added two lines with 0'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 5:7)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5, descend=true, startrev=19)'
+  19: baz:3
+  20: baz:4
+  $ echo 6 >> baz
+  $ hg ci -m 'added line 8'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 5:7)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5, startrev=19, descend=1)'
+  19: baz:3
+  20: baz:4
+  $ sed 's/3/3+/' baz > baz.new
+  $ mv baz.new baz
+  $ hg ci -m 'baz:3->3+'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 5:7, descend=0)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  24: baz:3->3+
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:5, startrev=17, descend=True)'
+  19: baz:3
+  20: baz:4
+  24: baz:3->3+
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 1:2, descend=false)'
+  22: added two lines with 0
+
+file patterns are okay
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines("path:baz", 1:2)'
+  22: added two lines with 0
+
+renames are followed
+  $ hg mv baz qux
+  $ sed 's/4/4+/' qux > qux.new
+  $ mv qux.new qux
+  $ hg ci -m 'qux:4->4+'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(qux, 5:7)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  24: baz:3->3+
+  25: qux:4->4+
+
+but are missed when following children
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 5:7, startrev=22, descend=True)'
+  24: baz:3->3+
+
+merge
+  $ hg up 24 --quiet
+  $ echo 7 >> baz
+  $ hg ci -m 'one more line, out of line range'
+  created new head
+  $ sed 's/3+/3-/' baz > baz.new
+  $ mv baz.new baz
+  $ hg ci -m 'baz:3+->3-'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 5:7)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  24: baz:3->3+
+  27: baz:3+->3-
+  $ hg merge 25
+  merging baz and qux to qux
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg ci -m merge
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(qux, 5:7)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  24: baz:3->3+
+  25: qux:4->4+
+  27: baz:3+->3-
+  28: merge
+  $ hg up 25 --quiet
+  $ hg merge 27
+  merging qux and baz to qux
+  0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg ci -m 'merge from other side'
+  created new head
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(qux, 5:7)'
+  16: baz:0
+  19: baz:3
+  20: baz:4
+  24: baz:3->3+
+  25: qux:4->4+
+  27: baz:3+->3-
+  29: merge from other side
+  $ hg up 24 --quiet
+
+we are missing the branch with rename when following children
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 5:7, startrev=26, descend=True)'
+  27: baz:3+->3-
+
+we follow all branches in descending direction
+  $ hg up 23 --quiet
+  $ sed 's/3/+3/' baz > baz.new
+  $ mv baz.new baz
+  $ hg ci -m 'baz:3->+3'
+  created new head
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 2:5, startrev=16, descend=True)' --graph
+  @  30: baz:3->+3
+  :
+  : o  27: baz:3+->3-
+  : :
+  : o  24: baz:3->3+
+  :/
+  o    20: baz:4
+  |\
+  | o  19: baz:3
+  |/
+  o  18: baz:2
+  :
+  o  16: baz:0
+  |
+  ~
+
+Issue5595: on a merge changeset with different line ranges depending on
+parent, be conservative and use the surrounding interval to avoid loosing
+track of possible further descendants in specified range.
+
+  $ hg up 23 --quiet
+  $ hg cat baz -r 24
+  0
+  0
+  1 baz:1
+  2 baz:2
+  3+ baz:3
+  4 baz:4
+  5
+  6
+  $ cat > baz << EOF
+  > 0
+  > 0
+  > a
+  > b
+  > 3+ baz:3
+  > 4 baz:4
+  > y
+  > z
+  > EOF
+  $ hg ci -m 'baz: mostly rewrite with some content from 24'
+  created new head
+  $ hg merge --tool :merge-other 24
+  merging baz
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg ci -m 'merge forgetting about baz rewrite'
+  $ cat > baz << EOF
+  > 0
+  > 0
+  > 1 baz:1
+  > 2+ baz:2
+  > 3+ baz:3
+  > 4 baz:4
+  > 5
+  > 6
+  > EOF
+  $ hg ci -m 'baz: narrow change (2->2+)'
+  $ hg log -T '{rev}: {desc}\n' -r 'followlines(baz, 3:4, startrev=20, descend=True)' --graph
+  @  33: baz: narrow change (2->2+)
+  |
+  o    32: merge forgetting about baz rewrite
+  |\
+  | o  31: baz: mostly rewrite with some content from 24
+  | :
+  | : o  30: baz:3->+3
+  | :/
+  +---o  27: baz:3+->3-
+  | :
+  o :  24: baz:3->3+
+  :/
+  o    20: baz:4
+  |\
+  ~ ~
+
+check error cases
+  $ hg up 24 --quiet
+  $ hg log -r 'followlines()'
+  hg: parse error: followlines takes at least 1 positional arguments
   [255]
-#endif
+  $ hg log -r 'followlines(baz)'
+  hg: parse error: followlines requires a line range
+  [255]
+  $ hg log -r 'followlines(baz, 1)'
+  hg: parse error: followlines expects a line range
+  [255]
+  $ hg log -r 'followlines(baz, 1:2, startrev=desc("b"))'
+  hg: parse error: followlines expects exactly one revision
+  [255]
+  $ hg log -r 'followlines("glob:*", 1:2)'
+  hg: parse error: followlines expects exactly one file
+  [255]
+  $ hg log -r 'followlines(baz, 1:)'
+  hg: parse error: line range bounds must be integers
+  [255]
+  $ hg log -r 'followlines(baz, :1)'
+  hg: parse error: line range bounds must be integers
+  [255]
+  $ hg log -r 'followlines(baz, x:4)'
+  hg: parse error: line range bounds must be integers
+  [255]
+  $ hg log -r 'followlines(baz, 5:4)'
+  hg: parse error: line range must be positive
+  [255]
+  $ hg log -r 'followlines(baz, 0:4)'
+  hg: parse error: fromline must be strictly positive
+  [255]
+  $ hg log -r 'followlines(baz, 2:40)'
+  abort: line range exceeds file size
+  [255]
+  $ hg log -r 'followlines(baz, 2:4, startrev=20, descend=[1])'
+  hg: parse error at 43: not a prefix: [
+  [255]
+  $ hg log -r 'followlines(baz, 2:4, startrev=20, descend=a)'
+  hg: parse error: descend argument must be a boolean
+  [255]
+
+Test empty annotate output
+
+  $ printf '\0' > binary
+  $ touch empty
+  $ hg ci -qAm 'add binary and empty files'
+
+  $ hg annotate binary empty
+  binary: binary file
+
+  $ hg annotate -Tjson binary empty
+  [
+   {
+    "abspath": "binary",
+    "path": "binary"
+   },
+   {
+    "abspath": "empty",
+    "lines": [],
+    "path": "empty"
+   }
+  ]
 
 Test annotate with whitespace options
 

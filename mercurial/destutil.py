@@ -11,38 +11,11 @@ from .i18n import _
 from . import (
     bookmarks,
     error,
-    obsolete,
+    obsutil,
+    scmutil,
 )
 
-def _destupdatevalidate(repo, rev, clean, check):
-    """validate that the destination comply to various rules
-
-    This exists as its own function to help wrapping from extensions."""
-    wc = repo[None]
-    p1 = wc.p1()
-    if not clean:
-        # Check that the update is linear.
-        #
-        # Mercurial do not allow update-merge for non linear pattern
-        # (that would be technically possible but was considered too confusing
-        # for user a long time ago)
-        #
-        # See mercurial.merge.update for details
-        if p1.rev() not in repo.changelog.ancestors([rev], inclusive=True):
-            dirty = wc.dirty(missing=True)
-            foreground = obsolete.foreground(repo, [p1.node()])
-            if not repo[rev].node() in foreground:
-                if dirty:
-                    msg = _("uncommitted changes")
-                    hint = _("commit and merge, or update --clean to"
-                             " discard changes")
-                    raise error.UpdateAbort(msg, hint=hint)
-                elif not check:  # destination is not a descendant.
-                    msg = _("not a linear update")
-                    hint = _("merge or update --check to force update")
-                    raise error.UpdateAbort(msg, hint=hint)
-
-def _destupdateobs(repo, clean, check):
+def _destupdateobs(repo, clean):
     """decide of an update destination from obsolescence markers"""
     node = None
     wc = repo[None]
@@ -51,7 +24,7 @@ def _destupdateobs(repo, clean, check):
 
     if p1.obsolete() and not p1.children():
         # allow updating to successors
-        successors = obsolete.successorssets(repo, p1.node())
+        successors = obsutil.successorssets(repo, p1.node())
 
         # behavior of certain cases is as follows,
         #
@@ -78,7 +51,7 @@ def _destupdateobs(repo, clean, check):
                 movemark = repo['.'].node()
     return node, movemark, None
 
-def _destupdatebook(repo, clean, check):
+def _destupdatebook(repo, clean):
     """decide on an update destination from active bookmark"""
     # we also move the active bookmark, if any
     activemark = None
@@ -87,7 +60,7 @@ def _destupdatebook(repo, clean, check):
         activemark = node
     return node, movemark, activemark
 
-def _destupdatebranch(repo, clean, check):
+def _destupdatebranch(repo, clean):
     """decide on an update destination from current branch
 
     This ignores closed branch heads.
@@ -113,7 +86,7 @@ def _destupdatebranch(repo, clean, check):
         node = repo['.'].node()
     return node, movemark, None
 
-def _destupdatebranchfallback(repo, clean, check):
+def _destupdatebranchfallback(repo, clean):
     """decide on an update destination from closed heads in current branch"""
     wc = repo[None]
     currentbranch = wc.branch()
@@ -133,7 +106,7 @@ def _destupdatebranchfallback(repo, clean, check):
         assert node is not None, "'tip' exists even in empty repository"
     return node, movemark, None
 
-# order in which each step should be evalutated
+# order in which each step should be evaluated
 # steps are run until one finds a destination
 destupdatesteps = ['evolution', 'bookmark', 'branch', 'branchfallback']
 # mapping to ease extension overriding steps.
@@ -143,7 +116,7 @@ destupdatestepmap = {'evolution': _destupdateobs,
                      'branchfallback': _destupdatebranchfallback,
                      }
 
-def destupdate(repo, clean=False, check=False):
+def destupdate(repo, clean=False):
     """destination for bare update operation
 
     return (rev, movemark, activemark)
@@ -156,12 +129,10 @@ def destupdate(repo, clean=False, check=False):
     node = movemark = activemark = None
 
     for step in destupdatesteps:
-        node, movemark, activemark = destupdatestepmap[step](repo, clean, check)
+        node, movemark, activemark = destupdatestepmap[step](repo, clean)
         if node is not None:
             break
     rev = repo[node].rev()
-
-    _destupdatevalidate(repo, rev, clean, check)
 
     return rev, movemark, activemark
 
@@ -263,7 +234,7 @@ msgdestmerge = {
 def _destmergebook(repo, action='merge', sourceset=None, destspace=None):
     """find merge destination in the active bookmark case"""
     node = None
-    bmheads = repo.bookmarkheads(repo._activebookmark)
+    bmheads = bookmarks.headsforactive(repo)
     curhead = repo[repo._activebookmark].node()
     if len(bmheads) == 2:
         if curhead == bmheads[0]:
@@ -372,9 +343,6 @@ histeditdefaultrevset = 'reverse(only(.) and not public() and not ::merge())'
 
 def desthistedit(ui, repo):
     """Default base revision to edit for `hg histedit`."""
-    # Avoid cycle: scmutil -> revset -> destutil
-    from . import scmutil
-
     default = ui.config('histedit', 'defaultrev', histeditdefaultrevset)
     if default:
         revs = scmutil.revrange(repo, [default])
@@ -386,8 +354,14 @@ def desthistedit(ui, repo):
 
     return None
 
+def stackbase(ui, repo):
+    # The histedit default base stops at public changesets, branchpoints,
+    # and merges, which is exactly what we want for a stack.
+    revs = scmutil.revrange(repo, [histeditdefaultrevset])
+    return revs.last() if revs else None
+
 def _statusotherbook(ui, repo):
-    bmheads = repo.bookmarkheads(repo._activebookmark)
+    bmheads = bookmarks.headsforactive(repo)
     curhead = repo[repo._activebookmark].node()
     if repo.revs('%n and parents()', curhead):
         # we are on the active bookmark
@@ -423,6 +397,9 @@ def _statusotherbranchheads(ui, repo):
                 ui.warn(_('(committing will reopen branch "%s")\n') %
                           (currentbranch))
         elif otherheads:
+            curhead = repo['.']
+            ui.status(_('updated to "%s: %s"\n') % (curhead,
+                                    curhead.description().split('\n')[0]))
             ui.status(_('%i other heads for branch "%s"\n') %
                       (len(otherheads), currentbranch))
 

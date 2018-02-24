@@ -192,7 +192,7 @@ Test display of largefiles in hgweb
 
   $ hg serve -d -p $HGPORT --pid-file ../hg.pid
   $ cat ../hg.pid >> $DAEMON_PIDS
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file/tip/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file/tip/?style=raw'
   200 Script output follows
   
   
@@ -201,7 +201,7 @@ Test display of largefiles in hgweb
   -rw-r--r-- 9 normal3
   
   
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file/tip/sub/?style=raw'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file/tip/sub/?style=raw'
   200 Script output follows
   
   
@@ -211,6 +211,21 @@ Test display of largefiles in hgweb
   
   $ killdaemons.py
 #endif
+
+Test largefiles can be loaded in hgweb (wrapcommand() shouldn't fail)
+
+  $ cat <<EOF > "$TESTTMP/hgweb.cgi"
+  > #!$PYTHON
+  > from mercurial import demandimport; demandimport.enable()
+  > from mercurial.hgweb import hgweb
+  > from mercurial.hgweb import wsgicgi
+  > application = hgweb('.', 'test repo')
+  > wsgicgi.launch(application)
+  > EOF
+  $ . "$TESTDIR/cgienv"
+
+  $ SCRIPT_NAME='' \
+  > $PYTHON "$TESTTMP/hgweb.cgi" > /dev/null
 
 Test archiving the various revisions.  These hit corner cases known with
 archiving.
@@ -1190,7 +1205,7 @@ rebased or not.
   Invoking status precommit hook
   M sub/normal4
   M sub2/large6
-  saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-dd1d9f80-backup.hg (glob)
+  saved backup bundle to $TESTTMP/d/.hg/strip-backup/f574fb32bb45-dd1d9f80-rebase.hg (glob)
   0 largefiles cached
   $ [ -f .hg/largefiles/e166e74c7303192238d60af5a9c4ce9bef0b7928 ]
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
@@ -1249,7 +1264,7 @@ rebased or not.
   Invoking status precommit hook
   M sub/normal4
   M sub2/large6
-  saved backup bundle to $TESTTMP/e/.hg/strip-backup/f574fb32bb45-dd1d9f80-backup.hg (glob)
+  saved backup bundle to $TESTTMP/e/.hg/strip-backup/f574fb32bb45-dd1d9f80-rebase.hg (glob)
   $ hg log --template '{rev}:{node|short}  {desc|firstline}\n'
   9:598410d3eb9a  modify normal file largefile in repo d
   8:a381d2c8c80e  modify normal file and largefile in repo b

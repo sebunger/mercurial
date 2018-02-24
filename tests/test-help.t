@@ -58,7 +58,7 @@ Short help:
    bookmarks     create a new bookmark or list existing bookmarks
    branch        set or show the current branch name
    branches      list repository named branches
-   bundle        create a changegroup file
+   bundle        create a bundle file
    cat           output the current or given revision of files
    clone         make a copy of an existing repository
    commit        commit the specified files or all outstanding changes
@@ -95,13 +95,15 @@ Short help:
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
    tags          list repository tags
-   unbundle      apply one or more changegroup files
+   unbundle      apply one or more bundle files
    update        update working directory (or switch revisions)
    verify        verify the integrity of the repository
    version       output version and copyright information
   
   additional help topics:
   
+   bundlespec    Bundle File Formats
+   color         Colorizing Outputs
    config        Configuration Files
    dates         Date Formats
    diffs         Diff Formats
@@ -113,11 +115,10 @@ Short help:
    hgweb         Configuring hgweb
    internals     Technical implementation topics
    merge-tools   Merge Tools
-   multirevs     Specifying Multiple Revisions
+   pager         Pager Support
    patterns      File Name Patterns
    phases        Working with Phases
-   revisions     Specifying Single Revisions
-   revsets       Specifying Revision Sets
+   revisions     Specifying Revisions
    scripting     Using Mercurial from scripts and automation
    subrepos      Subrepositories
    templating    Template Usage
@@ -135,7 +136,7 @@ Short help:
    bookmarks     create a new bookmark or list existing bookmarks
    branch        set or show the current branch name
    branches      list repository named branches
-   bundle        create a changegroup file
+   bundle        create a bundle file
    cat           output the current or given revision of files
    clone         make a copy of an existing repository
    commit        commit the specified files or all outstanding changes
@@ -172,13 +173,15 @@ Short help:
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
    tags          list repository tags
-   unbundle      apply one or more changegroup files
+   unbundle      apply one or more bundle files
    update        update working directory (or switch revisions)
    verify        verify the integrity of the repository
    version       output version and copyright information
   
   additional help topics:
   
+   bundlespec    Bundle File Formats
+   color         Colorizing Outputs
    config        Configuration Files
    dates         Date Formats
    diffs         Diff Formats
@@ -190,11 +193,10 @@ Short help:
    hgweb         Configuring hgweb
    internals     Technical implementation topics
    merge-tools   Merge Tools
-   multirevs     Specifying Multiple Revisions
+   pager         Pager Support
    patterns      File Name Patterns
    phases        Working with Phases
-   revisions     Specifying Single Revisions
-   revsets       Specifying Revision Sets
+   revisions     Specifying Revisions
    scripting     Using Mercurial from scripts and automation
    subrepos      Subrepositories
    templating    Template Usage
@@ -241,7 +243,6 @@ Test extension help:
   
       enabled extensions:
   
-       chgserver     command server extension for cHg (EXPERIMENTAL) (?)
        children      command to display child changesets (DEPRECATED)
        rebase        command to move sets of revisions to a different ancestor
   
@@ -253,7 +254,6 @@ Test extension help:
        censor        erase file content at a given revision
        churn         command to display statistics about repository history
        clonebundles  advertise pre-generated bundles to seed clones
-       color         colorize output from some commands
        convert       import revisions from foreign VCS repositories into
                      Mercurial
        eol           automatically manage newlines in repository files
@@ -267,7 +267,6 @@ Test extension help:
        largefiles    track large binary files
        mq            manage a stack of patches
        notify        hooks for sending email push notifications
-       pager         browse command output with an external pager
        patchbomb     command to send changesets as (a series of) patch emails
        purge         command to delete untracked files from the working
                      directory
@@ -320,6 +319,8 @@ Test short command list with verbose option
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -331,6 +332,8 @@ Test short command list with verbose option
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
   
   (use 'hg help' for the full list of commands)
 
@@ -416,6 +419,8 @@ Verbose help for add
                           all prompts
    -q --quiet             suppress output
    -v --verbose           enable additional output
+      --color TYPE        when to colorize (boolean, always, auto, never, or
+                          debug)
       --config CONFIG [+] set/override config option (use 'section.name=value')
       --debug             enable debugging output
       --debugger          start debugger
@@ -427,6 +432,8 @@ Verbose help for add
       --version           output version information and exit
    -h --help              display help and exit
       --hidden            consider hidden changesets
+      --pager TYPE        when to paginate (boolean, always, auto, or never)
+                          (default: auto)
 
 Test the textwidth config option
 
@@ -450,7 +457,7 @@ Test help option with version option
   Mercurial Distributed SCM (version *) (glob)
   (see https://mercurial-scm.org for more information)
   
-  Copyright (C) 2005-2016 Matt Mackall and others
+  Copyright (C) 2005-* Matt Mackall and others (glob)
   This is free software; see the source for copying conditions. There is NO
   warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
@@ -538,6 +545,7 @@ Test command without options
    -c --change REV          change made by revision
    -a --text                treat all files as text
    -g --git                 use git extended diff format
+      --binary              generate binary diffs in git mode (default)
       --nodates             omit dates from diff headers
       --noprefix            omit a/ and b/ prefixes from filenames
    -p --show-function       show which function each change is in
@@ -652,6 +660,32 @@ Test command without options
   (use 'hg help' for the full list of commands or 'hg -v' for details)
   [255]
 
+Typoed command gives suggestion
+  $ hg puls
+  hg: unknown command 'puls'
+  (did you mean one of pull, push?)
+  [255]
+
+Not enabled extension gets suggested
+
+  $ hg rebase
+  hg: unknown command 'rebase'
+  'rebase' is provided by the following extension:
+  
+      rebase        command to move sets of revisions to a different ancestor
+  
+  (use 'hg help extensions' for information on enabling extensions)
+  [255]
+
+Disabled extension gets suggested
+  $ hg --config extensions.rebase=! rebase
+  hg: unknown command 'rebase'
+  'rebase' is provided by the following extension:
+  
+      rebase        command to move sets of revisions to a different ancestor
+  
+  (use 'hg help extensions' for information on enabling extensions)
+  [255]
 
 Make sure that we don't run afoul of the help system thinking that
 this is a section and erroring out weirdly.
@@ -672,25 +706,26 @@ this is a section and erroring out weirdly.
 
   $ cat > helpext.py <<EOF
   > import os
-  > from mercurial import cmdutil, commands
+  > from mercurial import commands, registrar
   > 
   > cmdtable = {}
-  > command = cmdutil.command(cmdtable)
+  > command = registrar.command(cmdtable)
   > 
-  > @command('nohelp',
-  >     [('', 'longdesc', 3, 'x'*90),
-  >     ('n', '', None, 'normal desc'),
-  >     ('', 'newline', '', 'line1\nline2')],
-  >     'hg nohelp',
+  > @command(b'nohelp',
+  >     [(b'', b'longdesc', 3, b'x'*90),
+  >     (b'n', b'', None, b'normal desc'),
+  >     (b'', b'newline', b'', b'line1\nline2')],
+  >     b'hg nohelp',
   >     norepo=True)
-  > @command('debugoptDEP', [('', 'dopt', None, 'option is (DEPRECATED)')])
-  > @command('debugoptEXP', [('', 'eopt', None, 'option is (EXPERIMENTAL)')])
+  > @command(b'debugoptADV', [(b'', b'aopt', None, b'option is (ADVANCED)')])
+  > @command(b'debugoptDEP', [(b'', b'dopt', None, b'option is (DEPRECATED)')])
+  > @command(b'debugoptEXP', [(b'', b'eopt', None, b'option is (EXPERIMENTAL)')])
   > def nohelp(ui, *args, **kwargs):
   >     pass
   > 
   > def uisetup(ui):
-  >     ui.setconfig('alias', 'shellalias', '!echo hi', 'helpext')
-  >     ui.setconfig('alias', 'hgalias', 'summary', 'helpext')
+  >     ui.setconfig(b'alias', b'shellalias', b'!echo hi', b'helpext')
+  >     ui.setconfig(b'alias', b'hgalias', b'summary', b'helpext')
   > 
   > EOF
   $ echo '[extensions]' >> $HGRCPATH
@@ -773,7 +808,7 @@ Test that default list of commands omits extension commands
    bookmarks     create a new bookmark or list existing bookmarks
    branch        set or show the current branch name
    branches      list repository named branches
-   bundle        create a changegroup file
+   bundle        create a bundle file
    cat           output the current or given revision of files
    clone         make a copy of an existing repository
    commit        commit the specified files or all outstanding changes
@@ -810,7 +845,7 @@ Test that default list of commands omits extension commands
    summary       summarize working directory state
    tag           add one or more tags for the current or given revision
    tags          list repository tags
-   unbundle      apply one or more changegroup files
+   unbundle      apply one or more bundle files
    update        update working directory (or switch revisions)
    verify        verify the integrity of the repository
    version       output version and copyright information
@@ -821,6 +856,8 @@ Test that default list of commands omits extension commands
   
   additional help topics:
   
+   bundlespec    Bundle File Formats
+   color         Colorizing Outputs
    config        Configuration Files
    dates         Date Formats
    diffs         Diff Formats
@@ -832,11 +869,10 @@ Test that default list of commands omits extension commands
    hgweb         Configuring hgweb
    internals     Technical implementation topics
    merge-tools   Merge Tools
-   multirevs     Specifying Multiple Revisions
+   pager         Pager Support
    patterns      File Name Patterns
    phases        Working with Phases
-   revisions     Specifying Single Revisions
-   revsets       Specifying Revision Sets
+   revisions     Specifying Revisions
    scripting     Using Mercurial from scripts and automation
    subrepos      Subrepositories
    templating    Template Usage
@@ -860,6 +896,7 @@ Test list of internal help commands
    debugbundle   lists the contents of a bundle
    debugcheckstate
                  validate the correctness of the current dirstate
+   debugcolor    show available color, effects or style
    debugcommands
                  list all available commands and options
    debugcomplete
@@ -896,10 +933,13 @@ Test list of internal help commands
                  complete "names" - tags, open branch names, bookmark names
    debugobsolete
                  create arbitrary obsolete marker
+   debugoptADV   (no help text available)
    debugoptDEP   (no help text available)
    debugoptEXP   (no help text available)
    debugpathcomplete
                  complete part or all of a tracked path
+   debugpickmergetool
+                 examine which merge tool is chosen for specified file
    debugpushkey  access the pushkey key/value protocol
    debugpvec     (no help text available)
    debugrebuilddirstate
@@ -912,11 +952,16 @@ Test list of internal help commands
    debugrevspec  parse and apply a revision specification
    debugsetparents
                  manually set the parents of the current working directory
+   debugssl      test a secure connection to a server
    debugsub      (no help text available)
    debugsuccessorssets
                  show set of successors for revision
    debugtemplate
                  parse and apply a template
+   debugupdatecaches
+                 warm all known caches in the repository
+   debugupgraderepo
+                 upgrade a repository to use different features
    debugwalk     show how files match on given patterns
    debugwireargs
                  (no help text available)
@@ -929,7 +974,10 @@ internals topic renders index of available sub-topics
   Technical implementation topics
   """""""""""""""""""""""""""""""
   
+      To access a subtopic, use "hg help internals.{subtopic-name}"
+  
        bundles       Bundles
+       censor        Censor
        changegroups  Changegroups
        requirements  Repository Requirements
        revlogs       Revision Logs
@@ -942,21 +990,34 @@ sub-topics can be accessed
   """"""""""""
   
       Changegroups are representations of repository revlog data, specifically
-      the changelog, manifest, and filelogs.
+      the changelog data, root/flat manifest data, treemanifest data, and
+      filelogs.
   
       There are 3 versions of changegroups: "1", "2", and "3". From a high-
       level, versions "1" and "2" are almost exactly the same, with the only
-      difference being a header on entries in the changeset segment. Version "3"
-      adds support for exchanging treemanifests and includes revlog flags in the
-      delta header.
+      difference being an additional item in the *delta header*.  Version "3"
+      adds support for revlog flags in the *delta header* and optionally
+      exchanging treemanifests (enabled by setting an option on the
+      "changegroup" part in the bundle2).
   
-      Changegroups consists of 3 logical segments:
+      Changegroups when not exchanging treemanifests consist of 3 logical
+      segments:
   
         +---------------------------------+
         |           |          |          |
         | changeset | manifest | filelogs |
         |           |          |          |
+        |           |          |          |
         +---------------------------------+
+  
+      When exchanging treemanifests, there are 4 logical segments:
+  
+        +-------------------------------------------------+
+        |           |          |               |          |
+        | changeset |   root   | treemanifests | filelogs |
+        |           | manifest |               |          |
+        |           |          |               |          |
+        +-------------------------------------------------+
   
       The principle building block of each segment is a *chunk*. A *chunk* is a
       framed piece of data:
@@ -964,15 +1025,16 @@ sub-topics can be accessed
         +---------------------------------------+
         |           |                           |
         |  length   |           data            |
-        | (32 bits) |       <length> bytes      |
+        | (4 bytes) |   (<length - 4> bytes)    |
         |           |                           |
         +---------------------------------------+
   
-      Each chunk starts with a 32-bit big-endian signed integer indicating the
-      length of the raw data that follows.
+      All integers are big-endian signed integers. Each chunk starts with a
+      32-bit integer indicating the length of the entire chunk (including the
+      length field itself).
   
-      There is a special case chunk that has 0 length ("0x00000000"). We call
-      this an *empty chunk*.
+      There is a special case chunk that has a value of 0 for the length
+      ("0x00000000"). We call this an *empty chunk*.
   
       Delta Groups
       ============
@@ -986,26 +1048,27 @@ sub-topics can be accessed
         +------------------------------------------------------------------------+
         |                |             |               |             |           |
         | chunk0 length  | chunk0 data | chunk1 length | chunk1 data |    0x0    |
-        |   (32 bits)    |  (various)  |   (32 bits)   |  (various)  | (32 bits) |
+        |   (4 bytes)    |  (various)  |   (4 bytes)   |  (various)  | (4 bytes) |
         |                |             |               |             |           |
-        +------------------------------------------------------------+-----------+
+        +------------------------------------------------------------------------+
   
       Each *chunk*'s data consists of the following:
   
-        +-----------------------------------------+
-        |              |              |           |
-        | delta header | mdiff header |   delta   |
-        |  (various)   |  (12 bytes)  | (various) |
-        |              |              |           |
-        +-----------------------------------------+
+        +---------------------------------------+
+        |                        |              |
+        |     delta header       |  delta data  |
+        |  (various by version)  |  (various)   |
+        |                        |              |
+        +---------------------------------------+
   
-      The *length* field is the byte length of the remaining 3 logical pieces of
-      data. The *delta* is a diff from an existing entry in the changelog.
+      The *delta data* is a series of *delta*s that describe a diff from an
+      existing entry (either that the recipient already has, or previously
+      specified in the bundle/changegroup).
   
       The *delta header* is different between versions "1", "2", and "3" of the
       changegroup format.
   
-      Version 1:
+      Version 1 (headerlen=80):
   
         +------------------------------------------------------+
         |            |             |             |             |
@@ -1014,7 +1077,7 @@ sub-topics can be accessed
         |            |             |             |             |
         +------------------------------------------------------+
   
-      Version 2:
+      Version 2 (headerlen=100):
   
         +------------------------------------------------------------------+
         |            |             |             |            |            |
@@ -1023,30 +1086,36 @@ sub-topics can be accessed
         |            |             |             |            |            |
         +------------------------------------------------------------------+
   
-      Version 3:
+      Version 3 (headerlen=102):
   
         +------------------------------------------------------------------------------+
         |            |             |             |            |            |           |
-        |    node    |   p1 node   |   p2 node   | base node  | link node  | flags     |
+        |    node    |   p1 node   |   p2 node   | base node  | link node  |   flags   |
         | (20 bytes) |  (20 bytes) |  (20 bytes) | (20 bytes) | (20 bytes) | (2 bytes) |
         |            |             |             |            |            |           |
         +------------------------------------------------------------------------------+
   
-      The *mdiff header* consists of 3 32-bit big-endian signed integers
-      describing offsets at which to apply the following delta content:
+      The *delta data* consists of "chunklen - 4 - headerlen" bytes, which
+      contain a series of *delta*s, densely packed (no separators). These deltas
+      describe a diff from an existing entry (either that the recipient already
+      has, or previously specified in the bundle/changegroup). The format is
+      described more fully in "hg help internals.bdiff", but briefly:
   
-        +-------------------------------------+
-        |           |            |            |
-        |  offset   | old length | new length |
-        | (32 bits) |  (32 bits) |  (32 bits) |
-        |           |            |            |
-        +-------------------------------------+
+        +---------------------------------------------------------------+
+        |              |            |            |                      |
+        | start offset | end offset | new length |        content       |
+        |  (4 bytes)   |  (4 bytes) |  (4 bytes) | (<new length> bytes) |
+        |              |            |            |                      |
+        +---------------------------------------------------------------+
+  
+      Please note that the length field in the delta data does *not* include
+      itself.
   
       In version 1, the delta is always applied against the previous node from
       the changegroup or the first parent if this is the first entry in the
       changegroup.
   
-      In version 2, the delta base node is encoded in the entry in the
+      In version 2 and up, the delta base node is encoded in the entry in the
       changegroup. This allows the delta to be expressed against any parent,
       which can result in smaller deltas and more efficient encoding of data.
   
@@ -1054,46 +1123,61 @@ sub-topics can be accessed
       =================
   
       The *changeset segment* consists of a single *delta group* holding
-      changelog data. It is followed by an *empty chunk* to denote the boundary
-      to the *manifests segment*.
+      changelog data. The *empty chunk* at the end of the *delta group* denotes
+      the boundary to the *manifest segment*.
   
       Manifest Segment
       ================
   
       The *manifest segment* consists of a single *delta group* holding manifest
-      data. It is followed by an *empty chunk* to denote the boundary to the
-      *filelogs segment*.
+      data. If treemanifests are in use, it contains only the manifest for the
+      root directory of the repository. Otherwise, it contains the entire
+      manifest data. The *empty chunk* at the end of the *delta group* denotes
+      the boundary to the next segment (either the *treemanifests segment* or
+      the *filelogs segment*, depending on version and the request options).
+  
+      Treemanifests Segment
+      ---------------------
+  
+      The *treemanifests segment* only exists in changegroup version "3", and
+      only if the 'treemanifest' param is part of the bundle2 changegroup part
+      (it is not possible to use changegroup version 3 outside of bundle2).
+      Aside from the filenames in the *treemanifests segment* containing a
+      trailing "/" character, it behaves identically to the *filelogs segment*
+      (see below). The final sub-segment is followed by an *empty chunk*
+      (logically, a sub-segment with filename size 0). This denotes the boundary
+      to the *filelogs segment*.
   
       Filelogs Segment
       ================
   
-      The *filelogs* segment consists of multiple sub-segments, each
+      The *filelogs segment* consists of multiple sub-segments, each
       corresponding to an individual file whose data is being described:
   
-        +--------------------------------------+
-        |          |          |          |     |
-        | filelog0 | filelog1 | filelog2 | ... |
-        |          |          |          |     |
-        +--------------------------------------+
+        +--------------------------------------------------+
+        |          |          |          |     |           |
+        | filelog0 | filelog1 | filelog2 | ... |    0x0    |
+        |          |          |          |     | (4 bytes) |
+        |          |          |          |     |           |
+        +--------------------------------------------------+
   
-      In version "3" of the changegroup format, filelogs may include directory
-      logs when treemanifests are in use. directory logs are identified by
-      having a trailing '/' on their filename (see below).
-  
-      The final filelog sub-segment is followed by an *empty chunk* to denote
-      the end of the segment and the overall changegroup.
+      The final filelog sub-segment is followed by an *empty chunk* (logically,
+      a sub-segment with filename size 0). This denotes the end of the segment
+      and of the overall changegroup.
   
       Each filelog sub-segment consists of the following:
   
-        +------------------------------------------+
-        |               |            |             |
-        | filename size |  filename  | delta group |
-        |   (32 bits)   |  (various) |  (various)  |
-        |               |            |             |
-        +------------------------------------------+
+        +------------------------------------------------------+
+        |                 |                      |             |
+        | filename length |       filename       | delta group |
+        |    (4 bytes)    | (<length - 4> bytes) |  (various)  |
+        |                 |                      |             |
+        +------------------------------------------------------+
   
       That is, a *chunk* consisting of the filename (not terminated or padded)
-      followed by N chunks constituting the *delta group* for this file.
+      followed by N chunks constituting the *delta group* for this file. The
+      *empty chunk* at the end of each *delta group* denotes the boundary to the
+      next filelog sub-segment.
 
 Test list of commands with command with no help text
 
@@ -1107,7 +1191,15 @@ Test list of commands with command with no help text
   (use 'hg help -v helpext' to show built-in aliases and global options)
 
 
-test deprecated and experimental options are hidden in command help
+test advanced, deprecated and experimental options are hidden in command help
+  $ hg help debugoptADV
+  hg debugoptADV
+  
+  (no help text available)
+  
+  options:
+  
+  (some details hidden, use --verbose to show complete help)
   $ hg help debugoptDEP
   hg debugoptDEP
   
@@ -1126,7 +1218,9 @@ test deprecated and experimental options are hidden in command help
   
   (some details hidden, use --verbose to show complete help)
 
-test deprecated and experimental options is shown with -v
+test advanced, deprecated and experimental options are shown with -v
+  $ hg help -v debugoptADV | grep aopt
+    --aopt option is (ADVANCED)
   $ hg help -v debugoptDEP | grep dopt
     --dopt option is (DEPRECATED)
   $ hg help -v debugoptEXP | grep eopt
@@ -1158,38 +1252,49 @@ Test commands that collide with topics (issue4240)
 
 Test a help topic
 
-  $ hg help revs
-  Specifying Single Revisions
-  """""""""""""""""""""""""""
+  $ hg help dates
+  Date Formats
+  """"""""""""
   
-      Mercurial supports several ways to specify individual revisions.
+      Some commands allow the user to specify a date, e.g.:
   
-      A plain integer is treated as a revision number. Negative integers are
-      treated as sequential offsets from the tip, with -1 denoting the tip, -2
-      denoting the revision prior to the tip, and so forth.
+      - backout, commit, import, tag: Specify the commit date.
+      - log, revert, update: Select revision(s) by date.
   
-      A 40-digit hexadecimal string is treated as a unique revision identifier.
+      Many date formats are valid. Here are some examples:
   
-      A hexadecimal string less than 40 characters long is treated as a unique
-      revision identifier and is referred to as a short-form identifier. A
-      short-form identifier is only valid if it is the prefix of exactly one
-      full-length identifier.
+      - "Wed Dec 6 13:18:29 2006" (local timezone assumed)
+      - "Dec 6 13:18 -0600" (year assumed, time offset provided)
+      - "Dec 6 13:18 UTC" (UTC and GMT are aliases for +0000)
+      - "Dec 6" (midnight)
+      - "13:18" (today assumed)
+      - "3:39" (3:39AM assumed)
+      - "3:39pm" (15:39)
+      - "2006-12-06 13:18:29" (ISO 8601 format)
+      - "2006-12-6 13:18"
+      - "2006-12-6"
+      - "12-6"
+      - "12/6"
+      - "12/6/6" (Dec 6 2006)
+      - "today" (midnight)
+      - "yesterday" (midnight)
+      - "now" - right now
   
-      Any other string is treated as a bookmark, tag, or branch name. A bookmark
-      is a movable pointer to a revision. A tag is a permanent name associated
-      with a revision. A branch name denotes the tipmost open branch head of
-      that branch - or if they are all closed, the tipmost closed head of the
-      branch. Bookmark, tag, and branch names must not contain the ":"
-      character.
+      Lastly, there is Mercurial's internal format:
   
-      The reserved name "tip" always identifies the most recent revision.
+      - "1165411109 0" (Wed Dec 6 13:18:29 2006 UTC)
   
-      The reserved name "null" indicates the null revision. This is the revision
-      of an empty repository, and the parent of revision 0.
+      This is the internal representation format for dates. The first number is
+      the number of seconds since the epoch (1970-01-01 00:00 UTC). The second
+      is the offset of the local timezone, in seconds west of UTC (negative if
+      the timezone is east of UTC).
   
-      The reserved name "." indicates the working directory parent. If no
-      working directory is checked out, it is equivalent to null. If an
-      uncommitted merge is in progress, "." is the revision of the first parent.
+      The log command also accepts date ranges:
+  
+      - "<DATE" - at or before a given date/time
+      - ">DATE" - on or after a given date/time
+      - "DATE to DATE" - a date range, inclusive
+      - "-DAYS" - within a given number of days of today
 
 Test repeated config section name
 
@@ -1280,7 +1385,7 @@ Test help hooks
   >     return doc + '\nhelphook1\n'
   > 
   > def extsetup(ui):
-  >     help.addtopichook('revsets', rewrite)
+  >     help.addtopichook('revisions', rewrite)
   > EOF
   $ cat > helphook2.py <<EOF
   > from mercurial import help
@@ -1289,7 +1394,7 @@ Test help hooks
   >     return doc + '\nhelphook2\n'
   > 
   > def extsetup(ui):
-  >     help.addtopichook('revsets', rewrite)
+  >     help.addtopichook('revisions', rewrite)
   > EOF
   $ echo '[extensions]' >> $HGRCPATH
   $ echo "helphook1 = `pwd`/helphook1.py" >> $HGRCPATH
@@ -1541,11 +1646,11 @@ Test section lookup
          "default:pushurl" should be used instead.
   
   $ hg help glossary.mcguffin
-  abort: help section not found
+  abort: help section not found: glossary.mcguffin
   [255]
 
   $ hg help glossary.mc.guffin
-  abort: help section not found
+  abort: help section not found: glossary.mc.guffin
   [255]
 
   $ hg help template.files
@@ -1568,7 +1673,7 @@ replacement makes message meaningless.
 This tests that section lookup by translated string isn't broken by
 such str.lower().
 
-  $ python <<EOF
+  $ $PYTHON <<EOF
   > def escape(s):
   >     return ''.join('\u%x' % ord(uc) for uc in s.decode('cp932'))
   > # translation of "record" in ja_JP.cp932
@@ -1602,7 +1707,7 @@ such str.lower().
   > ambiguous = ./ambiguous.py
   > EOF
 
-  $ python <<EOF | sh
+  $ $PYTHON <<EOF | sh
   > upper = "\x8bL\x98^"
   > print "hg --encoding cp932 help -e ambiguous.%s" % upper
   > EOF
@@ -1612,7 +1717,7 @@ such str.lower().
   Upper name should show only this message
   
 
-  $ python <<EOF | sh
+  $ $PYTHON <<EOF | sh
   > lower = "\x8bl\x98^"
   > print "hg --encoding cp932 help -e ambiguous.%s" % lower
   > EOF
@@ -1686,10 +1791,17 @@ Test dynamic list of merge tools only shows up once
         accordingly be named "a.txt.local", "a.txt.other" and "a.txt.base" and
         they will be placed in the same directory as "a.txt".
   
+        This implies permerge. Therefore, files aren't dumped, if premerge runs
+        successfully. Use :forcedump to forcibly write files out.
+  
       ":fail"
         Rather than attempting to merge files that were modified on both
         branches, it marks them as unresolved. The resolve command must be used
         to resolve these conflicts.
+  
+      ":forcedump"
+        Creates three versions of the files as same as :dump, but omits
+        premerge.
   
       ":local"
         Uses the local 'p1()' version of files as the merged version.
@@ -1757,7 +1869,7 @@ Test dynamic list of merge tools only shows up once
          but it will by default not be used for symlinks and binary files.
       7. If the file to be merged is not binary and is not a symlink, then
          internal ":merge" is used.
-      8. The merge of the file fails and must be resolved before commit.
+      8. Otherwise, ":prompt" is used.
   
       Note:
          After selecting a merge program, Mercurial will by default attempt to
@@ -1770,10 +1882,19 @@ Test dynamic list of merge tools only shows up once
       See the merge-tools and ui sections of hgrc(5) for details on the
       configuration of merge tools.
 
+Compression engines listed in `hg help bundlespec`
+
+  $ hg help bundlespec | grep gzip
+          "v1" bundles can only use the "gzip", "bzip2", and "none" compression
+        An algorithm that produces smaller bundles than "gzip".
+        This engine will likely produce smaller bundles than "gzip" but will be
+      "gzip"
+        better compression than "gzip". It also frequently yields better (?)
+
 Test usage of section marks in help documents
 
   $ cd "$TESTDIR"/../doc
-  $ python check-seclevel.py
+  $ $PYTHON check-seclevel.py
   $ cd $TESTTMP
 
 #if serve
@@ -1786,7 +1907,7 @@ Dish up an empty repo; serve it cold.
   $ hg serve -R "$TESTTMP/test" -n test -p $HGPORT -d --pid-file=hg.pid
   $ cat hg.pid >> $DAEMON_PIDS
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT "help"
+  $ get-with-headers.py $LOCALIP:$HGPORT "help"
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -1821,15 +1942,30 @@ Dish up an empty repo; serve it cold.
   
   <div class="main">
   <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
   <table class="bigtable">
   <tr><td colspan="2"><h2><a name="topics" href="#topics">Topics</a></h2></td></tr>
   
+  <tr><td>
+  <a href="/help/bundlespec">
+  bundlespec
+  </a>
+  </td><td>
+  Bundle File Formats
+  </td></tr>
+  <tr><td>
+  <a href="/help/color">
+  color
+  </a>
+  </td><td>
+  Colorizing Outputs
+  </td></tr>
   <tr><td>
   <a href="/help/config">
   config
@@ -1908,11 +2044,11 @@ Dish up an empty repo; serve it cold.
   Merge Tools
   </td></tr>
   <tr><td>
-  <a href="/help/multirevs">
-  multirevs
+  <a href="/help/pager">
+  pager
   </a>
   </td><td>
-  Specifying Multiple Revisions
+  Pager Support
   </td></tr>
   <tr><td>
   <a href="/help/patterns">
@@ -1933,14 +2069,7 @@ Dish up an empty repo; serve it cold.
   revisions
   </a>
   </td><td>
-  Specifying Single Revisions
-  </td></tr>
-  <tr><td>
-  <a href="/help/revsets">
-  revsets
-  </a>
-  </td><td>
-  Specifying Revision Sets
+  Specifying Revisions
   </td></tr>
   <tr><td>
   <a href="/help/scripting">
@@ -2159,7 +2288,7 @@ Dish up an empty repo; serve it cold.
   bundle
   </a>
   </td><td>
-  create a changegroup file
+  create a bundle file
   </td></tr>
   <tr><td>
   <a href="/help/cat">
@@ -2341,7 +2470,7 @@ Dish up an empty repo; serve it cold.
   unbundle
   </a>
   </td><td>
-  apply one or more changegroup files
+  apply one or more bundle files
   </td></tr>
   <tr><td>
   <a href="/help/verify">
@@ -2363,14 +2492,13 @@ Dish up an empty repo; serve it cold.
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT "help/add"
+  $ get-with-headers.py $LOCALIP:$HGPORT "help/add"
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -2409,7 +2537,7 @@ Dish up an empty repo; serve it cold.
   
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -2500,6 +2628,9 @@ Dish up an empty repo; serve it cold.
   <td>--verbose</td>
   <td>enable additional output</td></tr>
   <tr><td></td>
+  <td>--color TYPE</td>
+  <td>when to colorize (boolean, always, auto, never, or debug)</td></tr>
+  <tr><td></td>
   <td>--config CONFIG [+]</td>
   <td>set/override config option (use 'section.name=value')</td></tr>
   <tr><td></td>
@@ -2532,20 +2663,22 @@ Dish up an empty repo; serve it cold.
   <tr><td></td>
   <td>--hidden</td>
   <td>consider hidden changesets</td></tr>
+  <tr><td></td>
+  <td>--pager TYPE</td>
+  <td>when to paginate (boolean, always, auto, or never) (default: auto)</td></tr>
   </table>
   
   </div>
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT "help/remove"
+  $ get-with-headers.py $LOCALIP:$HGPORT "help/remove"
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -2584,7 +2717,7 @@ Dish up an empty repo; serve it cold.
   
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -2696,6 +2829,9 @@ Dish up an empty repo; serve it cold.
   <td>--verbose</td>
   <td>enable additional output</td></tr>
   <tr><td></td>
+  <td>--color TYPE</td>
+  <td>when to colorize (boolean, always, auto, never, or debug)</td></tr>
+  <tr><td></td>
   <td>--config CONFIG [+]</td>
   <td>set/override config option (use 'section.name=value')</td></tr>
   <tr><td></td>
@@ -2728,20 +2864,22 @@ Dish up an empty repo; serve it cold.
   <tr><td></td>
   <td>--hidden</td>
   <td>consider hidden changesets</td></tr>
+  <tr><td></td>
+  <td>--pager TYPE</td>
+  <td>when to paginate (boolean, always, auto, or never) (default: auto)</td></tr>
   </table>
   
   </div>
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
   </html>
   
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT "help/revisions"
+  $ get-with-headers.py $LOCALIP:$HGPORT "help/dates"
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -2752,7 +2890,7 @@ Dish up an empty repo; serve it cold.
   <link rel="stylesheet" href="/static/style-paper.css" type="text/css" />
   <script type="text/javascript" src="/static/mercurial.js"></script>
   
-  <title>Help: revisions</title>
+  <title>Help: dates</title>
   </head>
   <body>
   
@@ -2776,60 +2914,70 @@ Dish up an empty repo; serve it cold.
   
   <div class="main">
   <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
-  <h3>Help: revisions</h3>
+  <h3>Help: dates</h3>
   
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
   <div id="doc">
-  <h1>Specifying Single Revisions</h1>
+  <h1>Date Formats</h1>
   <p>
-  Mercurial supports several ways to specify individual revisions.
+  Some commands allow the user to specify a date, e.g.:
+  </p>
+  <ul>
+   <li> backout, commit, import, tag: Specify the commit date.
+   <li> log, revert, update: Select revision(s) by date.
+  </ul>
+  <p>
+  Many date formats are valid. Here are some examples:
+  </p>
+  <ul>
+   <li> &quot;Wed Dec 6 13:18:29 2006&quot; (local timezone assumed)
+   <li> &quot;Dec 6 13:18 -0600&quot; (year assumed, time offset provided)
+   <li> &quot;Dec 6 13:18 UTC&quot; (UTC and GMT are aliases for +0000)
+   <li> &quot;Dec 6&quot; (midnight)
+   <li> &quot;13:18&quot; (today assumed)
+   <li> &quot;3:39&quot; (3:39AM assumed)
+   <li> &quot;3:39pm&quot; (15:39)
+   <li> &quot;2006-12-06 13:18:29&quot; (ISO 8601 format)
+   <li> &quot;2006-12-6 13:18&quot;
+   <li> &quot;2006-12-6&quot;
+   <li> &quot;12-6&quot;
+   <li> &quot;12/6&quot;
+   <li> &quot;12/6/6&quot; (Dec 6 2006)
+   <li> &quot;today&quot; (midnight)
+   <li> &quot;yesterday&quot; (midnight)
+   <li> &quot;now&quot; - right now
+  </ul>
+  <p>
+  Lastly, there is Mercurial's internal format:
+  </p>
+  <ul>
+   <li> &quot;1165411109 0&quot; (Wed Dec 6 13:18:29 2006 UTC)
+  </ul>
+  <p>
+  This is the internal representation format for dates. The first number
+  is the number of seconds since the epoch (1970-01-01 00:00 UTC). The
+  second is the offset of the local timezone, in seconds west of UTC
+  (negative if the timezone is east of UTC).
   </p>
   <p>
-  A plain integer is treated as a revision number. Negative integers are
-  treated as sequential offsets from the tip, with -1 denoting the tip,
-  -2 denoting the revision prior to the tip, and so forth.
+  The log command also accepts date ranges:
   </p>
-  <p>
-  A 40-digit hexadecimal string is treated as a unique revision
-  identifier.
-  </p>
-  <p>
-  A hexadecimal string less than 40 characters long is treated as a
-  unique revision identifier and is referred to as a short-form
-  identifier. A short-form identifier is only valid if it is the prefix
-  of exactly one full-length identifier.
-  </p>
-  <p>
-  Any other string is treated as a bookmark, tag, or branch name. A
-  bookmark is a movable pointer to a revision. A tag is a permanent name
-  associated with a revision. A branch name denotes the tipmost open branch head
-  of that branch - or if they are all closed, the tipmost closed head of the
-  branch. Bookmark, tag, and branch names must not contain the &quot;:&quot; character.
-  </p>
-  <p>
-  The reserved name &quot;tip&quot; always identifies the most recent revision.
-  </p>
-  <p>
-  The reserved name &quot;null&quot; indicates the null revision. This is the
-  revision of an empty repository, and the parent of revision 0.
-  </p>
-  <p>
-  The reserved name &quot;.&quot; indicates the working directory parent. If no
-  working directory is checked out, it is equivalent to null. If an
-  uncommitted merge is in progress, &quot;.&quot; is the revision of the first
-  parent.
-  </p>
+  <ul>
+   <li> &quot;&lt;DATE&quot; - at or before a given date/time
+   <li> &quot;&gt;DATE&quot; - on or after a given date/time
+   <li> &quot;DATE to DATE&quot; - a date range, inclusive
+   <li> &quot;-DAYS&quot; - within a given number of days of today
+  </ul>
   
   </div>
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
@@ -2838,7 +2986,7 @@ Dish up an empty repo; serve it cold.
 
 Sub-topic indexes rendered properly
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT "help/internals"
+  $ get-with-headers.py $LOCALIP:$HGPORT "help/internals"
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -2873,9 +3021,10 @@ Sub-topic indexes rendered properly
   
   <div class="main">
   <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -2888,6 +3037,13 @@ Sub-topic indexes rendered properly
   </a>
   </td><td>
   Bundles
+  </td></tr>
+  <tr><td>
+  <a href="/help/internals.censor">
+  censor
+  </a>
+  </td><td>
+  Censor
   </td></tr>
   <tr><td>
   <a href="/help/internals.changegroups">
@@ -2926,7 +3082,6 @@ Sub-topic indexes rendered properly
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
@@ -2935,7 +3090,7 @@ Sub-topic indexes rendered properly
 
 Sub-topic topics rendered properly
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT "help/internals.changegroups"
+  $ get-with-headers.py $LOCALIP:$HGPORT "help/internals.changegroups"
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -2974,7 +3129,7 @@ Sub-topic topics rendered properly
   
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -2982,24 +3137,39 @@ Sub-topic topics rendered properly
   <h1>Changegroups</h1>
   <p>
   Changegroups are representations of repository revlog data, specifically
-  the changelog, manifest, and filelogs.
+  the changelog data, root/flat manifest data, treemanifest data, and
+  filelogs.
   </p>
   <p>
   There are 3 versions of changegroups: &quot;1&quot;, &quot;2&quot;, and &quot;3&quot;. From a
-  high-level, versions &quot;1&quot; and &quot;2&quot; are almost exactly the same, with
-  the only difference being a header on entries in the changeset
-  segment. Version &quot;3&quot; adds support for exchanging treemanifests and
-  includes revlog flags in the delta header.
+  high-level, versions &quot;1&quot; and &quot;2&quot; are almost exactly the same, with the
+  only difference being an additional item in the *delta header*.  Version
+  &quot;3&quot; adds support for revlog flags in the *delta header* and optionally
+  exchanging treemanifests (enabled by setting an option on the
+  &quot;changegroup&quot; part in the bundle2).
   </p>
   <p>
-  Changegroups consists of 3 logical segments:
+  Changegroups when not exchanging treemanifests consist of 3 logical
+  segments:
   </p>
   <pre>
   +---------------------------------+
   |           |          |          |
   | changeset | manifest | filelogs |
   |           |          |          |
+  |           |          |          |
   +---------------------------------+
+  </pre>
+  <p>
+  When exchanging treemanifests, there are 4 logical segments:
+  </p>
+  <pre>
+  +-------------------------------------------------+
+  |           |          |               |          |
+  | changeset |   root   | treemanifests | filelogs |
+  |           | manifest |               |          |
+  |           |          |               |          |
+  +-------------------------------------------------+
   </pre>
   <p>
   The principle building block of each segment is a *chunk*. A *chunk*
@@ -3009,17 +3179,18 @@ Sub-topic topics rendered properly
   +---------------------------------------+
   |           |                           |
   |  length   |           data            |
-  | (32 bits) |       &lt;length&gt; bytes      |
+  | (4 bytes) |   (&lt;length - 4&gt; bytes)    |
   |           |                           |
   +---------------------------------------+
   </pre>
   <p>
-  Each chunk starts with a 32-bit big-endian signed integer indicating
-  the length of the raw data that follows.
+  All integers are big-endian signed integers. Each chunk starts with a 32-bit
+  integer indicating the length of the entire chunk (including the length field
+  itself).
   </p>
   <p>
-  There is a special case chunk that has 0 length (&quot;0x00000000&quot;). We
-  call this an *empty chunk*.
+  There is a special case chunk that has a value of 0 for the length
+  (&quot;0x00000000&quot;). We call this an *empty chunk*.
   </p>
   <h2>Delta Groups</h2>
   <p>
@@ -3034,31 +3205,32 @@ Sub-topic topics rendered properly
   +------------------------------------------------------------------------+
   |                |             |               |             |           |
   | chunk0 length  | chunk0 data | chunk1 length | chunk1 data |    0x0    |
-  |   (32 bits)    |  (various)  |   (32 bits)   |  (various)  | (32 bits) |
+  |   (4 bytes)    |  (various)  |   (4 bytes)   |  (various)  | (4 bytes) |
   |                |             |               |             |           |
-  +------------------------------------------------------------+-----------+
+  +------------------------------------------------------------------------+
   </pre>
   <p>
   Each *chunk*'s data consists of the following:
   </p>
   <pre>
-  +-----------------------------------------+
-  |              |              |           |
-  | delta header | mdiff header |   delta   |
-  |  (various)   |  (12 bytes)  | (various) |
-  |              |              |           |
-  +-----------------------------------------+
+  +---------------------------------------+
+  |                        |              |
+  |     delta header       |  delta data  |
+  |  (various by version)  |  (various)   |
+  |                        |              |
+  +---------------------------------------+
   </pre>
   <p>
-  The *length* field is the byte length of the remaining 3 logical pieces
-  of data. The *delta* is a diff from an existing entry in the changelog.
+  The *delta data* is a series of *delta*s that describe a diff from an existing
+  entry (either that the recipient already has, or previously specified in the
+  bundle/changegroup).
   </p>
   <p>
   The *delta header* is different between versions &quot;1&quot;, &quot;2&quot;, and
   &quot;3&quot; of the changegroup format.
   </p>
   <p>
-  Version 1:
+  Version 1 (headerlen=80):
   </p>
   <pre>
   +------------------------------------------------------+
@@ -3069,7 +3241,7 @@ Sub-topic topics rendered properly
   +------------------------------------------------------+
   </pre>
   <p>
-  Version 2:
+  Version 2 (headerlen=100):
   </p>
   <pre>
   +------------------------------------------------------------------+
@@ -3080,92 +3252,110 @@ Sub-topic topics rendered properly
   +------------------------------------------------------------------+
   </pre>
   <p>
-  Version 3:
+  Version 3 (headerlen=102):
   </p>
   <pre>
   +------------------------------------------------------------------------------+
   |            |             |             |            |            |           |
-  |    node    |   p1 node   |   p2 node   | base node  | link node  | flags     |
+  |    node    |   p1 node   |   p2 node   | base node  | link node  |   flags   |
   | (20 bytes) |  (20 bytes) |  (20 bytes) | (20 bytes) | (20 bytes) | (2 bytes) |
   |            |             |             |            |            |           |
   +------------------------------------------------------------------------------+
   </pre>
   <p>
-  The *mdiff header* consists of 3 32-bit big-endian signed integers
-  describing offsets at which to apply the following delta content:
+  The *delta data* consists of &quot;chunklen - 4 - headerlen&quot; bytes, which contain a
+  series of *delta*s, densely packed (no separators). These deltas describe a diff
+  from an existing entry (either that the recipient already has, or previously
+  specified in the bundle/changegroup). The format is described more fully in
+  &quot;hg help internals.bdiff&quot;, but briefly:
   </p>
   <pre>
-  +-------------------------------------+
-  |           |            |            |
-  |  offset   | old length | new length |
-  | (32 bits) |  (32 bits) |  (32 bits) |
-  |           |            |            |
-  +-------------------------------------+
+  +---------------------------------------------------------------+
+  |              |            |            |                      |
+  | start offset | end offset | new length |        content       |
+  |  (4 bytes)   |  (4 bytes) |  (4 bytes) | (&lt;new length&gt; bytes) |
+  |              |            |            |                      |
+  +---------------------------------------------------------------+
   </pre>
+  <p>
+  Please note that the length field in the delta data does *not* include itself.
+  </p>
   <p>
   In version 1, the delta is always applied against the previous node from
   the changegroup or the first parent if this is the first entry in the
   changegroup.
   </p>
   <p>
-  In version 2, the delta base node is encoded in the entry in the
+  In version 2 and up, the delta base node is encoded in the entry in the
   changegroup. This allows the delta to be expressed against any parent,
   which can result in smaller deltas and more efficient encoding of data.
   </p>
   <h2>Changeset Segment</h2>
   <p>
   The *changeset segment* consists of a single *delta group* holding
-  changelog data. It is followed by an *empty chunk* to denote the
-  boundary to the *manifests segment*.
+  changelog data. The *empty chunk* at the end of the *delta group* denotes
+  the boundary to the *manifest segment*.
   </p>
   <h2>Manifest Segment</h2>
   <p>
-  The *manifest segment* consists of a single *delta group* holding
-  manifest data. It is followed by an *empty chunk* to denote the boundary
-  to the *filelogs segment*.
+  The *manifest segment* consists of a single *delta group* holding manifest
+  data. If treemanifests are in use, it contains only the manifest for the
+  root directory of the repository. Otherwise, it contains the entire
+  manifest data. The *empty chunk* at the end of the *delta group* denotes
+  the boundary to the next segment (either the *treemanifests segment* or the
+  *filelogs segment*, depending on version and the request options).
+  </p>
+  <h3>Treemanifests Segment</h3>
+  <p>
+  The *treemanifests segment* only exists in changegroup version &quot;3&quot;, and
+  only if the 'treemanifest' param is part of the bundle2 changegroup part
+  (it is not possible to use changegroup version 3 outside of bundle2).
+  Aside from the filenames in the *treemanifests segment* containing a
+  trailing &quot;/&quot; character, it behaves identically to the *filelogs segment*
+  (see below). The final sub-segment is followed by an *empty chunk* (logically,
+  a sub-segment with filename size 0). This denotes the boundary to the
+  *filelogs segment*.
   </p>
   <h2>Filelogs Segment</h2>
   <p>
-  The *filelogs* segment consists of multiple sub-segments, each
+  The *filelogs segment* consists of multiple sub-segments, each
   corresponding to an individual file whose data is being described:
   </p>
   <pre>
-  +--------------------------------------+
-  |          |          |          |     |
-  | filelog0 | filelog1 | filelog2 | ... |
-  |          |          |          |     |
-  +--------------------------------------+
+  +--------------------------------------------------+
+  |          |          |          |     |           |
+  | filelog0 | filelog1 | filelog2 | ... |    0x0    |
+  |          |          |          |     | (4 bytes) |
+  |          |          |          |     |           |
+  +--------------------------------------------------+
   </pre>
   <p>
-  In version &quot;3&quot; of the changegroup format, filelogs may include
-  directory logs when treemanifests are in use. directory logs are
-  identified by having a trailing '/' on their filename (see below).
-  </p>
-  <p>
-  The final filelog sub-segment is followed by an *empty chunk* to denote
-  the end of the segment and the overall changegroup.
+  The final filelog sub-segment is followed by an *empty chunk* (logically,
+  a sub-segment with filename size 0). This denotes the end of the segment
+  and of the overall changegroup.
   </p>
   <p>
   Each filelog sub-segment consists of the following:
   </p>
   <pre>
-  +------------------------------------------+
-  |               |            |             |
-  | filename size |  filename  | delta group |
-  |   (32 bits)   |  (various) |  (various)  |
-  |               |            |             |
-  +------------------------------------------+
+  +------------------------------------------------------+
+  |                 |                      |             |
+  | filename length |       filename       | delta group |
+  |    (4 bytes)    | (&lt;length - 4&gt; bytes) |  (various)  |
+  |                 |                      |             |
+  +------------------------------------------------------+
   </pre>
   <p>
   That is, a *chunk* consisting of the filename (not terminated or padded)
-  followed by N chunks constituting the *delta group* for this file.
+  followed by N chunks constituting the *delta group* for this file. The
+  *empty chunk* at the end of each *delta group* denotes the boundary to the
+  next filelog sub-segment.
   </p>
   
   </div>
   </div>
   </div>
   
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>

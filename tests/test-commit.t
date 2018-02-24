@@ -15,20 +15,20 @@ commit date test
   $ hg commit -d '0 0' -m commit-1
   $ echo foo >> foo
   $ hg commit -d '1 4444444' -m commit-3
-  abort: impossible time zone offset: 4444444
+  hg: parse error: impossible time zone offset: 4444444
   [255]
   $ hg commit -d '1	15.1' -m commit-4
-  abort: invalid date: '1\t15.1'
+  hg: parse error: invalid date: '1\t15.1'
   [255]
   $ hg commit -d 'foo bar' -m commit-5
-  abort: invalid date: 'foo bar'
+  hg: parse error: invalid date: 'foo bar'
   [255]
   $ hg commit -d ' 1 4444' -m commit-6
   $ hg commit -d '111111111111 0' -m commit-7
-  abort: date exceeds 32 bits: 111111111111
+  hg: parse error: date exceeds 32 bits: 111111111111
   [255]
   $ hg commit -d '-111111111111 0' -m commit-7
-  abort: date exceeds 32 bits: -111111111111
+  hg: parse error: date exceeds 32 bits: -111111111111
   [255]
   $ echo foo >> foo
   $ hg commit -d '1901-12-13 20:45:52 +0000' -m commit-7-2
@@ -38,10 +38,10 @@ commit date test
   3 1901-12-13 20:45:52 +0000
   2 1901-12-13 20:45:52 +0000
   $ hg commit -d '1901-12-13 20:45:51 +0000' -m commit-7
-  abort: date exceeds 32 bits: -2147483649
+  hg: parse error: date exceeds 32 bits: -2147483649
   [255]
   $ hg commit -d '-2147483649 0' -m commit-7
-  abort: date exceeds 32 bits: -2147483649
+  hg: parse error: date exceeds 32 bits: -2147483649
   [255]
 
 commit added file that has been deleted
@@ -103,6 +103,7 @@ commit added file that has been deleted
   $ hg commit -m commit-15 baz
   abort: baz: file not tracked!
   [255]
+  $ rm baz
 #endif
 
   $ touch quux
@@ -120,9 +121,43 @@ commit added file that has been deleted
 An empty date was interpreted as epoch origin
 
   $ echo foo >> foo
-  $ hg commit -d '' -m commit-no-date
+  $ hg commit -d '' -m commit-no-date --config devel.default-date=
   $ hg tip --template '{date|isodate}\n' | grep '1970'
   [1]
+
+Using the advanced --extra flag
+
+  $ echo "[extensions]" >> $HGRCPATH
+  $ echo "commitextras=" >> $HGRCPATH
+  $ hg status
+  ? quux
+  $ hg add quux
+  $ hg commit -m "adding internal used extras" --extra amend_source=hash
+  abort: key 'amend_source' is used internally, can't be set manually
+  [255]
+  $ hg commit -m "special chars in extra" --extra id@phab=214
+  abort: keys can only contain ascii letters, digits, '_' and '-'
+  [255]
+  $ hg commit -m "empty key" --extra =value
+  abort: unable to parse '=value', keys can't be empty
+  [255]
+  $ hg commit -m "adding extras" --extra sourcehash=foo --extra oldhash=bar
+  $ hg log -r . -T '{extras % "{extra}\n"}'
+  branch=default
+  oldhash=bar
+  sourcehash=foo
+
+Failed commit with --addremove should not update dirstate
+
+  $ echo foo > newfile
+  $ hg status
+  ? newfile
+  $ HGEDITOR=false hg ci --addremove
+  adding newfile
+  abort: edit failed: false exited with status 1
+  [255]
+  $ hg status
+  ? newfile
 
 Make sure we do not obscure unknown requires file entries (issue2649)
 
@@ -375,7 +410,7 @@ test saving last-message.txt
   HG: changed changed
   HG: removed removed
   ====
-  abort: precommit.test-saving-last-message hook exited with status 1 (in subrepo sub)
+  abort: precommit.test-saving-last-message hook exited with status 1 (in subrepository "sub")
   [255]
   $ cat .hg/last-message.txt
   
@@ -387,12 +422,12 @@ specific template keywords work well
 
   $ cat >> .hg/hgrc <<EOF
   > [committemplate]
-  > changeset.commit.normal = HG: this is "commit.normal" template
+  > changeset.commit.normal = 'HG: this is "commit.normal" template
   >     HG: {extramsg}
   >     {if(activebookmark,
   >    "HG: bookmark '{activebookmark}' is activated\n",
   >    "HG: no bookmark is activated\n")}{subrepos %
-  >    "HG: subrepo '{subrepo}' is changed\n"}
+  >    "HG: subrepo '{subrepo}' is changed\n"}'
   > 
   > changeset.commit = HG: this is "commit" template
   >     HG: {extramsg}
@@ -609,7 +644,7 @@ verify pathauditor blocks evil filepaths
   $ cat > evil-commit.py <<EOF
   > from mercurial import ui, hg, context, node
   > notrc = u".h\u200cg".encode('utf-8') + '/hgrc'
-  > u = ui.ui()
+  > u = ui.ui.load()
   > r = hg.repository(u, '.')
   > def filectxfn(repo, memctx, path):
   >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
@@ -633,7 +668,7 @@ verify pathauditor blocks evil filepaths
   $ cat > evil-commit.py <<EOF
   > from mercurial import ui, hg, context, node
   > notrc = "HG~1/hgrc"
-  > u = ui.ui()
+  > u = ui.ui.load()
   > r = hg.repository(u, '.')
   > def filectxfn(repo, memctx, path):
   >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
@@ -651,7 +686,7 @@ verify pathauditor blocks evil filepaths
   $ cat > evil-commit.py <<EOF
   > from mercurial import ui, hg, context, node
   > notrc = "HG8B6C~2/hgrc"
-  > u = ui.ui()
+  > u = ui.ui.load()
   > r = hg.repository(u, '.')
   > def filectxfn(repo, memctx, path):
   >     return context.memfilectx(repo, path, '[hooks]\nupdate = echo owned')
@@ -689,4 +724,105 @@ verify pathauditor blocks evil filepaths
   $ HGEDITOR="sh $TESTTMP/notouching.sh" hg commit
   abort: commit message unchanged
   [255]
+
+test that text below the --- >8 --- special string is ignored
+
+  $ cat <<'EOF' > $TESTTMP/lowercaseline.sh
+  > cat $1 | sed s/LINE/line/ | tee $1.new
+  > mv $1.new $1
+  > EOF
+
+  $ hg init ignore_below_special_string
+  $ cd ignore_below_special_string
+  $ echo foo > foo
+  $ hg add foo
+  $ hg commit -m "foo"
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset.commit = first LINE
+  >     HG: this is customized commit template
+  >     HG: {extramsg}
+  >     HG: ------------------------ >8 ------------------------
+  >     {diff()}
+  > EOF
+  $ echo foo2 > foo2
+  $ hg add foo2
+  $ HGEDITOR="sh $TESTTMP/notouching.sh" hg ci
+  abort: commit message unchanged
+  [255]
+  $ HGEDITOR="sh $TESTTMP/lowercaseline.sh" hg ci
+  first line
+  HG: this is customized commit template
+  HG: Leave message empty to abort commit.
+  HG: ------------------------ >8 ------------------------
+  diff -r e63c23eaa88a foo2
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/foo2	Thu Jan 01 00:00:00 1970 +0000
+  @@ -0,0 +1,1 @@
+  +foo2
+  $ hg log -T '{desc}\n' -r .
+  first line
+
+test that the special string --- >8 --- isn't used when not at the beginning of
+a line
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset.commit = first LINE2
+  >     another line HG: ------------------------ >8 ------------------------
+  >     HG: this is customized commit template
+  >     HG: {extramsg}
+  >     HG: ------------------------ >8 ------------------------
+  >     {diff()}
+  > EOF
+  $ echo foo >> foo
+  $ HGEDITOR="sh $TESTTMP/lowercaseline.sh" hg ci
+  first line2
+  another line HG: ------------------------ >8 ------------------------
+  HG: this is customized commit template
+  HG: Leave message empty to abort commit.
+  HG: ------------------------ >8 ------------------------
+  diff -r 3661b22b0702 foo
+  --- a/foo	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  @@ -1,1 +1,2 @@
+   foo
+  +foo
+  $ hg log -T '{desc}\n' -r .
+  first line2
+  another line HG: ------------------------ >8 ------------------------
+
+also test that this special string isn't accepted when there is some extra text
+at the end
+
+  $ cat >> .hg/hgrc <<EOF
+  > [committemplate]
+  > changeset.commit = first LINE3
+  >     HG: ------------------------ >8 ------------------------foobar
+  >     second line
+  >     HG: this is customized commit template
+  >     HG: {extramsg}
+  >     HG: ------------------------ >8 ------------------------
+  >     {diff()}
+  > EOF
+  $ echo foo >> foo
+  $ HGEDITOR="sh $TESTTMP/lowercaseline.sh" hg ci
+  first line3
+  HG: ------------------------ >8 ------------------------foobar
+  second line
+  HG: this is customized commit template
+  HG: Leave message empty to abort commit.
+  HG: ------------------------ >8 ------------------------
+  diff -r ce648f5f066f foo
+  --- a/foo	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/foo	Thu Jan 01 00:00:00 1970 +0000
+  @@ -1,2 +1,3 @@
+   foo
+   foo
+  +foo
+  $ hg log -T '{desc}\n' -r .
+  first line3
+  second line
+
   $ cd ..
+

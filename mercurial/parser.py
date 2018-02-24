@@ -19,7 +19,10 @@
 from __future__ import absolute_import
 
 from .i18n import _
-from . import error
+from . import (
+    error,
+    util,
+)
 
 class parser(object):
     def __init__(self, elements, methods=None):
@@ -90,41 +93,102 @@ class parser(object):
             return self.eval(t)
         return t
 
-def buildargsdict(trees, funcname, keys, keyvaluenode, keynode):
+def splitargspec(spec):
+    """Parse spec of function arguments into (poskeys, varkey, keys, optkey)
+
+    >>> splitargspec('')
+    ([], None, [], None)
+    >>> splitargspec('foo bar')
+    ([], None, ['foo', 'bar'], None)
+    >>> splitargspec('foo *bar baz **qux')
+    (['foo'], 'bar', ['baz'], 'qux')
+    >>> splitargspec('*foo')
+    ([], 'foo', [], None)
+    >>> splitargspec('**foo')
+    ([], None, [], 'foo')
+    """
+    optkey = None
+    pre, sep, post = spec.partition('**')
+    if sep:
+        posts = post.split()
+        if not posts:
+            raise error.ProgrammingError('no **optkey name provided')
+        if len(posts) > 1:
+            raise error.ProgrammingError('excessive **optkey names provided')
+        optkey = posts[0]
+
+    pre, sep, post = pre.partition('*')
+    pres = pre.split()
+    posts = post.split()
+    if sep:
+        if not posts:
+            raise error.ProgrammingError('no *varkey name provided')
+        return pres, posts[0], posts[1:], optkey
+    return [], None, pres, optkey
+
+def buildargsdict(trees, funcname, argspec, keyvaluenode, keynode):
     """Build dict from list containing positional and keyword arguments
 
-    Invalid keywords or too many positional arguments are rejected, but
-    missing arguments are just omitted.
+    Arguments are specified by a tuple of ``(poskeys, varkey, keys, optkey)``
+    where
+
+    - ``poskeys``: list of names of positional arguments
+    - ``varkey``: optional argument name that takes up remainder
+    - ``keys``: list of names that can be either positional or keyword arguments
+    - ``optkey``: optional argument name that takes up excess keyword arguments
+
+    If ``varkey`` specified, all ``keys`` must be given as keyword arguments.
+
+    Invalid keywords, too few positional arguments, or too many positional
+    arguments are rejected, but missing keyword arguments are just omitted.
     """
-    if len(trees) > len(keys):
-        raise error.ParseError(_("%(func)s takes at most %(nargs)d arguments")
-                               % {'func': funcname, 'nargs': len(keys)})
-    args = {}
+    poskeys, varkey, keys, optkey = argspec
+    kwstart = next((i for i, x in enumerate(trees) if x[0] == keyvaluenode),
+                   len(trees))
+    if kwstart < len(poskeys):
+        raise error.ParseError(_("%(func)s takes at least %(nargs)d positional "
+                                 "arguments")
+                               % {'func': funcname, 'nargs': len(poskeys)})
+    if not varkey and kwstart > len(poskeys) + len(keys):
+        raise error.ParseError(_("%(func)s takes at most %(nargs)d positional "
+                                 "arguments")
+                               % {'func': funcname,
+                                  'nargs': len(poskeys) + len(keys)})
+    args = util.sortdict()
     # consume positional arguments
-    for k, x in zip(keys, trees):
-        if x[0] == keyvaluenode:
-            break
+    for k, x in zip(poskeys, trees[:kwstart]):
         args[k] = x
+    if varkey:
+        args[varkey] = trees[len(args):kwstart]
+    else:
+        for k, x in zip(keys, trees[len(args):kwstart]):
+            args[k] = x
     # remainder should be keyword arguments
-    for x in trees[len(args):]:
+    if optkey:
+        args[optkey] = util.sortdict()
+    for x in trees[kwstart:]:
         if x[0] != keyvaluenode or x[1][0] != keynode:
             raise error.ParseError(_("%(func)s got an invalid argument")
                                    % {'func': funcname})
         k = x[1][1]
-        if k not in keys:
+        if k in keys:
+            d = args
+        elif not optkey:
             raise error.ParseError(_("%(func)s got an unexpected keyword "
                                      "argument '%(key)s'")
                                    % {'func': funcname, 'key': k})
-        if k in args:
+        else:
+            d = args[optkey]
+        if k in d:
             raise error.ParseError(_("%(func)s got multiple values for keyword "
                                      "argument '%(key)s'")
                                    % {'func': funcname, 'key': k})
-        args[k] = x[2]
+        d[k] = x[2]
     return args
 
 def unescapestr(s):
     try:
-        return s.decode("string_escape")
+        return util.unescapestr(s)
     except ValueError as e:
         # mangle Python's exception into our format
         raise error.ParseError(str(e).lower())
@@ -225,7 +289,7 @@ def parseerrordetail(inst):
     """Compose error message from specified ParseError object
     """
     if len(inst.args) > 1:
-        return _('at %s: %s') % (inst.args[1], inst.args[0])
+        return _('at %d: %s') % (inst.args[1], inst.args[0])
     else:
         return inst.args[0]
 
@@ -248,7 +312,7 @@ class basealiasrules(object):
     This is a helper for fileset/revset/template aliases. A concrete rule set
     should be made by sub-classing this and implementing class/static methods.
 
-    It supports alias expansion of symbol and funciton-call styles::
+    It supports alias expansion of symbol and function-call styles::
 
         # decl = defn
         h = heads(default)

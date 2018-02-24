@@ -18,7 +18,7 @@ from . import (
 
 _mdre = re.compile('\1\n')
 def parsemeta(text):
-    """return (metadatadict, keylist, metadatasize)"""
+    """return (metadatadict, metadatasize)"""
     # text can be buffer, so we can't use .startswith or .index
     if text[:2] != '\1\n':
         return None, None
@@ -104,9 +104,9 @@ class filelog(revlog.revlog):
 
         return True
 
-    def checkhash(self, text, p1, p2, node, rev=None):
+    def checkhash(self, text, node, p1=None, p2=None, rev=None):
         try:
-            super(filelog, self).checkhash(text, p1, p2, node, rev=rev)
+            super(filelog, self).checkhash(text, node, p1=p1, p2=p2, rev=rev)
         except error.RevlogError:
             if _censoredtext(text):
                 raise error.CensoredNodeError(self.indexfile, node, text)

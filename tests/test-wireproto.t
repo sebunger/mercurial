@@ -94,23 +94,23 @@ HTTP without args-in-POST:
   * - - [*] "POST /?cmd=debugwireargs HTTP/1.1" 200 - x-hgargs-post:1033* (glob)
   * - - [*] "POST /?cmd=debugwireargs HTTP/1.1" 200 - x-hgargs-post:1033* (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=quatre&one=un&three=trois&two=deux (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=quatre&one=un&three=trois&two=deux (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=quatre&one=un&three=trois&two=deux x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=quatre&one=un&three=trois&two=deux x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=qu++atre&one=+un&three=trois+&two=deux (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=qu++atre&one=+un&three=trois+&two=deux (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=qu++atre&one=+un&three=trois+&two=deux x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=qu++atre&one=+un&three=trois+&two=deux x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=vier&one=eins&two=zwei (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=vier&one=eins&two=zwei (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=vier&one=eins&two=zwei x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=vier&one=eins&two=zwei x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:one=eins&two=zwei x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=onethousandcharactersxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&one x-hgarg-2:=un&three=trois&two=deux (glob)
-  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=onethousandcharactersxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&one x-hgarg-2:=un&three=trois&two=deux (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=onethousandcharactersxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&one x-hgarg-2:=un&three=trois&two=deux x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs HTTP/1.1" 200 - x-hgarg-1:four=onethousandcharactersxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&one x-hgarg-2:=un&three=trois&two=deux x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
 
 HTTP without the httpheader capability:
 
@@ -133,27 +133,27 @@ HTTP without the httpheader capability:
   $ cat error2.log
   $ cat access2.log
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&four=quatre&one=un&three=trois&two=deux HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&four=quatre&one=un&three=trois&two=deux HTTP/1.1" 200 - (glob)
+  * - - [*] "GET /?cmd=debugwireargs&four=quatre&one=un&three=trois&two=deux HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs&four=quatre&one=un&three=trois&two=deux HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&four=vier&one=eins&two=zwei HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&four=vier&one=eins&two=zwei HTTP/1.1" 200 - (glob)
+  * - - [*] "GET /?cmd=debugwireargs&four=vier&one=eins&two=zwei HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs&four=vier&one=eins&two=zwei HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - (glob)
+  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - (glob)
-  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - (glob)
+  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
+  * - - [*] "GET /?cmd=debugwireargs&one=eins&two=zwei HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=*zlib,none,bzip2 (glob)
 
 SSH (try to exercise the ssh functionality with a dummy script):
 
-  $ hg debugwireargs --ssh "python $TESTDIR/dummyssh" ssh://user@dummy/repo uno due tre quattro
+  $ hg debugwireargs --ssh "\"$PYTHON\" $TESTDIR/dummyssh" ssh://user@dummy/repo uno due tre quattro
   uno due tre quattro None
-  $ hg debugwireargs --ssh "python $TESTDIR/dummyssh" ssh://user@dummy/repo eins zwei --four vier
+  $ hg debugwireargs --ssh "\"$PYTHON\" $TESTDIR/dummyssh" ssh://user@dummy/repo eins zwei --four vier
   eins zwei None vier None
-  $ hg debugwireargs --ssh "python $TESTDIR/dummyssh" ssh://user@dummy/repo eins zwei
+  $ hg debugwireargs --ssh "\"$PYTHON\" $TESTDIR/dummyssh" ssh://user@dummy/repo eins zwei
   eins zwei None None None
-  $ hg debugwireargs --ssh "python $TESTDIR/dummyssh" ssh://user@dummy/repo eins zwei --five fuenf
+  $ hg debugwireargs --ssh "\"$PYTHON\" $TESTDIR/dummyssh" ssh://user@dummy/repo eins zwei --five fuenf
   eins zwei None None None
 
 Explicitly kill daemons to let the test exit on Windows

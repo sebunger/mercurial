@@ -29,7 +29,7 @@ Set up the repo
 
 manifest with descending (paper)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -76,9 +76,10 @@ manifest with descending (paper)
    <span class="tag">tip</span> 
   </h3>
   
+  
   <form class="search" action="/log">
   
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -139,7 +140,6 @@ manifest with descending (paper)
   </table>
   </div>
   </div>
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
@@ -148,7 +148,7 @@ manifest with descending (paper)
 
 manifest with descending (coal)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file?style=coal'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file?style=coal'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -196,9 +196,10 @@ manifest with descending (coal)
    <span class="tag">tip</span> 
   </h3>
   
+  
   <form class="search" action="/log">
   <input type="hidden" name="style" value="coal" />
-  <p><input name="rev" id="search1" type="text" size="30" /></p>
+  <p><input name="rev" id="search1" type="text" size="30" value="" /></p>
   <div id="hint">Find changesets by keywords (author, files, the commit message), revision
   number or hash, or <a href="/help/revsets">revset expression</a>.</div>
   </form>
@@ -259,7 +260,6 @@ manifest with descending (coal)
   </table>
   </div>
   </div>
-  <script type="text/javascript">process_dates()</script>
   
   
   </body>
@@ -268,7 +268,7 @@ manifest with descending (coal)
 
 manifest with descending (monoblue)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file?style=monoblue'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file?style=monoblue'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -289,13 +289,14 @@ manifest with descending (monoblue)
       <div class="page-header">
           <h1 class="breadcrumb"><a href="/">Mercurial</a>  / files</h1>
   
-          <form action="/log">
-              <input type="hidden" name="style" value="monoblue" />
-              <dl class="search">
-                  <dt><label>Search: </label></dt>
-                  <dd><input type="text" name="rev" /></dd>
-              </dl>
-          </form>
+          
+  <form action="/log">
+  <input type="hidden" name="style" value="monoblue" />
+  <dl class="search">
+  <dt><label>Search: </label></dt>
+  <dd><input type="text" name="rev" value="" /></dd>
+  </dl>
+  </form>
   
           <ul class="page-nav">
               <li><a href="/summary?style=monoblue">summary</a></li>
@@ -360,7 +361,6 @@ manifest with descending (monoblue)
           
       </table>
   
-      <script type="text/javascript">process_dates()</script>
       <div class="page-footer">
           <p>Mercurial Repository: test</p>
           <ul class="rss-logo">
@@ -382,7 +382,7 @@ manifest with descending (monoblue)
 
 manifest with descending (gitweb)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file?style=gitweb'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file?style=gitweb'
   200 Script output follows
   
   <?xml version="1.0" encoding="ascii"?>
@@ -408,6 +408,7 @@ manifest with descending (gitweb)
   </div>
   
   <div class="page_nav">
+  <div>
   <a href="/summary?style=gitweb">summary</a> |
   <a href="/shortlog?style=gitweb">shortlog</a> |
   <a href="/log?style=gitweb">changelog</a> |
@@ -418,7 +419,16 @@ manifest with descending (gitweb)
   files |
   <a href="/rev/tip?style=gitweb">changeset</a>  |
   <a href="/help?style=gitweb">help</a>
-  <br/>
+  </div>
+  
+  <div class="search">
+  <form id="searchform" action="/log">
+  <input type="hidden" name="style" value="gitweb" />
+  <input name="rev" type="text" value="" size="40" />
+  <div id="hint">Find changesets by keywords (author, files, the commit message), revision
+  number or hash, or <a href="/help/revsets">revset expression</a>.</div>
+  </form>
+  </div>
   </div>
   
   <div class="title">/ <span class="logtags"><span class="branchtag" title="default">default</span> <span class="tagtag" title="tip">tip</span> </span></div>
@@ -470,7 +480,6 @@ manifest with descending (gitweb)
   
   </table>
   
-  <script type="text/javascript">process_dates()</script>
   <div class="page_footer">
   <div class="page_footer_text">test</div>
   <div class="rss_logo">
@@ -486,7 +495,7 @@ manifest with descending (gitweb)
 
 manifest with descending (spartan)
 
-  $ get-with-headers.py 127.0.0.1:$HGPORT 'file?style=spartan'
+  $ get-with-headers.py $LOCALIP:$HGPORT 'file?style=spartan'
   200 Script output follows
   
   <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
@@ -551,7 +560,6 @@ manifest with descending (spartan)
   </a>
   
   </table>
-  <script type="text/javascript">process_dates()</script>
   
   <div class="logo">
   <a href="https://mercurial-scm.org/">

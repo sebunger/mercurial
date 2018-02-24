@@ -18,13 +18,13 @@ from mercurial.i18n import _
 
 from mercurial import (
     cmdutil,
-    commands,
     context,
     error,
     hg,
     lock,
     match as matchmod,
     node,
+    registrar,
     scmutil,
     util,
 )
@@ -44,7 +44,7 @@ release = lock.release
 # -- Commands ----------------------------------------------------------
 
 cmdtable = {}
-command = cmdutil.command(cmdtable)
+command = registrar.command(cmdtable)
 
 @command('lfconvert',
     [('s', 'size', '',
@@ -220,7 +220,8 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
                 normalfiles.add(f)
 
         if f in lfiles:
-            dstfiles.append(lfutil.standin(f))
+            fstandin = lfutil.standin(f)
+            dstfiles.append(fstandin)
             # largefile in manifest if it has not been removed/renamed
             if f in ctx.manifest():
                 fctx = ctx.filectx(f)
@@ -236,7 +237,7 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
                 if f not in lfiletohash or lfiletohash[f] != hash:
                     rdst.wwrite(f, ctx[f].data(), ctx[f].flags())
                     executable = 'x' in ctx[f].flags()
-                    lfutil.writestandin(rdst, lfutil.standin(f), hash,
+                    lfutil.writestandin(rdst, fstandin, hash,
                         executable)
                     lfiletohash[f] = hash
         else:
@@ -244,10 +245,10 @@ def _lfconvert_addchangeset(rsrc, rdst, ctx, revmap, lfiles, normalfiles,
             dstfiles.append(f)
 
     def getfilectx(repo, memctx, f):
-        if lfutil.isstandin(f):
+        srcfname = lfutil.splitstandin(f)
+        if srcfname is not None:
             # if the file isn't in the manifest then it was removed
-            # or renamed, raise IOError to indicate this
-            srcfname = lfutil.splitstandin(f)
+            # or renamed, return None to indicate this
             try:
                 fctx = ctx.filectx(srcfname)
             except error.LookupError:
@@ -402,9 +403,10 @@ def cachelfiles(ui, repo, node, filelist=None):
         lfiles = set(lfiles) & set(filelist)
     toget = []
 
+    ctx = repo[node]
     for lfile in lfiles:
         try:
-            expectedhash = repo[node][lfutil.standin(lfile)].data().strip()
+            expectedhash = lfutil.readasstandin(ctx[lfutil.standin(lfile)])
         except IOError as err:
             if err.errno == errno.ENOENT:
                 continue # node must be None and standin wasn't found in wctx
@@ -456,6 +458,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
         update = {}
         updated, removed = 0, 0
         wvfs = repo.wvfs
+        wctx = repo[None]
         for lfile in lfiles:
             rellfile = lfile
             rellfileorig = os.path.relpath(
@@ -471,9 +474,9 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
                     shutil.copyfile(wvfs.join(rellfile),
                                     wvfs.join(rellfileorig))
                     wvfs.unlinkpath(relstandinorig)
-                expecthash = lfutil.readstandin(repo, lfile)
+                expecthash = lfutil.readasstandin(wctx[relstandin])
                 if expecthash != '':
-                    if lfile not in repo[None]: # not switched to normal file
+                    if lfile not in wctx: # not switched to normal file
                         wvfs.unlinkpath(rellfile, ignoremissing=True)
                     # use normallookup() to allocate an entry in largefiles
                     # dirstate to prevent lfilesrepo.status() from reporting
@@ -486,7 +489,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
                 # largefile is converted back to a normal file: the standin
                 # disappears, but a new (normal) file appears as the lfile.
                 if (wvfs.exists(rellfile) and
-                    repo.dirstate.normalize(lfile) not in repo[None]):
+                    repo.dirstate.normalize(lfile) not in wctx):
                     wvfs.unlinkpath(rellfile)
                     removed += 1
 
@@ -510,18 +513,21 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
                 lfdirstate.normal(lfile)
                 update1 = 1
 
-            # copy the state of largefile standin from the repository's
+            # copy the exec mode of largefile standin from the repository's
             # dirstate to its state in the lfdirstate.
             rellfile = lfile
             relstandin = lfutil.standin(lfile)
             if wvfs.exists(relstandin):
+                # exec is decided by the users permissions using mask 0o100
                 standinexec = wvfs.stat(relstandin).st_mode & 0o100
-                st = wvfs.stat(rellfile).st_mode
-                if standinexec != st & 0o100:
-                    st &= ~0o111
+                st = wvfs.stat(rellfile)
+                mode = st.st_mode
+                if standinexec != mode & 0o100:
+                    # first remove all X bits, then shift all R bits to X
+                    mode &= ~0o111
                     if standinexec:
-                        st |= (st >> 2) & 0o111 & ~util.umask
-                    wvfs.chmod(rellfile, st)
+                        mode |= (mode >> 2) & 0o111 & ~util.umask
+                    wvfs.chmod(rellfile, mode)
                     update1 = 1
 
             updated += update1
@@ -535,7 +541,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=None,
 
 @command('lfpull',
     [('r', 'rev', [], _('pull largefiles for these revisions'))
-    ] + commands.remoteopts,
+    ] + cmdutil.remoteopts,
     _('-r REV... [-e CMD] [--remotecmd CMD] [SOURCE]'))
 def lfpull(ui, repo, source="default", **opts):
     """pull largefiles for the specified revisions from the specified source

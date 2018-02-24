@@ -67,12 +67,12 @@ change some files
 convert
   $ hg convert -s p4 $DEPOTPATH dst
   initializing destination dst repository
+  scanning source...
   reading p4 views
   collecting p4 changelists
   1 initial
   2 change a
   3 change b/c
-  scanning source...
   sorting...
   converting...
   2 initial
@@ -98,13 +98,10 @@ change some files
 
 convert again
   $ hg convert -s p4 $DEPOTPATH dst
+  scanning source...
   reading p4 views
   collecting p4 changelists
-  1 initial
-  2 change a
-  3 change b/c
   4 change a b/c
-  scanning source...
   sorting...
   converting...
   0 change a b/c
@@ -130,14 +127,10 @@ interesting names
 
 convert again
   $ hg convert -s p4 $DEPOTPATH dst
+  scanning source...
   reading p4 views
   collecting p4 changelists
-  1 initial
-  2 change a
-  3 change b/c
-  4 change a b/c
   5 add d e f
-  scanning source...
   sorting...
   converting...
   0 add d e f
@@ -147,6 +140,24 @@ convert again
   rev=2 desc="change b/c" tags="" files="b/c"
   rev=1 desc="change a" tags="" files="a"
   rev=0 desc="initial" tags="" files="a b/c"
+
+empty commit message
+  $ p4 edit a
+  //depot/test-mercurial-import/a#3 - opened for edit
+  $ echo aaaaa >> a
+  $ p4 submit -d ""
+  Submitting change 6.
+  Locking 1 files ...
+  edit //depot/test-mercurial-import/a#4
+  Change 6 submitted.
+  $ hg convert -s p4 $DEPOTPATH dst
+  scanning source...
+  reading p4 views
+  collecting p4 changelists
+  6 **empty changelist description**
+  sorting...
+  converting...
+  0 
 
 exit trap:
   stopping the p4 server

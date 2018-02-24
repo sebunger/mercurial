@@ -18,12 +18,11 @@ import zlib
 from .i18n import _
 
 from . import (
-    cmdutil,
-    encoding,
     error,
+    formatter,
     match as matchmod,
-    scmutil,
     util,
+    vfs as vfsmod,
 )
 stringio = util.stringio
 
@@ -80,30 +79,43 @@ def _rootctx(repo):
 def buildmetadata(ctx):
     '''build content of .hg_archival.txt'''
     repo = ctx.repo()
-    hex = ctx.hex()
+
+    default = (
+        r'repo: {root}\n'
+        r'node: {ifcontains(rev, revset("wdir()"),'
+                            r'"{p1node}{dirty}", "{node}")}\n'
+        r'branch: {branch|utf8}\n'
+
+        # {tags} on ctx includes local tags and 'tip', with no current way to
+        # limit that to global tags.  Therefore, use {latesttag} as a substitute
+        # when the distance is 0, since that will be the list of global tags on
+        # ctx.
+        r'{ifeq(latesttagdistance, 0, latesttag % "tag: {tag}\n",'
+                       r'"{latesttag % "latesttag: {tag}\n"}'
+                       r'latesttagdistance: {latesttagdistance}\n'
+                       r'changessincelatesttag: {changessincelatesttag}\n")}'
+    )
+
+    opts = {
+        'template': repo.ui.config('experimental', 'archivemetatemplate',
+                                   default)
+    }
+
+    out = util.stringio()
+
+    fm = formatter.formatter(repo.ui, out, 'archive', opts)
+    fm.startitem()
+    fm.context(ctx=ctx)
+    fm.data(root=_rootctx(repo).hex())
+
     if ctx.rev() is None:
-        hex = ctx.p1().hex()
-        if ctx.dirty():
-            hex += '+'
+        dirty = ''
+        if ctx.dirty(missing=True):
+            dirty = '+'
+        fm.data(dirty=dirty)
+    fm.end()
 
-    base = 'repo: %s\nnode: %s\nbranch: %s\n' % (
-        _rootctx(repo).hex(), hex, encoding.fromlocal(ctx.branch()))
-
-    tags = ''.join('tag: %s\n' % t for t in ctx.tags()
-                   if repo.tagtype(t) == 'global')
-    if not tags:
-        repo.ui.pushbuffer()
-        opts = {'template': '{latesttag}\n{latesttagdistance}\n'
-                            '{changessincelatesttag}',
-                'style': '', 'patch': None, 'git': None}
-        cmdutil.show_changeset(repo.ui, repo, opts).show(ctx)
-        ltags, dist, changessince = repo.ui.popbuffer().split('\n')
-        ltags = ltags.split(':')
-        tags = ''.join('latesttag: %s\n' % t for t in ltags)
-        tags += 'latesttagdistance: %s\n' % dist
-        tags += 'changessincelatesttag: %s\n' % changessince
-
-    return base + tags
+    return out.getvalue()
 
 class tarit(object):
     '''write archive to tar file or stream.  can write uncompressed,
@@ -141,7 +153,7 @@ class tarit(object):
         self.mtime = mtime
         self.fileobj = None
 
-        def taropen(name, mode, fileobj=None):
+        def taropen(mode, name='', fileobj=None):
             if kind == 'gz':
                 mode = mode[0]
                 if not fileobj:
@@ -155,10 +167,9 @@ class tarit(object):
                 return tarfile.open(name, mode + kind, fileobj)
 
         if isinstance(dest, str):
-            self.z = taropen(dest, mode='w:')
+            self.z = taropen('w:', name=dest)
         else:
-            # Python 2.5-2.5.1 have a regression that requires a name arg
-            self.z = taropen(name='', mode='w|', fileobj=dest)
+            self.z = taropen('w|', fileobj=dest)
 
     def addfile(self, name, mode, islink, data):
         i = tarfile.TarInfo(name)
@@ -250,7 +261,7 @@ class fileit(object):
 
     def __init__(self, name, mtime):
         self.basedir = name
-        self.opener = scmutil.opener(self.basedir)
+        self.opener = vfsmod.vfs(self.basedir)
 
     def addfile(self, name, mode, islink, data):
         if islink:
@@ -308,7 +319,7 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
     ctx = repo[node]
     archiver = archivers[kind](dest, mtime or ctx.date()[0])
 
-    if repo.ui.configbool("ui", "archivemeta", True):
+    if repo.ui.configbool("ui", "archivemeta"):
         name = '.hg_archival.txt'
         if not matchfn or matchfn(name):
             write(name, 0o644, False, lambda: buildmetadata(ctx))
@@ -332,7 +343,7 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
         for subpath in sorted(ctx.substate):
             sub = ctx.workingsub(subpath)
             submatch = matchmod.subdirmatcher(subpath, matchfn)
-            total += sub.archive(archiver, prefix, submatch)
+            total += sub.archive(archiver, prefix, submatch, decode)
 
     if total == 0:
         raise error.Abort(_('no files match the archive pattern'))

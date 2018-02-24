@@ -98,9 +98,10 @@ import re
 from mercurial.i18n import _
 from mercurial import (
     config,
-    error,
+    error as errormod,
     extensions,
     match,
+    pycompat,
     util,
 )
 
@@ -112,11 +113,6 @@ testedwith = 'ships-with-hg-core'
 
 # Matches a lone LF, i.e., one that is not part of CRLF.
 singlelf = re.compile('(^|[^\r])\n')
-# Matches a single EOL which can either be a CRLF where repeated CR
-# are removed or a LF. We do not care about old Macintosh files, so a
-# stray CR is an error.
-eolre = re.compile('\r*\n')
-
 
 def inconsistenteol(data):
     return '\r\n' in data and singlelf.search(data)
@@ -130,7 +126,7 @@ def tolf(s, params, ui, **kwargs):
     if (ui.configbool('eol', 'fix-trailing-newline', False)
         and s and s[-1] != '\n'):
         s = s + '\n'
-    return eolre.sub('\n', s)
+    return util.tolf(s)
 
 def tocrlf(s, params, ui, **kwargs):
     """Filter to convert to CRLF EOLs."""
@@ -141,7 +137,7 @@ def tocrlf(s, params, ui, **kwargs):
     if (ui.configbool('eol', 'fix-trailing-newline', False)
         and s and s[-1] != '\n'):
         s = s + '\n'
-    return eolre.sub('\r\n', s)
+    return util.tocrlf(s)
 
 def isbinary(s, params):
     """Filter to do nothing with the file."""
@@ -170,7 +166,7 @@ class eolfile(object):
 
         isrepolf = self.cfg.get('repository', 'native') != 'CRLF'
         self._encode['NATIVE'] = isrepolf and 'to-lf' or 'to-crlf'
-        iswdlf = ui.config('eol', 'native', os.linesep) in ('LF', '\n')
+        iswdlf = ui.config('eol', 'native', pycompat.oslinesep) in ('LF', '\n')
         self._decode['NATIVE'] = iswdlf and 'to-lf' or 'to-crlf'
 
         include = []
@@ -223,13 +219,13 @@ def parseeol(ui, repo, nodes):
                 if node is None:
                     # Cannot use workingctx.data() since it would load
                     # and cache the filters before we configure them.
-                    data = repo.wfile('.hgeol').read()
+                    data = repo.wvfs('.hgeol').read()
                 else:
                     data = repo[node]['.hgeol'].data()
                 return eolfile(ui, repo.root, data)
             except (IOError, LookupError):
                 pass
-    except error.ParseError as inst:
+    except errormod.ParseError as inst:
         ui.warn(_("warning: ignoring .hgeol file due to parse error "
                   "at %s: %s\n") % (inst.args[1], inst.args[0]))
     return None
@@ -258,7 +254,7 @@ def _checkhook(ui, repo, node, headsonly):
         for f, target, node in sorted(failed):
             msgs.append(_("  %s in %s should not have %s line endings") %
                         (f, node, eols[target]))
-        raise error.Abort(_("end-of-line check failed:\n") + "\n".join(msgs))
+        raise errormod.Abort(_("end-of-line check failed:\n") + "\n".join(msgs))
 
 def checkallhook(ui, repo, node, hooktype, **kwargs):
     """verify that files have expected EOLs"""
@@ -314,7 +310,7 @@ def reposetup(ui, repo):
 
             oldeol = None
             try:
-                cachemtime = os.path.getmtime(self.join("eol.cache"))
+                cachemtime = os.path.getmtime(self.vfs.join("eol.cache"))
             except OSError:
                 cachemtime = 0
             else:
@@ -360,7 +356,7 @@ def reposetup(ui, repo):
                     # Write the cache to update mtime and cache .hgeol
                     with self.vfs("eol.cache", "w") as f:
                         f.write(hgeoldata)
-                except error.LockUnavailable:
+                except errormod.LockUnavailable:
                     # If we cannot lock the repository and clear the
                     # dirstate, then a commit might not see all files
                     # as modified. But if we cannot lock the
@@ -371,7 +367,7 @@ def reposetup(ui, repo):
                     if wlock is not None:
                         wlock.release()
 
-        def commitctx(self, ctx, haserror=False):
+        def commitctx(self, ctx, error=False):
             for f in sorted(ctx.added() + ctx.modified()):
                 if not self._eolmatch(f):
                     continue
@@ -385,8 +381,8 @@ def reposetup(ui, repo):
                     # have all non-binary files taken care of.
                     continue
                 if inconsistenteol(data):
-                    raise error.Abort(_("inconsistent newline style "
-                                       "in %s\n") % f)
-            return super(eolrepo, self).commitctx(ctx, haserror)
+                    raise errormod.Abort(_("inconsistent newline style "
+                                           "in %s\n") % f)
+            return super(eolrepo, self).commitctx(ctx, error)
     repo.__class__ = eolrepo
     repo._hgcleardirstate()

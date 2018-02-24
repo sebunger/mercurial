@@ -30,6 +30,7 @@ build
 contrib/chg/chg
 contrib/hgsh/hgsh
 contrib/vagrant/.vagrant
+contrib/docker/debian-*
 contrib/docker/ubuntu-*
 dist
 packages
@@ -49,17 +50,13 @@ mercurial.egg-info
 tags
 cscope.*
 .idea/*
+.asv/*
 i18n/hg.pot
 locale/*/LC_MESSAGES/hg.mo
 hgext/__index__.py
 
-# files installed with a local --pure build
-mercurial/base85.py
-mercurial/bdiff.py
-mercurial/diffhelpers.py
-mercurial/mpatch.py
-mercurial/osutil.py
-mercurial/parsers.py
+# Generated wheels
+wheelhouse/
 
 syntax: regexp
 ^\.pc/

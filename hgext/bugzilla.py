@@ -15,14 +15,16 @@ the Mercurial template mechanism.
 The bug references can optionally include an update for Bugzilla of the
 hours spent working on the bug. Bugs can also be marked fixed.
 
-Three basic modes of access to Bugzilla are provided:
+Four basic modes of access to Bugzilla are provided:
 
-1. Access via the Bugzilla XMLRPC interface. Requires Bugzilla 3.4 or later.
+1. Access via the Bugzilla REST-API. Requires bugzilla 5.0 or later.
 
-2. Check data via the Bugzilla XMLRPC interface and submit bug change
+2. Access via the Bugzilla XMLRPC interface. Requires Bugzilla 3.4 or later.
+
+3. Check data via the Bugzilla XMLRPC interface and submit bug change
    via email to Bugzilla email interface. Requires Bugzilla 3.4 or later.
 
-3. Writing directly to the Bugzilla database. Only Bugzilla installations
+4. Writing directly to the Bugzilla database. Only Bugzilla installations
    using MySQL are supported. Requires Python MySQLdb.
 
 Writing directly to the database is susceptible to schema changes, and
@@ -50,11 +52,16 @@ user, the email associated with the Bugzilla username used to log into
 Bugzilla is used instead as the source of the comment. Marking bugs fixed
 works on all supported Bugzilla versions.
 
+Access via the REST-API needs either a Bugzilla username and password
+or an apikey specified in the configuration. Comments are made under
+the given username or the user associated with the apikey in Bugzilla.
+
 Configuration items common to all access modes:
 
 bugzilla.version
   The access type to use. Values recognized are:
 
+  :``restapi``:      Bugzilla REST-API, Bugzilla 5.0 and later.
   :``xmlrpc``:       Bugzilla XMLRPC interface.
   :``xmlrpc+email``: Bugzilla XMLRPC and email interfaces.
   :``3.0``:          MySQL access, Bugzilla 3.0 and later.
@@ -135,7 +142,7 @@ The ``[usermap]`` section is used to specify mappings of Mercurial
 committer email to Bugzilla user email. See also ``bugzilla.usermap``.
 Contains entries of the form ``committer = Bugzilla user``.
 
-XMLRPC access mode configuration:
+XMLRPC and REST-API access mode configuration:
 
 bugzilla.bzurl
   The base URL for the Bugzilla installation.
@@ -147,6 +154,13 @@ bugzilla.user
 
 bugzilla.password
   The password for Bugzilla login.
+
+REST-API access mode uses the options listed above as well as:
+
+bugzilla.apikey
+  An apikey generated on the Bugzilla instance for api access.
+  Using an apikey removes the need to store the user and password
+  options.
 
 XMLRPC+email access mode uses the XMLRPC access mode configuration items,
 and also:
@@ -279,6 +293,7 @@ All the above add a comment to the Bugzilla bug record of the form::
 
 from __future__ import absolute_import
 
+import json
 import re
 import time
 
@@ -286,12 +301,14 @@ from mercurial.i18n import _
 from mercurial.node import short
 from mercurial import (
     cmdutil,
+    configitems,
     error,
     mail,
+    registrar,
+    url,
     util,
 )
 
-urlparse = util.urlparse
 xmlrpclib = util.xmlrpclib
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
@@ -299,6 +316,75 @@ xmlrpclib = util.xmlrpclib
 # be specifying the version(s) of Mercurial they are tested with, or
 # leave the attribute unspecified.
 testedwith = 'ships-with-hg-core'
+
+configtable = {}
+configitem = registrar.configitem(configtable)
+
+configitem('bugzilla', 'apikey',
+    default='',
+)
+configitem('bugzilla', 'bzdir',
+    default='/var/www/html/bugzilla',
+)
+configitem('bugzilla', 'bzemail',
+    default=None,
+)
+configitem('bugzilla', 'bzurl',
+    default='http://localhost/bugzilla/',
+)
+configitem('bugzilla', 'bzuser',
+    default=None,
+)
+configitem('bugzilla', 'db',
+    default='bugs',
+)
+configitem('bugzilla', 'fixregexp',
+    default=(r'fix(?:es)?\s*(?:bugs?\s*)?,?\s*'
+             r'(?:nos?\.?|num(?:ber)?s?)?\s*'
+             r'(?P<ids>(?:#?\d+\s*(?:,?\s*(?:and)?)?\s*)+)'
+             r'\.?\s*(?:h(?:ours?)?\s*(?P<hours>\d*(?:\.\d+)?))?')
+)
+configitem('bugzilla', 'fixresolution',
+    default='FIXED',
+)
+configitem('bugzilla', 'fixstatus',
+    default='RESOLVED',
+)
+configitem('bugzilla', 'host',
+    default='localhost',
+)
+configitem('bugzilla', 'notify',
+    default=configitems.dynamicdefault,
+)
+configitem('bugzilla', 'password',
+    default=None,
+)
+configitem('bugzilla', 'regexp',
+    default=(r'bugs?\s*,?\s*(?:#|nos?\.?|num(?:ber)?s?)?\s*'
+             r'(?P<ids>(?:\d+\s*(?:,?\s*(?:and)?)?\s*)+)'
+             r'\.?\s*(?:h(?:ours?)?\s*(?P<hours>\d*(?:\.\d+)?))?')
+)
+configitem('bugzilla', 'strip',
+    default=0,
+)
+configitem('bugzilla', 'style',
+    default=None,
+)
+configitem('bugzilla', 'template',
+    default=None,
+)
+configitem('bugzilla', 'timeout',
+    default=5,
+)
+configitem('bugzilla', 'user',
+    default='bugs',
+)
+configitem('bugzilla', 'usermap',
+    default=None,
+)
+configitem('bugzilla', 'version',
+    default=None,
+)
 
 class bzaccess(object):
     '''Base class for access to Bugzilla.'''
@@ -374,11 +460,11 @@ class bzmysql(bzaccess):
 
         bzaccess.__init__(self, ui)
 
-        host = self.ui.config('bugzilla', 'host', 'localhost')
-        user = self.ui.config('bugzilla', 'user', 'bugs')
+        host = self.ui.config('bugzilla', 'host')
+        user = self.ui.config('bugzilla', 'user')
         passwd = self.ui.config('bugzilla', 'password')
-        db = self.ui.config('bugzilla', 'db', 'bugs')
-        timeout = int(self.ui.config('bugzilla', 'timeout', 5))
+        db = self.ui.config('bugzilla', 'db')
+        timeout = int(self.ui.config('bugzilla', 'timeout'))
         self.ui.note(_('connecting to %s:%s as %s, password %s\n') %
                      (host, db, user, '*' * len(passwd)))
         self.conn = bzmysql._MySQLdb.connect(host=host,
@@ -434,8 +520,7 @@ class bzmysql(bzaccess):
         for id in bugs.keys():
             self.ui.status(_('  bug %s\n') % id)
             cmdfmt = self.ui.config('bugzilla', 'notify', self.default_notify)
-            bzdir = self.ui.config('bugzilla', 'bzdir',
-                                   '/var/www/html/bugzilla')
+            bzdir = self.ui.config('bugzilla', 'bzdir')
             try:
                 # Backwards-compatible with old notify string, which
                 # took one string. This will throw with a new format
@@ -571,9 +656,9 @@ class cookietransportrequest(object):
         self.send_user_agent(h)
         self.send_content(h, request_body)
 
-        # Deal with differences between Python 2.4-2.6 and 2.7.
+        # Deal with differences between Python 2.6 and 2.7.
         # In the former h is a HTTP(S). In the latter it's a
-        # HTTP(S)Connection. Luckily, the 2.4-2.6 implementation of
+        # HTTP(S)Connection. Luckily, the 2.6 implementation of
         # HTTP(S) has an underlying HTTP(S)Connection, so extract
         # that and use it.
         try:
@@ -621,16 +706,14 @@ class bzxmlrpc(bzaccess):
     def __init__(self, ui):
         bzaccess.__init__(self, ui)
 
-        bzweb = self.ui.config('bugzilla', 'bzurl',
-                               'http://localhost/bugzilla/')
+        bzweb = self.ui.config('bugzilla', 'bzurl')
         bzweb = bzweb.rstrip("/") + "/xmlrpc.cgi"
 
-        user = self.ui.config('bugzilla', 'user', 'bugs')
+        user = self.ui.config('bugzilla', 'user')
         passwd = self.ui.config('bugzilla', 'password')
 
-        self.fixstatus = self.ui.config('bugzilla', 'fixstatus', 'RESOLVED')
-        self.fixresolution = self.ui.config('bugzilla', 'fixresolution',
-                                            'FIXED')
+        self.fixstatus = self.ui.config('bugzilla', 'fixstatus')
+        self.fixresolution = self.ui.config('bugzilla', 'fixresolution')
 
         self.bzproxy = xmlrpclib.ServerProxy(bzweb, self.transport(bzweb))
         ver = self.bzproxy.Bugzilla.version()['version'].split('.')
@@ -641,7 +724,7 @@ class bzxmlrpc(bzaccess):
         self.bztoken = login.get('token', '')
 
     def transport(self, uri):
-        if urlparse.urlparse(uri, "http")[0] == "https":
+        if util.urlreq.urlparse(uri, "http")[0] == "https":
             return cookiesafetransport()
         else:
             return cookietransport()
@@ -743,7 +826,7 @@ class bzxmlrpcemail(bzxmlrpc):
         matches = self.bzproxy.User.get({'match': [user],
                                          'token': self.bztoken})
         if not matches['users']:
-            user = self.ui.config('bugzilla', 'user', 'bugs')
+            user = self.ui.config('bugzilla', 'user')
             matches = self.bzproxy.User.get({'match': [user],
                                              'token': self.bztoken})
             if not matches['users']:
@@ -773,6 +856,134 @@ class bzxmlrpcemail(bzxmlrpc):
             cmds.append(self.makecommandline("resolution", self.fixresolution))
         self.send_bug_modify_email(bugid, cmds, text, committer)
 
+class NotFound(LookupError):
+    pass
+
+class bzrestapi(bzaccess):
+    """Read and write bugzilla data using the REST API available since
+    Bugzilla 5.0.
+    """
+    def __init__(self, ui):
+        bzaccess.__init__(self, ui)
+        bz = self.ui.config('bugzilla', 'bzurl')
+        self.bzroot = '/'.join([bz, 'rest'])
+        self.apikey = self.ui.config('bugzilla', 'apikey')
+        self.user = self.ui.config('bugzilla', 'user')
+        self.passwd = self.ui.config('bugzilla', 'password')
+        self.fixstatus = self.ui.config('bugzilla', 'fixstatus')
+        self.fixresolution = self.ui.config('bugzilla', 'fixresolution')
+
+    def apiurl(self, targets, include_fields=None):
+        url = '/'.join([self.bzroot] + [str(t) for t in targets])
+        qv = {}
+        if self.apikey:
+            qv['api_key'] = self.apikey
+        elif self.user and self.passwd:
+            qv['login'] = self.user
+            qv['password'] = self.passwd
+        if include_fields:
+            qv['include_fields'] = include_fields
+        if qv:
+            url = '%s?%s' % (url, util.urlreq.urlencode(qv))
+        return url
+
+    def _fetch(self, burl):
+        try:
+            resp = url.open(self.ui, burl)
+            return json.loads(resp.read())
+        except util.urlerr.httperror as inst:
+            if inst.code == 401:
+                raise error.Abort(_('authorization failed'))
+            if inst.code == 404:
+                raise NotFound()
+            else:
+                raise
+
+    def _submit(self, burl, data, method='POST'):
+        data = json.dumps(data)
+        if method == 'PUT':
+            class putrequest(util.urlreq.request):
+                def get_method(self):
+                    return 'PUT'
+            request_type = putrequest
+        else:
+            request_type = util.urlreq.request
+        req = request_type(burl, data,
+                           {'Content-Type': 'application/json'})
+        try:
+            resp = url.opener(self.ui).open(req)
+            return json.loads(resp.read())
+        except util.urlerr.httperror as inst:
+            if inst.code == 401:
+                raise error.Abort(_('authorization failed'))
+            if inst.code == 404:
+                raise NotFound()
+            else:
+                raise
+
+    def filter_real_bug_ids(self, bugs):
+        '''remove bug IDs that do not exist in Bugzilla from bugs.'''
+        badbugs = set()
+        for bugid in bugs:
+            burl = self.apiurl(('bug', bugid), include_fields='status')
+            try:
+                self._fetch(burl)
+            except NotFound:
+                badbugs.add(bugid)
+        for bugid in badbugs:
+            del bugs[bugid]
+
+    def filter_cset_known_bug_ids(self, node, bugs):
+        '''remove bug IDs where node occurs in comment text from bugs.'''
+        sn = short(node)
+        for bugid in bugs.keys():
+            burl = self.apiurl(('bug', bugid, 'comment'), include_fields='text')
+            result = self._fetch(burl)
+            comments = result['bugs'][str(bugid)]['comments']
+            if any(sn in c['text'] for c in comments):
+                self.ui.status(_('bug %d already knows about changeset %s\n') %
+                               (bugid, sn))
+                del bugs[bugid]
+
+    def updatebug(self, bugid, newstate, text, committer):
+        '''update the specified bug. Add comment text and set new states.
+
+        If possible add the comment as being from the committer of
+        the changeset. Otherwise use the default Bugzilla user.
+        '''
+        bugmod = {}
+        if 'hours' in newstate:
+            bugmod['work_time'] = newstate['hours']
+        if 'fix' in newstate:
+            bugmod['status'] = self.fixstatus
+            bugmod['resolution'] = self.fixresolution
+        if bugmod:
+            # if we have to change the bugs state do it here
+            bugmod['comment'] = {
+                'comment': text,
+                'is_private': False,
+                'is_markdown': False,
+            }
+            burl = self.apiurl(('bug', bugid))
+            self._submit(burl, bugmod, method='PUT')
+            self.ui.debug('updated bug %s\n' % bugid)
+        else:
+            burl = self.apiurl(('bug', bugid, 'comment'))
+            self._submit(burl, {
+                'comment': text,
+                'is_private': False,
+                'is_markdown': False,
+            })
+            self.ui.debug('added comment to bug %s\n' % bugid)
+
+    def notify(self, bugs, committer):
+        '''Force sending of Bugzilla notification emails.
+
+        Only required if the access method does not trigger notification
+        emails automatically.
+        '''
+        pass
+
 class bugzilla(object):
     # supported versions of bugzilla. different versions have
     # different schemas.
@@ -781,17 +992,9 @@ class bugzilla(object):
         '2.18': bzmysql_2_18,
         '3.0':  bzmysql_3_0,
         'xmlrpc': bzxmlrpc,
-        'xmlrpc+email': bzxmlrpcemail
+        'xmlrpc+email': bzxmlrpcemail,
+        'restapi': bzrestapi,
         }
-
-    _default_bug_re = (r'bugs?\s*,?\s*(?:#|nos?\.?|num(?:ber)?s?)?\s*'
-                       r'(?P<ids>(?:\d+\s*(?:,?\s*(?:and)?)?\s*)+)'
-                       r'\.?\s*(?:h(?:ours?)?\s*(?P<hours>\d*(?:\.\d+)?))?')
-
-    _default_fix_re = (r'fix(?:es)?\s*(?:bugs?\s*)?,?\s*'
-                       r'(?:nos?\.?|num(?:ber)?s?)?\s*'
-                       r'(?P<ids>(?:#?\d+\s*(?:,?\s*(?:and)?)?\s*)+)'
-                       r'\.?\s*(?:h(?:ours?)?\s*(?P<hours>\d*(?:\.\d+)?))?')
 
     def __init__(self, ui, repo):
         self.ui = ui
@@ -806,11 +1009,9 @@ class bugzilla(object):
         self.bzdriver = bzclass(self.ui)
 
         self.bug_re = re.compile(
-            self.ui.config('bugzilla', 'regexp',
-                           bugzilla._default_bug_re), re.IGNORECASE)
+            self.ui.config('bugzilla', 'regexp'), re.IGNORECASE)
         self.fix_re = re.compile(
-            self.ui.config('bugzilla', 'fixregexp',
-                           bugzilla._default_fix_re), re.IGNORECASE)
+            self.ui.config('bugzilla', 'fixregexp'), re.IGNORECASE)
         self.split_re = re.compile(r'\D+')
 
     def find_bugs(self, ctx):
@@ -877,7 +1078,7 @@ class bugzilla(object):
         def webroot(root):
             '''strip leading prefix of repo root and turn into
             url-safe path.'''
-            count = int(self.ui.config('bugzilla', 'strip', 0))
+            count = int(self.ui.config('bugzilla', 'strip'))
             root = util.pconvert(root)
             while count > 0:
                 c = root.find('/')
@@ -894,8 +1095,9 @@ class bugzilla(object):
         if not mapfile and not tmpl:
             tmpl = _('changeset {node|short} in repo {root} refers '
                      'to bug {bug}.\ndetails:\n\t{desc|tabindent}')
-        t = cmdutil.changeset_templater(self.ui, self.repo,
-                                        False, None, tmpl, mapfile, False)
+        spec = cmdutil.logtemplatespec(tmpl, mapfile)
+        t = cmdutil.changeset_templater(self.ui, self.repo, spec,
+                                        False, None, False)
         self.ui.pushbuffer()
         t.show(ctx, changes=ctx.changeset(),
                bug=str(bugid),

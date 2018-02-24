@@ -177,6 +177,7 @@ Graft out of order, skipping a merge and a duplicate
   b
   committing manifest
   committing changelog
+  updating the branch cache
   grafting 5:97f8bfe72746 "5"
     searching for copies back to rev 1
     unmatched files in other (from topological common ancestor):
@@ -186,11 +187,11 @@ Graft out of order, skipping a merge and a duplicate
    ancestor: 4c60f11aa304, local: 6b9e5368ca4e+, remote: 97f8bfe72746
    e: remote is newer -> g
   getting e
-   b: remote unchanged -> k
   committing files:
   e
   committing manifest
   committing changelog
+  updating the branch cache
   $ HGEDITOR=cat hg graft 4 3 --log --debug
   scanning for duplicate grafts
   grafting 4:9c233e8e184d "4"
@@ -203,7 +204,6 @@ Graft out of order, skipping a merge and a duplicate
    preserving e for resolve of e
    d: remote is newer -> g
   getting d
-   b: remote unchanged -> k
    e: versions differ -> m (premerge)
   picked tool ':merge' for e (binary False symlink False changedelete False)
   merging e
@@ -456,7 +456,7 @@ Resolve conflicted graft
   c
   =======
   b
-  >>>>>>> graft: 5d205f8b35b6  - bar: 1
+  >>>>>>> graft: 5d205f8b35b6 - bar: 1
   $ echo b > a
   $ hg resolve -m a
   (no more unresolved files)
@@ -582,8 +582,7 @@ The transplant case
   21: fbb6c5cc81002f2b4b49c9d731404688bcae5ade
   branch=dev
   convert_revision=7e61b508e709a11d28194a5359bc3532d910af21
-  transplant_source=z\xe8F\xe9\x11\x1f\xc8\xf5wEcBP\xc7\xb9\xac (esc)
-  `h\x9b (esc)
+  transplant_source=z\xe8F\xe9\x11\x1f\xc8\xf5wEcBP\xc7\xb9\xac\n`h\x9b
   $ hg -R ../converted log -r 'origin(tip)'
   changeset:   2:e0213322b2c1
   user:        test
@@ -1286,3 +1285,72 @@ Check superfluous filemerge of files renamed in the past but untouched by graft
   $ hg ci -qAmc
   $ hg up -q .~2
   $ hg graft tip -qt:fail
+
+  $ cd ..
+
+Graft a change into a new file previously grafted into a renamed directory
+
+  $ hg init dirmovenewfile
+  $ cd dirmovenewfile
+  $ mkdir a
+  $ echo a > a/a
+  $ hg ci -qAma
+  $ echo x > a/x
+  $ hg ci -qAmx
+  $ hg up -q 0
+  $ hg mv -q a b
+  $ hg ci -qAmb
+  $ hg graft -q 1 # a/x grafted as b/x, but no copy information recorded
+  $ hg up -q 1
+  $ echo y > a/x
+  $ hg ci -qAmy
+  $ hg up -q 3
+  $ hg graft -q 4
+  $ hg status --change .
+  M b/x
+
+Prepare for test of skipped changesets and how merges can influence it:
+
+  $ hg merge -q -r 1 --tool :local
+  $ hg ci -m m
+  $ echo xx >> b/x
+  $ hg ci -m xx
+
+  $ hg log -G -T '{rev} {desc|firstline}'
+  @  7 xx
+  |
+  o    6 m
+  |\
+  | o  5 y
+  | |
+  +---o  4 y
+  | |
+  | o  3 x
+  | |
+  | o  2 b
+  | |
+  o |  1 x
+  |/
+  o  0 a
+  
+Grafting of plain changes correctly detects that 3 and 5 should be skipped:
+
+  $ hg up -qCr 4
+  $ hg graft --tool :local -r 2::5
+  skipping already grafted revision 3:ca093ca2f1d9 (was grafted from 1:13ec5badbf2a)
+  skipping already grafted revision 5:43e9eb70dab0 (was grafted from 4:6c9a1289e5f1)
+  grafting 2:42127f193bcd "b"
+
+Extending the graft range to include a (skipped) merge of 3 will not prevent us from
+also detecting that both 3 and 5 should be skipped:
+
+  $ hg up -qCr 4
+  $ hg graft --tool :local -r 2::7
+  skipping ungraftable merge revision 6
+  skipping already grafted revision 3:ca093ca2f1d9 (was grafted from 1:13ec5badbf2a)
+  skipping already grafted revision 5:43e9eb70dab0 (was grafted from 4:6c9a1289e5f1)
+  grafting 2:42127f193bcd "b"
+  grafting 7:d3c3f2b38ecc "xx"
+  note: graft of 7:d3c3f2b38ecc created no changes to commit
+
+  $ cd ..

@@ -9,6 +9,9 @@ help record (no record)
   record extension - commands to interactively select changes for
   commit/qrefresh (DEPRECATED)
   
+  The feature provided by this extension has been moved into core Mercurial as
+  'hg commit --interactive'.
+  
   (use 'hg help extensions' for information on enabling extensions)
 
 help qrecord (no record)
@@ -36,9 +39,10 @@ help record (record)
   
       See 'hg help dates' for a list of formats valid for -d/--date.
   
-      You will be prompted for whether to record changes to each modified file,
-      and for files with multiple changes, for each change to use. For each
-      query, the following responses are possible:
+      If using the text interface (see 'hg help config'), you will be prompted
+      for whether to record changes to each modified file, and for files with
+      multiple changes, for each change to use. For each query, the following
+      responses are possible:
   
         y - record this change
         n - skip this change
@@ -234,6 +238,12 @@ qrecord with bad patch name, should abort before prompting
 
   $ hg qrecord .hg
   abort: patch name cannot begin with ".hg"
+  [255]
+  $ hg qrecord ' foo'
+  abort: patch name cannot begin or end with whitespace
+  [255]
+  $ hg qrecord 'foo '
+  abort: patch name cannot begin or end with whitespace
   [255]
 
 qrecord a.patch

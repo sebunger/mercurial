@@ -10,9 +10,10 @@ from __future__ import absolute_import
 import struct
 import zlib
 
-from .node import nullid
-from . import pycompat
+from ..node import nullid
+from .. import pycompat
 stringio = pycompat.stringio
+
 
 _pack = struct.pack
 _unpack = struct.unpack
@@ -34,7 +35,7 @@ def gettype(q):
     return int(q & 0xFFFF)
 
 def offset_type(offset, type):
-    return long(long(offset) << 16 | type)
+    return int(int(offset) << 16 | type)
 
 class BaseIndexObject(object):
     def __len__(self):

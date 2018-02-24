@@ -18,6 +18,7 @@ from .node import (
 from . import (
     error,
     revlog,
+    scmutil,
     util,
 )
 
@@ -32,30 +33,24 @@ def _normpath(f):
         f = f.replace('//', '/')
     return f
 
-def _validpath(repo, path):
-    """Returns False if a path should NOT be treated as part of a repo.
-
-    For all in-core cases, this returns True, as we have no way for a
-    path to be mentioned in the history but not actually be
-    relevant. For narrow clones, this is important because many
-    filelogs will be missing, and changelog entries may mention
-    modified files that are outside the narrow scope.
-    """
-    return True
-
 class verifier(object):
-    def __init__(self, repo):
+    # The match argument is always None in hg core, but e.g. the narrowhg
+    # extension will pass in a matcher here.
+    def __init__(self, repo, match=None):
         self.repo = repo.unfiltered()
         self.ui = repo.ui
+        self.match = match or scmutil.matchall(repo)
         self.badrevs = set()
         self.errors = 0
         self.warnings = 0
         self.havecl = len(repo.changelog) > 0
-        self.havemf = len(repo.manifest) > 0
+        self.havemf = len(repo.manifestlog._revlog) > 0
         self.revlogv1 = repo.changelog.version != revlog.REVLOGV0
         self.lrugetctx = util.lrucachefunc(repo.changectx)
         self.refersmf = False
         self.fncachewarned = False
+        # developer config: verify.skipflags
+        self.skipflags = repo.ui.configint('verify', 'skipflags')
 
     def warn(self, msg):
         self.ui.warn(msg + "\n")
@@ -170,6 +165,7 @@ class verifier(object):
     def _verifychangelog(self):
         ui = self.ui
         repo = self.repo
+        match = self.match
         cl = repo.changelog
 
         ui.status(_("checking changesets\n"))
@@ -189,7 +185,7 @@ class verifier(object):
                     mflinkrevs.setdefault(changes[0], []).append(i)
                     self.refersmf = True
                 for f in changes[3]:
-                    if _validpath(repo, f):
+                    if match(f):
                         filelinkrevs.setdefault(_normpath(f), []).append(i)
             except Exception as inst:
                 self.refersmf = True
@@ -201,7 +197,9 @@ class verifier(object):
                         progress=None):
         repo = self.repo
         ui = self.ui
-        mf = self.repo.manifest.dirlog(dir)
+        match = self.match
+        mfl = self.repo.manifestlog
+        mf = mfl._revlog.dirlog(dir)
 
         if not dir:
             self.ui.status(_("checking manifests\n"))
@@ -235,18 +233,21 @@ class verifier(object):
                 self.err(lr, _("%s not in changesets") % short(n), label)
 
             try:
-                for f, fn, fl in mf.readshallowdelta(n).iterentries():
+                mfdelta = mfl.get(dir, n).readdelta(shallow=True)
+                for f, fn, fl in mfdelta.iterentries():
                     if not f:
                         self.err(lr, _("entry without name in manifest"))
                     elif f == "/dev/null":  # ignore this in very old repos
                         continue
                     fullpath = dir + _normpath(f)
-                    if not _validpath(repo, fullpath):
-                        continue
                     if fl == 't':
+                        if not match.visitdir(fullpath):
+                            continue
                         subdirnodes.setdefault(fullpath + '/', {}).setdefault(
                             fn, []).append(lr)
                     else:
+                        if not match(fullpath):
+                            continue
                         filenodes.setdefault(fullpath, {}).setdefault(fn, lr)
             except Exception as inst:
                 self.exc(lr, _("reading delta %s") % short(n), inst, label)
@@ -380,17 +381,69 @@ class verifier(object):
                     else:
                         del filenodes[f][n]
 
-                # verify contents
+                # Verify contents. 4 cases to care about:
+                #
+                #   common: the most common case
+                #   rename: with a rename
+                #   meta: file content starts with b'\1\n', the metadata
+                #         header defined in filelog.py, but without a rename
+                #   ext: content stored externally
+                #
+                # More formally, their differences are shown below:
+                #
+                #                       | common | rename | meta  | ext
+                #  -------------------------------------------------------
+                #   flags()             | 0      | 0      | 0     | not 0
+                #   renamed()           | False  | True   | False | ?
+                #   rawtext[0:2]=='\1\n'| False  | True   | True  | ?
+                #
+                # "rawtext" means the raw text stored in revlog data, which
+                # could be retrieved by "revision(rev, raw=True)". "text"
+                # mentioned below is "revision(rev, raw=False)".
+                #
+                # There are 3 different lengths stored physically:
+                #  1. L1: rawsize, stored in revlog index
+                #  2. L2: len(rawtext), stored in revlog data
+                #  3. L3: len(text), stored in revlog data if flags==0, or
+                #     possibly somewhere else if flags!=0
+                #
+                # L1 should be equal to L2. L3 could be different from them.
+                # "text" may or may not affect commit hash depending on flag
+                # processors (see revlog.addflagprocessor).
+                #
+                #              | common  | rename | meta  | ext
+                # -------------------------------------------------
+                #    rawsize() | L1      | L1     | L1    | L1
+                #       size() | L1      | L2-LM  | L1(*) | L1 (?)
+                # len(rawtext) | L2      | L2     | L2    | L2
+                #    len(text) | L2      | L2     | L2    | L3
+                #  len(read()) | L2      | L2-LM  | L2-LM | L3 (?)
+                #
+                # LM:  length of metadata, depending on rawtext
+                # (*): not ideal, see comment in filelog.size
+                # (?): could be "- len(meta)" if the resolved content has
+                #      rename metadata
+                #
+                # Checks needed to be done:
+                #  1. length check: L1 == L2, in all cases.
+                #  2. hash check: depending on flag processor, we may need to
+                #     use either "text" (external), or "rawtext" (in revlog).
                 try:
-                    l = len(fl.read(n))
-                    rp = fl.renamed(n)
-                    if l != fl.size(i):
-                        if len(fl.revision(n)) != fl.size(i):
-                            self.err(lr, _("unpacked size is %s, %s expected") %
-                                     (l, fl.size(i)), f)
+                    skipflags = self.skipflags
+                    if skipflags:
+                        skipflags &= fl.flags(i)
+                    if not skipflags:
+                        fl.read(n) # side effect: read content and do checkhash
+                        rp = fl.renamed(n)
+                    # the "L1 == L2" check
+                    l1 = fl.rawsize(i)
+                    l2 = len(fl.revision(n, raw=True))
+                    if l1 != l2:
+                        self.err(lr, _("unpacked size is %s, %s expected") %
+                                 (l2, l1), f)
                 except error.CensoredNodeError:
                     # experimental config: censor.policy
-                    if ui.config("censor", "policy", "abort") == "abort":
+                    if ui.config("censor", "policy") == "abort":
                         self.err(lr, _("censored file data"), f)
                 except Exception as inst:
                     self.exc(lr, _("unpacking %s") % short(n), inst, f)
@@ -423,7 +476,7 @@ class verifier(object):
 
             # cross-check
             if f in filenodes:
-                fns = [(lr, n) for n, lr in filenodes[f].iteritems()]
+                fns = [(v, k) for k, v in filenodes[f].iteritems()]
                 for lr, node in sorted(fns):
                     self.err(lr, _("manifest refers to unknown revision %s") %
                              short(node), f)

@@ -113,7 +113,7 @@ annotateline = '
         <a href="{url|urlescape}rev/{node|short}{sessionvars%urlparameter}">changeset</a>
       </div>
     </td>
-    <td><pre><a class="linenr" href="#{lineid}">{linenumber}</a></pre></td>
+    <td class="followlines-btn-parent"><pre><a class="linenr" href="#{lineid}">{linenumber}</a></pre></td>
     <td><pre>{line|escape}</pre></td>
   </tr>'
 annotateparent = '
@@ -282,7 +282,7 @@ shortlogentry = '
     </td>
   </tr>'
 filelogentry = '
-  <tr class="parity{parity}">
+  <tr class="parity{if(patch, '1', '{parity}')}">
     <td class="age"><i class="age">{date|rfc822date}</i></td>
     <td><i>{author|person}</i></td>
     <td>
@@ -297,7 +297,8 @@ filelogentry = '
       <a href="{url|urlescape}annotate/{node|short}/{file|urlescape}{sessionvars%urlparameter}">annotate</a>
       {rename%filelogrename}
     </td>
-  </tr>'
+  </tr>
+  {if(patch, '<tr><td colspan="4">{diff}</td></tr>')}'
 archiveentry = ' | <a href="{url|urlescape}archive/{symrev}{extension}{ifeq(path,'/','',path|urlescape)}">{type|escape}</a> '
 indexentry = '
   <tr class="parity{parity}">
@@ -322,3 +323,14 @@ index = index.tmpl
 urlparameter = '{separator}{name}={value|urlescape}'
 hiddenformentry = '<input type="hidden" name="{name}" value="{value|escape}" />'
 breadcrumb = '&gt; <a href="{url|urlescape}">{name|escape}</a> '
+
+searchform = '
+  <div class="search">
+    <form id="searchform" action="{url|urlescape}log">
+      {sessionvars%hiddenformentry}
+      <input name="rev" type="text" value="{query|escape}" size="40" />
+      <div id="hint">{searchhint}</div>
+    </form>
+  </div>'
+searchhint = 'Find changesets by keywords (author, files, the commit message), revision
+  number or hash, or <a href="{url|urlescape}help/revsets">revset expression</a>.'

@@ -1,6 +1,7 @@
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > rebase=
+  > histedit=
   > 
   > [alias]
   > tglog = log -G --template "{rev}: '{desc}' {branches}\n"
@@ -54,7 +55,7 @@ Now b has one revision to be pulled from a:
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
   rebasing 2:ff8d69a621f9 "L1"
-  saved backup bundle to $TESTTMP/b/.hg/strip-backup/ff8d69a621f9-160fa373-backup.hg (glob)
+  saved backup bundle to $TESTTMP/b/.hg/strip-backup/ff8d69a621f9-160fa373-rebase.hg (glob)
 
   $ hg tglog
   @  3: 'L1'
@@ -72,6 +73,63 @@ Re-run:
   searching for changes
   no changes found
 
+Abort pull early if working dir is not clean:
+
+  $ echo L1-mod > L1
+  $ hg pull --rebase
+  abort: uncommitted changes
+  (cannot pull with rebase: please commit or shelve your changes first)
+  [255]
+  $ hg update --clean --quiet
+
+Abort pull early if another operation (histedit) is in progress:
+
+  $ hg histedit . -q --commands - << EOF
+  > edit d80cc2da061e histedit: generate unfinished state
+  > EOF
+  Editing (d80cc2da061e), you may commit or record as needed now.
+  (hg histedit --continue to resume)
+  [1]
+  $ hg pull --rebase
+  abort: histedit in progress
+  (use 'hg histedit --continue' or 'hg histedit --abort')
+  [255]
+  $ hg histedit --abort --quiet
+
+Abort pull early with pending uncommitted merge:
+
+  $ cd ..
+  $ hg clone --noupdate c d
+  $ cd d
+  $ hg tglog
+  o  1: 'C2'
+  |
+  o  0: 'C1'
+  
+  $ hg update --quiet 0
+  $ echo M1 > M1
+  $ hg commit --quiet -Am M1
+  $ hg update --quiet 1
+  $ hg merge 2
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg pull --rebase
+  abort: outstanding uncommitted merge
+  (cannot pull with rebase: please commit or shelve your changes first)
+  [255]
+  $ hg update --clean --quiet
+
+Abort pull early with unclean subrepo:
+  $ echo s = s > .hgsub
+  $ hg add .hgsub
+  $ hg init s
+  $ hg commit -m "generated a subrepo"
+  $ echo a > s/a
+  $ hg -R s add s/a
+  $ hg pull --rebase
+  abort: uncommitted changes in subrepository "s"
+  (cannot pull with rebase: please commit or shelve your changes first)
+  [255]
 
 Invoke pull --rebase and nothing to rebase:
 
@@ -153,7 +211,7 @@ pull --rebase works when a specific revision is pulled (issue3619)
   adding file changes
   added 2 changesets with 2 changes to 2 files
   rebasing 3:ff8d69a621f9 "L1"
-  saved backup bundle to $TESTTMP/c/.hg/strip-backup/ff8d69a621f9-160fa373-backup.hg (glob)
+  saved backup bundle to $TESTTMP/c/.hg/strip-backup/ff8d69a621f9-160fa373-rebase.hg (glob)
   $ hg tglog
   @  5: 'L1'
   |
@@ -195,7 +253,7 @@ pull --rebase works with bundle2 turned on
   adding file changes
   added 1 changesets with 1 changes to 1 files (+1 heads)
   rebasing 5:518d153c0ba3 "L1"
-  saved backup bundle to $TESTTMP/c/.hg/strip-backup/518d153c0ba3-73407f14-backup.hg (glob)
+  saved backup bundle to $TESTTMP/c/.hg/strip-backup/518d153c0ba3-73407f14-rebase.hg (glob)
   $ hg tglog
   @  6: 'L1'
   |
@@ -248,7 +306,7 @@ pull --rebase only update if there is nothing to rebase
   added 1 changesets with 1 changes to 1 files (+1 heads)
   rebasing 6:0d0727eb7ce0 "L1"
   rebasing 7:c1f58876e3bf "L2"
-  saved backup bundle to $TESTTMP/c/.hg/strip-backup/0d0727eb7ce0-ef61ccb2-backup.hg (glob)
+  saved backup bundle to $TESTTMP/c/.hg/strip-backup/0d0727eb7ce0-ef61ccb2-rebase.hg (glob)
   $ hg tglog
   o  8: 'L2'
   |
@@ -289,6 +347,7 @@ pull --rebase update (no rebase) use proper update:
   added 1 changesets with 1 changes to 1 files (+1 heads)
   nothing to rebase - updating instead
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  updated to "65bc164c1d9b: R6"
   1 other heads for branch "default"
   $ hg tglog
   @  9: 'R6'
@@ -363,7 +422,7 @@ The second local head should not confuse the `hg pull rebase`.
   added 1 changesets with 1 changes to 1 files (+1 heads)
   rebasing 7:864e0a2d2614 "L1"
   rebasing 8:6dc0ea5dcf55 "L2"
-  saved backup bundle to $TESTTMP/c/.hg/strip-backup/864e0a2d2614-2f72c89c-backup.hg (glob)
+  saved backup bundle to $TESTTMP/c/.hg/strip-backup/864e0a2d2614-2f72c89c-rebase.hg (glob)
   $ hg tglog
   @  12: 'L2'
   |
