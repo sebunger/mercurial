@@ -979,7 +979,7 @@ def walkchangerevs(repo, match, opts, prepare):
     wanted = set()
     slowpath = match.anypats() or (match.files() and opts.get('removed'))
     fncache = {}
-    change = util.cachefunc(repo.changectx)
+    change = repo.changectx
 
     # First step is to fill wanted, the set of revisions that we want to yield.
     # When it does not induce extra cost, we also fill fncache for revisions in
@@ -1024,8 +1024,15 @@ def walkchangerevs(repo, match, opts, prepare):
 
             return reversed(revs)
         def iterfiles():
+            pctx = repo['.']
             for filename in match.files():
-                yield filename, None
+                if follow:
+                    if filename not in pctx:
+                        raise util.Abort(_('cannot follow file not in parent '
+                                           'revision: "%s"') % filename)
+                    yield filename, pctx[filename].filenode()
+                else:
+                    yield filename, None
             for filename_node in copies:
                 yield filename_node
         for file_, node in iterfiles():
@@ -1224,8 +1231,8 @@ def forget(ui, repo, match, prefix, explicitonly):
             ui.status(_("skipping missing subrepository: %s\n")
                            % join(subpath))
 
-    for f in match.files():
-        if match.exact(f) or not explicitonly:
+    if not explicitonly:
+        for f in match.files():
             if f not in repo.dirstate and not os.path.isdir(match.rel(join(f))):
                 if f not in forgot:
                     if os.path.exists(match.rel(join(f))):

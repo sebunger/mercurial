@@ -1,9 +1,12 @@
   $ check_code="$TESTDIR"/../contrib/check-code.py
   $ cd "$TESTDIR"/..
+  $ if ! hg identify -q > /dev/null; then
+  >     echo "skipped: not a Mercurial working dir" >&2
+  >     exit 80
+  > fi
+  $ hg manifest | xargs "$check_code" || echo 'FAILURE IS NOT AN OPTION!!!'
 
-  $ "$check_code" `hg manifest` || echo 'FAILURE IS NOT AN OPTION!!!'
-
-  $ "$check_code" --warnings --nolineno --per-file=0 `hg manifest`
+  $ hg manifest | xargs "$check_code" --warnings --nolineno --per-file=0 || true
   contrib/check-code.py:0:
    > #    (r'^\s+[^_ \n][^_. \n]+_[^_\n]+\s*=', "don't use underbars in identifiers"),
    warning: line over 80 characters
@@ -657,4 +660,3 @@
   tests/test-walkrepo.py:0:
    >         print "Found %d repositories when I should have found 3" % (len(reposet),)
    warning: line over 80 characters
-  [1]

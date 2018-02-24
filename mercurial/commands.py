@@ -2601,7 +2601,7 @@ def graft(ui, repo, *revs, **opts):
             repo.dirstate.setparents(current.node(), nullid)
             repo.dirstate.write()
             # fix up dirstate for copies and renames
-            cmdutil.duplicatecopies(repo, ctx.rev(), current.node())
+            cmdutil.duplicatecopies(repo, ctx.rev(), ctx.p1().rev())
             # report any conflicts
             if stats and stats[3] > 0:
                 # write out state for --continue
@@ -3849,9 +3849,11 @@ def log(ui, repo, *pats, **opts):
     limit = cmdutil.loglimit(opts)
     count = 0
 
-    endrev = None
-    if opts.get('copies') and opts.get('rev'):
-        endrev = max(scmutil.revrange(repo, opts.get('rev'))) + 1
+    getrenamed, endrev = None, None
+    if opts.get('copies'):
+        if opts.get('rev'):
+            endrev = max(scmutil.revrange(repo, opts.get('rev'))) + 1
+        getrenamed = templatekw.getrenamedfn(repo, endrev=endrev)
 
     df = False
     if opts["date"]:
@@ -3895,9 +3897,8 @@ def log(ui, repo, *pats, **opts):
                 return
 
         copies = None
-        if opts.get('copies') and rev:
+        if getrenamed is not None and rev:
             copies = []
-            getrenamed = templatekw.getrenamedfn(repo, endrev=endrev)
             for fn in ctx.files():
                 rename = getrenamed(fn, rev)
                 if rename:
@@ -4261,7 +4262,7 @@ def phase(ui, repo, *revs, **opts):
 
 def postincoming(ui, repo, modheads, optupdate, checkout):
     if modheads == 0:
-        return 1
+        return
     if optupdate:
         movemarkfrom = repo['.'].node()
         try:
@@ -4312,8 +4313,7 @@ def pull(ui, repo, source="default", **opts):
     If SOURCE is omitted, the 'default' path will be used.
     See :hg:`help urls` for more information.
 
-    Returns 0 on success, 1 if no changes found or an update had
-    unresolved files.
+    Returns 0 on success, 1 if an update had unresolved files.
     """
     source, branches = hg.parseurl(ui.expandpath(source), opts.get('branch'))
     other = hg.peer(repo, opts, source)
@@ -5701,7 +5701,7 @@ def update(ui, repo, node=None, rev=None, clean=False, date=None, check=False):
 
     # with no argument, we also move the current bookmark, if any
     movemarkfrom = None
-    if node is None or node == '':
+    if rev is None or node == '':
         movemarkfrom = repo['.'].node()
 
     # if we defined a bookmark, we have to remember the original bookmark name
@@ -5732,6 +5732,8 @@ def update(ui, repo, node=None, rev=None, clean=False, date=None, check=False):
             ui.status(_("updating bookmark %s\n") % repo._bookmarkcurrent)
     elif brev in repo._bookmarks:
         bookmarks.setcurrent(repo, brev)
+    elif brev:
+        bookmarks.unsetcurrent(repo)
 
     return ret
 

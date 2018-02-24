@@ -13,7 +13,6 @@ import errno
 import platform
 import shutil
 import stat
-import tempfile
 
 from mercurial import dirstate, httpconnection, match as match_, util, scmutil
 from mercurial.i18n import _
@@ -237,11 +236,11 @@ def copytostoreabsolute(repo, file, hash):
     if inusercache(repo.ui, hash):
         link(usercachepath(repo.ui, hash), storepath(repo, hash))
     else:
-        dst = util.atomictempfile(storepath(repo, hash))
+        dst = util.atomictempfile(storepath(repo, hash),
+                                  createmode=repo.store.createmode)
         for chunk in util.filechunkiter(open(file, 'rb')):
             dst.write(chunk)
         dst.close()
-        util.copymode(file, storepath(repo, hash))
         linktousercache(repo, hash)
 
 def linktousercache(repo, hash):
@@ -303,7 +302,7 @@ def standin(filename):
     # 2) Join with '/' because that's what dirstate always uses, even on
     #    Windows. Change existing separator to '/' first in case we are
     #    passed filenames from an external source (like the command line).
-    return shortname + '/' + filename.replace(os.sep, '/')
+    return shortname + '/' + util.pconvert(filename)
 
 def isstandin(filename):
     '''Return true if filename is a big file standin. filename must be
@@ -314,7 +313,7 @@ def splitstandin(filename):
     # Split on / because that's what dirstate always uses, even on Windows.
     # Change local separator to / first just in case we are passed filenames
     # from an external source (like the command line).
-    bits = filename.replace(os.sep, '/').split('/', 1)
+    bits = util.pconvert(filename).split('/', 1)
     if len(bits) == 2 and bits[0] == shortname:
         return bits[1]
     else:
@@ -433,19 +432,20 @@ def httpsendfile(ui, filename):
 
 def unixpath(path):
     '''Return a version of path normalized for use with the lfdirstate.'''
-    return os.path.normpath(path).replace(os.sep, '/')
+    return util.pconvert(os.path.normpath(path))
 
 def islfilesrepo(repo):
     return ('largefiles' in repo.requirements and
             util.any(shortname + '/' in f[0] for f in repo.store.datafiles()))
 
-def mkstemp(repo, prefix):
-    '''Returns a file descriptor and a filename corresponding to a temporary
-    file in the repo's largefiles store.'''
-    path = repo.join(longname)
-    util.makedirs(path)
-    return tempfile.mkstemp(prefix=prefix, dir=path)
-
 class storeprotonotcapable(Exception):
     def __init__(self, storetypes):
         self.storetypes = storetypes
+
+def getcurrentheads(repo):
+    branches = repo.branchmap()
+    heads = []
+    for branch in branches:
+        newheads = repo.branchheads(branch)
+        heads = heads + newheads
+    return heads

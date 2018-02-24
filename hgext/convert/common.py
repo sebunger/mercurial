@@ -245,6 +245,10 @@ class converter_sink(object):
         """
         pass
 
+    def hascommit(self, rev):
+        """Return True if the sink contains rev"""
+        raise NotImplementedError()
+
 class commandline(object):
     def __init__(self, ui, command):
         self.ui = ui
@@ -381,8 +385,12 @@ class mapfile(dict):
                 raise
             return
         for i, line in enumerate(fp):
+            line = line.splitlines()[0].rstrip()
+            if not line:
+                # Ignore blank lines
+                continue
             try:
-                key, value = line.splitlines()[0].rstrip().rsplit(' ', 1)
+                key, value = line.rsplit(' ', 1)
             except ValueError:
                 raise util.Abort(
                     _('syntax error in %s(%d): key/value pair expected')
@@ -407,3 +415,29 @@ class mapfile(dict):
         if self.fp:
             self.fp.close()
             self.fp = None
+
+def parsesplicemap(path):
+    """Parse a splicemap, return a child/parents dictionary."""
+    m = {}
+    try:
+        fp = open(path, 'r')
+        for i, line in enumerate(fp):
+            line = line.splitlines()[0].rstrip()
+            if not line:
+                # Ignore blank lines
+                continue
+            try:
+                child, parents = line.split(' ', 1)
+                parents = parents.replace(',', ' ').split()
+            except ValueError:
+                raise util.Abort(_('syntax error in %s(%d): child parent1'
+                                   '[,parent2] expected') % (path, i + 1))
+            pp = []
+            for p in parents:
+                if p not in pp:
+                    pp.append(p)
+            m[child] = pp
+    except IOError, e:
+        if e.errno != errno.ENOENT:
+            raise
+    return m
