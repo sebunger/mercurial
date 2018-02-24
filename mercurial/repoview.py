@@ -41,7 +41,8 @@ def _gethiddenblockers(repo):
         tags = {}
         tagsmod.readlocaltags(repo.ui, repo, tags, {})
         if tags:
-            blockers.extend(cl.rev(t[0]) for t in tags.values())
+            rev, nodemap = cl.rev, cl.nodemap
+            blockers.extend(rev(t[0]) for t in tags.values() if t[0] in nodemap)
     return blockers
 
 def computehidden(repo):
@@ -188,7 +189,7 @@ class repoview(object):
             # without change in the cachekey.
             oldfilter = cl.filteredrevs
             try:
-                cl.filterrevs = ()  # disable filtering for tip
+                cl.filteredrevs = ()  # disable filtering for tip
                 curkey = (len(cl), cl.tip(), hash(oldfilter))
             finally:
                 cl.filteredrevs = oldfilter

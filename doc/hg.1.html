@@ -622,8 +622,8 @@ hg bookmarks [OPTIONS]... [NAME]...
 Bookmarks are unversioned and can be moved, renamed and deleted.
 Deleting or moving a bookmark has no effect on the associated changesets.</p>
 <p>Creating or updating to a bookmark causes it to be marked as 'active'.
-Active bookmarks are indicated with a '*'.
-When a commit is made, an active bookmark will advance to the new commit.
+The active bookmark is indicated with a '*'.
+When a commit is made, the active bookmark will advance to the new commit.
 A plain <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> will also advance an active bookmark, if possible.
 Updating away from a bookmark will cause it to be deactivated.</p>
 <p>Bookmarks can be pushed and pulled between repositories (see
@@ -1114,7 +1114,7 @@ repository-level config file.</p>
 <p>With --debug, the source (filename and line number) is printed
 for each config item.</p>
 <p>See <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a> for more information about config files.</p>
-<p>Returns 0 on success.</p>
+<p>Returns 0 on success, 1 if NAME does not exist.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -5346,6 +5346,7 @@ address.</td>
 <li>ifeq(expr, expr, then[, else])</li>
 <li>join(list, sep)</li>
 <li>label(label, expr)</li>
+<li>pad(text, width[, fillchar, right])</li>
 <li>revset(query[, formatargs])</li>
 <li>rstdoc(text, style)</li>
 <li>shortest(node)</li>

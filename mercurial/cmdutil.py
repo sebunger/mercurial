@@ -628,6 +628,9 @@ def tryimportone(ui, repo, hunk, parents, opts, msgs, updatefunc):
                     p2 = repo[nullid]
             except error.RepoError:
                 p1, p2 = parents
+            if p2.node() == nullid:
+                ui.warn(_("warning: import the patch as a normal revision\n"
+                          "(use --exact to import the patch as a merge)\n"))
         else:
             p1, p2 = parents
 
@@ -879,9 +882,10 @@ class changeset_printer(object):
             self.ui.write(_("phase:       %s\n") % _(ctx.phasestr()),
                           label='log.phase')
         for parent in parents:
+            label = 'log.parent changeset.%s' % self.repo[parent[0]].phasestr()
             # i18n: column positioning for "hg log"
             self.ui.write(_("parent:      %d:%s\n") % parent,
-                          label='log.parent changeset.%s' % ctx.phasestr())
+                          label=label)
 
         if self.ui.debugflag:
             mnode = ctx.manifestnode()
@@ -1492,7 +1496,7 @@ def walkchangerevs(repo, match, opts, prepare):
 
     return iterate()
 
-def _makelogfilematcher(repo, files, followfirst):
+def _makefollowlogfilematcher(repo, files, followfirst):
     # When displaying a revision with --patch --follow FILE, we have
     # to know which file of the revision must be diffed. With
     # --follow, we want the names of the ancestors of FILE in the
@@ -1518,6 +1522,10 @@ def _makelogfilematcher(repo, files, followfirst):
         return scmutil.matchfiles(repo, fcache.get(rev, []))
 
     return filematcher
+
+def _makenofollowlogfilematcher(repo, pats, opts):
+    '''hook for extensions to override the filematcher for non-follow cases'''
+    return None
 
 def _makelogrevset(repo, pats, opts, revs):
     """Return (expr, filematcher) where expr is a revset string built
@@ -1632,9 +1640,12 @@ def _makelogrevset(repo, pats, opts, revs):
         if follow and not match.always():
             # _makelogfilematcher expects its files argument to be relative to
             # the repo root, so use match.files(), not pats.
-            filematcher = _makelogfilematcher(repo, match.files(), followfirst)
+            filematcher = _makefollowlogfilematcher(repo, match.files(),
+                                                    followfirst)
         else:
-            filematcher = lambda rev: match
+            filematcher = _makenofollowlogfilematcher(repo, pats, opts)
+            if filematcher is None:
+                filematcher = lambda rev: match
 
     expr = []
     for op, val in opts.iteritems():

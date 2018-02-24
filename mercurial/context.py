@@ -553,6 +553,8 @@ class changectx(basectx):
             anc = cahs[0]
         else:
             for r in self._repo.ui.configlist('merge', 'preferancestor'):
+                if r == '*':
+                    continue
                 ctx = changectx(self._repo, r)
                 anc = ctx.node()
                 if anc in cahs:
@@ -1341,8 +1343,10 @@ class workingctx(committablectx):
             try:
                 # updating the dirstate is optional
                 # so we don't wait on the lock
-                normal = self._repo.dirstate.normal
+                # wlock can invalidate the dirstate, so cache normal _after_
+                # taking the lock
                 wlock = self._repo.wlock(False)
+                normal = self._repo.dirstate.normal
                 try:
                     for f in fixup:
                         normal(f)

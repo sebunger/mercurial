@@ -818,8 +818,8 @@ def bookmark(ui, repo, *names, **opts):
     Deleting or moving a bookmark has no effect on the associated changesets.
 
     Creating or updating to a bookmark causes it to be marked as 'active'.
-    Active bookmarks are indicated with a '*'.
-    When a commit is made, an active bookmark will advance to the new commit.
+    The active bookmark is indicated with a '*'.
+    When a commit is made, the active bookmark will advance to the new commit.
     A plain :hg:`update` will also advance an active bookmark, if possible.
     Updating away from a bookmark will cause it to be deactivated.
 
@@ -1498,7 +1498,7 @@ def config(ui, repo, *values, **opts):
 
     See :hg:`help config` for more information about config files.
 
-    Returns 0 on success.
+    Returns 0 on success, 1 if NAME does not exist.
 
     """
 
@@ -1551,6 +1551,7 @@ def config(ui, repo, *values, **opts):
         items = [v for v in values if '.' in v]
         if len(items) > 1 or items and sections:
             raise util.Abort(_('only one config item permitted'))
+    matched = False
     for section, name, value in ui.walkconfig(untrusted=untrusted):
         value = str(value).replace('\n', '\\n')
         sectname = section + '.' + name
@@ -1560,14 +1561,20 @@ def config(ui, repo, *values, **opts):
                     ui.debug('%s: ' %
                              ui.configsource(section, name, untrusted))
                     ui.write('%s=%s\n' % (sectname, value))
+                    matched = True
                 elif v == sectname:
                     ui.debug('%s: ' %
                              ui.configsource(section, name, untrusted))
                     ui.write(value, '\n')
+                    matched = True
         else:
             ui.debug('%s: ' %
                      ui.configsource(section, name, untrusted))
             ui.write('%s=%s\n' % (sectname, value))
+            matched = True
+    if matched:
+        return 0
+    return 1
 
 @command('copy|cp',
     [('A', 'after', None, _('record a copy that has already occurred')),
@@ -2338,9 +2345,12 @@ def debugobsolete(ui, repo, precursor=None, *successors, **opts):
         try:
             tr = repo.transaction('debugobsolete')
             try:
-                repo.obsstore.create(tr, parsenodeid(precursor), succs,
-                                     opts['flags'], metadata)
-                tr.close()
+                try:
+                    repo.obsstore.create(tr, parsenodeid(precursor), succs,
+                                         opts['flags'], metadata)
+                    tr.close()
+                except ValueError, exc:
+                    raise util.Abort(_('bad obsmarker input: %s') % exc)
             finally:
                 tr.release()
         finally:
@@ -3180,14 +3190,23 @@ def graft(ui, repo, *revs, **opts):
         ctx = repo[rev]
         n = ctx.extra().get('source')
         if n in ids:
-            r = repo[n].rev()
+            try:
+                r = repo[n].rev()
+            except error.RepoLookupError:
+                r = None
             if r in revs:
                 ui.warn(_('skipping revision %s (already grafted to %s)\n')
                         % (r, rev))
                 revs.remove(r)
             elif ids[n] in revs:
-                ui.warn(_('skipping already grafted revision %s '
-                            '(%s also has origin %d)\n') % (ids[n], rev, r))
+                if r is None:
+                    ui.warn(_('skipping already grafted revision %s '
+                              '(%s also has unknown origin %s)\n')
+                            % (ids[n], rev, n))
+                else:
+                    ui.warn(_('skipping already grafted revision %s '
+                              '(%s also has origin %d)\n')
+                            % (ids[n], rev, r))
                 revs.remove(ids[n])
         elif ctx.hex() in ids:
             r = ids[ctx.hex()]
@@ -5869,7 +5888,6 @@ def unbundle(ui, repo, fname1, *fnames, **opts):
     fnames = (fname1,) + fnames
 
     lock = repo.lock()
-    wc = repo['.']
     try:
         for fname in fnames:
             f = hg.openpath(ui, fname)
@@ -5878,7 +5896,7 @@ def unbundle(ui, repo, fname1, *fnames, **opts):
                                                   'bundle:' + fname)
     finally:
         lock.release()
-    bookmarks.updatecurrentbookmark(repo, wc.node(), wc.branch())
+
     return postincoming(ui, repo, modheads, opts.get('update'), None)
 
 @command('^update|up|checkout|co',

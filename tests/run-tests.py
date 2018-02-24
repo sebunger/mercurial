@@ -1081,6 +1081,7 @@ class TestResult(unittest._TextTestResult):
     def addFailure(self, test, reason):
         self.failures.append((test, reason))
 
+        iolock.acquire()
         if self._options.first:
             self.stop()
         else:
@@ -1088,6 +1089,8 @@ class TestResult(unittest._TextTestResult):
                 self.stream.write('\nERROR: %s output changed\n' % test)
 
             self.stream.write('!')
+            self.stream.flush()
+        iolock.release()
 
     def addError(self, *args, **kwargs):
         super(TestResult, self).addError(*args, **kwargs)
@@ -1701,7 +1704,7 @@ class TestRunner(object):
         else:
             f = open(installerrs, 'rb')
             for line in f:
-                print line,
+                print line
             f.close()
             sys.exit(1)
         os.chdir(self._testdir)
@@ -1820,4 +1823,13 @@ class TestRunner(object):
 
 if __name__ == '__main__':
     runner = TestRunner()
+
+    try:
+        import msvcrt
+        msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+        msvcrt.setmode(sys.stderr.fileno(), os.O_BINARY)
+    except ImportError:
+        pass
+
     sys.exit(runner.run(sys.argv[1:]))

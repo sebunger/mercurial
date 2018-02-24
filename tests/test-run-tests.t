@@ -29,8 +29,8 @@ failing test
 
   $ $TESTDIR/run-tests.py --with-hg=`which hg`
   
-  --- $TESTTMP/test-failure.t
-  +++ $TESTTMP/test-failure.t.err
+  --- $TESTTMP/test-failure.t (glob)
+  +++ $TESTTMP/test-failure.t.err (glob)
   @@ -1,2 +1,2 @@
      $ echo babar
   -  rataxes
@@ -48,8 +48,8 @@ test for --retest
 
   $ $TESTDIR/run-tests.py --with-hg=`which hg` --retest
   
-  --- $TESTTMP/test-failure.t
-  +++ $TESTTMP/test-failure.t.err
+  --- $TESTTMP/test-failure.t (glob)
+  +++ $TESTTMP/test-failure.t.err (glob)
   @@ -1,2 +1,2 @@
      $ echo babar
   -  rataxes
@@ -75,8 +75,8 @@ failed
 
   $ $TESTDIR/run-tests.py --with-hg=`which hg` test-failure.t
   
-  --- $TESTTMP/test-failure.t
-  +++ $TESTTMP/test-failure.t.err
+  --- $TESTTMP/test-failure.t (glob)
+  +++ $TESTTMP/test-failure.t.err (glob)
   @@ -1,2 +1,2 @@
      $ echo babar
   -  rataxes
@@ -92,7 +92,7 @@ failed
 Running In Debug Mode
 ======================
 
-  $ $TESTDIR/run-tests.py --with-hg=`which hg` --debug
+  $ $TESTDIR/run-tests.py --with-hg=`which hg` --debug 2>&1 | grep -v pwd
   + echo SALT* 0 0 (glob)
   SALT* 0 0 (glob)
   + echo babar
