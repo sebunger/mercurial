@@ -3,7 +3,7 @@
 # Copyright 2006, 2007 Brendan Cully <brendan@kublai.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''command to transplant changesets from another branch
 
@@ -227,8 +227,6 @@ class transplanter(object):
                 finally:
                     files = patch.updatedir(self.ui, repo, files)
             except Exception, inst:
-                if filter:
-                    os.unlink(patchfile)
                 seriespath = os.path.join(self.path, 'series')
                 if os.path.exists(seriespath):
                     os.unlink(seriespath)

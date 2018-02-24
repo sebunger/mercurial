@@ -3,7 +3,7 @@
 # Copyright 2006, 2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''
 demandimport - automatic demandloading of modules
@@ -120,6 +120,7 @@ ignore = [
     '_xmlplus',
     'fcntl',
     'win32com.gen_py',
+    '_winreg', # 2.7 mimetypes needs immediate ImportError
     'pythoncom',
     # imported by tarfile, not available under Windows
     'pwd',

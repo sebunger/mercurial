@@ -3,7 +3,7 @@
 # Copyright 2007 Joel Rosdahl <joel@rosdahl.net>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 '''command to view revision graphs from a shell
 
@@ -218,7 +218,8 @@ def check_unsupported_flags(opts):
                "only_merges", "user", "only_branch", "prune", "newest_first",
                "no_merges", "include", "exclude"]:
         if op in opts and opts[op]:
-            raise util.Abort(_("--graph option is incompatible with --%s") % op)
+            raise util.Abort(_("--graph option is incompatible with --%s")
+                             % op.replace("_", "-"))
 
 def generate(ui, dag, displayer, showparents, edgefn):
     seen, state = [], asciistate()
@@ -241,15 +242,15 @@ def graphlog(ui, repo, path=None, **opts):
     check_unsupported_flags(opts)
     limit = cmdutil.loglimit(opts)
     start, stop = get_revs(repo, opts["rev"])
-    stop = max(stop, start - limit + 1)
     if start == nullrev:
         return
 
     if path:
         path = util.canonpath(repo.root, os.getcwd(), path)
     if path: # could be reset in canonpath
-        revdag = graphmod.filerevs(repo, path, start, stop)
+        revdag = graphmod.filerevs(repo, path, start, stop, limit)
     else:
+        stop = max(stop, start - limit + 1)
         revdag = graphmod.revisions(repo, start, stop)
 
     displayer = show_changeset(ui, repo, opts, buffered=True)

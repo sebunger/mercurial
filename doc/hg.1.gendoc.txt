@@ -908,7 +908,7 @@ Commands
 
     options:
 
-    -u, --update  update to new tip if changesets were pulled
+    -u, --update  update to new branch head if changesets were pulled
     -f, --force   run even when remote repository is unrelated
     -r, --rev     a specific remote revision up to which you would like to pull
     -e, --ssh     specify ssh command to use
@@ -1019,7 +1019,7 @@ Commands
     will be overwritten if the merge is retried with resolve. The
     -m/--mark switch should be used to mark the file as resolved.
 
-    You can specify a set of files to operate on, or use the -a/-all
+    You can specify a set of files to operate on, or use the -a/--all
     switch to select all unresolved files.
 
     This command also allows listing resolved files and manually
@@ -1293,7 +1293,7 @@ Commands
 
     options:
 
-    -u, --update  update to new tip if changesets were unbundled
+    -u, --update  update to new branch head if changesets were unbundled
 
 .. _update:
 
@@ -1884,9 +1884,9 @@ scope, prepend its path with !::
 
   [extensions]
   # disabling extension bar residing in /path/to/extension/bar.py
-  hgext.bar = !/path/to/extension/bar.py
+  bar = !/path/to/extension/bar.py
   # ditto, but no path was supplied for extension baz
-  hgext.baz = !
+  baz = !
 
 disabled extensions:
 

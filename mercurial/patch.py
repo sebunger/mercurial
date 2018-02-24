@@ -4,7 +4,7 @@
 # Copyright 2007 Chris Mason <chris.mason@oracle.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 from node import hex, nullid, short
@@ -286,6 +286,7 @@ class patchfile(object):
         self.hash = {}
         self.dirty = 0
         self.offset = 0
+        self.skew = 0
         self.rej = []
         self.fileprinted = False
         self.printfile(False)
@@ -423,7 +424,10 @@ class patchfile(object):
         else:
             start = h.starta + self.offset - 1
         orig_start = start
-        if diffhelpers.testhunk(old, self.lines, start) == 0:
+        # if there's skew we want to emit the "(offset %d lines)" even
+        # when the hunk cleanly applies at start + skew, so skip the
+        # fast case code
+        if self.skew == 0 and diffhelpers.testhunk(old, self.lines, start) == 0:
             if h.rmfile():
                 self.unlink(self.fname)
             else:
@@ -439,7 +443,7 @@ class patchfile(object):
             # override the start line and use eof here
             search_start = len(self.lines)
         else:
-            search_start = orig_start
+            search_start = orig_start + self.skew
 
         for fuzzlen in xrange(3):
             for toponly in [ True, False ]:
@@ -451,6 +455,7 @@ class patchfile(object):
                         newlines = h.new(fuzzlen, toponly)
                         self.lines[l : l + len(old)] = newlines
                         self.offset += len(newlines) - len(old)
+                        self.skew = l - orig_start
                         self.dirty = 1
                         if fuzzlen:
                             fuzzstr = "with fuzz %d " % fuzzlen
@@ -1121,6 +1126,8 @@ def internalpatch(patchobj, ui, strip, cwd, files=None, eolmode='strict'):
     finally:
         if cwd:
             os.chdir(curdir)
+        if fp != patchobj:
+            fp.close()
     if ret < 0:
         raise PatchError
     return ret > 0

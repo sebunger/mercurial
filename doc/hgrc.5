@@ -272,6 +272,7 @@ Filter patterns are globs by default, rooted at the repository root.
 For example, to match any file ending in \fB.txt\fP in the root
 directory only, use the pattern \fB*.txt\fP. To match any file ending
 in \fB.c\fP anywhere in the repository, use the pattern \fB**.c\fP.
+For each file only the first matching filter applies.
 .sp
 The filter command can start with a specifier, either \fBpipe:\fP or
 \fBtempfile:\fP. If no specifier is given, \fBpipe:\fP is used by default.
@@ -406,7 +407,7 @@ email addresses.
 .B \fBbcc\fP
 .sp
 Optional. Comma\-separated list of blind carbon copy recipients\(aq
-email addresses. Cannot be set interactively.
+email addresses.
 .TP
 .B \fBmethod\fP
 .sp
@@ -1283,9 +1284,9 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2009 Matt Mackall.
+Mercurial is copyright 2005\-2010 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
-Public License version 2.
+Public License version 2 or any later version.
 .\" Common link and substitution definitions.
 .
 .SH AUTHOR

@@ -3,7 +3,7 @@
 #  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 # Notes for hg->hg conversion:
 #
@@ -61,8 +61,10 @@ class mercurial_sink(converter_sink):
 
     def after(self):
         self.ui.debug('run hg sink post-conversion action\n')
-        self.lock.release()
-        self.wlock.release()
+        if self.lock:
+            self.lock.release()
+        if self.wlock:
+            self.wlock.release()
 
     def revmapfile(self):
         return os.path.join(self.path, ".hg", "shamap")

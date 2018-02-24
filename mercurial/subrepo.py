@@ -3,7 +3,7 @@
 # Copyright 2006, 2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 import errno, os
 from i18n import _
@@ -160,6 +160,9 @@ class hgsubrepo(object):
         else:
             util.makedirs(root)
             self._repo = hg.repository(r.ui, root, create=True)
+            f = file(os.path.join(root, '.hg', 'hgrc'), 'w')
+            f.write('[paths]\ndefault = %s\n' % state[0])
+            f.close()
         self._repo._subparent = r
         self._repo._subsource = state[0]
 
@@ -206,9 +209,12 @@ class hgsubrepo(object):
         self._get(state)
         cur = self._repo['.']
         dst = self._repo[state[1]]
-        if dst.ancestor(cur) == cur:
+        anc = dst.ancestor(cur)
+        if anc == cur:
             self._repo.ui.debug("updating subrepo %s\n" % self._path)
             hg.update(self._repo, state[1])
+        elif anc == dst:
+            self._repo.ui.debug("skipping subrepo %s\n" % self._path)
         else:
             self._repo.ui.debug("merging subrepo %s\n" % self._path)
             hg.merge(self._repo, state[1], remind=False)

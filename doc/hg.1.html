@@ -1434,7 +1434,7 @@ See 'hg help urls' for more information.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--update</span></kbd></td>
-<td>update to new tip if changesets were pulled</td></tr>
+<td>update to new branch head if changesets were pulled</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>run even when remote repository is unrelated</td></tr>
@@ -1580,7 +1580,7 @@ revisions preserved from the last update or merge.</p>
 <p>If a conflict is resolved manually, please note that the changes
 will be overwritten if the merge is retried with resolve. The
 -m/--mark switch should be used to mark the file as resolved.</p>
-<p>You can specify a set of files to operate on, or use the -a/-all
+<p>You can specify a set of files to operate on, or use the -a/--all
 switch to select all unresolved files.</p>
 <p>This command also allows listing resolved files and manually
 indicating whether or not files are resolved. All files must be
@@ -1982,7 +1982,7 @@ bundle command.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--update</span></kbd></td>
-<td>update to new tip if changesets were unbundled</td></tr>
+<td>update to new branch head if changesets were unbundled</td></tr>
 </tbody>
 </table>
 </dd>
@@ -2566,9 +2566,9 @@ scope, prepend its path with !:</p>
 <pre class="literal-block">
 [extensions]
 # disabling extension bar residing in /path/to/extension/bar.py
-hgext.bar = !/path/to/extension/bar.py
+bar = !/path/to/extension/bar.py
 # ditto, but no path was supplied for extension baz
-hgext.baz = !
+baz = !
 </pre>
 <p>disabled extensions:</p>
 <blockquote>
@@ -2687,9 +2687,9 @@ below) when you find them.</p>
 </div>
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
-<p>Copyright (C) 2005-2009 Matt Mackall.
+<p>Copyright (C) 2005-2010 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
-Public License version 2.</p>
+Public License version 2 or any later version.</p>
 <!-- Common link and substitution definitions. -->
 </div>
 </div>

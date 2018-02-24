@@ -3,7 +3,7 @@
 # Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import os, sys, atexit, signal, pdb, socket, errno, shlex, time
@@ -196,7 +196,12 @@ class cmdalias(object):
         cmd = args.pop(0)
 
         try:
-            self.fn, self.opts, self.help = cmdutil.findcmd(cmd, cmdtable, False)[1]
+            tableentry = cmdutil.findcmd(cmd, cmdtable, False)[1]
+            if len(tableentry) > 2:
+                self.fn, self.opts, self.help = tableentry
+            else:
+                self.fn, self.opts = tableentry
+
             self.args = aliasargs(self.fn) + args
             if cmd not in commands.norepo.split(' '):
                 self.norepo = False

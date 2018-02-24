@@ -912,7 +912,11 @@ class svn_source(converter_source):
         cmd = '%s debugsvnlog' % util.shellquote(hgexe)
         stdin, stdout = util.popen2(cmd)
         stdin.write(arg)
-        stdin.close()
+        try:
+            stdin.close()
+        except IOError:
+            raise util.Abort(_('Mercurial failed to run itself, check'
+                               ' hg executable is in PATH'))
         return logstream(stdout)
 
 pre_revprop_change = '''#!/bin/sh
@@ -1138,6 +1142,8 @@ class svn_sink(converter_sink, commandline):
             try:
                 rev = self.commit_re.search(output).group(1)
             except AttributeError:
+                if not files:
+                    return parents[0]
                 self.ui.warn(_('unexpected svn output:\n'))
                 self.ui.warn(output)
                 raise util.Abort(_('unable to cope with svn output'))

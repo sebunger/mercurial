@@ -3,7 +3,7 @@
 # Copyright 2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
-# GNU General Public License version 2, incorporated herein by reference.
+# GNU General Public License version 2 or any later version.
 
 from i18n import _
 import os, sys
@@ -27,13 +27,13 @@ def _pythonhook(ui, repo, name, hname, funcname, args, throw):
             raise util.Abort(_('%s hook is invalid ("%s" not in '
                                'a module)') % (hname, funcname))
         modname = funcname[:d]
-        oldpaths = sys.path[:]
+        oldpaths = sys.path
         if hasattr(sys, "frozen"):
             # binary installs require sys.path manipulation
-            path, name = os.path.split(modname)
-            if path and name:
-                sys.path.append(path)
-                modname = name
+            modpath, modfile = os.path.split(modname)
+            if modpath and modfile:
+                sys.path = sys.path[:] + [modpath]
+                modname = modfile
         try:
             obj = __import__(modname)
         except ImportError:
