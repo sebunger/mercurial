@@ -7100,6 +7100,182 @@ hg log \-r "(keyword(bug) or keyword(issue)) and not ancestors(tag())"
 .ft P
 .fi
 .UNINDENT
+.SH USING MERCURIAL FROM SCRIPTS AND AUTOMATION
+.sp
+It is common for machines (as opposed to humans) to consume Mercurial.
+This help topic describes some of the considerations for interfacing
+machines with Mercurial.
+.SS Choosing an Interface
+.sp
+Machines have a choice of several methods to interface with Mercurial.
+These include:
+.INDENT 0.0
+.IP \(bu 2
+.
+Executing the \fBhg\fP process
+.IP \(bu 2
+.
+Querying a HTTP server
+.IP \(bu 2
+.
+Calling out to a command server
+.UNINDENT
+.sp
+Executing \fBhg\fP processes is very similar to how humans interact with
+Mercurial in the shell. It should already be familar to you.
+.sp
+\%\fBhg serve\fP\: can be used to start a server. By default, this will start
+a "hgweb" HTTP server. This HTTP server has support for machine\-readable
+output, such as JSON. For more, see \%\fBhg help hgweb\fP\:.
+.sp
+\%\fBhg serve\fP\: can also start a "command server." Clients can connect
+to this server and issue Mercurial commands over a special protocol.
+For more details on the command server, including links to client
+libraries, see \%https://mercurial.selenic.com/wiki/CommandServer\:.
+.sp
+\%\fBhg serve\fP\: based interfaces (the hgweb and command servers) have the
+advantage over simple \fBhg\fP process invocations in that they are
+likely more efficient. This is because there is significant overhead
+to spawn new Python processes.
+.IP Tip
+.
+If you need to invoke several \fBhg\fP processes in short order and/or
+performance is important to you, use of a server\-based interface
+is highly recommended.
+.RE
+.SS Environment Variables
+.sp
+As documented in \%\fBhg help environment\fP\:, various environment variables
+influence the operation of Mercurial. The following are particularly
+relevant for machines consuming Mercurial:
+.INDENT 0.0
+.TP
+.B HGPLAIN
+.
+If not set, Mercurial\(aqs output could be influenced by configuration
+settings that impact its encoding, verbose mode, localization, etc.
+.sp
+It is highly recommended for machines to set this variable when
+invoking \fBhg\fP processes.
+.TP
+.B HGENCODING
+.
+If not set, the locale used by Mercurial will be detected from the
+environment. If the determined locale does not support display of
+certain characters, Mercurial may render these character sequences
+incorrectly (often by using "?" as a placeholder for invalid
+characters in the current locale).
+.sp
+Explcitly setting this environment variable is a good practice to
+guarantee consistent results. "utf\-8" is a good choice on UNIX\-like
+environments.
+.TP
+.B HGRCPATH
+.
+If not set, Mercurial will inherit config options from config files
+using the process described in \%\fBhg help config\fP\:. This includes
+inheriting user or system\-wide config files.
+.sp
+When utmost control over the Mercurial configuration is desired, the
+value of \fBHGRCPATH\fP can be set to an explicit file with known good
+configs. In rare cases, the value can be set to an empty file or the
+null device (often \fB/dev/null\fP) to bypass loading of any user or
+system config files. Note that these approaches can have unintended
+consequences, as the user and system config files often define things
+like the username and extensions that may be required to interface
+with a repository.
+.UNINDENT
+.SS Consuming Command Output
+.sp
+It is common for machines to need to parse the output of Mercurial
+commands for relevant data. This section describes the various
+techniques for doing so.
+.SS Parsing Raw Command Output
+.sp
+Likely the simplest and most effective solution for consuming command
+output is to simply invoke \fBhg\fP commands as you would as a user and
+parse their output.
+.sp
+The output of many commands can easily be parsed with tools like
+\fBgrep\fP, \fBsed\fP, and \fBawk\fP.
+.sp
+A potential downside with parsing command output is that the output
+of commands can change when Mercurial is upgraded. While Mercurial
+does generally strive for strong backwards compatibility, command
+output does occasionally change. Having tests for your automated
+interactions with \fBhg\fP commands is generally recommended, but is
+even more important when raw command output parsing is involved.
+.SS Using Templates to Control Output
+.sp
+Many \fBhg\fP commands support templatized output via the
+\fB\-T/\-\-template\fP argument. For more, see \%\fBhg help templates\fP\:.
+.sp
+Templates are useful for explicitly controlling output so that
+you get exactly the data you want formatted how you want it. For
+example, \fBlog \-T {node}\en\fP can be used to print a newline
+delimited list of changeset nodes instead of a human\-tailored
+output containing authors, dates, descriptions, etc.
+.IP Tip
+.
+If parsing raw command output is too complicated, consider
+using templates to make your life easier.
+.RE
+.sp
+The \fB\-T/\-\-template\fP argument allows specifying pre\-defined styles.
+Mercurial ships with the machine\-readable styles \fBjson\fP and \fBxml\fP,
+which provide JSON and XML output, respectively. These are useful for
+producing output that is machine readable as\-is.
+.IP Important
+.
+The \fBjson\fP and \fBxml\fP styles are considered experimental. While
+they may be attractive to use for easily obtaining machine\-readable
+output, their behavior may change in subsequent versions.
+.sp
+These styles may also exhibit unexpected results when dealing with
+certain encodings. Mercurial treats things like filenames as a
+series of bytes and normalizing certain byte sequences to JSON
+or XML with certain encoding settings can lead to surprises.
+.RE
+.SS Command Server Output
+.sp
+If using the command server to interact with Mercurial, you are likely
+using an existing library/API that abstracts implementation details of
+the command server. If so, this interface layer may perform parsing for
+you, saving you the work of implementing it yourself.
+.SS Output Verbosity
+.sp
+Commands often have varying output verbosity, even when machine
+readable styles are being used (e.g. \fB\-T json\fP). Adding
+\fB\-v/\-\-verbose\fP and \fB\-\-debug\fP to the command\(aqs arguments can
+increase the amount of data exposed by Mercurial.
+.sp
+An alternate way to get the data you need is by explicitly specifying
+a template.
+.SS Other Topics
+.INDENT 0.0
+.TP
+.B revsets
+.
+Revisions sets is a functional query language for selecting a set
+of revisions. Think of it as SQL for Mercurial repositories. Revsets
+are useful for querying repositories for specific data.
+.sp
+See \%\fBhg help revsets\fP\: for more.
+.TP
+.B share extension
+.
+The \fBshare\fP extension provides functionality for sharing
+repository data across several working copies. It can even
+automatically "pool" storage for logically related repositories when
+cloning.
+.sp
+Configuring the \fBshare\fP extension can lead to significant resource
+utilization reduction, particularly around disk space and the
+network. This is especially true for continuous integration (CI)
+environments.
+.sp
+See \%\fBhg help \-e share\fP\: for more.
+.UNINDENT
 .SH SUBREPOSITORIES
 .sp
 Subrepositories let you nest external repositories or projects into a
@@ -9169,6 +9345,11 @@ store original revision ID in changeset
 (forces target IDs to change). It takes a boolean argument and
 defaults to False.
 .TP
+.B convert.hg.startrev
+.
+specify the initial Mercurial revision.
+The default is 0.
+.TP
 .B convert.hg.revs
 .
 revset specifying the source revisions to convert.
@@ -9333,9 +9514,14 @@ and integrations. Note that when a depot path is given you then
 usually should specify a target directory, because otherwise the
 target may be named \fB...\-hg\fP.
 .sp
-It is possible to limit the amount of source history to be
-converted by specifying an initial Perforce revision:
+The following options can be set with \fB\-\-config\fP:
 .INDENT 0.0
+.TP
+.B convert.p4.encoding
+.
+specify the encoding to use when decoding standard
+output of the Perforce command line tool. The default is default system
+encoding.
 .TP
 .B convert.p4.startrev
 .
