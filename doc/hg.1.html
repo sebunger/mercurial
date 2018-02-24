@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="generator" content="AsciiDoc 7.1.2">
+<meta name="generator" content="AsciiDoc 8.2.2">
 <title>HG(1)</title>
 </head>
 <body>
@@ -232,7 +232,7 @@ parameter.  Detecting renamed files this way can be expensive.</pre>
 -n, --dry-run     do not perform actions, just print output</pre>
 </dd>
 <dt>
-annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] FILE&#8230;
+annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] [-l] FILE&#8230;
 </dt>
 <dd>
 <p>
@@ -244,15 +244,16 @@ place.</pre>
 detects as binary. With -a, annotate will generate an annotation
 anyway, probably with undesirable results.</pre>
 <pre>options:
--r, --rev        annotate the specified revision
--f, --follow     follow file copies and renames
--a, --text       treat all files as text
--u, --user       list the author
--d, --date       list the date
--n, --number     list the revision number (default)
--c, --changeset  list the changeset
--I, --include    include names matching the given patterns
--X, --exclude    exclude names matching the given patterns</pre>
+-r, --rev          annotate the specified revision
+-f, --follow       follow file copies and renames
+-a, --text         treat all files as text
+-u, --user         list the author
+-d, --date         list the date
+-n, --number       list the revision number (default)
+-c, --changeset    list the changeset
+-l, --line-number  show line number at the first appearance
+-I, --include      include names matching the given patterns
+-X, --exclude      exclude names matching the given patterns</pre>
 </dd>
 <dt>
 archive [OPTION]&#8230; DEST
@@ -303,14 +304,14 @@ hand.  The result of this merge is not committed, as for a normal
 merge.</pre>
 <pre>options:
 --merge        merge with old dirstate parent after backout
--d, --date     record datecode as commit date
 --parent       parent to choose when backing out merge
--u, --user     record user as committer
 -r, --rev      revision to backout
 -I, --include  include names matching the given patterns
 -X, --exclude  exclude names matching the given patterns
 -m, --message  use &lt;text&gt; as commit message
--l, --logfile  read commit message from &lt;file&gt;</pre>
+-l, --logfile  read commit message from &lt;file&gt;
+-d, --date     record datecode as commit date
+-u, --user     record user as committer</pre>
 </dd>
 <dt>
 branch [NAME]
@@ -436,12 +437,12 @@ or in the EDITOR environment variable is started to enter a message.</pre>
 <pre>options:
 -A, --addremove  mark new/missing files as added/removed before
                  committing
--d, --date       record datecode as commit date
--u, --user       record user as commiter
 -I, --include    include names matching the given patterns
 -X, --exclude    exclude names matching the given patterns
 -m, --message    use &lt;text&gt; as commit message
--l, --logfile    read commit message from &lt;file&gt;</pre>
+-l, --logfile    read commit message from &lt;file&gt;
+-d, --date       record datecode as commit date
+-u, --user       record user as committer</pre>
 <pre>aliases: ci</pre>
 </dd>
 <dt>
@@ -767,7 +768,7 @@ that are different from BOTH parents.</pre>
 <pre>aliases: history</pre>
 </dd>
 <dt>
-manifest [REV]
+manifest [-r REV]
 </dt>
 <dd>
 <p>
@@ -777,8 +778,10 @@ manifest [REV]
 </p>
 <pre>The manifest is the list of files being version controlled. If no revision
 is given then the first parent of the working directory is used.</pre>
-<pre>With -v flag, print file permissions. With --debug flag, print
-file revision hashes.</pre>
+<pre>With -v flag, print file permissions, symlink and executable bits. With
+--debug flag, print file revision hashes.</pre>
+<pre>options:
+-r, --rev  revision to display</pre>
 </dd>
 <dt>
 merge [-f] [[-r] REV]
@@ -1001,7 +1004,7 @@ changes, or change the parent of the working directory.  If you
 revert to a revision other than the parent of the working
 directory, the reverted files will thus appear modified
 afterwards.</pre>
-<pre>If a file has been deleted, it is recreated.  If the executable
+<pre>If a file has been deleted, it is restored.  If the executable
 mode of a file was changed, it is reset.</pre>
 <pre>If names are given, all files matching the names are reverted.</pre>
 <pre>If no arguments are given, no files are reverted.</pre>
@@ -1073,7 +1076,8 @@ stderr.  Use the "-A" and "-E" options to log to files.</pre>
 --stdio           for remote clients
 -t, --templates   web templates to use
 --style           template style to use
--6, --ipv6        use IPv6 in addition to IPv4</pre>
+-6, --ipv6        use IPv6 in addition to IPv4
+--certificate     SSL certificate file</pre>
 </dd>
 <dt>
 showconfig [-u] [NAME]&#8230;
@@ -1151,11 +1155,11 @@ shared among repositories).</pre>
 <pre>options:
 -f, --force    replace existing tag
 -l, --local    make the tag local
--m, --message  message for tag commit log entry
--d, --date     record datecode as commit date
--u, --user     record user as commiter
 -r, --rev      revision to tag
---remove       remove a tag</pre>
+--remove       remove a tag
+-m, --message  use &lt;text&gt; as commit message
+-d, --date     record datecode as commit date
+-u, --user     record user as committer</pre>
 </dd>
 <dt>
 tags
@@ -1293,9 +1297,9 @@ HG
 </dt>
 <dd>
 <p>
-    Path to the <em>hg</em> executable, automatically passed when running hooks
-    or external tools. Falls back to <em>hg</em> if unset and the value can't be
-    autodetected, e.g. when Mercurial is run as a Python module.
+    Path to the <em>hg</em> executable, automatically passed when running hooks,
+    extensions or external tools. If unset or empty, an executable named
+    <em>hg</em> (with com/exe/bat/cmd extension on Windows) is searched.
 </p>
 </dd>
 <dt>
@@ -1422,6 +1426,12 @@ name associated with a revision identifier.  Tag names may not
 contain the ":" character.</pre>
 <pre>The reserved name "tip" is a special tag that always identifies
 the most recent revision.</pre>
+<pre>The reserved name "null" indicates the null revision. This is the
+revision of an empty repository, and the parent of revision 0.</pre>
+<pre>The reserved name "." indicates the working directory parent. If
+no working directory is checked out, it is equivalent to null.
+If an uncommitted merge is in progress, "." is the revision of
+the first parent.</pre>
 <hr />
 <h2>SPECIFYING MULTIPLE REVISIONS</h2>
 <pre>When Mercurial accepts more than one revision, they may be
@@ -1496,7 +1506,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 25-Jun-2007 21:18:39 CDT
+Last updated 19-Oct-2007 18:26:02 CDT
 </small></p>
 </body>
 </html>

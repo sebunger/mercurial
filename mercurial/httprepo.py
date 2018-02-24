@@ -9,7 +9,7 @@
 from node import *
 from remoterepo import *
 from i18n import _
-import hg, os, urllib, urllib2, urlparse, zlib, util, httplib
+import repo, os, urllib, urllib2, urlparse, zlib, util, httplib
 import errno, keepalive, tempfile, socket, changegroup
 
 class passwordmgr(urllib2.HTTPPasswordMgrWithDefaultRealm):
@@ -144,6 +144,43 @@ def zgenerator(f):
         raise IOError(None, _('connection ended unexpectedly'))
     yield zd.flush()
 
+_safe = ('abcdefghijklmnopqrstuvwxyz'
+         'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+         '0123456789' '_.-/')
+_safeset = None
+_hex = None
+def quotepath(path):
+    '''quote the path part of a URL
+
+    This is similar to urllib.quote, but it also tries to avoid
+    quoting things twice (inspired by wget):
+
+    >>> quotepath('abc def')
+    'abc%20def'
+    >>> quotepath('abc%20def')
+    'abc%20def'
+    >>> quotepath('abc%20 def')
+    'abc%20%20def'
+    >>> quotepath('abc def%20')
+    'abc%20def%20'
+    >>> quotepath('abc def%2')
+    'abc%20def%252'
+    >>> quotepath('abc def%')
+    'abc%20def%25'
+    '''
+    global _safeset, _hex
+    if _safeset is None:
+        _safeset = util.set(_safe)
+        _hex = util.set('abcdefABCDEF0123456789')
+    l = list(path)
+    for i in xrange(len(l)):
+        c = l[i]
+        if c == '%' and i + 2 < len(l) and (l[i+1] in _hex and l[i+2] in _hex):
+            pass
+        elif c not in _safeset:
+            l[i] = '%%%02X' % ord(c)
+    return ''.join(l)
+
 class httprepository(remoterepository):
     def __init__(self, ui, path):
         self.path = path
@@ -153,13 +190,16 @@ class httprepository(remoterepository):
         if query or frag:
             raise util.Abort(_('unsupported URL component: "%s"') %
                              (query or frag))
-        if not urlpath: urlpath = '/'
+        if not urlpath:
+            urlpath = '/'
+        urlpath = quotepath(urlpath)
         host, port, user, passwd = netlocsplit(netloc)
 
         # urllib cannot handle URLs with embedded user or passwd
         self._url = urlparse.urlunsplit((scheme, netlocunsplit(host, port),
                                          urlpath, '', ''))
         self.ui = ui
+        self.ui.debug(_('using %s\n') % self._url)
 
         proxyurl = ui.config("http_proxy", "host") or os.getenv('http_proxy')
         # XXX proxyauthinfo = None
@@ -213,7 +253,7 @@ class httprepository(remoterepository):
         if user:
             ui.debug(_('http auth: user %s, password %s\n') %
                      (user, passwd and '*' * len(passwd) or 'not set'))
-            passmgr.add_password(None, host, user, passwd or '')
+            passmgr.add_password(None, self._url, user, passwd or '')
 
         handlers.extend((urllib2.HTTPBasicAuthHandler(passmgr),
                          httpdigestauthhandler(passmgr)))
@@ -236,9 +276,9 @@ class httprepository(remoterepository):
     def get_caps(self):
         if self.caps is None:
             try:
-                self.caps = self.do_read('capabilities').split()
-            except hg.RepoError:
-                self.caps = ()
+                self.caps = util.set(self.do_read('capabilities').split())
+            except repo.RepoError:
+                self.caps = util.set()
             self.ui.debug(_('capabilities: %s\n') %
                           (' '.join(self.caps or ['none'])))
         return self.caps
@@ -258,8 +298,7 @@ class httprepository(remoterepository):
         cu = "%s%s" % (self._url, qs)
         try:
             if data:
-                self.ui.debug(_("sending %s bytes\n") %
-                              headers.get('content-length', 'X'))
+                self.ui.debug(_("sending %s bytes\n") % len(data))
             resp = urllib2.urlopen(request(cu, data, headers))
         except urllib2.HTTPError, inst:
             if inst.code == 401:
@@ -288,7 +327,8 @@ class httprepository(remoterepository):
         if not (proto.startswith('application/mercurial-') or
                 proto.startswith('text/plain') or
                 proto.startswith('application/hg-changegroup')):
-            raise hg.RepoError(_("'%s' does not appear to be an hg repository")
+            self.ui.debug(_("Requested URL: '%s'\n") % cu)
+            raise repo.RepoError(_("'%s' does not appear to be an hg repository")
                                % self._url)
 
         if proto.startswith('application/mercurial-'):
@@ -296,10 +336,10 @@ class httprepository(remoterepository):
                 version = proto.split('-', 1)[1]
                 version_info = tuple([int(n) for n in version.split('.')])
             except ValueError:
-                raise hg.RepoError(_("'%s' sent a broken Content-type "
+                raise repo.RepoError(_("'%s' sent a broken Content-type "
                                      "header (%s)") % (self._url, proto))
             if version_info > (0, 1):
-                raise hg.RepoError(_("'%s' uses newer protocol %s") %
+                raise repo.RepoError(_("'%s' uses newer protocol %s") %
                                    (self._url, version))
 
         return resp
@@ -313,11 +353,12 @@ class httprepository(remoterepository):
             fp.close()
 
     def lookup(self, key):
+        self.requirecap('lookup', _('look up remote revision'))
         d = self.do_cmd("lookup", key = key).read()
         success, data = d[:-1].split(' ', 1)
         if int(success):
             return bin(data)
-        raise hg.RepoError(data)
+        raise repo.RepoError(data)
 
     def heads(self):
         d = self.do_read("heads")
@@ -350,6 +391,7 @@ class httprepository(remoterepository):
         return util.chunkbuffer(zgenerator(f))
 
     def changegroupsubset(self, bases, heads, source):
+        self.requirecap('changegroupsubset', _('look up remote changes'))
         baselst = " ".join([hex(n) for n in bases])
         headlst = " ".join([hex(n) for n in heads])
         f = self.do_cmd("changegroupsubset", bases=baselst, heads=headlst)
@@ -408,9 +450,6 @@ class httpsrepository(httprepository):
 def instance(ui, path, create):
     if create:
         raise util.Abort(_('cannot create new http repository'))
-    if path.startswith('hg:'):
-        ui.warn(_("hg:// syntax is deprecated, please use http:// instead\n"))
-        path = 'http:' + path[3:]
     if path.startswith('https:'):
         return httpsrepository(ui, path)
     return httprepository(ui, path)

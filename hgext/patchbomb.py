@@ -224,9 +224,8 @@ def patchbomb(ui, repo, *revs, **opts):
                 pass
             os.rmdir(tmpdir)
 
-    really_sending = not (opts['test'] or opts['mbox'])
-
-    if really_sending:
+    if not (opts['test'] or opts['mbox']):
+        # really sending
         mail.validateconfig(ui)
 
     if not (revs or opts.get('rev') or opts.get('outgoing')):
@@ -306,8 +305,12 @@ def patchbomb(ui, repo, *revs, **opts):
                 d = cdiffstat(_('Final summary:\n'), jumbo)
                 if d: body = '\n' + d
 
-            ui.write(_('\nWrite the introductory message for the patch series.\n\n'))
-            body = ui.edit(body, sender)
+            if opts['desc']:
+                body = open(opts['desc']).read()
+            else:
+                ui.write(_('\nWrite the introductory message for the '
+                           'patch series.\n\n'))
+                body = ui.edit(body, sender)
 
             msg = email.MIMEText.MIMEText(body)
             msg['Subject'] = subj
@@ -357,8 +360,6 @@ def patchbomb(ui, repo, *revs, **opts):
 
     ui.write('\n')
 
-    if really_sending:
-        mailer = mail.connect(ui)
     parent = None
 
     sender_addr = email.Utils.parseaddr(sender)[1]
@@ -407,29 +408,35 @@ def patchbomb(ui, repo, *revs, **opts):
             ui.status('Sending ', m['Subject'], ' ...\n')
             # Exim does not remove the Bcc field
             del m['Bcc']
-            mailer.sendmail(sender, to + bcc + cc, m.as_string(0))
+            mail.sendmail(ui, sender, to + bcc + cc, m.as_string(0))
 
 cmdtable = {
-    'email':
-    (patchbomb,
-     [('a', 'attach', None, 'send patches as inline attachments'),
-      ('', 'bcc', [], 'email addresses of blind copy recipients'),
-      ('c', 'cc', [], 'email addresses of copy recipients'),
-      ('d', 'diffstat', None, 'add diffstat output to messages'),
-      ('', 'date', '', _('use the given date as the sending date')),
-      ('g', 'git', None, _('use git extended diff format')),
-      ('f', 'from', '', 'email address of sender'),
-      ('', 'plain', None, 'omit hg patch header'),
-      ('n', 'test', None, 'print messages that would be sent'),
-      ('m', 'mbox', '', 'write messages to mbox file instead of sending them'),
-      ('o', 'outgoing', None, _('send changes not found in the target repository')),
-      ('b', 'bundle', None, _('send changes not in target as a binary bundle')),
-      ('r', 'rev', [], _('a revision to send')),
-      ('s', 'subject', '', 'subject of first message (intro or single patch)'),
-      ('t', 'to', [], 'email addresses of recipients'),
-      ('', 'force', None, _('run even when remote repository is unrelated (with -b)')),
-      ('', 'base', [],
-          _('a base changeset to specify instead of a destination (with -b)'))]
-      + commands.remoteopts,
-     "hg email [OPTION]... [DEST]...")
-    }
+    "email":
+        (patchbomb,
+         [('a', 'attach', None, _('send patches as inline attachments')),
+          ('', 'bcc', [], _('email addresses of blind copy recipients')),
+          ('c', 'cc', [], _('email addresses of copy recipients')),
+          ('d', 'diffstat', None, _('add diffstat output to messages')),
+          ('', 'date', '', _('use the given date as the sending date')),
+          ('', 'desc', '', _('use the given file as the series description')),
+          ('g', 'git', None, _('use git extended diff format')),
+          ('f', 'from', '', _('email address of sender')),
+          ('', 'plain', None, _('omit hg patch header')),
+          ('n', 'test', None, _('print messages that would be sent')),
+          ('m', 'mbox', '',
+           _('write messages to mbox file instead of sending them')),
+          ('o', 'outgoing', None,
+           _('send changes not found in the target repository')),
+          ('b', 'bundle', None,
+           _('send changes not in target as a binary bundle')),
+          ('r', 'rev', [], _('a revision to send')),
+          ('s', 'subject', '',
+           _('subject of first message (intro or single patch)')),
+          ('t', 'to', [], _('email addresses of recipients')),
+          ('', 'force', None,
+           _('run even when remote repository is unrelated (with -b)')),
+          ('', 'base', [],
+           _('a base changeset to specify instead of a destination (with -b)')),
+         ] + commands.remoteopts,
+         _('hg email [OPTION]... [DEST]...'))
+}

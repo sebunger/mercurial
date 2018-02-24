@@ -27,11 +27,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-from mercurial import hg, util
+from mercurial import hg, util, commands
 from mercurial.i18n import _
 import os
 
-def dopurge(ui, repo, dirs=None, act=True, ignored=False, 
+def dopurge(ui, repo, dirs=None, act=True, ignored=False,
             abort_on_err=False, eol='\n',
             force=False, include=None, exclude=None):
     def error(msg):
@@ -162,7 +162,6 @@ cmdtable = {
           ('p', 'print', None, _('print the file names instead of deleting them')),
           ('0', 'print0', None, _('end filenames with NUL, for use with xargs'
                                   ' (implies -p)')),
-          ('I', 'include', [], _('include names matching the given patterns')),
-          ('X', 'exclude', [], _('exclude names matching the given patterns'))],
+         ] + commands.walkopts,
          _('hg purge [OPTION]... [DIR]...'))
 }

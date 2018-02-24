@@ -7,12 +7,13 @@
 
 from node import *
 from i18n import _
-import errno, util, os, tempfile, context
+import errno, util, os, tempfile, context, heapq
 
-def filemerge(repo, fw, fo, wctx, mctx):
+def filemerge(repo, fw, fd, fo, wctx, mctx):
     """perform a 3-way merge in the working directory
 
-    fw = filename in the working directory
+    fw = original filename in the working directory
+    fd = destination filename in the working directory
     fo = filename in other parent
     wctx, mctx = working and merge changecontexts
     """
@@ -27,15 +28,16 @@ def filemerge(repo, fw, fo, wctx, mctx):
         return name
 
     fcm = wctx.filectx(fw)
+    fcmdata = wctx.filectx(fd).data()
     fco = mctx.filectx(fo)
 
-    if not fco.cmp(fcm.data()): # files identical?
+    if not fco.cmp(fcmdata): # files identical?
         return None
 
     fca = fcm.ancestor(fco)
     if not fca:
         fca = repo.filectx(fw, fileid=nullrev)
-    a = repo.wjoin(fw)
+    a = repo.wjoin(fd)
     b = temp("base", fca)
     c = temp("other", fco)
 
@@ -49,11 +51,14 @@ def filemerge(repo, fw, fo, wctx, mctx):
     cmd = (os.environ.get("HGMERGE") or repo.ui.config("ui", "merge")
            or "hgmerge")
     r = util.system('%s "%s" "%s" "%s"' % (cmd, a, b, c), cwd=repo.root,
-                    environ={'HG_FILE': fw,
+                    environ={'HG_FILE': fd,
                              'HG_MY_NODE': str(wctx.parents()[0]),
-                             'HG_OTHER_NODE': str(mctx)})
+                             'HG_OTHER_NODE': str(mctx),
+                             'HG_MY_ISLINK': fcm.islink(),
+                             'HG_OTHER_ISLINK': fco.islink(),
+                             'HG_BASE_ISLINK': fca.islink(),})
     if r:
-        repo.ui.warn(_("merging %s failed!\n") % fw)
+        repo.ui.warn(_("merging %s failed!\n") % fd)
 
     os.unlink(b)
     os.unlink(c)
@@ -157,7 +162,7 @@ def findcopies(repo, m1, m2, ma, limit):
     fullcopy = {}
     diverge = {}
 
-    def checkcopies(c, man):
+    def checkcopies(c, man, aman):
         '''check possible copies for filectx c'''
         for of in findold(c):
             fullcopy[c.path()] = of # remember for dir rename detection
@@ -165,13 +170,17 @@ def findcopies(repo, m1, m2, ma, limit):
                 if of in ma:
                     diverge.setdefault(of, []).append(c.path())
                 continue
+            # if the original file is unchanged on the other branch,
+            # no merge needed
+            if man[of] == aman.get(of):
+                continue
             c2 = ctx(of, man[of])
             ca = c.ancestor(c2)
             if not ca: # unrelated?
                 continue
             # named changed on only one side?
             if ca.path() == c.path() or ca.path() == c2.path():
-                if c == ca or c2 == ca: # no merge needed, ignore copy
+                if c == ca and c2 == ca: # no merge needed, ignore copy
                     continue
                 copy[c.path()] = of
 
@@ -182,14 +191,23 @@ def findcopies(repo, m1, m2, ma, limit):
     if not m1 or not m2 or not ma:
         return {}, {}
 
+    repo.ui.debug(_("  searching for copies back to rev %d\n") % limit)
+
     u1 = nonoverlap(m1, m2, ma)
     u2 = nonoverlap(m2, m1, ma)
 
+    if u1:
+        repo.ui.debug(_("  unmatched files in local:\n   %s\n")
+                      % "\n   ".join(u1))
+    if u2:
+        repo.ui.debug(_("  unmatched files in other:\n   %s\n")
+                      % "\n   ".join(u2))
+
     for f in u1:
-        checkcopies(ctx(f, m1[f]), m2)
+        checkcopies(ctx(f, m1[f]), m2, ma)
 
     for f in u2:
-        checkcopies(ctx(f, m2[f]), m1)
+        checkcopies(ctx(f, m2[f]), m1, ma)
 
     d2 = {}
     for of, fl in diverge.items():
@@ -197,10 +215,19 @@ def findcopies(repo, m1, m2, ma, limit):
             fo = list(fl)
             fo.remove(f)
             d2[f] = (of, fo)
-    #diverge = d2
+
+    if fullcopy:
+        repo.ui.debug(_("  all copies found (* = to merge, ! = divergent):\n"))
+        for f in fullcopy:
+            note = ""
+            if f in copy: note += "*"
+            if f in diverge: note += "!"
+            repo.ui.debug(_("   %s -> %s %s\n") % (f, fullcopy[f], note))
 
     if not fullcopy or not repo.ui.configbool("merge", "followdirs", True):
         return copy, diverge
+
+    repo.ui.debug(_("  checking for directory renames\n"))
 
     # generate a directory move map
     d1, d2 = dirs(m1), dirs(m2)
@@ -236,6 +263,9 @@ def findcopies(repo, m1, m2, ma, limit):
     if not dirmove:
         return copy, diverge
 
+    for d in dirmove:
+        repo.ui.debug(_("  dir %s -> %s\n") % (d, dirmove[d]))
+
     # check unaccounted nonoverlapping files against directory moves
     for f in u1 + u2:
         if f not in fullcopy:
@@ -243,9 +273,62 @@ def findcopies(repo, m1, m2, ma, limit):
                 if f.startswith(d):
                     # new file added in a directory that was moved, move it
                     copy[f] = dirmove[d] + f[len(d):]
+                    repo.ui.debug(_("  file %s -> %s\n") % (f, copy[f]))
                     break
 
     return copy, diverge
+
+def symmetricdifference(repo, rev1, rev2):
+    """symmetric difference of the sets of ancestors of rev1 and rev2
+
+    I.e. revisions that are ancestors of rev1 or rev2, but not both.
+    """
+    # basic idea:
+    # - mark rev1 and rev2 with different colors
+    # - walk the graph in topological order with the help of a heap;
+    #   for each revision r:
+    #     - if r has only one color, we want to return it
+    #     - add colors[r] to its parents
+    #
+    # We keep track of the number of revisions in the heap that
+    # we may be interested in.  We stop walking the graph as soon
+    # as this number reaches 0.
+    WHITE = 1
+    BLACK = 2
+    ALLCOLORS = WHITE | BLACK
+    colors = {rev1: WHITE, rev2: BLACK}
+
+    cl = repo.changelog
+
+    visit = [-rev1, -rev2]
+    heapq.heapify(visit)
+    n_wanted = len(visit)
+    ret = []
+
+    while n_wanted:
+        r = -heapq.heappop(visit)
+        wanted = colors[r] != ALLCOLORS
+        n_wanted -= wanted
+        if wanted:
+            ret.append(r)
+
+        for p in cl.parentrevs(r):
+            if p == nullrev:
+                continue
+            if p not in colors:
+                # first time we see p; add it to visit
+                n_wanted += wanted
+                colors[p] = colors[r]
+                heapq.heappush(visit, -p)
+            elif colors[p] != ALLCOLORS and colors[p] != colors[r]:
+                # at first we thought we wanted p, but now
+                # we know we don't really want it
+                n_wanted -= 1
+                colors[p] |= colors[r]
+
+        del colors[r]
+
+    return ret
 
 def manifestmerge(repo, p1, p2, pa, overwrite, partial):
     """
@@ -285,7 +368,12 @@ def manifestmerge(repo, p1, p2, pa, overwrite, partial):
         action.append((f, m) + args)
 
     if not (backwards or overwrite):
-        copy, diverge = findcopies(repo, m1, m2, ma, pa.rev())
+        rev1 = p1.rev()
+        if rev1 is None:
+            # p1 is a workingctx
+            rev1 = p1.parents()[0].rev()
+        limit = min(symmetricdifference(repo, rev1, p2.rev()))
+        copy, diverge = findcopies(repo, m1, m2, ma, limit)
 
     for of, fl in diverge.items():
         act("divergent renames", "dr", of, fl)
@@ -377,13 +465,24 @@ def applyupdates(repo, action, wctx, mctx):
 
     updated, merged, removed, unresolved = 0, 0, 0, 0
     action.sort()
+    # prescan for copy/renames
+    for a in action:
+        f, m = a[:2]
+        if m == 'm': # merge
+            f2, fd, flags, move = a[2:]
+            if f != fd:
+                repo.ui.debug(_("copying %s to %s\n") % (f, fd))
+                repo.wwrite(fd, repo.wread(f), flags)
+
+    audit_path = util.path_auditor(repo.root)
+
     for a in action:
         f, m = a[:2]
         if f and f[0] == "/":
             continue
         if m == "r": # remove
             repo.ui.note(_("removing %s\n") % f)
-            util.audit_path(f)
+            audit_path(f)
             try:
                 util.unlink(repo.wjoin(f))
             except OSError, inst:
@@ -393,7 +492,7 @@ def applyupdates(repo, action, wctx, mctx):
             removed += 1
         elif m == "m": # merge
             f2, fd, flags, move = a[2:]
-            r = filemerge(repo, f, f2, wctx, mctx)
+            r = filemerge(repo, f, fd, f2, wctx, mctx)
             if r > 0:
                 unresolved += 1
             else:
@@ -401,13 +500,10 @@ def applyupdates(repo, action, wctx, mctx):
                     updated += 1
                 else:
                     merged += 1
-            if f != fd:
-                repo.ui.debug(_("copying %s to %s\n") % (f, fd))
-                repo.wwrite(fd, repo.wread(f), flags)
-                if move:
-                    repo.ui.debug(_("removing %s\n") % f)
-                    os.unlink(repo.wjoin(f))
             util.set_exec(repo.wjoin(fd), "x" in flags)
+            if f != fd and move and util.lexists(repo.wjoin(f)):
+                repo.ui.debug(_("removing %s\n") % f)
+                os.unlink(repo.wjoin(f))
         elif m == "g": # get
             flags = a[2]
             repo.ui.note(_("getting %s\n") % f)
@@ -444,25 +540,25 @@ def recordupdates(repo, action, branchmerge):
         f, m = a[:2]
         if m == "r": # remove
             if branchmerge:
-                repo.dirstate.update([f], 'r')
+                repo.dirstate.remove(f)
             else:
-                repo.dirstate.forget([f])
+                repo.dirstate.forget(f)
         elif m == "f": # forget
-            repo.dirstate.forget([f])
-        elif m == "g": # get
+            repo.dirstate.forget(f)
+        elif m in "ge": # get or exec change
             if branchmerge:
-                repo.dirstate.update([f], 'n', st_mtime=-1)
+                repo.dirstate.normaldirty(f)
             else:
-                repo.dirstate.update([f], 'n')
+                repo.dirstate.normal(f)
         elif m == "m": # merge
             f2, fd, flag, move = a[2:]
             if branchmerge:
                 # We've done a branch merge, mark this file as merged
                 # so that we properly record the merger later
-                repo.dirstate.update([fd], 'm')
+                repo.dirstate.merge(fd)
                 if f != f2: # copy/rename
                     if move:
-                        repo.dirstate.update([f], 'r')
+                        repo.dirstate.remove(f)
                     if f != fd:
                         repo.dirstate.copy(f, fd)
                     else:
@@ -473,92 +569,94 @@ def recordupdates(repo, action, branchmerge):
                 # of that file some time in the past. Thus our
                 # merge will appear as a normal local file
                 # modification.
-                repo.dirstate.update([fd], 'n', st_size=-1, st_mtime=-1)
+                repo.dirstate.normallookup(fd)
                 if move:
-                    repo.dirstate.forget([f])
+                    repo.dirstate.forget(f)
         elif m == "d": # directory rename
             f2, fd, flag = a[2:]
+            if not f2 and f not in repo.dirstate:
+                # untracked file moved
+                continue
             if branchmerge:
-                repo.dirstate.update([fd], 'a')
+                repo.dirstate.add(fd)
                 if f:
-                    repo.dirstate.update([f], 'r')
+                    repo.dirstate.remove(f)
                     repo.dirstate.copy(f, fd)
                 if f2:
                     repo.dirstate.copy(f2, fd)
             else:
-                repo.dirstate.update([fd], 'n')
+                repo.dirstate.normal(fd)
                 if f:
-                    repo.dirstate.forget([f])
+                    repo.dirstate.forget(f)
 
-def update(repo, node, branchmerge, force, partial, wlock):
+def update(repo, node, branchmerge, force, partial):
     """
     Perform a merge between the working directory and the given node
 
     branchmerge = whether to merge between branches
     force = whether to force branch merging or file overwriting
     partial = a function to filter file lists (dirstate not updated)
-    wlock = working dir lock, if already held
     """
 
-    if not wlock:
-        wlock = repo.wlock()
+    wlock = repo.wlock()
+    try:
+        wc = repo.workingctx()
+        if node is None:
+            # tip of current branch
+            try:
+                node = repo.branchtags()[wc.branch()]
+            except KeyError:
+                raise util.Abort(_("branch %s not found") % wc.branch())
+        overwrite = force and not branchmerge
+        forcemerge = force and branchmerge
+        pl = wc.parents()
+        p1, p2 = pl[0], repo.changectx(node)
+        pa = p1.ancestor(p2)
+        fp1, fp2, xp1, xp2 = p1.node(), p2.node(), str(p1), str(p2)
+        fastforward = False
 
-    wc = repo.workingctx()
-    if node is None:
-        # tip of current branch
-        try:
-            node = repo.branchtags()[wc.branch()]
-        except KeyError:
-            raise util.Abort(_("branch %s not found") % wc.branch())
-    overwrite = force and not branchmerge
-    forcemerge = force and branchmerge
-    pl = wc.parents()
-    p1, p2 = pl[0], repo.changectx(node)
-    pa = p1.ancestor(p2)
-    fp1, fp2, xp1, xp2 = p1.node(), p2.node(), str(p1), str(p2)
-    fastforward = False
+        ### check phase
+        if not overwrite and len(pl) > 1:
+            raise util.Abort(_("outstanding uncommitted merges"))
+        if pa == p1 or pa == p2: # is there a linear path from p1 to p2?
+            if branchmerge:
+                if p1.branch() != p2.branch() and pa != p2:
+                    fastforward = True
+                else:
+                    raise util.Abort(_("there is nothing to merge, just use "
+                                       "'hg update' or look at 'hg heads'"))
+        elif not (overwrite or branchmerge):
+            raise util.Abort(_("update spans branches, use 'hg merge' "
+                               "or 'hg update -C' to lose changes"))
+        if branchmerge and not forcemerge:
+            if wc.files():
+                raise util.Abort(_("outstanding uncommitted changes"))
 
-    ### check phase
-    if not overwrite and len(pl) > 1:
-        raise util.Abort(_("outstanding uncommitted merges"))
-    if pa == p1 or pa == p2: # is there a linear path from p1 to p2?
-        if branchmerge:
-            if p1.branch() != p2.branch():
-                fastforward = True
-            else:
-                raise util.Abort(_("there is nothing to merge, just use "
-                                   "'hg update' or look at 'hg heads'"))
-    elif not (overwrite or branchmerge):
-        raise util.Abort(_("update spans branches, use 'hg merge' "
-                           "or 'hg update -C' to lose changes"))
-    if branchmerge and not forcemerge:
-        if wc.files():
-            raise util.Abort(_("outstanding uncommitted changes"))
+        ### calculate phase
+        action = []
+        if not force:
+            checkunknown(wc, p2)
+        if not util.checkfolding(repo.path):
+            checkcollision(p2)
+        if not branchmerge:
+            action += forgetremoved(wc, p2)
+        action += manifestmerge(repo, wc, p2, pa, overwrite, partial)
 
-    ### calculate phase
-    action = []
-    if not force:
-        checkunknown(wc, p2)
-    if not util.checkfolding(repo.path):
-        checkcollision(p2)
-    if not branchmerge:
-        action += forgetremoved(wc, p2)
-    action += manifestmerge(repo, wc, p2, pa, overwrite, partial)
+        ### apply phase
+        if not branchmerge: # just jump to the new rev
+            fp1, fp2, xp1, xp2 = fp2, nullid, xp2, ''
+        if not partial:
+            repo.hook('preupdate', throw=True, parent1=xp1, parent2=xp2)
 
-    ### apply phase
-    if not branchmerge: # just jump to the new rev
-        fp1, fp2, xp1, xp2 = fp2, nullid, xp2, ''
-    if not partial:
-        repo.hook('preupdate', throw=True, parent1=xp1, parent2=xp2)
+        stats = applyupdates(repo, action, wc, p2)
 
-    stats = applyupdates(repo, action, wc, p2)
+        if not partial:
+            recordupdates(repo, action, branchmerge)
+            repo.dirstate.setparents(fp1, fp2)
+            if not branchmerge and not fastforward:
+                repo.dirstate.setbranch(p2.branch())
+            repo.hook('update', parent1=xp1, parent2=xp2, error=stats[3])
 
-    if not partial:
-        recordupdates(repo, action, branchmerge)
-        repo.dirstate.setparents(fp1, fp2)
-        if not branchmerge and not fastforward:
-            repo.dirstate.setbranch(p2.branch())
-        repo.hook('update', parent1=xp1, parent2=xp2, error=stats[3])
-
-    return stats
-
+        return stats
+    finally:
+        del wlock

@@ -211,7 +211,7 @@ class posixfile_nt(object):
         access = 0
         if 'r' in mode or '+' in mode:
             access |= win32file.GENERIC_READ
-        if 'w' in mode or 'a' in mode:
+        if 'w' in mode or 'a' in mode or '+' in mode:
             access |= win32file.GENERIC_WRITE
         if 'r' in mode:
             creation = win32file.OPEN_EXISTING
@@ -300,7 +300,7 @@ class posixfile_nt(object):
 
 getuser_fallback = win32api.GetUserName
 
-def set_signal_handler():
+def set_signal_handler_win32():
     """Register a termination handler for console events including
     CTRL+C. python signal handlers do not work well with socket
     operations.

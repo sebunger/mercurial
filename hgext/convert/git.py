@@ -1,35 +1,49 @@
 # git support for the convert extension
 
 import os
+from mercurial import util
 
 from common import NoRepo, commit, converter_source
 
-def recode(s):
-    try:
-        return s.decode("utf-8").encode("utf-8")
-    except:
-        try:
-            return s.decode("latin-1").encode("utf-8")
-        except:
-            return s.decode("utf-8", "replace").encode("utf-8")
-
 class convert_git(converter_source):
-    def __init__(self, ui, path):
+    # Windows does not support GIT_DIR= construct while other systems
+    # cannot remove environment variable. Just assume none have
+    # both issues.
+    if hasattr(os, 'unsetenv'):
+        def gitcmd(self, s):
+            prevgitdir = os.environ.get('GIT_DIR')
+            os.environ['GIT_DIR'] = self.path
+            try:
+                return os.popen(s)
+            finally:
+                if prevgitdir is None:
+                    del os.environ['GIT_DIR']
+                else:
+                    os.environ['GIT_DIR'] = prevgitdir
+    else:
+        def gitcmd(self, s):
+            return os.popen('GIT_DIR=%s %s' % (self.path, s))
+
+    def __init__(self, ui, path, rev=None):
+        super(convert_git, self).__init__(ui, path, rev=rev)
+
         if os.path.isdir(path + "/.git"):
             path += "/.git"
-        self.path = path
-        self.ui = ui
         if not os.path.exists(path + "/objects"):
             raise NoRepo("couldn't open GIT repo %s" % path)
+        self.path = path
 
     def getheads(self):
-        fh = os.popen("GIT_DIR=%s git-rev-parse --verify HEAD" % self.path)
-        return [fh.read()[:-1]]
+        if not self.rev:
+            return self.gitcmd('git-rev-parse --branches').read().splitlines()
+        else:
+            fh = self.gitcmd("git-rev-parse --verify %s" % self.rev)
+            return [fh.read()[:-1]]
 
     def catfile(self, rev, type):
         if rev == "0" * 40: raise IOError()
-        fh = os.popen("GIT_DIR=%s git-cat-file %s %s 2>/dev/null"
-                      % (self.path, type, rev))
+        fh = self.gitcmd("git-cat-file %s %s 2>%s" % (type, rev,
+                                                      util.nulldev))
         return fh.read()
 
     def getfile(self, name, rev):
@@ -40,25 +54,29 @@ class convert_git(converter_source):
 
     def getchanges(self, version):
         self.modecache = {}
-        fh = os.popen("GIT_DIR=%s git-diff-tree --root -m -r %s"
-                      % (self.path, version))
+        fh = self.gitcmd("git-diff-tree --root -m -r %s" % version)
         changes = []
+        seen = {}
         for l in fh:
-            if "\t" not in l: continue
+            if "\t" not in l:
+                continue
             m, f = l[:-1].split("\t")
+            if f in seen:
+                continue
+            seen[f] = 1
             m = m.split()
             h = m[3]
             p = (m[1] == "100755")
             s = (m[1] == "120000")
             self.modecache[(f, h)] = (p and "x") or (s and "l") or ""
             changes.append((f, h))
-        return changes
+        return (changes, {})
 
     def getcommit(self, version):
         c = self.catfile(version, "commit") # read the commit hash
         end = c.find("\n\n")
         message = c[end+2:]
-        message = recode(message)
+        message = self.recode(message)
         l = c[:end].splitlines()
         manifest = l[0].split()[1]
         parents = []
@@ -69,13 +87,13 @@ class convert_git(converter_source):
                 tm, tz = p[-2:]
                 author = " ".join(p[:-2])
                 if author[0] == "<": author = author[1:-1]
-                author = recode(author)
+                author = self.recode(author)
             if n == "committer":
                 p = v.split()
                 tm, tz = p[-2:]
                 committer = " ".join(p[:-2])
                 if committer[0] == "<": committer = committer[1:-1]
-                committer = recode(committer)
+                committer = self.recode(committer)
                 message += "\ncommitter: %s\n" % committer
             if n == "parent": parents.append(v)
 
@@ -84,12 +102,14 @@ class convert_git(converter_source):
         date = tm + " " + str(tz)
         author = author or "unknown"
 
-        c = commit(parents=parents, date=date, author=author, desc=message)
+        c = commit(parents=parents, date=date, author=author, desc=message,
+                   rev=version)
         return c
 
     def gettags(self):
         tags = {}
-        fh = os.popen('git-ls-remote --tags "%s" 2>/dev/null' % self.path)
+        fh = self.gitcmd('git-ls-remote --tags "%s" 2>%s' % (self.path,
+                                                             util.nulldev))
         prefix = 'refs/tags/'
         for line in fh:
             line = line.strip()
@@ -102,3 +122,21 @@ class convert_git(converter_source):
             tags[tag] = node
 
         return tags
+
+    def getchangedfiles(self, version, i):
+        changes = []
+        if i is None:
+            fh = self.gitcmd("git-diff-tree --root -m -r %s" % version)
+            for l in fh:
+                if "\t" not in l:
+                    continue
+                m, f = l[:-1].split("\t")
+                changes.append(f)
+            fh.close()
+        else:
+            fh = self.gitcmd('git-diff-tree --name-only --root -r %s "%s^%s" --'
+                             % (version, version, i+1))
+            changes = [f.rstrip('\n') for f in fh]
+            fh.close()
+
+        return changes
