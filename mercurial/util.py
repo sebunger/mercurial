@@ -1,15 +1,43 @@
-# util.py - utility functions and platform specfic implementations
-#
-# Copyright 2005 K. Thananchayan <thananck@yahoo.com>
-#
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+"""
+util.py - Mercurial utility functions and platform specfic implementations
+
+ Copyright 2005 K. Thananchayan <thananck@yahoo.com>
+
+This software may be used and distributed according to the terms
+of the GNU General Public License, incorporated herein by reference.
+
+This contains helper routines that are independent of the SCM core and hide
+platform-specific details from the core.
+"""
 
 import os, errno
 from demandload import *
-demandload(globals(), "re")
+demandload(globals(), "re cStringIO shutil popen2 threading")
+
+def filter(s, cmd):
+    "filter a string through a command that transforms its input to its output"
+    (pout, pin) = popen2.popen2(cmd, -1, 'b')
+    def writer():
+        pin.write(s)
+        pin.close()
+
+    # we should use select instead on UNIX, but this will work on most
+    # systems, including Windows
+    w = threading.Thread(target=writer)
+    w.start()
+    f = pout.read()
+    pout.close()
+    w.join()
+    return f
+
+def binary(s):
+    """return true if a string is binary data using diff's heuristic"""
+    if s and '\0' in s[:4096]:
+        return True
+    return False
 
 def unique(g):
+    """return the uniq elements of iterable g"""
     seen = {}
     for f in g:
         if f not in seen:
@@ -22,7 +50,7 @@ class Abort(Exception):
 def always(fn): return True
 def never(fn): return False
 
-def globre(pat, head = '^', tail = '$'):
+def globre(pat, head='^', tail='$'):
     "convert a glob pattern into a regexp"
     i, n = 0, len(pat)
     res = ''
@@ -80,20 +108,48 @@ def pathto(n1, n2):
     b.reverse()
     return os.sep.join((['..'] * len(a)) + b)
 
-def canonpath(repo, cwd, myname):
-    rootsep = repo.root + os.sep
+def canonpath(root, cwd, myname):
+    """return the canonical path of myname, given cwd and root"""
+    rootsep = root + os.sep
     name = myname
     if not name.startswith(os.sep):
-        name = os.path.join(repo.root, cwd, name)
+        name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
     if name.startswith(rootsep):
         return pconvert(name[len(rootsep):])
-    elif name == repo.root:
+    elif name == root:
         return ''
     else:
-        raise Abort('%s not under repository root' % myname)
+        raise Abort('%s not under root' % myname)
 
-def matcher(repo, cwd, names, inc, exc, head = ''):
+def matcher(canonroot, cwd, names, inc, exc, head=''):
+    """build a function to match a set of file patterns
+
+    arguments:
+    canonroot - the canonical root of the tree you're matching against
+    cwd - the current working directory, if relevant
+    names - patterns to find
+    inc - patterns to include
+    exc - patterns to exclude
+    head - a regex to prepend to patterns to control whether a match is rooted
+
+    a pattern is one of:
+    're:<regex>'
+    'glob:<shellglob>'
+    'path:<explicit path>'
+    'relpath:<relative path>'
+    '<relative path>'
+
+    returns:
+    a 3-tuple containing
+    - list of explicit non-pattern names passed in
+    - a bool match(filename) function
+    - a bool indicating if any patterns were passed in
+
+    todo:
+    make head regex a rooted bool
+    """
+
     def patkind(name):
         for prefix in 're:', 'glob:', 'path:', 'relpath:':
             if name.startswith(prefix): return name.split(':', 1)
@@ -130,7 +186,7 @@ def matcher(repo, cwd, names, inc, exc, head = ''):
     roots = []
     for kind, name in map(patkind, names):
         if kind in ('glob', 'relpath'):
-            name = canonpath(repo, cwd, name)
+            name = canonpath(canonroot, cwd, name)
             if name == '':
                 kind, name = 'glob', '**'
         if kind in ('glob', 'path', 're'):
@@ -151,11 +207,13 @@ def matcher(repo, cwd, names, inc, exc, head = ''):
     if exc:
         excmatch = matchfn(map(patkind, exc), '(?:/|$)')
 
-    return roots, lambda fn: (incmatch(fn) and not excmatch(fn) and
-                              (fn.endswith('/') or
-                               (not pats and not files) or
-                               (pats and patmatch(fn)) or
-                               (files and filematch(fn))))
+    return (roots,
+            lambda fn: (incmatch(fn) and not excmatch(fn) and
+                        (fn.endswith('/') or
+                         (not pats and not files) or
+                         (pats and patmatch(fn)) or
+                         (files and filematch(fn)))),
+            (inc or exc or (pats and pats != [('glob', '**')])) and True)
 
 def system(cmd, errprefix=None):
     """execute a shell command that must succeed"""
@@ -168,26 +226,64 @@ def system(cmd, errprefix=None):
         raise Abort(errmsg)
 
 def rename(src, dst):
+    """forcibly rename a file"""
     try:
         os.rename(src, dst)
     except:
         os.unlink(dst)
         os.rename(src, dst)
 
-def copytree(src, dst, copyfile):
-    """Copy a directory tree, files are copied using 'copyfile'."""
-    names = os.listdir(src)
-    os.mkdir(dst)
+def copyfiles(src, dst, hardlink=None):
+    """Copy a directory tree using hardlinks if possible"""
 
-    for name in names:
-        srcname = os.path.join(src, name)
-        dstname = os.path.join(dst, name)
-        if os.path.isdir(srcname):
-            copytree(srcname, dstname, copyfile)
-        elif os.path.isfile(srcname):
-            copyfile(srcname, dstname)
+    if hardlink is None:
+        hardlink = (os.stat(src).st_dev ==
+                    os.stat(os.path.dirname(dst)).st_dev)
+
+    if os.path.isdir(src):
+        os.mkdir(dst)
+        for name in os.listdir(src):
+            srcname = os.path.join(src, name)
+            dstname = os.path.join(dst, name)
+            copyfiles(srcname, dstname, hardlink)
+    else:
+        if hardlink:
+            try:
+                os_link(src, dst)
+            except:
+                hardlink = False
+                shutil.copy2(src, dst)
         else:
-            pass
+            shutil.copy2(src, dst)
+
+def opener(base):
+    """
+    return a function that opens files relative to base
+
+    this function is used to hide the details of COW semantics and
+    remote file access from higher level code.
+    """
+    p = base
+    def o(path, mode="r"):
+        f = os.path.join(p, path)
+
+        mode += "b" # for that other OS
+
+        if mode[0] != "r":
+            try:
+                nlink = nlinks(f)
+            except OSError:
+                d = os.path.dirname(f)
+                if not os.path.isdir(d):
+                    os.makedirs(d)
+            else:
+                if nlink > 1:
+                    file(f + ".tmp", "wb").write(file(f, "rb").read())
+                    rename(f+".tmp", f)
+
+        return file(f, mode)
+
+    return o
 
 def _makelock_file(info, pathname):
     ld = os.open(pathname, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
@@ -197,9 +293,40 @@ def _makelock_file(info, pathname):
 def _readlock_file(pathname):
     return file(pathname).read()
 
-# Platfor specific varients
+def nlinks(pathname):
+    """Return number of hardlinks for the given file."""
+    return os.stat(pathname).st_nlink
+
+if hasattr(os, 'link'):
+    os_link = os.link
+else:
+    def os_link(src, dst):
+        raise OSError(0, "Hardlinks not supported")
+
+# Platform specific variants
 if os.name == 'nt':
     nulldev = 'NUL:'
+
+    try: # ActivePython can create hard links using win32file module
+        import win32file
+
+        def os_link(src, dst): # NB will only succeed on NTFS
+            win32file.CreateHardLink(dst, src)
+
+        def nlinks(pathname):
+            """Return number of hardlinks for the given file."""
+            try:
+                fh = win32file.CreateFile(pathname,
+                    win32file.GENERIC_READ, win32file.FILE_SHARE_READ,
+                    None, win32file.OPEN_EXISTING, 0, None)
+                res = win32file.GetFileInformationByHandle(fh)
+                fh.Close()
+                return res[7]
+            except:
+                return os.stat(pathname).st_nlink
+
+    except ImportError:
+        pass
 
     def is_exec(f, last):
         return last
@@ -226,6 +353,7 @@ else:
     nulldev = '/dev/null'
 
     def is_exec(f, last):
+        """check whether a file is executable"""
         return (os.stat(f).st_mode & 0100 != 0)
 
     def set_exec(f, mode):
@@ -279,3 +407,59 @@ else:
             val = os.WSTOPSIG(code)
             return "stopped by signal %d" % val, val
         raise ValueError("invalid exit code")
+
+class chunkbuffer(object):
+    """Allow arbitrary sized chunks of data to be efficiently read from an
+    iterator over chunks of arbitrary size."""
+
+    def __init__(self, in_iter, targetsize = 2**16):
+        """in_iter is the iterator that's iterating over the input chunks.
+        targetsize is how big a buffer to try to maintain."""
+        self.in_iter = iter(in_iter)
+        self.buf = ''
+        self.targetsize = int(targetsize)
+        if self.targetsize <= 0:
+            raise ValueError("targetsize must be greater than 0, was %d" %
+                             targetsize)
+        self.iterempty = False
+
+    def fillbuf(self):
+        """Ignore target size; read every chunk from iterator until empty."""
+        if not self.iterempty:
+            collector = cStringIO.StringIO()
+            collector.write(self.buf)
+            for ch in self.in_iter:
+                collector.write(ch)
+            self.buf = collector.getvalue()
+            self.iterempty = True
+
+    def read(self, l):
+        """Read L bytes of data from the iterator of chunks of data.
+	Returns less than L bytes if the iterator runs dry."""
+        if l > len(self.buf) and not self.iterempty:
+            # Clamp to a multiple of self.targetsize
+            targetsize = self.targetsize * ((l // self.targetsize) + 1)
+            collector = cStringIO.StringIO()
+            collector.write(self.buf)
+            collected = len(self.buf)
+            for chunk in self.in_iter:
+                collector.write(chunk)
+                collected += len(chunk)
+                if collected >= targetsize:
+                    break
+            if collected < targetsize:
+                self.iterempty = True
+            self.buf = collector.getvalue()
+        s, self.buf = self.buf[:l], buffer(self.buf, l)
+        return s
+
+def filechunkiter(f, size = 65536):
+    """Create a generator that produces all the data in the file size
+    (default 65536) bytes at a time.  Chunks may be less than size
+    bytes if the chunk is the last chunk in the file, or the file is a
+    socket or some other type of file that sometimes reads less data
+    than is requested."""
+    s = f.read(size)
+    while len(s) >= 0:
+        yield s
+        s = f.read(size)

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 _hg_commands()
 {
     local commands="$(hg -v help | sed -e '1,/^list of commands:/d' \
@@ -8,7 +10,8 @@ _hg_commands()
     # specifically asked for
     if [[ "$cur" == de* ]]; then
 	commands="$commands debugcheckstate debugstate debugindex"
-	commands="$commands debugindexdot debugwalk"
+	commands="$commands debugindexdot debugwalk debugdata"
+	commands="$commands debugancestor debugconfig debugrename"
     fi
     COMPREPLY=( ${COMPREPLY[@]:-} $(compgen -W "$commands" -- "$cur") )
 }
@@ -39,11 +42,9 @@ _hg_count_non_option()
 
     for (( i=1; $i<=$COMP_CWORD; i++ )); do
 	if [[ "${COMP_WORDS[i]}" != -* ]]; then
-	    for f in $filters; do
-		if [[ ${COMP_WORDS[i-1]} == $f ]]; then
-		    continue 2
-		fi
-	    done
+	    if [[ ${COMP_WORDS[i-1]} == @($filters|$global_args) ]]; then
+		continue
+	    fi
 	    count=$(($count + 1))
 	fi
     done
@@ -54,42 +55,52 @@ _hg_count_non_option()
 _hg()
 {
     local cur prev cmd opts i
+    # global options that receive an argument
+    local global_args='--cwd|-R|--repository'
 
     COMPREPLY=()
     cur="$2"
     prev="$3"
 
     # searching for the command 
-    # (first non-option argument that doesn't follow -R/--repository)
+    # (first non-option argument that doesn't follow a global option that
+    #  receives an argument)
     for (( i=1; $i<=$COMP_CWORD; i++ )); do
-	if [[ ${COMP_WORDS[i]} != -* ]] \
-	   && [ "${COMP_WORDS[i-1]}" != -R ] \
-	   && [ "${COMP_WORDS[i-1]}" != --repository ]; then
-	    cmd="${COMP_WORDS[i]}"
-	    break
+	if [[ ${COMP_WORDS[i]} != -* ]]; then
+	    if [[ ${COMP_WORDS[i-1]} != @($global_args) ]]; then
+		cmd="${COMP_WORDS[i]}"
+		break
+	    fi
 	fi
     done
 
     if [[ "$cur" == -* ]]; then
-	opts="$(hg -v help | sed -e '1,/^global options/d; /^ -/!d')"
-
-	if [ -n "$cmd" ]; then
-	    opts="$opts $(hg help "$cmd" | sed -e '/^ -/!d; s/ [^-][^ ]*//')"
-	fi
+	# this assumes that there are no commands with spaces in the name
+	opts=$(hg -v help $cmd | sed -e '/^ *-/!d; s/ [^- ].*//')
 
 	COMPREPLY=( ${COMPREPLY[@]:-} $(compgen -W "$opts" -- "$cur") )
 	return
     fi
 
-    if [ "$prev" = -R ] || [ "$prev" = --repository ]; then
-        COMPREPLY=(${COMPREPLY[@]:-} $( compgen -d -- "$cur" ))
-	return
-    fi
+    # global options
+    case "$prev" in
+	-R|--repository)
+	    COMPREPLY=(${COMPREPLY[@]:-} $( compgen -d -- "$cur" ))
+	    return
+	;;
+	--cwd)
+	    COMPREPLY=(${COMPREPLY[@]:-} $( compgen -d -- "$cur" ))
+	    return
+	;;
+    esac
 
     if [ -z "$cmd" ] || [ $COMP_CWORD -eq $i ]; then
 	_hg_commands
 	return
     fi
+
+    # canonicalize command name
+    cmd=$(hg -q help "$cmd" | sed -e 's/^hg //; s/ .*//; 1q')
 
     if [ "$cmd" != status ] && [ "$prev" = -r ] || [ "$prev" = --rev ]; then
 	_hg_tags
@@ -100,7 +111,7 @@ _hg()
 	help)
 	    _hg_commands
 	;;
-	export|manifest|update|checkout|up|co)
+	export|manifest|update)
 	    _hg_tags
 	;;
 	pull|push|outgoing|incoming)
@@ -135,8 +146,14 @@ _hg()
 	    fi
 	    COMPREPLY=(${COMPREPLY[@]:-} $( compgen -d -- "$cur" ))
 	;;
+	debugindex|debugindexdot)
+	    COMPREPLY=(${COMPREPLY[@]:-} $( compgen -f -X "!*.i" -- "$cur" ))
+	;;
+	debugdata)
+	    COMPREPLY=(${COMPREPLY[@]:-} $( compgen -f -X "!*.d" -- "$cur" ))
+	;;
 	cat)
-	    local count=$(_hg_count_non_option -o --output)
+	    local count=$(_hg_count_non_option '-o|--output')
 	    if [ $count = 2 ]; then
 		_hg_tags
 	    else
@@ -150,4 +167,5 @@ _hg()
 
 }
 
-complete -o default -F _hg hg
+complete -o bashdefault -o default -F _hg hg 2> /dev/null \
+    || complete -o default -F _hg hg
