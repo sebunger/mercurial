@@ -15,6 +15,8 @@ from i18n import _
 import errno
 import error, util
 
+version = 1
+
 def active(func):
     def _active(self, *args, **kwds):
         if self.count == 0:
@@ -24,7 +26,7 @@ def active(func):
     return _active
 
 def _playback(journal, report, opener, entries, backupentries, unlink=True):
-    for f, o, ignore in entries:
+    for f, o, _ignore in entries:
         if o or not unlink:
             try:
                 fp = opener(f, 'a')
@@ -41,7 +43,7 @@ def _playback(journal, report, opener, entries, backupentries, unlink=True):
                     raise
 
     backupfiles = []
-    for f, b, ignore in backupentries:
+    for f, b, _ignore in backupentries:
         filepath = opener.join(f)
         backuppath = opener.join(b)
         try:
@@ -92,9 +94,13 @@ class transaction(object):
         self.backupjournal = "%s.backupfiles" % journal
         self.file = opener.open(self.journal, "w")
         self.backupsfile = opener.open(self.backupjournal, 'w')
+        self.backupsfile.write('%d\n' % version)
         if createmode is not None:
             opener.chmod(self.journal, createmode & 0666)
             opener.chmod(self.backupjournal, createmode & 0666)
+
+        # hold file generations to be performed on commit
+        self._filegenerators = {}
 
     def __del__(self):
         if self.journal:
@@ -112,17 +118,17 @@ class transaction(object):
 
         offsets = []
         backups = []
-        for f, o, _ in q[0]:
+        for f, o, _data in q[0]:
             offsets.append((f, o))
 
-        for f, b, _ in q[1]:
+        for f, b, _data in q[1]:
             backups.append((f, b))
 
         d = ''.join(['%s\0%d\n' % (f, o) for f, o in offsets])
         self.file.write(d)
         self.file.flush()
 
-        d = ''.join(['%s\0%s\0' % (f, b) for f, b in backups])
+        d = ''.join(['%s\0%s\n' % (f, b) for f, b in backups])
         self.backupsfile.write(d)
         self.backupsfile.flush()
 
@@ -141,7 +147,7 @@ class transaction(object):
         self.file.flush()
 
     @active
-    def addbackup(self, file, hardlink=True):
+    def addbackup(self, file, hardlink=True, vfs=None):
         """Adds a backup of the file to the transaction
 
         Calling addbackup() creates a hardlink backup of the specified file
@@ -154,9 +160,11 @@ class transaction(object):
 
         if file in self.map or file in self.backupmap:
             return
-        backupfile = "journal.%s" % file
-        if self.opener.exists(file):
-            filepath = self.opener.join(file)
+        backupfile = "%s.backup.%s" % (self.journal, file)
+        if vfs is None:
+            vfs = self.opener
+        if vfs.exists(file):
+            filepath = vfs.join(file)
             backuppath = self.opener.join(backupfile)
             util.copyfiles(filepath, backuppath, hardlink=hardlink)
         else:
@@ -169,8 +177,53 @@ class transaction(object):
 
         self.backupentries.append((file, backupfile, None))
         self.backupmap[file] = len(self.backupentries) - 1
-        self.backupsfile.write("%s\0%s\0" % (file, backupfile))
+        self.backupsfile.write("%s\0%s\n" % (file, backupfile))
         self.backupsfile.flush()
+
+    @active
+    def addfilegenerator(self, genid, filenames, genfunc, order=0, vfs=None):
+        """add a function to generates some files at transaction commit
+
+        The `genfunc` argument is a function capable of generating proper
+        content of each entry in the `filename` tuple.
+
+        At transaction close time, `genfunc` will be called with one file
+        object argument per entries in `filenames`.
+
+        The transaction itself is responsible for the backup, creation and
+        final write of such file.
+
+        The `genid` argument is used to ensure the same set of file is only
+        generated once. Call to `addfilegenerator` for a `genid` already
+        present will overwrite the old entry.
+
+        The `order` argument may be used to control the order in which multiple
+        generator will be executed.
+        """
+        # For now, we are unable to do proper backup and restore of custom vfs
+        # but for bookmarks that are handled outside this mechanism.
+        assert vfs is None or filenames == ('bookmarks',)
+        self._filegenerators[genid] = (order, filenames, genfunc, vfs)
+
+    def _generatefiles(self):
+        # write files registered for generation
+        for entry in sorted(self._filegenerators.values()):
+            order, filenames, genfunc, vfs = entry
+            if vfs is None:
+                vfs = self.opener
+            files = []
+            try:
+                for name in filenames:
+                    # Some files are already backed up when creating the
+                    # localrepo. Until this is properly fixed we disable the
+                    # backup for them.
+                    if name not in ('phaseroots', 'bookmarks'):
+                        self.addbackup(name)
+                    files.append(vfs(name, 'w', atomictemp=True))
+                genfunc(*files)
+            finally:
+                for f in files:
+                    f.close()
 
     @active
     def find(self, file):
@@ -214,6 +267,7 @@ class transaction(object):
     def close(self):
         '''commit the transaction'''
         if self.count == 1 and self.onclose is not None:
+            self._generatefiles()
             self.onclose()
 
         self.count -= 1
@@ -228,7 +282,7 @@ class transaction(object):
             self.opener.unlink(self.journal)
         if self.opener.isfile(self.backupjournal):
             self.opener.unlink(self.backupjournal)
-            for f, b, _ in self.backupentries:
+            for _f, b, _ignore in self.backupentries:
                 self.opener.unlink(b)
         self.backupentries = []
         self.journal = None
@@ -297,11 +351,18 @@ def rollback(opener, file, report):
     backupjournal = "%s.backupfiles" % file
     if opener.exists(backupjournal):
         fp = opener.open(backupjournal)
-        data = fp.read()
-        if len(data) > 0:
-            parts = data.split('\0')
-            for i in xrange(0, len(parts), 2):
-                f, b = parts[i:i + 1]
-                backupentries.append((f, b, None))
+        lines = fp.readlines()
+        if lines:
+            ver = lines[0][:-1]
+            if ver == str(version):
+                for line in lines[1:]:
+                    if line:
+                        # Shave off the trailing newline
+                        line = line[:-1]
+                        f, b = line.split('\0')
+                        backupentries.append((f, b, None))
+            else:
+                report(_("journal was created by a newer version of "
+                         "Mercurial"))
 
     _playback(file, report, opener, entries, backupentries)

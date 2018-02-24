@@ -99,73 +99,75 @@ installed. <tt class="docutils literal">*.rc</tt> files from a single directory 
 alphabetical order, later ones overriding earlier ones. Where multiple
 paths are given below, settings from earlier paths override later
 ones.</p>
-<div class="line-block">
-<div class="line">(All) <tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt></div>
+<div class="verbose-unix container">
+<p>On Unix, the following files are consulted:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> (per-repository)</li>
+<li><tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt> (per-user)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc</span></tt> (per-installation)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc</span></tt> (per-installation)</li>
+<li><tt class="docutils literal">/etc/mercurial/hgrc</tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">/etc/mercurial/hgrc.d/*.rc</span></tt> (per-system)</li>
+</ul>
 </div>
-<blockquote>
-Per-repository configuration options that only apply in a
-particular repository. This file is not version-controlled, and
-will not get transferred during a &quot;clone&quot; operation. Options in
-this file override options in all other configuration files. On
-Plan 9 and Unix, most of this file will be ignored if it doesn't
-belong to a trusted user or to a trusted group. See the documentation
-for the <tt class="docutils literal">[trusted]</tt> section below for more details.</blockquote>
-<div class="line-block">
-<div class="line">(Plan 9) <tt class="docutils literal">$home/lib/hgrc</tt></div>
-<div class="line">(Unix) <tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt></div>
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">%USERPROFILE%\.hgrc</span></tt></div>
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">%USERPROFILE%\Mercurial.ini</span></tt></div>
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">%HOME%\.hgrc</span></tt></div>
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">%HOME%\Mercurial.ini</span></tt></div>
-</div>
-<blockquote>
-Per-user configuration file(s), for the user running Mercurial. On
-Windows 9x, <tt class="docutils literal">%HOME%</tt> is replaced by <tt class="docutils literal">%APPDATA%</tt>. Options in these
-files apply to all Mercurial commands executed by this user in any
-directory. Options in these files override per-system and per-installation
-options.</blockquote>
-<div class="line-block">
-<div class="line">(Plan 9) <tt class="docutils literal">/lib/mercurial/hgrc</tt></div>
-<div class="line">(Plan 9) <tt class="docutils literal"><span class="pre">/lib/mercurial/hgrc.d/*.rc</span></tt></div>
-<div class="line">(Unix) <tt class="docutils literal">/etc/mercurial/hgrc</tt></div>
-<div class="line">(Unix) <tt class="docutils literal"><span class="pre">/etc/mercurial/hgrc.d/*.rc</span></tt></div>
-</div>
-<blockquote>
-Per-system configuration files, for the system on which Mercurial
-is running. Options in these files apply to all Mercurial commands
-executed by any user in any directory. Options in these files
-override per-installation options.</blockquote>
-<div class="line-block">
-<div class="line">(Plan 9) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc</span></tt></div>
-<div class="line">(Plan 9) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc.d/*.rc</span></tt></div>
-<div class="line">(Unix) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc</span></tt></div>
-<div class="line">(Unix) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc</span></tt></div>
-</div>
-<blockquote>
-Per-installation configuration files, searched for in the
-directory where Mercurial is installed. <tt class="docutils literal"><span class="pre">&lt;install-root&gt;</span></tt> is the
-parent directory of the <strong>hg</strong> executable (or symlink) being run. For
-example, if installed in <tt class="docutils literal">/shared/tools/bin/hg</tt>, Mercurial will look
-in <tt class="docutils literal">/shared/tools/etc/mercurial/hgrc</tt>. Options in these files apply
-to all Mercurial commands executed by any user in any directory.</blockquote>
-<div class="line-block">
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\Mercurial.ini</span></tt> <strong>or</strong></div>
-<div class="line">(Windows) <tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\hgrc.d\*.rc</span></tt> <strong>or</strong></div>
-<div class="line">(Windows) <tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</tt></div>
-</div>
-<blockquote>
-Per-installation/system configuration files, for the system on
-which Mercurial is running. Options in these files apply to all
-Mercurial commands executed by any user in any directory. Registry
-keys contain PATH-like strings, every part of which must reference
-a <tt class="docutils literal">Mercurial.ini</tt> file or be a directory where <tt class="docutils literal">*.rc</tt> files will
-be read.  Mercurial checks each of these locations in the specified
-order until one or more configuration files are detected.</blockquote>
+<div class="verbose-windows container">
+<p>On Windows, the following files are consulted:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> (per-repository)</li>
+<li><tt class="docutils literal"><span class="pre">%USERPROFILE%\.hgrc</span></tt> (per-user)</li>
+<li><tt class="docutils literal"><span class="pre">%USERPROFILE%\Mercurial.ini</span></tt> (per-user)</li>
+<li><tt class="docutils literal"><span class="pre">%HOME%\.hgrc</span></tt> (per-user)</li>
+<li><tt class="docutils literal"><span class="pre">%HOME%\Mercurial.ini</span></tt> (per-user)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\Mercurial.ini</span></tt> (per-installation)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\hgrc.d\*.rc</span></tt> (per-installation)</li>
+<li><tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</tt> (per-installation)</li>
+</ul>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The registry key <tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial</tt>
 is used when running 32-bit Python on 64-bit Windows.</p>
 </div>
+</div>
+<div class="verbose-plan9 container">
+<p>On Plan9, the following files are consulted:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> (per-repository)</li>
+<li><tt class="docutils literal">$home/lib/hgrc</tt> (per-user)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc</span></tt> (per-installation)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc.d/*.rc</span></tt> (per-installation)</li>
+<li><tt class="docutils literal">/lib/mercurial/hgrc</tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">/lib/mercurial/hgrc.d/*.rc</span></tt> (per-system)</li>
+</ul>
+</div>
+<p>Per-repository configuration options only apply in a
+particular repository. This file is not version-controlled, and
+will not get transferred during a &quot;clone&quot; operation. Options in
+this file override options in all other configuration files. On
+Plan 9 and Unix, most of this file will be ignored if it doesn't
+belong to a trusted user or to a trusted group. See the documentation
+for the <tt class="docutils literal">[trusted]</tt> section below for more details.</p>
+<p>Per-user configuration file(s) are for the user running Mercurial. On
+Windows 9x, <tt class="docutils literal">%HOME%</tt> is replaced by <tt class="docutils literal">%APPDATA%</tt>. Options in these
+files apply to all Mercurial commands executed by this user in any
+directory. Options in these files override per-system and per-installation
+options.</p>
+<p>Per-installation configuration files are searched for in the
+directory where Mercurial is installed. <tt class="docutils literal"><span class="pre">&lt;install-root&gt;</span></tt> is the
+parent directory of the <strong>hg</strong> executable (or symlink) being run. For
+example, if installed in <tt class="docutils literal">/shared/tools/bin/hg</tt>, Mercurial will look
+in <tt class="docutils literal">/shared/tools/etc/mercurial/hgrc</tt>. Options in these files apply
+to all Mercurial commands executed by any user in any directory.</p>
+<p>Per-installation configuration files are for the system on
+which Mercurial is running. Options in these files apply to all
+Mercurial commands executed by any user in any directory. Registry
+keys contain PATH-like strings, every part of which must reference
+a <tt class="docutils literal">Mercurial.ini</tt> file or be a directory where <tt class="docutils literal">*.rc</tt> files will
+be read.  Mercurial checks each of these locations in the specified
+order until one or more configuration files are detected.</p>
+<p>Per-system configuration files are for the system on which Mercurial
+is running. Options in these files apply to all Mercurial commands
+executed by any user in any directory. Options in these files
+override per-installation options.</p>
 </div>
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
@@ -293,8 +295,9 @@ repository in the same manner as the purge extension.</p>
 <p>Positional arguments like <tt class="docutils literal">$1</tt>, <tt class="docutils literal">$2</tt>, etc. in the alias definition
 expand to the command arguments. Unmatched arguments are
 removed. <tt class="docutils literal">$0</tt> expands to the alias name and <tt class="docutils literal">$&#64;</tt> expands to all
-arguments separated by a space. These expansions happen before the
-command is passed to the shell.</p>
+arguments separated by a space. <tt class="docutils literal"><span class="pre">&quot;$&#64;&quot;</span></tt> (with quotes) expands to all
+arguments quoted individually and separated by a space. These expansions
+happen before the command is passed to the shell.</p>
 <p>Shell aliases are executed in an environment where <tt class="docutils literal">$HG</tt> expands to
 the path of the Mercurial that was used to execute the alias. This is
 useful when you want to call further Mercurial commands in a shell
@@ -436,6 +439,55 @@ required):</p>
 <li><a class="reference external" href="hg.1.html#tag"><tt class="docutils literal">hg tag</tt></a></li>
 <li><a class="reference external" href="hg.1.html#transplant"><tt class="docutils literal">hg transplant</tt></a></li>
 </ul>
+<p>Configuring items below instead of <tt class="docutils literal">changeset</tt> allows showing
+customized message only for specific actions, or showing different
+messages for each action.</p>
+<ul class="simple">
+<li><tt class="docutils literal">changeset.backout</tt> for <a class="reference external" href="hg.1.html#backout"><tt class="docutils literal">hg backout</tt></a></li>
+<li><tt class="docutils literal">changeset.commit.amend.merge</tt> for <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--amend</span></tt></a> on merges</li>
+<li><tt class="docutils literal">changeset.commit.amend.normal</tt> for <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--amend</span></tt></a> on other</li>
+<li><tt class="docutils literal">changeset.commit.normal.merge</tt> for <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> on merges</li>
+<li><tt class="docutils literal">changeset.commit.normal.normal</tt> for <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> on other</li>
+<li><tt class="docutils literal">changeset.fetch</tt> for <a class="reference external" href="hg.1.html#fetch"><tt class="docutils literal">hg fetch</tt></a> (impling merge commit)</li>
+<li><tt class="docutils literal">changeset.gpg.sign</tt> for <a class="reference external" href="hg.1.html#sign"><tt class="docutils literal">hg sign</tt></a></li>
+<li><tt class="docutils literal">changeset.graft</tt> for <a class="reference external" href="hg.1.html#graft"><tt class="docutils literal">hg graft</tt></a></li>
+<li><tt class="docutils literal">changeset.histedit.edit</tt> for <tt class="docutils literal">edit</tt> of <a class="reference external" href="hg.1.html#histedit"><tt class="docutils literal">hg histedit</tt></a></li>
+<li><tt class="docutils literal">changeset.histedit.fold</tt> for <tt class="docutils literal">fold</tt> of <a class="reference external" href="hg.1.html#histedit"><tt class="docutils literal">hg histedit</tt></a></li>
+<li><tt class="docutils literal">changeset.histedit.mess</tt> for <tt class="docutils literal">mess</tt> of <a class="reference external" href="hg.1.html#histedit"><tt class="docutils literal">hg histedit</tt></a></li>
+<li><tt class="docutils literal">changeset.histedit.pick</tt> for <tt class="docutils literal">pick</tt> of <a class="reference external" href="hg.1.html#histedit"><tt class="docutils literal">hg histedit</tt></a></li>
+<li><tt class="docutils literal">changeset.import.bypass</tt> for <a class="reference external" href="hg.1.html#import"><tt class="docutils literal">hg import <span class="pre">--bypass</span></tt></a></li>
+<li><tt class="docutils literal">changeset.import.normal.merge</tt> for <a class="reference external" href="hg.1.html#import"><tt class="docutils literal">hg import</tt></a> on merges</li>
+<li><tt class="docutils literal">changeset.import.normal.normal</tt> for <a class="reference external" href="hg.1.html#import"><tt class="docutils literal">hg import</tt></a> on other</li>
+<li><tt class="docutils literal">changeset.mq.qnew</tt> for <a class="reference external" href="hg.1.html#qnew"><tt class="docutils literal">hg qnew</tt></a></li>
+<li><tt class="docutils literal">changeset.mq.qfold</tt> for <a class="reference external" href="hg.1.html#qfold"><tt class="docutils literal">hg qfold</tt></a></li>
+<li><tt class="docutils literal">changeset.mq.qrefresh</tt> for <a class="reference external" href="hg.1.html#qrefresh"><tt class="docutils literal">hg qrefresh</tt></a></li>
+<li><tt class="docutils literal">changeset.rebase.collapse</tt> for <a class="reference external" href="hg.1.html#rebase"><tt class="docutils literal">hg rebase <span class="pre">--collapse</span></tt></a></li>
+<li><tt class="docutils literal">changeset.rebase.merge</tt> for <a class="reference external" href="hg.1.html#rebase"><tt class="docutils literal">hg rebase</tt></a> on merges</li>
+<li><tt class="docutils literal">changeset.rebase.normal</tt> for <a class="reference external" href="hg.1.html#rebase"><tt class="docutils literal">hg rebase</tt></a> on other</li>
+<li><tt class="docutils literal">changeset.shelve.shelve</tt> for <a class="reference external" href="hg.1.html#shelve"><tt class="docutils literal">hg shelve</tt></a></li>
+<li><tt class="docutils literal">changeset.tag.add</tt> for <a class="reference external" href="hg.1.html#tag"><tt class="docutils literal">hg tag</tt></a> without <tt class="docutils literal"><span class="pre">--remove</span></tt></li>
+<li><tt class="docutils literal">changeset.tag.remove</tt> for <a class="reference external" href="hg.1.html#tag"><tt class="docutils literal">hg tag <span class="pre">--remove</span></tt></a></li>
+<li><tt class="docutils literal">changeset.transplant.merge</tt> for <a class="reference external" href="hg.1.html#transplant"><tt class="docutils literal">hg transplant</tt></a> on merges</li>
+<li><tt class="docutils literal">changeset.transplant.normal</tt> for <a class="reference external" href="hg.1.html#transplant"><tt class="docutils literal">hg transplant</tt></a> on other</li>
+</ul>
+<p>These dot-separated lists of names are treated as hierarchical ones.
+For example, <tt class="docutils literal">changeset.tag.remove</tt> customizes the commit message
+only for <a class="reference external" href="hg.1.html#tag"><tt class="docutils literal">hg tag <span class="pre">--remove</span></tt></a>, but <tt class="docutils literal">changeset.tag</tt> customizes the
+commit message for <a class="reference external" href="hg.1.html#tag"><tt class="docutils literal">hg tag</tt></a> regardless of <tt class="docutils literal"><span class="pre">--remove</span></tt> option.</p>
+<p>At the external editor invocation for committing, corresponding
+dot-separated list of names without <tt class="docutils literal">changeset.</tt> prefix
+(e.g. <tt class="docutils literal">commit.normal.normal</tt>) is in <tt class="docutils literal">HGEDITFORM</tt> environment variable.</p>
+<p>In this section, items other than <tt class="docutils literal">changeset</tt> can be referred from
+others. For example, the configuration to list committed files up
+below can be referred as <tt class="docutils literal">{listupfiles}</tt>:</p>
+<pre class="literal-block">
+[committemplate]
+listupfiles = {file_adds %
+   &quot;HG: added {file}\n&quot;     }{file_mods %
+   &quot;HG: changed {file}\n&quot;   }{file_dels %
+   &quot;HG: removed {file}\n&quot;   }{if(files, &quot;&quot;,
+   &quot;HG: no files changed\n&quot;)}
+</pre>
 </div>
 <div class="section" id="decode-encode">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">decode/encode</tt></a></h2>
@@ -898,8 +950,11 @@ commit being rebased.
 Default: <tt class="docutils literal">$local $base $other</tt></dd>
 <dt><tt class="docutils literal">premerge</tt></dt>
 <dd>Attempt to run internal non-interactive 3-way merge tool before
-launching external tool.  Options are <tt class="docutils literal">true</tt>, <tt class="docutils literal">false</tt>, or <tt class="docutils literal">keep</tt>
-to leave markers in the file if the premerge fails.
+launching external tool.  Options are <tt class="docutils literal">true</tt>, <tt class="docutils literal">false</tt>, <tt class="docutils literal">keep</tt> or
+<tt class="docutils literal"><span class="pre">keep-merge3</span></tt>. The <tt class="docutils literal">keep</tt> option will leave markers in the file if the
+premerge fails. The <tt class="docutils literal"><span class="pre">keep-merge3</span></tt> will do the same but include information
+about the base of the merge in the marker (see internal :merge3 in
+<a class="reference external" href="hg.1.html#merge-tools"><tt class="docutils literal">hg help <span class="pre">merge-tools</span></tt></a>).
 Default: True</dd>
 <dt><tt class="docutils literal">binary</tt></dt>
 <dd>This tool can merge binary files. Defaults to False, unless tool
@@ -1251,7 +1306,7 @@ On Windows, this configuration option is ignored and the command aborted.</dd>
 <dt><tt class="docutils literal">remotecmd</tt></dt>
 <dd>remote command to use for clone/push/pull operations. Default is <tt class="docutils literal">hg</tt>.</dd>
 <dt><tt class="docutils literal">reportoldssl</tt></dt>
-<dd>Warn if an SSL certificate is unable to be due to using Python
+<dd>Warn if an SSL certificate is unable to be used due to using Python
 2.5 or earlier. True or False. Default is True.</dd>
 <dt><tt class="docutils literal">report_untrusted</tt></dt>
 <dd>Warn if a <tt class="docutils literal">.hg/hgrc</tt> file is ignored due to not being owned by a
@@ -1475,9 +1530,12 @@ Example: <tt class="docutils literal"><span class="pre">http://hgserver/static/<
 <dd>How many lines a &quot;zebra stripe&quot; should span in multi-line output.
 Default is 1; set to 0 to disable.</dd>
 <dt><tt class="docutils literal">style</tt></dt>
-<dd>Which template map style to use.</dd>
+<dd>Which template map style to use. The available options are the names of
+subdirectories in the HTML templates path. Default is <tt class="docutils literal">paper</tt>.
+Example: <tt class="docutils literal">monoblue</tt></dd>
 <dt><tt class="docutils literal">templates</tt></dt>
-<dd>Where to find the HTML templates. Default is install path.</dd>
+<dd>Where to find the HTML templates. The default path to the HTML templates
+can be obtained from <tt class="docutils literal">hg debuginstall</tt>.</dd>
 </dl>
 </div>
 <div class="section" id="websub">

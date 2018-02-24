@@ -322,6 +322,10 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -719,7 +723,7 @@ Updating away from a bookmark will cause it to be deactivated.
 Bookmarks can be pushed and pulled between repositories (see
 \%\fBhg help push\fP\: and \%\fBhg help pull\fP\:). If a shared bookmark has
 diverged, a new \(aqdivergent bookmark\(aq of the form \%\(aqname@path\:\(aq will
-be created. Using :hg:\(aqmerge\(aq will resolve the divergence.
+be created. Using \%\fBhg merge\fP\: will resolve the divergence.
 .sp
 A bookmark named \(aq@\(aq has the special property that \%\fBhg clone\fP\: will
 check it out by default if it exists.
@@ -786,6 +790,10 @@ rename a given bookmark
 .B \-i,  \-\-inactive
 .
 mark a bookmark inactive
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
 .sp
 aliases: bookmark
 .UNINDENT
@@ -865,6 +873,10 @@ show only branches that have unmerged heads
 .B \-c,  \-\-closed
 .
 show normal and closed branches
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
 .UNINDENT
 .SS bundle
 .sp
@@ -1716,6 +1728,111 @@ omit dates from diff headers
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS files
+.sp
+list tracked files:
+.sp
+.nf
+.ft C
+hg files [OPTION]... [PATTERN]...
+.ft P
+.fi
+.sp
+Print files under Mercurial control in the working directory or
+specified revision whose names match the given patterns (excluding
+removed files).
+.sp
+If no patterns are given to match, this command prints the names
+of all files under Mercurial control in the working copy.
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+list all files under the current directory:
+.sp
+.nf
+.ft C
+hg files .
+.ft P
+.fi
+.IP \(bu 2
+.
+shows sizes and flags for current revision:
+.sp
+.nf
+.ft C
+hg files \-vr .
+.ft P
+.fi
+.IP \(bu 2
+.
+list all files named README:
+.sp
+.nf
+.ft C
+hg files \-I "**/README"
+.ft P
+.fi
+.IP \(bu 2
+.
+list all binary files:
+.sp
+.nf
+.ft C
+hg files "set:binary()"
+.ft P
+.fi
+.IP \(bu 2
+.
+find files containing a regular expression:
+.sp
+.nf
+.ft C
+hg files "set:grep(\(aqbob\(aq)"
+.ft P
+.fi
+.IP \(bu 2
+.
+search tracked file contents with xargs and grep:
+.sp
+.nf
+.ft C
+hg files \-0 | xargs \-0 grep foo
+.ft P
+.fi
+.UNINDENT
+.sp
+See \%\fBhg help pattern\fP\: and \%\fBhg help filesets\fP\: for more information
+on specifying file patterns.
+.sp
+Returns 0 if a match is found, 1 otherwise.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+search the repository as it is in REV
+.TP
+.B \-0,  \-\-print0
+.
+end filenames with NUL, for use with xargs
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS forget
 .sp
 forget the specified files on the next commit:
@@ -1800,13 +1917,18 @@ of the form:
 .ft P
 .fi
 .sp
+If \-\-force is specified, revisions will be grafted even if they
+are already ancestors of or have been grafted to the destination.
+This is useful when the revisions have since been backed out.
+.sp
 If a graft merge results in conflicts, the graft process is
 interrupted so that the current merge can be manually resolved.
 Once all conflicts are addressed, the graft process can be
 continued with the \-c/\-\-continue option.
 .IP Note
 .
-The \-c/\-\-continue option does not reapply earlier options.
+The \-c/\-\-continue option does not reapply earlier options, except
+for \-\-force.
 .RE
 .sp
 Examples:
@@ -1873,6 +1995,10 @@ invoke editor on commit messages
 .B \-\-log
 .
 append graft info to log message
+.TP
+.B \-f,  \-\-force
+.
+force graft
 .TP
 .B \-D,  \-\-currentdate
 .
@@ -2496,7 +2622,7 @@ do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS locate
 .sp
-locate files matching specific patterns:
+locate files matching specific patterns (DEPRECATED):
 .sp
 .nf
 .ft C
@@ -2518,6 +2644,8 @@ If you want to feed the output of this command into the "xargs"
 command, use the \-0 option to both this command and "xargs". This
 will avoid the problem of "xargs" treating single filenames that
 contain whitespace as multiple filenames.
+.sp
+See \%\fBhg help files\fP\: for a more versatile command.
 .sp
 Returns 0 if a match is found, 1 otherwise.
 .sp
@@ -2721,7 +2849,7 @@ do case\-insensitive search for a given text
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-show the specified revision or range
+show the specified revision or revset
 .TP
 .B \-\-removed
 .
@@ -2827,6 +2955,10 @@ revision to display
 .B \-\-all
 .
 list files from all revisions
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
 .UNINDENT
 .SS merge
 .sp
@@ -2981,7 +3113,7 @@ aliases: out
 .UNINDENT
 .SS parents
 .sp
-show the parents of the working directory or revision:
+show the parents of the working directory or revision (DEPRECATED):
 .sp
 .nf
 .ft C
@@ -2994,6 +3126,8 @@ given via \-r/\-\-rev, the parent of that revision will be printed.
 If a file argument is given, the revision in which the file was
 last changed (before the working directory revision or the
 argument to \-\-rev if given) is printed.
+.sp
+See \%\fBhg summary\fP\: and \%\fBhg help revsets\fP\: for related information.
 .sp
 Returns 0 on success.
 .sp
@@ -3923,6 +4057,10 @@ exclude names matching the given patterns
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -4047,6 +4185,14 @@ This lists both regular and local tags. When the \-v/\-\-verbose
 switch is used, a third column "local" is printed for local tags.
 .sp
 Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
+.UNINDENT
 .SS tip
 .sp
 show the tip revision (DEPRECATED):
@@ -4851,7 +4997,7 @@ Find text files that contain a string:
 .sp
 .nf
 .ft C
-hg locate "set:grep(magic) and not binary()"
+hg files "set:grep(magic) and not binary()"
 .ft P
 .fi
 .IP \(bu 2
@@ -4860,7 +5006,7 @@ Find C files in a non\-standard encoding:
 .sp
 .nf
 .ft C
-hg locate "set:**.c and not encoding(\(aqUTF\-8\(aq)"
+hg files "set:**.c and not encoding(\(aqUTF\-8\(aq)"
 .ft P
 .fi
 .IP \(bu 2
@@ -5092,6 +5238,10 @@ can be visualized by graphical tools such as \%\fBhg log \-\-graph\fP\:. In
 Mercurial, the DAG is limited by the requirement for children to
 have at most two parents.
 .TP
+.B Deprecated
+.
+Feature removed from documentation, but not scheduled for removal.
+.TP
 .B Default branch
 .
 See \(aqBranch, default\(aq.
@@ -5136,6 +5286,10 @@ metadata exists in the .hg directory inside the working directory.
 Changesets in the draft phase have not been shared with publishing
 repositories and may thus be safely changed by history\-modifying
 extensions. See \%\fBhg help phases\fP\:.
+.TP
+.B Experimental
+.
+Feature that may change or be removed at a later date.
 .TP
 .B Graph
 .
@@ -5570,7 +5724,7 @@ There are some internal merge tools which can be used. The internal
 merge tools are:
 .INDENT 0.0
 .TP
-.B \fBinternal:dump\fP
+.B \fB:dump\fP
 .sp
 Creates three versions of the files to merge, containing the
 contents of local, other and base. These files can then be used to
@@ -5579,32 +5733,86 @@ perform a merge manually. If the file to be merged is named
 \fBa.txt.other\fP and \fBa.txt.base\fP and they will be placed in the
 same directory as \fBa.txt\fP.
 .TP
-.B \fBinternal:fail\fP
+.B \fB:fail\fP
 .sp
 Rather than attempting to merge files that were modified on both
 branches, it marks them as unresolved. The resolve command must be
 used to resolve these conflicts.
 .TP
-.B \fBinternal:local\fP
+.B \fB:local\fP
 .sp
 Uses the local version of files as the merged version.
 .TP
-.B \fBinternal:merge\fP
+.B \fB:merge\fP
 .sp
 Uses the internal non\-interactive simple merge algorithm for merging
 files. It will fail if there are any conflicts and leave markers in
-the partially merged file.
+the partially merged file. Markers will have two sections, one for each side
+of merge.
 .TP
-.B \fBinternal:other\fP
+.B \fB:merge3\fP
+.sp
+Uses the internal non\-interactive simple merge algorithm for merging
+files. It will fail if there are any conflicts and leave markers in
+the partially merged file. Marker will have three sections, one from each
+side of the merge and one for the base content.
+.TP
+.B \fB:other\fP
 .sp
 Uses the other version of files as the merged version.
 .TP
-.B \fBinternal:prompt\fP
+.B \fB:prompt\fP
 .sp
 Asks the user which of the local or the other version to keep as
 the merged version.
 .TP
-.B \fBinternal:tagmerge\fP
+.B \fB:tagmerge\fP
+.sp
+Uses the internal tag merge algorithm (experimental).
+.TP
+.B \fB:dump\fP
+.sp
+Creates three versions of the files to merge, containing the
+contents of local, other and base. These files can then be used to
+perform a merge manually. If the file to be merged is named
+\fBa.txt\fP, these files will accordingly be named \fBa.txt.local\fP,
+\fBa.txt.other\fP and \fBa.txt.base\fP and they will be placed in the
+same directory as \fBa.txt\fP.
+.TP
+.B \fB:fail\fP
+.sp
+Rather than attempting to merge files that were modified on both
+branches, it marks them as unresolved. The resolve command must be
+used to resolve these conflicts.
+.TP
+.B \fB:local\fP
+.sp
+Uses the local version of files as the merged version.
+.TP
+.B \fB:merge\fP
+.sp
+Uses the internal non\-interactive simple merge algorithm for merging
+files. It will fail if there are any conflicts and leave markers in
+the partially merged file. Markers will have two sections, one for each side
+of merge.
+.TP
+.B \fB:merge3\fP
+.sp
+Uses the internal non\-interactive simple merge algorithm for merging
+files. It will fail if there are any conflicts and leave markers in
+the partially merged file. Marker will have three sections, one from each
+side of the merge and one for the base content.
+.TP
+.B \fB:other\fP
+.sp
+Uses the other version of files as the merged version.
+.TP
+.B \fB:prompt\fP
+.sp
+Asks the user which of the local or the other version to keep as
+the merged version.
+.TP
+.B \fB:tagmerge\fP
 .sp
 Uses the internal tag merge algorithm (experimental).
 .UNINDENT
@@ -5647,7 +5855,7 @@ it will by default not be used for symlinks and binary files.
 .IP 7. 3
 .
 If the file to be merged is not binary and is not a symlink, then
-\fBinternal:merge\fP is used.
+internal \fB:merge\fP is used.
 .IP 8. 3
 .
 The merge of the file fails and must be resolved before commit.
@@ -6867,6 +7075,10 @@ component of the path after splitting by the path separator
 (ignoring trailing separators). For example, "foo/bar/baz" becomes
 "baz" and "foo/bar//" becomes "bar".
 .TP
+.B count
+.
+List or text. Returns the length as an integer.
+.TP
 .B date
 .
 Date. Returns a date in a Unix date format, including the
@@ -7012,6 +7224,9 @@ In addition to filters, there are some basic built\-in functions:
 .IP \(bu 2
 .
 date(date[, fmt])
+.IP \(bu 2
+.
+diff([includepattern [, excludepattern]])
 .IP \(bu 2
 .
 fill(text[, width])
@@ -7996,7 +8211,7 @@ Options:
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-count rate for the specified revision or range
+count rate for the specified revision or revset
 .TP
 .BI \-d,  \-\-date \ <DATE>
 .
@@ -8040,11 +8255,12 @@ exclude names matching the given patterns
 .sp
 colorize output from some commands
 .sp
-This extension modifies the status and resolve commands to add color
-to their output to reflect file status, the qseries command to add
-color to reflect patch status (applied, unapplied, missing), and to
-diff\-related commands to highlight additions, removals, diff headers,
-and trailing whitespace.
+The color extension colorizes output from several Mercurial commands.
+For example, the diff command shows additions in green and deletions
+in red, while the status command shows modified files in magenta. Many
+other commands have analogous colors. It is possible to customize
+these colors.
+.SS Effects
 .sp
 Other effects in addition to color, like bold and underlined text, are
 also available. By default, the terminfo database is used to find the
@@ -8052,7 +8268,34 @@ terminal codes used to change color and effect.  If terminfo is not
 available, then effects are rendered with the ECMA\-48 SGR control
 function (aka ANSI escape codes).
 .sp
-Default effects may be overridden from your configuration file:
+The available effects in terminfo mode are \(aqblink\(aq, \(aqbold\(aq, \(aqdim\(aq,
+\(aqinverse\(aq, \(aqinvisible\(aq, \(aqitalic\(aq, \(aqstandout\(aq, and \(aqunderline\(aq; in
+ECMA\-48 mode, the options are \(aqbold\(aq, \(aqinverse\(aq, \(aqitalic\(aq, and
+\(aqunderline\(aq.  How each is rendered depends on the terminal emulator.
+Some may not be available for a given terminal type, and will be
+silently ignored.
+.SS Labels
+.sp
+Text receives color effects depending on the labels that it has. Many
+default Mercurial commands emit labelled text. You can also define
+your own labels in templates using the label function, see \%\fBhg help
+templates\fP\:. A single portion of text may have more than one label. In
+that case, effects given to the last label will override any other
+effects. This includes the special "none" effect, which nullifies
+other effects.
+.sp
+Labels are normally invisible. In order to see these labels and their
+position in the text, use the global \-\-color=debug option. The same
+anchor text may be associated to multiple labels, e.g.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+[log.changeset changeset.secret|changeset:   22611:6f0a53c8f587]
+.UNINDENT
+.UNINDENT
+.sp
+The following are the default effects for some default labels. Default
+effects may be overridden from your configuration file:
 .sp
 .nf
 .ft C
@@ -8080,7 +8323,13 @@ diff.hunk = magenta
 diff.deleted = red
 diff.inserted = green
 diff.changed = white
+diff.tab =
 diff.trailingwhitespace = bold red_background
+
+# Blank so it inherits the style of the surrounding label
+changeset.public =
+changeset.draft =
+changeset.secret =
 
 resolve.unresolved = red bold
 resolve.resolved = green bold
@@ -8105,21 +8354,7 @@ shelve.name = blue bold
 histedit.remaining = red bold
 .ft P
 .fi
-.sp
-The available effects in terminfo mode are \(aqblink\(aq, \(aqbold\(aq, \(aqdim\(aq,
-\(aqinverse\(aq, \(aqinvisible\(aq, \(aqitalic\(aq, \(aqstandout\(aq, and \(aqunderline\(aq; in
-ECMA\-48 mode, the options are \(aqbold\(aq, \(aqinverse\(aq, \(aqitalic\(aq, and
-\(aqunderline\(aq.  How each is rendered depends on the terminal emulator.
-Some may not be available for a given terminal type, and will be
-silently ignored.
-.sp
-Note that on some systems, terminfo mode may cause problems when using
-color with the pager extension and less \-R. less with the \-R option
-will only display ECMA\-48 color codes, and terminfo mode may sometimes
-emit codes that less doesn\(aqt understand. You can work around this by
-either using ansi mode (or auto mode), or by using less \-r (which will
-pass through all terminal control codes, not just color control
-codes).
+.SS Custom colors
 .sp
 Because there are only eight standard colors, this module allows you
 to define color names for other color slots which might be available
@@ -8138,6 +8373,7 @@ that have brighter colors defined in the upper eight) and, \(aqpink\(aq and
 \(aqorange\(aq to colors in 256\-color xterm\(aqs default color cube.  These
 defined colors may then be used as any of the pre\-defined eight,
 including appending \(aq_background\(aq to set the background to that color.
+.SS Modes
 .sp
 By default, the color extension will use ANSI mode (or win32 mode on
 Windows) if it detects a terminal. To override auto mode (to enable
@@ -8152,6 +8388,14 @@ mode = terminfo
 .sp
 Any value other than \(aqansi\(aq, \(aqwin32\(aq, \(aqterminfo\(aq, or \(aqauto\(aq will
 disable color.
+.sp
+Note that on some systems, terminfo mode may cause problems when using
+color with the pager extension and less \-R. less with the \-R option
+will only display ECMA\-48 color codes, and terminfo mode may sometimes
+emit codes that less doesn\(aqt understand. You can work around this by
+either using ansi mode (or auto mode), or by using less \-r (which will
+pass through all terminal control codes, not just color control
+codes).
 .SS Commands
 .SS convert
 .sp
@@ -8301,6 +8545,14 @@ The \fBexclude\fP directive causes files or directories to
 be omitted. The \fBrename\fP directive renames a file or directory if
 it is converted. To rename from a subdirectory into the root of
 the repository, use \fB.\fP as the path to rename to.
+.sp
+\fB\-\-full\fP will make sure the converted changesets contain exactly
+the right files with the right content. It will make a full
+conversion of all files, not just the ones that have
+changed. Files that already are correct will not be changed. This
+can be used to apply filemap changes when converting
+incrementally. This is currently only supported for Mercurial and
+Subversion.
 .sp
 The splicemap is a file that allows insertion of synthetic
 history, letting you specify the parents of a revision. This is
@@ -8482,6 +8734,33 @@ conversions are supported.
 specify start Subversion revision number.
 The default is 0.
 .UNINDENT
+.SS Git Source
+.sp
+The Git importer converts commits from all reachable branches (refs
+in refs/heads) and remotes (refs in refs/remotes) to Mercurial.
+Branches are converted to bookmarks with the same name, with the
+leading \(aqrefs/heads\(aq stripped. Git submodules are converted to Git
+subrepos in Mercurial.
+.sp
+The following options can be set with \fB\-\-config\fP:
+.INDENT 0.0
+.TP
+.B convert.git.similarity
+.
+specify how similar files modified in a
+commit must be to be imported as renames or copies, as a
+percentage between \fB0\fP (disabled) and \fB100\fP (files must be
+identical). For example, \fB90\fP means that a delete/add pair will
+be imported as a rename if more than 90% of the file hasn\(aqt
+changed. The default is \fB50\fP.
+.TP
+.B convert.git.findcopiesharder
+.
+while detecting copies, look at all
+files in the working copy instead of just changed ones. This
+is very expensive for large projects, and is only effective when
+\fBconvert.git.similarity\fP is greater than 0. The default is False.
+.UNINDENT
 .SS Perforce Source
 .sp
 The Perforce (P4) importer can be given a p4 depot path or a
@@ -8547,6 +8826,10 @@ remap usernames using this file
 .BI \-\-filemap \ <FILE>
 .
 remap file names using contents of file
+.TP
+.B \-\-full
+.
+apply filemap changes by converting all files again
 .TP
 .BI \-\-splicemap \ <FILE>
 .
@@ -9038,7 +9321,7 @@ do case\-insensitive search for a given text
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-show the specified revision or range
+show the specified revision or revset
 .TP
 .B \-\-removed
 .
@@ -9262,6 +9545,7 @@ pick 7c2fd3b9020c Add delta
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
 #  f, fold = use commit, but combine it with the one above
+#  r, roll = like fold, but discard this commit\(aqs description
 #  d, drop = remove commit from history
 #  m, mess = edit message without changing commit content
 #
@@ -9287,6 +9571,7 @@ fold 7c2fd3b9020c Add delta
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
 #  f, fold = use commit, but combine it with the one above
+#  r, roll = like fold, but discard this commit\(aqs description
 #  d, drop = remove commit from history
 #  m, mess = edit message without changing commit content
 #
@@ -11726,6 +12011,66 @@ the intended source branch).
 If a rebase is interrupted to manually resolve a merge, it can be
 continued with \-\-continue/\-c or aborted with \-\-abort/\-a.
 .sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+move "local changes" (current commit back to branching point)
+to the current branch tip after a pull:
+.sp
+.nf
+.ft C
+hg rebase
+.ft P
+.fi
+.IP \(bu 2
+.
+move a single changeset to the stable branch:
+.sp
+.nf
+.ft C
+hg rebase \-r 5f493448 \-d stable
+.ft P
+.fi
+.IP \(bu 2
+.
+splice a commit and all its descendants onto another part of history:
+.sp
+.nf
+.ft C
+hg rebase \-\-source c0c3 \-\-dest 4cf9
+.ft P
+.fi
+.IP \(bu 2
+.
+rebase everything on a branch marked by a bookmark onto the
+default branch:
+.sp
+.nf
+.ft C
+hg rebase \-\-base myfeature \-\-dest default
+.ft P
+.fi
+.IP \(bu 2
+.
+collapse a sequence of changes into a single commit:
+.sp
+.nf
+.ft C
+hg rebase \-\-collapse \-r 1520:1525 \-d .
+.ft P
+.fi
+.IP \(bu 2
+.
+move a named branch while preserving its name:
+.sp
+.nf
+.ft C
+hg rebase \-r "branch(featureX)" \-d 1.3 \-\-keepbranches
+.ft P
+.fi
+.UNINDENT
+.sp
 Returns 0 on success, 1 if nothing to rebase or there are
 unresolved conflicts.
 .sp
@@ -11734,11 +12079,11 @@ Options:
 .TP
 .BI \-s,  \-\-source \ <REV>
 .
-rebase from the specified changeset
+rebase the specified changeset and descendants
 .TP
 .BI \-b,  \-\-base \ <REV>
 .
-rebase from the base of the specified changeset (up to greatest common ancestor of base and dest)
+rebase everything from branching point of specified changeset
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
@@ -11773,6 +12118,10 @@ keep original changesets
 keep original branch names
 .TP
 .B \-D,  \-\-detach
+.
+(DEPRECATED)
+.TP
+.B \-i,  \-\-interactive
 .
 (DEPRECATED)
 .TP
