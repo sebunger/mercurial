@@ -397,6 +397,7 @@ def backout(ui, repo, node=None, rev=None, **opts):
     changes and the merged result is left uncommitted.
 
     .. note::
+
       backout cannot be used to fix either an unwanted or
       incorrect merge.
 
@@ -537,7 +538,7 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
 
       Some examples:
 
-      - start a bisection with known bad revision 12, and good revision 34::
+      - start a bisection with known bad revision 34, and good revision 12::
 
           hg bisect --bad 34
           hg bisect --good 12
@@ -584,7 +585,7 @@ def bisect(ui, repo, rev=None, extra=None, command=None,
 
           hg log -r "bisect(range)"
 
-      - with the graphlog extension, you can even get a nice graph::
+      - you can even get a nice graph::
 
           hg log --graph -r "bisect(range)"
 
@@ -835,10 +836,12 @@ def bookmark(ui, repo, *names, **opts):
                     bookmarks.deletedivergent(repo, [target], mark)
                     return
 
+                # consider successor changesets as well
+                foreground = obsolete.foreground(repo, [marks[mark]])
                 deletefrom = [b for b in divs
                               if repo[b].rev() in anc or b == target]
                 bookmarks.deletedivergent(repo, deletefrom, mark)
-                if bmctx.rev() in anc:
+                if bmctx.rev() in anc or target in foreground:
                     ui.status(_("moving bookmark '%s' forward from %s\n") %
                               (mark, short(bmctx.node())))
                     return
@@ -937,6 +940,7 @@ def branch(ui, repo, label=None, **opts):
     """set or show the current branch name
 
     .. note::
+
        Branch names are permanent and global. Use :hg:`bookmark` to create a
        light-weight bookmark instead. See :hg:`help glossary` for more
        information about named branches and bookmarks.
@@ -2707,6 +2711,7 @@ def diff(ui, repo, *pats, **opts):
     Differences between files are shown using the unified diff format.
 
     .. note::
+
        diff may generate unexpected results for merges, as it will
        default to comparing against the working directory's first
        parent changeset if no revisions are specified.
@@ -2796,6 +2801,7 @@ def export(ui, repo, *changesets, **opts):
     comment.
 
     .. note::
+
        export may generate unexpected diff output for merge
        changesets, as it will compare the merge changeset against its
        first parent only.
@@ -2928,6 +2934,7 @@ def graft(ui, repo, *revs, **opts):
     continued with the -c/--continue option.
 
     .. note::
+
       The -c/--continue option does not reapply earlier options.
 
     .. container:: verbose
@@ -3979,12 +3986,14 @@ def log(ui, repo, *pats, **opts):
     changed files and full commit message are shown.
 
     .. note::
+
        log -p/--patch may generate unexpected diff output for merge
        changesets, as it will only compare the merge changeset against
        its first parent. Also, only files different from BOTH parents
        will appear in files:.
 
     .. note::
+
        for performance reasons, log FILE may omit duplicate changes
        made on branches and will not show deletions. To see all
        changes including duplicates and deletions, use the --removed
@@ -4505,7 +4514,7 @@ def phase(ui, repo, *revs, **opts):
         rejected = [n for n in nodes
                     if newdata[cl.rev(n)] < targetphase]
         if rejected:
-            ui.warn(_('cannot move %i changesets to a more permissive '
+            ui.warn(_('cannot move %i changesets to a higher '
                       'phase, use --force\n') % len(rejected))
             ret = 1
         if changes:
@@ -4652,6 +4661,7 @@ def push(ui, repo, dest=None, **opts):
     only create a new branch without forcing other changes.
 
     .. note::
+
       Extra care should be taken with the -f/--force option,
       which will push all new heads on all branches, an action which will
       almost always cause confusion for collaborators.
@@ -4976,6 +4986,7 @@ def revert(ui, repo, *pats, **opts):
     """restore files to their checkout state
 
     .. note::
+
        To check out earlier revisions, you should use :hg:`update REV`.
        To cancel an uncommitted merge (and lose your changes),
        use :hg:`update --clean .`.
@@ -5306,6 +5317,7 @@ def status(ui, repo, *pats, **opts):
     unless explicitly requested with -u/--unknown or -i/--ignored.
 
     .. note::
+
        status may appear to disagree with diff if permissions have
        changed or a merge has occurred. The standard diff format does
        not report permission changes and diff only reports changes

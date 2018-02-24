@@ -17,6 +17,7 @@ def share(ui, source, dest=None, noupdate=False):
     history with another repository.
 
     .. note::
+
        using rollback or extensions that destroy/modify history (mq,
        rebase, etc.) can cause considerable confusion with shared
        clones. In particular, if two shared clones are both updated to
@@ -58,7 +59,7 @@ def unshare(ui, repo):
         lock and lock.release()
 
     # update store, spath, sopener and sjoin of repo
-    repo.__init__(repo.baseui, repo.root)
+    repo.unfiltered().__init__(repo.baseui, repo.root)
 
 cmdtable = {
     "share":

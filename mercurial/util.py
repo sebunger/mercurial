@@ -563,7 +563,7 @@ _winreservednames = '''con prn aux nul
     lpt1 lpt2 lpt3 lpt4 lpt5 lpt6 lpt7 lpt8 lpt9'''.split()
 _winreservedchars = ':*?"<>|'
 def checkwinfilename(path):
-    '''Check that the base-relative path is a valid filename on Windows.
+    r'''Check that the base-relative path is a valid filename on Windows.
     Returns None if the path is ok, or a UI string describing the problem.
 
     >>> checkwinfilename("just/a/normal/path")
@@ -577,11 +577,19 @@ def checkwinfilename(path):
     >>> checkwinfilename("foo/bar/bla:.txt")
     "filename contains ':', which is reserved on Windows"
     >>> checkwinfilename("foo/bar/b\07la.txt")
-    "filename contains '\\\\x07', which is invalid on Windows"
+    "filename contains '\\x07', which is invalid on Windows"
     >>> checkwinfilename("foo/bar/bla ")
     "filename ends with ' ', which is not allowed on Windows"
     >>> checkwinfilename("../bar")
+    >>> checkwinfilename("foo\\")
+    "filename ends with '\\', which is invalid on Windows"
+    >>> checkwinfilename("foo\\/bar")
+    "directory name ends with '\\', which is invalid on Windows"
     '''
+    if path.endswith('\\'):
+        return _("filename ends with '\\', which is invalid on Windows")
+    if '\\/' in path:
+        return _("directory name ends with '\\', which is invalid on Windows")
     for n in path.replace('\\', '/').split('/'):
         if not n:
             continue
@@ -1625,6 +1633,8 @@ class url(object):
     <url path: '\\\\blah\\blah\\blah'>
     >>> url(r'\\blah\blah\blah#baz')
     <url path: '\\\\blah\\blah\\blah', fragment: 'baz'>
+    >>> url(r'file:///C:\users\me')
+    <url scheme: 'file', path: 'C:\\users\\me'>
 
     Authentication credentials:
 
@@ -1642,7 +1652,7 @@ class url(object):
     """
 
     _safechars = "!~*'()+"
-    _safepchars = "/!~*'()+:"
+    _safepchars = "/!~*'()+:\\"
     _matchscheme = re.compile(r'^[a-zA-Z0-9+.\-]+:').match
 
     def __init__(self, path, parsequery=True, parsefragment=True):
@@ -1779,6 +1789,8 @@ class url(object):
         'file:///c:/tmp/foo/bar'
         >>> print url(r'bundle:foo\bar')
         bundle:foo\bar
+        >>> print url(r'file:///D:\data\hg')
+        file:///D:\data\hg
         """
         if self._localpath:
             s = self.path

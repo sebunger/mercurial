@@ -478,7 +478,7 @@ is bad.</p>
 <div class="verbose container">
 <p>Some examples:</p>
 <ul>
-<li><p class="first">start a bisection with known bad revision 12, and good revision 34:</p>
+<li><p class="first">start a bisection with known bad revision 34, and good revision 12:</p>
 <pre class="literal-block">
 hg bisect --bad 34
 hg bisect --good 12
@@ -534,7 +534,7 @@ hg log -r &quot;bisect(current)&quot;
 hg log -r &quot;bisect(range)&quot;
 </pre>
 </li>
-<li><p class="first">with the graphlog extension, you can even get a nice graph:</p>
+<li><p class="first">you can even get a nice graph:</p>
 <pre class="literal-block">
 hg log --graph -r &quot;bisect(range)&quot;
 </pre>
@@ -3679,9 +3679,9 @@ changeset, creating a new changeset in the repository.</p>
 system (DVCS) can be described as a directed acyclic graph (DAG),
 consisting of nodes and edges, where nodes correspond to
 changesets and edges imply a parent -&gt; child relation. This graph
-can be visualized by graphical tools such as <a class="reference external" href="hg.1.html#glog"><tt class="docutils literal">hg glog</tt></a>
-(graphlog). In Mercurial, the DAG is limited by the requirement
-for children to have at most two parents.</dd>
+can be visualized by graphical tools such as <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log <span class="pre">--graph</span></tt></a>. In
+Mercurial, the DAG is limited by the requirement for children to
+have at most two parents.</dd>
 <dt>Default branch</dt>
 <dd>See 'Branch, default'.</dd>
 <dt>Descendant</dt>
@@ -3716,7 +3716,7 @@ metadata exists in the .hg directory inside the working directory.</dd>
 repositories and may thus be safely changed by history-modifying
 extensions. See <a class="reference external" href="hg.1.html#phases"><tt class="docutils literal">hg help phases</tt></a>.</dd>
 <dt>Graph</dt>
-<dd>See DAG and <a class="reference external" href="hg.1.html#graphlog"><tt class="docutils literal">hg help graphlog</tt></a>.</dd>
+<dd>See DAG and <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log <span class="pre">--graph</span></tt></a>.</dd>
 <dt>Head</dt>
 <dd><p class="first">The term 'head' may be used to refer to both a branch head or a
 repository head, depending on the context. See 'Head, branch' and
