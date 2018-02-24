@@ -330,7 +330,8 @@ def _getrevsource(repo, r):
 
 def stringset(repo, subset, x):
     x = repo[x].rev()
-    if x in subset:
+    if (x in subset
+        or x == node.nullrev and isinstance(subset, fullreposet)):
         return baseset([x])
     return baseset()
 
@@ -1294,7 +1295,10 @@ def node_(repo, subset, x):
     # i18n: "id" is a keyword
     n = getstring(l[0], _("id requires a string"))
     if len(n) == 40:
-        rn = repo[n].rev()
+        try:
+            rn = repo.changelog.rev(node.bin(n))
+        except (LookupError, TypeError):
+            rn = None
     else:
         rn = None
         pm = repo.changelog._partialmatch(n)
@@ -1902,7 +1906,7 @@ def user(repo, subset, x):
 def wdir(repo, subset, x):
     # i18n: "wdir" is a keyword
     getargs(x, 0, 0, _("wdir takes no arguments"))
-    if None in subset:
+    if None in subset or isinstance(subset, fullreposet):
         return baseset([None])
     return baseset()
 
@@ -2095,7 +2099,6 @@ methods = {
     "parent": parentspec,
     "parentpost": p1,
     "only": only,
-    "onlypost": only,
 }
 
 def optimize(x, small):
@@ -2112,6 +2115,8 @@ def optimize(x, small):
     elif op == 'only':
         return optimize(('func', ('symbol', 'only'),
                          ('list', x[1], x[2])), small)
+    elif op == 'onlypost':
+        return optimize(('func', ('symbol', 'only'), x[1]), small)
     elif op == 'dagrangepre':
         return optimize(('func', ('symbol', 'ancestors'), x[1]), small)
     elif op == 'dagrangepost':
@@ -3403,11 +3408,6 @@ class fullreposet(spanset):
 
     def __init__(self, repo):
         super(fullreposet, self).__init__(repo)
-
-    def __contains__(self, rev):
-        # assumes the given rev is valid
-        hidden = self._hiddenrevs
-        return not (hidden and rev in hidden)
 
     def __and__(self, other):
         """As self contains the whole repo, all of the other set should also be

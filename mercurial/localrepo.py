@@ -16,7 +16,7 @@ import match as matchmod
 import merge as mergemod
 import tags as tagsmod
 from lock import release
-import weakref, errno, os, time, inspect
+import weakref, errno, os, time, inspect, random
 import branchmap, pathutil
 import namespaces
 propertycache = util.propertycache
@@ -960,7 +960,9 @@ class localrepository(object):
                 _("abandoned transaction found"),
                 hint=_("run 'hg recover' to clean up transaction"))
 
-        self.hook('pretxnopen', throw=True, txnname=desc)
+        idbase = "%.40f#%f" % (random.random(), time.time())
+        txnid = 'TXN:' + util.sha1(idbase).hexdigest()
+        self.hook('pretxnopen', throw=True, txnname=desc, txnid=txnid)
 
         self._writejournal(desc)
         renames = [(vfs, x, undoname(x)) for vfs, x in self._journalfiles()]
@@ -975,7 +977,7 @@ class localrepository(object):
             """will run pre-closing hooks"""
             pending = lambda: tr.writepending() and self.root or ""
             reporef().hook('pretxnclose', throw=True, pending=pending,
-                           xnname=desc, **tr.hookargs)
+                           txnname=desc, **tr.hookargs)
 
         tr = transaction.transaction(rp, self.sopener, vfsmap,
                                      "journal",
@@ -984,8 +986,7 @@ class localrepository(object):
                                      self.store.createmode,
                                      validator=validate)
 
-        trid = 'TXN:' + util.sha1("%s#%f" % (id(tr), time.time())).hexdigest()
-        tr.hookargs['TXNID'] = trid
+        tr.hookargs['txnid'] = txnid
         # note: writing the fncache only during finalize mean that the file is
         # outdated when running hooks. As fncache is used for streaming clone,
         # this is not expected to break anything that happen during the hooks.

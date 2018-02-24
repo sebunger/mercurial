@@ -2050,6 +2050,13 @@ Test diff function:
   @@ -0,0 +1,1 @@
   +third
 
+  $ hg log -r 8 -T "{diff('FOURTH'|lower)}"
+  diff -r 29114dbae42b -r 95c24699272e fourth
+  --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
+  +++ b/fourth	Wed Jan 01 10:01:00 2020 +0000
+  @@ -0,0 +1,1 @@
+  +second
+
   $ cd ..
 
 
@@ -2236,6 +2243,12 @@ Test date format:
   date: 70 01 01 01 +0000
   date: 70 01 01 00 +0000
 
+Test invalid date:
+
+  $ hg log -R latesttag -T '{date(rev)}\n'
+  hg: parse error: date expects a date information
+  [255]
+
 Test string escaping:
 
   $ hg log -R latesttag -r 0 --template '>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
@@ -2243,6 +2256,106 @@ Test string escaping:
   <>\n<[>
   <>\n<]>
   <>\n<
+
+  $ hg log -R latesttag -r 0 \
+  > --config ui.logtemplate='>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+  $ hg log -R latesttag -r 0 -T esc \
+  > --config templates.esc='>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+  $ cat <<'EOF' > esctmpl
+  > changeset = '>\n<>\\n<{if(rev, "[>\n<>\\n<]")}>\n<>\\n<\n'
+  > EOF
+  $ hg log -R latesttag -r 0 --style ./esctmpl
+  >
+  <>\n<[>
+  <>\n<]>
+  <>\n<
+
+Test string escaping of quotes:
+
+  $ hg log -Ra -r0 -T '{"\""}\n'
+  "
+  $ hg log -Ra -r0 -T '{"\\\""}\n'
+  \"
+  $ hg log -Ra -r0 -T '{r"\""}\n'
+  \"
+  $ hg log -Ra -r0 -T '{r"\\\""}\n'
+  \\\"
+
+Test compatibility with 2.9.2-3.4 of escaped quoted strings in nested
+_evalifliteral() templates (issue4733):
+
+  $ cd latesttag
+
+  $ hg log -r 2 -T '{if(rev, "\"{rev}")}\n'
+  "2
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"\\\"{rev}\")}")}\n'
+  "2
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"{if(rev, \\\"\\\\\\\"{rev}\\\")}\")}")}\n'
+  "2
+
+  $ hg log -r 2 -T '{if(rev, "\\\"")}\n'
+  \"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"\\\\\\\"\")}")}\n'
+  \"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"{if(rev, \\\"\\\\\\\\\\\\\\\"\\\")}\")}")}\n'
+  \"
+
+  $ hg log -r 2 -T '{if(rev, r"\\\"")}\n'
+  \\\"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, r\"\\\\\\\"\")}")}\n'
+  \\\"
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \"{if(rev, r\\\"\\\\\\\\\\\\\\\"\\\")}\")}")}\n'
+  \\\"
+
+escaped single quotes and errors:
+
+  $ hg log -r 2 -T "{if(rev, '{if(rev, \'foo\')}')}"'\n'
+  foo
+  $ hg log -r 2 -T "{if(rev, '{if(rev, r\'foo\')}')}"'\n'
+  foo
+  $ hg log -r 2 -T '{if(rev, "{if(rev, \")}")}\n'
+  hg: parse error at 11: unterminated string
+  [255]
+  $ hg log -r 2 -T '{if(rev, \"\\"")}\n'
+  hg: parse error at 11: syntax error
+  [255]
+  $ hg log -r 2 -T '{if(rev, r\"\\"")}\n'
+  hg: parse error at 12: syntax error
+  [255]
+
+  $ cd ..
+
+Test leading backslashes:
+
+  $ cd latesttag
+  $ hg log -r 2 -T '\{rev} {files % "\{file}"} {files % r"\{file}"}\n'
+  {rev} {file} \head1
+  $ hg log -r 2 -T '\\{rev} {files % "\\{file}"} {files % r"\\{file}"}\n'
+  \2 \head1 \\head1
+  $ hg log -r 2 -T '\\\{rev} {files % "\\\{file}"} {files % r"\\\{file}"}\n'
+  \{rev} \{file} \\\head1
+  $ cd ..
+
+Test leading backslashes in "if" expression (issue4714):
+
+  $ cd latesttag
+  $ hg log -r 2 -T '{if("1", "\{rev}")} {if("1", r"\{rev}")}\n'
+  {rev} \2
+  $ hg log -r 2 -T '{if("1", "\\{rev}")} {if("1", r"\\{rev}")}\n'
+  \2 \\2
+  $ hg log -r 2 -T '{if("1", "\\\{rev}")} {if("1", r"\\\{rev}")}\n'
+  \{rev} \\\2
+  $ cd ..
 
 "string-escape"-ed "\x5c\x786e" becomes r"\x6e" (once) or r"n" (twice)
 
@@ -2469,6 +2582,9 @@ Test revset function
   Rev: 0
   Ancestor: 0
   
+  $ hg log --template '{revset("TIP"|lower)}\n' -l1
+  2
+
 Test current bookmark templating
 
   $ hg book foo

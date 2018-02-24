@@ -209,6 +209,26 @@ Files sees uncommitted adds and removes in subrepos
   sub1/sub2/folder/bar (glob)
   sub1/sub2/x.txt (glob)
 
+  $ hg files -S -r '.^' sub1/sub2/folder
+  sub1/sub2/folder/test.txt (glob)
+
+  $ hg files -S -r '.^' sub1/sub2/missing
+  sub1/sub2/missing: no such file in rev 78026e779ea6 (glob)
+  [1]
+
+  $ hg files -S -r '.^' sub1/
+  sub1/.hgsub (glob)
+  sub1/.hgsubstate (glob)
+  sub1/sub1 (glob)
+  sub1/sub2/folder/test.txt (glob)
+  sub1/sub2/sub2 (glob)
+  sub1/sub2/test.txt (glob)
+
+  $ hg files -S -r '.^' sub1/sub2
+  sub1/sub2/folder/test.txt (glob)
+  sub1/sub2/sub2 (glob)
+  sub1/sub2/test.txt (glob)
+
   $ hg rollback -q
   $ hg up -Cq
 
@@ -309,21 +329,17 @@ Exclude large files from main and sub-sub repo
 
 Exclude normal files from main and sub-sub repo
 
-  $ hg --config extensions.largefiles= archive -S -X '**.txt' ../archive_lf
-  $ find ../archive_lf | sort
-  ../archive_lf
-  ../archive_lf/.hgsub
-  ../archive_lf/.hgsubstate
-  ../archive_lf/large.bin
-  ../archive_lf/main
-  ../archive_lf/sub1
-  ../archive_lf/sub1/.hgsub
-  ../archive_lf/sub1/.hgsubstate
-  ../archive_lf/sub1/sub1
-  ../archive_lf/sub1/sub2
-  ../archive_lf/sub1/sub2/large.bin
-  ../archive_lf/sub1/sub2/sub2
-  $ rm -rf ../archive_lf
+  $ hg --config extensions.largefiles= archive -S -X '**.txt' ../archive_lf.tgz
+  $ tar -tzf ../archive_lf.tgz | sort
+  archive_lf/.hgsub
+  archive_lf/.hgsubstate
+  archive_lf/large.bin
+  archive_lf/main
+  archive_lf/sub1/.hgsub
+  archive_lf/sub1/.hgsubstate
+  archive_lf/sub1/sub1
+  archive_lf/sub1/sub2/large.bin
+  archive_lf/sub1/sub2/sub2
 
 Include normal files from within a largefiles subrepo
 

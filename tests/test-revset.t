@@ -87,6 +87,7 @@
   $ hg ci -Aqm9
 
   $ hg tag -r6 1.0
+  $ hg bookmark -r6 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
   $ hg clone --quiet -U -r 7 . ../remote1
   $ hg clone --quiet -U -r 8 . ../remote2
@@ -532,6 +533,29 @@ Test '%' operator
   8
   9
 
+Test opreand of '%' is optimized recursively (issue4670)
+
+  $ try --optimize '8:9-8%'
+  (onlypost
+    (minus
+      (range
+        ('symbol', '8')
+        ('symbol', '9'))
+      ('symbol', '8')))
+  * optimized:
+  (func
+    ('symbol', 'only')
+    (and
+      (range
+        ('symbol', '8')
+        ('symbol', '9'))
+      (not
+        ('symbol', '8'))))
+  * set:
+  <baseset+ [8, 9]>
+  8
+  9
+
 Test the order of operations
 
   $ log '7 + 9%5 + 2'
@@ -553,6 +577,23 @@ Test explicit numeric revision
   $ log 'rev(tip)'
   hg: parse error: rev expects a number
   [255]
+
+Test hexadecimal revision
+  $ log 'id(2)'
+  abort: 00changelog.i@2: ambiguous identifier!
+  [255]
+  $ log 'id(23268)'
+  4
+  $ log 'id(2785f51eece)'
+  0
+  $ log 'id(d5d0dcbdc4d9ff5dbb2d336f32f0bb561c1a532c)'
+  8
+  $ log 'id(d5d0dcbdc4a)'
+  $ log 'id(d5d0dcbdc4w)'
+  $ log 'id(d5d0dcbdc4d9ff5dbb2d336f32f0bb561c1a532d)'
+  $ log 'id(d5d0dcbdc4d9ff5dbb2d336f32f0bb561c1a532q)'
+  $ log 'id(1.0)'
+  $ log 'id(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)'
 
 Test null revision
   $ log '(null)'
@@ -578,10 +619,10 @@ Test null revision
   $ log 'reverse(null:)' | tail -2
   0
   -1
+BROKEN: should be '-1'
   $ log 'first(null:)'
-  -1
+BROKEN: should be '-1'
   $ log 'min(null:)'
-  -1
   $ log 'tip:null and all()' | tail -2
   1
   0
@@ -589,9 +630,9 @@ Test null revision
 Test working-directory revision
   $ hg debugrevspec 'wdir()'
   None
+BROKEN: should include 'None'
   $ hg debugrevspec 'tip or wdir()'
   9
-  None
   $ hg debugrevspec '0:tip and wdir()'
 
   $ log 'outgoing()'
@@ -1536,6 +1577,46 @@ tests for concatenation of strings/symbols by "##"
   $ log "cat2n2(2785f5, 1eece5, 24286f, 4ae135)"
   0
   4
+
+  $ cd ..
+
+prepare repository that has "default" branches of multiple roots
+
+  $ hg init namedbranch
+  $ cd namedbranch
+
+  $ echo default0 >> a
+  $ hg ci -Aqm0
+  $ echo default1 >> a
+  $ hg ci -m1
+
+  $ hg branch -q stable
+  $ echo stable2 >> a
+  $ hg ci -m2
+  $ echo stable3 >> a
+  $ hg ci -m3
+
+  $ hg update -q null
+  $ echo default4 >> a
+  $ hg ci -Aqm4
+  $ echo default5 >> a
+  $ hg ci -m5
+
+"null" revision belongs to "default" branch (issue4683)
+
+  $ log 'branch(null)'
+  0
+  1
+  4
+  5
+
+"null" revision belongs to "default" branch, but it shouldn't appear in set
+unless explicitly specified (issue4682)
+
+  $ log 'children(branch(default))'
+  1
+  2
+  5
 
   $ cd ..
 
