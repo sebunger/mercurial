@@ -6,9 +6,9 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 import os, re, sys, signal
-import fancyopts, ui, hg
+import fancyopts, ui, hg, util
 from demandload import *
-demandload(globals(), "mdiff time hgweb traceback random signal errno")
+demandload(globals(), "mdiff time hgweb traceback random signal errno version")
 
 class UnknownCommand(Exception): pass
 
@@ -16,20 +16,20 @@ def filterfiles(filters, files):
     l = [ x for x in files if x in filters ]
 
     for t in filters:
-        if t and t[-1] != os.sep: t += os.sep
+        if t and t[-1] != "/": t += "/"
         l += [ x for x in files if x.startswith(t) ]
     return l
 
 def relfilter(repo, files):
     if os.getcwd() != repo.root:
         p = os.getcwd()[len(repo.root) + 1: ]
-        return filterfiles([p], files)
+        return filterfiles([util.pconvert(p)], files)
     return files
 
 def relpath(repo, args):
     if os.getcwd() != repo.root:
         p = os.getcwd()[len(repo.root) + 1: ]
-        return [ os.path.normpath(os.path.join(p, x)) for x in args ]
+        return [ util.pconvert(os.path.normpath(os.path.join(p, x))) for x in args ]
     return args
 
 def dodiff(ui, repo, path, files = None, node1 = None, node2 = None):
@@ -47,7 +47,7 @@ def dodiff(ui, repo, path, files = None, node1 = None, node2 = None):
         (c, a, d, u) = repo.diffdir(path, node1)
         if not node1:
             node1 = repo.dirstate.parents()[0]
-        def read(f): return file(os.path.join(repo.root, f)).read()
+        def read(f): return repo.wfile(f).read()
 
     if ui.quiet:
         r = None
@@ -134,6 +134,16 @@ def show_changeset(ui, repo, rev=0, changenode=None, filelog=None):
             ui.status("summary:     %s\n" % description.splitlines()[0])
     ui.status("\n")
 
+def show_version(ui):
+    """output version and copyright information"""
+    ui.write("Mercurial version %s\n" % version.get_version())
+    ui.status(
+        "\nCopyright (C) 2005 Matt Mackall <mpm@selenic.com>\n"
+        "This is free software; see the source for copying conditions. "
+        "There is NO\nwarranty; "
+        "not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
+    )
+
 def help(ui, cmd=None):
     '''show help for a given command or all commands'''
     if cmd:
@@ -156,7 +166,10 @@ def help(ui, cmd=None):
             ui.warn("hg: unknown command %s\n" % cmd)
         sys.exit(0)
     else:
-        ui.status('hg commands:\n\n')
+        if not ui.quiet:
+            show_version(ui)
+            ui.write('\n')
+        ui.write('hg commands:\n\n')
 
         h = {}
         for e in table.values():
@@ -165,13 +178,13 @@ def help(ui, cmd=None):
             d = ""
             if f.__doc__:
                 d = f.__doc__.splitlines(0)[0].rstrip()
-            h[f.__name__] = d
+            h[f.__name__.rstrip("_")] = d
 
         fns = h.keys()
         fns.sort()
         m = max(map(len, fns))
         for f in fns:
-            ui.status(' %-*s   %s\n' % (m, f, h[f]))
+            ui.write(' %-*s   %s\n' % (m, f, h[f]))
 
 # Commands start here, listed alphabetically
 
@@ -262,17 +275,8 @@ def copy(ui, repo, source, dest):
     """mark a file as copied or renamed for the next commit"""
     return repo.copy(*relpath(repo, (source, dest)))
 
-def debugaddchangegroup(ui, repo):
-    data = sys.stdin.read()
-    repo.addchangegroup(data)
-
-def debugchangegroup(ui, repo, roots):
-    newer = repo.newer(map(repo.lookup, roots))
-    for chunk in repo.changegroup(newer):
-        sys.stdout.write(chunk)
-
 def debugindex(ui, file):
-    r = hg.revlog(open, file, "")
+    r = hg.revlog(hg.opener(""), file, "")
     print "   rev    offset  length   base linkrev"+\
           " p1           p2           nodeid"
     for i in range(r.count()):
@@ -282,7 +286,7 @@ def debugindex(ui, file):
             hg.hex(e[4][:5]), hg.hex(e[5][:5]), hg.hex(e[6][:5]))
 
 def debugindexdot(ui, file):
-    r = hg.revlog(open, file, "")
+    r = hg.revlog(hg.opener(""), file, "")
     print "digraph G {"
     for i in range(r.count()):
         e = r.index[i]
@@ -360,6 +364,51 @@ def identify(ui, repo):
 
     ui.write("%s\n" % ' '.join(output))
 
+def import_(ui, repo, patch1, *patches, **opts):
+    """import an ordered set of patches"""
+    try:
+        import psyco
+        psyco.full()
+    except:
+        pass
+
+    patches = (patch1,) + patches
+    
+    d = opts["base"]
+    strip = opts["strip"]
+    quiet = ui.quiet and "> /dev/null" or ""
+
+    for patch in patches:
+        ui.status("applying %s\n" % patch)
+        pf = os.path.join(d, patch)
+
+        text = ""
+        for l in file(pf):
+            if l[:4] == "--- ": break
+            text += l
+
+        # make sure text isn't empty
+        if not text: text = "imported patch %s\n" % patch
+
+        f = os.popen("patch -p%d < %s" % (strip, pf))
+        files = []
+        for l in f.read().splitlines():
+            l.rstrip('\r\n');
+            if not quiet:
+                print l
+            if l[:14] == 'patching file ':
+                pf = l[14:]
+                if pf not in files:
+                    files.append(pf)
+        patcherr = f.close()
+        if patcherr:
+            sys.stderr.write("patch failed")
+            sys.exit(1)
+
+        if len(files) > 0:
+            addremove(ui, repo, *files)
+        repo.commit(files, text)
+
 def init(ui, source=None, **opts):
     """create a new repository or copy an existing one"""
 
@@ -432,57 +481,27 @@ def parents(ui, repo, node = None):
         if n != hg.nullid:
             show_changeset(ui, repo, changenode=n)
 
-def patch(ui, repo, patch1, *patches, **opts):
-    """import an ordered set of patches"""
-    try:
-        import psyco
-        psyco.full()
-    except:
-        pass
-
-    patches = (patch1,) + patches
-    
-    d = opts["base"]
-    strip = opts["strip"]
-    quiet = opts["quiet"] and "> /dev/null" or ""
-
-    for patch in patches:
-        ui.status("applying %s\n" % patch)
-        pf = os.path.join(d, patch)
-
-        text = ""
-        for l in file(pf):
-            if l[:4] == "--- ": break
-            text += l
-
-        # make sure text isn't empty
-        if not text: text = "imported patch %s\n" % patch
-
-        f = os.popen("patch -p%d < %s" % (strip, pf))
-        files = []
-        for l in f.read().splitlines():
-            l.rstrip('\r\n');
-            if not quiet:
-                print l
-            if l[:14] == 'patching file ':
-                files.append(l[14:])
-        f.close()
-
-        if len(files) > 0:
-            addremove(ui, repo, *files)
-        repo.commit(files, text)
-
-def pull(ui, repo, source="default"):
+def pull(ui, repo, source="default", **opts):
     """pull changes from the specified source"""
     paths = {}
     for name, path in ui.configitems("paths"):
         paths[name] = path
 
-    if source in paths: source = paths[source]
+    if source in paths:
+        source = paths[source]
+
+    ui.status('pulling from %s\n' % (source))
     
     other = hg.repository(ui, source)
     cg = repo.getchangegroup(other)
-    repo.addchangegroup(cg)
+    r = repo.addchangegroup(cg)
+    if cg and not r:
+        if opts['update']:
+            return update(ui, repo)
+	else:
+            ui.status("(run 'hg update' to get a working copy)\n")
+
+    return r
 
 def push(ui, repo, dest="default-push"):
     """push changes to the specified destination"""
@@ -520,7 +539,7 @@ def push(ui, repo, dest="default-push"):
         os.kill(child, signal.SIGTERM)
         return r
 
-def rawcommit(ui, repo, flist, **rc):
+def rawcommit(ui, repo, *flist, **rc):
     "raw commit interface"
 
     text = rc['text']
@@ -531,10 +550,12 @@ def rawcommit(ui, repo, flist, **rc):
         print "missing commit text"
         return 1
 
-    files = relpath(repo, flist)
+    files = relpath(repo, list(flist))
     if rc['files']:
         files += open(rc['files']).read().splitlines()
-        
+
+    rc['parent'] = map(repo.lookup, rc['parent'])
+    
     repo.rawcommit(files, text, rc['user'], rc['date'], *rc['parent'])
  
 def recover(ui, repo):
@@ -565,6 +586,35 @@ def status(ui, repo):
     for f in a: print "A", f
     for f in d: print "R", f
     for f in u: print "?", f
+
+def tag(ui, repo, name, rev = None, **opts):
+    """add a tag for the current tip or a given revision"""
+    
+    if name == "tip":
+	ui.warn("abort: 'tip' is a reserved name!\n")
+	return -1
+
+    (c, a, d, u) = repo.diffdir(repo.root)
+    for x in (c, a, d, u):
+	if ".hgtags" in x:
+	    ui.warn("abort: working copy of .hgtags is changed!\n")
+            ui.status("(please commit .hgtags manually)\n")
+	    return -1
+
+    if rev:
+        r = hg.hex(repo.lookup(rev))
+    else:
+        r = hg.hex(repo.changelog.tip())
+
+    add = 0
+    if not os.path.exists(repo.wjoin(".hgtags")): add = 1
+    repo.wfile(".hgtags", "a").write("%s %s\n" % (r, name))
+    if add: repo.add([".hgtags"])
+
+    if not opts['text']:
+        opts['text'] = "Added tag %s for changeset %s" % (name, r)
+
+    repo.commit([".hgtags"], opts['text'], opts['user'], opts['date'])
 
 def tags(ui, repo):
     """list repository tags"""
@@ -612,13 +662,13 @@ def verify(ui, repo):
 table = {
     "add": (add, [], "hg add [files]"),
     "addremove": (addremove, [], "hg addremove [files]"),
-    "ann|annotate": (annotate,
+    "annotate": (annotate,
                      [('r', 'revision', '', 'revision'),
                       ('u', 'user', None, 'show user'),
                       ('n', 'number', None, 'show revision number'),
                       ('c', 'changeset', None, 'show changeset')],
                      'hg annotate [-u] [-c] [-n] [-r id] [files]'),
-    "cat|dump": (cat, [], 'hg cat <file> [rev]'),
+    "cat": (cat, [], 'hg cat <file> [rev]'),
     "commit|ci": (commit,
                   [('t', 'text', "", 'commit text'),
                    ('A', 'addremove', None, 'run add/remove during commit'),
@@ -627,8 +677,6 @@ table = {
                    ('u', 'user', "", 'user')],
                   'hg commit [files]'),
     "copy": (copy, [], 'hg copy <source> <dest>'),
-    "debugaddchangegroup": (debugaddchangegroup, [], 'debugaddchangegroup'),
-    "debugchangegroup": (debugchangegroup, [], 'debugchangegroup [roots]'),
     "debugindex": (debugindex, [], 'debugindex <file>'),
     "debugindexdot": (debugindexdot, [], 'debugindexdot <file>'),
     "diff": (diff, [('r', 'rev', [], 'revision')],
@@ -639,17 +687,18 @@ table = {
     "history": (history, [], 'hg history'),
     "help": (help, [], 'hg help [command]'),
     "identify|id": (identify, [], 'hg identify'),
+    "import|patch": (import_,
+                     [('p', 'strip', 1, 'path strip'),
+                      ('b', 'base', "", 'base path')],
+                     "hg import [options] <patches>"),
     "init": (init, [('u', 'update', None, 'update after init')],
              'hg init [options] [url]'),
     "log": (log, [], 'hg log <file>'),
-    "manifest|dumpmanifest": (manifest, [], 'hg manifest [rev]'),
+    "manifest": (manifest, [], 'hg manifest [rev]'),
     "parents": (parents, [], 'hg parents [node]'),
-    "patch|import": (patch,
-                     [('p', 'strip', 1, 'path strip'),
-                      ('b', 'base', "", 'base path'),
-                      ('q', 'quiet', "", 'silence diff')],
-                     "hg import [options] patches"),
-    "pull|merge": (pull, [], 'hg pull [source]'),
+    "pull": (pull, 
+                  [('u', 'update', None, 'update working directory')],
+		  'hg pull [options] [source]'),
     "push": (push, [], 'hg push <destination>'),
     "rawcommit": (rawcommit,
                   [('p', 'parent', [], 'parent'),
@@ -660,26 +709,29 @@ table = {
                    ('l', 'logfile', "", 'commit text file')],
                   'hg rawcommit [options] [files]'),
     "recover": (recover, [], "hg recover"),
-    "remove": (remove, [], "hg remove [files]"),
+    "remove|rm": (remove, [], "hg remove [files]"),
     "serve": (serve, [('p', 'port', 8000, 'listen port'),
                       ('a', 'address', '', 'interface address'),
                       ('n', 'name', os.getcwd(), 'repository name'),
                       ('t', 'templates', "", 'template map')],
               "hg serve [options]"),
     "status": (status, [], 'hg status'),
+    "tag": (tag,  [('t', 'text', "", 'commit text'),
+                   ('d', 'date', "", 'date'),
+                   ('u', 'user', "", 'user')],
+            'hg tag [options] <name> [rev]'),
     "tags": (tags, [], 'hg tags'),
     "tip": (tip, [], 'hg tip'),
     "undo": (undo, [], 'hg undo'),
-    "update|up|checkout|co|resolve": (update,
-                                      [('m', 'merge', None,
-                                        'allow merging of conflicts'),
-                                       ('C', 'clean', None,
-                                        'overwrite locally modified files')],
-                                       'hg update [options] [node]'),
+    "update|up|checkout|co":
+            (update,
+             [('m', 'merge', None, 'allow merging of conflicts'),
+              ('C', 'clean', None, 'overwrite locally modified files')],
+             'hg update [options] [node]'),
     "verify": (verify, [], 'hg verify'),
     }
 
-norepo = "init branch help debugindex debugindexdot"
+norepo = "init version help debugindex debugindexdot"
 
 def find(cmd):
     i = None
@@ -704,6 +756,7 @@ def dispatch(args):
             ('q', 'quiet', None, 'quiet'),
             ('p', 'profile', None, 'profile'),
             ('y', 'noninteractive', None, 'run non-interactively'),
+            ('', 'version', None, 'output version information and exit'),
             ]
 
     args = fancyopts.fancyopts(args, opts, options,
@@ -716,6 +769,10 @@ def dispatch(args):
 
     u = ui.ui(options["verbose"], options["debug"], options["quiet"],
            not options["noninteractive"])
+
+    if options["version"]:
+        show_version(u)
+        sys.exit(0)
 
     try:
         i = find(cmd)
