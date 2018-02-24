@@ -8,7 +8,7 @@
 
 from mercurial.i18n import gettext as _
 from mercurial.demandload import demandload
-demandload(globals(), "os sys sets mercurial:hg,util,commands")
+demandload(globals(), "os sys sets mercurial:hg,util,commands,cmdutil")
 
 versionstr = "0.0.3"
 
@@ -23,10 +23,10 @@ def lookup_rev(ui, repo, rev=None):
     return parents.pop()
 
 def check_clean(ui, repo):
-        modified, added, removed, deleted, unknown = repo.changes()
-        if modified or added or removed:
-            ui.warn("Repository is not clean, please commit or revert\n")
-            sys.exit(1)
+    modified, added, removed, deleted, unknown = repo.status()[:5]
+    if modified or added or removed:
+        ui.warn("Repository is not clean, please commit or revert\n")
+        sys.exit(1)
 
 class bisect(object):
     """dichotomic search in the DAG of changesets"""
@@ -50,7 +50,7 @@ class bisect(object):
             if r:
                 self.badrev = hg.bin(r.pop(0))
 
-    def __del__(self):
+    def write(self):
         if not os.path.isdir(self.path):
             return
         f = self.opener(self.good_path, "w")
@@ -169,7 +169,7 @@ class bisect(object):
             if ancestors.pop() != self.badrev:
                 raise util.Abort(_("Could not find the first bad revision"))
             self.ui.write(_("The first bad revision is:\n"))
-            displayer = commands.show_changeset(self.ui, self.repo, {})
+            displayer = cmdutil.show_changeset(self.ui, self.repo, {})
             displayer.show(changenode=self.badrev)
             return None
         best_rev = None
@@ -197,7 +197,7 @@ class bisect(object):
         check_clean(self.ui, self.repo)
         rev = self.next()
         if rev is not None:
-            return self.repo.update(rev, force=True)
+            return hg.clean(self.repo, rev)
 
     def good(self, rev):
         self.goodrevs.append(rev)
@@ -288,7 +288,10 @@ for subcommands see "hg bisect help\"
     if len(args) > bisectcmdtable[cmd][1]:
         ui.warn(_("bisect: Too many arguments\n"))
         return help_()
-    return bisectcmdtable[cmd][0](*args)
+    try:
+        return bisectcmdtable[cmd][0](*args)
+    finally:
+        b.write()
 
 cmdtable = {
     "bisect": (bisect_run, [], _("hg bisect [help|init|reset|next|good|bad]")),

@@ -6,10 +6,10 @@
 # './setup.py --help' for more options
 
 import sys
-if not hasattr(sys, 'version_info') or sys.version_info < (2, 3):
+if not hasattr(sys, 'version_info') or sys.version_info < (2, 3, 0, 'final'):
     raise SystemExit, "Mercurial requires python 2.3 or later."
 
-import glob
+import os
 from distutils.core import setup, Extension
 from distutils.command.install_data import install_data
 
@@ -55,9 +55,9 @@ try:
                 self.includes = []
             else:
                 self.includes = self.includes.split(',')
-            mercurial.packagescan.scan(self.build_lib,'mercurial')
-            mercurial.packagescan.scan(self.build_lib,'mercurial.hgweb')
-            mercurial.packagescan.scan(self.build_lib,'hgext')
+            mercurial.packagescan.scan(self.build_lib, 'mercurial')
+            mercurial.packagescan.scan(self.build_lib, 'mercurial.hgweb')
+            mercurial.packagescan.scan(self.build_lib, 'hgext')
             self.includes += mercurial.packagescan.getmodules()
             build_exe.finalize_options(self)
 except ImportError:
@@ -79,26 +79,25 @@ py2exe_opts = {}
 if py2exe_for_demandload is not None:
     cmdclass['py2exe'] = py2exe_for_demandload
     py2exe_opts['console'] = ['hg']
+
 setup(name='mercurial',
-        version=mercurial.version.get_version(),
-        author='Matt Mackall',
-        author_email='mpm@selenic.com',
-        url='http://selenic.com/mercurial',
-        description='Scalable distributed SCM',
-        license='GNU GPL',
-        packages=['mercurial', 'mercurial.hgweb', 'hgext'],
-        ext_modules=[Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
-                    Extension('mercurial.bdiff', ['mercurial/bdiff.c'])],
-        data_files=[('mercurial/templates',
-                    ['templates/map'] +
-                    glob.glob('templates/map-*') +
-                    glob.glob('templates/*.tmpl')),
-                    ('mercurial/templates/static',
-                    glob.glob('templates/static/*'))],
-        cmdclass=cmdclass,
-        scripts=['hg', 'hgmerge'],
-        options=dict(bdist_mpkg=dict(zipdist=True,
-                                    license='COPYING',
-                                    readme='contrib/macosx/Readme.html',
-                                    welcome='contrib/macosx/Welcome.html')),
-        **py2exe_opts)
+      version=mercurial.version.get_version(),
+      author='Matt Mackall',
+      author_email='mpm@selenic.com',
+      url='http://selenic.com/mercurial',
+      description='Scalable distributed SCM',
+      license='GNU GPL',
+      packages=['mercurial', 'mercurial.hgweb', 'hgext'],
+      ext_modules=[Extension('mercurial.mpatch', ['mercurial/mpatch.c']),
+                   Extension('mercurial.bdiff', ['mercurial/bdiff.c']),
+                   Extension('mercurial.base85', ['mercurial/base85.c'])],
+      data_files=[(os.path.join('mercurial', root),
+                   [os.path.join(root, file_) for file_ in files])
+                  for root, dirs, files in os.walk('templates')],
+      cmdclass=cmdclass,
+      scripts=['hg', 'hgmerge'],
+      options=dict(bdist_mpkg=dict(zipdist=True,
+                                   license='COPYING',
+                                   readme='contrib/macosx/Readme.html',
+                                   welcome='contrib/macosx/Welcome.html')),
+      **py2exe_opts)

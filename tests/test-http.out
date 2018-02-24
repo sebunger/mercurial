@@ -2,7 +2,7 @@ adding foo
 % clone via stream
 streaming all changes
 XXX files to transfer, XXX bytes of data
-transferred XXX bytes in XXX seconds (XXX KB/sec)
+transferred XXX bytes in XXX seconds (XXX XB/sec)
 XXX files updated, XXX files merged, XXX files removed, XXX files unresolved
 checking changesets
 checking manifests
@@ -28,3 +28,13 @@ checking manifests
 crosschecking files in changesets and manifests
 checking files
 1 files, 1 changesets, 1 total revisions
+adding bar
+% pull
+changegroup: u=http://localhost:20059/
+pulling from http://localhost:20059/
+searching for changes
+adding changesets
+adding manifests
+adding file changes
+added 1 changesets with 1 changes to 1 files
+(run 'hg update' to get a working copy)

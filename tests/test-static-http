@@ -2,7 +2,7 @@
 
 http_proxy= hg clone static-http://localhost:20059/ copy
 echo $?
-ls copy 2>/dev/null || echo copy: No such file or directory
+test -d copy || echo copy: No such file or directory
 
 # This server doesn't do range requests so it's basically only good for
 # one pull
@@ -37,6 +37,14 @@ http_proxy= hg clone static-http://localhost:20059/remote local
 cd local
 hg verify
 cat bar
+
+cd ../remote
+echo baz > quux
+hg commit -A -mtest2 -d '100000000 0'
+
+cd ../local
+echo '[hooks]' >> .hg/hgrc
+echo 'changegroup = echo changegroup: u=$HG_URL' >> .hg/hgrc
 http_proxy= hg pull
 
 kill $!

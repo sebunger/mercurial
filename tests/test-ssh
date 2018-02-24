@@ -17,6 +17,8 @@ if [ ! -x dummyssh ] ; then
 	exit -1
 fi
 
+SSH_CLIENT='127.0.0.1 1 2'
+export SSH_CLIENT
 echo Got arguments 1:$1 2:$2 3:$3 4:$4 5:$5 >> dummylog
 $2
 EOF
@@ -26,15 +28,21 @@ echo "# creating 'remote'"
 hg init remote
 cd remote
 echo this > foo
-hg ci -A -m "init" -d "1000000 0" foo
+echo this > fooO
+hg ci -A -m "init" -d "1000000 0" foo fooO
 echo '[server]' > .hg/hgrc
 echo 'uncompressed = True' >> .hg/hgrc
+echo '[hooks]' >> .hg/hgrc
+echo 'changegroup = echo changegroup in remote: u=$HG_URL >> ../dummylog' >> .hg/hgrc
 
 cd ..
 
+echo "# repo not found error"
+hg clone -e ./dummyssh ssh://user@dummy/nonexistent local
+
 echo "# clone remote via stream"
 hg clone -e ./dummyssh --uncompressed ssh://user@dummy/remote local-stream 2>&1 | \
-  sed -e 's/[0-9][0-9.]*/XXX/g'
+  sed -e 's/[0-9][0-9.]*/XXX/g' -e 's/[KM]\(B\/sec\)/X\1/'
 cd local-stream
 hg verify
 cd ..
@@ -45,6 +53,9 @@ hg clone -e ./dummyssh ssh://user@dummy/remote local
 echo "# verify"
 cd local
 hg verify
+
+echo '[hooks]' >> .hg/hgrc
+echo 'changegroup = echo changegroup in local: u=$HG_URL >> ../dummylog' >> .hg/hgrc
 
 echo "# empty default pull"
 hg paths
@@ -73,7 +84,7 @@ cd ../remote
 echo "# check remote tip"
 hg tip
 hg verify
-hg cat foo
+hg cat -r tip foo
 
 echo z > z
 hg ci -A -m z -d '1000001 0' z
@@ -82,11 +93,8 @@ cd ../local
 echo r > r
 hg ci -A -m z -d '1000002 0' r
 
-echo "# push should fail"
-hg push
-
 echo "# push should succeed"
-hg push -f
+hg push
 
 cd ..
 cat dummylog

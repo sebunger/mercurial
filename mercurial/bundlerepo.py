@@ -59,7 +59,7 @@ class bundlerevlog(revlog.revlog):
             if not prev:
                 prev = p1
             # start, size, base is not used, link, p1, p2, delta ref
-            if self.version == 0:
+            if self.version == revlog.REVLOGV0:
                 e = (start, size, None, link, p1, p2, node)
             else:
                 e = (self.offset_type(start, 0), size, -1, None, link,
@@ -141,7 +141,7 @@ class bundlerevlog(revlog.revlog):
 class bundlechangelog(bundlerevlog, changelog.changelog):
     def __init__(self, opener, bundlefile):
         changelog.changelog.__init__(self, opener)
-        bundlerevlog.__init__(self, opener, "00changelog.i", "00changelog.d",
+        bundlerevlog.__init__(self, opener, self.indexfile, self.datafile,
                               bundlefile)
 
 class bundlemanifest(bundlerevlog, manifest.manifest):
@@ -159,6 +159,10 @@ class bundlefilelog(bundlerevlog, filelog.filelog):
 class bundlerepository(localrepo.localrepository):
     def __init__(self, ui, path, bundlename):
         localrepo.localrepository.__init__(self, ui, path)
+
+        self._url = 'bundle:' + bundlename
+        if path: self._url += '+' + path
+
         self.tempfile = None
         self.bundlefile = open(bundlename, "rb")
         header = self.bundlefile.read(6)
@@ -195,8 +199,8 @@ class bundlerepository(localrepo.localrepository):
         else:
             raise util.Abort(_("%s: unknown bundle compression type")
                              % bundlename)
-        self.changelog = bundlechangelog(self.opener, self.bundlefile)
-        self.manifest = bundlemanifest(self.opener, self.bundlefile,
+        self.changelog = bundlechangelog(self.sopener, self.bundlefile)
+        self.manifest = bundlemanifest(self.sopener, self.bundlefile,
                                        self.changelog.rev)
         # dict with the mapping 'filename' -> position in the bundle
         self.bundlefilespos = {}
@@ -208,6 +212,9 @@ class bundlerepository(localrepo.localrepository):
             for c in changegroup.chunkiter(self.bundlefile):
                 pass
 
+    def url(self):
+        return self._url
+
     def dev(self):
         return -1
 
@@ -216,17 +223,34 @@ class bundlerepository(localrepo.localrepository):
             f = f[1:]
         if f in self.bundlefilespos:
             self.bundlefile.seek(self.bundlefilespos[f])
-            return bundlefilelog(self.opener, f, self.bundlefile,
+            return bundlefilelog(self.sopener, f, self.bundlefile,
                                  self.changelog.rev)
         else:
-            return filelog.filelog(self.opener, f)
+            return filelog.filelog(self.sopener, f)
 
     def close(self):
         """Close assigned bundle file immediately."""
         self.bundlefile.close()
 
     def __del__(self):
-        if not self.bundlefile.closed:
-            self.bundlefile.close()
-        if self.tempfile is not None:
-            os.unlink(self.tempfile)
+        bundlefile = getattr(self, 'bundlefile', None)
+        if bundlefile and not bundlefile.closed:
+            bundlefile.close()
+        tempfile = getattr(self, 'tempfile', None)
+        if tempfile is not None:
+            os.unlink(tempfile)
+
+def instance(ui, path, create):
+    if create:
+        raise util.Abort(_('cannot create new bundle repository'))
+    path = util.drop_scheme('file', path)
+    if path.startswith('bundle:'):
+        path = util.drop_scheme('bundle', path)
+        s = path.split("+", 1)
+        if len(s) == 1:
+            repopath, bundlename = "", s[0]
+        else:
+            repopath, bundlename = s
+    else:
+        repopath, bundlename = '', path
+    return bundlerepository(ui, repopath, bundlename)

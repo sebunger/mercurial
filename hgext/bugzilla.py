@@ -55,7 +55,7 @@
 from mercurial.demandload import *
 from mercurial.i18n import gettext as _
 from mercurial.node import *
-demandload(globals(), 'mercurial:templater,util os re time')
+demandload(globals(), 'mercurial:cmdutil,templater,util os re time')
 
 MySQLdb = None
 
@@ -74,7 +74,7 @@ class bugzilla_2_16(object):
         timeout = int(self.ui.config('bugzilla', 'timeout', 5))
         usermap = self.ui.config('bugzilla', 'usermap')
         if usermap:
-            self.ui.readconfig(usermap)
+            self.ui.readsections(usermap, 'usermap')
         self.ui.note(_('connecting to %s:%s as %s, password %s\n') %
                      (host, db, user, '*' * len(passwd)))
         self.conn = MySQLdb.connect(host=host, user=user, passwd=passwd,
@@ -267,20 +267,22 @@ class bugzilla(object):
 
         mapfile = self.ui.config('bugzilla', 'style')
         tmpl = self.ui.config('bugzilla', 'template')
-        sio = templater.stringio()
-        t = templater.changeset_templater(self.ui, self.repo, mapfile, sio)
+        t = cmdutil.changeset_templater(self.ui, self.repo,
+                                        False, None, mapfile, False)
         if not mapfile and not tmpl:
             tmpl = _('changeset {node|short} in repo {root} refers '
                      'to bug {bug}.\ndetails:\n\t{desc|tabindent}')
         if tmpl:
             tmpl = templater.parsestring(tmpl, quoted=False)
             t.use_template(tmpl)
+        self.ui.pushbuffer()
         t.show(changenode=node, changes=changes,
                bug=str(bugid),
                hgweb=self.ui.config('web', 'baseurl'),
                root=self.repo.root,
                webroot=webroot(self.repo.root))
-        self.add_comment(bugid, sio.getvalue(), templater.email(changes[1]))
+        data = self.ui.popbuffer()
+        self.add_comment(bugid, data, templater.email(changes[1]))
 
 def hook(ui, repo, hooktype, node=None, **kwargs):
     '''add comment to bugzilla for each changeset that refers to a

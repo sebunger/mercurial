@@ -23,54 +23,58 @@
 # the changeset summary, so you can be sure you are sending the right
 # changes.
 #
-# It is best to run this script with the "-n" (test only) flag before
-# firing it up "for real", in which case it will use your pager to
-# display each of the messages that it would send.
+# To enable this extension:
 #
-# The "-m" (mbox) option will create an mbox file instead of sending
-# the messages directly. This can be reviewed e.g. with "mutt -R -f mbox",
-# and finally sent with "formail -s sendmail -bm -t < mbox".
+#   [extensions]
+#   hgext.patchbomb =
 #
 # To configure other defaults, add a section like this to your hgrc
 # file:
 #
-# [email]
-# from = My Name <my@email>
-# to = recipient1, recipient2, ...
-# cc = cc1, cc2, ...
+#   [email]
+#   from = My Name <my@email>
+#   to = recipient1, recipient2, ...
+#   cc = cc1, cc2, ...
+#   bcc = bcc1, bcc2, ...
+#
+# Then you can use the "hg email" command to mail a series of changesets
+# as a patchbomb.
+#
+# To avoid sending patches prematurely, it is a good idea to first run
+# the "email" command with the "-n" option (test only).  You will be
+# prompted for an email recipient address, a subject an an introductory
+# message describing the patches of your patchbomb.  Then when all is
+# done, your pager will be fired up once for each patchbomb message, so
+# you can verify everything is alright.
+#
+# The "-m" (mbox) option is also very useful.  Instead of previewing
+# each patchbomb message in a pager or sending the messages directly,
+# it will create a UNIX mailbox file with the patch emails.  This
+# mailbox file can be previewed with any mail user agent which supports
+# UNIX mbox files, i.e. with mutt:
+#
+#   % mutt -R -f mbox
+#
+# When you are previewing the patchbomb messages, you can use `formail'
+# (a utility that is commonly installed as part of the procmail package),
+# to send each message out:
+#
+#  % formail -s sendmail -bm -t < mbox
+#
+# That should be all.  Now your patchbomb is on its way out.
 
 from mercurial.demandload import *
 demandload(globals(), '''email.MIMEMultipart email.MIMEText email.Utils
-                         mercurial:commands,hg,ui
+                         mercurial:cmdutil,commands,hg,mail,ui,patch
                          os errno popen2 socket sys tempfile time''')
 from mercurial.i18n import gettext as _
+from mercurial.node import *
 
 try:
     # readline gives raw_input editing capabilities, but is not
     # present on windows
     import readline
 except ImportError: pass
-
-def diffstat(patch):
-    fd, name = tempfile.mkstemp(prefix="hg-patchbomb-", suffix=".txt")
-    try:
-        p = popen2.Popen3('diffstat -p1 -w79 2>/dev/null > ' + name)
-        try:
-            for line in patch: print >> p.tochild, line
-            p.tochild.close()
-            if p.wait(): return
-            fp = os.fdopen(fd, 'r')
-            stat = []
-            for line in fp: stat.append(line.lstrip())
-            last = stat.pop()
-            stat.insert(0, last)
-            stat = ''.join(stat)
-            if stat.startswith('0 files'): raise ValueError
-            return stat
-        except: raise
-    finally:
-        try: os.unlink(name)
-        except: pass
 
 def patchbomb(ui, repo, *revs, **opts):
     '''send changesets as a series of patch emails
@@ -98,8 +102,8 @@ def patchbomb(ui, repo, *revs, **opts):
         if not prompt(s, default = 'y', rest = '? ').lower().startswith('y'):
             raise ValueError
 
-    def cdiffstat(summary, patch):
-        s = diffstat(patch)
+    def cdiffstat(summary, patchlines):
+        s = patch.diffstat(patchlines)
         if s:
             if summary:
                 ui.write(summary, '\n')
@@ -115,7 +119,9 @@ def patchbomb(ui, repo, *revs, **opts):
             if line.startswith('#'):
                 if line.startswith('# Node ID'): node = line.split()[-1]
                 continue
-            if line.startswith('diff -r'): break
+            if (line.startswith('diff -r')
+                or line.startswith('diff --git')):
+                break
             desc.append(line)
         if not node: raise ValueError
 
@@ -129,12 +135,31 @@ def patchbomb(ui, repo, *revs, **opts):
             while patch and not patch[0].strip(): patch.pop(0)
         if opts['diffstat']:
             body += cdiffstat('\n'.join(desc), patch) + '\n\n'
-        body += '\n'.join(patch)
-        msg = email.MIMEText.MIMEText(body)
+        if opts['attach']:
+            msg = email.MIMEMultipart.MIMEMultipart()
+            if body: msg.attach(email.MIMEText.MIMEText(body, 'plain'))
+            p = email.MIMEText.MIMEText('\n'.join(patch), 'x-patch')
+            binnode = bin(node)
+            # if node is mq patch, it will have patch file name as tag
+            patchname = [t for t in repo.nodetags(binnode)
+                         if t.endswith('.patch') or t.endswith('.diff')]
+            if patchname:
+                patchname = patchname[0]
+            elif total > 1:
+                patchname = cmdutil.make_filename(repo, '%b-%n.patch',
+                                                   binnode, idx, total)
+            else:
+                patchname = cmdutil.make_filename(repo, '%b.patch', binnode)
+            p['Content-Disposition'] = 'inline; filename=' + patchname
+            msg.attach(p)
+        else:
+            body += '\n'.join(patch)
+            msg = email.MIMEText.MIMEText(body)
         if total == 1:
             subj = '[PATCH] ' + desc[0].strip()
         else:
-            subj = '[PATCH %d of %d] %s' % (idx, total, desc[0].strip())
+            tlen = len(str(total))
+            subj = '[PATCH %0*d of %d] %s' % (tlen, idx, total, desc[0].strip())
         if subj.endswith('.'): subj = subj[:-1]
         msg['Subject'] = subj
         msg['X-Mercurial-Node'] = node
@@ -162,14 +187,15 @@ def patchbomb(ui, repo, *revs, **opts):
 
     commands.export(ui, repo, *revs, **{'output': exportee(patches),
                                         'switch_parent': False,
-                                        'text': None})
+                                        'text': None,
+                                        'git': opts.get('git')})
 
     jumbo = []
     msgs = []
 
     ui.write(_('This patch series consists of %d patches.\n\n') % len(patches))
 
-    for p, i in zip(patches, range(len(patches))):
+    for p, i in zip(patches, xrange(len(patches))):
         jumbo.extend(p)
         msgs.append(makepatch(p, i + 1, len(patches)))
 
@@ -185,14 +211,21 @@ def patchbomb(ui, repo, *revs, **opts):
     to = getaddrs('to', 'To')
     cc = getaddrs('cc', 'Cc', '')
 
+    bcc = opts['bcc'] or (ui.config('email', 'bcc') or
+                          ui.config('patchbomb', 'bcc') or '').split(',')
+    bcc = [a.strip() for a in bcc if a.strip()]
+
     if len(patches) > 1:
         ui.write(_('\nWrite the introductory message for the patch series.\n\n'))
 
-        msg = email.MIMEMultipart.MIMEMultipart()
-        msg['Subject'] = '[PATCH 0 of %d] %s' % (
+        tlen = len(str(len(patches)))
+
+        subj = '[PATCH %0*d of %d] %s' % (
+            tlen, 0,
             len(patches),
             opts['subject'] or
-            prompt('Subject:', rest = ' [PATCH 0 of %d] ' % len(patches)))
+            prompt('Subject:', rest = ' [PATCH %0*d of %d] ' % (tlen, 0,
+                len(patches))))
 
         ui.write(_('Finish with ^D or a dot on a line by itself.\n\n'))
 
@@ -204,18 +237,21 @@ def patchbomb(ui, repo, *revs, **opts):
             if l == '.': break
             body.append(l)
 
-        msg.attach(email.MIMEText.MIMEText('\n'.join(body) + '\n'))
-
         if opts['diffstat']:
             d = cdiffstat(_('Final summary:\n'), jumbo)
-            if d: msg.attach(email.MIMEText.MIMEText(d))
+            if d: body.append('\n' + d)
+
+        body = '\n'.join(body) + '\n'
+
+        msg = email.MIMEText.MIMEText(body)
+        msg['Subject'] = subj
 
         msgs.insert(0, msg)
 
     ui.write('\n')
 
     if not opts['test'] and not opts['mbox']:
-        mail = ui.sendmail()
+        mailer = mail.connect(ui)
     parent = None
 
     # Calculate UTC offset
@@ -240,7 +276,8 @@ def patchbomb(ui, repo, *revs, **opts):
         start_time += 1
         m['From'] = sender
         m['To'] = ', '.join(to)
-        if cc: m['Cc'] = ', '.join(cc)
+        if cc: m['Cc']  = ', '.join(cc)
+        if bcc: m['Bcc'] = ', '.join(bcc)
         if opts['test']:
             ui.status('Displaying ', m['Subject'], ' ...\n')
             fp = os.popen(os.getenv('PAGER', 'more'), 'w')
@@ -261,13 +298,18 @@ def patchbomb(ui, repo, *revs, **opts):
             fp.close()
         else:
             ui.status('Sending ', m['Subject'], ' ...\n')
-            mail.sendmail(sender, to + cc, m.as_string(0))
+            # Exim does not remove the Bcc field
+            del m['Bcc']
+            mailer.sendmail(sender, to + bcc + cc, m.as_string(0))
 
 cmdtable = {
     'email':
     (patchbomb,
-     [('c', 'cc', [], 'email addresses of copy recipients'),
+     [('a', 'attach', None, 'send patches as inline attachments'),
+      ('', 'bcc', [], 'email addresses of blind copy recipients'),
+      ('c', 'cc', [], 'email addresses of copy recipients'),
       ('d', 'diffstat', None, 'add diffstat output to messages'),
+      ('g', 'git', None, _('use git extended diff format')),
       ('f', 'from', '', 'email address of sender'),
       ('', 'plain', None, 'omit hg patch header'),
       ('n', 'test', None, 'print messages that would be sent'),

@@ -1,95 +1,45 @@
 # Minimal support for git commands on an hg repository
 #
-# Copyright 2005 Chris Mason <mason@suse.com>
+# Copyright 2005, 2006 Chris Mason <mason@suse.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import time, sys, signal, os
-from mercurial import hg, mdiff, fancyopts, commands, ui, util
+from mercurial.demandload import *
+demandload(globals(), 'time sys signal os')
+demandload(globals(), 'mercurial:hg,fancyopts,commands,ui,util,patch,revlog')
 
-def dodiff(fp, ui, repo, node1, node2, files=None, match=util.always,
-           changes=None, text=False):
-    def date(c):
-        return time.asctime(time.gmtime(c[2][0]))
-
-    if not changes:
-        changes = repo.changes(node1, node2, files, match=match)
-    modified, added, removed, deleted, unknown = changes
-    if files:
-        modified, added, removed = map(lambda x: filterfiles(files, x),
-                                       (modified, added, removed))
-
-    if not modified and not added and not removed:
-        return
-
-    if node2:
-        change = repo.changelog.read(node2)
-        mmap2 = repo.manifest.read(change[0])
-        date2 = date(change)
-        def read(f):
-            return repo.file(f).read(mmap2[f])
-    else:
-        date2 = time.asctime()
-        if not node1:
-            node1 = repo.dirstate.parents()[0]
-        def read(f):
-            return repo.wfile(f).read()
-
-    change = repo.changelog.read(node1)
-    mmap = repo.manifest.read(change[0])
-    date1 = date(change)
-
-    for f in modified:
-        to = None
-        if f in mmap:
-            to = repo.file(f).read(mmap[f])
-        tn = read(f)
-        fp.write("diff --git a/%s b/%s\n" % (f, f))
-        fp.write(mdiff.unidiff(to, date1, tn, date2, f, None, text=text))
-    for f in added:
-        to = None
-        tn = read(f)
-        fp.write("diff --git /dev/null b/%s\n" % (f))
-        fp.write(mdiff.unidiff(to, date1, tn, date2, f, None, text=text))
-    for f in removed:
-        to = repo.file(f).read(mmap[f])
-        tn = None
-        fp.write("diff --git a/%s /dev/null\n" % (f))
-        fp.write(mdiff.unidiff(to, date1, tn, date2, f, None, text=text))
-
-def difftree(ui, repo, node1=None, node2=None, **opts):
+def difftree(ui, repo, node1=None, node2=None, *files, **opts):
     """diff trees from two commits"""
-    def __difftree(repo, node1, node2):
-        def date(c):
-            return time.asctime(time.gmtime(c[2][0]))
-
+    def __difftree(repo, node1, node2, files=[]):
         if node2:
             change = repo.changelog.read(node2)
             mmap2 = repo.manifest.read(change[0])
-            modified, added, removed, deleted, unknown = repo.changes(node1, node2)
-            def read(f): return repo.file(f).read(mmap2[f])
-            date2 = date(change)
+            status = repo.status(node1, node2, files=files)[:5]
+            modified, added, removed, deleted, unknown = status
         else:
-            date2 = time.asctime()
-            modified, added, removed, deleted, unknown = repo.changes(node1)
+            status = repo.status(node1, files=files)[:5]
+            modified, added, removed, deleted, unknown = status
             if not node1:
                 node1 = repo.dirstate.parents()[0]
-            def read(f): return file(os.path.join(repo.root, f)).read()
 
         change = repo.changelog.read(node1)
         mmap = repo.manifest.read(change[0])
-        date1 = date(change)
-        empty = "0" * 40;
+        empty = hg.short(hg.nullid)
 
         for f in modified:
             # TODO get file permissions
-            print ":100664 100664 %s %s M\t%s\t%s" % (hg.hex(mmap[f]),
-                                                      hg.hex(mmap2[f]), f, f)
+            print ":100664 100664 %s %s M\t%s\t%s" % (hg.short(mmap[f]),
+                                                      hg.short(mmap2[f]),
+                                                      f, f)
         for f in added:
-            print ":000000 100664 %s %s N\t%s\t%s" % (empty, hg.hex(mmap2[f]), f, f)
+            print ":000000 100664 %s %s N\t%s\t%s" % (empty,
+                                                      hg.short(mmap2[f]),
+                                                      f, f)
         for f in removed:
-            print ":100664 000000 %s %s D\t%s\t%s" % (hg.hex(mmap[f]), empty, f, f)
+            print ":100664 000000 %s %s D\t%s\t%s" % (hg.short(mmap[f]),
+                                                      empty,
+                                                      f, f)
     ##
 
     while True:
@@ -112,22 +62,24 @@ def difftree(ui, repo, node1=None, node2=None, **opts):
         if opts['patch']:
             if opts['pretty']:
                 catcommit(repo, node2, "")
-            dodiff(sys.stdout, ui, repo, node1, node2)
+            patch.diff(repo, node1, node2,
+                       files=files,
+                       opts=patch.diffopts(ui, {'git': True}))
         else:
-            __difftree(repo, node1, node2)
+            __difftree(repo, node1, node2, files=files)
         if not opts['stdin']:
             break
 
 def catcommit(repo, n, prefix, changes=None):
     nlprefix = '\n' + prefix;
     (p1, p2) = repo.changelog.parents(n)
-    (h, h1, h2) = map(hg.hex, (n, p1, p2))
+    (h, h1, h2) = map(hg.short, (n, p1, p2))
     (i1, i2) = map(repo.changelog.rev, (p1, p2))
     if not changes:
         changes = repo.changelog.read(n)
-    print "tree %s" % (hg.hex(changes[0]))
-    if i1 != -1: print "parent %s" % (h1)
-    if i2 != -1: print "parent %s" % (h2)
+    print "tree %s" % (hg.short(changes[0]))
+    if i1 != hg.nullrev: print "parent %s" % (h1)
+    if i2 != hg.nullrev: print "parent %s" % (h2)
     date_ar = changes[2]
     date = int(float(date_ar[0]))
     lines = changes[4].splitlines()
@@ -138,6 +90,7 @@ def catcommit(repo, n, prefix, changes=None):
 
     print "author %s %s %s" % (changes[1], date, date_ar[1])
     print "committer %s %s %s" % (committer, date, date_ar[1])
+    print "revision %d" % repo.changelog.rev(n)
     print ""
     if prefix != "":
         print "%s%s" % (prefix, changes[4].replace('\n', nlprefix).strip())
@@ -151,7 +104,7 @@ def base(ui, repo, node1, node2):
     node1 = repo.lookup(node1)
     node2 = repo.lookup(node2)
     n = repo.changelog.ancestor(node1, node2)
-    print hg.hex(n)
+    print hg.short(n)
 
 def catfile(ui, repo, type=None, r=None, **opts):
     """cat a specific revision"""
@@ -224,7 +177,7 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
         if len(ar) == 0:
             return 1
         mask = 0
-        for i in range(len(ar)):
+        for i in xrange(len(ar)):
             if sha in reachable[i]:
                 mask |= 1 << i
 
@@ -237,7 +190,7 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
 
     # figure out which commits they are asking for and which ones they
     # want us to stop on
-    for i in range(len(args)):
+    for i in xrange(len(args)):
         if args[i].startswith('^'):
             s = repo.lookup(args[i][1:])
             stop_sha1.append(s)
@@ -246,7 +199,7 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
             want_sha1.append(repo.lookup(args[i]))
 
     # calculate the graph for the supplied commits
-    for i in range(len(want_sha1)):
+    for i in xrange(len(want_sha1)):
         reachable.append({});
         n = want_sha1[i];
         visit = [n];
@@ -264,7 +217,6 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
 
     # walk the repository looking for commits that are in our
     # reachability graph
-    #for i in range(repo.changelog.count()-1, -1, -1):
     for i, changes in chlogwalk():
         n = repo.changelog.node(i)
         mask = is_reachable(want_sha1, reachable, n)
@@ -273,31 +225,44 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
             if parents:
                 pp = repo.changelog.parents(n)
                 if pp[0] != hg.nullid:
-                    parentstr += " " + hg.hex(pp[0])
+                    parentstr += " " + hg.short(pp[0])
                 if pp[1] != hg.nullid:
-                    parentstr += " " + hg.hex(pp[1])
+                    parentstr += " " + hg.short(pp[1])
             if not full:
-                print hg.hex(n) + parentstr
-            elif full is "commit":
-                print hg.hex(n) + parentstr
+                print hg.short(n) + parentstr
+            elif full == "commit":
+                print hg.short(n) + parentstr
                 catcommit(repo, n, '    ', changes)
             else:
                 (p1, p2) = repo.changelog.parents(n)
-                (h, h1, h2) = map(hg.hex, (n, p1, p2))
+                (h, h1, h2) = map(hg.short, (n, p1, p2))
                 (i1, i2) = map(repo.changelog.rev, (p1, p2))
 
                 date = changes[2][0]
                 print "%s %s:%s" % (date, h, mask),
                 mask = is_reachable(want_sha1, reachable, p1)
-                if i1 != -1 and mask > 0:
+                if i1 != hg.nullrev and mask > 0:
                     print "%s:%s " % (h1, mask),
                 mask = is_reachable(want_sha1, reachable, p2)
-                if i2 != -1 and mask > 0:
+                if i2 != hg.nullrev and mask > 0:
                     print "%s:%s " % (h2, mask),
                 print ""
             if maxnr and count >= maxnr:
                 break
             count += 1
+
+def revparse(ui, repo, *revs, **opts):
+    """Parse given revisions"""
+    def revstr(rev):
+        if rev == 'HEAD':
+            rev = 'tip'
+        return revlog.hex(repo.lookup(rev))
+
+    for r in revs:
+        revrange = r.split(':', 1)
+        ui.write('%s\n' % revstr(revrange[0]))
+        if len(revrange) == 2:
+            ui.write('^%s\n' % revstr(revrange[1]))
 
 # git rev-list tries to order things by date, and has the ability to stop
 # at a given commit without walking the whole repo.  TODO add the stop
@@ -311,29 +276,34 @@ def revlist(ui, repo, *revs, **opts):
     copy = [x for x in revs]
     revtree(copy, repo, full, opts['max_count'], opts['parents'])
 
-def view(ui, repo, *etc):
+def view(ui, repo, *etc, **opts):
     "start interactive history viewer"
     os.chdir(repo.root)
-    os.system(ui.config("hgk", "path", "hgk") + " " + " ".join(etc))
+    optstr = ' '.join(['--%s %s' % (k, v) for k, v in opts.iteritems() if v])
+    cmd = ui.config("hgk", "path", "hgk") + " %s %s" % (optstr, " ".join(etc))
+    ui.debug("running %s\n" % cmd)
+    os.system(cmd)
 
 cmdtable = {
-    "view": (view, [], 'hg view'),
+    "^view": (view,
+             [('l', 'limit', '', 'limit number of changes displayed')],
+             'hg view [-l LIMIT] [REVRANGE]'),
     "debug-diff-tree": (difftree, [('p', 'patch', None, 'generate patch'),
                             ('r', 'recursive', None, 'recursive'),
                             ('P', 'pretty', None, 'pretty'),
                             ('s', 'stdin', None, 'stdin'),
                             ('C', 'copy', None, 'detect copies'),
                             ('S', 'search', "", 'search')],
-                            "hg git-diff-tree [options] node1 node2"),
+                            "hg git-diff-tree [options] node1 node2 [files...]"),
     "debug-cat-file": (catfile, [('s', 'stdin', None, 'stdin')],
                  "hg debug-cat-file [options] type file"),
     "debug-merge-base": (base, [], "hg debug-merge-base node node"),
+    'debug-rev-parse': (revparse,
+                        [('', 'default', '', 'ignored')],
+                        "hg debug-rev-parse rev"),
     "debug-rev-list": (revlist, [('H', 'header', None, 'header'),
                            ('t', 'topo-order', None, 'topo-order'),
                            ('p', 'parents', None, 'parents'),
                            ('n', 'max-count', 0, 'max-count')],
                  "hg debug-rev-list [options] revs"),
 }
-
-def reposetup(ui, repo):
-    pass

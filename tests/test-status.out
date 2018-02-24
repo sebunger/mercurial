@@ -108,3 +108,13 @@ A copied
 R removed
 ! deleted
 ? unknown
+hg status -A:
+A added
+A copied
+  modified
+R removed
+! deleted
+? unknown
+I ignored
+C .hgignore
+C modified

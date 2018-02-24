@@ -22,12 +22,11 @@ added 1 changesets with 1 changes to 1 files (+1 heads)
 (run 'hg heads' to see heads, 'hg merge' to merge)
 merge: warning: conflicts during merge
 resolving manifests
- force False allow True moddirstate True linear False
- ancestor 055d847dd401 local 2eded9ab0a5c remote 84cf5750dd20
- test.txt versions differ, resolve
+ overwrite None partial False
+ ancestor faaea63e63a9 local 451c744aabcc+ remote a070d41e8360
+ test.txt: versions differ -> m
 merging test.txt
-resolving test.txt
-file test.txt: my fc3148072371 other d40249267ae3 ancestor 8fe46a3eb557
+my test.txt@451c744aabcc+ other test.txt@a070d41e8360 ancestor test.txt@faaea63e63a9
 merging test.txt failed!
 0 files updated, 0 files merged, 0 files removed, 1 files unresolved
 There are unresolved merges, you can redo the full merge using:
