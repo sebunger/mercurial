@@ -34,6 +34,15 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .sp
 The Mercurial system uses a set of configuration files to control
 aspects of its behavior.
+.SH TROUBLESHOOTING
+.sp
+If you\(aqre having problems with your configuration,
+\%\fBhg config \-\-debug\fP\: can help you understand what is introducing
+a setting into your environment.
+.sp
+See \%\fBhg help config.syntax\fP\: and \%\fBhg help config.files\fP\:
+for information about how and where to override things.
+.SH FORMAT
 .sp
 The configuration files use a simple ini\-file format. A configuration
 file consists of sections, led by a \fB[section]\fP header and followed
@@ -48,7 +57,7 @@ verbose = True
 .fi
 .sp
 The above entries will be referred to as \fBui.username\fP and
-\fBui.verbose\fP, respectively. See the Syntax section below.
+\fBui.verbose\fP, respectively. See \%\fBhg help config.syntax\fP\:.
 .SH FILES
 .sp
 Mercurial reads configuration data from several files, if they exist.
@@ -108,13 +117,13 @@ On Windows, the following files are consulted:
 \fB%HOME%\eMercurial.ini\fP (per\-user)
 .IP \(bu 2
 .
-\fB<install\-dir>\eMercurial.ini\fP (per\-installation)
+\fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP (per\-installation)
 .IP \(bu 2
 .
 \fB<install\-dir>\ehgrc.d\e*.rc\fP (per\-installation)
 .IP \(bu 2
 .
-\fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP (per\-installation)
+\fB<install\-dir>\eMercurial.ini\fP (per\-installation)
 .IP \(bu 2
 .
 \fB<internal>/default.d/*.rc\fP (defaults)
@@ -155,8 +164,8 @@ particular repository. This file is not version\-controlled, and
 will not get transferred during a "clone" operation. Options in
 this file override options in all other configuration files. On
 Plan 9 and Unix, most of this file will be ignored if it doesn\(aqt
-belong to a trusted user or to a trusted group. See the documentation
-for the \fB[trusted]\fP section below for more details.
+belong to a trusted user or to a trusted group. See
+\%\fBhg help config.trusted\fP\: for more details.
 .sp
 Per\-user configuration file(s) are for the user running Mercurial. On
 Windows 9x, \fB%HOME%\fP is replaced by \fB%APPDATA%\fP. Options in these
@@ -301,9 +310,10 @@ keys, and their possible values.
 .SS \fBalias\fP
 .sp
 Defines command aliases.
+.sp
 Aliases allow you to define your own commands in terms of other
 commands (or aliases), optionally including arguments. Positional
-arguments in the form of \fB$1\fP, \fB$2\fP, etc in the alias definition
+arguments in the form of \fB$1\fP, \fB$2\fP, etc. in the alias definition
 are expanded by Mercurial before execution. Positional arguments not
 already used by \fB$N\fP in the definition are put at the end of the
 command to be executed.
@@ -383,8 +393,8 @@ aliases.
 .SS \fBannotate\fP
 .sp
 Settings used when displaying file annotations. All values are
-Booleans and default to False. See \fBdiff\fP section for related
-options for the diff command.
+Booleans and default to False. See \%\fBhg help config.diff\fP\: for
+related options for the diff command.
 .INDENT 0.0
 .TP
 .B \fBignorews\fP
@@ -403,7 +413,7 @@ Ignore changes whose lines are all blank.
 .sp
 Authentication credentials for HTTP authentication. This section
 allows you to store usernames and passwords for use when logging
-\fIinto\fP HTTP servers. See the \fB[web]\fP configuration section if
+\fIinto\fP HTTP servers. See \%\fBhg help config.web\fP\: if
 you want to configure \fIwho\fP can login to your HTTP server.
 .sp
 Each line has the following format:
@@ -474,15 +484,19 @@ Optional. Space separated list of URI schemes to use this
 authentication entry with. Only used if the prefix doesn\(aqt include
 a scheme. Supported schemes are http and https. They will match
 static\-http and static\-https respectively, as well.
-Default: https.
+(default: https)
 .UNINDENT
 .sp
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
 .SS \fBcommittemplate\fP
+.INDENT 0.0
+.TP
+.B \fBchangeset\fP
 .sp
-\fBchangeset\fP configuration in this section is used as the template to
+String: configuration in this section is used as the template to
 customize the text shown in the editor when committing.
+.UNINDENT
 .sp
 In addition to pre\-defined template keywords, commit log specific one
 below can be used for customization:
@@ -521,10 +535,10 @@ For some problematic encodings (see \%\fBhg help win32mbcs\fP\: for
 detail), this customization should be configured carefully, to
 avoid showing broken characters.
 .sp
-For example, if multibyte character ending with backslash (0x5c) is
-followed by ASCII character \(aqn\(aq in the customized template,
-sequence of backslash and \(aqn\(aq is treated as line\-feed unexpectedly
-(and multibyte character is broken, too).
+For example, if a multibyte character ending with backslash (0x5c) is
+followed by the ASCII character \(aqn\(aq in the customized template,
+the sequence of backslash and \(aqn\(aq is treated as line\-feed unexpectedly
+(and the multibyte character is broken, too).
 .RE
 .sp
 Customized template is used for commands below (\fB\-\-edit\fP may be
@@ -657,9 +671,10 @@ For example, \fBchangeset.tag.remove\fP customizes the commit message
 only for \%\fBhg tag \-\-remove\fP\:, but \fBchangeset.tag\fP customizes the
 commit message for \%\fBhg tag\fP\: regardless of \fB\-\-remove\fP option.
 .sp
-At the external editor invocation for committing, corresponding
-dot\-separated list of names without \fBchangeset.\fP prefix
-(e.g. \fBcommit.normal.normal\fP) is in \fBHGEDITFORM\fP environment variable.
+When the external editor is invoked for a commit, the corresponding
+dot\-separated list of names without the \fBchangeset.\fP prefix
+(e.g. \fBcommit.normal.normal\fP) is in the \fBHGEDITFORM\fP environment
+variable.
 .sp
 In this section, items other than \fBchangeset\fP can be referred from
 others. For example, the configuration to list committed files up
@@ -727,7 +742,7 @@ translate line ending characters between Windows (CRLF) and Unix (LF)
 format. We suggest you use the \fBeol\fP extension for convenience.
 .SS \fBdefaults\fP
 .sp
-(defaults are deprecated. Don\(aqt use them. Use aliases instead)
+(defaults are deprecated. Don\(aqt use them. Use aliases instead.)
 .sp
 Use the \fB[defaults]\fP section to define command defaults, i.e. the
 default options/arguments to pass to the specified commands.
@@ -749,8 +764,8 @@ to the aliases of the commands defined.
 .SS \fBdiff\fP
 .sp
 Settings used when displaying diffs. Everything except for \fBunified\fP
-is a Boolean and defaults to False. See \fBannotate\fP section for
-related options for the annotate command.
+is a Boolean and defaults to False. See \%\fBhg help config.annotate\fP\:
+for related options for the annotate command.
 .INDENT 0.0
 .TP
 .B \fBgit\fP
@@ -829,8 +844,8 @@ convenient for recipients. Addresses, headers, and parts not
 containing patches of outgoing messages will be encoded in the
 first character set to which conversion from local encoding
 (\fB$HGENCODING\fP, \fBui.fallbackencoding\fP) succeeds. If correct
-conversion fails, the text in question is sent as is. Defaults to
-empty (explicit) list.
+conversion fails, the text in question is sent as is.
+(default: \(aq\(aq)
 .sp
 Order of outgoing email character sets:
 .INDENT 7.0
@@ -968,8 +983,7 @@ hooks can be run for the same action by appending a suffix to the
 action. Overriding a site\-wide hook can be done by changing its
 value or setting it to an empty string.  Hooks can be prioritized
 by adding a prefix of \fBpriority\fP to the hook name on a new line
-and setting the priority.  The default priority is 0 if
-not specified.
+and setting the priority. The default priority is 0.
 .sp
 Example \fB.hg/hgrc\fP:
 .sp
@@ -1014,7 +1028,7 @@ the local repository. The ID of the newly arrived changeset is in
 .sp
 Run after sending changes from local repository to another. ID of
 first changeset sent is in \fB$HG_NODE\fP. Source of operation is in
-\fB$HG_SOURCE\fP; see "preoutgoing" hook for description.
+\fB$HG_SOURCE\fP; Also see \%\fBhg help config.preoutgoing\fP\: hook.
 .TP
 .B \fBpost\-<command>\fP
 .sp
@@ -1107,13 +1121,13 @@ bookmarks and phases changes will set \fBHG_BOOKMARK_MOVED\fP and
 .sp
 Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
-after the lock is released. See \fBpretxnclose\fP docs for details about
-available variables.
+after the lock is released. See \%\fBhg help config.pretxnclose\fP\: docs for
+details about available variables.
 .TP
 .B \fBtxnabort\fP
 .sp
-Run when a transaction is aborted. See \fBpretxnclose\fP docs for details about
-available variables.
+Run when a transaction is aborted. See \%\fBhg help config.pretxnclose\fP\:
+docs for details about available variables.
 .TP
 .B \fBpretxnchangegroup\fP
 .sp
@@ -1248,7 +1262,7 @@ Optional. User name to authenticate with at the proxy server.
 .B \fBalways\fP
 .sp
 Optional. Always use the proxy, even for localhost and any entries
-in \fBhttp_proxy.no\fP. True or False. Default: False.
+in \fBhttp_proxy.no\fP. (default: False)
 .UNINDENT
 .SS \fBmerge\-patterns\fP
 .sp
@@ -1286,7 +1300,10 @@ kdiff3.args = $base $local $other \-o $output
 kdiff3.priority = 1
 
 # Changing the priority of preconfigured tool
-vimdiff.priority = 0
+meld.priority = 0
+
+# Disable a preconfigured tool
+vimdiff.disabled = yes
 
 # Define new tool
 myHtmlTool.args = \-m $local $other $base $output
@@ -1301,13 +1318,13 @@ Supported arguments:
 .B \fBpriority\fP
 .sp
 The priority in which to evaluate this tool.
-Default: 0.
+(default: 0)
 .TP
 .B \fBexecutable\fP
 .sp
 Either just the name of the executable or its pathname.  On Windows,
 the path can use environment variables with ${ProgramFiles} syntax.
-Default: the tool name.
+(default: the tool name)
 .TP
 .B \fBargs\fP
 .sp
@@ -1320,7 +1337,7 @@ state of the file, while \fB$other\fP represents the commit you are updating
 to or the commit you are merging with. During a rebase \fB$local\fP
 represents the destination of the rebase, and \fB$other\fP represents the
 commit being rebased.
-Default: \fB$local $base $other\fP
+(default: \fB$local $base $other\fP)
 .TP
 .B \fBpremerge\fP
 .sp
@@ -1330,17 +1347,16 @@ launching external tool.  Options are \fBtrue\fP, \fBfalse\fP, \fBkeep\fP or
 premerge fails. The \fBkeep\-merge3\fP will do the same but include information
 about the base of the merge in the marker (see internal :merge3 in
 \%\fBhg help merge\-tools\fP\:).
-Default: True
+(default: True)
 .TP
 .B \fBbinary\fP
 .sp
-This tool can merge binary files. Defaults to False, unless tool
-was selected by file pattern match.
+This tool can merge binary files. (default: False, unless tool
+was selected by file pattern match)
 .TP
 .B \fBsymlink\fP
 .sp
-This tool can merge symlinks. Defaults to False, even if tool was
-selected by file pattern match.
+This tool can merge symlinks. (default: False)
 .TP
 .B \fBcheck\fP
 .sp
@@ -1363,18 +1379,18 @@ Always prompt for merge success, regardless of success reported by tool.
 .B \fBfixeol\fP
 .sp
 Attempt to fix up EOL changes caused by the merge tool.
-Default: False
+(default: False)
 .TP
 .B \fBgui\fP
 .sp
-This tool requires a graphical interface to run. Default: False
+This tool requires a graphical interface to run. (default: False)
 .TP
 .B \fBregkey\fP
 .sp
 Windows registry key which describes install location of this
 tool. Mercurial will search for this key first under
 \fBHKEY_CURRENT_USER\fP and then under \fBHKEY_LOCAL_MACHINE\fP.
-Default: None
+(default: None)
 .TP
 .B \fBregkeyalt\fP
 .sp
@@ -1382,18 +1398,18 @@ An alternate Windows registry key to try if the first key is not
 found.  The alternate key uses the same \fBregname\fP and \fBregappend\fP
 semantics of the primary key.  The most common use for this key
 is to search for 32bit applications on 64bit operating systems.
-Default: None
+(default: None)
 .TP
 .B \fBregname\fP
 .sp
-Name of value to read from specified registry key. Defaults to the
-unnamed (default) value.
+Name of value to read from specified registry key.
+(default: the unnamed (default) value)
 .TP
 .B \fBregappend\fP
 .sp
 String to append to the value read from the registry, typically
 the executable name of the tool.
-Default: None
+(default: None)
 .UNINDENT
 .SS \fBpatch\fP
 .sp
@@ -1411,14 +1427,14 @@ normalized to either LF (Unix) or CRLF (Windows). When set to
 endings in patched files are normalized to their original setting
 on a per\-file basis. If target file does not exist or has no end
 of line, patch line endings are preserved.
-Default: strict.
+(default: strict)
 .TP
 .B \fBfuzz\fP
 .sp
 The number of lines of \(aqfuzz\(aq to allow when applying patches. This
 controls how much context the patcher is allowed to ignore when
 trying to apply a patch.
-Default: 2
+(default: 2)
 .UNINDENT
 .SS \fBpaths\fP
 .sp
@@ -1431,8 +1447,7 @@ the following entries.
 .B \fBdefault\fP
 .sp
 Directory or URL to use when pulling if no source is specified.
-Default is set to repository from which the current repository was
-cloned.
+(default: repository from which the current repository was cloned)
 .TP
 .B \fBdefault\-push\fP
 .sp
@@ -1468,12 +1483,12 @@ information about working with phases.
 Controls draft phase behavior when working as a server. When true,
 pushed changesets are set to public in both client and server and
 pulled or cloned changesets are set to public in the client.
-Default: True
+(default: True)
 .TP
 .B \fBnew\-commit\fP
 .sp
 Phase of newly\-created commits.
-Default: draft
+(default: draft)
 .TP
 .B \fBchecksubrepos\fP
 .sp
@@ -1485,7 +1500,7 @@ greater than the phase of the parent repository (e.g. if a subrepo is in a
 "secret" phase while the parent repo is in "draft" phase), the commit is
 either aborted (if checksubrepos is set to "abort") or the higher phase is
 used for the parent repository commit (if set to "follow").
-Default: "follow"
+(default: follow)
 .UNINDENT
 .SS \fBprofiling\fP
 .sp
@@ -1502,7 +1517,7 @@ profiling is done using lsprof.
 .B \fBtype\fP
 .sp
 The type of profiler to use.
-Default: ls.
+(default: ls)
 .INDENT 7.0
 .TP
 .B \fBls\fP
@@ -1522,7 +1537,7 @@ profiling commands that run for longer than about 0.1 seconds.
 .B \fBformat\fP
 .sp
 Profiling format.  Specific to the \fBls\fP instrumenting profiler.
-Default: text.
+(default: text)
 .INDENT 7.0
 .TP
 .B \fBtext\fP
@@ -1541,32 +1556,32 @@ kcachegrind.
 .B \fBfrequency\fP
 .sp
 Sampling frequency.  Specific to the \fBstat\fP sampling profiler.
-Default: 1000.
+(default: 1000)
 .TP
 .B \fBoutput\fP
 .sp
 File path where profiling data or report should be saved. If the
-file exists, it is replaced. Default: None, data is printed on
-stderr
+file exists, it is replaced. (default: None, data is printed on
+stderr)
 .TP
 .B \fBsort\fP
 .sp
 Sort field.  Specific to the \fBls\fP instrumenting profiler.
 One of \fBcallcount\fP, \fBreccallcount\fP, \fBtotaltime\fP and
 \fBinlinetime\fP.
-Default: inlinetime.
+(default: inlinetime)
 .TP
 .B \fBlimit\fP
 .sp
 Number of lines to show. Specific to the \fBls\fP instrumenting profiler.
-Default: 30.
+(default: 30)
 .TP
 .B \fBnested\fP
 .sp
 Show at most this number of lines of drill\-down info after each main entry.
 This can help explain the difference between Total and Inline.
 Specific to the \fBls\fP instrumenting profiler.
-Default: 5.
+(default: 5)
 .UNINDENT
 .SS \fBprogress\fP
 .sp
@@ -1603,19 +1618,19 @@ characters.
 .B \fBwidth\fP
 .sp
 If set, the maximum width of the progress information (that is, min(width,
-term width) will be used)
+term width) will be used).
 .TP
 .B \fBclear\-complete\fP
 .sp
-clear the progress bar after it\(aqs done (default to True)
+Clear the progress bar after it\(aqs done. (default: True)
 .TP
 .B \fBdisable\fP
 .sp
-If true, don\(aqt show a progress bar
+If true, don\(aqt show a progress bar.
 .TP
 .B \fBassume\-tty\fP
 .sp
-If true, ALWAYS show a progress bar, unless disable is given
+If true, ALWAYS show a progress bar, unless disable is given.
 .UNINDENT
 .SS \fBrevsetalias\fP
 .sp
@@ -1636,23 +1651,23 @@ regular clone. Over most WAN connections (anything slower than
 about 6 Mbps), uncompressed streaming is slower, because of the
 extra data transfer overhead. This mode will also temporarily hold
 the write lock while determining what data to transfer.
-Default is True.
+(default: True)
 .TP
 .B \fBpreferuncompressed\fP
 .sp
 When set, clients will try to use the uncompressed streaming
-protocol. Default is False.
+protocol. (default: False)
 .TP
 .B \fBvalidate\fP
 .sp
 Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
-present. Default is False.
+present. (default: False)
 .TP
 .B \fBmaxhttpheaderlen\fP
 .sp
 Instruct HTTP clients not to send request headers longer than this
-many bytes. Default is 1024.
+many bytes. (default: 1024)
 .UNINDENT
 .SS \fBsmtp\fP
 .sp
@@ -1665,13 +1680,13 @@ Host name of mail server, e.g. "mail.example.com".
 .TP
 .B \fBport\fP
 .sp
-Optional. Port to connect to on mail server. Default: 465 (if
-\fBtls\fP is smtps) or 25 (otherwise).
+Optional. Port to connect to on mail server. (default: 465 if
+\fBtls\fP is smtps; 25 otherwise)
 .TP
 .B \fBtls\fP
 .sp
 Optional. Method to enable TLS when connecting to mail server: starttls,
-smtps or none. Default: none.
+smtps or none. (default: none)
 .TP
 .B \fBverifycert\fP
 .sp
@@ -1682,22 +1697,22 @@ verification for HTTPS connections (see \fB[hostfingerprints]\fP and
 \fB[web] cacerts\fP also). For "strict", sending email is also
 aborted, if there is no configuration for mail server in
 \fB[hostfingerprints]\fP and \fB[web] cacerts\fP.  \-\-insecure for
-\%\fBhg email\fP\: overwrites this as "loose". Default: "strict".
+\%\fBhg email\fP\: overwrites this as "loose". (default: strict)
 .TP
 .B \fBusername\fP
 .sp
 Optional. User name for authenticating with the SMTP server.
-Default: none.
+(default: None)
 .TP
 .B \fBpassword\fP
 .sp
 Optional. Password for authenticating with the SMTP server. If not
 specified, interactive sessions will prompt the user for a
-password; non\-interactive sessions will fail. Default: none.
+password; non\-interactive sessions will fail. (default: None)
 .TP
 .B \fBlocal_hostname\fP
 .sp
-Optional. It\(aqs the hostname that the sender can use to identify
+Optional. The hostname that the sender can use to identify
 itself to the MTA.
 .UNINDENT
 .SS \fBsubpaths\fP
@@ -1763,7 +1778,7 @@ User interface controls.
 Whether to include the .hg_archival.txt file containing meta data
 (hashes for the repository base and for tip) in archives created
 by the \%\fBhg archive\fP\: command or downloaded via hgweb.
-Default is True.
+(default: True)
 .TP
 .B \fBaskusername\fP
 .sp
@@ -1771,27 +1786,43 @@ Whether to prompt for a username when committing. If True, and
 neither \fB$HGUSER\fP nor \fB$EMAIL\fP has been specified, then the user will
 be prompted to enter a username. If no username is entered, the
 default \fBUSER@HOST\fP is used instead.
-Default is False.
+(default: False)
+.TP
+.B \fBclonebundlefallback\fP
+.sp
+Whether failure to apply an advertised "clone bundle" from a server
+should result in fallback to a regular clone.
+.sp
+This is disabled by default because servers advertising "clone
+bundles" often do so to reduce server load. If advertised bundles
+start mass failing and clients automatically fall back to a regular
+clone, this would add significant and unexpected load to the server
+since the server is expecting clone operations to be offloaded to
+pre\-generated bundles. Failing fast (the default behavior) ensures
+clients don\(aqt overwhelm the server when "clone bundle" application
+fails.
+.sp
+(default: False)
 .TP
 .B \fBcommitsubrepos\fP
 .sp
 Whether to commit modified subrepositories when committing the
 parent repository. If False and one subrepository has uncommitted
 changes, abort the commit.
-Default is False.
+(default: False)
 .TP
 .B \fBdebug\fP
 .sp
-Print debugging information. True or False. Default is False.
+Print debugging information. (default: False)
 .TP
 .B \fBeditor\fP
 .sp
-The editor to use during a commit. Default is \fB$EDITOR\fP or \fBvi\fP.
+The editor to use during a commit. (default: \fB$EDITOR\fP or \fBvi\fP)
 .TP
 .B \fBfallbackencoding\fP
 .sp
 Encoding to try if it\(aqs not possible to decode the changelog using
-UTF\-8. Default is ISO\-8859\-1.
+UTF\-8. (default: ISO\-8859\-1)
 .TP
 .B \fBignore\fP
 .sp
@@ -1804,7 +1835,7 @@ of the ignore file format, see the \fBhgignore(5)\fP man page.
 .TP
 .B \fBinteractive\fP
 .sp
-Allow to prompt the user. True or False. Default is True.
+Allow to prompt the user. (default: True)
 .TP
 .B \fBlogtemplate\fP
 .sp
@@ -1822,15 +1853,17 @@ Sets the merge conflict marker label styling. The \fBdetailed\fP
 style uses the \fBmergemarkertemplate\fP setting to style the labels.
 The \fBbasic\fP style just uses \(aqlocal\(aq and \(aqother\(aq as the marker label.
 One of \fBbasic\fP or \fBdetailed\fP.
-Default is \fBbasic\fP.
+(default: \fBbasic\fP)
 .TP
 .B \fBmergemarkertemplate\fP
 .sp
 The template used to print the commit description next to each conflict
 marker during merge conflicts. See \%\fBhg help templates\fP\: for the template
 format.
+.sp
 Defaults to showing the hash, tags, branches, bookmarks, author, and
 the first line of the commit description.
+.sp
 If you use non\-ASCII characters in names for tags, branches, bookmarks,
 authors, and/or commit descriptions, you must pay attention to encodings of
 managed files. At template expansion, non\-ASCII characters use the encoding
@@ -1856,7 +1889,7 @@ will use the \fBpatch\fP program with its 2\-way merge option.
 .B \fBportablefilenames\fP
 .sp
 Check for portable filenames. Can be \fBwarn\fP, \fBignore\fP or \fBabort\fP.
-Default is \fBwarn\fP.
+(default: \fBwarn\fP)
 If set to \fBwarn\fP (or \fBtrue\fP), a warning message is printed on POSIX
 platforms, if a file with a non\-portable filename is added (e.g. a file
 with a name that can\(aqt be created on Windows because it contains reserved
@@ -1868,16 +1901,16 @@ On Windows, this configuration option is ignored and the command aborted.
 .TP
 .B \fBquiet\fP
 .sp
-Reduce the amount of output printed. True or False. Default is False.
+Reduce the amount of output printed. (default: False)
 .TP
 .B \fBremotecmd\fP
 .sp
-remote command to use for clone/push/pull operations. Default is \fBhg\fP.
+Remote command to use for clone/push/pull operations. (default: \fBhg\fP)
 .TP
 .B \fBreport_untrusted\fP
 .sp
 Warn if a \fB.hg/hgrc\fP file is ignored due to not being owned by a
-trusted user or group. True or False. Default is True.
+trusted user or group. (default: True)
 .TP
 .B \fBslash\fP
 .sp
@@ -1885,7 +1918,7 @@ Display paths using a slash (\fB/\fP) as the path separator. This
 only makes a difference on systems where the default path
 separator is not the slash character (e.g. Windows uses the
 backslash character (\fB\e\fP)).
-Default is False.
+(default: False)
 .TP
 .B \fBstatuscopies\fP
 .sp
@@ -1893,42 +1926,50 @@ Display copies in the status command.
 .TP
 .B \fBssh\fP
 .sp
-command to use for SSH connections. Default is \fBssh\fP.
+Command to use for SSH connections. (default: \fBssh\fP)
 .TP
 .B \fBstrict\fP
 .sp
 Require exact command names, instead of allowing unambiguous
-abbreviations. True or False. Default is False.
+abbreviations. (default: False)
 .TP
 .B \fBstyle\fP
 .sp
 Name of style to use for command output.
 .TP
+.B \fBsupportcontact\fP
+.sp
+A URL where users should report a Mercurial traceback. Use this if you are a
+large organisation with its own Mercurial deployment process and crash
+reports should be addressed to your internal support.
+.TP
 .B \fBtimeout\fP
 .sp
 The timeout used when a lock is held (in seconds), a negative value
-means no timeout. Default is 600.
+means no timeout. (default: 600)
 .TP
 .B \fBtraceback\fP
 .sp
 Mercurial always prints a traceback when an unknown exception
 occurs. Setting this to True will make Mercurial print a traceback
 on all exceptions, even those recognized by Mercurial (such as
-IOError or MemoryError). Default is False.
+IOError or MemoryError). (default: False)
 .TP
 .B \fBusername\fP
 .sp
 The committer of a changeset created when running "commit".
 Typically a person\(aqs name and email address, e.g. \fBFred Widget
-<fred@example.com>\fP. Default is \fB$EMAIL\fP or \fBusername@hostname\fP. If
-the username in hgrc is empty, it has to be specified manually or
-in a different hgrc file (e.g. \fB$HOME/.hgrc\fP, if the admin set
-\fBusername =\fP  in the system hgrc). Environment variables in the
+<fred@example.com>\fP. Environment variables in the
 username are expanded.
+.sp
+(default: \fB$EMAIL\fP or \fBusername@hostname\fP. If the username in
+hgrc is empty, e.g. if the system admin set \fBusername =\fP  in the
+system hgrc, it has to be specified manually or in a different
+hgrc file)
 .TP
 .B \fBverbose\fP
 .sp
-Increase the amount of output printed. True or False. Default is False.
+Increase the amount of output printed. (default: False)
 .UNINDENT
 .SS \fBweb\fP
 .sp
@@ -1962,41 +2003,41 @@ The full set of options is:
 .TP
 .B \fBaccesslog\fP
 .sp
-Where to output the access log. Default is stdout.
+Where to output the access log. (default: stdout)
 .TP
 .B \fBaddress\fP
 .sp
-Interface address to bind to. Default is all.
+Interface address to bind to. (default: all)
 .TP
 .B \fBallow_archive\fP
 .sp
 List of archive format (bz2, gz, zip) allowed for downloading.
-Default is empty.
+(default: empty)
 .TP
 .B \fBallowbz2\fP
 .sp
 (DEPRECATED) Whether to allow .tar.bz2 downloading of repository
 revisions.
-Default is False.
+(default: False)
 .TP
 .B \fBallowgz\fP
 .sp
 (DEPRECATED) Whether to allow .tar.gz downloading of repository
 revisions.
-Default is False.
+(default: False)
 .TP
 .B \fBallowpull\fP
 .sp
-Whether to allow pulling from the repository. Default is True.
+Whether to allow pulling from the repository. (default: True)
 .TP
 .B \fBallow_push\fP
 .sp
 Whether to allow pushing to the repository. If empty or not set,
-push is not allowed. If the special value \fB*\fP, any remote user can
-push, including unauthenticated users. Otherwise, the remote user
-must have been authenticated, and the authenticated user name must
-be present in this list. The contents of the allow_push list are
-examined after the deny_push list.
+pushing is not allowed. If the special value \fB*\fP, any remote
+user can push, including unauthenticated users. Otherwise, the
+remote user must have been authenticated, and the authenticated
+user name must be present in this list. The contents of the
+allow_push list are examined after the deny_push list.
 .TP
 .B \fBallow_read\fP
 .sp
@@ -2013,12 +2054,13 @@ examined after the deny_read list.
 .B \fBallowzip\fP
 .sp
 (DEPRECATED) Whether to allow .zip downloading of repository
-revisions. Default is False. This feature creates temporary files.
+revisions. This feature creates temporary files.
+(default: False)
 .TP
 .B \fBarchivesubrepos\fP
 .sp
-Whether to recurse into subrepositories when archiving. Default is
-False.
+Whether to recurse into subrepositories when archiving.
+(default: False)
 .TP
 .B \fBbaseurl\fP
 .sp
@@ -2060,7 +2102,7 @@ generate this file manually. The form must be as follows:
 .TP
 .B \fBcache\fP
 .sp
-Whether to support caching in hgweb. Defaults to True.
+Whether to support caching in hgweb. (default: True)
 .TP
 .B \fBcertificate\fP
 .sp
@@ -2074,19 +2116,20 @@ a single level alongside repositories in the current path. With
 the current path are grouped behind navigable directory entries that
 lead to the locations of these repositories. In effect, this setting
 collapses each collection of repositories found within a subdirectory
-into a single entry for that subdirectory. Default is False.
+into a single entry for that subdirectory. (default: False)
 .TP
 .B \fBcomparisoncontext\fP
 .sp
 Number of lines of context to show in side\-by\-side file comparison. If
-negative or the value \fBfull\fP, whole files are shown. Default is 5.
+negative or the value \fBfull\fP, whole files are shown. (default: 5)
+.sp
 This setting can be overridden by a \fBcontext\fP request parameter to the
 \fBcomparison\fP command, taking the same values.
 .TP
 .B \fBcontact\fP
 .sp
 Name or email address of the person in charge of the repository.
-Defaults to ui.username or \fB$EMAIL\fP or "unknown" if unset or empty.
+(default: ui.username or \fB$EMAIL\fP or "unknown" if unset or empty)
 .TP
 .B \fBdeny_push\fP
 .sp
@@ -2121,16 +2164,16 @@ available from the index corresponding to their containing path).
 .B \fBdescription\fP
 .sp
 Textual description of the repository\(aqs purpose or contents.
-Default is "unknown".
+(default: "unknown")
 .TP
 .B \fBencoding\fP
 .sp
-Character encoding name. Default is the current locale charset.
-Example: "UTF\-8"
+Character encoding name. (default: the current locale charset)
+Example: "UTF\-8".
 .TP
 .B \fBerrorlog\fP
 .sp
-Where to output the error log. Default is stderr.
+Where to output the error log. (default: stderr)
 .TP
 .B \fBguessmime\fP
 .sp
@@ -2138,16 +2181,16 @@ Control MIME types for raw download of file content.
 Set to True to let hgweb guess the content type from the file
 extension. This will serve HTML files as \fBtext/html\fP and might
 allow cross\-site scripting attacks when serving untrusted
-repositories. Default is False.
+repositories. (default: False)
 .TP
 .B \fBhidden\fP
 .sp
 Whether to hide the repository in the hgwebdir index.
-Default is False.
+(default: False)
 .TP
 .B \fBipv6\fP
 .sp
-Whether to use IPv6. Default is False.
+Whether to use IPv6. (default: False)
 .TP
 .B \fBlogoimg\fP
 .sp
@@ -2158,39 +2201,49 @@ If unset, \fBhglogo.png\fP will be used.
 .TP
 .B \fBlogourl\fP
 .sp
-Base URL to use for logos. If unset, \fBhttp://mercurial.selenic.com/\fP
+Base URL to use for logos. If unset, \fBhttps://mercurial\-scm.org/\fP
 will be used.
 .TP
 .B \fBmaxchanges\fP
 .sp
-Maximum number of changes to list on the changelog. Default is 10.
+Maximum number of changes to list on the changelog. (default: 10)
 .TP
 .B \fBmaxfiles\fP
 .sp
-Maximum number of files to list per changeset. Default is 10.
+Maximum number of files to list per changeset. (default: 10)
 .TP
 .B \fBmaxshortchanges\fP
 .sp
 Maximum number of changes to list on the shortlog, graph or filelog
-pages. Default is 60.
+pages. (default: 60)
 .TP
 .B \fBname\fP
 .sp
-Repository name to use in the web interface. Default is current
-working directory.
+Repository name to use in the web interface.
+(default: current working directory)
 .TP
 .B \fBport\fP
 .sp
-Port to listen on. Default is 8000.
+Port to listen on. (default: 8000)
 .TP
 .B \fBprefix\fP
 .sp
-Prefix path to serve from. Default is \(aq\(aq (server root).
+Prefix path to serve from. (default: \(aq\(aq (server root))
 .TP
 .B \fBpush_ssl\fP
 .sp
 Whether to require that inbound pushes be transported over SSL to
-prevent password sniffing. Default is True.
+prevent password sniffing. (default: True)
+.TP
+.B \fBrefreshinterval\fP
+.sp
+How frequently directory listings re\-scan the filesystem for new
+repositories, in seconds. This is relevant when wildcards are used
+to define paths. Depending on how much filesystem traversal is
+required, refreshing may negatively impact performance.
+.sp
+Values less than or equal to 0 always refresh.
+(default: 20)
 .TP
 .B \fBstaticurl\fP
 .sp
@@ -2202,13 +2255,13 @@ Example: \fBhttp://hgserver/static/\fP.
 .B \fBstripes\fP
 .sp
 How many lines a "zebra stripe" should span in multi\-line output.
-Default is 1; set to 0 to disable.
+Set to 0 to disable. (default: 1)
 .TP
 .B \fBstyle\fP
 .sp
 Which template map style to use. The available options are the names of
-subdirectories in the HTML templates path. Default is \fBpaper\fP.
-Example: \fBmonoblue\fP
+subdirectories in the HTML templates path. (default: \fBpaper\fP)
+Example: \fBmonoblue\fP.
 .TP
 .B \fBtemplates\fP
 .sp
@@ -2263,9 +2316,9 @@ helps performance.
 .TP
 .B \fBnumcpus\fP
 .sp
-Number of CPUs to use for parallel operations. Default is 4 or the
-number of CPUs on the system, whichever is larger. A zero or
+Number of CPUs to use for parallel operations. A zero or
 negative value is treated as \fBuse the default\fP.
+(default: 4 or the number of CPUs on the system, whichever is larger)
 .UNINDENT
 .SH AUTHOR
 .sp
