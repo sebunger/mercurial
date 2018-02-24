@@ -260,13 +260,14 @@ class dirstate(object):
         return copies
 
     def setbranch(self, branch):
-        # no repo object here, just check for reserved names
         self._branch = encoding.fromlocal(branch)
         f = self._opener('branch', 'w', atomictemp=True)
         try:
             f.write(self._branch + '\n')
-        finally:
             f.close()
+        except: # re-raises
+            f.discard()
+            raise
 
     def _read(self):
         self._map = {}
