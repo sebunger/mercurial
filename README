@@ -1,14 +1,26 @@
-Setting up Mercurial in your home directory:
+Setting up Mercurial:
 
- Note: Debian fails to include bits of distutils, you'll need
- python-dev to install. Alternately, shove everything somewhere in
- your path.
+ Note: some distributions fails to include bits of distutils by
+ default, you'll need python-dev to install. You'll also need a C
+ compiler and a 3-way merge tool like merge, tkdiff, or kdiff3.
+
+ First, unpack the source:
 
  $ tar xvzf mercurial-<ver>.tar.gz
  $ cd mercurial-<ver>
- $ python2.3 setup.py install --home ~
+
+ To install system-wide:
+
+ $ python setup.py install   # change python to python2.3 if 2.2 is default
+
+ To install in your home directory (~/bin and ~/lib, actually), run:
+
+ $ python2.3 setup.py install --home=~
  $ export PYTHONPATH=${HOME}/lib/python  # add this to your .bashrc
- $ export HGMERGE=tkmerge                # customize this
+ $ export PATH=${HOME}/bin:$PATH         # 
+
+ And finally:
+
  $ hg                                    # test installation, show help
 
  If you get complaints about missing modules, you probably haven't set
@@ -22,7 +34,7 @@ Setting up a Mercurial project:
  $ hg diff         # generate a unidiff
  $ hg addremove    # add all unknown files and remove all missing files
  $ hg commit       # commit all changes, edit changelog entry
- $ hg export       # export a changeset as a diff
+ $ hg export <rev> # export a changeset as a diff
 
  Mercurial will look for a file named .hgignore in the root of your
  repository contains a set of regular expressions to ignore in file
@@ -32,8 +44,8 @@ Mercurial commands:
 
  $ hg history          # show changesets
  $ hg log Makefile     # show commits per file
- $ hg checkout         # check out the tip revision
- $ hg checkout <id>    # check out a specified changeset
+ $ hg update           # check out the tip revision
+ $ hg update <id>      # check out a specified changeset
                        # IDs can be tags, revision numbers, or unique
                        # subsets of changeset hash numbers
  $ hg add foo          # add a new file for the next commit
@@ -48,11 +60,13 @@ Branching and merging:
  $ mkdir linux-work
  $ cd linux-work
  $ hg branch ../linux        # create a new branch
- $ hg checkout               # populate the working directory
+ $ hg update                 # populate the working directory
  $ <make changes>
  $ hg commit
  $ cd ../linux
- $ hg merge ../linux-work    # pull changesets from linux-work
+ $ hg pull ../linux-work     # pull changesets from linux-work
+ $ hg update                 # merge the new tip from linux-work into
+                             # our working directory
 
 Importing patches:
 
@@ -68,25 +82,38 @@ Importing patches:
  Fastest:
  $ cat ../p/patchlist | xargs hg import -p1 -b ../p 
 
+Exporting a patch:
+
+ (make changes)
+ $ hg commit
+ $ hg tip
+ 28237:747a537bd090880c29eae861df4d81b245aa0190
+ $ hg export 28237 > foo.patch    # export changeset 28237
+
 Network support:
 
  # pull the self-hosting hg repo
  foo$ hg init
- foo$ hg merge http://selenic.com/hg/
- foo$ hg checkout  # hg co works too
+ foo$ hg pull http://selenic.com/hg/
+ foo$ hg update # hg co works too
 
  # export your current repo via HTTP with browsable interface
  foo$ hg serve -n "My repo" -p 80
  
  # merge changes from a remote machine
- bar$ hg merge http://foo/
- bar$ hg co        # checkout the result
+ bar$ hg pull http://foo/
+ bar$ hg co        # merge changes into your working directory
 
  # Set up a CGI server on your webserver
  foo$ cp hgweb.cgi ~/public_html/hg-linux/index.cgi
  foo$ emacs ~/public_html/hg-linux/index.cgi # adjust the defaults
 
- # Give symbolic names to repos
- foo$ echo "main http://selenic.com/hg/" >> ~/.hgpaths # one pair per line
+Symbolic repository names:
+
+ Mercurial uses an optional file called ~/.hgpaths to track repo
+ locations symbolically. Simply add a line with the name, a space, and
+ a URL:
+
+ foo$ echo "main http://selenic.com/hg/" >> ~/.hgpaths
  foo$ hg merge main
  foo$ hg co
