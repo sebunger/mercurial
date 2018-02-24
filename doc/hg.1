@@ -8867,11 +8867,16 @@ repo, you can add a \fB\-\-force\fP option.
 .sp
 .nf
 .ft C
-hg histedit [PARENT]
+hg histedit ANCESTOR | \-\-outgoing [URL]
 .ft P
 .fi
 .sp
-interactively edit changeset history
+This command edits changesets between ANCESTOR and the parent of
+the working directory.
+.sp
+With \-\-outgoing, this edits changesets not found in the
+destination repository. If URL of the destination is omitted, the
+\(aqdefault\-push\(aq (or \(aqdefault\(aq) path will be used.
 .sp
 Options:
 .INDENT 0.0
