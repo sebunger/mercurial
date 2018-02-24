@@ -60,11 +60,13 @@
 <li><a class="reference internal" href="#trusted" id="id28"><tt class="docutils literal">trusted</tt></a></li>
 <li><a class="reference internal" href="#ui" id="id29"><tt class="docutils literal">ui</tt></a></li>
 <li><a class="reference internal" href="#web" id="id30"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id31"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id32"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id31">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id32">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id33">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id33">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id34">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id35">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="synopsis">
@@ -157,6 +159,11 @@ keys contain PATH-like strings, every part of which must reference
 a <tt class="docutils literal">Mercurial.ini</tt> file or be a directory where <tt class="docutils literal">*.rc</tt> files will
 be read.  Mercurial checks each of these locations in the specified
 order until one or more configuration files are detected.</blockquote>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p class="last">The registry key <tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial</tt>
+is used when running 32-bit Python on 64-bit Windows.</p>
+</div>
 </div>
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
@@ -748,7 +755,7 @@ The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
 <p>For example:</p>
 <pre class="literal-block">
 [hostfingerprints]
-hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+hg.intevation.org = 44:ed:af:1f:97:11:b6:01:7a:48:45:fc:10:3c:b7:f9:d4:89:2a:9d
 </pre>
 <p>This feature is only supported when using Python 2.6 or later.</p>
 </div>
@@ -974,10 +981,12 @@ stderr</dd>
 One of <tt class="docutils literal">callcount</tt>, <tt class="docutils literal">reccallcount</tt>, <tt class="docutils literal">totaltime</tt> and
 <tt class="docutils literal">inlinetime</tt>.
 Default: inlinetime.</dd>
+<dt><tt class="docutils literal">limit</tt></dt>
+<dd>Number of lines to show. Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
+Default: 30.</dd>
 <dt><tt class="docutils literal">nested</tt></dt>
-<dd>Show at most this number of lines of drill-down info in a tree structure
-after each main entry. This can help explain the difference between Total
-and Inline.
+<dd>Show at most this number of lines of drill-down info after each main entry.
+This can help explain the difference between Total and Inline.
 Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
 Default: 5.</dd>
 </dl>
@@ -1017,10 +1026,20 @@ present. Default is False.</dd>
 <dt><tt class="docutils literal">host</tt></dt>
 <dd>Host name of mail server, e.g. &quot;mail.example.com&quot;.</dd>
 <dt><tt class="docutils literal">port</tt></dt>
-<dd>Optional. Port to connect to on mail server. Default: 25.</dd>
+<dd>Optional. Port to connect to on mail server. Default: 465 (if
+<tt class="docutils literal">tls</tt> is smtps) or 25 (otherwise).</dd>
 <dt><tt class="docutils literal">tls</tt></dt>
 <dd>Optional. Method to enable TLS when connecting to mail server: starttls,
 smtps or none. Default: none.</dd>
+<dt><tt class="docutils literal">verifycert</tt></dt>
+<dd>Optional. Verification for the certificate of mail server, when
+<tt class="docutils literal">tls</tt> is starttls or smtps. &quot;strict&quot;, &quot;loose&quot; or False. For
+&quot;strict&quot; or &quot;loose&quot;, the certificate is verified as same as the
+verification for HTTPS connections (see <tt class="docutils literal">[hostfingerprints]</tt> and
+<tt class="docutils literal">[web] cacerts</tt> also). For &quot;strict&quot;, sending email is also
+aborted, if there is no configuration for mail server in
+<tt class="docutils literal">[hostfingerprints]</tt> and <tt class="docutils literal">[web] cacerts</tt>.  --insecure for
+<a class="reference external" href="hg.1.html#email"><tt class="docutils literal">hg email</tt></a> overwrites this as &quot;loose&quot;. Default: &quot;strict&quot;.</dd>
 <dt><tt class="docutils literal">username</tt></dt>
 <dd>Optional. User name for authenticating with the SMTP server.
 Default: none.</dd>
@@ -1359,6 +1378,47 @@ Default is 1; set to 0 to disable.</dd>
 <dd>Which template map style to use.</dd>
 <dt><tt class="docutils literal">templates</tt></dt>
 <dd>Where to find the HTML templates. Default is install path.</dd>
+</dl>
+</div>
+<div class="section" id="websub">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">websub</tt></a></h2>
+<p>Web substitution filter definition. You can use this section to
+define a set of regular expression substitution patterns which
+let you automatically modify the hgweb server output.</p>
+<p>The default hgweb templates only apply these substitution patterns
+on the revision description fields. You can apply them anywhere
+you want when you create your own templates by adding calls to the
+&quot;websub&quot; filter (usually after calling the &quot;escape&quot; filter).</p>
+<p>This can be used, for example, to convert issue references to links
+to your issue tracker, or to convert &quot;markdown-like&quot; syntax into
+HTML (see the examples below).</p>
+<p>Each entry in this section names a substitution filter.
+The value of each entry defines the substitution expression itself.
+The websub expressions follow the old interhg extension syntax,
+which in turn imitates the Unix sed replacement syntax:</p>
+<pre class="literal-block">
+patternname = s/SEARCH_REGEX/REPLACE_EXPRESSION/[i]
+</pre>
+<p>You can use any separator other than &quot;/&quot;. The final &quot;i&quot; is optional
+and indicates that the search must be case insensitive.</p>
+<p>Examples:</p>
+<pre class="literal-block">
+[websub]
+issues = s|issue(\d+)|&lt;a href=&quot;http://bts.example.org/issue\1&quot;&gt;issue\1&lt;/a&gt;|i
+italic = s/\b_(\S+)_\b/&lt;i&gt;\1&lt;\/i&gt;/
+bold = s/\*\b(\S+)\b\*/&lt;b&gt;\1&lt;\/b&gt;/
+</pre>
+</div>
+<div class="section" id="worker">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">worker</tt></a></h2>
+<p>Parallel master/worker configuration. We currently perform working
+directory updates in parallel on Unix-like systems, which greatly
+helps performance.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">numcpus</tt></dt>
+<dd>Number of CPUs to use for parallel operations. Default is 4 or the
+number of CPUs on the system, whichever is larger. A zero or
+negative value is treated as <tt class="docutils literal">use the default</tt>.</dd>
 </dl>
 </div>
 </div>
