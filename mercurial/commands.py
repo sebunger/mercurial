@@ -141,14 +141,14 @@ def archive(ui, repo, dest, **opts):
     directory; use -r/--rev to specify a different revision.
 
     To specify the type of archive to create, use -t/--type. Valid
-    types are::
+    types are:
 
-      "files" (default): a directory full of files
-      "tar": tar archive, uncompressed
-      "tbz2": tar archive, compressed using bzip2
-      "tgz": tar archive, compressed using gzip
-      "uzip": zip archive, uncompressed
-      "zip": zip archive, compressed using deflate
+    :``files``: a directory full of files (default)
+    :``tar``:   tar archive, uncompressed
+    :``tbz2``:  tar archive, compressed using bzip2
+    :``tgz``:   tar archive, compressed using gzip
+    :``uzip``:  zip archive, uncompressed
+    :``zip``:   zip archive, compressed using deflate
 
     The exact name of the destination archive or directory is given
     using a format string; see 'hg help export' for details.
@@ -470,9 +470,9 @@ def branches(ui, repo, active=False, closed=False):
                 elif hn not in repo.branchheads(tag, closed=False):
                     if not closed:
                         continue
-                    notice = ' (closed)'
+                    notice = _(' (closed)')
                 else:
-                    notice = ' (inactive)'
+                    notice = _(' (inactive)')
                 rev = str(node).rjust(31 - encoding.colwidth(encodedtag))
                 data = encodedtag, rev, hexfunc(hn), notice
                 ui.write("%s %s:%s%s\n" % data)
@@ -561,11 +561,11 @@ def cat(ui, repo, file1, *pats, **opts):
 
     Output may be to a file, in which case the name of the file is
     given using a format string. The formatting rules are the same as
-    for the export command, with the following additions::
+    for the export command, with the following additions:
 
-      %s   basename of file being printed
-      %d   dirname of file being printed, or '.' if in repository root
-      %p   root-relative path name of file being printed
+    :``%s``: basename of file being printed
+    :``%d``: dirname of file being printed, or '.' if in repository root
+    :``%p``: root-relative path name of file being printed
     """
     ctx = repo[opts.get('rev')]
     err = 1
@@ -592,18 +592,18 @@ def clone(ui, source, dest=None, **opts):
 
     See 'hg help urls' for valid source format details.
 
-    It is possible to specify an ssh:// URL as the destination, but no
+    It is possible to specify an ``ssh://`` URL as the destination, but no
     .hg/hgrc and working directory will be created on the remote side.
-    Please see 'hg help urls' for important details about ssh:// URLs.
+    Please see 'hg help urls' for important details about ``ssh://`` URLs.
 
     If the -U/--noupdate option is specified, the new clone will contain
     only a repository (.hg) and no working copy (the working copy parent
     will be the null changeset). Otherwise, clone will initially check
     out (in order of precedence):
 
-      a) the changeset, tag or branch specified with -u/--updaterev
-      b) the changeset, tag or branch given with the first -r/--rev
-      c) the head of the default branch
+    a) the changeset, tag or branch specified with -u/--updaterev
+    b) the changeset, tag or branch given with the first -r/--rev
+    c) the head of the default branch
 
     Use 'hg clone -u . src dst' to checkout the source repository's
     parent changeset (applicable for local source repositories only).
@@ -1140,16 +1140,16 @@ def export(ui, repo, *changesets, **opts):
     first parent only.
 
     Output may be to a file, in which case the name of the file is
-    given using a format string. The formatting rules are as follows::
+    given using a format string. The formatting rules are as follows:
 
-      %%   literal "%" character
-      %H   changeset hash (40 bytes of hexadecimal)
-      %N   number of patches being generated
-      %R   changeset revision number
-      %b   basename of the exporting repository
-      %h   short-form changeset hash (12 bytes of hexadecimal)
-      %n   zero-padded sequence number, starting at 1
-      %r   zero-padded changeset revision number
+    :``%%``: literal "%" character
+    :``%H``: changeset hash (40 bytes of hexadecimal)
+    :``%N``: number of patches being generated
+    :``%R``: changeset revision number
+    :``%b``: basename of the exporting repository
+    :``%h``: short-form changeset hash (12 bytes of hexadecimal)
+    :``%n``: zero-padded sequence number, starting at 1
+    :``%r``: zero-padded changeset revision number
 
     Without the -a/--text option, export will avoid generating diffs
     of files it detects as binary. With -a, export will generate a
@@ -1939,7 +1939,7 @@ def init(ui, dest=".", **opts):
 
     If no directory is given, the current directory is used.
 
-    It is possible to specify an ssh:// URL as the destination.
+    It is possible to specify an ``ssh://`` URL as the destination.
     See 'hg help urls' for more information.
     """
     hg.repository(cmdutil.remoteui(ui, opts), dest, create=1)
@@ -2337,7 +2337,7 @@ def push(ui, repo, dest=None, **opts):
     If -r/--rev is used, the named revision and all its ancestors will
     be pushed to the remote repository.
 
-    Please see 'hg help urls' for important details about ssh://
+    Please see 'hg help urls' for important details about ``ssh://``
     URLs. If DESTINATION is omitted, a default path will be used.
     """
     dest, revs, checkout = hg.parseurl(
@@ -2740,13 +2740,13 @@ def rollback(ui, repo):
     Transactions are used to encapsulate the effects of all commands
     that create new changesets or propagate existing changesets into a
     repository. For example, the following commands are transactional,
-    and their effects can be rolled back::
+    and their effects can be rolled back:
 
-      commit
-      import
-      pull
-      push (with this repository as destination)
-      unbundle
+    - commit
+    - import
+    - pull
+    - push (with this repository as destination)
+    - unbundle
 
     This command is not intended for use on public repositories. Once
     changes are visible for pull by other users, rolling a transaction
@@ -2931,7 +2931,11 @@ def summary(ui, repo, **opts):
 
     branch = ctx.branch()
     bheads = repo.branchheads(branch)
-    ui.status(_('branch: %s\n') % branch)
+    m = _('branch: %s\n') % branch
+    if branch != 'default':
+        ui.write(m)
+    else:
+        ui.status(m)
 
     st = list(repo.status(unknown=True))[:7]
     ms = merge_.mergestate(repo)
@@ -3342,7 +3346,7 @@ table = {
           ('s', 'skip', False, _('skip testing changeset')),
           ('c', 'command', '', _('use command to check changeset state')),
           ('U', 'noupdate', False, _('do not update to target'))],
-         _("[-gbsr] [-c CMD] [REV]")),
+         _("[-gbsr] [-U] [-c CMD] [REV]")),
     "branch":
         (branch,
          [('f', 'force', None,
@@ -3355,7 +3359,7 @@ table = {
            _('show only branches that have unmerged heads')),
           ('c', 'closed', False,
            _('show normal and closed branches'))],
-         _('[-a]')),
+         _('[-ac]')),
     "bundle":
         (bundle,
          [('f', 'force', None,
@@ -3367,7 +3371,7 @@ table = {
           ('a', 'all', None, _('bundle all changesets in the repository')),
           ('t', 'type', 'bzip2', _('bundle compression type to use')),
          ] + remoteopts,
-         _('[-f] [-a] [-r REV]... [--base REV]... FILE [DEST]')),
+         _('[-f] [-t TYPE] [-a] [-r REV]... [--base REV]... FILE [DEST]')),
     "cat":
         (cat,
          [('o', 'output', '', _('print output to file with formatted name')),
@@ -3382,7 +3386,7 @@ table = {
           ('u', 'updaterev', '',
            _('revision, tag or branch to check out')),
           ('r', 'rev', [],
-           _('a changeset you would like to have after cloning')),
+           _('clone only the specified revisions and ancestors')),
           ('', 'pull', None, _('use pull protocol to copy metadata')),
           ('', 'uncompressed', None,
            _('use uncompressed transfer (fast over LAN)')),
@@ -3477,7 +3481,7 @@ table = {
           ('c', 'closed', False,
            _('show normal and closed branch heads')),
          ] + templateopts,
-         _('[-r STARTREV] [REV]...')),
+         _('[-ac] [-r STARTREV] [REV]...')),
     "help": (help_, [], _('[TOPIC]')),
     "identify|id":
         (identify,
@@ -3554,7 +3558,7 @@ table = {
           ('r', 'rev', '', _('revision to merge')),
           ('P', 'preview', None,
            _('review revisions to merge (no merge is performed)'))],
-         _('[-f] [[-r] REV]')),
+         _('[-P] [-f] [[-r] REV]')),
     "outgoing|out":
         (outgoing,
          [('f', 'force', None,
@@ -3674,14 +3678,14 @@ table = {
           # -l/--local is already there, commitopts cannot be used
           ('m', 'message', '', _('use <text> as commit message')),
          ] + commitopts2,
-         _('[-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...')),
+         _('[-f] [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...')),
     "tags": (tags, [], ''),
     "tip":
         (tip,
          [('p', 'patch', None, _('show patch')),
           ('g', 'git', None, _('use git extended diff format')),
          ] + templateopts,
-         _('[-p]')),
+         _('[-p] [-g]')),
     "unbundle":
         (unbundle,
          [('u', 'update', None,
