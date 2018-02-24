@@ -272,11 +272,13 @@ try bad style
   </form>
   
   <table class="bigtable">
+  <thead>
   <tr>
     <th class="name">name</th>
     <th class="size">size</th>
     <th class="permissions">permissions</th>
   </tr>
+  </thead>
   <tbody class="stripes2">
   <tr class="fileline">
     <td class="name"><a href="/file/2ef0ac749a14/">[up]</a></td>
@@ -577,6 +579,45 @@ phase changes are refreshed (issue4061)
   summary:     base
   
   
+
+no style can be loaded from directories other than the specified paths
+
+  $ mkdir -p x/templates/fallback
+  $ cat <<EOF > x/templates/fallback/map
+  > default = 'shortlog'
+  > shortlog = 'fall back to default\n'
+  > mimetype = 'text/plain'
+  > EOF
+  $ cat <<EOF > x/map
+  > default = 'shortlog'
+  > shortlog = 'access to outside of templates directory\n'
+  > mimetype = 'text/plain'
+  > EOF
+
+  $ "$TESTDIR/killdaemons.py" $DAEMON_PIDS
+  $ hg serve -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log \
+  > --config web.style=fallback --config web.templates=x/templates
+  $ cat hg.pid >> $DAEMON_PIDS
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT "?style=`pwd`/x"
+  200 Script output follows
+  
+  fall back to default
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=..'
+  200 Script output follows
+  
+  fall back to default
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=./..'
+  200 Script output follows
+  
+  fall back to default
+
+  $ "$TESTDIR/get-with-headers.py" localhost:$HGPORT '?style=.../.../'
+  200 Script output follows
+  
+  fall back to default
 
 errors
 

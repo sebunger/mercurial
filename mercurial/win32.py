@@ -5,7 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import ctypes, errno, os, subprocess, random
+import ctypes, errno, msvcrt, os, subprocess, random
 
 _kernel32 = ctypes.windll.kernel32
 _advapi32 = ctypes.windll.advapi32
@@ -26,6 +26,7 @@ _INVALID_HANDLE_VALUE = _HANDLE(-1).value
 _ERROR_SUCCESS = 0
 _ERROR_NO_MORE_FILES = 18
 _ERROR_INVALID_PARAMETER = 87
+_ERROR_BROKEN_PIPE = 109
 _ERROR_INSUFFICIENT_BUFFER = 122
 
 # WPARAM is defined as UINT_PTR (unsigned type)
@@ -211,6 +212,10 @@ _user32.EnumWindows.restype = _BOOL
 _kernel32.CreateToolhelp32Snapshot.argtypes = [_DWORD, _DWORD]
 _kernel32.CreateToolhelp32Snapshot.restype = _BOOL
 
+_kernel32.PeekNamedPipe.argtypes = [_HANDLE, ctypes.c_void_p, _DWORD,
+    ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+_kernel32.PeekNamedPipe.restype = _BOOL
+
 _kernel32.Process32First.argtypes = [_HANDLE, ctypes.c_void_p]
 _kernel32.Process32First.restype = _BOOL
 
@@ -260,6 +265,19 @@ def samedevice(path1, path2):
     res2 = _getfileinfo(path2)
     return res1.dwVolumeSerialNumber == res2.dwVolumeSerialNumber
 
+def peekpipe(pipe):
+    handle = msvcrt.get_osfhandle(pipe.fileno())
+    avail = _DWORD()
+
+    if not _kernel32.PeekNamedPipe(handle, None, 0, None, ctypes.byref(avail),
+                                   None):
+        err = _kernel32.GetLastError()
+        if err == _ERROR_BROKEN_PIPE:
+            return 0
+        raise ctypes.WinError(err)
+
+    return avail.value
+
 def testpid(pid):
     '''return True if pid is still running or unable to
     determine, False otherwise'''
@@ -279,7 +297,7 @@ def executablepath():
     buf = ctypes.create_string_buffer(size + 1)
     len = _kernel32.GetModuleFileNameA(None, ctypes.byref(buf), size)
     if len == 0:
-        raise ctypes.WinError
+        raise ctypes.WinError() # Note: WinError is a function
     elif len == size:
         raise ctypes.WinError(_ERROR_INSUFFICIENT_BUFFER)
     return buf.value
@@ -289,7 +307,7 @@ def getuser():
     size = _DWORD(300)
     buf = ctypes.create_string_buffer(size.value + 1)
     if not _advapi32.GetUserNameA(ctypes.byref(buf), ctypes.byref(size)):
-        raise ctypes.WinError
+        raise ctypes.WinError()
     return buf.value
 
 _signalhandler = []
@@ -307,7 +325,7 @@ def setsignalhandler():
     h = _SIGNAL_HANDLER(handler)
     _signalhandler.append(h) # needed to prevent garbage collection
     if not _kernel32.SetConsoleCtrlHandler(h, True):
-        raise ctypes.WinError
+        raise ctypes.WinError()
 
 def hidewindow():
 
@@ -349,7 +367,7 @@ def _1stchild(pid):
     # create handle to list all processes
     ph = _kernel32.CreateToolhelp32Snapshot(_TH32CS_SNAPPROCESS, 0)
     if ph == _INVALID_HANDLE_VALUE:
-        raise ctypes.WinError
+        raise ctypes.WinError()
     try:
         r = _kernel32.Process32First(ph, ctypes.byref(pe))
         # loop over all processes
@@ -361,7 +379,7 @@ def _1stchild(pid):
     finally:
         _kernel32.CloseHandle(ph)
     if _kernel32.GetLastError() != _ERROR_NO_MORE_FILES:
-        raise ctypes.WinError
+        raise ctypes.WinError()
     return None # no child found
 
 class _tochildpid(int): # pid is _DWORD, which always matches in an int
@@ -413,7 +431,7 @@ def spawndetached(args):
         None, args, None, None, False, _CREATE_NO_WINDOW,
         env, os.getcwd(), ctypes.byref(si), ctypes.byref(pi))
     if not res:
-        raise ctypes.WinError
+        raise ctypes.WinError()
 
     # _tochildpid because the process is the child of COMSPEC
     return _tochildpid(pi.dwProcessId)

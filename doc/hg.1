@@ -1198,7 +1198,7 @@ Options:
 .TP
 .B \-U,  \-\-noupdate
 .
-the clone will include an empty working copy (only a repository)
+the clone will include an empty working directory (only a repository)
 .TP
 .BI \-u,  \-\-updaterev \ <REV>
 .
@@ -1290,7 +1290,7 @@ mark a branch as closed, hiding it from the branch list
 .TP
 .B \-\-amend
 .
-amend the parent of the working dir
+amend the parent of the working directory
 .TP
 .B \-s,  \-\-secret
 .
@@ -1299,6 +1299,10 @@ use the secret phase for committing
 .B \-e,  \-\-edit
 .
 invoke editor on commit messages
+.TP
+.B \-i,  \-\-interactive
+.
+use interactive mode
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -1584,6 +1588,10 @@ number of lines of context to show
 .
 output diffstat\-style summary of changes
 .TP
+.BI \-\-root \ <DIR>
+.
+produce diffs relative to subdirectory
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -1752,7 +1760,7 @@ specified revision whose names match the given patterns (excluding
 removed files).
 .sp
 If no patterns are given to match, this command prints the names
-of all files under Mercurial control in the working copy.
+of all files under Mercurial control in the working directory.
 .sp
 Examples:
 .INDENT 0.0
@@ -1839,6 +1847,10 @@ exclude names matching the given patterns
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template (DEPRECATED)
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -2205,7 +2217,7 @@ show topics matching keyword
 .UNINDENT
 .SS identify
 .sp
-identify the working copy or specified revision:
+identify the working directory or specified revision:
 .sp
 .nf
 .ft C
@@ -2432,6 +2444,10 @@ commit even if some hunks fail
 .
 apply patch to the nodes from which it was generated
 .TP
+.BI \-\-prefix \ <DIR>
+.
+apply patch to subdirectory
+.TP
 .B \-\-import\-branch
 .
 use any branch information in patch (implied by \-\-exact)
@@ -2472,10 +2488,48 @@ Show new changesets found in the specified path/URL or the default
 pull location. These are the changesets that would have been pulled
 if a pull at the time you issued this command.
 .sp
+See pull for valid source format details.
+.sp
+With \-B/\-\-bookmarks, the result of bookmark comparison between
+local and remote repositories is displayed. With \-v/\-\-verbose,
+status is also displayed for each bookmark like below:
+.sp
+.nf
+.ft C
+BM1               01234567890a added
+BM2               1234567890ab advanced
+BM3               234567890abc diverged
+BM4               34567890abcd changed
+.ft P
+.fi
+.sp
+The action taken locally when pulling depends on the
+status of each bookmark:
+.INDENT 0.0
+.TP
+.B \fBadded\fP
+.sp
+pull will create it
+.TP
+.B \fBadvanced\fP
+.sp
+pull will update it
+.TP
+.B \fBdiverged\fP
+.sp
+pull will create a divergent bookmark
+.TP
+.B \fBchanged\fP
+.sp
+result depends on remote changesets
+.UNINDENT
+.sp
+From the point of view of pulling behavior, bookmark
+existing only in the remote repository are treated as \fBadded\fP,
+even if it is in fact locally deleted.
+.sp
 For remote repository, using \-\-bundle avoids downloading the
 changesets twice if the incoming is followed by a pull.
-.sp
-See pull for valid source format details.
 .sp
 Examples:
 .INDENT 0.0
@@ -3038,6 +3092,49 @@ or the default push location. These are the changesets that would
 be pushed if a push was requested.
 .sp
 See pull for details of valid destination formats.
+.sp
+With \-B/\-\-bookmarks, the result of bookmark comparison between
+local and remote repositories is displayed. With \-v/\-\-verbose,
+status is also displayed for each bookmark like below:
+.sp
+.nf
+.ft C
+BM1               01234567890a added
+BM2                            deleted
+BM3               234567890abc advanced
+BM4               34567890abcd diverged
+BM5               4567890abcde changed
+.ft P
+.fi
+.sp
+The action taken when pushing depends on the
+status of each bookmark:
+.INDENT 0.0
+.TP
+.B \fBadded\fP
+.sp
+push with \fB\-B\fP will create it
+.TP
+.B \fBdeleted\fP
+.sp
+push with \fB\-B\fP will delete it
+.TP
+.B \fBadvanced\fP
+.sp
+push will update it
+.TP
+.B \fBdiverged\fP
+.sp
+push with \fB\-B\fP will update it
+.TP
+.B \fBchanged\fP
+.sp
+push with \fB\-B\fP will update it
+.UNINDENT
+.sp
+From the point of view of pushing behavior, bookmarks
+existing only in the remote repository are treated as
+\fBdeleted\fP, even if it is in fact added remotely.
 .sp
 Returns 0 if there are outgoing changes, 1 otherwise.
 .sp
@@ -3668,6 +3765,10 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (DEPRECATED)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -3726,6 +3827,10 @@ revert to the specified revision
 .B \-C,  \-\-no\-backup
 .
 do not save backup copies of files
+.TP
+.B \-i,  \-\-interactive
+.
+interactively select the changes
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -3980,6 +4085,16 @@ changeset:
 .nf
 .ft C
 hg status \-\-rev 9353
+.ft P
+.fi
+.IP \(bu 2
+.
+show changes in the working directory relative to the
+current directory (see \%\fBhg help patterns\fP\: for more information):
+.sp
+.nf
+.ft C
+hg status re:
 .ft P
 .fi
 .IP \(bu 2
@@ -4722,6 +4837,10 @@ log repository events to a blackbox for debugging
 .
 hooks for integrating with the Bugzilla bug tracker
 .TP
+.B censor
+.
+erase file content at a given revision
+.TP
 .B churn
 .
 command to display statistics about repository history
@@ -4939,6 +5058,11 @@ considered if this predicate is used.
 .B \fBmodified()\fP
 .sp
 File that is modified according to status.
+.TP
+.B \fBportable()\fP
+.sp
+File that has a portable name. (This doesn\(aqt include filenames with case
+collisions.)
 .TP
 .B \fBremoved()\fP
 .sp
@@ -5700,6 +5824,233 @@ and \fBhttp://server/user/bob/quux/testsubrepo/\fP
 .sp
 The \fBcollections\fP section is deprecated and has been superseded by
 \fBpaths\fP.
+.SS URLs and Common Arguments
+.sp
+URLs under each repository have the form \fB/{command}[/{arguments}]\fP
+where \fB{command}\fP represents the name of a command or handler and
+\fB{arguments}\fP represents any number of additional URL parameters
+to that command.
+.sp
+The web server has a default style associated with it. Styles map to
+a collection of named templates. Each template is used to render a
+specific piece of data, such as a changeset or diff.
+.sp
+The style for the current request can be overwritten two ways. First,
+if \fB{command}\fP contains a hyphen (\fB\-\fP), the text before the hyphen
+defines the style. For example, \fB/atom\-log\fP will render the \fBlog\fP
+command handler with the \fBatom\fP style. The second way to set the
+style is with the \fBstyle\fP query string argument. For example,
+\fB/log?style=atom\fP. The hyphenated URL parameter is preferred.
+.sp
+Not all templates are available for all styles. Attempting to use
+a style that doesn\(aqt have all templates defined may result in an error
+rendering the page.
+.sp
+Many commands take a \fB{revision}\fP URL parameter. This defines the
+changeset to operate on. This is commonly specified as the short,
+12 digit hexidecimal abbreviation for the full 40 character unique
+revision identifier. However, any value described by
+\%\fBhg help revisions\fP\: typically works.
+.SS Commands and URLs
+.sp
+The following web commands and their URLs are available:
+.SS /annotate/{revision}/{path}
+.sp
+Show changeset information for each line in a file.
+.sp
+The \fBfileannotate\fP template is rendered.
+.SS /archive/{revision}.{format}[/{path}]
+.sp
+Obtain an archive of repository content.
+.sp
+The content and type of the archive is defined by a URL path parameter.
+\fBformat\fP is the file extension of the archive type to be generated. e.g.
+\fBzip\fP or \fBtar.bz2\fP. Not all archive types may be allowed by your
+server configuration.
+.sp
+The optional \fBpath\fP URL parameter controls content to include in the
+archive. If omitted, every file in the specified revision is present in the
+archive. If included, only the specified file or contents of the specified
+directory will be included in the archive.
+.sp
+No template is used for this handler. Raw, binary content is generated.
+.SS /bookmarks
+.sp
+Show information about bookmarks.
+.sp
+No arguments are accepted.
+.sp
+The \fBbookmarks\fP template is rendered.
+.SS /branches
+.sp
+Show information about branches.
+.sp
+All known branches are contained in the output, even closed branches.
+.sp
+No arguments are accepted.
+.sp
+The \fBbranches\fP template is rendered.
+.SS /changelog[/{revision}]
+.sp
+Show information about multiple changesets.
+.sp
+If the optional \fBrevision\fP URL argument is absent, information about
+all changesets starting at \fBtip\fP will be rendered. If the \fBrevision\fP
+argument is present, changesets will be shown starting from the specified
+revision.
+.sp
+If \fBrevision\fP is absent, the \fBrev\fP query string argument may be
+defined. This will perform a search for changesets.
+.sp
+The argument for \fBrev\fP can be a single revision, a revision set,
+or a literal keyword to search for in changeset data (equivalent to
+\%\fBhg log \-k\fP\:.
+.sp
+The \fBrevcount\fP query string argument defines the maximum numbers of
+changesets to render.
+.sp
+For non\-searches, the \fBchangelog\fP template will be rendered.
+.SS /changeset[/{revision}]
+.sp
+Show information about a single changeset.
+.sp
+A URL path argument is the changeset identifier to show. See \fBhg help
+revisions\fP for possible values. If not defined, the \fBtip\fP changeset
+will be shown.
+.sp
+The \fBchangeset\fP template is rendered. Contents of the \fBchangesettag\fP,
+\fBchangesetbookmark\fP, \fBfilenodelink\fP, \fBfilenolink\fP, and the many
+templates related to diffs may all be used to produce the output.
+.SS /comparison/{revision}/{path}
+.sp
+Show a comparison between the old and new versions of a file from changes
+made on a particular revision.
+.sp
+This is similar to the \fBdiff\fP handler. However, this form features
+a split or side\-by\-side diff rather than a unified diff.
+.sp
+The \fBcontext\fP query string argument can be used to control the lines of
+context in the diff.
+.sp
+The \fBfilecomparison\fP template is rendered.
+.SS /diff/{revision}/{path}
+.sp
+Show how a file changed in a particular commit.
+.sp
+The \fBfilediff\fP template is rendered.
+.sp
+This hander is registered under both the \fB/diff\fP and \fB/filediff\fP
+paths. \fB/diff\fP is used in modern code.
+.SS /file/{revision}[/{path}]
+.sp
+Show information about a directory or file in the repository.
+.sp
+Info about the \fBpath\fP given as a URL parameter will be rendered.
+.sp
+If \fBpath\fP is a directory, information about the entries in that
+directory will be rendered. This form is equivalent to the \fBmanifest\fP
+handler.
+.sp
+If \fBpath\fP is a file, information about that file will be shown via
+the \fBfilerevision\fP template.
+.sp
+If \fBpath\fP is not defined, information about the root directory will
+be rendered.
+.SS /diff/{revision}/{path}
+.sp
+Show how a file changed in a particular commit.
+.sp
+The \fBfilediff\fP template is rendered.
+.sp
+This hander is registered under both the \fB/diff\fP and \fB/filediff\fP
+paths. \fB/diff\fP is used in modern code.
+.SS /filelog/{revision}/{path}
+.sp
+Show information about the history of a file in the repository.
+.sp
+The \fBrevcount\fP query string argument can be defined to control the
+maximum number of entries to show.
+.sp
+The \fBfilelog\fP template will be rendered.
+.SS /graph[/{revision}]
+.sp
+Show information about the graphical topology of the repository.
+.sp
+Information rendered by this handler can be used to create visual
+representations of repository topology.
+.sp
+The \fBrevision\fP URL parameter controls the starting changeset.
+.sp
+The \fBrevcount\fP query string argument can define the number of changesets
+to show information for.
+.sp
+This handler will render the \fBgraph\fP template.
+.SS /help[/{topic}]
+.sp
+Render help documentation.
+.sp
+This web command is roughly equivalent to \%\fBhg help\fP\:. If a \fBtopic\fP
+is defined, that help topic will be rendered. If not, an index of
+available help topics will be rendered.
+.sp
+The \fBhelp\fP template will be rendered when requesting help for a topic.
+\fBhelptopics\fP will be rendered for the index of help topics.
+.SS /log[/{revision}[/{path}]]
+.sp
+Show repository or file history.
+.sp
+For URLs of the form \fB/log/{revision}\fP, a list of changesets starting at
+the specified changeset identifier is shown. If \fB{revision}\fP is not
+defined, the default is \fBtip\fP. This form is equivalent to the
+\fBchangelog\fP handler.
+.sp
+For URLs of the form \fB/log/{revision}/{file}\fP, the history for a specific
+file will be shown. This form is equivalent to the \fBfilelog\fP handler.
+.SS /manifest[/{revision}[/{path}]]
+.sp
+Show information about a directory.
+.sp
+If the URL path arguments are defined, information about the root
+directory for the \fBtip\fP changeset will be shown.
+.sp
+Because this handler can only show information for directories, it
+is recommended to use the \fBfile\fP handler instead, as it can handle both
+directories and files.
+.sp
+The \fBmanifest\fP template will be rendered for this handler.
+.SS /changeset[/{revision}]
+.sp
+Show information about a single changeset.
+.sp
+A URL path argument is the changeset identifier to show. See \fBhg help
+revisions\fP for possible values. If not defined, the \fBtip\fP changeset
+will be shown.
+.sp
+The \fBchangeset\fP template is rendered. Contents of the \fBchangesettag\fP,
+\fBchangesetbookmark\fP, \fBfilenodelink\fP, \fBfilenolink\fP, and the many
+templates related to diffs may all be used to produce the output.
+.SS /shortlog
+.sp
+Show basic information about a set of changesets.
+.sp
+This accepts the same parameters as the \fBchangelog\fP handler. The only
+difference is the \fBshortlog\fP template will be rendered instead of the
+\fBchangelog\fP template.
+.SS /summary
+.sp
+Show a summary of repository state.
+.sp
+Information about the latest changesets, bookmarks, tags, and branches
+is captured by this handler.
+.sp
+The \fBsummary\fP template is rendered.
+.SS /tags
+.sp
+Show information about tags.
+.sp
+No arguments are accepted.
+.sp
+The \fBtags\fP template is rendered.
 .SH MERGE TOOLS
 .sp
 To merge files Mercurial uses merge tools.
@@ -5736,52 +6087,6 @@ GUI is available if the tool requires a GUI.
 There are some internal merge tools which can be used. The internal
 merge tools are:
 .INDENT 0.0
-.TP
-.B \fB:dump\fP
-.sp
-Creates three versions of the files to merge, containing the
-contents of local, other and base. These files can then be used to
-perform a merge manually. If the file to be merged is named
-\fBa.txt\fP, these files will accordingly be named \fBa.txt.local\fP,
-\fBa.txt.other\fP and \fBa.txt.base\fP and they will be placed in the
-same directory as \fBa.txt\fP.
-.TP
-.B \fB:fail\fP
-.sp
-Rather than attempting to merge files that were modified on both
-branches, it marks them as unresolved. The resolve command must be
-used to resolve these conflicts.
-.TP
-.B \fB:local\fP
-.sp
-Uses the local version of files as the merged version.
-.TP
-.B \fB:merge\fP
-.sp
-Uses the internal non\-interactive simple merge algorithm for merging
-files. It will fail if there are any conflicts and leave markers in
-the partially merged file. Markers will have two sections, one for each side
-of merge.
-.TP
-.B \fB:merge3\fP
-.sp
-Uses the internal non\-interactive simple merge algorithm for merging
-files. It will fail if there are any conflicts and leave markers in
-the partially merged file. Marker will have three sections, one from each
-side of the merge and one for the base content.
-.TP
-.B \fB:other\fP
-.sp
-Uses the other version of files as the merged version.
-.TP
-.B \fB:prompt\fP
-.sp
-Asks the user which of the local or the other version to keep as
-the merged version.
-.TP
-.B \fB:tagmerge\fP
-.sp
-Uses the internal tag merge algorithm (experimental).
 .TP
 .B \fB:dump\fP
 .sp
@@ -6405,7 +6710,7 @@ An alias for limit().
 .TP
 .B \fBfollow([file])\fP
 .sp
-An alias for \fB::.\fP (ancestors of the working copy\(aqs first parent).
+An alias for \fB::.\fP (ancestors of the working directory\(aqs first parent).
 If a filename is specified, the history of the given file is followed,
 including copies.
 .TP
@@ -6599,6 +6904,11 @@ The keys can be:
 .
 \fBdate\fP for the commit date
 .UNINDENT
+.TP
+.B \fBsubrepo([pattern])\fP
+.sp
+Changesets that add, modify or remove the given subrepo.  If no subrepo
+pattern is named, any subrepo changes are returned.
 .TP
 .B \fBtag([name])\fP
 .sp
@@ -6828,7 +7138,7 @@ reference from \fB.hgsub\fP, then remove its files.
 add does not recurse in subrepos unless \-S/\-\-subrepos is
 specified.  However, if you specify the full path of a file in a
 subrepo, it will be added even without \-S/\-\-subrepos specified.
-Git and Subversion subrepositories are currently silently
+Subversion subrepositories are currently silently
 ignored.
 .TP
 .B addremove
@@ -6847,7 +7157,7 @@ archive does not recurse in subrepositories unless
 .B cat
 .
 cat currently only handles exact file matches in subrepos.
-Git and Subversion subrepositories are currently ignored.
+Subversion subrepositories are currently ignored.
 .TP
 .B commit
 .
@@ -6868,6 +7178,12 @@ diff does not recurse in subrepos unless \-S/\-\-subrepos is
 specified. Changes are displayed as usual, on the subrepositories
 elements. Git subrepositories do not support \-\-include/\-\-exclude.
 Subversion subrepositories are currently silently ignored.
+.TP
+.B files
+.
+files does not recurse into subrepos unless \-S/\-\-subrepos is
+specified.  Git and Subversion subrepositories are currently
+silently ignored.
 .TP
 .B forget
 .
@@ -7201,6 +7517,10 @@ filter.
 .
 Date. Converts a date to local date.
 .TP
+.B lower
+.
+Any text. Converts the text to lowercase.
+.TP
 .B nonempty
 .
 Any text. Returns \(aq(none)\(aq if the string is empty.
@@ -7264,6 +7584,10 @@ possible. For example, "foo" and "foo/bar" becomes "foo".
 Any text. Returns the text, with every non\-empty line
 except the first starting with a tab character.
 .TP
+.B upper
+.
+Any text. Converts the text to uppercase.
+.TP
 .B urlescape
 .
 Any text. Escapes all "special" characters. For example,
@@ -7280,57 +7604,89 @@ Note that a filter is nothing more than a function call, i.e.
 .sp
 In addition to filters, there are some basic built\-in functions:
 .INDENT 0.0
-.IP \(bu 2
+.TP
+.B date(date[, fmt])
 .
-date(date[, fmt])
-.IP \(bu 2
+Format a date. See \%\fBhg help dates\fP\: for formatting
+strings.
+.TP
+.B diff([includepattern [, excludepattern]])
 .
-diff([includepattern [, excludepattern]])
-.IP \(bu 2
+Show a diff, optionally
+specifying files to include or exclude.
+.TP
+.B fill(text[, width[, initialident[, hangindent]]])
 .
-fill(text[, width])
-.IP \(bu 2
+Fill many
+paragraphs with optional indentation. See the "fill" filter.
+.TP
+.B get(dict, key)
 .
-get(dict, key)
-.IP \(bu 2
+Get an attribute/key from an object. Some keywords
+are complex types. This function allows you to obtain the value of an
+attribute on these type.
+.TP
+.B if(expr, then[, else])
 .
-if(expr, then[, else])
-.IP \(bu 2
+Conditionally execute based on the result of
+an expression.
+.TP
+.B ifcontains(search, thing, then[, else])
 .
-ifcontains(expr, expr, then[, else])
-.IP \(bu 2
+Conditionally execute based
+on whether the item "search" is in "thing".
+.TP
+.B ifeq(expr1, expr2, then[, else])
 .
-ifeq(expr, expr, then[, else])
-.IP \(bu 2
+Conditionally execute based on
+whether 2 items are equivalent.
+.TP
+.B join(list, sep)
 .
-join(list, sep)
-.IP \(bu 2
+Join items in a list with a delimiter.
+.TP
+.B label(label, expr)
 .
-label(label, expr)
-.IP \(bu 2
+Apply a label to generated content. Content with
+a label applied can result in additional post\-processing, such as
+automatic colorization.
+.TP
+.B pad(text, width[, fillchar=\(aq \(aq[, right=False]])
 .
-pad(text, width[, fillchar, right])
-.IP \(bu 2
+Pad text with a
+fill character.
+.TP
+.B revset(query[, formatargs...])
 .
-revset(query[, formatargs])
-.IP \(bu 2
+Execute a revision set query. See
+\%\fBhg help revset\fP\:.
+.TP
+.B rstdoc(text, style)
 .
-rstdoc(text, style)
-.IP \(bu 2
+Format ReStructuredText.
+.TP
+.B shortest(node, minlength=4)
 .
-shortest(node)
-.IP \(bu 2
+Obtain the shortest representation of
+a node.
+.TP
+.B startswith(pattern, text)
 .
-startswith(string, text)
-.IP \(bu 2
+Returns the value from the "text" argument
+if it begins with the content from the "pattern" argument.
+.TP
+.B strip(text[, chars])
 .
-strip(text[, chars])
-.IP \(bu 2
+Strip characters from a string.
+.TP
+.B sub(pattern, replacement, expression)
 .
-sub(pat, repl, expr)
-.IP \(bu 2
+Perform text substitution
+using regular expressions.
+.TP
+.B word(number, text[, separator])
 .
-word(number, text[, separator])
+Return the nth word from a string.
 .UNINDENT
 .sp
 Also, for any expression that returns a list, there is a list operator:
@@ -8172,6 +8528,58 @@ http://my\-project.org/hg/repository\-name/rev/3b16791d6642
 Changeset commit comment. Bug 1234.
 .ft P
 .fi
+.SS censor
+.sp
+erase file content at a given revision
+.sp
+The censor command instructs Mercurial to erase all content of a file at a given
+revision \fIwithout updating the changeset hash.\fP This allows existing history to
+remain valid while preventing future clones/pulls from receiving the erased
+data.
+.sp
+Typical uses for censor are due to security or legal requirements, including:
+.sp
+.nf
+.ft C
+* Passwords, private keys, crytographic material
+* Licensed data/code/libraries for which the license has expired
+* Personally Identifiable Information or other private data
+.ft P
+.fi
+.sp
+Censored file revisions are listed in a tracked file called .hgcensored stored
+in the repository root. The censor command adds an entry to the .hgcensored file
+in the working directory and commits it (much like \fBhg tag\fP and .hgtags). The
+censored file data is then replaced with a pointer to the new commit, enabling
+verification.
+.sp
+Censored nodes can interrupt mercurial\(aqs typical operation whenever the excised
+data needs to be materialized. Some commands, like \fBhg cat\fP/\fBhg revert\fP,
+simply fail when asked to produce censored data. Others, like \fBhg verify\fP and
+\fBhg update\fP, must be capable of tolerating censored data to continue to
+function in a meaningful way. Such commands only tolerate censored file
+revisions if they are allowed by the policy specified by the "censor.allow"
+config option.
+.SS Commands
+.SS censor
+.sp
+.nf
+.ft C
+hg censor \-r REV [\-t TEXT] [FILE]
+.ft P
+.fi
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+censor file from specified revision
+.TP
+.BI \-t,  \-\-tombstone \ <TEXT>
+.
+replacement tombstone data
+.UNINDENT
 .SS children
 .sp
 command to display child changesets (DEPRECATED)
@@ -8276,7 +8684,11 @@ count rate for the specified revision or revset
 .
 count rate for revisions matching date spec
 .TP
-.BI \-t,  \-\-template \ <TEMPLATE>
+.BI \-t,  \-\-oldtemplate \ <TEMPLATE>
+.
+template to group changesets (DEPRECATED)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
 .
 template to group changesets (default: {author|email})
 .TP
@@ -8455,6 +8867,21 @@ emit codes that less doesn\(aqt understand. You can work around this by
 either using ansi mode (or auto mode), or by using less \-r (which will
 pass through all terminal control codes, not just color control
 codes).
+.sp
+On some systems (such as MSYS in Windows), the terminal may support
+a different color mode than the pager (activated via the "pager"
+extension). It is possible to define separate modes depending on whether
+the pager is active:
+.sp
+.nf
+.ft C
+[color]
+mode = auto
+pagermode = ansi
+.ft P
+.fi
+.sp
+If \fBpagermode\fP is not defined, the \fBmode\fP will be used.
 .SS Commands
 .SS convert
 .sp
@@ -8924,13 +9351,13 @@ directory. That way you can get CRLF line endings on Windows and LF on
 Unix/Mac, thereby letting everybody use their OS native line endings.
 .sp
 The extension reads its configuration from a versioned \fB.hgeol\fP
-configuration file found in the root of the working copy. The
+configuration file found in the root of the working directory. The
 \fB.hgeol\fP file use the same syntax as all other Mercurial
 configuration files. It uses two sections, \fB[patterns]\fP and
 \fB[repository]\fP.
 .sp
 The \fB[patterns]\fP section specifies how line endings should be
-converted between the working copy and the repository. The format is
+converted between the working directory and the repository. The format is
 specified by a file pattern. The first match is used, so put more
 specific patterns first. The available line endings are \fBLF\fP,
 \fBCRLF\fP, and \fBBIN\fP.
@@ -8972,7 +9399,7 @@ native = LF
 .IP Note
 .
 The rules will first apply when files are touched in the working
-copy, e.g. by updating to null and back to tip to touch all files.
+directory, e.g. by updating to null and back to tip to touch all files.
 .RE
 .sp
 The extension uses an optional \fB[eol]\fP section read from both the
@@ -9727,6 +10154,13 @@ If you run \fBhg histedit \-\-outgoing\fP on the clone then it is the same
 as running \fBhg histedit 836302820282\fP. If you need plan to push to a
 repository that Mercurial does not detect to be related to the source
 repo, you can add a \fB\-\-force\fP option.
+.sp
+Histedit rule lines are truncated to 80 characters by default. You
+can customise this behaviour by setting a different length in your
+configuration file:
+.sp
+[histedit]
+linelen = 120      # truncate rule lines at 120 characters
 .SS Commands
 .SS histedit
 .sp
@@ -9761,13 +10195,17 @@ conflicts).
 Options:
 .INDENT 0.0
 .TP
-.BI \-\-commands \ <VALUE>
+.BI \-\-commands \ <FILE>
 .
-Read history edits from the specified file.
+read history edits from the specified file
 .TP
 .B \-c,  \-\-continue
 .
 continue an edit already in progress
+.TP
+.B \-\-edit\-plan
+.
+edit remaining actions list
 .TP
 .B \-k,  \-\-keep
 .
@@ -9785,7 +10223,7 @@ changesets not found in destination
 .
 force outgoing even for unrelated repositories
 .TP
-.BI \-r,  \-\-rev \ <VALUE[+]>
+.BI \-r,  \-\-rev \ <REV[+]>
 .
 first revision to be edited
 .UNINDENT
@@ -10393,7 +10831,7 @@ mark a branch as closed, hiding it from the branch list
 .TP
 .B \-\-amend
 .
-amend the parent of the working dir
+amend the parent of the working directory
 .TP
 .B \-s,  \-\-secret
 .
@@ -10402,6 +10840,10 @@ use the secret phase for committing
 .B \-e,  \-\-edit
 .
 invoke editor on commit messages
+.TP
+.B \-i,  \-\-interactive
+.
+use interactive mode
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -10543,6 +10985,10 @@ number of lines of context to show
 .B \-\-stat
 .
 output diffstat\-style summary of changes
+.TP
+.BI \-\-root \ <DIR>
+.
+produce diffs relative to subdirectory
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -12296,7 +12742,7 @@ mark a branch as closed, hiding it from the branch list
 .TP
 .B \-\-amend
 .
-amend the parent of the working dir
+amend the parent of the working directory
 .TP
 .B \-s,  \-\-secret
 .
@@ -12469,7 +12915,7 @@ Options:
 .TP
 .B \-U,  \-\-noupdate
 .
-do not create a working copy
+do not create a working directory
 .TP
 .B \-B,  \-\-bookmarks
 .
@@ -12575,6 +13021,10 @@ use the given name for the shelved commit
 .B \-p,  \-\-patch
 .
 show patch
+.TP
+.B \-i,  \-\-interactive
+.
+interactive mode, only works while creating a shelve
 .TP
 .B \-\-stat
 .
@@ -12704,7 +13154,7 @@ ignored  (DEPRECATED)
 .TP
 .B \-k,  \-\-keep
 .
-do not modify working copy during strip
+do not modify working directory during strip
 .TP
 .BI \-B,  \-\-bookmark \ <VALUE>
 .
@@ -13042,7 +13492,7 @@ Source code repository: \%http://selenic.com/hg\:
 Mailing list: \%http://selenic.com/mailman/listinfo/mercurial\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2014 Matt Mackall.
+Copyright (C) 2005\-2015 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.
