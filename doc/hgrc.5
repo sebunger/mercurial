@@ -1,11 +1,11 @@
 .\"     Title: hgrc
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.71.0 <http://docbook.sf.net/>
-.\"      Date: 12/17/2006
+.\" Generator: DocBook XSL Stylesheets v1.72.0 <http://docbook.sf.net/>
+.\"      Date: 06/25/2007
 .\"    Manual: 
 .\"    Source: 
 .\"
-.TH "HGRC" "5" "12/17/2006" "" ""
+.TH "HGRC" "5" "06/25/2007" "" ""
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -13,33 +13,36 @@
 .SH "NAME"
 hgrc \- configuration files for Mercurial
 .SH "SYNOPSIS"
-The Mercurial system uses a set of configuration files to control aspects of its behaviour..sp
+The Mercurial system uses a set of configuration files to control aspects of its behaviour.
+.sp
 .SH "FILES"
-Mercurial reads configuration data from several files, if they exist. The names of these files depend on the system on which Mercurial is installed..sp
+Mercurial reads configuration data from several files, if they exist. The names of these files depend on the system on which Mercurial is installed.
+.sp
 .PP
 (Unix) <install\-root>/etc/mercurial/hgrc.d/*.rc, (Unix) <install\-root>/etc/mercurial/hgrc
-.RS 3n
+.RS 4
 Per\-installation configuration files, searched for in the directory where Mercurial is installed. For example, if installed in /shared/tools, Mercurial will look in /shared/tools/etc/mercurial/hgrc. Options in these files apply to all Mercurial commands executed by any user in any directory.
 .RE
 .PP
-(Unix) /etc/mercurial/hgrc.d/*.rc, (Unix) /etc/mercurial/hgrc, (Windows) C:\\Mercurial\\Mercurial.ini
-.RS 3n
+(Unix) /etc/mercurial/hgrc.d/*.rc, (Unix) /etc/mercurial/hgrc, (Windows) C:\eMercurial\eMercurial.ini
+.RS 4
 Per\-system configuration files, for the system on which Mercurial is running. Options in these files apply to all Mercurial commands executed by any user in any directory. Options in these files override per\-installation options.
 .RE
 .PP
-(Unix) $HOME/.hgrc, (Windows) C:\\Documents and Settings\\USERNAME\\Mercurial.ini, (Windows) $HOME\\Mercurial.ini
-.RS 3n
+(Unix) $HOME/.hgrc, (Windows) C:\eDocuments and Settings\eUSERNAME\eMercurial.ini, (Windows) $HOME\eMercurial.ini
+.RS 4
 Per\-user configuration file, for the user running Mercurial. Options in this file apply to all Mercurial commands executed by any user in any directory. Options in this file override per\-installation and per\-system options. On Windows system, one of these is chosen exclusively according to definition of HOME environment variable.
 .RE
 .PP
 (Unix, Windows) <repo>/.hg/hgrc
-.RS 3n
+.RS 4
 Per\-repository configuration options that only apply in a particular repository. This file is not version\-controlled, and will not get transferred during a "clone" operation. Options in this file override options in all other configuration files. On Unix, most of this file will be ignored if it doesn't belong to a trusted user or to a trusted group. See the documentation for the trusted section below for more details.
 .RE
 .SH "SYNTAX"
-A configuration file consists of sections, led by a "[section]" header and followed by "name: value" entries; "name=value" is also accepted..sp
+A configuration file consists of sections, led by a "[section]" header and followed by "name: value" entries; "name=value" is also accepted.
 .sp
-.RS 3n
+.sp
+.RS 4
 .nf
 [spam]
 eggs=ham
@@ -47,18 +50,23 @@ green=
    eggs
 .fi
 .RE
-Each line contains one entry. If the lines that follow are indented, they are treated as continuations of that entry..sp
-Leading whitespace is removed from values. Empty lines are skipped..sp
-The optional values can contain format strings which refer to other values in the same section, or values in a special DEFAULT section..sp
-Lines beginning with "#" or ";" are ignored and may be used to provide comments..sp
+Each line contains one entry. If the lines that follow are indented, they are treated as continuations of that entry.
+.sp
+Leading whitespace is removed from values. Empty lines are skipped.
+.sp
+The optional values can contain format strings which refer to other values in the same section, or values in a special DEFAULT section.
+.sp
+Lines beginning with "#" or ";" are ignored and may be used to provide comments.
+.sp
 .SH "SECTIONS"
-This section describes the different sections that may appear in a Mercurial "hgrc" file, the purpose of each section, its possible keys, and their possible values..sp
+This section describes the different sections that may appear in a Mercurial "hgrc" file, the purpose of each section, its possible keys, and their possible values.
+.sp
 .PP
 decode/encode
-.RS 3n
+.RS 4
 Filters for transforming files on checkout/checkin. This would typically be used for newline processing or other localization/canonicalization of files.
 .sp
-.RS 3n
+.RS 4
 .nf
 Filters consist of a filter pattern followed by a filter command.
 Filter patterns are globs by default, rooted at the repository
@@ -68,27 +76,27 @@ in ".c" anywhere in the repository, use the pattern "**.c".
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 The filter command can start with a specifier, either "pipe:" or
 "tempfile:".  If no specifier is given, "pipe:" is used by default.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 A "pipe:" command must accept data on stdin and return the
 transformed data on stdout.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 Pipe example:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [encode]
 # uncompress gzip files on checkin to improve delta compression
@@ -97,7 +105,7 @@ Pipe example:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [decode]
 # recompress gzip files when writing them to the working dir (we
@@ -106,7 +114,7 @@ Pipe example:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 A "tempfile:" command is a template.  The string INFILE is replaced
 with the name of a temporary file that contains the data to be
@@ -116,7 +124,7 @@ written by the command.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 NOTE: the tempfile mechanism is recommended for Windows systems,
 where the standard shell I/O redirection operators often have
@@ -127,13 +135,13 @@ corrupt the contents of your files.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 Tempfile example:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [encode]
 # convert files to unix line ending conventions on checkin
@@ -141,7 +149,7 @@ Tempfile example:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [decode]
 # convert files to windows line ending conventions when writing
@@ -152,17 +160,17 @@ Tempfile example:
 .RE
 .PP
 defaults
-.RS 3n
+.RS 4
 Use the [defaults] section to define command defaults, i.e. the default options/arguments to pass to the specified commands.
 .sp
-.RS 3n
+.RS 4
 .nf
 The following example makes 'hg log' run in verbose mode, and
 \'hg status' show only the modified files, by default.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [defaults]
 log = \-v
@@ -170,7 +178,7 @@ status = \-m
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 The actual commands, instead of their aliases, must be used when
 defining command defaults. The command defaults will also be
@@ -179,42 +187,76 @@ applied to the aliases of the commands defined.
 .RE
 .RE
 .PP
+diff
+.RS 4
+Settings used when displaying diffs. They are all boolean and defaults to False.
+.PP
+git
+.RS 4
+Use git extended diff format.
+.RE
+.PP
+nodates
+.RS 4
+Don't include dates in diff headers.
+.RE
+.PP
+showfunc
+.RS 4
+Show which function each change is in.
+.RE
+.PP
+ignorews
+.RS 4
+Ignore white space when comparing lines.
+.RE
+.PP
+ignorewsamount
+.RS 4
+Ignore changes in the amount of white space.
+.RE
+.PP
+ignoreblanklines
+.RS 4
+Ignore changes whose lines are all blank.
+.RE
+.RE
+.PP
 email
-.RS 3n
+.RS 4
 Settings for extensions that send email messages.
-.RS 3n
 .PP
 from
-.RS 3n
+.RS 4
 Optional. Email address to use in "From" header and SMTP envelope of outgoing messages.
 .RE
 .PP
 to
-.RS 3n
+.RS 4
 Optional. Comma\-separated list of recipients' email addresses.
 .RE
 .PP
 cc
-.RS 3n
+.RS 4
 Optional. Comma\-separated list of carbon copy recipients' email addresses.
 .RE
 .PP
 bcc
-.RS 3n
+.RS 4
 Optional. Comma\-separated list of blind carbon copy recipients' email addresses. Cannot be set interactively.
 .RE
 .PP
 method
-.RS 3n
+.RS 4
 Optional. Method to use to send email messages. If value is "smtp" (default), use SMTP (see section "[smtp]" for configuration). Otherwise, use as name of program to run that acts like sendmail (takes "\-f" option for sender, list of recipients on command line, message on stdin). Normally, setting this to "sendmail" or "/usr/sbin/sendmail" is enough to use sendmail to send messages.
 .sp
-.RS 3n
+.RS 4
 .nf
 Email example:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [email]
 from = Joseph User <joe.user@example.com>
@@ -223,13 +265,12 @@ method = /usr/sbin/sendmail
 .RE
 .RE
 .RE
-.RE
 .PP
 extensions
-.RS 3n
+.RS 4
 Mercurial has an extension mechanism for adding new features. To enable an extension, create an entry for it in this section.
 .sp
-.RS 3n
+.RS 4
 .nf
 If you know that the extension is already in Python's search path,
 you can give the name of the module, followed by "=", with nothing
@@ -237,7 +278,7 @@ after the "=".
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 Otherwise, give a name that you choose, followed by "=", followed by
 the path to the ".py" file (including the file name extension) that
@@ -245,13 +286,13 @@ defines the extension.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 Example for ~/.hgrc:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [extensions]
 # (the mq extension will get loaded from mercurial's path)
@@ -262,17 +303,26 @@ myfeature = ~/.hgext/myfeature.py
 .RE
 .RE
 .PP
+format
+.RS 4
+.PP
+usestore
+.RS 4
+Enable or disable the "store" repository format which improves compatibility with systems that fold case or otherwise mangle filenames. Enabled by default. Disabling this option will allow you to store longer filenames in some situations at the expense of compatibility.
+.RE
+.RE
+.PP
 hooks
-.RS 3n
+.RS 4
 Commands or Python functions that get automatically executed by various actions such as starting or finishing a commit. Multiple hooks can be run for the same action by appending a suffix to the action. Overriding a site\-wide hook can be done by changing its value or setting it to an empty string.
 .sp
-.RS 3n
+.RS 4
 .nf
 Example .hg/hgrc:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 [hooks]
 # do not use the site\-wide hook
@@ -282,100 +332,120 @@ incoming.autobuild = /my/build/hook
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 Most hooks are run with environment variables set that give added
 useful information.  For each hook below, the environment variables
 it is passed are listed with names of the form "$HG_foo".
 .fi
 .RE
-.RS 3n
 .PP
 changegroup
-.RS 3n
+.RS 4
 Run after a changegroup has been added via push, pull or unbundle. ID of the first new changeset is in $HG_NODE. URL from which changes came is in $HG_URL.
 .RE
 .PP
 commit
-.RS 3n
+.RS 4
 Run after a changeset has been created in the local repository. ID of the newly created changeset is in $HG_NODE. Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
 .RE
 .PP
 incoming
-.RS 3n
+.RS 4
 Run after a changeset has been pulled, pushed, or unbundled into the local repository. The ID of the newly arrived changeset is in $HG_NODE. URL that was source of changes came is in $HG_URL.
 .RE
 .PP
 outgoing
-.RS 3n
+.RS 4
 Run after sending changes from local repository to another. ID of first changeset sent is in $HG_NODE. Source of operation is in $HG_SOURCE; see "preoutgoing" hook for description.
 .RE
 .PP
+post\-<command>
+.RS 4
+Run after successful invocations of the associated command. The contents of the command line are passed as $HG_ARGS and the result code in $HG_RESULT. Hook failure is ignored.
+.RE
+.PP
+pre\-<command>
+.RS 4
+Run before executing the associated command. The contents of the command line are passed as $HG_ARGS. If the hook returns failure, the command doesn't execute and Mercurial returns the failure code.
+.RE
+.PP
 prechangegroup
-.RS 3n
+.RS 4
 Run before a changegroup is added via push, pull or unbundle. Exit status 0 allows the changegroup to proceed. Non\-zero status will cause the push, pull or unbundle to fail. URL from which changes will come is in $HG_URL.
 .RE
 .PP
 precommit
-.RS 3n
+.RS 4
 Run before starting a local commit. Exit status 0 allows the commit to proceed. Non\-zero status will cause the commit to fail. Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
 .RE
 .PP
 preoutgoing
-.RS 3n
+.RS 4
 Run before computing changes to send from the local repository to another. Non\-zero status will cause failure. This lets you prevent pull over http or ssh. Also prevents against local pull, push (outbound) or bundle commands, but not effective, since you can just copy files instead then. Source of operation is in $HG_SOURCE. If "serve", operation is happening on behalf of remote ssh or http repository. If "push", "pull" or "bundle", operation is happening on behalf of repository on same system.
 .RE
 .PP
 pretag
-.RS 3n
+.RS 4
 Run before creating a tag. Exit status 0 allows the tag to be created. Non\-zero status will cause the tag to fail. ID of changeset to tag is in $HG_NODE. Name of tag is in $HG_TAG. Tag is local if $HG_LOCAL=1, in repo if $HG_LOCAL=0.
 .RE
 .PP
 pretxnchangegroup
-.RS 3n
+.RS 4
 Run after a changegroup has been added via push, pull or unbundle, but before the transaction has been committed. Changegroup is visible to hook program. This lets you validate incoming changes before accepting them. Passed the ID of the first new changeset in $HG_NODE. Exit status 0 allows the transaction to commit. Non\-zero status will cause the transaction to be rolled back and the push, pull or unbundle will fail. URL that was source of changes is in $HG_URL.
 .RE
 .PP
 pretxncommit
-.RS 3n
+.RS 4
 Run after a changeset has been created but the transaction not yet committed. Changeset is visible to hook program. This lets you validate commit message and changes. Exit status 0 allows the commit to proceed. Non\-zero status will cause the transaction to be rolled back. ID of changeset is in $HG_NODE. Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
 .RE
 .PP
 preupdate
-.RS 3n
+.RS 4
 Run before updating the working directory. Exit status 0 allows the update to proceed. Non\-zero status will prevent the update. Changeset ID of first new parent is in $HG_PARENT1. If merge, ID of second new parent is in $HG_PARENT2.
 .RE
 .PP
 tag
-.RS 3n
+.RS 4
 Run after a tag is created. ID of tagged changeset is in $HG_NODE. Name of tag is in $HG_TAG. Tag is local if $HG_LOCAL=1, in repo if $HG_LOCAL=0.
 .RE
 .PP
 update
-.RS 3n
+.RS 4
 Run after updating the working directory. Changeset ID of first new parent is in $HG_PARENT1. If merge, ID of second new parent is in $HG_PARENT2. If update succeeded, $HG_ERROR=0. If update failed (e.g. because conflicts not resolved), $HG_ERROR=1.
 .sp
-.RS 3n
+.RS 4
 .nf
-Note: In earlier releases, the names of hook environment variables
-did not have a "HG_" prefix.  The old unprefixed names are no longer
-provided in the environment.
+Note: it is generally better to use standard hooks rather than the
+generic pre\- and post\- command hooks as they are guaranteed to be
+called in the appropriate contexts for influencing transactions.
+Also, hooks like "commit" will be called in all contexts that
+generate a commit (eg. tag) and not just the commit command.
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
+.nf
+Note2: Environment variables with empty values may not be passed to
+hooks on platforms like Windows. For instance, $HG_PARENT2 will
+not be available under Windows for non\-merge changesets while being
+set to an empty value under Unix\-like systems.
+.fi
+.RE
+.sp
+.RS 4
 .nf
 The syntax for Python hooks is as follows:
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 hookname = python:modulename.submodule.callable
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 Python hooks are run within the Mercurial process.  Each hook is
 called with at least three keyword arguments: a ui object (keyword
@@ -386,7 +456,7 @@ environment variables above are passed as keyword arguments, with no
 .fi
 .RE
 .sp
-.RS 3n
+.RS 4
 .nf
 If a Python hook returns a "true" value or raises an exception, this
 is treated as failure of the hook.
@@ -394,330 +464,353 @@ is treated as failure of the hook.
 .RE
 .RE
 .RE
-.RE
 .PP
 http_proxy
-.RS 3n
+.RS 4
 Used to access web\-based Mercurial repositories through a HTTP proxy.
-.RS 3n
 .PP
 host
-.RS 3n
+.RS 4
 Host name and (optional) port of the proxy server, for example "myproxy:8000".
 .RE
 .PP
 no
-.RS 3n
+.RS 4
 Optional. Comma\-separated list of host names that should bypass the proxy.
 .RE
 .PP
 passwd
-.RS 3n
+.RS 4
 Optional. Password to authenticate with at the proxy server.
 .RE
 .PP
 user
-.RS 3n
+.RS 4
 Optional. User name to authenticate with at the proxy server.
-.RE
 .RE
 .RE
 .PP
 smtp
-.RS 3n
+.RS 4
 Configuration for extensions that need to send email messages.
-.RS 3n
 .PP
 host
-.RS 3n
+.RS 4
 Host name of mail server, e.g. "mail.example.com".
 .RE
 .PP
 port
-.RS 3n
+.RS 4
 Optional. Port to connect to on mail server. Default: 25.
 .RE
 .PP
 tls
-.RS 3n
+.RS 4
 Optional. Whether to connect to mail server using TLS. True or False. Default: False.
 .RE
 .PP
 username
-.RS 3n
+.RS 4
 Optional. User name to authenticate to SMTP server with. If username is specified, password must also be specified. Default: none.
 .RE
 .PP
 password
-.RS 3n
+.RS 4
 Optional. Password to authenticate to SMTP server with. If username is specified, password must also be specified. Default: none.
 .RE
 .PP
 local_hostname
-.RS 3n
+.RS 4
 Optional. It's the hostname that the sender can use to identify itself to the MTA.
-.RE
 .RE
 .RE
 .PP
 paths
-.RS 3n
+.RS 4
 Assigns symbolic names to repositories. The left side is the symbolic name, and the right gives the directory or URL that is the location of the repository. Default paths can be declared by setting the following entries.
-.RS 3n
 .PP
 default
-.RS 3n
+.RS 4
 Directory or URL to use when pulling if no source is specified. Default is set to repository from which the current repository was cloned.
 .RE
 .PP
 default\-push
-.RS 3n
+.RS 4
 Optional. Directory or URL to use when pushing if no destination is specified.
-.RE
 .RE
 .RE
 .PP
 server
-.RS 3n
+.RS 4
 Controls generic server settings.
-.RS 3n
 .PP
 uncompressed
-.RS 3n
+.RS 4
 Whether to allow clients to clone a repo using the uncompressed streaming protocol. This transfers about 40% more data than a regular clone, but uses less memory and CPU on both server and client. Over a LAN (100Mbps or better) or a very fast WAN, an uncompressed streaming clone is a lot faster (~10x) than a regular clone. Over most WAN connections (anything slower than about 6Mbps), uncompressed streaming is slower, because of the extra data transfer overhead. Default is False.
-.RE
 .RE
 .RE
 .PP
 trusted
-.RS 3n
+.RS 4
 For security reasons, Mercurial will not use the settings in the .hg/hgrc file from a repository if it doesn't belong to a trusted user or to a trusted group. The main exception is the web interface, which automatically uses some safe settings, since it's common to serve repositories from different users.
 .sp
-.RS 3n
+.RS 4
 .nf
 This section specifies what users and groups are trusted.  The
 current user is always trusted.  To trust everybody, list a user
 or a group with name "*".
 .fi
 .RE
-.RS 3n
 .PP
 users
-.RS 3n
+.RS 4
 Comma\-separated list of trusted users.
 .RE
 .PP
 groups
-.RS 3n
+.RS 4
 Comma\-separated list of trusted groups.
-.RE
 .RE
 .RE
 .PP
 ui
-.RS 3n
+.RS 4
 User interface controls.
-.RS 3n
 .PP
 debug
-.RS 3n
+.RS 4
 Print debugging information. True or False. Default is False.
 .RE
 .PP
 editor
-.RS 3n
+.RS 4
 The editor to use during a commit. Default is $EDITOR or "vi".
 .RE
 .PP
 fallbackencoding
-.RS 3n
+.RS 4
 Encoding to try if it's not possible to decode the changelog using UTF\-8. Default is ISO\-8859\-1.
 .RE
 .PP
 ignore
-.RS 3n
+.RS 4
 A file to read per\-user ignore patterns from. This file should be in the same format as a repository\-wide .hgignore file. This option supports hook syntax, so if you want to specify multiple ignore files, you can do so by setting something like "ignore.other = ~/.hgignore2". For details of the ignore file format, see the hgignore(5) man page.
 .RE
 .PP
 interactive
-.RS 3n
+.RS 4
 Allow to prompt the user. True or False. Default is True.
 .RE
 .PP
 logtemplate
-.RS 3n
+.RS 4
 Template string for commands that print changesets.
 .RE
 .PP
-style
-.RS 3n
-Name of style to use for command output.
-.RE
-.PP
 merge
-.RS 3n
+.RS 4
 The conflict resolution program to use during a manual merge. Default is "hgmerge".
 .RE
 .PP
+patch
+.RS 4
+command to use to apply patches. Look for
+\fIgpatch\fR
+or
+\fIpatch\fR
+in PATH if unset.
+.RE
+.PP
 quiet
-.RS 3n
+.RS 4
 Reduce the amount of output printed. True or False. Default is False.
 .RE
 .PP
 remotecmd
-.RS 3n
+.RS 4
 remote command to use for clone/push/pull operations. Default is
 \fIhg\fR.
 .RE
 .PP
+report_untrusted
+.RS 4
+Warn if a .hg/hgrc file is ignored due to not being owned by a trusted user or group. True or False. Default is True.
+.RE
+.PP
+slash
+.RS 4
+Display paths using a slash ("/") as the path separator. This only makes a difference on systems where the default path separator is not the slash character (e.g. Windows uses the backslash character ("\e")). Default is False.
+.RE
+.PP
 ssh
-.RS 3n
+.RS 4
 command to use for SSH connections. Default is
 \fIssh\fR.
 .RE
 .PP
 strict
-.RS 3n
+.RS 4
 Require exact command names, instead of allowing unambiguous abbreviations. True or False. Default is False.
 .RE
 .PP
+style
+.RS 4
+Name of style to use for command output.
+.RE
+.PP
 timeout
-.RS 3n
+.RS 4
 The timeout used when a lock is held (in seconds), a negative value means no timeout. Default is 600.
 .RE
 .PP
 username
-.RS 3n
-The committer of a changeset created when running "commit". Typically a person's name and email address, e.g. "Fred Widget <fred@example.com>". Default is $EMAIL or username@hostname.
+.RS 4
+The committer of a changeset created when running "commit". Typically a person's name and email address, e.g. "Fred Widget <fred@example.com>". Default is $EMAIL or username@hostname. If the username in hgrc is empty, it has to be specified manually or in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username =" in the system hgrc).
 .RE
 .PP
 verbose
-.RS 3n
+.RS 4
 Increase the amount of output printed. True or False. Default is False.
-.RE
 .RE
 .RE
 .PP
 web
-.RS 3n
+.RS 4
 Web interface configuration.
-.RS 3n
 .PP
 accesslog
-.RS 3n
+.RS 4
 Where to output the access log. Default is stdout.
 .RE
 .PP
 address
-.RS 3n
+.RS 4
 Interface address to bind to. Default is all.
 .RE
 .PP
 allow_archive
-.RS 3n
+.RS 4
 List of archive format (bz2, gz, zip) allowed for downloading. Default is empty.
 .RE
 .PP
 allowbz2
-.RS 3n
+.RS 4
 (DEPRECATED) Whether to allow .tar.bz2 downloading of repo revisions. Default is false.
 .RE
 .PP
 allowgz
-.RS 3n
+.RS 4
 (DEPRECATED) Whether to allow .tar.gz downloading of repo revisions. Default is false.
 .RE
 .PP
 allowpull
-.RS 3n
+.RS 4
 Whether to allow pulling from the repository. Default is true.
 .RE
 .PP
 allow_push
-.RS 3n
+.RS 4
 Whether to allow pushing to the repository. If empty or not set, push is not allowed. If the special value "*", any remote user can push, including unauthenticated users. Otherwise, the remote user must have been authenticated, and the authenticated user name must be present in this list (separated by whitespace or ","). The contents of the allow_push list are examined after the deny_push list.
 .RE
 .PP
 allowzip
-.RS 3n
+.RS 4
 (DEPRECATED) Whether to allow .zip downloading of repo revisions. Default is false. This feature creates temporary files.
 .RE
 .PP
 baseurl
-.RS 3n
+.RS 4
 Base URL to use when publishing URLs in other locations, so third\-party tools like email notification hooks can construct URLs. Example: "http://hgserver/repos/"
 .RE
 .PP
 contact
-.RS 3n
+.RS 4
 Name or email address of the person in charge of the repository. Default is "unknown".
 .RE
 .PP
 deny_push
-.RS 3n
+.RS 4
 Whether to deny pushing to the repository. If empty or not set, push is not denied. If the special value "*", all remote users are denied push. Otherwise, unauthenticated users are all denied, and any authenticated user name present in this list (separated by whitespace or ",") is also denied. The contents of the deny_push list are examined before the allow_push list.
 .RE
 .PP
 description
-.RS 3n
+.RS 4
 Textual description of the repository's purpose or contents. Default is "unknown".
 .RE
 .PP
+encoding
+.RS 4
+Character encoding name. Example: "UTF\-8"
+.RE
+.PP
 errorlog
-.RS 3n
+.RS 4
 Where to output the error log. Default is stderr.
 .RE
 .PP
+hidden
+.RS 4
+Whether to hide the repository in the hgwebdir index. Default is false.
+.RE
+.PP
 ipv6
-.RS 3n
+.RS 4
 Whether to use IPv6. Default is false.
 .RE
 .PP
 name
-.RS 3n
+.RS 4
 Repository name to use in the web interface. Default is current working directory.
 .RE
 .PP
 maxchanges
-.RS 3n
+.RS 4
 Maximum number of changes to list on the changelog. Default is 10.
 .RE
 .PP
 maxfiles
-.RS 3n
+.RS 4
 Maximum number of files to list per changeset. Default is 10.
 .RE
 .PP
 port
-.RS 3n
+.RS 4
 Port to listen on. Default is 8000.
 .RE
 .PP
 push_ssl
-.RS 3n
+.RS 4
 Whether to require that inbound pushes be transported over SSL to prevent password sniffing. Default is true.
 .RE
 .PP
+staticurl
+.RS 4
+Base URL to use for static files. If unset, static files (e.g. the hgicon.png favicon) will be served by the CGI script itself. Use this setting to serve them directly with the HTTP server. Example: "http://hgserver/static/"
+.RE
+.PP
 stripes
-.RS 3n
+.RS 4
 How many lines a "zebra stripe" should span in multiline output. Default is 1; set to 0 to disable.
 .RE
 .PP
 style
-.RS 3n
+.RS 4
 Which template map style to use.
 .RE
 .PP
 templates
-.RS 3n
+.RS 4
 Where to find the HTML templates. Default is install path.
 .RE
 .RE
-.RE
 .SH "AUTHOR"
-Bryan O'Sullivan <bos@serpentine.com>..sp
-Mercurial was written by Matt Mackall <mpm@selenic.com>..sp
+Bryan O'Sullivan <bos@serpentine.com>.
+.sp
+Mercurial was written by Matt Mackall <mpm@selenic.com>.
+.sp
 .SH "SEE ALSO"
-hg(1), hgignore(5).sp
+hg(1), hgignore(5)
+.sp
 .SH "COPYING"
-This manual page is copyright 2005 Bryan O'Sullivan. Mercurial is copyright 2005, 2006 Matt Mackall. Free use of this software is granted under the terms of the GNU General Public License (GPL)..sp
+This manual page is copyright 2005 Bryan O'Sullivan. Mercurial is copyright 2005\-2007 Matt Mackall. Free use of this software is granted under the terms of the GNU General Public License (GPL).
+.sp

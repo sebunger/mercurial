@@ -48,17 +48,19 @@
 # needed files, so running the external diff program will actually be
 # pretty fast (at least faster than having to compare the entire tree).
 
-from mercurial.demandload import demandload
-from mercurial.i18n import gettext as _
+from mercurial.i18n import _
 from mercurial.node import *
-demandload(globals(), 'mercurial:cmdutil,util os shutil tempfile')
+from mercurial import cmdutil, util
+import os, shutil, tempfile
 
 def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
     def snapshot_node(files, node):
         '''snapshot files as of some revision'''
-        changes = repo.changelog.read(node)
-        mf = repo.manifest.read(changes[0])
-        dirname = '%s.%s' % (os.path.basename(repo.root), short(node))
+        mf = repo.changectx(node).manifest()
+        dirname = os.path.basename(repo.root)
+        if dirname == "":
+            dirname = "root"
+        dirname = '%s.%s' % (dirname, short(node))
         base = os.path.join(tmproot, dirname)
         os.mkdir(base)
         if not ui.quiet:
@@ -74,7 +76,8 @@ def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
             destdir = os.path.dirname(dest)
             if not os.path.isdir(destdir):
                 os.makedirs(destdir)
-            repo.wwrite(wfn, repo.file(fn).read(mf[fn]), open(dest, 'w'))
+            data = repo.wwritedata(wfn, repo.file(wfn).read(mf[wfn]))
+            open(dest, 'wb').write(data)
         return dirname
 
     def snapshot_wdir(files):
@@ -82,6 +85,8 @@ def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
         if not using snapshot, -I/-X does not work and recursive diff
         in tools like kdiff3 and meld displays too many files.'''
         dirname = os.path.basename(repo.root)
+        if dirname == "":
+            dirname = "root"
         base = os.path.join(tmproot, dirname)
         os.mkdir(base)
         if not ui.quiet:
@@ -94,7 +99,7 @@ def dodiff(ui, repo, diffcmd, diffopts, pats, opts):
             destdir = os.path.dirname(dest)
             if not os.path.isdir(destdir):
                 os.makedirs(destdir)
-            fp = open(dest, 'w')
+            fp = open(dest, 'wb')
             for chunk in util.filechunkiter(repo.wopener(wfn)):
                 fp.write(chunk)
         return dirname

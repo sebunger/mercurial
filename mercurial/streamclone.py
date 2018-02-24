@@ -5,9 +5,8 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from demandload import demandload
-from i18n import gettext as _
-demandload(globals(), "os stat util lock")
+from i18n import _
+import os, stat, util, lock
 
 # if server supports streaming clone, it advertises "stream"
 # capability with value that is version+flags of repo it is serving.
@@ -79,7 +78,7 @@ def stream_out(repo, fileobj):
     entries = []
     total_bytes = 0
     for name, size in walkrepo(repo.spath):
-        name = util.pconvert(repo.decodefn(name))
+        name = repo.decodefn(util.pconvert(name))
         entries.append((name, size))
         total_bytes += size
     repolock.release()

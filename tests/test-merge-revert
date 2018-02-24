@@ -25,7 +25,7 @@ hg status
 hg id
 hg update -C 0
 echo "changed file1" >> file1
-HGMERGE=merge hg update
+hg update
 hg diff
 hg status
 hg id
@@ -41,5 +41,4 @@ hg update -C
 hg diff
 hg status
 hg id
-cd ..; /bin/rm -rf t
 

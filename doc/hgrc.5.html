@@ -176,6 +176,65 @@ defining command defaults. The command defaults will also be
 applied to the aliases of the commands defined.</pre>
 </dd>
 <dt>
+diff
+</dt>
+<dd>
+<p>
+  Settings used when displaying diffs. They are all boolean and
+  defaults to False.
+</p>
+<dl>
+<dt>
+git
+</dt>
+<dd>
+<p>
+    Use git extended diff format.
+</p>
+</dd>
+<dt>
+nodates
+</dt>
+<dd>
+<p>
+    Don't include dates in diff headers.
+</p>
+</dd>
+<dt>
+showfunc
+</dt>
+<dd>
+<p>
+    Show which function each change is in.
+</p>
+</dd>
+<dt>
+ignorews
+</dt>
+<dd>
+<p>
+    Ignore white space when comparing lines.
+</p>
+</dd>
+<dt>
+ignorewsamount
+</dt>
+<dd>
+<p>
+    Ignore changes in the amount of white space.
+</p>
+</dd>
+<dt>
+ignoreblanklines
+</dt>
+<dd>
+<p>
+    Ignore changes whose lines are all blank.
+</p>
+</dd>
+</dl>
+</dd>
+<dt>
 email
 </dt>
 <dd>
@@ -260,6 +319,27 @@ hgext.mq =
 myfeature = ~/.hgext/myfeature.py</pre>
 </dd>
 <dt>
+format
+</dt>
+<dd>
+<p>
+</p>
+<dl>
+<dt>
+usestore
+</dt>
+<dd>
+<p>
+    Enable or disable the "store" repository format which improves
+    compatibility with systems that fold case or otherwise mangle
+    filenames. Enabled by default. Disabling this option will allow
+    you to store longer filenames in some situations at the expense of
+    compatibility.
+</p>
+</dd>
+</dl>
+</dd>
+<dt>
 hooks
 </dt>
 <dd>
@@ -318,6 +398,26 @@ outgoing
     Run after sending changes from local repository to another.  ID of
     first changeset sent is in $HG_NODE.  Source of operation is in
     $HG_SOURCE; see "preoutgoing" hook for description.
+</p>
+</dd>
+<dt>
+post-&lt;command&gt;
+</dt>
+<dd>
+<p>
+    Run after successful invocations of the associated command. The
+    contents of the command line are passed as $HG_ARGS and the result
+    code in $HG_RESULT. Hook failure is ignored.
+</p>
+</dd>
+<dt>
+pre-&lt;command&gt;
+</dt>
+<dd>
+<p>
+    Run before executing the associated command. The contents of the
+    command line are passed as $HG_ARGS. If the hook returns failure,
+    the command doesn't execute and Mercurial returns the failure code.
 </p>
 </dd>
 <dt>
@@ -426,9 +526,15 @@ update
     is in $HG_PARENT2.  If update succeeded, $HG_ERROR=0.  If update
     failed (e.g. because conflicts not resolved), $HG_ERROR=1.
 </p>
-<pre>Note: In earlier releases, the names of hook environment variables
-did not have a "HG_" prefix.  The old unprefixed names are no longer
-provided in the environment.</pre>
+<pre>Note: it is generally better to use standard hooks rather than the
+generic pre- and post- command hooks as they are guaranteed to be
+called in the appropriate contexts for influencing transactions.
+Also, hooks like "commit" will be called in all contexts that
+generate a commit (eg. tag) and not just the commit command.</pre>
+<pre>Note2: Environment variables with empty values may not be passed to
+hooks on platforms like Windows. For instance, $HG_PARENT2 will
+not be available under Windows for non-merge changesets while being
+set to an empty value under Unix-like systems.</pre>
 <pre>The syntax for Python hooks is as follows:</pre>
 <pre>hookname = python:modulename.submodule.callable</pre>
 <pre>Python hooks are run within the Mercurial process.  Each hook is
@@ -704,20 +810,21 @@ logtemplate
 </p>
 </dd>
 <dt>
-style
-</dt>
-<dd>
-<p>
-    Name of style to use for command output.
-</p>
-</dd>
-<dt>
 merge
 </dt>
 <dd>
 <p>
     The conflict resolution program to use during a manual merge.
     Default is "hgmerge".
+</p>
+</dd>
+<dt>
+patch
+</dt>
+<dd>
+<p>
+    command to use to apply patches. Look for <em>gpatch</em> or <em>patch</em> in PATH if
+    unset.
 </p>
 </dd>
 <dt>
@@ -734,6 +841,26 @@ remotecmd
 <dd>
 <p>
     remote command to use for clone/push/pull operations. Default is <em>hg</em>.
+</p>
+</dd>
+<dt>
+report_untrusted
+</dt>
+<dd>
+<p>
+    Warn if a .hg/hgrc file is ignored due to not being owned by a
+    trusted user or group.  True or False.  Default is True.
+</p>
+</dd>
+<dt>
+slash
+</dt>
+<dd>
+<p>
+    Display paths using a slash ("/") as the path separator.  This only
+    makes a difference on systems where the default path separator is not
+    the slash character (e.g. Windows uses the backslash character ("\")).
+    Default is False.
 </p>
 </dd>
 <dt>
@@ -754,6 +881,14 @@ strict
 </p>
 </dd>
 <dt>
+style
+</dt>
+<dd>
+<p>
+    Name of style to use for command output.
+</p>
+</dd>
+<dt>
 timeout
 </dt>
 <dd>
@@ -770,6 +905,9 @@ username
     The committer of a changeset created when running "commit".
     Typically a person's name and email address, e.g. "Fred Widget
     &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
+    If the username in hgrc is empty, it has to be specified manually or
+    in a different hgrc file (e.g. $HOME/.hgrc, if the admin set "username ="
+    in the system hgrc).
 </p>
 </dd>
 <dt>
@@ -906,11 +1044,28 @@ description
 </p>
 </dd>
 <dt>
+encoding
+</dt>
+<dd>
+<p>
+    Character encoding name.
+    Example: "UTF-8"
+</p>
+</dd>
+<dt>
 errorlog
 </dt>
 <dd>
 <p>
     Where to output the error log. Default is stderr.
+</p>
+</dd>
+<dt>
+hidden
+</dt>
+<dd>
+<p>
+    Whether to hide the repository in the hgwebdir index. Default is false.
 </p>
 </dd>
 <dt>
@@ -964,6 +1119,17 @@ push_ssl
 </p>
 </dd>
 <dt>
+staticurl
+</dt>
+<dd>
+<p>
+    Base URL to use for static files. If unset, static files (e.g.
+    the hgicon.png favicon) will be served by the CGI script itself.
+    Use this setting to serve them directly with the HTTP server.
+    Example: "http://hgserver/static/"
+</p>
+</dd>
+<dt>
 stripes
 </dt>
 <dd>
@@ -1001,13 +1167,13 @@ templates
 <hr />
 <h2>COPYING</h2>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005, 2006 Matt Mackall.
+Mercurial is copyright 2005-2007 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 17-Dec-2006 19:02:50 CDT
+Last updated 25-Jun-2007 21:18:42 CDT
 </small></p>
 </body>
 </html>

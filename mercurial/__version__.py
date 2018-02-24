@@ -1,2 +1,2 @@
 # This file is auto-generated.
-version = '0.9.3'
+version = '0.9.4'

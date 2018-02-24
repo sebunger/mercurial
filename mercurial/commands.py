@@ -1,54 +1,18 @@
 # commands.py - command processing for mercurial
 #
-# Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
+# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
 #
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-from demandload import demandload
+import demandimport; demandimport.enable()
 from node import *
-from i18n import gettext as _
-demandload(globals(), "bisect os re sys signal imp urllib pdb shlex stat")
-demandload(globals(), "fancyopts ui hg util lock revlog bundlerepo")
-demandload(globals(), "difflib patch time help mdiff tempfile")
-demandload(globals(), "traceback errno version atexit")
-demandload(globals(), "archival changegroup cmdutil hgweb.server sshserver")
-
-class UnknownCommand(Exception):
-    """Exception raised if command is not in the command table."""
-class AmbiguousCommand(Exception):
-    """Exception raised if command shortcut matches more than one command."""
-
-def bail_if_changed(repo):
-    modified, added, removed, deleted = repo.status()[:4]
-    if modified or added or removed or deleted:
-        raise util.Abort(_("outstanding uncommitted changes"))
-
-def logmessage(opts):
-    """ get the log message according to -m and -l option """
-    message = opts['message']
-    logfile = opts['logfile']
-
-    if message and logfile:
-        raise util.Abort(_('options --message and --logfile are mutually '
-                           'exclusive'))
-    if not message and logfile:
-        try:
-            if logfile == '-':
-                message = sys.stdin.read()
-            else:
-                message = open(logfile).read()
-        except IOError, inst:
-            raise util.Abort(_("can't read commit message '%s': %s") %
-                             (logfile, inst.strerror))
-    return message
-
-def setremoteconfig(ui, opts):
-    "copy remote options to ui tree"
-    if opts.get('ssh'):
-        ui.setconfig("ui", "ssh", opts['ssh'])
-    if opts.get('remotecmd'):
-        ui.setconfig("ui", "remotecmd", opts['remotecmd'])
+from i18n import _
+import bisect, os, re, sys, urllib, shlex, stat
+import ui, hg, util, revlog, bundlerepo, extensions
+import difflib, patch, time, help, mdiff, tempfile
+import errno, version, socket
+import archival, changegroup, cmdutil, hgweb.server, sshserver
 
 # Commands start here, listed alphabetically
 
@@ -182,7 +146,7 @@ def archive(ui, repo, dest, **opts):
     archival.archive(repo, dest, node, kind, not opts['no_decode'],
                      matchfn, prefix)
 
-def backout(ui, repo, rev, **opts):
+def backout(ui, repo, node=None, rev=None, **opts):
     '''reverse effect of earlier changeset
 
     Commit the backed out changes as a new changeset.  The new
@@ -199,8 +163,13 @@ def backout(ui, repo, rev, **opts):
     changeset afterwards.  This saves you from doing the merge by
     hand.  The result of this merge is not committed, as for a normal
     merge.'''
+    if rev and node:
+        raise util.Abort(_("please specify just one revision"))
 
-    bail_if_changed(repo)
+    if not rev:
+        rev = node
+
+    cmdutil.bail_if_changed(repo)
     op1, op2 = repo.dirstate.parents()
     if op2 != nullid:
         raise util.Abort(_('outstanding uncommitted merge'))
@@ -230,7 +199,7 @@ def backout(ui, repo, rev, **opts):
     commit_opts = opts.copy()
     commit_opts['addremove'] = False
     if not commit_opts['message'] and not commit_opts['logfile']:
-        commit_opts['message'] = _("Backed out changeset %s") % (hex(node))
+        commit_opts['message'] = _("Backed out changeset %s") % (short(node))
         commit_opts['force_editor'] = True
     commit(ui, repo, **commit_opts)
     def nice(node):
@@ -240,44 +209,62 @@ def backout(ui, repo, rev, **opts):
     if op1 != node:
         if opts['merge']:
             ui.status(_('merging with changeset %s\n') % nice(op1))
-            n = _lookup(repo, hex(op1))
-            hg.merge(repo, n)
+            hg.merge(repo, hex(op1))
         else:
             ui.status(_('the backout changeset is a new head - '
                         'do not forget to merge\n'))
             ui.status(_('(use "backout --merge" '
                         'if you want to auto-merge)\n'))
 
-def branch(ui, repo, label=None):
+def branch(ui, repo, label=None, **opts):
     """set or show the current branch name
 
-    With <name>, set the current branch name. Otherwise, show the
-    current branch name.
+    With no argument, show the current branch name. With one argument,
+    set the working directory branch name (the branch does not exist in
+    the repository until the next commit).
+
+    Unless --force is specified, branch will not let you set a
+    branch name that shadows an existing branch.
     """
 
-    if label is not None:
-        repo.opener("branch", "w").write(util.fromlocal(label) + '\n')
+    if label:
+        if not opts.get('force') and label in repo.branchtags():
+            if label not in [p.branch() for p in repo.workingctx().parents()]:
+                raise util.Abort(_('a branch of the same name already exists'
+                                   ' (use --force to override)'))
+        repo.dirstate.setbranch(util.fromlocal(label))
+        ui.status(_('marked working directory as branch %s\n') % label)
     else:
-        b = util.tolocal(repo.workingctx().branch())
-        if b:
-            ui.write("%s\n" % b)
+        ui.write("%s\n" % util.tolocal(repo.dirstate.branch()))
 
-def branches(ui, repo):
+def branches(ui, repo, active=False):
     """list repository named branches
 
-    List the repository's named branches.
+    List the repository's named branches, indicating which ones are
+    inactive.  If active is specified, only show active branches.
+
+    A branch is considered active if it contains unmerged heads.
     """
     b = repo.branchtags()
-    l = [(-repo.changelog.rev(n), n, t) for t, n in b.items()]
+    heads = dict.fromkeys(repo.heads(), 1)
+    l = [((n in heads), repo.changelog.rev(n), n, t) for t, n in b.items()]
     l.sort()
-    for r, n, t in l:
-        hexfunc = ui.debugflag and hex or short
-        if ui.quiet:
-            ui.write("%s\n" % t)
+    l.reverse()
+    for ishead, r, n, t in l:
+        if active and not ishead:
+            # If we're only displaying active branches, abort the loop on
+            # encountering the first inactive head
+            break
         else:
-            t = util.localsub(t, 30)
-            t += " " * (30 - util.locallen(t))
-            ui.write("%s %s:%s\n" % (t, -r, hexfunc(n)))
+            hexfunc = ui.debugflag and hex or short
+            if ui.quiet:
+                ui.write("%s\n" % t)
+            else:
+                spaces = " " * (30 - util.locallen(t))
+                # The code only gets here if inactive branches are being
+                # displayed or the branch is active.
+                isinactive = ((not ishead) and " (inactive)") or ''
+                ui.write("%s%s %s:%s%s\n" % (t, spaces, r, hexfunc(n), isinactive))
 
 def bundle(ui, repo, fname, dest=None, **opts):
     """create a changegroup file
@@ -327,8 +314,9 @@ def bundle(ui, repo, fname, dest=None, **opts):
                         seen[p] = 1
                         visit.append(p)
     else:
-        setremoteconfig(ui, opts)
-        dest = ui.expandpath(dest or 'default-push', dest or 'default')
+        cmdutil.setremoteconfig(ui, opts)
+        dest, revs = cmdutil.parseurl(
+            ui.expandpath(dest or 'default-push', dest or 'default'), revs)
         other = hg.repository(ui, dest)
         o = repo.findoutgoing(other, force=opts['force'])
 
@@ -354,10 +342,13 @@ def cat(ui, repo, file1, *pats, **opts):
     %p   root-relative path name of file being printed
     """
     ctx = repo.changectx(opts['rev'])
+    err = 1
     for src, abs, rel, exact in cmdutil.walk(repo, (file1,) + pats, opts,
                                              ctx.node()):
         fp = cmdutil.make_file(repo, opts['output'], ctx.node(), pathname=abs)
         fp.write(ctx.filectx(abs).data())
+        err = 0
+    return err
 
 def clone(ui, source, dest=None, **opts):
     """make a copy of an existing repository
@@ -398,8 +389,8 @@ def clone(ui, source, dest=None, **opts):
     Look at the help text for the pull command for important details
     about ssh:// URLs.
     """
-    setremoteconfig(ui, opts)
-    hg.clone(ui, ui.expandpath(source), dest,
+    cmdutil.setremoteconfig(ui, opts)
+    hg.clone(ui, source, dest,
              pull=opts['pull'],
              stream=opts['uncompressed'],
              rev=opts['rev'],
@@ -416,7 +407,7 @@ def commit(ui, repo, *pats, **opts):
     If no commit message is specified, the editor configured in your hgrc
     or in the EDITOR environment variable is started to enter a message.
     """
-    message = logmessage(opts)
+    message = cmdutil.logmessage(opts)
 
     if opts['addremove']:
         cmdutil.addremove(repo, pats, opts)
@@ -427,10 +418,10 @@ def commit(ui, repo, *pats, **opts):
         files = modified + added + removed
         slist = None
         for f in fns:
+            if f == '.':
+                continue
             if f not in files:
                 rf = repo.wjoin(f)
-                if f in unknown:
-                    raise util.Abort(_("file %s not tracked!") % rf)
                 try:
                     mode = os.lstat(rf)[stat.ST_MODE]
                 except OSError:
@@ -444,9 +435,11 @@ def commit(ui, repo, *pats, **opts):
                     if i >= len(slist) or not slist[i].startswith(name):
                         raise util.Abort(_("no match under directory %s!")
                                          % rf)
-                elif not stat.S_ISREG(mode):
+                elif not (stat.S_ISREG(mode) or stat.S_ISLNK(mode)):
                     raise util.Abort(_("can't commit %s: "
                                        "unsupported file type!") % rf)
+                elif repo.dirstate.state(f) == '?':
+                    raise util.Abort(_("file %s not tracked!") % rf)
     else:
         files = []
     try:
@@ -487,29 +480,31 @@ def docopy(ui, repo, pats, opts, wlock):
     # origsrc: hgsep
     # abssrc: hgsep
     # relsrc: ossep
-    # target: ossep
-    def copy(origsrc, abssrc, relsrc, target, exact):
-        abstarget = util.canonpath(repo.root, cwd, target)
-        reltarget = util.pathto(cwd, abstarget)
+    # otarget: ossep
+    def copy(origsrc, abssrc, relsrc, otarget, exact):
+        abstarget = util.canonpath(repo.root, cwd, otarget)
+        reltarget = repo.pathto(abstarget, cwd)
         prevsrc = targets.get(abstarget)
+        src = repo.wjoin(abssrc)
+        target = repo.wjoin(abstarget)
         if prevsrc is not None:
             ui.warn(_('%s: not overwriting - %s collides with %s\n') %
-                    (reltarget, util.localpath(abssrc),
-                     util.localpath(prevsrc)))
+                    (reltarget, repo.pathto(abssrc, cwd),
+                     repo.pathto(prevsrc, cwd)))
             return
-        if (not opts['after'] and os.path.exists(reltarget) or
-            opts['after'] and repo.dirstate.state(abstarget) not in '?r'):
+        if (not opts['after'] and os.path.exists(target) or
+            opts['after'] and repo.dirstate.state(abstarget) not in '?ar'):
             if not opts['force']:
                 ui.warn(_('%s: not overwriting - file exists\n') %
                         reltarget)
                 return
             if not opts['after'] and not opts.get('dry_run'):
-                os.unlink(reltarget)
+                os.unlink(target)
         if opts['after']:
-            if not os.path.exists(reltarget):
+            if not os.path.exists(target):
                 return
         else:
-            targetdir = os.path.dirname(reltarget) or '.'
+            targetdir = os.path.dirname(target) or '.'
             if not os.path.isdir(targetdir) and not opts.get('dry_run'):
                 os.makedirs(targetdir)
             try:
@@ -518,11 +513,11 @@ def docopy(ui, repo, pats, opts, wlock):
                     repo.undelete([abstarget], wlock)
                 try:
                     if not opts.get('dry_run'):
-                        util.copyfile(relsrc, reltarget)
+                        util.copyfile(src, target)
                     restore = False
                 finally:
                     if restore:
-                        repo.remove([abstarget], wlock)
+                        repo.remove([abstarget], wlock=wlock)
             except IOError, inst:
                 if inst.errno == errno.ENOENT:
                     ui.warn(_('%s: deleted in working copy\n') % relsrc)
@@ -605,7 +600,7 @@ def docopy(ui, repo, pats, opts, wlock):
         return res
 
 
-    pats = list(pats)
+    pats = util.expand_glob(pats)
     if not pats:
         raise util.Abort(_('no source or destination specified'))
     if len(pats) == 1:
@@ -622,7 +617,8 @@ def docopy(ui, repo, pats, opts, wlock):
     copylist = []
     for pat in pats:
         srcs = []
-        for tag, abssrc, relsrc, exact in cmdutil.walk(repo, [pat], opts):
+        for tag, abssrc, relsrc, exact in cmdutil.walk(repo, [pat], opts,
+                                                       globbed=True):
             origsrc = okaytocopy(abssrc, relsrc, exact)
             if origsrc:
                 srcs.append((origsrc, abssrc, relsrc, exact))
@@ -660,7 +656,7 @@ def copy(ui, repo, *pats, **opts):
 
 def debugancestor(ui, index, rev1, rev2):
     """find the ancestor revision of two revisions in a given index"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False), index, "", 0)
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), index)
     a = r.ancestor(r.lookup(rev1), r.lookup(rev2))
     ui.write("%d:%s\n" % (r.rev(a), hex(a)))
 
@@ -671,7 +667,7 @@ def debugcomplete(ui, cmd='', **opts):
         options = []
         otables = [globalopts]
         if cmd:
-            aliases, entry = findcmd(ui, cmd)
+            aliases, entry = cmdutil.findcmd(ui, cmd)
             otables.append(entry[1])
         for t in otables:
             for o in t:
@@ -681,33 +677,25 @@ def debugcomplete(ui, cmd='', **opts):
         ui.write("%s\n" % "\n".join(options))
         return
 
-    clist = findpossible(ui, cmd).keys()
+    clist = cmdutil.findpossible(ui, cmd).keys()
     clist.sort()
     ui.write("%s\n" % "\n".join(clist))
 
-def debugrebuildstate(ui, repo, rev=None):
+def debugrebuildstate(ui, repo, rev=""):
     """rebuild the dirstate as it would look like for the given revision"""
-    if not rev:
+    if rev == "":
         rev = repo.changelog.tip()
-    else:
-        rev = repo.lookup(rev)
-    change = repo.changelog.read(rev)
-    n = change[0]
-    files = repo.manifest.read(n)
+    ctx = repo.changectx(rev)
+    files = ctx.manifest()
     wlock = repo.wlock()
     repo.dirstate.rebuild(rev, files)
 
 def debugcheckstate(ui, repo):
     """validate the correctness of the current dirstate"""
     parent1, parent2 = repo.dirstate.parents()
-    repo.dirstate.read()
-    dc = repo.dirstate.map
-    keys = dc.keys()
-    keys.sort()
-    m1n = repo.changelog.read(parent1)[0]
-    m2n = repo.changelog.read(parent2)[0]
-    m1 = repo.manifest.read(m1n)
-    m2 = repo.manifest.read(m2n)
+    dc = repo.dirstate
+    m1 = repo.changectx(parent1).manifest()
+    m2 = repo.changectx(parent2).manifest()
     errors = 0
     for f in dc:
         state = repo.dirstate.state(f)
@@ -766,26 +754,32 @@ def debugsetparents(ui, repo, rev1, rev2=None):
     if not rev2:
         rev2 = hex(nullid)
 
-    repo.dirstate.setparents(repo.lookup(rev1), repo.lookup(rev2))
+    wlock = repo.wlock()
+    try:
+        repo.dirstate.setparents(repo.lookup(rev1), repo.lookup(rev2))
+    finally:
+        wlock.release()
 
 def debugstate(ui, repo):
     """show the contents of the current dirstate"""
-    repo.dirstate.read()
-    dc = repo.dirstate.map
-    keys = dc.keys()
-    keys.sort()
-    for file_ in keys:
+    dc = repo.dirstate
+    for file_ in dc:
+        if dc[file_][3] == -1:
+            # Pad or slice to locale representation
+            locale_len = len(time.strftime("%x %X", time.localtime(0)))
+            timestr = 'unset'
+            timestr = timestr[:locale_len] + ' '*(locale_len - len(timestr))
+        else:
+            timestr = time.strftime("%x %X", time.localtime(dc[file_][3]))
         ui.write("%c %3o %10d %s %s\n"
                  % (dc[file_][0], dc[file_][1] & 0777, dc[file_][2],
-                    time.strftime("%x %X",
-                                  time.localtime(dc[file_][3])), file_))
+                    timestr, file_))
     for f in repo.dirstate.copies():
         ui.write(_("copy: %s -> %s\n") % (repo.dirstate.copied(f), f))
 
 def debugdata(ui, file_, rev):
-    """dump the contents of an data file revision"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False),
-                      file_[:-2] + ".i", file_, 0)
+    """dump the contents of a data file revision"""
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_[:-2] + ".i")
     try:
         ui.write(r.revision(r.lookup(rev)))
     except KeyError:
@@ -805,7 +799,7 @@ def debugdate(ui, date, range=None, **opts):
 
 def debugindex(ui, file_):
     """dump the contents of an index file"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_, "", 0)
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_)
     ui.write("   rev    offset  length   base linkrev" +
              " nodeid       p1           p2\n")
     for i in xrange(r.count()):
@@ -817,7 +811,7 @@ def debugindex(ui, file_):
 
 def debugindexdot(ui, file_):
     """dump an index DAG as a .dot file"""
-    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_, "", 0)
+    r = revlog.revlog(util.opener(os.getcwd(), audit=False), file_)
     ui.write("digraph G {\n")
     for i in xrange(r.count()):
         node = r.node(i)
@@ -870,9 +864,10 @@ def debuginstall(ui):
 
     # patch
     ui.status(_("Checking patch...\n"))
-    path = os.environ.get('PATH', '')
-    patcher = util.find_in_path('gpatch', path,
-                                util.find_in_path('patch', path, None))
+    patcher = ui.config('ui', 'patch')
+    patcher = ((patcher and util.find_exe(patcher)) or
+               util.find_exe('gpatch') or
+               util.find_exe('patch'))
     if not patcher:
         ui.write(_(" Can't find patch or gpatch in PATH\n"))
         ui.write(_(" (specify a patch utility in your .hgrc file)\n"))
@@ -881,27 +876,28 @@ def debuginstall(ui):
         # actually attempt a patch here
         a = "1\n2\n3\n4\n"
         b = "1\n2\n3\ninsert\n4\n"
-        d = mdiff.unidiff(a, None, b, None, "a")
         fa = writetemp(a)
+        d = mdiff.unidiff(a, None, b, None, os.path.basename(fa))
         fd = writetemp(d)
-        fp = os.popen('%s %s %s' % (patcher, fa, fd))
-        files = []
-        output = ""
-        for line in fp:
-            output += line
-            if line.startswith('patching file '):
-                pf = util.parse_patch_output(line.rstrip())
-                files.append(pf)
-        if files != [fa]:
-            ui.write(_(" unexpected patch output!"))
-            ui.write(_(" (you may have an incompatible version of patch)\n"))
-            ui.write(output)
+
+        files = {}
+        try:
+            patch.patch(fd, ui, cwd=os.path.dirname(fa), files=files)
+        except util.Abort, e:
+            ui.write(_(" patch call failed:\n"))
+            ui.write(" " + str(e) + "\n")
             problems += 1
-        a = file(fa).read()
-        if a != b:
-            ui.write(_(" patch test failed!"))
-            ui.write(_(" (you may have an incompatible version of patch)\n"))
-            problems += 1
+        else:
+            if list(files) != [os.path.basename(fa)]:
+                ui.write(_(" unexpected patch output!"))
+                ui.write(_(" (you may have an incompatible version of patch)\n"))
+                problems += 1
+            a = file(fa).read()
+            if a != b:
+                ui.write(_(" patch test failed!"))
+                ui.write(_(" (you may have an incompatible version of patch)\n"))
+                problems += 1
+
         os.unlink(fa)
         os.unlink(fd)
 
@@ -909,9 +905,7 @@ def debuginstall(ui):
     ui.status(_("Checking merge helper...\n"))
     cmd = (os.environ.get("HGMERGE") or ui.config("ui", "merge")
            or "hgmerge")
-    cmdpath = util.find_in_path(cmd, path)
-    if not cmdpath:
-        cmdpath = util.find_in_path(cmd.split()[0], path)
+    cmdpath = util.find_exe(cmd) or util.find_exe(cmd.split()[0])
     if not cmdpath:
         if cmd == 'hgmerge':
             ui.write(_(" No merge helper set and can't find default"
@@ -945,9 +939,7 @@ def debuginstall(ui):
     editor = (os.environ.get("HGEDITOR") or
               ui.config("ui", "editor") or
               os.environ.get("EDITOR", "vi"))
-    cmdpath = util.find_in_path(editor, path)
-    if not cmdpath:
-        cmdpath = util.find_in_path(editor.split()[0], path)
+    cmdpath = util.find_exe(editor) or util.find_exe(editor.split()[0])
     if not cmdpath:
         if editor == 'vi':
             ui.write(_(" No commit editor set and can't find vi in PATH\n"))
@@ -1150,13 +1142,14 @@ def grep(ui, repo, pattern, *pats, **opts):
 
     prev = {}
     def display(fn, rev, states, prevstates):
-        counts = {'-': 0, '+': 0}
+        found = False
         filerevmatches = {}
-        if incrementing or not opts['all']:
-            a, b, r = prevstates, states, rev
+        r = prev.get(fn, -1)
+        if opts['all']:
+            iter = difflinestates(states, prevstates)
         else:
-            a, b, r = states, prevstates, prev.get(fn, -1)
-        for change, l in difflinestates(a, b):
+            iter = [('', l) for l in prevstates]
+        for change, l in iter:
             cols = [fn, str(r)]
             if opts['line_number']:
                 cols.append(str(l.linenum))
@@ -1172,19 +1165,17 @@ def grep(ui, repo, pattern, *pats, **opts):
             else:
                 cols.append(l.line)
             ui.write(sep.join(cols), eol)
-            counts[change] += 1
-        return counts['+'], counts['-']
+            found = True
+        return found
 
     fstate = {}
     skip = {}
     get = util.cachefunc(lambda r: repo.changectx(r).changeset())
     changeiter, matchfn = cmdutil.walkchangerevs(ui, repo, pats, get, opts)
-    count = 0
-    incrementing = False
+    found = False
     follow = opts.get('follow')
     for st, rev, fns in changeiter:
         if st == 'window':
-            incrementing = rev
             matches.clear()
         elif st == 'add':
             mf = repo.changectx(rev).manifest()
@@ -1210,10 +1201,10 @@ def grep(ui, repo, pattern, *pats, **opts):
                     if copy:
                         skip[copy] = True
                     continue
-                if incrementing or not opts['all'] or fstate[fn]:
-                    pos, neg = display(fn, rev, m, fstate[fn])
-                    count += pos + neg
-                    if pos and not opts['all']:
+                if fn in prev or fstate[fn]:
+                    r = display(fn, rev, m, fstate[fn])
+                    found = found or r
+                    if r and not opts['all']:
                         skip[fn] = True
                         if copy:
                             skip[copy] = True
@@ -1222,29 +1213,59 @@ def grep(ui, repo, pattern, *pats, **opts):
                     fstate[copy] = m
                 prev[fn] = rev
 
-    if not incrementing:
-        fstate = fstate.items()
-        fstate.sort()
-        for fn, state in fstate:
-            if fn in skip:
-                continue
-            if fn not in copies.get(prev[fn], {}):
-                display(fn, rev, {}, state)
-    return (count == 0 and 1) or 0
+    fstate = fstate.items()
+    fstate.sort()
+    for fn, state in fstate:
+        if fn in skip:
+            continue
+        if fn not in copies.get(prev[fn], {}):
+            found = display(fn, rev, {}, state) or found
+    return (not found and 1) or 0
 
-def heads(ui, repo, **opts):
-    """show current repository heads
+def heads(ui, repo, *branchrevs, **opts):
+    """show current repository heads or show branch heads
 
-    Show all repository head changesets.
+    With no arguments, show all repository head changesets.
 
-    Repository "heads" are changesets that don't have children
+    If branch or revisions names are given this will show the heads of
+    the specified branches or the branches those revisions are tagged
+    with.
+
+    Repository "heads" are changesets that don't have child
     changesets. They are where development generally takes place and
     are the usual targets for update and merge operations.
+
+    Branch heads are changesets that have a given branch tag, but have
+    no child changesets with that tag.  They are usually where
+    development on the given branch takes place.
     """
     if opts['rev']:
-        heads = repo.heads(repo.lookup(opts['rev']))
+        start = repo.lookup(opts['rev'])
     else:
-        heads = repo.heads()
+        start = None
+    if not branchrevs:
+        # Assume we're looking repo-wide heads if no revs were specified.
+        heads = repo.heads(start)
+    else:
+        heads = []
+        visitedset = util.set()
+        for branchrev in branchrevs:
+            branch = repo.changectx(branchrev).branch()
+            if branch in visitedset:
+                continue
+            visitedset.add(branch)
+            bheads = repo.branchheads(branch, start)
+            if not bheads:
+                if branch != branchrev:
+                    ui.warn(_("no changes on branch %s containing %s are "
+                              "reachable from %s\n")
+                            % (branch, branchrev, opts['rev']))
+                else:
+                    ui.warn(_("no changes on branch %s are reachable from %s\n")
+                            % (branch, opts['rev']))
+            heads.extend(bheads)
+    if not heads:
+        return 1
     displayer = cmdutil.show_changeset(ui, repo, opts)
     for n in heads:
         displayer.show(changenode=n)
@@ -1260,11 +1281,28 @@ def help_(ui, name=None, with_version=False):
     commands it provides."""
     option_lists = []
 
+    def addglobalopts(aliases):
+        if ui.verbose:
+            option_lists.append((_("global options:"), globalopts))
+            if name == 'shortlist':
+                option_lists.append((_('use "hg help" for the full list '
+                                       'of commands'), ()))
+        else:
+            if name == 'shortlist':
+                msg = _('use "hg help" for the full list of commands '
+                        'or "hg -v" for details')
+            elif aliases:
+                msg = _('use "hg -v help%s" to show aliases and '
+                        'global options') % (name and " " + name or "")
+            else:
+                msg = _('use "hg -v help %s" to show global options') % name
+            option_lists.append((msg, ()))
+
     def helpcmd(name):
         if with_version:
             version_(ui)
             ui.write('\n')
-        aliases, i = findcmd(ui, name)
+        aliases, i = cmdutil.findcmd(ui, name)
         # synopsis
         ui.write("%s\n\n" % i[2])
 
@@ -1283,7 +1321,9 @@ def help_(ui, name=None, with_version=False):
 
             # options
             if i[1]:
-                option_lists.append(("options", i[1]))
+                option_lists.append((_("options:\n"), i[1]))
+
+            addglobalopts(False)
 
     def helplist(select=None):
         h = {}
@@ -1313,6 +1353,9 @@ def help_(ui, name=None, with_version=False):
             else:
                 ui.write(' %-*s   %s\n' % (m, f, h[f]))
 
+        if not ui.quiet:
+            addglobalopts(True)
+
     def helptopic(name):
         v = None
         for i in help.helptable:
@@ -1321,7 +1364,7 @@ def help_(ui, name=None, with_version=False):
                 v = i
                 header = l[-1]
         if not v:
-            raise UnknownCommand(name)
+            raise cmdutil.UnknownCommand(name)
 
         # description
         doc = help.helptable[v]
@@ -1335,9 +1378,9 @@ def help_(ui, name=None, with_version=False):
 
     def helpext(name):
         try:
-            mod = findext(name)
+            mod = extensions.find(name)
         except KeyError:
-            raise UnknownCommand(name)
+            raise cmdutil.UnknownCommand(name)
 
         doc = (mod.__doc__ or _('No help text available')).splitlines(0)
         ui.write(_('%s extension - %s\n') % (name.split('.')[-1], doc[0]))
@@ -1345,13 +1388,15 @@ def help_(ui, name=None, with_version=False):
             ui.write(d, '\n')
 
         ui.status('\n')
-        if ui.verbose:
-            ui.status(_('list of commands:\n\n'))
-        else:
-            ui.status(_('list of commands (use "hg help -v %s" '
-                        'to show aliases and global options):\n\n') % name)
 
-        modcmds = dict.fromkeys([c.split('|', 1)[0] for c in mod.cmdtable])
+        try:
+            ct = mod.cmdtable
+        except AttributeError:
+            ui.status(_('no commands defined\n'))
+            return
+
+        ui.status(_('list of commands:\n\n'))
+        modcmds = dict.fromkeys([c.split('|', 1)[0] for c in ct])
         helplist(modcmds.has_key)
 
     if name and name != 'shortlist':
@@ -1361,7 +1406,7 @@ def help_(ui, name=None, with_version=False):
                 f(name)
                 i = None
                 break
-            except UnknownCommand, inst:
+            except cmdutil.UnknownCommand, inst:
                 i = inst
         if i:
             raise i
@@ -1376,24 +1421,16 @@ def help_(ui, name=None, with_version=False):
 
         # list of commands
         if name == "shortlist":
-            ui.status(_('basic commands (use "hg help" '
-                        'for the full list or option "-v" for details):\n\n'))
-        elif ui.verbose:
-            ui.status(_('list of commands:\n\n'))
+            ui.status(_('basic commands:\n\n'))
         else:
-            ui.status(_('list of commands (use "hg help -v" '
-                        'to show aliases and global options):\n\n'))
+            ui.status(_('list of commands:\n\n'))
 
         helplist()
-
-    # global options
-    if ui.verbose:
-        option_lists.append(("global options", globalopts))
 
     # list all option lists
     opt_output = []
     for title, options in option_lists:
-        opt_output.append(("\n%s:\n" % title, None))
+        opt_output.append(("\n%s" % title, None))
         for shortopt, longopt, default, desc in options:
             if "DEPRECATED" in desc and not ui.verbose: continue
             opt_output.append(("%2s%s" % (shortopt and "-%s" % shortopt,
@@ -1404,45 +1441,76 @@ def help_(ui, name=None, with_version=False):
                                          or "")))
 
     if opt_output:
-        opts_len = max([len(line[0]) for line in opt_output if line[1]])
+        opts_len = max([len(line[0]) for line in opt_output if line[1]] or [0])
         for first, second in opt_output:
             if second:
                 ui.write(" %-*s  %s\n" % (opts_len, first, second))
             else:
                 ui.write("%s\n" % first)
 
-def identify(ui, repo):
-    """print information about the working copy
+def identify(ui, repo, source=None,
+             rev=None, num=None, id=None, branch=None, tags=None):
+    """identify the working copy or specified revision
 
-    Print a short summary of the current state of the repo.
+    With no revision, print a summary of the current state of the repo.
+
+    With a path, do a lookup in another repository.
 
     This summary identifies the repository state using one or two parent
     hash identifiers, followed by a "+" if there are uncommitted changes
-    in the working directory, followed by a list of tags for this revision.
+    in the working directory, a list of tags for this revision and a branch
+    name for non-default branches.
     """
-    parents = [p for p in repo.dirstate.parents() if p != nullid]
-    if not parents:
-        ui.write(_("unknown\n"))
-        return
 
     hexfunc = ui.debugflag and hex or short
-    modified, added, removed, deleted = repo.status()[:4]
-    output = ["%s%s" %
-              ('+'.join([hexfunc(parent) for parent in parents]),
-              (modified or added or removed or deleted) and "+" or "")]
+    default = not (num or id or branch or tags)
+    output = []
 
-    if not ui.quiet:
+    if source:
+        source, revs = cmdutil.parseurl(ui.expandpath(source), [])
+        srepo = hg.repository(ui, source)
+        if not rev and revs:
+            rev = revs[0]
+        if not rev:
+            rev = "tip"
+        if num or branch or tags:
+            raise util.Abort(
+                "can't query remote revision number, branch, or tags")
+        output = [hexfunc(srepo.lookup(rev))]
+    elif not rev:
+        ctx = repo.workingctx()
+        parents = ctx.parents()
+        changed = False
+        if default or id or num:
+            changed = ctx.files() + ctx.deleted()
+        if default or id:
+            output = ["%s%s" % ('+'.join([hexfunc(p.node()) for p in parents]),
+                                (changed) and "+" or "")]
+        if num:
+            output.append("%s%s" % ('+'.join([str(p.rev()) for p in parents]),
+                                    (changed) and "+" or ""))
+    else:
+        ctx = repo.changectx(rev)
+        if default or id:
+            output = [hexfunc(ctx.node())]
+        if num:
+            output.append(str(ctx.rev()))
 
-        branch = util.tolocal(repo.workingctx().branch())
-        if branch:
-            output.append("(%s)" % branch)
+    if not source and default and not ui.quiet:
+        b = util.tolocal(ctx.branch())
+        if b != 'default':
+            output.append("(%s)" % b)
 
         # multiple tags for a single parent separated by '/'
-        parenttags = ['/'.join(tags)
-                      for tags in map(repo.nodetags, parents) if tags]
-        # tags for multiple parents separated by ' + '
-        if parenttags:
-            output.append(' + '.join(parenttags))
+        t = "/".join(ctx.tags())
+        if t:
+            output.append(t)
+
+    if branch:
+        output.append(util.tolocal(ctx.branch()))
+
+    if tags:
+        output.extend(ctx.tags())
 
     ui.write("%s\n" % ' '.join(output))
 
@@ -1461,16 +1529,22 @@ def import_(ui, repo, patch1, *patches, **opts):
     text/plain body parts before first diff are added to commit
     message.
 
-    If imported patch was generated by hg export, user and description
+    If the imported patch was generated by hg export, user and description
     from patch override values from message headers and body.  Values
     given on command line with -m and -u override these.
+
+    If --exact is specified, import will set the working directory
+    to the parent of each patch before applying it, and will abort
+    if the resulting changeset has a different ID than the one
+    recorded in the patch. This may happen due to character set
+    problems or other deficiencies in the text patch format.
 
     To read a patch from standard input, use patch name "-".
     """
     patches = (patch1,) + patches
 
-    if not opts['force']:
-        bail_if_changed(repo)
+    if opts.get('exact') or not opts['force']:
+        cmdutil.bail_if_changed(repo)
 
     d = opts["base"]
     strip = opts["strip"]
@@ -1483,16 +1557,16 @@ def import_(ui, repo, patch1, *patches, **opts):
 
         if pf == '-':
             ui.status(_("applying patch from stdin\n"))
-            tmpname, message, user, date = patch.extract(ui, sys.stdin)
+            tmpname, message, user, date, branch, nodeid, p1, p2 = patch.extract(ui, sys.stdin)
         else:
             ui.status(_("applying %s\n") % p)
-            tmpname, message, user, date = patch.extract(ui, file(pf))
+            tmpname, message, user, date, branch, nodeid, p1, p2 = patch.extract(ui, file(pf, 'rb'))
 
         if tmpname is None:
             raise util.Abort(_('no diffs found'))
 
         try:
-            cmdline_message = logmessage(opts)
+            cmdline_message = cmdutil.logmessage(opts)
             if cmdline_message:
                 # pickup the cmdline msg
                 message = cmdline_message
@@ -1504,13 +1578,38 @@ def import_(ui, repo, patch1, *patches, **opts):
                 message = None
             ui.debug(_('message:\n%s\n') % message)
 
+            wp = repo.workingctx().parents()
+            if opts.get('exact'):
+                if not nodeid or not p1:
+                    raise util.Abort(_('not a mercurial patch'))
+                p1 = repo.lookup(p1)
+                p2 = repo.lookup(p2 or hex(nullid))
+
+                if p1 != wp[0].node():
+                    hg.clean(repo, p1, wlock=wlock)
+                repo.dirstate.setparents(p1, p2)
+            elif p2:
+                try:
+                    p1 = repo.lookup(p1)
+                    p2 = repo.lookup(p2)
+                    if p1 == wp[0].node():
+                        repo.dirstate.setparents(p1, p2)
+                except hg.RepoError:
+                    pass
+            if opts.get('exact') or opts.get('import_branch'):
+                repo.dirstate.setbranch(branch or 'default')
+
             files = {}
             try:
                 fuzz = patch.patch(tmpname, ui, strip=strip, cwd=repo.root,
                                    files=files)
             finally:
                 files = patch.updatedir(ui, repo, files, wlock=wlock)
-            repo.commit(files, message, user, date, wlock=wlock, lock=lock)
+            n = repo.commit(files, message, user, date, wlock=wlock, lock=lock)
+            if opts.get('exact'):
+                if hex(n) != nodeid:
+                    repo.rollback(wlock=wlock, lock=lock)
+                    raise util.Abort(_('patch is damaged or loses information'))
         finally:
             os.unlink(tmpname)
 
@@ -1526,21 +1625,37 @@ def incoming(ui, repo, source="default", **opts):
 
     See pull for valid source format details.
     """
-    source = ui.expandpath(source)
-    setremoteconfig(ui, opts)
+    source, revs = cmdutil.parseurl(ui.expandpath(source), opts['rev'])
+    cmdutil.setremoteconfig(ui, opts)
 
     other = hg.repository(ui, source)
-    incoming = repo.findincoming(other, force=opts["force"])
+    ui.status(_('comparing with %s\n') % source)
+    if revs:
+        if 'lookup' in other.capabilities:
+            revs = [other.lookup(rev) for rev in revs]
+        else:
+            error = _("Other repository doesn't support revision lookup, so a rev cannot be specified.")
+            raise util.Abort(error)
+    incoming = repo.findincoming(other, heads=revs, force=opts["force"])
     if not incoming:
+        try:
+            os.unlink(opts["bundle"])
+        except:
+            pass
         ui.status(_("no changes found\n"))
-        return
+        return 1
 
     cleanup = None
     try:
         fname = opts["bundle"]
         if fname or not other.local():
             # create a bundle (uncompressed if other repo is not local)
-            cg = other.changegroup(incoming, "incoming")
+            if revs is None:
+                cg = other.changegroup(incoming, "incoming")
+            else:
+                if 'changegroupsubset' not in other.capabilities:
+                    raise util.Abort(_("Partial incoming cannot be done because other repository doesn't support changegroupsubset."))
+                cg = other.changegroupsubset(incoming, revs, 'incoming')
             bundletype = other.local() and "HG10BZ" or "HG10UN"
             fname = cleanup = changegroup.writebundle(cg, fname, bundletype)
             # keep written bundle?
@@ -1550,9 +1665,6 @@ def incoming(ui, repo, source="default", **opts):
                 # use the created uncompressed bundlerepo
                 other = bundlerepo.bundlerepository(ui, repo.root, fname)
 
-        revs = None
-        if opts['rev']:
-            revs = [other.lookup(rev) for rev in opts['rev']]
         o = other.changelog.nodesbetween(incoming, revs)[0]
         if opts['newest_first']:
             o.reverse()
@@ -1580,7 +1692,7 @@ def init(ui, dest=".", **opts):
     Look at the help text for the pull command for important details
     about ssh:// URLs.
     """
-    setremoteconfig(ui, opts)
+    cmdutil.setremoteconfig(ui, opts)
     hg.repository(ui, dest, create=1)
 
 def locate(ui, repo, *pats, **opts):
@@ -1589,9 +1701,9 @@ def locate(ui, repo, *pats, **opts):
     Print all files under Mercurial control whose names match the
     given patterns.
 
-    This command searches the current directory and its
-    subdirectories.  To search an entire repository, move to the root
-    of the repository.
+    This command searches the entire repository by default.  To search
+    just the current directory and its subdirectories, use
+    "--include .".
 
     If no patterns are given to match, this command prints all file
     names.
@@ -1608,14 +1720,21 @@ def locate(ui, repo, *pats, **opts):
     else:
         node = None
 
+    ret = 1
     for src, abs, rel, exact in cmdutil.walk(repo, pats, opts, node=node,
-                                             head='(?:.*/|)'):
+                                             badmatch=util.always,
+                                             default='relglob'):
+        if src == 'b':
+            continue
         if not node and repo.dirstate.state(abs) == '?':
             continue
         if opts['fullpath']:
             ui.write(os.path.join(repo.root, abs), end)
         else:
             ui.write(((pats and rel) or abs), end)
+        ret = 0
+
+    return ret
 
 def log(ui, repo, *pats, **opts):
     """show revision history of entire repository or files
@@ -1698,7 +1817,6 @@ def log(ui, repo, *pats, **opts):
     if opts["date"]:
         df = util.matchdate(opts["date"])
 
-
     displayer = cmdutil.show_changeset(ui, repo, opts, True, matchfn)
     for st, rev, fns in changeiter:
         if st == 'add':
@@ -1721,7 +1839,7 @@ def log(ui, repo, *pats, **opts):
                 for k in [kw.lower() for kw in opts['keyword']]:
                     if not (k in changes[1].lower() or
                             k in changes[4].lower() or
-                            k in " ".join(changes[3][:20]).lower()):
+                            k in " ".join(changes[3]).lower()):
                         miss = 1
                         break
                 if miss:
@@ -1765,8 +1883,8 @@ def manifest(ui, repo, rev=None):
             ui.write("%3s " % (m.execf(f) and "755" or "644"))
         ui.write("%s\n" % f)
 
-def merge(ui, repo, node=None, force=None, branch=None):
-    """Merge working directory with another revision
+def merge(ui, repo, node=None, force=None, rev=None):
+    """merge working directory with another revision
 
     Merge the contents of the current working directory and the
     requested revision. Files that changed between either parent are
@@ -1779,9 +1897,13 @@ def merge(ui, repo, node=None, force=None, branch=None):
     revision to merge with must be provided.
     """
 
-    if node or branch:
-        node = _lookup(repo, node, branch)
-    else:
+    if rev and node:
+        raise util.Abort(_("please specify just one revision"))
+
+    if not node:
+        node = rev
+
+    if not node:
         heads = repo.heads()
         if len(heads) > 2:
             raise util.Abort(_('repo has %d heads - '
@@ -1806,17 +1928,18 @@ def outgoing(ui, repo, dest=None, **opts):
 
     See pull for valid destination format details.
     """
-    dest = ui.expandpath(dest or 'default-push', dest or 'default')
-    setremoteconfig(ui, opts)
-    revs = None
-    if opts['rev']:
-        revs = [repo.lookup(rev) for rev in opts['rev']]
+    dest, revs = cmdutil.parseurl(
+        ui.expandpath(dest or 'default-push', dest or 'default'), opts['rev'])
+    cmdutil.setremoteconfig(ui, opts)
+    if revs:
+        revs = [repo.lookup(rev) for rev in revs]
 
     other = hg.repository(ui, dest)
+    ui.status(_('comparing with %s\n') % dest)
     o = repo.findoutgoing(other, force=opts['force'])
     if not o:
         ui.status(_("no changes found\n"))
-        return
+        return 1
     o = repo.changelog.nodesbetween(o, revs)[0]
     if opts['newest_first']:
         o.reverse()
@@ -1830,17 +1953,20 @@ def outgoing(ui, repo, dest=None, **opts):
 def parents(ui, repo, file_=None, **opts):
     """show the parents of the working dir or revision
 
-    Print the working directory's parent revisions.
+    Print the working directory's parent revisions. If a
+    revision is given via --rev, the parent of that revision
+    will be printed. If a file argument is given, revision in
+    which the file was last changed (before the working directory
+    revision or the argument to --rev if given) is printed.
     """
     rev = opts.get('rev')
-    if rev:
-        if file_:
-            ctx = repo.filectx(file_, changeid=rev)
-        else:
-            ctx = repo.changectx(rev)
-        p = [cp.node() for cp in ctx.parents()]
+    if file_:
+        ctx = repo.filectx(file_, changeid=rev)
+    elif rev:
+        ctx = repo.changectx(rev)
     else:
-        p = repo.dirstate.parents()
+        ctx = repo.workingctx()
+    p = [cp.node() for cp in ctx.parents()]
 
     displayer = cmdutil.show_changeset(ui, repo, opts)
     for n in p:
@@ -1903,6 +2029,9 @@ def pull(ui, repo, source="default", **opts):
     allows access to a Mercurial repository where you simply use a web
     server to publish the .hg directory as static content.
 
+    An optional identifier after # indicates a particular branch, tag,
+    or changeset to pull.
+
     Some notes about using SSH with Mercurial:
     - SSH requires an accessible shell account on the destination machine
       and a copy of hg in the remote path or specified with as remotecmd.
@@ -1918,18 +2047,18 @@ def pull(ui, repo, source="default", **opts):
       Alternatively specify "ssh -C" as your ssh command in your hgrc or
       with the --ssh command line option.
     """
-    source = ui.expandpath(source)
-    setremoteconfig(ui, opts)
+    source, revs = cmdutil.parseurl(ui.expandpath(source), opts['rev'])
+    cmdutil.setremoteconfig(ui, opts)
 
     other = hg.repository(ui, source)
     ui.status(_('pulling from %s\n') % (source))
-    revs = None
-    if opts['rev']:
+    if revs:
         if 'lookup' in other.capabilities:
-            revs = [other.lookup(rev) for rev in opts['rev']]
+            revs = [other.lookup(rev) for rev in revs]
         else:
             error = _("Other repository doesn't support revision lookup, so a rev cannot be specified.")
             raise util.Abort(error)
+
     modheads = repo.pull(other, heads=revs, force=opts['force'])
     return postincoming(ui, repo, modheads, opts['update'])
 
@@ -1954,20 +2083,23 @@ def push(ui, repo, dest=None, **opts):
       http://[user@]host[:port]/[path]
       https://[user@]host[:port]/[path]
 
+    An optional identifier after # indicates a particular branch, tag,
+    or changeset to push.
+
     Look at the help text for the pull command for important details
     about ssh:// URLs.
 
     Pushing to http:// and https:// URLs is only possible, if this
     feature is explicitly enabled on the remote Mercurial server.
     """
-    dest = ui.expandpath(dest or 'default-push', dest or 'default')
-    setremoteconfig(ui, opts)
+    dest, revs = cmdutil.parseurl(
+        ui.expandpath(dest or 'default-push', dest or 'default'), opts['rev'])
+    cmdutil.setremoteconfig(ui, opts)
 
     other = hg.repository(ui, dest)
     ui.status('pushing to %s\n' % (dest))
-    revs = None
-    if opts['rev']:
-        revs = [repo.lookup(rev) for rev in opts['rev']]
+    if revs:
+        revs = [repo.lookup(rev) for rev in revs]
     r = repo.push(other, opts['force'], revs=revs)
     return r == 0
 
@@ -1986,7 +2118,7 @@ def rawcommit(ui, repo, *pats, **opts):
 
     ui.warn(_("(the rawcommit command is deprecated)\n"))
 
-    message = logmessage(opts)
+    message = cmdutil.logmessage(opts)
 
     files, match, anypats = cmdutil.matchpats(repo, pats, opts)
     if opts['files']:
@@ -2019,7 +2151,9 @@ def remove(ui, repo, *pats, **opts):
     This only removes files from the current branch, not from the
     entire project history.  If the files still exist in the working
     directory, they will be deleted from it.  If invoked with --after,
-    files that have been manually deleted are marked as removed.
+    files are marked as removed, but not actually unlinked unless --force
+    is also given. Without exact file names, --after will only mark
+    files as removed if they are no longer in the working directory.
 
     This command schedules the files to be removed at the next commit.
     To undo a remove before that, see hg revert.
@@ -2037,17 +2171,17 @@ def remove(ui, repo, *pats, **opts):
     remove, forget = [], []
     for src, abs, rel, exact in cmdutil.walk(repo, pats, opts):
         reason = None
-        if abs not in deleted and opts['after']:
-            reason = _('is still present')
-        elif abs in modified and not opts['force']:
+        if abs in modified and not opts['force']:
             reason = _('is modified (use -f to force removal)')
         elif abs in added:
             if opts['force']:
                 forget.append(abs)
                 continue
             reason = _('has been marked for add (use -f to force removal)')
-        elif abs in unknown:
+        elif repo.dirstate.state(abs) == '?':
             reason = _('is not managed')
+        elif opts['after'] and not exact and abs not in deleted:
+            continue
         elif abs in removed:
             continue
         if reason:
@@ -2058,7 +2192,7 @@ def remove(ui, repo, *pats, **opts):
                 ui.status(_('removing %s\n') % rel)
             remove.append(abs)
     repo.forget(forget)
-    repo.remove(remove, unlink=not opts['after'])
+    repo.remove(remove, unlink=opts['force'] or not opts['after'])
 
 def rename(ui, repo, *pats, **opts):
     """rename files; equivalent of copy + remove
@@ -2082,7 +2216,7 @@ def rename(ui, repo, *pats, **opts):
             ui.status(_('removing %s\n') % rel)
         names.append(abs)
     if not opts.get('dry_run'):
-        repo.remove(names, True, wlock)
+        repo.remove(names, True, wlock=wlock)
     return errs
 
 def revert(ui, repo, *pats, **opts):
@@ -2129,8 +2263,9 @@ def revert(ui, repo, *pats, **opts):
     if not opts['rev'] and p2 != nullid:
         raise util.Abort(_('uncommitted merge - please provide a '
                            'specific revision'))
-    node = repo.changectx(opts['rev']).node()
-    mf = repo.manifest.read(repo.changelog.read(node)[0])
+    ctx = repo.changectx(opts['rev'])
+    node = ctx.node()
+    mf = ctx.manifest()
     if node == parent:
         pmf = mf
     else:
@@ -2155,9 +2290,19 @@ def revert(ui, repo, *pats, **opts):
 
     # walk target manifest.
 
+    def badmatch(path):
+        if path in names:
+            return True
+        path_ = path + '/'
+        for f in names:
+            if f.startswith(path_):
+                return True
+        return False
+
     for src, abs, rel, exact in cmdutil.walk(repo, pats, opts, node=node,
-                                             badmatch=names.has_key):
-        if abs in names: continue
+                                             badmatch=badmatch):
+        if abs in names or src == 'b':
+            continue
         names[abs] = (rel, exact)
         target_only[abs] = True
 
@@ -2191,15 +2336,16 @@ def revert(ui, repo, *pats, **opts):
 
     for abs, (rel, exact) in entries:
         mfentry = mf.get(abs)
+        target = repo.wjoin(abs)
         def handle(xlist, dobackup):
             xlist[0].append(abs)
             update[abs] = 1
-            if dobackup and not opts['no_backup'] and os.path.exists(rel):
+            if dobackup and not opts['no_backup'] and util.lexists(target):
                 bakname = "%s.orig" % rel
                 ui.note(_('saving current version of %s as %s\n') %
                         (rel, bakname))
                 if not opts.get('dry_run'):
-                    util.copyfile(rel, bakname)
+                    util.copyfile(target, bakname)
             if ui.verbose or not exact:
                 ui.status(xlist[1] % rel)
         for table, hitlist, misslist, backuphit, backupmiss in disptable:
@@ -2220,7 +2366,7 @@ def revert(ui, repo, *pats, **opts):
             if pmf is None:
                 # only need parent manifest in this unlikely case,
                 # so do not read by default
-                pmf = repo.manifest.read(repo.changelog.read(parent)[0])
+                pmf = repo.changectx(parent).manifest()
             if abs in pmf:
                 if mfentry:
                     # if version of file is same in parent and target
@@ -2256,7 +2402,9 @@ def rollback(ui, repo):
       unbundle
 
     This command should be used with care. There is only one level of
-    rollback, and there is no way to undo a rollback.
+    rollback, and there is no way to undo a rollback. It will also
+    restore the dirstate at the time of the last transaction, which
+    may lose subsequent dirstate changes.
 
     This command is not intended for use on public repositories. Once
     changes are visible for pull by other users, rolling a transaction
@@ -2290,54 +2438,39 @@ def serve(ui, repo, **opts):
         s = sshserver.sshserver(ui, repo)
         s.serve_forever()
 
+    parentui = ui.parentui or ui
     optlist = ("name templates style address port ipv6"
                " accesslog errorlog webdir_conf")
     for o in optlist.split():
         if opts[o]:
-            ui.setconfig("web", o, str(opts[o]))
+            parentui.setconfig("web", o, str(opts[o]))
 
     if repo is None and not ui.config("web", "webdir_conf"):
         raise hg.RepoError(_("There is no Mercurial repository here"
                              " (.hg not found)"))
 
-    if opts['daemon'] and not opts['daemon_pipefds']:
-        rfd, wfd = os.pipe()
-        args = sys.argv[:]
-        args.append('--daemon-pipefds=%d,%d' % (rfd, wfd))
-        pid = os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0),
-                         args[0], args)
-        os.close(wfd)
-        os.read(rfd, 1)
-        os._exit(0)
+    class service:
+        def init(self):
+            util.set_signal_handler()
+            try:
+                self.httpd = hgweb.server.create_server(parentui, repo)
+            except socket.error, inst:
+                raise util.Abort(_('cannot start server: ') + inst.args[1])
 
-    httpd = hgweb.server.create_server(ui, repo)
+            if not ui.verbose: return
 
-    if ui.verbose:
-        if httpd.port != 80:
-            ui.status(_('listening at http://%s:%d/\n') %
-                      (httpd.addr, httpd.port))
-        else:
-            ui.status(_('listening at http://%s/\n') % httpd.addr)
+            if self.httpd.port != 80:
+                ui.status(_('listening at http://%s:%d/\n') %
+                          (self.httpd.addr, self.httpd.port))
+            else:
+                ui.status(_('listening at http://%s/\n') % self.httpd.addr)
 
-    if opts['pid_file']:
-        fp = open(opts['pid_file'], 'w')
-        fp.write(str(os.getpid()) + '\n')
-        fp.close()
+        def run(self):
+            self.httpd.serve_forever()
 
-    if opts['daemon_pipefds']:
-        rfd, wfd = [int(x) for x in opts['daemon_pipefds'].split(',')]
-        os.close(rfd)
-        os.write(wfd, 'y')
-        os.close(wfd)
-        sys.stdout.flush()
-        sys.stderr.flush()
-        fd = os.open(util.nulldev, os.O_RDWR)
-        if fd != 0: os.dup2(fd, 0)
-        if fd != 1: os.dup2(fd, 1)
-        if fd != 2: os.dup2(fd, 2)
-        if fd not in (0, 1, 2): os.close(fd)
+    service = service()
 
-    httpd.serve_forever()
+    cmdutil.service(opts, initfn=service.init, runfn=service.run)
 
 def status(ui, repo, *pats, **opts):
     """show changed files in the working directory
@@ -2371,8 +2504,7 @@ def status(ui, repo, *pats, **opts):
     files, matchfn, anypats = cmdutil.matchpats(repo, pats, opts)
     cwd = (pats and repo.getcwd()) or ''
     modified, added, removed, deleted, unknown, ignored, clean = [
-        [util.pathto(cwd, x) for x in n]
-        for n in repo.status(node1=node1, node2=node2, files=files,
+        n for n in repo.status(node1=node1, node2=node2, files=files,
                              match=matchfn,
                              list_ignored=all or opts['ignored'],
                              list_clean=all or opts['clean'])]
@@ -2397,11 +2529,11 @@ def status(ui, repo, *pats, **opts):
             format = "%s %%s%s" % (char, end)
 
         for f in changes:
-            ui.write(format % f)
+            ui.write(format % repo.pathto(f, cwd))
             if ((all or opts.get('copies')) and not opts.get('no_status')):
                 copied = repo.dirstate.copied(f)
                 if copied:
-                    ui.write('  %s%s' % (copied, end))
+                    ui.write('  %s%s' % (repo.pathto(copied, cwd), end))
 
 def tag(ui, repo, name, rev_=None, **opts):
     """add a tag for the current or given revision
@@ -2428,14 +2560,25 @@ def tag(ui, repo, name, rev_=None, **opts):
                   "please use 'hg tag [-r REV] NAME' instead\n"))
         if opts['rev']:
             raise util.Abort(_("use only one form to specify the revision"))
+    if opts['rev'] and opts['remove']:
+        raise util.Abort(_("--rev and --remove are incompatible"))
     if opts['rev']:
         rev_ = opts['rev']
+    message = opts['message']
+    if opts['remove']:
+        if not name in repo.tags():
+            raise util.Abort(_('tag %s does not exist') % name)
+        rev_ = nullid
+        if not message:
+            message = _('Removed tag %s') % name
+    elif name in repo.tags() and not opts['force']:
+        raise util.Abort(_('a tag named %s already exists (use -f to force)')
+                         % name)
     if not rev_ and repo.dirstate.parents()[1] != nullid:
         raise util.Abort(_('uncommitted merge - please provide a '
                            'specific revision'))
     r = repo.changectx(rev_).node()
 
-    message = opts['message']
     if not message:
         message = _('Added tag %s for changeset %s') % (name, short(r))
 
@@ -2454,15 +2597,15 @@ def tags(ui, repo):
     hexfunc = ui.debugflag and hex or short
     for t, n in l:
         try:
+            hn = hexfunc(n)
             r = "%5d:%s" % (repo.changelog.rev(n), hexfunc(n))
-        except KeyError:
-            r = "    ?:?"
+        except revlog.LookupError:
+            r = "    ?:%s" % hn
         if ui.quiet:
             ui.write("%s\n" % t)
         else:
-            t = util.localsub(t, 30)
-            t += " " * (30 - util.locallen(t))
-            ui.write("%s %s\n" % (t, r))
+            spaces = " " * (30 - util.locallen(t))
+            ui.write("%s%s %s\n" % (t, spaces, r))
 
 def tip(ui, repo, **opts):
     """show the tip revision
@@ -2471,20 +2614,29 @@ def tip(ui, repo, **opts):
     """
     cmdutil.show_changeset(ui, repo, opts).show(nullrev+repo.changelog.count())
 
-def unbundle(ui, repo, fname, **opts):
-    """apply a changegroup file
+def unbundle(ui, repo, fname1, *fnames, **opts):
+    """apply one or more changegroup files
 
-    Apply a compressed changegroup file generated by the bundle
-    command.
+    Apply one or more compressed changegroup files generated by the
+    bundle command.
     """
-    gen = changegroup.readbundle(urllib.urlopen(fname), fname)
-    modheads = repo.addchangegroup(gen, 'unbundle', 'bundle:' + fname)
+    fnames = (fname1,) + fnames
+    result = None
+    for fname in fnames:
+        if os.path.exists(fname):
+            f = open(fname, "rb")
+        else:
+            f = urllib.urlopen(fname)
+        gen = changegroup.readbundle(f, fname)
+        modheads = repo.addchangegroup(gen, 'unbundle', 'bundle:' + fname)
+
     return postincoming(ui, repo, modheads, opts['update'])
 
-def update(ui, repo, node=None, clean=False, branch=None, date=None):
-    """update or merge working directory
+def update(ui, repo, node=None, rev=None, clean=False, date=None):
+    """update working directory
 
-    Update the working directory to the specified revision.
+    Update the working directory to the specified revision, or the
+    tip of the current branch if none is specified.
 
     If there are no outstanding changes in the working directory and
     there is a linear relationship between the current version and the
@@ -2494,42 +2646,23 @@ def update(ui, repo, node=None, clean=False, branch=None, date=None):
     merge command.
 
     By default, update will refuse to run if doing so would require
-    merging or discarding local changes.
+    discarding local changes.
     """
+    if rev and node:
+        raise util.Abort(_("please specify just one revision"))
+
+    if not rev:
+        rev = node
+
     if date:
-        if node:
+        if rev:
             raise util.Abort(_("you can't specify a revision and a date"))
-        node = cmdutil.finddate(ui, repo, date)
+        rev = cmdutil.finddate(ui, repo, date)
 
-    node = _lookup(repo, node, branch)
     if clean:
-        return hg.clean(repo, node)
+        return hg.clean(repo, rev)
     else:
-        return hg.update(repo, node)
-
-def _lookup(repo, node, branch=None):
-    if branch:
-        repo.ui.warn(_("the --branch option is deprecated, "
-                       "please use 'hg branch' instead\n"))
-        br = repo.branchlookup(branch=branch)
-        found = []
-        for x in br:
-            if branch in br[x]:
-                found.append(x)
-        if len(found) > 1:
-            repo.ui.warn(_("Found multiple heads for %s\n") % branch)
-            for x in found:
-                cmdutil.show_changeset(ui, repo, {}).show(changenode=x)
-            raise util.Abort("")
-        if len(found) == 1:
-            node = found[0]
-            repo.ui.warn(_("Using head %s for branch %s\n")
-                         % (short(node), branch))
-        else:
-            raise util.Abort(_("branch %s not found") % branch)
-    else:
-        node = node and repo.lookup(node) or repo.changelog.tip()
-    return node
+        return hg.update(repo, rev)
 
 def verify(ui, repo):
     """verify the integrity of the repository
@@ -2548,7 +2681,7 @@ def version_(ui):
     ui.write(_("Mercurial Distributed SCM (version %s)\n")
              % version.get_version())
     ui.status(_(
-        "\nCopyright (C) 2005, 2006 Matt Mackall <mpm@selenic.com>\n"
+        "\nCopyright (C) 2005-2007 Matt Mackall <mpm@selenic.com> and others\n"
         "This is free software; see the source for copying conditions. "
         "There is NO\nwarranty; "
         "not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
@@ -2629,10 +2762,17 @@ table = {
           ('d', 'date', '', _('record datecode as commit date')),
           ('', 'parent', '', _('parent to choose when backing out merge')),
           ('u', 'user', '', _('record user as committer')),
+          ('r', 'rev', '', _('revision to backout')),
          ] + walkopts + commitopts,
-         _('hg backout [OPTION]... REV')),
-    "branch": (branch, [], _('hg branch [NAME]')),
-    "branches": (branches, [], _('hg branches')),
+         _('hg backout [OPTION]... [-r] REV')),
+    "branch": (branch,
+               [('f', 'force', None,
+                 _('set branch name even if it shadows an existing branch'))],
+                _('hg branch [NAME]')),
+    "branches": (branches,
+                 [('a', 'active', False,
+                   _("show only branches that have unmerged heads"))],
+                 _('hg branches [-a]')),
     "bundle":
         (bundle,
          [('f', 'force', None,
@@ -2694,7 +2834,9 @@ table = {
     "debugdata": (debugdata, [], _('debugdata FILE REV')),
     "debugindex": (debugindex, [], _('debugindex FILE')),
     "debugindexdot": (debugindexdot, [], _('debugindexdot FILE')),
-    "debugrename": (debugrename, [], _('debugrename FILE [REV]')),
+    "debugrename": (debugrename,
+                    [('r', 'rev', '', _('revision to debug'))],
+                    _('debugrename [-r REV] FILE')),
     "debugwalk": (debugwalk, walkopts, _('debugwalk [OPTION]... [FILE]...')),
     "^diff":
         (diff,
@@ -2736,21 +2878,31 @@ table = {
          _('hg grep [OPTION]... PATTERN [FILE]...')),
     "heads":
         (heads,
-         [('b', 'branches', None, _('show branches (DEPRECATED)')),
-          ('', 'style', '', _('display using template map file')),
+         [('', 'style', '', _('display using template map file')),
           ('r', 'rev', '', _('show only heads which are descendants of rev')),
           ('', 'template', '', _('display with template'))],
-         _('hg heads [-r REV]')),
+         _('hg heads [-r REV] [REV]...')),
     "help": (help_, [], _('hg help [COMMAND]')),
-    "identify|id": (identify, [], _('hg identify')),
+    "identify|id":
+        (identify,
+         [('r', 'rev', '', _('identify the specified rev')),
+          ('n', 'num', None, _('show local revision number')),
+          ('i', 'id', None, _('show global revision id')),
+          ('b', 'branch', None, _('show branch')),
+          ('t', 'tags', None, _('show tags'))],
+         _('hg identify [-nibt] [-r REV] [SOURCE]')),
     "import|patch":
         (import_,
          [('p', 'strip', 1,
            _('directory strip option for patch. This has the same\n'
              'meaning as the corresponding patch option')),
-          ('b', 'base', '', _('base path (DEPRECATED)')),
+          ('b', 'base', '', _('base path')),
           ('f', 'force', None,
-           _('skip check for outstanding uncommitted changes'))] + commitopts,
+           _('skip check for outstanding uncommitted changes')),
+          ('', 'exact', None,
+           _('apply patch to the nodes from which it was generated')),
+          ('', 'import-branch', None,
+           _('Use any branch information in patch (implied by --exact)'))] + commitopts,
          _('hg import [-p NUM] [-m MESSAGE] [-f] PATCH...')),
     "incoming|in": (incoming,
          [('M', 'no-merges', None, _('do not show merges')),
@@ -2780,14 +2932,13 @@ table = {
          _('hg locate [OPTION]... [PATTERN]...')),
     "^log|history":
         (log,
-         [('b', 'branches', None, _('show branches (DEPRECATED)')),
-          ('f', 'follow', None,
+         [('f', 'follow', None,
            _('follow changeset history, or file history across copies and renames')),
           ('', 'follow-first', None,
            _('only follow the first parent of merge changesets')),
           ('d', 'date', '', _('show revs matching date spec')),
           ('C', 'copies', None, _('show copied files')),
-          ('k', 'keyword', [], _('search for a keyword')),
+          ('k', 'keyword', [], _('do case-insensitive search for a keyword')),
           ('l', 'limit', '', _('limit number of changes displayed')),
           ('r', 'rev', [], _('show the specified revision or range')),
           ('', 'removed', None, _('include revs where files were removed')),
@@ -2800,11 +2951,12 @@ table = {
          ] + walkopts,
          _('hg log [OPTION]... [FILE]')),
     "manifest": (manifest, [], _('hg manifest [REV]')),
-    "merge":
+    "^merge":
         (merge,
-         [('b', 'branch', '', _('merge with head of a specific branch (DEPRECATED)')),
-          ('f', 'force', None, _('force a merge with outstanding changes'))],
-         _('hg merge [-f] [REV]')),
+         [('f', 'force', None, _('force a merge with outstanding changes')),
+          ('r', 'rev', '', _('revision to merge')),
+             ],
+         _('hg merge [-f] [[-r] REV]')),
     "outgoing|out": (outgoing,
          [('M', 'no-merges', None, _('do not show merges')),
           ('f', 'force', None,
@@ -2818,8 +2970,7 @@ table = {
          _('hg outgoing [-M] [-p] [-n] [-f] [-r REV]... [DEST]')),
     "^parents":
         (parents,
-         [('b', 'branches', None, _('show branches (DEPRECATED)')),
-          ('r', 'rev', '', _('show parents from the specified rev')),
+         [('r', 'rev', '', _('show parents from the specified rev')),
           ('', 'style', '', _('display using template map file')),
           ('', 'template', '', _('display with template'))],
          _('hg parents [-r REV] [FILE]')),
@@ -2903,7 +3054,7 @@ table = {
           ('d', 'deleted', None, _('show only deleted (but tracked) files')),
           ('c', 'clean', None, _('show only files without changes')),
           ('u', 'unknown', None, _('show only unknown (not tracked) files')),
-          ('i', 'ignored', None, _('show ignored files')),
+          ('i', 'ignored', None, _('show only ignored files')),
           ('n', 'no-status', None, _('hide status prefix')),
           ('C', 'copies', None, _('show source of copied files')),
           ('0', 'print0', None,
@@ -2913,17 +3064,18 @@ table = {
          _('hg status [OPTION]... [FILE]...')),
     "tag":
         (tag,
-         [('l', 'local', None, _('make the tag local')),
+         [('f', 'force', None, _('replace existing tag')),
+          ('l', 'local', None, _('make the tag local')),
           ('m', 'message', '', _('message for tag commit log entry')),
           ('d', 'date', '', _('record datecode as commit date')),
           ('u', 'user', '', _('record user as commiter')),
-          ('r', 'rev', '', _('revision to tag'))],
+          ('r', 'rev', '', _('revision to tag')),
+          ('', 'remove', None, _('remove a tag'))],
          _('hg tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME')),
     "tags": (tags, [], _('hg tags')),
     "tip":
         (tip,
-         [('b', 'branches', None, _('show branches (DEPRECATED)')),
-          ('', 'style', '', _('display using template map file')),
+         [('', 'style', '', _('display using template map file')),
           ('p', 'patch', None, _('show patch')),
           ('', 'template', '', _('display with template'))],
          _('hg tip [-p]')),
@@ -2931,14 +3083,13 @@ table = {
         (unbundle,
          [('u', 'update', None,
            _('update to new tip if changesets were unbundled'))],
-         _('hg unbundle [-u] FILE')),
+         _('hg unbundle [-u] FILE...')),
     "^update|up|checkout|co":
         (update,
-         [('b', 'branch', '',
-           _('checkout the head of a specific branch (DEPRECATED)')),
-          ('C', 'clean', None, _('overwrite locally modified files')),
-          ('d', 'date', '', _('tipmost revision matching date'))],
-         _('hg update [-C] [-d DATE] [REV]')),
+         [('C', 'clean', None, _('overwrite locally modified files')),
+          ('d', 'date', '', _('tipmost revision matching date')),
+          ('r', 'rev', '', _('revision'))],
+         _('hg update [-C] [-d DATE] [[-r] REV]')),
     "verify": (verify, [], _('hg verify')),
     "version": (version_, [], _('hg version')),
 }
@@ -2947,374 +3098,13 @@ norepo = ("clone init version help debugancestor debugcomplete debugdata"
           " debugindex debugindexdot debugdate debuginstall")
 optionalrepo = ("paths serve showconfig")
 
-def findpossible(ui, cmd):
-    """
-    Return cmd -> (aliases, command table entry)
-    for each matching command.
-    Return debug commands (or their aliases) only if no normal command matches.
-    """
-    choice = {}
-    debugchoice = {}
-    for e in table.keys():
-        aliases = e.lstrip("^").split("|")
-        found = None
-        if cmd in aliases:
-            found = cmd
-        elif not ui.config("ui", "strict"):
-            for a in aliases:
-                if a.startswith(cmd):
-                    found = a
-                    break
-        if found is not None:
-            if aliases[0].startswith("debug") or found.startswith("debug"):
-                debugchoice[found] = (aliases, table[e])
-            else:
-                choice[found] = (aliases, table[e])
-
-    if not choice and debugchoice:
-        choice = debugchoice
-
-    return choice
-
-def findcmd(ui, cmd):
-    """Return (aliases, command table entry) for command string."""
-    choice = findpossible(ui, cmd)
-
-    if choice.has_key(cmd):
-        return choice[cmd]
-
-    if len(choice) > 1:
-        clist = choice.keys()
-        clist.sort()
-        raise AmbiguousCommand(cmd, clist)
-
-    if choice:
-        return choice.values()[0]
-
-    raise UnknownCommand(cmd)
-
-def catchterm(*args):
-    raise util.SignalInterrupt
-
-def run():
-    sys.exit(dispatch(sys.argv[1:]))
-
-class ParseError(Exception):
-    """Exception raised on errors in parsing the command line."""
-
-def parse(ui, args):
-    options = {}
-    cmdoptions = {}
-
+def dispatch(args, argv0=None):
     try:
-        args = fancyopts.fancyopts(args, globalopts, options)
-    except fancyopts.getopt.GetoptError, inst:
-        raise ParseError(None, inst)
-
-    if args:
-        cmd, args = args[0], args[1:]
-        aliases, i = findcmd(ui, cmd)
-        cmd = aliases[0]
-        defaults = ui.config("defaults", cmd)
-        if defaults:
-            args = shlex.split(defaults) + args
-        c = list(i[1])
-    else:
-        cmd = None
-        c = []
-
-    # combine global options into local
-    for o in globalopts:
-        c.append((o[0], o[1], options[o[1]], o[3]))
-
-    try:
-        args = fancyopts.fancyopts(args, c, cmdoptions)
-    except fancyopts.getopt.GetoptError, inst:
-        raise ParseError(cmd, inst)
-
-    # separate global options back out
-    for o in globalopts:
-        n = o[1]
-        options[n] = cmdoptions[n]
-        del cmdoptions[n]
-
-    return (cmd, cmd and i[0] or None, args, options, cmdoptions)
-
-external = {}
-
-def findext(name):
-    '''return module with given extension name'''
-    try:
-        return sys.modules[external[name]]
-    except KeyError:
-        for k, v in external.iteritems():
-            if k.endswith('.' + name) or k.endswith('/' + name) or v == name:
-                return sys.modules[v]
-        raise KeyError(name)
-
-def load_extensions(ui):
-    added = []
-    for ext_name, load_from_name in ui.extensions():
-        if ext_name in external:
-            continue
-        try:
-            if load_from_name:
-                # the module will be loaded in sys.modules
-                # choose an unique name so that it doesn't
-                # conflicts with other modules
-                module_name = "hgext_%s" % ext_name.replace('.', '_')
-                mod = imp.load_source(module_name, load_from_name)
-            else:
-                def importh(name):
-                    mod = __import__(name)
-                    components = name.split('.')
-                    for comp in components[1:]:
-                        mod = getattr(mod, comp)
-                    return mod
-                try:
-                    mod = importh("hgext.%s" % ext_name)
-                except ImportError:
-                    mod = importh(ext_name)
-            external[ext_name] = mod.__name__
-            added.append((mod, ext_name))
-        except (util.SignalInterrupt, KeyboardInterrupt):
-            raise
-        except Exception, inst:
-            ui.warn(_("*** failed to import extension %s: %s\n") %
-                    (ext_name, inst))
-            if ui.print_exc():
-                return 1
-
-    for mod, name in added:
-        uisetup = getattr(mod, 'uisetup', None)
-        if uisetup:
-            uisetup(ui)
-        cmdtable = getattr(mod, 'cmdtable', {})
-        for t in cmdtable:
-            if t in table:
-                ui.warn(_("module %s overrides %s\n") % (name, t))
-        table.update(cmdtable)
-
-def parseconfig(config):
-    """parse the --config options from the command line"""
-    parsed = []
-    for cfg in config:
-        try:
-            name, value = cfg.split('=', 1)
-            section, name = name.split('.', 1)
-            if not section or not name:
-                raise IndexError
-            parsed.append((section, name, value))
-        except (IndexError, ValueError):
-            raise util.Abort(_('malformed --config option: %s') % cfg)
-    return parsed
-
-def dispatch(args):
-    for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
-        num = getattr(signal, name, None)
-        if num: signal.signal(num, catchterm)
-
-    try:
-        u = ui.ui(traceback='--traceback' in sys.argv[1:])
+        u = ui.ui(traceback='--traceback' in args)
     except util.Abort, inst:
         sys.stderr.write(_("abort: %s\n") % inst)
         return -1
+    return cmdutil.runcatch(u, args, argv0=argv0)
 
-    load_extensions(u)
-    u.addreadhook(load_extensions)
-
-    try:
-        cmd, func, args, options, cmdoptions = parse(u, args)
-        if options["encoding"]:
-            util._encoding = options["encoding"]
-        if options["encodingmode"]:
-            util._encodingmode = options["encodingmode"]
-        if options["time"]:
-            def get_times():
-                t = os.times()
-                if t[4] == 0.0: # Windows leaves this as zero, so use time.clock()
-                    t = (t[0], t[1], t[2], t[3], time.clock())
-                return t
-            s = get_times()
-            def print_time():
-                t = get_times()
-                u.warn(_("Time: real %.3f secs (user %.3f+%.3f sys %.3f+%.3f)\n") %
-                    (t[4]-s[4], t[0]-s[0], t[2]-s[2], t[1]-s[1], t[3]-s[3]))
-            atexit.register(print_time)
-
-        # enter the debugger before command execution
-        if options['debugger']:
-            pdb.set_trace()
-
-        try:
-            if options['cwd']:
-                os.chdir(options['cwd'])
-
-            u.updateopts(options["verbose"], options["debug"], options["quiet"],
-                         not options["noninteractive"], options["traceback"],
-                         parseconfig(options["config"]))
-
-            path = u.expandpath(options["repository"]) or ""
-            repo = path and hg.repository(u, path=path) or None
-            if repo and not repo.local():
-                raise util.Abort(_("repository '%s' is not local") % path)
-
-            if options['help']:
-                return help_(u, cmd, options['version'])
-            elif options['version']:
-                return version_(u)
-            elif not cmd:
-                return help_(u, 'shortlist')
-
-            if cmd not in norepo.split():
-                try:
-                    if not repo:
-                        repo = hg.repository(u, path=path)
-                    u = repo.ui
-                    for name in external.itervalues():
-                        mod = sys.modules[name]
-                        if hasattr(mod, 'reposetup'):
-                            mod.reposetup(u, repo)
-                            hg.repo_setup_hooks.append(mod.reposetup)
-                except hg.RepoError:
-                    if cmd not in optionalrepo.split():
-                        raise
-                d = lambda: func(u, repo, *args, **cmdoptions)
-            else:
-                d = lambda: func(u, *args, **cmdoptions)
-
-            try:
-                if options['profile']:
-                    import hotshot, hotshot.stats
-                    prof = hotshot.Profile("hg.prof")
-                    try:
-                        try:
-                            return prof.runcall(d)
-                        except:
-                            try:
-                                u.warn(_('exception raised - generating '
-                                         'profile anyway\n'))
-                            except:
-                                pass
-                            raise
-                    finally:
-                        prof.close()
-                        stats = hotshot.stats.load("hg.prof")
-                        stats.strip_dirs()
-                        stats.sort_stats('time', 'calls')
-                        stats.print_stats(40)
-                elif options['lsprof']:
-                    try:
-                        from mercurial import lsprof
-                    except ImportError:
-                        raise util.Abort(_(
-                            'lsprof not available - install from '
-                            'http://codespeak.net/svn/user/arigo/hack/misc/lsprof/'))
-                    p = lsprof.Profiler()
-                    p.enable(subcalls=True)
-                    try:
-                        return d()
-                    finally:
-                        p.disable()
-                        stats = lsprof.Stats(p.getstats())
-                        stats.sort()
-                        stats.pprint(top=10, file=sys.stderr, climit=5)
-                else:
-                    return d()
-            finally:
-                u.flush()
-        except:
-            # enter the debugger when we hit an exception
-            if options['debugger']:
-                pdb.post_mortem(sys.exc_info()[2])
-            u.print_exc()
-            raise
-    except ParseError, inst:
-        if inst.args[0]:
-            u.warn(_("hg %s: %s\n") % (inst.args[0], inst.args[1]))
-            help_(u, inst.args[0])
-        else:
-            u.warn(_("hg: %s\n") % inst.args[1])
-            help_(u, 'shortlist')
-    except AmbiguousCommand, inst:
-        u.warn(_("hg: command '%s' is ambiguous:\n    %s\n") %
-                (inst.args[0], " ".join(inst.args[1])))
-    except UnknownCommand, inst:
-        u.warn(_("hg: unknown command '%s'\n") % inst.args[0])
-        help_(u, 'shortlist')
-    except hg.RepoError, inst:
-        u.warn(_("abort: %s!\n") % inst)
-    except lock.LockHeld, inst:
-        if inst.errno == errno.ETIMEDOUT:
-            reason = _('timed out waiting for lock held by %s') % inst.locker
-        else:
-            reason = _('lock held by %s') % inst.locker
-        u.warn(_("abort: %s: %s\n") % (inst.desc or inst.filename, reason))
-    except lock.LockUnavailable, inst:
-        u.warn(_("abort: could not lock %s: %s\n") %
-               (inst.desc or inst.filename, inst.strerror))
-    except revlog.RevlogError, inst:
-        u.warn(_("abort: %s!\n") % inst)
-    except util.SignalInterrupt:
-        u.warn(_("killed!\n"))
-    except KeyboardInterrupt:
-        try:
-            u.warn(_("interrupted!\n"))
-        except IOError, inst:
-            if inst.errno == errno.EPIPE:
-                if u.debugflag:
-                    u.warn(_("\nbroken pipe\n"))
-            else:
-                raise
-    except IOError, inst:
-        if hasattr(inst, "code"):
-            u.warn(_("abort: %s\n") % inst)
-        elif hasattr(inst, "reason"):
-            u.warn(_("abort: error: %s\n") % inst.reason[1])
-        elif hasattr(inst, "args") and inst[0] == errno.EPIPE:
-            if u.debugflag:
-                u.warn(_("broken pipe\n"))
-        elif getattr(inst, "strerror", None):
-            if getattr(inst, "filename", None):
-                u.warn(_("abort: %s: %s\n") % (inst.strerror, inst.filename))
-            else:
-                u.warn(_("abort: %s\n") % inst.strerror)
-        else:
-            raise
-    except OSError, inst:
-        if getattr(inst, "filename", None):
-            u.warn(_("abort: %s: %s\n") % (inst.strerror, inst.filename))
-        else:
-            u.warn(_("abort: %s\n") % inst.strerror)
-    except util.UnexpectedOutput, inst:
-        u.warn(_("abort: %s") % inst[0])
-        if not isinstance(inst[1], basestring):
-            u.warn(" %r\n" % (inst[1],))
-        elif not inst[1]:
-            u.warn(_(" empty string\n"))
-        else:
-            u.warn("\n%r\n" % util.ellipsis(inst[1]))
-    except util.Abort, inst:
-        u.warn(_("abort: %s\n") % inst)
-    except TypeError, inst:
-        # was this an argument error?
-        tb = traceback.extract_tb(sys.exc_info()[2])
-        if len(tb) > 2: # no
-            raise
-        u.debug(inst, "\n")
-        u.warn(_("%s: invalid arguments\n") % cmd)
-        help_(u, cmd)
-    except SystemExit, inst:
-        # Commands shouldn't sys.exit directly, but give a return code.
-        # Just in case catch this and and pass exit code to caller.
-        return inst.code
-    except:
-        u.warn(_("** unknown exception encountered, details follow\n"))
-        u.warn(_("** report bug details to "
-                 "http://www.selenic.com/mercurial/bts\n"))
-        u.warn(_("** or mercurial@selenic.com\n"))
-        u.warn(_("** Mercurial Distributed SCM (version %s)\n")
-               % version.get_version())
-        raise
-
-    return -1
+def run():
+    sys.exit(dispatch(sys.argv[1:], argv0=sys.argv[0]))

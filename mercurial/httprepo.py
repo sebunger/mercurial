@@ -8,10 +8,9 @@
 
 from node import *
 from remoterepo import *
-from i18n import gettext as _
-from demandload import *
-demandload(globals(), "hg os urllib urllib2 urlparse zlib util httplib")
-demandload(globals(), "errno keepalive tempfile socket changegroup")
+from i18n import _
+import hg, os, urllib, urllib2, urlparse, zlib, util, httplib
+import errno, keepalive, tempfile, socket, changegroup
 
 class passwordmgr(urllib2.HTTPPasswordMgrWithDefaultRealm):
     def __init__(self, ui):
@@ -76,17 +75,33 @@ def netlocunsplit(host, port, user=None, passwd=None):
         return userpass + '@' + hostport
     return hostport
 
-class httpconnection(keepalive.HTTPConnection):
-    # must be able to send big bundle as stream.
+# work around a bug in Python < 2.4.2
+# (it leaves a "\n" at the end of Proxy-authorization headers)
+class request(urllib2.Request):
+    def add_header(self, key, val):
+        if key.lower() == 'proxy-authorization':
+            val = val.strip()
+        return urllib2.Request.add_header(self, key, val)
 
-    def send(self, data):
-        if isinstance(data, str):
-            keepalive.HTTPConnection.send(self, data)
-        else:
+class httpsendfile(file):
+    def __len__(self):
+        return os.fstat(self.fileno()).st_size
+
+def _gen_sendfile(connection):
+    def _sendfile(self, data):
+        # send a file
+        if isinstance(data, httpsendfile):
             # if auth required, some data sent twice, so rewind here
             data.seek(0)
             for chunk in util.filechunkiter(data):
-                keepalive.HTTPConnection.send(self, chunk)
+                connection.send(self, chunk)
+        else:
+            connection.send(self, data)
+    return _sendfile
+
+class httpconnection(keepalive.HTTPConnection):
+    # must be able to send big bundle as stream.
+    send = _gen_sendfile(keepalive.HTTPConnection)
 
 class basehttphandler(keepalive.HTTPHandler):
     def http_open(self, req):
@@ -97,15 +112,7 @@ if has_https:
     class httpsconnection(httplib.HTTPSConnection):
         response_class = keepalive.HTTPResponse
         # must be able to send big bundle as stream.
-
-        def send(self, data):
-            if isinstance(data, str):
-                httplib.HTTPSConnection.send(self, data)
-            else:
-                # if auth required, some data sent twice, so rewind here
-                data.seek(0)
-                for chunk in util.filechunkiter(data):
-                    httplib.HTTPSConnection.send(self, chunk)
+        send = _gen_sendfile(httplib.HTTPSConnection)
 
     class httphandler(basehttphandler, urllib2.HTTPSHandler):
         def https_open(self, req):
@@ -113,6 +120,20 @@ if has_https:
 else:
     class httphandler(basehttphandler):
         pass
+
+# In python < 2.5 AbstractDigestAuthHandler raises a ValueError if
+# it doesn't know about the auth type requested.  This can happen if
+# somebody is using BasicAuth and types a bad password.
+class httpdigestauthhandler(urllib2.HTTPDigestAuthHandler):
+    def http_error_auth_reqed(self, auth_header, host, req, headers):
+        try:
+            return urllib2.HTTPDigestAuthHandler.http_error_auth_reqed(
+                        self, auth_header, host, req, headers)
+        except ValueError, inst:
+            arg = inst.args[0]
+            if arg.startswith("AbstractDigestAuthHandler doesn't know "):
+                return
+            raise
 
 def zgenerator(f):
     zd = zlib.decompressobj()
@@ -127,6 +148,7 @@ class httprepository(remoterepository):
     def __init__(self, ui, path):
         self.path = path
         self.caps = None
+        self.handler = None
         scheme, netloc, urlpath, query, frag = urlparse.urlsplit(path)
         if query or frag:
             raise util.Abort(_('unsupported URL component: "%s"') %
@@ -141,7 +163,8 @@ class httprepository(remoterepository):
 
         proxyurl = ui.config("http_proxy", "host") or os.getenv('http_proxy')
         # XXX proxyauthinfo = None
-        handlers = [httphandler()]
+        self.handler = httphandler()
+        handlers = [self.handler]
 
         if proxyurl:
             # proxy can be proper url or host[:port]
@@ -193,12 +216,17 @@ class httprepository(remoterepository):
             passmgr.add_password(None, host, user, passwd or '')
 
         handlers.extend((urllib2.HTTPBasicAuthHandler(passmgr),
-                         urllib2.HTTPDigestAuthHandler(passmgr)))
+                         httpdigestauthhandler(passmgr)))
         opener = urllib2.build_opener(*handlers)
 
         # 1.0 here is the _protocol_ version
         opener.addheaders = [('User-agent', 'mercurial/proto-1.0')]
         urllib2.install_opener(opener)
+
+    def __del__(self):
+        if self.handler:
+            self.handler.close_all()
+            self.handler = None
 
     def url(self):
         return self.path
@@ -232,7 +260,7 @@ class httprepository(remoterepository):
             if data:
                 self.ui.debug(_("sending %s bytes\n") %
                               headers.get('content-length', 'X'))
-            resp = urllib2.urlopen(urllib2.Request(cu, data, headers))
+            resp = urllib2.urlopen(request(cu, data, headers))
         except urllib2.HTTPError, inst:
             if inst.code == 401:
                 raise util.Abort(_('authorization failed'))
@@ -257,15 +285,20 @@ class httprepository(remoterepository):
             proto = resp.headers['content-type']
 
         # accept old "text/plain" and "application/hg-changegroup" for now
-        if not proto.startswith('application/mercurial') and \
-               not proto.startswith('text/plain') and \
-               not proto.startswith('application/hg-changegroup'):
-            raise hg.RepoError(_("'%s' does not appear to be an hg repository") %
-                               self._url)
+        if not (proto.startswith('application/mercurial-') or
+                proto.startswith('text/plain') or
+                proto.startswith('application/hg-changegroup')):
+            raise hg.RepoError(_("'%s' does not appear to be an hg repository")
+                               % self._url)
 
-        if proto.startswith('application/mercurial'):
-            version = proto[22:]
-            if float(version) > 0.1:
+        if proto.startswith('application/mercurial-'):
+            try:
+                version = proto.split('-', 1)[1]
+                version_info = tuple([int(n) for n in version.split('.')])
+            except ValueError:
+                raise hg.RepoError(_("'%s' sent a broken Content-type "
+                                     "header (%s)") % (self._url, proto))
+            if version_info > (0, 1):
                 raise hg.RepoError(_("'%s' uses newer protocol %s") %
                                    (self._url, version))
 
@@ -341,14 +374,12 @@ class httprepository(remoterepository):
                     break
 
         tempname = changegroup.writebundle(cg, None, type)
-        fp = file(tempname, "rb")
+        fp = httpsendfile(tempname, "rb")
         try:
-            length = os.stat(tempname).st_size
             try:
                 rfp = self.do_cmd(
                     'unbundle', data=fp,
-                    headers={'content-length': str(length),
-                             'content-type': 'application/octet-stream'},
+                    headers={'content-type': 'application/octet-stream'},
                     heads=' '.join(map(hex, heads)))
                 try:
                     ret = int(rfp.readline())

@@ -5,10 +5,10 @@
 # This software may be used and distributed according to the terms of
 # the GNU General Public License, incorporated herein by reference.
 
-from demandload import *
-from i18n import gettext as _
+from i18n import _
 from node import *
-demandload(globals(), 'cStringIO os stat tarfile time util zipfile')
+import cStringIO, os, stat, tarfile, time, util, zipfile
+import zlib, gzip
 
 def tidyprefix(dest, prefix, suffixes):
     '''choose prefix to use for names in archive.  make sure prefix is
@@ -37,14 +37,54 @@ class tarit:
     '''write archive to tar file or stream.  can write uncompressed,
     or compress with gzip or bzip2.'''
 
+    class GzipFileWithTime(gzip.GzipFile):
+
+        def __init__(self, *args, **kw):
+            timestamp = None
+            if 'timestamp' in kw:
+                timestamp = kw.pop('timestamp')
+            if timestamp == None:
+                self.timestamp = time.time()
+            else:
+                self.timestamp = timestamp
+            gzip.GzipFile.__init__(self, *args, **kw)
+
+        def _write_gzip_header(self):
+            self.fileobj.write('\037\213')             # magic header
+            self.fileobj.write('\010')                 # compression method
+            fname = self.filename[:-3]
+            flags = 0
+            if fname:
+                flags = gzip.FNAME
+            self.fileobj.write(chr(flags))
+            gzip.write32u(self.fileobj, long(self.timestamp))
+            self.fileobj.write('\002')
+            self.fileobj.write('\377')
+            if fname:
+                self.fileobj.write(fname + '\000')
+
     def __init__(self, dest, prefix, mtime, kind=''):
         self.prefix = tidyprefix(dest, prefix, ['.tar', '.tar.bz2', '.tar.gz',
                                                 '.tgz', '.tbz2'])
         self.mtime = mtime
+
+        def taropen(name, mode, fileobj=None):
+            if kind == 'gz':
+                mode = mode[0]
+                if not fileobj:
+                    fileobj = open(name, mode)
+                gzfileobj = self.GzipFileWithTime(name, mode + 'b',
+                                                  zlib.Z_BEST_COMPRESSION,
+                                                  fileobj, timestamp=mtime)
+                return tarfile.TarFile.taropen(name, mode, gzfileobj)
+            else:
+                return tarfile.open(name, mode + kind, fileobj)
+
         if isinstance(dest, str):
-            self.z = tarfile.open(dest, mode='w:'+kind)
+            self.z = taropen(dest, mode='w:')
         else:
-            self.z = tarfile.open(mode='w|'+kind, fileobj=dest)
+            # Python 2.5-2.5.1 have a regression that requires a name arg
+            self.z = taropen(name='', mode='w|', fileobj=dest)
 
     def addfile(self, name, mode, data):
         i = tarfile.TarInfo(self.prefix + name)
@@ -93,7 +133,6 @@ class zipit:
     def addfile(self, name, mode, data):
         i = zipfile.ZipInfo(self.prefix + name, self.date_time)
         i.compress_type = self.z.compression
-        i.flag_bits = 0x08
         # unzip will not honor unix file modes unless file creator is
         # set to unix (id 3).
         i.create_system = 3
@@ -155,15 +194,12 @@ def archive(repo, dest, node, kind, decode=True, matchfn=None,
     def write(name, mode, data):
         if matchfn and not matchfn(name): return
         if decode:
-            fp = cStringIO.StringIO()
-            repo.wwrite(name, data, fp)
-            data = fp.getvalue()
+            data = repo.wwritedata(name, data)
         archiver.addfile(name, mode, data)
 
-    change = repo.changelog.read(node)
-    mn = change[0]
-    archiver = archivers[kind](dest, prefix, mtime or change[2][0])
-    m = repo.manifest.read(mn)
+    ctx = repo.changectx(node)
+    archiver = archivers[kind](dest, prefix, mtime or ctx.date()[0])
+    m = ctx.manifest()
     items = m.items()
     items.sort()
     write('.hg_archival.txt', 0644,

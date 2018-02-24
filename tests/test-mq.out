@@ -22,7 +22,7 @@ add known patch to applied stack          qpush
 remove patch from applied stack           qpop
 refresh contents of top applied patch     qrefresh
 
-list of commands (use "hg help -v mq" to show aliases and global options):
+list of commands:
 
  qapplied     print the patches already applied
  qclone       clone main and patch repository at same time
@@ -30,6 +30,7 @@ list of commands (use "hg help -v mq" to show aliases and global options):
  qdelete      remove patches from queue
  qdiff        diff of the current patch
  qfold        fold the named patches into the current patch
+ qgoto        push or pop patches until named patch is at top of stack
  qguard       set or print guards for a patch
  qheader      Print the header of the topmost or specified patch
  qimport      import a patch
@@ -48,6 +49,8 @@ list of commands (use "hg help -v mq" to show aliases and global options):
  qtop         print the name of the current patch
  qunapplied   print the patches not yet applied
  strip        strip a revision and all later revs on the same branch
+
+use "hg -v help mq" to show aliases and global options
 adding a
 1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 adding b/z
@@ -60,12 +63,43 @@ A series
 A .hgignore
 A series
 A test.patch
+% qinit; qinit -c
+  .hgignore:
+syntax: glob
+status
+guards
+  series:
+abort: repository already exists!
+% qinit; <stuff>; qinit -c
+adding .hg/patches/A
+adding .hg/patches/B
+A .hgignore
+A A
+A B
+A series
+  .hgignore:
+status
+bleh
+  series:
+A
+B
 % qnew -m
 foo bar
 % qrefresh
 foo bar
 
 diff -r  xa
+--- a/a
++++ b/a
+@@ -1,1 +1,2 @@ a
+ a
++a
+% empty qrefresh
+revision:
+patch:
+foo bar
+
+working dir diff:
 --- a/a
 +++ b/a
 @@ -1,1 +1,2 @@ a
@@ -136,6 +170,61 @@ adding changesets
 adding manifests
 adding file changes
 added 1 changesets with 1 changes to 1 files
+% qpush/qpop error codes
+applying test.patch
+applying test1b.patch
+applying test2.patch
+Now at: test2.patch
+  % pops all patches and succeeds
+Patch queue now empty
+  qpop -a succeeds
+  % does nothing and succeeds
+no patches applied
+  qpop -a succeeds
+  % fails - nothing else to pop
+no patches applied
+  qpop fails
+  % pushes a patch and succeeds
+applying test.patch
+Now at: test.patch
+  qpush succeeds
+  % pops a patch and succeeds
+Patch queue now empty
+  qpop succeeds
+  % pushes up to test1b.patch and succeeds
+applying test.patch
+applying test1b.patch
+Now at: test1b.patch
+  qpush test1b.patch succeeds
+  % does nothing and succeeds
+qpush: test1b.patch is already at the top
+  qpush test1b.patch succeeds
+  % does nothing and succeeds
+qpop: test1b.patch is already at the top
+  qpop test1b.patch succeeds
+  % fails - can't push to this patch
+abort: cannot push to a previous patch: test.patch
+  qpush test.patch fails
+  % fails - can't pop to this patch
+abort: patch test2.patch is not applied
+  qpop test2.patch fails
+  % pops up to test.patch and succeeds
+Now at: test.patch
+  qpop test.patch succeeds
+  % pushes all patches and succeeds
+applying test1b.patch
+applying test2.patch
+Now at: test2.patch
+  qpush -a succeeds
+  % does nothing and succeeds
+all patches are currently applied
+  qpush -a succeeds
+  % fails - nothing else to push
+patch series already fully applied
+  qpush fails
+  % does nothing and succeeds
+all patches are currently applied
+  qpush test2.patch succeeds
 % strip
 adding x
 0 files updated, 0 files merged, 1 files removed, 0 files unresolved
@@ -179,6 +268,10 @@ patch failed, rejects left in working dir
 Errors during apply, please fix and refresh bar
 ? foo
 ? foo.rej
+% mq tags
+0 qparent
+1 qbase foo
+2 qtip bar tip
 new file
 
 diff --git a/new b/new
@@ -264,3 +357,75 @@ new file mode 100644
 @@ -0,0 +1,1 @@
 +bar
 3 barney (foo)
+% strip again
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+merging foo
+0 files updated, 1 files merged, 0 files removed, 0 files unresolved
+(branch merge, don't forget to commit)
+changeset:   3:99615015637b
+tag:         tip
+parent:      2:20cbbe65cff7
+parent:      1:d2871fc282d4
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     merge
+
+changeset:   2:20cbbe65cff7
+parent:      0:53245c60e682
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     change foo 2
+
+changeset:   1:d2871fc282d4
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     change foo 1
+
+changeset:   0:53245c60e682
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     add foo
+
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+saving bundle to 
+saving bundle to 
+adding branch
+adding changesets
+adding manifests
+adding file changes
+added 1 changesets with 1 changes to 1 files
+(run 'hg update' to get a working copy)
+changeset:   1:20cbbe65cff7
+tag:         tip
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     change foo 2
+
+changeset:   0:53245c60e682
+user:        test
+date:        Thu Jan 01 00:00:00 1970 +0000
+summary:     add foo
+
+% qclone
+main repo:
+    rev 1: change foo
+    rev 0: add foo
+patch repo:
+    rev 0: checkpoint
+3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+main repo:
+    rev 0: add foo
+patch repo:
+    rev 0: checkpoint
+Patch queue now empty
+main repo:
+    rev 0: add foo
+patch repo:
+    rev 0: checkpoint
+3 files updated, 0 files merged, 0 files removed, 0 files unresolved
+1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+main repo:
+    rev 0: add foo
+patch repo:
+    rev 0: checkpoint
