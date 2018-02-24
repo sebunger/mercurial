@@ -252,6 +252,7 @@ and destination are on the same filesystem.  Some filesystems,
 such as AFS, implement hardlinking incorrectly, but do not report
 errors.  In these cases, use the --pull option to avoid
 hardlinking.</pre>
+<pre>See pull for valid source format details.</pre>
 <pre>options:
 -U, --noupdate   do not update the new working directory
 --pull           use pull protocol to copy metadata
@@ -516,6 +517,7 @@ outgoing [-p] [dest]
     default push repo. These are the changesets that would be pushed
     if a push was requested.
 </p>
+<pre>See pull for valid source format details.</pre>
 <pre>options:
 -p, --patch           show patch</pre>
 <pre>aliases: out</pre>
@@ -592,10 +594,12 @@ rawcommit [-p -d -u -F -m -l]
 </dt>
 <dd>
 <p>
-    Lowlevel commit, for use in helper scripts.
+    Lowlevel commit, for use in helper scripts. (DEPRECATED)
 </p>
 <pre>This command is not intended to be used by normal users, as it is
 primarily useful for importing from other SCMs.</pre>
+<pre>This command is now deprecated and will be removed in a future
+release, please use debugsetparents and commit instead.</pre>
 </dd>
 <dt>
 recover
@@ -1003,7 +1007,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 10-Jan-2006 21:23:34 CEST
+Last updated 30-Jan-2006 13:03:04 NZDT
 </small></p>
 </body>
 </html>
