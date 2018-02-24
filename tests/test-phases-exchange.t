@@ -1,9 +1,5 @@
   $ "$TESTDIR/hghave" killdaemons || exit 80
 
-  $ cat >> $HGRCPATH <<EOF
-  > [extensions]
-  > graphlog=
-  > EOF
   $ hgph() { hg log -G --template "{rev} {phase} {desc} - {node|short}\n" $*; }
 
   $ mkcommit() {
@@ -91,6 +87,20 @@ push from alpha to beta should update phase even if nothing is transferred
   @  3 draft a-D - b555f63b6063
   |
   o  2 draft a-C - 54acac6f23ab
+  |
+  o  1 public a-B - 548a3d25dbf0
+  |
+  o  0 public a-A - 054250a37db4
+  
+  $ hg push -r 2 ../beta
+  pushing to ../beta
+  searching for changes
+  no changes found
+  [1]
+  $ hgph
+  @  3 draft a-D - b555f63b6063
+  |
+  o  2 public a-C - 54acac6f23ab
   |
   o  1 public a-B - 548a3d25dbf0
   |
@@ -399,7 +409,7 @@ Push back to alpha
 
 initial setup
 
-  $ hg glog # of alpha
+  $ hg log -G # of alpha
   o  changeset:   6:145e75495359
   |  tag:         tip
   |  user:        test
@@ -1062,7 +1072,7 @@ A. Clone without secret changeset
   |
   o  0 public a-A - 054250a37db4
   
-#if unix-permissions
+#if unix-permissions no-root
 
 Pushing From an unlockable repo
 --------------------------------

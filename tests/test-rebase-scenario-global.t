@@ -1,6 +1,5 @@
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
-  > graphlog=
   > rebase=
   > 
   > [phases]
@@ -236,7 +235,7 @@ These will abort gracefully (using --base):
 G onto G - rebase onto same changeset:
 
   $ hg rebase -b 6 -d 6
-  nothing to rebase
+  nothing to rebase - eea13746799a is both "base" and destination
   [1]
 
 G onto F - rebase onto an ancestor:
@@ -248,7 +247,7 @@ G onto F - rebase onto an ancestor:
 F onto G - rebase onto a descendant:
 
   $ hg rebase -b 5 -d 6
-  nothing to rebase
+  nothing to rebase - "base" 24b6387c8c8c is already an ancestor of destination eea13746799a
   [1]
 
 C onto A - rebase onto an ancestor:
@@ -650,3 +649,28 @@ each root have a different common ancestor with the destination and this is a de
   |/
   o  0: 'A'
   
+
+Test that rebase is not confused by $CWD disapearing during rebase (issue 4121)
+
+  $ cd ..
+  $ hg init cwd-vanish
+  $ cd cwd-vanish
+  $ touch initial-file
+  $ hg add initial-file
+  $ hg commit -m 'initial commit'
+  $ touch dest-file
+  $ hg add dest-file
+  $ hg commit -m 'dest commit'
+  $ hg up 0
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ touch other-file
+  $ hg add other-file
+  $ hg commit -m 'first source commit'
+  created new head
+  $ mkdir subdir
+  $ cd subdir
+  $ touch subfile
+  $ hg add subfile
+  $ hg commit -m 'second source with subdir'
+  $ hg rebase -b . -d 1 --traceback
+  saved backup bundle to $TESTTMP/cwd-vanish/.hg/strip-backup/779a07b1b7a0-backup.hg (glob)

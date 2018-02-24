@@ -95,11 +95,11 @@ repository.</dd>
 <col class="description" />
 <tbody valign="top">
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-R</span>, <span class="option">--repository</span></kbd></td>
+<kbd><span class="option">-R</span>, <span class="option">--repository <var>&lt;REPO&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>repository root directory or name of overlay bundle file</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--cwd</span></kbd></td>
+<kbd><span class="option">--cwd <var>&lt;DIR&gt;</var></span></kbd></td>
 <td>change working directory</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-y</span>, <span class="option">--noninteractive</span></kbd></td>
@@ -111,21 +111,24 @@ repository.</dd>
 <tr><td class="option-group">
 <kbd><span class="option">-v</span>, <span class="option">--verbose</span></kbd></td>
 <td>enable additional output</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--config</span></kbd></td>
-<td>set/override config option (use 'section.name=value')</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--config <var>&lt;CONFIG[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>set/override config option (use 'section.name=value')</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--debug</span></kbd></td>
 <td>enable debugging output</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--debugger</span></kbd></td>
 <td>start debugger</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--encoding</span></kbd></td>
-<td>set the charset encoding (default: UTF-8)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--encodingmode</span></kbd></td>
-<td>set the charset encoding mode (default: strict)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--encoding <var>&lt;ENCODE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>set the charset encoding (default: UTF-8)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--encodingmode <var>&lt;MODE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>set the charset encoding mode (default: strict)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--traceback</span></kbd></td>
 <td>always print a traceback on exception</td></tr>
@@ -146,6 +149,7 @@ repository.</dd>
 <td>consider hidden changesets</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="commands">
 <h1><a class="toc-backref" href="#contents">Commands</a></h1>
@@ -179,12 +183,14 @@ A foo.c
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
 <td>recurse into subrepositories</td></tr>
@@ -193,6 +199,7 @@ A foo.c
 <td>do not perform actions, just print output</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="addremove">
 <h2>addremove</h2>
@@ -220,20 +227,23 @@ identical files are detected.</p>
 <col class="description" />
 <tbody valign="top">
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-s</span>, <span class="option">--similarity</span></kbd></td>
+<kbd><span class="option">-s</span>, <span class="option">--similarity <var>&lt;SIMILARITY&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>guess renamed files by similarity (0&lt;=s&lt;=100)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--dry-run</span></kbd></td>
 <td>do not perform actions, just print output</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="annotate">
 <h2>annotate</h2>
@@ -254,9 +264,10 @@ nor desirable.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>annotate the specified revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>annotate the specified revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--follow</span></kbd></td>
 <td>follow copies/renames and list the filename (DEPRECATED)</td></tr>
@@ -298,16 +309,19 @@ nor desirable.</p>
 <kbd><span class="option">-B</span>, <span class="option">--ignore-blank-lines</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>ignore changes whose lines are all blank</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td><p class="first">exclude names matching the given patterns</p>
-<p class="last">aliases: blame</p>
-</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: blame</blockquote>
 </div>
 <div class="section" id="archive">
 <h2>archive</h2>
@@ -367,26 +381,32 @@ removed.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--no-decode</span></kbd></td>
 <td>do not pass files through decoders</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-p</span>, <span class="option">--prefix</span></kbd></td>
-<td>directory prefix for files in archive</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision to distribute</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--type</span></kbd></td>
-<td>type of distribution to create</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--prefix <var>&lt;PREFIX&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>directory prefix for files in archive</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision to distribute</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--type <var>&lt;TYPE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>type of distribution to create</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
 <td>recurse into subrepositories</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="backout">
 <h2>backout</h2>
@@ -424,34 +444,43 @@ merged separately.</p>
 <kbd><span class="option">--merge</span></kbd></td>
 <td>merge with old dirstate parent after backout</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--parent</span></kbd></td>
+<kbd><span class="option">--parent <var>&lt;REV&gt;</var></span></kbd></td>
 <td>parent to choose when backing out merge (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision to backout</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--tool</span></kbd></td>
-<td>specify merge tool</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision to backout</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify merge tool</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="bisect">
 <h2>bisect</h2>
@@ -563,9 +592,10 @@ hg log --graph -r &quot;bisect(range)&quot;
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--extend</span></kbd></td>
 <td>extend the bisect range</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-c</span>, <span class="option">--command</span></kbd></td>
-<td>use command to check changeset state</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-c</span>, <span class="option">--command <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use command to check changeset state</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-U</span>, <span class="option">--noupdate</span></kbd></td>
 <td>do not update to target</td></tr>
@@ -604,15 +634,17 @@ current active bookmark will be marked inactive.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--delete</span></kbd></td>
 <td>delete a given bookmark</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--rename</span></kbd></td>
-<td>rename a given bookmark</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--rename <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>rename a given bookmark</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-i</span>, <span class="option">--inactive</span></kbd></td>
 <td><p class="first">mark a bookmark inactive</p>
@@ -714,32 +746,39 @@ permissions, copy/rename information, and revision history.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>run even when the destination is unrelated</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a changeset intended to be added to the destination</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>a specific branch you would like to bundle</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--base</span></kbd></td>
-<td>a base changeset assumed to be available at the destination</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a changeset intended to be added to the destination</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a specific branch you would like to bundle</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--base <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a base changeset assumed to be available at the destination</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></td>
 <td>bundle all changesets in the repository</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--type</span></kbd></td>
-<td>bundle compression type to use (default: bzip2)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--type <var>&lt;TYPE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>bundle compression type to use (default: bzip2)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="cat">
 <h2>cat</h2>
@@ -769,23 +808,28 @@ for the export command, with the following additions:</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></td>
-<td>print output to file with formatted name</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>print the given revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-o</span>, <span class="option">--output <var>&lt;FORMAT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>print output to file with formatted name</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>print the given revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--decode</span></kbd></td>
 <td>apply any matching decode filter</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="clone">
 <h2>clone</h2>
@@ -890,32 +934,37 @@ hg clone http://selenic.com/hg#stable
 <kbd><span class="option">-U</span>, <span class="option">--noupdate</span></kbd></td>
 <td>the clone will include an empty working copy (only a repository)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-u</span>, <span class="option">--updaterev</span></kbd></td>
+<kbd><span class="option">-u</span>, <span class="option">--updaterev <var>&lt;REV&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>revision, tag or branch to check out</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>include the specified changeset</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>clone only the specified branch</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include the specified changeset</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>clone only the specified branch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--pull</span></kbd></td>
 <td>use pull protocol to copy metadata</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--uncompressed</span></kbd></td>
 <td>use uncompressed transfer (fast over LAN)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="commit">
 <h2>commit</h2>
@@ -964,31 +1013,38 @@ or changesets that have children.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--secret</span></kbd></td>
 <td>use the secret phase for committing</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
-<td><p class="first">recurse into subrepositories</p>
-<p class="last">aliases: ci</p>
-</td></tr>
+<td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: ci</blockquote>
 </div>
 <div class="section" id="copy">
 <h2>copy</h2>
@@ -1015,19 +1071,22 @@ before that, see <a class="reference external" href="hg.1.html#revert"><tt class
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>forcibly copy over an existing managed file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--dry-run</span></kbd></td>
-<td><p class="first">do not perform actions, just print output</p>
-<p class="last">aliases: cp</p>
-</td></tr>
+<td>do not perform actions, just print output</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: cp</blockquote>
 </div>
 <div class="section" id="diff">
 <h2>diff</h2>
@@ -1092,12 +1151,14 @@ hg diff -r 9353^2:9353  # compare against the second parent
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-c</span>, <span class="option">--change</span></kbd></td>
-<td>change made by revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-c</span>, <span class="option">--change <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>change made by revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--text</span></kbd></td>
 <td>treat all files as text</td></tr>
@@ -1126,23 +1187,27 @@ hg diff -r 9353^2:9353  # compare against the second parent
 <kbd><span class="option">-B</span>, <span class="option">--ignore-blank-lines</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>ignore changes whose lines are all blank</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-U</span>, <span class="option">--unified</span></kbd></td>
-<td>number of lines of context to show</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-U</span>, <span class="option">--unified <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>number of lines of context to show</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--stat</span></kbd></td>
 <td>output diffstat-style summary of changes</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
 <td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="export">
 <h2>export</h2>
@@ -1222,16 +1287,18 @@ hg export -r &quot;outgoing()&quot; -o &quot;%n-%m.patch&quot;
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></td>
-<td>print output to file with formatted name</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-o</span>, <span class="option">--output <var>&lt;FORMAT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>print output to file with formatted name</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--switch-parent</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>diff against the second parent</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revisions to export</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revisions to export</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--text</span></kbd></td>
 <td>treat all files as text</td></tr>
@@ -1243,6 +1310,7 @@ hg export -r &quot;outgoing()&quot; -o &quot;%n-%m.patch&quot;
 <td>omit dates from diff headers</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="forget">
 <h2>forget</h2>
@@ -1276,14 +1344,17 @@ hg forget &quot;set:hgignore()&quot;
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="graft">
 <h2>graft</h2>
@@ -1342,9 +1413,10 @@ hg log --debug -r .
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revisions to graft</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revisions to graft</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--continue</span></kbd></td>
 <td>resume interrupted graft</td></tr>
@@ -1362,20 +1434,24 @@ hg log --debug -r .
 <kbd><span class="option">-U</span>, <span class="option">--currentuser</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>record the current user as committer</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--tool</span></kbd></td>
-<td>specify merge tool</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify merge tool</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--dry-run</span></kbd></td>
 <td>do not perform actions, just print output</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="grep">
 <h2>grep</h2>
@@ -1422,23 +1498,27 @@ use the --all flag.</p>
 <kbd><span class="option">-n</span>, <span class="option">--line-number</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>print matching line numbers</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>only search files changed within revision range</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>only search files changed within revision range</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
 <td>list the author (long with -v)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
 <td>list the date (short with -q)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="heads">
 <h2>heads</h2>
@@ -1465,9 +1545,10 @@ topological heads (changesets with no children) will be shown.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>show only heads which are descendants of STARTREV</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;STARTREV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show only heads which are descendants of STARTREV</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-t</span>, <span class="option">--topo</span></kbd></td>
 <td>show topological heads only</td></tr>
@@ -1477,12 +1558,14 @@ topological heads (changesets with no children) will be shown.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--closed</span></kbd></td>
 <td>show normal and closed branch heads</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
 </table>
 </div>
@@ -1507,9 +1590,10 @@ topic.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--command</span></kbd></td>
 <td>show only help for commands</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-k</span>, <span class="option">--keyword</span></kbd></td>
-<td>show topics matching keyword</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-k</span>, <span class="option">--keyword <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show topics matching keyword</td></tr>
 </tbody>
 </table>
 </div>
@@ -1552,9 +1636,10 @@ hg id -r tip http://selenic.com/hg/
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>identify the specified revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>identify the specified revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--num</span></kbd></td>
 <td>show local revision number</td></tr>
@@ -1571,12 +1656,14 @@ hg id -r tip http://selenic.com/hg/
 <kbd><span class="option">-B</span>, <span class="option">--bookmarks</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>show bookmarks</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td><p class="first">do not verify server certificate (ignoring web.cacerts config)</p>
@@ -1650,12 +1737,14 @@ hg import --exact proposed-fix.patch
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-p</span>, <span class="option">--strip</span></kbd></td>
-<td>directory strip option for patch. This has the same meaning as the corresponding patch option (default: 1)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--base</span></kbd></td>
-<td>base path (DEPRECATED)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--strip <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>directory strip option for patch. This has the same meaning as the corresponding patch option (default: 1)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--base <var>&lt;PATH&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>base path (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
 <td>invoke editor on commit messages</td></tr>
@@ -1675,20 +1764,24 @@ hg import --exact proposed-fix.patch
 <kbd><span class="option">--import-branch</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>use any branch information in patch (implied by --exact)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-s</span>, <span class="option">--similarity</span></kbd></td>
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-s</span>, <span class="option">--similarity <var>&lt;SIMILARITY&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td><p class="first">guess renamed files by similarity (0&lt;=s&lt;=100)</p>
 <p class="last">aliases: patch</p>
@@ -1720,28 +1813,32 @@ changesets twice if the incoming is followed by a pull.</p>
 <kbd><span class="option">-n</span>, <span class="option">--newest-first</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>show newest record first</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--bundle</span></kbd></td>
-<td>file to store the bundles into</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a remote changeset intended to be added</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--bundle <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>file to store the bundles into</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a remote changeset intended to be added</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-B</span>, <span class="option">--bookmarks</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>compare bookmarks</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>a specific branch you would like to pull</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a specific branch you would like to pull</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--limit</span></kbd></td>
-<td>limit number of changes displayed</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--limit <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>limit number of changes displayed</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-M</span>, <span class="option">--no-merges</span></kbd></td>
 </tr>
@@ -1752,28 +1849,33 @@ changesets twice if the incoming is followed by a pull.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-G</span>, <span class="option">--graph</span></kbd></td>
 <td>show the revision DAG</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
-<td><p class="first">recurse into subrepositories</p>
-<p class="last">aliases: in</p>
-</td></tr>
+<td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: in</blockquote>
 </div>
 <div class="section" id="init">
 <h2>init</h2>
@@ -1791,12 +1893,14 @@ See <a class="reference external" href="hg.1.html#urls"><tt class="docutils lite
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
@@ -1825,23 +1929,27 @@ contain whitespace as multiple filenames.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>search the repository as it is in REV</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>search the repository as it is in REV</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-0</span>, <span class="option">--print0</span></kbd></td>
 <td>end filenames with NUL, for use with xargs</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--fullpath</span></kbd></td>
 <td>print complete paths from the filesystem root</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="log">
 <h2>log</h2>
@@ -1942,18 +2050,21 @@ specifying custom templates.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--follow-first</span></kbd></td>
 <td>only follow the first parent of merge changesets (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>show revisions matching date spec</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show revisions matching date spec</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-C</span>, <span class="option">--copies</span></kbd></td>
 <td>show copied files</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-k</span>, <span class="option">--keyword</span></kbd></td>
-<td>do case-insensitive search for a given text</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>show the specified revision or range</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-k</span>, <span class="option">--keyword <var>&lt;TEXT[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>do case-insensitive search for a given text</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show the specified revision or range</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--removed</span></kbd></td>
 <td>include revisions where files were removed</td></tr>
@@ -1961,27 +2072,32 @@ specifying custom templates.</p>
 <kbd><span class="option">-m</span>, <span class="option">--only-merges</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>show only merges (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>revisions committed by user</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--only-branch</span></kbd></td>
-<td>show only changesets within the given named branch (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>show changesets within the given named branch</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-P</span>, <span class="option">--prune</span></kbd></td>
-<td>do not display revision or any of its ancestors</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revisions committed by user</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--only-branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show only changesets within the given named branch (DEPRECATED)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show changesets within the given named branch</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-P</span>, <span class="option">--prune <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>do not display revision or any of its ancestors</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--limit</span></kbd></td>
-<td>limit number of changes displayed</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--limit <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>limit number of changes displayed</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-M</span>, <span class="option">--no-merges</span></kbd></td>
 </tr>
@@ -1992,22 +2108,27 @@ specifying custom templates.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-G</span>, <span class="option">--graph</span></kbd></td>
 <td>show the revision DAG</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td><p class="first">exclude names matching the given patterns</p>
-<p class="last">aliases: history</p>
-</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: history</blockquote>
 </div>
 <div class="section" id="manifest">
 <h2>manifest</h2>
@@ -2027,9 +2148,10 @@ is printed. This includes deleted and renamed files.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision to display</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision to display</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--all</span></kbd></td>
 <td>list files from all revisions</td></tr>
@@ -2067,15 +2189,17 @@ all changes.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force a merge including outstanding changes (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision to merge</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision to merge</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-P</span>, <span class="option">--preview</span></kbd></td>
 <td>review revisions to merge (no merge is performed)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--tool</span></kbd></td>
-<td>specify merge tool</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify merge tool</td></tr>
 </tbody>
 </table>
 </div>
@@ -2097,9 +2221,10 @@ be pushed if a push was requested.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>run even when the destination is unrelated</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a changeset intended to be included in the destination</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a changeset intended to be included in the destination</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-n</span>, <span class="option">--newest-first</span></kbd></td>
 </tr>
@@ -2108,18 +2233,20 @@ be pushed if a push was requested.</p>
 <kbd><span class="option">-B</span>, <span class="option">--bookmarks</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>compare bookmarks</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>a specific branch you would like to push</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a specific branch you would like to push</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--limit</span></kbd></td>
-<td>limit number of changes displayed</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--limit <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>limit number of changes displayed</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-M</span>, <span class="option">--no-merges</span></kbd></td>
 </tr>
@@ -2130,28 +2257,33 @@ be pushed if a push was requested.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-G</span>, <span class="option">--graph</span></kbd></td>
 <td>show the revision DAG</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
-<td><p class="first">recurse into subrepositories</p>
-<p class="last">aliases: out</p>
-</td></tr>
+<td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: out</blockquote>
 </div>
 <div class="section" id="parents">
 <h2>parents</h2>
@@ -2169,15 +2301,18 @@ argument to --rev if given) is printed.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>show parents of the specified revision</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show parents of the specified revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
 </table>
 </div>
@@ -2238,11 +2373,13 @@ be changed.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>allow to move boundary backward</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>target revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>target revision</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="pull">
 <h2>pull</h2>
@@ -2272,26 +2409,32 @@ See <a class="reference external" href="hg.1.html#urls"><tt class="docutils lite
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>run even when remote repository is unrelated</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a remote changeset intended to be added</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-B</span>, <span class="option">--bookmark</span></kbd></td>
-<td>bookmark to pull</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>a specific branch you would like to pull</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a remote changeset intended to be added</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-B</span>, <span class="option">--bookmark <var>&lt;BOOKMARK[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>bookmark to pull</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a specific branch you would like to pull</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="push">
 <h2>push</h2>
@@ -2331,29 +2474,35 @@ URLs. If DESTINATION is omitted, a default path will be used.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force push</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a changeset intended to be included in the destination</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-B</span>, <span class="option">--bookmark</span></kbd></td>
-<td>bookmark to push</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>a specific branch you would like to push</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a changeset intended to be included in the destination</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-B</span>, <span class="option">--bookmark <var>&lt;BOOKMARK[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>bookmark to push</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a specific branch you would like to push</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--new-branch</span></kbd></td>
 <td>allow pushing a new branch</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="recover">
 <h2>recover</h2>
@@ -2443,16 +2592,19 @@ working directory, not even if option --force is specified.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>remove (and delete) file even if added or modified</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td><p class="first">exclude names matching the given patterns</p>
-<p class="last">aliases: rm</p>
-</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: rm</blockquote>
 </div>
 <div class="section" id="rename">
 <h2>rename</h2>
@@ -2479,19 +2631,22 @@ before that, see <a class="reference external" href="hg.1.html#revert"><tt class
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>forcibly copy over an existing managed file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--dry-run</span></kbd></td>
-<td><p class="first">do not perform actions, just print output</p>
-<p class="last">aliases: move mv</p>
-</td></tr>
+<td>do not perform actions, just print output</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: move mv</blockquote>
 </div>
 <div class="section" id="resolve">
 <h2>resolve</h2>
@@ -2547,17 +2702,21 @@ commit after a conflicting merge.</p>
 <kbd><span class="option">-n</span>, <span class="option">--no-status</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>hide status prefix</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--tool</span></kbd></td>
-<td>specify merge tool</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify merge tool</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="revert">
 <h2>revert</h2>
@@ -2594,27 +2753,32 @@ To disable these backups, use --no-backup.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></td>
 <td>revert all changes when no arguments given</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>tipmost revision matching date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revert to the specified revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>tipmost revision matching date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revert to the specified revision</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-C</span>, <span class="option">--no-backup</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>do not save backup copies of files</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--dry-run</span></kbd></td>
 <td>do not perform actions, just print output</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="rollback">
 <h2>rollback</h2>
@@ -2701,59 +2865,70 @@ number it uses.</p>
 <col class="description" />
 <tbody valign="top">
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-A</span>, <span class="option">--accesslog</span></kbd></td>
+<kbd><span class="option">-A</span>, <span class="option">--accesslog <var>&lt;FILE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>name of access log file to write to</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--daemon</span></kbd></td>
 <td>run server in background</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--daemon-pipefds</span></kbd></td>
+<kbd><span class="option">--daemon-pipefds <var>&lt;NUM&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>used internally by daemon mode</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-E</span>, <span class="option">--errorlog</span></kbd></td>
-<td>name of error log file to write to</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-p</span>, <span class="option">--port</span></kbd></td>
-<td>port to listen on (default: 8000)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-a</span>, <span class="option">--address</span></kbd></td>
-<td>address to listen on (default: all interfaces)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--prefix</span></kbd></td>
-<td>prefix path to serve from (default: server root)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-n</span>, <span class="option">--name</span></kbd></td>
-<td>name to show in web pages (default: working directory)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--web-conf</span></kbd></td>
-<td>name of the hgweb config file (see &quot;hg help hgweb&quot;)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--webdir-conf</span></kbd></td>
-<td>name of the hgweb config file (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--pid-file</span></kbd></td>
-<td>name of file to write process ID to</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-E</span>, <span class="option">--errorlog <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of error log file to write to</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--port <var>&lt;PORT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>port to listen on (default: 8000)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-a</span>, <span class="option">--address <var>&lt;ADDR&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>address to listen on (default: all interfaces)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--prefix <var>&lt;PREFIX&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>prefix path to serve from (default: server root)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-n</span>, <span class="option">--name <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name to show in web pages (default: working directory)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--web-conf <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of the hgweb config file (see &quot;hg help hgweb&quot;)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--webdir-conf <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of the hgweb config file (DEPRECATED)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--pid-file <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of file to write process ID to</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--stdio</span></kbd></td>
 <td>for remote clients</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--cmdserver</span></kbd></td>
-<td>for remote clients</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-t</span>, <span class="option">--templates</span></kbd></td>
+<kbd><span class="option">--cmdserver <var>&lt;MODE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>for remote clients</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--templates <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>web templates to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>template style to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>template style to use</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-6</span>, <span class="option">--ipv6</span></kbd></td>
 <td>use IPv6 in addition to IPv4</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--certificate</span></kbd></td>
-<td>SSL certificate file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--certificate <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>SSL certificate file</td></tr>
 </tbody>
 </table>
 </div>
@@ -2881,24 +3056,27 @@ hg status -an0
 <kbd><span class="option">-0</span>, <span class="option">--print0</span></kbd></td>
 <td>end filenames with NUL, for use with xargs</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--rev</span></kbd></td>
+<kbd><span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
 <td>show difference from revision</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--change</span></kbd></td>
+<kbd><span class="option">--change <var>&lt;REV&gt;</var></span></kbd></td>
 <td>list the changed files of a revision</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
-<td><p class="first">recurse into subrepositories</p>
-<p class="last">aliases: st</p>
-</td></tr>
+<td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: st</blockquote>
 </div>
 <div class="section" id="summary">
 <h2>summary</h2>
@@ -2960,24 +3138,28 @@ lookup, using an existing branch name as a tag name is discouraged.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-l</span>, <span class="option">--local</span></kbd></td>
 <td>make the tag local</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision to tag</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision to tag</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--remove</span></kbd></td>
 <td>remove a tag</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
 <td>edit commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use &lt;text&gt; as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use &lt;text&gt; as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
 </tbody>
 </table>
 </div>
@@ -3015,12 +3197,14 @@ and cannot be renamed or assigned to a different changeset.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
 </table>
 </div>
@@ -3096,12 +3280,14 @@ the working directory is updated to the requested changeset.</li>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--check</span></kbd></td>
 <td>update across branches if no uncommitted changes</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>tipmost revision matching date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td><p class="first">revision</p>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>tipmost revision matching date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td><p class="first">revision</p>
 <p class="last">aliases: up checkout co</p>
 </td></tr>
 </tbody>
@@ -3360,7 +3546,7 @@ baz = !
 </tr>
 <tr class="field"><th class="field-name">gpg:</th><td class="field-body">commands to sign and verify changesets</td>
 </tr>
-<tr class="field"><th class="field-name">graphlog:</th><td class="field-body">command to view revision graphs from a shell</td>
+<tr class="field"><th class="field-name">graphlog:</th><td class="field-body">command to view revision graphs from a shell (DEPRECATED)</td>
 </tr>
 <tr class="field"><th class="field-name">hgcia:</th><td class="field-body">hooks for integrating with the CIA.vc notification service</td>
 </tr>
@@ -4134,6 +4320,9 @@ Regexp pattern matching is anchored at the root of the repository.</p>
 The latter expects null delimited patterns while the former expects line
 feeds. Each string read from the file is itself treated as a file
 pattern.</p>
+<p>All patterns, except for <tt class="docutils literal">glob:</tt> specified in command line (not for
+<tt class="docutils literal"><span class="pre">-I</span></tt> or <tt class="docutils literal"><span class="pre">-X</span></tt> options), can match also against directories: files
+under matched directories are treated as matched.</p>
 <p>Plain examples:</p>
 <pre class="literal-block">
 path:foo/bar   a name bar in a directory named foo in the root
@@ -4221,6 +4410,13 @@ publish = False
 <p class="last">Servers running older versions of Mercurial are treated as
 publishing.</p>
 </div>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p class="last">Changesets in secret phase are not exchanged with the server. This
+applies to their content: file names, file contents, and changeset
+metadata. For technical reasons, the identifier (e.g. d825e4025e39)
+of the secret changeset may be communicated to the server.</p>
+</div>
 </div>
 <div class="section" id="examples">
 <h2>Examples</h2>
@@ -4270,9 +4466,9 @@ identifier. A short-form identifier is only valid if it is the prefix
 of exactly one full-length identifier.</p>
 <p>Any other string is treated as a bookmark, tag, or branch name. A
 bookmark is a movable pointer to a revision. A tag is a permanent name
-associated with a revision. A branch name denotes the tipmost revision
-of that branch. Bookmark, tag, and branch names must not contain the &quot;:&quot;
-character.</p>
+associated with a revision. A branch name denotes the tipmost open branch head
+of that branch - or if they are all closed, the tipmost closed head of the
+branch. Bookmark, tag, and branch names must not contain the &quot;:&quot; character.</p>
 <p>The reserved name &quot;tip&quot; always identifies the most recent revision.</p>
 <p>The reserved name &quot;null&quot; indicates the null revision. This is the
 revision of an empty repository, and the parent of revision 0.</p>
@@ -4333,7 +4529,11 @@ for n == 2, the second parent of changeset in x.</dd>
 <p>The following predicates are supported:</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">adds(pattern)</tt></dt>
-<dd>Changesets that add a file matching pattern.</dd>
+<dd><p class="first">Changesets that add a file matching pattern.</p>
+<p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
+relative to the current directory and match against a file or a
+directory.</p>
+</dd>
 <dt><tt class="docutils literal">all()</tt></dt>
 <dd>All changesets, the same as <tt class="docutils literal">0:tip</tt>.</dd>
 <dt><tt class="docutils literal"><span class="pre">ancestor(*changeset)</span></tt></dt>
@@ -4386,8 +4586,12 @@ use the prefix <cite>literal:</cite>.</p>
 <dt><tt class="docutils literal">closed()</tt></dt>
 <dd>Changeset is closed.</dd>
 <dt><tt class="docutils literal">contains(pattern)</tt></dt>
-<dd>Revision contains a file matching pattern. See <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a>
-for information about file patterns.</dd>
+<dd><p class="first">Revision contains a file matching pattern. See <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a>
+for information about file patterns.</p>
+<p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
+relative to the current directory and match against a file exactly
+for efficiency.</p>
+</dd>
 <dt><tt class="docutils literal"><span class="pre">converted([id])</span></tt></dt>
 <dd>Changesets converted from the given identifier in the old repository if
 present, or all converted changesets if no identifier is specified.</dd>
@@ -4416,14 +4620,18 @@ use the prefix <cite>literal:</cite>.</p>
 </dd>
 <dt><tt class="docutils literal">file(pattern)</tt></dt>
 <dd><p class="first">Changesets affecting files matched by pattern.</p>
-<p class="last">For a faster but less accurate result, consider using <tt class="docutils literal">filelog()</tt>
+<p>For a faster but less accurate result, consider using <tt class="docutils literal">filelog()</tt>
 instead.</p>
+<p class="last">This predicate uses <tt class="docutils literal">glob:</tt> as the default kind of pattern.</p>
 </dd>
 <dt><tt class="docutils literal">filelog(pattern)</tt></dt>
 <dd><p class="first">Changesets connected to the specified filelog.</p>
-<p class="last">For performance reasons, <tt class="docutils literal">filelog()</tt> does not show every changeset
+<p>For performance reasons, <tt class="docutils literal">filelog()</tt> does not show every changeset
 that affects the requested file(s). See <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg help log</tt></a> for details. For
 a slower, more accurate result, use <tt class="docutils literal">file()</tt>.</p>
+<p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
+relative to the current directory and match against a file exactly
+for efficiency.</p>
 </dd>
 <dt><tt class="docutils literal">first(set, [n])</tt></dt>
 <dd>An alias for limit().</dd>
@@ -4476,7 +4684,11 @@ specified. You can match more than one field at a time.</p>
 <dt><tt class="docutils literal">min(set)</tt></dt>
 <dd>Changeset with lowest revision number in set.</dd>
 <dt><tt class="docutils literal">modifies(pattern)</tt></dt>
-<dd>Changesets modifying files matched by pattern.</dd>
+<dd><p class="first">Changesets modifying files matched by pattern.</p>
+<p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
+relative to the current directory and match against a file or a
+directory.</p>
+</dd>
 <dt><tt class="docutils literal">obsolete()</tt></dt>
 <dd>Mutable changeset with a newer version.</dd>
 <dt><tt class="docutils literal"><span class="pre">origin([set])</span></tt></dt>
@@ -4508,7 +4720,11 @@ to continue even in such cases.</p>
 remote repository, if present. Here, the '.' identifier is a
 synonym for the current local branch.</dd>
 <dt><tt class="docutils literal">removes(pattern)</tt></dt>
-<dd>Changesets which remove files matching pattern.</dd>
+<dd><p class="first">Changesets which remove files matching pattern.</p>
+<p class="last">The pattern without explicit kind like <tt class="docutils literal">glob:</tt> is expected to be
+relative to the current directory and match against a file or a
+directory.</p>
+</dd>
 <dt><tt class="docutils literal">rev(number)</tt></dt>
 <dd>Revision with the given numeric identifier.</dd>
 <dt><tt class="docutils literal">reverse(set)</tt></dt>
@@ -4786,10 +5002,6 @@ changeset.</td>
 <tr class="field"><th class="field-name">branch:</th><td class="field-body">String. The name of the branch on which the changeset was
 committed.</td>
 </tr>
-<tr class="field"><th class="field-name">branches:</th><td class="field-body">List of strings. The name of the branch on which the
-changeset was committed. Will be empty if the branch name was
-default.</td>
-</tr>
 <tr class="field"><th class="field-name">children:</th><td class="field-body">List of strings. The children of the changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">date:</th><td class="field-body">Date information. The date when the changeset was committed.</td>
@@ -4798,6 +5010,9 @@ default.</td>
 </tr>
 <tr class="field"><th class="field-name">diffstat:</th><td class="field-body">String. Statistics of changes with the following format:
 &quot;modified files: +added/-removed lines&quot;</td>
+</tr>
+<tr class="field"><th class="field-name">extras:</th><td class="field-body">List of dicts with key, value entries of the 'extras'
+field of this changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">file_adds:</th><td class="field-body">List of strings. Files added by this changeset.</td>
 </tr>
@@ -5018,6 +5233,11 @@ $ hg log -r 0 --template &quot;{label('changeset.{phase}', node|short)}\n&quot;
 <li><p class="first">Invert the firstline filter, i.e. everything but the first line:</p>
 <pre class="literal-block">
 $ hg log -r 0 --template &quot;{sub(r'^.*\n?\n?', '', desc)}\n&quot;
+</pre>
+</li>
+<li><p class="first">Display the contents of the 'extra' field, one per line:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;{join(extras, '\n')}\n&quot;
 </pre>
 </li>
 </ul>
@@ -5342,9 +5562,10 @@ hg blackbox [OPTION]...
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--limit</span></kbd></td>
-<td>the number of events to show (default: 10)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--limit <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>the number of events to show (default: 10)</td></tr>
 </tbody>
 </table>
 </div>
@@ -5638,15 +5859,18 @@ argument to --rev if given) is printed.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>show children of the specified revision</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show children of the specified revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
 </table>
 </div>
@@ -5697,17 +5921,20 @@ Aliases will be split from the rightmost &quot;=&quot;.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>count rate for the specified revision or range</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>count rate for revisions matching date spec</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--template</span></kbd></td>
-<td>template to group changesets (default: {author|email})</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-f</span>, <span class="option">--dateformat</span></kbd></td>
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>count rate for the specified revision or range</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>count rate for revisions matching date spec</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>template to group changesets (default: {author|email})</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-f</span>, <span class="option">--dateformat <var>&lt;FORMAT&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>strftime-compatible format for grouping by date</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -5720,17 +5947,21 @@ Aliases will be split from the rightmost &quot;=&quot;.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--diffstat</span></kbd></td>
 <td>display added/removed lines separately</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--aliases</span></kbd></td>
-<td>file with email aliases</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--aliases <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>file with email aliases</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -6151,33 +6382,38 @@ True.</td>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">--authors</span></kbd></td>
-<td>username mapping filename (DEPRECATED, use --authormap instead)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-s</span>, <span class="option">--source-type</span></kbd></td>
+<kbd><span class="option">--authors <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>username mapping filename (DEPRECATED, use --authormap instead)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-s</span>, <span class="option">--source-type <var>&lt;TYPE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>source repository type</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-d</span>, <span class="option">--dest-type</span></kbd></td>
+<kbd><span class="option">-d</span>, <span class="option">--dest-type <var>&lt;TYPE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>destination repository type</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>import up to source revision REV</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-A</span>, <span class="option">--authormap</span></kbd></td>
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>import up to source revision REV</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-A</span>, <span class="option">--authormap <var>&lt;FILE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>remap usernames using this file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--filemap</span></kbd></td>
-<td>remap file names using contents of file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--splicemap</span></kbd></td>
-<td>splice synthesized history into place</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--branchmap</span></kbd></td>
-<td>change branch names while converting</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--filemap <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>remap file names using contents of file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--splicemap <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>splice synthesized history into place</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--branchmap <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>change branch names while converting</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--branchsort</span></kbd></td>
 <td>try to sort changesets by branches</td></tr>
@@ -6356,26 +6592,33 @@ to its parent.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-p</span>, <span class="option">--program</span></kbd></td>
-<td>comparison program to run</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-o</span>, <span class="option">--option</span></kbd></td>
-<td>pass option to comparison program</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-c</span>, <span class="option">--change</span></kbd></td>
-<td>change made by revision</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--program <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>comparison program to run</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-o</span>, <span class="option">--option <var>&lt;OPT[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>pass option to comparison program</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-c</span>, <span class="option">--change <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>change made by revision</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -6431,9 +6674,10 @@ pulled changes. To switch the merge order, use --switch-parent.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a specific revision you would like to pull</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a specific revision you would like to pull</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
 <td>edit commit message</td></tr>
@@ -6444,29 +6688,36 @@ pulled changes. To switch the merge order, use --switch-parent.</p>
 <kbd><span class="option">--switch-parent</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>switch parents when merging</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -6505,17 +6756,20 @@ or tip if no revision is checked out.</p>
 <kbd><span class="option">--no-commit</span></kbd></td>
 <td>do not commit the sigfile after signing</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">-k</span>, <span class="option">--key</span></kbd></td>
+<kbd><span class="option">-k</span>, <span class="option">--key <var>&lt;ID&gt;</var></span></kbd></td>
 <td>the key id to sign with</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
 </tbody>
 </table>
 </div>
@@ -6530,7 +6784,9 @@ hg sigs
 </div>
 <div class="section" id="graphlog">
 <h2><a class="toc-backref" href="#id87">graphlog</a></h2>
-<p>command to view revision graphs from a shell</p>
+<p>command to view revision graphs from a shell (DEPRECATED)</p>
+<p>The functionality of this extension has been include in core Mercurial
+since version 2.3.</p>
 <p>This extension adds a --graph option to the incoming, outgoing and log
 commands. When this options is given, an ASCII representation of the
 revision graph is also shown.</p>
@@ -6556,18 +6812,21 @@ directory.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--follow-first</span></kbd></td>
 <td>only follow the first parent of merge changesets (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>show revisions matching date spec</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show revisions matching date spec</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-C</span>, <span class="option">--copies</span></kbd></td>
 <td>show copied files</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-k</span>, <span class="option">--keyword</span></kbd></td>
-<td>do case-insensitive search for a given text</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>show the specified revision or range</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-k</span>, <span class="option">--keyword <var>&lt;TEXT[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>do case-insensitive search for a given text</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show the specified revision or range</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--removed</span></kbd></td>
 <td>include revisions where files were removed</td></tr>
@@ -6575,27 +6834,32 @@ directory.</p>
 <kbd><span class="option">-m</span>, <span class="option">--only-merges</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>show only merges (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>revisions committed by user</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--only-branch</span></kbd></td>
-<td>show only changesets within the given named branch (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>show changesets within the given named branch</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-P</span>, <span class="option">--prune</span></kbd></td>
-<td>do not display revision or any of its ancestors</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>revisions committed by user</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--only-branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show only changesets within the given named branch (DEPRECATED)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;BRANCH[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show changesets within the given named branch</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-P</span>, <span class="option">--prune <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>do not display revision or any of its ancestors</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--limit</span></kbd></td>
-<td>limit number of changes displayed</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--limit <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>limit number of changes displayed</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-M</span>, <span class="option">--no-merges</span></kbd></td>
 </tr>
@@ -6606,20 +6870,25 @@ directory.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-G</span>, <span class="option">--graph</span></kbd></td>
 <td>show the revision DAG</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -6701,9 +6970,10 @@ hg view [-l LIMIT] [REVRANGE]
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--limit</span></kbd></td>
-<td>limit number of changes displayed</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--limit <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>limit number of changes displayed</td></tr>
 </tbody>
 </table>
 </div>
@@ -6877,9 +7147,10 @@ conflicts).</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">--commands</span></kbd></td>
-<td>Read history edits from the specified file.</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--commands <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>Read history edits from the specified file.</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--continue</span></kbd></td>
 <td>continue an edit already in progress</td></tr>
@@ -6895,11 +7166,13 @@ conflicts).</p>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force outgoing even for unrelated repositories</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>first revision to be edited</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>first revision to be edited</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -6923,16 +7196,17 @@ hg inserve [OPTION]...
 <kbd><span class="option">-d</span>, <span class="option">--daemon</span></kbd></td>
 <td>run server in background</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--daemon-pipefds</span></kbd></td>
+<kbd><span class="option">--daemon-pipefds <var>&lt;NUM&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>used internally by daemon mode</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-t</span>, <span class="option">--idle-timeout</span></kbd></td>
+<kbd><span class="option">-t</span>, <span class="option">--idle-timeout <var>&lt;NUM&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>minutes to sit idle before exiting</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--pid-file</span></kbd></td>
-<td>name of file to write process ID to</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--pid-file <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of file to write process ID to</td></tr>
 </tbody>
 </table>
 </div>
@@ -7017,9 +7291,10 @@ and using -f/--rcfile to source an external hgrc file.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--default</span></kbd></td>
 <td>show default keyword template maps</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-f</span>, <span class="option">--rcfile</span></kbd></td>
-<td>read maps from rcfile</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-f</span>, <span class="option">--rcfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read maps from rcfile</td></tr>
 </tbody>
 </table>
 </div>
@@ -7035,14 +7310,17 @@ hg kwexpand [OPTION]... [FILE]...
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="kwfiles">
 <h4>kwfiles</h4>
@@ -7078,14 +7356,17 @@ i = ignored (not tracked)
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--unknown</span></kbd></td>
 <td>only show unknown (not tracked) files</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="kwshrink">
 <h4>kwshrink</h4>
@@ -7099,14 +7380,17 @@ hg kwshrink [OPTION]... [FILE]...
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -7224,9 +7508,10 @@ this, the DEST repository can be used without largefiles at all.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-s</span>, <span class="option">--size</span></kbd></td>
-<td>minimum size (MB) for files to be converted as largefiles</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-s</span>, <span class="option">--size <var>&lt;SIZE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>minimum size (MB) for files to be converted as largefiles</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--to-normal</span></kbd></td>
 <td>convert from a largefiles repo to a normal repo</td></tr>
@@ -7262,20 +7547,24 @@ hg lfpull -r &quot;branch(default)&quot;
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>pull largefiles for these revisions</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>pull largefiles for these revisions</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -7381,15 +7670,18 @@ would be created by <a class="reference external" href="hg.1.html#init"><tt clas
 <tr><td class="option-group">
 <kbd><span class="option">--uncompressed</span></kbd></td>
 <td>use uncompressed transfer (fast over LAN)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-p</span>, <span class="option">--patches</span></kbd></td>
-<td>location of source patch repository</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--patches <var>&lt;REPO&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>location of source patch repository</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
@@ -7420,31 +7712,38 @@ hg qcommit [OPTION]... [FILE]...
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--secret</span></kbd></td>
 <td>use the secret phase for committing</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
-<td><p class="first">recurse into subrepositories</p>
-<p class="last">aliases: qci</p>
-</td></tr>
+<td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: qci</blockquote>
 </div>
 <div class="section" id="qdelete">
 <h4>qdelete</h4>
@@ -7464,13 +7763,15 @@ use the <a class="reference external" href="hg.1.html#qfinish"><tt class="docuti
 <tr><td class="option-group">
 <kbd><span class="option">-k</span>, <span class="option">--keep</span></kbd></td>
 <td>keep patch file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td><p class="first">stop managing a revision (DEPRECATED)</p>
-<p class="last">aliases: qremove qrm</p>
-</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>stop managing a revision (DEPRECATED)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: qremove qrm</blockquote>
 </div>
 <div class="section" id="qdiff">
 <h4>qdiff</h4>
@@ -7519,20 +7820,24 @@ qrefresh.</p>
 <kbd><span class="option">-B</span>, <span class="option">--ignore-blank-lines</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>ignore changes whose lines are all blank</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-U</span>, <span class="option">--unified</span></kbd></td>
-<td>number of lines of context to show</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-U</span>, <span class="option">--unified <var>&lt;NUM&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>number of lines of context to show</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--stat</span></kbd></td>
 <td>output diffstat-style summary of changes</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="qfinish">
 <h4>qfinish</h4>
@@ -7586,12 +7891,14 @@ current patch header, separated by a line of <tt class="docutils literal">* * *<
 <tr><td class="option-group">
 <kbd><span class="option">-k</span>, <span class="option">--keep</span></kbd></td>
 <td>keep folded patch files</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
 </tbody>
 </table>
 </div>
@@ -7697,15 +8004,17 @@ hg qimport -e existing-patch -n new-name
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--existing</span></kbd></td>
 <td>import file in patch directory</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-n</span>, <span class="option">--name</span></kbd></td>
-<td>name of patch file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-n</span>, <span class="option">--name <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of patch file</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>overwrite existing files</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>place existing revisions under mq control</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>place existing revisions under mq control</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-g</span>, <span class="option">--git</span></kbd></td>
 <td>use git extended diff format</td></tr>
@@ -7714,6 +8023,7 @@ hg qimport -e existing-patch -n new-name
 <td>qpush after importing</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="qinit">
 <h4>qinit</h4>
@@ -7779,30 +8089,37 @@ information.</p>
 <kbd><span class="option">-U</span>, <span class="option">--currentuser</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>add &quot;From: &lt;current user&gt;&quot; to patch</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>add &quot;From: &lt;USER&gt;&quot; to patch</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>add &quot;From: &lt;USER&gt;&quot; to patch</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-D</span>, <span class="option">--currentdate</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>add &quot;Date: &lt;current date&gt;&quot; to patch</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>add &quot;Date: &lt;DATE&gt;&quot; to patch</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>add &quot;Date: &lt;DATE&gt;&quot; to patch</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="qnext">
 <h4>qnext</h4>
@@ -7842,9 +8159,10 @@ changes made to such files.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></td>
 <td>pop all patches</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-n</span>, <span class="option">--name</span></kbd></td>
-<td>queue name to pop (DEPRECATED)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-n</span>, <span class="option">--name <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>queue name to pop (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--keep-changes</span></kbd></td>
 <td>tolerate non-conflicting local changes</td></tr>
@@ -7907,9 +8225,10 @@ uncommitted changes.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-m</span>, <span class="option">--merge</span></kbd></td>
 <td>merge from another queue (DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-n</span>, <span class="option">--name</span></kbd></td>
-<td>merge queue name (DEPRECATED)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-n</span>, <span class="option">--name <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>merge queue name (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--move</span></kbd></td>
 <td>reorder patch series and apply only the patch</td></tr>
@@ -7999,30 +8318,37 @@ git diff format.</p>
 <kbd><span class="option">-U</span>, <span class="option">--currentuser</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>add/update author field in patch with current user</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>add/update author field in patch with given user</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>add/update author field in patch with given user</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-D</span>, <span class="option">--currentdate</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>add/update date field in patch with current date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>add/update date field in patch with given date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>add/update date field in patch with given date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="qrename">
 <h4>qrename</h4>
@@ -8069,21 +8395,24 @@ hg qsave [-m TEXT] [-l FILE] [-c] [-n NAME] [-e] [-f]
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--copy</span></kbd></td>
 <td>copy patch directory</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-n</span>, <span class="option">--name</span></kbd></td>
-<td>copy directory name</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-n</span>, <span class="option">--name <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>copy directory name</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--empty</span></kbd></td>
 <td>clear queue status file</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force copy</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
 </tbody>
 </table>
 </div>
@@ -8470,18 +8799,21 @@ hgrc. See the [email] section in hgrc(5) for details.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-b</span>, <span class="option">--bundle</span></kbd></td>
 <td>send changes not in target as a binary bundle</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--bundlename</span></kbd></td>
-<td>name of the bundle attachment file (default: bundle)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a revision to send</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--bundlename <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>name of the bundle attachment file (default: bundle)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a revision to send</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--force</span></kbd></td>
 <td>run even when remote repository is unrelated (with -b/--bundle)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--base</span></kbd></td>
-<td>a base changeset to specify instead of a destination (with -b/--bundle)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--base <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>a base changeset to specify instead of a destination (with -b/--bundle)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--intro</span></kbd></td>
 <td>send an introduction email for a single patch</td></tr>
@@ -8494,12 +8826,14 @@ hgrc. See the [email] section in hgrc(5) for details.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-i</span>, <span class="option">--inline</span></kbd></td>
 <td>send patches as inline attachments</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--bcc</span></kbd></td>
-<td>email addresses of blind carbon copy recipients</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-c</span>, <span class="option">--cc</span></kbd></td>
-<td>email addresses of copy recipients</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--bcc <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>email addresses of blind carbon copy recipients</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-c</span>, <span class="option">--cc <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>email addresses of copy recipients</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--confirm</span></kbd></td>
 <td>ask for confirmation before sending</td></tr>
@@ -8507,46 +8841,56 @@ hgrc. See the [email] section in hgrc(5) for details.</p>
 <kbd><span class="option">-d</span>, <span class="option">--diffstat</span></kbd></td>
 <td>add diffstat output to messages</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--date</span></kbd></td>
+<kbd><span class="option">--date <var>&lt;VALUE&gt;</var></span></kbd></td>
 <td>use the given date as the sending date</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--desc</span></kbd></td>
+<kbd><span class="option">--desc <var>&lt;VALUE&gt;</var></span></kbd></td>
 <td>use the given file as the series description</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-f</span>, <span class="option">--from</span></kbd></td>
-<td>email address of sender</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-f</span>, <span class="option">--from <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>email address of sender</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-n</span>, <span class="option">--test</span></kbd></td>
 <td>print messages that would be sent</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--mbox</span></kbd></td>
-<td>write messages to mbox file instead of sending them</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--reply-to</span></kbd></td>
-<td>email addresses replies should be sent to</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-s</span>, <span class="option">--subject</span></kbd></td>
-<td>subject of first message (intro or single patch)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--in-reply-to</span></kbd></td>
-<td>message identifier to reply to</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--flag</span></kbd></td>
-<td>flags to add in subject prefixes</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--to</span></kbd></td>
-<td>email addresses of recipients</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
-<td>specify ssh command to use</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--remotecmd</span></kbd></td>
-<td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--mbox <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>write messages to mbox file instead of sending them</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--reply-to <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>email addresses replies should be sent to</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-s</span>, <span class="option">--subject <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>subject of first message (intro or single patch)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--in-reply-to <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>message identifier to reply to</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--flag <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>flags to add in subject prefixes</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--to <var>&lt;VALUE[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>email addresses of recipients</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-e</span>, <span class="option">--ssh <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify ssh command to use</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--remotecmd <var>&lt;CMD&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--insecure</span></kbd></td>
 <td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -8627,16 +8971,19 @@ option.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-0</span>, <span class="option">--print0</span></kbd></td>
 <td>end filenames with NUL, for use with xargs (implies -p/--print)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td><p class="first">exclude names matching the given patterns</p>
-<p class="last">aliases: clean</p>
-</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
+<blockquote>
+aliases: clean</blockquote>
 </div>
 </div>
 </div>
@@ -8703,30 +9050,36 @@ unresolved conflicts.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-s</span>, <span class="option">--source</span></kbd></td>
-<td>rebase from the specified changeset</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--base</span></kbd></td>
-<td>rebase from the base of the specified changeset (up to greatest common ancestor of base and dest)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>rebase these revisions</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--dest</span></kbd></td>
-<td>rebase onto the specified changeset</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-s</span>, <span class="option">--source <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>rebase from the specified changeset</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--base <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>rebase from the base of the specified changeset (up to greatest common ancestor of base and dest)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>rebase these revisions</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--dest <var>&lt;REV&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>rebase onto the specified changeset</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--collapse</span></kbd></td>
 <td>collapse the rebased changesets</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as collapse commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as collapse commit message</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
 <td>invoke editor on commit messages</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read collapse commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read collapse commit message from file</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--keep</span></kbd></td>
 <td>keep original changesets</td></tr>
@@ -8736,23 +9089,27 @@ unresolved conflicts.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-D</span>, <span class="option">--detach</span></kbd></td>
 <td>(DEPRECATED)</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-t</span>, <span class="option">--tool</span></kbd></td>
-<td>specify merge tool</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-t</span>, <span class="option">--tool <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>specify merge tool</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--continue</span></kbd></td>
 <td>continue an interrupted rebase</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--abort</span></kbd></td>
 <td>abort an interrupted rebase</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--style</span></kbd></td>
-<td>display using template map file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--template</span></kbd></td>
-<td>display with template</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -8814,24 +9171,30 @@ q - quit, recording no changes
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--secret</span></kbd></td>
 <td>use the secret phase for committing</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
-<td>include names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-X</span>, <span class="option">--exclude</span></kbd></td>
-<td>exclude names matching the given patterns</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as commit message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-l</span>, <span class="option">--logfile</span></kbd></td>
-<td>read commit message from file</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
-<td>record the specified date as commit date</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
-<td>record the specified user as committer</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as commit message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-l</span>, <span class="option">--logfile <var>&lt;FILE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>read commit message from file</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-d</span>, <span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified date as commit date</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--user <var>&lt;USER&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>record the specified user as committer</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
 <td>recurse into subrepositories</td></tr>
@@ -8849,6 +9212,7 @@ q - quit, recording no changes
 <tr><td>&nbsp;</td><td>ignore changes whose lines are all blank</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -9011,7 +9375,7 @@ all shelved changes, use <tt class="docutils literal"><span class="pre">--cleanu
 <kbd><span class="option">--cleanup</span></kbd></td>
 <td>delete all shelved changes</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--date</span></kbd></td>
+<kbd><span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
 <td>shelve with the specified commit date</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--delete</span></kbd></td>
@@ -9019,12 +9383,14 @@ all shelved changes, use <tt class="docutils literal"><span class="pre">--cleanu
 <tr><td class="option-group">
 <kbd><span class="option">-l</span>, <span class="option">--list</span></kbd></td>
 <td>list current shelves</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--message</span></kbd></td>
-<td>use text as shelve message</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-n</span>, <span class="option">--name</span></kbd></td>
-<td>use the given name for the shelved commit</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--message <var>&lt;TEXT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use text as shelve message</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-n</span>, <span class="option">--name <var>&lt;NAME&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use the given name for the shelved commit</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
@@ -9108,9 +9474,10 @@ been pushed to a remote repository you will likely pull them again.</p>
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>strip specified revision (optional, can specify revisions without this option)</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>strip specified revision (optional, can specify revisions without this option)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
 <td>force removal of changesets, discard uncommitted changes (no backup)</td></tr>
@@ -9129,11 +9496,13 @@ been pushed to a remote repository you will likely pull them again.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-k</span>, <span class="option">--keep</span></kbd></td>
 <td>do not modify working copy during strip</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-B</span>, <span class="option">--bookmark</span></kbd></td>
-<td>remove revs only reachable from given bookmark</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-B</span>, <span class="option">--bookmark <var>&lt;VALUE&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>remove revs only reachable from given bookmark</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -9198,23 +9567,27 @@ and then resume where you left off by calling <a class="reference external" href
 <col class="option" />
 <col class="description" />
 <tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-s</span>, <span class="option">--source</span></kbd></td>
-<td>transplant changesets from REPO</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
-<td>use this source changeset as head</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-s</span>, <span class="option">--source <var>&lt;REPO&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>transplant changesets from REPO</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-b</span>, <span class="option">--branch <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>use this source changeset as head</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></td>
 <td>pull all changesets up to the --branch revisions</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--prune <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>skip over REV</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-m</span>, <span class="option">--merge <var>&lt;REV[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>merge at REV</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">-p</span>, <span class="option">--prune</span></kbd></td>
-<td>skip over REV</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">-m</span>, <span class="option">--merge</span></kbd></td>
-<td>merge at REV</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--parent</span></kbd></td>
+<kbd><span class="option">--parent <var>&lt;REV&gt;</var></span></kbd></td>
 <td>parent to choose when transplanting merge</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
@@ -9226,10 +9599,11 @@ and then resume where you left off by calling <a class="reference external" href
 <kbd><span class="option">-c</span>, <span class="option">--continue</span></kbd></td>
 <td>continue last transplant session after fixing conflicts</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--filter</span></kbd></td>
+<kbd><span class="option">--filter <var>&lt;CMD&gt;</var></span></kbd></td>
 <td>filter changesets through command</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -9382,7 +9756,7 @@ below) when you find them.</p>
 </div>
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
-<p>Copyright (C) 2005-2013 Matt Mackall.
+<p>Copyright (C) 2005-2014 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <span class="target" id="common"></span><!-- Common link and substitution definitions. -->
