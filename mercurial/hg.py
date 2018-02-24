@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import errno
+import hashlib
 import os
 import shutil
 
@@ -42,6 +43,9 @@ from . import (
 )
 
 release = lock.release
+
+# shared features
+sharedbookmarks = 'bookmarks'
 
 def _local(path):
     path = util.expandpath(util.urllocalpath(path))
@@ -257,7 +261,7 @@ def postshare(sourcerepo, destrepo, bookmarks=True):
 
     if bookmarks:
         fp = destrepo.vfs('shared', 'w')
-        fp.write('bookmarks\n')
+        fp.write(sharedbookmarks + '\n')
         fp.close()
 
 def _postshareupdate(repo, update, checkout=None):
@@ -480,9 +484,11 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                 ui.status(_('(not using pooled storage: '
                             'unable to resolve identity of remote)\n'))
         elif sharenamemode == 'remote':
-            sharepath = os.path.join(sharepool, util.sha1(source).hexdigest())
+            sharepath = os.path.join(
+                sharepool, hashlib.sha1(source).hexdigest())
         else:
-            raise error.Abort('unknown share naming mode: %s' % sharenamemode)
+            raise error.Abort(_('unknown share naming mode: %s') %
+                              sharenamemode)
 
         if sharepath:
             return clonewithshare(ui, peeropts, sharepath, source, srcpeer,
@@ -890,7 +896,7 @@ def verify(repo):
                         ret = (ctx.sub(subpath, allowcreate=False).verify()
                                or ret)
                     except error.RepoError as e:
-                        repo.ui.warn(_('%s: %s\n') % (rev, e))
+                        repo.ui.warn(('%s: %s\n') % (rev, e))
             except Exception:
                 repo.ui.warn(_('.hgsubstate is corrupt in revision %s\n') %
                              node.short(ctx.node()))
@@ -917,13 +923,11 @@ def remoteui(src, opts):
         dst.setconfig('bundle', 'mainreporoot', r, 'copied')
 
     # copy selected local settings to the remote ui
-    for sect in ('auth', 'hostfingerprints', 'http_proxy'):
+    for sect in ('auth', 'hostfingerprints', 'hostsecurity', 'http_proxy'):
         for key, val in src.configitems(sect):
             dst.setconfig(sect, key, val, 'copied')
     v = src.config('web', 'cacerts')
-    if v == '!':
-        dst.setconfig('web', 'cacerts', v, 'copied')
-    elif v:
+    if v:
         dst.setconfig('web', 'cacerts', util.expandpath(v), 'copied')
 
     return dst

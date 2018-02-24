@@ -50,31 +50,32 @@
 <li><a class="reference internal" href="#graph" id="id18"><tt class="docutils literal">graph</tt></a></li>
 <li><a class="reference internal" href="#hooks" id="id19"><tt class="docutils literal">hooks</tt></a></li>
 <li><a class="reference internal" href="#hostfingerprints" id="id20"><tt class="docutils literal">hostfingerprints</tt></a></li>
-<li><a class="reference internal" href="#http-proxy" id="id21"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#merge" id="id22"><tt class="docutils literal">merge</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id23"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id24"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#patch" id="id25"><tt class="docutils literal">patch</tt></a></li>
-<li><a class="reference internal" href="#paths" id="id26"><tt class="docutils literal">paths</tt></a></li>
-<li><a class="reference internal" href="#phases" id="id27"><tt class="docutils literal">phases</tt></a></li>
-<li><a class="reference internal" href="#profiling" id="id28"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#progress" id="id29"><tt class="docutils literal">progress</tt></a></li>
-<li><a class="reference internal" href="#rebase" id="id30"><tt class="docutils literal">rebase</tt></a></li>
-<li><a class="reference internal" href="#revsetalias" id="id31"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#server" id="id32"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id33"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id34"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#templatealias" id="id35"><tt class="docutils literal">templatealias</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id36"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id37"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id38"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id39"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id40"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#hostsecurity" id="id21"><tt class="docutils literal">hostsecurity</tt></a></li>
+<li><a class="reference internal" href="#http-proxy" id="id22"><tt class="docutils literal">http_proxy</tt></a></li>
+<li><a class="reference internal" href="#merge" id="id23"><tt class="docutils literal">merge</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id24"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id25"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
+<li><a class="reference internal" href="#patch" id="id26"><tt class="docutils literal">patch</tt></a></li>
+<li><a class="reference internal" href="#paths" id="id27"><tt class="docutils literal">paths</tt></a></li>
+<li><a class="reference internal" href="#phases" id="id28"><tt class="docutils literal">phases</tt></a></li>
+<li><a class="reference internal" href="#profiling" id="id29"><tt class="docutils literal">profiling</tt></a></li>
+<li><a class="reference internal" href="#progress" id="id30"><tt class="docutils literal">progress</tt></a></li>
+<li><a class="reference internal" href="#rebase" id="id31"><tt class="docutils literal">rebase</tt></a></li>
+<li><a class="reference internal" href="#revsetalias" id="id32"><tt class="docutils literal">revsetalias</tt></a></li>
+<li><a class="reference internal" href="#server" id="id33"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id34"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id35"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#templatealias" id="id36"><tt class="docutils literal">templatealias</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id37"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id38"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id39"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id40"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id41"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id41">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id42">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id43">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id42">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id43">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id44">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -802,6 +803,14 @@ code in <tt class="docutils literal">$HG_RESULT</tt>. Parsed command line argume
 the python data internally passed to &lt;command&gt;. <tt class="docutils literal">$HG_OPTS</tt> is a
 dictionary of options (with unspecified options set to their defaults).
 <tt class="docutils literal">$HG_PATS</tt> is a list of arguments. Hook failure is ignored.</dd>
+<dt><tt class="docutils literal"><span class="pre">fail-&lt;command&gt;</span></tt></dt>
+<dd>Run after a failed invocation of an associated command. The contents
+of the command line are passed as <tt class="docutils literal">$HG_ARGS</tt>. Parsed command line
+arguments are passed as <tt class="docutils literal">$HG_PATS</tt> and <tt class="docutils literal">$HG_OPTS</tt>. These contain
+string representations of the python data internally passed to
+&lt;command&gt;. <tt class="docutils literal">$HG_OPTS</tt> is a dictionary of options (with unspecified
+options set to their defaults). <tt class="docutils literal">$HG_PATS</tt> is a list of arguments.
+Hook failure is ignored.</dd>
 <dt><tt class="docutils literal"><span class="pre">pre-&lt;command&gt;</span></tt></dt>
 <dd>Run before executing the associated command. The contents of the
 command line are passed as <tt class="docutils literal">$HG_ARGS</tt>. Parsed command line arguments
@@ -938,6 +947,7 @@ is treated as a failure.</p>
 </div>
 <div class="section" id="hostfingerprints">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">hostfingerprints</tt></a></h2>
+<p>(Deprecated. Use <tt class="docutils literal">[hostsecurity]</tt>'s <tt class="docutils literal">fingerprints</tt> options instead.)</p>
 <p>Fingerprints of the certificates of known HTTPS servers.</p>
 <p>A HTTPS connection to a server with a fingerprint configured here will
 only succeed if the servers certificate matches the fingerprint.
@@ -952,6 +962,98 @@ to a new certificate.</p>
 [hostfingerprints]
 hg.intevation.de = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
 hg.intevation.org = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
+</pre>
+</div>
+<div class="section" id="hostsecurity">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">hostsecurity</tt></a></h2>
+<p>Used to specify global and per-host security settings for connecting to
+other machines.</p>
+<p>The following options control default behavior for all hosts.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">ciphers</tt></dt>
+<dd><p class="first">Defines the cryptographic ciphers to use for connections.</p>
+<p>Value must be a valid OpenSSL Cipher List Format as documented at
+<a class="reference external" href="https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER-LIST-FORMAT">https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER-LIST-FORMAT</a>.</p>
+<p>This setting is for advanced users only. Setting to incorrect values
+can significantly lower connection security or decrease performance.
+You have been warned.</p>
+<p class="last">This option requires Python 2.7.</p>
+</dd>
+<dt><tt class="docutils literal">minimumprotocol</tt></dt>
+<dd><p class="first">Defines the minimum channel encryption protocol to use.</p>
+<p>By default, the highest version of TLS supported by both client and server
+is used.</p>
+<p>Allowed values are: <tt class="docutils literal">tls1.0</tt>, <tt class="docutils literal">tls1.1</tt>, <tt class="docutils literal">tls1.2</tt>.</p>
+<p>When running on an old Python version, only <tt class="docutils literal">tls1.0</tt> is allowed since
+old versions of Python only support up to TLS 1.0.</p>
+<p class="last">When running a Python that supports modern TLS versions, the default is
+<tt class="docutils literal">tls1.1</tt>. <tt class="docutils literal">tls1.0</tt> can still be used to allow TLS 1.0. However, this
+weakens security and should only be used as a feature of last resort if
+a server does not support TLS 1.1+.</p>
+</dd>
+</dl>
+<p>Options in the <tt class="docutils literal">[hostsecurity]</tt> section can have the form
+<tt class="docutils literal">hostname</tt>:<tt class="docutils literal">setting</tt>. This allows multiple settings to be defined on a
+per-host basis.</p>
+<p>The following per-host settings can be defined.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">ciphers</tt></dt>
+<dd>This behaves like <tt class="docutils literal">ciphers</tt> as described above except it only applies
+to the host on which it is defined.</dd>
+<dt><tt class="docutils literal">fingerprints</tt></dt>
+<dd><p class="first">A list of hashes of the DER encoded peer/remote certificate. Values have
+the form <tt class="docutils literal">algorithm</tt>:<tt class="docutils literal">fingerprint</tt>. e.g.
+<tt class="docutils literal">sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2</tt>.</p>
+<p>The following algorithms/prefixes are supported: <tt class="docutils literal">sha1</tt>, <tt class="docutils literal">sha256</tt>,
+<tt class="docutils literal">sha512</tt>.</p>
+<p>Use of <tt class="docutils literal">sha256</tt> or <tt class="docutils literal">sha512</tt> is preferred.</p>
+<p>If a fingerprint is specified, the CA chain is not validated for this
+host and Mercurial will require the remote certificate to match one
+of the fingerprints specified. This means if the server updates its
+certificate, Mercurial will abort until a new fingerprint is defined.
+This can provide stronger security than traditional CA-based validation
+at the expense of convenience.</p>
+<p class="last">This option takes precedence over <tt class="docutils literal">verifycertsfile</tt>.</p>
+</dd>
+<dt><tt class="docutils literal">minimumprotocol</tt></dt>
+<dd>This behaves like <tt class="docutils literal">minimumprotocol</tt> as described above except it
+only applies to the host on which it is defined.</dd>
+<dt><tt class="docutils literal">verifycertsfile</tt></dt>
+<dd><p class="first">Path to file a containing a list of PEM encoded certificates used to
+verify the server certificate. Environment variables and <tt class="docutils literal">~user</tt>
+constructs are expanded in the filename.</p>
+<p>The server certificate or the certificate's certificate authority (CA)
+must match a certificate from this file or certificate verification
+will fail and connections to the server will be refused.</p>
+<p>If defined, only certificates provided by this file will be used:
+<tt class="docutils literal">web.cacerts</tt> and any system/default certificates will not be
+used.</p>
+<p>This option has no effect if the per-host <tt class="docutils literal">fingerprints</tt> option
+is set.</p>
+<p>The format of the file is as follows:</p>
+<pre class="last literal-block">
+-----BEGIN CERTIFICATE-----
+... (certificate in base64 PEM encoding) ...
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+... (certificate in base64 PEM encoding) ...
+-----END CERTIFICATE-----
+</pre>
+</dd>
+</dl>
+<p>For example:</p>
+<pre class="literal-block">
+[hostsecurity]
+hg.example.com:fingerprints = sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2
+hg2.example.com:fingerprints = sha1:914f1aff87249c09b6859b88b1906d30756491ca, sha1:fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
+foo.example.com:verifycertsfile = /etc/ssl/trusted-ca-certs.pem
+</pre>
+<p>To change the default minimum protocol version to TLS 1.2 but to allow TLS 1.1
+when connecting to <tt class="docutils literal">hg.example.com</tt>:</p>
+<pre class="literal-block">
+[hostsecurity]
+minimumprotocol = tls1.2
+hg.example.com:minimumprotocol = tls1.1
 </pre>
 </div>
 <div class="section" id="http-proxy">
@@ -983,8 +1085,8 @@ in <tt class="docutils literal">http_proxy.no</tt>. (default: False)</dd>
 file in the changeset being merged or updated to, and has different
 contents. Options are <tt class="docutils literal">abort</tt>, <tt class="docutils literal">warn</tt> and <tt class="docutils literal">ignore</tt>. With <tt class="docutils literal">abort</tt>,
 abort on such files. With <tt class="docutils literal">warn</tt>, warn on such files and back them up as
-.orig. With <tt class="docutils literal">ignore</tt>, don't print a warning and back them up as
-.orig. (default: <tt class="docutils literal">abort</tt>)</dd>
+<tt class="docutils literal">.orig</tt>. With <tt class="docutils literal">ignore</tt>, don't print a warning and back them up as
+<tt class="docutils literal">.orig</tt>. (default: <tt class="docutils literal">abort</tt>)</dd>
 <dt><tt class="docutils literal">checkunknown</tt></dt>
 <dd>Controls behavior when an unknown file that isn't ignored has the same name
 as a tracked file in the changeset being merged or updated to, and has
@@ -1155,6 +1257,15 @@ my_server:pushurl = ssh://example.com/my_path
 <dt><tt class="docutils literal">pushurl</tt></dt>
 <dd>The URL to use for push operations. If not defined, the location
 defined by the path's main entry is used.</dd>
+<dt><tt class="docutils literal">pushrev</tt></dt>
+<dd><p class="first">A revset defining which revisions to push by default.</p>
+<p>When <a class="reference external" href="hg.1.html#push"><tt class="docutils literal">hg push</tt></a> is executed without a <tt class="docutils literal"><span class="pre">-r</span></tt> argument, the revset
+defined by this sub-option is evaluated to determine what to push.</p>
+<p>For example, a value of <tt class="docutils literal">.</tt> will push the working directory's
+revision by default.</p>
+<p class="last">Revsets specifying bookmarks will not result in the bookmark being
+pushed.</p>
+</dd>
 </dl>
 <p>The following special named paths exist:</p>
 <dl class="docutils">
@@ -1361,15 +1472,6 @@ format can consume a lot of CPU.</p>
 <dt><tt class="docutils literal">tls</tt></dt>
 <dd>Optional. Method to enable TLS when connecting to mail server: starttls,
 smtps or none. (default: none)</dd>
-<dt><tt class="docutils literal">verifycert</tt></dt>
-<dd>Optional. Verification for the certificate of mail server, when
-<tt class="docutils literal">tls</tt> is starttls or smtps. &quot;strict&quot;, &quot;loose&quot; or False. For
-&quot;strict&quot; or &quot;loose&quot;, the certificate is verified as same as the
-verification for HTTPS connections (see <tt class="docutils literal">[hostfingerprints]</tt> and
-<tt class="docutils literal">[web] cacerts</tt> also). For &quot;strict&quot;, sending email is also
-aborted, if there is no configuration for mail server in
-<tt class="docutils literal">[hostfingerprints]</tt> and <tt class="docutils literal">[web] cacerts</tt>.  --insecure for
-<a class="reference external" href="hg.1.html#email"><tt class="docutils literal">hg email</tt></a> overwrites this as &quot;loose&quot;. (default: strict)</dd>
 <dt><tt class="docutils literal">username</tt></dt>
 <dd>Optional. User name for authenticating with the SMTP server.
 (default: None)</dd>
@@ -1510,7 +1612,7 @@ of the ignore file format, see the <tt class="docutils literal">hgignore(5)</tt>
 <dd>Select the default interface for interactive features (default: text).
 Possible values are 'text' and 'curses'.</dd>
 <dt><tt class="docutils literal">interface.chunkselector</tt></dt>
-<dd>Select the interface for change recording (e.g. <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> -i).
+<dd>Select the interface for change recording (e.g. <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">-i</span></tt></a>).
 Possible values are 'text' and 'curses'.
 This config overrides the interface specified by ui.interface.</dd>
 <dt><tt class="docutils literal">logtemplate</tt></dt>
@@ -1605,6 +1707,12 @@ abbreviations. (default: False)</dd>
 <dd>A URL where users should report a Mercurial traceback. Use this if you are a
 large organisation with its own Mercurial deployment process and crash
 reports should be addressed to your internal support.</dd>
+<dt><tt class="docutils literal">textwidth</tt></dt>
+<dd>Maximum width of help text. A longer line generated by <tt class="docutils literal">hg help</tt> or
+<tt class="docutils literal">hg subcommand <span class="pre">--help</span></tt> will be broken after white space to get this
+width or the terminal width, whichever comes first.
+A non-positive value will disable this and the terminal width will be
+used. (default: 78)</dd>
 <dt><tt class="docutils literal">timeout</tt></dt>
 <dd>The timeout used when a lock is held (in seconds), a negative value
 means no timeout. (default: 600)</dd>
@@ -1779,6 +1887,13 @@ repositories. (default: False)</dd>
 (default: False)</dd>
 <dt><tt class="docutils literal">ipv6</tt></dt>
 <dd>Whether to use IPv6. (default: False)</dd>
+<dt><tt class="docutils literal">labels</tt></dt>
+<dd><p class="first">List of string <em>labels</em> associated with the repository.</p>
+<p class="last">Labels are exposed as a template keyword and can be used to customize
+output. e.g. the <tt class="docutils literal">index</tt> template can group or filter repositories
+by labels and the <tt class="docutils literal">summary</tt> template can display additional content
+if a specific label is present.</p>
+</dd>
 <dt><tt class="docutils literal">logoimg</tt></dt>
 <dd>File name of the logo image that some templates display on each page.
 The file name is relative to <tt class="docutils literal">staticurl</tt>. That is, the full path to

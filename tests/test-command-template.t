@@ -3253,6 +3253,9 @@ Test localdate(date, tz) function:
   1970-01-01 09:00 +0900
   $ TZ=JST-09 hg log -r0 -T '{localdate(date, "UTC")|isodate}\n'
   1970-01-01 00:00 +0000
+  $ TZ=JST-09 hg log -r0 -T '{localdate(date, "blahUTC")|isodate}\n'
+  hg: parse error: localdate expects a timezone
+  [255]
   $ TZ=JST-09 hg log -r0 -T '{localdate(date, "+0200")|isodate}\n'
   1970-01-01 02:00 +0200
   $ TZ=JST-09 hg log -r0 -T '{localdate(date, "0")|isodate}\n'
@@ -3319,6 +3322,15 @@ Test width argument passed to pad function
   $ hg log -r 0 -T '{pad(rev, "not an int")}\n'
   hg: parse error: pad() expects an integer width
   [255]
+
+Test separate function
+
+  $ hg log -r 0 -T '{separate("-", "", "a", "b", "", "", "c", "")}\n'
+  a-b-c
+  $ hg log -r 0 -T '{separate(" ", "{rev}:{node|short}", author|user, branch)}\n'
+  0:f7769ec2ab97 test default
+  $ hg log -r 0 --color=always -T '{separate(" ", "a", label(red, "b"), "c", label(red, ""), "d")}\n'
+  a \x1b[0;31mb\x1b[0m c d (esc)
 
 Test ifcontains function
 
@@ -3423,6 +3435,21 @@ a revset item must be evaluated as an integer revision, not an offset from tip
   -1:000000000000
   $ hg log -l 1 -T '{revset("%s", "null") % "{rev}:{node|short}"}\n'
   -1:000000000000
+
+join() should pick '{rev}' from revset items:
+
+  $ hg log -R ../a -T '{join(revset("parents(%d)", rev), ", ")}\n' -r6
+  4, 5
+
+on the other hand, parents are formatted as '{rev}:{node|formatnode}' by
+default. join() should agree with the default formatting:
+
+  $ hg log -R ../a -T '{join(parents, ", ")}\n' -r6
+  5:13207e5a10d9, 4:bbe44766e73d
+
+  $ hg log -R ../a -T '{join(parents, ",\n")}\n' -r6 --debug
+  5:13207e5a10d9fd28ec424934298e176197f2c67f,
+  4:bbe44766e73d5f11ed2177f1838de10c53ef3e74
 
 Test active bookmark templating
 
@@ -3768,10 +3795,10 @@ Unparsable alias:
   $ hg debugtemplate --config templatealias.bad='x(' -v '{bad}'
   (template
     ('symbol', 'bad'))
-  abort: failed to parse the definition of template alias "bad": at 2: not a prefix: end
+  abort: bad definition of template alias "bad": at 2: not a prefix: end
   [255]
   $ hg log --config templatealias.bad='x(' -T '{bad}'
-  abort: failed to parse the definition of template alias "bad": at 2: not a prefix: end
+  abort: bad definition of template alias "bad": at 2: not a prefix: end
   [255]
 
   $ cd ..

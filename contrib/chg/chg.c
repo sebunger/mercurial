@@ -249,7 +249,13 @@ static hgclient_t *retryconnectcmdserver(struct cmdserveropts *opts, pid_t pid)
 	int pst = 0;
 
 	debugmsg("try connect to %s repeatedly", opts->sockname);
-	for (unsigned int i = 0; i < 10 * 100; i++) {
+
+	unsigned int timeoutsec = 60;  /* default: 60 seconds */
+	const char *timeoutenv = getenv("CHGTIMEOUT");
+	if (timeoutenv)
+		sscanf(timeoutenv, "%u", &timeoutsec);
+
+	for (unsigned int i = 0; !timeoutsec || i < timeoutsec * 100; i++) {
 		hgclient_t *hgc = hgc_open(opts->sockname);
 		if (hgc)
 			return hgc;
@@ -332,6 +338,8 @@ static void killcmdserver(const struct cmdserveropts *opts)
 	}
 }
 
+static pid_t pagerpid = 0;
+static pid_t peerpgid = 0;
 static pid_t peerpid = 0;
 
 static void forwardsignal(int sig)
@@ -340,6 +348,15 @@ static void forwardsignal(int sig)
 	if (kill(peerpid, sig) < 0)
 		abortmsgerrno("cannot kill %d", peerpid);
 	debugmsg("forward signal %d", sig);
+}
+
+static void forwardsignaltogroup(int sig)
+{
+	/* prefer kill(-pgid, sig), fallback to pid if pgid is invalid */
+	pid_t killpid = peerpgid > 1 ? -peerpgid : peerpid;
+	if (kill(killpid, sig) < 0)
+		abortmsgerrno("cannot kill %d", killpid);
+	debugmsg("forward signal %d to %d", sig, killpid);
 }
 
 static void handlestopsignal(int sig)
@@ -374,15 +391,30 @@ error:
 	abortmsgerrno("failed to handle stop signal");
 }
 
-static void setupsignalhandler(pid_t pid)
+static void handlechildsignal(int sig UNUSED_)
 {
+	if (peerpid == 0 || pagerpid == 0)
+		return;
+	/* if pager exits, notify the server with SIGPIPE immediately.
+	 * otherwise the server won't get SIGPIPE if it does not write
+	 * anything. (issue5278) */
+	if (waitpid(pagerpid, NULL, WNOHANG) == pagerpid)
+		kill(peerpid, SIGPIPE);
+}
+
+static void setupsignalhandler(const hgclient_t *hgc)
+{
+	pid_t pid = hgc_peerpid(hgc);
 	if (pid <= 0)
 		return;
 	peerpid = pid;
 
+	pid_t pgid = hgc_peerpgid(hgc);
+	peerpgid = (pgid <= 1 ? 0 : pgid);
+
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = forwardsignal;
+	sa.sa_handler = forwardsignaltogroup;
 	sa.sa_flags = SA_RESTART;
 	if (sigemptyset(&sa.sa_mask) < 0)
 		goto error;
@@ -393,6 +425,7 @@ static void setupsignalhandler(pid_t pid)
 		goto error;
 
 	/* terminate frontend by double SIGTERM in case of server freeze */
+	sa.sa_handler = forwardsignal;
 	sa.sa_flags |= SA_RESETHAND;
 	if (sigaction(SIGTERM, &sa, NULL) < 0)
 		goto error;
@@ -410,6 +443,11 @@ static void setupsignalhandler(pid_t pid)
 	sa.sa_flags = SA_RESTART;
 	if (sigaction(SIGTSTP, &sa, NULL) < 0)
 		goto error;
+	/* get notified when pager exits */
+	sa.sa_handler = handlechildsignal;
+	sa.sa_flags = SA_RESTART;
+	if (sigaction(SIGCHLD, &sa, NULL) < 0)
+		goto error;
 
 	return;
 
@@ -417,21 +455,56 @@ error:
 	abortmsgerrno("failed to set up signal handlers");
 }
 
-/* This implementation is based on hgext/pager.py (pre 369741ef7253) */
-static void setuppager(hgclient_t *hgc, const char *const args[],
+static void restoresignalhandler()
+{
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sa.sa_flags = SA_RESTART;
+	if (sigemptyset(&sa.sa_mask) < 0)
+		goto error;
+
+	if (sigaction(SIGHUP, &sa, NULL) < 0)
+		goto error;
+	if (sigaction(SIGTERM, &sa, NULL) < 0)
+		goto error;
+	if (sigaction(SIGWINCH, &sa, NULL) < 0)
+		goto error;
+	if (sigaction(SIGCONT, &sa, NULL) < 0)
+		goto error;
+	if (sigaction(SIGTSTP, &sa, NULL) < 0)
+		goto error;
+	if (sigaction(SIGCHLD, &sa, NULL) < 0)
+		goto error;
+
+	/* ignore Ctrl+C while shutting down to make pager exits cleanly */
+	sa.sa_handler = SIG_IGN;
+	if (sigaction(SIGINT, &sa, NULL) < 0)
+		goto error;
+
+	peerpid = 0;
+	return;
+
+error:
+	abortmsgerrno("failed to restore signal handlers");
+}
+
+/* This implementation is based on hgext/pager.py (post 369741ef7253)
+ * Return 0 if pager is not started, or pid of the pager */
+static pid_t setuppager(hgclient_t *hgc, const char *const args[],
 		       size_t argsize)
 {
 	const char *pagercmd = hgc_getpager(hgc, args, argsize);
 	if (!pagercmd)
-		return;
+		return 0;
 
 	int pipefds[2];
 	if (pipe(pipefds) < 0)
-		return;
+		return 0;
 	pid_t pid = fork();
 	if (pid < 0)
 		goto error;
-	if (pid == 0) {
+	if (pid > 0) {
 		close(pipefds[0]);
 		if (dup2(pipefds[1], fileno(stdout)) < 0)
 			goto error;
@@ -441,7 +514,7 @@ static void setuppager(hgclient_t *hgc, const char *const args[],
 		}
 		close(pipefds[1]);
 		hgc_attachio(hgc);  /* reattach to pager */
-		return;
+		return pid;
 	} else {
 		dup2(pipefds[0], fileno(stdin));
 		close(pipefds[0]);
@@ -451,13 +524,27 @@ static void setuppager(hgclient_t *hgc, const char *const args[],
 		if (r < 0) {
 			abortmsgerrno("cannot start pager '%s'", pagercmd);
 		}
-		return;
+		return 0;
 	}
 
 error:
 	close(pipefds[0]);
 	close(pipefds[1]);
 	abortmsgerrno("failed to prepare pager");
+	return 0;
+}
+
+static void waitpager(pid_t pid)
+{
+	/* close output streams to notify the pager its input ends */
+	fclose(stdout);
+	fclose(stderr);
+	while (1) {
+		pid_t ret = waitpid(pid, NULL, 0);
+		if (ret == -1 && errno == EINTR)
+			continue;
+		break;
+	}
 }
 
 /* Run instructions sent from the server like unlink and set redirect path
@@ -584,10 +671,14 @@ int main(int argc, const char *argv[], const char *envp[])
 				 gethgcmd());
 	}
 
-	setupsignalhandler(hgc_peerpid(hgc));
-	setuppager(hgc, argv + 1, argc - 1);
+	setupsignalhandler(hgc);
+	pagerpid = setuppager(hgc, argv + 1, argc - 1);
 	int exitcode = hgc_runcommand(hgc, argv + 1, argc - 1);
+	restoresignalhandler();
 	hgc_close(hgc);
 	freecmdserveropts(&opts);
+	if (pagerpid)
+		waitpager(pagerpid);
+
 	return exitcode;
 }

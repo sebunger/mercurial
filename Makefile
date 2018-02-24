@@ -60,7 +60,7 @@ wheel:
 doc:
 	$(MAKE) -C doc
 
-clean:
+cleanbutpackages:
 	-$(PYTHON) setup.py clean --all # ignore errors from this command
 	find contrib doc hgext hgext3rd i18n mercurial tests \
 		\( -name '*.py[cdo]' -o -name '*.so' \) -exec rm -f '{}' ';'
@@ -68,9 +68,12 @@ clean:
 	rm -f MANIFEST MANIFEST.in hgext/__index__.py tests/*.err
 	rm -f mercurial/__modulepolicy__.py
 	if test -d .hg; then rm -f mercurial/__version__.py; fi
-	rm -rf build packages mercurial/locale
+	rm -rf build mercurial/locale
 	$(MAKE) -C doc clean
 	$(MAKE) -C contrib/chg distclean
+
+clean: cleanbutpackages
+	rm -rf packages
 
 install: install-bin install-doc
 
@@ -156,7 +159,7 @@ i18n/hg.pot: $(PYFILES) $(DOCFILES) i18n/posplit i18n/hggettext
 # Packaging targets
 
 osx:
-	python setup.py install --optimize=1 \
+	/usr/bin/python2.7 setup.py install --optimize=1 \
 	  --root=build/mercurial/ --prefix=/usr/local/ \
 	  --install-lib=/Library/Python/2.7/site-packages/
 	make -C doc all install DESTDIR="$(PWD)/build/mercurial/"
@@ -254,8 +257,8 @@ docker-centos7:
 	mkdir -p packages/centos7
 	contrib/dockerrpm centos7
 
-.PHONY: help all local build doc clean install install-bin install-doc \
-	install-home install-home-bin install-home-doc \
+.PHONY: help all local build doc cleanbutpackages clean install install-bin \
+	install-doc install-home install-home-bin install-home-doc \
 	dist dist-notests check tests check-code update-pot \
 	osx fedora20 docker-fedora20 fedora21 docker-fedora21 \
 	centos5 docker-centos5 centos6 docker-centos6 centos7 docker-centos7

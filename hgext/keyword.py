@@ -89,8 +89,8 @@ import os
 import re
 import tempfile
 
-from mercurial.hgweb import webcommands
 from mercurial.i18n import _
+from mercurial.hgweb import webcommands
 
 from mercurial import (
     cmdutil,
@@ -412,7 +412,11 @@ def demo(ui, repo, *args, **opts):
     fn = 'demo.txt'
     tmpdir = tempfile.mkdtemp('', 'kwdemo.')
     ui.note(_('creating temporary repository at %s\n') % tmpdir)
-    repo = localrepo.localrepository(repo.baseui, tmpdir, True)
+    if repo is None:
+        baseui = ui
+    else:
+        baseui = repo.baseui
+    repo = localrepo.localrepository(baseui, tmpdir, True)
     ui.setconfig('keyword', fn, '', 'keyword')
     svn = ui.configbool('keywordset', 'svn')
     # explicitly set keywordset for demo output
@@ -455,7 +459,7 @@ def demo(ui, repo, *args, **opts):
 
     uisetup(ui)
     reposetup(ui, repo)
-    ui.write('[extensions]\nkeyword =\n')
+    ui.write(('[extensions]\nkeyword =\n'))
     demoitems('keyword', ui.configitems('keyword'))
     demoitems('keywordset', ui.configitems('keywordset'))
     demoitems('keywordmaps', kwmaps.iteritems())
@@ -735,7 +739,7 @@ def reposetup(ui, repo):
     def kwfilectx_cmp(orig, self, fctx):
         # keyword affects data size, comparing wdir and filelog size does
         # not make sense
-        if (fctx._filerev is None and
+        if (fctx._filenode is None and
             (self._repo._encodefilterpats or
              kwt.match(fctx.path()) and 'l' not in fctx.flags() or
              self.size() - 4 == fctx.size()) or
