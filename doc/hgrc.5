@@ -419,6 +419,10 @@ related options for the diff command.
 .sp
 Ignore white space when comparing lines.
 .TP
+.B \fBignorewseol\fP
+.sp
+Ignore white space at the end of a line when comparing lines.
+.TP
 .B \fBignorewsamount\fP
 .sp
 Ignore changes in the amount of white space.
@@ -565,6 +569,19 @@ a different color mode than the pager program.
 .sp
 Make paths in \%\fBhg status\fP\: output relative to the current directory.
 (default: False)
+.TP
+.B \fBupdate.check\fP
+.sp
+Determines what level of checking \%\fBhg update\fP\: will perform before moving
+to a destination revision. Valid values are \fBabort\fP, \fBnone\fP,
+\fBlinear\fP, and \fBnoconflict\fP. \fBabort\fP always fails if the working
+directory has uncommitted changes. \fBnone\fP performs no checking, and may
+result in a merge with uncommitted changes. \fBlinear\fP allows any update
+as long as it follows a straight line in the revision history, and may
+trigger a merge with uncommitted changes. \fBnoconflict\fP will allow any
+update which would not trigger a merge with uncommitted changes, if any
+are present.
+(default: \fBlinear\fP)
 .TP
 .B \fBupdate.requiredest\fP
 .sp
@@ -1265,12 +1282,55 @@ added changeset), \fB$HG_URL\fP and \fB$HG_SOURCE\fP variables.  Bookmark and
 phase changes will set \fBHG_BOOKMARK_MOVED\fP and \fBHG_PHASES_MOVED\fP to \fB1\fP
 respectively, etc.
 .TP
+.B \fBpretxnclose\-bookmark\fP
+.sp
+Run right before a bookmark change is actually finalized. Any repository
+change will be visible to the hook program. This lets you validate the
+transaction content or change it. Exit status 0 allows the commit to
+proceed. A non\-zero status will cause the transaction to be rolled back.
+The name of the bookmark will be available in \fB$HG_BOOKMARK\fP, the new
+bookmark location will be available in \fB$HG_NODE\fP while the previous
+location will be available in \fB$HG_OLDNODE\fP. In case of a bookmark
+creation \fB$HG_OLDNODE\fP will be empty. In case of deletion \fB$HG_NODE\fP
+will be empty.
+In addition, the reason for the transaction opening will be in
+\fB$HG_TXNNAME\fP, and a unique identifier for the transaction will be in
+\fBHG_TXNID\fP.
+.TP
+.B \fBpretxnclose\-phase\fP
+.sp
+Run right before a phase change is actually finalized. Any repository change
+will be visible to the hook program. This lets you validate the transaction
+content or change it. Exit status 0 allows the commit to proceed.  A non\-zero
+status will cause the transaction to be rolled back. The hook is called
+multiple times, once for each revision affected by a phase change.
+The affected node is available in \fB$HG_NODE\fP, the phase in \fB$HG_PHASE\fP
+while the previous \fB$HG_OLDPHASE\fP. In case of new node, \fB$HG_OLDPHASE\fP
+will be empty.  In addition, the reason for the transaction opening will be in
+\fB$HG_TXNNAME\fP, and a unique identifier for the transaction will be in
+\fBHG_TXNID\fP. The hook is also run for newly added revisions. In this case
+the \fB$HG_OLDPHASE\fP entry will be empty.
+.TP
 .B \fBtxnclose\fP
 .sp
 Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
 after the lock is released. See \%\fBhg help config.hooks.pretxnclose\fP\: for
 details about available variables.
+.TP
+.B \fBtxnclose\-bookmark\fP
+.sp
+Run after any bookmark change has been committed. At this point, the
+transaction can no longer be rolled back. The hook will run after the lock
+is released. See \%\fBhg help config.hooks.pretxnclose\-bookmark\fP\: for details
+about available variables.
+.TP
+.B \fBtxnclose\-phase\fP
+.sp
+Run after any phase change has been committed. At this point, the
+transaction can no longer be rolled back. The hook will run after the lock
+is released. See \%\fBhg help config.hooks.pretxnclose\-phase\fP\: for details about
+available variables.
 .TP
 .B \fBtxnabort\fP
 .sp
@@ -1568,6 +1628,18 @@ Controls behavior when an unknown file that isn\(aqt ignored has the same name
 as a tracked file in the changeset being merged or updated to, and has
 different contents. Similar to \fBmerge.checkignored\fP, except for files that
 are not ignored. (default: \fBabort\fP)
+.TP
+.B \fBon\-failure\fP
+.sp
+When set to \fBcontinue\fP (the default), the merge process attempts to
+merge all unresolved files using the merge chosen tool, regardless of
+whether previous file merge attempts during the process succeeded or not.
+Setting this to \fBprompt\fP will prompt after any merge failure continue
+or halt the merge process. Setting this to \fBhalt\fP will automatically
+halt the merge process on any merge tool failure. The merge process
+can be restarted by using the \fBresolve\fP command. When a merge is
+halted, the repository is left in a normal \fBunresolved\fP merge state.
+(default: \fBcontinue\fP)
 .UNINDENT
 .SS \fBmerge\-patterns\fP
 .sp
@@ -2027,6 +2099,11 @@ Number of seconds (float) before showing the progress bar. (default: 3)
 Minimum delay before showing a new topic. When set to less than 3 * refresh,
 that value will be used instead. (default: 1)
 .TP
+.B \fBestimateinterval\fP
+.sp
+Maximum sampling interval in seconds for speed and estimated time
+calculation. (default: 60)
+.TP
 .B \fBrefresh\fP
 .sp
 Time in seconds between refreshes of the progress bar. (default: 0.1)
@@ -2063,7 +2140,7 @@ If true, ALWAYS show a progress bar, unless disable is given.
 .SS \fBrebase\fP
 .INDENT 0.0
 .TP
-.B \fBallowdivergence\fP
+.B \fBevolution.allowdivergence\fP
 .sp
 Default to False, when True allow creating divergence when performing
 rebase of obsolete changesets.
@@ -2278,6 +2355,51 @@ Relative subrepository paths are first made absolute, and the
 rewrite rules are then applied on the full (absolute) path. If \fBpattern\fP
 doesn\(aqt match the full path, an attempt is made to apply it on the
 relative path alone. The rules are applied in definition order.
+.SS \fBsubrepos\fP
+.sp
+This section contains options that control the behavior of the
+subrepositories feature. See also \%\fBhg help subrepos\fP\:.
+.sp
+Security note: auditing in Mercurial is known to be insufficient to
+prevent clone\-time code execution with carefully constructed Git
+subrepos. It is unknown if a similar detect is present in Subversion
+subrepos. Both Git and Subversion subrepos are disabled by default
+out of security concerns. These subrepo types can be enabled using
+the respective options below.
+.INDENT 0.0
+.TP
+.B \fBallowed\fP
+.sp
+Whether subrepositories are allowed in the working directory.
+.sp
+When false, commands involving subrepositories (like \%\fBhg update\fP\:)
+will fail for all subrepository types.
+(default: true)
+.TP
+.B \fBhg:allowed\fP
+.sp
+Whether Mercurial subrepositories are allowed in the working
+directory. This option only has an effect if \fBsubrepos.allowed\fP
+is true.
+(default: true)
+.TP
+.B \fBgit:allowed\fP
+.sp
+Whether Git subrepositories are allowed in the working directory.
+This option only has an effect if \fBsubrepos.allowed\fP is true.
+.sp
+See the security note above before enabling Git subrepos.
+(default: false)
+.TP
+.B \fBsvn:allowed\fP
+.sp
+Whether Subversion subrepositories are allowed in the working
+directory. This option only has an effect if \fBsubrepos.allowed\fP
+is true.
+.sp
+See the security note above before enabling Subversion subrepos.
+(default: false)
+.UNINDENT
 .SS \fBtemplatealias\fP
 .sp
 Alias definitions for templates. See \%\fBhg help templates\fP\: for details.
@@ -2479,7 +2601,9 @@ serious problems may occur.
 .B \fBorigbackuppath\fP
 .sp
 The path to a directory used to store generated .orig files. If the path is
-not a directory, one will be created.
+not a directory, one will be created.  If set, files stored in this
+directory have the same name as the original file and do not have a .orig
+suffix.
 .TP
 .B \fBpaginate\fP
 .sp

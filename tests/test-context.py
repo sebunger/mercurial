@@ -24,11 +24,10 @@ os.utime('foo', (1000, 1000))
 repo[None].add(['foo'])
 repo.commit(text='commit1', date="0 0")
 
+d = repo[None]['foo'].date()
 if os.name == 'nt':
-    d = repo[None]['foo'].date()
-    print("workingfilectx.date = (%d, %d)" % (d[0], d[1]))
-else:
-    print("workingfilectx.date =", repo[None]['foo'].date())
+    d = d[:2]
+print("workingfilectx.date = (%d, %d)" % d)
 
 # test memctx with non-ASCII commit message
 
@@ -179,3 +178,14 @@ for i in [b'1', b'2', b'3']:
             print('data mismatch')
     except Exception as ex:
         print('cannot read data: %r' % ex)
+
+with repo.wlock(), repo.lock(), repo.transaction('test'):
+    with open(b'4', 'wb') as f:
+        f.write(b'4')
+    repo.dirstate.normal('4')
+    repo.commit('4')
+    revsbefore = len(repo.changelog)
+    repo.invalidate(clearfilecache=True)
+    revsafter = len(repo.changelog)
+    if revsbefore != revsafter:
+        print('changeset lost by repo.invalidate()')

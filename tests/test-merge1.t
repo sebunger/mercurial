@@ -1,4 +1,5 @@
   $ cat <<EOF > merge
+  > from __future__ import print_function
   > import sys, os
   > 
   > try:
@@ -8,7 +9,7 @@
   > except ImportError:
   >     pass
   > 
-  > print "merging for", os.path.basename(sys.argv[1])
+  > print("merging for", os.path.basename(sys.argv[1]))
   > EOF
   $ HGMERGE="$PYTHON ../merge"; export HGMERGE
 
@@ -29,22 +30,23 @@ of the files in a commit we're updating to
 
   $ mkdir b && touch b/nonempty
   $ hg up
-  abort: *: '$TESTTMP/t/b' (glob)
-  [255]
-  $ hg ci
-  abort: last update was interrupted
-  (use 'hg update' to get a consistent checkout)
-  [255]
-  $ hg sum
-  parent: 0:538afb845929 
-   commit #0
-  branch: default
-  commit: 1 unknown (interrupted update)
-  update: 1 new changesets (update)
-  phases: 2 draft
-  $ rm b/nonempty
-  $ hg up
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg ci
+  nothing changed
+  [1]
+  $ hg sum
+  parent: 1:b8bb4a988f25 tip
+   commit #1
+  branch: default
+  commit: (clean)
+  update: (current)
+  phases: 2 draft
+
+The following line is commented out because the file doesn't exist at the moment, and some OSes error out even with `rm -f`.
+$ rm b/nonempty
+
+  $ hg up
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg sum
   parent: 1:b8bb4a988f25 tip
    commit #1
@@ -339,9 +341,14 @@ aren't changed), even if none of mode, size and timestamp of them
 isn't changed on the filesystem (see also issue4583).
 
   $ cat > $TESTTMP/abort.py <<EOF
+  > from __future__ import absolute_import
   > # emulate aborting before "recordupdates()". in this case, files
   > # are changed without updating dirstate
-  > from mercurial import extensions, merge, error
+  > from mercurial import (
+  >   error,
+  >   extensions,
+  >   merge,
+  > )
   > def applyupdates(orig, *args, **kwargs):
   >     orig(*args, **kwargs)
   >     raise error.Abort('intentional aborting')

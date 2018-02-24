@@ -91,7 +91,7 @@ tracked as largefiles::
   [largefiles]
   patterns =
     *.jpg
-    re:.*\.(png|bmp)$
+    re:.*\\.(png|bmp)$
     library.zip
     content/audio/*
 
@@ -109,6 +109,7 @@ from __future__ import absolute_import
 from mercurial import (
     hg,
     localrepo,
+    registrar,
 )
 
 from . import (
@@ -124,6 +125,19 @@ from . import (
 # be specifying the version(s) of Mercurial they are tested with, or
 # leave the attribute unspecified.
 testedwith = 'ships-with-hg-core'
+
+configtable = {}
+configitem = registrar.configitem(configtable)
+
+configitem('largefiles', 'minsize',
+    default=configitem.dynamicdefault,
+)
+configitem('largefiles', 'patterns',
+    default=list,
+)
+configitem('largefiles', 'usercache',
+    default=None,
+)
 
 reposetup = reposetup.reposetup
 

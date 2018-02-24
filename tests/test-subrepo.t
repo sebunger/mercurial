@@ -484,9 +484,47 @@ clone
   path t
    source   t
    revision 20a0db6fbf6c3d2836e6519a642ae929bfc67c0e
+  $ cd ..
+
+clone with subrepo disabled (update should fail)
+
+  $ hg clone t -U tc2 --config subrepos.allowed=false
+  $ hg update -R tc2 --config subrepos.allowed=false
+  abort: subrepos not enabled
+  (see 'hg help config.subrepos' for details)
+  [255]
+  $ ls tc2
+  a
+
+  $ hg clone t tc3 --config subrepos.allowed=false
+  updating to branch default
+  abort: subrepos not enabled
+  (see 'hg help config.subrepos' for details)
+  [255]
+  $ ls tc3
+  a
+
+And again with just the hg type disabled
+
+  $ hg clone t -U tc4 --config subrepos.hg:allowed=false
+  $ hg update -R tc4 --config subrepos.hg:allowed=false
+  abort: hg subrepos not allowed
+  (see 'hg help config.subrepos' for details)
+  [255]
+  $ ls tc4
+  a
+
+  $ hg clone t tc5 --config subrepos.hg:allowed=false
+  updating to branch default
+  abort: hg subrepos not allowed
+  (see 'hg help config.subrepos' for details)
+  [255]
+  $ ls tc5
+  a
 
 push
 
+  $ cd tc
   $ echo bah > t/t
   $ hg ci -m11
   committing subrepository t
@@ -708,6 +746,7 @@ pull
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
+  new changesets 925c17564ef8
   (run 'hg update' to get a working copy)
 
 should pull t
@@ -737,6 +776,7 @@ should pull t
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
+  new changesets 52c0adc0515a
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updated to "925c17564ef8: 13"
   2 other heads for branch "default"
@@ -1053,6 +1093,7 @@ Create repo without default path, pull top repo, and see what happens on update
   adding manifests
   adding file changes
   added 2 changesets with 3 changes to 2 files
+  new changesets 19487b456929:be5eb94e7215
   (run 'hg update' to get a working copy)
   $ hg -R issue1852b update
   abort: default path for subrepository not found (in subrepository "sub/repo") (glob)
@@ -1079,6 +1120,7 @@ Try the same, but with pull -u
   adding manifests
   adding file changes
   added 1 changesets with 2 changes to 2 files
+  new changesets 19487b456929
   cloning subrepo sub/repo from issue1852a/sub/repo (glob)
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
@@ -1140,6 +1182,7 @@ Check that merge of a new subrepo doesn't write the uncommitted state to
   adding manifests
   adding file changes
   added 1 changesets with 2 changes to 2 files
+  new changesets c82b79fdcc5b
    subrepository sub/repo diverged (local revision: f42d5c7504a8, remote revision: 46cd4aac504c)
   (M)erge, keep (l)ocal [working copy] or keep (r)emote [destination]? m
   pulling subrepo sub/repo from $TESTTMP/issue1852a/sub/repo (glob)
@@ -1148,6 +1191,7 @@ Check that merge of a new subrepo doesn't write the uncommitted state to
   adding manifests
   adding file changes
   added 1 changesets with 1 changes to 1 files
+  new changesets 46cd4aac504c
    subrepository sources for sub/repo differ (glob)
   use (l)ocal source (f42d5c7504a8) or (r)emote source (46cd4aac504c)? l
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -1175,10 +1219,32 @@ subrepository:
 Check that share works with subrepo
   $ hg --config extensions.share= share . ../shared
   updating working directory
-  cloning subrepo subrepo-2 from $TESTTMP/subrepo-status/subrepo-2
+  sharing subrepo subrepo-1 from $TESTTMP/subrepo-status/subrepo-1
+  sharing subrepo subrepo-2 from $TESTTMP/subrepo-status/subrepo-2
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ test -f ../shared/subrepo-1/.hg/sharedpath
-  [1]
+  $ find ../shared/* | sort
+  ../shared/subrepo-1
+  ../shared/subrepo-1/.hg
+  ../shared/subrepo-1/.hg/cache
+  ../shared/subrepo-1/.hg/cache/storehash
+  ../shared/subrepo-1/.hg/cache/storehash/* (glob)
+  ../shared/subrepo-1/.hg/hgrc
+  ../shared/subrepo-1/.hg/requires
+  ../shared/subrepo-1/.hg/sharedpath
+  ../shared/subrepo-2
+  ../shared/subrepo-2/.hg
+  ../shared/subrepo-2/.hg/branch
+  ../shared/subrepo-2/.hg/cache
+  ../shared/subrepo-2/.hg/cache/checkisexec (execbit !)
+  ../shared/subrepo-2/.hg/cache/checklink (symlink !)
+  ../shared/subrepo-2/.hg/cache/checklink-target (symlink !)
+  ../shared/subrepo-2/.hg/cache/storehash
+  ../shared/subrepo-2/.hg/cache/storehash/* (glob)
+  ../shared/subrepo-2/.hg/dirstate
+  ../shared/subrepo-2/.hg/hgrc
+  ../shared/subrepo-2/.hg/requires
+  ../shared/subrepo-2/.hg/sharedpath
+  ../shared/subrepo-2/file
   $ hg -R ../shared in
   abort: repository default not found!
   [255]
