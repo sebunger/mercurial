@@ -8,7 +8,7 @@
 from node import bin, hex, nullid, nullrev, short
 from i18n import _
 import repo, changegroup, subrepo, discovery, pushkey
-import changelog, dirstate, filelog, manifest, context, bookmarks
+import changelog, dirstate, filelog, manifest, context, bookmarks, phases
 import lock, transaction, store, encoding
 import scmutil, util, extensions, hook, error, revset
 import match as matchmod
@@ -36,6 +36,11 @@ class localrepository(repo.repository):
         self.wopener = scmutil.opener(self.root)
         self.baseui = baseui
         self.ui = baseui.copy()
+        self._dirtyphases = False
+        # A list of callback to shape the phase if no data were found.
+        # Callback are in the form: func(repo, roots) --> processed root.
+        # This list it to be filled by extension during repo setup
+        self._phasedefaults = []
 
         try:
             self.ui.readconfig(self.join("hgrc"), self.root)
@@ -171,6 +176,25 @@ class localrepository(repo.repository):
     def _writebookmarks(self, marks):
       bookmarks.write(self)
 
+    @filecache('phaseroots', True)
+    def _phaseroots(self):
+        self._dirtyphases = False
+        phaseroots = phases.readroots(self)
+        phases.filterunknown(self, phaseroots)
+        return phaseroots
+
+    @propertycache
+    def _phaserev(self):
+        cache = [phases.public] * len(self)
+        for phase in phases.trackedphases:
+            roots = map(self.changelog.rev, self._phaseroots[phase])
+            if roots:
+                for rev in roots:
+                    cache[rev] = phase
+                for rev in self.changelog.descendants(*roots):
+                    cache[rev] = phase
+        return cache
+
     @filecache('00changelog.i', True)
     def changelog(self):
         c = changelog.changelog(self.sopener)
@@ -221,15 +245,18 @@ class localrepository(repo.repository):
         for i in xrange(len(self)):
             yield i
 
+    def revs(self, expr, *args):
+        '''Return a list of revisions matching the given revset'''
+        expr = revset.formatspec(expr, *args)
+        m = revset.match(None, expr)
+        return [r for r in m(self, range(len(self)))]
+
     def set(self, expr, *args):
         '''
         Yield a context for each matching revision, after doing arg
         replacement via revset.formatspec
         '''
-
-        expr = revset.formatspec(expr, *args)
-        m = revset.match(None, expr)
-        for r in m(self, range(len(self))):
+        for r in self.revs(expr, *args):
             yield self[r]
 
     def url(self):
@@ -298,6 +325,8 @@ class localrepository(repo.repository):
         writetags(fp, names, encoding.fromlocal, prevtags)
 
         fp.close()
+
+        self.invalidatecaches()
 
         if '.hgtags' not in self.dirstate:
             self[None].add(['.hgtags'])
@@ -457,7 +486,7 @@ class localrepository(repo.repository):
     def updatebranchcache(self):
         tip = self.changelog.tip()
         if self._branchcache is not None and self._branchcachetip == tip:
-            return self._branchcache
+            return
 
         oldtip = self._branchcachetip
         self._branchcachetip = tip
@@ -598,7 +627,12 @@ class localrepository(repo.repository):
 
     def known(self, nodes):
         nm = self.changelog.nodemap
-        return [(n in nm) for n in nodes]
+        result = []
+        for n in nodes:
+            r = nm.get(n)
+            resp = not (r is None or self._phaserev[r] >= phases.secret)
+            result.append(resp)
+        return result
 
     def local(self):
         return self
@@ -738,10 +772,16 @@ class localrepository(repo.repository):
             util.copyfile(bkname, self.join('journal.bookmarks'))
         else:
             self.opener.write('journal.bookmarks', '')
+        phasesname = self.sjoin('phaseroots')
+        if os.path.exists(phasesname):
+            util.copyfile(phasesname, self.sjoin('journal.phaseroots'))
+        else:
+            self.sopener.write('journal.phaseroots', '')
 
         return (self.sjoin('journal'), self.join('journal.dirstate'),
                 self.join('journal.branch'), self.join('journal.desc'),
-                self.join('journal.bookmarks'))
+                self.join('journal.bookmarks'),
+                self.sjoin('journal.phaseroots'))
 
     def recover(self):
         lock = self.lock()
@@ -806,6 +846,9 @@ class localrepository(repo.repository):
         if os.path.exists(self.join('undo.bookmarks')):
             util.rename(self.join('undo.bookmarks'),
                         self.join('bookmarks'))
+        if os.path.exists(self.sjoin('undo.phaseroots')):
+            util.rename(self.sjoin('undo.phaseroots'),
+                        self.sjoin('phaseroots'))
         self.invalidate()
 
         parentgone = (parents[0] not in self.changelog.nodemap or
@@ -832,10 +875,14 @@ class localrepository(repo.repository):
         return 0
 
     def invalidatecaches(self):
-        try:
-            delattr(self, '_tagscache')
-        except AttributeError:
-            pass
+        def delcache(name):
+            try:
+                delattr(self, name)
+            except AttributeError:
+                pass
+
+        delcache('_tagscache')
+        delcache('_phaserev')
 
         self._branchcache = None # in UTF-8
         self._branchcachetip = None
@@ -881,6 +928,14 @@ class localrepository(repo.repository):
             acquirefn()
         return l
 
+    def _afterlock(self, callback):
+        """add a callback to the current repository lock.
+
+        The callback will be executed on lock release."""
+        l = self._lockref and self._lockref()
+        if l:
+            l.postrelease.append(callback)
+
     def lock(self, wait=True):
         '''Lock the repository store (.hg/store) and return a weak reference
         to the lock. Use this before modifying the store (e.g. committing or
@@ -892,6 +947,8 @@ class localrepository(repo.repository):
 
         def unlock():
             self.store.write()
+            if self._dirtyphases:
+                phases.writeroots(self)
             for k, ce in self._filecache.items():
                 if k == 'dirstate':
                     continue
@@ -1210,10 +1267,17 @@ class localrepository(repo.repository):
             self.hook('pretxncommit', throw=True, node=hex(n), parent1=xp1,
                       parent2=xp2, pending=p)
             self.changelog.finalize(trp)
+            # set the new commit is proper phase
+            targetphase = phases.newcommitphase(self.ui)
+            if targetphase:
+                # retract boundary do not alter parent changeset.
+                # if a parent have higher the resulting phase will
+                # be compliant anyway
+                #
+                # if minimal phase was 0 we don't need to retract anything
+                phases.retractboundary(self, targetphase, [n])
             tr.close()
-
-            if self._branchcache:
-                self.updatebranchcache()
+            self.updatebranchcache()
             return n
         finally:
             if tr:
@@ -1464,6 +1528,7 @@ class localrepository(repo.repository):
             common, fetch, rheads = tmp
             if not fetch:
                 self.ui.status(_("no changes found\n"))
+                added = []
                 result = 0
             else:
                 if heads is None and list(common) == [nullid]:
@@ -1483,8 +1548,34 @@ class localrepository(repo.repository):
                                            "changegroupsubset."))
                 else:
                     cg = remote.changegroupsubset(fetch, heads, 'pull')
-                result = self.addchangegroup(cg, 'pull', remote.url(),
-                                             lock=lock)
+                clstart = len(self.changelog)
+                result = self.addchangegroup(cg, 'pull', remote.url())
+                clend = len(self.changelog)
+                added = [self.changelog.node(r) for r in xrange(clstart, clend)]
+
+            # compute target subset
+            if heads is None:
+                # We pulled every thing possible
+                # sync on everything common
+                subset = common + added
+            else:
+                # We pulled a specific subset
+                # sync on this subset
+                subset = heads
+
+            # Get remote phases data from remote
+            remotephases = remote.listkeys('phases')
+            publishing = bool(remotephases.get('publishing', False))
+            if remotephases and not publishing:
+                # remote is new and unpublishing
+                pheads, _dr = phases.analyzeremotephases(self, subset,
+                                                         remotephases)
+                phases.advanceboundary(self, phases.public, pheads)
+                phases.advanceboundary(self, phases.draft, subset)
+            else:
+                # Remote is old or publishing all common changesets
+                # should be seen as public
+                phases.advanceboundary(self, phases.public, subset)
         finally:
             lock.release()
 
@@ -1500,7 +1591,8 @@ class localrepository(repo.repository):
     def push(self, remote, force=False, revs=None, newbranch=False):
         '''Push outgoing changesets (limited by revs) from the current
         repository to remote. Return an integer:
-          - 0 means HTTP error *or* nothing to push
+          - None means nothing to push
+          - 0 means HTTP error
           - 1 means we pushed and remote head count is unchanged *or*
             we have outgoing changesets but refused to push
           - other values as described by addchangegroup()
@@ -1513,33 +1605,121 @@ class localrepository(repo.repository):
         # unbundle assumes local user cannot lock remote repo (new ssh
         # servers, http servers).
 
-        self.checkpush(force, revs)
-        lock = None
-        unbundle = remote.capable('unbundle')
-        if not unbundle:
-            lock = remote.lock()
+        # get local lock as we might write phase data
+        locallock = self.lock()
         try:
-            cg, remote_heads = discovery.prepush(self, remote, force, revs,
-                                                 newbranch)
-            ret = remote_heads
-            if cg is not None:
-                if unbundle:
-                    # local repo finds heads on server, finds out what
-                    # revs it must push. once revs transferred, if server
-                    # finds it has different heads (someone else won
-                    # commit/push race), server aborts.
-                    if force:
-                        remote_heads = ['force']
-                    # ssh: return remote's addchangegroup()
-                    # http: return remote's addchangegroup() or 0 for error
-                    ret = remote.unbundle(cg, remote_heads, 'push')
+            self.checkpush(force, revs)
+            lock = None
+            unbundle = remote.capable('unbundle')
+            if not unbundle:
+                lock = remote.lock()
+            try:
+                # discovery
+                fci = discovery.findcommonincoming
+                commoninc = fci(self, remote, force=force)
+                common, inc, remoteheads = commoninc
+                fco = discovery.findcommonoutgoing
+                outgoing = fco(self, remote, onlyheads=revs,
+                               commoninc=commoninc, force=force)
+
+
+                if not outgoing.missing:
+                    # nothing to push
+                    scmutil.nochangesfound(self.ui, outgoing.excluded)
+                    ret = None
                 else:
-                    # we return an integer indicating remote head count change
-                    ret = remote.addchangegroup(cg, 'push', self.url(),
-                                                lock=lock)
+                    # something to push
+                    if not force:
+                        discovery.checkheads(self, remote, outgoing,
+                                             remoteheads, newbranch,
+                                             bool(inc))
+
+                    # create a changegroup from local
+                    if revs is None and not outgoing.excluded:
+                        # push everything,
+                        # use the fast path, no race possible on push
+                        cg = self._changegroup(outgoing.missing, 'push')
+                    else:
+                        cg = self.getlocalbundle('push', outgoing)
+
+                    # apply changegroup to remote
+                    if unbundle:
+                        # local repo finds heads on server, finds out what
+                        # revs it must push. once revs transferred, if server
+                        # finds it has different heads (someone else won
+                        # commit/push race), server aborts.
+                        if force:
+                            remoteheads = ['force']
+                        # ssh: return remote's addchangegroup()
+                        # http: return remote's addchangegroup() or 0 for error
+                        ret = remote.unbundle(cg, remoteheads, 'push')
+                    else:
+                        # we return an integer indicating remote head count change
+                        ret = remote.addchangegroup(cg, 'push', self.url())
+
+                if ret:
+                    # push succeed, synchonize target of the push
+                    cheads = outgoing.missingheads
+                elif revs is None:
+                    # All out push fails. synchronize all common
+                    cheads = outgoing.commonheads
+                else:
+                    # I want cheads = heads(::missingheads and ::commonheads)
+                    # (missingheads is revs with secret changeset filtered out)
+                    #
+                    # This can be expressed as:
+                    #     cheads = ( (missingheads and ::commonheads)
+                    #              + (commonheads and ::missingheads))"
+                    #              )
+                    #
+                    # while trying to push we already computed the following:
+                    #     common = (::commonheads)
+                    #     missing = ((commonheads::missingheads) - commonheads)
+                    #
+                    # We can pick:
+                    # * missingheads part of comon (::commonheads)
+                    common = set(outgoing.common)
+                    cheads = [node for node in revs if node in common]
+                    # and 
+                    # * commonheads parents on missing
+                    revset = self.set('%ln and parents(roots(%ln))',
+                                     outgoing.commonheads,
+                                     outgoing.missing)
+                    cheads.extend(c.node() for c in revset)
+                # even when we don't push, exchanging phase data is useful
+                remotephases = remote.listkeys('phases')
+                if not remotephases: # old server or public only repo
+                    phases.advanceboundary(self, phases.public, cheads)
+                    # don't push any phase data as there is nothing to push
+                else:
+                    ana = phases.analyzeremotephases(self, cheads, remotephases)
+                    pheads, droots = ana
+                    ### Apply remote phase on local
+                    if remotephases.get('publishing', False):
+                        phases.advanceboundary(self, phases.public, cheads)
+                    else: # publish = False
+                        phases.advanceboundary(self, phases.public, pheads)
+                        phases.advanceboundary(self, phases.draft, cheads)
+                    ### Apply local phase on remote
+
+                    # Get the list of all revs draft on remote by public here.
+                    # XXX Beware that revset break if droots is not strictly
+                    # XXX root we may want to ensure it is but it is costly
+                    outdated =  self.set('heads((%ln::%ln) and public())',
+                                         droots, cheads)
+                    for newremotehead in outdated:
+                        r = remote.pushkey('phases',
+                                           newremotehead.hex(),
+                                           str(phases.draft),
+                                           str(phases.public))
+                        if not r:
+                            self.ui.warn(_('updating %s to public failed!\n')
+                                            % newremotehead)
+            finally:
+                if lock is not None:
+                    lock.release()
         finally:
-            if lock is not None:
-                lock.release()
+            locallock.release()
 
         self.ui.debug("checking for updated bookmarks\n")
         rb = remote.listkeys('bookmarks')
@@ -1588,6 +1768,18 @@ class localrepository(repo.repository):
         common = set(cl.ancestors(*[cl.rev(n) for n in bases]))
         return self._changegroupsubset(common, csets, heads, source)
 
+    def getlocalbundle(self, source, outgoing):
+        """Like getbundle, but taking a discovery.outgoing as an argument.
+
+        This is only implemented for local repos and reuses potentially
+        precomputed sets in outgoing."""
+        if not outgoing.missing:
+            return None
+        return self._changegroupsubset(outgoing.common,
+                                       outgoing.missing,
+                                       outgoing.missingheads,
+                                       source)
+
     def getbundle(self, source, heads=None, common=None):
         """Like changegroupsubset, but returns the set difference between the
         ancestors of heads and the ancestors common.
@@ -1605,10 +1797,8 @@ class localrepository(repo.repository):
             common = [nullid]
         if not heads:
             heads = cl.heads()
-        common, missing = cl.findcommonmissing(common, heads)
-        if not missing:
-            return None
-        return self._changegroupsubset(common, missing, heads, source)
+        return self.getlocalbundle(source,
+                                   discovery.outgoing(cl, common, heads))
 
     def _changegroupsubset(self, commonrevs, csets, heads, source):
 
@@ -1796,12 +1986,10 @@ class localrepository(repo.repository):
 
         return changegroup.unbundle10(util.chunkbuffer(gengroup()), 'UN')
 
-    def addchangegroup(self, source, srctype, url, emptyok=False, lock=None):
+    def addchangegroup(self, source, srctype, url, emptyok=False):
         """Add the changegroup returned by source.read() to this repo.
         srctype is a string like 'push', 'pull', or 'unbundle'.  url is
         the URL of the repo where this changegroup is coming from.
-        If lock is not None, the function takes ownership of the lock
-        and releases it after the changegroup is added.
 
         Return an integer summarizing the change to this repo:
         - nothing changed or no source: 0
@@ -1849,8 +2037,8 @@ class localrepository(repo.repository):
             source.callback = pr
 
             source.changelogheader()
-            if (cl.addgroup(source, csmap, trp) is None
-                and not emptyok):
+            srccontent = cl.addgroup(source, csmap, trp)
+            if not (srccontent or emptyok):
                 raise util.Abort(_("received changelog group is empty"))
             clend = len(cl)
             changesets = clend - clstart
@@ -1898,7 +2086,7 @@ class localrepository(repo.repository):
                 pr()
                 fl = self.file(f)
                 o = len(fl)
-                if fl.addgroup(source, revmap, trp) is None:
+                if not fl.addgroup(source, revmap, trp):
                     raise util.Abort(_("received file revlog group is empty"))
                 revisions += len(fl) - o
                 files += 1
@@ -1943,26 +2131,46 @@ class localrepository(repo.repository):
                           node=hex(cl.node(clstart)), source=srctype,
                           url=url, pending=p)
 
+            added = [cl.node(r) for r in xrange(clstart, clend)]
+            publishing = self.ui.configbool('phases', 'publish', True)
+            if srctype == 'push':
+                # Old server can not push the boundary themself.
+                # New server won't push the boundary if changeset already
+                # existed locally as secrete
+                #
+                # We should not use added here but the list of all change in
+                # the bundle
+                if publishing:
+                    phases.advanceboundary(self, phases.public, srccontent)
+                else:
+                    phases.advanceboundary(self, phases.draft, srccontent)
+                    phases.retractboundary(self, phases.draft, added)
+            elif srctype != 'strip':
+                # publishing only alter behavior during push
+                #
+                # strip should not touch boundary at all
+                phases.retractboundary(self, phases.draft, added)
+
             # make changelog see real files again
             cl.finalize(trp)
 
             tr.close()
+
+            if changesets > 0:
+                def runhooks():
+                    # forcefully update the on-disk branch cache
+                    self.ui.debug("updating the branch cache\n")
+                    self.updatebranchcache()
+                    self.hook("changegroup", node=hex(cl.node(clstart)),
+                              source=srctype, url=url)
+
+                    for n in added:
+                        self.hook("incoming", node=hex(n), source=srctype,
+                                  url=url)
+                self._afterlock(runhooks)
+
         finally:
             tr.release()
-            if lock:
-                lock.release()
-
-        if changesets > 0:
-            # forcefully update the on-disk branch cache
-            self.ui.debug("updating the branch cache\n")
-            self.updatebranchcache()
-            self.hook("changegroup", node=hex(cl.node(clstart)),
-                      source=srctype, url=url)
-
-            for i in xrange(clstart, clend):
-                self.hook("incoming", node=hex(cl.node(i)),
-                          source=srctype, url=url)
-
         # never return 0 here:
         if dh < 0:
             return dh - 1

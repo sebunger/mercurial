@@ -35,33 +35,35 @@
 <li><a class="reference internal" href="#syntax" id="id3">Syntax</a></li>
 <li><a class="reference internal" href="#sections" id="id4">Sections</a><ul>
 <li><a class="reference internal" href="#alias" id="id5"><tt class="docutils literal">alias</tt></a></li>
-<li><a class="reference internal" href="#auth" id="id6"><tt class="docutils literal">auth</tt></a></li>
-<li><a class="reference internal" href="#decode-encode" id="id7"><tt class="docutils literal">decode/encode</tt></a></li>
-<li><a class="reference internal" href="#defaults" id="id8"><tt class="docutils literal">defaults</tt></a></li>
-<li><a class="reference internal" href="#diff" id="id9"><tt class="docutils literal">diff</tt></a></li>
-<li><a class="reference internal" href="#email" id="id10"><tt class="docutils literal">email</tt></a></li>
-<li><a class="reference internal" href="#extensions" id="id11"><tt class="docutils literal">extensions</tt></a></li>
-<li><a class="reference internal" href="#hostfingerprints" id="id12"><tt class="docutils literal">hostfingerprints</tt></a></li>
-<li><a class="reference internal" href="#format" id="id13"><tt class="docutils literal">format</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id14"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id15"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#hooks" id="id16"><tt class="docutils literal">hooks</tt></a></li>
-<li><a class="reference internal" href="#http-proxy" id="id17"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id18"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#patch" id="id19"><tt class="docutils literal">patch</tt></a></li>
-<li><a class="reference internal" href="#paths" id="id20"><tt class="docutils literal">paths</tt></a></li>
-<li><a class="reference internal" href="#profiling" id="id21"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#revsetalias" id="id22"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#server" id="id23"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id24"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id25"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id26"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id27"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#annotate" id="id6"><tt class="docutils literal">annotate</tt></a></li>
+<li><a class="reference internal" href="#auth" id="id7"><tt class="docutils literal">auth</tt></a></li>
+<li><a class="reference internal" href="#decode-encode" id="id8"><tt class="docutils literal">decode/encode</tt></a></li>
+<li><a class="reference internal" href="#defaults" id="id9"><tt class="docutils literal">defaults</tt></a></li>
+<li><a class="reference internal" href="#diff" id="id10"><tt class="docutils literal">diff</tt></a></li>
+<li><a class="reference internal" href="#email" id="id11"><tt class="docutils literal">email</tt></a></li>
+<li><a class="reference internal" href="#extensions" id="id12"><tt class="docutils literal">extensions</tt></a></li>
+<li><a class="reference internal" href="#hostfingerprints" id="id13"><tt class="docutils literal">hostfingerprints</tt></a></li>
+<li><a class="reference internal" href="#format" id="id14"><tt class="docutils literal">format</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id15"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id16"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
+<li><a class="reference internal" href="#hooks" id="id17"><tt class="docutils literal">hooks</tt></a></li>
+<li><a class="reference internal" href="#http-proxy" id="id18"><tt class="docutils literal">http_proxy</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id19"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#patch" id="id20"><tt class="docutils literal">patch</tt></a></li>
+<li><a class="reference internal" href="#paths" id="id21"><tt class="docutils literal">paths</tt></a></li>
+<li><a class="reference internal" href="#phases" id="id22"><tt class="docutils literal">phases</tt></a></li>
+<li><a class="reference internal" href="#profiling" id="id23"><tt class="docutils literal">profiling</tt></a></li>
+<li><a class="reference internal" href="#revsetalias" id="id24"><tt class="docutils literal">revsetalias</tt></a></li>
+<li><a class="reference internal" href="#server" id="id25"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id26"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id27"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id28"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id29"><tt class="docutils literal">web</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id28">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id29">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id30">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id30">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id31">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id32">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="synopsis">
@@ -288,6 +290,20 @@ processed before shell aliases and will thus not be passed to
 aliases.</p>
 </div>
 </div>
+<div class="section" id="annotate">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">annotate</tt></a></h2>
+<p>Settings used when displaying file annotations. All values are
+Booleans and default to False. See <tt class="docutils literal">diff</tt> section for related
+options for the diff command.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">ignorews</tt></dt>
+<dd>Ignore white space when comparing lines.</dd>
+<dt><tt class="docutils literal">ignorewsamount</tt></dt>
+<dd>Ignore changes in the amount of white space.</dd>
+<dt><tt class="docutils literal">ignoreblanklines</tt></dt>
+<dd>Ignore changes whose lines are all blank.</dd>
+</dl>
+</div>
 <div class="section" id="auth">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">auth</tt></a></h2>
 <p>Authentication credentials for HTTP authentication. This section
@@ -407,8 +423,9 @@ to the aliases of the commands defined.</p>
 </div>
 <div class="section" id="diff">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">diff</tt></a></h2>
-<p>Settings used when displaying diffs. Everything except for <tt class="docutils literal">unified</tt> is a
-Boolean and defaults to False.</p>
+<p>Settings used when displaying diffs. Everything except for <tt class="docutils literal">unified</tt>
+is a Boolean and defaults to False. See <tt class="docutils literal">annotate</tt> section for
+related options for the annotate command.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">git</tt></dt>
 <dd>Use git extended diff format.</dd>
@@ -644,7 +661,10 @@ Default: None</dd>
 various actions such as starting or finishing a commit. Multiple
 hooks can be run for the same action by appending a suffix to the
 action. Overriding a site-wide hook can be done by changing its
-value or setting it to an empty string.</p>
+value or setting it to an empty string.  Hooks can be prioritized
+by adding a prefix of <tt class="docutils literal">priority</tt> to the hook name on a new line
+and setting the priority.  The default priority is 0 if
+not specified.</p>
 <p>Example <tt class="docutils literal">.hg/hgrc</tt>:</p>
 <pre class="literal-block">
 [hooks]
@@ -654,6 +674,8 @@ changegroup.update = hg update
 incoming =
 incoming.email = /my/email/hook
 incoming.autobuild = /my/build/hook
+# force autobuild hook to run before other incoming hooks
+priority.incoming.autobuild = 1
 </pre>
 <p>Most hooks are run with environment variables set that give useful
 additional information. For each hook below, the environment
@@ -868,6 +890,21 @@ cloned.</dd>
 <dt><tt class="docutils literal"><span class="pre">default-push</span></tt></dt>
 <dd>Optional. Directory or URL to use when pushing if no destination
 is specified.</dd>
+</dl>
+</div>
+<div class="section" id="phases">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">phases</tt></a></h2>
+<p>Specifies default handling of phases. See <a class="reference external" href="hg.1.html#phases"><tt class="docutils literal">hg help phases</tt></a> for more
+information about working with phases.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">publish</tt></dt>
+<dd>Controls draft phase behavior when working as a server. When true,
+pushed changesets are set to public in both client and server and
+pulled or cloned changesets are set to public in the client.
+Default: True</dd>
+<dt><tt class="docutils literal"><span class="pre">new-commit</span></tt></dt>
+<dd>Phase of newly-created commits.
+Default: draft</dd>
 </dl>
 </div>
 <div class="section" id="profiling">

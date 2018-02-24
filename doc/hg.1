@@ -285,6 +285,18 @@ list the changeset
 .
 show line number at the first appearance
 .TP
+.B \-w,  \-\-ignore\-all\-space
+.
+ignore white space when comparing lines
+.TP
+.B \-b,  \-\-ignore\-space\-change
+.
+ignore changes in the amount of white space
+.TP
+.B \-B,  \-\-ignore\-blank\-lines
+.
+ignore changes whose lines are all blank
+.TP
 .B \-I,  \-\-include
 .
 include names matching the given patterns
@@ -632,10 +644,10 @@ hg bookmarks [\-f] [\-d] [\-i] [\-m NAME] [\-r REV] [NAME]
 .ft P
 .fi
 .sp
-Bookmarks are pointers to certain commits that move when
-committing. Bookmarks are local. They can be renamed, copied and
-deleted. It is possible to use bookmark names in \%\fBhg merge\fP\: and
-\%\fBhg update\fP\: to merge and update respectively to a given bookmark.
+Bookmarks are pointers to certain commits that move when committing.
+Bookmarks are local. They can be renamed, copied and deleted. It is
+possible to use \%\fBhg merge NAME\fP\: to merge from a given bookmark, and
+\%\fBhg update NAME\fP\: to update to a given bookmark.
 .sp
 You can use \%\fBhg bookmark NAME\fP\: to set a bookmark on the working
 directory\(aqs parent revision with the given name. If you specify
@@ -646,6 +658,11 @@ Bookmarks can be pushed and pulled between repositories (see \%\fBhg help
 push\fP\: and \%\fBhg help pull\fP\:). This requires both the local and remote
 repositories to support bookmarks. For versions prior to 1.8, this means
 the bookmarks extension must be enabled.
+.sp
+With \-i/\-\-inactive, the new bookmark will not be made the active
+bookmark. If \-r/\-\-rev is given, the new bookmark will not be made
+active even if \-i/\-\-inactive is not given. If no NAME is given, the
+current active bookmark will be marked inactive.
 .sp
 Options:
 .INDENT 0.0
@@ -668,7 +685,7 @@ rename a given bookmark
 .TP
 .B \-i,  \-\-inactive
 .
-do not mark a new bookmark active
+mark a bookmark inactive
 .UNINDENT
 .SS branch
 .sp
@@ -1840,6 +1857,18 @@ show tags
 .B \-B,  \-\-bookmarks
 .
 show bookmarks
+.TP
+.B \-e,  \-\-ssh
+.
+specify ssh command to use
+.TP
+.B \-\-remotecmd
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .sp
 aliases: id
 .UNINDENT
@@ -1881,7 +1910,7 @@ patches will be applied on top of the working directory parent
 revision.
 .sp
 With \-s/\-\-similarity, hg will attempt to discover renames and
-copies in the patch in the same way as \(aqaddremove\(aq.
+copies in the patch in the same way as \%\fBhg addremove\fP\:.
 .sp
 To read a patch from standard input, use "\-" as the patch name. If
 a URL is specified, the patch will be downloaded from it.
@@ -2300,7 +2329,7 @@ follow changeset history, or file history across copies and renames
 .TP
 .B \-\-follow\-first
 .
-only follow the first parent of merge changesets
+only follow the first parent of merge changesets (DEPRECATED)
 .TP
 .B \-d,  \-\-date
 .
@@ -2324,7 +2353,7 @@ include revisions where files were removed
 .TP
 .B \-m,  \-\-only\-merges
 .
-show only merges
+show only merges (DEPRECATED)
 .TP
 .B \-u,  \-\-user
 .
@@ -2344,7 +2373,7 @@ do not display revision or any of its ancestors
 .TP
 .B \-\-hidden
 .
-show hidden changesets
+show hidden changesets (DEPRECATED)
 .TP
 .B \-p,  \-\-patch
 .
@@ -2615,6 +2644,53 @@ source is written as \fBdefault\fP in \fB.hg/hgrc\fP.  Note that
 See \%\fBhg help urls\fP\: for more information.
 .sp
 Returns 0 on success.
+.SS phase
+.sp
+.nf
+.ft C
+hg phase [\-p|\-d|\-s] [\-f] [\-r] REV...
+.ft P
+.fi
+.sp
+With no argument, show the phase name of specified revisions.
+.sp
+With one of \-p/\-\-public, \-d/\-\-draft or \-s/\-\-secret, change the
+phase value of the specified revisions.
+.sp
+Unless \-f/\-\-force is specified, \%\fBhg phase\fP\: won\(aqt move changeset from a
+lower phase to an higher phase. Phases are ordered as follows:
+.sp
+.nf
+.ft C
+public < draft < secret
+.ft P
+.fi
+.sp
+Return 0 on success, 1 if no phases were changed.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-p,  \-\-public
+.
+set changeset phase to public
+.TP
+.B \-d,  \-\-draft
+.
+set changeset phase to draft
+.TP
+.B \-s,  \-\-secret
+.
+set changeset phase to secret
+.TP
+.B \-f,  \-\-force
+.
+allow to move boundary backward
+.TP
+.B \-r,  \-\-rev
+.
+target revision
+.UNINDENT
 .SS pull
 .sp
 .nf
@@ -2638,7 +2714,8 @@ to add those changes to the repository, you should use \%\fBhg pull
 If SOURCE is omitted, the \(aqdefault\(aq path will be used.
 See \%\fBhg help urls\fP\: for more information.
 .sp
-Returns 0 on success, 1 if an update had unresolved files.
+Returns 0 on success, 1 if no changes found or an update had
+unresolved files.
 .sp
 Options:
 .INDENT 0.0
@@ -2929,7 +3006,8 @@ non\-interactive merging using the \fBinternal:merge\fP configuration
 setting, or a command\-line merge tool like \fBdiff3\fP. The resolve
 command is used to manage the files involved in a merge, after
 \%\fBhg merge\fP\: has been run, and before \%\fBhg commit\fP\: is run (i.e. the
-working directory must have two parents).
+working directory must have two parents). See \%\fBhg help
+merge\-tools\fP\: for information on configuring merge tools.
 .sp
 The resolve command can be used in the following ways:
 .INDENT 0.0
@@ -3589,7 +3667,8 @@ hg update [\-c] [\-C] [\-d DATE] [[\-r] REV]
 .sp
 Update the repository\(aqs working directory to the specified
 changeset. If no changeset is specified, update to the tip of the
-current named branch.
+current named branch and move the current bookmark (see \%\fBhg help
+bookmarks\fP\:).
 .sp
 If the changeset is not a descendant of the working directory\(aqs
 parent, the update is aborted. With the \-c/\-\-check option, the
@@ -4293,7 +4372,7 @@ Find C files in a non\-standard encoding:
 .sp
 .nf
 .ft C
-hg locate "set:**.c and not encoding(ascii)"
+hg locate "set:**.c and not encoding(\(aqUTF\-8\(aq)"
 .ft P
 .fi
 .IP \(bu 2
@@ -4564,6 +4643,12 @@ changeset, known as the parent of the working directory. See
 to the files introduced manually or by a merge. The repository
 metadata exists in the .hg directory inside the working directory.
 .TP
+.B Draft
+.
+Changesets in the draft phase have not been shared with publishing
+repositories and may thus be safely changed by history\-modifying
+extensions. See \%\fBhg help phases\fP\:.
+.TP
 .B Graph
 .
 See DAG and \%\fBhg help graphlog\fP\:.
@@ -4670,6 +4755,17 @@ changeset into another.
 .sp
 Example: "You will need to patch that revision."
 .TP
+.B Phase
+.
+A per\-changeset state tracking how the changeset has been or
+should be shared. See \%\fBhg help phases\fP\:.
+.TP
+.B Public
+.
+Changesets in the public phase have been shared with publishing
+repositories and are therefore considered immutable. See \%\fBhg help
+phases\fP\:.
+.TP
 .B Pull
 .
 An operation in which changesets in a remote repository which are
@@ -4729,6 +4825,11 @@ See \(aqHistory, rewriting\(aq.
 .
 A changeset that has only the null changeset as its parent. Most
 repositories have only a single root changeset.
+.TP
+.B Secret
+.
+Changesets in the secret phase may not be shared via push, pull,
+or clone. See \%\fBhg help phases\fP\:.
 .TP
 .B Tag
 .
@@ -5147,6 +5248,136 @@ listfile0:list.txt read list from list.txt with null byte delimiters
 .fi
 .sp
 See also \%\fBhg help filesets\fP\:.
+.SH WORKING WITH PHASES
+.SH WHAT ARE PHASES?
+.sp
+Phases are a system for tracking which changesets have been or should
+be shared. This helps prevent common mistakes when modifying history
+(for instance, with the mq or rebase extensions).
+.sp
+Each changeset in a repository is in one of the following phases:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+public : changeset is visible on a public server
+.IP \(bu 2
+.
+draft : changeset is not yet published
+.IP \(bu 2
+.
+secret : changeset should not be pushed, pulled, or cloned
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+These phases are ordered (public < draft < secret) and no changeset
+can be in a lower phase than its ancestors. For instance, if a
+changeset is public, all its ancestors are also public. Lastly,
+changeset phases only be changed towards the public phase.
+.SH HOW ARE PHASES MANAGED?
+.sp
+For the most part, phases should work transparently. By default, a
+changeset is created in the draft phase and is moved into the public
+phase when it is pushed to another repository.
+.sp
+Once changesets become public, extensions like mq and rebase will
+refuse to operate on them to prevent creating duplicate changesets.
+Phases can also be manually manipulated with the \%\fBhg phase\fP\: command
+if needed. See \%\fBhg help \-v phase\fP\: for examples.
+.SH PHASES AND SERVERS
+.sp
+Normally, all servers are \fBpublishing\fP by default. This means:
+.sp
+.nf
+.ft C
+\- all draft changesets that are pulled or cloned appear in phase
+public on the client
+
+\- all draft changesets that are pushed appear as public on both
+client and server
+
+\- secret changesets are neither pushed, pulled, or cloned
+.ft P
+.fi
+.IP Note
+.
+Pulling a draft changeset from a publishing server does not mark it
+as public on the server side due to the read\-only nature of pull.
+.RE
+.sp
+Sometimes it may be desirable to push and pull changesets in the draft
+phase to share unfinished work. This can be done by setting a
+repository to disable publishing in its configuration file:
+.sp
+.nf
+.ft C
+[phases]
+publish = False
+.ft P
+.fi
+.sp
+See \%\fBhg help config\fP\: for more information on config files.
+.IP Note
+.
+Servers running older versions of Mercurial are treated as
+publishing.
+.RE
+.SH EXAMPLES
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+list changesets in draft or secret phase:
+.sp
+.nf
+.ft C
+hg log \-r "not public()"
+.ft P
+.fi
+.IP \(bu 2
+.
+change all secret changesets to draft:
+.sp
+.nf
+.ft C
+hg phase \-\-draft "secret()"
+.ft P
+.fi
+.IP \(bu 2
+.
+forcibly move the current changeset and descendants from public to draft:
+.sp
+.nf
+.ft C
+hg phase \-\-force \-\-draft .
+.ft P
+.fi
+.IP \(bu 2
+.
+show a list of changeset revision and phase:
+.sp
+.nf
+.ft C
+hg log \-\-template "{rev} {phase}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+resynchronize draft changesets relative to a remote repository:
+.sp
+.nf
+.ft C
+hg phase \-fd \(aqoutgoing(URL)\(aq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+See \%\fBhg help phase\fP\: for more information on manually manipulating phases.
 .SH SPECIFYING SINGLE REVISIONS
 .sp
 Mercurial supports several ways to specify individual revisions.
@@ -5186,10 +5417,9 @@ revisions.
 The language supports a number of predicates which are joined by infix
 operators. Parenthesis can be used for grouping.
 .sp
-Identifiers such as branch names must be quoted with single or double
-quotes if they contain characters outside of
-\fB[._a\-zA\-Z0\-9\ex80\-\exff]\fP or if they match one of the predefined
-predicates.
+Identifiers such as branch names may need quoting with single or
+double quotes if they contain characters like \fB\-\fP or if they match
+one of the predefined predicates.
 .sp
 Special characters can be used in quoted identifiers by escaping them,
 e.g., \fB\en\fP is interpreted as a newline. To prevent them from being
@@ -5334,6 +5564,10 @@ Search commit message for string. The match is case\-insensitive.
 .sp
 Changesets which are descendants of changesets in set.
 .TP
+.B \fBdraft()\fP
+.sp
+Changeset in draft phase.
+.TP
 .B \fBfile(pattern)\fP
 .sp
 Changesets affecting files matched by pattern.
@@ -5421,6 +5655,16 @@ The set of all parents for all changesets in set, or the working directory.
 An empty set, if any revision in set isn\(aqt found; otherwise,
 all revisions in set.
 .TP
+.B \fBpublic()\fP
+.sp
+Changeset in public phase.
+.TP
+.B \fBremote([id [,path]])\fP
+.sp
+Local revision that corresponds to the given identifier in a
+remote repository, if present. Here, the \(aq.\(aq identifier is a
+synonym for the current local branch.
+.TP
 .B \fBremoves(pattern)\fP
 .sp
 Changesets which remove files matching pattern.
@@ -5436,6 +5680,10 @@ Reverse order of set.
 .B \fBroots(set)\fP
 .sp
 Changesets with no parent changeset in set.
+.TP
+.B \fBsecret()\fP
+.sp
+Changeset in secret phase.
 .TP
 .B \fBsort(set[, [\-]key...])\fP
 .sp
@@ -5656,8 +5904,10 @@ reference from \fB.hgsub\fP, then remove its files.
 .B add
 .
 add does not recurse in subrepos unless \-S/\-\-subrepos is
-specified. Git and Subversion subrepositories are currently
-silently ignored.
+specified.  However, if you specify the full path of a file in a
+subrepo, it will be added even without \-S/\-\-subrepos specified.
+Git and Subversion subrepositories are currently silently
+ignored.
 .TP
 .B archive
 .
@@ -5681,6 +5931,11 @@ diff does not recurse in subrepos unless \-S/\-\-subrepos is
 specified. Changes are displayed as usual, on the subrepositories
 elements. Git and Subversion subrepositories are currently
 silently ignored.
+.TP
+.B forget
+.
+forget currently only handles exact file matches in subrepos.
+Git and Subversion subrepositories are currently silently ignored.
 .TP
 .B incoming
 .
@@ -5849,6 +6104,14 @@ Integer. Longest path to the latest tag.
 .
 String. The changeset identification hash, as a 40 hexadecimal
 digit string.
+.TP
+.B phase
+.
+String. The changeset phase name.
+.TP
+.B phaseidx
+.
+Integer. The changeset phase index.
 .TP
 .B rev
 .
@@ -8179,6 +8442,16 @@ preserving existing git patches upon qrefresh. If set to \(aqyes\(aq or
 \(aqno\(aq, mq will override the [diff] section and always generate git or
 regular patches, possibly losing data in the second case.
 .sp
+It may be desirable for mq changesets to be kept in the secret phase (see
+\%\fBhg help phases\fP\:), which can be enabled with the following setting:
+.sp
+.nf
+.ft C
+[mq]
+secret = True
+.ft P
+.fi
+.sp
 You will by default be managing a patch queue named "patches". You can
 create other, independent patch queues with the \%\fBhg qqueue\fP\: command.
 .SS Commands
@@ -8315,8 +8588,9 @@ hg qdelete [\-k] [PATCH]...
 .ft P
 .fi
 .sp
-The patches must not be applied, and at least one patch is required. With
-\-k/\-\-keep, the patch files are preserved in the patch directory.
+The patches must not be applied, and at least one patch is required. Exact
+patch identifiers must be given. With \-k/\-\-keep, the patch files are
+preserved in the patch directory.
 .sp
 To stop managing a patch and move it into permanent history,
 use the \%\fBhg qfinish\fP\: command.
@@ -9327,6 +9601,16 @@ Set to True to include a diffstat before diff content. Default: True.
 .B notify.merge
 .
 If True, send notifications for merge changesets. Default: True.
+.TP
+.B notify.mbox
+.
+If set, append mails to this mbox file instead of sending. Default: None.
+.TP
+.B notify.fromauthor
+.
+If set, use the first committer of the changegroup for the "From" field of
+the notification mail. If not set, take the user from the pushing repo.
+Default: False.
 .UNINDENT
 .sp
 If set, the following entries will also be used to customize the notifications:
@@ -9867,7 +10151,7 @@ keep original changesets
 .
 keep original branch names
 .TP
-.B \-\-detach
+.B \-D,  \-\-detach
 .
 force detaching of source from its original branch
 .TP

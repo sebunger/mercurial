@@ -127,7 +127,7 @@ hg status:
 hg status modified added removed deleted unknown never-existed ignored:
 
   $ hg status modified added removed deleted unknown never-existed ignored
-  never-existed: No such file or directory
+  never-existed: * (glob)
   A added
   R removed
   ! deleted
@@ -263,12 +263,35 @@ hg status -C --change 1 added modified copied removed deleted:
     modified
   R removed
 
-hg status -A --change 1:
+hg status -A --change 1 and revset:
 
-  $ hg status -A --change 1
+  $ hg status -A --change '1|1'
   M modified
   A added
   A copied
     modified
   R removed
   C deleted
+
+  $ cd ..
+
+hg status of binary file starting with '\1\n', a separator for metadata:
+
+  $ hg init repo5
+  $ cd repo5
+  $ printf '\1\nfoo' > 010a
+  $ hg ci -q -A -m 'initial checkin'
+  $ hg status -A
+  C 010a
+
+  $ printf '\1\nbar' > 010a
+  $ hg status -A
+  M 010a
+  $ hg ci -q -m 'modify 010a'
+  $ hg status -A --rev 0:1
+  M 010a
+
+  $ touch empty
+  $ hg ci -q -A -m 'add another file'
+  $ hg status -A --rev 1:2 010a
+  C 010a

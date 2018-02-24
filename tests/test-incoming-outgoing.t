@@ -1,3 +1,5 @@
+  $ "$TESTDIR/hghave" serve || exit 80
+
   $ hg init test
   $ cd test
   $ for i in 0 1 2 3 4 5 6 7 8; do
@@ -397,6 +399,15 @@ test outgoing
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     13
   
+test outgoing with secret changesets
+
+  $ hg -R test-dev phase --force --secret 9
+  $ hg -R test-dev outgoing test
+  comparing with test
+  searching for changes
+  no changes found (ignored 5 secret changesets)
+  [1]
+  $ hg -R test-dev phase --draft -r 'head()'
 
 limit to 3 changesets
 
