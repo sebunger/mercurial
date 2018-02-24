@@ -674,7 +674,7 @@ class queue(object):
                 removed = []
                 merged = []
                 for f in files:
-                    if os.path.exists(repo.wjoin(f)):
+                    if os.path.lexists(repo.wjoin(f)):
                         merged.append(f)
                     else:
                         removed.append(f)
@@ -2083,7 +2083,7 @@ def fold(ui, repo, *files, **opts):
     if not files:
         raise util.Abort(_('qfold requires at least one patch name'))
     if not q.check_toppatch(repo)[0]:
-        raise util.Abort(_('No patches applied'))
+        raise util.Abort(_('no patches applied'))
     q.check_localchanges(repo)
 
     message = cmdutil.logmessage(opts)
@@ -2110,7 +2110,7 @@ def fold(ui, repo, *files, **opts):
         pf = q.join(p)
         (patchsuccess, files, fuzz) = q.patch(repo, pf)
         if not patchsuccess:
-            raise util.Abort(_('Error folding patch %s') % p)
+            raise util.Abort(_('error folding patch %s') % p)
         patch.updatedir(ui, repo, files)
 
     if not message:
@@ -2344,7 +2344,7 @@ def rename(ui, repo, patch, name=None, **opts):
 def restore(ui, repo, rev, **opts):
     """restore the queue state saved by a revision (DEPRECATED)
 
-    This command is deprecated, use rebase --mq instead."""
+    This command is deprecated, use :hg:`rebase` instead."""
     rev = repo.lookup(rev)
     q = repo.mq
     q.restore(repo, rev, delete=opts['delete'],
@@ -2355,7 +2355,7 @@ def restore(ui, repo, rev, **opts):
 def save(ui, repo, **opts):
     """save current queue state (DEPRECATED)
 
-    This command is deprecated, use rebase --mq instead."""
+    This command is deprecated, use :hg:`rebase` instead."""
     q = repo.mq
     message = cmdutil.logmessage(opts)
     ret = q.save(repo, msg=message)
@@ -2713,8 +2713,16 @@ def reposetup(ui, repo):
                                               editor, extra)
 
         def push(self, remote, force=False, revs=None, newbranch=False):
-            if self.mq.applied and not force and not revs:
-                raise util.Abort(_('source has mq patches applied'))
+            if self.mq.applied and not force:
+                haspatches = True
+                if revs:
+                    # Assume applied patches have no non-patch descendants
+                    # and are not on remote already. If they appear in the
+                    # set of resolved 'revs', bail out.
+                    applied = set(e.node for e in self.mq.applied)
+                    haspatches = bool([n for n in revs if n in applied])
+                if haspatches:
+                    raise util.Abort(_('source has mq patches applied'))
             return super(mqrepo, self).push(remote, force, revs, newbranch)
 
         def _findtags(self):
@@ -2799,7 +2807,7 @@ def mqinit(orig, ui, *args, **kwargs):
     else:
         repopath = cmdutil.findrepo(os.getcwd())
         if not repopath:
-            raise util.Abort(_('There is no Mercurial repository here '
+            raise util.Abort(_('there is no Mercurial repository here '
                                '(.hg not found)'))
     repo = hg.repository(ui, repopath)
     return qinit(ui, repo, True)
@@ -2944,7 +2952,7 @@ cmdtable = {
           ('n', 'name', '',
            _('merge queue name (DEPRECATED)'), _('NAME')),
           ('', 'move', None, _('reorder patch series and apply only the patch'))],
-         _('hg qpush [-f] [-l] [-a] [-m] [-n NAME] [--move] [PATCH | INDEX]')),
+         _('hg qpush [-f] [-l] [-a] [-n NAME] [--move] [PATCH | INDEX]')),
     "^qrefresh":
         (refresh,
          [('e', 'edit', None, _('edit commit message')),

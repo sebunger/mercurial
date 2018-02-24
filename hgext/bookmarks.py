@@ -18,7 +18,7 @@ It is possible to use bookmark names in every revision lookup (e.g.
 By default, when several bookmarks point to the same changeset, they
 will all move forward together. It is possible to obtain a more
 git-like experience by adding the following configuration option to
-your .hgrc::
+your configuration file::
 
   [bookmarks]
   track.current = True
@@ -224,6 +224,7 @@ def reposetup(ui, repo):
             in the .hg/bookmarks file.
             Read the file and return a (name=>nodeid) dictionary
             '''
+            self._loadingbookmarks = True
             try:
                 bookmarks = {}
                 for line in self.opener('bookmarks'):
@@ -231,6 +232,7 @@ def reposetup(ui, repo):
                     bookmarks[refspec] = super(bookmark_repo, self).lookup(sha)
             except:
                 pass
+            self._loadingbookmarks = False
             return bookmarks
 
         @util.propertycache
@@ -257,8 +259,9 @@ def reposetup(ui, repo):
             return super(bookmark_repo, self).rollback(*args)
 
         def lookup(self, key):
-            if key in self._bookmarks:
-                key = self._bookmarks[key]
+            if not getattr(self, '_loadingbookmarks', False):
+                if key in self._bookmarks:
+                    key = self._bookmarks[key]
             return super(bookmark_repo, self).lookup(key)
 
         def _bookmarksupdate(self, parents, node):
@@ -357,7 +360,8 @@ def reposetup(ui, repo):
         def _findtags(self):
             """Merge bookmarks with normal tags"""
             (tags, tagtypes) = super(bookmark_repo, self)._findtags()
-            tags.update(self._bookmarks)
+            if not getattr(self, '_loadingbookmarks', False):
+                tags.update(self._bookmarks)
             return (tags, tagtypes)
 
         if hasattr(repo, 'invalidate'):
@@ -451,7 +455,8 @@ def push(oldpush, ui, repo, dest=None, **opts):
                 ui.status(_("deleting remote bookmark %s\n") % b)
                 new = '' # delete
             else:
-                ui.warn(_('bookmark %s does not exist on the local or remote repository!\n') % b)
+                ui.warn(_('bookmark %s does not exist on the local '
+                          'or remote repository!\n') % b)
                 return 2
             old = rb.get(b, '')
             r = other.pushkey('bookmarks', b, old, new)

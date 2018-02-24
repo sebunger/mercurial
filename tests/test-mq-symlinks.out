@@ -29,3 +29,16 @@ now at: removesl.patch
 C b
 C c
 C s
+% replace broken symlink with another broken symlink
+popping movelink
+now at: link
+applying movelink
+now at: movelink
+linkb -> linkb
+% check patch does not overwrite untracked symlinks
+popping movelink
+now at: link
+applying movelink
+patch failed, unable to continue (try -v)
+patch failed, rejects left in working dir
+errors during apply, please fix and refresh movelink

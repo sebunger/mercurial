@@ -1501,8 +1501,8 @@ argument to --rev if given) is printed.</p>
 <dt><tt class="docutils literal">paths [NAME]</tt></dt>
 <dd><p class="first">Show definition of symbolic path name NAME. If no name is given,
 show definition of all available names.</p>
-<p>Path names are defined in the [paths] section of
-<tt class="docutils literal">/etc/mercurial/hgrc</tt> and <tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt>. If run inside a
+<p>Path names are defined in the [paths] section of your
+configuration file and in <tt class="docutils literal">/etc/mercurial/hgrc</tt>. If run inside a
 repository, <tt class="docutils literal">.hg/hgrc</tt> is used, too.</p>
 <p>The path names <tt class="docutils literal">default</tt> and <tt class="docutils literal"><span class="pre">default-push</span></tt> have a special
 meaning.  When performing a push or pull operation, they are used
@@ -1699,11 +1699,11 @@ before that, see <a class="reference external" href="hg.1.html#revert"><tt class
 <dl class="docutils" id="resolve">
 <dt><tt class="docutils literal">resolve <span class="pre">[OPTION]...</span> <span class="pre">[FILE]...</span></tt></dt>
 <dd><p class="first">Merges with unresolved conflicts are often the result of
-non-interactive merging using the <tt class="docutils literal">internal:merge</tt> hgrc setting,
-or a command-line merge tool like <tt class="docutils literal">diff3</tt>. The resolve command
-is used to manage the files involved in a merge, after <a class="reference external" href="hg.1.html#merge"><tt class="docutils literal">hg merge</tt></a>
-has been run, and before <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> is run (i.e. the working
-directory must have two parents).</p>
+non-interactive merging using the <tt class="docutils literal">internal:merge</tt> configuration
+setting, or a command-line merge tool like <tt class="docutils literal">diff3</tt>. The resolve
+command is used to manage the files involved in a merge, after
+<a class="reference external" href="hg.1.html#merge"><tt class="docutils literal">hg merge</tt></a> has been run, and before <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> is run (i.e. the
+working directory must have two parents).</p>
 <p>The resolve command can be used in the following ways:</p>
 <ul class="simple">
 <li><a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">FILE...</span></tt></a>: attempt to re-merge the specified files,
@@ -2234,7 +2234,7 @@ integrity of their crosslinks and indices.</p>
 </dl>
 </div>
 <div class="section" id="configuration-files">
-<span id="config"></span><h1><a class="toc-backref" href="#contents">Configuration Files</a></h1>
+<span id="hgrc"></span><span id="config"></span><h1><a class="toc-backref" href="#contents">Configuration Files</a></h1>
 <p>Mercurial reads configuration data from several files, if they exist.
 Below we list the most specific file first.</p>
 <p>On Windows, these configuration files are read:</p>
@@ -2375,7 +2375,7 @@ the hg executable's name if it's frozen, or an executable named
 Windows) is searched.</dd>
 <dt>HGEDITOR</dt>
 <dd><p class="first">This is the name of the editor to run when committing. See EDITOR.</p>
-<p class="last">(deprecated, use .hgrc)</p>
+<p class="last">(deprecated, use configuration file)</p>
 </dd>
 <dt>HGENCODING</dt>
 <dd>This overrides the default locale setting detected by Mercurial.
@@ -2393,13 +2393,13 @@ the --encodingmode command-line option.</dd>
 <dd><p class="first">An executable to use for resolving merge conflicts. The program
 will be executed with three arguments: local file, remote file,
 ancestor file.</p>
-<p class="last">(deprecated, use .hgrc)</p>
+<p class="last">(deprecated, use configuration file)</p>
 </dd>
 <dt>HGRCPATH</dt>
-<dd><p class="first">A list of files or directories to search for hgrc files. Item
-separator is &quot;:&quot; on Unix, &quot;;&quot; on Windows. If HGRCPATH is not set,
-platform default search path is used. If empty, only the .hg/hgrc
-from the current repository is read.</p>
+<dd><p class="first">A list of files or directories to search for configuration
+files. Item separator is &quot;:&quot; on Unix, &quot;;&quot; on Windows. If HGRCPATH
+is not set, platform default search path is used. If empty, only
+the .hg/hgrc from the current repository is read.</p>
 <p>For each element in HGRCPATH:</p>
 <ul class="last simple">
 <li>if it's a directory, all files ending with .rc are added</li>
@@ -2407,9 +2407,9 @@ from the current repository is read.</p>
 </ul>
 </dd>
 <dt>HGPLAIN</dt>
-<dd><p class="first">When set, this disables any options in .hgrc that might change
-Mercurial's default output. This includes encoding, defaults,
-verbose mode, debug mode, quiet mode, tracebacks, and
+<dd><p class="first">When set, this disables any configuration settings that might
+change Mercurial's default output. This includes encoding,
+defaults, verbose mode, debug mode, quiet mode, tracebacks, and
 localization. This can be useful when scripting against Mercurial
 in the face of existing user configuration.</p>
 <p class="last">Equivalent options set via command line flags or environment
@@ -2420,12 +2420,12 @@ variables are not overridden.</p>
 available values will be considered in this order:</p>
 <ul class="simple">
 <li>HGUSER (deprecated)</li>
-<li>hgrc files from the HGRCPATH</li>
+<li>configuration files from the HGRCPATH</li>
 <li>EMAIL</li>
 <li>interactive prompt</li>
 <li>LOGNAME (with <tt class="docutils literal">&#64;hostname</tt> appended)</li>
 </ul>
-<p class="last">(deprecated, use .hgrc)</p>
+<p class="last">(deprecated, use configuration file)</p>
 </dd>
 <dt>EMAIL</dt>
 <dd>May be used as the author of a commit; see HGUSER.</dd>
@@ -2643,8 +2643,8 @@ pull) are not affected by this, because they use an internal binary
 format for communicating changes.</p>
 <p>To make Mercurial produce the git extended diff format, use the --git
 option available for many commands, or set 'git = True' in the [diff]
-section of your hgrc. You do not need to set this option when
-importing diffs in this format or using them in the mq extension.</p>
+section of your configuration file. You do not need to set this option
+when importing diffs in this format or using them in the mq extension.</p>
 </div>
 <div class="section" id="template-usage">
 <span id="templates"></span><span id="templating"></span><h1><a class="toc-backref" href="#contents">Template Usage</a></h1>
@@ -2833,6 +2833,8 @@ revisions</tt></a>.</p>
 <p>Some features, such as pushing to <a class="reference external" href="http://">http://</a> and <a class="reference external" href="https://">https://</a> URLs are only
 possible if the feature is explicitly enabled on the remote Mercurial
 server.</p>
+<p>Note that the security of HTTPS URLs depends on proper configuration of
+web.cacerts.</p>
 <p>Some notes about using SSH with Mercurial:</p>
 <ul>
 <li><p class="first">SSH requires an accessible shell account on the destination machine
@@ -2852,12 +2854,12 @@ Host *.mylocalnetwork.example.com
 Host *
   Compression yes
 </pre>
-<p>Alternatively specify &quot;ssh -C&quot; as your ssh command in your hgrc or
-with the --ssh command line option.</p>
+<p>Alternatively specify &quot;ssh -C&quot; as your ssh command in your
+configuration file or with the --ssh command line option.</p>
 </li>
 </ul>
-<p>These URLs can all be stored in your hgrc with path aliases under the
-[paths] section like so:</p>
+<p>These URLs can all be stored in your configuration file with path
+aliases under the [paths] section like so:</p>
 <pre class="literal-block">
 [paths]
 alias1 = URL1
@@ -2892,9 +2894,9 @@ as letting you destroy or modify history); they might not be ready
 for prime time; or they may alter some usual behaviors of stock
 Mercurial. It is thus up to the user to activate extensions as
 needed.</p>
-<p>To enable the &quot;foo&quot; extension, either shipped with Mercurial or in
-the Python search path, create an entry for it in your hgrc, like
-this:</p>
+<p>To enable the &quot;foo&quot; extension, either shipped with Mercurial or in the
+Python search path, create an entry for it in your configuration file,
+like this:</p>
 <pre class="literal-block">
 [extensions]
 foo =
@@ -2904,8 +2906,8 @@ foo =
 [extensions]
 myfeature = ~/.hgext/myfeature.py
 </pre>
-<p>To explicitly disable an extension enabled in an hgrc of broader
-scope, prepend its path with !:</p>
+<p>To explicitly disable an extension enabled in a configuration file of
+broader scope, prepend its path with !:</p>
 <pre class="literal-block">
 [extensions]
 # disabling extension bar residing in /path/to/extension/bar.py
