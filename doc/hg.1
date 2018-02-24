@@ -2869,9 +2869,12 @@ before pushing.
 Use \-\-new\-branch if you want to allow push to create a new named
 branch that is not present at the destination. This allows you to
 only create a new branch without forcing other changes.
-.sp
-Use \-f/\-\-force to override the default behavior and push all
-changesets on all branches.
+.IP Note
+.
+Extra care should be used with the \-f/\-\-force option,
+which will push all new heads on all branches, an action which will
+almost always cause confusion for collaborators.
+.RE
 .sp
 If \-r/\-\-rev is used, the specified revision and all its ancestors
 will be pushed to the remote repository.
@@ -4321,6 +4324,14 @@ extend schemes with shortcuts to repository swarms
 .B share
 .
 share a common history between several working directories
+.TP
+.B shelve
+.
+save and restore changes to the working directory
+.TP
+.B strip
+.
+strip changesets and their descendents from history
 .TP
 .B transplant
 .
@@ -7614,6 +7625,10 @@ tags.local = black bold
 rebase.rebased = blue
 rebase.remaining = red bold
 
+shelve.age = cyan
+shelve.newest = green bold
+shelve.name = blue bold
+
 histedit.remaining = red bold
 .ft P
 .fi
@@ -7868,10 +7883,9 @@ store original revision ID in changeset
 (forces target IDs to change). It takes a boolean argument and
 defaults to False.
 .TP
-.B convert.hg.startrev
+.B convert.hg.revs
 .
-convert start revision and its descendants.
-It takes a hg revision identifier and defaults to 0.
+revset specifying the source revisions to convert.
 .UNINDENT
 .SS CVS Source
 .sp
@@ -8047,7 +8061,7 @@ destination repository type
 .TP
 .B \-r,  \-\-rev
 .
-import up to target revision REV
+import up to source revision REV
 .TP
 .B \-A,  \-\-authormap
 .
@@ -9429,6 +9443,9 @@ keepchanges = True
 make them behave as if \-\-keep\-changes were passed, and non\-conflicting
 local changes will be tolerated and preserved. If incompatible options
 such as \-f/\-\-force or \-\-exact are passed, this setting is ignored.
+.sp
+This extension used to provide a strip command. This command now lives
+in the strip extension.
 .SS Commands
 .SS qapplied
 .sp
@@ -10432,75 +10449,6 @@ show only the first patch
 .
 print first line of patch header
 .UNINDENT
-.SS strip
-.sp
-.nf
-.ft C
-hg strip [\-k] [\-f] [\-n] [\-B bookmark] [\-r] REV...
-.ft P
-.fi
-.sp
-The strip command removes the specified changesets and all their
-descendants. If the working directory has uncommitted changes, the
-operation is aborted unless the \-\-force flag is supplied, in which
-case changes will be discarded.
-.sp
-If a parent of the working directory is stripped, then the working
-directory will automatically be updated to the most recent
-available ancestor of the stripped parent after the operation
-completes.
-.sp
-Any stripped changesets are stored in \fB.hg/strip\-backup\fP as a
-bundle (see \%\fBhg help bundle\fP\: and \%\fBhg help unbundle\fP\:). They can
-be restored by running \%\fBhg unbundle .hg/strip\-backup/BUNDLE\fP\:,
-where BUNDLE is the bundle file created by the strip. Note that
-the local revision numbers will in general be different after the
-restore.
-.sp
-Use the \-\-no\-backup option to discard the backup bundle once the
-operation completes.
-.sp
-Strip is not a history\-rewriting operation and can be used on
-changesets in the public phase. But if the stripped changesets have
-been pushed to a remote repository you will likely pull them again.
-.sp
-Return 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-r,  \-\-rev
-.
-strip specified revision (optional, can specify revisions without this option)
-.TP
-.B \-f,  \-\-force
-.
-force removal of changesets, discard uncommitted changes (no backup)
-.TP
-.B \-b,  \-\-backup
-.
-bundle only changesets with local revision number greater than REV which are not descendants of REV (DEPRECATED)
-.TP
-.B \-\-no\-backup
-.
-no backups
-.TP
-.B \-\-nobackup
-.
-no backups (DEPRECATED)
-.TP
-.B \-n
-.
-ignored  (DEPRECATED)
-.TP
-.B \-k,  \-\-keep
-.
-do not modify working copy during strip
-.TP
-.B \-B,  \-\-bookmark
-.
-remove revs only reachable from given bookmark
-.UNINDENT
 .SS notify
 .sp
 hooks for sending email push notifications
@@ -11472,6 +11420,210 @@ hg unshare
 .fi
 .sp
 Copy the store data to the repo and remove the sharedpath data.
+.SS shelve
+.sp
+save and restore changes to the working directory
+.sp
+The "hg shelve" command saves changes made to the working directory
+and reverts those changes, resetting the working directory to a clean
+state.
+.sp
+Later on, the "hg unshelve" command restores the changes saved by "hg
+shelve". Changes can be restored even after updating to a different
+parent, in which case Mercurial\(aqs merge machinery will resolve any
+conflicts if necessary.
+.sp
+You can have more than one shelved change outstanding at a time; each
+shelved change has a distinct name. For details, see the help for "hg
+shelve".
+.SS Commands
+.SS shelve
+.sp
+.nf
+.ft C
+hg shelve
+.ft P
+.fi
+.sp
+Shelving takes files that "hg status" reports as not clean, saves
+the modifications to a bundle (a shelved change), and reverts the
+files so that their state in the working directory becomes clean.
+.sp
+To restore these changes to the working directory, using "hg
+unshelve"; this will work even if you switch to a different
+commit.
+.sp
+When no files are specified, "hg shelve" saves all not\-clean
+files. If specific files or directories are named, only changes to
+those files are shelved.
+.sp
+Each shelved change has a name that makes it easier to find later.
+The name of a shelved change defaults to being based on the active
+bookmark, or if there is no active bookmark, the current named
+branch.  To specify a different name, use \fB\-\-name\fP.
+.sp
+To see a list of existing shelved changes, use the \fB\-\-list\fP
+option. For each shelved change, this will print its name, age,
+and description; use \fB\-\-patch\fP or \fB\-\-stat\fP for more details.
+.sp
+To delete specific shelved changes, use \fB\-\-delete\fP. To delete
+all shelved changes, use \fB\-\-cleanup\fP.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-A,  \-\-addremove
+.
+mark new/missing files as added/removed before shelving
+.TP
+.B \-\-cleanup
+.
+delete all shelved changes
+.TP
+.B \-\-date
+.
+shelve with the specified commit date
+.TP
+.B \-d,  \-\-delete
+.
+delete the named shelved change(s)
+.TP
+.B \-l,  \-\-list
+.
+list current shelves
+.TP
+.B \-m,  \-\-message
+.
+use text as shelve message
+.TP
+.B \-n,  \-\-name
+.
+use the given name for the shelved commit
+.TP
+.B \-p,  \-\-patch
+.
+show patch
+.TP
+.B \-\-stat
+.
+output diffstat\-style summary of changes
+.UNINDENT
+.SS unshelve
+.sp
+.nf
+.ft C
+hg unshelve [SHELVED]
+.ft P
+.fi
+.sp
+This command accepts an optional name of a shelved change to
+restore. If none is given, the most recent shelved change is used.
+.sp
+If a shelved change is applied successfully, the bundle that
+contains the shelved changes is deleted afterwards.
+.sp
+Since you can restore a shelved change on top of an arbitrary
+commit, it is possible that unshelving will result in a conflict
+between your changes and the commits you are unshelving onto. If
+this occurs, you must resolve the conflict, then use
+\fB\-\-continue\fP to complete the unshelve operation. (The bundle
+will not be deleted until you successfully complete the unshelve.)
+.sp
+(Alternatively, you can use \fB\-\-abort\fP to abandon an unshelve
+that causes a conflict. This reverts the unshelved changes, and
+does not delete the bundle.)
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-a,  \-\-abort
+.
+abort an incomplete unshelve operation
+.TP
+.B \-c,  \-\-continue
+.
+continue an incomplete unshelve operation
+.TP
+.B \-\-keep
+.
+keep shelve after unshelving
+.UNINDENT
+.SS strip
+.sp
+strip changesets and their descendents from history
+.sp
+This extension allows to strip changesets and all their descendants from the
+repository. See the command help for details.
+.SS Commands
+.SS strip
+.sp
+.nf
+.ft C
+hg strip [\-k] [\-f] [\-n] [\-B bookmark] [\-r] REV...
+.ft P
+.fi
+.sp
+The strip command removes the specified changesets and all their
+descendants. If the working directory has uncommitted changes, the
+operation is aborted unless the \-\-force flag is supplied, in which
+case changes will be discarded.
+.sp
+If a parent of the working directory is stripped, then the working
+directory will automatically be updated to the most recent
+available ancestor of the stripped parent after the operation
+completes.
+.sp
+Any stripped changesets are stored in \fB.hg/strip\-backup\fP as a
+bundle (see \%\fBhg help bundle\fP\: and \%\fBhg help unbundle\fP\:). They can
+be restored by running \%\fBhg unbundle .hg/strip\-backup/BUNDLE\fP\:,
+where BUNDLE is the bundle file created by the strip. Note that
+the local revision numbers will in general be different after the
+restore.
+.sp
+Use the \-\-no\-backup option to discard the backup bundle once the
+operation completes.
+.sp
+Strip is not a history\-rewriting operation and can be used on
+changesets in the public phase. But if the stripped changesets have
+been pushed to a remote repository you will likely pull them again.
+.sp
+Return 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-r,  \-\-rev
+.
+strip specified revision (optional, can specify revisions without this option)
+.TP
+.B \-f,  \-\-force
+.
+force removal of changesets, discard uncommitted changes (no backup)
+.TP
+.B \-b,  \-\-backup
+.
+bundle only changesets with local revision number greater than REV which are not descendants of REV (DEPRECATED)
+.TP
+.B \-\-no\-backup
+.
+no backups
+.TP
+.B \-\-nobackup
+.
+no backups (DEPRECATED)
+.TP
+.B \-n
+.
+ignored  (DEPRECATED)
+.TP
+.B \-k,  \-\-keep
+.
+do not modify working copy during strip
+.TP
+.B \-B,  \-\-bookmark
+.
+remove revs only reachable from given bookmark
+.UNINDENT
 .SS transplant
 .sp
 command to transplant changesets from another branch

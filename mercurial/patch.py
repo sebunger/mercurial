@@ -6,11 +6,15 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import cStringIO, email.Parser, os, errno, re, posixpath
+import cStringIO, email, os, errno, re, posixpath
 import tempfile, zlib, shutil
+# On python2.4 you have to import these by name or they fail to
+# load. This was not a problem on Python 2.7.
+import email.Generator
+import email.Parser
 
 from i18n import _
-from node import hex, nullid, short
+from node import hex, short
 import base85, mdiff, scmutil, util, diffhelpers, copies, encoding, error
 import context
 
@@ -1658,7 +1662,7 @@ def trydiff(repo, revs, ctx1, ctx2, modified, added, removed,
 
     def gitindex(text):
         if not text:
-            return hex(nullid)
+            text = ""
         l = len(text)
         s = util.sha1('blob %d\0' % l)
         s.update(text)
