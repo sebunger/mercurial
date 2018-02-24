@@ -439,14 +439,13 @@ after the <tt class="docutils literal">=</tt>.</p>
 the path to the <tt class="docutils literal">.py</tt> file (including the file name extension) that
 defines the extension.</p>
 <p>To explicitly disable an extension that is enabled in an hgrc of
-broader scope, prepend its path with <tt class="docutils literal">!</tt>, as in
-<tt class="docutils literal">hgext.foo = !/ext/path</tt> or <tt class="docutils literal">hgext.foo = !</tt>  when path is not
-supplied.</p>
+broader scope, prepend its path with <tt class="docutils literal">!</tt>, as in <tt class="docutils literal">foo = !/ext/path</tt>
+or <tt class="docutils literal">foo = !</tt> when path is not supplied.</p>
 <p>Example for <tt class="docutils literal"><span class="pre">~/.hgrc</span></tt>:</p>
 <pre class="literal-block">
 [extensions]
 # (the mq extension will get loaded from Mercurial's path)
-hgext.mq =
+mq =
 # (this extension will get loaded from the file specified)
 myfeature = ~/.hgext/myfeature.py
 </pre>

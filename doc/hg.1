@@ -444,7 +444,7 @@ read commit message from file
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -923,7 +923,7 @@ read commit message from file
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -1350,16 +1350,16 @@ hg identify [\-nibtB] [\-r REV] [SOURCE]
 .ft P
 .fi
 .sp
-With no revision, print a summary of the current state of the
+Print a summary identifying the repository state at REV using one or
+two parent hash identifiers, followed by a "+" if the working
+directory has uncommitted changes, the branch name (if not default),
+a list of tags, and a list of bookmarks.
+.sp
+When REV is not given, print a summary of the current state of the
 repository.
 .sp
 Specifying a path to a repository root or Mercurial bundle will
 cause lookup to operate on that repository/bundle.
-.sp
-This summary identifies the repository state using one or two
-parent hash identifiers, followed by a "+" if there are
-uncommitted changes in the working directory, a list of tags for
-this revision and a branch name for non\-default branches.
 .sp
 Returns 0 if successful.
 .sp
@@ -1470,7 +1470,7 @@ read commit message from file
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -2805,7 +2805,7 @@ use <text> as commit message
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -3036,6 +3036,12 @@ On Unix, these files are read:
 \fB<install\-root>/etc/mercurial/hgrc.d/*.rc\fP
 .UNINDENT
 .sp
+These files do not exist by default and you will have to create the
+appropriate configuration files yourself: global configuration like
+the username setting is typically put into
+\fB%USERPROFILE%\emercurial.ini\fP or \fB$HOME/.hgrc\fP and local
+configuration is put into the per\-repository \fB<repo>/.hg/hgrc\fP file.
+.sp
 If there is a per\-repository configuration file which is not owned by
 the active user, Mercurial will warn you that the file is skipped:
 .sp
@@ -3145,10 +3151,10 @@ Lastly, there is Mercurial\(aqs internal format:
 \fB1165432709 0\fP (Wed Dec 6 13:18:29 2006 UTC)
 .UNINDENT
 .sp
-This is the internal representation format for dates. unixtime is the
-number of seconds since the epoch (1970\-01\-01 00:00 UTC). offset is
-the offset of the local timezone, in seconds west of UTC (negative if
-the timezone is east of UTC).
+This is the internal representation format for dates. The first number
+is the number of seconds since the epoch (1970\-01\-01 00:00 UTC). The
+second is the offset of the local timezone, in seconds west of UTC
+(negative if the timezone is east of UTC).
 .sp
 The log command also accepts date ranges:
 .INDENT 0.0
@@ -3524,7 +3530,7 @@ hg log \-r "1.3::1.5 and keyword(bug) and file(\(aqhgext/*\(aq)"
 .fi
 .IP \(bu 2
 .
-Changesets in committed May 2008, sorted by user:
+Changesets committed in May 2008, sorted by user:
 .sp
 .nf
 .ft C
@@ -4428,8 +4434,8 @@ repository, or a collection of them. In the latter case, a special
 configuration file can be used to specify the repository paths to use
 and global web configuration options.
 .sp
-This file uses the same syntax as hgrc configuration files, but only
-the following sections are recognized:
+This file uses the same syntax as other Mercurial configuration files,
+but only the following sections are recognized:
 .INDENT 0.0
 .INDENT 3.5
 .INDENT 0.0
@@ -4447,7 +4453,8 @@ collections
 .UNINDENT
 .sp
 The \fBweb\fP section can specify all the settings described in the web
-section of the hgrc documentation.
+section of the hgrc(5) documentation. See \%\fBhg help config\fP\: for
+information on where to find the manual page.
 .sp
 The \fBpaths\fP section provides mappings of physical repository
 paths to virtual ones. For instance:
@@ -5401,8 +5408,7 @@ whitespace.
 .sp
 Other effects in addition to color, like bold and underlined text, are
 also available. Effects are rendered with the ECMA\-48 SGR control
-function (aka ANSI escape codes). This module also provides the
-render_text function, which can be used to add effects to any text.
+function (aka ANSI escape codes).
 .sp
 Default effects may be overridden from your configuration file:
 .sp
@@ -6119,7 +6125,7 @@ read commit message from file
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -6188,7 +6194,7 @@ commit message
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -6764,7 +6770,7 @@ read commit message from file
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -7251,7 +7257,7 @@ hg qpush [\-f] [\-l] [\-a] [\-\-move] [PATCH | INDEX]
 When \-f/\-\-force is applied, all local changes in patched files
 will be lost.
 .sp
-Return 0 on succces.
+Return 0 on success.
 .sp
 Options:
 .INDENT 0.0
@@ -7497,8 +7503,8 @@ match the current guard. For example:
 .sp
 .nf
 .ft C
-qguard foo.patch \-stable    (negative guard)
-qguard bar.patch +stable    (positive guard)
+qguard foo.patch \-\- \-stable    (negative guard)
+qguard bar.patch    +stable    (positive guard)
 qselect stable
 .ft P
 .fi
@@ -7839,8 +7845,8 @@ Each message refers to the first in the series using the In\-Reply\-To
 and References headers, so they will show up as a sequence in threaded
 mail and news readers, and in mail archives.
 .sp
-To configure other defaults, add a section like this to your hgrc
-file:
+To configure other defaults, add a section like this to your
+configuration file:
 .sp
 .nf
 .ft C
@@ -8352,7 +8358,7 @@ read commit message from file
 .TP
 .B \-d,  \-\-date
 .
-record datecode as commit date
+record the specified date as commit date
 .TP
 .B \-u,  \-\-user
 .
@@ -8496,8 +8502,13 @@ hg transplant [\-s REPO] [\-b BRANCH [\-a]] [\-p REV] [\-m REV] [REV]...
 .fi
 .sp
 Selected changesets will be applied on top of the current working
-directory with the log of the original changeset. If \-\-log is
-specified, log messages will have a comment appended of the form:
+directory with the log of the original changeset. The changesets
+are copied and will thus appear twice in the history. Use the
+rebase extension instead if you want to move a whole branch of
+unpublished changesets.
+.sp
+If \-\-log is specified, log messages will have a comment appended
+of the form:
 .sp
 .nf
 .ft C
@@ -8516,9 +8527,9 @@ the branch holding the named revision, up to that revision. If
 transplanted, otherwise you will be prompted to select the
 changesets you want.
 .sp
-\%\fBhg transplant \-\-branch REVISION \-\-all\fP\: will rebase the selected
-branch (up to the named revision) onto your current working
-directory.
+\%\fBhg transplant \-\-branch REVISION \-\-all\fP\: will transplant the
+selected branch (up to the named revision) onto your current
+working directory.
 .sp
 You can optionally mark selected transplanted changesets as merge
 changesets. You will not be prompted to transplant any ancestors

@@ -10,6 +10,7 @@ import stat, subprocess, tarfile
 from i18n import _
 import config, util, node, error, cmdutil
 hg = None
+propertycache = util.propertycache
 
 nullstate = ('', '', 'empty')
 
@@ -202,8 +203,12 @@ def _abssource(repo, push=False, abort=True):
                 if parent[-1] == '/':
                     parent = parent[:-1]
                 r = urlparse.urlparse(parent + '/' + source)
-                r = urlparse.urlunparse((r[0], r[1],
-                                         posixpath.normpath(r[2]),
+                if parent.startswith('ssh://'):
+                    host, path = r[2][2:].split('/', 1)
+                    r2 = '//%s/%s' % (host, posixpath.normpath(path))
+                else:
+                    r2 = posixpath.normpath(r[2])
+                r = urlparse.urlunparse((r[0], r[1], r2,
                                          r[3], r[4], r[5]))
                 return r
             else: # plain file system path
@@ -517,8 +522,18 @@ class svnsubrepo(abstractsubrepo):
         self._ui = ctx._repo.ui
 
     def _svncommand(self, commands, filename=''):
-        path = os.path.join(self._ctx._repo.origroot, self._path, filename)
-        cmd = ['svn'] + commands + [path]
+        cmd = ['svn']
+        # Starting in svn 1.5 --non-interactive is a global flag
+        # instead of being per-command, but we need to support 1.4 so
+        # we have to be intelligent about what commands take
+        # --non-interactive.
+        if (not self._ui.interactive() and
+            commands[0] in ('update', 'checkout', 'commit')):
+            cmd.append('--non-interactive')
+        cmd.extend(commands)
+        if filename is not None:
+            path = os.path.join(self._ctx._repo.origroot, self._path, filename)
+            cmd.append(path)
         env = dict(os.environ)
         # Avoid localized output, preserve current locale for everything else.
         env['LC_MESSAGES'] = 'C'
@@ -530,6 +545,14 @@ class svnsubrepo(abstractsubrepo):
         if stderr:
             raise util.Abort(stderr)
         return stdout
+
+    @propertycache
+    def _svnversion(self):
+        output = self._svncommand(['--version'], filename=None)
+        m = re.search(r'^svn,\s+version\s+(\d+)\.(\d+)', output)
+        if not m:
+            raise util.Abort(_('cannot retrieve svn tool version'))
+        return (int(m.group(1)), int(m.group(2)))
 
     def _wcrevs(self):
         # Get the working directory revision as well as the last
@@ -625,7 +648,11 @@ class svnsubrepo(abstractsubrepo):
     def get(self, state, overwrite=False):
         if overwrite:
             self._svncommand(['revert', '--recursive'])
-        status = self._svncommand(['checkout', state[0], '--revision', state[1]])
+        args = ['checkout']
+        if self._svnversion >= (1, 5):
+            args.append('--force')
+        args.extend([state[0], '--revision', state[1]])
+        status = self._svncommand(args)
         if not re.search('Checked out revision [0-9]+.', status):
             raise util.Abort(status.splitlines()[-1])
         self._ui.status(status)
@@ -757,6 +784,11 @@ class gitsubrepo(abstractsubrepo):
         return tracking
 
     def _abssource(self, source):
+        if '://' not in source:
+            # recognize the scp syntax as an absolute source
+            colon = source.find(':')
+            if colon != -1 and '/' not in source[:colon]:
+                return source
         self._subsource = source
         return _abssource(self)
 
