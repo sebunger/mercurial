@@ -1094,6 +1094,20 @@ configured editor where you can enter a message. In case your
 commit fails, you will find a backup of your message in
 \fB.hg/last\-message.txt\fP.
 .sp
+The \-\-amend flag can be used to amend the parent of the
+working directory with a new commit that contains the changes
+in the parent in addition to those currently reported by \%\fBhg status\fP\:,
+if there are any. The old commit is stored in a backup bundle in
+\fB.hg/strip\-backup\fP (see \%\fBhg help bundle\fP\: and \%\fBhg help unbundle\fP\:
+on how to restore it).
+.sp
+Message, user and date are taken from the amended commit unless
+specified. When a message isn\(aqt specified on the command line,
+the editor will open with the message of the amended commit.
+.sp
+It is not possible to amend public changesets (see \%\fBhg help phases\fP\:)
+or changesets that have children.
+.sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
 Returns 0 on success, 1 if nothing changed.
@@ -1108,6 +1122,10 @@ mark new/missing files as added/removed before committing
 .B \-\-close\-branch
 .
 mark a branch as closed, hiding it from the branch list
+.TP
+.B \-\-amend
+.
+amend the parent of the working dir
 .TP
 .B \-I,  \-\-include
 .
@@ -1620,6 +1638,10 @@ record the specified user as committer
 .B \-t,  \-\-tool
 .
 specify merge tool
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
 .UNINDENT
 .SS grep
 .sp
@@ -2666,7 +2688,8 @@ public < draft < secret
 .ft P
 .fi
 .sp
-Return 0 on success, 1 if no phases were changed.
+Return 0 on success, 1 if no phases were changed or some could not
+be changed.
 .sp
 Options:
 .INDENT 0.0
@@ -4100,6 +4123,10 @@ automatically manage newlines in repository files
 .
 command to allow external programs to compare revisions
 .TP
+.B factotum
+.
+http authentication with factotum
+.TP
 .B fetch
 .
 pull, update and merge in one command
@@ -4321,6 +4348,10 @@ File size matches the given expression. Examples:
 .
 4k \- 1MB (files from 4096 bytes to 1048576 bytes)
 .UNINDENT
+.TP
+.B \fBsubrepo([pattern])\fP
+.sp
+Subrepositories whose paths match the given pattern.
 .TP
 .B \fBsymlink()\fP
 .sp
@@ -4555,7 +4586,7 @@ See \(aqChangeset, child\(aq.
 .TP
 .B Close changeset
 .
-See \(aqChangeset, close\(aq.
+See \(aqHead, closed branch\(aq
 .TP
 .B Closed branch
 .
@@ -4671,6 +4702,9 @@ A changeset that marks a head as no longer interesting. The closed
 head is no longer listed by \%\fBhg heads\fP\:. A branch is considered
 closed when all its heads are closed and consequently is not
 listed by \%\fBhg branches\fP\:.
+.sp
+Closed heads can be re\-opened by committing new changeset as the
+child of the changeset that marks a head as closed.
 .TP
 .B Head, repository
 .
@@ -4939,6 +4973,11 @@ Neither glob nor regexp patterns are rooted. A glob\-syntax pattern of
 the form \fB*.c\fP will match a file ending in \fB.c\fP in any directory,
 and a regexp pattern of the form \fB\e.c$\fP will do the same. To root a
 regexp pattern, start it with \fB^\fP.
+.IP Note
+.
+Patterns specified in other than \fB.hgignore\fP are always rooted.
+Please see \%\fBhg help patterns\fP\: for details.
+.RE
 .SH EXAMPLE
 .sp
 Here is an example ignore file.
@@ -5071,11 +5110,14 @@ There are some internal merge tools which can be used. The internal
 merge tools are:
 .INDENT 0.0
 .TP
-.B \fBinternal:merge\fP
+.B \fBinternal:dump\fP
 .sp
-Uses the internal non\-interactive simple merge algorithm for merging
-files. It will fail if there are any conflicts and leave markers in
-the partially merged file.
+Creates three versions of the files to merge, containing the
+contents of local, other and base. These files can then be used to
+perform a merge manually. If the file to be merged is named
+\fBa.txt\fP, these files will accordingly be named \fBa.txt.local\fP,
+\fBa.txt.other\fP and \fBa.txt.base\fP and they will be placed in the
+same directory as \fBa.txt\fP.
 .TP
 .B \fBinternal:fail\fP
 .sp
@@ -5087,6 +5129,12 @@ used to resolve these conflicts.
 .sp
 Uses the local version of files as the merged version.
 .TP
+.B \fBinternal:merge\fP
+.sp
+Uses the internal non\-interactive simple merge algorithm for merging
+files. It will fail if there are any conflicts and leave markers in
+the partially merged file.
+.TP
 .B \fBinternal:other\fP
 .sp
 Uses the other version of files as the merged version.
@@ -5095,15 +5143,6 @@ Uses the other version of files as the merged version.
 .sp
 Asks the user which of the local or the other version to keep as
 the merged version.
-.TP
-.B \fBinternal:dump\fP
-.sp
-Creates three versions of the files to merge, containing the
-contents of local, other and base. These files can then be used to
-perform a merge manually. If the file to be merged is named
-\fBa.txt\fP, these files will accordingly be named \fBa.txt.local\fP,
-\fBa.txt.other\fP and \fBa.txt.base\fP and they will be placed in the
-same directory as \fBa.txt\fP.
 .UNINDENT
 .sp
 Internal tools are always available and do not require a GUI but will by default
@@ -5185,6 +5224,11 @@ By default, Mercurial treats filenames as shell\-style extended glob
 patterns.
 .sp
 Alternate pattern notations must be specified explicitly.
+.IP Note
+.
+Patterns specified in \fB.hgignore\fP are not rooted.
+Please see \%\fBhg help hgignore\fP\: for details.
+.RE
 .sp
 To use a plain path name without any pattern matching, start it with
 \fBpath:\fP. These path names must completely match starting at the
@@ -5616,6 +5660,28 @@ Last n members of set, defaulting to 1.
 .sp
 First n members of set, defaulting to 1.
 .TP
+.B \fBmatching(revision [, field])\fP
+.sp
+Changesets in which a given set of fields match the set of fields in the
+selected revision or set.
+.sp
+To match more than one field pass the list of fields to match separated
+by spaces (e.g. \fBauthor description\fP).
+.sp
+Valid fields are most regular revision fields and some special fields.
+.sp
+Regular revision fields are \fBdescription\fP, \fBauthor\fP, \fBbranch\fP,
+\fBdate\fP, \fBfiles\fP, \fBphase\fP, \fBparents\fP, \fBsubstate\fP and \fBuser\fP.
+Note that \fBauthor\fP and \fBuser\fP are synonyms.
+.sp
+Special fields are \fBsummary\fP and \fBmetadata\fP:
+\fBsummary\fP matches the first line of the description.
+\fBmetatadata\fP is equivalent to matching \fBdescription user date\fP
+(i.e. it matches the main metadata fields).
+.sp
+\fBmetadata\fP is the default field which is used when no fields are
+specified. You can match more than one field at a time.
+.TP
 .B \fBmax(set)\fP
 .sp
 Changeset with highest revision number in set.
@@ -5678,7 +5744,7 @@ Reverse order of set.
 .TP
 .B \fBroots(set)\fP
 .sp
-Changesets with no parent changeset in set.
+Changesets in set with no parent changeset in set.
 .TP
 .B \fBsecret()\fP
 .sp
@@ -5835,7 +5901,8 @@ Nested repository checkouts. They can appear anywhere in the
 parent working directory.
 .IP 2. 3
 .
-Nested repository references. They are defined in \fB.hgsub\fP and
+Nested repository references. They are defined in \fB.hgsub\fP, which
+should be placed in the root of working directory, and
 tell where the subrepository checkouts come from. Mercurial
 subrepositories are referenced like:
 .INDENT 3.0
@@ -5864,7 +5931,8 @@ repositories, you have to create and add it to the parent
 repository before using subrepositories.
 .IP 3. 3
 .
-Nested repository states. They are defined in \fB.hgsubstate\fP and
+Nested repository states. They are defined in \fB.hgsubstate\fP, which
+is placed in the root of working directory, and
 capture whatever information is required to restore the
 subrepositories to the state they were committed in a parent
 repository changeset. Mercurial automatically record the nested
@@ -6172,6 +6240,10 @@ Any text. Extracts the first string that looks like an email
 address. Example: \fBUser <user@example.com>\fP becomes
 \fBuser@example.com\fP.
 .TP
+.B emailuser
+.
+Any text. Returns the user portion of an email address.
+.TP
 .B escape
 .
 Any text. Replaces the special XML/XHTML characters "&", "<"
@@ -6225,7 +6297,8 @@ XML entities.
 .TP
 .B person
 .
-Any text. Returns the text before an email address.
+Any text. Returns the name before an email address,
+interpreting it as per RFC 5322.
 .TP
 .B rfc3339date
 .
@@ -6279,7 +6352,8 @@ Any text. Escapes all "special" characters. For example,
 .TP
 .B user
 .
-Any text. Returns the user portion of an email address.
+Any text. Returns a short representation of a user name or email
+address.
 .UNINDENT
 .SH URL PATHS
 .sp
@@ -6525,9 +6599,9 @@ docs/** = doc_writer
 # under the "images" folder:
 images/** = jack, @designers
 
-# Everyone (except for "user6" \- see acl.deny above) will have write
-# access to any file under the "resources" folder (except for 1
-# file. See acl.deny):
+# Everyone (except for "user6" and "@hg\-denied" \- see acl.deny above)
+# will have write access to any file under the "resources" folder
+# (except for 1 file. See acl.deny):
 src/main/resources/** = *
 
 \&.hgtags = release_engineer
@@ -6541,7 +6615,8 @@ This hook extension adds comments on bugs in Bugzilla when changesets
 that refer to bugs by Bugzilla ID are seen. The comment is formatted using
 the Mercurial template mechanism.
 .sp
-The hook does not change bug status.
+The bug references can optionally include an update for Bugzilla of the
+hours spent working on the bug. Bugs can also be marked fixed.
 .sp
 Three basic modes of access to Bugzilla are provided:
 .INDENT 0.0
@@ -6566,13 +6641,13 @@ permission to read Bugzilla configuration details and the necessary
 MySQL user and password to have full access rights to the Bugzilla
 database. For these reasons this access mode is now considered
 deprecated, and will not be updated for new Bugzilla versions going
-forward.
+forward. Only adding comments is supported in this access mode.
 .sp
 Access via XMLRPC needs a Bugzilla username and password to be specified
 in the configuration. Comments are added under that username. Since the
 configuration must be readable by all Mercurial users, it is recommended
 that the rights of that user are restricted in Bugzilla to the minimum
-necessary to add comments.
+necessary to add comments. Marking bugs fixed requires Bugzilla 4.0 and later.
 .sp
 Access via XMLRPC/email uses XMLRPC to query Bugzilla, but sends
 email to the Bugzilla email interface to submit comments to bugs.
@@ -6580,7 +6655,8 @@ The From: address in the email is set to the email address of the Mercurial
 user, so the comment appears to come from the Mercurial user. In the event
 that the Mercurial user email is not recognised by Bugzilla as a Bugzilla
 user, the email associated with the Bugzilla username used to log into
-Bugzilla is used instead as the source of the comment.
+Bugzilla is used instead as the source of the comment. Marking bugs fixed
+works on all supported Bugzilla versions.
 .sp
 Configuration items common to all access modes:
 .INDENT 0.0
@@ -6615,11 +6691,37 @@ including 2.18.
 .TP
 .B bugzilla.regexp
 .
-Regular expression to match bug IDs in changeset commit message.
-Must contain one "()" group. The default expression matches \fBBug
-1234\fP, \fBBug no. 1234\fP, \fBBug number 1234\fP, \fBBugs 1234,5678\fP,
-\fBBug 1234 and 5678\fP and variations thereof. Matching is case
-insensitive.
+Regular expression to match bug IDs for update in changeset commit message.
+It must contain one "()" named group \fB<ids>\fP containing the bug
+IDs separated by non\-digit characters. It may also contain
+a named group \fB<hours>\fP with a floating\-point number giving the
+hours worked on the bug. If no named groups are present, the first
+"()" group is assumed to contain the bug IDs, and work time is not
+updated. The default expression matches \fBBug 1234\fP, \fBBug no. 1234\fP,
+\fBBug number 1234\fP, \fBBugs 1234,5678\fP, \fBBug 1234 and 5678\fP and
+variations thereof, followed by an hours number prefixed by \fBh\fP or
+\fBhours\fP, e.g. \fBhours 1.5\fP. Matching is case insensitive.
+.TP
+.B bugzilla.fixregexp
+.
+Regular expression to match bug IDs for marking fixed in changeset
+commit message. This must contain a "()" named group \fB<ids>\(ga containing
+the bug IDs separated by non\-digit characters. It may also contain
+a named group \(ga\(ga<hours>\fP with a floating\-point number giving the
+hours worked on the bug. If no named groups are present, the first
+"()" group is assumed to contain the bug IDs, and work time is not
+updated. The default expression matches \fBFixes 1234\fP, \fBFixes bug 1234\fP,
+\fBFixes bugs 1234,5678\fP, \fBFixes 1234 and 5678\fP and
+variations thereof, followed by an hours number prefixed by \fBh\fP or
+\fBhours\fP, e.g. \fBhours 1.5\fP. Matching is case insensitive.
+.TP
+.B bugzilla.fixstatus
+.
+The status to set a bug to when marking fixed. Default \fBRESOLVED\fP.
+.TP
+.B bugzilla.fixresolution
+.
+The resolution to set a bug to when marking fixed. Default \fBFIXED\fP.
 .TP
 .B bugzilla.style
 .
@@ -7715,6 +7817,42 @@ include names matching the given patterns
 .
 exclude names matching the given patterns
 .UNINDENT
+.SS factotum
+.sp
+http authentication with factotum
+.sp
+This extension allows the factotum facility on Plan 9 from Bell Labs platforms
+to provide authentication information for HTTP access. Configuration entries
+specified in the auth section as well as authentication information provided
+in the repository URL are fully supported. If no prefix is specified, a value
+of \fB*\fP will be assumed.
+.sp
+By default, keys are specified as:
+.sp
+.nf
+.ft C
+proto=pass service=hg prefix=<prefix> user=<username> !password=<password>
+.ft P
+.fi
+.sp
+If the factotum extension is unable to read the required key, one will be
+requested interactively.
+.sp
+A configuration section is available to customize runtime behavior. By
+default, these entries are:
+.sp
+.nf
+.ft C
+[factotum]
+executable = /bin/auth/factotum
+mountpoint = /mnt/factotum
+service = hg
+.ft P
+.fi
+.sp
+The executable entry defines the full path to the factotum binary. The
+mountpoint entry defines the path to the factotum file service. Lastly, the
+service entry controls the service name used when reading keys.
 .SS fetch
 .sp
 pull, update and merge in one command
@@ -7735,10 +7873,9 @@ automatically merged, and the result of the merge is committed.
 Otherwise, the working directory is updated to include the new
 changes.
 .sp
-When a merge occurs, the newly pulled changes are assumed to be
-"authoritative". The head of the new changes is used as the first
-parent, with local changes as the second. To switch the merge
-order, use \-\-switch\-parent.
+When a merge is needed, the working directory is first updated to
+the newly pulled changes. Local changes are then merged into the
+pulled changes. To switch the merge order, use \-\-switch\-parent.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
@@ -7882,17 +8019,77 @@ directory.
 Options:
 .INDENT 0.0
 .TP
-.B \-l,  \-\-limit
+.B \-f,  \-\-follow
 .
-limit number of changes displayed
+follow changeset history, or file history across copies and renames
+.TP
+.B \-\-follow\-first
+.
+only follow the first parent of merge changesets (DEPRECATED)
+.TP
+.B \-d,  \-\-date
+.
+show revisions matching date spec
+.TP
+.B \-C,  \-\-copies
+.
+show copied files
+.TP
+.B \-k,  \-\-keyword
+.
+do case\-insensitive search for a given text
+.TP
+.B \-r,  \-\-rev
+.
+show the specified revision or range
+.TP
+.B \-\-removed
+.
+include revisions where files were removed
+.TP
+.B \-m,  \-\-only\-merges
+.
+show only merges (DEPRECATED)
+.TP
+.B \-u,  \-\-user
+.
+revisions committed by user
+.TP
+.B \-\-only\-branch
+.
+show only changesets within the given named branch (DEPRECATED)
+.TP
+.B \-b,  \-\-branch
+.
+show changesets within the given named branch
+.TP
+.B \-P,  \-\-prune
+.
+do not display revision or any of its ancestors
+.TP
+.B \-\-hidden
+.
+show hidden changesets (DEPRECATED)
 .TP
 .B \-p,  \-\-patch
 .
 show patch
 .TP
-.B \-r,  \-\-rev
+.B \-g,  \-\-git
 .
-show the specified revision or range
+use git extended diff format
+.TP
+.B \-l,  \-\-limit
+.
+limit number of changes displayed
+.TP
+.B \-M,  \-\-no\-merges
+.
+do not show merges
+.TP
+.B \-\-stat
+.
+output diffstat\-style summary of changes
 .TP
 .B \-\-style
 .
@@ -7901,6 +8098,14 @@ display using template map file
 .B \-\-template
 .
 display with template
+.TP
+.B \-I,  \-\-include
+.
+include names matching the given patterns
+.TP
+.B \-X,  \-\-exclude
+.
+exclude names matching the given patterns
 .UNINDENT
 .SS hgcia
 .sp
@@ -8549,6 +8754,10 @@ mark new/missing files as added/removed before committing
 .B \-\-close\-branch
 .
 mark a branch as closed, hiding it from the branch list
+.TP
+.B \-\-amend
+.
+amend the parent of the working dir
 .TP
 .B \-I,  \-\-include
 .
@@ -9486,7 +9695,7 @@ This extension let you run hooks sending email notifications when
 changesets are being pushed, from the sending or receiving side.
 .sp
 First, enable the extension as explained in \%\fBhg help extensions\fP\:, and
-register the hook you want to run. \fBincoming\fP and \fBoutgoing\fP hooks
+register the hook you want to run. \fBincoming\fP and \fBchangegroup\fP hooks
 are run by the changesets receiver while the \fBoutgoing\fP one is for
 the sender:
 .sp
@@ -9767,7 +9976,9 @@ the messages are sent.
 By default the patch is included as text in the email body for
 easy reviewing. Using the \-a/\-\-attach option will instead create
 an attachment for the patch. With \-i/\-\-inline an inline attachment
-will be created.
+will be created. You can include a patch both as text in the email
+body and as a regular or an inline attachment by combining the
+\-a/\-\-attach or \-i/\-\-inline with the \-\-body option.
 .sp
 With \-o/\-\-outgoing, emails will be generated for patches not found
 in the destination repository (or only those which are ancestors
@@ -9861,6 +10072,10 @@ a base changeset to specify instead of a destination (with \-b/\-\-bundle)
 .B \-\-intro
 .
 send an introduction email for a single patch
+.TP
+.B \-\-body
+.
+send patches as inline message text (default)
 .TP
 .B \-a,  \-\-attach
 .
@@ -10215,6 +10430,7 @@ possible:
 .ft C
 y \- record this change
 n \- skip this change
+e \- edit this change manually
 
 s \- skip remaining changes to this file
 f \- record remaining changes to this file
@@ -10239,6 +10455,10 @@ mark new/missing files as added/removed before committing
 .B \-\-close\-branch
 .
 mark a branch as closed, hiding it from the branch list
+.TP
+.B \-\-amend
+.
+amend the parent of the working dir
 .TP
 .B \-I,  \-\-include
 .
@@ -10461,6 +10681,9 @@ changesets. You will not be prompted to transplant any ancestors
 of a merged transplant, and you can merge descendants of them
 normally instead of transplanting them.
 .sp
+Merge changesets may be transplanted directly by specifying the
+proper parent changeset by calling \%\fBhg transplant \-\-parent\fP\:.
+.sp
 If no merges or revisions are provided, \%\fBhg transplant\fP\: will
 start an interactive changeset browser.
 .sp
@@ -10490,6 +10713,10 @@ skip over REV
 .B \-m,  \-\-merge
 .
 merge at REV
+.TP
+.B \-\-parent
+.
+parent to choose when transplanting merge
 .TP
 .B \-e,  \-\-edit
 .
@@ -10713,7 +10940,7 @@ Source code repository: \%http://selenic.com/hg\:
 Mailing list: \%http://selenic.com/mailman/listinfo/mercurial\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2010 Matt Mackall.
+Copyright (C) 2005\-2012 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

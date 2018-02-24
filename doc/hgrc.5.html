@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.7: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.8.1: http://docutils.sourceforge.net/" />
 <title>hgrc</title>
 <meta name="author" content="Bryan O'Sullivan &lt;bos&#64;serpentine.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -42,28 +42,29 @@
 <li><a class="reference internal" href="#diff" id="id10"><tt class="docutils literal">diff</tt></a></li>
 <li><a class="reference internal" href="#email" id="id11"><tt class="docutils literal">email</tt></a></li>
 <li><a class="reference internal" href="#extensions" id="id12"><tt class="docutils literal">extensions</tt></a></li>
-<li><a class="reference internal" href="#hostfingerprints" id="id13"><tt class="docutils literal">hostfingerprints</tt></a></li>
-<li><a class="reference internal" href="#format" id="id14"><tt class="docutils literal">format</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id15"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id16"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#hooks" id="id17"><tt class="docutils literal">hooks</tt></a></li>
-<li><a class="reference internal" href="#http-proxy" id="id18"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id19"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#format" id="id13"><tt class="docutils literal">format</tt></a></li>
+<li><a class="reference internal" href="#graph" id="id14"><tt class="docutils literal">graph</tt></a></li>
+<li><a class="reference internal" href="#hooks" id="id15"><tt class="docutils literal">hooks</tt></a></li>
+<li><a class="reference internal" href="#hostfingerprints" id="id16"><tt class="docutils literal">hostfingerprints</tt></a></li>
+<li><a class="reference internal" href="#http-proxy" id="id17"><tt class="docutils literal">http_proxy</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id18"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id19"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
 <li><a class="reference internal" href="#patch" id="id20"><tt class="docutils literal">patch</tt></a></li>
 <li><a class="reference internal" href="#paths" id="id21"><tt class="docutils literal">paths</tt></a></li>
 <li><a class="reference internal" href="#phases" id="id22"><tt class="docutils literal">phases</tt></a></li>
 <li><a class="reference internal" href="#profiling" id="id23"><tt class="docutils literal">profiling</tt></a></li>
 <li><a class="reference internal" href="#revsetalias" id="id24"><tt class="docutils literal">revsetalias</tt></a></li>
 <li><a class="reference internal" href="#server" id="id25"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id26"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id27"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id28"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id29"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id26"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id27"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id28"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id29"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id30"><tt class="docutils literal">web</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id30">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id31">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id32">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id31">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id32">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id33">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="synopsis">
@@ -95,17 +96,18 @@ alphabetical order, later ones overriding earlier ones. Where multiple
 paths are given below, settings from earlier paths override later
 ones.</p>
 <div class="line-block">
-<div class="line">(Unix, Windows) <tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt></div>
+<div class="line">(All) <tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt></div>
 </div>
 <blockquote>
 Per-repository configuration options that only apply in a
 particular repository. This file is not version-controlled, and
 will not get transferred during a &quot;clone&quot; operation. Options in
 this file override options in all other configuration files. On
-Unix, most of this file will be ignored if it doesn't belong to a
-trusted user or to a trusted group. See the documentation for the
-<tt class="docutils literal">[trusted]</tt> section below for more details.</blockquote>
+Plan 9 and Unix, most of this file will be ignored if it doesn't
+belong to a trusted user or to a trusted group. See the documentation
+for the <tt class="docutils literal">[trusted]</tt> section below for more details.</blockquote>
 <div class="line-block">
+<div class="line">(Plan 9) <tt class="docutils literal">$home/lib/hgrc</tt></div>
 <div class="line">(Unix) <tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt></div>
 <div class="line">(Windows) <tt class="docutils literal"><span class="pre">%USERPROFILE%\.hgrc</span></tt></div>
 <div class="line">(Windows) <tt class="docutils literal"><span class="pre">%USERPROFILE%\Mercurial.ini</span></tt></div>
@@ -119,6 +121,8 @@ files apply to all Mercurial commands executed by this user in any
 directory. Options in these files override per-system and per-installation
 options.</blockquote>
 <div class="line-block">
+<div class="line">(Plan 9) <tt class="docutils literal">/lib/mercurial/hgrc</tt></div>
+<div class="line">(Plan 9) <tt class="docutils literal"><span class="pre">/lib/mercurial/hgrc.d/*.rc</span></tt></div>
 <div class="line">(Unix) <tt class="docutils literal">/etc/mercurial/hgrc</tt></div>
 <div class="line">(Unix) <tt class="docutils literal"><span class="pre">/etc/mercurial/hgrc.d/*.rc</span></tt></div>
 </div>
@@ -128,6 +132,8 @@ is running. Options in these files apply to all Mercurial commands
 executed by any user in any directory. Options in these files
 override per-installation options.</blockquote>
 <div class="line-block">
+<div class="line">(Plan 9) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc</span></tt></div>
+<div class="line">(Plan 9) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc.d/*.rc</span></tt></div>
 <div class="line">(Unix) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc</span></tt></div>
 <div class="line">(Unix) <tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc</span></tt></div>
 </div>
@@ -268,7 +274,7 @@ definitions. This is almost always a bad idea!</p>
 shell alias. A shell alias is executed with the shell and will let you
 run arbitrary commands. As an example,</p>
 <pre class="literal-block">
-echo = !echo
+echo = !echo $&#64;
 </pre>
 <p>will let you do <tt class="docutils literal">hg echo foo</tt> to have <tt class="docutils literal">foo</tt> printed in your
 terminal. A better example might be:</p>
@@ -277,11 +283,16 @@ purge = !$HG status --no-status --unknown -0 | xargs -0 rm
 </pre>
 <p>which will make <tt class="docutils literal">hg purge</tt> delete all unknown files in the
 repository in the same manner as the purge extension.</p>
-<p>Shell aliases are executed in an environment where <tt class="docutils literal">$HG</tt> expand to
+<p>Positional arguments like <tt class="docutils literal">$1</tt>, <tt class="docutils literal">$2</tt>, etc. in the alias definition
+expand to the command arguments. Unmatched arguments are
+removed. <tt class="docutils literal">$0</tt> expands to the alias name and <tt class="docutils literal">$&#64;</tt> expands to all
+arguments separated by a space. These expansions happen before the
+command is passed to the shell.</p>
+<p>Shell aliases are executed in an environment where <tt class="docutils literal">$HG</tt> expands to
 the path of the Mercurial that was used to execute the alias. This is
 useful when you want to call further Mercurial commands in a shell
 alias, as was done above for the purge alias. In addition,
-<tt class="docutils literal">$HG_ARGS</tt> expand to the arguments given to Mercurial. In the <tt class="docutils literal">hg
+<tt class="docutils literal">$HG_ARGS</tt> expands to the arguments given to Mercurial. In the <tt class="docutils literal">hg
 echo foo</tt> call above, <tt class="docutils literal">$HG_ARGS</tt> would expand to <tt class="docutils literal">echo foo</tt>.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
@@ -515,21 +526,6 @@ mq =
 myfeature = ~/.hgext/myfeature.py
 </pre>
 </div>
-<div class="section" id="hostfingerprints">
-<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">hostfingerprints</tt></a></h2>
-<p>Fingerprints of the certificates of known HTTPS servers.
-A HTTPS connection to a server with a fingerprint configured here will
-only succeed if the servers certificate matches the fingerprint.
-This is very similar to how ssh known hosts works.
-The fingerprint is the SHA-1 hash value of the DER encoded certificate.
-The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
-<p>For example:</p>
-<pre class="literal-block">
-[hostfingerprints]
-hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
-</pre>
-<p>This feature is only supported when using Python 2.6 or later.</p>
-</div>
 <div class="section" id="format">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">format</tt></a></h2>
 <dl class="docutils">
@@ -556,103 +552,30 @@ option ensures that the on-disk format of newly created
 repositories will be compatible with Mercurial before version 1.7.</dd>
 </dl>
 </div>
-<div class="section" id="merge-patterns">
-<h2><a class="toc-backref" href="#contents"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></h2>
-<p>This section specifies merge tools to associate with particular file
-patterns. Tools matched here will take precedence over the default
-merge tool. Patterns are globs by default, rooted at the repository
-root.</p>
-<p>Example:</p>
+<div class="section" id="graph">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">graph</tt></a></h2>
+<p>Web graph view configuration. This section let you change graph
+elements display properties by branches, for instance to make the
+<tt class="docutils literal">default</tt> branch stand out.</p>
+<p>Each line has the following format:</p>
 <pre class="literal-block">
-[merge-patterns]
-**.c = kdiff3
-**.jpg = myimgmerge
+&lt;branch&gt;.&lt;argument&gt; = &lt;value&gt;
 </pre>
-</div>
-<div class="section" id="merge-tools">
-<h2><a class="toc-backref" href="#contents"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></h2>
-<p>This section configures external merge tools to use for file-level
-merges.</p>
-<p>Example <tt class="docutils literal"><span class="pre">~/.hgrc</span></tt>:</p>
+<p>where <tt class="docutils literal">&lt;branch&gt;</tt> is the name of the branch being
+customized. Example:</p>
 <pre class="literal-block">
-[merge-tools]
-# Override stock tool location
-kdiff3.executable = ~/bin/kdiff3
-# Specify command line
-kdiff3.args = $base $local $other -o $output
-# Give higher priority
-kdiff3.priority = 1
-
-# Define new tool
-myHtmlTool.args = -m $local $other $base $output
-myHtmlTool.regkey = Software\FooSoftware\HtmlMerge
-myHtmlTool.priority = 1
+[graph]
+# 2px width
+default.width = 2
+# red color
+default.color = FF0000
 </pre>
 <p>Supported arguments:</p>
 <dl class="docutils">
-<dt><tt class="docutils literal">priority</tt></dt>
-<dd>The priority in which to evaluate this tool.
-Default: 0.</dd>
-<dt><tt class="docutils literal">executable</tt></dt>
-<dd>Either just the name of the executable or its pathname.  On Windows,
-the path can use environment variables with ${ProgramFiles} syntax.
-Default: the tool name.</dd>
-<dt><tt class="docutils literal">args</tt></dt>
-<dd>The arguments to pass to the tool executable. You can refer to the
-files being merged as well as the output file through these
-variables: <tt class="docutils literal">$base</tt>, <tt class="docutils literal">$local</tt>, <tt class="docutils literal">$other</tt>, <tt class="docutils literal">$output</tt>.
-Default: <tt class="docutils literal">$local $base $other</tt></dd>
-<dt><tt class="docutils literal">premerge</tt></dt>
-<dd>Attempt to run internal non-interactive 3-way merge tool before
-launching external tool.  Options are <tt class="docutils literal">true</tt>, <tt class="docutils literal">false</tt>, or <tt class="docutils literal">keep</tt>
-to leave markers in the file if the premerge fails.
-Default: True</dd>
-<dt><tt class="docutils literal">binary</tt></dt>
-<dd>This tool can merge binary files. Defaults to False, unless tool
-was selected by file pattern match.</dd>
-<dt><tt class="docutils literal">symlink</tt></dt>
-<dd>This tool can merge symlinks. Defaults to False, even if tool was
-selected by file pattern match.</dd>
-<dt><tt class="docutils literal">check</tt></dt>
-<dd><p class="first">A list of merge success-checking options:</p>
-<dl class="last docutils">
-<dt><tt class="docutils literal">changed</tt></dt>
-<dd>Ask whether merge was successful when the merged file shows no changes.</dd>
-<dt><tt class="docutils literal">conflicts</tt></dt>
-<dd>Check whether there are conflicts even though the tool reported success.</dd>
-<dt><tt class="docutils literal">prompt</tt></dt>
-<dd>Always prompt for merge success, regardless of success reported by tool.</dd>
-</dl>
-</dd>
-<dt><tt class="docutils literal">checkchanged</tt></dt>
-<dd>True is equivalent to <tt class="docutils literal">check = changed</tt>.
-Default: False</dd>
-<dt><tt class="docutils literal">checkconflicts</tt></dt>
-<dd>True is equivalent to <tt class="docutils literal">check = conflicts</tt>.
-Default: False</dd>
-<dt><tt class="docutils literal">fixeol</tt></dt>
-<dd>Attempt to fix up EOL changes caused by the merge tool.
-Default: False</dd>
-<dt><tt class="docutils literal">gui</tt></dt>
-<dd>This tool requires a graphical interface to run. Default: False</dd>
-<dt><tt class="docutils literal">regkey</tt></dt>
-<dd>Windows registry key which describes install location of this
-tool. Mercurial will search for this key first under
-<tt class="docutils literal">HKEY_CURRENT_USER</tt> and then under <tt class="docutils literal">HKEY_LOCAL_MACHINE</tt>.
-Default: None</dd>
-<dt><tt class="docutils literal">regkeyalt</tt></dt>
-<dd>An alternate Windows registry key to try if the first key is not
-found.  The alternate key uses the same <tt class="docutils literal">regname</tt> and <tt class="docutils literal">regappend</tt>
-semantics of the primary key.  The most common use for this key
-is to search for 32bit applications on 64bit operating systems.
-Default: None</dd>
-<dt><tt class="docutils literal">regname</tt></dt>
-<dd>Name of value to read from specified registry key. Defaults to the
-unnamed (default) value.</dd>
-<dt><tt class="docutils literal">regappend</tt></dt>
-<dd>String to append to the value read from the registry, typically
-the executable name of the tool.
-Default: None</dd>
+<dt><tt class="docutils literal">width</tt></dt>
+<dd>Set branch edges width in pixels.</dd>
+<dt><tt class="docutils literal">color</tt></dt>
+<dd>Set branch edges color in hexadecimal RGB notation.</dd>
 </dl>
 </div>
 <div class="section" id="hooks">
@@ -816,6 +739,21 @@ environment variables above are passed as keyword arguments, with no
 <p>If a Python hook returns a &quot;true&quot; value or raises an exception, this
 is treated as a failure.</p>
 </div>
+<div class="section" id="hostfingerprints">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">hostfingerprints</tt></a></h2>
+<p>Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
+<p>For example:</p>
+<pre class="literal-block">
+[hostfingerprints]
+hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+</pre>
+<p>This feature is only supported when using Python 2.6 or later.</p>
+</div>
 <div class="section" id="http-proxy">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">http_proxy</tt></a></h2>
 <p>Used to access web-based Mercurial repositories through a HTTP
@@ -836,27 +774,103 @@ the proxy.</dd>
 in <tt class="docutils literal">http_proxy.no</tt>. True or False. Default: False.</dd>
 </dl>
 </div>
-<div class="section" id="smtp">
-<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">smtp</tt></a></h2>
-<p>Configuration for extensions that need to send email messages.</p>
+<div class="section" id="merge-patterns">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></h2>
+<p>This section specifies merge tools to associate with particular file
+patterns. Tools matched here will take precedence over the default
+merge tool. Patterns are globs by default, rooted at the repository
+root.</p>
+<p>Example:</p>
+<pre class="literal-block">
+[merge-patterns]
+**.c = kdiff3
+**.jpg = myimgmerge
+</pre>
+</div>
+<div class="section" id="merge-tools">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></h2>
+<p>This section configures external merge tools to use for file-level
+merges.</p>
+<p>Example <tt class="docutils literal"><span class="pre">~/.hgrc</span></tt>:</p>
+<pre class="literal-block">
+[merge-tools]
+# Override stock tool location
+kdiff3.executable = ~/bin/kdiff3
+# Specify command line
+kdiff3.args = $base $local $other -o $output
+# Give higher priority
+kdiff3.priority = 1
+
+# Define new tool
+myHtmlTool.args = -m $local $other $base $output
+myHtmlTool.regkey = Software\FooSoftware\HtmlMerge
+myHtmlTool.priority = 1
+</pre>
+<p>Supported arguments:</p>
 <dl class="docutils">
-<dt><tt class="docutils literal">host</tt></dt>
-<dd>Host name of mail server, e.g. &quot;mail.example.com&quot;.</dd>
-<dt><tt class="docutils literal">port</tt></dt>
-<dd>Optional. Port to connect to on mail server. Default: 25.</dd>
-<dt><tt class="docutils literal">tls</tt></dt>
-<dd>Optional. Method to enable TLS when connecting to mail server: starttls,
-smtps or none. Default: none.</dd>
-<dt><tt class="docutils literal">username</tt></dt>
-<dd>Optional. User name for authenticating with the SMTP server.
-Default: none.</dd>
-<dt><tt class="docutils literal">password</tt></dt>
-<dd>Optional. Password for authenticating with the SMTP server. If not
-specified, interactive sessions will prompt the user for a
-password; non-interactive sessions will fail. Default: none.</dd>
-<dt><tt class="docutils literal">local_hostname</tt></dt>
-<dd>Optional. It's the hostname that the sender can use to identify
-itself to the MTA.</dd>
+<dt><tt class="docutils literal">priority</tt></dt>
+<dd>The priority in which to evaluate this tool.
+Default: 0.</dd>
+<dt><tt class="docutils literal">executable</tt></dt>
+<dd>Either just the name of the executable or its pathname.  On Windows,
+the path can use environment variables with ${ProgramFiles} syntax.
+Default: the tool name.</dd>
+<dt><tt class="docutils literal">args</tt></dt>
+<dd>The arguments to pass to the tool executable. You can refer to the
+files being merged as well as the output file through these
+variables: <tt class="docutils literal">$base</tt>, <tt class="docutils literal">$local</tt>, <tt class="docutils literal">$other</tt>, <tt class="docutils literal">$output</tt>.
+Default: <tt class="docutils literal">$local $base $other</tt></dd>
+<dt><tt class="docutils literal">premerge</tt></dt>
+<dd>Attempt to run internal non-interactive 3-way merge tool before
+launching external tool.  Options are <tt class="docutils literal">true</tt>, <tt class="docutils literal">false</tt>, or <tt class="docutils literal">keep</tt>
+to leave markers in the file if the premerge fails.
+Default: True</dd>
+<dt><tt class="docutils literal">binary</tt></dt>
+<dd>This tool can merge binary files. Defaults to False, unless tool
+was selected by file pattern match.</dd>
+<dt><tt class="docutils literal">symlink</tt></dt>
+<dd>This tool can merge symlinks. Defaults to False, even if tool was
+selected by file pattern match.</dd>
+<dt><tt class="docutils literal">check</tt></dt>
+<dd><p class="first">A list of merge success-checking options:</p>
+<dl class="last docutils">
+<dt><tt class="docutils literal">changed</tt></dt>
+<dd>Ask whether merge was successful when the merged file shows no changes.</dd>
+<dt><tt class="docutils literal">conflicts</tt></dt>
+<dd>Check whether there are conflicts even though the tool reported success.</dd>
+<dt><tt class="docutils literal">prompt</tt></dt>
+<dd>Always prompt for merge success, regardless of success reported by tool.</dd>
+</dl>
+</dd>
+<dt><tt class="docutils literal">checkchanged</tt></dt>
+<dd>True is equivalent to <tt class="docutils literal">check = changed</tt>.
+Default: False</dd>
+<dt><tt class="docutils literal">checkconflicts</tt></dt>
+<dd>True is equivalent to <tt class="docutils literal">check = conflicts</tt>.
+Default: False</dd>
+<dt><tt class="docutils literal">fixeol</tt></dt>
+<dd>Attempt to fix up EOL changes caused by the merge tool.
+Default: False</dd>
+<dt><tt class="docutils literal">gui</tt></dt>
+<dd>This tool requires a graphical interface to run. Default: False</dd>
+<dt><tt class="docutils literal">regkey</tt></dt>
+<dd>Windows registry key which describes install location of this
+tool. Mercurial will search for this key first under
+<tt class="docutils literal">HKEY_CURRENT_USER</tt> and then under <tt class="docutils literal">HKEY_LOCAL_MACHINE</tt>.
+Default: None</dd>
+<dt><tt class="docutils literal">regkeyalt</tt></dt>
+<dd>An alternate Windows registry key to try if the first key is not
+found.  The alternate key uses the same <tt class="docutils literal">regname</tt> and <tt class="docutils literal">regappend</tt>
+semantics of the primary key.  The most common use for this key
+is to search for 32bit applications on 64bit operating systems.
+Default: None</dd>
+<dt><tt class="docutils literal">regname</tt></dt>
+<dd>Name of value to read from specified registry key. Defaults to the
+unnamed (default) value.</dd>
+<dt><tt class="docutils literal">regappend</tt></dt>
+<dd>String to append to the value read from the registry, typically
+the executable name of the tool.
+Default: None</dd>
 </dl>
 </div>
 <div class="section" id="patch">
@@ -909,14 +923,31 @@ Default: draft</dd>
 </div>
 <div class="section" id="profiling">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">profiling</tt></a></h2>
-<p>Specifies profiling format and file output. In this section
-description, 'profiling data' stands for the raw data collected
-during profiling, while 'profiling report' stands for a statistical
-text report generated from the profiling data. The profiling is done
-using lsprof.</p>
+<p>Specifies profiling type, format, and file output. Two profilers are
+supported: an instrumenting profiler (named <tt class="docutils literal">ls</tt>), and a sampling
+profiler (named <tt class="docutils literal">stat</tt>).</p>
+<p>In this section description, 'profiling data' stands for the raw data
+collected during profiling, while 'profiling report' stands for a
+statistical text report generated from the profiling data. The
+profiling is done using lsprof.</p>
 <dl class="docutils">
+<dt><tt class="docutils literal">type</tt></dt>
+<dd><p class="first">The type of profiler to use.
+Default: ls.</p>
+<dl class="last docutils">
+<dt><tt class="docutils literal">ls</tt></dt>
+<dd>Use Python's built-in instrumenting profiler. This profiler
+works on all platforms, but each line number it reports is the
+first line of a function. This restriction makes it difficult to
+identify the expensive parts of a non-trivial function.</dd>
+<dt><tt class="docutils literal">stat</tt></dt>
+<dd>Use a third-party statistical profiler, statprof. This profiler
+currently runs only on Unix systems, and is most useful for
+profiling commands that run for longer than about 0.1 seconds.</dd>
+</dl>
+</dd>
 <dt><tt class="docutils literal">format</tt></dt>
-<dd><p class="first">Profiling format.
+<dd><p class="first">Profiling format.  Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
 Default: text.</p>
 <dl class="last docutils">
 <dt><tt class="docutils literal">text</tt></dt>
@@ -929,6 +960,9 @@ file, the generated file can directly be loaded into
 kcachegrind.</dd>
 </dl>
 </dd>
+<dt><tt class="docutils literal">frequency</tt></dt>
+<dd>Sampling frequency.  Specific to the <tt class="docutils literal">stat</tt> sampling profiler.
+Default: 1000.</dd>
 <dt><tt class="docutils literal">output</tt></dt>
 <dd>File path where profiling data or report should be saved. If the
 file exists, it is replaced. Default: None, data is printed on
@@ -954,27 +988,57 @@ about 6 Mbps), uncompressed streaming is slower, because of the
 extra data transfer overhead. This mode will also temporarily hold
 the write lock while determining what data to transfer.
 Default is True.</dd>
+<dt><tt class="docutils literal">preferuncompressed</tt></dt>
+<dd>When set, clients will try to use the uncompressed streaming
+protocol. Default is False.</dd>
 <dt><tt class="docutils literal">validate</tt></dt>
 <dd>Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.</dd>
 </dl>
 </div>
+<div class="section" id="smtp">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">smtp</tt></a></h2>
+<p>Configuration for extensions that need to send email messages.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">host</tt></dt>
+<dd>Host name of mail server, e.g. &quot;mail.example.com&quot;.</dd>
+<dt><tt class="docutils literal">port</tt></dt>
+<dd>Optional. Port to connect to on mail server. Default: 25.</dd>
+<dt><tt class="docutils literal">tls</tt></dt>
+<dd>Optional. Method to enable TLS when connecting to mail server: starttls,
+smtps or none. Default: none.</dd>
+<dt><tt class="docutils literal">username</tt></dt>
+<dd>Optional. User name for authenticating with the SMTP server.
+Default: none.</dd>
+<dt><tt class="docutils literal">password</tt></dt>
+<dd>Optional. Password for authenticating with the SMTP server. If not
+specified, interactive sessions will prompt the user for a
+password; non-interactive sessions will fail. Default: none.</dd>
+<dt><tt class="docutils literal">local_hostname</tt></dt>
+<dd>Optional. It's the hostname that the sender can use to identify
+itself to the MTA.</dd>
+</dl>
+</div>
 <div class="section" id="subpaths">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">subpaths</tt></a></h2>
-<p>Defines subrepositories source locations rewriting rules of the form:</p>
+<p>Subrepository source URLs can go stale if a remote server changes name
+or becomes temporarily unavailable. This section lets you define
+rewrite rules of the form:</p>
 <pre class="literal-block">
 &lt;pattern&gt; = &lt;replacement&gt;
 </pre>
-<p>Where <tt class="docutils literal">pattern</tt> is a regular expression matching the source and
-<tt class="docutils literal">replacement</tt> is the replacement string used to rewrite it. Groups
-can be matched in <tt class="docutils literal">pattern</tt> and referenced in <tt class="docutils literal">replacements</tt>. For
-instance:</p>
+<p>where <tt class="docutils literal">pattern</tt> is a regular expression matching a subrepository
+source URL and <tt class="docutils literal">replacement</tt> is the replacement string used to
+rewrite it. Groups can be matched in <tt class="docutils literal">pattern</tt> and referenced in
+<tt class="docutils literal">replacements</tt>. For instance:</p>
 <pre class="literal-block">
 http://server/(.*)-hg/ = http://hg.server/\1/
 </pre>
 <p>rewrites <tt class="docutils literal"><span class="pre">http://server/foo-hg/</span></tt> into <tt class="docutils literal"><span class="pre">http://hg.server/foo/</span></tt>.</p>
-<p>All patterns are applied in definition order.</p>
+<p>Relative subrepository paths are first made absolute, and the the
+rewrite rules are then applied on the full (absolute) path. The rules
+are applied in definition order.</p>
 </div>
 <div class="section" id="trusted">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">trusted</tt></a></h2>
@@ -1054,6 +1118,9 @@ On Windows, this configuration option is ignored and the command aborted.</dd>
 <dd>Reduce the amount of output printed. True or False. Default is False.</dd>
 <dt><tt class="docutils literal">remotecmd</tt></dt>
 <dd>remote command to use for clone/push/pull operations. Default is <tt class="docutils literal">hg</tt>.</dd>
+<dt><tt class="docutils literal">reportoldssl</tt></dt>
+<dd>Warn if an SSL certificate is unable to be due to using Python
+2.5 or earlier. True or False. Default is True.</dd>
 <dt><tt class="docutils literal">report_untrusted</tt></dt>
 <dd>Warn if a <tt class="docutils literal">.hg/hgrc</tt> file is ignored due to not being owned by a
 trusted user or group. True or False. Default is True.</dd>
@@ -1164,8 +1231,18 @@ URLs. Example: <tt class="docutils literal"><span class="pre">http://hgserver/re
 authority certificates. Environment variables and <tt class="docutils literal">~user</tt>
 constructs are expanded in the filename. If specified on the
 client, then it will verify the identity of remote HTTPS servers
-with these certificates. The form must be as follows:</p>
-<pre class="literal-block">
+with these certificates.</p>
+<p>This feature is only supported when using Python 2.6 or later. If you wish
+to use it with earlier versions of Python, install the backported
+version of the ssl library that is available from
+<tt class="docutils literal"><span class="pre">http://pypi.python.org</span></tt>.</p>
+<p>To disable SSL verification temporarily, specify <tt class="docutils literal"><span class="pre">--insecure</span></tt> from
+command line.</p>
+<p>You can use OpenSSL's CA certificate file if your platform has
+one. On most Linux systems this will be
+<tt class="docutils literal"><span class="pre">/etc/ssl/certs/ca-certificates.crt</span></tt>. Otherwise you will have to
+generate this file manually. The form must be as follows:</p>
+<pre class="last literal-block">
 -----BEGIN CERTIFICATE-----
 ... (certificate in base64 PEM encoding) ...
 -----END CERTIFICATE-----
@@ -1173,15 +1250,6 @@ with these certificates. The form must be as follows:</p>
 ... (certificate in base64 PEM encoding) ...
 -----END CERTIFICATE-----
 </pre>
-<p>This feature is only supported when using Python 2.6 or later. If you wish
-to use it with earlier versions of Python, install the backported
-version of the ssl library that is available from
-<tt class="docutils literal"><span class="pre">http://pypi.python.org</span></tt>.</p>
-<p>You can use OpenSSL's CA certificate file if your platform has one.
-On most Linux systems this will be <tt class="docutils literal"><span class="pre">/etc/ssl/certs/ca-certificates.crt</span></tt>.
-Otherwise you will have to generate this file manually.</p>
-<p class="last">To disable SSL verification temporarily, specify <tt class="docutils literal"><span class="pre">--insecure</span></tt> from
-command line.</p>
 </dd>
 <dt><tt class="docutils literal">cache</tt></dt>
 <dd>Whether to support caching in hgweb. Defaults to True.</dd>
@@ -1274,7 +1342,7 @@ Default is 1; set to 0 to disable.</dd>
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2010 Matt Mackall.
+Mercurial is copyright 2005-2012 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <!-- Common link and substitution definitions. -->

@@ -20,6 +20,9 @@ from mercurial import bundlerepo, hg, merge, match
 from mercurial import patch, revlog, scmutil, util, error, cmdutil
 from mercurial import revset, templatekw
 
+class TransplantError(error.Abort):
+    pass
+
 cmdtable = {}
 command = cmdutil.command(cmdtable)
 
@@ -144,14 +147,26 @@ class transplanter(object):
                     if not hasnode(repo, node):
                         repo.pull(source, heads=[node])
 
+                skipmerge = False
                 if parents[1] != revlog.nullid:
-                    self.ui.note(_('skipping merge changeset %s:%s\n')
-                                 % (rev, short(node)))
+                    if not opts.get('parent'):
+                        self.ui.note(_('skipping merge changeset %s:%s\n')
+                                     % (rev, short(node)))
+                        skipmerge = True
+                    else:
+                        parent = source.lookup(opts['parent'])
+                        if parent not in parents:
+                            raise util.Abort(_('%s is not a parent of %s') %
+                                             (short(parent), short(node)))
+                else:
+                    parent = parents[0]
+
+                if skipmerge:
                     patchfile = None
                 else:
                     fd, patchfile = tempfile.mkstemp(prefix='hg-transplant-')
                     fp = os.fdopen(fd, 'w')
-                    gen = patch.diff(source, parents[0], node, opts=diffopts)
+                    gen = patch.diff(source, parent, node, opts=diffopts)
                     for chunk in gen:
                         fp.write(chunk)
                     fp.close()
@@ -159,11 +174,17 @@ class transplanter(object):
                 del revmap[rev]
                 if patchfile or domerge:
                     try:
-                        n = self.applyone(repo, node,
-                                          source.changelog.read(node),
-                                          patchfile, merge=domerge,
-                                          log=opts.get('log'),
-                                          filter=opts.get('filter'))
+                        try:
+                            n = self.applyone(repo, node,
+                                              source.changelog.read(node),
+                                              patchfile, merge=domerge,
+                                              log=opts.get('log'),
+                                              filter=opts.get('filter'))
+                        except TransplantError:
+                            # Do not rollback, it is up to the user to
+                            # fix the merge or cancel everything
+                            tr.close()
+                            raise
                         if n and domerge:
                             self.ui.status(_('%s merged at %s\n') % (revstr,
                                       short(n)))
@@ -247,13 +268,13 @@ class transplanter(object):
                 p2 = node
                 self.log(user, date, message, p1, p2, merge=merge)
                 self.ui.write(str(inst) + '\n')
-                raise util.Abort(_('fix up the merge and run '
-                                   'hg transplant --continue'))
+                raise TransplantError(_('fix up the merge and run '
+                                        'hg transplant --continue'))
         else:
             files = None
         if merge:
             p1, p2 = repo.dirstate.parents()
-            repo.dirstate.setparents(p1, node)
+            repo.setparents(p1, node)
             m = match.always(repo.root, '')
         else:
             m = match.exact(repo.root, '', files)
@@ -295,21 +316,31 @@ class transplanter(object):
     def recover(self, repo):
         '''commit working directory using journal metadata'''
         node, user, date, message, parents = self.readlog()
-        merge = len(parents) == 2
+        merge = False
 
         if not user or not date or not message or not parents[0]:
             raise util.Abort(_('transplant log file is corrupt'))
+
+        parent = parents[0]
+        if len(parents) > 1:
+            if opts.get('parent'):
+                parent = source.lookup(opts['parent'])
+                if parent not in parents:
+                    raise util.Abort(_('%s is not a parent of %s') %
+                                     (short(parent), short(node)))
+            else:
+                merge = True
 
         extra = {'transplant_source': node}
         wlock = repo.wlock()
         try:
             p1, p2 = repo.dirstate.parents()
-            if p1 != parents[0]:
+            if p1 != parent:
                 raise util.Abort(
                     _('working dir not at transplant parent %s') %
-                                 revlog.hex(parents[0]))
+                                 revlog.hex(parent))
             if merge:
-                repo.dirstate.setparents(p1, parents[1])
+                repo.setparents(p1, parents[1])
             n = repo.commit(message, user, date, extra=extra,
                             editor=self.editor)
             if not n:
@@ -468,6 +499,8 @@ def browserevs(ui, repo, nodes, opts):
     ('a', 'all', None, _('pull all changesets up to BRANCH')),
     ('p', 'prune', [], _('skip over REV'), _('REV')),
     ('m', 'merge', [], _('merge at REV'), _('REV')),
+    ('', 'parent', '',
+     _('parent to choose when transplanting merge'), _('REV')),
     ('e', 'edit', False, _('invoke editor on commit messages')),
     ('', 'log', None, _('append transplant info to log message')),
     ('c', 'continue', None, _('continue last transplant session '
@@ -509,6 +542,9 @@ def transplant(ui, repo, *revs, **opts):
     changesets. You will not be prompted to transplant any ancestors
     of a merged transplant, and you can merge descendants of them
     normally instead of transplanting them.
+
+    Merge changesets may be transplanted directly by specifying the
+    proper parent changeset by calling :hg:`transplant --parent`.
 
     If no merges or revisions are provided, :hg:`transplant` will
     start an interactive changeset browser.
