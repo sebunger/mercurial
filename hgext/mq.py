@@ -476,6 +476,11 @@ class queue(object):
             write_list(self.full_series, self.series_path)
         if self.guards_dirty:
             write_list(self.active_guards, self.guards_path)
+        if self.added:
+            qrepo = self.qrepo()
+            if qrepo:
+                qrepo[None].add(self.added)
+            self.added = []
 
     def removeundo(self, repo):
         undo = repo.sjoin('undo')
@@ -1046,12 +1051,16 @@ class queue(object):
                 self.check_localchanges(repo)
 
             if move:
-                try:
-                    index = self.series.index(patch, start)
-                    fullpatch = self.full_series[index]
-                    del self.full_series[index]
-                except ValueError:
-                    raise util.Abort(_("patch '%s' not found") % patch)
+                if not patch:
+                    raise  util.Abort(_("please specify the patch to move"))
+                for i, rpn in enumerate(self.full_series[start:]):
+                    # strip markers for patch guards
+                    if self.guard_re.split(rpn, 1)[0] == patch:
+                        break
+                index = start + i
+                assert index < len(self.full_series)
+                fullpatch = self.full_series[index]
+                del self.full_series[index]
                 self.full_series.insert(start, fullpatch)
                 self.parse_series()
                 self.series_dirty = 1
@@ -1623,7 +1632,6 @@ class queue(object):
         if (len(files) > 1 or len(rev) > 1) and patchname:
             raise util.Abort(_('option "-n" not valid when importing multiple '
                                'patches'))
-        self.added = []
         if rev:
             # If mq patches are applied, we can only import revisions
             # that form a linear path to qbase.
@@ -1698,7 +1706,7 @@ class queue(object):
                     else:
                         text = url.open(self.ui, filename).read()
                 except (OSError, IOError):
-                    raise util.Abort(_("unable to read %s") % filename)
+                    raise util.Abort(_("unable to read file %s") % filename)
                 if not patchname:
                     patchname = normname(os.path.basename(filename))
                 self.check_reserved_name(patchname)
@@ -1810,9 +1818,6 @@ def qimport(ui, repo, *filename, **opts):
               git=opts['git'])
     finally:
         q.save_dirty()
-        qrepo = q.qrepo()
-        if qrepo:
-            qrepo[None].add(q.added)
 
     if opts.get('push') and not opts.get('rev'):
         return q.push(repo, None)
@@ -2311,6 +2316,9 @@ def rename(ui, repo, patch, name=None, **opts):
         q.applied[info[0]] = statusentry(info[1], name)
     q.applied_dirty = 1
 
+    destdir = os.path.dirname(absdest)
+    if not os.path.isdir(destdir):
+        os.makedirs(destdir)
     util.rename(q.join(patch), absdest)
     r = q.qrepo()
     if r:
@@ -2413,6 +2421,18 @@ def strip(ui, repo, rev, **opts):
         update = False
     elif rev not in (cl.ancestor(p[0], rev), cl.ancestor(p[1], rev)):
         update = False
+
+    q = repo.mq
+    if q.applied:
+        if rev == cl.ancestor(repo.lookup('qtip'), rev):
+            q.applied_dirty = True
+            start = 0
+            end = len(q.applied)
+            applied_list = [i.node for i in q.applied]
+            if rev in applied_list:
+                start = applied_list.index(rev)
+            del q.applied[start:end]
+            q.save_dirty()
 
     repo.mq.strip(repo, rev, backup=backup, update=update, force=opts['force'])
     return 0

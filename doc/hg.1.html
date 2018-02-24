@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.6: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.7: http://docutils.sourceforge.net/" />
 <title>hg</title>
 <meta name="author" content="Matt Mackall &lt;mpm&#64;selenic.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -161,6 +161,7 @@ $ hg status
 A foo.c
 </pre>
 </div>
+<p>Returns 0 if all files are successfully added.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -191,7 +192,8 @@ parameter greater than 0, this compares every removed file with
 every added file and records those similar enough as renames. This
 option takes a percentage between 0 (disabled) and 100 (files must
 be identical) as its parameter. Detecting renamed files this way
-can be expensive.</p>
+can be expensive. After using this option, <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status <span class="pre">-C</span></tt></a> can be
+used to check which files were identified as moved or renamed.</p>
 <p>Returns 0 if all files are successfully added.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
@@ -1510,7 +1512,8 @@ source is written as <tt class="docutils literal">default</tt> in <tt class="doc
 <tt class="docutils literal">default</tt> and <tt class="docutils literal"><span class="pre">default-push</span></tt> apply to all inbound (e.g.
 <a class="reference external" href="hg.1.html#incoming"><tt class="docutils literal">hg incoming</tt></a>) and outbound (e.g. <a class="reference external" href="hg.1.html#outgoing"><tt class="docutils literal">hg outgoing</tt></a>, <a class="reference external" href="hg.1.html#email"><tt class="docutils literal">hg email</tt></a> and
 <a class="reference external" href="hg.1.html#bundle"><tt class="docutils literal">hg bundle</tt></a>) operations.</p>
-<p class="last">See <a class="reference external" href="hg.1.html#urls"><tt class="docutils literal">hg help urls</tt></a> for more information.</p>
+<p>See <a class="reference external" href="hg.1.html#urls"><tt class="docutils literal">hg help urls</tt></a> for more information.</p>
+<p class="last">Returns 0 on success.</p>
 </dd>
 </dl>
 <dl class="docutils" id="pull">
@@ -2168,8 +2171,8 @@ bundle command.</p>
 <dt><tt class="docutils literal">update <span class="pre">[-c]</span> <span class="pre">[-C]</span> <span class="pre">[-d</span> DATE] <span class="pre">[[-r]</span> REV]</tt></dt>
 <dd><p class="first">Update the repository's working directory to the specified
 changeset.</p>
-<p>If no changeset is specified, attempt to update to the head of the
-current branch. If this head is a descendant of the working
+<p>If no changeset is specified, attempt to update to the tip of the
+current branch. If this changeset is a descendant of the working
 directory's parent, update to it, otherwise abort.</p>
 <p>The following rules apply when the working directory contains
 uncommitted changes:</p>
@@ -3186,7 +3189,7 @@ patch.</p>
 Mercurial, that will be recorded in the next commit. The working
 directory initially corresponds to the snapshot at an existing
 changeset, known as the parent of the working directory. See
-'Parents, working directory'. The state may be modified by changes
+'Parent, working directory'. The state may be modified by changes
 to the files introduced manually or by a merge. The repository
 metadata exists in the .hg directory inside the working directory.</dd>
 <dt>Graph</dt>

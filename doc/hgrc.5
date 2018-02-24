@@ -30,20 +30,21 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.SH Synopsis
+.SH SYNOPSIS
 .sp
 The Mercurial system uses a set of configuration files to control
 aspects of its behavior.
-.SH Files
+.SH FILES
 .sp
 Mercurial reads configuration data from several files, if they exist.
 The names of these files depend on the system on which Mercurial is
-installed. \fC*.rc\fP files from a single directory are read in
+installed. \fB*.rc\fP files from a single directory are read in
 alphabetical order, later ones overriding earlier ones. Where multiple
 paths are given below, settings from earlier paths override later
 ones.
+.sp
 .nf
-(Unix, Windows) \fC<repo>/.hg/hgrc\fP
+(Unix, Windows) \fB<repo>/.hg/hgrc\fP
 .fi
 .sp
 .INDENT 0.0
@@ -55,30 +56,32 @@ will not get transferred during a "clone" operation. Options in
 this file override options in all other configuration files. On
 Unix, most of this file will be ignored if it doesn\(aqt belong to a
 trusted user or to a trusted group. See the documentation for the
-\fI\%trusted\fP section below for more details.
+\%trusted\: section below for more details.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
-(Unix) \fC$HOME/.hgrc\fP
-(Windows) \fC%USERPROFILE%\e.hgrc\fP
-(Windows) \fC%USERPROFILE%\eMercurial.ini\fP
-(Windows) \fC%HOME%\e.hgrc\fP
-(Windows) \fC%HOME%\eMercurial.ini\fP
+(Unix) \fB$HOME/.hgrc\fP
+(Windows) \fB%USERPROFILE%\e.hgrc\fP
+(Windows) \fB%USERPROFILE%\eMercurial.ini\fP
+(Windows) \fB%HOME%\e.hgrc\fP
+(Windows) \fB%HOME%\eMercurial.ini\fP
 .fi
 .sp
 .INDENT 0.0
 .INDENT 3.5
 .sp
 Per\-user configuration file(s), for the user running Mercurial. On
-Windows 9x, \fC%HOME%\fP is replaced by \fC%APPDATA%\fP. Options in these
+Windows 9x, \fB%HOME%\fP is replaced by \fB%APPDATA%\fP. Options in these
 files apply to all Mercurial commands executed by this user in any
 directory. Options in these files override per\-system and per\-installation
 options.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
-(Unix) \fC/etc/mercurial/hgrc\fP
-(Unix) \fC/etc/mercurial/hgrc.d/*.rc\fP
+(Unix) \fB/etc/mercurial/hgrc\fP
+(Unix) \fB/etc/mercurial/hgrc.d/*.rc\fP
 .fi
 .sp
 .INDENT 0.0
@@ -90,26 +93,28 @@ executed by any user in any directory. Options in these files
 override per\-installation options.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
-(Unix) \fC<install\-root>/etc/mercurial/hgrc\fP
-(Unix) \fC<install\-root>/etc/mercurial/hgrc.d/*.rc\fP
+(Unix) \fB<install\-root>/etc/mercurial/hgrc\fP
+(Unix) \fB<install\-root>/etc/mercurial/hgrc.d/*.rc\fP
 .fi
 .sp
 .INDENT 0.0
 .INDENT 3.5
 .sp
 Per\-installation configuration files, searched for in the
-directory where Mercurial is installed. \fC<install\-root>\fP is the
+directory where Mercurial is installed. \fB<install\-root>\fP is the
 parent directory of the \fBhg\fP executable (or symlink) being run. For
-example, if installed in \fC/shared/tools/bin/hg\fP, Mercurial will look
-in \fC/shared/tools/etc/mercurial/hgrc\fP. Options in these files apply
+example, if installed in \fB/shared/tools/bin/hg\fP, Mercurial will look
+in \fB/shared/tools/etc/mercurial/hgrc\fP. Options in these files apply
 to all Mercurial commands executed by any user in any directory.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
-(Windows) \fC<install\-dir>\eMercurial.ini\fP
-(Windows) \fC<install\-dir>\ehgrc.d\e*.rc\fP
-(Windows) \fCHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP
+(Windows) \fB<install\-dir>\eMercurial.ini\fP
+(Windows) \fB<install\-dir>\ehgrc.d\e*.rc\fP
+(Windows) \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP
 .fi
 .sp
 .INDENT 0.0
@@ -119,18 +124,18 @@ Per\-installation/system configuration files, for the system on
 which Mercurial is running. Options in these files apply to all
 Mercurial commands executed by any user in any directory. Registry
 keys contain PATH\-like strings, every part of which must reference
-a \fCMercurial.ini\fP file or be a directory where \fC*.rc\fP files will
+a \fBMercurial.ini\fP file or be a directory where \fB*.rc\fP files will
 be read.  Mercurial checks each of these locations in the specified
 order until one or more configuration files are detected.  If the
 pywin32 extensions are not installed, Mercurial will only look for
-site\-wide configuration in \fCC:\eMercurial\eMercurial.ini\fP.
+site\-wide configuration in \fBC:\eMercurial\eMercurial.ini\fP.
 .UNINDENT
 .UNINDENT
-.SH Syntax
+.SH SYNTAX
 .sp
-A configuration file consists of sections, led by a \fC[section]\fP header
-and followed by \fCname = value\fP entries (sometimes called
-\fCconfiguration keys\fP):
+A configuration file consists of sections, led by a \fB[section]\fP header
+and followed by \fBname = value\fP entries (sometimes called
+\fBconfiguration keys\fP):
 .sp
 .nf
 .ft C
@@ -144,7 +149,7 @@ green=
 Each line contains one entry. If the lines that follow are indented,
 they are treated as continuations of that entry. Leading whitespace is
 removed from values. Empty lines are skipped. Lines beginning with
-\fC#\fP or \fC;\fP are ignored and may be used to provide comments.
+\fB#\fP or \fB;\fP are ignored and may be used to provide comments.
 .sp
 Configuration keys can be set multiple times, in which case mercurial
 will use the value that was configured last. As an example:
@@ -158,7 +163,7 @@ eggs=small
 .ft P
 .fi
 .sp
-This would set the configuration key named \fCeggs\fP to \fCsmall\fP.
+This would set the configuration key named \fBeggs\fP to \fBsmall\fP.
 .sp
 It is also possible to define a section multiple times. A section can
 be redefined on the same and/or on different hgrc files. For example:
@@ -182,23 +187,23 @@ bread=toasted
 .ft P
 .fi
 .sp
-This would set the \fCeggs\fP, \fCham\fP, and \fCbread\fP configuration keys
-of the \fCfoo\fP section to \fCmedium\fP, \fCprosciutto\fP, and \fCtoasted\fP,
+This would set the \fBeggs\fP, \fBham\fP, and \fBbread\fP configuration keys
+of the \fBfoo\fP section to \fBmedium\fP, \fBprosciutto\fP, and \fBtoasted\fP,
 respectively. As you can see there only thing that matters is the last
 value that was set for each of the configuration keys.
 .sp
 If a configuration key is set multiple times in different
 configuration files the final value will depend on the order in which
 the different configuration files are read, with settings from earlier
-paths overriding later ones as described on the \fCFiles\fP section
+paths overriding later ones as described on the \fBFiles\fP section
 above.
 .sp
-A line of the form \fC%include file\fP will include \fCfile\fP into the
+A line of the form \fB%include file\fP will include \fBfile\fP into the
 current configuration file. The inclusion is recursive, which means
 that included files can include other files. Filenames are relative to
-the configuration file in which the \fC%include\fP directive is found.
-Environment variables and \fC~user\fP constructs are expanded in
-\fCfile\fP. This lets you do something like:
+the configuration file in which the \fB%include\fP directive is found.
+Environment variables and \fB~user\fP constructs are expanded in
+\fBfile\fP. This lets you do something like:
 .sp
 .nf
 .ft C
@@ -208,7 +213,7 @@ Environment variables and \fC~user\fP constructs are expanded in
 .sp
 to include a different configuration file on each computer you use.
 .sp
-A line with \fC%unset name\fP will remove \fCname\fP from the current
+A line with \fB%unset name\fP will remove \fBname\fP from the current
 section, if it has been set previously.
 .sp
 The values are either free\-form text strings, lists of text strings,
@@ -227,13 +232,13 @@ allow_read = "John Doe, PhD", brian, betty
 .sp
 Quotation marks can be escaped by prefixing them with a backslash. Only
 quotation marks at the beginning of a word is counted as a quotation
-(e.g., \fCfoo"bar baz\fP is the list of \fCfoo"bar\fP and \fCbaz\fP).
-.SH Sections
+(e.g., \fBfoo"bar baz\fP is the list of \fBfoo"bar\fP and \fBbaz\fP).
+.SH SECTIONS
 .sp
 This section describes the different sections that may appear in a
 Mercurial "hgrc" file, the purpose of each section, its possible keys,
 and their possible values.
-.SS \fCalias\fP
+.SS \fBalias\fP
 .sp
 Defines command aliases.
 Aliases allow you to define your own commands in terms of other
@@ -255,7 +260,7 @@ latest = log \-\-limit 5
 .ft P
 .fi
 .sp
-creates a new command \fClatest\fP that shows only the five most recent
+creates a new command \fBlatest\fP that shows only the five most recent
 changesets. You can define subsequent aliases using earlier ones:
 .sp
 .nf
@@ -269,7 +274,7 @@ It is possible to create aliases with the same names as
 existing commands, which will then override the original
 definitions. This is almost always a bad idea!
 .RE
-.SS \fCauth\fP
+.SS \fBauth\fP
 .sp
 Authentication credentials for HTTP authentication. Each line has
 the following format:
@@ -280,7 +285,7 @@ the following format:
 .ft P
 .fi
 .sp
-where \fC<name>\fP is used to group arguments into authentication
+where \fB<name>\fP is used to group arguments into authentication
 entries. Example:
 .sp
 .nf
@@ -300,36 +305,36 @@ bar.schemes = https
 Supported arguments:
 .INDENT 0.0
 .TP
-.B \fCprefix\fP
+.B \fBprefix\fP
 .sp
-Either \fC*\fP or a URI prefix with or without the scheme part.
+Either \fB*\fP or a URI prefix with or without the scheme part.
 The authentication entry with the longest matching prefix is used
-(where \fC*\fP matches everything and counts as a match of length
+(where \fB*\fP matches everything and counts as a match of length
 1). If the prefix doesn\(aqt include a scheme, the match is performed
 against the URI with its scheme stripped as well, and the schemes
 argument, q.v., is then subsequently consulted.
 .TP
-.B \fCusername\fP
+.B \fBusername\fP
 .sp
 Optional. Username to authenticate with. If not given, and the
 remote site requires basic or digest authentication, the user
 will be prompted for it.
 .TP
-.B \fCpassword\fP
+.B \fBpassword\fP
 .sp
 Optional. Password to authenticate with. If not given, and the
 remote site requires basic or digest authentication, the user
 will be prompted for it.
 .TP
-.B \fCkey\fP
+.B \fBkey\fP
 .sp
 Optional. PEM encoded client certificate key file.
 .TP
-.B \fCcert\fP
+.B \fBcert\fP
 .sp
 Optional. PEM encoded client certificate chain file.
 .TP
-.B \fCschemes\fP
+.B \fBschemes\fP
 .sp
 Optional. Space separated list of URI schemes to use this
 authentication entry with. Only used if the prefix doesn\(aqt include
@@ -340,7 +345,7 @@ Default: https.
 .sp
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
-.SS \fCdecode/encode\fP
+.SS \fBdecode/encode\fP
 .sp
 Filters for transforming files on checkout/checkin. This would
 typically be used for newline processing or other
@@ -348,15 +353,15 @@ localization/canonicalization of files.
 .sp
 Filters consist of a filter pattern followed by a filter command.
 Filter patterns are globs by default, rooted at the repository root.
-For example, to match any file ending in \fC.txt\fP in the root
-directory only, use the pattern \fC*.txt\fP. To match any file ending
-in \fC.c\fP anywhere in the repository, use the pattern \fC**.c\fP.
+For example, to match any file ending in \fB.txt\fP in the root
+directory only, use the pattern \fB*.txt\fP. To match any file ending
+in \fB.c\fP anywhere in the repository, use the pattern \fB**.c\fP.
 For each file only the first matching filter applies.
 .sp
-The filter command can start with a specifier, either \fCpipe:\fP or
-\fCtempfile:\fP. If no specifier is given, \fCpipe:\fP is used by default.
+The filter command can start with a specifier, either \fBpipe:\fP or
+\fBtempfile:\fP. If no specifier is given, \fBpipe:\fP is used by default.
 .sp
-A \fCpipe:\fP command must accept data on stdin and return the transformed
+A \fBpipe:\fP command must accept data on stdin and return the transformed
 data on stdout.
 .sp
 Pipe example:
@@ -375,9 +380,9 @@ Pipe example:
 .ft P
 .fi
 .sp
-A \fCtempfile:\fP command is a template. The string \fCINFILE\fP is replaced
+A \fBtempfile:\fP command is a template. The string \fBINFILE\fP is replaced
 with the name of a temporary file that contains the data to be
-filtered by the command. The string \fCOUTFILE\fP is replaced with the name
+filtered by the command. The string \fBOUTFILE\fP is replaced with the name
 of an empty temporary file, where the filtered data must be written by
 the command.
 .IP Note
@@ -387,18 +392,18 @@ where the standard shell I/O redirection operators often have
 strange effects and may corrupt the contents of your files.
 .RE
 .sp
-This filter mechanism is used internally by the \fCeol\fP extension to
+This filter mechanism is used internally by the \fBeol\fP extension to
 translate line ending characters between Windows (CRLF) and Unix (LF)
-format. We suggest you use the \fCeol\fP extension for convenience.
-.SS \fCdefaults\fP
+format. We suggest you use the \fBeol\fP extension for convenience.
+.SS \fBdefaults\fP
 .sp
 (defaults are deprecated. Don\(aqt use them. Use aliases instead)
 .sp
-Use the \fC[defaults]\fP section to define command defaults, i.e. the
+Use the \fB[defaults]\fP section to define command defaults, i.e. the
 default options/arguments to pass to the specified commands.
 .sp
-The following example makes \fI\%\fChg log\fP\fP run in verbose mode, and \fI\%\fChg hg
-status\fP\fP show only the modified files, by default:
+The following example makes \%\fBhg log\fP\: run in verbose mode, and \%\fBhg hg
+status\fP\: show only the modified files, by default:
 .sp
 .nf
 .ft C
@@ -411,76 +416,76 @@ status = \-m
 The actual commands, instead of their aliases, must be used when
 defining command defaults. The command defaults will also be applied
 to the aliases of the commands defined.
-.SS \fCdiff\fP
+.SS \fBdiff\fP
 .sp
 Settings used when displaying diffs. They are all Boolean and
 defaults to False.
 .INDENT 0.0
 .TP
-.B \fCgit\fP
+.B \fBgit\fP
 .sp
 Use git extended diff format.
 .TP
-.B \fCnodates\fP
+.B \fBnodates\fP
 .sp
 Don\(aqt include dates in diff headers.
 .TP
-.B \fCshowfunc\fP
+.B \fBshowfunc\fP
 .sp
 Show which function each change is in.
 .TP
-.B \fCignorews\fP
+.B \fBignorews\fP
 .sp
 Ignore white space when comparing lines.
 .TP
-.B \fCignorewsamount\fP
+.B \fBignorewsamount\fP
 .sp
 Ignore changes in the amount of white space.
 .TP
-.B \fCignoreblanklines\fP
+.B \fBignoreblanklines\fP
 .sp
 Ignore changes whose lines are all blank.
 .UNINDENT
-.SS \fCemail\fP
+.SS \fBemail\fP
 .sp
 Settings for extensions that send email messages.
 .INDENT 0.0
 .TP
-.B \fCfrom\fP
+.B \fBfrom\fP
 .sp
 Optional. Email address to use in "From" header and SMTP envelope
 of outgoing messages.
 .TP
-.B \fCto\fP
+.B \fBto\fP
 .sp
 Optional. Comma\-separated list of recipients\(aq email addresses.
 .TP
-.B \fCcc\fP
+.B \fBcc\fP
 .sp
 Optional. Comma\-separated list of carbon copy recipients\(aq
 email addresses.
 .TP
-.B \fCbcc\fP
+.B \fBbcc\fP
 .sp
 Optional. Comma\-separated list of blind carbon copy recipients\(aq
 email addresses.
 .TP
-.B \fCmethod\fP
+.B \fBmethod\fP
 .sp
-Optional. Method to use to send email messages. If value is \fCsmtp\fP
-(default), use SMTP (see the \fI\%SMTP\fP section for configuration).
+Optional. Method to use to send email messages. If value is \fBsmtp\fP
+(default), use SMTP (see the \%SMTP\: section for configuration).
 Otherwise, use as name of program to run that acts like sendmail
-(takes \fC\-f\fP option for sender, list of recipients on command line,
-message on stdin). Normally, setting this to \fCsendmail\fP or
-\fC/usr/sbin/sendmail\fP is enough to use sendmail to send messages.
+(takes \fB\-f\fP option for sender, list of recipients on command line,
+message on stdin). Normally, setting this to \fBsendmail\fP or
+\fB/usr/sbin/sendmail\fP is enough to use sendmail to send messages.
 .TP
-.B \fCcharsets\fP
+.B \fBcharsets\fP
 .sp
 Optional. Comma\-separated list of character sets considered
 convenient for recipients. Addresses, headers, and parts not
 containing patches of outgoing messages will be encoded in the
 first character set to which conversion from local encoding
-(\fC$HGENCODING\fP, \fCui.fallbackencoding\fP) succeeds. If correct
+(\fB$HGENCODING\fP, \fBui.fallbackencoding\fP) succeeds. If correct
 conversion fails, the text in question is sent as is. Defaults to
 empty (explicit) list.
 .sp
@@ -488,19 +493,19 @@ Order of outgoing email character sets:
 .INDENT 7.0
 .IP 1. 3
 .
-\fCus\-ascii\fP: always first, regardless of settings
+\fBus\-ascii\fP: always first, regardless of settings
 .IP 2. 3
 .
-\fCemail.charsets\fP: in order given by user
+\fBemail.charsets\fP: in order given by user
 .IP 3. 3
 .
-\fCui.fallbackencoding\fP: if not in email.charsets
+\fBui.fallbackencoding\fP: if not in email.charsets
 .IP 4. 3
 .
-\fC$HGENCODING\fP: if not in email.charsets
+\fB$HGENCODING\fP: if not in email.charsets
 .IP 5. 3
 .
-\fCutf\-8\fP: always last, regardless of settings
+\fButf\-8\fP: always last, regardless of settings
 .UNINDENT
 .UNINDENT
 .sp
@@ -516,25 +521,25 @@ method = /usr/sbin/sendmail
 charsets = iso\-8859\-1, iso\-8859\-15, windows\-1252
 .ft P
 .fi
-.SS \fCextensions\fP
+.SS \fBextensions\fP
 .sp
 Mercurial has an extension mechanism for adding new features. To
 enable an extension, create an entry for it in this section.
 .sp
 If you know that the extension is already in Python\(aqs search path,
-you can give the name of the module, followed by \fC=\fP, with nothing
-after the \fC=\fP.
+you can give the name of the module, followed by \fB=\fP, with nothing
+after the \fB=\fP.
 .sp
-Otherwise, give a name that you choose, followed by \fC=\fP, followed by
-the path to the \fC.py\fP file (including the file name extension) that
+Otherwise, give a name that you choose, followed by \fB=\fP, followed by
+the path to the \fB.py\fP file (including the file name extension) that
 defines the extension.
 .sp
 To explicitly disable an extension that is enabled in an hgrc of
-broader scope, prepend its path with \fC!\fP, as in
-\fChgext.foo = !/ext/path\fP or \fChgext.foo = !\fP  when path is not
+broader scope, prepend its path with \fB!\fP, as in
+\fBhgext.foo = !/ext/path\fP or \fBhgext.foo = !\fP  when path is not
 supplied.
 .sp
-Example for \fC~/.hgrc\fP:
+Example for \fB~/.hgrc\fP:
 .sp
 .nf
 .ft C
@@ -545,10 +550,10 @@ hgext.mq =
 myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
-.SS \fCformat\fP
+.SS \fBformat\fP
 .INDENT 0.0
 .TP
-.B \fCusestore\fP
+.B \fBusestore\fP
 .sp
 Enable or disable the "store" repository format which improves
 compatibility with systems that fold case or otherwise mangle
@@ -557,7 +562,7 @@ you to store longer filenames in some situations at the expense of
 compatibility and ensures that the on\-disk format of newly created
 repositories will be compatible with Mercurial before version 0.9.4.
 .TP
-.B \fCusefncache\fP
+.B \fBusefncache\fP
 .sp
 Enable or disable the "fncache" repository format which enhances
 the "store" repository format (which has to be enabled to use
@@ -566,7 +571,7 @@ reserved names, e.g. "nul". Enabled by default. Disabling this
 option ensures that the on\-disk format of newly created
 repositories will be compatible with Mercurial before version 1.1.
 .UNINDENT
-.SS \fCmerge\-patterns\fP
+.SS \fBmerge\-patterns\fP
 .sp
 This section specifies merge tools to associate with particular file
 patterns. Tools matched here will take precedence over the default
@@ -582,12 +587,12 @@ Example:
 **.jpg = myimgmerge
 .ft P
 .fi
-.SS \fCmerge\-tools\fP
+.SS \fBmerge\-tools\fP
 .sp
 This section configures external merge tools to use for file\-level
 merges.
 .sp
-Example \fC~/.hgrc\fP:
+Example \fB~/.hgrc\fP:
 .sp
 .nf
 .ft C
@@ -609,97 +614,97 @@ myHtmlTool.priority = 1
 Supported arguments:
 .INDENT 0.0
 .TP
-.B \fCpriority\fP
+.B \fBpriority\fP
 .sp
 The priority in which to evaluate this tool.
 Default: 0.
 .TP
-.B \fCexecutable\fP
+.B \fBexecutable\fP
 .sp
 Either just the name of the executable or its pathname.  On Windows,
 the path can use environment variables with ${ProgramFiles} syntax.
 Default: the tool name.
 .TP
-.B \fCargs\fP
+.B \fBargs\fP
 .sp
 The arguments to pass to the tool executable. You can refer to the
 files being merged as well as the output file through these
-variables: \fC$base\fP, \fC$local\fP, \fC$other\fP, \fC$output\fP.
-Default: \fC$local $base $other\fP
+variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP.
+Default: \fB$local $base $other\fP
 .TP
-.B \fCpremerge\fP
+.B \fBpremerge\fP
 .sp
 Attempt to run internal non\-interactive 3\-way merge tool before
-launching external tool.  Options are \fCtrue\fP, \fCfalse\fP, or \fCkeep\fP
+launching external tool.  Options are \fBtrue\fP, \fBfalse\fP, or \fBkeep\fP
 to leave markers in the file if the premerge fails.
 Default: True
 .TP
-.B \fCbinary\fP
+.B \fBbinary\fP
 .sp
 This tool can merge binary files. Defaults to False, unless tool
 was selected by file pattern match.
 .TP
-.B \fCsymlink\fP
+.B \fBsymlink\fP
 .sp
 This tool can merge symlinks. Defaults to False, even if tool was
 selected by file pattern match.
 .TP
-.B \fCcheck\fP
+.B \fBcheck\fP
 .sp
 A list of merge success\-checking options:
 .INDENT 7.0
 .TP
-.B \fCchanged\fP
+.B \fBchanged\fP
 .sp
 Ask whether merge was successful when the merged file shows no changes.
 .TP
-.B \fCconflicts\fP
+.B \fBconflicts\fP
 .sp
 Check whether there are conflicts even though the tool reported success.
 .TP
-.B \fCprompt\fP
+.B \fBprompt\fP
 .sp
 Always prompt for merge success, regardless of success reported by tool.
 .UNINDENT
 .TP
-.B \fCcheckchanged\fP
+.B \fBcheckchanged\fP
 .sp
-True is equivalent to \fCcheck = changed\fP.
+True is equivalent to \fBcheck = changed\fP.
 Default: False
 .TP
-.B \fCcheckconflicts\fP
+.B \fBcheckconflicts\fP
 .sp
-True is equivalent to \fCcheck = conflicts\fP.
+True is equivalent to \fBcheck = conflicts\fP.
 Default: False
 .TP
-.B \fCfixeol\fP
+.B \fBfixeol\fP
 .sp
 Attempt to fix up EOL changes caused by the merge tool.
 Default: False
 .TP
-.B \fCgui\fP
+.B \fBgui\fP
 .sp
 This tool requires a graphical interface to run. Default: False
 .TP
-.B \fCregkey\fP
+.B \fBregkey\fP
 .sp
 Windows registry key which describes install location of this
 tool. Mercurial will search for this key first under
-\fCHKEY_CURRENT_USER\fP and then under \fCHKEY_LOCAL_MACHINE\fP.
+\fBHKEY_CURRENT_USER\fP and then under \fBHKEY_LOCAL_MACHINE\fP.
 Default: None
 .TP
-.B \fCregname\fP
+.B \fBregname\fP
 .sp
 Name of value to read from specified registry key. Defaults to the
 unnamed (default) value.
 .TP
-.B \fCregappend\fP
+.B \fBregappend\fP
 .sp
 String to append to the value read from the registry, typically
 the executable name of the tool.
 Default: None
 .UNINDENT
-.SS \fChooks\fP
+.SS \fBhooks\fP
 .sp
 Commands or Python functions that get automatically executed by
 various actions such as starting or finishing a commit. Multiple
@@ -707,7 +712,7 @@ hooks can be run for the same action by appending a suffix to the
 action. Overriding a site\-wide hook can be done by changing its
 value or setting it to an empty string.
 .sp
-Example \fC.hg/hgrc\fP:
+Example \fB.hg/hgrc\fP:
 .sp
 .nf
 .ft C
@@ -723,124 +728,124 @@ incoming.autobuild = /my/build/hook
 .sp
 Most hooks are run with environment variables set that give useful
 additional information. For each hook below, the environment
-variables it is passed are listed with names of the form \fC$HG_foo\fP.
+variables it is passed are listed with names of the form \fB$HG_foo\fP.
 .INDENT 0.0
 .TP
-.B \fCchangegroup\fP
+.B \fBchangegroup\fP
 .sp
 Run after a changegroup has been added via push, pull or unbundle.
-ID of the first new changeset is in \fC$HG_NODE\fP. URL from which
-changes came is in \fC$HG_URL\fP.
+ID of the first new changeset is in \fB$HG_NODE\fP. URL from which
+changes came is in \fB$HG_URL\fP.
 .TP
-.B \fCcommit\fP
+.B \fBcommit\fP
 .sp
 Run after a changeset has been created in the local repository. ID
-of the newly created changeset is in \fC$HG_NODE\fP. Parent changeset
-IDs are in \fC$HG_PARENT1\fP and \fC$HG_PARENT2\fP.
+of the newly created changeset is in \fB$HG_NODE\fP. Parent changeset
+IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
-.B \fCincoming\fP
+.B \fBincoming\fP
 .sp
 Run after a changeset has been pulled, pushed, or unbundled into
 the local repository. The ID of the newly arrived changeset is in
-\fC$HG_NODE\fP. URL that was source of changes came is in \fC$HG_URL\fP.
+\fB$HG_NODE\fP. URL that was source of changes came is in \fB$HG_URL\fP.
 .TP
-.B \fCoutgoing\fP
+.B \fBoutgoing\fP
 .sp
 Run after sending changes from local repository to another. ID of
-first changeset sent is in \fC$HG_NODE\fP. Source of operation is in
-\fC$HG_SOURCE\fP; see "preoutgoing" hook for description.
+first changeset sent is in \fB$HG_NODE\fP. Source of operation is in
+\fB$HG_SOURCE\fP; see "preoutgoing" hook for description.
 .TP
-.B \fCpost\-<command>\fP
+.B \fBpost\-<command>\fP
 .sp
 Run after successful invocations of the associated command. The
-contents of the command line are passed as \fC$HG_ARGS\fP and the result
-code in \fC$HG_RESULT\fP. Parsed command line arguments are passed as
-\fC$HG_PATS\fP and \fC$HG_OPTS\fP. These contain string representations of
-the python data internally passed to <command>. \fC$HG_OPTS\fP is a
+contents of the command line are passed as \fB$HG_ARGS\fP and the result
+code in \fB$HG_RESULT\fP. Parsed command line arguments are passed as
+\fB$HG_PATS\fP and \fB$HG_OPTS\fP. These contain string representations of
+the python data internally passed to <command>. \fB$HG_OPTS\fP is a
 dictionary of options (with unspecified options set to their defaults).
-\fC$HG_PATS\fP is a list of arguments. Hook failure is ignored.
+\fB$HG_PATS\fP is a list of arguments. Hook failure is ignored.
 .TP
-.B \fCpre\-<command>\fP
+.B \fBpre\-<command>\fP
 .sp
 Run before executing the associated command. The contents of the
-command line are passed as \fC$HG_ARGS\fP. Parsed command line arguments
-are passed as \fC$HG_PATS\fP and \fC$HG_OPTS\fP. These contain string
-representations of the data internally passed to <command>. \fC$HG_OPTS\fP
+command line are passed as \fB$HG_ARGS\fP. Parsed command line arguments
+are passed as \fB$HG_PATS\fP and \fB$HG_OPTS\fP. These contain string
+representations of the data internally passed to <command>. \fB$HG_OPTS\fP
 is a  dictionary of options (with unspecified options set to their
-defaults). \fC$HG_PATS\fP is a list of arguments. If the hook returns
+defaults). \fB$HG_PATS\fP is a list of arguments. If the hook returns
 failure, the command doesn\(aqt execute and Mercurial returns the failure
 code.
 .TP
-.B \fCprechangegroup\fP
+.B \fBprechangegroup\fP
 .sp
 Run before a changegroup is added via push, pull or unbundle. Exit
 status 0 allows the changegroup to proceed. Non\-zero status will
 cause the push, pull or unbundle to fail. URL from which changes
-will come is in \fC$HG_URL\fP.
+will come is in \fB$HG_URL\fP.
 .TP
-.B \fCprecommit\fP
+.B \fBprecommit\fP
 .sp
 Run before starting a local commit. Exit status 0 allows the
 commit to proceed. Non\-zero status will cause the commit to fail.
-Parent changeset IDs are in \fC$HG_PARENT1\fP and \fC$HG_PARENT2\fP.
+Parent changeset IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
-.B \fCpreoutgoing\fP
+.B \fBpreoutgoing\fP
 .sp
 Run before collecting changes to send from the local repository to
 another. Non\-zero status will cause failure. This lets you prevent
 pull over HTTP or SSH. Also prevents against local pull, push
 (outbound) or bundle commands, but not effective, since you can
 just copy files instead then. Source of operation is in
-\fC$HG_SOURCE\fP. If "serve", operation is happening on behalf of remote
+\fB$HG_SOURCE\fP. If "serve", operation is happening on behalf of remote
 SSH or HTTP repository. If "push", "pull" or "bundle", operation
 is happening on behalf of repository on same system.
 .TP
-.B \fCpretag\fP
+.B \fBpretag\fP
 .sp
 Run before creating a tag. Exit status 0 allows the tag to be
 created. Non\-zero status will cause the tag to fail. ID of
-changeset to tag is in \fC$HG_NODE\fP. Name of tag is in \fC$HG_TAG\fP. Tag is
-local if \fC$HG_LOCAL=1\fP, in repository if \fC$HG_LOCAL=0\fP.
+changeset to tag is in \fB$HG_NODE\fP. Name of tag is in \fB$HG_TAG\fP. Tag is
+local if \fB$HG_LOCAL=1\fP, in repository if \fB$HG_LOCAL=0\fP.
 .TP
-.B \fCpretxnchangegroup\fP
+.B \fBpretxnchangegroup\fP
 .sp
 Run after a changegroup has been added via push, pull or unbundle,
 but before the transaction has been committed. Changegroup is
 visible to hook program. This lets you validate incoming changes
 before accepting them. Passed the ID of the first new changeset in
-\fC$HG_NODE\fP. Exit status 0 allows the transaction to commit. Non\-zero
+\fB$HG_NODE\fP. Exit status 0 allows the transaction to commit. Non\-zero
 status will cause the transaction to be rolled back and the push,
 pull or unbundle will fail. URL that was source of changes is in
-\fC$HG_URL\fP.
+\fB$HG_URL\fP.
 .TP
-.B \fCpretxncommit\fP
+.B \fBpretxncommit\fP
 .sp
 Run after a changeset has been created but the transaction not yet
 committed. Changeset is visible to hook program. This lets you
 validate commit message and changes. Exit status 0 allows the
 commit to proceed. Non\-zero status will cause the transaction to
-be rolled back. ID of changeset is in \fC$HG_NODE\fP. Parent changeset
-IDs are in \fC$HG_PARENT1\fP and \fC$HG_PARENT2\fP.
+be rolled back. ID of changeset is in \fB$HG_NODE\fP. Parent changeset
+IDs are in \fB$HG_PARENT1\fP and \fB$HG_PARENT2\fP.
 .TP
-.B \fCpreupdate\fP
+.B \fBpreupdate\fP
 .sp
 Run before updating the working directory. Exit status 0 allows
 the update to proceed. Non\-zero status will prevent the update.
-Changeset ID of first new parent is in \fC$HG_PARENT1\fP. If merge, ID
-of second new parent is in \fC$HG_PARENT2\fP.
+Changeset ID of first new parent is in \fB$HG_PARENT1\fP. If merge, ID
+of second new parent is in \fB$HG_PARENT2\fP.
 .TP
-.B \fCtag\fP
+.B \fBtag\fP
 .sp
-Run after a tag is created. ID of tagged changeset is in \fC$HG_NODE\fP.
-Name of tag is in \fC$HG_TAG\fP. Tag is local if \fC$HG_LOCAL=1\fP, in
-repository if \fC$HG_LOCAL=0\fP.
+Run after a tag is created. ID of tagged changeset is in \fB$HG_NODE\fP.
+Name of tag is in \fB$HG_TAG\fP. Tag is local if \fB$HG_LOCAL=1\fP, in
+repository if \fB$HG_LOCAL=0\fP.
 .TP
-.B \fCupdate\fP
+.B \fBupdate\fP
 .sp
 Run after updating the working directory. Changeset ID of first
-new parent is in \fC$HG_PARENT1\fP. If merge, ID of second new parent is
-in \fC$HG_PARENT2\fP. If the update succeeded, \fC$HG_ERROR=0\fP. If the
-update failed (e.g. because conflicts not resolved), \fC$HG_ERROR=1\fP.
+new parent is in \fB$HG_PARENT1\fP. If merge, ID of second new parent is
+in \fB$HG_PARENT2\fP. If the update succeeded, \fB$HG_ERROR=0\fP. If the
+update failed (e.g. because conflicts not resolved), \fB$HG_ERROR=1\fP.
 .UNINDENT
 .IP Note
 .
@@ -853,7 +858,7 @@ generate a commit (e.g. tag) and not just the commit command.
 .IP Note
 .
 Environment variables with empty values may not be passed to
-hooks on platforms such as Windows. As an example, \fC$HG_PARENT2\fP
+hooks on platforms such as Windows. As an example, \fB$HG_PARENT2\fP
 will have an empty value under Unix\-like platforms for non\-merge
 changesets, while it will not be available at all under Windows.
 .RE
@@ -869,96 +874,96 @@ hookname = python:/path/to/python/module.py:callable
 .sp
 Python hooks are run within the Mercurial process. Each hook is
 called with at least three keyword arguments: a ui object (keyword
-\fCui\fP), a repository object (keyword \fCrepo\fP), and a \fChooktype\fP
+\fBui\fP), a repository object (keyword \fBrepo\fP), and a \fBhooktype\fP
 keyword that tells what kind of hook is used. Arguments listed as
 environment variables above are passed as keyword arguments, with no
-\fCHG_\fP prefix, and names in lower case.
+\fBHG_\fP prefix, and names in lower case.
 .sp
 If a Python hook returns a "true" value or raises an exception, this
 is treated as a failure.
-.SS \fChttp_proxy\fP
+.SS \fBhttp_proxy\fP
 .sp
 Used to access web\-based Mercurial repositories through a HTTP
 proxy.
 .INDENT 0.0
 .TP
-.B \fChost\fP
+.B \fBhost\fP
 .sp
 Host name and (optional) port of the proxy server, for example
 "myproxy:8000".
 .TP
-.B \fCno\fP
+.B \fBno\fP
 .sp
 Optional. Comma\-separated list of host names that should bypass
 the proxy.
 .TP
-.B \fCpasswd\fP
+.B \fBpasswd\fP
 .sp
 Optional. Password to authenticate with at the proxy server.
 .TP
-.B \fCuser\fP
+.B \fBuser\fP
 .sp
 Optional. User name to authenticate with at the proxy server.
 .TP
-.B \fCalways\fP
+.B \fBalways\fP
 .sp
 Optional. Always use the proxy, even for localhost and any entries
-in \fChttp_proxy.no\fP. True or False. Default: False.
+in \fBhttp_proxy.no\fP. True or False. Default: False.
 .UNINDENT
-.SS \fCsmtp\fP
+.SS \fBsmtp\fP
 .sp
 Configuration for extensions that need to send email messages.
 .INDENT 0.0
 .TP
-.B \fChost\fP
+.B \fBhost\fP
 .sp
 Host name of mail server, e.g. "mail.example.com".
 .TP
-.B \fCport\fP
+.B \fBport\fP
 .sp
 Optional. Port to connect to on mail server. Default: 25.
 .TP
-.B \fCtls\fP
+.B \fBtls\fP
 .sp
 Optional. Whether to connect to mail server using TLS. True or
 False. Default: False.
 .TP
-.B \fCusername\fP
+.B \fBusername\fP
 .sp
 Optional. User name to authenticate to SMTP server with. If
 username is specified, password must also be specified.
 Default: none.
 .TP
-.B \fCpassword\fP
+.B \fBpassword\fP
 .sp
 Optional. Password to authenticate to SMTP server with. If
 username is specified, password must also be specified.
 Default: none.
 .TP
-.B \fClocal_hostname\fP
+.B \fBlocal_hostname\fP
 .sp
 Optional. It\(aqs the hostname that the sender can use to identify
 itself to the MTA.
 .UNINDENT
-.SS \fCpatch\fP
+.SS \fBpatch\fP
 .sp
 Settings used when applying patches, for instance through the \(aqimport\(aq
 command or with Mercurial Queues extension.
 .INDENT 0.0
 .TP
-.B \fCeol\fP
+.B \fBeol\fP
 .sp
 When set to \(aqstrict\(aq patch content and patched files end of lines
-are preserved. When set to \fClf\fP or \fCcrlf\fP, both files end of
+are preserved. When set to \fBlf\fP or \fBcrlf\fP, both files end of
 lines are ignored when patching and the result line endings are
 normalized to either LF (Unix) or CRLF (Windows). When set to
-\fCauto\fP, end of lines are again ignored while patching but line
+\fBauto\fP, end of lines are again ignored while patching but line
 endings in patched files are normalized to their original setting
 on a per\-file basis. If target file does not exist or has no end
 of line, patch line endings are preserved.
 Default: strict.
 .UNINDENT
-.SS \fCpaths\fP
+.SS \fBpaths\fP
 .sp
 Assigns symbolic names to repositories. The left side is the
 symbolic name, and the right gives the directory or URL that is the
@@ -966,18 +971,18 @@ location of the repository. Default paths can be declared by setting
 the following entries.
 .INDENT 0.0
 .TP
-.B \fCdefault\fP
+.B \fBdefault\fP
 .sp
 Directory or URL to use when pulling if no source is specified.
 Default is set to repository from which the current repository was
 cloned.
 .TP
-.B \fCdefault\-push\fP
+.B \fBdefault\-push\fP
 .sp
 Optional. Directory or URL to use when pushing if no destination
 is specified.
 .UNINDENT
-.SS \fCprofiling\fP
+.SS \fBprofiling\fP
 .sp
 Specifies profiling format and file output. In this section
 description, \(aqprofiling data\(aq stands for the raw data collected
@@ -986,37 +991,37 @@ text report generated from the profiling data. The profiling is done
 using lsprof.
 .INDENT 0.0
 .TP
-.B \fCformat\fP
+.B \fBformat\fP
 .sp
 Profiling format.
 Default: text.
 .INDENT 7.0
 .TP
-.B \fCtext\fP
+.B \fBtext\fP
 .sp
 Generate a profiling report. When saving to a file, it should be
 noted that only the report is saved, and the profiling data is
 not kept.
 .TP
-.B \fCkcachegrind\fP
+.B \fBkcachegrind\fP
 .sp
 Format profiling data for kcachegrind use: when saving to a
 file, the generated file can directly be loaded into
 kcachegrind.
 .UNINDENT
 .TP
-.B \fCoutput\fP
+.B \fBoutput\fP
 .sp
 File path where profiling data or report should be saved. If the
 file exists, it is replaced. Default: None, data is printed on
 stderr
 .UNINDENT
-.SS \fCserver\fP
+.SS \fBserver\fP
 .sp
 Controls generic server settings.
 .INDENT 0.0
 .TP
-.B \fCuncompressed\fP
+.B \fBuncompressed\fP
 .sp
 Whether to allow clients to clone a repository using the
 uncompressed streaming protocol. This transfers about 40% more
@@ -1029,224 +1034,224 @@ extra data transfer overhead. This mode will also temporarily hold
 the write lock while determining what data to transfer.
 Default is True.
 .TP
-.B \fCvalidate\fP
+.B \fBvalidate\fP
 .sp
 Whether to validate the completeness of pushed changesets by
 checking that all new file revisions specified in manifests are
 present. Default is False.
 .UNINDENT
-.SS \fCtrusted\fP
+.SS \fBtrusted\fP
 .sp
 Mercurial will not use the settings in the
-\fC.hg/hgrc\fP file from a repository if it doesn\(aqt belong to a trusted
+\fB.hg/hgrc\fP file from a repository if it doesn\(aqt belong to a trusted
 user or to a trusted group, as various hgrc features allow arbitrary
 commands to be run. This issue is often encountered when configuring
 hooks or extensions for shared repositories or servers. However,
-the web interface will use some safe settings from the \fC[web]\fP
+the web interface will use some safe settings from the \fB[web]\fP
 section.
 .sp
 This section specifies what users and groups are trusted. The
 current user is always trusted. To trust everybody, list a user or a
-group with name \fC*\fP. These settings must be placed in an
-\fIalready\-trusted file\fP to take effect, such as \fC$HOME/.hgrc\fP of the
+group with name \fB*\fP. These settings must be placed in an
+\fIalready\-trusted file\fP to take effect, such as \fB$HOME/.hgrc\fP of the
 user or service running Mercurial.
 .INDENT 0.0
 .TP
-.B \fCusers\fP
+.B \fBusers\fP
 .sp
 Comma\-separated list of trusted users.
 .TP
-.B \fCgroups\fP
+.B \fBgroups\fP
 .sp
 Comma\-separated list of trusted groups.
 .UNINDENT
-.SS \fCui\fP
+.SS \fBui\fP
 .sp
 User interface controls.
 .INDENT 0.0
 .TP
-.B \fCarchivemeta\fP
+.B \fBarchivemeta\fP
 .sp
 Whether to include the .hg_archival.txt file containing meta data
 (hashes for the repository base and for tip) in archives created
-by the \fI\%\fChg archive\fP\fP command or downloaded via hgweb.
+by the \%\fBhg archive\fP\: command or downloaded via hgweb.
 Default is True.
 .TP
-.B \fCaskusername\fP
+.B \fBaskusername\fP
 .sp
 Whether to prompt for a username when committing. If True, and
-neither \fC$HGUSER\fP nor \fC$EMAIL\fP has been specified, then the user will
+neither \fB$HGUSER\fP nor \fB$EMAIL\fP has been specified, then the user will
 be prompted to enter a username. If no username is entered, the
-default \fCUSER@HOST\fP is used instead.
+default \fBUSER@HOST\fP is used instead.
 Default is False.
 .TP
-.B \fCdebug\fP
+.B \fBdebug\fP
 .sp
 Print debugging information. True or False. Default is False.
 .TP
-.B \fCeditor\fP
+.B \fBeditor\fP
 .sp
-The editor to use during a commit. Default is \fC$EDITOR\fP or \fCvi\fP.
+The editor to use during a commit. Default is \fB$EDITOR\fP or \fBvi\fP.
 .TP
-.B \fCfallbackencoding\fP
+.B \fBfallbackencoding\fP
 .sp
 Encoding to try if it\(aqs not possible to decode the changelog using
 UTF\-8. Default is ISO\-8859\-1.
 .TP
-.B \fCignore\fP
+.B \fBignore\fP
 .sp
 A file to read per\-user ignore patterns from. This file should be
 in the same format as a repository\-wide .hgignore file. This
 option supports hook syntax, so if you want to specify multiple
 ignore files, you can do so by setting something like
-\fCignore.other = ~/.hgignore2\fP. For details of the ignore file
-format, see the \fI\%\fBhgignore\fP(5)\fP man page.
+\fBignore.other = ~/.hgignore2\fP. For details of the ignore file
+format, see the \%\fBhgignore\fP(5)\: man page.
 .TP
-.B \fCinteractive\fP
+.B \fBinteractive\fP
 .sp
 Allow to prompt the user. True or False. Default is True.
 .TP
-.B \fClogtemplate\fP
+.B \fBlogtemplate\fP
 .sp
 Template string for commands that print changesets.
 .TP
-.B \fCmerge\fP
+.B \fBmerge\fP
 .sp
 The conflict resolution program to use during a manual merge.
 There are some internal tools available:
 .INDENT 7.0
 .TP
-.B \fCinternal:local\fP
+.B \fBinternal:local\fP
 .sp
 keep the local version
 .TP
-.B \fCinternal:other\fP
+.B \fBinternal:other\fP
 .sp
 use the other version
 .TP
-.B \fCinternal:merge\fP
+.B \fBinternal:merge\fP
 .sp
 use the internal non\-interactive merge tool
 .TP
-.B \fCinternal:fail\fP
+.B \fBinternal:fail\fP
 .sp
 fail to merge
 .UNINDENT
 .UNINDENT
 .sp
 For more information on configuring merge tools see the
-\fI\%merge\-tools\fP section.
+\%merge\-tools\: section.
 .INDENT 0.0
 .TP
-.B \fCpatch\fP
+.B \fBpatch\fP
 .sp
-command to use to apply patches. Look for \fCgpatch\fP or \fCpatch\fP in
+command to use to apply patches. Look for \fBgpatch\fP or \fBpatch\fP in
 PATH if unset.
 .TP
-.B \fCquiet\fP
+.B \fBquiet\fP
 .sp
 Reduce the amount of output printed. True or False. Default is False.
 .TP
-.B \fCremotecmd\fP
+.B \fBremotecmd\fP
 .sp
-remote command to use for clone/push/pull operations. Default is \fChg\fP.
+remote command to use for clone/push/pull operations. Default is \fBhg\fP.
 .TP
-.B \fCreport_untrusted\fP
+.B \fBreport_untrusted\fP
 .sp
-Warn if a \fC.hg/hgrc\fP file is ignored due to not being owned by a
+Warn if a \fB.hg/hgrc\fP file is ignored due to not being owned by a
 trusted user or group. True or False. Default is True.
 .TP
-.B \fCslash\fP
+.B \fBslash\fP
 .sp
-Display paths using a slash (\fC/\fP) as the path separator. This
+Display paths using a slash (\fB/\fP) as the path separator. This
 only makes a difference on systems where the default path
 separator is not the slash character (e.g. Windows uses the
-backslash character (\fC\e\fP)).
+backslash character (\fB\e\fP)).
 Default is False.
 .TP
-.B \fCssh\fP
+.B \fBssh\fP
 .sp
-command to use for SSH connections. Default is \fCssh\fP.
+command to use for SSH connections. Default is \fBssh\fP.
 .TP
-.B \fCstrict\fP
+.B \fBstrict\fP
 .sp
 Require exact command names, instead of allowing unambiguous
 abbreviations. True or False. Default is False.
 .TP
-.B \fCstyle\fP
+.B \fBstyle\fP
 .sp
 Name of style to use for command output.
 .TP
-.B \fCtimeout\fP
+.B \fBtimeout\fP
 .sp
 The timeout used when a lock is held (in seconds), a negative value
 means no timeout. Default is 600.
 .TP
-.B \fCtraceback\fP
+.B \fBtraceback\fP
 .sp
 Mercurial always prints a traceback when an unknown exception
 occurs. Setting this to True will make Mercurial print a traceback
 on all exceptions, even those recognized by Mercurial (such as
 IOError or MemoryError). Default is False.
 .TP
-.B \fCusername\fP
+.B \fBusername\fP
 .sp
 The committer of a changeset created when running "commit".
-Typically a person\(aqs name and email address, e.g. \fCFred Widget
-<fred@example.com>\fP. Default is \fC$EMAIL\fP or \fCusername@hostname\fP. If
+Typically a person\(aqs name and email address, e.g. \fBFred Widget
+<fred@example.com>\fP. Default is \fB$EMAIL\fP or \fBusername@hostname\fP. If
 the username in hgrc is empty, it has to be specified manually or
-in a different hgrc file (e.g. \fC$HOME/.hgrc\fP, if the admin set
-\fCusername =\fP  in the system hgrc). Environment variables in the
+in a different hgrc file (e.g. \fB$HOME/.hgrc\fP, if the admin set
+\fBusername =\fP  in the system hgrc). Environment variables in the
 username are expanded.
 .TP
-.B \fCverbose\fP
+.B \fBverbose\fP
 .sp
 Increase the amount of output printed. True or False. Default is False.
 .UNINDENT
-.SS \fCweb\fP
+.SS \fBweb\fP
 .sp
 Web interface configuration.
 .INDENT 0.0
 .TP
-.B \fCaccesslog\fP
+.B \fBaccesslog\fP
 .sp
 Where to output the access log. Default is stdout.
 .TP
-.B \fCaddress\fP
+.B \fBaddress\fP
 .sp
 Interface address to bind to. Default is all.
 .TP
-.B \fCallow_archive\fP
+.B \fBallow_archive\fP
 .sp
 List of archive format (bz2, gz, zip) allowed for downloading.
 Default is empty.
 .TP
-.B \fCallowbz2\fP
+.B \fBallowbz2\fP
 .sp
 (DEPRECATED) Whether to allow .tar.bz2 downloading of repository
 revisions.
 Default is False.
 .TP
-.B \fCallowgz\fP
+.B \fBallowgz\fP
 .sp
 (DEPRECATED) Whether to allow .tar.gz downloading of repository
 revisions.
 Default is False.
 .TP
-.B \fCallowpull\fP
+.B \fBallowpull\fP
 .sp
 Whether to allow pulling from the repository. Default is True.
 .TP
-.B \fCallow_push\fP
+.B \fBallow_push\fP
 .sp
 Whether to allow pushing to the repository. If empty or not set,
-push is not allowed. If the special value \fC*\fP, any remote user can
+push is not allowed. If the special value \fB*\fP, any remote user can
 push, including unauthenticated users. Otherwise, the remote user
 must have been authenticated, and the authenticated user name must
 be present in this list. The contents of the allow_push list are
 examined after the deny_push list.
 .TP
-.B \fCallow_read\fP
+.B \fBallow_read\fP
 .sp
 If the user has not already been denied repository access due to
 the contents of deny_read, this list determines whether to grant
@@ -1254,22 +1259,22 @@ repository access to the user. If this list is not empty, and the
 user is unauthenticated or not present in the list, then access is
 denied for the user. If the list is empty or not set, then access
 is permitted to all users by default. Setting allow_read to the
-special value \fC*\fP is equivalent to it not being set (i.e. access
+special value \fB*\fP is equivalent to it not being set (i.e. access
 is permitted to all users). The contents of the allow_read list are
 examined after the deny_read list.
 .TP
-.B \fCallowzip\fP
+.B \fBallowzip\fP
 .sp
 (DEPRECATED) Whether to allow .zip downloading of repository
 revisions. Default is False. This feature creates temporary files.
 .TP
-.B \fCbaseurl\fP
+.B \fBbaseurl\fP
 .sp
 Base URL to use when publishing URLs in other locations, so
 third\-party tools like email notification hooks can construct
-URLs. Example: \fChttp://hgserver/repos/\fP.
+URLs. Example: \fBhttp://hgserver/repos/\fP.
 .TP
-.B \fCcacerts\fP
+.B \fBcacerts\fP
 .sp
 Path to file containing a list of PEM encoded certificate authorities
 that may be used to verify an SSL server\(aqs identity. The form must be
@@ -1289,31 +1294,31 @@ as follows:
 This feature is only supported when using Python 2.6. If you wish to
 use it with earlier versions of Python, install the backported
 version of the ssl library that is available from
-\fChttp://pypi.python.org\fP.
+\fBhttp://pypi.python.org\fP.
 .sp
 You can use OpenSSL\(aqs CA certificate file if your platform has one.
-On most Linux systems this will be \fC/etc/ssl/certs/ca\-certificates.crt\fP.
+On most Linux systems this will be \fB/etc/ssl/certs/ca\-certificates.crt\fP.
 Otherwise you will have to generate this file manually.
 .TP
-.B \fCcontact\fP
+.B \fBcontact\fP
 .sp
 Name or email address of the person in charge of the repository.
-Defaults to ui.username or \fC$EMAIL\fP or "unknown" if unset or empty.
+Defaults to ui.username or \fB$EMAIL\fP or "unknown" if unset or empty.
 .TP
-.B \fCdeny_push\fP
+.B \fBdeny_push\fP
 .sp
 Whether to deny pushing to the repository. If empty or not set,
-push is not denied. If the special value \fC*\fP, all remote users are
+push is not denied. If the special value \fB*\fP, all remote users are
 denied push. Otherwise, unauthenticated users are all denied, and
 any authenticated user name present in this list is also denied. The
 contents of the deny_push list are examined before the allow_push list.
 .TP
-.B \fCdeny_read\fP
+.B \fBdeny_read\fP
 .sp
 Whether to deny reading/viewing of the repository. If this list is
 not empty, unauthenticated users are all denied, and any
 authenticated user name present in this list is also denied access to
-the repository. If set to the special value \fC*\fP, all remote users
+the repository. If set to the special value \fB*\fP, all remote users
 are denied access (rarely needed ;). If deny_read is empty or not set,
 the determination of repository access depends on the presence and
 content of the allow_read list (see description). If both
@@ -1324,90 +1329,90 @@ the list of repositories. The contents of the deny_read list have
 priority over (are examined before) the contents of the allow_read
 list.
 .TP
-.B \fCdescend\fP
+.B \fBdescend\fP
 .sp
 hgwebdir indexes will not descend into subdirectories. Only repositories
 directly in the current path will be shown (other repositories are still
 available from the index corresponding to their containing path).
 .TP
-.B \fCdescription\fP
+.B \fBdescription\fP
 .sp
 Textual description of the repository\(aqs purpose or contents.
 Default is "unknown".
 .TP
-.B \fCencoding\fP
+.B \fBencoding\fP
 .sp
 Character encoding name. Default is the current locale charset.
 Example: "UTF\-8"
 .TP
-.B \fCerrorlog\fP
+.B \fBerrorlog\fP
 .sp
 Where to output the error log. Default is stderr.
 .TP
-.B \fChidden\fP
+.B \fBhidden\fP
 .sp
 Whether to hide the repository in the hgwebdir index.
 Default is False.
 .TP
-.B \fCipv6\fP
+.B \fBipv6\fP
 .sp
 Whether to use IPv6. Default is False.
 .TP
-.B \fCname\fP
+.B \fBname\fP
 .sp
 Repository name to use in the web interface. Default is current
 working directory.
 .TP
-.B \fCmaxchanges\fP
+.B \fBmaxchanges\fP
 .sp
 Maximum number of changes to list on the changelog. Default is 10.
 .TP
-.B \fCmaxfiles\fP
+.B \fBmaxfiles\fP
 .sp
 Maximum number of files to list per changeset. Default is 10.
 .TP
-.B \fCport\fP
+.B \fBport\fP
 .sp
 Port to listen on. Default is 8000.
 .TP
-.B \fCprefix\fP
+.B \fBprefix\fP
 .sp
 Prefix path to serve from. Default is \(aq\(aq (server root).
 .TP
-.B \fCpush_ssl\fP
+.B \fBpush_ssl\fP
 .sp
 Whether to require that inbound pushes be transported over SSL to
 prevent password sniffing. Default is True.
 .TP
-.B \fCstaticurl\fP
+.B \fBstaticurl\fP
 .sp
 Base URL to use for static files. If unset, static files (e.g. the
 hgicon.png favicon) will be served by the CGI script itself. Use
 this setting to serve them directly with the HTTP server.
-Example: \fChttp://hgserver/static/\fP.
+Example: \fBhttp://hgserver/static/\fP.
 .TP
-.B \fCstripes\fP
+.B \fBstripes\fP
 .sp
 How many lines a "zebra stripe" should span in multiline output.
 Default is 1; set to 0 to disable.
 .TP
-.B \fCstyle\fP
+.B \fBstyle\fP
 .sp
 Which template map style to use.
 .TP
-.B \fCtemplates\fP
+.B \fBtemplates\fP
 .sp
 Where to find the HTML templates. Default is install path.
 .UNINDENT
-.SH Author
+.SH AUTHOR
 .sp
-Bryan O\(aqSullivan <\fI\%bos@serpentine.com\fP>.
+Bryan O\(aqSullivan <\%bos@serpentine.com\:>.
 .sp
-Mercurial was written by Matt Mackall <\fI\%mpm@selenic.com\fP>.
-.SH See Also
+Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
+.SH SEE ALSO
 .sp
-\fI\%\fBhg\fP(1)\fP, \fI\%\fBhgignore\fP(5)\fP
-.SH Copying
+\%\fBhg\fP(1)\:, \%\fBhgignore\fP(5)\:
+.SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
 Mercurial is copyright 2005\-2010 Matt Mackall.

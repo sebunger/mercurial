@@ -93,6 +93,11 @@ bleh
   series:
 A
 B
+% status --mq with color (issue2096)
+[0;32;1mA .hgignore[0m
+[0;32;1mA A[0m
+[0;32;1mA B[0m
+[0;32;1mA series[0m
 % init --mq without repo
 abort: There is no Mercurial repository here (.hg not found)
 % init --mq with repo path
@@ -204,6 +209,8 @@ popping test2.patch
 popping test1b.patch
 popping test.patch
 patch queue now empty
+cannot push 'test2.patch' - guarded by ['+posguard']
+number of unguarded, unapplied patches has changed from 2 to 3
 applying test2.patch
 now at: test2.patch
 applying test1b.patch
@@ -217,14 +224,23 @@ popping test.patch
 popping test1b.patch
 popping test2.patch
 patch queue now empty
+guards deactivated
+number of unguarded, unapplied patches has changed from 3 to 2
 applying test.patch
 now at: test.patch
 applying test1b.patch
 now at: test1b.patch
 abort: patch bogus not in series
+abort: please specify the patch to move
 abort: cannot push to a previous patch: test.patch
 applying test2.patch
 now at: test2.patch
+% series after move
+test.patch
+test1b.patch
+test2.patch
+# comment
+
 % pop, qapplied, qunapplied
 0 A test.patch
 1 A test1b.patch
@@ -395,15 +411,13 @@ errors during apply, please fix and refresh bar
 popping bar
 now at: foo
 changeset:   0:cb9a9f314b8b
-mq status file refers to unknown node
 tag:         tip
 user:        test
 date:        Thu Jan 01 00:00:00 1970 +0000
 summary:     a
 
-mq status file refers to unknown node
 default                        0:cb9a9f314b8b
-abort: trying to pop unknown node
+no patches applied
 new file
 
 diff --git a/new b/new

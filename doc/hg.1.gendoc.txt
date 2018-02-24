@@ -74,6 +74,8 @@ Commands
          $ hg status
          A foo.c
 
+    Returns 0 if all files are successfully added.
+
     options:
 
     -I, --include  include names matching the given patterns
@@ -95,7 +97,8 @@ Commands
     every added file and records those similar enough as renames. This
     option takes a percentage between 0 (disabled) and 100 (files must
     be identical) as its parameter. Detecting renamed files this way
-    can be expensive.
+    can be expensive. After using this option, :hg:`status -C` can be
+    used to check which files were identified as moved or renamed.
 
     Returns 0 if all files are successfully added.
 
@@ -992,6 +995,8 @@ Commands
 
     See :hg:`help urls` for more information.
 
+    Returns 0 on success.
+
 .. _pull:
 
 ``pull [-u] [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [SOURCE]``
@@ -1481,8 +1486,8 @@ Commands
     Update the repository's working directory to the specified
     changeset.
 
-    If no changeset is specified, attempt to update to the head of the
-    current branch. If this head is a descendant of the working
+    If no changeset is specified, attempt to update to the tip of the
+    current branch. If this changeset is a descendant of the working
     directory's parent, update to it, otherwise abort.
 
     The following rules apply when the working directory contains
@@ -2587,7 +2592,7 @@ Directory, working
     Mercurial, that will be recorded in the next commit. The working
     directory initially corresponds to the snapshot at an existing
     changeset, known as the parent of the working directory. See
-    'Parents, working directory'. The state may be modified by changes
+    'Parent, working directory'. The state may be modified by changes
     to the files introduced manually or by a merge. The repository
     metadata exists in the .hg directory inside the working directory.
 
