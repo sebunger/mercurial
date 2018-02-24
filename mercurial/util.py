@@ -10,11 +10,14 @@ This contains helper routines that are independent of the SCM core and hide
 platform-specific details from the core.
 """
 
-import os, errno
 from i18n import gettext as _
 from demandload import *
-demandload(globals(), "cStringIO errno popen2 re shutil sys tempfile")
-demandload(globals(), "threading time")
+demandload(globals(), "cStringIO errno getpass popen2 re shutil sys tempfile")
+demandload(globals(), "os threading time")
+
+# used by parsedate
+defaultdateformats = ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M',
+                      '%a %b %d %H:%M:%S %Y')
 
 class SignalInterrupt(Exception):
     """Exception raised on SIGTERM and SIGHUP."""
@@ -94,7 +97,7 @@ def patch(strip, patchname, ui):
     """apply the patch <patchname> to the working directory.
     a list of patched files is returned"""
     patcher = find_in_path('gpatch', os.environ.get('PATH', ''), 'patch')
-    fp = os.popen('"%s" -p%d < "%s"' % (patcher, strip, patchname))
+    fp = os.popen('%s -p%d < "%s"' % (patcher, strip, patchname))
     files = {}
     for line in fp:
         line = line.rstrip()
@@ -205,13 +208,15 @@ def canonpath(root, cwd, myname):
     """return the canonical path of myname, given cwd and root"""
     if root == os.sep:
         rootsep = os.sep
+    elif root.endswith(os.sep):
+        rootsep = root
     else:
         rootsep = root + os.sep
     name = myname
     if not os.path.isabs(name):
         name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
-    if name.startswith(rootsep):
+    if name != rootsep and name.startswith(rootsep):
         name = name[len(rootsep):]
         audit_path(name)
         return pconvert(name)
@@ -355,10 +360,12 @@ def _matcher(canonroot, cwd, names, inc, exc, head, dflt_pat, src):
     filematch = matchfn(files, '(?:/|$)') or always
     incmatch = always
     if inc:
-        incmatch = matchfn(map(patkind, inc), '(?:/|$)')
+        inckinds = [patkind(canonpath(canonroot, cwd, i)) for i in inc]
+        incmatch = matchfn(inckinds, '(?:/|$)')
     excmatch = lambda fn: False
     if exc:
-        excmatch = matchfn(map(patkind, exc), '(?:/|$)')
+        exckinds = [patkind(canonpath(canonroot, cwd, x)) for x in exc]
+        excmatch = matchfn(exckinds, '(?:/|$)')
 
     return (roots,
             lambda fn: (incmatch(fn) and not excmatch(fn) and
@@ -375,6 +382,13 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
     if command fails and onerr is None, return status.  if ui object,
     print error message and return status, else raise onerr object as
     exception.'''
+    def py2shell(val):
+        'convert python object into string that is useful to shell'
+        if val in (None, False):
+            return '0'
+        if val == True:
+            return '1'
+        return str(val)
     oldenv = {}
     for k in environ:
         oldenv[k] = os.environ.get(k)
@@ -382,7 +396,7 @@ def system(cmd, environ={}, cwd=None, onerr=None, errprefix=None):
         oldcwd = os.getcwd()
     try:
         for k, v in environ.iteritems():
-            os.environ[k] = str(v)
+            os.environ[k] = py2shell(v)
         if cwd is not None and oldcwd != cwd:
             os.chdir(cwd)
         rc = os.system(cmd)
@@ -472,7 +486,7 @@ def _readlock_file(pathname):
 
 def nlinks(pathname):
     """Return number of hardlinks for the given file."""
-    return os.stat(pathname).st_nlink
+    return os.lstat(pathname).st_nlink
 
 if hasattr(os, 'link'):
     os_link = os.link
@@ -495,6 +509,20 @@ def is_win_9x():
         return sys.getwindowsversion()[3] == 1
     except AttributeError:
         return os.name == 'nt' and 'command' in os.environ.get('comspec', '')
+
+getuser_fallback = None
+
+def getuser():
+    '''return name of current user'''
+    try:
+        return getpass.getuser()
+    except ImportError:
+        # import of pwd will fail on windows - try fallback
+        if getuser_fallback:
+            return getuser_fallback()
+    # raised if win32api not available
+    raise Abort(_('user name not available - set USERNAME '
+                  'environment variable'))
 
 # Platform specific variants
 if os.name == 'nt':
@@ -533,8 +561,16 @@ if os.name == 'nt':
 
     def os_rcpath():
         '''return default os-specific hgrc search path'''
-        return system_rcpath() + [os.path.join(os.path.expanduser('~'),
-                                               'mercurial.ini')]
+        path = system_rcpath()
+        path.append(user_rcpath())
+        userprofile = os.environ.get('USERPROFILE')
+        if userprofile:
+            path.append(os.path.join(userprofile, 'mercurial.ini'))
+        return path
+
+    def user_rcpath():
+         '''return os-specific hgrc search path to the user dir'''
+         return os.path.join(os.path.expanduser('~'), 'mercurial.ini')
 
     def parse_patch_output(output_line):
         """parses the output produced by patch and returns the file name"""
@@ -597,7 +633,8 @@ else:
     def os_rcpath():
         '''return default os-specific hgrc search path'''
         path = []
-        if len(sys.argv) > 0:
+        # old mod_python does not set sys.argv
+        if len(getattr(sys, 'argv', [])) > 0:
             path.extend(rcfiles(os.path.dirname(sys.argv[0]) +
                                   '/../etc/mercurial'))
         path.extend(rcfiles('/etc/mercurial'))
@@ -608,16 +645,16 @@ else:
     def parse_patch_output(output_line):
         """parses the output produced by patch and returns the file name"""
         pf = output_line[14:]
-        if pf.startswith("'") and pf.endswith("'") and pf.find(" ") >= 0:
+        if pf.startswith("'") and pf.endswith("'") and " " in pf:
             pf = pf[1:-1] # Remove the quotes
         return pf
 
     def is_exec(f, last):
         """check whether a file is executable"""
-        return (os.stat(f).st_mode & 0100 != 0)
+        return (os.lstat(f).st_mode & 0100 != 0)
 
     def set_exec(f, mode):
-        s = os.stat(f).st_mode
+        s = os.lstat(f).st_mode
         if (s & 0100 != 0) == mode:
             return
         if mode:
@@ -723,7 +760,7 @@ def opener(base, audit=True):
         def rename(self):
             if not self.closed:
                 posixfile.close(self)
-                rename(self.temp, self.__name)
+                rename(self.temp, localpath(self.__name))
         def __del__(self):
             if not self.closed:
                 try:
@@ -811,16 +848,22 @@ class chunkbuffer(object):
         s, self.buf = self.buf[:l], buffer(self.buf, l)
         return s
 
-def filechunkiter(f, size = 65536):
-    """Create a generator that produces all the data in the file size
-    (default 65536) bytes at a time.  Chunks may be less than size
-    bytes if the chunk is the last chunk in the file, or the file is a
-    socket or some other type of file that sometimes reads less data
-    than is requested."""
-    s = f.read(size)
-    while len(s) > 0:
+def filechunkiter(f, size=65536, limit=None):
+    """Create a generator that produces the data in the file size
+    (default 65536) bytes at a time, up to optional limit (default is
+    to read all data).  Chunks may be less than size bytes if the
+    chunk is the last chunk in the file, or the file is a socket or
+    some other type of file that sometimes reads less data than is
+    requested."""
+    assert size >= 0
+    assert limit is None or limit >= 0
+    while True:
+        if limit is None: nbytes = size
+        else: nbytes = min(limit, size)
+        s = nbytes and f.read(nbytes)
+        if not s: break
+        if limit: limit -= len(s)
         yield s
-        s = f.read(size)
 
 def makedate():
     lt = time.localtime()
@@ -840,6 +883,51 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y', timezone=True):
     if timezone:
         s += " %+03d%02d" % (-tz / 3600, ((-tz % 3600) / 60))
     return s
+
+def strdate(string, format='%a %b %d %H:%M:%S %Y'):
+    """parse a localized time string and return a (unixtime, offset) tuple.
+    if the string cannot be parsed, ValueError is raised."""
+    def hastimezone(string):
+        return (string[-4:].isdigit() and
+               (string[-5] == '+' or string[-5] == '-') and
+               string[-6].isspace())
+
+    if hastimezone(string):
+        date, tz = string[:-6], string[-5:]
+        tz = int(tz)
+        offset = - 3600 * (tz / 100) - 60 * (tz % 100)
+    else:
+        date, offset = string, 0
+    when = int(time.mktime(time.strptime(date, format))) + offset
+    return when, offset
+
+def parsedate(string, formats=None):
+    """parse a localized time string and return a (unixtime, offset) tuple.
+    The date may be a "unixtime offset" string or in one of the specified
+    formats."""
+    if not formats:
+        formats = defaultdateformats
+    try:
+        when, offset = map(int, string.split(' '))
+    except ValueError:
+        for format in formats:
+            try:
+                when, offset = strdate(string, format)
+            except ValueError:
+                pass
+            else:
+                break
+        else:
+            raise ValueError(_('invalid date: %r') % string)
+    # validate explicit (probably user-specified) date and
+    # time zone offset. values must fit in signed 32 bits for
+    # current 32-bit linux runtimes. timezones go from UTC-12
+    # to UTC+14
+    if abs(when) > 0x7fffffff:
+        raise ValueError(_('date exceeds 32 bits: %d') % when)
+    if offset < -50400 or offset > 43200:
+        raise ValueError(_('impossible time zone offset: %d') % offset)
+    return when, offset
 
 def shortuser(user):
     """Return a short representation of a user name or email address."""
@@ -887,3 +975,24 @@ def rcpath():
         else:
             _rcpath = os_rcpath()
     return _rcpath
+
+def bytecount(nbytes):
+    '''return byte count formatted as readable string, with units'''
+
+    units = (
+        (100, 1<<30, _('%.0f GB')),
+        (10, 1<<30, _('%.1f GB')),
+        (1, 1<<30, _('%.2f GB')),
+        (100, 1<<20, _('%.0f MB')),
+        (10, 1<<20, _('%.1f MB')),
+        (1, 1<<20, _('%.2f MB')),
+        (100, 1<<10, _('%.0f KB')),
+        (10, 1<<10, _('%.1f KB')),
+        (1, 1<<10, _('%.2f KB')),
+        (1, 1, _('%.0f bytes')),
+        )
+
+    for multiplier, divisor, format in units:
+        if nbytes >= divisor * multiplier:
+            return format % (nbytes / float(divisor))
+    return units[-1][2] % nbytes

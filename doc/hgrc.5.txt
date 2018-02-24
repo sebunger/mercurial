@@ -36,11 +36,14 @@ installed.
     files override per-installation options.
 
 (Unix)    $HOME/.hgrc::
-(Windows) C:\Documents and Settings\USERNAME\Mercurial.ini
+(Windows) C:\Documents and Settings\USERNAME\Mercurial.ini::
+(Windows) $HOME\Mercurial.ini::
     Per-user configuration file, for the user running Mercurial.
     Options in this file apply to all Mercurial commands executed by
     any user in any directory.  Options in this file override
     per-installation and per-system options.
+    On Windows system, one of these is chosen exclusively according
+    to definition of HOME environment variable.
 
 (Unix, Windows) <repo>/.hg/hgrc::
     Per-repository configuration options that only apply in a
@@ -135,6 +138,20 @@ email::
   from;;
     Optional.  Email address to use in "From" header and SMTP envelope
     of outgoing messages.
+  method;;
+    Optional.  Method to use to send email messages.  If value is
+    "smtp" (default), use SMTP (see section "[mail]" for
+    configuration).  Otherwise, use as name of program to run that
+    acts like sendmail (takes "-f" option for sender, list of
+    recipients on command line, message on stdin).  Normally, setting
+    this to "sendmail" or "/usr/sbin/sendmail" is enough to use
+    sendmail to send messages.
+
+  Email example:
+
+    [email]
+    from = Joseph User <joe.user@example.com>
+    method = /usr/sbin/sendmail
 
 extensions::
   Mercurial has an extension mechanism for adding new features. To
@@ -147,6 +164,14 @@ extensions::
   Otherwise, give a name that you choose, followed by "=", followed by
   the path to the ".py" file (including the file name extension) that
   defines the extension.
+
+  Example for ~/.hgrc:
+
+    [extensions]
+    # (the mq extension will get loaded from mercurial's path)
+    hgext.mq =
+    # (this extension will get loaded from the file specified)
+    myfeature = ~/.hgext/myfeature.py
 
 hooks::
   Commands or Python functions that get automatically executed by
@@ -219,15 +244,24 @@ hooks::
     commit to proceed.  Non-zero status will cause the transaction to
     be rolled back.  ID of changeset is in $HG_NODE.  Parent changeset
     IDs are in $HG_PARENT1 and $HG_PARENT2.
+  preupdate;;
+    Run before updating the working directory.  Exit status 0 allows
+    the update to proceed.  Non-zero status will prevent the update.
+    Changeset ID of first new parent is in $HG_PARENT1.  If merge, ID
+    of second new parent is in $HG_PARENT2.
   tag;;
     Run after a tag is created.  ID of tagged changeset is in
     $HG_NODE.  Name of tag is in $HG_TAG.  Tag is local if
     $HG_LOCAL=1, in repo if $HG_LOCAL=0.
+  update;;
+    Run after updating the working directory.  Changeset ID of first
+    new parent is in $HG_PARENT1.  If merge, ID of second new parent
+    is in $HG_PARENT2.  If update succeeded, $HG_ERROR=0.  If update
+    failed (e.g. because conflicts not resolved), $HG_ERROR=1.
 
-  In earlier releases, the names of hook environment variables did not
-  have a "HG_" prefix.  These unprefixed names are still provided in
-  the environment for backwards compatibility, but their use is
-  deprecated, and they will be removed in a future release.
+  Note: In earlier releases, the names of hook environment variables
+  did not have a "HG_" prefix.  The old unprefixed names are no longer
+  provided in the environment.
 
   The syntax for Python hooks is as follows:
 
@@ -275,11 +309,34 @@ smtp::
     Optional.  Password to authenticate to SMTP server with.
     If username is specified, password must also be specified.
     Default: none.
+  local_hostname;;
+    Optional.  It's the hostname that the sender can use to identify itself
+    to the MTA.
 
 paths::
   Assigns symbolic names to repositories.  The left side is the
   symbolic name, and the right gives the directory or URL that is the
-  location of the repository.
+  location of the repository.  Default paths can be declared by
+  setting the following entries.
+  default;;
+    Directory or URL to use when pulling if no source is specified.
+    Default is set to repository from which the current repository
+    was cloned.
+  default-push;;
+    Optional.  Directory or URL to use when pushing if no destination
+    is specified.
+
+server::
+  Controls generic server settings.
+  uncompressed;;
+    Whether to allow clients to clone a repo using the uncompressed
+    streaming protocol.  This transfers about 40% more data than a
+    regular clone, but uses less memory and CPU on both server and
+    client.  Over a LAN (100Mbps or better) or a very fast WAN, an
+    uncompressed streaming clone is a lot faster (~10x) than a regular
+    clone.  Over most WAN connections (anything slower than about
+    6Mbps), uncompressed streaming is slower, because of the extra
+    data transfer overhead.  Default is False.
 
 ui::
   User interface controls.
@@ -328,19 +385,42 @@ web::
     Where to output the access log. Default is stdout.
   address;;
     Interface address to bind to. Default is all.
+  allow_archive;;
+    List of archive format (bz2, gz, zip) allowed for downloading.
+    Default is empty.
   allowbz2;;
-    Whether to allow .tar.bz2 downloading of repo revisions. Default is false.
+    (DEPRECATED) Whether to allow .tar.bz2 downloading of repo revisions.
+    Default is false.
   allowgz;;
-    Whether to allow .tar.gz downloading of repo revisions. Default is false.
+    (DEPRECATED) Whether to allow .tar.gz downloading of repo revisions.
+    Default is false.
   allowpull;;
     Whether to allow pulling from the repository. Default is true.
+  allow_push;;
+    Whether to allow pushing to the repository.  If empty or not set,
+    push is not allowed.  If the special value "*", any remote user
+    can push, including unauthenticated users.  Otherwise, the remote
+    user must have been authenticated, and the authenticated user name
+    must be present in this list (separated by whitespace or ",").
+    The contents of the allow_push list are examined after the
+    deny_push list.
   allowzip;;
-    Whether to allow .zip downloading of repo revisions. Default is false.
-    This feature creates temporary files.
+    (DEPRECATED) Whether to allow .zip downloading of repo revisions.
+    Default is false. This feature creates temporary files.
   baseurl;;
     Base URL to use when publishing URLs in other locations, so
     third-party tools like email notification hooks can construct URLs.
     Example: "http://hgserver/repos/"
+  contact;;
+    Name or email address of the person in charge of the repository.
+    Default is "unknown".
+  deny_push;;
+    Whether to deny pushing to the repository.  If empty or not set,
+    push is not denied.  If the special value "*", all remote users
+    are denied push.  Otherwise, unauthenticated users are all denied,
+    and any authenticated user name present in this list (separated by
+    whitespace or ",") is also denied.  The contents of the deny_push
+    list are examined before the allow_push list.
   description;;
     Textual description of the repository's purpose or contents.
     Default is "unknown".
@@ -357,6 +437,9 @@ web::
     Maximum number of files to list per changeset. Default is 10.
   port;;
     Port to listen on. Default is 8000.
+  push_ssl;;
+    Whether to require that inbound pushes be transported over SSL to
+    prevent password sniffing.  Default is true.
   style;;
     Which template map style to use.
   templates;;

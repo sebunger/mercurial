@@ -27,10 +27,19 @@ hg init remote
 cd remote
 echo this > foo
 hg ci -A -m "init" -d "1000000 0" foo
+echo '[server]' > .hg/hgrc
+echo 'uncompressed = True' >> .hg/hgrc
 
 cd ..
 
-echo "# clone remote"
+echo "# clone remote via stream"
+hg clone -e ./dummyssh --uncompressed ssh://user@dummy/remote local-stream 2>&1 | \
+  sed -e 's/[0-9][0-9.]*/XXX/g'
+cd local-stream
+hg verify
+cd ..
+
+echo "# clone remote via pull"
 hg clone -e ./dummyssh ssh://user@dummy/remote local
 
 echo "# verify"
@@ -65,6 +74,19 @@ echo "# check remote tip"
 hg tip
 hg verify
 hg cat foo
+
+echo z > z
+hg ci -A -m z -d '1000001 0' z
+
+cd ../local
+echo r > r
+hg ci -A -m z -d '1000002 0' r
+
+echo "# push should fail"
+hg push
+
+echo "# push should succeed"
+hg push -f
 
 cd ..
 cat dummylog

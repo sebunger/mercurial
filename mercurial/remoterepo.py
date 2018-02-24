@@ -5,7 +5,12 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-class remoterepository(object):
+import repo
+
+class remoterepository(repo.repository):
+    def dev(self):
+        return -1
+
     def local(self):
         return False
 

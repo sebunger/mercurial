@@ -16,7 +16,7 @@ import win32api
 from demandload import *
 from i18n import gettext as _
 demandload(globals(), 'errno os pywintypes win32con win32file win32process')
-demandload(globals(), 'cStringIO winerror')
+demandload(globals(), 'cStringIO win32com.shell:shell,shellcon winerror')
 
 class WinError:
     winerror_map = {
@@ -162,7 +162,7 @@ def nlinks(pathname):
         fh.Close()
         return res[7]
     except pywintypes.error:
-        return os.stat(pathname).st_nlink
+        return os.lstat(pathname).st_nlink
 
 def testpid(pid):
     '''return True if pid is still running or unable to
@@ -180,8 +180,23 @@ def testpid(pid):
 def system_rcpath_win32():
     '''return default os-specific hgrc search path'''
     proc = win32api.GetCurrentProcess()
-    filename = win32process.GetModuleFileNameEx(proc, 0)
+    try:
+        # This will fail on windows < NT
+        filename = win32process.GetModuleFileNameEx(proc, 0)
+    except:
+        filename = win32api.GetModuleFileName(0)
     return [os.path.join(os.path.dirname(filename), 'mercurial.ini')]
+
+def user_rcpath():
+    '''return os-specific hgrc search path to the user dir'''
+    userdir = os.path.expanduser('~')
+    if userdir == '~':
+        # We are on win < nt: fetch the APPDATA directory location and use
+        # the parent directory as the user home dir.
+        appdir = shell.SHGetPathFromIDList(
+            shell.SHGetSpecialFolderLocation(0, shellcon.CSIDL_APPDATA))
+        userdir = os.path.dirname(appdir)
+    return os.path.join(userdir, 'mercurial.ini')
 
 class posixfile_nt(object):
     '''file object with posix-like semantics.  on windows, normal
@@ -282,3 +297,5 @@ class posixfile_nt(object):
             win32file.SetEndOfFile(self.handle)
         except pywintypes.error, err:
             raise WinIOError(err)
+
+getuser_fallback = win32api.GetUserName

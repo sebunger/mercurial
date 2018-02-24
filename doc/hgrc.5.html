@@ -59,13 +59,20 @@ installed.</p>
 <dt>
 (Unix)    $HOME/.hgrc
 </dt>
+<dt>
+(Windows) C:\Documents and Settings\USERNAME\Mercurial.ini
+</dt>
+<dt>
+(Windows) $HOME\Mercurial.ini
+</dt>
 <dd>
 <p>
-(Windows) C:\Documents and Settings\USERNAME\Mercurial.ini
     Per-user configuration file, for the user running Mercurial.
     Options in this file apply to all Mercurial commands executed by
     any user in any directory.  Options in this file override
     per-installation and per-system options.
+    On Windows system, one of these is chosen exclusively according
+    to definition of HOME environment variable.
 </p>
 </dd>
 <dt>
@@ -165,6 +172,24 @@ from
     of outgoing messages.
 </p>
 </dd>
+<dt>
+method
+</dt>
+<dd>
+<p>
+    Optional.  Method to use to send email messages.  If value is
+    "smtp" (default), use SMTP (see section "[mail]" for
+    configuration).  Otherwise, use as name of program to run that
+    acts like sendmail (takes "-f" option for sender, list of
+    recipients on command line, message on stdin).  Normally, setting
+    this to "sendmail" or "/usr/sbin/sendmail" is enough to use
+    sendmail to send messages.
+</p>
+<pre>Email example:</pre>
+<pre>[email]
+from = Joseph User &lt;joe.user@example.com&gt;
+method = /usr/sbin/sendmail</pre>
+</dd>
 </dl>
 </dd>
 <dt>
@@ -181,6 +206,12 @@ after the "=".</pre>
 <pre>Otherwise, give a name that you choose, followed by "=", followed by
 the path to the ".py" file (including the file name extension) that
 defines the extension.</pre>
+<pre>Example for ~/.hgrc:</pre>
+<pre>[extensions]
+# (the mq extension will get loaded from mercurial's path)
+hgext.mq =
+# (this extension will get loaded from the file specified)
+myfeature = ~/.hgext/myfeature.py</pre>
 </dd>
 <dt>
 hooks
@@ -316,6 +347,17 @@ pretxncommit
 </p>
 </dd>
 <dt>
+preupdate
+</dt>
+<dd>
+<p>
+    Run before updating the working directory.  Exit status 0 allows
+    the update to proceed.  Non-zero status will prevent the update.
+    Changeset ID of first new parent is in $HG_PARENT1.  If merge, ID
+    of second new parent is in $HG_PARENT2.
+</p>
+</dd>
+<dt>
 tag
 </dt>
 <dd>
@@ -324,10 +366,20 @@ tag
     $HG_NODE.  Name of tag is in $HG_TAG.  Tag is local if
     $HG_LOCAL=1, in repo if $HG_LOCAL=0.
 </p>
-<pre>In earlier releases, the names of hook environment variables did not
-have a "HG_" prefix.  These unprefixed names are still provided in
-the environment for backwards compatibility, but their use is
-deprecated, and they will be removed in a future release.</pre>
+</dd>
+<dt>
+update
+</dt>
+<dd>
+<p>
+    Run after updating the working directory.  Changeset ID of first
+    new parent is in $HG_PARENT1.  If merge, ID of second new parent
+    is in $HG_PARENT2.  If update succeeded, $HG_ERROR=0.  If update
+    failed (e.g. because conflicts not resolved), $HG_ERROR=1.
+</p>
+<pre>Note: In earlier releases, the names of hook environment variables
+did not have a "HG_" prefix.  The old unprefixed names are no longer
+provided in the environment.</pre>
 <pre>The syntax for Python hooks is as follows:</pre>
 <pre>hookname = python:modulename.submodule.callable</pre>
 <pre>Python hooks are run within the Mercurial process.  Each hook is
@@ -440,6 +492,15 @@ password
     Default: none.
 </p>
 </dd>
+<dt>
+local_hostname
+</dt>
+<dd>
+<p>
+    Optional.  It's the hostname that the sender can use to identify itself
+    to the MTA.
+</p>
+</dd>
 </dl>
 </dd>
 <dt>
@@ -449,8 +510,55 @@ paths
 <p>
   Assigns symbolic names to repositories.  The left side is the
   symbolic name, and the right gives the directory or URL that is the
-  location of the repository.
+  location of the repository.  Default paths can be declared by
+  setting the following entries.
 </p>
+<dl>
+<dt>
+default
+</dt>
+<dd>
+<p>
+    Directory or URL to use when pulling if no source is specified.
+    Default is set to repository from which the current repository
+    was cloned.
+</p>
+</dd>
+<dt>
+default-push
+</dt>
+<dd>
+<p>
+    Optional.  Directory or URL to use when pushing if no destination
+    is specified.
+</p>
+</dd>
+</dl>
+</dd>
+<dt>
+server
+</dt>
+<dd>
+<p>
+  Controls generic server settings.
+</p>
+<dl>
+<dt>
+uncompressed
+</dt>
+<dd>
+<p>
+    Whether to allow clients to clone a repo using the uncompressed
+    streaming protocol.  This transfers about 40% more data than a
+    regular clone, but uses less memory and CPU on both server and
+    client.  Over a LAN (100Mbps or better) or a very fast WAN, an
+    uncompressed streaming clone is a lot faster (~10x) than a regular
+    clone.  Over most WAN connections (anything slower than about
+    6Mbps), uncompressed streaming is slower, because of the extra
+    data transfer overhead.  Default is False.
+</p>
+</dd>
+</dl>
 </dd>
 <dt>
 ui
@@ -602,11 +710,21 @@ address
 </p>
 </dd>
 <dt>
+allow_archive
+</dt>
+<dd>
+<p>
+    List of archive format (bz2, gz, zip) allowed for downloading.
+    Default is empty.
+</p>
+</dd>
+<dt>
 allowbz2
 </dt>
 <dd>
 <p>
-    Whether to allow .tar.bz2 downloading of repo revisions. Default is false.
+    (DEPRECATED) Whether to allow .tar.bz2 downloading of repo revisions.
+    Default is false.
 </p>
 </dd>
 <dt>
@@ -614,7 +732,8 @@ allowgz
 </dt>
 <dd>
 <p>
-    Whether to allow .tar.gz downloading of repo revisions. Default is false.
+    (DEPRECATED) Whether to allow .tar.gz downloading of repo revisions.
+    Default is false.
 </p>
 </dd>
 <dt>
@@ -626,12 +745,26 @@ allowpull
 </p>
 </dd>
 <dt>
+allow_push
+</dt>
+<dd>
+<p>
+    Whether to allow pushing to the repository.  If empty or not set,
+    push is not allowed.  If the special value "*", any remote user
+    can push, including unauthenticated users.  Otherwise, the remote
+    user must have been authenticated, and the authenticated user name
+    must be present in this list (separated by whitespace or ",").
+    The contents of the allow_push list are examined after the
+    deny_push list.
+</p>
+</dd>
+<dt>
 allowzip
 </dt>
 <dd>
 <p>
-    Whether to allow .zip downloading of repo revisions. Default is false.
-    This feature creates temporary files.
+    (DEPRECATED) Whether to allow .zip downloading of repo revisions.
+    Default is false. This feature creates temporary files.
 </p>
 </dd>
 <dt>
@@ -642,6 +775,28 @@ baseurl
     Base URL to use when publishing URLs in other locations, so
     third-party tools like email notification hooks can construct URLs.
     Example: "http://hgserver/repos/"
+</p>
+</dd>
+<dt>
+contact
+</dt>
+<dd>
+<p>
+    Name or email address of the person in charge of the repository.
+    Default is "unknown".
+</p>
+</dd>
+<dt>
+deny_push
+</dt>
+<dd>
+<p>
+    Whether to deny pushing to the repository.  If empty or not set,
+    push is not denied.  If the special value "*", all remote users
+    are denied push.  Otherwise, unauthenticated users are all denied,
+    and any authenticated user name present in this list (separated by
+    whitespace or ",") is also denied.  The contents of the deny_push
+    list are examined before the allow_push list.
 </p>
 </dd>
 <dt>
@@ -703,6 +858,15 @@ port
 </p>
 </dd>
 <dt>
+push_ssl
+</dt>
+<dd>
+<p>
+    Whether to require that inbound pushes be transported over SSL to
+    prevent password sniffing.  Default is true.
+</p>
+</dd>
+<dt>
 style
 </dt>
 <dd>
@@ -737,7 +901,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 10-May-2006 17:00:12 CDT
+Last updated 24-Jul-2006 18:11:01 CDT
 </small></p>
 </body>
 </html>

@@ -15,10 +15,9 @@ hg addremove
 hg commit -m 3
 echo "[web]" >> .hg/hgrc
 echo "name = test-archive" >> .hg/hgrc
-echo "allowzip = true" >> .hg/hgrc
-echo "allowgz = true" >> .hg/hgrc
-echo "allowbz2 = true" >> .hg/hgrc
+echo "allow_archive = gz bz2, zip" >> .hg/hgrc
 hg serve -p 20059 -d --pid-file=hg.pid
+cat hg.pid >> $DAEMON_PIDS
 
 TIP=`hg id -v | cut -f1 -d' '`
 QTIP=`hg id -q`
@@ -34,9 +33,6 @@ http_proxy= python getarchive.py "$TIP" bz2 | bunzip2 | tar tf - | sed "s/$QTIP/
 http_proxy= python getarchive.py "$TIP" zip > archive.zip
 unzip -t archive.zip | sed "s/$QTIP/TIP/"
 
-kill `cat hg.pid`
-sleep 1 # wait for server to scream and die
-
 hg archive -t tar test.tar
 tar tf test.tar
 
@@ -51,3 +47,5 @@ hg archive -t zip -p very/../bad test.zip
 
 hg archive -t zip -r 2 test.zip
 unzip -t test.zip
+
+hg archive -t tar - | tar tf - | sed "s/$QTIP/TIP/"

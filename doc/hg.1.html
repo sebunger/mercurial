@@ -56,7 +56,7 @@ repository path
 <p>
     either the pathname of a local repository or the URI of a remote
     repository.  There are two available URI protocols, http:// which is
-    fast and the old-http:// protocol which is much slower but does not
+    fast and the static-http:// protocol which is much slower but does not
     require a special server on the web host.
 </p>
 </dd>
@@ -105,6 +105,14 @@ repository path
 </p>
 </dd>
 <dt>
+&#8212;config
+</dt>
+<dd>
+<p>
+    set/override config option
+</p>
+</dd>
+<dt>
 &#8212;debug
 </dt>
 <dd>
@@ -118,6 +126,14 @@ repository path
 <dd>
 <p>
     start debugger
+</p>
+</dd>
+<dt>
+&#8212;lsprof
+</dt>
+<dd>
+<p>
+    print improved command execution profile
 </p>
 </dd>
 <dt>
@@ -175,7 +191,8 @@ add [OPTION]&#8230; [FILE]&#8230;
 <pre>If no names are given, add all files in the repository.</pre>
 <pre>options:
 -I, --include  include names matching the given patterns
--X, --exclude  exclude names matching the given patterns</pre>
+-X, --exclude  exclude names matching the given patterns
+-n, --dry-run  do not perform actions, just print output</pre>
 </dd>
 <dt>
 annotate [-r REV] [-a] [-u] [-d] [-n] [-c] FILE&#8230;
@@ -233,18 +250,25 @@ backout [OPTION]&#8230; REV
 </dt>
 <dd>
 <p>
-    Commit the backed out changes as a new changeset.
+    Commit the backed out changes as a new changeset.  The new
+    changeset is a child of the backed out changeset.
 </p>
 <pre>If you back out a changeset other than the tip, a new head is
-created.  The --merge option remembers the parent of the working
-directory before starting the backout, then merges the new head
-with it afterwards, to save you from doing this by hand.  The
-result of this merge is not committed, as for a normal merge.</pre>
+created.  This head is the parent of the working directory.  If
+you back out an old changeset, your working directory will appear
+old after the backout.  You should merge the backout changeset
+with another head.</pre>
+<pre>The --merge option remembers the parent of the working directory
+before starting the backout, then merges the new head with that
+changeset afterwards.  This saves you from doing the merge by
+hand.  The result of this merge is not committed, as for a normal
+merge.</pre>
 <pre>options:
 --merge        merge with old dirstate parent after backout
 -m, --message  use &lt;text&gt; as commit message
 -l, --logfile  read commit message from &lt;file&gt;
 -d, --date     record datecode as commit date
+--parent       parent to choose when backing out merge
 -u, --user     record user as committer
 -I, --include  include names matching the given patterns
 -X, --exclude  exclude names matching the given patterns</pre>
@@ -304,10 +328,14 @@ such as AFS, implement hardlinking incorrectly, but do not report
 errors.  In these cases, use the --pull option to avoid
 hardlinking.</pre>
 <pre>See pull for valid source format details.</pre>
+<pre>It is possible to specify an ssh:// URL as the destination, but no
+.hg/hgrc will be created on the remote side. Look at the help text
+for the pull command for important details about ssh:// URLs.</pre>
 <pre>options:
 -U, --noupdate  do not update the new working directory
 -r, --rev       a changeset you would like to have after cloning
 --pull          use pull protocol to copy metadata
+--uncompressed  use uncompressed transfer (fast over LAN)
 -e, --ssh       specify ssh command to use
 --remotecmd     specify hg command to run on the remote side</pre>
 </dd>
@@ -353,7 +381,8 @@ fully used by merge, nor fully reported by log.</pre>
 -A, --after    record a copy that has already occurred
 -f, --force    forcibly copy over an existing managed file
 -I, --include  include names matching the given patterns
--X, --exclude  exclude names matching the given patterns</pre>
+-X, --exclude  exclude names matching the given patterns
+-n, --dry-run  do not perform actions, just print output</pre>
 <pre>aliases: cp</pre>
 </dd>
 <dt>
@@ -373,12 +402,18 @@ to its parent.</pre>
 it detects as binary. With -a, diff will generate a diff anyway,
 probably with undesirable results.</pre>
 <pre>options:
--r, --rev               revision
--a, --text              treat all files as text
--p, --show-function     show which function each change is in
--w, --ignore-all-space  ignore white space when comparing lines
--I, --include           include names matching the given patterns
--X, --exclude           exclude names matching the given patterns</pre>
+-r, --rev                  revision
+-a, --text                 treat all files as text
+-p, --show-function        show which function each change is in
+-w, --ignore-all-space     ignore white space when comparing lines
+-b, --ignore-space-change  ignore changes in the amount of white
+                           space
+-B, --ignore-blank-lines   ignore changes whose lines are all
+                           blank
+-I, --include              include names matching the given
+                           patterns
+-X, --exclude              exclude names matching the given
+                           patterns</pre>
 </dd>
 <dt>
 export [-a] [-o OUTFILESPEC] REV&#8230;
@@ -459,8 +494,11 @@ help [COMMAND]
 </dt>
 <dd>
 <p>
-    show help for a given command or all commands
+    With no arguments, print a list of commands and short help.
 </p>
+<pre>Given a command name, print help for that command.</pre>
+<pre>Given an extension name, print help for that extension, and the
+commands it provides.</pre>
 </dd>
 <dt>
 identify
@@ -475,7 +513,7 @@ in the working directory, followed by a list of tags for this revision.</pre>
 <pre>aliases: id</pre>
 </dd>
 <dt>
-import [-p NUM] [-b BASE] [-f] PATCH&#8230;
+import [-p NUM] [-b BASE] [-m MESSAGE] [-f] PATCH&#8230;
 </dt>
 <dd>
 <p>
@@ -483,21 +521,27 @@ import [-p NUM] [-b BASE] [-f] PATCH&#8230;
 </p>
 <pre>If there are outstanding changes in the working directory, import
 will abort unless given the -f flag.</pre>
-<pre>If a patch looks like a mail message (its first line starts with
-"From " or looks like an RFC822 header), it will not be applied
-unless the -f option is used.  The importer neither parses nor
-discards mail headers, so use -f only to override the "mailness"
-safety check, not to import a real mail message.</pre>
+<pre>You can import a patch straight from a mail message.  Even patches
+as attachments work (body part must be type text/plain or
+text/x-patch to be used).  From and Subject headers of email
+message are used as default committer and commit message.  All
+text/plain body parts before first diff are added to commit
+message.</pre>
+<pre>If imported patch was generated by hg export, user and description
+from patch override values from message headers and body.  Values
+given on command line with -m and -u override these.</pre>
+<pre>To read a patch from standard input, use patch name "-".</pre>
 <pre>options:
--p, --strip  directory strip option for patch. This has the same
-             meaning as the corresponding patch option (default:
-             1)
--b, --base   base path
--f, --force  skip check for outstanding uncommitted changes</pre>
+-p, --strip    directory strip option for patch. This has the same
+               meaning as the corresponding patch option (default:
+               1)
+-m, --message  use &lt;text&gt; as commit message
+-b, --base     base path
+-f, --force    skip check for outstanding uncommitted changes</pre>
 <pre>aliases: patch</pre>
 </dd>
 <dt>
-incoming [-p] [-n] [-M] [&#8212;bundle FILENAME] [SOURCE]
+incoming [-p] [-n] [-M] [-r REV]&#8230; [&#8212;bundle FILENAME] [SOURCE]
 </dt>
 <dd>
 <p>
@@ -515,13 +559,14 @@ twice if the incoming is followed by a pull.</pre>
 -n, --newest-first  show newest record first
 --bundle            file to store the bundles into
 -p, --patch         show patch
+-r, --rev           a specific revision you would like to pull
 --template          display with template
 -e, --ssh           specify ssh command to use
 --remotecmd         specify hg command to run on the remote side</pre>
 <pre>aliases: in</pre>
 </dd>
 <dt>
-init [DEST]
+init [-e FILE] [&#8212;remotecmd FILE] [DEST]
 </dt>
 <dd>
 <p>
@@ -529,6 +574,12 @@ init [DEST]
     directory does not exist, it is created.
 </p>
 <pre>If no directory is given, the current directory is used.</pre>
+<pre>It is possible to specify an ssh:// URL as the destination.
+Look at the help text for the pull command for important details
+about ssh:// URLs.</pre>
+<pre>options:
+-e, --ssh    specify ssh command to use
+--remotecmd  specify hg command to run on the remote side</pre>
 </dd>
 <dt>
 locate [OPTION]&#8230; [PATTERN]&#8230;
@@ -604,7 +655,7 @@ merge [-b TAG] [-f] [REV]
 -f, --force   force a merge with outstanding changes</pre>
 </dd>
 <dt>
-outgoing [-M] [-p] [-n] [DEST]
+outgoing [-M] [-p] [-n] [-r REV]&#8230; [DEST]
 </dt>
 <dd>
 <p>
@@ -618,6 +669,7 @@ outgoing [-M] [-p] [-n] [DEST]
 -f, --force         run even when remote repository is unrelated
 -p, --patch         show patch
 --style             display using template map file
+-r, --rev           a specific revision you would like to push
 -n, --newest-first  show newest record first
 --template          display with template
 -e, --ssh           specify ssh command to use
@@ -625,7 +677,7 @@ outgoing [-M] [-p] [-n] [DEST]
 <pre>aliases: out</pre>
 </dd>
 <dt>
-parents [-b] [REV]
+parents [-b] [-r REV] [FILE]
 </dt>
 <dd>
 <p>
@@ -633,6 +685,7 @@ parents [-b] [REV]
 </p>
 <pre>options:
 -b, --branches  show branches
+-r, --rev       show parents from the specified rev
 --style         display using template map file
 --template      display with template</pre>
 </dd>
@@ -648,7 +701,7 @@ paths [NAME]
 and $HOME/.hgrc.  If run inside a repository, .hg/hgrc is used, too.</pre>
 </dd>
 <dt>
-pull [-u] [-e FILE] [-r REV]&#8230; [&#8212;remotecmd FILE] [SOURCE]
+pull [-u] [-r REV]&#8230; [-e FILE] [&#8212;remotecmd FILE] [SOURCE]
 </dt>
 <dd>
 <p>
@@ -659,14 +712,15 @@ or URL and adds them to the local repository. By default, this
 does not update the copy of the project in the working directory.</pre>
 <pre>Valid URLs are of the form:</pre>
 <pre>local/filesystem/path
-http://[user@]host[:port][/path]
-https://[user@]host[:port][/path]
-ssh://[user@]host[:port][/path]</pre>
+http://[user@]host[:port]/[path]
+https://[user@]host[:port]/[path]
+ssh://[user@]host[:port]/[path]</pre>
 <pre>Some notes about using SSH with Mercurial:
 - SSH requires an accessible shell account on the destination machine
   and a copy of hg in the remote path or specified with as remotecmd.
-- /path is relative to the remote user's home directory by default.
-  Use two slashes at the start of a path to specify an absolute path.
+- path is relative to the remote user's home directory by default.
+  Use an extra slash at the start of a path to specify an absolute path:
+    ssh://example.com//tmp/repository
 - Mercurial doesn't use its own compression via SSH; the right thing
   to do is to configure it in your ~/.ssh/ssh_config, e.g.:
     Host *.mylocalnetwork.example.com
@@ -683,7 +737,7 @@ ssh://[user@]host[:port][/path]</pre>
 --remotecmd   specify hg command to run on the remote side</pre>
 </dd>
 <dt>
-push [-f] [-e FILE] [-r REV]&#8230; [&#8212;remotecmd FILE] [DEST]
+push [-f] [-r REV]&#8230; [-e FILE] [&#8212;remotecmd FILE] [DEST]
 </dt>
 <dd>
 <p>
@@ -698,9 +752,11 @@ increase the number of remote heads. This generally indicates the
 the client has forgotten to sync and merge before pushing.</pre>
 <pre>Valid URLs are of the form:</pre>
 <pre>local/filesystem/path
-ssh://[user@]host[:port][/path]</pre>
+ssh://[user@]host[:port]/[path]</pre>
 <pre>Look at the help text for the pull command for important details
 about ssh:// URLs.</pre>
+<pre>Pushing to http:// and https:// URLs is possible, too, if this
+feature is enabled on the remote Mercurial server.</pre>
 <pre>options:
 -f, --force  force push
 -e, --ssh    specify ssh command to use
@@ -729,6 +785,8 @@ This only removes files from the current branch, not from the
 entire project history.  If the files still exist in the working
 directory, they will be deleted from it.  If invoked with --after,
 files that have been manually deleted are marked as removed.</pre>
+<pre>Modified files and added files are not removed by default.  To
+remove them, use the -f/--force option.</pre>
 <pre>options:
 -A, --after    record remove that has already occurred
 -f, --force    remove file even if modified
@@ -756,7 +814,8 @@ fully used by merge, nor fully reported by log.</pre>
 -A, --after    record a rename that has already occurred
 -f, --force    forcibly copy over an existing managed file
 -I, --include  include names matching the given patterns
--X, --exclude  exclude names matching the given patterns</pre>
+-X, --exclude  exclude names matching the given patterns
+-n, --dry-run  do not perform actions, just print output</pre>
 <pre>aliases: mv</pre>
 </dd>
 <dt>
@@ -788,7 +847,8 @@ mode of a file was changed, it is reset.</pre>
 -r, --rev      revision to revert to
 --no-backup    do not save backup copies of files
 -I, --include  include names matching given patterns
--X, --exclude  exclude names matching given patterns</pre>
+-X, --exclude  exclude names matching given patterns
+-n, --dry-run  do not perform actions, just print output</pre>
 </dd>
 <dt>
 rollback
@@ -863,7 +923,8 @@ A = added
 R = removed
 ! = deleted, but still tracked
 ? = not tracked
-I = ignored (not shown by default)</pre>
+I = ignored (not shown by default)
+  = the previous added file was copied from here</pre>
 <pre>options:
 -m, --modified   show only modified files
 -a, --added      show only added files
@@ -872,6 +933,7 @@ I = ignored (not shown by default)</pre>
 -u, --unknown    show only unknown (not tracked) files
 -i, --ignored    show ignored files
 -n, --no-status  hide status prefix
+-C, --copies     show source of copied files
 -0, --print0     end filenames with NUL, for use with xargs
 -I, --include    include names matching the given patterns
 -X, --exclude    exclude names matching the given patterns</pre>
@@ -887,7 +949,7 @@ tag [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME
 <pre>Tags are used to name particular revisions of the repository and are
 very useful to compare different revision, to go back to significant
 earlier versions or to mark branch points as releases, etc.</pre>
-<pre>If no revision is given, the tip is used.</pre>
+<pre>If no revision is given, the parent of the working directory is used.</pre>
 <pre>To facilitate version control, distribution, and merging of tags,
 they are stored as a file named ".hgtags" which is managed
 similarly to other project files and can be hand-edited if
@@ -943,16 +1005,13 @@ update [-b TAG] [-m] [-C] [-f] [REV]
 <pre>If there are no outstanding changes in the working directory and
 there is a linear relationship between the current version and the
 requested version, the result is the requested version.</pre>
-<pre>Otherwise the result is a merge between the contents of the
-current working directory and the requested version. Files that
-changed between either parent are marked as changed for the next
-commit and a commit must be performed before any further updates
-are allowed.</pre>
+<pre>To merge the working directory with another revision, use the
+merge command.</pre>
 <pre>By default, update will refuse to run if doing so would require
 merging or discarding local changes.</pre>
 <pre>options:
 -b, --branch  checkout the head of a specific branch
--m, --merge   allow merging of branches
+-m, --merge   allow merging of branches (DEPRECATED)
 -C, --clean   overwrite locally modified files
 -f, --force   force a merge with outstanding changes</pre>
 <pre>aliases: up checkout co</pre>
@@ -1183,7 +1242,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 10-May-2006 17:00:06 CDT
+Last updated 24-Jul-2006 18:10:58 CDT
 </small></p>
 </body>
 </html>

@@ -7,13 +7,14 @@ This software may be used and distributed according to the terms
 of the GNU General Public License, incorporated herein by reference.
 """
 
-import struct, os
 from node import *
 from i18n import gettext as _
 from demandload import *
-demandload(globals(), "time bisect stat util re errno")
+demandload(globals(), "struct os time bisect stat util re errno")
 
 class dirstate(object):
+    format = ">cllll"
+
     def __init__(self, opener, ui, root):
         self.opener = opener
         self.root = root
@@ -153,27 +154,40 @@ class dirstate(object):
         if self.map is None:
             self.read()
 
+    def parse(self, st):
+        self.pl = [st[:20], st[20: 40]]
+
+        # deref fields so they will be local in loop
+        map = self.map
+        copies = self.copies
+        format = self.format
+        unpack = struct.unpack
+
+        pos = 40
+        e_size = struct.calcsize(format)
+
+        while pos < len(st):
+            newpos = pos + e_size
+            e = unpack(format, st[pos:newpos])
+            l = e[4]
+            pos = newpos
+            newpos = pos + l
+            f = st[pos:newpos]
+            if '\0' in f:
+                f, c = f.split('\0')
+                copies[f] = c
+            map[f] = e[:4]
+            pos = newpos
+
     def read(self):
         self.map = {}
         self.pl = [nullid, nullid]
         try:
             st = self.opener("dirstate").read()
-            if not st: return
-        except: return
-
-        self.pl = [st[:20], st[20: 40]]
-
-        pos = 40
-        while pos < len(st):
-            e = struct.unpack(">cllll", st[pos:pos+17])
-            l = e[4]
-            pos += 17
-            f = st[pos:pos + l]
-            if '\0' in f:
-                f, c = f.split('\0')
-                self.copies[f] = c
-            self.map[f] = e[:4]
-            pos += l
+            if st:
+                self.parse(st)
+        except IOError, err:
+            if err.errno != errno.ENOENT: raise
 
     def copy(self, source, dest):
         self.lazyread()
@@ -241,7 +255,7 @@ class dirstate(object):
             c = self.copied(f)
             if c:
                 f = f + "\0" + c
-            e = struct.pack(">cllll", e[0], e[1], e[2], e[3], len(f))
+            e = struct.pack(self.format, e[0], e[1], e[2], e[3], len(f))
             st.write(e + f)
         self.dirty = 0
 
@@ -265,13 +279,10 @@ class dirstate(object):
         blen = len(b)
 
         for x in unknown:
-            bs = bisect.bisect(b, x)
-            if bs != 0 and  b[bs-1] == x:
-                ret[x] = self.map[x]
-                continue
+            bs = bisect.bisect(b, "%s%s" % (x, '/'))
             while bs < blen:
                 s = b[bs]
-                if len(s) > len(x) and s.startswith(x) and s[len(x)] == '/':
+                if len(s) > len(x) and s.startswith(x):
                     ret[s] = self.map[s]
                 else:
                     break
@@ -440,8 +451,7 @@ class dirstate(object):
                 nonexistent = True
                 if not st:
                     try:
-                        f = self.wjoin(fn)
-                        st = os.lstat(f)
+                        st = os.lstat(self.wjoin(fn))
                     except OSError, inst:
                         if inst.errno != errno.ENOENT:
                             raise
@@ -457,7 +467,7 @@ class dirstate(object):
             # check the common case first
             if type_ == 'n':
                 if not st:
-                    st = os.stat(fn)
+                    st = os.lstat(self.wjoin(fn))
                 if size >= 0 and (size != st.st_size
                                   or (mode ^ st.st_mode) & 0100):
                     modified.append(fn)
