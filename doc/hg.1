@@ -158,7 +158,7 @@ A foo.c
 .sp
 Returns 0 if all files are successfully added.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-I,  \-\-include
@@ -189,7 +189,7 @@ Add all new files and remove all missing files from the
 repository.
 .sp
 New files are ignored if they match any of the patterns in
-.hgignore. As with add, these changes take effect at the next
+\fB.hgignore\fP. As with add, these changes take effect at the next
 commit.
 .sp
 Use the \-s/\-\-similarity option to detect renamed files. With a
@@ -202,7 +202,7 @@ used to check which files were identified as moved or renamed.
 .sp
 Returns 0 if all files are successfully added.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-s,  \-\-similarity
@@ -242,7 +242,7 @@ nor desirable.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -347,7 +347,7 @@ removed.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-\-no\-decode
@@ -386,32 +386,28 @@ hg backout [OPTION]... [\-r] REV
 .ft P
 .fi
 .sp
-The backout command merges the reverse effect of the reverted
-changeset into the working directory.
+Prepare a new changeset with the effect of REV undone in the
+current working directory.
 .sp
-With the \-\-merge option, it first commits the reverted changes
-as a new changeset. This new changeset is a child of the reverted
-changeset.
-The \-\-merge option remembers the parent of the working directory
-before starting the backout, then merges the new head with that
-changeset afterwards.
-This will result in an explicit merge in the history.
+If REV is the parent of the working directory, then this new changeset
+is committed automatically. Otherwise, hg needs to merge the
+changes and the merged result is left uncommitted.
 .sp
-If you backout a changeset other than the original parent of the
-working directory, the result of this merge is not committed,
-as with a normal merge. Otherwise, no merge is needed and the
-commit is automatic.
+By default, the pending changeset will have one parent,
+maintaining a linear history. With \-\-merge, the pending changeset
+will instead have two parents: the old parent of the working
+directory and a new child of REV that simply undoes REV.
 .sp
-Note that the default behavior (without \-\-merge) has changed in
-version 1.7. To restore the previous default behavior, use
-\%\fBhg backout \-\-merge\fP\: and then \%\fBhg update \-\-clean .\fP\: to get rid of
-the ongoing merge.
+Before version 1.7, the behavior without \-\-merge was equivalent to
+specifying \-\-merge followed by \%\fBhg update \-\-clean .\fP\: to cancel
+the merge and leave the child of REV as a head to be merged
+separately.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-\-merge
@@ -482,7 +478,7 @@ non\-zero exit status means the revision is bad.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-reset
@@ -508,6 +504,48 @@ use command to check changeset state
 .B \-U,  \-\-noupdate
 .
 do not update to target
+.UNINDENT
+.SS bookmarks
+.sp
+.nf
+.ft C
+hg bookmarks [\-f] [\-d] [\-m NAME] [\-r REV] [NAME]
+.ft P
+.fi
+.sp
+Bookmarks are pointers to certain commits that move when
+committing. Bookmarks are local. They can be renamed, copied and
+deleted. It is possible to use bookmark names in \%\fBhg merge\fP\: and
+\%\fBhg update\fP\: to merge and update respectively to a given bookmark.
+.sp
+You can use \%\fBhg bookmark NAME\fP\: to set a bookmark on the working
+directory\(aqs parent revision with the given name. If you specify
+a revision using \-r REV (where REV may be an existing bookmark),
+the bookmark is assigned to that revision.
+.sp
+Bookmarks can be pushed and pulled between repositories (see \%\fBhg help
+push\fP\: and \%\fBhg help pull\fP\:). This requires both the local and remote
+repositories to support bookmarks. For versions prior to 1.8, this means
+the bookmarks extension must be enabled.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-f,  \-\-force
+.
+force
+.TP
+.B \-r,  \-\-rev
+.
+revision
+.TP
+.B \-d,  \-\-delete
+.
+delete a given bookmark
+.TP
+.B \-m,  \-\-rename
+.
+rename a given bookmark
 .UNINDENT
 .SS branch
 .sp
@@ -535,7 +573,7 @@ Use the command \%\fBhg update\fP\: to switch to an existing branch. Use
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -565,7 +603,7 @@ Use the command \%\fBhg update\fP\: to switch to an existing branch.
 .sp
 Returns 0.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-active
@@ -606,7 +644,7 @@ permissions, copy/rename information, and revision history.
 .sp
 Returns 0 on success, 1 if no changes found.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -677,7 +715,7 @@ root\-relative path name of file being printed
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-o,  \-\-output
@@ -714,12 +752,12 @@ If no destination directory name is specified, it defaults to the
 basename of the source.
 .sp
 The location of the source is added to the new repository\(aqs
-.hg/hgrc file, as the default to be used for future pulls.
+\fB.hg/hgrc\fP file, as the default to be used for future pulls.
 .sp
 See \%\fBhg help urls\fP\: for valid source format details.
 .sp
 It is possible to specify an \fBssh://\fP URL as the destination, but no
-.hg/hgrc and working directory will be created on the remote side.
+\fB.hg/hgrc\fP and working directory will be created on the remote side.
 Please see \%\fBhg help urls\fP\: for important details about \fBssh://\fP URLs.
 .sp
 A set of changesets (tags, or branch names) to pull may be specified
@@ -790,7 +828,7 @@ tip
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-U,  \-\-noupdate
@@ -838,7 +876,7 @@ hg commit [OPTION]... [FILE]...
 .fi
 .sp
 Commit changes to the given files into the repository. Unlike a
-centralized RCS, this operation is a local operation. See
+centralized SCM, this operation is a local operation. See
 \%\fBhg push\fP\: for a way to actively distribute your changes.
 .sp
 If a list of files is omitted, all changes reported by \%\fBhg status\fP\:
@@ -856,7 +894,7 @@ See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
 Returns 0 on success, 1 if nothing changed.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-addremove
@@ -914,7 +952,7 @@ before that, see \%\fBhg revert\fP\:.
 .sp
 Returns 0 on success, 1 if errors are encountered.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-after
@@ -975,7 +1013,7 @@ format. For more information, read \%\fBhg help diffs\fP\:.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -1107,7 +1145,7 @@ second parent. It can be useful to review a merge.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-o,  \-\-output
@@ -1153,7 +1191,7 @@ To undo a forget before the next commit, see \%\fBhg add\fP\:.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-I,  \-\-include
@@ -1187,7 +1225,7 @@ use the \-\-all flag.
 .sp
 Returns 0 if a match is found, 1 otherwise.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-0,  \-\-print0
@@ -1263,7 +1301,7 @@ changesets without children will be shown.
 .sp
 Returns 0 if matching heads are found, 1 if not.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -1308,7 +1346,7 @@ Returns 0 if successful.
 .sp
 .nf
 .ft C
-hg identify [\-nibt] [\-r REV] [SOURCE]
+hg identify [\-nibtB] [\-r REV] [SOURCE]
 .ft P
 .fi
 .sp
@@ -1325,7 +1363,7 @@ this revision and a branch name for non\-default branches.
 .sp
 Returns 0 if successful.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -1347,6 +1385,10 @@ show branch
 .B \-t,  \-\-tags
 .
 show tags
+.TP
+.B \-B,  \-\-bookmarks
+.
+show bookmarks
 .sp
 aliases: id
 .UNINDENT
@@ -1391,7 +1433,7 @@ See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-p,  \-\-strip
@@ -1459,7 +1501,7 @@ See pull for valid source format details.
 .sp
 Returns 0 if there are incoming changes, 1 otherwise.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -1477,6 +1519,10 @@ file to store the bundles into
 .B \-r,  \-\-rev
 .
 a remote changeset intended to be added
+.TP
+.B \-B,  \-\-bookmarks
+.
+compare bookmarks
 .TP
 .B \-b,  \-\-branch
 .
@@ -1546,7 +1592,7 @@ See \%\fBhg help urls\fP\: for more information.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-e,  \-\-ssh
@@ -1586,7 +1632,7 @@ contain whitespace as multiple filenames.
 .sp
 Returns 0 if a match is found, 1 otherwise.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -1647,7 +1693,7 @@ will appear in files:.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-follow
@@ -1753,7 +1799,7 @@ With \-\-debug, print file revision hashes.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -1793,7 +1839,7 @@ all changes.
 .sp
 Returns 0 on success, 1 if there are unresolved files.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -1828,7 +1874,7 @@ See pull for details of valid destination formats.
 .sp
 Returns 0 if there are outgoing changes, 1 otherwise.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -1842,6 +1888,10 @@ a changeset intended to be included in the destination
 .B \-n,  \-\-newest\-first
 .
 show newest record first
+.TP
+.B \-B,  \-\-bookmarks
+.
+compare bookmarks
 .TP
 .B \-b,  \-\-branch
 .
@@ -1909,7 +1959,7 @@ argument to \-\-rev if given) is printed.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -1978,7 +2028,7 @@ See \%\fBhg help urls\fP\: for more information.
 .sp
 Returns 0 on success, 1 if an update had unresolved files.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-u,  \-\-update
@@ -1992,6 +2042,10 @@ run even when remote repository is unrelated
 .B \-r,  \-\-rev
 .
 a remote changeset intended to be added
+.TP
+.B \-B,  \-\-bookmark
+.
+bookmark to pull
 .TP
 .B \-b,  \-\-branch
 .
@@ -2043,7 +2097,7 @@ URLs. If DESTINATION is omitted, a default path will be used.
 .sp
 Returns 0 if push was successful, 1 if nothing to push.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -2053,6 +2107,10 @@ force push
 .B \-r,  \-\-rev
 .
 a changeset intended to be included in the destination
+.TP
+.B \-B,  \-\-bookmark
+.
+bookmark to push
 .TP
 .B \-b,  \-\-branch
 .
@@ -2126,7 +2184,7 @@ To undo a remove before that, see \%\fBhg revert\fP\:.
 .sp
 Returns 0 on success, 1 if any warnings encountered.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-after
@@ -2168,7 +2226,7 @@ before that, see \%\fBhg revert\fP\:.
 .sp
 Returns 0 on success, 1 if errors are encountered.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-after
@@ -2239,7 +2297,7 @@ commit after a conflicting merge.
 .sp
 Returns 0 on success, 1 if any files fail a resolve attempt.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-all
@@ -2320,7 +2378,7 @@ To disable these backups, use \-\-no\-backup.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-all
@@ -2396,7 +2454,7 @@ may fail if a rollback is performed.
 .sp
 Returns 0 on success, 1 if no rollback data is available.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-n,  \-\-dry\-run
@@ -2443,7 +2501,7 @@ number it uses.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-accesslog
@@ -2531,7 +2589,7 @@ for each config item.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-u,  \-\-untrusted
@@ -2587,7 +2645,7 @@ I = ignored
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-all
@@ -2672,7 +2730,7 @@ incoming and outgoing changes. This can be time\-consuming.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-\-remote
@@ -2718,7 +2776,7 @@ lookup, using an existing branch name as a tag name is discouraged.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -2784,7 +2842,7 @@ and cannot be renamed or assigned to a different changeset.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-p,  \-\-patch
@@ -2816,7 +2874,7 @@ bundle command.
 .sp
 Returns 0 on success, 1 if an update has unresolved files.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-u,  \-\-update
@@ -2874,7 +2932,7 @@ See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
 Returns 0 on success, 1 if there are unresolved files.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-C,  \-\-clean
@@ -3131,6 +3189,11 @@ across path separators and \fB{a,b}\fP to mean "a or b".
 To use a Perl/Python regular expression, start a name with \fBre:\fP.
 Regexp pattern matching is anchored at the root of the repository.
 .sp
+To read name patterns from a file, use \fBlistfile:\fP or \fBlistfile0:\fP.
+The latter expects null delimited patterns while the former expects line
+feeds. Each string read from the file is itself treated as a file
+pattern.
+.sp
 Plain examples:
 .sp
 .nf
@@ -3160,6 +3223,15 @@ Regexp examples:
 .nf
 .ft C
 re:.*\e.c$      any name ending in ".c", anywhere in the repository
+.ft P
+.fi
+.sp
+File examples:
+.sp
+.nf
+.ft C
+listfile:list.txt  read list from list.txt with one file pattern per line
+listfile0:list.txt read list from list.txt with null byte delimiters
 .ft P
 .fi
 .SH ENVIRONMENT VARIABLES
@@ -3677,6 +3749,11 @@ keywords are usually available for templating a log\-like command:
 .
 String. The unmodified author of the changeset.
 .TP
+.B branch
+.
+String. The name of the branch on which the changeset was
+committed.
+.TP
 .B branches
 .
 List of strings. The name of the branch on which the
@@ -3917,7 +3994,7 @@ local/filesystem/path[#revision]
 file://local/filesystem/path[#revision]
 http://[user[:pass]@]host[:port]/[path][#revision]
 https://[user[:pass]@]host[:port]/[path][#revision]
-ssh://[user[:pass]@]host[:port]/[path][#revision]
+ssh://[user@]host[:port]/[path][#revision]
 .ft P
 .fi
 .sp
@@ -4057,10 +4134,6 @@ disabled extensions:
 .B acl
 .
 hooks for controlling repository access
-.TP
-.B bookmarks
-.
-track a line of development with movable markers
 .TP
 .B bugzilla
 .
@@ -4286,7 +4359,10 @@ archive does not recurse in subrepositories unless
 commit creates a consistent snapshot of the state of the
 entire project and its subrepositories. It does this by first
 attempting to commit all modified subrepositories, then recording
-their state and finally committing it in the parent repository.
+their state and finally committing it in the parent
+repository. Mercurial can be made to abort if any subrepository
+content is modified by setting "ui.commitsubrepos=no" in a
+configuration file (see \%\fBhg help config\fP\:).
 .TP
 .B diff
 .
@@ -5012,75 +5088,6 @@ src/main/resources/** = *
 \&.hgtags = release_engineer
 .ft P
 .fi
-.SS bookmarks
-.sp
-track a line of development with movable markers
-.sp
-Bookmarks are local movable markers to changesets. Every bookmark
-points to a changeset identified by its hash. If you commit a
-changeset that is based on a changeset that has a bookmark on it, the
-bookmark shifts to the new changeset.
-.sp
-It is possible to use bookmark names in every revision lookup (e.g.
-\%\fBhg merge\fP\:, \%\fBhg update\fP\:).
-.sp
-By default, when several bookmarks point to the same changeset, they
-will all move forward together. It is possible to obtain a more
-git\-like experience by adding the following configuration option to
-your configuration file:
-.sp
-.nf
-.ft C
-[bookmarks]
-track.current = True
-.ft P
-.fi
-.sp
-This will cause Mercurial to track the bookmark that you are currently
-using, and only update it. This is similar to git\(aqs approach to
-branching.
-.SS Commands
-.SS bookmarks
-.sp
-.nf
-.ft C
-hg bookmarks [\-f] [\-d] [\-m NAME] [\-r REV] [NAME]
-.ft P
-.fi
-.sp
-Bookmarks are pointers to certain commits that move when
-committing. Bookmarks are local. They can be renamed, copied and
-deleted. It is possible to use bookmark names in \%\fBhg merge\fP\: and
-\%\fBhg update\fP\: to merge and update respectively to a given bookmark.
-.sp
-You can use \%\fBhg bookmark NAME\fP\: to set a bookmark on the working
-directory\(aqs parent revision with the given name. If you specify
-a revision using \-r REV (where REV may be an existing bookmark),
-the bookmark is assigned to that revision.
-.sp
-Bookmarks can be pushed and pulled between repositories (see \%\fBhg help
-push\fP\: and \%\fBhg help pull\fP\:). This requires the bookmark extension to be
-enabled for both the local and remote repositories.
-.sp
-options:
-.INDENT 0.0
-.TP
-.B \-f,  \-\-force
-.
-force
-.TP
-.B \-r,  \-\-rev
-.
-revision
-.TP
-.B \-d,  \-\-delete
-.
-delete a given bookmark
-.TP
-.B \-m,  \-\-rename
-.
-rename a given bookmark
-.UNINDENT
 .SS bugzilla
 .sp
 hooks for integrating with the Bugzilla bug tracker
@@ -5272,7 +5279,7 @@ be printed. If a file argument is given, revision in which the
 file was last changed (after the working directory revision or the
 argument to \-\-rev if given) is printed.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -5339,7 +5346,7 @@ by providing a file using the following format:
 Such a file may be specified with the \-\-aliases option, otherwise
 a .hgchurn file will be looked for in the working directory root.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -5535,10 +5542,10 @@ try to preserve source revisions order, only
 supported by Mercurial sources.
 .UNINDENT
 .sp
-If <REVMAP> isn\(aqt given, it will be put in a default location
-(<dest>/.hg/shamap by default). The <REVMAP> is a simple text file
-that maps each source commit ID to the destination ID for that
-revision, like so:
+If \fBREVMAP\fP isn\(aqt given, it will be put in a default location
+(\fB<dest>/.hg/shamap\fP by default). The \fBREVMAP\fP is a simple
+text file that maps each source commit ID to the destination ID
+for that revision, like so:
 .sp
 .nf
 .ft C
@@ -5631,76 +5638,86 @@ is the destination repository. No whitespace is allowed in the
 branch names. This can be used to (for instance) move code in one
 repository from "default" to a named branch.
 .SS Mercurial Source
+.sp
+The Mercurial source recognizes the following configuration
+options, which you can set on the command line with \fB\-\-config\fP:
 .INDENT 0.0
 .TP
-.B \-\-config convert.hg.ignoreerrors=False    (boolean)
+.B convert.hg.ignoreerrors
 .
-ignore integrity errors when reading. Use it to fix Mercurial
-repositories with missing revlogs, by converting from and to
-Mercurial.
+ignore integrity errors when reading.
+Use it to fix Mercurial repositories with missing revlogs, by
+converting from and to Mercurial. Default is False.
 .TP
-.B \-\-config convert.hg.saverev=False         (boolean)
+.B convert.hg.saverev
 .
-store original revision ID in changeset (forces target IDs to
-change)
+store original revision ID in changeset
+(forces target IDs to change). It takes and boolean argument
+and defaults to False.
 .TP
-.B \-\-config convert.hg.startrev=0            (hg revision identifier)
+.B convert.hg.startrev
 .
-convert start revision and its descendants
+convert start revision and its descendants.
+It takes a hg revision identifier and defaults to 0.
 .UNINDENT
 .SS CVS Source
 .sp
 CVS source will use a sandbox (i.e. a checked\-out copy) from CVS
 to indicate the starting point of what will be converted. Direct
 access to the repository files is not needed, unless of course the
-repository is :local:. The conversion uses the top level directory
-in the sandbox to find the CVS repository, and then uses CVS rlog
-commands to find files to convert. This means that unless a
-filemap is given, all files under the starting directory will be
+repository is \fB:local:\fP. The conversion uses the top level
+directory in the sandbox to find the CVS repository, and then uses
+CVS rlog commands to find files to convert. This means that unless
+a filemap is given, all files under the starting directory will be
 converted, and that any directory reorganization in the CVS
 sandbox is ignored.
 .sp
-The options shown are the defaults.
+The following options can be used with \fB\-\-config\fP:
 .INDENT 0.0
 .TP
-.B \-\-config convert.cvsps.cache=True         (boolean)
+.B convert.cvsps.cache
 .
-Set to False to disable remote log caching, for testing and
-debugging purposes.
+Set to False to disable remote log caching,
+for testing and debugging purposes. Default is True.
 .TP
-.B \-\-config convert.cvsps.fuzz=60            (integer)
+.B convert.cvsps.fuzz
 .
-Specify the maximum time (in seconds) that is allowed between
-commits with identical user and log message in a single
-changeset. When very large files were checked in as part of a
-changeset then the default may not be long enough.
+Specify the maximum time (in seconds) that is
+allowed between commits with identical user and log message in
+a single changeset. When very large files were checked in as
+part of a changeset then the default may not be long enough.
+The default is 60.
 .TP
-.B \-\-config convert.cvsps.mergeto=\(aq{{mergetobranch ([\-w]+)}}\(aq
+.B convert.cvsps.mergeto
 .
-Specify a regular expression to which commit log messages are
-matched. If a match occurs, then the conversion process will
-insert a dummy revision merging the branch on which this log
-message occurs to the branch indicated in the regex.
+Specify a regular expression to which
+commit log messages are matched. If a match occurs, then the
+conversion process will insert a dummy revision merging the
+branch on which this log message occurs to the branch
+indicated in the regex. Default is \fB{{mergetobranch
+([\-\ew]+)}}\fP
 .TP
-.B \-\-config convert.cvsps.mergefrom=\(aq{{mergefrombranch ([\-w]+)}}\(aq
+.B convert.cvsps.mergefrom
 .
-Specify a regular expression to which commit log messages are
-matched. If a match occurs, then the conversion process will
-add the most recent revision on the branch indicated in the
-regex as the second parent of the changeset.
+Specify a regular expression to which
+commit log messages are matched. If a match occurs, then the
+conversion process will add the most recent revision on the
+branch indicated in the regex as the second parent of the
+changeset. Default is \fB{{mergefrombranch ([\-\ew]+)}}\fP
 .TP
-.B \-\-config hook.cvslog
+.B hook.cvslog
 .
-Specify a Python function to be called at the end of gathering
-the CVS log. The function is passed a list with the log entries,
-and can modify the entries in\-place, or add or delete them.
+Specify a Python function to be called at the end of
+gathering the CVS log. The function is passed a list with the
+log entries, and can modify the entries in\-place, or add or
+delete them.
 .TP
-.B \-\-config hook.cvschangesets
+.B hook.cvschangesets
 .
-Specify a Python function to be called after the changesets
-are calculated from the the CVS log. The function is passed
-a list with the changeset entries, and can modify the changesets
-in\-place, or add or delete them.
+Specify a Python function to be called after
+the changesets are calculated from the the CVS log. The
+function is passed a list with the changeset entries, and can
+modify the changesets in\-place, or add or delete them.
 .UNINDENT
 .sp
 An additional "debugcvsps" Mercurial command allows the builtin
@@ -5710,28 +5727,33 @@ the command help for more details.
 .SS Subversion Source
 .sp
 Subversion source detects classical trunk/branches/tags layouts.
-By default, the supplied "svn://repo/path/" source URL is
-converted as a single branch. If "svn://repo/path/trunk" exists it
-replaces the default branch. If "svn://repo/path/branches" exists,
-its subdirectories are listed as possible branches. If
-"svn://repo/path/tags" exists, it is looked for tags referencing
-converted branches. Default "trunk", "branches" and "tags" values
-can be overridden with following options. Set them to paths
+By default, the supplied \fBsvn://repo/path/\fP source URL is
+converted as a single branch. If \fBsvn://repo/path/trunk\fP exists
+it replaces the default branch. If \fBsvn://repo/path/branches\fP
+exists, its subdirectories are listed as possible branches. If
+\fBsvn://repo/path/tags\fP exists, it is looked for tags referencing
+converted branches. Default \fBtrunk\fP, \fBbranches\fP and \fBtags\fP
+values can be overridden with following options. Set them to paths
 relative to the source URL, or leave them blank to disable auto
 detection.
+.sp
+The following options can be set with \fB\-\-config\fP:
 .INDENT 0.0
 .TP
-.B \-\-config convert.svn.branches=branches    (directory name)
+.B convert.svn.branches
 .
-specify the directory containing branches
+specify the directory containing branches.
+The default is \fBbranches\fP.
 .TP
-.B \-\-config convert.svn.tags=tags            (directory name)
+.B convert.svn.tags
 .
-specify the directory containing tags
+specify the directory containing tags. The
+default is \fBtags\fP.
 .TP
-.B \-\-config convert.svn.trunk=trunk          (directory name)
+.B convert.svn.trunk
 .
-specify the name of the trunk branch
+specify the name of the trunk branch. The
+default is \fBtrunk\fP.
 .UNINDENT
 .sp
 Source history can be retrieved starting at a specific revision,
@@ -5739,9 +5761,10 @@ instead of being integrally converted. Only single branch
 conversions are supported.
 .INDENT 0.0
 .TP
-.B \-\-config convert.svn.startrev=0           (svn revision number)
+.B convert.svn.startrev
 .
-specify start Subversion revision.
+specify start Subversion revision number.
+The default is 0.
 .UNINDENT
 .SS Perforce Source
 .sp
@@ -5750,33 +5773,39 @@ client specification as source. It will convert all files in the
 source to a flat Mercurial repository, ignoring labels, branches
 and integrations. Note that when a depot path is given you then
 usually should specify a target directory, because otherwise the
-target may be named ...\-hg.
+target may be named \fB...\-hg\fP.
 .sp
 It is possible to limit the amount of source history to be
-converted by specifying an initial Perforce revision.
+converted by specifying an initial Perforce revision:
 .INDENT 0.0
 .TP
-.B \-\-config convert.p4.startrev=0            (perforce changelist number)
+.B convert.p4.startrev
 .
-specify initial Perforce revision.
+specify initial Perforce revision (a
+Perforce changelist number).
 .UNINDENT
 .SS Mercurial Destination
+.sp
+The following options are supported:
 .INDENT 0.0
 .TP
-.B \-\-config convert.hg.clonebranches=False   (boolean)
+.B convert.hg.clonebranches
 .
-dispatch source branches in separate clones.
+dispatch source branches in separate
+clones. The default is False.
 .TP
-.B \-\-config convert.hg.tagsbranch=default    (branch name)
+.B convert.hg.tagsbranch
 .
-tag revisions branch name
+branch name for tag revisions, defaults to
+\fBdefault\fP.
 .TP
-.B \-\-config convert.hg.usebranchnames=True   (boolean)
+.B convert.hg.usebranchnames
 .
-preserve branch names
+preserve branch names. The default is
+True.
 .UNINDENT
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-\-authors
@@ -5833,7 +5862,7 @@ directory. That way you can get CRLF line endings on Windows and LF on
 Unix/Mac, thereby letting everybody use their OS native line endings.
 .sp
 The extension reads its configuration from a versioned \fB.hgeol\fP
-configuration file every time you run an \fBhg\fP command. The
+configuration file found in the root of the working copy. The
 \fB.hgeol\fP file use the same syntax as all other Mercurial
 configuration files. It uses two sections, \fB[patterns]\fP and
 \fB[repository]\fP.
@@ -5903,10 +5932,17 @@ Such files are normally not touched under the assumption that they
 have mixed EOLs on purpose.
 .UNINDENT
 .sp
+The extension provides \fBcleverencode:\fP and \fBcleverdecode:\fP filters
+like the deprecated win32text extension does. This means that you can
+disable win32text and enable eol and your filters will still work. You
+only need to these filters until you have prepared a \fB.hgeol\fP file.
+.sp
 The \fBwin32text.forbid*\fP hooks provided by the win32text extension
 have been unified into a single hook named \fBeol.hook\fP. The hook will
 lookup the expected line endings from the \fB.hgeol\fP file, which means
 you must migrate to a \fB.hgeol\fP file first before using the hook.
+Remember to enable the eol extension in the repository where you
+install the hook.
 .sp
 See \%\fBhg help patterns\fP\: for more information about the glob patterns
 used.
@@ -5998,7 +6034,7 @@ that revision is compared to the working directory, and, when no
 revisions are specified, the working directory files are compared
 to its parent.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-p,  \-\-program
@@ -6054,7 +6090,7 @@ See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-r,  \-\-rev
@@ -6127,7 +6163,7 @@ or tip if no revision is checked out.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-l,  \-\-local
@@ -6189,7 +6225,7 @@ ASCII characters.
 Nodes printed as an @ character are parents of the working
 directory.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-l,  \-\-limit
@@ -6300,7 +6336,7 @@ hg view [\-l LIMIT] [REVRANGE]
 .sp
 start interactive history viewer
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-l,  \-\-limit
@@ -6338,7 +6374,7 @@ hg inserve [OPTION]...
 .sp
 start an inotify server for this repository
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-d,  \-\-daemon
@@ -6431,9 +6467,8 @@ The default template mappings (view with \%\fBhg kwdemo \-d\fP\:) can be
 replaced with customized keywords and templates. Again, run
 \%\fBhg kwdemo\fP\: to control the results of your configuration changes.
 .sp
-Before changing/disabling active keywords, run \%\fBhg kwshrink\fP\: to avoid
-the risk of inadvertently storing expanded keywords in the change
-history.
+Before changing/disabling active keywords, you must run \%\fBhg kwshrink\fP\:
+to avoid storing expanded keywords in the change history.
 .sp
 To force expansion after enabling it, or a configuration change, run
 \%\fBhg kwexpand\fP\:.
@@ -6460,7 +6495,7 @@ Use \-d/\-\-default to disable current configuration.
 .sp
 See \%\fBhg help templates\fP\: for information on templates and filters.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-d,  \-\-default
@@ -6483,7 +6518,7 @@ Run after (re)enabling keyword expansion.
 .sp
 kwexpand refuses to run if given files contain local changes.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-I,  \-\-include
@@ -6524,7 +6559,7 @@ i = ignored (not tracked)
 .ft P
 .fi
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-all
@@ -6555,12 +6590,11 @@ hg kwshrink [OPTION]... [FILE]...
 .ft P
 .fi
 .sp
-Run before changing/disabling active keywords or if you experience
-problems with \%\fBhg import\fP\: or \%\fBhg merge\fP\:.
+Must be run before changing/disabling active keywords.
 .sp
 kwshrink refuses to run if given files contain local changes.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-I,  \-\-include
@@ -6627,7 +6661,7 @@ hg qapplied [\-1] [\-s] [PATCH]
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-1,  \-\-last
@@ -6660,7 +6694,7 @@ would be created by \%\fBhg init \-\-mq\fP\:.
 .sp
 Return 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-\-pull
@@ -6701,7 +6735,7 @@ hg qcommit [OPTION]... [FILE]...
 .sp
 This command is deprecated; use \%\fBhg commit \-\-mq\fP\: instead.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-addremove
@@ -6752,7 +6786,7 @@ The patches must not be applied, and at least one patch is required. With
 To stop managing a patch and move it into permanent history,
 use the \%\fBhg qfinish\fP\: command.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-k,  \-\-keep
@@ -6785,7 +6819,7 @@ qrefresh.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-text
@@ -6859,7 +6893,7 @@ to upstream.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-applied
@@ -6886,7 +6920,7 @@ current patch header, separated by a line of \fB* * *\fP.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-e,  \-\-edit
@@ -6915,7 +6949,7 @@ hg qgoto [OPTION]... PATCH
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -6953,7 +6987,7 @@ hg qguard other.patch \-\- +2.6.17 \-stable
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-l,  \-\-list
@@ -7015,7 +7049,7 @@ hg qimport \-e existing\-patch \-n new\-name
 .sp
 Returns 0 if import succeeded.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-e,  \-\-existing
@@ -7059,7 +7093,7 @@ qcommit to commit changes to this queue repository.
 This command is deprecated. Without \-c, it\(aqs implied by other relevant
 commands. With \-c, use \%\fBhg init \-\-mq\fP\: instead.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-c,  \-\-create\-repo
@@ -7096,7 +7130,7 @@ information.
 .sp
 Returns 0 on successful creation of a new patch.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-e,  \-\-edit
@@ -7153,7 +7187,7 @@ hg qnext [\-s]
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-s,  \-\-summary
@@ -7174,7 +7208,7 @@ top of the stack.
 .sp
 Return 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-all
@@ -7199,7 +7233,7 @@ hg qprev [\-s]
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-s,  \-\-summary
@@ -7219,12 +7253,16 @@ will be lost.
 .sp
 Return 0 on succces.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
 .
 apply on top of local changes
+.TP
+.B \-e,  \-\-exact
+.
+apply the target patch to its recorded parent
 .TP
 .B \-l,  \-\-list
 .
@@ -7271,7 +7309,7 @@ active queue.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-l,  \-\-list
@@ -7320,7 +7358,7 @@ git diff format.
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-e,  \-\-edit
@@ -7395,7 +7433,7 @@ hg qrestore [\-d] [\-u] REV
 .sp
 This command is deprecated, use \%\fBhg rebase\fP\: instead.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-d,  \-\-delete
@@ -7416,7 +7454,7 @@ hg qsave [\-m TEXT] [\-l FILE] [\-c] [\-n NAME] [\-e] [\-f]
 .sp
 This command is deprecated, use \%\fBhg rebase\fP\: instead.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-c,  \-\-copy
@@ -7487,7 +7525,7 @@ Use \-s/\-\-series to print a list of all guards in the series file
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-n,  \-\-none
@@ -7516,7 +7554,7 @@ hg qseries [\-ms]
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-m,  \-\-missing
@@ -7537,7 +7575,7 @@ hg qtop [\-s]
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-s,  \-\-summary
@@ -7554,7 +7592,7 @@ hg qunapplied [\-1] [\-s] [PATCH]
 .sp
 Returns 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-1,  \-\-first
@@ -7594,7 +7632,7 @@ operation completes.
 .sp
 Return 0 on success.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
@@ -7879,6 +7917,9 @@ Then when all is done, patchbomb messages are displayed. If the
 PAGER environment variable is set, your pager will be fired up once
 for each patchbomb message, so you can verify everything is alright.
 .sp
+In case email sending fails, you will find a backup of your series
+introductory message in \fB.hg/last\-email.txt\fP.
+.sp
 Examples:
 .sp
 .nf
@@ -7909,7 +7950,7 @@ hg email \-o \-m mbox &&    # generate an mbox file ...
 Before using this command, you will need to enable email in your
 hgrc. See the [email] section in hgrc(5) for details.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-g,  \-\-git
@@ -8040,7 +8081,7 @@ The following settings are available:
 [progress]
 delay = 3 # number of seconds (float) before showing the progress bar
 refresh = 0.1 # time in seconds between refreshes of the progress bar
-format = topic bar number # format of the progress bar
+format = topic bar number estimate # format of the progress bar
 width = <none> # if set, the maximum width of the progress information
                # (that is, min(width, term width) will be used)
 clear\-complete = True # clear the progress bar after it\(aqs done
@@ -8050,10 +8091,11 @@ assume\-tty = False # if true, ALWAYS show a progress bar, unless
 .ft P
 .fi
 .sp
-Valid entries for the format field are topic, bar, number, unit, and
-item. item defaults to the last 20 characters of the item, but this
-can be changed by adding either \fB\-<num>\fP which would take the last
-num characters, or \fB+<num>\fP for the first num characters.
+Valid entries for the format field are topic, bar, number, unit,
+estimate, and item. item defaults to the last 20 characters of the
+item, but this can be changed by adding either \fB\-<num>\fP which would
+take the last num characters, or \fB+<num>\fP for the first num
+characters.
 .SS purge
 .sp
 command to delete untracked files from the working directory
@@ -8101,7 +8143,7 @@ you forgot to add to the repository. If you only want to print the
 list of files that this program would delete, use the \-\-print
 option.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-a,  \-\-abort\-on\-err
@@ -8194,7 +8236,7 @@ continued with \-\-continue/\-c or aborted with \-\-abort/\-a.
 .sp
 Returns 0 on success, 1 if nothing to rebase.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-s,  \-\-source
@@ -8281,7 +8323,7 @@ q \- quit, recording no changes
 .sp
 This command is not available when committing a merge.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-A,  \-\-addremove
@@ -8429,7 +8471,7 @@ the broken clone to reset it to a changeset that still exists
 (e.g. tip).
 .RE
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-U,  \-\-noupdate
@@ -8490,7 +8532,7 @@ If a changeset application fails, you can fix the merge by hand
 and then resume where you left off by calling \%\fBhg transplant
 \-\-continue/\-c\fP\:.
 .sp
-options:
+Options:
 .INDENT 0.0
 .TP
 .B \-s,  \-\-source

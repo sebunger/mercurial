@@ -1,5 +1,3 @@
-  $ cp "$TESTDIR"/printenv.py .
-
 Setting up test
 
   $ hg init test
@@ -91,7 +89,8 @@ Pull full.hg into empty (using --cwd)
 Rollback empty
 
   $ hg -R empty rollback
-  rolling back to revision -1 (undo pull)
+  repository tip rolled back to revision -1 (undo pull)
+  working directory now based on revision -1
 
 Pull full.hg into empty again (using --cwd)
 
@@ -121,7 +120,8 @@ Pull full.hg into empty (using -R)
 Rollback empty
 
   $ hg -R empty rollback
-  rolling back to revision -1 (undo pull)
+  repository tip rolled back to revision -1 (undo pull)
+  working directory now based on revision -1
 
 Pull full.hg into empty again (using -R)
 
@@ -188,30 +188,38 @@ Log -R full.hg in fresh empty
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     0.0
   
+Make sure bundlerepo doesn't leak tempfiles (issue2491)
+
+  $ ls .hg
+  00changelog.i
+  cache
+  requires
+  store
 
 Pull ../full.hg into empty (with hook)
 
   $ echo '[hooks]' >> .hg/hgrc
-  $ echo 'changegroup = python ../printenv.py changegroup' >> .hg/hgrc
+  $ echo 'changegroup = python "$TESTDIR"/printenv.py changegroup' >> .hg/hgrc
 
 doesn't work (yet ?)
 
 hg -R bundle://../full.hg verify
 
   $ hg pull bundle://../full.hg
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:../full.hg 
   pulling from bundle://../full.hg
   requesting all changes
   adding changesets
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:../full.hg 
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Rollback empty
 
   $ hg rollback
-  rolling back to revision -1 (undo pull)
+  repository tip rolled back to revision -1 (undo pull)
+  working directory now based on revision -1
   $ cd ..
 
 Log -R bundle:empty+full.hg
@@ -222,13 +230,13 @@ Log -R bundle:empty+full.hg
 Pull full.hg into empty again (using -R; with hook)
 
   $ hg -R empty pull full.hg
-  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:empty+full.hg 
   pulling from full.hg
   requesting all changes
   adding changesets
   adding manifests
   adding file changes
   added 9 changesets with 7 changes to 4 files (+1 heads)
+  changegroup hook: HG_NODE=f9ee2f85a263049e9ae6d37a0e67e96194ffb735 HG_SOURCE=pull HG_URL=bundle:empty+full.hg 
   (run 'hg heads' to see heads, 'hg merge' to merge)
 
 Create partial clones
@@ -543,26 +551,26 @@ bundle single branch
   list of changesets:
   d2ae7f538514cd87c17547b0de4cea71fe1af9fb
   5ece8e77363e2b5269e27c66828b72da29e4341a
-  bundling changes: 0 chunks
-  bundling changes: 1 chunks
-  bundling changes: 2 chunks
-  bundling changes: 3 chunks
-  bundling changes: 4 chunks
-  bundling changes: 5 chunks
-  bundling changes: 6 chunks
-  bundling manifests: 0 chunks
-  bundling manifests: 1 chunks
-  bundling manifests: 2 chunks
-  bundling manifests: 3 chunks
-  bundling manifests: 4 chunks
-  bundling manifests: 5 chunks
-  bundling manifests: 6 chunks
-  bundling files: b 0 chunks
-  bundling files: b 1 chunks
-  bundling files: b 2 chunks
-  bundling files: b 3 chunks
-  bundling files: b1 4 chunks
-  bundling files: b1 5 chunks
-  bundling files: b1 6 chunks
-  bundling files: b1 7 chunks
+  bundling: 0 changesets
+  bundling: 0 changesets
+  bundling: 0 changesets
+  bundling: 1 changesets
+  bundling: 1 changesets
+  bundling: 1 changesets
+  bundling: 2 changesets
+  bundling: 0/2 manifests (0.00%)
+  bundling: 0/2 manifests (0.00%)
+  bundling: 0/2 manifests (0.00%)
+  bundling: 1/2 manifests (50.00%)
+  bundling: 1/2 manifests (50.00%)
+  bundling: 1/2 manifests (50.00%)
+  bundling: 2/2 manifests (100.00%)
+  bundling: b 0/2 files (0.00%)
+  bundling: b 0/2 files (0.00%)
+  bundling: b 0/2 files (0.00%)
+  bundling: b 0/2 files (0.00%)
+  bundling: b1 1/2 files (50.00%)
+  bundling: b1 1/2 files (50.00%)
+  bundling: b1 1/2 files (50.00%)
+  bundling: b1 1/2 files (50.00%)
 

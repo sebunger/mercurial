@@ -359,8 +359,8 @@ to the aliases of the commands defined.</p>
 </div>
 <div class="section" id="diff">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">diff</tt></a></h2>
-<p>Settings used when displaying diffs. They are all Boolean and
-defaults to False.</p>
+<p>Settings used when displaying diffs. Everything except for <tt class="docutils literal">unified</tt> is a
+Boolean and defaults to False.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">git</tt></dt>
 <dd>Use git extended diff format.</dd>
@@ -374,6 +374,8 @@ defaults to False.</p>
 <dd>Ignore changes in the amount of white space.</dd>
 <dt><tt class="docutils literal">ignoreblanklines</tt></dt>
 <dd>Ignore changes whose lines are all blank.</dd>
+<dt><tt class="docutils literal">unified</tt></dt>
+<dd>Number of lines of context to show.</dd>
 </dl>
 </div>
 <div class="section" id="email">
@@ -749,8 +751,8 @@ in <tt class="docutils literal">http_proxy.no</tt>. True or False. Default: Fals
 <dt><tt class="docutils literal">port</tt></dt>
 <dd>Optional. Port to connect to on mail server. Default: 25.</dd>
 <dt><tt class="docutils literal">tls</tt></dt>
-<dd>Optional. Whether to connect to mail server using TLS. True or
-False. Default: False.</dd>
+<dd>Optional. Method to enable TLS when connecting to mail server: starttls,
+smtps or none. Default: none.</dd>
 <dt><tt class="docutils literal">username</tt></dt>
 <dd>Optional. User name for authenticating with the SMTP server.
 Default: none.</dd>
@@ -897,6 +899,11 @@ neither <tt class="docutils literal">$HGUSER</tt> nor <tt class="docutils litera
 be prompted to enter a username. If no username is entered, the
 default <tt class="docutils literal">USER&#64;HOST</tt> is used instead.
 Default is False.</dd>
+<dt><tt class="docutils literal">commitsubrepos</tt></dt>
+<dd>Whether to commit modified subrepositories when committing the
+parent repository. If False and one subrepository has uncommitted
+changes, abort the commit.
+Default is True.</dd>
 <dt><tt class="docutils literal">debug</tt></dt>
 <dd>Print debugging information. True or False. Default is False.</dd>
 <dt><tt class="docutils literal">editor</tt></dt>

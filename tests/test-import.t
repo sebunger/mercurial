@@ -364,7 +364,8 @@ patches: import patch1 patch2; rollback
   applying ../patch2
   applied 1d4bd90af0e4
   $ hg --cwd b rollback
-  rolling back to revision 1 (undo commit)
+  repository tip rolled back to revision 1 (undo commit)
+  working directory now based on revision 1
   $ hg --cwd b parents --template 'parent: {rev}\n'
   parent: 1
   $ rm -r b
@@ -436,6 +437,13 @@ Test fuzziness (ambiguous patch location, fuzz=2)
   Hunk #1 succeeded at 1 with fuzz 2 (offset -2 lines).
   $ hg revert -a
   reverting a
+
+
+import with --no-commit should have written .hg/last-message.txt
+
+  $ cat .hg/last-message.txt
+  change (no-eol)
+
 
 test fuzziness with eol=auto
 

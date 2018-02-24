@@ -24,7 +24,7 @@ def parse_manifest(mfdict, fdict, lines):
         else:
             mfdict[f] = bin(n)
 
-def parse_index(data, inline):
+def parse_index2(data, inline):
     def gettype(q):
         return int(q & 0xFFFF)
 
@@ -36,16 +36,14 @@ def parse_index(data, inline):
     s = struct.calcsize(indexformatng)
     index = []
     cache = None
-    nodemap = {nullid: nullrev}
     n = off = 0
-    # if we're not using lazymap, always read the whole index
+
     l = len(data) - s
     append = index.append
     if inline:
         cache = (0, data)
         while off <= l:
             e = _unpack(indexformatng, data[off:off + s])
-            nodemap[e[7]] = n
             append(e)
             n += 1
             if e[1] < 0:
@@ -54,20 +52,20 @@ def parse_index(data, inline):
     else:
         while off <= l:
             e = _unpack(indexformatng, data[off:off + s])
-            nodemap[e[7]] = n
             append(e)
             n += 1
             off += s
 
-    e = list(index[0])
-    type = gettype(e[0])
-    e[0] = offset_type(0, type)
-    index[0] = tuple(e)
+    if index:
+        e = list(index[0])
+        type = gettype(e[0])
+        e[0] = offset_type(0, type)
+        index[0] = tuple(e)
 
     # add the magic null revision at -1
     index.append((0, 0, 0, -1, -1, -1, -1, nullid))
 
-    return index, nodemap, cache
+    return index, cache
 
 def parse_dirstate(dmap, copymap, st):
     parents = [st[:20], st[20: 40]]

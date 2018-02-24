@@ -6,6 +6,7 @@ Show all commands except debug commands
   archive
   backout
   bisect
+  bookmarks
   branch
   branches
   bundle
@@ -74,6 +75,7 @@ Show debug commands if there are no other candidates
   debugdata
   debugdate
   debugfsinfo
+  debugignore
   debugindex
   debugindexdot
   debuginstall
@@ -187,8 +189,8 @@ Show all commands + options
   init: ssh, remotecmd, insecure
   log: follow, follow-first, date, copies, keyword, rev, removed, only-merges, user, only-branch, branch, prune, patch, git, limit, no-merges, stat, style, template, include, exclude
   merge: force, tool, rev, preview
-  pull: update, force, rev, branch, ssh, remotecmd, insecure
-  push: force, rev, branch, new-branch, ssh, remotecmd, insecure
+  pull: update, force, rev, bookmark, branch, ssh, remotecmd, insecure
+  push: force, rev, bookmark, branch, new-branch, ssh, remotecmd, insecure
   remove: after, force, include, exclude
   serve: accesslog, daemon, daemon-pipefds, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, templates, style, ipv6, certificate
   status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, copies, print0, rev, change, include, exclude, subrepos
@@ -198,6 +200,7 @@ Show all commands + options
   archive: no-decode, prefix, rev, type, subrepos, include, exclude
   backout: merge, parent, tool, rev, include, exclude, message, logfile, date, user
   bisect: reset, good, bad, skip, command, noupdate
+  bookmarks: force, rev, delete, rename
   branch: force, clean
   branches: active, closed
   bundle: force, rev, branch, base, all, type, ssh, remotecmd, insecure
@@ -212,6 +215,7 @@ Show all commands + options
   debugdata: 
   debugdate: extended
   debugfsinfo: 
+  debugignore: 
   debugindex: format
   debugindexdot: 
   debuginstall: 
@@ -226,12 +230,12 @@ Show all commands + options
   grep: print0, all, follow, ignore-case, files-with-matches, line-number, rev, user, date, include, exclude
   heads: rev, topo, active, closed, style, template
   help: 
-  identify: rev, num, id, branch, tags
+  identify: rev, num, id, branch, tags, bookmarks
   import: strip, base, force, no-commit, exact, import-branch, message, logfile, date, user, similarity
-  incoming: force, newest-first, bundle, rev, branch, patch, git, limit, no-merges, stat, style, template, ssh, remotecmd, insecure, subrepos
+  incoming: force, newest-first, bundle, rev, bookmarks, branch, patch, git, limit, no-merges, stat, style, template, ssh, remotecmd, insecure, subrepos
   locate: rev, print0, fullpath, include, exclude
   manifest: rev
-  outgoing: force, rev, newest-first, branch, patch, git, limit, no-merges, stat, style, template, ssh, remotecmd, insecure, subrepos
+  outgoing: force, rev, newest-first, bookmarks, branch, patch, git, limit, no-merges, stat, style, template, ssh, remotecmd, insecure, subrepos
   parents: rev, style, template
   paths: 
   recover: 

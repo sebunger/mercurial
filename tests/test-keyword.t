@@ -17,6 +17,8 @@ as it would succeed without uisetup otherwise
   keyword =
   [keyword]
   demo.txt = 
+  [keywordset]
+  svn = False
   [keywordmaps]
   Author = {author|user}
   Date = {date|utcdate}
@@ -40,6 +42,8 @@ as it would succeed without uisetup otherwise
   keyword =
   [keyword]
   demo.txt = 
+  [keywordset]
+  svn = False
   [keywordmaps]
   Branch = {branches}
   $Branch: demobranch $
@@ -348,7 +352,8 @@ Diff remaining chunk
   +bar
 
   $ hg rollback
-  rolling back to revision 2 (undo commit)
+  repository tip rolled back to revision 2 (undo commit)
+  working directory now based on revision 2
 
 Record all chunks in file a
 
@@ -390,7 +395,8 @@ rollback and revert expansion
   xxx $
   bar
   $ hg --verbose rollback
-  rolling back to revision 2 (undo commit)
+  repository tip rolled back to revision 2 (undo commit)
+  working directory now based on revision 2
   overwriting a expanding keywords
   $ hg status a
   M a
@@ -407,7 +413,8 @@ rollback and revert expansion
   $ cat z
   $Id: z,v 45a5d3adce53 1970/01/01 00:00:00 test $
   $ hg --verbose rollback
-  rolling back to revision 2 (undo commit)
+  repository tip rolled back to revision 2 (undo commit)
+  working directory now based on revision 2
   overwriting z shrinking keywords
 
 Only z should be overwritten
@@ -433,7 +440,8 @@ record added file alone
   committed changeset 3:899491280810
   overwriting r expanding keywords
   $ hg --verbose rollback
-  rolling back to revision 2 (undo commit)
+  repository tip rolled back to revision 2 (undo commit)
+  working directory now based on revision 2
   overwriting r shrinking keywords
   $ hg forget r
   $ rm msg r
@@ -597,7 +605,8 @@ Diff specific revision
 Status after rollback:
 
   $ hg rollback
-  rolling back to revision 1 (undo commit)
+  repository tip rolled back to revision 1 (undo commit)
+  working directory now based on revision 1
   $ hg status
   A c
   $ hg update --clean
@@ -618,7 +627,8 @@ cp symlink file; hg cp -A symlink file (part2)
   $ rm x
 
   $ hg rollback
-  rolling back to revision 1 (undo commit)
+  repository tip rolled back to revision 1 (undo commit)
+  working directory now based on revision 1
   $ hg update --clean
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ rm i symignored
@@ -633,6 +643,8 @@ Custom keywordmaps as argument to kwdemo
   b = ignore
   demo.txt = 
   i = ignore
+  [keywordset]
+  svn = False
   [keywordmaps]
   Xinfo = {author}: {desc}
   $Xinfo: test: hg keyword configuration and expansion example $
@@ -729,7 +741,8 @@ remove with status checks
 Rollback, revert, and check expansion
 
   $ hg rollback
-  rolling back to revision 2 (undo commit)
+  repository tip rolled back to revision 2 (undo commit)
+  working directory now based on revision 2
   $ hg status
   R a
   ? c
@@ -805,7 +818,8 @@ Imported patch should not be rejected
   ignore $Id$
 
   $ hg rollback
-  rolling back to revision 2 (undo commit)
+  repository tip rolled back to revision 2 (undo commit)
+  working directory now based on revision 2
   $ hg update --clean
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 

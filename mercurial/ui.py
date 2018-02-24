@@ -122,8 +122,8 @@ class ui(object):
             self.quiet = not self.debugflag and self.configbool('ui', 'quiet')
             if self.verbose and self.quiet:
                 self.quiet = self.verbose = False
-            self._reportuntrusted = self.configbool("ui", "report_untrusted",
-                                        True)
+            self._reportuntrusted = self.debugflag or self.configbool("ui",
+                "report_untrusted", True)
             self.tracebackflag = self.configbool('ui', 'traceback', False)
 
         if section in (None, 'trusted'):
@@ -152,6 +152,16 @@ class ui(object):
                 self.debug(_("ignoring untrusted configuration option "
                              "%s.%s = %s\n") % (section, name, uvalue))
         return value
+
+    def configpath(self, section, name, default=None, untrusted=False):
+        'get a path config item, expanded relative to config file'
+        v = self.config(section, name, default, untrusted)
+        if not os.path.isabs(v) or "://" not in v:
+            src = self.configsource(section, name, untrusted)
+            if ':' in src:
+                base = os.path.dirname(src.rsplit(':'))
+                v = os.path.join(base, os.path.expanduser(v))
+        return v
 
     def configbool(self, section, name, default=False, untrusted=False):
         v = self.config(section, name, None, untrusted)
@@ -589,7 +599,7 @@ class ui(object):
         termination.
         '''
 
-        if pos == None or not self.debugflag:
+        if pos is None or not self.debugflag:
             return
 
         if unit:

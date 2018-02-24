@@ -1,6 +1,3 @@
-  $ echo "[extensions]" >> $HGRCPATH
-  $ echo "bookmarks=" >> $HGRCPATH
-
   $ hg init
 
 no bookmarks
@@ -36,7 +33,7 @@ look up bookmark
 
   $ hg log -r X
   changeset:   0:f7b1eb17ad24
-  tag:         X
+  bookmark:    X
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -54,8 +51,8 @@ bookmark rev -1 again
 list bookmarks
 
   $ hg bookmarks
+     X                         0:f7b1eb17ad24
    * X2                        0:f7b1eb17ad24
-   * X                         0:f7b1eb17ad24
      Y                         -1:000000000000
 
   $ echo b > b
@@ -65,9 +62,14 @@ list bookmarks
 bookmarks revset
 
   $ hg log -r 'bookmark()'
+  changeset:   0:f7b1eb17ad24
+  bookmark:    X
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     0
+  
   changeset:   1:925d80f479bb
-  tag:         X
-  tag:         X2
+  bookmark:    X2
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -76,8 +78,7 @@ bookmarks revset
   $ hg log -r 'bookmark(Y)'
   $ hg log -r 'bookmark(X2)'
   changeset:   1:925d80f479bb
-  tag:         X
-  tag:         X2
+  bookmark:    X2
   tag:         tip
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
@@ -89,25 +90,28 @@ bookmarks revset
 bookmarks X and X2 moved to rev 1, Y at rev -1
 
   $ hg bookmarks
+     X                         0:f7b1eb17ad24
    * X2                        1:925d80f479bb
-   * X                         1:925d80f479bb
      Y                         -1:000000000000
 
 bookmark rev 0 again
 
   $ hg bookmark -r 0 Z
 
+  $ hg update X
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ echo c > c
   $ hg add c
   $ hg commit -m 2
+  created new head
 
-bookmarks X and X2 moved to rev 2, Y at rev -1, Z at rev 0
+bookmarks X moved to rev 2, Y at rev -1, Z at rev 0
 
   $ hg bookmarks
-   * X2                        2:0316ce92851d
-   * X                         2:0316ce92851d
-     Z                         0:f7b1eb17ad24
+   * X                         2:db815d6d32e6
+     X2                        1:925d80f479bb
      Y                         -1:000000000000
+     Z                         0:f7b1eb17ad24
 
 rename nonexistent bookmark
 
@@ -128,8 +132,8 @@ force rename to existent bookmark
 list bookmarks
 
   $ hg bookmark
-   * X2                        2:0316ce92851d
-   * Y                         2:0316ce92851d
+     X2                        1:925d80f479bb
+   * Y                         2:db815d6d32e6
      Z                         0:f7b1eb17ad24
 
 rename without new name
@@ -157,19 +161,19 @@ bookmark name with spaces should be stripped
 list bookmarks
 
   $ hg bookmarks
-   * X2                        2:0316ce92851d
-   * Y                         2:0316ce92851d
+     X2                        1:925d80f479bb
+     Y                         2:db815d6d32e6
      Z                         0:f7b1eb17ad24
-   * x  y                      2:0316ce92851d
+   * x  y                      2:db815d6d32e6
 
 look up stripped bookmark name
 
   $ hg log -r '"x  y"'
-  changeset:   2:0316ce92851d
-  tag:         X2
-  tag:         Y
+  changeset:   2:db815d6d32e6
+  bookmark:    Y
+  bookmark:    x  y
   tag:         tip
-  tag:         x  y
+  parent:      0:f7b1eb17ad24
   user:        test
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     2
@@ -195,10 +199,10 @@ force bookmark with existing name
 list bookmarks
 
   $ hg bookmark
-   * X2                        2:0316ce92851d
-   * Y                         2:0316ce92851d
-   * Z                         2:0316ce92851d
-   * x  y                      2:0316ce92851d
+     X2                        1:925d80f479bb
+     Y                         2:db815d6d32e6
+   * Z                         2:db815d6d32e6
+     x  y                      2:db815d6d32e6
 
 revision but no bookmark name
 
@@ -211,3 +215,32 @@ bookmark name with whitespace only
   $ hg bookmark ' '
   abort: bookmark names cannot consist entirely of whitespace
   [255]
+
+invalid bookmark
+
+  $ hg bookmark 'foo:bar'
+  abort: bookmark 'foo:bar' contains illegal character
+  [255]
+
+the bookmark extension should be ignored now that it is part of core
+
+  $ echo "[extensions]" >> $HGRCPATH
+  $ echo "bookmarks=" >> $HGRCPATH
+  $ hg bookmarks
+     X2                        1:925d80f479bb
+     Y                         2:db815d6d32e6
+   * Z                         2:db815d6d32e6
+     x  y                      2:db815d6d32e6
+test summary
+
+  $ hg summary
+  parent: 2:db815d6d32e6 tip Y Z x  y
+   2
+  branch: default
+  commit: (clean)
+  update: 1 new changesets, 2 branch heads (merge)
+
+test id
+
+  $ hg id
+  db815d6d32e6 tip Y/Z/x  y
