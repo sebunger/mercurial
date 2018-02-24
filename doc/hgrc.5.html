@@ -108,6 +108,7 @@ ones.</p>
 <li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc</span></tt> (per-installation)</li>
 <li><tt class="docutils literal">/etc/mercurial/hgrc</tt> (per-system)</li>
 <li><tt class="docutils literal"><span class="pre">/etc/mercurial/hgrc.d/*.rc</span></tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/default.d/*.rc</span></tt> (defaults)</li>
 </ul>
 </div>
 <div class="verbose-windows container">
@@ -121,6 +122,7 @@ ones.</p>
 <li><tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\Mercurial.ini</span></tt> (per-installation)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\hgrc.d\*.rc</span></tt> (per-installation)</li>
 <li><tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</tt> (per-installation)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/default.d/*.rc</span></tt> (defaults)</li>
 </ul>
 <div class="note">
 <p class="first admonition-title">Note</p>
@@ -137,6 +139,7 @@ is used when running 32-bit Python on 64-bit Windows.</p>
 <li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc.d/*.rc</span></tt> (per-installation)</li>
 <li><tt class="docutils literal">/lib/mercurial/hgrc</tt> (per-system)</li>
 <li><tt class="docutils literal"><span class="pre">/lib/mercurial/hgrc.d/*.rc</span></tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/default.d/*.rc</span></tt> (defaults)</li>
 </ul>
 </div>
 <p>Per-repository configuration options only apply in a
@@ -168,6 +171,12 @@ order until one or more configuration files are detected.</p>
 is running. Options in these files apply to all Mercurial commands
 executed by any user in any directory. Options in these files
 override per-installation options.</p>
+<p>Mercurial comes with some default configuration. The default configuration
+files are installed with Mercurial and will be overwritten on upgrades. Default
+configuration files should never be edited by users or administrators but can
+be overridden in other configuration files. So far the directory only contains
+merge tool configuration but packagers can also put other default configuration
+there.</p>
 </div>
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
@@ -559,6 +568,8 @@ related options for the annotate command.</p>
 <dd>Omit git binary patches.</dd>
 <dt><tt class="docutils literal">nodates</tt></dt>
 <dd>Don't include dates in diff headers.</dd>
+<dt><tt class="docutils literal">noprefix</tt></dt>
+<dd>Omit 'a/' and 'b/' prefixes from filenames. Ignored in plain mode.</dd>
 <dt><tt class="docutils literal">showfunc</tt></dt>
 <dd>Show which function each change is in.</dd>
 <dt><tt class="docutils literal">ignorews</tt></dt>
@@ -1258,11 +1269,11 @@ Default is False.</dd>
 UTF-8. Default is ISO-8859-1.</dd>
 <dt><tt class="docutils literal">ignore</tt></dt>
 <dd>A file to read per-user ignore patterns from. This file should be
-in the same format as a repository-wide .hgignore file. This
-option supports hook syntax, so if you want to specify multiple
-ignore files, you can do so by setting something like
-<tt class="docutils literal">ignore.other = <span class="pre">~/.hgignore2</span></tt>. For details of the ignore file
-format, see the <tt class="docutils literal">hgignore(5)</tt> man page.</dd>
+in the same format as a repository-wide .hgignore file. Filenames
+are relative to the repository root. This option supports hook syntax,
+so if you want to specify multiple ignore files, you can do so by
+setting something like <tt class="docutils literal">ignore.other = <span class="pre">~/.hgignore2</span></tt>. For details
+of the ignore file format, see the <tt class="docutils literal">hgignore(5)</tt> man page.</dd>
 <dt><tt class="docutils literal">interactive</tt></dt>
 <dd>Allow to prompt the user. True or False. Default is True.</dd>
 <dt><tt class="docutils literal">logtemplate</tt></dt>

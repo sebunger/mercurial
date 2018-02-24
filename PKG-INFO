@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: mercurial
-Version: 3.2.3
+Version: 3.3-rc
 Summary: Fast scalable distributed SCM (revision control, version control) system
 Home-page: http://mercurial.selenic.com/
 Author: Matt Mackall and many others

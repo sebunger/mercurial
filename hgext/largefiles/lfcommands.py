@@ -268,6 +268,7 @@ def _commitcontext(rdst, parents, ctx, dstfiles, getfilectx, revmap):
     mctx = context.memctx(rdst, parents, ctx.description(), dstfiles,
                           getfilectx, ctx.user(), ctx.date(), ctx.extra())
     ret = rdst.commitctx(mctx)
+    lfutil.copyalltostore(rdst, ret)
     rdst.setparents(ret)
     revmap[ctx.node()] = rdst.changelog.tip()
 
@@ -435,8 +436,14 @@ def downloadlfiles(ui, repo, rev=None):
         ui.status(_("%d largefiles failed to download\n") % totalmissing)
     return totalsuccess, totalmissing
 
-def updatelfiles(ui, repo, filelist=None, printmessage=True,
-                 normallookup=False):
+def updatelfiles(ui, repo, filelist=None, printmessage=None,
+                 normallookup=False, checked=False):
+    '''Update largefiles according to standins in the working directory
+
+    If ``printmessage`` is other than ``None``, it means "print (or
+    ignore, for false) message forcibly".
+    '''
+    statuswriter = lfutil.getstatuswriter(ui, repo, printmessage)
     wlock = repo.wlock()
     try:
         lfdirstate = lfutil.openlfdirstate(ui, repo)
@@ -458,14 +465,15 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True,
                     util.unlinkpath(absstandin + '.orig')
                 expecthash = lfutil.readstandin(repo, lfile)
                 if (expecthash != '' and
-                    (not os.path.exists(abslfile) or
+                    (checked or
+                     not os.path.exists(abslfile) or
                      expecthash != lfutil.hashfile(abslfile))):
                     if lfile not in repo[None]: # not switched to normal file
                         util.unlinkpath(abslfile, ignoremissing=True)
-                    # use normallookup() to allocate entry in largefiles
+                    # use normallookup() to allocate an entry in largefiles
                     # dirstate, because lack of it misleads
                     # lfilesrepo.status() into recognition that such cache
-                    # missing files are REMOVED.
+                    # missing files are removed.
                     lfdirstate.normallookup(lfile)
                     update[lfile] = expecthash
             else:
@@ -482,8 +490,7 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True,
         lfdirstate.write()
 
         if lfiles:
-            if printmessage:
-                ui.status(_('getting changed largefiles\n'))
+            statuswriter(_('getting changed largefiles\n'))
             cachelfiles(ui, repo, None, lfiles)
 
         for lfile in lfiles:
@@ -513,22 +520,9 @@ def updatelfiles(ui, repo, filelist=None, printmessage=True,
 
             lfutil.synclfdirstate(repo, lfdirstate, lfile, normallookup)
 
-        if filelist is not None:
-            # If "local largefile" is chosen at file merging, it is
-            # not listed in "filelist" (= dirstate syncing is
-            # omitted), because the standin file is not changed before and
-            # after merging.
-            # But the status of such files may have to be changed by
-            # merging. For example, locally modified ("M") largefile
-            # has to become re-added("A"), if it is "normal" file in
-            # the target revision of linear-merging.
-            for lfile in lfdirstate:
-                if lfile not in filelist:
-                    lfutil.synclfdirstate(repo, lfdirstate, lfile, True)
-
         lfdirstate.write()
-        if printmessage and lfiles:
-            ui.status(_('%d largefiles updated, %d removed\n') % (updated,
+        if lfiles:
+            statuswriter(_('%d largefiles updated, %d removed\n') % (updated,
                 removed))
     finally:
         wlock.release()

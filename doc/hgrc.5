@@ -84,6 +84,9 @@ On Unix, the following files are consulted:
 .IP \(bu 2
 .
 \fB/etc/mercurial/hgrc.d/*.rc\fP (per\-system)
+.IP \(bu 2
+.
+\fB<internal>/default.d/*.rc\fP (defaults)
 .UNINDENT
 .sp
 On Windows, the following files are consulted:
@@ -112,6 +115,9 @@ On Windows, the following files are consulted:
 .IP \(bu 2
 .
 \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP (per\-installation)
+.IP \(bu 2
+.
+\fB<internal>/default.d/*.rc\fP (defaults)
 .UNINDENT
 .IP Note
 .
@@ -139,6 +145,9 @@ On Plan9, the following files are consulted:
 .IP \(bu 2
 .
 \fB/lib/mercurial/hgrc.d/*.rc\fP (per\-system)
+.IP \(bu 2
+.
+\fB<internal>/default.d/*.rc\fP (defaults)
 .UNINDENT
 .sp
 Per\-repository configuration options only apply in a
@@ -174,6 +183,13 @@ Per\-system configuration files are for the system on which Mercurial
 is running. Options in these files apply to all Mercurial commands
 executed by any user in any directory. Options in these files
 override per\-installation options.
+.sp
+Mercurial comes with some default configuration. The default configuration
+files are installed with Mercurial and will be overwritten on upgrades. Default
+configuration files should never be edited by users or administrators but can
+be overridden in other configuration files. So far the directory only contains
+merge tool configuration but packagers can also put other default configuration
+there.
 .SH SYNTAX
 .sp
 A configuration file consists of sections, led by a \fB[section]\fP header
@@ -748,6 +764,10 @@ Omit git binary patches.
 .B \fBnodates\fP
 .sp
 Don\(aqt include dates in diff headers.
+.TP
+.B \fBnoprefix\fP
+.sp
+Omit \(aqa/\(aq and \(aqb/\(aq prefixes from filenames. Ignored in plain mode.
 .TP
 .B \fBshowfunc\fP
 .sp
@@ -1682,11 +1702,11 @@ UTF\-8. Default is ISO\-8859\-1.
 .B \fBignore\fP
 .sp
 A file to read per\-user ignore patterns from. This file should be
-in the same format as a repository\-wide .hgignore file. This
-option supports hook syntax, so if you want to specify multiple
-ignore files, you can do so by setting something like
-\fBignore.other = ~/.hgignore2\fP. For details of the ignore file
-format, see the \fBhgignore(5)\fP man page.
+in the same format as a repository\-wide .hgignore file. Filenames
+are relative to the repository root. This option supports hook syntax,
+so if you want to specify multiple ignore files, you can do so by
+setting something like \fBignore.other = ~/.hgignore2\fP. For details
+of the ignore file format, see the \fBhgignore(5)\fP man page.
 .TP
 .B \fBinteractive\fP
 .sp
