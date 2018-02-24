@@ -734,6 +734,15 @@ class revlog(object):
                 break
         return False
 
+    def commonancestorsheads(self, a, b):
+        """calculate all the heads of the common ancestors of nodes a and b"""
+        a, b = self.rev(a), self.rev(b)
+        try:
+            ancs = self.index.commonancestorsheads(a, b)
+        except (AttributeError, OverflowError): # C implementation failed
+            ancs = ancestor.commonancestorsheads(self.parentrevs, a, b)
+        return map(self.node, ancs)
+
     def ancestor(self, a, b):
         """calculate the least common ancestor of nodes a and b"""
 
@@ -909,8 +918,13 @@ class revlog(object):
         ladd = l.append
 
         # preload the cache
-        self._chunkraw(revs[0], revs[-1])
-        offset, data = self._chunkcache
+        try:
+            self._chunkraw(revs[0], revs[-1])
+            offset, data = self._chunkcache
+        except OverflowError:
+            # issue4215 - we can't cache a run of chunks greater than
+            # 2G on Windows
+            return [self._chunk(rev) for rev in revs]
 
         for rev in revs:
             chunkstart = start(rev)

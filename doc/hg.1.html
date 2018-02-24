@@ -155,6 +155,7 @@ repository.</dd>
 <h1><a class="toc-backref" href="#contents">Commands</a></h1>
 <div class="section" id="add">
 <h2>add</h2>
+<p>add the specified files on the next commit:</p>
 <pre class="literal-block">
 hg add [OPTION]... [FILE]...
 </pre>
@@ -203,6 +204,7 @@ A foo.c
 </div>
 <div class="section" id="addremove">
 <h2>addremove</h2>
+<p>add all new files, delete all missing files:</p>
 <pre class="literal-block">
 hg addremove [OPTION]... [FILE]...
 </pre>
@@ -247,6 +249,7 @@ identical files are detected.</p>
 </div>
 <div class="section" id="annotate">
 <h2>annotate</h2>
+<p>show changeset information by line for each file:</p>
 <pre class="literal-block">
 hg annotate [-r REV] [-f] [-a] [-u] [-d] [-n] [-c] [-l] FILE...
 </pre>
@@ -325,6 +328,7 @@ aliases: blame</blockquote>
 </div>
 <div class="section" id="archive">
 <h2>archive</h2>
+<p>create an unversioned archive of a repository revision:</p>
 <pre class="literal-block">
 hg archive [OPTION]... DEST
 </pre>
@@ -410,6 +414,7 @@ removed.</p>
 </div>
 <div class="section" id="backout">
 <h2>backout</h2>
+<p>reverse effect of earlier changeset:</p>
 <pre class="literal-block">
 hg backout [OPTION]... [-r] REV
 </pre>
@@ -485,6 +490,7 @@ files.</p>
 </div>
 <div class="section" id="bisect">
 <h2>bisect</h2>
+<p>subdivision search of changesets:</p>
 <pre class="literal-block">
 hg bisect [-gbsr] [-U] [-c CMD] [REV]
 </pre>
@@ -605,6 +611,7 @@ hg log --graph -r &quot;bisect(range)&quot;
 </div>
 <div class="section" id="bookmarks">
 <h2>bookmarks</h2>
+<p>track a line of development with movable markers:</p>
 <pre class="literal-block">
 hg bookmarks [OPTIONS]... [NAME]...
 </pre>
@@ -656,6 +663,7 @@ current active bookmark will be marked inactive.</p>
 </div>
 <div class="section" id="branch">
 <h2>branch</h2>
+<p>set or show the current branch name:</p>
 <pre class="literal-block">
 hg branch [-fC] [NAME]
 </pre>
@@ -694,6 +702,7 @@ change.</p>
 </div>
 <div class="section" id="branches">
 <h2>branches</h2>
+<p>list repository named branches:</p>
 <pre class="literal-block">
 hg branches [-ac]
 </pre>
@@ -720,6 +729,7 @@ is considered active if it contains repository heads.</p>
 </div>
 <div class="section" id="bundle">
 <h2>bundle</h2>
+<p>create a changegroup file:</p>
 <pre class="literal-block">
 hg bundle [-f] [-t TYPE] [-a] [-r REV]... [--base REV]... FILE [DEST]
 </pre>
@@ -783,23 +793,35 @@ permissions, copy/rename information, and revision history.</p>
 </div>
 <div class="section" id="cat">
 <h2>cat</h2>
+<p>output the current or given revision of files:</p>
 <pre class="literal-block">
 hg cat [OPTION]... FILE...
 </pre>
 <p>Print the specified files as they were at the given revision. If
 no revision is given, the parent of the working directory is used.</p>
 <p>Output may be to a file, in which case the name of the file is
-given using a format string. The formatting rules are the same as
-for the export command, with the following additions:</p>
+given using a format string. The formatting rules as follows:</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
+<tr class="field"><th class="field-name"><tt class="docutils literal">%%</tt>:</th><td class="field-body">literal &quot;%&quot; character</td>
+</tr>
 <tr class="field"><th class="field-name"><tt class="docutils literal">%s</tt>:</th><td class="field-body">basename of file being printed</td>
 </tr>
 <tr class="field"><th class="field-name"><tt class="docutils literal">%d</tt>:</th><td class="field-body">dirname of file being printed, or '.' if in repository root</td>
 </tr>
 <tr class="field"><th class="field-name"><tt class="docutils literal">%p</tt>:</th><td class="field-body">root-relative path name of file being printed</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal">%H</tt>:</th><td class="field-body">changeset hash (40 hexadecimal digits)</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal">%R</tt>:</th><td class="field-body">changeset revision number</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal">%h</tt>:</th><td class="field-body">short-form changeset hash (12 hexadecimal digits)</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal">%r</tt>:</th><td class="field-body">zero-padded changeset revision number</td>
+</tr>
+<tr class="field"><th class="field-name"><tt class="docutils literal">%b</tt>:</th><td class="field-body">basename of the exporting repository</td>
 </tr>
 </tbody>
 </table>
@@ -834,6 +856,7 @@ for the export command, with the following additions:</p>
 </div>
 <div class="section" id="clone">
 <h2>clone</h2>
+<p>make a copy of an existing repository:</p>
 <pre class="literal-block">
 hg clone [OPTION]... SOURCE [DEST]
 </pre>
@@ -969,6 +992,7 @@ hg clone http://selenic.com/hg#stable
 </div>
 <div class="section" id="commit">
 <h2>commit</h2>
+<p>commit the specified files or all outstanding changes:</p>
 <pre class="literal-block">
 hg commit [OPTION]... [FILE]...
 </pre>
@@ -1014,6 +1038,9 @@ or changesets that have children.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--secret</span></kbd></td>
 <td>use the secret phase for committing</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>further edit commit message already specified</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -1047,8 +1074,50 @@ or changesets that have children.</p>
 <blockquote>
 aliases: ci</blockquote>
 </div>
+<div class="section" id="config">
+<h2>config</h2>
+<p>show combined config settings from all hgrc files:</p>
+<pre class="literal-block">
+hg config [-u] [NAME]...
+</pre>
+<p>With no arguments, print names and values of all config items.</p>
+<p>With one argument of the form section.name, print just the value
+of that config item.</p>
+<p>With multiple arguments, print names and values of all config
+items with matching section names.</p>
+<p>With --edit, start an editor on the user-level config file. With
+--global, edit the system-wide config file. With --local, edit the
+repository-level config file.</p>
+<p>With --debug, the source (filename and line number) is printed
+for each config item.</p>
+<p>See <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a> for more information about config files.</p>
+<p>Returns 0 on success.</p>
+<p>Options:</p>
+<table class="docutils option-list" frame="void" rules="none">
+<col class="option" />
+<col class="description" />
+<tbody valign="top">
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-u</span>, <span class="option">--untrusted</span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>show untrusted configuration options</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>edit user config</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-l</span>, <span class="option">--local</span></kbd></td>
+<td>edit repository config</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-g</span>, <span class="option">--global</span></kbd></td>
+<td><p class="first">edit global config</p>
+<p class="last">aliases: showconfig debugconfig</p>
+</td></tr>
+</tbody>
+</table>
+</div>
 <div class="section" id="copy">
 <h2>copy</h2>
+<p>mark files as copied for the next commit:</p>
 <pre class="literal-block">
 hg copy [OPTION]... [SOURCE]... DEST
 </pre>
@@ -1091,6 +1160,7 @@ aliases: cp</blockquote>
 </div>
 <div class="section" id="diff">
 <h2>diff</h2>
+<p>diff repository (or selected files):</p>
 <pre class="literal-block">
 hg diff [OPTION]... ([-c REV] | [-r REV1 [-r REV2]]) [FILE]...
 </pre>
@@ -1212,6 +1282,7 @@ hg diff -r 9353^2:9353  # compare against the second parent
 </div>
 <div class="section" id="export">
 <h2>export</h2>
+<p>dump the header and diffs for one or more changesets:</p>
 <pre class="literal-block">
 hg export [OPTION]... [-o OUTFILESPEC] [-r] [REV]...
 </pre>
@@ -1315,6 +1386,7 @@ hg export -r &quot;outgoing()&quot; -o &quot;%n-%m.patch&quot;
 </div>
 <div class="section" id="forget">
 <h2>forget</h2>
+<p>forget the specified files on the next commit:</p>
 <pre class="literal-block">
 hg forget [OPTION]... FILE...
 </pre>
@@ -1359,6 +1431,7 @@ hg forget &quot;set:hgignore()&quot;
 </div>
 <div class="section" id="graft">
 <h2>graft</h2>
+<p>copy changes from other branches onto the current branch:</p>
 <pre class="literal-block">
 hg graft [OPTION]... [-r] REV...
 </pre>
@@ -1456,6 +1529,7 @@ hg log --debug -r .
 </div>
 <div class="section" id="grep">
 <h2>grep</h2>
+<p>search for a pattern in specified files and revisions:</p>
 <pre class="literal-block">
 hg grep [OPTION]... PATTERN [FILE]...
 </pre>
@@ -1523,6 +1597,7 @@ use the --all flag.</p>
 </div>
 <div class="section" id="heads">
 <h2>heads</h2>
+<p>show branch heads:</p>
 <pre class="literal-block">
 hg heads [-ct] [-r STARTREV] [REV]...
 </pre>
@@ -1562,9 +1637,9 @@ topological heads (changesets with no children) will be shown.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
@@ -1572,6 +1647,7 @@ topological heads (changesets with no children) will be shown.</p>
 </div>
 <div class="section" id="help">
 <h2>help</h2>
+<p>show help for a given topic or a help overview:</p>
 <pre class="literal-block">
 hg help [-ec] [TOPIC]
 </pre>
@@ -1600,6 +1676,7 @@ topic.</p>
 </div>
 <div class="section" id="identify">
 <h2>identify</h2>
+<p>identify the working copy or specified revision:</p>
 <pre class="literal-block">
 hg identify [-nibtB] [-r REV] [SOURCE]
 </pre>
@@ -1675,6 +1752,7 @@ hg id -r tip http://selenic.com/hg/
 </div>
 <div class="section" id="import">
 <h2>import</h2>
+<p>import an ordered set of patches:</p>
 <pre class="literal-block">
 hg import [OPTION]... PATCH...
 </pre>
@@ -1792,6 +1870,7 @@ hg import --exact proposed-fix.patch
 </div>
 <div class="section" id="incoming">
 <h2>incoming</h2>
+<p>show new changesets found in source:</p>
 <pre class="literal-block">
 hg incoming [-p] [-n] [-M] [-f] [-r REV]... [--bundle FILENAME] [SOURCE]
 </pre>
@@ -1801,6 +1880,27 @@ if a pull at the time you issued this command.</p>
 <p>For remote repository, using --bundle avoids downloading the
 changesets twice if the incoming is followed by a pull.</p>
 <p>See pull for valid source format details.</p>
+<div class="verbose container">
+<p>Examples:</p>
+<ul>
+<li><p class="first">show incoming changes with patches and full description:</p>
+<pre class="literal-block">
+hg incoming -vp
+</pre>
+</li>
+<li><p class="first">show incoming changes excluding merges, store a bundle:</p>
+<pre class="literal-block">
+hg in -vpM --bundle incoming.hg
+hg pull incoming.hg
+</pre>
+</li>
+<li><p class="first">briefly list changes inside a bundle:</p>
+<pre class="literal-block">
+hg in changes.hg -T &quot;{desc|firstline}\n&quot;
+</pre>
+</li>
+</ul>
+</div>
 <p>Returns 0 if there are incoming changes, 1 otherwise.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -1853,9 +1953,9 @@ changesets twice if the incoming is followed by a pull.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -1880,6 +1980,7 @@ aliases: in</blockquote>
 </div>
 <div class="section" id="init">
 <h2>init</h2>
+<p>create a new repository in the given directory:</p>
 <pre class="literal-block">
 hg init [-e CMD] [--remotecmd CMD] [DEST]
 </pre>
@@ -1910,6 +2011,7 @@ See <a class="reference external" href="hg.1.html#urls"><tt class="docutils lite
 </div>
 <div class="section" id="locate">
 <h2>locate</h2>
+<p>locate files matching specific patterns:</p>
 <pre class="literal-block">
 hg locate [OPTION]... [PATTERN]...
 </pre>
@@ -1954,6 +2056,7 @@ contain whitespace as multiple filenames.</p>
 </div>
 <div class="section" id="log">
 <h2>log</h2>
+<p>show revision history of entire repository or files:</p>
 <pre class="literal-block">
 hg log [OPTION]... [FILE]
 </pre>
@@ -1970,6 +2073,11 @@ ancestors or descendants of the starting revision.</p>
 tags, non-trivial parents, user, date and time, and a summary for
 each commit. When the -v/--verbose switch is used, the list of
 changed files and full commit message are shown.</p>
+<p>With --graph the revisions are shown as an ASCII art DAG with the most
+recent changeset at the top.
+'o' is a changeset, '&#64;' is a working directory parent, 'x' is obsolete,
+and '+' represents a fork where the changeset from the lines below is a
+parent of the 'o' merge on the same same line.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">log -p/--patch may generate unexpected diff output for merge
@@ -2112,9 +2220,9 @@ specifying custom templates.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -2133,6 +2241,7 @@ aliases: history</blockquote>
 </div>
 <div class="section" id="manifest">
 <h2>manifest</h2>
+<p>output the current or given revision of the project manifest:</p>
 <pre class="literal-block">
 hg manifest [-r REV]
 </pre>
@@ -2161,6 +2270,7 @@ is printed. This includes deleted and renamed files.</p>
 </div>
 <div class="section" id="merge">
 <h2>merge</h2>
+<p>merge working directory with another revision:</p>
 <pre class="literal-block">
 hg merge [-P] [-f] [[-r] REV]
 </pre>
@@ -2206,6 +2316,7 @@ all changes.</p>
 </div>
 <div class="section" id="outgoing">
 <h2>outgoing</h2>
+<p>show changesets not found in the destination:</p>
 <pre class="literal-block">
 hg outgoing [-M] [-p] [-n] [-f] [-r REV]... [DEST]
 </pre>
@@ -2261,9 +2372,9 @@ be pushed if a push was requested.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -2288,6 +2399,7 @@ aliases: out</blockquote>
 </div>
 <div class="section" id="parents">
 <h2>parents</h2>
+<p>show the parents of the working directory or revision:</p>
 <pre class="literal-block">
 hg parents [-r REV] [FILE]
 </pre>
@@ -2309,9 +2421,9 @@ argument to --rev if given) is printed.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
@@ -2319,6 +2431,7 @@ argument to --rev if given) is printed.</p>
 </div>
 <div class="section" id="paths">
 <h2>paths</h2>
+<p>show aliases for remote repositories:</p>
 <pre class="literal-block">
 hg paths [NAME]
 </pre>
@@ -2344,6 +2457,7 @@ source is written as <tt class="docutils literal">default</tt> in <tt class="doc
 </div>
 <div class="section" id="phase">
 <h2>phase</h2>
+<p>set or show the current phase name:</p>
 <pre class="literal-block">
 hg phase [-p|-d|-s] [-f] [-r] REV...
 </pre>
@@ -2384,6 +2498,7 @@ be changed.</p>
 </div>
 <div class="section" id="pull">
 <h2>pull</h2>
+<p>pull changes from the specified source:</p>
 <pre class="literal-block">
 hg pull [-u] [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [SOURCE]
 </pre>
@@ -2439,6 +2554,7 @@ See <a class="reference external" href="hg.1.html#urls"><tt class="docutils lite
 </div>
 <div class="section" id="push">
 <h2>push</h2>
+<p>push changes to the specified destination:</p>
 <pre class="literal-block">
 hg push [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [DEST]
 </pre>
@@ -2507,6 +2623,7 @@ URLs. If DESTINATION is omitted, a default path will be used.</p>
 </div>
 <div class="section" id="recover">
 <h2>recover</h2>
+<p>roll back an interrupted transaction:</p>
 <pre class="literal-block">
 hg recover
 </pre>
@@ -2518,6 +2635,7 @@ suggests it.</p>
 </div>
 <div class="section" id="remove">
 <h2>remove</h2>
+<p>remove the specified files on the next commit:</p>
 <pre class="literal-block">
 hg remove [OPTION]... FILE...
 </pre>
@@ -2609,6 +2727,7 @@ aliases: rm</blockquote>
 </div>
 <div class="section" id="rename">
 <h2>rename</h2>
+<p>rename files; equivalent of copy + remove:</p>
 <pre class="literal-block">
 hg rename [OPTION]... SOURCE... DEST
 </pre>
@@ -2651,6 +2770,7 @@ aliases: move mv</blockquote>
 </div>
 <div class="section" id="resolve">
 <h2>resolve</h2>
+<p>redo merges or set/view the merge status of files:</p>
 <pre class="literal-block">
 hg resolve [OPTION]... [FILE]...
 </pre>
@@ -2721,6 +2841,7 @@ commit after a conflicting merge.</p>
 </div>
 <div class="section" id="revert">
 <h2>revert</h2>
+<p>restore files to their checkout state:</p>
 <pre class="literal-block">
 hg revert [OPTION]... [-r REV] [NAME]...
 </pre>
@@ -2783,6 +2904,7 @@ To disable these backups, use --no-backup.</p>
 </div>
 <div class="section" id="rollback">
 <h2>rollback</h2>
+<p>roll back the last transaction (DANGEROUS) (DEPRECATED):</p>
 <pre class="literal-block">
 hg rollback
 </pre>
@@ -2833,6 +2955,7 @@ may fail if a rollback is performed.</p>
 </div>
 <div class="section" id="root">
 <h2>root</h2>
+<p>print the root (top) of the current working directory:</p>
 <pre class="literal-block">
 hg root
 </pre>
@@ -2841,6 +2964,7 @@ hg root
 </div>
 <div class="section" id="serve">
 <h2>serve</h2>
+<p>start stand-alone webserver:</p>
 <pre class="literal-block">
 hg serve [OPTION]...
 </pre>
@@ -2933,35 +3057,9 @@ number it uses.</p>
 </tbody>
 </table>
 </div>
-<div class="section" id="showconfig">
-<h2>showconfig</h2>
-<pre class="literal-block">
-hg showconfig [-u] [NAME]...
-</pre>
-<p>With no arguments, print names and values of all config items.</p>
-<p>With one argument of the form section.name, print just the value
-of that config item.</p>
-<p>With multiple arguments, print names and values of all config
-items with matching section names.</p>
-<p>With --debug, the source (filename and line number) is printed
-for each config item.</p>
-<p>Returns 0 on success.</p>
-<p>Options:</p>
-<table class="docutils option-list" frame="void" rules="none">
-<col class="option" />
-<col class="description" />
-<tbody valign="top">
-<tr><td class="option-group" colspan="2">
-<kbd><span class="option">-u</span>, <span class="option">--untrusted</span></kbd></td>
-</tr>
-<tr><td>&nbsp;</td><td><p class="first">show untrusted configuration options</p>
-<p class="last">aliases: debugconfig</p>
-</td></tr>
-</tbody>
-</table>
-</div>
 <div class="section" id="status">
 <h2>status</h2>
+<p>show changed files in the working directory:</p>
 <pre class="literal-block">
 hg status [OPTION]... [FILE]...
 </pre>
@@ -2993,7 +3091,7 @@ C = clean
 ! = missing (deleted by non-hg command, but still tracked)
 ? = not tracked
 I = ignored
-  = origin of the previous file listed as A (added)
+  = origin of the previous file (with --copies)
 </pre>
 <div class="verbose container">
 <p>Examples:</p>
@@ -3081,6 +3179,7 @@ aliases: st</blockquote>
 </div>
 <div class="section" id="summary">
 <h2>summary</h2>
+<p>summarize working directory state:</p>
 <pre class="literal-block">
 hg summary [--remote]
 </pre>
@@ -3104,6 +3203,7 @@ incoming and outgoing changes. This can be time-consuming.</p>
 </div>
 <div class="section" id="tag">
 <h2>tag</h2>
+<p>add one or more tags for the current or given revision:</p>
 <pre class="literal-block">
 hg tag [-f] [-l] [-m TEXT] [-d DATE] [-u USER] [-r REV] NAME...
 </pre>
@@ -3166,6 +3266,7 @@ lookup, using an existing branch name as a tag name is discouraged.</p>
 </div>
 <div class="section" id="tags">
 <h2>tags</h2>
+<p>list repository tags:</p>
 <pre class="literal-block">
 hg tags
 </pre>
@@ -3175,6 +3276,7 @@ switch is used, a third column &quot;local&quot; is printed for local tags.</p>
 </div>
 <div class="section" id="tip">
 <h2>tip</h2>
+<p>show the tip revision (DEPRECATED):</p>
 <pre class="literal-block">
 hg tip [-p] [-g]
 </pre>
@@ -3201,9 +3303,9 @@ and cannot be renamed or assigned to a different changeset.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
@@ -3211,6 +3313,7 @@ and cannot be renamed or assigned to a different changeset.</p>
 </div>
 <div class="section" id="unbundle">
 <h2>unbundle</h2>
+<p>apply one or more changegroup files:</p>
 <pre class="literal-block">
 hg unbundle [-u] FILE...
 </pre>
@@ -3230,6 +3333,7 @@ bundle command.</p>
 </div>
 <div class="section" id="update">
 <h2>update</h2>
+<p>update working directory (or switch revisions):</p>
 <pre class="literal-block">
 hg update [-c] [-C] [-d DATE] [[-r] REV]
 </pre>
@@ -3296,6 +3400,7 @@ the working directory is updated to the requested changeset.</li>
 </div>
 <div class="section" id="verify">
 <h2>verify</h2>
+<p>verify the integrity of the repository:</p>
 <pre class="literal-block">
 hg verify
 </pre>
@@ -3311,6 +3416,7 @@ repository.</p>
 </div>
 <div class="section" id="version">
 <h2>version</h2>
+<p>output version and copyright information:</p>
 <pre class="literal-block">
 hg version
 </pre>
@@ -3529,8 +3635,6 @@ baz = !
 </tr>
 <tr class="field"><th class="field-name">bugzilla:</th><td class="field-body">hooks for integrating with the Bugzilla bug tracker</td>
 </tr>
-<tr class="field"><th class="field-name">children:</th><td class="field-body">command to display child changesets (DEPRECATED)</td>
-</tr>
 <tr class="field"><th class="field-name">churn:</th><td class="field-body">command to display statistics about repository history</td>
 </tr>
 <tr class="field"><th class="field-name">color:</th><td class="field-body">colorize output from some commands</td>
@@ -3543,11 +3647,7 @@ baz = !
 </tr>
 <tr class="field"><th class="field-name">factotum:</th><td class="field-body">http authentication with factotum</td>
 </tr>
-<tr class="field"><th class="field-name">fetch:</th><td class="field-body">pull, update and merge in one command (DEPRECATED)</td>
-</tr>
 <tr class="field"><th class="field-name">gpg:</th><td class="field-body">commands to sign and verify changesets</td>
-</tr>
-<tr class="field"><th class="field-name">graphlog:</th><td class="field-body">command to view revision graphs from a shell (DEPRECATED)</td>
 </tr>
 <tr class="field"><th class="field-name">hgcia:</th><td class="field-body">hooks for integrating with the CIA.vc notification service</td>
 </tr>
@@ -3556,10 +3656,6 @@ baz = !
 <tr class="field"><th class="field-name">highlight:</th><td class="field-body">syntax highlighting for hgweb (requires Pygments)</td>
 </tr>
 <tr class="field"><th class="field-name">histedit:</th><td class="field-body">interactive history editing</td>
-</tr>
-<tr class="field"><th class="field-name">inotify:</th><td class="field-body">accelerate status report using Linux's inotify service</td>
-</tr>
-<tr class="field"><th class="field-name">interhg:</th><td class="field-body">expand expressions into changelog and summaries</td>
 </tr>
 <tr class="field"><th class="field-name">keyword:</th><td class="field-body">expand keywords in tracked files</td>
 </tr>
@@ -3594,8 +3690,6 @@ baz = !
 <tr class="field"><th class="field-name">transplant:</th><td class="field-body">command to transplant changesets from another branch</td>
 </tr>
 <tr class="field"><th class="field-name">win32mbcs:</th><td class="field-body">allow the use of MBCS paths with problematic encodings</td>
-</tr>
-<tr class="field"><th class="field-name">win32text:</th><td class="field-body">perform automatic newline conversion</td>
 </tr>
 <tr class="field"><th class="field-name">zeroconf:</th><td class="field-body">discover and advertise repositories on the local network</td>
 </tr>
@@ -4538,7 +4632,7 @@ directory.</p>
 <dt><tt class="docutils literal">all()</tt></dt>
 <dd>All changesets, the same as <tt class="docutils literal">0:tip</tt>.</dd>
 <dt><tt class="docutils literal"><span class="pre">ancestor(*changeset)</span></tt></dt>
-<dd><p class="first">Greatest common ancestor of the changesets.</p>
+<dd><p class="first">A greatest common ancestor of the changesets.</p>
 <p class="last">Accepts 0 or more changesets.
 Will return empty list when passed no args.
 Greatest common ancestor of a single changeset is that changeset.</p>
@@ -4692,6 +4786,11 @@ directory.</p>
 </dd>
 <dt><tt class="docutils literal">obsolete()</tt></dt>
 <dd>Mutable changeset with a newer version.</dd>
+<dt><tt class="docutils literal">only(set, [set])</tt></dt>
+<dd>Changesets that are ancestors of the first set that are not ancestors
+of any other head in the repo. If a second set is specified, the result
+is ancestors of the first set that are not ancestors of the second set
+(i.e. ::&lt;set1&gt; - ::&lt;set2&gt;).</dd>
 <dt><tt class="docutils literal"><span class="pre">origin([set])</span></tt></dt>
 <dd>Changesets that were specified as a source for the grafts, transplants or
 rebases that created the given revisions.  Omitting the optional set is the
@@ -4908,6 +5007,9 @@ ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">archive:</th><td class="field-body">archive does not recurse in subrepositories unless
 -S/--subrepos is specified.</td>
+</tr>
+<tr class="field"><th class="field-name">cat:</th><td class="field-body">cat currently only handles exact file matches in subrepos.
+Git and Subversion subrepositories are currently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">commit:</th><td class="field-body">commit creates a consistent snapshot of the state of the
 entire project and its subrepositories. If any subrepositories
@@ -5186,10 +5288,13 @@ address.</td>
 <li>fill(text[, width])</li>
 <li>get(dict, key)</li>
 <li>if(expr, then[, else])</li>
+<li>ifcontains(expr, expr, then[, else])</li>
 <li>ifeq(expr, expr, then[, else])</li>
 <li>join(list, sep)</li>
 <li>label(label, expr)</li>
+<li>revset(query[, formatargs])</li>
 <li>rstdoc(text, style)</li>
+<li>shortest(node)</li>
 <li>strip(text[, chars])</li>
 <li>sub(pat, repl, expr)</li>
 </ul>
@@ -5243,6 +5348,16 @@ $ hg log -r 0 --template &quot;{sub(r'^.*\n?\n?', '', desc)}\n&quot;
 <li><p class="first">Display the contents of the 'extra' field, one per line:</p>
 <pre class="literal-block">
 $ hg log -r 0 --template &quot;{join(extras, '\n')}\n&quot;
+</pre>
+</li>
+<li><p class="first">Mark the current bookmark with '*':</p>
+<pre class="literal-block">
+$ hg log --template &quot;{bookmarks % '{bookmark}{ifeq(bookmark, current, \&quot;*\&quot;)} '}\n&quot;
+</pre>
+</li>
+<li><p class="first">Mark the working copy parent with '&#64;':</p>
+<pre class="literal-block">
+$ hg log --template &quot;{ifcontains(rev, revset('.'), '&#64;')}\n&quot;
 </pre>
 </li>
 </ul>
@@ -5336,27 +5451,25 @@ prefer it over 'default' if both are defined.</dd>
 <li><a class="reference internal" href="#hgk" id="id89">hgk</a></li>
 <li><a class="reference internal" href="#highlight" id="id90">highlight</a></li>
 <li><a class="reference internal" href="#histedit" id="id91">histedit</a></li>
-<li><a class="reference internal" href="#inotify" id="id92">inotify</a></li>
-<li><a class="reference internal" href="#interhg" id="id93">interhg</a></li>
-<li><a class="reference internal" href="#keyword" id="id94">keyword</a></li>
-<li><a class="reference internal" href="#largefiles" id="id95">largefiles</a></li>
-<li><a class="reference internal" href="#mq" id="id96">mq</a></li>
-<li><a class="reference internal" href="#notify" id="id97">notify</a></li>
-<li><a class="reference internal" href="#pager" id="id98">pager</a></li>
-<li><a class="reference internal" href="#patchbomb" id="id99">patchbomb</a></li>
-<li><a class="reference internal" href="#progress" id="id100">progress</a></li>
-<li><a class="reference internal" href="#purge" id="id101">purge</a></li>
-<li><a class="reference internal" href="#rebase" id="id102">rebase</a></li>
-<li><a class="reference internal" href="#record" id="id103">record</a></li>
-<li><a class="reference internal" href="#relink" id="id104">relink</a></li>
-<li><a class="reference internal" href="#schemes" id="id105">schemes</a></li>
-<li><a class="reference internal" href="#share" id="id106">share</a></li>
-<li><a class="reference internal" href="#shelve" id="id107">shelve</a></li>
-<li><a class="reference internal" href="#strip" id="id108">strip</a></li>
-<li><a class="reference internal" href="#transplant" id="id109">transplant</a></li>
-<li><a class="reference internal" href="#win32mbcs" id="id110">win32mbcs</a></li>
-<li><a class="reference internal" href="#win32text" id="id111">win32text</a></li>
-<li><a class="reference internal" href="#zeroconf" id="id112">zeroconf</a></li>
+<li><a class="reference internal" href="#keyword" id="id92">keyword</a></li>
+<li><a class="reference internal" href="#largefiles" id="id93">largefiles</a></li>
+<li><a class="reference internal" href="#mq" id="id94">mq</a></li>
+<li><a class="reference internal" href="#notify" id="id95">notify</a></li>
+<li><a class="reference internal" href="#pager" id="id96">pager</a></li>
+<li><a class="reference internal" href="#patchbomb" id="id97">patchbomb</a></li>
+<li><a class="reference internal" href="#progress" id="id98">progress</a></li>
+<li><a class="reference internal" href="#purge" id="id99">purge</a></li>
+<li><a class="reference internal" href="#rebase" id="id100">rebase</a></li>
+<li><a class="reference internal" href="#record" id="id101">record</a></li>
+<li><a class="reference internal" href="#relink" id="id102">relink</a></li>
+<li><a class="reference internal" href="#schemes" id="id103">schemes</a></li>
+<li><a class="reference internal" href="#share" id="id104">share</a></li>
+<li><a class="reference internal" href="#shelve" id="id105">shelve</a></li>
+<li><a class="reference internal" href="#strip" id="id106">strip</a></li>
+<li><a class="reference internal" href="#transplant" id="id107">transplant</a></li>
+<li><a class="reference internal" href="#win32mbcs" id="id108">win32mbcs</a></li>
+<li><a class="reference internal" href="#win32text" id="id109">win32text</a></li>
+<li><a class="reference internal" href="#zeroconf" id="id110">zeroconf</a></li>
 </ul>
 </div>
 <div class="section" id="acl">
@@ -5558,6 +5671,7 @@ maxfiles = 3
 <h3>Commands</h3>
 <div class="section" id="id8">
 <h4>blackbox</h4>
+<p>view the recent repository events:</p>
 <pre class="literal-block">
 hg blackbox [OPTION]...
 </pre>
@@ -5851,6 +5965,7 @@ Changeset commit comment. Bug 1234.
 <h3>Commands</h3>
 <div class="section" id="id10">
 <h4>children</h4>
+<p>show the children of the given or working directory revision:</p>
 <pre class="literal-block">
 hg children [-r REV] [FILE]
 </pre>
@@ -5871,9 +5986,9 @@ argument to --rev if given) is printed.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
@@ -5888,6 +6003,7 @@ argument to --rev if given) is printed.</p>
 <h3>Commands</h3>
 <div class="section" id="id12">
 <h4>churn</h4>
+<p>histogram of changes to the repository:</p>
 <pre class="literal-block">
 hg churn [-d DATE] [-r REV] [--aliases FILE] [FILE]
 </pre>
@@ -6068,14 +6184,18 @@ mode = terminfo
 </pre>
 <p>Any value other than 'ansi', 'win32', 'terminfo', or 'auto' will
 disable color.</p>
+<div class="section" id="id13">
+<h3>Commands</h3>
+</div>
 </div>
 <div class="section" id="convert">
 <h2><a class="toc-backref" href="#id81">convert</a></h2>
 <p>import revisions from foreign VCS repositories into Mercurial</p>
-<div class="section" id="id13">
-<h3>Commands</h3>
 <div class="section" id="id14">
+<h3>Commands</h3>
+<div class="section" id="id15">
 <h4>convert</h4>
+<p>convert a foreign SCM repository to a Mercurial one.:</p>
 <pre class="literal-block">
 hg convert [OPTION]... SOURCE [DEST [REVMAP]]
 </pre>
@@ -6574,10 +6694,11 @@ kdiff3.diffargs=--L1 '$plabel1' --L2 '$clabel' $parent $child
 <a class="reference external" href="hg.1.html#diff"><tt class="docutils literal">hg diff</tt></a> command. The extdiff extension makes snapshots of only
 needed files, so running the external diff program will actually be
 pretty fast (at least faster than having to compare the entire tree).</p>
-<div class="section" id="id15">
-<h3>Commands</h3>
 <div class="section" id="id16">
+<h3>Commands</h3>
+<div class="section" id="id17">
 <h4>extdiff</h4>
+<p>use external program to diff repository (or selected files):</p>
 <pre class="literal-block">
 hg extdiff [OPT]... [FILE]...
 </pre>
@@ -6657,10 +6778,11 @@ service entry controls the service name used when reading keys.</p>
 <div class="section" id="fetch">
 <h2><a class="toc-backref" href="#id85">fetch</a></h2>
 <p>pull, update and merge in one command (DEPRECATED)</p>
-<div class="section" id="id17">
-<h3>Commands</h3>
 <div class="section" id="id18">
+<h3>Commands</h3>
+<div class="section" id="id19">
 <h4>fetch</h4>
+<p>pull changes from a remote repository, merge new changes if needed.:</p>
 <pre class="literal-block">
 hg fetch [SOURCE]
 </pre>
@@ -6730,10 +6852,11 @@ pulled changes. To switch the merge order, use --switch-parent.</p>
 <div class="section" id="gpg">
 <h2><a class="toc-backref" href="#id86">gpg</a></h2>
 <p>commands to sign and verify changesets</p>
-<div class="section" id="id19">
+<div class="section" id="id20">
 <h3>Commands</h3>
 <div class="section" id="sigcheck">
 <h4>sigcheck</h4>
+<p>verify all the signatures there may be for a particular revision:</p>
 <pre class="literal-block">
 hg sigcheck REV
 </pre>
@@ -6741,6 +6864,7 @@ hg sigcheck REV
 </div>
 <div class="section" id="sign">
 <h4>sign</h4>
+<p>add a signature for the current or given revision:</p>
 <pre class="literal-block">
 hg sign [OPTION]... [REV]...
 </pre>
@@ -6781,6 +6905,7 @@ or tip if no revision is checked out.</p>
 </div>
 <div class="section" id="sigs">
 <h4>sigs</h4>
+<p>list signed changesets:</p>
 <pre class="literal-block">
 hg sigs
 </pre>
@@ -6796,10 +6921,11 @@ since version 2.3.</p>
 <p>This extension adds a --graph option to the incoming, outgoing and log
 commands. When this options is given, an ASCII representation of the
 revision graph is also shown.</p>
-<div class="section" id="id20">
+<div class="section" id="id21">
 <h3>Commands</h3>
 <div class="section" id="glog">
 <h4>glog</h4>
+<p>show revision history alongside an ASCII revision graph:</p>
 <pre class="literal-block">
 hg glog [OPTION]... [FILE]
 </pre>
@@ -6879,9 +7005,9 @@ directory.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -6963,10 +7089,11 @@ vdiff=vdiff
 </pre>
 <p>Revisions context menu will now display additional entries to fire
 vdiff on hovered and selected revisions.</p>
-<div class="section" id="id21">
+<div class="section" id="id22">
 <h3>Commands</h3>
 <div class="section" id="view">
 <h4>view</h4>
+<p>start interactive history viewer:</p>
 <pre class="literal-block">
 hg view [-l LIMIT] [REVRANGE]
 </pre>
@@ -7024,10 +7151,12 @@ pick 7c2fd3b9020c Add delta
 
 # Edit history between c561b4e977df and 7c2fd3b9020c
 #
+# Commits are listed from least to most recent
+#
 # Commands:
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
-#  f, fold = use commit, but fold into previous commit (combines N and N-1)
+#  f, fold = use commit, but combine it with the one above
 #  d, drop = remove commit from history
 #  m, mess = edit message without changing commit content
 #
@@ -7043,10 +7172,12 @@ fold 7c2fd3b9020c Add delta
 
 # Edit history between c561b4e977df and 7c2fd3b9020c
 #
+# Commits are listed from least to most recent
+#
 # Commands:
 #  p, pick = use commit
 #  e, edit = use commit, but stop for amending
-#  f, fold = use commit, but fold into previous commit (combines N and N-1)
+#  f, fold = use commit, but combine it with the one above
 #  d, drop = remove commit from history
 #  m, mess = edit message without changing commit content
 #
@@ -7126,10 +7257,11 @@ o  0   d8d2fcd0e319   2009-04-27 18:04 -0500   durin42
 as running <tt class="docutils literal">hg histedit 836302820282</tt>. If you need plan to push to a
 repository that Mercurial does not detect to be related to the source
 repo, you can add a <tt class="docutils literal"><span class="pre">--force</span></tt> option.</p>
-<div class="section" id="id22">
-<h3>Commands</h3>
 <div class="section" id="id23">
+<h3>Commands</h3>
+<div class="section" id="id24">
 <h4>histedit</h4>
+<p>interactively edit changeset history:</p>
 <pre class="literal-block">
 hg histedit ANCESTOR | --outgoing [URL]
 </pre>
@@ -7182,48 +7314,8 @@ conflicts).</p>
 </div>
 </div>
 </div>
-<div class="section" id="inotify">
-<h2><a class="toc-backref" href="#id92">inotify</a></h2>
-<p>accelerate status report using Linux's inotify service</p>
-<div class="section" id="id24">
-<h3>Commands</h3>
-<div class="section" id="inserve">
-<h4>inserve</h4>
-<pre class="literal-block">
-hg inserve [OPTION]...
-</pre>
-<p>start an inotify server for this repository</p>
-<p>Options:</p>
-<table class="docutils option-list" frame="void" rules="none">
-<col class="option" />
-<col class="description" />
-<tbody valign="top">
-<tr><td class="option-group">
-<kbd><span class="option">-d</span>, <span class="option">--daemon</span></kbd></td>
-<td>run server in background</td></tr>
-<tr><td class="option-group" colspan="2">
-<kbd><span class="option">--daemon-pipefds <var>&lt;NUM&gt;</var></span></kbd></td>
-</tr>
-<tr><td>&nbsp;</td><td>used internally by daemon mode</td></tr>
-<tr><td class="option-group" colspan="2">
-<kbd><span class="option">-t</span>, <span class="option">--idle-timeout <var>&lt;NUM&gt;</var></span></kbd></td>
-</tr>
-<tr><td>&nbsp;</td><td>minutes to sit idle before exiting</td></tr>
-<tr><td class="option-group" colspan="2">
-<kbd><span class="option">--pid-file <var>&lt;FILE&gt;</var></span></kbd></td>
-</tr>
-<tr><td>&nbsp;</td><td>name of file to write process ID to</td></tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<div class="section" id="interhg">
-<h2><a class="toc-backref" href="#id93">interhg</a></h2>
-<p>None</p>
-</div>
 <div class="section" id="keyword">
-<h2><a class="toc-backref" href="#id94">keyword</a></h2>
+<h2><a class="toc-backref" href="#id92">keyword</a></h2>
 <p>expand keywords in tracked files</p>
 <p>This extension expands RCS/CVS-like or self-customized $Keywords$ in
 tracked text files selected by your configuration.</p>
@@ -7280,6 +7372,7 @@ like CVS' $Log$, are not supported. A keyword template map &quot;Log =
 <h3>Commands</h3>
 <div class="section" id="kwdemo">
 <h4>kwdemo</h4>
+<p>print [keywordmaps] configuration and an expansion example:</p>
 <pre class="literal-block">
 hg kwdemo [-d] [-f RCFILE] [TEMPLATEMAP]...
 </pre>
@@ -7306,6 +7399,7 @@ and using -f/--rcfile to source an external hgrc file.</p>
 </div>
 <div class="section" id="kwexpand">
 <h4>kwexpand</h4>
+<p>expand keywords in the working directory:</p>
 <pre class="literal-block">
 hg kwexpand [OPTION]... [FILE]...
 </pre>
@@ -7330,6 +7424,7 @@ hg kwexpand [OPTION]... [FILE]...
 </div>
 <div class="section" id="kwfiles">
 <h4>kwfiles</h4>
+<p>show files configured for keyword expansion:</p>
 <pre class="literal-block">
 hg kwfiles [OPTION]... [FILE]...
 </pre>
@@ -7376,6 +7471,7 @@ i = ignored (not tracked)
 </div>
 <div class="section" id="kwshrink">
 <h4>kwshrink</h4>
+<p>revert expanded keywords in the working directory:</p>
 <pre class="literal-block">
 hg kwshrink [OPTION]... [FILE]...
 </pre>
@@ -7401,7 +7497,7 @@ hg kwshrink [OPTION]... [FILE]...
 </div>
 </div>
 <div class="section" id="largefiles">
-<h2><a class="toc-backref" href="#id95">largefiles</a></h2>
+<h2><a class="toc-backref" href="#id93">largefiles</a></h2>
 <p>track large binary files</p>
 <p>Large binary files tend to be not very compressible, not very
 diffable, and not at all mergeable. Such files are not handled
@@ -7493,6 +7589,7 @@ command.</p>
 <h3>Commands</h3>
 <div class="section" id="lfconvert">
 <h4>lfconvert</h4>
+<p>convert a normal repository to a largefiles repository:</p>
 <pre class="literal-block">
 hg lfconvert SOURCE DEST [FILE ...]
 </pre>
@@ -7526,6 +7623,7 @@ this, the DEST repository can be used without largefiles at all.</p>
 </div>
 <div class="section" id="lfpull">
 <h4>lfpull</h4>
+<p>pull largefiles for the specified revisions from the specified source:</p>
 <pre class="literal-block">
 hg lfpull -r REV... [-e CMD] [--remotecmd CMD] [SOURCE]
 </pre>
@@ -7575,7 +7673,7 @@ hg lfpull -r &quot;branch(default)&quot;
 </div>
 </div>
 <div class="section" id="mq">
-<h2><a class="toc-backref" href="#id96">mq</a></h2>
+<h2><a class="toc-backref" href="#id94">mq</a></h2>
 <p>manage a stack of patches</p>
 <p>This extension lets you work with a stack of patches in a Mercurial
 repository. It manages two stacks of patches - all known patches, and
@@ -7629,6 +7727,7 @@ in the strip extension.</p>
 <h3>Commands</h3>
 <div class="section" id="qapplied">
 <h4>qapplied</h4>
+<p>print the patches already applied:</p>
 <pre class="literal-block">
 hg qapplied [-1] [-s] [PATCH]
 </pre>
@@ -7649,6 +7748,7 @@ hg qapplied [-1] [-s] [PATCH]
 </div>
 <div class="section" id="qclone">
 <h4>qclone</h4>
+<p>clone main and patch repository at same time:</p>
 <pre class="literal-block">
 hg qclone [OPTION]... SOURCE [DEST]
 </pre>
@@ -7696,6 +7796,7 @@ would be created by <a class="reference external" href="hg.1.html#init"><tt clas
 </div>
 <div class="section" id="qcommit">
 <h4>qcommit</h4>
+<p>commit changes in the queue repository (DEPRECATED):</p>
 <pre class="literal-block">
 hg qcommit [OPTION]... [FILE]...
 </pre>
@@ -7718,6 +7819,9 @@ hg qcommit [OPTION]... [FILE]...
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--secret</span></kbd></td>
 <td>use the secret phase for committing</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>further edit commit message already specified</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -7753,6 +7857,7 @@ aliases: qci</blockquote>
 </div>
 <div class="section" id="qdelete">
 <h4>qdelete</h4>
+<p>remove patches from queue:</p>
 <pre class="literal-block">
 hg qdelete [-k] [PATCH]...
 </pre>
@@ -7781,6 +7886,7 @@ aliases: qremove qrm</blockquote>
 </div>
 <div class="section" id="qdiff">
 <h4>qdiff</h4>
+<p>diff of the current patch and subsequent modifications:</p>
 <pre class="literal-block">
 hg qdiff [OPTION]... [FILE]...
 </pre>
@@ -7847,6 +7953,7 @@ qrefresh.</p>
 </div>
 <div class="section" id="qfinish">
 <h4>qfinish</h4>
+<p>move applied patches into repository history:</p>
 <pre class="literal-block">
 hg qfinish [-a] [REV]...
 </pre>
@@ -7874,6 +7981,7 @@ to upstream.</p>
 </div>
 <div class="section" id="qfold">
 <h4>qfold</h4>
+<p>fold the named patches into the current patch:</p>
 <pre class="literal-block">
 hg qfold [-e] [-k] [-m TEXT] [-l FILE] PATCH...
 </pre>
@@ -7910,6 +8018,7 @@ current patch header, separated by a line of <tt class="docutils literal">* * *<
 </div>
 <div class="section" id="qgoto">
 <h4>qgoto</h4>
+<p>push or pop patches until named patch is at top of stack:</p>
 <pre class="literal-block">
 hg qgoto [OPTION]... PATCH
 </pre>
@@ -7933,6 +8042,7 @@ hg qgoto [OPTION]... PATCH
 </div>
 <div class="section" id="qguard">
 <h4>qguard</h4>
+<p>set or print guards for a patch:</p>
 <pre class="literal-block">
 hg qguard [-l] [-n] [PATCH] [-- [+GUARD]... [-GUARD]...]
 </pre>
@@ -7968,6 +8078,7 @@ hg qguard other.patch -- +2.6.17 -stable
 </div>
 <div class="section" id="qheader">
 <h4>qheader</h4>
+<p>print the header of the topmost or specified patch:</p>
 <pre class="literal-block">
 hg qheader [PATCH]
 </pre>
@@ -7975,6 +8086,7 @@ hg qheader [PATCH]
 </div>
 <div class="section" id="qimport">
 <h4>qimport</h4>
+<p>import a patch or existing changeset:</p>
 <pre class="literal-block">
 hg qimport [-e] [-n NAME] [-f] [-g] [-P] [-r REV]... [FILE]...
 </pre>
@@ -8033,6 +8145,7 @@ hg qimport -e existing-patch -n new-name
 </div>
 <div class="section" id="qinit">
 <h4>qinit</h4>
+<p>init a new queue repository (DEPRECATED):</p>
 <pre class="literal-block">
 hg qinit [-c]
 </pre>
@@ -8057,6 +8170,7 @@ commands. With -c, use <a class="reference external" href="hg.1.html#init"><tt c
 </div>
 <div class="section" id="qnew">
 <h4>qnew</h4>
+<p>create a new patch:</p>
 <pre class="literal-block">
 hg qnew [-e] [-m TEXT] [-l FILE] PATCH [FILE]...
 </pre>
@@ -8129,6 +8243,7 @@ information.</p>
 </div>
 <div class="section" id="qnext">
 <h4>qnext</h4>
+<p>print the name of the next pushable patch:</p>
 <pre class="literal-block">
 hg qnext [-s]
 </pre>
@@ -8146,6 +8261,7 @@ hg qnext [-s]
 </div>
 <div class="section" id="qpop">
 <h4>qpop</h4>
+<p>pop the current patch off the stack:</p>
 <pre class="literal-block">
 hg qpop [-a] [-f] [PATCH | INDEX]
 </pre>
@@ -8183,6 +8299,7 @@ changes made to such files.</p>
 </div>
 <div class="section" id="qprev">
 <h4>qprev</h4>
+<p>print the name of the preceding applied patch:</p>
 <pre class="literal-block">
 hg qprev [-s]
 </pre>
@@ -8200,6 +8317,7 @@ hg qprev [-s]
 </div>
 <div class="section" id="qpush">
 <h4>qpush</h4>
+<p>push the next patch onto the stack:</p>
 <pre class="literal-block">
 hg qpush [-f] [-l] [-a] [--move] [PATCH | INDEX]
 </pre>
@@ -8246,6 +8364,7 @@ uncommitted changes.</p>
 </div>
 <div class="section" id="qqueue">
 <h4>qqueue</h4>
+<p>manage multiple patch queues:</p>
 <pre class="literal-block">
 hg qqueue [OPTION] [QUEUE]
 </pre>
@@ -8290,6 +8409,7 @@ active queue.</p>
 </div>
 <div class="section" id="qrefresh">
 <h4>qrefresh</h4>
+<p>update the current patch:</p>
 <pre class="literal-block">
 hg qrefresh [-I] [-X] [-e] [-m TEXT] [-l FILE] [-s] [FILE]...
 </pre>
@@ -8358,6 +8478,7 @@ git diff format.</p>
 </div>
 <div class="section" id="qrename">
 <h4>qrename</h4>
+<p>rename a patch:</p>
 <pre class="literal-block">
 hg qrename PATCH1 [PATCH2]
 </pre>
@@ -8369,6 +8490,7 @@ aliases: qmv</blockquote>
 </div>
 <div class="section" id="qrestore">
 <h4>qrestore</h4>
+<p>restore the queue state saved by a revision (DEPRECATED):</p>
 <pre class="literal-block">
 hg qrestore [-d] [-u] REV
 </pre>
@@ -8389,6 +8511,7 @@ hg qrestore [-d] [-u] REV
 </div>
 <div class="section" id="qsave">
 <h4>qsave</h4>
+<p>save current queue state (DEPRECATED):</p>
 <pre class="literal-block">
 hg qsave [-m TEXT] [-l FILE] [-c] [-n NAME] [-e] [-f]
 </pre>
@@ -8424,6 +8547,7 @@ hg qsave [-m TEXT] [-l FILE] [-c] [-n NAME] [-e] [-f]
 </div>
 <div class="section" id="qselect">
 <h4>qselect</h4>
+<p>set or print guarded patches to push:</p>
 <pre class="literal-block">
 hg qselect [OPTION]... [GUARD]...
 </pre>
@@ -8475,6 +8599,7 @@ guarded patches.</p>
 </div>
 <div class="section" id="qseries">
 <h4>qseries</h4>
+<p>print the entire series file:</p>
 <pre class="literal-block">
 hg qseries [-ms]
 </pre>
@@ -8495,6 +8620,7 @@ hg qseries [-ms]
 </div>
 <div class="section" id="qtop">
 <h4>qtop</h4>
+<p>print the name of the current patch:</p>
 <pre class="literal-block">
 hg qtop [-s]
 </pre>
@@ -8512,6 +8638,7 @@ hg qtop [-s]
 </div>
 <div class="section" id="qunapplied">
 <h4>qunapplied</h4>
+<p>print the patches not yet applied:</p>
 <pre class="literal-block">
 hg qunapplied [-1] [-s] [PATCH]
 </pre>
@@ -8533,7 +8660,7 @@ hg qunapplied [-1] [-s] [PATCH]
 </div>
 </div>
 <div class="section" id="notify">
-<h2><a class="toc-backref" href="#id97">notify</a></h2>
+<h2><a class="toc-backref" href="#id95">notify</a></h2>
 <p>hooks for sending email push notifications</p>
 <p>This extension implements hooks to send email notifications when
 changesets are sent from or received by the local repository.</p>
@@ -8653,7 +8780,7 @@ references. See also <tt class="docutils literal">notify.strip</tt>.</dd>
 </dl>
 </div>
 <div class="section" id="pager">
-<h2><a class="toc-backref" href="#id98">pager</a></h2>
+<h2><a class="toc-backref" href="#id96">pager</a></h2>
 <p>browse command output with an external pager</p>
 <p>To set the pager that should be used, set the application variable:</p>
 <pre class="literal-block">
@@ -8684,7 +8811,7 @@ used. Use a boolean value like yes, no, on, off, or use auto for
 normal behavior.</p>
 </div>
 <div class="section" id="patchbomb">
-<h2><a class="toc-backref" href="#id99">patchbomb</a></h2>
+<h2><a class="toc-backref" href="#id97">patchbomb</a></h2>
 <p>command to send changesets as (a series of) patch emails</p>
 <p>The series is started off with a &quot;[PATCH 0 of N]&quot; introduction, which
 describes the series as a whole.</p>
@@ -8722,6 +8849,7 @@ hgrc(5) for details.</p>
 <h3>Commands</h3>
 <div class="section" id="email">
 <h4>email</h4>
+<p>send changesets by email:</p>
 <pre class="literal-block">
 hg email [OPTION]... [DEST]...
 </pre>
@@ -8901,7 +9029,7 @@ hgrc. See the [email] section in hgrc(5) for details.</p>
 </div>
 </div>
 <div class="section" id="progress">
-<h2><a class="toc-backref" href="#id100">progress</a></h2>
+<h2><a class="toc-backref" href="#id98">progress</a></h2>
 <p>show progress bars for some actions</p>
 <p>This extension uses the progress information logged by hg commands
 to draw progress bars that are as informative as possible. Some progress
@@ -8930,12 +9058,13 @@ would take the last num characters, or <tt class="docutils literal">+&lt;num&gt;
 characters.</p>
 </div>
 <div class="section" id="purge">
-<h2><a class="toc-backref" href="#id101">purge</a></h2>
+<h2><a class="toc-backref" href="#id99">purge</a></h2>
 <p>command to delete untracked files from the working directory</p>
 <div class="section" id="id29">
 <h3>Commands</h3>
 <div class="section" id="id30">
 <h4>purge</h4>
+<p>removes files not tracked by Mercurial:</p>
 <pre class="literal-block">
 hg purge [OPTION]... [DIR]...
 </pre>
@@ -8994,7 +9123,7 @@ aliases: clean</blockquote>
 </div>
 </div>
 <div class="section" id="rebase">
-<h2><a class="toc-backref" href="#id102">rebase</a></h2>
+<h2><a class="toc-backref" href="#id100">rebase</a></h2>
 <p>command to move sets of revisions to a different ancestor</p>
 <p>This extension lets you rebase changesets in an existing Mercurial
 repository.</p>
@@ -9004,6 +9133,7 @@ repository.</p>
 <h3>Commands</h3>
 <div class="section" id="id32">
 <h4>rebase</h4>
+<p>move changeset (and descendants) to a different branch:</p>
 <pre class="literal-block">
 hg rebase [-s REV | -b REV] [-d REV] [OPTION]
 </pre>
@@ -9108,9 +9238,9 @@ unresolved conflicts.</p>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">--style <var>&lt;STYLE&gt;</var></span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>display using template map file</td></tr>
+<tr><td>&nbsp;</td><td>display using template map file (DEPRECATED)</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
+<kbd><span class="option">-T</span>, <span class="option">--template <var>&lt;TEMPLATE&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>display with template</td></tr>
 </tbody>
@@ -9120,12 +9250,13 @@ unresolved conflicts.</p>
 </div>
 </div>
 <div class="section" id="record">
-<h2><a class="toc-backref" href="#id103">record</a></h2>
+<h2><a class="toc-backref" href="#id101">record</a></h2>
 <p>commands to interactively select changes for commit/qrefresh</p>
 <div class="section" id="id33">
 <h3>Commands</h3>
 <div class="section" id="qrecord">
 <h4>qrecord</h4>
+<p>interactively record a new patch:</p>
 <pre class="literal-block">
 hg qrecord [OPTION]... PATCH [FILE]...
 </pre>
@@ -9134,6 +9265,7 @@ usage.</p>
 </div>
 <div class="section" id="id34">
 <h4>record</h4>
+<p>interactively select changes to commit:</p>
 <pre class="literal-block">
 hg record [OPTION]... [FILE]...
 </pre>
@@ -9177,6 +9309,9 @@ q - quit, recording no changes
 <tr><td class="option-group">
 <kbd><span class="option">-s</span>, <span class="option">--secret</span></kbd></td>
 <td>use the secret phase for committing</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-e</span>, <span class="option">--edit</span></kbd></td>
+<td>further edit commit message already specified</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
@@ -9223,12 +9358,13 @@ q - quit, recording no changes
 </div>
 </div>
 <div class="section" id="relink">
-<h2><a class="toc-backref" href="#id104">relink</a></h2>
+<h2><a class="toc-backref" href="#id102">relink</a></h2>
 <p>recreates hardlinks between repository clones</p>
 <div class="section" id="id35">
 <h3>Commands</h3>
 <div class="section" id="id36">
 <h4>relink</h4>
+<p>recreate hardlinks between two repositories:</p>
 <pre class="literal-block">
 hg relink [ORIGIN]
 </pre>
@@ -9252,7 +9388,7 @@ writes.)</p>
 </div>
 </div>
 <div class="section" id="schemes">
-<h2><a class="toc-backref" href="#id105">schemes</a></h2>
+<h2><a class="toc-backref" href="#id103">schemes</a></h2>
 <p>extend schemes with shortcuts to repository swarms</p>
 <p>This extension allows you to specify shortcuts for parent URLs with a
 lot of repositories to act like a scheme, for example:</p>
@@ -9288,12 +9424,13 @@ kiln = https://{1}.kilnhg.com/Repo/
 same name.</p>
 </div>
 <div class="section" id="share">
-<h2><a class="toc-backref" href="#id106">share</a></h2>
+<h2><a class="toc-backref" href="#id104">share</a></h2>
 <p>share a common history between several working directories</p>
 <div class="section" id="id37">
 <h3>Commands</h3>
 <div class="section" id="id38">
 <h4>share</h4>
+<p>create a new shared repository:</p>
 <pre class="literal-block">
 hg share [-U] SOURCE [DEST]
 </pre>
@@ -9323,6 +9460,7 @@ the broken clone to reset it to a changeset that still exists.</p>
 </div>
 <div class="section" id="unshare">
 <h4>unshare</h4>
+<p>convert a shared repository to a normal one:</p>
 <pre class="literal-block">
 hg unshare
 </pre>
@@ -9331,7 +9469,7 @@ hg unshare
 </div>
 </div>
 <div class="section" id="shelve">
-<h2><a class="toc-backref" href="#id107">shelve</a></h2>
+<h2><a class="toc-backref" href="#id105">shelve</a></h2>
 <p>save and restore changes to the working directory</p>
 <p>The &quot;hg shelve&quot; command saves changes made to the working directory
 and reverts those changes, resetting the working directory to a clean
@@ -9347,8 +9485,9 @@ shelve&quot;.</p>
 <h3>Commands</h3>
 <div class="section" id="id40">
 <h4>shelve</h4>
+<p>save and set aside changes from the working directory:</p>
 <pre class="literal-block">
-hg shelve
+hg shelve [OPTION]... [FILE]...
 </pre>
 <p>Shelving takes files that &quot;hg status&quot; reports as not clean, saves
 the modifications to a bundle (a shelved change), and reverts the
@@ -9403,11 +9542,21 @@ all shelved changes, use <tt class="docutils literal"><span class="pre">--cleanu
 <tr><td class="option-group">
 <kbd><span class="option">--stat</span></kbd></td>
 <td>output diffstat-style summary of changes</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-I</span>, <span class="option">--include <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>include names matching the given patterns</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 <div class="section" id="unshelve">
 <h4>unshelve</h4>
+<p>restore a shelved change to the working directory:</p>
 <pre class="literal-block">
 hg unshelve [SHELVED]
 </pre>
@@ -9438,13 +9587,16 @@ does not delete the bundle.)</p>
 <tr><td class="option-group">
 <kbd><span class="option">--keep</span></kbd></td>
 <td>keep shelve after unshelving</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--date <var>&lt;DATE&gt;</var></span></kbd></td>
+<td>set date for temporary commits (DEPRECATED)</td></tr>
 </tbody>
 </table>
 </div>
 </div>
 </div>
 <div class="section" id="strip">
-<h2><a class="toc-backref" href="#id108">strip</a></h2>
+<h2><a class="toc-backref" href="#id106">strip</a></h2>
 <p>strip changesets and their descendents from history</p>
 <p>This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.</p>
@@ -9452,6 +9604,7 @@ repository. See the command help for details.</p>
 <h3>Commands</h3>
 <div class="section" id="id42">
 <h4>strip</h4>
+<p>strip changesets and all their descendants from the repository:</p>
 <pre class="literal-block">
 hg strip [-k] [-f] [-n] [-B bookmark] [-r] REV...
 </pre>
@@ -9513,7 +9666,7 @@ been pushed to a remote repository you will likely pull them again.</p>
 </div>
 </div>
 <div class="section" id="transplant">
-<h2><a class="toc-backref" href="#id109">transplant</a></h2>
+<h2><a class="toc-backref" href="#id107">transplant</a></h2>
 <p>command to transplant changesets from another branch</p>
 <p>This extension allows you to transplant changes to another parent revision,
 possibly in another repository. The transplant is done using 'diff' patches.</p>
@@ -9523,6 +9676,7 @@ map from a changeset hash to its hash in the source repository.</p>
 <h3>Commands</h3>
 <div class="section" id="id44">
 <h4>transplant</h4>
+<p>transplant changesets from another branch:</p>
 <pre class="literal-block">
 hg transplant [-s REPO] [-b BRANCH [-a]] [-p REV] [-m REV] [REV]...
 </pre>
@@ -9614,7 +9768,7 @@ and then resume where you left off by calling <a class="reference external" href
 </div>
 </div>
 <div class="section" id="win32mbcs">
-<h2><a class="toc-backref" href="#id110">win32mbcs</a></h2>
+<h2><a class="toc-backref" href="#id108">win32mbcs</a></h2>
 <p>allow the use of MBCS paths with problematic encodings</p>
 <p>Some MBCS encodings are not good for some path operations (i.e.
 splitting path, case conversion, etc.) with its encoded bytes. We call
@@ -9649,8 +9803,8 @@ encoding = sjis
 <p>It is useful for the users who want to commit with UTF-8 log message.</p>
 </div>
 <div class="section" id="win32text">
-<h2><a class="toc-backref" href="#id111">win32text</a></h2>
-<p>perform automatic newline conversion</p>
+<h2><a class="toc-backref" href="#id109">win32text</a></h2>
+<p>perform automatic newline conversion (DEPRECATED)</p>
 <blockquote>
 <p>Deprecation: The win32text extension requires each user to configure
 the extension again and again for each clone since the configuration
@@ -9686,7 +9840,7 @@ pretxnchangegroup.crlf = python:hgext.win32text.forbidcrlf
 </pre>
 </div>
 <div class="section" id="zeroconf">
-<h2><a class="toc-backref" href="#id112">zeroconf</a></h2>
+<h2><a class="toc-backref" href="#id110">zeroconf</a></h2>
 <p>discover and advertise repositories on the local network</p>
 <p>Zeroconf-enabled repositories will be announced in a network without
 the need to configure a server or a service. They can be discovered
