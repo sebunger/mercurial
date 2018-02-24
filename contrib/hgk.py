@@ -7,13 +7,13 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import time, sys, signal
+import time, sys, signal, os
 from mercurial import hg, mdiff, fancyopts, commands, ui, util
 
 def dodiff(fp, ui, repo, node1, node2, files=None, match=util.always,
            changes=None, text=False):
     def date(c):
-        return time.asctime(time.gmtime(float(c[2].split(' ')[0])))
+        return time.asctime(time.gmtime(c[2][0]))
 
     if not changes:
         (c, a, d, u) = repo.changes(node1, node2, files, match=match)
@@ -64,7 +64,7 @@ def difftree(ui, repo, node1=None, node2=None, **opts):
     """diff trees from two commits"""
     def __difftree(repo, node1, node2):
         def date(c):
-            return time.asctime(time.gmtime(float(c[2].split(' ')[0])))
+            return time.asctime(time.gmtime(c[2][0]))
 
         if node2:
             change = repo.changelog.read(node2)
@@ -86,7 +86,7 @@ def difftree(ui, repo, node1=None, node2=None, **opts):
 
         for f in c:
             # TODO get file permissions
-            print ":100664 100664 %s %s M\t%s\t%s" % (hg.hex(mmap[f]), 
+            print ":100664 100664 %s %s M\t%s\t%s" % (hg.hex(mmap[f]),
                                                       hg.hex(mmap2[f]), f, f)
         for f in a:
             print ":000000 100664 %s %s N\t%s\t%s" % (empty, hg.hex(mmap2[f]), f, f)
@@ -130,14 +130,14 @@ def catcommit(repo, n, prefix, changes=None):
     print "tree %s" % (hg.hex(changes[0]))
     if i1 != -1: print "parent %s" % (h1)
     if i2 != -1: print "parent %s" % (h2)
-    date_ar = changes[2].split(' ')
+    date_ar = changes[2]
     date = int(float(date_ar[0]))
     lines = changes[4].splitlines()
     if lines[-1].startswith('committer:'):
         committer = lines[-1].split(': ')[1].rstrip()
     else:
         committer = "%s %s %s" % (changes[1], date, date_ar[1])
-        
+
     print "author %s %s %s" % (changes[1], date, date_ar[1])
     print "committer %s" % (committer)
     print ""
@@ -220,7 +220,7 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
                     yield (i + x, full != None and l[x] or None)
             if i == 0:
                 break
-            
+
     # calculate and return the reachability bitmask for sha
     def is_reachable(ar, reachable, sha):
         if len(ar) == 0:
@@ -288,7 +288,7 @@ def revtree(args, repo, full="tree", maxnr=0, parents=False):
                 (h, h1, h2) = map(hg.hex, (n, p1, p2))
                 (i1, i2) = map(repo.changelog.rev, (p1, p2))
 
-                date = changes[2].split(' ')[0]
+                date = changes[2][0]
                 print "%s %s:%s" % (date, h, mask),
                 mask = is_reachable(want_sha1, reachable, p1)
                 if i1 != -1 and mask > 0:
@@ -313,22 +313,28 @@ def revlist(ui, repo, *revs, **opts):
     copy = [x for x in revs]
     revtree(copy, repo, full, opts['max_count'], opts['parents'])
 
+def view(ui, repo, *etc):
+    "start interactive history viewer"
+    os.chdir(repo.root)
+    os.system(ui.config("hgk", "path", "hgk") + " " + " ".join(etc))
+
 cmdtable = {
-    "git-diff-tree": (difftree, [('p', 'patch', None, 'generate patch'),
+    "view": (view, [], 'hg view'),
+    "debug-diff-tree": (difftree, [('p', 'patch', None, 'generate patch'),
                             ('r', 'recursive', None, 'recursive'),
                             ('P', 'pretty', None, 'pretty'),
                             ('s', 'stdin', None, 'stdin'),
                             ('C', 'copy', None, 'detect copies'),
                             ('S', 'search', "", 'search')],
                             "hg git-diff-tree [options] node1 node2"),
-    "git-cat-file": (catfile, [('s', 'stdin', None, 'stdin')],
-                 "hg cat-file [options] type file"),
-    "git-merge-base": (base, [], "hg git-merge-base node node"),
-    "git-rev-list": (revlist, [('H', 'header', None, 'header'),
+    "debug-cat-file": (catfile, [('s', 'stdin', None, 'stdin')],
+                 "hg debug-cat-file [options] type file"),
+    "debug-merge-base": (base, [], "hg debug-merge-base node node"),
+    "debug-rev-list": (revlist, [('H', 'header', None, 'header'),
                            ('t', 'topo-order', None, 'topo-order'),
                            ('p', 'parents', None, 'parents'),
                            ('n', 'max-count', 0, 'max-count')],
-                 "hg git-rev-list [options] revs"),
+                 "hg debug-rev-list [options] revs"),
 }
 
 def reposetup(ui, repo):

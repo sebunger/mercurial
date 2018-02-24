@@ -7,8 +7,9 @@
 
 from node import *
 from remoterepo import *
+from i18n import gettext as _
 from demandload import *
-demandload(globals(), "hg os urllib urllib2 urlparse zlib")
+demandload(globals(), "hg os urllib urllib2 urlparse zlib util")
 
 class httprepository(remoterepository):
     def __init__(self, ui, path):
@@ -59,13 +60,15 @@ class httprepository(remoterepository):
             authinfo = urllib2.ProxyBasicAuthHandler(passmgr)
 
         opener = urllib2.build_opener(proxy_handler, authinfo)
+        # 1.0 here is the _protocol_ version
+        opener.addheaders = [('User-agent', 'mercurial/proto-1.0')]
         urllib2.install_opener(opener)
 
     def dev(self):
         return -1
 
     def do_cmd(self, cmd, **args):
-        self.ui.debug("sending %s command\n" % cmd)
+        self.ui.debug(_("sending %s command\n") % cmd)
         q = {"cmd": cmd}
         q.update(args)
         qs = urllib.urlencode(q)
@@ -77,13 +80,13 @@ class httprepository(remoterepository):
         if not proto.startswith('application/mercurial') and \
                not proto.startswith('text/plain') and \
                not proto.startswith('application/hg-changegroup'):
-            raise hg.RepoError("'%s' does not appear to be an hg repository" %
+            raise hg.RepoError(_("'%s' does not appear to be an hg repository") %
                                self.url)
 
         if proto.startswith('application/mercurial'):
             version = proto[22:]
             if float(version) > 0.1:
-                raise hg.RepoError("'%s' uses newer protocol %s" %
+                raise hg.RepoError(_("'%s' uses newer protocol %s") %
                                    (self.url, version))
 
         return resp
@@ -93,7 +96,7 @@ class httprepository(remoterepository):
         try:
             return map(bin, d[:-1].split(" "))
         except:
-            self.ui.warn("unexpected response:\n" + d[:400] + "\n...\n")
+            self.ui.warn(_("unexpected response:\n") + d[:400] + "\n...\n")
             raise
 
     def branches(self, nodes):
@@ -103,7 +106,7 @@ class httprepository(remoterepository):
             br = [ tuple(map(bin, b.split(" "))) for b in d.splitlines() ]
             return br
         except:
-            self.ui.warn("unexpected response:\n" + d[:400] + "\n...\n")
+            self.ui.warn(_("unexpected response:\n") + d[:400] + "\n...\n")
             raise
 
     def between(self, pairs):
@@ -113,7 +116,7 @@ class httprepository(remoterepository):
             p = [ l and map(bin, l.split(" ")) or [] for l in d.splitlines() ]
             return p
         except:
-            self.ui.warn("unexpected response:\n" + d[:400] + "\n...\n")
+            self.ui.warn(_("unexpected response:\n") + d[:400] + "\n...\n")
             raise
 
     def changegroup(self, nodes):
@@ -121,23 +124,13 @@ class httprepository(remoterepository):
         f = self.do_cmd("changegroup", roots=n)
         bytes = 0
 
-        class zread:
-            def __init__(self, f):
-                self.zd = zlib.decompressobj()
-                self.f = f
-                self.buf = ""
-            def read(self, l):
-                while l > len(self.buf):
-                    r = self.f.read(4096)
-                    if r:
-                        self.buf += self.zd.decompress(r)
-                    else:
-                        self.buf += self.zd.flush()
-                        break
-                d, self.buf = self.buf[:l], self.buf[l:]
-                return d
+        def zgenerator(f):
+            zd = zlib.decompressobj()
+            for chnk in f:
+                yield zd.decompress(chnk)
+            yield zd.flush()
 
-        return zread(f)
+        return util.chunkbuffer(zgenerator(util.filechunkiter(f)))
 
 class httpsrepository(httprepository):
     pass

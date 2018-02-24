@@ -40,16 +40,11 @@ HGTMP="${TMPDIR-/tmp}/hgtests.$RANDOM.$RANDOM.$RANDOM.$$"
 }
 
 TESTDIR="$PWD"
-
-if [ -d /usr/lib64 ]; then
-    lib=lib64
-else
-    lib=lib
-fi
-
 INST="$HGTMP/install"
+PYTHONDIR="$INST/lib/python"
 cd ..
-if ${PYTHON-python} setup.py install --home="$INST" > tests/install.err 2>&1
+if ${PYTHON-python} setup.py install --home="$INST" \
+  --install-lib="$PYTHONDIR" > tests/install.err 2>&1
 then
     rm tests/install.err
 else
@@ -59,8 +54,7 @@ fi
 cd "$TESTDIR"
 
 PATH="$INST/bin:$PATH"; export PATH
-PYTHONPATH="$INST/$lib/python"; export PYTHONPATH
-
+PYTHONPATH="$PYTHONDIR"; export PYTHONPATH
 
 run_one() {
     rm -f "$1.err"
@@ -103,6 +97,27 @@ run_one() {
     rm -rf "$HGTMP/$1"
     return $fail
 }
+
+# list of prerequisite programs
+# stuff from coreutils (cat, rm, etc) are not tested
+prereqs="python merge diff grep unzip md5sum gunzip sed"
+missing=''
+for pre in $prereqs ; do
+    if type $pre > /dev/null 2>&1 ; then
+        : prereq exists
+    else
+        missing="$pre $missing"
+    fi
+done
+
+if [ "$missing" != ''  ] ; then
+    echo "ERROR: the test suite needs some programs to execute correctly."
+    echo "The following programs are missing: "
+    for pre in $missing; do
+        echo "   $pre"
+    done
+    exit 1
+fi
 
 TESTS="$*"
 if [ -z "$TESTS" ] ; then

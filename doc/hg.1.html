@@ -1,16 +1,14 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<meta name="generator" content="AsciiDoc 7.0.0">
-<meta name="author" content="Matt Mackall">
-<meta name="author-email" content="mpm@selenic.com">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="AsciiDoc 7.0.2">
 <title>HG(1)</title>
 </head>
 <body>
 <h1>HG(1)</h1>
 <p>
-<strong>by Matt Mackall</strong><br />
+<strong>Matt Mackall</strong><br />
 <tt>&lt;<a href="mailto:mpm@selenic.com">mpm@selenic.com</a>&gt;</tt><br />
 </p>
 <hr />
@@ -29,67 +27,89 @@
 -R, &#8212;repository
 </dt>
 <dd>
+<p>
     repository root directory
+</p>
 </dd>
 <dt>
 &#8212;cwd
 </dt>
 <dd>
+<p>
     change working directory
+</p>
 </dd>
 <dt>
 -y, &#8212;noninteractive
 </dt>
 <dd>
+<p>
     do not prompt, assume <em>yes</em> for any required answers
+</p>
 </dd>
 <dt>
 -q, &#8212;quiet
 </dt>
 <dd>
+<p>
     suppress output
+</p>
 </dd>
 <dt>
 -v, &#8212;verbose
 </dt>
 <dd>
+<p>
     enable additional output
+</p>
 </dd>
 <dt>
 &#8212;debug
 </dt>
 <dd>
+<p>
     enable debugging output
+</p>
 </dd>
 <dt>
 &#8212;traceback
 </dt>
 <dd>
+<p>
     print traceback on exception
+</p>
 </dd>
 <dt>
 &#8212;time
 </dt>
 <dd>
+<p>
     time how long the command takes
+</p>
 </dd>
 <dt>
 &#8212;profile
 </dt>
 <dd>
+<p>
     print command execution profile
+</p>
 </dd>
 <dt>
 &#8212;version
 </dt>
 <dd>
+<p>
     output version information and exit
+</p>
 </dd>
 <dt>
 -h, &#8212;help
 </dt>
 <dd>
+<p>
     display help and exit
+</p>
 </dd>
 </dl>
 <hr />
@@ -99,30 +119,38 @@
 files &#8230;
 </dt>
 <dd>
+<p>
     indicates one or more filename or relative path filenames; see
     "FILE NAME PATTERNS" for information on pattern matching
+</p>
 </dd>
 <dt>
 path
 </dt>
 <dd>
+<p>
     indicates a path on the local machine
+</p>
 </dd>
 <dt>
 revision
 </dt>
 <dd>
+<p>
     indicates a changeset which can be specified as a changeset revision
     number, a tag, or a unique substring of the changeset hash value
+</p>
 </dd>
 <dt>
 repository path
 </dt>
 <dd>
+<p>
     either the pathname of a local repository or the URI of a remote
     repository.  There are two available URI protocols, http:// which is
     fast and the old-http:// protocol which is much slower but does not
     require a special server on the web host.
+</p>
 </dd>
 </dl>
 <hr />
@@ -132,7 +160,9 @@ repository path
 add [options] [files &#8230;]
 </dt>
 <dd>
+<p>
     Schedule files to be version controlled and added to the repository.
+</p>
 <pre>The files will be added to the repository at the next commit.</pre>
 <pre>If no names are given, add all files in the current directory and
 its subdirectories.</pre>
@@ -141,15 +171,19 @@ its subdirectories.</pre>
 addremove [options] [files &#8230;]
 </dt>
 <dd>
+<p>
     Add all new files and remove all missing files from the repository.
+</p>
 <pre>New files are ignored if they match any of the patterns in .hgignore. As
 with add, these changes take effect at the next commit.</pre>
 </dd>
 <dt>
-annotate [-r &lt;rev&gt; -u -n -c] [files &#8230;]
+annotate [-r &lt;rev&gt; -u -n -c -d] [files &#8230;]
 </dt>
 <dd>
+<p>
     List changes in files, showing the revision id responsible for each line
+</p>
 <pre>This command is useful to discover who did a change or when a change took
 place.</pre>
 <pre>Without the -a option, annotate will avoid processing files it
@@ -161,6 +195,7 @@ anyway, probably with undesirable results.</pre>
 -X, --exclude &lt;pat&gt;   exclude names matching the given patterns
 -r, --revision &lt;rev&gt;  annotate the specified revision
 -u, --user            list the author
+-d, --date            list the commit date
 -c, --changeset       list the changeset
 -n, --number          list the revision number (default)</pre>
 </dd>
@@ -168,7 +203,9 @@ anyway, probably with undesirable results.</pre>
 bundle &lt;file&gt; &lt;other&gt;
 </dt>
 <dd>
+<p>
     (EXPERIMENTAL)
+</p>
 <pre>Generate a compressed changegroup file collecting all changesets
 not found in the other repository.</pre>
 <pre>This file can then be transferred using conventional means and
@@ -183,8 +220,10 @@ contents including permissions, rename data, and revision history.</pre>
 cat [options] &lt;file &#8230;&gt;
 </dt>
 <dd>
+<p>
     Print the specified files as they were at the given revision.
     If no revision is given then the tip is used.
+</p>
 <pre>Output may be to a file, in which case the name of the file is
 given using a format string.  The formatting rules are the same as
 for the export command, with the following additions:</pre>
@@ -198,18 +237,24 @@ for the export command, with the following additions:</pre>
 -r, --rev &lt;rev&gt;           print the given revision</pre>
 </dd>
 <dt>
-clone [-U] &lt;source&gt; [dest]
+clone [options] &lt;source&gt; [dest]
 </dt>
 <dd>
+<p>
     Create a copy of an existing repository in a new directory.
+</p>
 <pre>If no destination directory name is specified, it defaults to the
 basename of the source.</pre>
-<pre>The source is added to the new repository's .hg/hgrc file to be used in
-future pulls.</pre>
-<pre>For efficiency, hardlinks are used for cloning whenever the
-source and destination are on the same filesystem.</pre>
+<pre>The location of the source is added to the new repository's
+.hg/hgrc file, as the default to be used for future pulls.</pre>
+<pre>For efficiency, hardlinks are used for cloning whenever the source
+and destination are on the same filesystem.  Some filesystems,
+such as AFS, implement hardlinking incorrectly, but do not report
+errors.  In these cases, use the --pull option to avoid
+hardlinking.</pre>
 <pre>options:
 -U, --noupdate   do not update the new working directory
+--pull           use pull protocol to copy metadata
 -e, --ssh        specify ssh command to use
 --remotecmd      specify hg command to run on the remote side</pre>
 </dd>
@@ -217,7 +262,9 @@ source and destination are on the same filesystem.</pre>
 commit [options] [files&#8230;]
 </dt>
 <dd>
+<p>
     Commit changes to the given files into the repository.
+</p>
 <pre>If a list of files is omitted, all changes reported by "hg status"
 from the root of the repository will be commited.</pre>
 <pre>The HGEDITOR or EDITOR environment variables are used to start an
@@ -236,9 +283,11 @@ editor to add a commit comment.</pre>
 copy &lt;source &#8230;&gt; &lt;dest&gt;
 </dt>
 <dd>
+<p>
     Mark dest as having copies of source files.  If dest is a
     directory, copies are put in that directory.  If dest is a file,
     there can only be one source.
+</p>
 <pre>By default, this command copies the contents of files as they
 stand in the working directory.  If invoked with --after, the
 operation is recorded, but no copying is performed.</pre>
@@ -250,15 +299,16 @@ fully used by merge, nor fully reported by log.</pre>
 -A, --after           record a copy that has already occurred
 -I, --include &lt;pat&gt;   include names matching the given patterns
 -X, --exclude &lt;pat&gt;   exclude names matching the given patterns
--f, --force           forcibly copy over an existing managed file
--p, --parents         append source path to dest</pre>
+-f, --force           forcibly copy over an existing managed file</pre>
 <pre>aliases: cp</pre>
 </dd>
 <dt>
 diff [-a] [-r revision] [-r revision] [files &#8230;]
 </dt>
 <dd>
+<p>
     Show differences between revisions for the specified files.
+</p>
 <pre>Differences between files are shown using the unified diff format.</pre>
 <pre>When two revision arguments are given, then changes are shown
 between those revisions. If only one revision is specified then
@@ -277,7 +327,9 @@ probably with undesirable results.</pre>
 export [-o filespec] [revision] &#8230;
 </dt>
 <dd>
+<p>
     Print the changeset header and diffs for one or more revisions.
+</p>
 <pre>The information shown in the changeset header is: author,
 changeset hash, parent and commit comment.</pre>
 <pre>Output may be to a file, in which case the name of the file is
@@ -301,7 +353,9 @@ probably with undesirable results.</pre>
 forget [options] [files]
 </dt>
 <dd>
+<p>
     Undo an <em>hg add</em> scheduled for the next commit.
+</p>
 <pre>options:
 -I, --include &lt;pat&gt;  include names matching the given patterns
 -X, --exclude &lt;pat&gt;  exclude names matching the given patterns</pre>
@@ -310,7 +364,9 @@ forget [options] [files]
 grep [options] pattern [files]
 </dt>
 <dd>
+<p>
     Search revisions of files for a regular expression.
+</p>
 <pre>This command behaves differently than Unix grep.  It only accepts
 Python/Perl regexps.  It searches repository history, not the
 working directory.  It always prints the revision number in which
@@ -326,7 +382,7 @@ use the --all flag.</pre>
 -X, --exclude &lt;pat&gt;       exclude names matching the given patterns
     --all                 print all revisions that match
 -i, --ignore-case         ignore case when matching
--l, --files-with-matches  print only file names and revs that match
+-l, --files-with-matches  print only filenames and revs that match
 -n, --line-number         print matching line numbers
 -r &lt;rev&gt;, --rev &lt;rev&gt;     search in given revision range
 -u, --user                print user who committed change</pre>
@@ -335,7 +391,9 @@ use the --all flag.</pre>
 heads
 </dt>
 <dd>
+<p>
     Show all repository head changesets.
+</p>
 <pre>Repository "heads" are changesets that don't have children
 changesets. They are where development generally takes place and
 are the usual targets for update and merge operations.</pre>
@@ -344,7 +402,9 @@ are the usual targets for update and merge operations.</pre>
 identify
 </dt>
 <dd>
+<p>
     Print a short summary of the current state of the repo.
+</p>
 <pre>This summary identifies the repository state using one or two parent
 hash identifiers, followed by a "+" if there are uncommitted changes
 in the working directory, followed by a list of tags for this revision.</pre>
@@ -354,7 +414,9 @@ in the working directory, followed by a list of tags for this revision.</pre>
 import [-p &lt;n&gt; -b &lt;base&gt; -f] &lt;patches&gt;
 </dt>
 <dd>
+<p>
     Import a list of patches and commit them individually.
+</p>
 <pre>If there are outstanding changes in the working directory, import
 will abort unless given the -f flag.</pre>
 <pre>If a patch looks like a mail message (its first line starts with
@@ -373,9 +435,11 @@ safety check, not to import a real mail message.</pre>
 incoming [-p] [source]
 </dt>
 <dd>
+<p>
     Show new changesets found in the specified repo or the default
     pull repo. These are the changesets that would be pulled if a pull
     was requested.
+</p>
 <pre>Currently only local repositories are supported.</pre>
 <pre>options:
 -p, --patch           show patch</pre>
@@ -385,16 +449,20 @@ incoming [-p] [source]
 init [dest]
 </dt>
 <dd>
+<p>
     Initialize a new repository in the given directory.  If the given
     directory does not exist, it is created.
+</p>
 <pre>If no directory is given, the current directory is used.</pre>
 </dd>
 <dt>
 locate [options] [files]
 </dt>
 <dd>
+<p>
     Print all files under Mercurial control whose names match the
     given patterns.
+</p>
 <pre>This command searches the current directory and its
 subdirectories.  To search an entire repository, move to the root
 of the repository.</pre>
@@ -403,7 +471,7 @@ names.</pre>
 <pre>If you want to feed the output of this command into the "xargs"
 command, use the "-0" option to both this command and "xargs".
 This will avoid the problem of "xargs" treating single filenames
-that contain white space as multiple file names.</pre>
+that contain white space as multiple filenames.</pre>
 <pre>options:</pre>
 <pre>-0, --print0         end filenames with NUL, for use with xargs
 -f, --fullpath       print complete paths from the filesystem root
@@ -415,7 +483,9 @@ that contain white space as multiple file names.</pre>
 log [-r revision &#8230;] [-p] [files]
 </dt>
 <dd>
+<p>
     Print the revision history of the specified files or the entire project.
+</p>
 <pre>By default this command outputs: changeset id and hash, tags,
 parents, user, date and time, and a summary for each commit. The
 -v switch adds some more detail, such as changed files, manifest
@@ -431,7 +501,9 @@ hashes or message signatures.</pre>
 manifest [revision]
 </dt>
 <dd>
+<p>
     Print a list of version controlled files for the given revision.
+</p>
 <pre>The manifest is the list of files being version controlled. If no revision
 is given then the tip is used.</pre>
 </dd>
@@ -439,9 +511,11 @@ is given then the tip is used.</pre>
 outgoing [-p] [dest]
 </dt>
 <dd>
+<p>
     Show changesets not found in the specified destination repo or the
     default push repo. These are the changesets that would be pushed
     if a push was requested.
+</p>
 <pre>options:
 -p, --patch           show patch</pre>
 <pre>aliases: out</pre>
@@ -450,14 +524,18 @@ outgoing [-p] [dest]
 parents
 </dt>
 <dd>
+<p>
     Print the working directory's parent revisions.
+</p>
 </dd>
 <dt>
 paths [NAME]
 </dt>
 <dd>
+<p>
     Show definition of symbolic path name NAME. If no name is given, show
     definition of available names.
+</p>
 <pre>Path names are defined in the [paths] section of /etc/mercurial/hgrc
 and $HOME/.hgrc.  If run inside a repository, .hg/hgrc is used, too.</pre>
 </dd>
@@ -465,7 +543,9 @@ and $HOME/.hgrc.  If run inside a repository, .hg/hgrc is used, too.</pre>
 pull &lt;repository path&gt;
 </dt>
 <dd>
+<p>
     Pull changes from a remote repository to a local one.
+</p>
 <pre>This finds all changes from the repository at the specified path
 or URL and adds them to the local repository. By default, this
 does not update the copy of the project in the working directory.</pre>
@@ -487,7 +567,9 @@ the start of a path to specify it as relative to the filesystem root.</pre>
 push &lt;destination&gt;
 </dt>
 <dd>
+<p>
     Push changes from the local repository to the given destination.
+</p>
 <pre>This is the symmetrical operation for pull. It helps to move
 changes from the current repository to a different one. If the
 destination is local this is identical to a pull in that directory
@@ -509,7 +591,9 @@ machine and a copy of hg in the remote path.</pre>
 rawcommit [-p -d -u -F -m -l]
 </dt>
 <dd>
+<p>
     Lowlevel commit, for use in helper scripts.
+</p>
 <pre>This command is not intended to be used by normal users, as it is
 primarily useful for importing from other SCMs.</pre>
 </dd>
@@ -517,7 +601,9 @@ primarily useful for importing from other SCMs.</pre>
 recover
 </dt>
 <dd>
+<p>
     Recover from an interrupted commit or pull.
+</p>
 <pre>This command tries to fix the repository status after an interrupted
 operation. It should only be necessary when Mercurial suggests it.</pre>
 </dd>
@@ -525,7 +611,9 @@ operation. It should only be necessary when Mercurial suggests it.</pre>
 remove [options] [files &#8230;]
 </dt>
 <dd>
+<p>
     Schedule the indicated files for removal from the repository.
+</p>
 <pre>This command schedules the files to be removed at the next commit.
 This only removes files from the current branch, not from the
 entire project history.  If the files still exist in the working
@@ -536,9 +624,11 @@ directory, they will be deleted from it.</pre>
 rename &lt;source &#8230;&gt; &lt;dest&gt;
 </dt>
 <dd>
+<p>
     Mark dest as copies of sources; mark sources for deletion.  If
     dest is a directory, copies are put in that directory.  If dest is
     a file, there can only be one source.
+</p>
 <pre>By default, this command copies the contents of files as they
 stand in the working directory.  If invoked with --after, the
 operation is recorded, but no copying is performed.</pre>
@@ -548,17 +638,24 @@ should properly record rename files, this information is not yet
 fully used by merge, nor fully reported by log.</pre>
 <pre>Options:
 -A, --after        record a rename that has already occurred
--f, --force        forcibly copy over an existing managed file
--p, --parents      append source path to dest</pre>
+-f, --force        forcibly copy over an existing managed file</pre>
 <pre>aliases: mv</pre>
 </dd>
 <dt>
 revert [names &#8230;]
 </dt>
 <dd>
-    Revert any uncommitted modifications made to the named files or
-    directories.  This restores the contents of the affected files to
-    an unmodified state.
+<p>
+    The revert command has two modes of operation.
+</p>
+<pre>In its default mode, it reverts any uncommitted modifications made
+to the named files or directories.  This restores the contents of
+the affected files to an unmodified state.</pre>
+<pre>Using the -r option, it reverts the given files or directories to
+their state as of an earlier revision.  This can be helpful to "roll
+back" some or all of a change that should not have been committed.</pre>
+<pre>Revert modifies the working directory.  It does not commit any
+changes, or change the parent of the current working directory.</pre>
 <pre>If a file has been deleted, it is recreated.  If the executable
 mode of a file was changed, it is reset.</pre>
 <pre>If a directory is given, all files in that directory and its
@@ -573,13 +670,17 @@ its subdirectories are reverted.</pre>
 root
 </dt>
 <dd>
+<p>
     Print the root directory of the current repository.
+</p>
 </dd>
 <dt>
 serve [options]
 </dt>
 <dd>
+<p>
     Start a local HTTP repository browser and pull server.
+</p>
 <pre>By default, the server logs accesses to stdout and errors to
 stderr.  Use the "-A" and "-E" options to log to files.</pre>
 <pre>options:
@@ -595,9 +696,11 @@ stderr.  Use the "-A" and "-E" options to log to files.</pre>
 status [options] [files]
 </dt>
 <dd>
+<p>
     Show changed files in the working directory.  If no names are
     given, all files are shown.  Otherwise, only files matching the
     given names are shown.
+</p>
 <pre>The codes used to show the status of files are:</pre>
 <pre>M = changed
 A = added
@@ -617,7 +720,9 @@ R = removed
 tag [-l -m &lt;text&gt; -d &lt;datecode&gt; -u &lt;user&gt;] &lt;name&gt; [revision]
 </dt>
 <dd>
+<p>
     Name a particular revision using &lt;name&gt;.
+</p>
 <pre>Tags are used to name particular revisions of the repository and are
 very useful to compare different revision, to go back to significant
 earlier versions or to mark branch points as releases, etc.</pre>
@@ -639,20 +744,26 @@ a public tag with the same name, local tag is used.</pre>
 tags
 </dt>
 <dd>
+<p>
     List the repository tags.
+</p>
 <pre>This lists both regular and local tags.</pre>
 </dd>
 <dt>
 tip
 </dt>
 <dd>
+<p>
     Show the tip revision.
+</p>
 </dd>
 <dt>
 unbundle &lt;file&gt;
 </dt>
 <dd>
+<p>
     (EXPERIMENTAL)
+</p>
 <pre>Apply a compressed changegroup file generated by the bundle
 command.</pre>
 </dd>
@@ -660,7 +771,9 @@ command.</pre>
 undo
 </dt>
 <dd>
+<p>
     Undo the last commit or pull transaction.
+</p>
 <pre>Roll back the last pull or commit transaction on the
 repository, restoring the project to its earlier state.</pre>
 <pre>This command should be used with care. There is only one level of
@@ -673,7 +786,9 @@ ineffective.</pre>
 update [-m -C] [revision]
 </dt>
 <dd>
+<p>
     Update the working directory to the specified revision.
+</p>
 <pre>By default, update will refuse to run if doing so would require
 merging or discarding local changes.</pre>
 <pre>With the -m option, a merge will be performed.</pre>
@@ -687,7 +802,9 @@ merging or discarding local changes.</pre>
 verify
 </dt>
 <dd>
+<p>
     Verify the integrity of the current repository.
+</p>
 <pre>This will perform an extensive check of the repository's
 integrity, validating the hashes and checksums of each entry in
 the changelog, manifest, and tracked files, as well as the
@@ -697,8 +814,8 @@ integrity of their crosslinks and indices.</pre>
 <hr />
 <h2>FILE NAME PATTERNS</h2>
 <pre>Mercurial accepts several notations for identifying one or more
-file at a time.</pre>
-<pre>By default, Mercurial treats file names as shell-style extended
+files at a time.</pre>
+<pre>By default, Mercurial treats filenames as shell-style extended
 glob patterns.</pre>
 <pre>Alternate pattern notations must be specified explicitly.</pre>
 <pre>To use a plain path name without any pattern matching, start a
@@ -764,17 +881,21 @@ gives 3, 4 and 5.  Similarly, a range of 4:2 gives 4, 3, and 2.</pre>
 HGEDITOR
 </dt>
 <dd>
+<p>
     This is the name of the editor to use when committing. Defaults to the
     value of EDITOR.
+</p>
 <pre>(deprecated, use .hgrc)</pre>
 </dd>
 <dt>
 HGMERGE
 </dt>
 <dd>
+<p>
     An executable to use for resolving merge conflicts. The program
     will be executed with three arguments: local file, remote file,
     ancestor file.
+</p>
 <pre>The default program is "hgmerge", which is a shell script provided
 by Mercurial with some sensible defaults.</pre>
 <pre>(deprecated, use .hgrc)</pre>
@@ -783,35 +904,45 @@ by Mercurial with some sensible defaults.</pre>
 HGUSER
 </dt>
 <dd>
+<p>
     This is the string used for the author of a commit.
+</p>
 <pre>(deprecated, use .hgrc)</pre>
 </dd>
 <dt>
 EMAIL
 </dt>
 <dd>
+<p>
     If HGUSER is not set, this will be used as the author for a commit.
+</p>
 </dd>
 <dt>
 LOGNAME
 </dt>
 <dd>
+<p>
     If neither HGUSER nor EMAIL is set, LOGNAME will be used (with
     <em>@hostname</em> appended) as the author value for a commit.
+</p>
 </dd>
 <dt>
 EDITOR
 </dt>
 <dd>
+<p>
     This is the name of the editor used in the hgmerge script. It will be
     used for commit messages if HGEDITOR isn't set. Defaults to <em>vi</em>.
+</p>
 </dd>
 <dt>
 PYTHONPATH
 </dt>
 <dd>
+<p>
     This is used by Python to find imported modules and may need to be set
     appropriately if Mercurial is not installed system-wide.
+</p>
 </dd>
 </dl>
 <hr />
@@ -821,25 +952,31 @@ PYTHONPATH
 .hgignore
 </dt>
 <dd>
+<p>
     This file contains regular expressions (one per line) that describe file
     names that should be ignored by hg.
+</p>
 </dd>
 <dt>
 .hgtags
 </dt>
 <dd>
+<p>
     This file contains changeset hash values and text tag names (one of each
     separated by spaces) that correspond to tagged versions of the repository
     contents.
+</p>
 </dd>
 <dt>
 /etc/mercurial/hgrc, $HOME/.hgrc, .hg/hgrc
 </dt>
 <dd>
+<p>
     This file contains defaults and configuration. Values in .hg/hgrc
     override those in $HOME/.hgrc, and these override settings made in the
     global /etc/mercurial/hgrc configuration.  See hgrc(5) for details of
     the contents and format of these files.
+</p>
 </dd>
 </dl>
 <hr />
@@ -860,13 +997,13 @@ when you find them.</p>
 <p><a href="http://selenic.com/mailman/listinfo/mercurial">Mailing list</a></p>
 <hr />
 <h2>COPYING</h2>
-<p>Copyright &#169; 2005 Matt Mackall.
+<p>Copyright (C) 2005 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 16-Sep-2005 14:03:22 PDT
+Last updated 10-Jan-2006 21:23:34 CEST
 </small></p>
 </body>
 </html>

@@ -87,7 +87,7 @@ addremove [options] [files ...]::
     New files are ignored if they match any of the patterns in .hgignore. As
     with add, these changes take effect at the next commit.
 
-annotate [-r <rev> -u -n -c] [files ...]::
+annotate [-r <rev> -u -n -c -d] [files ...]::
     List changes in files, showing the revision id responsible for each line
 
     This command is useful to discover who did a change or when a change took
@@ -103,6 +103,7 @@ annotate [-r <rev> -u -n -c] [files ...]::
     -X, --exclude <pat>   exclude names matching the given patterns
     -r, --revision <rev>  annotate the specified revision
     -u, --user            list the author
+    -d, --date            list the commit date
     -c, --changeset       list the changeset
     -n, --number          list the revision number (default)
 
@@ -139,20 +140,24 @@ cat [options] <file ...>::
     -o, --output <filespec>   print output to file with formatted name
     -r, --rev <rev>           print the given revision
 
-clone [-U] <source> [dest]::
+clone [options] <source> [dest]::
     Create a copy of an existing repository in a new directory.
 
     If no destination directory name is specified, it defaults to the
     basename of the source.
 
-    The source is added to the new repository's .hg/hgrc file to be used in
-    future pulls.
+    The location of the source is added to the new repository's
+    .hg/hgrc file, as the default to be used for future pulls.
 
-    For efficiency, hardlinks are used for cloning whenever the
-    source and destination are on the same filesystem.
+    For efficiency, hardlinks are used for cloning whenever the source
+    and destination are on the same filesystem.  Some filesystems,
+    such as AFS, implement hardlinking incorrectly, but do not report
+    errors.  In these cases, use the --pull option to avoid
+    hardlinking.
 
     options:
     -U, --noupdate   do not update the new working directory
+    --pull           use pull protocol to copy metadata
     -e, --ssh        specify ssh command to use
     --remotecmd      specify hg command to run on the remote side
 
@@ -197,8 +202,7 @@ copy <source ...> <dest>::
     -I, --include <pat>   include names matching the given patterns
     -X, --exclude <pat>   exclude names matching the given patterns
     -f, --force           forcibly copy over an existing managed file
-    -p, --parents         append source path to dest
-    
+
     aliases: cp
 
 diff [-a] [-r revision] [-r revision] [files ...]::
@@ -274,7 +278,7 @@ grep [options] pattern [files]::
     -X, --exclude <pat>       exclude names matching the given patterns
         --all                 print all revisions that match
     -i, --ignore-case         ignore case when matching
-    -l, --files-with-matches  print only file names and revs that match
+    -l, --files-with-matches  print only filenames and revs that match
     -n, --line-number         print matching line numbers
     -r <rev>, --rev <rev>     search in given revision range
     -u, --user                print user who committed change
@@ -347,7 +351,7 @@ locate [options] [files]::
     If you want to feed the output of this command into the "xargs"
     command, use the "-0" option to both this command and "xargs".
     This will avoid the problem of "xargs" treating single filenames
-    that contain white space as multiple file names.
+    that contain white space as multiple filenames.
 
     options:
 
@@ -489,14 +493,22 @@ rename <source ...> <dest>::
     Options:
     -A, --after        record a rename that has already occurred
     -f, --force        forcibly copy over an existing managed file
-    -p, --parents      append source path to dest
 
     aliases: mv
 
 revert [names ...]::
-    Revert any uncommitted modifications made to the named files or
-    directories.  This restores the contents of the affected files to
-    an unmodified state.
+    The revert command has two modes of operation.
+
+    In its default mode, it reverts any uncommitted modifications made
+    to the named files or directories.  This restores the contents of
+    the affected files to an unmodified state.
+
+    Using the -r option, it reverts the given files or directories to
+    their state as of an earlier revision.  This can be helpful to "roll
+    back" some or all of a change that should not have been committed.
+
+    Revert modifies the working directory.  It does not commit any
+    changes, or change the parent of the current working directory.
 
     If a file has been deleted, it is recreated.  If the executable
     mode of a file was changed, it is reset.
@@ -631,9 +643,9 @@ FILE NAME PATTERNS
 ------------------
 
     Mercurial accepts several notations for identifying one or more
-    file at a time.
+    files at a time.
 
-    By default, Mercurial treats file names as shell-style extended
+    By default, Mercurial treats filenames as shell-style extended
     glob patterns.
 
     Alternate pattern notations must be specified explicitly.
@@ -798,6 +810,6 @@ http://selenic.com/mailman/listinfo/mercurial[Mailing list]
 
 COPYING
 -------
-Copyright (C) 2005 Matt Mackall.
+Copyright \(C) 2005 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License (GPL).

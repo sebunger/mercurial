@@ -1,16 +1,14 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<meta name="generator" content="AsciiDoc 7.0.0">
-<meta name="author" content="Bryan O'Sullivan">
-<meta name="author-email" content="bos@serpentine.com">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="generator" content="AsciiDoc 7.0.2">
 <title>HGRC(5)</title>
 </head>
 <body>
 <h1>HGRC(5)</h1>
 <p>
-<strong>by Bryan O'Sullivan</strong><br />
+<strong>Bryan O'Sullivan</strong><br />
 <tt>&lt;<a href="mailto:bos@serpentine.com">bos@serpentine.com</a>&gt;</tt><br />
 </p>
 <hr />
@@ -22,31 +20,64 @@
 aspects of its behaviour.</p>
 <hr />
 <h2>FILES</h2>
-<p>Mercurial reads configuration data from three files:</p>
+<p>Mercurial reads configuration data from several files, if they exist.
+The names of these files depend on the system on which Mercurial is
+installed.</p>
 <dl>
 <dt>
-/etc/mercurial/hgrc
+(Unix)    &lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc
+</dt>
+<dt>
+(Unix)    &lt;install-root&gt;/etc/mercurial/hgrc
 </dt>
 <dd>
-    Options in this global configuration file apply to all Mercurial
-    commands executed by any user in any directory.
+<p>
+    Per-installation configuration files, searched for in the
+    directory where Mercurial is installed.  For example, if installed
+    in /shared/tools, Mercurial will look in
+    /shared/tools/etc/mercurial/hgrc.  Options in these files apply to
+    all Mercurial commands executed by any user in any directory.
+</p>
 </dd>
 <dt>
-$HOME/.hgrc
+(Unix)    /etc/mercurial/hgrc.d/*.rc
+</dt>
+<dt>
+(Unix)    /etc/mercurial/hgrc
+</dt>
+<dt>
+(Windows) C:\Mercurial\Mercurial.ini
 </dt>
 <dd>
-    Per-user configuration options that apply to all Mercurial commands,
-    no matter from which directory they are run.  Values in this file
-    override global settings.
+<p>
+    Per-system configuration files, for the system on which Mercurial
+    is running.  Options in these files apply to all Mercurial
+    commands executed by any user in any directory.  Options in these
+    files override per-installation options.
+</p>
 </dd>
 <dt>
-&lt;repo&gt;/.hg/hgrc
+(Unix)    $HOME/.hgrc
 </dt>
 <dd>
+<p>
+(Windows) C:\Documents and Settings\USERNAME\Mercurial.ini
+    Per-user configuration file, for the user running Mercurial.
+    Options in this file apply to all Mercurial commands executed by
+    any user in any directory.  Options in this file override
+    per-installation and per-system options.
+</p>
+</dd>
+<dt>
+(Unix, Windows) &lt;repo&gt;/.hg/hgrc
+</dt>
+<dd>
+<p>
     Per-repository configuration options that only apply in a
     particular repository.  This file is not version-controlled, and
-    will not get transferred during a "clone" operation.  Values in
-    this file override global and per-user settings.
+    will not get transferred during a "clone" operation.  Options in
+    this file override options in all other configuration files.
+</p>
 </dd>
 </dl>
 <hr />
@@ -74,47 +105,94 @@ keys, and their possible values.</p>
 decode/encode
 </dt>
 <dd>
+<p>
   Filters for transforming files on checkout/checkin. This would
   typically be used for newline processing or other
   localization/canonicalization of files.
+</p>
 <pre>Filters consist of a filter pattern followed by a filter command.
-The command must accept data on stdin and return the transformed
-data on stdout.</pre>
-<pre>Example:</pre>
+Filter patterns are globs by default, rooted at the repository
+root.  For example, to match any file ending in ".txt" in the root
+directory only, use the pattern "*.txt".  To match any file ending
+in ".c" anywhere in the repository, use the pattern "**.c".</pre>
+<pre>The filter command can start with a specifier, either "pipe:" or
+"tempfile:".  If no specifier is given, "pipe:" is used by default.</pre>
+<pre>A "pipe:" command must accept data on stdin and return the
+transformed data on stdout.</pre>
+<pre>Pipe example:</pre>
 <pre>[encode]
 # uncompress gzip files on checkin to improve delta compression
 # note: not necessarily a good idea, just an example
-*.gz = gunzip</pre>
+*.gz = pipe: gunzip</pre>
 <pre>[decode]
-# recompress gzip files when writing them to the working dir
+# recompress gzip files when writing them to the working dir (we
+# can safely omit "pipe:", because it's the default)
 *.gz = gzip</pre>
+<pre>A "tempfile:" command is a template.  The string INFILE is replaced
+with the name of a temporary file that contains the data to be
+filtered by the command.  The string OUTFILE is replaced with the
+name of an empty temporary file, where the filtered data must be
+written by the command.</pre>
+<pre>NOTE: the tempfile mechanism is recommended for Windows systems,
+where the standard shell I/O redirection operators often have
+strange effects.  In particular, if you are doing line ending
+conversion on Windows using the popular dos2unix and unix2dos
+programs, you *must* use the tempfile mechanism, as using pipes will
+corrupt the contents of your files.</pre>
+<pre>Tempfile example:</pre>
+<pre>[encode]
+# convert files to unix line ending conventions on checkin
+**.txt = tempfile: dos2unix -n INFILE OUTFILE</pre>
+<pre>[decode]
+# convert files to windows line ending conventions when writing
+# them to the working dir
+**.txt = tempfile: unix2dos -n INFILE OUTFILE</pre>
 </dd>
 <dt>
 hooks
 </dt>
 <dd>
+<p>
   Commands that get automatically executed by various actions such as
-  starting or finishing a commit.
+  starting or finishing a commit. Multiple commands can be run for
+  the same action by appending a suffix to the action. Overriding a
+  site-wide hook can be done by changing its value or setting it to
+  an empty string.
+</p>
+<pre>Example .hg/hgrc:</pre>
+<pre>[hooks]
+# do not use the site-wide hook
+commit =
+commit.email = /my/email/hook
+commit.autobuild = /my/build/hook</pre>
 <dl>
 <dt>
 changegroup
 </dt>
 <dd>
-    Run after a changegroup has been added via push or pull.
+<p>
+    Run after a changegroup has been added via push or pull. Passed
+    the ID of the first new changeset in $NODE.
+</p>
 </dd>
 <dt>
 commit
 </dt>
 <dd>
-    Run after a changeset has been created. Passed the ID of the newly
-    created changeset.
+<p>
+    Run after a changeset has been created or for each changeset
+    pulled. Passed the ID of the newly created changeset in
+    environment variable $NODE.
+</p>
 </dd>
 <dt>
 precommit
 </dt>
 <dd>
+<p>
     Run before starting a commit.  Exit status 0 allows the commit to
     proceed.  Non-zero status will cause the commit to fail.
+</p>
 </dd>
 </dl>
 </dd>
@@ -122,34 +200,44 @@ precommit
 http_proxy
 </dt>
 <dd>
+<p>
   Used to access web-based Mercurial repositories through a HTTP
   proxy.
+</p>
 <dl>
 <dt>
 host
 </dt>
 <dd>
+<p>
     Host name and (optional) port of the proxy server, for example
     "myproxy:8000".
+</p>
 </dd>
 <dt>
 no
 </dt>
 <dd>
+<p>
     Optional.  Comma-separated list of host names that should bypass
     the proxy.
+</p>
 </dd>
 <dt>
 passwd
 </dt>
 <dd>
+<p>
     Optional.  Password to authenticate with at the proxy server.
+</p>
 </dd>
 <dt>
 user
 </dt>
 <dd>
+<p>
     Optional.  User name to authenticate with at the proxy server.
+</p>
 </dd>
 </dl>
 </dd>
@@ -157,72 +245,94 @@ user
 paths
 </dt>
 <dd>
+<p>
   Assigns symbolic names to repositories.  The left side is the
   symbolic name, and the right gives the directory or URL that is the
   location of the repository.
+</p>
 </dd>
 <dt>
 ui
 </dt>
 <dd>
+<p>
   User interface controls.
+</p>
 <dl>
 <dt>
 debug
 </dt>
 <dd>
+<p>
     Print debugging information.  True or False.  Default is False.
+</p>
 </dd>
 <dt>
 editor
 </dt>
 <dd>
+<p>
     The editor to use during a commit.  Default is $EDITOR or "vi".
+</p>
 </dd>
 <dt>
 interactive
 </dt>
 <dd>
+<p>
     Allow to prompt the user.  True or False.  Default is True.
+</p>
 </dd>
 <dt>
 merge
 </dt>
 <dd>
+<p>
     The conflict resolution program to use during a manual merge.
     Default is "hgmerge".
+</p>
 </dd>
 <dt>
 quiet
 </dt>
 <dd>
+<p>
     Reduce the amount of output printed.  True or False.  Default is False.
+</p>
 </dd>
 <dt>
 remotecmd
 </dt>
 <dd>
+<p>
     remote command to use for clone/push/pull operations. Default is <em>hg</em>.
+</p>
 </dd>
 <dt>
 ssh
 </dt>
 <dd>
+<p>
     command to use for SSH connections. Default is <em>ssh</em>.
+</p>
 </dd>
 <dt>
 username
 </dt>
 <dd>
+<p>
     The committer of a changeset created when running "commit".
     Typically a person's name and email address, e.g. "Fred Widget
     &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
+</p>
 </dd>
 <dt>
 verbose
 </dt>
 <dd>
+<p>
     Increase the amount of output printed.  True or False.  Default is False.
+</p>
 </dd>
 </dl>
 </dd>
@@ -230,100 +340,132 @@ verbose
 web
 </dt>
 <dd>
+<p>
   Web interface configuration.
+</p>
 <dl>
 <dt>
 accesslog
 </dt>
 <dd>
+<p>
     Where to output the access log. Default is stdout.
+</p>
 </dd>
 <dt>
 address
 </dt>
 <dd>
+<p>
     Interface address to bind to. Default is all.
+</p>
 </dd>
 <dt>
 allowbz2
 </dt>
 <dd>
+<p>
     Whether to allow .tar.bz2 downloading of repo revisions. Default is false.
+</p>
 </dd>
 <dt>
 allowgz
 </dt>
 <dd>
+<p>
     Whether to allow .tar.gz downloading of repo revisions. Default is false.
+</p>
 </dd>
 <dt>
 allowpull
 </dt>
 <dd>
+<p>
     Whether to allow pulling from the repository. Default is true.
+</p>
 </dd>
 <dt>
 allowzip
 </dt>
 <dd>
+<p>
     Whether to allow .zip downloading of repo revisions. Default is false.
     This feature creates temporary files.
+</p>
 </dd>
 <dt>
 description
 </dt>
 <dd>
+<p>
     Textual description of the repository's purpose or contents.
     Default is "unknown".
+</p>
 </dd>
 <dt>
 errorlog
 </dt>
 <dd>
+<p>
     Where to output the error log. Default is stderr.
+</p>
 </dd>
 <dt>
 ipv6
 </dt>
 <dd>
+<p>
     Whether to use IPv6. Default is false.
+</p>
 </dd>
 <dt>
 name
 </dt>
 <dd>
+<p>
     Repository name to use in the web interface. Default is current
     working directory.
+</p>
 </dd>
 <dt>
 maxchanges
 </dt>
 <dd>
+<p>
     Maximum number of changes to list on the changelog. Default is 10.
+</p>
 </dd>
 <dt>
 maxfiles
 </dt>
 <dd>
+<p>
     Maximum number of files to list per changeset. Default is 10.
+</p>
 </dd>
 <dt>
 port
 </dt>
 <dd>
+<p>
     Port to listen on. Default is 8000.
+</p>
 </dd>
 <dt>
 style
 </dt>
 <dd>
+<p>
     Which template map style to use.
+</p>
 </dd>
 <dt>
 templates
 </dt>
 <dd>
+<p>
     Where to find the HTML templates. Default is install path.
+</p>
 </dd>
 </dl>
 </dd>
@@ -344,7 +486,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 16-Sep-2005 14:03:24 PDT
+Last updated 10-Jan-2006 21:23:35 CEST
 </small></p>
 </body>
 </html>
