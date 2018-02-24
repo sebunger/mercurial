@@ -528,7 +528,6 @@ probably with undesirable results.</pre>
 -B, --ignore-blank-lines   ignore changes whose lines are all
                            blank
 -U, --unified              number of lines of context to show
-                           (default: 3)
 -I, --include              include names matching the given
                            patterns
 -X, --exclude              exclude names matching the given
@@ -951,14 +950,15 @@ destination is local this is identical to a pull in that directory
 from the current one.</pre>
 <pre>By default, push will refuse to run if it detects the result would
 increase the number of remote heads. This generally indicates the
-the client has forgotten to sync and merge before pushing.</pre>
+the client has forgotten to pull and merge before pushing.</pre>
 <pre>Valid URLs are of the form:</pre>
 <pre>local/filesystem/path (or file://local/filesystem/path)
 ssh://[user@]host[:port]/[path]
 http://[user@]host[:port]/[path]
 https://[user@]host[:port]/[path]</pre>
 <pre>An optional identifier after # indicates a particular branch, tag,
-or changeset to push.</pre>
+or changeset to push. If -r is used, the named changeset and all its
+ancestors will be pushed to the remote repository.</pre>
 <pre>Look at the help text for the pull command for important details
 about ssh:// URLs.</pre>
 <pre>Pushing to http:// and https:// URLs is only possible, if this
@@ -1530,7 +1530,7 @@ gives 3, 4 and 5.  Similarly, a range of 4:2 gives 4, 3, and 2.</pre>
 <h2><a name="_files"></a>FILES</h2>
 <dl>
 <dt>
-repo/.hgignore
+.hgignore
 </dt>
 <dd>
 <p>
@@ -1539,7 +1539,7 @@ repo/.hgignore
 </p>
 </dd>
 <dt>
-repo/.hgtags
+.hgtags
 </dt>
 <dd>
 <p>
@@ -1586,7 +1586,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 2008-03-24 18:05:45 CDT
+Last updated 2008-05-22 15:49:06 CDT
 </small></p>
 </body>
 </html>

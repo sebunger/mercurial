@@ -126,6 +126,8 @@ class queue:
                 self.series_guards.append(self.guard_re.findall(comment))
 
     def check_guard(self, guard):
+        if not guard:
+            return _('guard cannot be an empty string')
         bad_chars = '# \t\r\n\f'
         first = guard[0]
         for c in '-+':
@@ -509,7 +511,8 @@ class queue:
                 p1, p2 = repo.dirstate.parents()
                 repo.dirstate.setparents(p1, merge)
             files = patch.updatedir(self.ui, repo, files)
-            n = repo.commit(files, message, user, date, force=1)
+            n = repo.commit(files, message, user, date, match=util.never,
+                            force=True)
 
             if n == None:
                 raise util.Abort(_("repo commit failed"))
@@ -936,6 +939,8 @@ class queue:
         qp = self.qparents(repo, top)
         if opts.get('git'):
             self.diffopts().git = True
+        if opts.get('unified') is not None:
+            self.diffopts().context = opts['unified']
         self.printdiff(repo, qp, files=pats, opts=opts)
 
     def refresh(self, repo, pats=None, **opts):
@@ -1740,7 +1745,16 @@ def refresh(ui, repo, *pats, **opts):
     return ret
 
 def diff(ui, repo, *pats, **opts):
-    """diff of the current patch"""
+    """diff of the current patch and subsequent modifications
+
+    Shows a diff which includes the current patch as well as any changes which
+    have been made in the working directory since the last refresh (thus
+    showing what the current patch would become after a qrefresh).
+
+    Use 'hg diff' if you only want to see the changes made since the last
+    qrefresh, or 'hg export qtip' if you want to see changes made by the
+    current patch without including changes made since the qrefresh.
+    """
     repo.mq.diff(repo, pats, opts)
     return 0
 
@@ -1902,7 +1916,10 @@ def savename(path):
     return newpath
 
 def push(ui, repo, patch=None, **opts):
-    """push the next patch onto the stack"""
+    """push the next patch onto the stack
+
+    When --force is applied, all local changes in patched files will be lost.
+    """
     q = repo.mq
     mergeq = None
 
@@ -1926,7 +1943,11 @@ def push(ui, repo, patch=None, **opts):
     return ret
 
 def pop(ui, repo, patch=None, **opts):
-    """pop the current patch off the stack"""
+    """pop the current patch off the stack
+
+    By default, pops off the top of the patch stack. If given a patch name,
+    keeps popping off patches until the named patch is at the top of the stack.
+    """
     localupdate = True
     if opts['name']:
         q = queue(ui, repo.join(""), repo.join(opts['name']))
