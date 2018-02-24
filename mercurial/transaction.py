@@ -28,14 +28,14 @@ def _playback(journal, report, opener, entries, unlink=True):
         if o or not unlink:
             try:
                 opener(f, 'a').truncate(o)
-            except:
+            except IOError:
                 report(_("failed to truncate %s\n") % f)
                 raise
         else:
             try:
                 fn = opener(f).name
                 os.unlink(fn)
-            except IOError, inst:
+            except (IOError, OSError), inst:
                 if inst.errno != errno.ENOENT:
                     raise
     os.unlink(journal)
@@ -59,8 +59,7 @@ class transaction(object):
 
     def __del__(self):
         if self.journal:
-            if self.entries: self._abort()
-            self.file.close()
+            self._abort()
 
     @active
     def startgroup(self):
@@ -118,6 +117,7 @@ class transaction(object):
 
     @active
     def close(self):
+        '''commit the transaction'''
         self.count -= 1
         if self.count != 0:
             return
@@ -125,19 +125,25 @@ class transaction(object):
         self.entries = []
         if self.after:
             self.after()
-        else:
+        if os.path.isfile(self.journal):
             os.unlink(self.journal)
         self.journal = None
 
     @active
     def abort(self):
+        '''abort the transaction (generally called on error, or when the
+        transaction is not explicitly committed before going out of
+        scope)'''
         self._abort()
 
     def _abort(self):
         self.count = 0
         self.file.close()
 
-        if not self.entries: return
+        if not self.entries:
+            if self.journal:
+                os.unlink(self.journal)
+            return
 
         self.report(_("transaction abort!\n"))
 

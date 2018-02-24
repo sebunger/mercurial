@@ -36,7 +36,10 @@ def _smtp(ui):
     if username and password:
         ui.note(_('(authenticating to mail server as %s)\n') %
                   (username))
-        s.login(username, password)
+        try:
+            s.login(username, password)
+        except smtplib.SMTPException, inst:
+            raise util.Abort(inst)
 
     def send(sender, recipients, msg):
         try:
@@ -166,7 +169,7 @@ def addressencode(ui, address, charsets=None, display=False):
     try:
         acc, dom = addr.split('@')
         acc = acc.encode('ascii')
-        dom = dom.encode('idna')
+        dom = dom.decode(encoding.encoding).encode('idna')
         addr = '%s@%s' % (acc, dom)
     except UnicodeDecodeError:
         raise util.Abort(_('invalid email address: %s') % addr)

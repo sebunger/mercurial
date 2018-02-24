@@ -50,7 +50,7 @@ class bundlerevlog(revlog.revlog):
                 continue
             for p in (p1, p2):
                 if not p in self.nodemap:
-                    raise error.LookupError(p1, self.indexfile,
+                    raise error.LookupError(p, self.indexfile,
                                             _("unknown parent"))
             if linkmapper is None:
                 link = n
@@ -74,12 +74,12 @@ class bundlerevlog(revlog.revlog):
             return False
         return rev in self.basemap
     def bundlebase(self, rev): return self.basemap[rev]
-    def chunk(self, rev, df=None, cachelen=4096):
+    def _chunk(self, rev):
         # Warning: in case of bundle, the diff is against bundlebase,
         # not against rev - 1
         # XXX: could use some caching
         if not self.bundle(rev):
-            return revlog.revlog.chunk(self, rev, df)
+            return revlog.revlog._chunk(self, rev)
         self.bundlefile.seek(self.start(rev))
         return self.bundlefile.read(self.length(rev))
 
@@ -89,7 +89,7 @@ class bundlerevlog(revlog.revlog):
             # hot path for bundle
             revb = self.rev(self.bundlebase(rev2))
             if revb == rev1:
-                return self.chunk(rev2)
+                return self._chunk(rev2)
         elif not self.bundle(rev1) and not self.bundle(rev2):
             return revlog.revlog.revdiff(self, rev1, rev2)
 
@@ -116,7 +116,7 @@ class bundlerevlog(revlog.revlog):
             text = revlog.revlog.revision(self, iter_node)
 
         while chain:
-            delta = self.chunk(chain.pop())
+            delta = self._chunk(chain.pop())
             text = mdiff.patches(text, [delta])
 
         p1, p2 = self.parents(node)
@@ -160,7 +160,7 @@ class bundlerepository(localrepo.localrepository):
             localrepo.localrepository.__init__(self, ui, path)
         except error.RepoError:
             self._tempparent = tempfile.mkdtemp()
-            localrepo.instance(ui,self._tempparent,1)
+            localrepo.instance(ui, self._tempparent, 1)
             localrepo.localrepository.__init__(self, ui, self._tempparent)
 
         if path:

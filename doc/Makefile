@@ -1,11 +1,12 @@
 SOURCES=$(wildcard *.[0-9].txt)
 MAN=$(SOURCES:%.txt=%)
 HTML=$(SOURCES:%.txt=%.html)
+GENDOC=gendoc.py ../mercurial/commands.py ../mercurial/help.py ../help/*.txt
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
 INSTALL=install -c -m 644
 PYTHON=python
-ASCIIDOC=asciidoc
+RST2HTML=$(shell which rst2html 2> /dev/null || which rst2html.py)
 
 all: man html
 
@@ -16,22 +17,20 @@ html: $(HTML)
 hg.1.txt: hg.1.gendoc.txt
 	touch hg.1.txt
 
-hg.1.gendoc.txt: ../mercurial/commands.py ../mercurial/help.py
-	${PYTHON} gendoc.py > $@
+hg.1.gendoc.txt: $(GENDOC)
+	${PYTHON} gendoc.py > $@.tmp
+	mv $@.tmp $@
 
-%: %.xml
-	xmlto man $*.xml && \
-	sed -e 's/^\.hg/\\\&.hg/' $* > $*~ && \
-	mv $*~ $*
+%: %.txt common.txt
+	$(PYTHON) rst2man.py --halt warning \
+	  --strip-elements-with-class htmlonly $*.txt $*
 
-%.xml: %.txt
-	$(ASCIIDOC) -d manpage -b docbook $*.txt
-
-%.html: %.txt
-	$(ASCIIDOC) -b html4 $*.txt || $(ASCIIDOC) -b html $*.txt
+%.html: %.txt common.txt
+	$(RST2HTML) --halt warning \
+	  --link-stylesheet --stylesheet-path style.css $*.txt $*.html
 
 MANIFEST: man html
-	# tracked files are already in the main MANIFEST
+# tracked files are already in the main MANIFEST
 	$(RM) $@
 	for i in $(MAN) $(HTML) hg.1.gendoc.txt; do \
 	  echo "doc/$$i" >> $@ ; \
@@ -45,4 +44,4 @@ install: man
 	done
 
 clean:
-	$(RM) $(MAN) $(MAN:%=%.xml) $(MAN:%=%.html) *.[0-9].gendoc.txt MANIFEST
+	$(RM) $(MAN) $(MAN:%=%.html) *.[0-9].gendoc.txt MANIFEST

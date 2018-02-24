@@ -21,6 +21,7 @@
 </ul>
 <ul>
 <li class="active">file</li>
+<li><a href="{url}file/tip/{file|urlescape}{sessionvars%urlparameter}">latest</a></li>
 <li><a href="{url}diff/{node|short}/{file|urlescape}{sessionvars%urlparameter}">diff</a></li>
 <li><a href="{url}annotate/{node|short}/{file|urlescape}{sessionvars%urlparameter}">annotate</a></li>
 <li><a href="{url}log/{node|short}/{file|urlescape}{sessionvars%urlparameter}">file log</a></li>
@@ -48,7 +49,7 @@ files, or words in the commit message</div>
 </tr>
 <tr>
  <th class="date">date</th>
- <td class="date">{date|date} ({date|age} ago)</td>
+ <td class="date">{date|date} ({date|age})</td>
 </tr>
 <tr>
  <th class="author">parents</th>

@@ -6,9 +6,9 @@ hg rebase [-s REV | -b REV] [-d REV] [--collapse] [--keep] [--keepbranches] | [-
 
 move changeset (and descendants) to a different branch
 
-    Rebase uses repeated merging to graft changesets from one part of
-    history onto another. This can be useful for linearizing local
-    changes relative to a master development tree.
+    Rebase uses repeated merging to graft changesets from one part of history
+    onto another. This can be useful for linearizing local changes relative to
+    a master development tree.
 
     If a rebase is interrupted to manually resolve a merge, it can be
     continued with --continue/-c or aborted with --abort/-a.
@@ -18,9 +18,9 @@ options:
  -s --source        rebase from a given revision
  -b --base          rebase from the base of a given revision
  -d --dest          rebase onto a given revision
-    --collapse      collapse the rebased revisions
-    --keep          keep original revisions
-    --keepbranches  keep original branches
+    --collapse      collapse the rebased changesets
+    --keep          keep original changesets
+    --keepbranches  keep original branch names
  -c --continue      continue an interrupted rebase
  -a --abort         abort an interrupted rebase
     --style         display using template map file
@@ -34,9 +34,9 @@ hg rebase [-s REV | -b REV] [-d REV] [--collapse] [--keep] [--keepbranches] | [-
 
 move changeset (and descendants) to a different branch
 
-    Rebase uses repeated merging to graft changesets from one part of
-    history onto another. This can be useful for linearizing local
-    changes relative to a master development tree.
+    Rebase uses repeated merging to graft changesets from one part of history
+    onto another. This can be useful for linearizing local changes relative to
+    a master development tree.
 
     If a rebase is interrupted to manually resolve a merge, it can be
     continued with --continue/-c or aborted with --abort/-a.
@@ -46,9 +46,9 @@ options:
  -s --source        rebase from a given revision
  -b --base          rebase from the base of a given revision
  -d --dest          rebase onto a given revision
-    --collapse      collapse the rebased revisions
-    --keep          keep original revisions
-    --keepbranches  keep original branches
+    --collapse      collapse the rebased changesets
+    --keep          keep original changesets
+    --keepbranches  keep original branch names
  -c --continue      continue an interrupted rebase
  -a --abort         abort an interrupted rebase
     --style         display using template map file
@@ -62,9 +62,9 @@ hg rebase [-s REV | -b REV] [-d REV] [--collapse] [--keep] [--keepbranches] | [-
 
 move changeset (and descendants) to a different branch
 
-    Rebase uses repeated merging to graft changesets from one part of
-    history onto another. This can be useful for linearizing local
-    changes relative to a master development tree.
+    Rebase uses repeated merging to graft changesets from one part of history
+    onto another. This can be useful for linearizing local changes relative to
+    a master development tree.
 
     If a rebase is interrupted to manually resolve a merge, it can be
     continued with --continue/-c or aborted with --abort/-a.
@@ -74,9 +74,9 @@ options:
  -s --source        rebase from a given revision
  -b --base          rebase from the base of a given revision
  -d --dest          rebase onto a given revision
-    --collapse      collapse the rebased revisions
-    --keep          keep original revisions
-    --keepbranches  keep original branches
+    --collapse      collapse the rebased changesets
+    --keep          keep original changesets
+    --keepbranches  keep original branch names
  -c --continue      continue an interrupted rebase
  -a --abort         abort an interrupted rebase
     --style         display using template map file
@@ -90,9 +90,9 @@ hg rebase [-s REV | -b REV] [-d REV] [--collapse] [--keep] [--keepbranches] | [-
 
 move changeset (and descendants) to a different branch
 
-    Rebase uses repeated merging to graft changesets from one part of
-    history onto another. This can be useful for linearizing local
-    changes relative to a master development tree.
+    Rebase uses repeated merging to graft changesets from one part of history
+    onto another. This can be useful for linearizing local changes relative to
+    a master development tree.
 
     If a rebase is interrupted to manually resolve a merge, it can be
     continued with --continue/-c or aborted with --abort/-a.
@@ -102,9 +102,9 @@ options:
  -s --source        rebase from a given revision
  -b --base          rebase from the base of a given revision
  -d --dest          rebase onto a given revision
-    --collapse      collapse the rebased revisions
-    --keep          keep original revisions
-    --keepbranches  keep original branches
+    --collapse      collapse the rebased changesets
+    --keep          keep original changesets
+    --keepbranches  keep original branch names
  -c --continue      continue an interrupted rebase
  -a --abort         abort an interrupted rebase
     --style         display using template map file

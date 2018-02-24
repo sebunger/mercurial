@@ -80,9 +80,9 @@ class config(object):
         section = ""
         item = None
         line = 0
-        cont = 0
+        cont = False
 
-        for l in data.splitlines(1):
+        for l in data.splitlines(True):
             line += 1
             if cont:
                 m = contre.match(l)
@@ -93,6 +93,7 @@ class config(object):
                     self.set(section, item, v, "%s:%d" % (src, line))
                     continue
                 item = None
+                cont = False
             m = includere.match(l)
             if m:
                 inc = m.group(1)
@@ -114,7 +115,7 @@ class config(object):
             m = itemre.match(l)
             if m:
                 item = m.group(1)
-                cont = 1
+                cont = True
                 if sections and section not in sections:
                     continue
                 self.set(section, item, m.group(2), "%s:%d" % (src, line))
@@ -128,7 +129,7 @@ class config(object):
                     del self._data[section][name]
                 continue
 
-            raise error.ConfigError(_('config error at %s:%d: \'%s\'')
+            raise error.ConfigError(_("config error at %s:%d: '%s'")
                                     % (src, line, l.rstrip()))
 
     def read(self, path, fp=None, sections=None, remap=None):

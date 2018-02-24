@@ -65,7 +65,7 @@ def _filerevision(web, tmpl, fctx):
         text = '(binary:%s)' % mt
 
     def lines():
-        for lineno, t in enumerate(text.splitlines(1)):
+        for lineno, t in enumerate(text.splitlines(True)):
             yield {"line": t,
                    "lineid": "l%d" % (lineno + 1),
                    "linenumber": "% 6d" % (lineno + 1),
@@ -236,7 +236,11 @@ def changeset(web, req, tmpl):
                           parity=parity.next()))
 
     parity = paritygen(web.stripecount)
-    diffs = webutil.diffs(web.repo, tmpl, ctx, None, parity)
+    style = web.config('web', 'style', 'paper')
+    if 'style' in req.form:
+        style = req.form['style'][0]
+
+    diffs = webutil.diffs(web.repo, tmpl, ctx, None, parity, style)
     return tmpl('changeset',
                 diff=diffs,
                 rev=ctx.rev(),
@@ -339,7 +343,7 @@ def tags(web, req, tmpl):
     i.reverse()
     parity = paritygen(web.stripecount)
 
-    def entries(notip=False,limit=0, **map):
+    def entries(notip=False, limit=0, **map):
         count = 0
         for k, n in i:
             if notip and k == "tip":
@@ -474,7 +478,11 @@ def filediff(web, req, tmpl):
         # path already defined in except clause
 
     parity = paritygen(web.stripecount)
-    diffs = webutil.diffs(web.repo, tmpl, fctx or ctx, [path], parity)
+    style = web.config('web', 'style', 'paper')
+    if 'style' in req.form:
+        style = req.form['style'][0]
+
+    diffs = webutil.diffs(web.repo, tmpl, fctx or ctx, [path], parity, style)
     rename = fctx and webutil.renamelink(fctx) or []
     ctx = fctx and fctx or ctx
     return tmpl("filediff",

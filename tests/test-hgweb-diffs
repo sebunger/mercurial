@@ -18,6 +18,9 @@ cat hg.pid >> $DAEMON_PIDS
 echo % revision
 "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/rev/0'
 
+echo % raw revision
+"$TESTDIR/get-with-headers.py" localhost:$HGPORT '/raw-rev/0'
+
 echo % diff removed file
 "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/diff/tip/a'
 
@@ -29,8 +32,17 @@ cat hg.pid >> $DAEMON_PIDS
 echo % revision
 "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/rev/0'
 
+echo % revision
+"$TESTDIR/get-with-headers.py" localhost:$HGPORT '/raw-rev/0'
+
 echo % diff removed file
 "$TESTDIR/get-with-headers.py" localhost:$HGPORT '/diff/tip/a'
 
+cd ..
+echo % test import rev as raw-rev
+hg clone -r0 test test1
+cd test1
+hg import -q --exact http://localhost:$HGPORT/rev/1
+
 echo % errors
-cat errors.log
+cat ../test/errors.log

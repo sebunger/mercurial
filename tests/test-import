@@ -332,3 +332,36 @@ new file mode 100644
 EOF
 hg import --no-commit a.patch
 cd ..
+
+echo '% create file when source is not /dev/null'
+cat > create.patch <<EOF
+diff -Naur proj-orig/foo proj-new/foo
+--- proj-orig/foo       1969-12-31 16:00:00.000000000 -0800
++++ proj-new/foo        2009-07-17 16:50:45.801368000 -0700
+@@ -0,0 +1,1 @@
++a
+EOF
+hg init oddcreate
+cd oddcreate
+hg import --no-commit ../create.patch
+cat foo
+
+echo % 'first line mistaken for email headers (issue 1859)'
+hg init emailconfusion
+cd emailconfusion
+cat > a.patch <<EOF
+module: summary
+
+description
+
+
+diff -r 000000000000 -r 9b4c1e343b55 test.txt
+--- /dev/null
++++ b/a
+@@ -0,0 +1,1 @@
++a
+EOF
+hg import -d '0 0' a.patch
+hg parents -v
+cd ..
+

@@ -40,10 +40,13 @@ def age(date):
         return 'in the future'
 
     delta = max(1, int(now - then))
+    if delta > agescales[0][1] * 2:
+        return util.shortdate(date)
+
     for t, s in agescales:
-        n = delta / s
+        n = delta // s
         if n >= 2 or s == 1:
-            return fmt(t, n)
+            return '%s ago' % fmt(t, n)
 
 para_re = None
 space_re = None
@@ -73,7 +76,7 @@ def fill(text, width):
 def firstline(text):
     '''return the first line of text'''
     try:
-        return text.splitlines(1)[0].rstrip('\r\n')
+        return text.splitlines(True)[0].rstrip('\r\n')
     except IndexError:
         return ''
 
@@ -105,13 +108,14 @@ def indent(text, prefix):
     '''indent each non-empty line of text after first with prefix.'''
     lines = text.splitlines()
     num_lines = len(lines)
+    endswithnewline = text[-1:] == '\n'
     def indenter():
         for i in xrange(num_lines):
             l = lines[i]
             if i and l.strip():
                 yield prefix
             yield l
-            if i < num_lines - 1 or text.endswith('\n'):
+            if i < num_lines - 1 or endswithnewline:
                 yield '\n'
     return "".join(indenter())
 

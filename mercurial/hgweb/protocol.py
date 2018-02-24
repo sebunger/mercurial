@@ -5,7 +5,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2, incorporated herein by reference.
 
-import cStringIO, zlib, tempfile, errno, os, sys, urllib
+import cStringIO, zlib, tempfile, errno, os, sys, urllib, copy
 from mercurial import util, streamclone
 from mercurial.node import bin, hex
 from mercurial import changegroup as changegroupmod
@@ -21,12 +21,13 @@ __all__ = [
 ]
 
 HGTYPE = 'application/mercurial-0.1'
+basecaps = 'lookup changegroupsubset branchmap'.split()
 
 def lookup(repo, req):
     try:
         r = hex(repo.lookup(req.form['key'][0]))
         success = 1
-    except Exception,inst:
+    except Exception, inst:
         r = str(inst)
         success = 0
     resp = "%s %s\n" % (success, r)
@@ -109,7 +110,7 @@ def changegroupsubset(repo, req):
     yield z.flush()
 
 def capabilities(repo, req):
-    caps = ['lookup', 'changegroupsubset', 'branchmap']
+    caps = copy.copy(basecaps)
     if repo.ui.configbool('server', 'uncompressed', untrusted=True):
         caps.append('stream=%d' % repo.changelog.version)
     if changegroupmod.bundlepriority:
@@ -181,18 +182,19 @@ def unbundle(repo, req):
         except ValueError, inst:
             raise ErrorResponse(HTTP_OK, inst)
         except (OSError, IOError), inst:
-            filename = getattr(inst, 'filename', '')
-            # Don't send our filesystem layout to the client
-            if filename.startswith(repo.root):
-                filename = filename[len(repo.root)+1:]
-            else:
-                filename = ''
             error = getattr(inst, 'strerror', 'Unknown error')
             if inst.errno == errno.ENOENT:
                 code = HTTP_NOT_FOUND
             else:
                 code = HTTP_SERVER_ERROR
-            raise ErrorResponse(code, '%s: %s' % (error, filename))
+            filename = getattr(inst, 'filename', '')
+            # Don't send our filesystem layout to the client
+            if filename and filename.startswith(repo.root):
+                filename = filename[len(repo.root)+1:]
+                text = '%s: %s' % (error, filename)
+            else:
+                text = error.replace(repo.root + os.path.sep, '')
+            raise ErrorResponse(code, text)
     finally:
         fp.close()
         os.unlink(tempname)

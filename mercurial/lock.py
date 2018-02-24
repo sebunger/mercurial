@@ -1,4 +1,4 @@
-# lock.py - simple locking scheme for mercurial
+# lock.py - simple advisory locking scheme for mercurial
 #
 # Copyright 2005, 2006 Matt Mackall <mpm@selenic.com>
 #
@@ -10,6 +10,15 @@ import errno, os, socket, time
 import warnings
 
 class lock(object):
+    '''An advisory lock held by one process to control access to a set
+    of files.  Non-cooperating processes or incorrectly written scripts
+    can ignore Mercurial's locking scheme and stomp all over the
+    repository, so don't do that.
+
+    Typically used via localrepository.lock() to lock the repository
+    store (.hg/store/) or localrepository.wlock() to lock everything
+    else under .hg/.'''
+
     # lock is symlink on platforms that support it, file on others.
 
     # symlink is used because create of directory entry and contents
@@ -96,15 +105,14 @@ class lock(object):
             return locker
         try:
             pid = int(pid)
-        except:
+        except ValueError:
             return locker
         if util.testpid(pid):
             return locker
         # if locker dead, break lock.  must do this with another lock
         # held, or can race and break valid lock.
         try:
-            l = lock(self.f + '.break')
-            l.trylock()
+            l = lock(self.f + '.break', timeout=0)
             os.unlink(self.f)
             l.release()
         except error.LockError:
@@ -113,13 +121,14 @@ class lock(object):
     def release(self):
         if self.held > 1:
             self.held -= 1
-        elif self.held is 1:
+        elif self.held == 1:
             self.held = 0
             if self.releasefn:
                 self.releasefn()
             try:
                 os.unlink(self.f)
-            except: pass
+            except OSError:
+                pass
 
 def release(*locks):
     for lock in locks:

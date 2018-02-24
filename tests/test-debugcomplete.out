@@ -41,6 +41,7 @@ root
 serve
 showconfig
 status
+summary
 tag
 tags
 tip
@@ -159,25 +160,25 @@ root
 
 % Show an error if we use --options with an ambiguous abbreviation
 hg: command 's' is ambiguous:
-    serve showconfig status
+    serve showconfig status summary
 
 % Show all commands + options
 add: include, exclude, dry-run
 annotate: rev, follow, text, user, date, number, changeset, line-number, include, exclude
-clone: noupdate, rev, pull, uncompressed, ssh, remotecmd
+clone: noupdate, updaterev, rev, pull, uncompressed, ssh, remotecmd
 commit: addremove, close-branch, include, exclude, message, logfile, date, user
-diff: rev, change, text, git, nodates, show-function, ignore-all-space, ignore-space-change, ignore-blank-lines, unified, include, exclude
+diff: rev, change, text, git, nodates, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, unified, stat, include, exclude
 export: output, switch-parent, text, git, nodates
 forget: include, exclude
 init: ssh, remotecmd
 log: follow, follow-first, date, copies, keyword, rev, removed, only-merges, user, only-branch, prune, patch, git, limit, no-merges, style, template, include, exclude
 merge: force, rev, preview
-parents: rev, style, template
 pull: update, force, rev, ssh, remotecmd
 push: force, rev, ssh, remotecmd
 remove: after, force, include, exclude
 serve: accesslog, daemon, daemon-pipefds, errorlog, port, address, prefix, name, webdir-conf, pid-file, stdio, templates, style, ipv6, certificate
 status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, copies, print0, rev, include, exclude
+summary: remote
 update: clean, check, date, rev
 addremove: similarity, include, exclude, dry-run
 archive: no-decode, prefix, rev, type, include, exclude
@@ -213,10 +214,11 @@ incoming: force, newest-first, bundle, rev, patch, git, limit, no-merges, style,
 locate: rev, print0, fullpath, include, exclude
 manifest: rev
 outgoing: force, rev, newest-first, patch, git, limit, no-merges, style, template, ssh, remotecmd
+parents: rev, style, template
 paths: 
 recover: 
 rename: after, force, include, exclude, dry-run
-resolve: all, list, mark, unmark, include, exclude
+resolve: all, list, mark, unmark, no-status, include, exclude
 revert: all, date, rev, no-backup, include, exclude, dry-run
 rollback: 
 root: 

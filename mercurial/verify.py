@@ -7,6 +7,7 @@
 
 from node import nullid, short
 from i18n import _
+import os
 import revlog, util, error
 
 def verify(repo):
@@ -27,6 +28,7 @@ def _verify(repo):
     ui = repo.ui
     cl = repo.changelog
     mf = repo.manifest
+    lrugetctx = util.lrucachefunc(repo.changectx)
 
     if not repo.cancopy():
         raise util.Abort(_("cannot verify bundle or remote repos"))
@@ -78,7 +80,14 @@ def _verify(repo):
                 msg = _("rev %d points to unexpected changeset %d")
             err(None, msg % (i, lr), f)
             if linkrevs:
-                warn(_(" (expected %s)") % " ".join(map(str,linkrevs)))
+                if f and len(linkrevs) > 1:
+                    try:
+                        # attempt to filter down to real linkrevs
+                        linkrevs = [l for l in linkrevs
+                                    if lrugetctx(l)[f].filenode() == node]
+                    except:
+                        pass
+                warn(_(" (expected %s)") % " ".join(map(str, linkrevs)))
             lr = None # can't be trusted
 
         try:
@@ -96,6 +105,9 @@ def _verify(repo):
             err(lr, _("duplicate revision %d (%d)") % (i, seen[n]), f)
         seen[n] = i
         return lr
+
+    if os.path.exists(repo.sjoin("journal")):
+        ui.warn(_("abandoned transaction found - run hg recover\n"))
 
     revlogv1 = cl.version != revlog.REVLOGV0
     if ui.verbose or not revlogv1:
@@ -136,9 +148,7 @@ def _verify(repo):
                 if not f:
                     err(lr, _("file without name in manifest"))
                 elif f != "/dev/null":
-                    fns = filenodes.setdefault(f, {})
-                    if fn not in fns:
-                        fns[fn] = i
+                    filenodes.setdefault(f, {}).setdefault(fn, lr)
         except Exception, inst:
             exc(lr, _("reading manifest delta %s") % short(n), inst)
 
@@ -147,7 +157,7 @@ def _verify(repo):
     if havemf:
         for c,m in sorted([(c, m) for m in mflinkrevs for c in mflinkrevs[m]]):
             err(c, _("changeset refers to unknown manifest %s") % short(m))
-        del mflinkrevs
+        mflinkrevs = None # del is bad here due to scope issues
 
         for f in sorted(filelinkrevs):
             if f not in filenodes:
@@ -224,6 +234,16 @@ def _verify(repo):
             # check renames
             try:
                 if rp:
+                    if lr is not None and ui.verbose:
+                        ctx = lrugetctx(lr)
+                        found = False
+                        for pctx in ctx.parents():
+                            if rp[0] in pctx:
+                                found = True
+                                break
+                        if not found:
+                            warn(_("warning: copy source of '%s' not"
+                                   " in parents of %s") % (f, ctx))
                     fl2 = repo.file(rp[0])
                     if not len(fl2):
                         err(lr, _("empty or missing copy source revlog %s:%s")
@@ -239,7 +259,7 @@ def _verify(repo):
 
         # cross-check
         if f in filenodes:
-            fns = [(mf.linkrev(l), n) for n,l in filenodes[f].iteritems()]
+            fns = [(lr, n) for n,lr in filenodes[f].iteritems()]
             for lr, node in sorted(fns):
                 err(lr, _("%s in manifests not found") % short(node), f)
 

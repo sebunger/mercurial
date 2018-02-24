@@ -15,7 +15,7 @@ _booleans = {'1': True, 'yes': True, 'true': True, 'on': True,
 class ui(object):
     def __init__(self, src=None):
         self._buffers = []
-        self.quiet = self.verbose = self.debugflag = self._traceback = False
+        self.quiet = self.verbose = self.debugflag = self.tracebackflag = False
         self._reportuntrusted = True
         self._ocfg = config.config() # overlay
         self._tcfg = config.config() # trusted
@@ -101,7 +101,7 @@ class ui(object):
         if self.verbose and self.quiet:
             self.quiet = self.verbose = False
         self._reportuntrusted = self.configbool("ui", "report_untrusted", True)
-        self._traceback = self.configbool('ui', 'traceback', False)
+        self.tracebackflag = self.configbool('ui', 'traceback', False)
 
         # update trust information
         self._trustusers.update(self.configlist('trusted', 'users'))
@@ -179,14 +179,14 @@ class ui(object):
             user = os.environ.get("EMAIL")
         if user is None and self.configbool("ui", "askusername"):
             user = self.prompt(_("enter a commit username:"), default=None)
-        if user is None:
+        if user is None and not self.interactive():
             try:
                 user = '%s@%s' % (util.getuser(), socket.getfqdn())
                 self.warn(_("No username found, using '%s' instead\n") % user)
             except KeyError:
                 pass
         if not user:
-            raise util.Abort(_("Please specify a username."))
+            raise util.Abort(_('no username supplied (see "hg help config")'))
         if "\n" in user:
             raise util.Abort(_("username %s contains a newline\n") % repr(user))
         return user
@@ -198,10 +198,12 @@ class ui(object):
 
     def _path(self, loc):
         p = self.config('paths', loc)
-        if p and '%%' in p:
-            self.warn('(deprecated \'%%\' in path %s=%s from %s)\n' %
-                    (loc, p, self.configsource('paths', loc)))
-            p = p.replace('%%', '%')
+        if p:
+            if '%%' in p:
+                self.warn("(deprecated '%%' in path %s=%s from %s)\n" %
+                          (loc, p, self.configsource('paths', loc)))
+                p = p.replace('%%', '%')
+            p = util.expandpath(p)
         return p
 
     def expandpath(self, loc, default=None):
@@ -269,30 +271,35 @@ class ui(object):
             line = line[:-1]
         return line
 
-    def prompt(self, msg, choices=None, default="y"):
-        """Prompt user with msg, read response, and ensure it matches
-        one of the provided choices. choices is a sequence of acceptable
-        responses with the format: ('&None', 'E&xec', 'Sym&link')
-        No sequence implies no response checking. Responses are case
-        insensitive. If ui is not interactive, the default is returned.
+    def prompt(self, msg, default="y"):
+        """Prompt user with msg, read response.
+        If ui is not interactive, the default is returned.
         """
         if not self.interactive():
             self.write(msg, ' ', default, "\n")
             return default
+        try:
+            r = self._readline(msg + ' ')
+            if not r:
+                return default
+            return r
+        except EOFError:
+            raise util.Abort(_('response expected'))
+
+    def promptchoice(self, msg, choices, default=0):
+        """Prompt user with msg, read response, and ensure it matches
+        one of the provided choices. The index of the choice is returned.
+        choices is a sequence of acceptable responses with the format:
+        ('&None', 'E&xec', 'Sym&link') Responses are case insensitive.
+        If ui is not interactive, the default is returned.
+        """
+        resps = [s[s.index('&')+1].lower() for s in choices]
         while True:
-            try:
-                r = self._readline(msg + ' ')
-                if not r:
-                    return default
-                if not choices:
-                    return r
-                resps = [s[s.index('&')+1].lower() for s in choices]
-                if r.lower() in resps:
-                    return r.lower()
-                else:
-                    self.write(_("unrecognized response\n"))
-            except EOFError:
-                raise util.Abort(_('response expected'))
+            r = self.prompt(msg, resps[default])
+            if r.lower() in resps:
+                return resps.index(r.lower())
+            self.write(_("unrecognized response\n"))
+
 
     def getpass(self, prompt=None, default=None):
         if not self.interactive(): return default
@@ -330,13 +337,16 @@ class ui(object):
 
         return t
 
-    def traceback(self):
+    def traceback(self, exc=None):
         '''print exception traceback if traceback printing enabled.
         only to call in exception handler. returns true if traceback
         printed.'''
-        if self._traceback:
-            traceback.print_exc()
-        return self._traceback
+        if self.tracebackflag:
+            if exc:
+                traceback.print_exception(exc[0], exc[1], exc[2])
+            else:
+                traceback.print_exc()
+        return self.tracebackflag
 
     def geteditor(self):
         '''return editor to use'''
@@ -344,3 +354,33 @@ class ui(object):
                 self.config("ui", "editor") or
                 os.environ.get("VISUAL") or
                 os.environ.get("EDITOR", "vi"))
+
+    def progress(self, topic, pos, item="", unit="", total=None):
+        '''show a progress message
+
+        With stock hg, this is simply a debug message that is hidden
+        by default, but with extensions or GUI tools it may be
+        visible. 'topic' is the current operation, 'item' is a
+        non-numeric marker of the current position (ie the currently
+        in-process file), 'pos' is the current numeric position (ie
+        revision, bytes, etc.), unit is a corresponding unit label,
+        and total is the highest expected pos.
+
+        Multiple nested topics may be active at a time. All topics
+        should be marked closed by setting pos to None at termination.
+        '''
+
+        if pos == None or not self.debugflag:
+            return
+
+        if unit:
+            unit = ' ' + unit
+        if item:
+            item = ' ' + item
+
+        if total:
+            pct = 100.0 * pos / total
+            self.debug('%s:%s %s/%s%s (%4.2g%%)\n'
+                     % (topic, item, pos, total, unit, pct))
+        else:
+            self.debug('%s:%s %s%s\n' % (topic, item, pos, unit))
