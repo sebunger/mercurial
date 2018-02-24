@@ -14,6 +14,9 @@ hg bookmarks
 echo % set bookmark X
 hg bookmark X
 
+echo % list bookmarks
+hg bookmark
+
 echo % update to bookmark X
 hg update X
 
@@ -39,3 +42,14 @@ hg commit -m'test'
 
 echo % list bookmarks
 hg bookmark
+
+echo % delete bookmarks
+hg bookmark -d Y
+hg bookmark -d Z
+
+echo % list bookmarks
+hg bookmark
+
+echo % update to tip
+hg update tip
+

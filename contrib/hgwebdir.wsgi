@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-#
-# An example CGI script to export multiple hgweb repos, edit as necessary
+# An example WSGI (use with mod_wsgi) script to export multiple hgweb repos
 
 # adjust python path if not a system-wide install:
 #import sys
@@ -8,10 +6,7 @@
 
 # enable demandloading to reduce startup time
 from mercurial import demandimport; demandimport.enable()
-
-# Uncomment to send python tracebacks to the browser if an error occurs:
-#import cgitb
-#cgitb.enable()
+from mercurial.hgweb.hgwebdir_mod import hgwebdir
 
 # If you'd like to serve pages with UTF-8 instead of your default
 # locale charset, you can do so by uncommenting the following lines.
@@ -20,9 +15,6 @@ from mercurial import demandimport; demandimport.enable()
 #
 #import os
 #os.environ["HGENCODING"] = "UTF-8"
-
-from mercurial.hgweb.hgwebdir_mod import hgwebdir
-from flup.server.fcgi import WSGIServer
 
 # The config file looks like this.  You can have paths to individual
 # repos, collections of repos in a directory tree, or both.
@@ -33,10 +25,7 @@ from flup.server.fcgi import WSGIServer
 # virtual/root = /real/root/*
 # / = /real/root2/*
 #
-# [collections]
-# /prefix/to/strip/off = /root/of/tree/full/of/repos
-#
-# paths example: 
+# paths example:
 #
 # * First two lines mount one repository into one virtual path, like
 # '/real/path1' into 'virtual/path1'.
@@ -59,4 +48,4 @@ from flup.server.fcgi import WSGIServer
 # Alternatively you can pass a list of ('virtual/path', '/real/path') tuples
 # or use a dictionary with entries like 'virtual/path': '/real/path'
 
-WSGIServer(hgwebdir('hgweb.config')).run()
+application = hgwebdir('hgweb.config')
