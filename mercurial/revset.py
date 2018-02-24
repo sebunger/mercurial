@@ -434,7 +434,10 @@ def follow(repo, subset, x):
     p = repo['.'].rev()
     if l:
         x = getstring(l[0], _("follow expected a filename"))
-        s = set(ctx.rev() for ctx in repo['.'][x].ancestors())
+        if x in repo['.']:
+            s = set(ctx.rev() for ctx in repo['.'][x].ancestors())
+        else:
+            return []
     else:
         s = set(repo.changelog.ancestors(p))
 
@@ -1070,7 +1073,7 @@ def formatspec(expr, *args):
     >>> formatspec('%d:: and not %d::', 10, 20)
     '10:: and not 20::'
     >>> formatspec('%ld or %ld', [], [1])
-    '(0-0) or (1)'
+    '(0-0) or 1'
     >>> formatspec('keyword(%s)', 'foo\\xe9')
     "keyword('foo\\\\xe9')"
     >>> b = lambda: 'default'
@@ -1078,7 +1081,7 @@ def formatspec(expr, *args):
     >>> formatspec('branch(%b)', b)
     "branch('default')"
     >>> formatspec('root(%ls)', ['a', 'b', 'c', 'd'])
-    "root(('a' or 'b' or 'c' or 'd'))"
+    "root((('a' or 'b') or ('c' or 'd')))"
     '''
 
     def quote(s):
@@ -1097,6 +1100,16 @@ def formatspec(expr, *args):
         elif c == 'b':
             return quote(arg.branch())
 
+    def listexp(s, t):
+        "balance a list s of type t to limit parse tree depth"
+        l = len(s)
+        if l == 0:
+            return '(0-0)' # a minimal way to represent an empty set
+        if l == 1:
+            return argtype(t, s[0])
+        m = l / 2
+        return '(%s or %s)' % (listexp(s[:m], t), listexp(s[m:], t))
+
     ret = ''
     pos = 0
     arg = 0
@@ -1114,11 +1127,7 @@ def formatspec(expr, *args):
                 # a list of some type
                 pos += 1
                 d = expr[pos]
-                if args[arg]:
-                    lv = ' or '.join(argtype(d, e) for e in args[arg])
-                else:
-                    lv = '0-0' # a minimal way to represent an empty set
-                ret += '(%s)' % lv
+                ret += listexp(args[arg], d)
                 arg += 1
             else:
                 raise util.Abort('unexpected revspec format character %s' % d)

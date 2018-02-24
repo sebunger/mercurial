@@ -215,6 +215,7 @@ def rebase(ui, repo, **opts):
                 originalwd, target, state = result
                 if collapsef:
                     targetancestors = set(repo.changelog.ancestors(target))
+                    targetancestors.add(target)
                     external = checkexternal(repo, state, targetancestors)
 
         if keepbranchesf:
@@ -479,7 +480,10 @@ def storestatus(repo, originalwd, target, state, collapse, keep, keepbranches,
     f.write('%d\n' % int(keepbranches))
     for d, v in state.iteritems():
         oldrev = repo[d].hex()
-        newrev = repo[v].hex()
+        if v != nullmerge:
+            newrev = repo[v].hex()
+        else:
+            newrev = v
         f.write("%s:%s\n" % (oldrev, newrev))
     f.close()
     repo.ui.debug('rebase status stored\n')
@@ -512,7 +516,10 @@ def restorestatus(repo):
                 keepbranches = bool(int(l))
             else:
                 oldrev, newrev = l.split(':')
-                state[repo[oldrev].rev()] = repo[newrev].rev()
+                if newrev != str(nullmerge):
+                    state[repo[oldrev].rev()] = repo[newrev].rev()
+                else:
+                    state[repo[oldrev].rev()] = int(newrev)
         skipped = set()
         # recompute the set of skipped revs
         if not collapse:

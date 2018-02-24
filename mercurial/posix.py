@@ -6,7 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 from i18n import _
-import os, sys, errno, stat, getpass, pwd, grp, tempfile
+import os, sys, errno, stat, getpass, pwd, grp, tempfile, unicodedata
 
 posixfile = open
 nulldev = '/dev/null'
@@ -164,8 +164,32 @@ def samedevice(fpath1, fpath2):
     st2 = os.lstat(fpath2)
     return st1.st_dev == st2.st_dev
 
+# os.path.normcase is a no-op, which doesn't help us on non-native filesystems
+def normcase(path):
+    return path.lower()
+
 if sys.platform == 'darwin':
     import fcntl # only needed on darwin, missing on jython
+
+    def normcase(path):
+        try:
+            u = path.decode('utf-8')
+        except UnicodeDecodeError:
+            # percent-encode any characters that don't round-trip
+            p2 = path.decode('utf-8', 'ignore').encode('utf-8')
+            s = ""
+            pos = 0
+            for c in path:
+                if p2[pos:pos + 1] == c:
+                    s += c
+                    pos += 1
+                else:
+                    s += "%%%02X" % ord(c)
+            u = s.decode('utf-8')
+
+        # Decompose then lowercase (HFS+ technote specifies lower)
+        return unicodedata.normalize('NFD', u).lower().encode('utf-8')
+
     def realpath(path):
         '''
         Returns the true, canonical file system path equivalent to the given
@@ -254,7 +278,7 @@ def findexe(command):
 
     def findexisting(executable):
         'Will return executable if existing file'
-        if os.path.exists(executable):
+        if os.path.isfile(executable) and os.access(executable, os.X_OK):
             return executable
         return None
 
@@ -264,9 +288,7 @@ def findexe(command):
     for path in os.environ.get('PATH', '').split(os.pathsep):
         executable = findexisting(os.path.join(path, command))
         if executable is not None:
-            st = os.stat(executable)
-            if (st.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-                return executable
+            return executable
     return None
 
 def setsignalhandler():

@@ -71,9 +71,7 @@ def lfconvert(ui, src, dest, *pats, **opts):
             lfiles = set()
             normalfiles = set()
             if not pats:
-                pats = ui.config(lfutil.longname, 'patterns', default=())
-                if pats:
-                    pats = pats.split(' ')
+                pats = ui.configlist(lfutil.longname, 'patterns', default=[])
             if pats:
                 matcher = match_.match(rsrc.root, '', list(pats))
             else:
@@ -437,7 +435,11 @@ def _updatelfile(repo, lfdirstate, lfile):
             (not os.path.exists(abslfile) or
              expecthash != lfutil.hashfile(abslfile))):
             if not lfutil.copyfromcache(repo, expecthash, lfile):
-                return None # don't try to set the mode or update the dirstate
+                # use normallookup() to allocate entry in largefiles dirstate,
+                # because lack of it misleads lfiles_repo.status() into
+                # recognition that such cache missing files are REMOVED.
+                lfdirstate.normallookup(lfile)
+                return None # don't try to set the mode
             ret = 1
         mode = os.stat(absstandin).st_mode
         if mode != os.stat(abslfile).st_mode:

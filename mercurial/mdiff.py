@@ -72,7 +72,7 @@ def wsclean(opts, text, blank=True):
         text = re.sub('[ \t\r]+', ' ', text)
         text = text.replace(' \n', '\n')
     if blank and opts.ignoreblanklines:
-        text = re.sub('\n+', '', text)
+        text = re.sub('\n+', '\n', text).strip('\n')
     return text
 
 def diffline(revs, a, b, opts):
@@ -180,8 +180,14 @@ def _unidiff(t1, t2, l1, l2, opts=defaultopts):
             # the file more than once.
             lastfunc[0] = astart
 
-        yield "@@ -%d,%d +%d,%d @@%s\n" % (astart + 1, alen,
-                                           bstart + 1, blen, func)
+        # zero-length hunk ranges report their start line as one less
+        if alen:
+            astart += 1
+        if blen:
+            bstart += 1
+
+        yield "@@ -%d,%d +%d,%d @@%s\n" % (astart, alen,
+                                           bstart, blen, func)
         for x in delta:
             yield x
         for x in xrange(a2, aend):
