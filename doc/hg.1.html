@@ -721,7 +721,9 @@ branch name that already exists.</p>
 the parent of the working directory, negating a previous branch
 change.</p>
 <p>Use the command <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> to switch to an existing branch. Use
-<a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--close-branch</span></tt></a> to mark this branch as closed.</p>
+<a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--close-branch</span></tt></a> to mark this branch head as closed.
+When all heads of the branch are closed, the branch will be
+considered closed.</p>
 <p>Returns 0 on success.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -1046,6 +1048,9 @@ filenames or -I/-X filters.</p>
 configured editor where you can enter a message. In case your
 commit fails, you will find a backup of your message in
 <tt class="docutils literal"><span class="pre">.hg/last-message.txt</span></tt>.</p>
+<p>The --close-branch flag can be used to mark the current branch
+head closed. When all heads of a branch are closed, the branch
+will be considered closed and no longer listed.</p>
 <p>The --amend flag can be used to amend the parent of the
 working directory with a new commit that contains the changes
 in the parent in addition to those currently reported by <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a>,
@@ -1070,7 +1075,7 @@ or changesets that have children.</p>
 <tr><td>&nbsp;</td><td>mark new/missing files as added/removed before committing</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--close-branch</span></kbd></td>
-<td>mark a branch as closed, hiding it from the branch list</td></tr>
+<td>mark a branch head as closed</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--amend</span></kbd></td>
 <td>amend the parent of the working directory</td></tr>
@@ -1524,6 +1529,7 @@ after the next commit.</p>
 <p>This only removes files from the current branch, not from the
 entire project history, and it does not delete them from the
 working directory.</p>
+<p>To delete the file from the working directory, see <a class="reference external" href="hg.1.html#remove"><tt class="docutils literal">hg remove</tt></a>.</p>
 <p>To undo a forget before the next commit, see <a class="reference external" href="hg.1.html#add"><tt class="docutils literal">hg add</tt></a>.</p>
 <div class="verbose container">
 <p>Examples:</p>
@@ -1928,6 +1934,11 @@ partially apply without losing the associated metadata (author,
 date, description, ...). Note that when none of the hunk applies
 cleanly, <a class="reference external" href="hg.1.html#import"><tt class="docutils literal">hg import <span class="pre">--partial</span></tt></a> will create an empty changeset,
 importing only the patch metadata.</p>
+<p>It is possible to use external patch programs to perform the patch
+by setting the <tt class="docutils literal">ui.patch</tt> configuration option. For the default
+internal tool, the fuzz can also be configured via <tt class="docutils literal">patch.fuzz</tt>.
+See <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a> for more information about configuration
+files and how to use these options.</p>
 <p>To read a patch from standard input, use &quot;-&quot; as the patch name. If
 a URL is specified, the patch will be downloaded from it.
 See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
@@ -1954,6 +1965,17 @@ possible):</p>
 <pre class="literal-block">
 hg import --exact proposed-fix.patch
 </pre>
+</li>
+<li><p class="first">use an external tool to apply a patch which is too fuzzy for
+the default internal tool.</p>
+<blockquote>
+<p>hg import --config ui.patch=&quot;patch --merge&quot; fuzzy.patch</p>
+</blockquote>
+</li>
+<li><p class="first">change the default fuzzing from 2 to a less strict 7</p>
+<blockquote>
+<p>hg import --config ui.fuzz=7 fuzz.patch</p>
+</blockquote>
 </li>
 </ul>
 </div>
@@ -2685,9 +2707,9 @@ source is written as <tt class="docutils literal">default</tt> in <tt class="doc
 <h2>phase</h2>
 <p>set or show the current phase name:</p>
 <pre class="literal-block">
-hg phase [-p|-d|-s] [-f] [-r] REV...
+hg phase [-p|-d|-s] [-f] [-r] [REV...]
 </pre>
-<p>With no argument, show the phase name of specified revisions.</p>
+<p>With no argument, show the phase name of the current revision(s).</p>
 <p>With one of -p/--public, -d/--draft or -s/--secret, change the
 phase value of the specified revisions.</p>
 <p>Unless -f/--force is specified, <a class="reference external" href="hg.1.html#phase"><tt class="docutils literal">hg phase</tt></a> won't move changeset from a
@@ -2697,6 +2719,7 @@ public &lt; draft &lt; secret
 </pre>
 <p>Returns 0 on success, 1 if no phases were changed or some could not
 be changed.</p>
+<p>(For more information about the phases concept, see <a class="reference external" href="hg.1.html#phases"><tt class="docutils literal">hg help phases</tt></a>.)</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -3431,7 +3454,7 @@ aliases: st</blockquote>
 hg summary [--remote]
 </pre>
 <p>This generates a brief summary of the working directory state,
-including parents, branch, commit status, and available updates.</p>
+including parents, branch, commit status, phase and available updates.</p>
 <p>With the --remote option, this will check the default paths for
 incoming and outgoing changes. This can be time-consuming.</p>
 <p>Returns 0 on success.</p>
@@ -3597,7 +3620,7 @@ hg update [-c] [-C] [-d DATE] [[-r] REV]
 </pre>
 <p>Update the repository's working directory to the specified
 changeset. If no changeset is specified, update to the tip of the
-current named branch and move the current bookmark (see <a class="reference external" href="hg.1.html#bookmarks"><tt class="docutils literal">hg help
+current named branch and move the active bookmark (see <a class="reference external" href="hg.1.html#bookmarks"><tt class="docutils literal">hg help
 bookmarks</tt></a>).</p>
 <p>Update sets the working directory's parent revision to the specified
 changeset (see <a class="reference external" href="hg.1.html#parents"><tt class="docutils literal">hg help parents</tt></a>).</p>
@@ -3932,8 +3955,6 @@ baz = !
 <tr class="field"><th class="field-name">pager:</th><td class="field-body">browse command output with an external pager</td>
 </tr>
 <tr class="field"><th class="field-name">patchbomb:</th><td class="field-body">command to send changesets as (a series of) patch emails</td>
-</tr>
-<tr class="field"><th class="field-name">progress:</th><td class="field-body">show progress bars for some actions</td>
 </tr>
 <tr class="field"><th class="field-name">purge:</th><td class="field-body">command to delete untracked files from the working directory</td>
 </tr>
@@ -4478,6 +4499,9 @@ follow, until another syntax is selected.</p>
 the form <tt class="docutils literal">*.c</tt> will match a file ending in <tt class="docutils literal">.c</tt> in any directory,
 and a regexp pattern of the form <tt class="docutils literal">\.c$</tt> will do the same. To root a
 regexp pattern, start it with <tt class="docutils literal">^</tt>.</p>
+<p>Subdirectories can have their own .hgignore settings by adding
+<tt class="docutils literal"><span class="pre">subinclude:path/to/subdir/.hgignore</span></tt> to the root <tt class="docutils literal">.hgignore</tt>. See
+<a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for details on <tt class="docutils literal">subinclude:</tt> and <tt class="docutils literal">include:</tt>.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Patterns specified in other than <tt class="docutils literal">.hgignore</tt> are always rooted.
@@ -4891,6 +4915,11 @@ Regexp pattern matching is anchored at the root of the repository.</p>
 The latter expects null delimited patterns while the former expects line
 feeds. Each string read from the file is itself treated as a file
 pattern.</p>
+<p>To read a set of patterns from a file, use <tt class="docutils literal">include:</tt> or <tt class="docutils literal">subinclude:</tt>.
+<tt class="docutils literal">include:</tt> will use all the patterns from the given file and treat them as if
+they had been passed in manually.  <tt class="docutils literal">subinclude:</tt> will only apply the patterns
+against files that are under the subinclude file's directory. See <a class="reference external" href="hg.1.html#hgignore"><tt class="docutils literal">hg help
+hgignore</tt></a> for details on the format of these files.</p>
 <p>All patterns, except for <tt class="docutils literal">glob:</tt> specified in command line (not for
 <tt class="docutils literal"><span class="pre">-I</span></tt> or <tt class="docutils literal"><span class="pre">-X</span></tt> options), can match also against directories: files
 under matched directories are treated as matched.</p>
@@ -4920,6 +4949,12 @@ listfile:list.txt  read list from list.txt with one file pattern per line
 listfile0:list.txt read list from list.txt with null byte delimiters
 </pre>
 <p>See also <a class="reference external" href="hg.1.html#filesets"><tt class="docutils literal">hg help filesets</tt></a>.</p>
+<p>Include examples:</p>
+<pre class="literal-block">
+include:path/to/mypatternfile    reads patterns to be applied to all paths
+subinclude:path/to/subignorefile reads patterns specifically for paths in the
+                                 subdirectory
+</pre>
 </div>
 <div class="section" id="working-with-phases">
 <span id="phases"></span><h1><a class="toc-backref" href="#contents">Working with Phases</a></h1>
@@ -5532,8 +5567,10 @@ specified. Changes are displayed as usual, on the subrepositories
 elements. Subversion subrepositories are currently silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">files:</th><td class="field-body">files does not recurse into subrepos unless -S/--subrepos is
-specified.  Git and Subversion subrepositories are currently
-silently ignored.</td>
+specified.  However, if you specify the full path of a file or
+directory in a subrepo, it will be displayed even without
+-S/--subrepos being specified.  Git and Subversion subrepositories
+are currently silently ignored.</td>
 </tr>
 <tr class="field"><th class="field-name">forget:</th><td class="field-body">forget currently only handles exact file matches in subrepos.
 Git and Subversion subrepositories are currently silently ignored.</td>
@@ -5612,21 +5649,27 @@ keywords are usually available for templating a log-like command:</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
+<tr class="field"><th class="field-name">activebookmark:</th><td class="field-body">String. The active bookmark, if it is
+associated with the changeset</td>
+</tr>
 <tr class="field"><th class="field-name">author:</th><td class="field-body">String. The unmodified author of the changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">bisect:</th><td class="field-body">String. The changeset bisection status.</td>
 </tr>
 <tr class="field"><th class="field-name">bookmarks:</th><td class="field-body">List of strings. Any bookmarks associated with the
-changeset.</td>
+changeset. Also sets 'active', the name of the active bookmark.</td>
 </tr>
 <tr class="field"><th class="field-name">branch:</th><td class="field-body">String. The name of the branch on which the changeset was
 committed.</td>
+</tr>
+<tr class="field"><th class="field-name" colspan="2">changessincelatesttag:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">Integer. All ancestors not in the latest tag.</td>
 </tr>
 <tr class="field"><th class="field-name">children:</th><td class="field-body">List of strings. The children of the changeset.</td>
 </tr>
 <tr class="field"><th class="field-name" colspan="2">currentbookmark:</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">String. The active bookmark, if it is
-associated with the changeset</td>
+associated with the changeset (DEPRECATED)</td>
 </tr>
 <tr class="field"><th class="field-name">date:</th><td class="field-body">Date information. The date when the changeset was committed.</td>
 </tr>
@@ -5654,8 +5697,8 @@ only if the --copied switch is set.</td>
 <tr class="field"><th class="field-name">files:</th><td class="field-body">List of strings. All files modified, added, or removed by this
 changeset.</td>
 </tr>
-<tr class="field"><th class="field-name">latesttag:</th><td class="field-body">String. Most recent global tag in the ancestors of this
-changeset.</td>
+<tr class="field"><th class="field-name">latesttag:</th><td class="field-body">List of strings. The global tags on the most recent globally
+tagged ancestor of this changeset.</td>
 </tr>
 <tr class="field"><th class="field-name" colspan="2">latesttagdistance:</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">Integer. Longest path to the latest tag.</td>
@@ -5768,6 +5811,10 @@ XML entities.</td>
 <tr class="field"><th class="field-name">person:</th><td class="field-body">Any text. Returns the name before an email address,
 interpreting it as per RFC 5322.</td>
 </tr>
+<tr class="field"><th class="field-name">revescape:</th><td class="field-body">Any text. Escapes all &quot;special&quot; characters, except &#64;.
+Forward slashes are escaped twice to prevent web servers from prematurely
+unescaping them. For example, &quot;&#64;foo bar/baz&quot; becomes &quot;&#64;foo%20bar%252Fbaz&quot;.</td>
+</tr>
 <tr class="field"><th class="field-name">rfc3339date:</th><td class="field-body">Date. Returns a date using the Internet date format
 specified in RFC 3339: &quot;2009-08-18T13:00:13+02:00&quot;.</td>
 </tr>
@@ -5842,6 +5889,12 @@ on whether the item &quot;search&quot; is in &quot;thing&quot;.</td>
 <tr class="field"><td>&nbsp;</td><td class="field-body">Conditionally execute based on
 whether 2 items are equivalent.</td>
 </tr>
+<tr class="field"><th class="field-name" colspan="2">indent(text, indentchars[, firstline]):</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">Indents all non-empty lines
+with the characters given in the indentchars string. An optional
+third parameter will override the indent for the first line only
+if present.</td>
+</tr>
 <tr class="field"><th class="field-name" colspan="2">join(list, sep):</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">Join items in a list with a delimiter.</td>
 </tr>
@@ -5885,6 +5938,9 @@ using regular expressions.</td>
 <ul class="simple">
 <li>expr % &quot;{template}&quot;</li>
 </ul>
+<p>As seen in the above example, &quot;{template}&quot; is interpreted as a template.
+To prevent it from being interpreted, you can use an escape character &quot;{&quot;
+or a raw string prefix, &quot;r'...'&quot;.</p>
 <p>Some sample command line templates:</p>
 <ul>
 <li><p class="first">Format lists, e.g. files:</p>
@@ -5909,7 +5965,7 @@ $ hg log -r 0 --template &quot;{date(date, '%Y')}\n&quot;
 </li>
 <li><p class="first">Output the description set to a fill-width of 30:</p>
 <pre class="literal-block">
-$ hg log -r 0 --template &quot;{fill(desc, '30')}&quot;
+$ hg log -r 0 --template &quot;{fill(desc, 30)}&quot;
 </pre>
 </li>
 <li><p class="first">Use a conditional to test for the default branch:</p>
@@ -5938,9 +5994,9 @@ $ hg log -r 0 --template &quot;{sub(r'^.*\n?\n?', '', desc)}\n&quot;
 $ hg log -r 0 --template &quot;{join(extras, '\n')}\n&quot;
 </pre>
 </li>
-<li><p class="first">Mark the current bookmark with '*':</p>
+<li><p class="first">Mark the active bookmark with '*':</p>
 <pre class="literal-block">
-$ hg log --template &quot;{bookmarks % '{bookmark}{ifeq(bookmark, current, \&quot;*\&quot;)} '}\n&quot;
+$ hg log --template &quot;{bookmarks % '{bookmark}{ifeq(bookmark, active, '*')} '}\n&quot;
 </pre>
 </li>
 <li><p class="first">Mark the working copy parent with '&#64;':</p>
@@ -5950,12 +6006,12 @@ $ hg log --template &quot;{ifcontains(rev, revset('.'), '&#64;')}\n&quot;
 </li>
 <li><p class="first">Show only commit descriptions that start with &quot;template&quot;:</p>
 <pre class="literal-block">
-$ hg log --template &quot;{startswith(\&quot;template\&quot;, firstline(desc))}\n&quot;
+$ hg log --template &quot;{startswith('template', firstline(desc))}\n&quot;
 </pre>
 </li>
 <li><p class="first">Print the first word of each line of a commit message:</p>
 <pre class="literal-block">
-$ hg log --template &quot;{word(\&quot;0\&quot;, desc)}\n&quot;
+$ hg log --template &quot;{word(0, desc)}\n&quot;
 </pre>
 </li>
 </ul>
@@ -6807,7 +6863,7 @@ changeset.secret =
 resolve.unresolved = red bold
 resolve.resolved = green bold
 
-bookmarks.current = green
+bookmarks.active = green
 
 branches.active = none
 branches.closed = black bold
@@ -7182,6 +7238,11 @@ files in the working copy instead of just changed ones. This
 is very expensive for large projects, and is only effective when
 <tt class="docutils literal">convert.git.similarity</tt> is greater than 0. The default is False.</td>
 </tr>
+<tr class="field"><th class="field-name" colspan="2">convert.git.remoteprefix:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">remote refs are converted as bookmarks with
+<tt class="docutils literal">convert.git.remoteprefix</tt> as a prefix followed by a /. The default
+is 'remote'.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -7208,6 +7269,22 @@ Perforce changelist number).</td>
 </div>
 <div class="section" id="mercurial-destination">
 <h5>Mercurial Destination</h5>
+<p>The Mercurial destination will recognize Mercurial subrepositories in the
+destination directory, and update the .hgsubstate file automatically if the
+destination subrepositories contain the &lt;dest&gt;/&lt;sub&gt;/.hg/shamap file.
+Converting a repository with subrepositories requires converting a single
+repository at a time, from the bottom up.</p>
+<div class="verbose container">
+<p>An example showing how to convert a repository with subrepositories:</p>
+<pre class="literal-block">
+# so convert knows the type when it sees a non empty destination
+$ hg init converted
+
+$ hg convert orig/sub1 converted/sub1
+$ hg convert orig/sub2 converted/sub2
+$ hg convert orig converted
+</pre>
+</div>
 <p>The following options are supported:</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -7224,6 +7301,24 @@ clones. The default is False.</td>
 <tr class="field"><th class="field-name" colspan="2">convert.hg.usebranchnames:</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">preserve branch names. The default is
 True.</td>
+</tr>
+<tr class="field"><th class="field-name" colspan="2">convert.hg.sourcename:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">records the given string as a 'convert_source' extra
+value on each commit made in the target repository. The default is None.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="all-destinations">
+<h5>All Destinations</h5>
+<p>All destination types accept the following options:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name" colspan="2">convert.skiptags:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">does not convert tags from the source repo to the target
+repo. The default is False.</td>
 </tr>
 </tbody>
 </table>
@@ -7245,7 +7340,7 @@ True.</td>
 </tr>
 <tr><td>&nbsp;</td><td>destination repository type</td></tr>
 <tr><td class="option-group" colspan="2">
-<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV&gt;</var></span></kbd></td>
+<kbd><span class="option">-r</span>, <span class="option">--rev <var>&lt;REV[+]&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>import up to source revision REV</td></tr>
 <tr><td class="option-group" colspan="2">
@@ -7281,6 +7376,7 @@ True.</td>
 <td>try to reorder closed revisions</td></tr>
 </tbody>
 </table>
+<p>[+] marked option can be specified multiple times</p>
 </div>
 </div>
 </div>
@@ -7469,6 +7565,9 @@ to its parent.</p>
 <kbd><span class="option">-X</span>, <span class="option">--exclude <var>&lt;PATTERN[+]&gt;</var></span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>exclude names matching the given patterns</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
+<td>recurse into subrepositories</td></tr>
 </tbody>
 </table>
 <p>[+] marked option can be specified multiple times</p>
@@ -7596,6 +7695,8 @@ hg sign [OPTION]... [REV]...
 </pre>
 <p>If no revision is given, the parent of the working directory is used,
 or tip if no revision is checked out.</p>
+<p>The <tt class="docutils literal">gpg.cmd</tt> config setting can be used to specify the command
+to run. A default key can be specified with <tt class="docutils literal">gpg.key</tt>.</p>
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -7808,7 +7909,7 @@ to work, hgk must be in your search path. Alternately, you can specify
 the path to hgk in your configuration file:</p>
 <pre class="literal-block">
 [hgk]
-path=/location/of/hgk
+path = /location/of/hgk
 </pre>
 <p>hgk can make use of the extdiff extension to visualize revisions.
 Assuming you had already configured extdiff vdiff command, just add:</p>
@@ -8553,7 +8654,7 @@ hg qcommit [OPTION]... [FILE]...
 <tr><td>&nbsp;</td><td>mark new/missing files as added/removed before committing</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--close-branch</span></kbd></td>
-<td>mark a branch as closed, hiding it from the branch list</td></tr>
+<td>mark a branch head as closed</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--amend</span></kbd></td>
 <td>amend the parent of the working directory</td></tr>
@@ -9801,32 +9902,9 @@ hgrc. See the [email] section in hgrc(5) for details.</p>
 </div>
 <div class="section" id="progress">
 <h2><a class="toc-backref" href="#id108">progress</a></h2>
-<p>show progress bars for some actions</p>
-<p>This extension uses the progress information logged by hg commands
-to draw progress bars that are as informative as possible. Some progress
-bars only offer indeterminate information, while others have a definite
-end point.</p>
-<p>The following settings are available:</p>
-<pre class="literal-block">
-[progress]
-delay = 3 # number of seconds (float) before showing the progress bar
-changedelay = 1 # changedelay: minimum delay before showing a new topic.
-                # If set to less than 3 * refresh, that value will
-                # be used instead.
-refresh = 0.1 # time in seconds between refreshes of the progress bar
-format = topic bar number estimate # format of the progress bar
-width = &lt;none&gt; # if set, the maximum width of the progress information
-               # (that is, min(width, term width) will be used)
-clear-complete = True # clear the progress bar after it's done
-disable = False # if true, don't show a progress bar
-assume-tty = False # if true, ALWAYS show a progress bar, unless
-                   # disable is given
-</pre>
-<p>Valid entries for the format field are topic, bar, number, unit,
-estimate, speed, and item. item defaults to the last 20 characters of
-the item, but this can be changed by adding either <tt class="docutils literal"><span class="pre">-&lt;num&gt;</span></tt> which
-would take the last num characters, or <tt class="docutils literal">+&lt;num&gt;</tt> for the first num
-characters.</p>
+<p>show progress bars for some actions (DEPRECATED)</p>
+<p>This extension has been merged into core, you can remove it from your config.
+See hg help config.progress for configuration options.</p>
 </div>
 <div class="section" id="purge">
 <h2><a class="toc-backref" href="#id109">purge</a></h2>
@@ -10034,7 +10112,7 @@ unresolved conflicts.</p>
 </tr>
 <tr><td>&nbsp;</td><td>read collapse commit message from file</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--keep</span></kbd></td>
+<kbd><span class="option">-k</span>, <span class="option">--keep</span></kbd></td>
 <td>keep original changesets</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--keepbranches</span></kbd></td>
@@ -10123,7 +10201,7 @@ q - quit, recording no changes
 <tr><td>&nbsp;</td><td>mark new/missing files as added/removed before committing</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--close-branch</span></kbd></td>
-<td>mark a branch as closed, hiding it from the branch list</td></tr>
+<td>mark a branch head as closed</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--amend</span></kbd></td>
 <td>amend the parent of the working directory</td></tr>
@@ -10247,6 +10325,33 @@ same name.</p>
 <div class="section" id="share">
 <h2><a class="toc-backref" href="#id114">share</a></h2>
 <p>share a common history between several working directories</p>
+<div class="section" id="automatic-pooled-storage-for-clones">
+<h3>Automatic Pooled Storage for Clones</h3>
+<p>When this extension is active, <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> can be configured to
+automatically share/pool storage across multiple clones. This
+mode effectively converts <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> to <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> + <a class="reference external" href="hg.1.html#share"><tt class="docutils literal">hg share</tt></a>.
+The benefit of using this mode is the automatic management of
+store paths and intelligent pooling of related repositories.</p>
+<p>The following <tt class="docutils literal">share.</tt> config options influence this feature:</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">share.pool</tt></dt>
+<dd>Filesystem path where shared repository data will be stored. When
+defined, <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> will automatically use shared repository
+storage instead of creating a store inside each clone.</dd>
+<dt><tt class="docutils literal">share.poolnaming</tt></dt>
+<dd><p class="first">How directory names in <tt class="docutils literal">share.pool</tt> are constructed.</p>
+<p>&quot;identity&quot; means the name is derived from the first changeset in the
+repository. In this mode, different remotes share storage if their
+root/initial changeset is identical. In this mode, the local shared
+repository is an aggregate of all encountered remote repositories.</p>
+<p>&quot;remote&quot; means the name is derived from the source repository's
+path or URL. In this mode, storage is only shared if the path or URL
+requested in the <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> command matches exactly to a repository
+that was cloned before.</p>
+<p class="last">The default naming mode is &quot;identity.&quot;</p>
+</dd>
+</dl>
+</div>
 <div class="section" id="id45">
 <h3>Commands</h3>
 <div class="section" id="id46">
@@ -10370,7 +10475,7 @@ all shelved changes, use <tt class="docutils literal"><span class="pre">--cleanu
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-i</span>, <span class="option">--interactive</span></kbd></td>
 </tr>
-<tr><td>&nbsp;</td><td>interactive mode, only works while creating a shelve(EXPERIMENTAL)</td></tr>
+<tr><td>&nbsp;</td><td>interactive mode, only works while creating a shelve</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--stat</span></kbd></td>
 <td>output diffstat-style summary of changes</td></tr>
@@ -10395,16 +10500,25 @@ hg unshelve [SHELVED]
 <p>This command accepts an optional name of a shelved change to
 restore. If none is given, the most recent shelved change is used.</p>
 <p>If a shelved change is applied successfully, the bundle that
-contains the shelved changes is deleted afterwards.</p>
+contains the shelved changes is moved to a backup location
+(.hg/shelve-backup).</p>
 <p>Since you can restore a shelved change on top of an arbitrary
 commit, it is possible that unshelving will result in a conflict
 between your changes and the commits you are unshelving onto. If
 this occurs, you must resolve the conflict, then use
 <tt class="docutils literal"><span class="pre">--continue</span></tt> to complete the unshelve operation. (The bundle
-will not be deleted until you successfully complete the unshelve.)</p>
+will not be moved until you successfully complete the unshelve.)</p>
 <p>(Alternatively, you can use <tt class="docutils literal"><span class="pre">--abort</span></tt> to abandon an unshelve
 that causes a conflict. This reverts the unshelved changes, and
-does not delete the bundle.)</p>
+leaves the bundle in place.)</p>
+<p>After a successful unshelve, the shelved changes are stored in a
+backup directory. Only the N most recent backups are kept. N
+defaults to 10 but can be overridden using the <tt class="docutils literal">shelve.maxbackups</tt>
+configuration option.</p>
+<div class="verbose container">
+Timestamp in seconds is used to decide order of backups. More
+than <tt class="docutils literal">maxbackups</tt> backups are kept, if same timestamp
+prevents from deciding exact order of them, for safety.</div>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
