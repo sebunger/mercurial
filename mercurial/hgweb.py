@@ -10,10 +10,22 @@ import os, cgi, sys
 import mimetypes
 from demandload import demandload
 demandload(globals(), "mdiff time re socket zlib errno ui hg ConfigParser")
-demandload(globals(), "zipfile tempfile StringIO tarfile BaseHTTPServer util")
-demandload(globals(), "mimetypes templater")
+demandload(globals(), "tempfile StringIO BaseHTTPServer util SocketServer")
+demandload(globals(), "archival mimetypes templater urllib")
 from node import *
 from i18n import gettext as _
+
+def splitURI(uri):
+    """ Return path and query splited from uri
+
+    Just like CGI environment, the path is unquoted, the query is
+    not.
+    """
+    if '?' in uri:
+        path, query = uri.split('?', 1)
+    else:
+        path, query = uri, ''
+    return urllib.unquote(path), query
 
 def up(p):
     if p[0] != "/":
@@ -113,7 +125,7 @@ class hgweb(object):
     def archivelist(self, nodeid):
         for i in self.archives:
             if self.repo.ui.configbool("web", "allow" + i, False):
-                yield {"type" : i, "node" : nodeid}
+                yield {"type" : i, "node" : nodeid, "url": ""}
 
     def listfiles(self, files, mf):
         for f in files[:self.maxfiles]:
@@ -281,7 +293,8 @@ class hgweb(object):
         yield self.t('changelog',
                      changenav=changenav,
                      manifest=hex(mf),
-                     rev=pos, changesets=count, entries=changelist)
+                     rev=pos, changesets=count, entries=changelist,
+                     archives=self.archivelist("tip"))
 
     def search(self, query):
 
@@ -419,7 +432,9 @@ class hgweb(object):
         mt = mimetypes.guess_type(f)[0]
         rawtext = text
         if util.binary(text):
+            mt = mt or 'application/octet-stream'
             text = "(binary:%s)" % mt
+        mt = mt or 'text/plain'
 
         def lines():
             for l, t in enumerate(text.splitlines(1)):
@@ -680,55 +695,23 @@ class hgweb(object):
                      child=self.siblings(cl.children(n), cl.rev),
                      diff=diff)
 
+    archive_specs = {
+        'bz2': ('application/x-tar', 'tbz2', '.tar.bz2', 'x-bzip2'),
+        'gz': ('application/x-tar', 'tgz', '.tar.gz', 'x-gzip'),
+        'zip': ('application/zip', 'zip', '.zip', None),
+        }
+
     def archive(self, req, cnode, type):
-        cs = self.repo.changelog.read(cnode)
-        mnode = cs[0]
-        mf = self.repo.manifest.read(mnode)
-        rev = self.repo.manifest.rev(mnode)
-        reponame = re.sub(r"\W+", "-", self.reponame)
-        name = "%s-%s/" % (reponame, short(cnode))
-
-        files = mf.keys()
-        files.sort()
-
-        if type == 'zip':
-            tmp = tempfile.mkstemp()[1]
-            try:
-                zf = zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED)
-
-                for f in files:
-                    zf.writestr(name + f, self.repo.file(f).read(mf[f]))
-                zf.close()
-
-                f = open(tmp, 'r')
-                req.httphdr('application/zip', name[:-1] + '.zip',
-                        os.path.getsize(tmp))
-                req.write(f.read())
-                f.close()
-            finally:
-                os.unlink(tmp)
-
-        else:
-            tf = tarfile.TarFile.open(mode='w|' + type, fileobj=req.out)
-            mff = self.repo.manifest.readflags(mnode)
-            mtime = int(time.time())
-
-            if type == "gz":
-                encoding = "gzip"
-            else:
-                encoding = "x-bzip2"
-            req.header([('Content-type', 'application/x-tar'),
-                    ('Content-disposition', 'attachment; filename=%s%s%s' %
-                        (name[:-1], '.tar.', type)),
-                    ('Content-encoding', encoding)])
-            for fname in files:
-                rcont = self.repo.file(fname).read(mf[fname])
-                finfo = tarfile.TarInfo(name + fname)
-                finfo.mtime = mtime
-                finfo.size = len(rcont)
-                finfo.mode = mff[fname] and 0755 or 0644
-                tf.addfile(finfo, StringIO.StringIO(rcont))
-            tf.close()
+        reponame = re.sub(r"\W+", "-", os.path.basename(self.reponame))
+        name = "%s-%s" % (reponame, short(cnode))
+        mimetype, artype, extension, encoding = self.archive_specs[type]
+        headers = [('Content-type', mimetype),
+                   ('Content-disposition', 'attachment; filename=%s%s' %
+                    (name, extension))]
+        if encoding:
+            headers.append(('Content-encoding', encoding))
+        req.header(headers)
+        archival.archive(self.repo, req.out, cnode, artype, prefix=name)
 
     # add tags to things
     # tags -> list of changesets corresponding to tags
@@ -745,7 +728,9 @@ class hgweb(object):
             yield self.t("header", **map)
 
         def footer(**map):
-            yield self.t("footer", **map)
+            yield self.t("footer",
+                         motd=self.repo.ui.config("web", "motd", ""),
+                         **map)
 
         def expand_form(form):
             shortcuts = {
@@ -806,54 +791,54 @@ class hgweb(object):
         if not req.form.has_key('cmd'):
             req.form['cmd'] = [self.t.cache['default'],]
 
-        if req.form['cmd'][0] == 'changelog':
-            c = self.repo.changelog.count() - 1
-            hi = c
+        cmd = req.form['cmd'][0]
+        if cmd == 'changelog':
+            hi = self.repo.changelog.count() - 1
             if req.form.has_key('rev'):
                 hi = req.form['rev'][0]
                 try:
                     hi = self.repo.changelog.rev(self.repo.lookup(hi))
                 except hg.RepoError:
-                    req.write(self.search(hi))
+                    req.write(self.search(hi)) # XXX redirect to 404 page?
                     return
 
             req.write(self.changelog(hi))
 
-        elif req.form['cmd'][0] == 'changeset':
+        elif cmd == 'changeset':
             req.write(self.changeset(req.form['node'][0]))
 
-        elif req.form['cmd'][0] == 'manifest':
+        elif cmd == 'manifest':
             req.write(self.manifest(req.form['manifest'][0],
                                     clean(req.form['path'][0])))
 
-        elif req.form['cmd'][0] == 'tags':
+        elif cmd == 'tags':
             req.write(self.tags())
 
-        elif req.form['cmd'][0] == 'summary':
+        elif cmd == 'summary':
             req.write(self.summary())
 
-        elif req.form['cmd'][0] == 'filediff':
+        elif cmd == 'filediff':
             req.write(self.filediff(clean(req.form['file'][0]),
                                     req.form['node'][0]))
 
-        elif req.form['cmd'][0] == 'file':
+        elif cmd == 'file':
             req.write(self.filerevision(clean(req.form['file'][0]),
                                         req.form['filenode'][0]))
 
-        elif req.form['cmd'][0] == 'annotate':
+        elif cmd == 'annotate':
             req.write(self.fileannotate(clean(req.form['file'][0]),
                                         req.form['filenode'][0]))
 
-        elif req.form['cmd'][0] == 'filelog':
+        elif cmd == 'filelog':
             req.write(self.filelog(clean(req.form['file'][0]),
                                    req.form['filenode'][0]))
 
-        elif req.form['cmd'][0] == 'heads':
+        elif cmd == 'heads':
             req.httphdr("application/mercurial-0.1")
             h = self.repo.heads()
             req.write(" ".join(map(hex, h)) + "\n")
 
-        elif req.form['cmd'][0] == 'branches':
+        elif cmd == 'branches':
             req.httphdr("application/mercurial-0.1")
             nodes = []
             if req.form.has_key('nodes'):
@@ -861,7 +846,7 @@ class hgweb(object):
             for b in self.repo.branches(nodes):
                 req.write(" ".join(map(hex, b)) + "\n")
 
-        elif req.form['cmd'][0] == 'between':
+        elif cmd == 'between':
             req.httphdr("application/mercurial-0.1")
             nodes = []
             if req.form.has_key('pairs'):
@@ -870,7 +855,7 @@ class hgweb(object):
             for b in self.repo.between(pairs):
                 req.write(" ".join(map(hex, b)) + "\n")
 
-        elif req.form['cmd'][0] == 'changegroup':
+        elif cmd == 'changegroup':
             req.httphdr("application/mercurial-0.1")
             nodes = []
             if not self.allowpull:
@@ -889,7 +874,7 @@ class hgweb(object):
 
             req.write(z.flush())
 
-        elif req.form['cmd'][0] == 'archive':
+        elif cmd == 'archive':
             changeset = self.repo.lookup(req.form['node'][0])
             type = req.form['type'][0]
             if (type in self.archives and
@@ -899,7 +884,7 @@ class hgweb(object):
 
             req.write(self.t("error"))
 
-        elif req.form['cmd'][0] == 'static':
+        elif cmd == 'static':
             fname = req.form['file'][0]
             req.write(staticfile(static, fname)
                       or self.t("error", error="%r not found" % fname))
@@ -907,20 +892,39 @@ class hgweb(object):
         else:
             req.write(self.t("error"))
 
-def create_server(repo):
+def create_server(ui, repo):
+    use_threads = True
 
     def openlog(opt, default):
         if opt and opt != '-':
             return open(opt, 'w')
         return default
 
-    address = repo.ui.config("web", "address", "")
-    port = int(repo.ui.config("web", "port", 8000))
-    use_ipv6 = repo.ui.configbool("web", "ipv6")
-    accesslog = openlog(repo.ui.config("web", "accesslog", "-"), sys.stdout)
-    errorlog = openlog(repo.ui.config("web", "errorlog", "-"), sys.stderr)
+    address = ui.config("web", "address", "")
+    port = int(ui.config("web", "port", 8000))
+    use_ipv6 = ui.configbool("web", "ipv6")
+    webdir_conf = ui.config("web", "webdir_conf")
+    accesslog = openlog(ui.config("web", "accesslog", "-"), sys.stdout)
+    errorlog = openlog(ui.config("web", "errorlog", "-"), sys.stderr)
 
-    class IPv6HTTPServer(BaseHTTPServer.HTTPServer):
+    if use_threads:
+        try:
+            from threading import activeCount
+        except ImportError:
+            use_threads = False
+
+    if use_threads:
+        _mixin = SocketServer.ThreadingMixIn
+    else:
+        if hasattr(os, "fork"):
+            _mixin = SocketServer.ForkingMixIn
+        else:
+            class _mixin: pass
+
+    class MercurialHTTPServer(_mixin, BaseHTTPServer.HTTPServer):
+        pass
+
+    class IPv6HTTPServer(MercurialHTTPServer):
         address_family = getattr(socket, 'AF_INET6', None)
 
         def __init__(self, *args, **kwargs):
@@ -929,6 +933,7 @@ def create_server(repo):
             BaseHTTPServer.HTTPServer.__init__(self, *args, **kwargs)
 
     class hgwebhandler(BaseHTTPServer.BaseHTTPRequestHandler):
+
         def log_error(self, format, *args):
             errorlog.write("%s - - [%s] %s\n" % (self.address_string(),
                                                  self.log_date_time_string(),
@@ -950,11 +955,7 @@ def create_server(repo):
             self.do_POST()
 
         def do_hgweb(self):
-            query = ""
-            p = self.path.find("?")
-            if p:
-                query = self.path[p + 1:]
-                query = query.replace('+', ' ')
+            path_info, query = splitURI(self.path)
 
             env = {}
             env['GATEWAY_INTERFACE'] = 'CGI/1.1'
@@ -962,6 +963,7 @@ def create_server(repo):
             env['SERVER_NAME'] = self.server.server_name
             env['SERVER_PORT'] = str(self.server.server_port)
             env['REQUEST_URI'] = "/"
+            env['PATH_INFO'] = path_info
             if query:
                 env['QUERY_STRING'] = query
             host = self.address_string()
@@ -986,13 +988,20 @@ def create_server(repo):
 
             req = hgrequest(self.rfile, self.wfile, env)
             self.send_response(200, "Script output follows")
-            hg.run(req)
 
-    hg = hgweb(repo)
+            if webdir_conf:
+                hgwebobj = hgwebdir(webdir_conf)
+            elif repo is not None:
+                hgwebobj = hgweb(repo.__class__(repo.ui, repo.origroot))
+            else:
+                raise hg.RepoError(_('no repo found'))
+            hgwebobj.run(req)
+
+
     if use_ipv6:
         return IPv6HTTPServer((address, port), hgwebhandler)
     else:
-        return BaseHTTPServer.HTTPServer((address, port), hgwebhandler)
+        return MercurialHTTPServer((address, port), hgwebhandler)
 
 # This is a stopgap
 class hgwebdir(object):
@@ -1000,8 +1009,11 @@ class hgwebdir(object):
         def cleannames(items):
             return [(name.strip(os.sep), path) for name, path in items]
 
+        self.motd = ""
+        self.repos_sorted = ('name', False)
         if isinstance(config, (list, tuple)):
             self.repos = cleannames(config)
+            self.repos_sorted = ('', False)
         elif isinstance(config, dict):
             self.repos = cleannames(config.items())
             self.repos.sort()
@@ -1009,6 +1021,8 @@ class hgwebdir(object):
             cp = ConfigParser.SafeConfigParser()
             cp.read(config)
             self.repos = []
+            if cp.has_section('web') and cp.has_option('web', 'motd'):
+                self.motd = cp.get('web', 'motd')
             if cp.has_section('paths'):
                 self.repos.extend(cleannames(cp.items('paths')))
             if cp.has_section('collections'):
@@ -1026,14 +1040,20 @@ class hgwebdir(object):
             yield tmpl("header", **map)
 
         def footer(**map):
-            yield tmpl("footer", **map)
+            yield tmpl("footer", motd=self.motd, **map)
 
         m = os.path.join(templater.templatepath(), "map")
         tmpl = templater.templater(m, templater.common_filters,
                                    defaults={"header": header,
                                              "footer": footer})
 
-        def entries(**map):
+        def archivelist(ui, nodeid, url):
+            for i in ['zip', 'gz', 'bz2']:
+                if ui.configbool("web", "allow" + i, False):
+                    yield {"type" : i, "node": nodeid, "url": url}
+
+        def entries(sortcolumn="", descending=False, **map):
+            rows = []
             parity = 0
             for name, path in self.repos:
                 u = ui.ui()
@@ -1052,16 +1072,37 @@ class hgwebdir(object):
                 except OSError:
                     continue
 
-                yield dict(contact=(get("ui", "username") or # preferred
-                                    get("web", "contact") or # deprecated
-                                    get("web", "author", "unknown")), # also
-                           name=get("web", "name", name),
+                contact = (get("ui", "username") or # preferred
+                           get("web", "contact") or # deprecated
+                           get("web", "author", "")) # also
+                description = get("web", "description", "")
+                name = get("web", "name", name)
+                row = dict(contact=contact or "unknown",
+                           contact_sort=contact.upper() or "unknown",
+                           name=name,
+                           name_sort=name,
                            url=url,
-                           parity=parity,
-                           shortdesc=get("web", "description", "unknown"),
-                           lastupdate=d)
-
-                parity = 1 - parity
+                           description=description or "unknown",
+                           description_sort=description.upper() or "unknown",
+                           lastchange=d,
+                           lastchange_sort=d[1]-d[0],
+                           archives=archivelist(u, "tip", url))
+                if (not sortcolumn
+                    or (sortcolumn, descending) == self.repos_sorted):
+                    # fast path for unsorted output
+                    row['parity'] = parity
+                    parity = 1 - parity
+                    yield row
+                else:
+                    rows.append((row["%s_sort" % sortcolumn], row))
+            if rows:
+                rows.sort()
+                if descending:
+                    rows.reverse()
+                for key, row in rows:
+                    row['parity'] = parity
+                    parity = 1 - parity
+                    yield row
 
         virtual = req.env.get("PATH_INFO", "").strip('/')
         if virtual:
@@ -1082,4 +1123,20 @@ class hgwebdir(object):
                 req.write(staticfile(static, fname)
                           or tmpl("error", error="%r not found" % fname))
             else:
-                req.write(tmpl("index", entries=entries))
+                sortable = ["name", "description", "contact", "lastchange"]
+                sortcolumn, descending = self.repos_sorted
+                if req.form.has_key('sort'):
+                    sortcolumn = req.form['sort'][0]
+                    descending = sortcolumn.startswith('-')
+                    if descending:
+                        sortcolumn = sortcolumn[1:]
+                    if sortcolumn not in sortable:
+                        sortcolumn = ""
+
+                sort = [("sort_%s" % column,
+                         "%s%s" % ((not descending and column == sortcolumn)
+                                   and "-" or "", column))
+                        for column in sortable]
+                req.write(tmpl("index", entries=entries,
+                               sortcolumn=sortcolumn, descending=descending,
+                               **dict(sort)))

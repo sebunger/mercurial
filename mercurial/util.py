@@ -16,12 +16,19 @@ from demandload import *
 demandload(globals(), "cStringIO errno popen2 re shutil sys tempfile")
 demandload(globals(), "threading time")
 
+class SignalInterrupt(Exception):
+    """Exception raised on SIGTERM and SIGHUP."""
+
 def pipefilter(s, cmd):
     '''filter string S through command CMD, returning its output'''
     (pout, pin) = popen2.popen2(cmd, -1, 'b')
     def writer():
-        pin.write(s)
-        pin.close()
+        try:
+            pin.write(s)
+            pin.close()
+        except IOError, inst:
+            if inst.errno != errno.EPIPE:
+                raise
 
     # we should use select instead on UNIX, but this will work on most
     # systems, including Windows
@@ -39,11 +46,11 @@ def tempfilter(s, cmd):
     the temporary files generated.'''
     inname, outname = None, None
     try:
-        infd, inname = tempfile.mkstemp(prefix='hgfin')
+        infd, inname = tempfile.mkstemp(prefix='hg-filter-in-')
         fp = os.fdopen(infd, 'wb')
         fp.write(s)
         fp.close()
-        outfd, outname = tempfile.mkstemp(prefix='hgfout')
+        outfd, outname = tempfile.mkstemp(prefix='hg-filter-out-')
         os.close(outfd)
         cmd = cmd.replace('INFILE', inname)
         cmd = cmd.replace('OUTFILE', outname)
@@ -71,10 +78,23 @@ def filter(s, cmd):
             return fn(s, cmd[len(name):].lstrip())
     return pipefilter(s, cmd)
 
+def find_in_path(name, path, default=None):
+    '''find name in search path. path can be string (will be split
+    with os.pathsep), or iterable thing that returns strings.  if name
+    found, return path to name. else return default.'''
+    if isinstance(path, str):
+        path = path.split(os.pathsep)
+    for p in path:
+        p_name = os.path.join(p, name)
+        if os.path.exists(p_name):
+            return p_name
+    return default
+
 def patch(strip, patchname, ui):
     """apply the patch <patchname> to the working directory.
     a list of patched files is returned"""
-    fp = os.popen('patch -p%d < "%s"' % (strip, patchname))
+    patcher = find_in_path('gpatch', os.environ.get('PATH', ''), 'patch')
+    fp = os.popen('"%s" -p%d < "%s"' % (patcher, strip, patchname))
     files = {}
     for line in fp:
         line = line.rstrip()
@@ -188,7 +208,7 @@ def canonpath(root, cwd, myname):
     else:
         rootsep = root + os.sep
     name = myname
-    if not name.startswith(os.sep):
+    if not os.path.isabs(name):
         name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
     if name.startswith(rootsep):
@@ -198,6 +218,30 @@ def canonpath(root, cwd, myname):
     elif name == root:
         return ''
     else:
+        # Determine whether `name' is in the hierarchy at or beneath `root',
+        # by iterating name=dirname(name) until that causes no change (can't
+        # check name == '/', because that doesn't work on windows).  For each
+        # `name', compare dev/inode numbers.  If they match, the list `rel'
+        # holds the reversed list of components making up the relative file
+        # name we want.
+        root_st = os.stat(root)
+        rel = []
+        while True:
+            try:
+                name_st = os.stat(name)
+            except OSError:
+                break
+            if samestat(name_st, root_st):
+                rel.reverse()
+                name = os.path.join(*rel)
+                audit_path(name)
+                return pconvert(name)
+            dirname, basename = os.path.split(name)
+            rel.append(basename)
+            if dirname == name:
+                break
+            name = dirname
+
         raise Abort('%s not under root' % myname)
 
 def matcher(canonroot, cwd='', names=['.'], inc=[], exc=[], head='', src=None):
@@ -365,16 +409,28 @@ def rename(src, dst):
     """forcibly rename a file"""
     try:
         os.rename(src, dst)
-    except:
-        os.unlink(dst)
+    except OSError, err:
+        # on windows, rename to existing file is not allowed, so we
+        # must delete destination first. but if file is open, unlink
+        # schedules it for delete but does not delete it. rename
+        # happens immediately even for open files, so we create
+        # temporary file, delete it, rename destination to that name,
+        # then delete that. then rename is safe to do.
+        fd, temp = tempfile.mkstemp(dir=os.path.dirname(dst) or '.')
+        os.close(fd)
+        os.unlink(temp)
+        os.rename(dst, temp)
+        os.unlink(temp)
         os.rename(src, dst)
 
 def unlink(f):
     """unlink and remove the directory if it is empty"""
     os.unlink(f)
     # try removing directories that might now be empty
-    try: os.removedirs(os.path.dirname(f))
-    except: pass
+    try:
+        os.removedirs(os.path.dirname(f))
+    except OSError:
+        pass
 
 def copyfiles(src, dst, hardlink=None):
     """Copy a directory tree using hardlinks if possible"""
@@ -406,75 +462,13 @@ def audit_path(path):
         or os.pardir in parts):
         raise Abort(_("path contains illegal component: %s\n") % path)
 
-def opener(base, audit=True):
-    """
-    return a function that opens files relative to base
-
-    this function is used to hide the details of COW semantics and
-    remote file access from higher level code.
-    """
-    p = base
-    audit_p = audit
-
-    def mktempcopy(name):
-        d, fn = os.path.split(name)
-        fd, temp = tempfile.mkstemp(prefix=fn, dir=d)
-        fp = os.fdopen(fd, "wb")
-        try:
-            fp.write(file(name, "rb").read())
-        except:
-            try: os.unlink(temp)
-            except: pass
-            raise
-        fp.close()
-        st = os.lstat(name)
-        os.chmod(temp, st.st_mode)
-        return temp
-
-    class atomicfile(file):
-        """the file will only be copied on close"""
-        def __init__(self, name, mode, atomic=False):
-            self.__name = name
-            self.temp = mktempcopy(name)
-            file.__init__(self, self.temp, mode)
-        def close(self):
-            if not self.closed:
-                file.close(self)
-                rename(self.temp, self.__name)
-        def __del__(self):
-            self.close()
-
-    def o(path, mode="r", text=False, atomic=False):
-        if audit_p:
-            audit_path(path)
-        f = os.path.join(p, path)
-
-        if not text:
-            mode += "b" # for that other OS
-
-        if mode[0] != "r":
-            try:
-                nlink = nlinks(f)
-            except OSError:
-                d = os.path.dirname(f)
-                if not os.path.isdir(d):
-                    os.makedirs(d)
-            else:
-                if atomic:
-                    return atomicfile(f, mode)
-                if nlink > 1:
-                    rename(mktempcopy(f), f)
-        return file(f, mode)
-
-    return o
-
 def _makelock_file(info, pathname):
     ld = os.open(pathname, os.O_CREAT | os.O_WRONLY | os.O_EXCL)
     os.write(ld, info)
     os.close(ld)
 
 def _readlock_file(pathname):
-    return file(pathname).read()
+    return posixfile(pathname).read()
 
 def nlinks(pathname):
     """Return number of hardlinks for the given file."""
@@ -485,6 +479,22 @@ if hasattr(os, 'link'):
 else:
     def os_link(src, dst):
         raise OSError(0, _("Hardlinks not supported"))
+
+def fstat(fp):
+    '''stat file object that may not have fileno method.'''
+    try:
+        return os.fstat(fp.fileno())
+    except AttributeError:
+        return os.stat(fp.name)
+
+posixfile = file
+
+def is_win_9x():
+    '''return true if run on windows 95, 98 or me.'''
+    try:
+        return sys.getwindowsversion()[3] == 1
+    except AttributeError:
+        return os.name == 'nt' and 'command' in os.environ.get('comspec', '')
 
 # Platform specific variants
 if os.name == 'nt':
@@ -515,18 +525,16 @@ if os.name == 'nt':
 
     sys.stdout = winstdout(sys.stdout)
 
+    def system_rcpath():
+        try:
+            return system_rcpath_win32()
+        except:
+            return [r'c:\mercurial\mercurial.ini']
+
     def os_rcpath():
         '''return default os-specific hgrc search path'''
-        try:
-            import win32api, win32process
-            proc = win32api.GetCurrentProcess()
-            filename = win32process.GetModuleFileNameEx(proc, 0)
-            systemrc = os.path.join(os.path.dirname(filename), 'mercurial.ini')
-        except ImportError:
-            systemrc = r'c:\mercurial\mercurial.ini'
-
-        return [systemrc,
-                os.path.join(os.path.expanduser('~'), 'mercurial.ini')]
+        return system_rcpath() + [os.path.join(os.path.expanduser('~'),
+                                               'mercurial.ini')]
 
     def parse_patch_output(output_line):
         """parses the output produced by patch and returns the file name"""
@@ -535,43 +543,9 @@ if os.name == 'nt':
             pf = pf[1:-1] # Remove the quotes
         return pf
 
-    try: # Mark Hammond's win32all package allows better functionality on Windows
-        import win32api, win32con, win32file, pywintypes
-
-        # create hard links using win32file module
-        def os_link(src, dst): # NB will only succeed on NTFS
-            win32file.CreateHardLink(dst, src)
-
-        def nlinks(pathname):
-            """Return number of hardlinks for the given file."""
-            try:
-                fh = win32file.CreateFile(pathname,
-                    win32file.GENERIC_READ, win32file.FILE_SHARE_READ,
-                    None, win32file.OPEN_EXISTING, 0, None)
-                res = win32file.GetFileInformationByHandle(fh)
-                fh.Close()
-                return res[7]
-            except:
-                return os.stat(pathname).st_nlink
-
-        def testpid(pid):
-            '''return True if pid is still running or unable to
-            determine, False otherwise'''
-            try:
-                import win32process, winerror
-                handle = win32api.OpenProcess(
-                    win32con.PROCESS_QUERY_INFORMATION, False, pid)
-                if handle:
-                    status = win32process.GetExitCodeProcess(handle)
-                    return status == win32con.STILL_ACTIVE
-            except pywintypes.error, details:
-                return details[0] != winerror.ERROR_INVALID_PARAMETER
-            return True
-
-    except ImportError:
-        def testpid(pid):
-            '''return False if pid dead, True if running or not known'''
-            return True
+    def testpid(pid):
+        '''return False if pid dead, True if running or not known'''
+        return True
 
     def is_exec(f, last):
         return last
@@ -594,8 +568,19 @@ if os.name == 'nt':
     makelock = _makelock_file
     readlock = _readlock_file
 
+    def samestat(s1, s2):
+        return False
+
     def explain_exit(code):
         return _("exited with status %d") % code, code
+
+    try:
+        # override functions with win32 versions if possible
+        from util_win32 import *
+        if not is_win_9x():
+            posixfile = posixfile_nt
+    except ImportError:
+        pass
 
 else:
     nulldev = '/dev/null'
@@ -654,6 +639,7 @@ else:
         return path
 
     normpath = os.path.normpath
+    samestat = os.path.samestat
 
     def makelock(info, pathname):
         try:
@@ -693,6 +679,92 @@ else:
             val = os.WSTOPSIG(code)
             return _("stopped by signal %d") % val, val
         raise ValueError(_("invalid exit code"))
+
+def opener(base, audit=True):
+    """
+    return a function that opens files relative to base
+
+    this function is used to hide the details of COW semantics and
+    remote file access from higher level code.
+    """
+    p = base
+    audit_p = audit
+
+    def mktempcopy(name):
+        d, fn = os.path.split(name)
+        fd, temp = tempfile.mkstemp(prefix='.%s-' % fn, dir=d)
+        os.close(fd)
+        ofp = posixfile(temp, "wb")
+        try:
+            try:
+                ifp = posixfile(name, "rb")
+            except IOError, inst:
+                if not getattr(inst, 'filename', None):
+                    inst.filename = name
+                raise
+            for chunk in filechunkiter(ifp):
+                ofp.write(chunk)
+            ifp.close()
+            ofp.close()
+        except:
+            try: os.unlink(temp)
+            except: pass
+            raise
+        st = os.lstat(name)
+        os.chmod(temp, st.st_mode)
+        return temp
+
+    class atomictempfile(posixfile):
+        """the file will only be copied when rename is called"""
+        def __init__(self, name, mode):
+            self.__name = name
+            self.temp = mktempcopy(name)
+            posixfile.__init__(self, self.temp, mode)
+        def rename(self):
+            if not self.closed:
+                posixfile.close(self)
+                rename(self.temp, self.__name)
+        def __del__(self):
+            if not self.closed:
+                try:
+                    os.unlink(self.temp)
+                except: pass
+                posixfile.close(self)
+
+    class atomicfile(atomictempfile):
+        """the file will only be copied on close"""
+        def __init__(self, name, mode):
+            atomictempfile.__init__(self, name, mode)
+        def close(self):
+            self.rename()
+        def __del__(self):
+            self.rename()
+
+    def o(path, mode="r", text=False, atomic=False, atomictemp=False):
+        if audit_p:
+            audit_path(path)
+        f = os.path.join(p, path)
+
+        if not text:
+            mode += "b" # for that other OS
+
+        if mode[0] != "r":
+            try:
+                nlink = nlinks(f)
+            except OSError:
+                d = os.path.dirname(f)
+                if not os.path.isdir(d):
+                    os.makedirs(d)
+            else:
+                if atomic:
+                    return atomicfile(f, mode)
+                elif atomictemp:
+                    return atomictempfile(f, mode)
+                if nlink > 1:
+                    rename(mktempcopy(f), f)
+        return posixfile(f, mode)
+
+    return o
 
 class chunkbuffer(object):
     """Allow arbitrary sized chunks of data to be efficiently read from an

@@ -10,8 +10,9 @@ import filelog, manifest, changelog, dirstate, repo
 from node import *
 from i18n import gettext as _
 from demandload import *
-demandload(globals(), "re lock transaction tempfile stat mdiff errno ui")
 demandload(globals(), "appendfile changegroup")
+demandload(globals(), "re lock transaction tempfile stat mdiff errno ui")
+demandload(globals(), "revlog traceback")
 
 class localrepository(object):
     def __del__(self):
@@ -35,8 +36,36 @@ class localrepository(object):
         self.ui = ui.ui(parentui=parentui)
         self.opener = util.opener(self.path)
         self.wopener = util.opener(self.root)
-        self.manifest = manifest.manifest(self.opener)
-        self.changelog = changelog.changelog(self.opener)
+
+        try:
+            self.ui.readconfig(self.join("hgrc"), self.root)
+        except IOError:
+            pass
+
+        v = self.ui.revlogopts
+        self.revlogversion = int(v.get('format', revlog.REVLOG_DEFAULT_FORMAT))
+        self.revlogv1 = self.revlogversion != revlog.REVLOGV0
+        fl = v.get('flags', None)
+        flags = 0
+        if fl != None:
+            for x in fl.split():
+                flags |= revlog.flagstr(x)
+        elif self.revlogv1:
+            flags = revlog.REVLOG_DEFAULT_FLAGS
+
+        v = self.revlogversion | flags
+        self.manifest = manifest.manifest(self.opener, v)
+        self.changelog = changelog.changelog(self.opener, v)
+
+        # the changelog might not have the inline index flag
+        # on.  If the format of the changelog is the same as found in
+        # .hgrc, apply any flags found in the .hgrc as well.
+        # Otherwise, just version from the changelog
+        v = self.changelog.version
+        if v == self.revlogversion:
+            v |= flags
+        self.revlogversion = v
+
         self.tagscache = None
         self.nodetagscache = None
         self.encodepats = None
@@ -48,12 +77,63 @@ class localrepository(object):
             os.mkdir(self.join("data"))
 
         self.dirstate = dirstate.dirstate(self.opener, self.ui, self.root)
-        try:
-            self.ui.readconfig(self.join("hgrc"), self.root)
-        except IOError:
-            pass
 
     def hook(self, name, throw=False, **args):
+        def callhook(hname, funcname):
+            '''call python hook. hook is callable object, looked up as
+            name in python module. if callable returns "true", hook
+            fails, else passes. if hook raises exception, treated as
+            hook failure. exception propagates if throw is "true".
+
+            reason for "true" meaning "hook failed" is so that
+            unmodified commands (e.g. mercurial.commands.update) can
+            be run as hooks without wrappers to convert return values.'''
+
+            self.ui.note(_("calling hook %s: %s\n") % (hname, funcname))
+            d = funcname.rfind('.')
+            if d == -1:
+                raise util.Abort(_('%s hook is invalid ("%s" not in a module)')
+                                 % (hname, funcname))
+            modname = funcname[:d]
+            try:
+                obj = __import__(modname)
+            except ImportError:
+                raise util.Abort(_('%s hook is invalid '
+                                   '(import of "%s" failed)') %
+                                 (hname, modname))
+            try:
+                for p in funcname.split('.')[1:]:
+                    obj = getattr(obj, p)
+            except AttributeError, err:
+                raise util.Abort(_('%s hook is invalid '
+                                   '("%s" is not defined)') %
+                                 (hname, funcname))
+            if not callable(obj):
+                raise util.Abort(_('%s hook is invalid '
+                                   '("%s" is not callable)') %
+                                 (hname, funcname))
+            try:
+                r = obj(ui=self.ui, repo=self, hooktype=name, **args)
+            except (KeyboardInterrupt, util.SignalInterrupt):
+                raise
+            except Exception, exc:
+                if isinstance(exc, util.Abort):
+                    self.ui.warn(_('error: %s hook failed: %s\n') %
+                                 (hname, exc.args[0] % exc.args[1:]))
+                else:
+                    self.ui.warn(_('error: %s hook raised an exception: '
+                                   '%s\n') % (hname, exc))
+                if throw:
+                    raise
+                if self.ui.traceback:
+                    traceback.print_exc()
+                return True
+            if r:
+                if throw:
+                    raise util.Abort(_('%s hook failed') % hname)
+                self.ui.warn(_('warning: %s hook failed\n') % hname)
+            return r
+
         def runhook(name, cmd):
             self.ui.note(_("running hook %s: %s\n") % (name, cmd))
             env = dict([('HG_' + k.upper(), v) for k, v in args.iteritems()] +
@@ -63,16 +143,18 @@ class localrepository(object):
                 desc, r = util.explain_exit(r)
                 if throw:
                     raise util.Abort(_('%s hook %s') % (name, desc))
-                self.ui.warn(_('error: %s hook %s\n') % (name, desc))
-                return False
-            return True
+                self.ui.warn(_('warning: %s hook %s\n') % (name, desc))
+            return r
 
-        r = True
+        r = False
         hooks = [(hname, cmd) for hname, cmd in self.ui.configitems("hooks")
                  if hname.split(".", 1)[0] == name and cmd]
         hooks.sort()
         for hname, cmd in hooks:
-            r = runhook(hname, cmd) and r
+            if cmd.startswith('python:'):
+                r = callhook(hname, cmd[7:].strip()) or r
+            else:
+                r = runhook(hname, cmd) or r
         return r
 
     def tags(self):
@@ -167,7 +249,7 @@ class localrepository(object):
     def file(self, f):
         if f[0] == '/':
             f = f[1:]
-        return filelog.filelog(self.opener, f)
+        return filelog.filelog(self.opener, f, self.revlogversion)
 
     def getcwd(self):
         return self.dirstate.getcwd()
@@ -813,12 +895,17 @@ class localrepository(object):
         if base == None:
             base = {}
 
+        if not heads:
+            heads = remote.heads()
+
+        if self.changelog.tip() == nullid:
+            if heads != [nullid]:
+                return [nullid]
+            return []
+
         # assume we're closer to the tip than the root
         # and start by examining the heads
         self.ui.status(_("searching for changes\n"))
-
-        if not heads:
-            heads = remote.heads()
 
         unknown = []
         for h in heads:
@@ -980,12 +1067,9 @@ class localrepository(object):
     def pull(self, remote, heads=None, force=False):
         l = self.lock()
 
-        # if we have an empty repo, fetch everything
-        if self.changelog.tip() == nullid:
+        fetch = self.findincoming(remote, force=force)
+        if fetch == [nullid]:
             self.ui.status(_("requesting all changes\n"))
-            fetch = [nullid]
-        else:
-            fetch = self.findincoming(remote, force=force)
 
         if not fetch:
             self.ui.status(_("no changes found\n"))
@@ -995,7 +1079,7 @@ class localrepository(object):
             cg = remote.changegroup(fetch, 'pull')
         else:
             cg = remote.changegroupsubset(fetch, heads, 'pull')
-        return self.addchangegroup(cg)
+        return self.addchangegroup(cg, 'pull')
 
     def push(self, remote, force=False, revs=None):
         lock = remote.lock()
@@ -1019,14 +1103,10 @@ class localrepository(object):
             self.ui.status(_("no changes found\n"))
             return 1
         elif not force:
-            if revs is not None:
-                updated_heads = {}
-                for base in msng_cl:
-                    for parent in self.changelog.parents(base):
-                        if parent in remote_heads:
-                            updated_heads[parent] = True
-                updated_heads = updated_heads.keys()
-            if len(updated_heads) < len(heads):
+            # FIXME we don't properly detect creation of new heads
+            # in the push -r case, assume the user knows what he's doing
+            if not revs and len(remote_heads) < len(heads) \
+                   and remote_heads != [nullid]:
                 self.ui.warn(_("abort: push creates new remote branches!\n"))
                 self.ui.status(_("(did you forget to merge?"
                                  " use push -f to force)\n"))
@@ -1036,7 +1116,7 @@ class localrepository(object):
             cg = self.changegroup(update, 'push')
         else:
             cg = self.changegroupsubset(update, revs, 'push')
-        return remote.addchangegroup(cg)
+        return remote.addchangegroup(cg, 'push')
 
     def changegroupsubset(self, bases, heads, source):
         """This function generates a changegroup consisting of all the nodes
@@ -1304,7 +1384,8 @@ class localrepository(object):
             # Signal that no more groups are left.
             yield changegroup.closechunk()
 
-            self.hook('outgoing', node=hex(msng_cl_lst[0]), source=source)
+            if msng_cl_lst:
+                self.hook('outgoing', node=hex(msng_cl_lst[0]), source=source)
 
         return util.chunkbuffer(gengroup())
 
@@ -1368,11 +1449,13 @@ class localrepository(object):
                         yield chnk
 
             yield changegroup.closechunk()
-            self.hook('outgoing', node=hex(nodes[0]), source=source)
+
+            if nodes:
+                self.hook('outgoing', node=hex(nodes[0]), source=source)
 
         return util.chunkbuffer(gengroup())
 
-    def addchangegroup(self, source):
+    def addchangegroup(self, source, srctype):
         """add changegroup to repo.
         returns number of heads modified or added + 1."""
 
@@ -1386,7 +1469,7 @@ class localrepository(object):
         if not source:
             return 0
 
-        self.hook('prechangegroup', throw=True)
+        self.hook('prechangegroup', throw=True, source=srctype)
 
         changesets = files = revisions = 0
 
@@ -1394,50 +1477,63 @@ class localrepository(object):
 
         # write changelog and manifest data to temp files so
         # concurrent readers will not see inconsistent view
-        cl = appendfile.appendchangelog(self.opener)
+        cl = None
+        try:
+            cl = appendfile.appendchangelog(self.opener, self.changelog.version)
 
-        oldheads = len(cl.heads())
+            oldheads = len(cl.heads())
 
-        # pull off the changeset group
-        self.ui.status(_("adding changesets\n"))
-        co = cl.tip()
-        chunkiter = changegroup.chunkiter(source)
-        cn = cl.addgroup(chunkiter, csmap, tr, 1) # unique
-        cnr, cor = map(cl.rev, (cn, co))
-        if cn == nullid:
-            cnr = cor
-        changesets = cnr - cor
-
-        mf = appendfile.appendmanifest(self.opener)
-
-        # pull off the manifest group
-        self.ui.status(_("adding manifests\n"))
-        mm = mf.tip()
-        chunkiter = changegroup.chunkiter(source)
-        mo = mf.addgroup(chunkiter, revmap, tr)
-
-        # process the files
-        self.ui.status(_("adding file changes\n"))
-        while 1:
-            f = changegroup.getchunk(source)
-            if not f:
-                break
-            self.ui.debug(_("adding %s revisions\n") % f)
-            fl = self.file(f)
-            o = fl.count()
+            # pull off the changeset group
+            self.ui.status(_("adding changesets\n"))
+            co = cl.tip()
             chunkiter = changegroup.chunkiter(source)
-            n = fl.addgroup(chunkiter, revmap, tr)
-            revisions += fl.count() - o
-            files += 1
+            cn = cl.addgroup(chunkiter, csmap, tr, 1) # unique
+            cnr, cor = map(cl.rev, (cn, co))
+            if cn == nullid:
+                cnr = cor
+            changesets = cnr - cor
 
-        # write order here is important so concurrent readers will see
-        # consistent view of repo
-        mf.writedata()
-        cl.writedata()
+            mf = None
+            try:
+                mf = appendfile.appendmanifest(self.opener,
+                                               self.manifest.version)
+
+                # pull off the manifest group
+                self.ui.status(_("adding manifests\n"))
+                mm = mf.tip()
+                chunkiter = changegroup.chunkiter(source)
+                mo = mf.addgroup(chunkiter, revmap, tr)
+
+                # process the files
+                self.ui.status(_("adding file changes\n"))
+                while 1:
+                    f = changegroup.getchunk(source)
+                    if not f:
+                        break
+                    self.ui.debug(_("adding %s revisions\n") % f)
+                    fl = self.file(f)
+                    o = fl.count()
+                    chunkiter = changegroup.chunkiter(source)
+                    n = fl.addgroup(chunkiter, revmap, tr)
+                    revisions += fl.count() - o
+                    files += 1
+
+                # write order here is important so concurrent readers will see
+                # consistent view of repo
+                mf.writedata()
+            finally:
+                if mf:
+                    mf.cleanup()
+            cl.writedata()
+        finally:
+            if cl:
+                cl.cleanup()
 
         # make changelog and manifest see real files again
-        self.changelog = changelog.changelog(self.opener)
-        self.manifest = manifest.manifest(self.opener)
+        self.changelog = changelog.changelog(self.opener, self.changelog.version)
+        self.manifest = manifest.manifest(self.opener, self.manifest.version)
+        self.changelog.checkinlinesize(tr)
+        self.manifest.checkinlinesize(tr)
 
         newheads = len(self.changelog.heads())
         heads = ""
@@ -1449,20 +1545,22 @@ class localrepository(object):
                          % (changesets, revisions, files, heads))
 
         self.hook('pretxnchangegroup', throw=True,
-                  node=hex(self.changelog.node(cor+1)))
+                  node=hex(self.changelog.node(cor+1)), source=srctype)
 
         tr.close()
 
         if changesets > 0:
-            self.hook("changegroup", node=hex(self.changelog.node(cor+1)))
+            self.hook("changegroup", node=hex(self.changelog.node(cor+1)),
+                      source=srctype)
 
             for i in range(cor + 1, cnr + 1):
-                self.hook("incoming", node=hex(self.changelog.node(i)))
+                self.hook("incoming", node=hex(self.changelog.node(i)),
+                          source=srctype)
 
         return newheads - oldheads + 1
 
     def update(self, node, allow=False, force=False, choose=None,
-               moddirstate=True, forcemerge=False, wlock=None):
+               moddirstate=True, forcemerge=False, wlock=None, show_stats=True):
         pl = self.dirstate.parents()
         if not force and pl[1] != nullid:
             self.ui.warn(_("aborting: outstanding uncommitted merges\n"))
@@ -1573,8 +1671,9 @@ class localrepository(object):
                         self.ui.debug(_(" remote %s is newer, get\n") % f)
                         get[f] = m2[f]
                         s = 1
-                elif f in umap:
+                elif f in umap or f in added:
                     # this unknown file is the same as the checkout
+                    # we need to reset the dirstate if the file was added
                     get[f] = m2[f]
 
                 if not s and mfw[f] != mf2[f]:
@@ -1729,14 +1828,27 @@ class localrepository(object):
         if moddirstate:
             self.dirstate.setparents(p1, p2)
 
-        stat = ((len(get), _("updated")),
-                (len(merge) - len(failedmerge), _("merged")),
-                (len(remove), _("removed")),
-                (len(failedmerge), _("unresolved")))
-        note = ", ".join([_("%d files %s") % s for s in stat])
-        self.ui.note("%s\n" % note)
-        if moddirstate and branch_merge:
-            self.ui.note(_("(branch merge, don't forget to commit)\n"))
+        if show_stats:
+            stats = ((len(get), _("updated")),
+                     (len(merge) - len(failedmerge), _("merged")),
+                     (len(remove), _("removed")),
+                     (len(failedmerge), _("unresolved")))
+            note = ", ".join([_("%d files %s") % s for s in stats])
+            self.ui.status("%s\n" % note)
+        if moddirstate:
+            if branch_merge:
+                if failedmerge:
+                    self.ui.status(_("There are unresolved merges,"
+                                    " you can redo the full merge using:\n"
+                                    "  hg update -C %s\n"
+                                    "  hg merge %s\n"
+                                    % (self.changelog.rev(p1),
+                                        self.changelog.rev(p2))))
+                else:
+                    self.ui.status(_("(branch merge, don't forget to commit)\n"))
+            elif failedmerge:
+                self.ui.status(_("There are unresolved merges with"
+                                 " locally modified files.\n"))
 
         return err
 
@@ -1745,7 +1857,7 @@ class localrepository(object):
 
         def temp(prefix, node):
             pre = "%s~%s." % (os.path.basename(fn), prefix)
-            (fd, name) = tempfile.mkstemp("", pre)
+            (fd, name) = tempfile.mkstemp(prefix=pre)
             f = os.fdopen(fd, "wb")
             self.wwrite(fn, fl.read(node), f)
             f.close()
@@ -1782,11 +1894,16 @@ class localrepository(object):
         filenodes = {}
         changesets = revisions = files = 0
         errors = [0]
+        warnings = [0]
         neededmanifests = {}
 
         def err(msg):
             self.ui.warn(msg + "\n")
             errors[0] += 1
+
+        def warn(msg):
+            self.ui.warn(msg + "\n")
+            warnings[0] += 1
 
         def checksize(obj, name):
             d = obj.checksize()
@@ -1794,6 +1911,18 @@ class localrepository(object):
                 err(_("%s data length off by %d bytes") % (name, d[0]))
             if d[1]:
                 err(_("%s index contains %d extra bytes") % (name, d[1]))
+
+        def checkversion(obj, name):
+            if obj.version != revlog.REVLOGV0:
+                if not revlogv1:
+                    warn(_("warning: `%s' uses revlog format 1") % name)
+            elif revlogv1:
+                warn(_("warning: `%s' uses revlog format 0") % name)
+
+        revlogv1 = self.revlogversion != revlog.REVLOGV0
+        if self.ui.verbose or revlogv1 != self.revlogv1:
+            self.ui.status(_("repository uses revlog format %d\n") %
+                           (revlogv1 and 1 or 0))
 
         seen = {}
         self.ui.status(_("checking changesets\n"))
@@ -1829,6 +1958,7 @@ class localrepository(object):
 
         seen = {}
         self.ui.status(_("checking manifests\n"))
+        checkversion(self.manifest, "manifest")
         checksize(self.manifest, "manifest")
 
         for i in range(self.manifest.count()):
@@ -1893,6 +2023,7 @@ class localrepository(object):
                 err(_("file without name in manifest %s") % short(n))
                 continue
             fl = self.file(f)
+            checkversion(fl, f)
             checksize(fl, f)
 
             nodes = {nullid: 1}
@@ -1941,6 +2072,8 @@ class localrepository(object):
         self.ui.status(_("%d files, %d changesets, %d total revisions\n") %
                        (files, changesets, revisions))
 
+        if warnings[0]:
+            self.ui.warn(_("%d warnings encountered!\n") % warnings[0])
         if errors[0]:
             self.ui.warn(_("%d integrity errors encountered!\n") % errors[0])
             return 1

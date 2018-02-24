@@ -150,8 +150,37 @@ Tempfile example:
 .fi
 
 .TP
+email
+Settings for extensions that send email messages\&.
+
+.RS
+
+.TP
+from
+Optional\&. Email address to use in "From" header and SMTP envelope of outgoing messages\&.
+
+.RE
+.IP
+
+.TP
+extensions
+Mercurial has an extension mechanism for adding new features\&. To enable an extension, create an entry for it in this section\&.
+
+.nf
+If you know that the extension is already in Python's search path,
+you can give the name of the module, followed by "=", with nothing
+after the "="\&.
+.fi
+
+.nf
+Otherwise, give a name that you choose, followed by "=", followed by
+the path to the "\&.py" file (including the file name extension) that
+defines the extension\&.
+.fi
+
+.TP
 hooks
-Commands that get automatically executed by various actions such as starting or finishing a commit\&. Multiple commands can be run for the same action by appending a suffix to the action\&. Overriding a site\-wide hook can be done by changing its value or setting it to an empty string\&.
+Commands or Python functions that get automatically executed by various actions such as starting or finishing a commit\&. Multiple hooks can be run for the same action by appending a suffix to the action\&. Overriding a site\-wide hook can be done by changing its value or setting it to an empty string\&.
 
 .nf
 Example \&.hg/hgrc:
@@ -224,6 +253,29 @@ the environment for backwards compatibility, but their use is
 deprecated, and they will be removed in a future release\&.
 .fi
 
+.nf
+The syntax for Python hooks is as follows:
+.fi
+
+.nf
+hookname = python:modulename\&.submodule\&.callable
+.fi
+
+.nf
+Python hooks are run within the Mercurial process\&.  Each hook is
+called with at least three keyword arguments: a ui object (keyword
+"ui"), a repository object (keyword "repo"), and a "hooktype"
+keyword that tells what kind of hook is used\&.  Arguments listed as
+environment variables above are passed as keyword arguments, with no
+"HG_" prefix, and names in lower case\&.
+.fi
+
+.nf
+A Python hook must return a "true" value to succeed\&.  Returning a
+"false" value or raising an exception is treated as failure of the
+hook\&.
+.fi
+
 .RE
 .IP
 
@@ -253,6 +305,35 @@ Optional\&. User name to authenticate with at the proxy server\&.
 .IP
 
 .TP
+smtp
+Configuration for extensions that need to send email messages\&.
+
+.RS
+
+.TP
+host
+Optional\&. Host name of mail server\&. Default: "mail"\&.
+
+.TP
+port
+Optional\&. Port to connect to on mail server\&. Default: 25\&.
+
+.TP
+tls
+Optional\&. Whether to connect to mail server using TLS\&. True or False\&. Default: False\&.
+
+.TP
+username
+Optional\&. User name to authenticate to SMTP server with\&. If username is specified, password must also be specified\&. Default: none\&.
+
+.TP
+password
+Optional\&. Password to authenticate to SMTP server with\&. If username is specified, password must also be specified\&. Default: none\&.
+
+.RE
+.IP
+
+.TP
 paths
 Assigns symbolic names to repositories\&. The left side is the symbolic name, and the right gives the directory or URL that is the location of the repository\&.
 
@@ -272,7 +353,7 @@ The editor to use during a commit\&. Default is $EDITOR or "vi"\&.
 
 .TP
 ignore
-A file to read per\-user ignore patterns from\&. This file should be in the same format as a repository\-wide \&.hgignore file\&. This option supports hook syntax, so if you want to specify multiple ignore files, you can do so by setting something like "ignore\&.other = ~/\&.hgignore2"\&.
+A file to read per\-user ignore patterns from\&. This file should be in the same format as a repository\-wide \&.hgignore file\&. This option supports hook syntax, so if you want to specify multiple ignore files, you can do so by setting something like "ignore\&.other = ~/\&.hgignore2"\&. For details of the ignore file format, see the hgignore(5) man page\&.
 
 .TP
 interactive
@@ -348,6 +429,10 @@ allowzip
 Whether to allow \&.zip downloading of repo revisions\&. Default is false\&. This feature creates temporary files\&.
 
 .TP
+baseurl
+Base URL to use when publishing URLs in other locations, so third\-party tools like email notification hooks can construct URLs\&. Example: "http://hgserver/repos/"
+
+.TP
 description
 Textual description of the repository's purpose or contents\&. Default is "unknown"\&.
 
@@ -397,10 +482,10 @@ Mercurial was written by Matt Mackall <mpm@selenic\&.com>\&.
 .SH "SEE ALSO"
 
 
-hg(1)
+hg(1), hgignore(5)
 
 .SH "COPYING"
 
 
-This manual page is copyright 2005 Bryan O'Sullivan\&. Mercurial is copyright 2005 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
+This manual page is copyright 2005 Bryan O'Sullivan\&. Mercurial is copyright 2005, 2006 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
 

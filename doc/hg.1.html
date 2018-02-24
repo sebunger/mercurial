@@ -178,19 +178,6 @@ add [OPTION]&#8230; [FILE]&#8230;
 -X, --exclude  exclude names matching the given patterns</pre>
 </dd>
 <dt>
-addremove [OPTION]&#8230; [FILE]&#8230;
-</dt>
-<dd>
-<p>
-    Add all new files and remove all missing files from the repository.
-</p>
-<pre>New files are ignored if they match any of the patterns in .hgignore. As
-with add, these changes take effect at the next commit.</pre>
-<pre>options:
--I, --include  include names matching the given patterns
--X, --exclude  exclude names matching the given patterns</pre>
-</dd>
-<dt>
 annotate [-r REV] [-a] [-u] [-d] [-n] [-c] FILE&#8230;
 </dt>
 <dd>
@@ -211,6 +198,56 @@ anyway, probably with undesirable results.</pre>
 -c, --changeset  list the changeset
 -I, --include    include names matching the given patterns
 -X, --exclude    exclude names matching the given patterns</pre>
+</dd>
+<dt>
+archive [OPTION]&#8230; DEST
+</dt>
+<dd>
+<p>
+    By default, the revision used is the parent of the working
+    directory; use "-r" to specify a different revision.
+</p>
+<pre>To specify the type of archive to create, use "-t".  Valid
+types are:</pre>
+<pre>"files" (default): a directory full of files
+"tar": tar archive, uncompressed
+"tbz2": tar archive, compressed using bzip2
+"tgz": tar archive, compressed using gzip
+"uzip": zip archive, uncompressed
+"zip": zip archive, compressed using deflate</pre>
+<pre>The exact name of the destination archive or directory is given
+using a format string; see "hg help export" for details.</pre>
+<pre>Each member added to an archive file has a directory prefix
+prepended.  Use "-p" to specify a format string for the prefix.
+The default is the basename of the archive, with suffixes removed.</pre>
+<pre>options:
+--no-decode    do not pass files through decoders
+-p, --prefix   directory prefix for files in archive
+-r, --rev      revision to distribute
+-t, --type     type of distribution to create
+-I, --include  include names matching the given patterns
+-X, --exclude  exclude names matching the given patterns</pre>
+</dd>
+<dt>
+backout [OPTION]&#8230; REV
+</dt>
+<dd>
+<p>
+    Commit the backed out changes as a new changeset.
+</p>
+<pre>If you back out a changeset other than the tip, a new head is
+created.  The --merge option remembers the parent of the working
+directory before starting the backout, then merges the new head
+with it afterwards, to save you from doing this by hand.  The
+result of this merge is not committed, as for a normal merge.</pre>
+<pre>options:
+--merge        merge with old dirstate parent after backout
+-m, --message  use &lt;text&gt; as commit message
+-l, --logfile  read commit message from &lt;file&gt;
+-d, --date     record datecode as commit date
+-u, --user     record user as committer
+-I, --include  include names matching the given patterns
+-X, --exclude  exclude names matching the given patterns</pre>
 </dd>
 <dt>
 bundle FILE DEST
@@ -286,7 +323,8 @@ will be committed.</pre>
 <pre>If no commit message is specified, the editor configured in your hgrc
 or in the EDITOR environment variable is started to enter a message.</pre>
 <pre>options:
--A, --addremove  run addremove during commit
+-A, --addremove  mark new/missing files as added/removed before
+                 committing
 -m, --message    use &lt;text&gt; as commit message
 -l, --logfile    read the commit message from &lt;file&gt;
 -d, --date       record datecode as commit date
@@ -370,17 +408,6 @@ parent. It can be useful to review a merge.</pre>
 -o, --output     print output to file with formatted name
 -a, --text       treat all files as text
 --switch-parent  diff against the second parent</pre>
-</dd>
-<dt>
-forget [OPTION]&#8230; FILE&#8230;
-</dt>
-<dd>
-<p>
-    Undo an <em>hg add</em> scheduled for the next commit.
-</p>
-<pre>options:
--I, --include  include names matching the given patterns
--X, --exclude  exclude names matching the given patterns</pre>
 </dd>
 <dt>
 grep [OPTION]&#8230; PATTERN [FILE]&#8230;
@@ -700,8 +727,10 @@ remove [OPTION]&#8230; FILE&#8230;
 <pre>This command schedules the files to be removed at the next commit.
 This only removes files from the current branch, not from the
 entire project history.  If the files still exist in the working
-directory, they will be deleted from it.</pre>
+directory, they will be deleted from it.  If invoked with --after,
+files that have been manually deleted are marked as removed.</pre>
 <pre>options:
+-A, --after    record remove that has already occurred
 -f, --force    remove file even if modified
 -I, --include  include names matching the given patterns
 -X, --exclude  exclude names matching the given patterns</pre>
@@ -735,17 +764,22 @@ revert [-r REV] [NAME]&#8230;
 </dt>
 <dd>
 <p>
-    In its default mode, it reverts any uncommitted modifications made
-    to the named files or directories.  This restores the contents of
-    the affected files to an unmodified state.
+    With no revision specified, revert the named files or directories
+    to the contents they had in the parent of the working directory.
+    This restores the contents of the affected files to an unmodified
+    state.  If the working directory has two parents, you must
+    explicitly specify the revision to revert to.
 </p>
 <pre>Modified files are saved with a .orig suffix before reverting.
 To disable these backups, use --no-backup.</pre>
-<pre>Using the -r option, it reverts the given files or directories to
-their state as of an earlier revision.  This can be helpful to "roll
+<pre>Using the -r option, revert the given files or directories to
+their contents as of a specific revision.  This can be helpful to"roll
 back" some or all of a change that should not have been committed.</pre>
 <pre>Revert modifies the working directory.  It does not commit any
-changes, or change the parent of the current working directory.</pre>
+changes, or change the parent of the working directory.  If you
+revert to a revision other than the parent of the working
+directory, the reverted files will thus appear modified
+afterwards.</pre>
 <pre>If a file has been deleted, it is recreated.  If the executable
 mode of a file was changed, it is reset.</pre>
 <pre>If names are given, all files matching the names are reverted.</pre>
@@ -755,6 +789,32 @@ mode of a file was changed, it is reset.</pre>
 --no-backup    do not save backup copies of files
 -I, --include  include names matching given patterns
 -X, --exclude  exclude names matching given patterns</pre>
+</dd>
+<dt>
+rollback
+</dt>
+<dd>
+<p>
+    Roll back the last transaction in this repository, restoring the
+    project to its state prior to the transaction.
+</p>
+<pre>Transactions are used to encapsulate the effects of all commands
+that create new changesets or propagate existing changesets into a
+repository. For example, the following commands are transactional,
+and their effects can be rolled back:</pre>
+<pre>commit
+import
+pull
+push (with this repository as destination)
+unbundle</pre>
+<pre>This command should be used with care. There is only one level of
+rollback, and there is no way to undo a rollback.</pre>
+<pre>This command is not intended for use on public repositories. Once
+changes are visible for pull by other users, rolling a transaction
+back locally is ineffective (someone else may already have pulled
+the changes). Furthermore, a race is possible with readers of the
+repository; for example an in-progress pull from the repository
+may fail if a rollback is performed.</pre>
 </dd>
 <dt>
 root
@@ -781,6 +841,8 @@ stderr.  Use the "-A" and "-E" options to log to files.</pre>
 -p, --port        port to use (default: 8000)
 -a, --address     address to use
 -n, --name        name to show in web pages (default: working dir)
+--webdir-conf     name of the webdir config file (serve more than
+                  one repo)
 --pid-file        name of file to write process ID to
 --stdio           for remote clients
 -t, --templates   web templates to use
@@ -870,22 +932,6 @@ unbundle [-u] FILE
 </p>
 <pre>options:
 -u, --update  update the working directory to tip after unbundle</pre>
-</dd>
-<dt>
-undo
-</dt>
-<dd>
-<p>
-    Roll back the last pull or commit transaction on the
-    repository, restoring the project to its earlier state.
-</p>
-<pre>This command should be used with care. There is only one level of
-undo and there is no redo.</pre>
-<pre>This command is not intended for use on public repositories. Once
-a change is visible for pull by other users, undoing it locally is
-ineffective. Furthemore a race is possible with readers of the
-repository, for example an ongoing pull from the repository will
-fail and rollback.</pre>
 </dd>
 <dt>
 update [-b TAG] [-m] [-C] [-f] [REV]
@@ -1089,7 +1135,7 @@ PYTHONPATH
 <dd>
 <p>
     This file contains regular expressions (one per line) that describe file
-    names that should be ignored by hg.
+    names that should be ignored by hg. For details, see hgignore(5).
 </p>
 </dd>
 <dt>
@@ -1120,7 +1166,7 @@ PYTHONPATH
 when you find them.</p>
 <hr />
 <h2>SEE ALSO</h2>
-<p>hgrc(5)</p>
+<p>hgignore(5), hgrc(5)</p>
 <hr />
 <h2>AUTHOR</h2>
 <p>Written by Matt Mackall &lt;mpm@selenic.com&gt;</p>
@@ -1137,7 +1183,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 07-Apr-2006 21:24:45 CDT
+Last updated 10-May-2006 17:00:06 CDT
 </small></p>
 </body>
 </html>
