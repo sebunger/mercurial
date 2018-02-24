@@ -1288,7 +1288,7 @@ clone a remote repository to a new directory named hg/:
 .sp
 .nf
 .ft C
-hg clone http://selenic.com/hg
+hg clone https://www.mercurial\-scm.org/repo/hg/
 .ft P
 .fi
 .IP \(bu 2
@@ -1334,7 +1334,7 @@ clone (and track) a particular named branch:
 .sp
 .nf
 .ft C
-hg clone http://selenic.com/hg#stable
+hg clone https://www.mercurial\-scm.org/repo/hg/#stable
 .ft P
 .fi
 .UNINDENT
@@ -1572,6 +1572,10 @@ edit repository config
 .B \-g,  \-\-global
 .
 edit global config
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
 .sp
 aliases: showconfig debugconfig
 .UNINDENT
@@ -1936,16 +1940,16 @@ list tracked files:
 .sp
 .nf
 .ft C
-hg files [OPTION]... [PATTERN]...
+hg files [OPTION]... [FILE]...
 .ft P
 .fi
 .sp
 Print files under Mercurial control in the working directory or
-specified revision whose names match the given patterns (excluding
-removed files).
+specified revision for given files (excluding removed files).
+Files can be specified as filenames or filesets.
 .sp
-If no patterns are given to match, this command prints the names
-of all files under Mercurial control in the working directory.
+If no files are given to match, this command prints the names
+of all files under Mercurial control.
 .sp
 Examples:
 .INDENT 0.0
@@ -2314,6 +2318,10 @@ list the author (long with \-v)
 .
 list the date (short with \-q)
 .TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -2467,7 +2475,7 @@ check the most recent revision of a remote repository:
 .sp
 .nf
 .ft C
-hg id \-r tip http://selenic.com/hg/
+hg id \-r tip https://www.mercurial\-scm.org/repo/hg/
 .ft P
 .fi
 .UNINDENT
@@ -2603,7 +2611,7 @@ import a changeset from an hgweb server:
 .sp
 .nf
 .ft C
-hg import http://www.selenic.com/hg/rev/5ca8c111e9aa
+hg import https://www.mercurial\-scm.org/repo/hg/rev/5ca8c111e9aa
 .ft P
 .fi
 .IP \(bu 2
@@ -4284,7 +4292,7 @@ name to show in web pages (default: working directory)
 .TP
 .BI \-\-web\-conf \ <FILE>
 .
-name of the hgweb config file (see "hg help hgweb")
+name of the hgweb config file (see \(aqhg help hgweb\(aq)
 .TP
 .BI \-\-webdir\-conf \ <FILE>
 .
@@ -4796,6 +4804,14 @@ hg version
 .fi
 .sp
 output version and copyright information
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
+.UNINDENT
 .SH DATE FORMATS
 .sp
 Some commands allow the user to specify a date, e.g.:
@@ -5388,16 +5404,16 @@ File size matches the given expression. Examples:
 .INDENT 7.0
 .IP \(bu 2
 .
-1k (files from 1024 to 2047 bytes)
+size(\(aq1k\(aq) \- files from 1024 to 2047 bytes
 .IP \(bu 2
 .
-< 20k (files less than 20480 bytes)
+size(\(aq< 20k\(aq) \- files less than 20480 bytes
 .IP \(bu 2
 .
->= .5MB (files at least 524288 bytes)
+size(\(aq>= .5MB\(aq) \- files at least 524288 bytes
 .IP \(bu 2
 .
-4k \- 1MB (files from 4096 bytes to 1048576 bytes)
+size(\(aq4k \- 1MB\(aq) \- files from 4096 bytes to 1048576 bytes
 .UNINDENT
 .TP
 .B \fBsubrepo([pattern])\fP
@@ -6372,19 +6388,23 @@ The \fBtags\fP template is rendered.
 .TP
 .B bundles
 .
-container for exchange of repository data
+Bundles
 .TP
 .B changegroups
 .
-representation of revlog data
+Changegroups
 .TP
 .B requirements
 .
-repository requirements
+Repository Requirements
 .TP
 .B revlogs
 .
-revision storage mechanism
+Revision Logs
+.TP
+.B wireprotocol
+.
+Wire Protocol
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -6847,6 +6867,7 @@ one of the predefined predicates.
 Special characters can be used in quoted identifiers by escaping them,
 e.g., \fB\en\fP is interpreted as a newline. To prevent them from being
 interpreted, strings can be prefixed with \fBr\fP, e.g. \fBr\(aq...\(aq\fP.
+.SS Prefix
 .sp
 There is a single prefix operator:
 .INDENT 0.0
@@ -6855,6 +6876,7 @@ There is a single prefix operator:
 .sp
 Changesets not in x. Short form is \fB! x\fP.
 .UNINDENT
+.SS Infix
 .sp
 These are the supported infix operators:
 .INDENT 0.0
@@ -6902,7 +6924,29 @@ for n == 2, the second parent of changeset in x.
 .B \fBx~n\fP
 .sp
 The nth first ancestor of x; \fBx~0\fP is x; \fBx~3\fP is \fBx^^^\fP.
+.TP
+.B \fBx ## y\fP
+.sp
+Concatenate strings and identifiers into one string.
+.sp
+All other prefix, infix and postfix operators have lower priority than
+\fB##\fP. For example, \fBa1 ## a2~2\fP is equivalent to \fB(a1 ## a2)~2\fP.
+.sp
+For example:
+.sp
+.nf
+.ft C
+[revsetalias]
+issue(a1) = grep(r\(aq\ebissue[ :]?\(aq ## a1 ## r\(aq\eb|\ebbug\e(\(aq ## a1 ## r\(aq\e)\(aq)
+
+\(ga\(gaissue(1234)\(ga\(ga is equivalent to
+\(ga\(gagrep(r\(aq\ebissue[ :]?1234\eb|\ebbug\e(1234\e)\(aq)\(ga\(ga
+in this case. This matches against all of "issue 1234", "issue:1234",
+"issue1234" and "bug(1234)".
+.ft P
+.fi
 .UNINDENT
+.SS Postfix
 .sp
 There is a single postfix operator:
 .INDENT 0.0
@@ -6911,6 +6955,7 @@ There is a single postfix operator:
 .sp
 Equivalent to \fBx^1\fP, the first parent of each changeset in x.
 .UNINDENT
+.SS Predicates
 .sp
 The following predicates are supported:
 .INDENT 0.0
@@ -7093,11 +7138,11 @@ work around it to return a non\-filtered value.
 .sp
 An alias for limit().
 .TP
-.B \fBfollow([pattern])\fP
+.B \fBfollow([pattern[, startrev]])\fP
 .sp
 An alias for \fB::.\fP (ancestors of the working directory\(aqs first parent).
 If pattern is specified, the histories of files matching given
-pattern is followed, including copies.
+pattern in the revision given by startrev are followed, including copies.
 .TP
 .B \fBgrep(regex)\fP
 .sp
@@ -7322,6 +7367,7 @@ If \fIstring\fP starts with \fIre:\fP, the remainder of the string is treated as
 a regular expression. To match a user that actually contains \fIre:\fP, use
 the prefix \fIliteral:\fP.
 .UNINDENT
+.SS Aliases
 .sp
 New predicates (known as "aliases") can be defined, using any combination of
 existing predicates or other aliases. An alias definition looks like:
@@ -7349,23 +7395,7 @@ rs(s, k) = reverse(sort(s, k))
 .sp
 defines three aliases, \fBh\fP, \fBd\fP, and \fBrs\fP. \fBrs(0:tip, author)\fP is
 exactly equivalent to \fBreverse(sort(0:tip, author))\fP.
-.sp
-An infix operator \fB##\fP can concatenate strings and identifiers into
-one string. For example:
-.sp
-.nf
-.ft C
-[revsetalias]
-issue(a1) = grep(r\(aq\ebissue[ :]?\(aq ## a1 ## r\(aq\eb|\ebbug\e(\(aq ## a1 ## r\(aq\e)\(aq)
-.ft P
-.fi
-.sp
-\fBissue(1234)\fP is equivalent to \fBgrep(r\(aq\ebissue[ :]?1234\eb|\ebbug\e(1234\e)\(aq)\fP
-in this case. This matches against all of "issue 1234", "issue:1234",
-"issue1234" and "bug(1234)".
-.sp
-All other prefix, infix and postfix operators have lower priority than
-\fB##\fP. For example, \fBa1 ## a2~2\fP is equivalent to \fB(a1 ## a2)~2\fP.
+.SS Equivalents
 .sp
 Command line equivalents for \%\fBhg log\fP\::
 .sp
@@ -7381,6 +7411,7 @@ Command line equivalents for \%\fBhg log\fP\::
 \-l x  \->  limit(expr, x)
 .ft P
 .fi
+.SS Examples
 .sp
 Some sample queries:
 .INDENT 0.0
@@ -7997,6 +8028,10 @@ List of strings. Updated subrepositories in the changeset.
 .B tags
 .
 List of strings. Any tags associated with the changeset.
+.TP
+.B termwidth
+.
+Integer. The width of the current terminal.
 .UNINDENT
 .sp
 The "date" keyword does not produce human\-readable output. If you
@@ -8196,6 +8231,11 @@ strings. The default is a Unix date format, including the timezone:
 Show a diff, optionally
 specifying files to include or exclude.
 .TP
+.B files(pattern)
+.
+All files of the current changeset matching the pattern. See
+\%\fBhg help patterns\fP\:.
+.TP
 .B fill(text[, width[, initialident[, hangindent]]])
 .
 Fill many
@@ -8212,10 +8252,10 @@ attribute on these types.
 Conditionally execute based on the result of
 an expression.
 .TP
-.B ifcontains(search, thing, then[, else])
+.B ifcontains(needle, haystack, then[, else])
 .
 Conditionally execute based
-on whether the item "search" is in "thing".
+on whether the item "needle" is in "haystack".
 .TP
 .B ifeq(expr1, expr2, then[, else])
 .
@@ -8249,10 +8289,19 @@ most recent globally tagged ancestor of this changeset.
 Converts a date to the specified timezone.
 The default is local date.
 .TP
-.B pad(text, width[, fillchar=\(aq \(aq[, right=False]])
+.B mod(a, b)
+.
+Calculate a mod b such that a / b + a mod b == a
+.TP
+.B pad(text, width[, fillchar=\(aq \(aq[, left=False]])
 .
 Pad text with a
 fill character.
+.TP
+.B relpath(path)
+.
+Convert a repository\-absolute path into a filesystem path relative to
+the current working directory.
 .TP
 .B revset(query[, formatargs...])
 .
@@ -8291,6 +8340,19 @@ using regular expressions.
 .
 Return the nth word from a string.
 .UNINDENT
+.sp
+We provide a limited set of infix arithmetic operations on integers:
+.sp
+.nf
+.ft C
++ for addition
+\- for subtraction
+* for multiplication
+/ for floor division (division rounded to integer nearest \-infinity)
+.ft P
+.fi
+.sp
+Division fulfils the law x = x / y + mod(x, y).
 .sp
 Also, for any expression that returns a list, there is a list operator:
 .sp
@@ -8368,6 +8430,15 @@ Join the list of files with a ", ":
 .nf
 .ft C
 $ hg log \-r 0 \-\-template "files: {join(files, \(aq, \(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Join the list of files ending with ".py" with a ", ":
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "pythonfiles: {join(files(\(aq**.py\(aq), \(aq, \(aq)}\en"
 .ft P
 .fi
 .IP \(bu 2
@@ -9689,6 +9760,19 @@ ECMA\-48 mode, the options are \(aqbold\(aq, \(aqinverse\(aq, \(aqitalic\(aq, an
 \(aqunderline\(aq.  How each is rendered depends on the terminal emulator.
 Some may not be available for a given terminal type, and will be
 silently ignored.
+.sp
+If the terminfo entry for your terminal is missing codes for an effect
+or has the wrong codes, you can add or override those codes in your
+configuration:
+.sp
+.nf
+.ft C
+[color]
+terminfo.dim = \eE[2m
+.ft P
+.fi
+.sp
+where \(aqE\(aq is substituted with an escape character.
 .SS Labels
 .sp
 Text receives color effects depending on the labels that it has. Many
@@ -14832,9 +14916,9 @@ Written by Matt Mackall <\%mpm@selenic.com\:>
 .sp
 Main Web Site: \%https://mercurial\-scm.org/\:
 .sp
-Source code repository: \%http://selenic.com/hg\:
+Source code repository: \%https://www.mercurial\-scm.org/repo/hg\:
 .sp
-Mailing list: \%http://selenic.com/mailman/listinfo/mercurial\:
+Mailing list: \%https://www.mercurial\-scm.org/mailman/listinfo/mercurial/\:
 .SH COPYING
 .sp
 Copyright (C) 2005\-2016 Matt Mackall.

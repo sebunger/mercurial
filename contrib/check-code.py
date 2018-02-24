@@ -237,7 +237,7 @@ pypats = [
      "tuple parameter unpacking not available in Python 3+"),
     (r'(?<!def)\s+(cmp)\(', "cmp is not available in Python 3+"),
     (r'\breduce\s*\(.*', "reduce is not available in Python 3+"),
-    (r'dict\(.*=', 'dict() is different in Py2 and 3 and is slower than {}',
+    (r'\bdict\(.*=', 'dict() is different in Py2 and 3 and is slower than {}',
      'dict-from-generator'),
     (r'\.has_key\b', "dict.has_key is not available in Python 3+"),
     (r'\s<>\s', '<> operator is not available in Python 3+, use !='),
@@ -295,7 +295,7 @@ pypats = [
      "comparison with singleton, use 'is' or 'is not' instead"),
     (r'^\s*(while|if) [01]:',
      "use True/False for constant Boolean expression"),
-    (r'(?:(?<!def)\s+|\()hasattr',
+    (r'(?:(?<!def)\s+|\()hasattr\(',
      'hasattr(foo, bar) is broken, use util.safehasattr(foo, bar) instead'),
     (r'opener\([^)]*\).read\(',
      "use opener.read() instead"),
@@ -444,6 +444,17 @@ webtemplatepats = [
   ]
 ]
 
+allfilesfilters = []
+
+allfilespats = [
+  [
+    (r'(http|https)://[a-zA-Z0-9./]*selenic.com/',
+     'use mercurial-scm.org domain URL'),
+  ],
+  # warnings
+  [],
+]
+
 checks = [
     ('python', r'.*\.(py|cgi)$', r'^#!.*python', pyfilters, pypats),
     ('test script', r'(.*/)?test-[^.~]*$', '', testfilters, testpats),
@@ -456,6 +467,8 @@ checks = [
     ('txt', r'.*\.txt$', '', txtfilters, txtpats),
     ('web template', r'mercurial/templates/.*\.tmpl', '',
      webtemplatefilters, webtemplatepats),
+    ('all except for .po', r'.*(?<!\.po)$', '',
+     allfilesfilters, allfilespats),
 ]
 
 def _preparepats():
@@ -537,6 +550,7 @@ def checkfile(f, logfunc=_defaultlogger.log, maxerr=None, warnings=False,
         return result
 
     for name, match, magic, filters, pats in checks:
+        post = pre # discard filtering result of previous check
         if debug:
             print(name, f)
         fc = 0

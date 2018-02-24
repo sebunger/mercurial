@@ -32,7 +32,7 @@ configure for serving
   > uncompressed = True
   > 
   > [hooks]
-  > changegroup = printenv.py changegroup-in-remote 0 ../dummylog
+  > changegroup = sh -c "printenv.py changegroup-in-remote 0 ../dummylog"
   > EOF
   $ cd ..
 
@@ -54,8 +54,8 @@ clone remote via stream
 
   $ hg clone -e "python \"$TESTDIR/dummyssh\"" --uncompressed ssh://user@dummy/remote local-stream
   streaming all changes
-  4 files to transfer, 615 bytes of data
-  transferred 615 bytes in * seconds (*) (glob)
+  4 files to transfer, 602 bytes of data
+  transferred 602 bytes in * seconds (*) (glob)
   searching for changes
   no changes found
   updating to branch default
@@ -76,8 +76,8 @@ clone bookmarks via stream
   $ hg -R local-stream book mybook
   $ hg clone -e "python \"$TESTDIR/dummyssh\"" --uncompressed ssh://user@dummy/local-stream stream2
   streaming all changes
-  4 files to transfer, 615 bytes of data
-  transferred 615 bytes in * seconds (*) (glob)
+  4 files to transfer, 602 bytes of data
+  transferred 602 bytes in * seconds (*) (glob)
   searching for changes
   no changes found
   updating to branch default
@@ -108,8 +108,10 @@ verify
   crosschecking files in changesets and manifests
   checking files
   2 files, 3 changesets, 2 total revisions
-  $ echo '[hooks]' >> .hg/hgrc
-  $ echo "changegroup = printenv.py changegroup-in-local 0 ../dummylog" >> .hg/hgrc
+  $ cat >> .hg/hgrc <<EOF
+  > [hooks]
+  > changegroup = sh -c "printenv.py changegroup-in-local 0 ../dummylog"
+  > EOF
 
 empty default pull
 

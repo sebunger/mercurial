@@ -155,7 +155,7 @@ class statichttprepository(localrepo.localrepository):
         self._filecache = {}
         self.requirements = requirements
 
-        self.manifest = manifest.manifest(self.svfs)
+        self.manifestlog = manifest.manifestlog(self.svfs, self)
         self.changelog = changelog.changelog(self.svfs)
         self._tags = None
         self.nodetagscache = None
@@ -180,6 +180,9 @@ class statichttprepository(localrepo.localrepository):
 
     def lock(self, wait=True):
         raise error.Abort(_('cannot lock static-http repository'))
+
+    def _writecaches(self):
+        pass # statichttprepository are read only
 
 def instance(ui, path, create):
     if create:
