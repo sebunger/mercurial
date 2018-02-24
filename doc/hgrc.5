@@ -1060,7 +1060,7 @@ the local repository. The ID of the newly arrived changeset is in
 .sp
 Run after sending changes from local repository to another. ID of
 first changeset sent is in \fB$HG_NODE\fP. Source of operation is in
-\fB$HG_SOURCE\fP; Also see \%\fBhg help config.preoutgoing\fP\: hook.
+\fB$HG_SOURCE\fP; Also see \%\fBhg help config.hooks.preoutgoing\fP\: hook.
 .TP
 .B \fBpost\-<command>\fP
 .sp
@@ -1152,12 +1152,12 @@ changes will set \fBHG_BOOKMARK_MOVED\fP and \fBHG_PHASES_MOVED\fP to \fB1\fP, e
 .sp
 Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
-after the lock is released. See \%\fBhg help config.pretxnclose\fP\: docs for
+after the lock is released. See \%\fBhg help config.hooks.pretxnclose\fP\: docs for
 details about available variables.
 .TP
 .B \fBtxnabort\fP
 .sp
-Run when a transaction is aborted. See \%\fBhg help config.pretxnclose\fP\:
+Run when a transaction is aborted. See \%\fBhg help config.hooks.pretxnclose\fP\:
 docs for details about available variables.
 .TP
 .B \fBpretxnchangegroup\fP
@@ -1249,10 +1249,16 @@ is treated as a failure.
 .SS \fBhostfingerprints\fP
 .sp
 Fingerprints of the certificates of known HTTPS servers.
+.sp
 A HTTPS connection to a server with a fingerprint configured here will
 only succeed if the servers certificate matches the fingerprint.
 This is very similar to how ssh known hosts works.
+.sp
 The fingerprint is the SHA\-1 hash value of the DER encoded certificate.
+Multiple values can be specified (separated by spaces or commas). This can
+be used to define both old and new fingerprints while a host transitions
+to a new certificate.
+.sp
 The CA chain and web.cacerts is not used for servers with a fingerprint.
 .sp
 For example:
@@ -1264,8 +1270,6 @@ hg.intevation.de = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
 hg.intevation.org = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
 .ft P
 .fi
-.sp
-This feature is only supported when using Python 2.6 or later.
 .SS \fBhttp_proxy\fP
 .sp
 Used to access web\-based Mercurial repositories through a HTTP
@@ -1294,6 +1298,27 @@ Optional. User name to authenticate with at the proxy server.
 .sp
 Optional. Always use the proxy, even for localhost and any entries
 in \fBhttp_proxy.no\fP. (default: False)
+.UNINDENT
+.SS \fBmerge\fP
+.sp
+This section specifies behavior during merges and updates.
+.INDENT 0.0
+.TP
+.B \fBcheckignored\fP
+.sp
+Controls behavior when an ignored file on disk has the same name as a tracked
+file in the changeset being merged or updated to, and has different
+contents. Options are \fBabort\fP, \fBwarn\fP and \fBignore\fP. With \fBabort\fP,
+abort on such files. With \fBwarn\fP, warn on such files and back them up as
+.orig. With \fBignore\fP, don\(aqt print a warning and back them up as
+.orig. (default: \fBabort\fP)
+.TP
+.B \fBcheckunknown\fP
+.sp
+Controls behavior when an unknown file that isn\(aqt ignored has the same name
+as a tracked file in the changeset being merged or updated to, and has
+different contents. Similar to \fBmerge.checkignored\fP, except for files that
+are not ignored. (default: \fBabort\fP)
 .UNINDENT
 .SS \fBmerge\-patterns\fP
 .sp
@@ -1840,6 +1865,9 @@ rewrites \fBhttp://server/foo\-hg/\fP into \fBhttp://hg.server/foo/\fP.
 Relative subrepository paths are first made absolute, and the
 rewrite rules are then applied on the full (absolute) path. The rules
 are applied in definition order.
+.SS \fBtemplatealias\fP
+.sp
+Alias definitions for templates. See \%\fBhg help templates\fP\: for details.
 .SS \fBtrusted\fP
 .sp
 Mercurial will not use the settings in the
@@ -1978,6 +2006,17 @@ of the ignore file format, see the \fBhgignore(5)\fP man page.
 .B \fBinteractive\fP
 .sp
 Allow to prompt the user. (default: True)
+.TP
+.B \fBinterface\fP
+.sp
+Select the default interface for interactive features (default: text).
+Possible values are \(aqtext\(aq and \(aqcurses\(aq.
+.TP
+.B \fBinterface.chunkselector\fP
+.sp
+Select the interface for change recording (e.g. \%\fBhg commit\fP\: \-i).
+Possible values are \(aqtext\(aq and \(aqcurses\(aq.
+This config overrides the interface specified by ui.interface.
 .TP
 .B \fBlogtemplate\fP
 .sp
@@ -2245,11 +2284,6 @@ authority certificates. Environment variables and \fB~user\fP
 constructs are expanded in the filename. If specified on the
 client, then it will verify the identity of remote HTTPS servers
 with these certificates.
-.sp
-This feature is only supported when using Python 2.6 or later. If you wish
-to use it with earlier versions of Python, install the backported
-version of the ssl library that is available from
-\fBhttp://pypi.python.org\fP.
 .sp
 To disable SSL verification temporarily, specify \fB\-\-insecure\fP from
 command line.

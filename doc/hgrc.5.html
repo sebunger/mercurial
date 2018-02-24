@@ -51,28 +51,30 @@
 <li><a class="reference internal" href="#hooks" id="id19"><tt class="docutils literal">hooks</tt></a></li>
 <li><a class="reference internal" href="#hostfingerprints" id="id20"><tt class="docutils literal">hostfingerprints</tt></a></li>
 <li><a class="reference internal" href="#http-proxy" id="id21"><tt class="docutils literal">http_proxy</tt></a></li>
-<li><a class="reference internal" href="#merge-patterns" id="id22"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
-<li><a class="reference internal" href="#merge-tools" id="id23"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
-<li><a class="reference internal" href="#patch" id="id24"><tt class="docutils literal">patch</tt></a></li>
-<li><a class="reference internal" href="#paths" id="id25"><tt class="docutils literal">paths</tt></a></li>
-<li><a class="reference internal" href="#phases" id="id26"><tt class="docutils literal">phases</tt></a></li>
-<li><a class="reference internal" href="#profiling" id="id27"><tt class="docutils literal">profiling</tt></a></li>
-<li><a class="reference internal" href="#progress" id="id28"><tt class="docutils literal">progress</tt></a></li>
-<li><a class="reference internal" href="#rebase" id="id29"><tt class="docutils literal">rebase</tt></a></li>
-<li><a class="reference internal" href="#revsetalias" id="id30"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#server" id="id31"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id32"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id33"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id34"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id35"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id36"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id37"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id38"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#merge" id="id22"><tt class="docutils literal">merge</tt></a></li>
+<li><a class="reference internal" href="#merge-patterns" id="id23"><tt class="docutils literal"><span class="pre">merge-patterns</span></tt></a></li>
+<li><a class="reference internal" href="#merge-tools" id="id24"><tt class="docutils literal"><span class="pre">merge-tools</span></tt></a></li>
+<li><a class="reference internal" href="#patch" id="id25"><tt class="docutils literal">patch</tt></a></li>
+<li><a class="reference internal" href="#paths" id="id26"><tt class="docutils literal">paths</tt></a></li>
+<li><a class="reference internal" href="#phases" id="id27"><tt class="docutils literal">phases</tt></a></li>
+<li><a class="reference internal" href="#profiling" id="id28"><tt class="docutils literal">profiling</tt></a></li>
+<li><a class="reference internal" href="#progress" id="id29"><tt class="docutils literal">progress</tt></a></li>
+<li><a class="reference internal" href="#rebase" id="id30"><tt class="docutils literal">rebase</tt></a></li>
+<li><a class="reference internal" href="#revsetalias" id="id31"><tt class="docutils literal">revsetalias</tt></a></li>
+<li><a class="reference internal" href="#server" id="id32"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id33"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id34"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#templatealias" id="id35"><tt class="docutils literal">templatealias</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id36"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id37"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id38"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id39"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id40"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id39">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id40">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id41">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id41">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id42">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id43">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -85,7 +87,7 @@ aspects of its behavior.</p>
 <p>If you're having problems with your configuration,
 <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg config <span class="pre">--debug</span></tt></a> can help you understand what is introducing
 a setting into your environment.</p>
-<p>See <a class="reference external" href="hg.1.html#config.syntax"><tt class="docutils literal">hg help config.syntax</tt></a> and <a class="reference external" href="hg.1.html#config.files"><tt class="docutils literal">hg help config.files</tt></a>
+<p>See <a class="reference external" href="hgrc.5.html#syntax"><tt class="docutils literal">hg help config.syntax</tt></a> and <a class="reference external" href="hgrc.5.html#files"><tt class="docutils literal">hg help config.files</tt></a>
 for information about how and where to override things.</p>
 </div>
 <div class="section" id="structure">
@@ -99,7 +101,7 @@ username = Firstname Lastname &lt;firstname.lastname&#64;example.net&gt;
 verbose = True
 </pre>
 <p>The above entries will be referred to as <tt class="docutils literal">ui.username</tt> and
-<tt class="docutils literal">ui.verbose</tt>, respectively. See <a class="reference external" href="hg.1.html#config.syntax"><tt class="docutils literal">hg help config.syntax</tt></a>.</p>
+<tt class="docutils literal">ui.verbose</tt>, respectively. See <a class="reference external" href="hgrc.5.html#syntax"><tt class="docutils literal">hg help config.syntax</tt></a>.</p>
 </div>
 <div class="section" id="files">
 <h1><a class="toc-backref" href="#contents">Files</a></h1>
@@ -175,7 +177,7 @@ this file override options in all other configuration files.</p>
 <div class="unix-plan9 container">
 On Plan 9 and Unix, most of this file will be ignored if it doesn't
 belong to a trusted user or to a trusted group. See
-<a class="reference external" href="hg.1.html#config.trusted"><tt class="docutils literal">hg help config.trusted</tt></a> for more details.</div>
+<a class="reference external" href="hgrc.5.html#trusted"><tt class="docutils literal">hg help config.trusted</tt></a> for more details.</div>
 <p>Per-user configuration file(s) are for the user running Mercurial.  Options
 in these files apply to all Mercurial commands executed by this user in any
 directory. Options in these files override per-system and per-installation
@@ -351,7 +353,7 @@ aliases.</p>
 <div class="section" id="annotate">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">annotate</tt></a></h2>
 <p>Settings used when displaying file annotations. All values are
-Booleans and default to False. See <a class="reference external" href="hg.1.html#config.diff"><tt class="docutils literal">hg help config.diff</tt></a> for
+Booleans and default to False. See <a class="reference external" href="hgrc.5.html#diff"><tt class="docutils literal">hg help config.diff</tt></a> for
 related options for the diff command.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">ignorews</tt></dt>
@@ -366,7 +368,7 @@ related options for the diff command.</p>
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">auth</tt></a></h2>
 <p>Authentication credentials for HTTP authentication. This section
 allows you to store usernames and passwords for use when logging
-<em>into</em> HTTP servers. See <a class="reference external" href="hg.1.html#config.web"><tt class="docutils literal">hg help config.web</tt></a> if
+<em>into</em> HTTP servers. See <a class="reference external" href="hgrc.5.html#web"><tt class="docutils literal">hg help config.web</tt></a> if
 you want to configure <em>who</em> can login to your HTTP server.</p>
 <p>Each line has the following format:</p>
 <pre class="literal-block">
@@ -593,7 +595,7 @@ to the aliases of the commands defined.</p>
 <div class="section" id="diff">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">diff</tt></a></h2>
 <p>Settings used when displaying diffs. Everything except for <tt class="docutils literal">unified</tt>
-is a Boolean and defaults to False. See <a class="reference external" href="hg.1.html#config.annotate"><tt class="docutils literal">hg help config.annotate</tt></a>
+is a Boolean and defaults to False. See <a class="reference external" href="hgrc.5.html#annotate"><tt class="docutils literal">hg help config.annotate</tt></a>
 for related options for the annotate command.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">git</tt></dt>
@@ -791,7 +793,7 @@ the local repository. The ID of the newly arrived changeset is in
 <dt><tt class="docutils literal">outgoing</tt></dt>
 <dd>Run after sending changes from local repository to another. ID of
 first changeset sent is in <tt class="docutils literal">$HG_NODE</tt>. Source of operation is in
-<tt class="docutils literal">$HG_SOURCE</tt>; Also see <a class="reference external" href="hg.1.html#config.preoutgoing"><tt class="docutils literal">hg help config.preoutgoing</tt></a> hook.</dd>
+<tt class="docutils literal">$HG_SOURCE</tt>; Also see <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help config.hooks.preoutgoing</tt></a> hook.</dd>
 <dt><tt class="docutils literal"><span class="pre">post-&lt;command&gt;</span></tt></dt>
 <dd>Run after successful invocations of the associated command. The
 contents of the command line are passed as <tt class="docutils literal">$HG_ARGS</tt> and the result
@@ -861,10 +863,10 @@ changes will set <tt class="docutils literal">HG_BOOKMARK_MOVED</tt> and <tt cla
 <dt><tt class="docutils literal">txnclose</tt></dt>
 <dd>Run after any repository transaction has been committed. At this
 point, the transaction can no longer be rolled back. The hook will run
-after the lock is released. See <a class="reference external" href="hg.1.html#config.pretxnclose"><tt class="docutils literal">hg help config.pretxnclose</tt></a> docs for
+after the lock is released. See <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help config.hooks.pretxnclose</tt></a> docs for
 details about available variables.</dd>
 <dt><tt class="docutils literal">txnabort</tt></dt>
-<dd>Run when a transaction is aborted. See <a class="reference external" href="hg.1.html#config.pretxnclose"><tt class="docutils literal">hg help config.pretxnclose</tt></a>
+<dd>Run when a transaction is aborted. See <a class="reference external" href="hgrc.5.html#hooks"><tt class="docutils literal">hg help config.hooks.pretxnclose</tt></a>
 docs for details about available variables.</dd>
 <dt><tt class="docutils literal">pretxnchangegroup</tt></dt>
 <dd>Run after a changegroup has been added via push, pull or unbundle, but before
@@ -936,19 +938,21 @@ is treated as a failure.</p>
 </div>
 <div class="section" id="hostfingerprints">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">hostfingerprints</tt></a></h2>
-<p>Fingerprints of the certificates of known HTTPS servers.
-A HTTPS connection to a server with a fingerprint configured here will
+<p>Fingerprints of the certificates of known HTTPS servers.</p>
+<p>A HTTPS connection to a server with a fingerprint configured here will
 only succeed if the servers certificate matches the fingerprint.
-This is very similar to how ssh known hosts works.
-The fingerprint is the SHA-1 hash value of the DER encoded certificate.
-The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
+This is very similar to how ssh known hosts works.</p>
+<p>The fingerprint is the SHA-1 hash value of the DER encoded certificate.
+Multiple values can be specified (separated by spaces or commas). This can
+be used to define both old and new fingerprints while a host transitions
+to a new certificate.</p>
+<p>The CA chain and web.cacerts is not used for servers with a fingerprint.</p>
 <p>For example:</p>
 <pre class="literal-block">
 [hostfingerprints]
 hg.intevation.de = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
 hg.intevation.org = fc:e2:8d:d9:51:cd:cb:c1:4d:18:6b:b7:44:8d:49:72:57:e6:cd:33
 </pre>
-<p>This feature is only supported when using Python 2.6 or later.</p>
 </div>
 <div class="section" id="http-proxy">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">http_proxy</tt></a></h2>
@@ -968,6 +972,24 @@ the proxy.</dd>
 <dt><tt class="docutils literal">always</tt></dt>
 <dd>Optional. Always use the proxy, even for localhost and any entries
 in <tt class="docutils literal">http_proxy.no</tt>. (default: False)</dd>
+</dl>
+</div>
+<div class="section" id="merge">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">merge</tt></a></h2>
+<p>This section specifies behavior during merges and updates.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">checkignored</tt></dt>
+<dd>Controls behavior when an ignored file on disk has the same name as a tracked
+file in the changeset being merged or updated to, and has different
+contents. Options are <tt class="docutils literal">abort</tt>, <tt class="docutils literal">warn</tt> and <tt class="docutils literal">ignore</tt>. With <tt class="docutils literal">abort</tt>,
+abort on such files. With <tt class="docutils literal">warn</tt>, warn on such files and back them up as
+.orig. With <tt class="docutils literal">ignore</tt>, don't print a warning and back them up as
+.orig. (default: <tt class="docutils literal">abort</tt>)</dd>
+<dt><tt class="docutils literal">checkunknown</tt></dt>
+<dd>Controls behavior when an unknown file that isn't ignored has the same name
+as a tracked file in the changeset being merged or updated to, and has
+different contents. Similar to <tt class="docutils literal">merge.checkignored</tt>, except for files that
+are not ignored. (default: <tt class="docutils literal">abort</tt>)</dd>
 </dl>
 </div>
 <div class="section" id="merge-patterns">
@@ -1380,6 +1402,10 @@ http://server/(.*)-hg/ = http://hg.server/\1/
 rewrite rules are then applied on the full (absolute) path. The rules
 are applied in definition order.</p>
 </div>
+<div class="section" id="templatealias">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">templatealias</tt></a></h2>
+<p>Alias definitions for templates. See <a class="reference external" href="hg.1.html#templates"><tt class="docutils literal">hg help templates</tt></a> for details.</p>
+</div>
 <div class="section" id="trusted">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">trusted</tt></a></h2>
 <p>Mercurial will not use the settings in the
@@ -1479,6 +1505,13 @@ setting something like <tt class="docutils literal">ignore.other = <span class="
 of the ignore file format, see the <tt class="docutils literal">hgignore(5)</tt> man page.</dd>
 <dt><tt class="docutils literal">interactive</tt></dt>
 <dd>Allow to prompt the user. (default: True)</dd>
+<dt><tt class="docutils literal">interface</tt></dt>
+<dd>Select the default interface for interactive features (default: text).
+Possible values are 'text' and 'curses'.</dd>
+<dt><tt class="docutils literal">interface.chunkselector</tt></dt>
+<dd>Select the interface for change recording (e.g. <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> -i).
+Possible values are 'text' and 'curses'.
+This config overrides the interface specified by ui.interface.</dd>
 <dt><tt class="docutils literal">logtemplate</tt></dt>
 <dd>Template string for commands that print changesets.</dd>
 <dt><tt class="docutils literal">merge</tt></dt>
@@ -1666,10 +1699,6 @@ authority certificates. Environment variables and <tt class="docutils literal">~
 constructs are expanded in the filename. If specified on the
 client, then it will verify the identity of remote HTTPS servers
 with these certificates.</p>
-<p>This feature is only supported when using Python 2.6 or later. If you wish
-to use it with earlier versions of Python, install the backported
-version of the ssl library that is available from
-<tt class="docutils literal"><span class="pre">http://pypi.python.org</span></tt>.</p>
 <p>To disable SSL verification temporarily, specify <tt class="docutils literal"><span class="pre">--insecure</span></tt> from
 command line.</p>
 <p>You can use OpenSSL's CA certificate file if your platform has

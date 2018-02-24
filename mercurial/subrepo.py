@@ -340,7 +340,7 @@ def _sanitize(ui, vfs, ignore):
                           "in '%s'\n") % vfs.join(dirname))
                 vfs.unlink(vfs.reljoin(dirname, f))
 
-def subrepo(ctx, path, allowwdir=False):
+def subrepo(ctx, path, allowwdir=False, allowcreate=True):
     """return instance of the right subrepo class for subrepo in path"""
     # subrepo inherently violates our import layering rules
     # because it wants to make repo objects from deep inside the stack
@@ -356,7 +356,7 @@ def subrepo(ctx, path, allowwdir=False):
         raise error.Abort(_('unknown subrepo type %s') % state[2])
     if allowwdir:
         state = (state[0], ctx.subrev(path), state[2])
-    return types[state[2]](ctx, path, state[:2])
+    return types[state[2]](ctx, path, state[:2], allowcreate)
 
 def nullsubrepo(ctx, path, pctx):
     """return an empty subrepo in pctx for the extant subrepo in ctx"""
@@ -375,7 +375,7 @@ def nullsubrepo(ctx, path, pctx):
     subrev = ''
     if state[2] == 'hg':
         subrev = "0" * 40
-    return types[state[2]](pctx, path, (state[0], subrev))
+    return types[state[2]](pctx, path, (state[0], subrev), True)
 
 def newcommitphase(ui, ctx):
     commitphase = phases.newcommitphase(ui)
@@ -575,11 +575,13 @@ class abstractsubrepo(object):
     def forget(self, match, prefix):
         return ([], [])
 
-    def removefiles(self, matcher, prefix, after, force, subrepos):
+    def removefiles(self, matcher, prefix, after, force, subrepos, warnings):
         """remove the matched files from the subrepository and the filesystem,
         possibly by force and/or after the file has been removed from the
         filesystem.  Return 0 on success, 1 on any warning.
         """
+        warnings.append(_("warning: removefiles not implemented (%s)")
+                        % self._path)
         return 1
 
     def revert(self, substate, *pats, **opts):
@@ -609,12 +611,12 @@ class abstractsubrepo(object):
         return self.wvfs.reljoin(reporelpath(self._ctx.repo()), self._path)
 
 class hgsubrepo(abstractsubrepo):
-    def __init__(self, ctx, path, state):
+    def __init__(self, ctx, path, state, allowcreate):
         super(hgsubrepo, self).__init__(ctx, path)
         self._state = state
         r = ctx.repo()
         root = r.wjoin(path)
-        create = not r.wvfs.exists('%s/.hg' % path)
+        create = allowcreate and not r.wvfs.exists('%s/.hg' % path)
         self._repo = hg.repository(r.baseui, root, create=create)
 
         # Propagate the parent's --hidden option
@@ -774,7 +776,7 @@ class hgsubrepo(abstractsubrepo):
         ctx = self._repo[rev]
         for subpath in ctx.substate:
             s = subrepo(ctx, subpath, True)
-            submatch = matchmod.narrowmatcher(subpath, match)
+            submatch = matchmod.subdirmatcher(subpath, match)
             total += s.archive(archiver, prefix + self._path + '/', submatch)
         return total
 
@@ -991,7 +993,7 @@ class hgsubrepo(abstractsubrepo):
                               self.wvfs.reljoin(prefix, self._path), True)
 
     @annotatesubrepoerror
-    def removefiles(self, matcher, prefix, after, force, subrepos):
+    def removefiles(self, matcher, prefix, after, force, subrepos, warnings):
         return cmdutil.remove(self.ui, self._repo, matcher,
                               self.wvfs.reljoin(prefix, self._path),
                               after, force, subrepos)
@@ -1062,7 +1064,7 @@ class hgsubrepo(abstractsubrepo):
         return reporelpath(self._repo)
 
 class svnsubrepo(abstractsubrepo):
-    def __init__(self, ctx, path, state):
+    def __init__(self, ctx, path, state, allowcreate):
         super(svnsubrepo, self).__init__(ctx, path)
         self._state = state
         self._exe = util.findexe('svn')
@@ -1282,7 +1284,7 @@ class svnsubrepo(abstractsubrepo):
 
 
 class gitsubrepo(abstractsubrepo):
-    def __init__(self, ctx, path, state):
+    def __init__(self, ctx, path, state, allowcreate):
         super(gitsubrepo, self).__init__(ctx, path)
         self._state = state
         self._abspath = ctx.repo().wjoin(path)
@@ -1385,6 +1387,8 @@ class gitsubrepo(abstractsubrepo):
         self.ui.debug('%s: git %s\n' % (self._relpath, ' '.join(commands)))
         if env is None:
             env = os.environ.copy()
+        # disable localization for Git output (issue5176)
+        env['LC_ALL'] = 'C'
         # fix for Git CVE-2015-7545
         if 'GIT_ALLOW_PROTOCOL' not in env:
             env['GIT_ALLOW_PROTOCOL'] = 'file:git:http:https:ssh'
