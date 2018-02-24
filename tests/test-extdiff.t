@@ -179,7 +179,23 @@ Test pre-72a89cf86fcd backward compatibility with half-baked manual quoting
 TODO
 #else
   $ hg --debug odd | grep '^running'
-  running "*/bin/echo --foo='sp ace' 'sp ace' --bar='sp ace' 'sp ace'" in * (glob)
+  running "*/echo --foo='sp ace' 'sp ace' --bar='sp ace' 'sp ace'" in * (glob)
+#endif
+
+Empty argument must be quoted
+
+  $ cat <<EOF >> $HGRCPATH
+  > [extdiff]
+  > kdiff3 = echo
+  > [merge-tools]
+  > kdiff3.diffargs=--L1 \$plabel1 --L2 \$clabel \$parent \$child
+  > EOF
+#if windows
+  $ hg --debug kdiff3 -r0 | grep '^running'
+  running 'echo --L1 "@0" --L2 "" a.8a5febb7f867 a' in * (glob)
+#else
+  $ hg --debug kdiff3 -r0 | grep '^running'
+  running "echo --L1 '@0' --L2 '' a.8a5febb7f867 a" in * (glob)
 #endif
 
 #if execbit
