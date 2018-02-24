@@ -41,6 +41,7 @@ class winstdout(object):
             limit = 16000
             l = len(s)
             start = 0
+            self.softspace = 0;
             while start < l:
                 end = start + limit
                 self.fp.write(s[start:end])
@@ -209,11 +210,9 @@ def statfiles(files):
     dircache = {} # dirname -> filename -> status | None if file does not exist
     for nf in files:
         nf  = ncase(nf)
-        pos = nf.rfind(sep)
-        if pos == -1:
-            dir, base = '.', nf
-        else:
-            dir, base = nf[:pos+1], nf[pos+1:]
+        dir, base = os.path.split(nf)
+        if not dir:
+            dir = '.'
         cache = dircache.get(dir, None)
         if cache is None:
             try:

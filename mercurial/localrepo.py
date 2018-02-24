@@ -473,7 +473,8 @@ class localrepository(repo.repository):
                 latest = newnodes.pop()
                 if latest not in bheads:
                     continue
-                reachable = self.changelog.reachable(latest, bheads[0])
+                minbhrev = self[min([self[bh].rev() for bh in bheads])].node()
+                reachable = self.changelog.reachable(latest, minbhrev)
                 bheads = [b for b in bheads if b not in reachable]
                 newbheads.insert(0, latest)
             bheads.extend(newbheads)

@@ -234,7 +234,7 @@ branches [-a]::
 
     options:
     -a, --active  show only branches that have unmerged heads
-    -c, --closed  show normal and closed heads
+    -c, --closed  show normal and closed branches
 
 [[bundle]]
 bundle [-f] [-a] [-r REV]... [--base REV]... FILE [DEST]::
@@ -547,8 +547,8 @@ heads [-r STARTREV] [REV]...::
 
     options:
     -r, --rev     show only heads which are descendants of REV
-    -a, --active  show only the active heads from open branches
-    -c, --closed  show normal and closed heads
+    -a, --active  show only the active branch heads from open branches
+    -c, --closed  show normal and closed branch heads
     --style       display using template map file
     --template    display with template
 
@@ -1608,17 +1608,19 @@ URL PATHS
 
     Valid URLs are of the form:
 
-      local/filesystem/path (or file://local/filesystem/path)
-      http://[user[:pass]@]host[:port]/[path]
-      https://[user[:pass]@]host[:port]/[path]
-      ssh://[user[:pass]@]host[:port]/[path]
+      local/filesystem/path[#revision]
+      file://local/filesystem/path[#revision]
+      http://[user[:pass]@]host[:port]/[path][#revision]
+      https://[user[:pass]@]host[:port]/[path][#revision]
+      ssh://[user[:pass]@]host[:port]/[path][#revision]
 
     Paths in the local filesystem can either point to Mercurial
     repositories or to bundle files (as created by 'hg bundle' or
     'hg incoming --bundle').
 
     An optional identifier after # indicates a particular branch, tag,
-    or changeset to use from the remote repository.
+    or changeset to use from the remote repository. See also 'hg help
+    revisions'.
 
     Some features, such as pushing to http:// and https:// URLs are
     only possible if the feature is explicitly enabled on the remote
