@@ -4,10 +4,8 @@
 + echo a
 + hg addremove
 + hg commit -t 1 -u test -d '0 0'
-+ cd ..
-+ mkdir r2
-+ cd r2
-+ hg init ../r1
++ hg clone . ../r2
++ cd ../r2
 + hg up
 + echo abc
 + hg diff
@@ -27,8 +25,9 @@ diff -r c19d34741b0a a
 + hg -q pull ../r1
 + hg status
 C a
-+ hg -d up
++ hg --debug up
 resolving manifests
+ force None allow None moddirstate True linear True
  ancestor a0c8bcbbb45c local a0c8bcbbb45c remote 1165e8bd193e
  a versions differ, resolve
 remote created b
@@ -36,8 +35,9 @@ getting b
 merging a
 resolving a
 file a: other d730145abbf9 ancestor b789fdd96dc2
-+ hg -d up -m
++ hg --debug up -m
 resolving manifests
+ force None allow 1 moddirstate True linear True
  ancestor 1165e8bd193e local 1165e8bd193e remote 1165e8bd193e
 + hg parents
 changeset:   1:1e71731e6fbb5b35fae293120dea6964371c13c6
@@ -56,6 +56,8 @@ files:       a b
 description:
 2
 
+
+
 changeset:   0:c19d34741b0a4ced8e4ba74bb834597d5193851e
 manifest:    0:a0c8bcbbb45c63b90b70ad007bf38961f64f2af0
 user:        test
@@ -63,6 +65,8 @@ date:        Thu Jan  1 00:00:00 1970
 files:       a
 description:
 1
+
+
 
 + hg diff
 + sed 's/\(\(---\|+++\).*\)\t.*/\1/'

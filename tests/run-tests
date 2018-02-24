@@ -1,14 +1,35 @@
-#!/bin/bash
+#!/bin/sh -e
 
-set -e
+export LANG=C
+export LC_CTYPE="C"
+export LC_NUMERIC="C"
+export LC_TIME="C"
+export LC_COLLATE="C"
+export LC_MONETARY="C"
+export LC_MESSAGES="C"
+export LC_PAPER="C"
+export LC_NAME="C"
+export LC_ADDRESS="C"
+export LC_TELEPHONE="C"
+export LC_MEASUREMENT="C"
+export LC_IDENTIFICATION="C"
+export LC_ALL=""
+
+umask 022
 
 tests=0
 failed=0
 H=$PWD
 
+if [ -d /usr/lib64 ]; then
+    lib=lib64
+else
+    lib=lib
+fi
+
 TESTPATH=$PWD/install/bin
 export PATH=$TESTPATH:$PATH
-export PYTHONPATH=$PWD/install/lib/python
+export PYTHONPATH=$PWD/install/$lib/python
 
 rm -rf install
 cd ..
@@ -24,12 +45,13 @@ function run_one
     rm -f $1.err
     export TZ=GMT
     D=`mktemp -d`
-    if [ "$D" == "" ] ; then
+    if [ "$D" = "" ] ; then
 	echo mktemp failed!
     fi
 
     cd $D
     fail=0
+    export HOME=$D
 
     if ! $H/$1 > .out 2>&1 ; then
 	echo $1 failed with error code $?
@@ -54,7 +76,7 @@ function run_one
 }
 
 TESTS=$@
-if [ "$TESTS" == "" ] ; then
+if [ "$TESTS" = "" ] ; then
     TESTS=`ls test-* | grep -Ev "\.|~"`
 fi
 

@@ -37,7 +37,10 @@ def decompress(bin):
 def hash(text, p1, p2):
     l = [p1, p2]
     l.sort()
-    return sha.sha(l[0] + l[1] + text).digest()
+    s = sha.new(l[0])
+    s.update(l[1])
+    s.update(text)
+    return s.digest()
 
 nullid = "\0" * 20
 indexformat = ">4l20s20s20s"
@@ -64,14 +67,14 @@ class lazyparser:
             end = self.l
             self.revlog.index = self.index
             self.revlog.nodemap = self.map
-            
+
         while i < end:
             d = self.data[i * self.s: (i + 1) * self.s]
             e = struct.unpack(indexformat, d)
             self.index[i] = e
             self.map[e[6]] = i
             i += 1
-        
+
 class lazyindex:
     def __init__(self, parser):
         self.p = parser
@@ -84,7 +87,7 @@ class lazyindex:
         return self.p.index[pos] or self.load(pos)
     def append(self, e):
         self.p.index.append(e)
-        
+
 class lazymap:
     def __init__(self, parser):
         self.p = parser
@@ -98,6 +101,7 @@ class lazymap:
         self.p.load()
         return key in self.p.map
     def __iter__(self):
+        yield nullid
         for i in xrange(self.p.l):
             try:
                 yield self.p.index[i][6]
@@ -149,7 +153,6 @@ class revlog:
 
             self.nodemap = dict(m)
             self.nodemap[nullid] = -1
-            
 
     def tip(self): return self.node(len(self.index) - 1)
     def count(self): return len(self.index)
@@ -188,21 +191,23 @@ class revlog:
                 elif pn == nullid:
                     continue
         return c
-    
+
     def lookup(self, id):
         try:
             rev = int(id)
-            if str(rev) != id: raise "mismatch"
+            if str(rev) != id: raise ValueError
+            if rev < 0: rev = self.count() + rev
+            if rev < 0 or rev >= self.count(): raise ValueError
             return self.node(rev)
-        except:
+        except (ValueError, OverflowError):
             c = []
             for n in self.nodemap:
-                if id in hex(n):
+                if hex(n).startswith(id):
                     c.append(n)
             if len(c) > 1: raise KeyError("Ambiguous identifier")
             if len(c) < 1: raise KeyError("No match found")
             return c[0]
-                
+
         return None
 
     def diff(self, a, b):
@@ -243,7 +248,7 @@ class revlog:
         f.seek(start)
         data = f.read(end - start)
 
-        if not text:
+        if text is None:
             last = self.length(base)
             text = decompress(data[:last])
 
@@ -260,9 +265,9 @@ class revlog:
                           % (self.datafile, rev))
 
         self.cache = (node, rev, text)
-        return text  
+        return text
 
-    def addrevision(self, text, transaction, link, p1=None, p2=None):
+    def addrevision(self, text, transaction, link, p1=None, p2=None, d=None):
         if text is None: text = ""
         if p1 is None: p1 = self.tip()
         if p2 is None: p2 = nullid
@@ -279,8 +284,9 @@ class revlog:
             base = self.base(t)
             start = self.start(base)
             end = self.end(t)
-            prev = self.revision(self.tip())
-            d = self.diff(prev, text)
+            if not d:
+                prev = self.revision(self.tip())
+                d = self.diff(prev, text)
             data = compress(d)
             dist = end - start + len(data)
 
@@ -297,7 +303,7 @@ class revlog:
             offset = self.end(t)
 
         e = (offset, len(data), base, link, p1, p2, node)
-        
+
         self.index.append(e)
         self.nodemap[node] = n
         entry = struct.pack(indexformat, *e)
@@ -317,7 +323,7 @@ class revlog:
             n = self.node(i)
             p1, p2 = self.parents(n)
             dist[n] = max(dist[p1], dist[p2]) + 1
-        
+
         # traverse ancestors in order of decreasing distance from root
         def ancestors(node):
             # we store negative distances because heap returns smallest member
@@ -438,7 +444,7 @@ class revlog:
                     ta = construct(ta, base, a)
                 else:
                     ta = ""
-                    
+
                 base = self.base(b)
                 if a > base:
                     base = a
@@ -468,9 +474,9 @@ class revlog:
         r = self.count()
         t = r - 1
         node = nullid
-        
+
         base = prev = -1
-        start = end = 0
+        start = end = measure = 0
         if r:
             start = self.start(self.base(t))
             end = self.end(t)
@@ -492,6 +498,7 @@ class revlog:
                 # this can happen if two branches make the same change
                 if unique:
                     raise "already have %s" % hex(node[:4])
+                chain = node
                 continue
             delta = chunk[80:]
 

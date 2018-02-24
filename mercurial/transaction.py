@@ -15,13 +15,14 @@ import os
 import util
 
 class transaction:
-    def __init__(self, opener, journal, after = None):
+    def __init__(self, report, opener, journal, after = None):
         self.journal = None
 
         # abort here if the journal already exists
         if os.path.exists(journal):
             raise "journal already exists - run hg recover"
 
+        self.report = report
         self.opener = opener
         self.after = after
         self.entries = []
@@ -31,9 +32,11 @@ class transaction:
         self.file = open(self.journal, "w")
 
     def __del__(self):
-        if self.entries: self.abort()
-        try: os.unlink(self.journal)
-        except: pass
+        if self.journal:
+            if self.entries: self.abort()
+            self.file.close()
+            try: os.unlink(self.journal)
+            except: pass
 
     def add(self, file, offset):
         if file in self.map: return
@@ -50,22 +53,23 @@ class transaction:
             util.rename(self.journal, self.after)
         else:
             os.unlink(self.journal)
+        self.journal = None
 
     def abort(self):
         if not self.entries: return
 
-        print "transaction abort!"
+        self.report("transaction abort!\n")
 
         for f, o in self.entries:
             try:
                 self.opener(f, "a").truncate(o)
             except:
-                print "failed to truncate", f
+                self.report("failed to truncate %s\n" % f)
 
         self.entries = []
 
-        print "rollback completed"
-        
+        self.report("rollback completed\n")
+
 def rollback(opener, file):
     for l in open(file).readlines():
         f, o = l.split('\0')

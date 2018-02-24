@@ -1,11 +1,13 @@
 header = header.tmpl
 footer = footer.tmpl
+search = search.tmpl
 changelog = changelog.tmpl
 naventry = "<a href="?cmd=changelog;rev=#rev#">#label#</a> "
 filedifflink = "<a href="?cmd=filediff;node=#node#;file=#file#">#file#</a> "
 filenodelink = "<a href="?cmd=file;filenode=#filenode#;file=#file#">#file#</a> "
 fileellipses = "..."
 changelogentry = changelogentry.tmpl
+searchentry = searchentry.tmpl
 changeset = changeset.tmpl
 manifest = manifest.tmpl
 manifestdirentry = "<tr class="parity#parity#"><td><tt>drwxr-xr-x</tt>&nbsp;<td><a href="?cmd=manifest;manifest=#manifest#;path=#path#">#basename#/</a>"
@@ -21,10 +23,14 @@ difflineplus = "<span class="plusline">#line|escape#</span>"
 difflineminus = "<span class="minusline">#line|escape#</span>"
 difflineat = "<span class="atline">#line|escape#</span>"
 diffline = "#line|escape#"
-changelogparent = "<tr><td align="right">parent:&nbsp;</td><td><a href="?cmd=changeset;node=#node#">#node|short#</a></td></tr>"
-changesetparent = "<tr><td class="metatag">parent:</td><td><a href="?cmd=changeset;node=#node#">#node|short#</a></td></tr>"
+changelogparent = "<tr><th class="parent">parent #rev#:</th><td class="parent"><a href="?cmd=changeset;node=#node#">#node|short#</a></td></tr>"
+changesetparent = "<tr><th class="parent">parent #rev#:</th><td class="parent"><a href="?cmd=changeset;node=#node#">#node|short#</a></td></tr>"
 filerevparent = "<tr><td class="metatag">parent:</td><td><a href="?cmd=file;file=#file#;filenode=#node#">#node|short#</a></td></tr>"
 fileannotateparent = "<tr><td class="metatag">parent:</td><td><a href="?cmd=annotate;file=#file#;filenode=#node#">#node|short#</a></td></tr>"
 tags = tags.tmpl
-tagentry = "<div class="parity#parity#"><tt>#node#</tt> <a href="?cmd=changeset;node=#node#">#tag#</a><br /></div>"
-diffblock = "<div class="parity#parity#">#lines#</div>"
+tagentry = "<li class="tagEntry parity#parity#"><span class="node">#node#</span> <a href="?cmd=changeset;node=#node#">#tag#</a></li>"
+diffblock = "<pre class="parity#parity#">#lines#</pre>"
+changelogtag = "<tr><th class="tag">tag:</th><td class="tag">#tag#</td></tr>"
+changesettag = "<tr><th class="tag">tag:</th><td class="tag">#tag#</td></tr>"
+filediffparent = "<tr><th class="parent">parent #rev#:</th><td class="parent"><a href="?cmd=changeset;node=#node#">#node|short#</a></td></tr>"
+filelogparent = "<tr><td align="right">parent #rev#:&nbsp;</td><td><a href="?cmd=file;file=#file#;filenode=#node#">#node|short#</a></td></tr>"
