@@ -20,8 +20,8 @@ hg.1.gendoc.txt: ../mercurial/commands.py ../mercurial/help.py
 	${PYTHON} gendoc.py > $@
 
 %: %.xml
-	xmlto man $*.xml ; \
-	sed -e 's/^\.hg/\\\&.hg/' $* > $*~ ; \
+	xmlto man $*.xml && \
+	sed -e 's/^\.hg/\\\&.hg/' $* > $*~ && \
 	mv $*~ $*
 
 %.xml: %.txt
@@ -39,7 +39,7 @@ MANIFEST: man html
 
 install: man
 	for i in $(MAN) ; do \
-	  subdir=`echo $$i | sed -n 's/..*\.\([0-9]\)$$/man\1/p'` ; \
+	  subdir=`echo $$i | sed -n 's/^.*\.\([0-9]\)$$/man\1/p'` ; \
 	  mkdir -p $(DESTDIR)$(MANDIR)/$$subdir ; \
 	  $(INSTALL) $$i $(DESTDIR)$(MANDIR)/$$subdir ; \
 	done

@@ -2,12 +2,13 @@
 #
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
-# This software may be used and distributed according to the terms of
-# the GNU General Public License, incorporated herein by reference.
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
 from i18n import _
 from node import hex
-import cStringIO, os, stat, tarfile, time, util, zipfile
+import util
+import cStringIO, os, stat, tarfile, time, zipfile
 import zlib, gzip
 
 def tidyprefix(dest, prefix, suffixes):
@@ -33,7 +34,7 @@ def tidyprefix(dest, prefix, suffixes):
         raise util.Abort(_('archive prefix contains illegal components'))
     return prefix
 
-class tarit:
+class tarit(object):
     '''write archive to tar file or stream.  can write uncompressed,
     or compress with gzip or bzip2.'''
 
@@ -43,7 +44,7 @@ class tarit:
             timestamp = None
             if 'timestamp' in kw:
                 timestamp = kw.pop('timestamp')
-            if timestamp == None:
+            if timestamp is None:
                 self.timestamp = time.time()
             else:
                 self.timestamp = timestamp
@@ -105,7 +106,7 @@ class tarit:
     def done(self):
         self.z.close()
 
-class tellable:
+class tellable(object):
     '''provide tell method for zipfile.ZipFile when writing to http
     response file object.'''
 
@@ -123,7 +124,7 @@ class tellable:
     def tell(self):
         return self.offset
 
-class zipit:
+class zipit(object):
     '''write archive to zip file or stream.  can write uncompressed,
     or compressed with deflate.'''
 
@@ -155,7 +156,7 @@ class zipit:
     def done(self):
         self.z.close()
 
-class fileit:
+class fileit(object):
     '''write archive as files in directory.'''
 
     def __init__(self, name, prefix, mtime):

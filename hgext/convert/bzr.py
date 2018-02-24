@@ -1,4 +1,10 @@
-# bzr support for the convert extension
+# bzr.py - bzr support for the convert extension
+#
+#  Copyright 2008, 2009 Marek Kubica <marek@xivilization.net> and others
+#
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
+
 # This module is for handling 'bzr', that was formerly known as Bazaar-NG;
 # it cannot access 'bar' repositories, but they were never used very much
 
@@ -21,11 +27,16 @@ try:
 except ImportError:
     pass
 
+supportedkinds = ('file', 'symlink')
+
 class bzr_source(converter_source):
     """Reads Bazaar repositories by using the Bazaar Python libraries"""
 
     def __init__(self, ui, path, rev=None):
         super(bzr_source, self).__init__(ui, path, rev=rev)
+
+        if not os.path.exists(os.path.join(path, '.bzr')):
+            raise NoRepo('%s does not look like a Bazaar repo' % path)
 
         try:
             # access bzrlib stuff
@@ -33,13 +44,31 @@ class bzr_source(converter_source):
         except NameError:
             raise NoRepo('Bazaar modules could not be loaded')
 
-        if not os.path.exists(os.path.join(path, '.bzr')):
-            raise NoRepo('%s does not look like a Bazaar repo' % path)
-
         path = os.path.abspath(path)
+        self._checkrepotype(path)
         self.branch = branch.Branch.open(path)
         self.sourcerepo = self.branch.repository
         self._parentids = {}
+
+    def _checkrepotype(self, path):
+        # Lightweight checkouts detection is informational but probably
+        # fragile at API level. It should not terminate the conversion.
+        try:
+            from bzrlib import bzrdir
+            dir = bzrdir.BzrDir.open_containing(path)[0]
+            try:
+                tree = dir.open_workingtree(recommend_upgrade=False)
+                branch = tree.branch
+            except (errors.NoWorkingTree, errors.NotLocalUrl), e:
+                tree = None
+                branch = dir.open_branch()
+            if (tree is not None and tree.bzrdir.root_transport.base !=
+                branch.bzrdir.root_transport.base):
+                self.ui.warn(_('warning: lightweight checkouts may cause '
+                               'conversion failures, try with a regular '
+                               'branch instead.\n'))
+        except:
+            self.ui.note(_('bzr source type could not be determined\n'))
 
     def before(self):
         """Before the conversion begins, acquire a read lock
@@ -70,13 +99,23 @@ class bzr_source(converter_source):
 
     def getfile(self, name, rev):
         revtree = self.sourcerepo.revision_tree(rev)
-        fileid = revtree.path2id(name)
-        if fileid is None:
+        fileid = revtree.path2id(name.decode(self.encoding or 'utf-8'))
+        kind = None
+        if fileid is not None:
+            kind = revtree.kind(fileid)
+        if kind not in supportedkinds:
             # the file is not available anymore - was deleted
             raise IOError(_('%s is not available in %s anymore') %
                     (name, rev))
-        sio = revtree.get_file(fileid)
-        return sio.read()
+        if kind == 'symlink':
+            target = revtree.get_symlink_target(fileid)
+            if target is None:
+                raise util.Abort(_('%s.%s symlink has no target')
+                                 % (name, rev))
+            return target
+        else:
+            sio = revtree.get_file(fileid)
+            return sio.read()
 
     def getmode(self, name, rev):
         return self._modecache[(name, rev)]
@@ -102,8 +141,7 @@ class bzr_source(converter_source):
             self._parentids[version] = parents
 
         return commit(parents=parents,
-                # bzr uses 1 second timezone precision
-                date='%d %d' % (rev.timestamp, rev.timezone / 3600),
+                date='%d %d' % (rev.timestamp, -rev.timezone),
                 author=self.recode(rev.committer),
                 # bzr returns bytestrings or unicode, depending on the content
                 desc=self.recode(rev.message),
@@ -121,9 +159,8 @@ class bzr_source(converter_source):
     def getchangedfiles(self, rev, i):
         self._modecache = {}
         curtree = self.sourcerepo.revision_tree(rev)
-        parentids = self._parentids.pop(rev)
         if i is not None:
-            parentid = parentids[i]
+            parentid = self._parentids[rev][i]
         else:
             # no parent id, get the empty revision
             parentid = revision.NULL_REVISION
@@ -146,6 +183,11 @@ class bzr_source(converter_source):
             # bazaar tracks directories, mercurial does not, so
             # we have to rename the directory contents
             if kind[1] == 'directory':
+                if kind[0] not in (None, 'directory'):
+                    # Replacing 'something' with a directory, record it
+                    # so it can be removed.
+                    changes.append((self.recode(paths[0]), revid))
+
                 if None not in paths and paths[0] != paths[1]:
                     # neither an add nor an delete - a move
                     # rename all directory contents manually
@@ -181,10 +223,11 @@ class bzr_source(converter_source):
             # renamed
             if path and path != topath:
                 renames[topath] = path
+                changes.append((path, revid))
 
             # populate the mode cache
             kind, executable = [e[1] for e in (kind, executable)]
-            mode = ((executable and 'x') or (kind == 'symlink' and 's')
+            mode = ((executable and 'x') or (kind == 'symlink' and 'l')
                     or '')
             self._modecache[(topath, revid)] = mode
             changes.append((topath, revid))

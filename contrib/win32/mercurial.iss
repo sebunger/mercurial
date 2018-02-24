@@ -8,9 +8,9 @@ InfoAfterFile=contrib/win32/postinstall.txt
 LicenseFile=COPYING
 ShowLanguageDialog=yes
 AppPublisher=Matt Mackall and others
-AppPublisherURL=http://www.selenic.com/mercurial
-AppSupportURL=http://www.selenic.com/mercurial
-AppUpdatesURL=http://www.selenic.com/mercurial
+AppPublisherURL=http://mercurial.selenic.com/
+AppSupportURL=http://mercurial.selenic.com/
+AppUpdatesURL=http://mercurial.selenic.com/
 AppID={{4B95A5F1-EF59-4B08-BED8-C891C46121B3}
 AppContact=mercurial@selenic.com
 OutputBaseFilename=Mercurial-snapshot
@@ -36,9 +36,12 @@ Source: contrib\mergetools.hgrc; DestDir: {tmp};
 Source: contrib\win32\mercurial.ini; DestDir: {app}; DestName: Mercurial.ini; Check: CheckFile; AfterInstall: ConcatenateFiles;
 Source: contrib\win32\postinstall.txt; DestDir: {app}; DestName: ReleaseNotes.txt
 Source: dist\hg.exe; DestDir: {app}; AfterInstall: Touch('{app}\hg.exe.local')
+Source: dist\python*.dll; Destdir: {app}; Flags: skipifsourcedoesntexist
 Source: dist\library.zip; DestDir: {app}
-Source: dist\mfc71.dll; DestDir: {app}
-Source: dist\msvcr71.dll; DestDir: {app}
+Source: dist\mfc*.dll; DestDir: {app}
+Source: dist\msvc*.dll; DestDir: {app}
+Source: dist\Microsoft.VC*.CRT.manifest; DestDir: {app}; Flags: skipifsourcedoesntexist
+Source: dist\Microsoft.VC*.MFC.manifest; DestDir: {app}; Flags: skipifsourcedoesntexist
 Source: dist\w9xpopen.exe; DestDir: {app}
 Source: dist\add_path.exe; DestDir: {app}
 Source: doc\*.html; DestDir: {app}\Docs
@@ -48,7 +51,7 @@ Source: CONTRIBUTORS; DestDir: {app}; DestName: Contributors.txt
 Source: COPYING; DestDir: {app}; DestName: Copying.txt
 
 [INI]
-Filename: {app}\Mercurial.url; Section: InternetShortcut; Key: URL; String: http://www.selenic.com/mercurial/
+Filename: {app}\Mercurial.url; Section: InternetShortcut; Key: URL; String: http://mercurial.selenic.com/
 
 [UninstallDelete]
 Type: files; Name: {app}\Mercurial.url
@@ -56,6 +59,8 @@ Type: files; Name: {app}\Mercurial.url
 [Icons]
 Name: {group}\Uninstall Mercurial; Filename: {uninstallexe}
 Name: {group}\Mercurial Command Reference; Filename: {app}\Docs\hg.1.html
+Name: {group}\Mercurial Configuration Files; Filename: {app}\Docs\hgrc.5.html
+Name: {group}\Mercurial Ignore Files; Filename: {app}\Docs\hgignore.5.html
 Name: {group}\Mercurial Web Site; Filename: {app}\Mercurial.url
 
 [Run]

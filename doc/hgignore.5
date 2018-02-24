@@ -1,26 +1,35 @@
+'\" t
 .\"     Title: hgignore
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.73.2 <http://docbook.sf.net/>
-.\"      Date: 03/20/2009
-.\"    Manual: 
-.\"    Source: 
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets v1.75.0 <http://docbook.sf.net/>
+.\"      Date: 07/01/2009
+.\"    Manual: Mercurial Manual
+.\"    Source: Mercurial
+.\"  Language: English
 .\"
-.TH "HGIGNORE" "5" "03/20/2009" "" ""
+.TH "HGIGNORE" "5" "07/01/2009" "Mercurial" "Mercurial Manual"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
 .ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
 .SH "NAME"
 hgignore \- syntax for Mercurial ignore files
 .SH "SYNOPSIS"
-The Mercurial system uses a file called \&.hgignore in the root directory of a repository to control its behavior when it finds files that it is not currently managing\&.
 .sp
+The Mercurial system uses a file called \&.hgignore in the root directory of a repository to control its behavior when it finds files that it is not currently managing\&.
 .SH "DESCRIPTION"
-Mercurial ignores every unmanaged file that matches any pattern in an ignore file\&. The patterns in an ignore file do not apply to files managed by Mercurial\&. To control Mercurial\'s handling of files that it manages, see the hg(1) man page\&. Look for the "\-I" and "\-X" options\&.
+.sp
+Mercurial ignores every unmanaged file that matches any pattern in an ignore file\&. The patterns in an ignore file do not apply to files managed by Mercurial\&. To control Mercurial\(cqs handling of files that it manages, see the hg(1) man page\&. Look for the "\-I" and "\-X" options\&.
 .sp
 In addition, a Mercurial configuration file can point to a set of per\-user or global ignore files\&. See the hgrc(5) man page for details of how to configure these files\&. Look for the "ignore" entry in the "ui" section\&.
-.sp
 .SH "SYNTAX"
+.sp
 An ignore file is a plain text file consisting of a list of patterns, with one pattern per line\&. Empty lines are skipped\&. The "#" character is treated as a comment character, and the "\e" character is treated as an escape character\&.
 .sp
 Mercurial supports several pattern syntaxes\&. The default syntax used is Python/Perl\-style regular expressions\&.
@@ -40,47 +49,59 @@ glob
 .RS 4
 Shell\-style glob\&.
 .RE
+.sp
 The chosen syntax stays in effect when parsing all patterns that follow, until another syntax is selected\&.
 .sp
 Neither glob nor regexp patterns are rooted\&. A glob\-syntax pattern of the form "*\&.c" will match a file ending in "\&.c" in any directory, and a regexp pattern of the form "\e\&.c$" will do the same\&. To root a regexp pattern, start it with "^"\&.
-.sp
 .SH "EXAMPLE"
+.sp
 Here is an example ignore file\&.
 .sp
-.sp
+.if n \{\
 .RS 4
+.\}
 .nf
 # use glob syntax\&.
 syntax: glob
 .fi
+.if n \{\
 .RE
+.\}
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 *\&.elc
 *\&.pyc
 *~
 .fi
+.if n \{\
 .RE
+.\}
 .sp
+.if n \{\
 .RS 4
+.\}
 .nf
 # switch to regexp syntax\&.
 syntax: regexp
 ^\e\&.pc/
 .fi
+.if n \{\
 .RE
+.\}
 .SH "AUTHOR"
-Vadim Gelfer <\fIvadim\&.gelfer@gmail\&.com\fR\&[1]>
 .sp
-Mercurial was written by Matt Mackall <\fImpm@selenic\&.com\fR\&[2]>\&.
+Vadim Gelfer <\m[blue]\fBvadim\&.gelfer@gmail\&.com\fR\m[]\&\s-2\u[1]\d\s+2>
 .sp
+Mercurial was written by Matt Mackall <\m[blue]\fBmpm@selenic\&.com\fR\m[]\&\s-2\u[2]\d\s+2>\&.
 .SH "SEE ALSO"
+.sp
 hg(1), hgrc(5)
-.sp
 .SH "COPYING"
-This manual page is copyright 2006 Vadim Gelfer\&. Mercurial is copyright 2005\-2007 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
 .sp
+This manual page is copyright 2006 Vadim Gelfer\&. Mercurial is copyright 2005\-2009 Matt Mackall\&. Free use of this software is granted under the terms of the GNU General Public License (GPL)\&.
 .SH "NOTES"
 .IP " 1." 4
 vadim.gelfer@gmail.com

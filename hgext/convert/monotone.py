@@ -1,8 +1,14 @@
-# monotone support for the convert extension
+# monotone.py - monotone support for the convert extension
+#
+#  Copyright 2008, 2009 Mikkel Fahnoe Jorgensen <mikkel@dvide.com> and
+#  others
+#
+# This software may be used and distributed according to the terms of the
+# GNU General Public License version 2, incorporated herein by reference.
 
-import os, re, time
+import os, re
 from mercurial import util
-from common import NoRepo, MissingTool, commit, converter_source, checktool
+from common import NoRepo, commit, converter_source, checktool
 from common import commandline
 from mercurial.i18n import _
 
@@ -13,6 +19,16 @@ class monotone_source(converter_source, commandline):
 
         self.ui = ui
         self.path = path
+
+        norepo = NoRepo (_("%s does not look like a monotone repo") % path)
+        if not os.path.exists(os.path.join(path, '_MTN')):
+            # Could be a monotone repository (SQLite db file)
+            try:
+                header = file(path, 'rb').read(16)
+            except:
+                header = ''
+            if header != 'SQLite format 3\x00':
+                raise norepo
 
         # regular expressions for parsing monotone output
         space    = r'\s*'
@@ -38,10 +54,6 @@ class monotone_source(converter_source, commandline):
         self.manifest = None
         self.files = None
         self.dirs  = None
-
-        norepo = NoRepo (_("%s does not look like a monotone repo") % path)
-        if not os.path.exists(path):
-            raise norepo
 
         checktool('mtn', abort=False)
 
@@ -81,19 +93,11 @@ class monotone_source(converter_source, commandline):
     def mtnisfile(self, name, rev):
         # a non-file could be a directory or a deleted or renamed file
         self.mtnloadmanifest(rev)
-        try:
-            self.files[name]
-            return True
-        except KeyError:
-            return False
+        return name in self.files
 
     def mtnisdir(self, name, rev):
         self.mtnloadmanifest(rev)
-        try:
-            self.dirs[name]
-            return True
-        except KeyError:
-            return False
+        return name in self.dirs
 
     def mtngetcerts(self, rev):
         certs = {"author":"<missing>", "date":"<missing>",
@@ -106,16 +110,10 @@ class monotone_source(converter_source, commandline):
                 value = value.replace(r'\"', '"')
                 value = value.replace(r'\\', '\\')
                 certs[name] = value
+        # Monotone may have subsecond dates: 2005-02-05T09:39:12.364306
+        # and all times are stored in UTC
+        certs["date"] = certs["date"].split('.')[0] + " UTC"
         return certs
-
-    def mtnrenamefiles(self, files, fromdir, todir):
-        renamed = {}
-        for tofile in files:
-            suffix = tofile.lstrip(todir)
-            if todir + suffix == tofile:
-                renamed[tofile] = (fromdir + suffix).lstrip("/")
-        return renamed
-
 
     # implement the converter_source interface:
 
@@ -129,15 +127,17 @@ class monotone_source(converter_source, commandline):
         #revision = self.mtncmd("get_revision %s" % rev).split("\n\n")
         revision = self.mtnrun("get_revision", rev).split("\n\n")
         files = {}
+        ignoremove = {}
+        renameddirs = []
         copies = {}
         for e in revision:
             m = self.add_file_re.match(e)
             if m:
                 files[m.group(1)] = rev
+                ignoremove[m.group(1)] = rev
             m = self.patch_re.match(e)
             if m:
                 files[m.group(1)] = rev
-
             # Delete/rename is handled later when the convert engine
             # discovers an IOError exception from getfile,
             # but only if we add the "from" file to the list of changes.
@@ -149,25 +149,41 @@ class monotone_source(converter_source, commandline):
                 toname = m.group(2)
                 fromname = m.group(1)
                 if self.mtnisfile(toname, rev):
+                    ignoremove[toname] = 1
                     copies[toname] = fromname
                     files[toname] = rev
                     files[fromname] = rev
-                if self.mtnisdir(toname, rev):
-                    renamed = self.mtnrenamefiles(self.files, fromname, toname)
-                    for tofile, fromfile in renamed.items():
-                        self.ui.debug (_("copying file in renamed dir from '%s' to '%s'") % (fromfile, tofile), '\n')
-                        files[tofile] = rev
-                    for fromfile in renamed.values():
-                        files[fromfile] = rev
+                elif self.mtnisdir(toname, rev):
+                    renameddirs.append((fromname, toname))
+
+        # Directory renames can be handled only once we have recorded
+        # all new files
+        for fromdir, todir in renameddirs:
+            renamed = {}
+            for tofile in self.files:
+                if tofile in ignoremove:
+                    continue
+                if tofile.startswith(todir + '/'):
+                    renamed[tofile] = fromdir + tofile[len(todir):]
+                    # Avoid chained moves like:
+                    # d1(/a) => d3/d1(/a)
+                    # d2 => d3
+                    ignoremove[tofile] = 1
+            for tofile, fromfile in renamed.items():
+                self.ui.debug (_("copying file in renamed directory "
+                                 "from '%s' to '%s'")
+                               % (fromfile, tofile), '\n')
+                files[tofile] = rev
+                copies[tofile] = fromfile
+            for fromfile in renamed.values():
+                files[fromfile] = rev
+
         return (files.items(), copies)
 
     def getmode(self, name, rev):
         self.mtnloadmanifest(rev)
-        try:
-            node, attr = self.files[name]
-            return attr
-        except KeyError:
-            return ""
+        node, attr = self.files.get(name, (None, ""))
+        return attr
 
     def getfile(self, name, rev):
         if not self.mtnisfile(name, rev):
