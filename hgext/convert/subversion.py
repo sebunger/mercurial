@@ -452,6 +452,14 @@ class svn_source(converter_source):
         del self.commits[rev]
         return commit
 
+    def checkrevformat(self, revstr):
+        """ fails if revision format does not match the correct format"""
+        if not re.match(r'svn:[0-9a-f]{8,8}-[0-9a-f]{4,4}-'
+                              '[0-9a-f]{4,4}-[0-9a-f]{4,4}-[0-9a-f]'
+                              '{12,12}(.*)\@[0-9]+$',revstr):
+            raise util.Abort(_('splicemap entry %s is not a valid revision'
+                               ' identifier') % revstr)
+
     def gettags(self):
         tags = {}
         if self.tags is None:
@@ -475,6 +483,8 @@ class svn_source(converter_source):
         try:
             for entry in stream:
                 origpaths, revnum, author, date, message = entry
+                if not origpaths:
+                    origpaths = []
                 copies = [(e.copyfrom_path, e.copyfrom_rev, p) for p, e
                           in origpaths.iteritems() if e.copyfrom_path]
                 # Apply moves/copies from more specific to general

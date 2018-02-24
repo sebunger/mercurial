@@ -65,6 +65,7 @@ from mercurial.lock import release
 from mercurial import commands, cmdutil, hg, scmutil, util, revset
 from mercurial import repair, extensions, error, phases
 from mercurial import patch as patchmod
+from mercurial import localrepo
 import os, re, errno, shutil
 
 commands.norepo += " qclone"
@@ -975,6 +976,7 @@ class queue(object):
             raise util.Abort(_("local changes found"))
 
     def checklocalchanges(self, repo, force=False, refresh=True):
+        cmdutil.checkunfinished(repo)
         m, a, r, d = repo.status()[:4]
         if (m or a or r or d) and not force:
             self.localchangesfound(refresh)
@@ -1875,7 +1877,7 @@ class queue(object):
         index of the first patch past the last applied one.
         """
         end = 0
-        def next(start):
+        def nextpatch(start):
             if all_patches or start >= len(self.series):
                 return start
             for i in xrange(start, len(self.series)):
@@ -1890,8 +1892,8 @@ class queue(object):
                 end = self.series.index(p)
             except ValueError:
                 return 0
-            return next(end + 1)
-        return next(end)
+            return nextpatch(end + 1)
+        return nextpatch(end)
 
     def appliedname(self, index):
         pname = self.applied[index].name
@@ -2145,11 +2147,12 @@ def qimport(ui, repo, *filename, **opts):
     overwritten.
 
     An existing changeset may be placed under mq control with -r/--rev
-    (e.g. qimport --rev tip -n patch will place tip under mq control).
-    With -g/--git, patches imported with --rev will use the git diff
-    format. See the diffs help topic for information on why this is
-    important for preserving rename/copy information and permission
-    changes. Use :hg:`qfinish` to remove changesets from mq control.
+    (e.g. qimport --rev . -n patch will place the current revision
+    under mq control). With -g/--git, patches imported with --rev will
+    use the git diff format. See the diffs help topic for information
+    on why this is important for preserving rename/copy information
+    and permission changes. Use :hg:`qfinish` to remove changesets
+    from mq control.
 
     To import a patch from standard input, pass - as the patch file.
     When importing from standard input, a patch name must be specified
@@ -3410,7 +3413,7 @@ def mqphasedefaults(repo, roots):
 
 def reposetup(ui, repo):
     class mqrepo(repo.__class__):
-        @util.propertycache
+        @localrepo.unfilteredpropertycache
         def mq(self):
             return queue(self.ui, self.baseui, self.path)
 
@@ -3533,8 +3536,7 @@ def mqcommand(orig, ui, repo, *args, **kwargs):
         raise util.Abort(_('no queue repository'))
     return orig(r.ui, r, *args, **kwargs)
 
-def summary(orig, ui, repo, *args, **kwargs):
-    r = orig(ui, repo, *args, **kwargs)
+def summaryhook(ui, repo):
     q = repo.mq
     m = []
     a, u = len(q.applied), len(q.unapplied(repo))
@@ -3548,7 +3550,6 @@ def summary(orig, ui, repo, *args, **kwargs):
     else:
         # i18n: column positioning for "hg summary"
         ui.note(_("mq:     (empty queue)\n"))
-    return r
 
 def revsetmq(repo, subset, x):
     """``mq()``
@@ -3567,7 +3568,7 @@ def extsetup(ui):
     mqopt = [('', 'mq', None, _("operate on patch repository"))]
 
     extensions.wrapcommand(commands.table, 'import', mqimport)
-    extensions.wrapcommand(commands.table, 'summary', summary)
+    cmdutil.summaryhooks.add('mq', summaryhook)
 
     entry = extensions.wrapcommand(commands.table, 'init', mqinit)
     entry[1].extend(mqopt)
