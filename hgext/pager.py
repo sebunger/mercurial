@@ -49,8 +49,33 @@ To ignore global commands like "hg version" or "hg help", you have to
 specify them in the global .hgrc
 '''
 
-import sys, os, signal
+import sys, os, signal, shlex, errno
 from mercurial import dispatch, util, extensions
+
+def _runpager(p):
+    if not hasattr(os, 'fork'):
+        sys.stderr = sys.stdout = util.popen(p, 'wb')
+        return
+    fdin, fdout = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(fdin)
+        os.dup2(fdout, sys.stdout.fileno())
+        os.dup2(fdout, sys.stderr.fileno())
+        os.close(fdout)
+        return
+    os.dup2(fdin, sys.stdin.fileno())
+    os.close(fdin)
+    os.close(fdout)
+    try:
+        os.execvp('/bin/sh', ['/bin/sh', '-c', p])
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            # no /bin/sh, try executing the pager directly
+            args = shlex.split(p)
+            os.execvp(args[0], args)
+        else:
+            raise
 
 def uisetup(ui):
     def pagecmd(orig, ui, options, cmd, cmdfunc):
@@ -60,7 +85,7 @@ def uisetup(ui):
             if (cmd in attend or
                 (cmd not in ui.configlist('pager', 'ignore') and not attend)):
                 ui.setconfig('ui', 'interactive', False)
-                sys.stderr = sys.stdout = util.popen(p, "wb")
+                _runpager(p)
                 if ui.configbool('pager', 'quiet'):
                     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
         return orig(ui, options, cmd, cmdfunc)

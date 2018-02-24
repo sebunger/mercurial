@@ -1088,7 +1088,7 @@ print matching line numbers
 .TP
 .B \-r,  \-\-rev
 .
-search in given revision range
+only search files changed within revision range
 .TP
 .B \-u,  \-\-user
 .
@@ -1758,19 +1758,22 @@ specify hg command to run on the remote side
 .TP
 .B \fBpush [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [DEST]\fP
 .sp
-Push changes from the local repository to the specified destination.
+Push changesets from the local repository to the specified
+destination.
 .sp
-This is the symmetrical operation for pull. It moves changes from
-the current repository to a different one. If the destination is
-local this is identical to a pull in that directory from the
-current one.
+This operation is symmetrical to pull: it is identical to a pull
+in the destination repository from the current one.
 .sp
-By default, push will refuse to run if it detects the result would
-increase the number of remote heads. This generally indicates the
-user forgot to pull and merge before pushing.
+By default, push will not allow creation of new heads at the
+destination, since multiple heads would make it unclear which head
+to use. In this situation, it is recommended to pull and merge
+before pushing.
 .sp
-If \-r/\-\-rev is used, the named revision and all its ancestors will
-be pushed to the remote repository.
+Use \-f/\-\-force to override the default behavior and push all
+changesets on all branches.
+.sp
+If \-r/\-\-rev is used, the specified revision and all its ancestors
+will be pushed to the remote repository.
 .sp
 Please see \(aqhg help urls\(aq for important details about \fBssh://\fP
 URLs. If DESTINATION is omitted, a default path will be used.
@@ -2091,7 +2094,16 @@ Print the root directory of the current repository.
 .TP
 .B \fBserve [OPTION]...\fP
 .sp
-Start a local HTTP repository browser and pull server.
+Start a local HTTP repository browser and pull server. You can use
+this for ad\-hoc sharing and browing of repositories. It is
+recommended to use a real web server to serve a repository for
+longer periods of time.
+.sp
+Please note that the server does not implement access control.
+This means that, by default, anybody can read from the server and
+nobody can write to it by default. Set the \fBweb.allow_push\fP
+option to \fB*\fP to allow everybody to push to the server. You
+should use a real web server if you need to authenticate users.
 .sp
 By default, the server logs accesses to stdout and errors to
 stderr. Use the \-A/\-\-accesslog and \-E/\-\-errorlog options to log to
@@ -3345,6 +3357,10 @@ colorize output from some commands
 .B convert
 .
 import revisions from foreign VCS repositories into Mercurial
+.TP
+.B eol
+.
+automatically manage newlines in repository files
 .TP
 .B extdiff
 .
