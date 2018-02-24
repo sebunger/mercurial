@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.5: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.6: http://docutils.sourceforge.net/" />
 <title>hgignore</title>
 <meta name="author" content="Vadim Gelfer &lt;vadim.gelfer&#64;gmail.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -29,7 +29,7 @@
 </table>
 <div class="section" id="synopsis">
 <h1>Synopsis</h1>
-<p>The Mercurial system uses a file called <tt class="docutils literal"><span class="pre">.hgignore</span></tt> in the root
+<p>The Mercurial system uses a file called <tt class="docutils literal">.hgignore</tt> in the root
 directory of a repository to control its behavior when it searches
 for files that it is not currently tracking.</p>
 </div>
@@ -38,16 +38,16 @@ for files that it is not currently tracking.</p>
 <p>The working directory of a Mercurial repository will often contain
 files that should not be tracked by Mercurial. These include backup
 files created by editors and build products created by compilers.
-These files can be ignored by listing them in a <tt class="docutils literal"><span class="pre">.hgignore</span></tt> file in
-the root of the working directory. The <tt class="docutils literal"><span class="pre">.hgignore</span></tt> file must be
+These files can be ignored by listing them in a <tt class="docutils literal">.hgignore</tt> file in
+the root of the working directory. The <tt class="docutils literal">.hgignore</tt> file must be
 created manually. It is typically put under version control, so that
 the settings will propagate to other repositories with push and pull.</p>
 <p>An untracked file is ignored if its path relative to the repository
 root directory, or any prefix path of that path, is matched against
-any pattern in <tt class="docutils literal"><span class="pre">.hgignore</span></tt>.</p>
-<p>For example, say we have an untracked file, <tt class="docutils literal"><span class="pre">file.c</span></tt>, at
-<tt class="docutils literal"><span class="pre">a/b/file.c</span></tt> inside our repository. Mercurial will ignore <tt class="docutils literal"><span class="pre">file.c</span></tt>
-if any pattern in <tt class="docutils literal"><span class="pre">.hgignore</span></tt> matches <tt class="docutils literal"><span class="pre">a/b/file.c</span></tt>, <tt class="docutils literal"><span class="pre">a/b</span></tt> or <tt class="docutils literal"><span class="pre">a</span></tt>.</p>
+any pattern in <tt class="docutils literal">.hgignore</tt>.</p>
+<p>For example, say we have an untracked file, <tt class="docutils literal">file.c</tt>, at
+<tt class="docutils literal">a/b/file.c</tt> inside our repository. Mercurial will ignore <tt class="docutils literal">file.c</tt>
+if any pattern in <tt class="docutils literal">.hgignore</tt> matches <tt class="docutils literal">a/b/file.c</tt>, <tt class="docutils literal">a/b</tt> or <tt class="docutils literal">a</tt>.</p>
 <p>In addition, a Mercurial configuration file can reference a set of
 per-user or global ignore files. See the <a class="reference external" href="hgrc.5.html"><strong>hgrc</strong>(5)</a> man page for details
 of how to configure these files. Look for the &quot;ignore&quot; entry in the
@@ -58,8 +58,8 @@ of how to configure these files. Look for the &quot;ignore&quot; entry in the
 <div class="section" id="syntax">
 <h1>Syntax</h1>
 <p>An ignore file is a plain text file consisting of a list of patterns,
-with one pattern per line. Empty lines are skipped. The <tt class="docutils literal"><span class="pre">#</span></tt>
-character is treated as a comment character, and the <tt class="docutils literal"><span class="pre">\</span></tt> character
+with one pattern per line. Empty lines are skipped. The <tt class="docutils literal">#</tt>
+character is treated as a comment character, and the <tt class="docutils literal">\</tt> character
 is treated as an escape character.</p>
 <p>Mercurial supports several pattern syntaxes. The default syntax used
 is Python/Perl-style regular expressions.</p>
@@ -67,19 +67,19 @@ is Python/Perl-style regular expressions.</p>
 <pre class="literal-block">
 syntax: NAME
 </pre>
-<p>where <tt class="docutils literal"><span class="pre">NAME</span></tt> is one of the following:</p>
+<p>where <tt class="docutils literal">NAME</tt> is one of the following:</p>
 <dl class="docutils">
-<dt><tt class="docutils literal"><span class="pre">regexp</span></tt></dt>
+<dt><tt class="docutils literal">regexp</tt></dt>
 <dd>Regular expression, Python/Perl syntax.</dd>
-<dt><tt class="docutils literal"><span class="pre">glob</span></tt></dt>
+<dt><tt class="docutils literal">glob</tt></dt>
 <dd>Shell-style glob.</dd>
 </dl>
 <p>The chosen syntax stays in effect when parsing all patterns that
 follow, until another syntax is selected.</p>
 <p>Neither glob nor regexp patterns are rooted. A glob-syntax pattern of
-the form <tt class="docutils literal"><span class="pre">*.c</span></tt> will match a file ending in <tt class="docutils literal"><span class="pre">.c</span></tt> in any directory,
-and a regexp pattern of the form <tt class="docutils literal"><span class="pre">\.c$</span></tt> will do the same. To root a
-regexp pattern, start it with <tt class="docutils literal"><span class="pre">^</span></tt>.</p>
+the form <tt class="docutils literal">*.c</tt> will match a file ending in <tt class="docutils literal">.c</tt> in any directory,
+and a regexp pattern of the form <tt class="docutils literal">\.c$</tt> will do the same. To root a
+regexp pattern, start it with <tt class="docutils literal">^</tt>.</p>
 </div>
 <div class="section" id="example">
 <h1>Example</h1>

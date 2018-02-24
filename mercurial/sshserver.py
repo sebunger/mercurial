@@ -8,12 +8,12 @@
 
 from i18n import _
 from node import bin, hex
-import streamclone, util, hook
+import streamclone, util, hook, pushkey
 import os, sys, tempfile, urllib, copy
 
 class sshserver(object):
 
-    caps = 'unbundle lookup changegroupsubset branchmap'.split()
+    caps = 'unbundle lookup changegroupsubset branchmap pushkey'.split()
 
     def __init__(self, ui, repo):
         self.ui = ui
@@ -161,7 +161,8 @@ class sshserver(object):
             return
 
         self.respond("")
-        r = self.repo.addchangegroup(self.fin, 'serve', self.client_url())
+        r = self.repo.addchangegroup(self.fin, 'serve', self.client_url(),
+                                     lock=self.lock)
         self.respond(str(r))
 
     def client_url(self):
@@ -205,7 +206,8 @@ class sshserver(object):
                 # push can proceed
 
                 fp.seek(0)
-                r = self.repo.addchangegroup(fp, 'serve', self.client_url())
+                r = self.repo.addchangegroup(fp, 'serve', self.client_url(),
+                                             lock=self.lock)
                 self.respond(str(r))
             finally:
                 if not was_locked:
@@ -223,3 +225,18 @@ class sshserver(object):
         except streamclone.StreamException, inst:
             self.fout.write(str(inst))
             self.fout.flush()
+
+    def do_pushkey(self):
+        arg, key = self.getarg()
+        arg, namespace = self.getarg()
+        arg, new = self.getarg()
+        arg, old = self.getarg()
+        r = pushkey.push(self.repo, namespace, key, old, new)
+        self.respond('%s\n' % int(r))
+
+    def do_listkeys(self):
+        arg, namespace = self.getarg()
+        d = pushkey.list(self.repo, namespace).items()
+        t = '\n'.join(['%s\t%s' % (k.encode('string-escape'),
+                                   v.encode('string-escape')) for k, v in d])
+        self.respond(t)
