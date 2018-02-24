@@ -740,7 +740,11 @@ def node_(repo, subset, x):
     if len(n) == 40:
         rn = repo[n].rev()
     else:
-        rn = repo.changelog.rev(repo.changelog._partialmatch(n))
+        rn = None
+        pm = repo.changelog._partialmatch(n)
+        if pm is not None:
+            rn = repo.changelog.rev(pm)
+
     return [r for r in subset if r == rn]
 
 def outgoing(repo, subset, x):
@@ -841,6 +845,10 @@ def present(repo, subset, x):
     """``present(set)``
     An empty set, if any revision in set isn't found; otherwise,
     all revisions in set.
+
+    If any of specified revisions is not present in the local repository,
+    the query is normally aborted. But this predicate allows the query
+    to continue even in such cases.
     """
     try:
         return getset(repo, subset, x)
@@ -926,7 +934,7 @@ def matching(repo, subset, x):
 
     Special fields are ``summary`` and ``metadata``:
     ``summary`` matches the first line of the description.
-    ``metatadata`` is equivalent to matching ``description user date``
+    ``metadata`` is equivalent to matching ``description user date``
     (i.e. it matches the main metadata fields).
 
     ``metadata`` is the default field which is used when no fields are
@@ -996,7 +1004,7 @@ def matching(repo, subset, x):
     # is only one field to match)
     getinfo = lambda r: [f(r) for f in getfieldfuncs]
 
-    matches = []
+    matches = set()
     for rev in revs:
         target = getinfo(rev)
         for r in subset:
@@ -1006,10 +1014,8 @@ def matching(repo, subset, x):
                     match = False
                     break
             if match:
-                matches.append(r)
-    if len(revs) > 1:
-        matches = sorted(set(matches))
-    return matches
+                matches.add(r)
+    return [r for r in subset if r in matches]
 
 def reverse(repo, subset, x):
     """``reverse(set)``
@@ -1277,6 +1283,27 @@ def optimize(x, small):
         return w + wa, (op, x[1], ta)
     return 1, x
 
+_aliasarg = ('func', ('symbol', '_aliasarg'))
+def _getaliasarg(tree):
+    """If tree matches ('func', ('symbol', '_aliasarg'), ('string', X))
+    return X, None otherwise.
+    """
+    if (len(tree) == 3 and tree[:2] == _aliasarg
+        and tree[2][0] == 'string'):
+        return tree[2][1]
+    return None
+
+def _checkaliasarg(tree, known=None):
+    """Check tree contains no _aliasarg construct or only ones which
+    value is in known. Used to avoid alias placeholders injection.
+    """
+    if isinstance(tree, tuple):
+        arg = _getaliasarg(tree)
+        if arg is not None and (not known or arg not in known):
+            raise error.ParseError(_("not a function: %s") % '_aliasarg')
+        for t in tree:
+            _checkaliasarg(t, known)
+
 class revsetalias(object):
     funcre = re.compile('^([^(]+)\(([^)]+)\)$')
     args = None
@@ -1293,7 +1320,9 @@ class revsetalias(object):
             self.tree = ('func', ('symbol', m.group(1)))
             self.args = [x.strip() for x in m.group(2).split(',')]
             for arg in self.args:
-                value = value.replace(arg, repr(arg))
+                # _aliasarg() is an unknown symbol only used separate
+                # alias argument placeholders from regular strings.
+                value = value.replace(arg, '_aliasarg(%r)' % (arg,))
         else:
             self.name = name
             self.tree = ('symbol', name)
@@ -1301,6 +1330,8 @@ class revsetalias(object):
         self.replacement, pos = parse(value)
         if pos != len(value):
             raise error.ParseError(_('invalid token'), pos)
+        # Check for placeholder injection
+        _checkaliasarg(self.replacement, self.args)
 
 def _getalias(aliases, tree):
     """If tree looks like an unexpanded alias, return it. Return None
@@ -1321,13 +1352,14 @@ def _getalias(aliases, tree):
     return None
 
 def _expandargs(tree, args):
-    """Replace all occurences of ('string', name) with the
-    substitution value of the same name in args, recursively.
+    """Replace _aliasarg instances with the substitution value of the
+    same name in args, recursively.
     """
-    if not isinstance(tree, tuple):
+    if not tree or not isinstance(tree, tuple):
         return tree
-    if len(tree) == 2 and tree[0] == 'string':
-        return args.get(tree[1], tree)
+    arg = _getaliasarg(tree)
+    if arg is not None:
+        return args[arg]
     return tuple(_expandargs(t, args) for t in tree)
 
 def _expandaliases(aliases, tree, expanding):
@@ -1345,22 +1377,22 @@ def _expandaliases(aliases, tree, expanding):
             raise error.ParseError(_('infinite expansion of revset alias "%s" '
                                      'detected') % alias.name)
         expanding.append(alias)
-        result = alias.replacement
+        result = _expandaliases(aliases, alias.replacement, expanding)
+        expanding.pop()
         if alias.args is not None:
             l = getlist(tree[2])
             if len(l) != len(alias.args):
                 raise error.ParseError(
                     _('invalid number of arguments: %s') % len(l))
+            l = [_expandaliases(aliases, a, []) for a in l]
             result = _expandargs(result, dict(zip(alias.args, l)))
-        # Recurse in place, the base expression may have been rewritten
-        result = _expandaliases(aliases, result, expanding)
-        expanding.pop()
     else:
         result = tuple(_expandaliases(aliases, t, expanding)
                        for t in tree)
     return result
 
 def findaliases(ui, tree):
+    _checkaliasarg(tree)
     aliases = {}
     for k, v in ui.configitems('revsetalias'):
         alias = revsetalias(k, v)

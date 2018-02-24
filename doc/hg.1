@@ -199,6 +199,8 @@ option takes a percentage between 0 (disabled) and 100 (files must
 be identical) as its parameter. Detecting renamed files this way
 can be expensive. After using this option, \%\fBhg status \-C\fP\: can be
 used to check which files were identified as moved or renamed.
+If this option is not specified, only renames of identical files
+are detected.
 .sp
 Returns 0 if all files are successfully added.
 .sp
@@ -5679,7 +5681,7 @@ Note that \fBauthor\fP and \fBuser\fP are synonyms.
 .sp
 Special fields are \fBsummary\fP and \fBmetadata\fP:
 \fBsummary\fP matches the first line of the description.
-\fBmetatadata\fP is equivalent to matching \fBdescription user date\fP
+\fBmetadata\fP is equivalent to matching \fBdescription user date\fP
 (i.e. it matches the main metadata fields).
 .sp
 \fBmetadata\fP is the default field which is used when no fields are
@@ -5722,6 +5724,10 @@ The set of all parents for all changesets in set, or the working directory.
 .sp
 An empty set, if any revision in set isn\(aqt found; otherwise,
 all revisions in set.
+.sp
+If any of specified revisions is not present in the local repository,
+the query is normally aborted. But this predicate allows the query
+to continue even in such cases.
 .TP
 .B \fBpublic()\fP
 .sp
@@ -7824,11 +7830,11 @@ exclude names matching the given patterns
 .sp
 http authentication with factotum
 .sp
-This extension allows the factotum facility on Plan 9 from Bell Labs platforms
-to provide authentication information for HTTP access. Configuration entries
-specified in the auth section as well as authentication information provided
-in the repository URL are fully supported. If no prefix is specified, a value
-of \fB*\fP will be assumed.
+This extension allows the factotum(4) facility on Plan 9 from Bell Labs
+platforms to provide authentication information for HTTP access. Configuration
+entries specified in the auth section as well as authentication information
+provided in the repository URL are fully supported. If no prefix is specified,
+a value of "*" will be assumed.
 .sp
 By default, keys are specified as:
 .sp
@@ -8976,6 +8982,10 @@ Options:
 .B \-f,  \-\-force
 .
 overwrite any local changes
+.TP
+.B \-\-no\-backup
+.
+do not save backup copies of files
 .UNINDENT
 .SS qguard
 .sp
@@ -9243,6 +9253,10 @@ queue name to pop (DEPRECATED)
 .B \-f,  \-\-force
 .
 forget any local changes to patched files
+.TP
+.B \-\-no\-backup
+.
+do not save backup copies of files
 .UNINDENT
 .SS qprev
 .sp
@@ -9304,6 +9318,10 @@ merge queue name (DEPRECATED)
 .B \-\-move
 .
 reorder patch series and apply only the patch
+.TP
+.B \-\-no\-backup
+.
+do not save backup copies of files
 .UNINDENT
 .SS qqueue
 .sp
@@ -9856,16 +9874,6 @@ pager = less \-FRSX
 .sp
 If no pager is set, the pager extensions uses the environment variable
 $PAGER. If neither pager.pager, nor $PAGER is set, no pager is used.
-.sp
-If you notice "BROKEN PIPE" error messages, you can disable them by
-setting:
-.sp
-.nf
-.ft C
-[pager]
-quiet = True
-.ft P
-.fi
 .sp
 You can disable the pager for certain commands by adding them to the
 pager.ignore list:

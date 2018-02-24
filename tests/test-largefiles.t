@@ -65,6 +65,21 @@ Commit preserved largefile contents.
   $ cat sub/large2
   large22
 
+Test status, subdir and unknown files
+
+  $ echo unknown > sub/unknown
+  $ hg st --all
+  ? sub/unknown
+  C large1
+  C normal1
+  C sub/large2
+  C sub/normal2
+  $ hg st --all sub
+  ? sub/unknown
+  C sub/large2
+  C sub/normal2
+  $ rm sub/unknown
+
 Remove both largefiles and normal files.
  
   $ hg remove normal1 large1
@@ -936,6 +951,31 @@ Corrupt the cached largefile in r7
   abort: remotestore: could not put $TESTTMP/r7/.hg/largefiles/4cdac4d8b084d0b599525cf732437fb337d422a8 to remote store http://localhost:$HGPORT1/
   [255]
   $ rm -rf empty
+
+Push a largefiles repository to a served empty repository
+  $ hg init r8
+  $ echo c3 > r8/f1
+  $ hg add --large r8/f1 -R r8
+  $ hg commit -m "m1" -R r8
+  Invoking status precommit hook
+  A f1
+  $ hg init empty
+  $ hg serve -R empty -d -p $HGPORT2 --pid-file hg.pid \
+  >   --config 'web.allow_push=*' --config web.push_ssl=False
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ rm ${USERCACHE}/*
+  $ hg push -R r8 http://localhost:$HGPORT2
+  pushing to http://localhost:$HGPORT2/
+  searching for changes
+  searching for changes
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 1 changesets with 1 changes to 1 files
+  $ rm -rf empty
+
+used all HGPORTs, kill all daemons
+  $ "$TESTDIR/killdaemons.py"
 
 Clone a local repository owned by another user
 We have to simulate that here by setting $HOME and removing write permissions
