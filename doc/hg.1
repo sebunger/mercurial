@@ -492,6 +492,10 @@ parent to choose when backing out merge (DEPRECATED)
 .
 revision to backout
 .TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
+.TP
 .BI \-t,  \-\-tool \ <VALUE>
 .
 specify merge tool
@@ -694,7 +698,7 @@ do not update to target
 .UNINDENT
 .SS bookmarks
 .sp
-track a line of development with movable markers:
+create a new bookmark or list existing bookmarks:
 .sp
 .nf
 .ft C
@@ -702,29 +706,63 @@ hg bookmarks [OPTIONS]... [NAME]...
 .ft P
 .fi
 .sp
-Bookmarks are pointers to certain commits that move when committing.
-Bookmarks are local. They can be renamed, copied and deleted. It is
-possible to use \%\fBhg merge NAME\fP\: to merge from a given bookmark, and
-\%\fBhg update NAME\fP\: to update to a given bookmark.
+Bookmarks are labels on changesets to help track lines of development.
+Bookmarks are unversioned and can be moved, renamed and deleted.
+Deleting or moving a bookmark has no effect on the associated changesets.
 .sp
-You can use \%\fBhg bookmark NAME\fP\: to set a bookmark on the working
-directory\(aqs parent revision with the given name. If you specify
-a revision using \-r REV (where REV may be an existing bookmark),
-the bookmark is assigned to that revision.
+Creating or updating to a bookmark causes it to be marked as \(aqactive\(aq.
+Active bookmarks are indicated with a \(aq*\(aq.
+When a commit is made, an active bookmark will advance to the new commit.
+A plain \%\fBhg update\fP\: will also advance an active bookmark, if possible.
+Updating away from a bookmark will cause it to be deactivated.
 .sp
-Bookmarks can be pushed and pulled between repositories (see \%\fBhg help
-push\fP\: and \%\fBhg help pull\fP\:). This requires both the local and remote
-repositories to support bookmarks. For versions prior to 1.8, this means
-the bookmarks extension must be enabled.
+Bookmarks can be pushed and pulled between repositories (see
+\%\fBhg help push\fP\: and \%\fBhg help pull\fP\:). If a shared bookmark has
+diverged, a new \(aqdivergent bookmark\(aq of the form \%\(aqname@path\:\(aq will
+be created. Using :hg:\(aqmerge\(aq will resolve the divergence.
 .sp
-If you set a bookmark called \(aq@\(aq, new clones of the repository will
-have that revision checked out (and the bookmark made active) by
-default.
+A bookmark named \(aq@\(aq has the special property that \%\fBhg clone\fP\: will
+check it out by default if it exists.
 .sp
-With \-i/\-\-inactive, the new bookmark will not be made the active
-bookmark. If \-r/\-\-rev is given, the new bookmark will not be made
-active even if \-i/\-\-inactive is not given. If no NAME is given, the
-current active bookmark will be marked inactive.
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+create an active bookmark for a new line of development:
+.sp
+.nf
+.ft C
+hg book new\-feature
+.ft P
+.fi
+.IP \(bu 2
+.
+create an inactive bookmark as a place marker:
+.sp
+.nf
+.ft C
+hg book \-i reviewed
+.ft P
+.fi
+.IP \(bu 2
+.
+create an inactive bookmark on another changeset:
+.sp
+.nf
+.ft C
+hg book \-r .^ tested
+.ft P
+.fi
+.IP \(bu 2
+.
+move the \(aq@\(aq bookmark from another branch:
+.sp
+.nf
+.ft C
+hg book \-f @
+.ft P
+.fi
+.UNINDENT
 .sp
 Options:
 .INDENT 0.0
@@ -1243,7 +1281,7 @@ use the secret phase for committing
 .TP
 .B \-e,  \-\-edit
 .
-further edit commit message already specified
+invoke editor on commit messages
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -1812,6 +1850,9 @@ hg log \-\-debug \-r .
 .fi
 .UNINDENT
 .sp
+See \%\fBhg help revisions\fP\: and \%\fBhg help revsets\fP\: for more about
+specifying revisions.
+.sp
 Returns 0 on successful completion.
 .sp
 Options:
@@ -2164,6 +2205,16 @@ revision.
 With \-s/\-\-similarity, hg will attempt to discover renames and
 copies in the patch in the same way as \%\fBhg addremove\fP\:.
 .sp
+Use \-\-partial to ensure a changeset will be created from the patch
+even if some hunks fail to apply. Hunks that fail to apply will be
+written to a <target\-file>.rej file. Conflicts can then be resolved
+by hand before \%\fBhg commit \-\-amend\fP\: is run to update the created
+changeset. This flag exists to let people import patches that
+partially apply without losing the associated metadata (author,
+date, description, ...). Note that when none of the hunk applies
+cleanly, \%\fBhg import \-\-partial\fP\: will create an empty changeset,
+importing only the patch metadata.
+.sp
 To read a patch from standard input, use "\-" as the patch name. If
 a URL is specified, the patch will be downloaded from it.
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
@@ -2209,7 +2260,7 @@ hg import \-\-exact proposed\-fix.patch
 .fi
 .UNINDENT
 .sp
-Returns 0 on success.
+Returns 0 on success, 1 on partial success (see \-\-partial).
 .sp
 Options:
 .INDENT 0.0
@@ -2237,6 +2288,10 @@ don\(aqt commit, just update the working directory
 .B \-\-bypass
 .
 apply patch without touching the working directory
+.TP
+.B \-\-partial
+.
+commit even if some hunks fail
 .TP
 .B \-\-exact
 .
@@ -2592,6 +2647,15 @@ all revision numbers that match a keyword:
 .nf
 .ft C
 hg log \-k bug \-\-template "{rev}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+list available log templates:
+.sp
+.nf
+.ft C
+hg log \-T list
 .ft P
 .fi
 .IP \(bu 2
@@ -3956,11 +4020,11 @@ remove a tag
 .TP
 .B \-e,  \-\-edit
 .
-edit commit message
+invoke editor on commit messages
 .TP
 .BI \-m,  \-\-message \ <TEXT>
 .
-use <text> as commit message
+use text as commit message
 .TP
 .BI \-d,  \-\-date \ <DATE>
 .
@@ -4126,6 +4190,10 @@ tipmost revision matching date
 .BI \-r,  \-\-rev \ <REV>
 .
 revision
+.TP
+.BI \-t,  \-\-tool \ <VALUE>
+.
+specify merge tool
 .sp
 aliases: up checkout co
 .UNINDENT
@@ -5536,6 +5604,10 @@ Uses the other version of files as the merged version.
 .sp
 Asks the user which of the local or the other version to keep as
 the merged version.
+.TP
+.B \fBinternal:tagmerge\fP
+.sp
+Uses the internal tag merge algorithm (experimental).
 .UNINDENT
 .sp
 Internal tools are always available and do not require a GUI but will by default
@@ -6597,21 +6669,18 @@ hgrc(5) for more details.
 .SH TEMPLATE USAGE
 .sp
 Mercurial allows you to customize output of commands through
-templates. You can either pass in a template from the command
-line, via the \-\-template option, or select an existing
-template\-style (\-\-style).
+templates. You can either pass in a template or select an existing
+template\-style from the command line, via the \-\-template option.
 .sp
 You can customize output for any "log\-like" command: log,
-outgoing, incoming, tip, parents, heads and glog.
+outgoing, incoming, tip, parents, and heads.
 .sp
-Five styles are packaged with Mercurial: default (the style used
-when no explicit preference is passed), compact, changelog, phases
-and xml.
-Usage:
+Some built\-in styles are packaged with Mercurial. These can be listed
+with \%\fBhg log \-\-template list\fP\:. Example usage:
 .sp
 .nf
 .ft C
-$ hg log \-r1 \-\-style changelog
+$ hg log \-r1.0::1.1 \-\-template changelog
 .ft P
 .fi
 .sp
@@ -6651,6 +6720,11 @@ committed.
 .B children
 .
 List of strings. The children of the changeset.
+.TP
+.B currentbookmark
+.
+String. The active bookmark, if it is
+associated with the changeset
 .TP
 .B date
 .
@@ -6750,6 +6824,10 @@ Integer. The changeset phase index.
 .B rev
 .
 Integer. The repository\-local changeset revision number.
+.TP
+.B subrepos
+.
+List of strings. Updated subrepositories in the changeset.
 .TP
 .B tags
 .
@@ -6893,6 +6971,10 @@ is not a valid bisection status.
 .
 Date. Returns a date like "2006\-09\-18".
 .TP
+.B splitlines
+.
+Any text. Split text into a list of lines.
+.TP
 .B stringify
 .
 Any type. Turns the value into text by converting values into
@@ -6963,10 +7045,16 @@ rstdoc(text, style)
 shortest(node)
 .IP \(bu 2
 .
+startswith(string, text)
+.IP \(bu 2
+.
 strip(text[, chars])
 .IP \(bu 2
 .
 sub(pat, repl, expr)
+.IP \(bu 2
+.
+word(number, text[, separator])
 .UNINDENT
 .sp
 Also, for any expression that returns a list, there is a list operator:
@@ -6994,6 +7082,15 @@ Join the list of files with a ", ":
 .nf
 .ft C
 $ hg log \-r 0 \-\-template "files: {join(files, \(aq, \(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Modify each line of a commit description:
+.sp
+.nf
+.ft C
+$ hg log \-\-template "{splitlines(desc) % \(aq**** {line}\en\(aq}"
 .ft P
 .fi
 .IP \(bu 2
@@ -7076,6 +7173,24 @@ Mark the working copy parent with \(aq@\(aq:
 .nf
 .ft C
 $ hg log \-\-template "{ifcontains(rev, revset(\(aq.\(aq), \(aq@\(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Show only commit descriptions that start with "template":
+.sp
+.nf
+.ft C
+$ hg log \-\-template "{startswith(\e"template\e", firstline(desc))}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Print the first word of each line of a commit message:
+.sp
+.nf
+.ft C
+$ hg log \-\-template "{word(\e"0\e", desc)}\en"
 .ft P
 .fi
 .UNINDENT
@@ -7728,7 +7843,7 @@ are sent to the Bugzilla email address
 bzurl=http://my\-project.org/bugzilla
 user=bugmail@my\-project.org
 password=plugh
-version=xmlrpc
+version=xmlrpc+email
 bzemail=bugzilla@my\-project.org
 template=Changeset {node|short} in {root|basename}.
          {hgweb}/{webroot}/rev/{node|short}\en
@@ -8753,7 +8868,7 @@ a specific revision you would like to pull
 .TP
 .B \-e,  \-\-edit
 .
-edit commit message
+invoke editor on commit messages
 .TP
 .B \-\-force\-editor
 .
@@ -8844,7 +8959,11 @@ the key id to sign with
 .TP
 .BI \-m,  \-\-message \ <TEXT>
 .
-commit message
+use text as commit message
+.TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
 .TP
 .BI \-d,  \-\-date \ <DATE>
 .
@@ -9937,7 +10056,7 @@ use the secret phase for committing
 .TP
 .B \-e,  \-\-edit
 .
-further edit commit message already specified
+invoke editor on commit messages
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -10145,7 +10264,7 @@ Options:
 .TP
 .B \-e,  \-\-edit
 .
-edit patch header
+invoke editor on commit messages
 .TP
 .B \-k,  \-\-keep
 .
@@ -10378,7 +10497,7 @@ Options:
 .TP
 .B \-e,  \-\-edit
 .
-edit commit message
+invoke editor on commit messages
 .TP
 .B \-f,  \-\-force
 .
@@ -10648,7 +10767,7 @@ Options:
 .TP
 .B \-e,  \-\-edit
 .
-edit commit message
+invoke editor on commit messages
 .TP
 .B \-g,  \-\-git
 .
@@ -11125,6 +11244,17 @@ paged.
 .sp
 If pager.attend is present, pager.ignore will be ignored.
 .sp
+Lastly, you can enable and disable paging for individual commands with
+the attend\-<command> option. This setting takes precedence over
+existing attend and ignore options and defaults:
+.sp
+.nf
+.ft C
+[pager]
+attend\-cat = false
+.ft P
+.fi
+.sp
 To ignore global commands like \%\fBhg version\fP\: or \%\fBhg help\fP\:, you have
 to specify them in your user configuration file.
 .sp
@@ -11444,7 +11574,7 @@ hg purge [OPTION]... [DIR]...
 Delete files not known to Mercurial. This is useful to test local
 and uncommitted changes in an otherwise\-clean source tree.
 .sp
-This means that purge will delete:
+This means that purge will delete the following by default:
 .INDENT 0.0
 .IP \(bu 2
 .
@@ -11468,6 +11598,10 @@ Ignored files (unless \-\-all is specified)
 New files added to the repository (with \%\fBhg add\fP\:)
 .UNINDENT
 .sp
+The \-\-files and \-\-dirs options can be used to direct purge to delete
+only files, only directories, or both. If neither option is given,
+both will be deleted.
+.sp
 If directories are given on the command line, only files in these
 directories are considered.
 .sp
@@ -11486,6 +11620,14 @@ abort if an error occurs
 .B \-\-all
 .
 purge ignored files too
+.TP
+.B \-\-dirs
+.
+purge empty directories
+.TP
+.B \-\-files
+.
+purge files
 .TP
 .B \-p,  \-\-print
 .
@@ -11730,7 +11872,7 @@ use the secret phase for committing
 .TP
 .B \-e,  \-\-edit
 .
-further edit commit message already specified
+invoke editor on commit messages
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -11978,6 +12120,10 @@ shelve with the specified commit date
 .
 delete the named shelved change(s)
 .TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
+.TP
 .B \-l,  \-\-list
 .
 list current shelves
@@ -12107,10 +12253,6 @@ strip specified revision (optional, can specify revisions without this option)
 .B \-f,  \-\-force
 .
 force removal of changesets, discard uncommitted changes (no backup)
-.TP
-.B \-b,  \-\-backup
-.
-bundle only changesets with local revision number greater than REV which are not descendants of REV (DEPRECATED)
 .TP
 .B \-\-no\-backup
 .

@@ -158,6 +158,7 @@ from mercurial import context
 from mercurial import hg
 from mercurial import node
 from mercurial import repair
+from mercurial import scmutil
 from mercurial import util
 from mercurial import obsolete
 from mercurial import merge as mergemod
@@ -275,7 +276,8 @@ def collapse(repo, first, last, commitopts):
         if path in headmf:
             fctx = last[path]
             flags = fctx.flags()
-            mctx = context.memfilectx(fctx.path(), fctx.data(),
+            mctx = context.memfilectx(repo,
+                                      fctx.path(), fctx.data(),
                                       islink='l' in flags,
                                       isexec='x' in flags,
                                       copied=copied.get(path))
@@ -298,9 +300,8 @@ def collapse(repo, first, last, commitopts):
                          filectxfn=filectxfn,
                          user=user,
                          date=date,
-                         extra=extra)
-    new._text = cmdutil.commitforceeditor(repo, new, [])
-    repo.savecommitmessage(new.description())
+                         extra=extra,
+                         editor=cmdutil.getcommiteditor(edit=True))
     return repo.commitctx(new)
 
 def pick(ui, repo, ctx, ha, opts):
@@ -402,12 +403,11 @@ def message(ui, repo, ctx, ha, opts):
     if stats and stats[3] > 0:
         raise error.InterventionRequired(
             _('Fix up the change and run hg histedit --continue'))
-    message = oldctx.description() + '\n'
-    message = ui.edit(message, ui.username())
-    repo.savecommitmessage(message)
+    message = oldctx.description()
     commit = commitfuncfor(repo, oldctx)
     new = commit(text=message, user=oldctx.user(), date=oldctx.date(),
-                 extra=oldctx.extra())
+                 extra=oldctx.extra(),
+                 editor=cmdutil.getcommiteditor(edit=True))
     newctx = repo[new]
     if oldctx.node() != newctx.node():
         return newctx, [(oldctx.node(), (new,))]
@@ -568,11 +568,11 @@ def _histedit(ui, repo, *freeargs, **opts):
                 remote = None
             root = findoutgoing(ui, repo, remote, force, opts)
         else:
-            rootrevs = list(repo.set('roots(%lr)', revs))
-            if len(rootrevs) != 1:
+            rr = list(repo.set('roots(%ld)', scmutil.revrange(repo, revs)))
+            if len(rr) != 1:
                 raise util.Abort(_('The specified revisions must have '
                     'exactly one common root'))
-            root = rootrevs[0].node()
+            root = rr[0].node()
 
         keep = opts.get('keep', False)
         revs = between(repo, root, topmost, keep)
@@ -682,11 +682,9 @@ def bootstrapcontinue(ui, repo, parentctx, rules, opts):
         if action in ('f', 'fold'):
             message = 'fold-temp-revision %s' % currentnode
         else:
-            message = ctx.description() + '\n'
-        if action in ('e', 'edit', 'm', 'mess'):
-            editor = cmdutil.commitforceeditor
-        else:
-            editor = False
+            message = ctx.description()
+        editopt = action in ('e', 'edit', 'm', 'mess')
+        editor = cmdutil.getcommiteditor(edit=editopt)
         commit = commitfuncfor(repo, ctx)
         new = commit(text=message, user=ctx.user(),
                      date=ctx.date(), extra=ctx.extra(),
@@ -763,7 +761,8 @@ def makedesc(c):
     if c.description():
         summary = c.description().splitlines()[0]
     line = 'pick %s %d %s' % (c, c.rev(), summary)
-    return line[:80]  # trim to 80 chars so it's not stupidly wide in my editor
+    # trim to 80 columns so it's not stupidly wide in my editor
+    return util.ellipsis(line, 80)
 
 def verifyrules(rules, repo, ctxs):
     """Verify that there exists exactly one edit rule per given changeset.
