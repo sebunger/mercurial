@@ -9,7 +9,7 @@ import sys, struct, os
 from revlog import *
 from demandload import *
 demandload(globals(), "re lock urllib urllib2 transaction time socket")
-demandload(globals(), "tempfile byterange difflib")
+demandload(globals(), "tempfile httprangereader difflib")
 
 def is_exec(f):
     return (os.stat(f).st_mode & 0100 != 0)
@@ -34,8 +34,29 @@ class filelog(revlog):
                         os.path.join("data", path + ".d"))
 
     def read(self, node):
-        return self.revision(node)
-    def add(self, text, transaction, link, p1=None, p2=None):
+        t = self.revision(node)
+        if t[:2] != '\1\n':
+            return t
+        s = t.find('\1\n', 2)
+        return t[s+2:]
+
+    def readmeta(self, node):
+        t = self.revision(node)
+        if t[:2] != '\1\n':
+            return t
+        s = t.find('\1\n', 2)
+        mt = t[2:s]
+        for l in mt.splitlines():
+            k, v = l.split(": ", 1)
+            m[k] = v
+        return m
+
+    def add(self, text, meta, transaction, link, p1=None, p2=None):
+        if meta or text[:2] == '\1\n':
+            mt = ""
+            if meta:
+                mt = [ "%s: %s\n" % (k, v) for k,v in meta.items() ]
+            text = "\1\n" + "".join(mt) + "\1\n" + text
         return self.addrevision(text, transaction, link, p1, p2)
 
     def annotate(self, node):
@@ -97,6 +118,7 @@ class manifest(revlog):
         revlog.__init__(self, opener, "00manifest.i", "00manifest.d")
 
     def read(self, node):
+        if node == nullid: return {} # don't upset local cache
         if self.mapcache and self.mapcache[0] == node:
             return self.mapcache[1].copy()
         text = self.revision(node)
@@ -111,7 +133,8 @@ class manifest(revlog):
         return map
 
     def readflags(self, node):
-        if self.mapcache or self.mapcache[0] != node:
+        if node == nullid: return {} # don't upset local cache
+        if not self.mapcache or self.mapcache[0] != node:
             self.read(node)
         return self.mapcache[2]
 
@@ -181,6 +204,7 @@ class dirstate:
         self.ui = ui
         self.map = None
         self.pl = None
+        self.copies = {}
 
     def __del__(self):
         if self.dirty:
@@ -230,8 +254,19 @@ class dirstate:
             l = e[4]
             pos += 17
             f = st[pos:pos + l]
+            if '\0' in f: 
+                f, c = f.split('\0')
+                self.copies[f] = c
             self.map[f] = e[:4]
             pos += l
+
+    def copy(self, source, dest):
+        self.read()
+        self.dirty = 1
+        self.copies[dest] = source
+
+    def copied(self, file):
+        return self.copies.get(file, None)
         
     def update(self, files, state):
         ''' current states:
@@ -269,11 +304,14 @@ class dirstate:
         st = self.opener("dirstate", "w")
         st.write("".join(self.pl))
         for f, e in self.map.items():
+            c = self.copied(f)
+            if c:
+                f = f + "\0" + c
             e = struct.pack(">cllll", e[0], e[1], e[2], e[3], len(f))
             st.write(e + f)
         self.dirty = 0
 
-    def copy(self):
+    def dup(self):
         self.read()
         return self.map.copy()
 
@@ -283,7 +321,7 @@ def opener(base):
     def o(path, mode="r"):
         if p[:7] == "http://":
             f = os.path.join(p, urllib.quote(path))
-            return httprangereader(f)
+            return httprangereader.httprangereader(f)
 
         f = os.path.join(p, path)
 
@@ -332,10 +370,14 @@ class localrepository:
         self.manifest = manifest(self.opener)
         self.changelog = changelog(self.opener)
         self.ignorelist = None
-        self.tags = None
+        self.tagscache = None
+        self.nodetagscache = None
 
         if not self.remote:
             self.dirstate = dirstate(self.opener, ui, self.root)
+            try:
+                self.ui.readconfig(self.opener("hgrc"))
+            except IOError: pass
 
     def ignore(self, f):
         if self.ignorelist is None:
@@ -350,9 +392,10 @@ class localrepository:
             if pat.search(f): return True
         return False
 
-    def lookup(self, key):
-        if self.tags is None:
-            self.tags = {}
+    def tags(self):
+        '''return a mapping of tag to node'''
+        if not self.tagscache: 
+            self.tagscache = {}
             try:
                 # read each head of the tags file, ending with the tip
                 # and add each tag found to the map, with "newer" ones
@@ -363,12 +406,36 @@ class localrepository:
                 for r in h:
                     for l in fl.revision(r).splitlines():
                         if l:
-                            n, k = l.split(" ")
-                            self.tags[k] = bin(n)
+                            n, k = l.split(" ", 1)
+                            self.tagscache[k.strip()] = bin(n)
             except KeyError: pass
-            self.tags['tip'] = self.changelog.tip()
+            self.tagscache['tip'] = self.changelog.tip()
+
+        return self.tagscache
+
+    def tagslist(self):
+        '''return a list of tags ordered by revision'''
+        l = []
+        for t,n in self.tags().items():
+            try:
+                r = self.changelog.rev(n)
+            except:
+                r = -2 # sort to the beginning of the list if unknown
+            l.append((r,t,n))
+        l.sort()
+        return [(t,n) for r,t,n in l]
+
+    def nodetags(self, node):
+        '''return the tags associated with a node'''
+        if not self.nodetagscache:
+            self.nodetagscache = {}
+            for t,n in self.tags().items():
+                self.nodetagscache.setdefault(n,[]).append(t)
+        return self.nodetagscache.get(node, [])
+
+    def lookup(self, key):
         try:
-            return self.tags[key]
+            return self.tags()[key]
         except KeyError:
             return self.changelog.lookup(key)
 
@@ -437,26 +504,30 @@ class localrepository:
         mm = m1.copy()
         mfm = mf1.copy()
         linkrev = self.changelog.count()
+        self.dirstate.setparents(p1, p2)
         for f in files:
             try:
                 t = self.wfile(f).read()
                 tm = is_exec(self.wjoin(f))
                 r = self.file(f)
                 mfm[f] = tm
-                mm[f] = r.add(t, tr, linkrev,
+                mm[f] = r.add(t, {}, tr, linkrev,
                               m1.get(f, nullid), m2.get(f, nullid))
+                self.dirstate.update([f], "n")
             except IOError:
-                del mm[f]
-                del mfm[f]
+                try:
+                    del mm[f]
+                    del mfm[f]
+                    self.dirstate.forget([f])
+                except:
+                    # deleted from p2?
+                    pass
 
         mnode = self.manifest.add(mm, mfm, tr, linkrev, c1[0], c2[0])
         n = self.changelog.add(mnode, files, text, tr, p1, p2, user, date)
         tr.close()
-        self.dirstate.setparents(p1, p2)
-        self.dirstate.clear()
-        self.dirstate.update(files, "n")
 
-    def commit(self, files = None, text = ""):
+    def commit(self, files = None, text = "", user = None, date = None):
         commit = []
         remove = []
         if files:
@@ -500,10 +571,17 @@ class localrepository:
                 self.warn("trouble committing %s!\n" % f)
                 raise
 
+            meta = {}
+            cp = self.dirstate.copied(f)
+            if cp:
+                meta["copy"] = cp
+                meta["copyrev"] = hex(m1.get(cp, m2.get(cp, nullid)))
+                self.ui.debug(" %s: copy %s:%s\n" % (f, cp, meta["copyrev"])) 
+
             r = self.file(f)
             fp1 = m1.get(f, nullid)
             fp2 = m2.get(f, nullid)
-            new[f] = r.add(t, tr, linkrev, fp1, fp2)
+            new[f] = r.add(t, meta, tr, linkrev, fp1, fp2)
 
         # update manifest
         m1.update(new)
@@ -523,7 +601,7 @@ class localrepository:
                 return 1
             text = edittext
 
-        n = self.changelog.add(mn, new, text, tr, p1, p2)
+        n = self.changelog.add(mn, new, text, tr, p1, p2, user, date)
         tr.close()
 
         self.dirstate.setparents(n)
@@ -544,14 +622,14 @@ class localrepository:
             changeset = self.dirstate.parents()[0]
             change = self.changelog.read(changeset)
             mf = self.manifest.read(change[0])
-            dc = self.dirstate.copy()
+            dc = self.dirstate.dup()
 
         def fcmp(fn):
             t1 = self.wfile(fn).read()
             t2 = self.file(fn).revision(mf[fn])
             return cmp(t1, t2)
 
-        for dir, subdirs, files in os.walk(self.root):
+        for dir, subdirs, files in os.walk(path):
             d = dir[len(self.root)+1:]
             if ".hg" in subdirs: subdirs.remove(".hg")
             
@@ -632,6 +710,15 @@ class localrepository:
                 self.ui.warn("%s not tracked!\n" % f)
             else:
                 self.dirstate.update([f], "r")
+
+    def copy(self, source, dest):
+        p = self.wjoin(dest)
+        if not os.path.isfile(dest):
+            self.ui.warn("%s does not exist!\n" % dest)
+        else:
+            if self.dirstate.state(dest) == '?':
+                self.dirstate.update([dest], "a")
+            self.dirstate.copy(source, dest)
 
     def heads(self):
         return self.changelog.heads()
@@ -717,38 +804,50 @@ class localrepository:
         if not unknown:
             self.ui.status("nothing to do!\n")
             return None
-            
+
+        rep = {}
+        reqcnt = 0
+        
         unknown = remote.branches(unknown)
         while unknown:
-            n = unknown.pop(0)
-            seen[n[0]] = 1
-            
-            self.ui.debug("examining %s:%s\n" % (short(n[0]), short(n[1])))
-            if n == nullid: break
-            if n in seenbranch:
-                self.ui.debug("branch already found\n")
-                continue
-            if n[1] and n[1] in m: # do we know the base?
-                self.ui.debug("found incomplete branch %s:%s\n"
-                              % (short(n[0]), short(n[1])))
-                search.append(n) # schedule branch range for scanning
-                seenbranch[n] = 1
-            else:
-                if n[2] in m and n[3] in m:
-                    if n[1] not in fetch:
-                        self.ui.debug("found new changeset %s\n" %
-                                      short(n[1]))
-                        fetch.append(n[1]) # earliest unknown
-                        continue
+            r = []
+            while unknown:
+                n = unknown.pop(0)
+                if n[0] in seen:
+                    continue
 
-                r = []
-                for a in n[2:4]:
-                    if a not in seen: r.append(a)
-                    
-                if r:
-                    self.ui.debug("requesting %s\n" %
-                                " ".join(map(short, r)))
-                    for b in remote.branches(r):
+                self.ui.debug("examining %s:%s\n" % (short(n[0]), short(n[1])))
+                if n[0] == nullid:
+                    break
+                if n in seenbranch:
+                    self.ui.debug("branch already found\n")
+                    continue
+                if n[1] and n[1] in m: # do we know the base?
+                    self.ui.debug("found incomplete branch %s:%s\n"
+                                  % (short(n[0]), short(n[1])))
+                    search.append(n) # schedule branch range for scanning
+                    seenbranch[n] = 1
+                else:
+                    if n[1] not in seen and n[1] not in fetch:
+                        if n[2] in m and n[3] in m:
+                            self.ui.debug("found new changeset %s\n" %
+                                          short(n[1]))
+                            fetch.append(n[1]) # earliest unknown
+                            continue
+
+                    for a in n[2:4]:
+                        if a not in rep:
+                            r.append(a)
+                            rep[a] = 1
+
+                seen[n[0]] = 1
+
+            if r:
+                reqcnt += 1
+                self.ui.debug("request %d: %s\n" %
+                            (reqcnt, " ".join(map(short, r))))
+                for p in range(0, len(r), 10):
+                    for b in remote.branches(r[p:p+10]):
                         self.ui.debug("received %s:%s\n" %
                                       (short(b[0]), short(b[1])))
                         if b[0] not in m and b[0] not in seen:
@@ -756,10 +855,13 @@ class localrepository:
   
         while search:
             n = search.pop(0)
+            reqcnt += 1
             l = remote.between([(n[0], n[1])])[0]
+            l.append(n[1])
             p = n[0]
             f = 1
-            for i in l + [n[1]]:
+            for i in l:
+                self.ui.debug("narrowing %d:%d %s\n" % (f, len(l), short(i)))
                 if i in m:
                     if f <= 2:
                         self.ui.debug("found new branch changeset %s\n" %
@@ -778,6 +880,8 @@ class localrepository:
 
         self.ui.note("adding new changesets starting at " +
                      " ".join([short(f) for f in fetch]) + "\n")
+
+        self.ui.debug("%d total queries\n" % reqcnt)
 
         return remote.changegroup(fetch)
     
@@ -972,8 +1076,11 @@ class localrepository:
                     remove.append(f) # other deleted it
             else:
                 if n == m1.get(f, nullid): # same as parent
-                    self.ui.debug("remote deleted %s\n" % f)
-                    remove.append(f)
+                    if p2 == pa: # going backwards?
+                        self.ui.debug("remote deleted %s\n" % f)
+                        remove.append(f)
+                    else:
+                        self.ui.debug("local created %s, keeping\n" % f)
                 else:
                     self.ui.debug("working dir created %s, keeping\n" % f)
 
@@ -1067,8 +1174,8 @@ class localrepository:
         fl = self.file(fn)
         base = fl.ancestor(my, other)
         a = self.wjoin(fn)
-        b = temp("other", other)
-        c = temp("base", base)
+        b = temp("base", base)
+        c = temp("other", other)
 
         self.ui.note("resolving %s\n" % fn)
         self.ui.debug("file %s: other %s ancestor %s\n" %
@@ -1222,6 +1329,36 @@ class remoterepository:
     def __init__(self, ui, path):
         self.url = path
         self.ui = ui
+        no_list = [ "localhost", "127.0.0.1" ]
+        host = ui.config("http_proxy", "host")
+        user = ui.config("http_proxy", "user")
+        passwd = ui.config("http_proxy", "passwd")
+        no = ui.config("http_proxy", "no")
+        if no:
+            no_list = no_list + no.split(",")
+            
+        no_proxy = 0
+        for h in no_list:
+            if (path.startswith("http://" + h + "/") or
+                path.startswith("http://" + h + ":") or
+                path == "http://" + h):
+                no_proxy = 1
+
+        # Note: urllib2 takes proxy values from the environment and those will
+        # take precedence
+
+        proxy_handler = urllib2.BaseHandler()
+        if host and not no_proxy:
+            proxy_handler = urllib2.ProxyHandler({"http" : "http://" + host})
+
+        authinfo = None
+        if user and passwd:
+            passmgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            passmgr.add_password(None, host, user, passwd)
+            authinfo = urllib2.ProxyBasicAuthHandler(passmgr)
+
+        opener = urllib2.build_opener(proxy_handler, authinfo)
+        urllib2.install_opener(opener)
 
     def do_cmd(self, cmd, **args):
         self.ui.debug("sending %s command\n" % cmd)
@@ -1229,7 +1366,7 @@ class remoterepository:
         q.update(args)
         qs = urllib.urlencode(q)
         cu = "%s?%s" % (self.url, qs)
-        return urllib.urlopen(cu)
+        return urllib2.urlopen(cu)
 
     def heads(self):
         d = self.do_cmd("heads").read()
@@ -1283,18 +1420,3 @@ def repository(ui, path=None, create=0):
     else:
         return localrepository(ui, path, create)
 
-class httprangereader:
-    def __init__(self, url):
-        self.url = url
-        self.pos = 0
-    def seek(self, pos):
-        self.pos = pos
-    def read(self, bytes=None):
-        opener = urllib2.build_opener(byterange.HTTPRangeHandler())
-        urllib2.install_opener(opener)
-        req = urllib2.Request(self.url)
-        end = ''
-        if bytes: end = self.pos + bytes
-        req.add_header('Range', 'bytes=%d-%s' % (self.pos, end))
-        f = urllib2.urlopen(req)
-        return f.read()
