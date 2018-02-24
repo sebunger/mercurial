@@ -843,7 +843,7 @@ considered closed.</p>
 <h2>branches</h2>
 <p>list repository named branches:</p>
 <pre class="literal-block">
-hg branches [-ac]
+hg branches [-c]
 </pre>
 <p>List the repository's named branches, indicating which ones are
 inactive. If -c/--closed is specified, also list branches which have
@@ -2639,7 +2639,7 @@ is printed. This includes deleted and renamed files.</p>
 <h2>merge</h2>
 <p>merge another revision into working directory:</p>
 <pre class="literal-block">
-hg merge [-P] [-f] [[-r] REV]
+hg merge [-P] [[-r] REV]
 </pre>
 <p>The current working directory is updated with all changes made in
 the requested revision since the last common predecessor revision.</p>
@@ -6325,12 +6325,12 @@ using regular expressions.</td>
 </tbody>
 </table>
 <p>Also, for any expression that returns a list, there is a list operator:</p>
-<ul class="simple">
-<li>expr % &quot;{template}&quot;</li>
-</ul>
-<p>As seen in the above example, &quot;{template}&quot; is interpreted as a template.
-To prevent it from being interpreted, you can use an escape character &quot;{&quot;
-or a raw string prefix, &quot;r'...'&quot;.</p>
+<pre class="literal-block">
+expr % &quot;{template}&quot;
+</pre>
+<p>As seen in the above example, <tt class="docutils literal">{template}</tt> is interpreted as a template.
+To prevent it from being interpreted, you can use an escape character <tt class="docutils literal">\{</tt>
+or a raw string prefix, <tt class="docutils literal"><span class="pre">r'...'</span></tt>.</p>
 <p>Some sample command line templates:</p>
 <ul>
 <li><p class="first">Format lists, e.g. files:</p>
@@ -11236,7 +11236,7 @@ repository. See the command help for details.</p>
 <h4>strip</h4>
 <p>strip changesets and all their descendants from the repository:</p>
 <pre class="literal-block">
-hg strip [-k] [-f] [-n] [-B bookmark] [-r] REV...
+hg strip [-k] [-f] [-B bookmark] [-r] REV...
 </pre>
 <p>The strip command removes the specified changesets and all their
 descendants. If the working directory has uncommitted changes, the

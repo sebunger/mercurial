@@ -2139,9 +2139,15 @@ def getlogrevs(repo, pats, opts):
         # Revset matches can reorder revisions. "A or B" typically returns
         # returns the revision matching A then the revision matching B. Sort
         # again to fix that.
+        fixopts = ['branch', 'only_branch', 'keyword', 'user']
+        oldrevs = revs
         revs = matcher(repo, revs)
         if not opts.get('rev'):
             revs.sort(reverse=True)
+        elif len(pats) > 1 or any(len(opts.get(op, [])) > 1 for op in fixopts):
+            # XXX "A or B" is known to change the order; fix it by filtering
+            # matched set again (issue5100)
+            revs = oldrevs & revs
     if limit is not None:
         limitedrevs = []
         for idx, r in enumerate(revs):
@@ -2846,10 +2852,6 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
     mf = ctx.manifest()
     if node == p2:
         parent = p2
-    if node == parent:
-        pmf = mf
-    else:
-        pmf = None
 
     # need all matching names in dirstate and manifest of target rev,
     # so have to walk both. do not print errors if files exist in one
@@ -2964,11 +2966,7 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
         # in case of merge, files that are actually added can be reported as
         # modified, we need to post process the result
         if p2 != nullid:
-            if pmf is None:
-                # only need parent manifest in the merge case,
-                # so do not read by default
-                pmf = repo[parent].manifest()
-            mergeadd = dsmodified - set(pmf)
+            mergeadd = dsmodified - smf
             dsadded |= mergeadd
             dsmodified -= mergeadd
 

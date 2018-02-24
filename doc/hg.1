@@ -992,7 +992,7 @@ list repository named branches:
 .sp
 .nf
 .ft C
-hg branches [\-ac]
+hg branches [\-c]
 .ft P
 .fi
 .sp
@@ -3273,7 +3273,7 @@ merge another revision into working directory:
 .sp
 .nf
 .ft C
-hg merge [\-P] [\-f] [[\-r] REV]
+hg merge [\-P] [[\-r] REV]
 .ft P
 .fi
 .sp
@@ -8250,15 +8250,16 @@ Return the nth word from a string.
 .UNINDENT
 .sp
 Also, for any expression that returns a list, there is a list operator:
-.INDENT 0.0
-.IP \(bu 2
-.
-expr % "{template}"
-.UNINDENT
 .sp
-As seen in the above example, "{template}" is interpreted as a template.
-To prevent it from being interpreted, you can use an escape character "{"
-or a raw string prefix, "r\(aq...\(aq".
+.nf
+.ft C
+expr % "{template}"
+.ft P
+.fi
+.sp
+As seen in the above example, \fB{template}\fP is interpreted as a template.
+To prevent it from being interpreted, you can use an escape character \fB\e{\fP
+or a raw string prefix, \fBr\(aq...\(aq\fP.
 .sp
 Some sample command line templates:
 .INDENT 0.0
@@ -14167,7 +14168,7 @@ strip changesets and all their descendants from the repository:
 .sp
 .nf
 .ft C
-hg strip [\-k] [\-f] [\-n] [\-B bookmark] [\-r] REV...
+hg strip [\-k] [\-f] [\-B bookmark] [\-r] REV...
 .ft P
 .fi
 .sp
