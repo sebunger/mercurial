@@ -18,8 +18,7 @@ echo "name = test-archive" >> .hg/hgrc
 echo "allowzip = true" >> .hg/hgrc
 echo "allowgz = true" >> .hg/hgrc
 echo "allowbz2 = true" >> .hg/hgrc
-hg serve -p 20059 > /dev/null &
-sleep 1 # wait for server to be started
+hg serve -p 20059 -d --pid-file=hg.pid
 
 TIP=`hg id -v | cut -f1 -d' '`
 QTIP=`hg id -q`
@@ -30,9 +29,10 @@ f = urllib2.urlopen('http://127.0.0.1:20059/?cmd=archive;node=%s;type=%s'
                     % (node, archive))
 sys.stdout.write(f.read())
 EOF
-http_proxy= python getarchive.py "$TIP" gz | tar tzf - | sed "s/$QTIP/TIP/"
-http_proxy= python getarchive.py "$TIP" bz2 | tar tjf - | sed "s/$QTIP/TIP/"
+http_proxy= python getarchive.py "$TIP" gz | gunzip -dc - | tar tf - | sed "s/$QTIP/TIP/"
+http_proxy= python getarchive.py "$TIP" bz2 | bunzip2 -dc - | tar tf - | sed "s/$QTIP/TIP/"
 http_proxy= python getarchive.py "$TIP" zip > archive.zip
 unzip -t archive.zip | sed "s/$QTIP/TIP/"
 
-kill $!
+kill `cat hg.pid`
+sleep 1 # wait for server to scream and die

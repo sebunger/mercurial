@@ -5,25 +5,43 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import os, ConfigParser
+import ConfigParser
 from i18n import gettext as _
 from demandload import *
-demandload(globals(), "re socket sys util")
+demandload(globals(), "errno os re socket sys tempfile util")
 
 class ui(object):
     def __init__(self, verbose=False, debug=False, quiet=False,
-                 interactive=True):
+                 interactive=True, parentui=None):
         self.overlay = {}
-        self.cdata = ConfigParser.SafeConfigParser()
-        self.readconfig(util.rcpath)
+        if parentui is None:
+            # this is the parent of all ui children
+            self.parentui = None
+            self.cdata = ConfigParser.SafeConfigParser()
+            self.readconfig(util.rcpath())
 
-        self.quiet = self.configbool("ui", "quiet")
-        self.verbose = self.configbool("ui", "verbose")
-        self.debugflag = self.configbool("ui", "debug")
-        self.interactive = self.configbool("ui", "interactive", True)
+            self.quiet = self.configbool("ui", "quiet")
+            self.verbose = self.configbool("ui", "verbose")
+            self.debugflag = self.configbool("ui", "debug")
+            self.interactive = self.configbool("ui", "interactive", True)
 
-        self.updateopts(verbose, debug, quiet, interactive)
-        self.diffcache = None
+            self.updateopts(verbose, debug, quiet, interactive)
+            self.diffcache = None
+            self.header = []
+            self.prev_header = []
+        else:
+            # parentui may point to an ui object which is already a child
+            self.parentui = parentui.parentui or parentui
+            parent_cdata = self.parentui.cdata
+            self.cdata = ConfigParser.SafeConfigParser(parent_cdata.defaults())
+            # make interpolation work
+            for section in parent_cdata.sections():
+                self.cdata.add_section(section)
+                for name, value in parent_cdata.items(section, raw=True):
+                    self.cdata.set(section, name, value)
+
+    def __getattr__(self, key):
+        return getattr(self.parentui, key)
 
     def updateopts(self, verbose=False, debug=False, quiet=False,
                  interactive=True):
@@ -32,7 +50,7 @@ class ui(object):
         self.debugflag = (self.debugflag or debug)
         self.interactive = (self.interactive and interactive)
 
-    def readconfig(self, fn):
+    def readconfig(self, fn, root=None):
         if isinstance(fn, basestring):
             fn = [fn]
         for f in fn:
@@ -40,6 +58,12 @@ class ui(object):
                 self.cdata.read(f)
             except ConfigParser.ParsingError, inst:
                 raise util.Abort(_("Failed to parse %s\n%s") % (f, inst))
+        # translate paths relative to root (or home) into absolute paths
+        if root is None:
+            root = os.path.expanduser('~')
+        for name, path in self.configitems("paths"):
+            if path and path.find("://") == -1 and not os.path.isabs(path):
+                self.cdata.set("paths", name, os.path.join(root, path))
 
     def setconfig(self, section, name, val):
         self.overlay[(section, name)] = val
@@ -48,23 +72,44 @@ class ui(object):
         if self.overlay.has_key((section, name)):
             return self.overlay[(section, name)]
         if self.cdata.has_option(section, name):
-            return self.cdata.get(section, name)
-        return default
+            try:
+                return self.cdata.get(section, name)
+            except ConfigParser.InterpolationError, inst:
+                raise util.Abort(_("Error in configuration:\n%s") % inst)
+        if self.parentui is None:
+            return default
+        else:
+            return self.parentui.config(section, name, default)
 
     def configbool(self, section, name, default=False):
         if self.overlay.has_key((section, name)):
             return self.overlay[(section, name)]
         if self.cdata.has_option(section, name):
-            return self.cdata.getboolean(section, name)
-        return default
+            try:
+                return self.cdata.getboolean(section, name)
+            except ConfigParser.InterpolationError, inst:
+                raise util.Abort(_("Error in configuration:\n%s") % inst)
+        if self.parentui is None:
+            return default
+        else:
+            return self.parentui.configbool(section, name, default)
 
     def configitems(self, section):
+        items = {}
+        if self.parentui is not None:
+            items = dict(self.parentui.configitems(section))
         if self.cdata.has_section(section):
-            return self.cdata.items(section)
-        return []
+            try:
+                items.update(dict(self.cdata.items(section)))
+            except ConfigParser.InterpolationError, inst:
+                raise util.Abort(_("Error in configuration:\n%s") % inst)
+        x = items.items()
+        x.sort()
+        return x
 
-    def walkconfig(self):
-        seen = {}
+    def walkconfig(self, seen=None):
+        if seen is None:
+            seen = {}
         for (section, name), value in self.overlay.iteritems():
             yield section, name, value
             seen[section, name] = 1
@@ -73,9 +118,21 @@ class ui(object):
                 if (section, name) in seen: continue
                 yield section, name, value.replace('\n', '\\n')
                 seen[section, name] = 1
+        if self.parentui is not None:
+            for parent in self.parentui.walkconfig(seen):
+                yield parent
 
     def extensions(self):
         return self.configitems("extensions")
+
+    def hgignorefiles(self):
+        result = []
+        cfgitems = self.configitems("ui")
+        for key, value in cfgitems:
+            if key == 'ignore' or key.startswith('ignore.'):
+                path = os.path.expanduser(value)
+                result.append(path)
+        return result
 
     def diffopts(self):
         if self.diffcache:
@@ -95,42 +152,66 @@ class ui(object):
         return ret
 
     def username(self):
-        return (os.environ.get("HGUSER") or
-                self.config("ui", "username") or
-                os.environ.get("EMAIL") or
-                (os.environ.get("LOGNAME",
-                                os.environ.get("USERNAME", "unknown"))
-                 + '@' + socket.getfqdn()))
+        """Return default username to be used in commits.
+
+        Searched in this order: $HGUSER, [ui] section of hgrcs, $EMAIL
+        and stop searching if one of these is set.
+        Abort if found username is an empty string to force specifying
+        the commit user elsewhere, e.g. with line option or repo hgrc.
+        If not found, use $LOGNAME or $USERNAME +"@full.hostname".
+        """
+        user = os.environ.get("HGUSER")
+        if user is None:
+            user = self.config("ui", "username")
+        if user is None:
+            user = os.environ.get("EMAIL")
+        if user is None:
+            user = os.environ.get("LOGNAME") or os.environ.get("USERNAME")
+            if user:
+                user = "%s@%s" % (user, socket.getfqdn())
+        if not user:
+            raise util.Abort(_("Please specify a username."))
+        return user
 
     def shortuser(self, user):
         """Return a short representation of a user name or email address."""
-        if not self.verbose:
-            f = user.find('@')
-            if f >= 0:
-                user = user[:f]
-            f = user.find('<')
-            if f >= 0:
-                user = user[f+1:]
+        if not self.verbose: user = util.shortuser(user)
         return user
 
-    def expandpath(self, loc, root=""):
-        paths = {}
-        for name, path in self.configitems("paths"):
-            m = path.find("://")
-            if m == -1:
-                    path = os.path.join(root, path)
-            paths[name] = path
+    def expandpath(self, loc):
+        """Return repository location relative to cwd or from [paths]"""
+        if loc.find("://") != -1 or os.path.exists(loc):
+            return loc
 
-        return paths.get(loc, loc)
+        return self.config("paths", loc, loc)
 
     def write(self, *args):
+        if self.header:
+            if self.header != self.prev_header:
+                self.prev_header = self.header
+                self.write(*self.header)
+            self.header = []
         for a in args:
             sys.stdout.write(str(a))
 
-    def write_err(self, *args):
-        if not sys.stdout.closed: sys.stdout.flush()
+    def write_header(self, *args):
         for a in args:
-            sys.stderr.write(str(a))
+            self.header.append(str(a))
+
+    def write_err(self, *args):
+        try:
+            if not sys.stdout.closed: sys.stdout.flush()
+            for a in args:
+                sys.stderr.write(str(a))
+        except IOError, inst:
+            if inst.errno != errno.EPIPE:
+                raise
+
+    def flush(self):
+        try: sys.stdout.flush()
+        except: pass
+        try: sys.stderr.flush()
+        except: pass
 
     def readline(self):
         return sys.stdin.readline()[:-1]
@@ -151,23 +232,26 @@ class ui(object):
         if self.verbose: self.write(*msg)
     def debug(self, *msg):
         if self.debugflag: self.write(*msg)
-    def edit(self, text):
-        import tempfile
-        (fd, name) = tempfile.mkstemp("hg")
-        f = os.fdopen(fd, "w")
-        f.write(text)
-        f.close()
+    def edit(self, text, user):
+        (fd, name) = tempfile.mkstemp(prefix="hg-editor-", suffix=".txt")
+        try:
+            f = os.fdopen(fd, "w")
+            f.write(text)
+            f.close()
 
-        editor = (os.environ.get("HGEDITOR") or
-                  self.config("ui", "editor") or
-                  os.environ.get("EDITOR", "vi"))
+            editor = (os.environ.get("HGEDITOR") or
+                    self.config("ui", "editor") or
+                    os.environ.get("EDITOR", "vi"))
 
-        os.environ["HGUSER"] = self.username()
-        util.system("%s \"%s\"" % (editor, name), errprefix=_("edit failed"))
+            util.system("%s \"%s\"" % (editor, name),
+                        environ={'HGUSER': user},
+                        onerr=util.Abort, errprefix=_("edit failed"))
 
-        t = open(name).read()
-        t = re.sub("(?m)^HG:.*\n", "", t)
-
-        os.unlink(name)
+            f = open(name)
+            t = f.read()
+            f.close()
+            t = re.sub("(?m)^HG:.*\n", "", t)
+        finally:
+            os.unlink(name)
 
         return t

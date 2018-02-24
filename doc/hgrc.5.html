@@ -162,17 +162,20 @@ hooks
 <pre>Example .hg/hgrc:</pre>
 <pre>[hooks]
 # do not use the site-wide hook
-commit =
-commit.email = /my/email/hook
-commit.autobuild = /my/build/hook</pre>
+incoming =
+incoming.email = /my/email/hook
+incoming.autobuild = /my/build/hook</pre>
+<pre>Most hooks are run with environment variables set that give added
+useful information.  For each hook below, the environment variables
+it is passed are listed with names of the form "$HG_foo".</pre>
 <dl>
 <dt>
 changegroup
 </dt>
 <dd>
 <p>
-    Run after a changegroup has been added via push or pull. Passed
-    the ID of the first new changeset in $NODE.
+    Run after a changegroup has been added via push, pull or
+    unbundle. ID of the first new changeset is in $HG_NODE.
 </p>
 </dd>
 <dt>
@@ -180,9 +183,39 @@ commit
 </dt>
 <dd>
 <p>
-    Run after a changeset has been created or for each changeset
-    pulled. Passed the ID of the newly created changeset in
-    environment variable $NODE.
+    Run after a changeset has been created in the local repository.
+    ID of the newly created changeset is in $HG_NODE.  Parent
+    changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
+</p>
+</dd>
+<dt>
+incoming
+</dt>
+<dd>
+<p>
+    Run after a changeset has been pulled, pushed, or unbundled into
+    the local repository.  The ID of the newly arrived changeset is in
+    $HG_NODE.
+</p>
+</dd>
+<dt>
+outgoing
+</dt>
+<dd>
+<p>
+    Run after sending changes from local repository to another.  ID of
+    first changeset sent is in $HG_NODE.  Source of operation is in
+    $HG_SOURCE; see "preoutgoing" hook for description.
+</p>
+</dd>
+<dt>
+prechangegroup
+</dt>
+<dd>
+<p>
+    Run before a changegroup is added via push, pull or unbundle.
+    Exit status 0 allows the changegroup to proceed.  Non-zero status
+    will cause the push, pull or unbundle to fail.
 </p>
 </dd>
 <dt>
@@ -190,9 +223,77 @@ precommit
 </dt>
 <dd>
 <p>
-    Run before starting a commit.  Exit status 0 allows the commit to
-    proceed.  Non-zero status will cause the commit to fail.
+    Run before starting a local commit.  Exit status 0 allows the
+    commit to proceed.  Non-zero status will cause the commit to fail.
+    Parent changeset IDs are in $HG_PARENT1 and $HG_PARENT2.
 </p>
+</dd>
+<dt>
+preoutgoing
+</dt>
+<dd>
+<p>
+    Run before computing changes to send from the local repository to
+    another.  Non-zero status will cause failure.  This lets you
+    prevent pull over http or ssh.  Also prevents against local pull,
+    push (outbound) or bundle commands, but not effective, since you
+    can just copy files instead then.  Source of operation is in
+    $HG_SOURCE.  If "serve", operation is happening on behalf of
+    remote ssh or http repository.  If "push", "pull" or "bundle",
+    operation is happening on behalf of repository on same system.
+</p>
+</dd>
+<dt>
+pretag
+</dt>
+<dd>
+<p>
+    Run before creating a tag.  Exit status 0 allows the tag to be
+    created.  Non-zero status will cause the tag to fail.  ID of
+    changeset to tag is in $HG_NODE.  Name of tag is in $HG_TAG.  Tag
+    is local if $HG_LOCAL=1, in repo if $HG_LOCAL=0.
+</p>
+</dd>
+<dt>
+pretxnchangegroup
+</dt>
+<dd>
+<p>
+    Run after a changegroup has been added via push, pull or unbundle,
+    but before the transaction has been committed.  Changegroup is
+    visible to hook program.  This lets you validate incoming changes
+    before accepting them.  Passed the ID of the first new changeset
+    in $HG_NODE.  Exit status 0 allows the transaction to commit.
+    Non-zero status will cause the transaction to be rolled back and
+    the push, pull or unbundle will fail.
+</p>
+</dd>
+<dt>
+pretxncommit
+</dt>
+<dd>
+<p>
+    Run after a changeset has been created but the transaction not yet
+    committed.  Changeset is visible to hook program.  This lets you
+    validate commit message and changes.  Exit status 0 allows the
+    commit to proceed.  Non-zero status will cause the transaction to
+    be rolled back.  ID of changeset is in $HG_NODE.  Parent changeset
+    IDs are in $HG_PARENT1 and $HG_PARENT2.
+</p>
+</dd>
+<dt>
+tag
+</dt>
+<dd>
+<p>
+    Run after a tag is created.  ID of tagged changeset is in
+    $HG_NODE.  Name of tag is in $HG_TAG.  Tag is local if
+    $HG_LOCAL=1, in repo if $HG_LOCAL=0.
+</p>
+<pre>In earlier releases, the names of hook environment variables did not
+have a "HG_" prefix.  These unprefixed names are still provided in
+the environment for backwards compatibility, but their use is
+deprecated, and they will be removed in a future release.</pre>
 </dd>
 </dl>
 </dd>
@@ -276,11 +377,39 @@ editor
 </p>
 </dd>
 <dt>
+ignore
+</dt>
+<dd>
+<p>
+    A file to read per-user ignore patterns from. This file should be in
+    the same format as a repository-wide .hgignore file. This option
+    supports hook syntax, so if you want to specify multiple ignore
+    files, you can do so by setting something like
+    "ignore.other = ~/.hgignore2".
+</p>
+</dd>
+<dt>
 interactive
 </dt>
 <dd>
 <p>
     Allow to prompt the user.  True or False.  Default is True.
+</p>
+</dd>
+<dt>
+logtemplate
+</dt>
+<dd>
+<p>
+    Template string for commands that print changesets.
+</p>
+</dd>
+<dt>
+style
+</dt>
+<dd>
+<p>
+    Name of style to use for command output.
 </p>
 </dd>
 <dt>
@@ -317,13 +446,24 @@ ssh
 </p>
 </dd>
 <dt>
+timeout
+</dt>
+<dd>
+<p>
+    The timeout used when a lock is held (in seconds), a negative value
+    means no timeout. Default is 600.
+</p>
+</dd>
+<dt>
 username
 </dt>
 <dd>
 <p>
     The committer of a changeset created when running "commit".
     Typically a person's name and email address, e.g. "Fred Widget
-    &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname.
+    &lt;fred@example.com&gt;".  Default is $EMAIL or username@hostname, unless
+    username is set to an empty string, which enforces specifying the
+    username manually.
 </p>
 </dd>
 <dt>
@@ -486,7 +626,7 @@ Public License (GPL).</p>
 <p></p>
 <p></p>
 <hr /><p><small>
-Last updated 30-Jan-2006 13:03:09 NZDT
+Last updated 07-Apr-2006 21:24:47 CDT
 </small></p>
 </body>
 </html>

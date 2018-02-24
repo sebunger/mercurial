@@ -6,52 +6,14 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import os, cgi, sys, urllib
+import os, cgi, sys
+import mimetypes
 from demandload import demandload
 demandload(globals(), "mdiff time re socket zlib errno ui hg ConfigParser")
 demandload(globals(), "zipfile tempfile StringIO tarfile BaseHTTPServer util")
-demandload(globals(), "mimetypes")
+demandload(globals(), "mimetypes templater")
 from node import *
 from i18n import gettext as _
-
-def templatepath():
-    for f in "templates", "../templates":
-        p = os.path.join(os.path.dirname(__file__), f)
-        if os.path.isdir(p):
-            return p
-
-def age(x):
-    def plural(t, c):
-        if c == 1:
-            return t
-        return t + "s"
-    def fmt(t, c):
-        return "%d %s" % (c, plural(t, c))
-
-    now = time.time()
-    then = x[0]
-    delta = max(1, int(now - then))
-
-    scales = [["second", 1],
-              ["minute", 60],
-              ["hour", 3600],
-              ["day", 3600 * 24],
-              ["week", 3600 * 24 * 7],
-              ["month", 3600 * 24 * 30],
-              ["year", 3600 * 24 * 365]]
-
-    scales.reverse()
-
-    for t, s in scales:
-        n = delta / s
-        if n >= 2 or s == 1:
-            return fmt(t, n)
-
-def nl2br(text):
-    return text.replace('\n', '<br/>\n')
-
-def obfuscate(text):
-    return ''.join(['&#%d;' % ord(c) for c in text])
 
 def up(p):
     if p[0] != "/":
@@ -70,6 +32,30 @@ def get_mtime(repo_path):
         return os.stat(cl_path).st_mtime
     else:
         return os.stat(hg_path).st_mtime
+
+def staticfile(directory, fname):
+    """return a file inside directory with guessed content-type header
+
+    fname always uses '/' as directory separator and isn't allowed to
+    contain unusual path components.
+    Content-type is guessed using the mimetypes module.
+    Return an empty string if fname is illegal or file not found.
+
+    """
+    parts = fname.split('/')
+    path = directory
+    for part in parts:
+        if (part in ('', os.curdir, os.pardir) or
+            os.sep in part or os.altsep is not None and os.altsep in part):
+            return ""
+        path = os.path.join(path, part)
+    try:
+        os.stat(path)
+        ct = mimetypes.guess_type(path)[0] or "text/plain"
+        return "Content-type: %s\n\n%s" % (ct, file(path).read())
+    except (TypeError, OSError):
+        # illegal fname or unreadable file
+        return ""
 
 class hgrequest(object):
     def __init__(self, inp=None, out=None, env=None):
@@ -103,78 +89,6 @@ class hgrequest(object):
         if size > 0:
             headers.append(('Content-length', str(size)))
         self.header(headers)
-
-class templater(object):
-    def __init__(self, mapfile, filters={}, defaults={}):
-        self.cache = {}
-        self.map = {}
-        self.base = os.path.dirname(mapfile)
-        self.filters = filters
-        self.defaults = defaults
-
-        for l in file(mapfile):
-            m = re.match(r'(\S+)\s*=\s*"(.*)"$', l)
-            if m:
-                self.cache[m.group(1)] = m.group(2)
-            else:
-                m = re.match(r'(\S+)\s*=\s*(\S+)', l)
-                if m:
-                    self.map[m.group(1)] = os.path.join(self.base, m.group(2))
-                else:
-                    raise LookupError(_("unknown map entry '%s'") % l)
-
-    def __call__(self, t, **map):
-        m = self.defaults.copy()
-        m.update(map)
-        try:
-            tmpl = self.cache[t]
-        except KeyError:
-            tmpl = self.cache[t] = file(self.map[t]).read()
-        return self.template(tmpl, self.filters, **m)
-
-    def template(self, tmpl, filters={}, **map):
-        while tmpl:
-            m = re.search(r"#([a-zA-Z0-9]+)((%[a-zA-Z0-9]+)*)((\|[a-zA-Z0-9]+)*)#", tmpl)
-            if m:
-                yield tmpl[:m.start(0)]
-                v = map.get(m.group(1), "")
-                v = callable(v) and v(**map) or v
-
-                format = m.group(2)
-                fl = m.group(4)
-
-                if format:
-                    q = v.__iter__
-                    for i in q():
-                        lm = map.copy()
-                        lm.update(i)
-                        yield self(format[1:], **lm)
-
-                    v = ""
-
-                elif fl:
-                    for f in fl.split("|")[1:]:
-                        v = filters[f](v)
-
-                yield v
-                tmpl = tmpl[m.end(0):]
-            else:
-                yield tmpl
-                return
-
-common_filters = {
-    "escape": lambda x: cgi.escape(x, True),
-    "urlescape": urllib.quote,
-    "strip": lambda x: x.strip(),
-    "age": age,
-    "date": lambda x: util.datestr(x),
-    "addbreaks": nl2br,
-    "obfuscate": obfuscate,
-    "short": (lambda x: x[:12]),
-    "firstline": (lambda x: x.splitlines(1)[0]),
-    "permissions": (lambda x: x and "-rwxr-xr-x" or "-rw-r--r--"),
-    "rfc822date": lambda x: util.datestr(x, "%a, %d %b %Y %H:%M:%S"),
-    }
 
 class hgweb(object):
     def __init__(self, repo, name=None):
@@ -298,19 +212,25 @@ class hgweb(object):
 
     def changelog(self, pos):
         def changenav(**map):
-            def seq(factor=1):
-                yield 1 * factor
-                yield 3 * factor
-                #yield 5 * factor
+            def seq(factor, maxchanges=None):
+                if maxchanges:
+                    yield maxchanges
+                    if maxchanges >= 20 and maxchanges <= 40:
+                        yield 50
+                else:
+                    yield 1 * factor
+                    yield 3 * factor
                 for f in seq(factor * 10):
                     yield f
 
             l = []
-            for f in seq():
-                if f < self.maxchanges / 2:
+            last = 0
+            for f in seq(1, self.maxchanges):
+                if f < self.maxchanges or f <= last:
                     continue
                 if f > count:
                     break
+                last = f
                 r = "%d" % f
                 if pos + f < count:
                     l.append(("+" + r, pos + f))
@@ -654,9 +574,10 @@ class hgweb(object):
         i = self.repo.tagslist()
         i.reverse()
 
-        def entries(**map):
+        def entries(notip=False, **map):
             parity = 0
             for k,n in i:
+                if notip and k == "tip": continue
                 yield {"parity": parity,
                        "tag": k,
                        "tagmanifest": hex(cl.read(n)[0]),
@@ -666,7 +587,8 @@ class hgweb(object):
 
         yield self.t("tags",
                      manifest=hex(mf),
-                     entries=entries)
+                     entries=lambda **x: entries(False, **x),
+                     entriesnotip=lambda **x: entries(True, **x))
 
     def summary(self):
         cl = self.repo.changelog
@@ -814,7 +736,7 @@ class hgweb(object):
 
     def run(self, req=hgrequest()):
         def clean(path):
-            p = os.path.normpath(path)
+            p = util.normpath(path)
             if p[:2] == "..":
                 raise "suspicious path"
             return p
@@ -837,6 +759,7 @@ class hgweb(object):
                 'ca': [('cmd', ['archive']), ('node', None)],
                 'tags': [('cmd', ['tags'])],
                 'tip': [('cmd', ['changeset']), ('node', ['tip'])],
+                'static': [('cmd', ['static']), ('file', None)]
             }
 
             for k in shortcuts.iterkeys():
@@ -851,7 +774,8 @@ class hgweb(object):
 
         expand_form(req.form)
 
-        t = self.repo.ui.config("web", "templates", templatepath())
+        t = self.repo.ui.config("web", "templates", templater.templatepath())
+        static = self.repo.ui.config("web", "static", os.path.join(t,"static"))
         m = os.path.join(t, "map")
         style = self.repo.ui.config("web", "style", "")
         if req.form.has_key('style'):
@@ -872,12 +796,12 @@ class hgweb(object):
             self.reponame = (self.repo.ui.config("web", "name")
                              or uri.strip('/') or self.repo.root)
 
-        self.t = templater(m, common_filters,
-                           {"url": url,
-                            "repo": self.reponame,
-                            "header": header,
-                            "footer": footer,
-                           })
+        self.t = templater.templater(m, templater.common_filters,
+                                     defaults={"url": url,
+                                               "repo": self.reponame,
+                                               "header": header,
+                                               "footer": footer,
+                                               })
 
         if not req.form.has_key('cmd'):
             req.form['cmd'] = [self.t.cache['default'],]
@@ -956,7 +880,7 @@ class hgweb(object):
                 nodes = map(bin, req.form['roots'][0].split(" "))
 
             z = zlib.compressobj()
-            f = self.repo.changegroup(nodes)
+            f = self.repo.changegroup(nodes, 'serve')
             while 1:
                 chunk = f.read(4096)
                 if not chunk:
@@ -974,6 +898,11 @@ class hgweb(object):
                 return
 
             req.write(self.t("error"))
+
+        elif req.form['cmd'][0] == 'static':
+            fname = req.form['file'][0]
+            req.write(staticfile(static, fname)
+                      or self.t("error", error="%r not found" % fname))
 
         else:
             req.write(self.t("error"))
@@ -1069,17 +998,27 @@ def create_server(repo):
 class hgwebdir(object):
     def __init__(self, config):
         def cleannames(items):
-            return [(name.strip('/'), path) for name, path in items]
+            return [(name.strip(os.sep), path) for name, path in items]
 
-        if type(config) == type([]):
+        if isinstance(config, (list, tuple)):
             self.repos = cleannames(config)
-        elif type(config) == type({}):
+        elif isinstance(config, dict):
             self.repos = cleannames(config.items())
             self.repos.sort()
         else:
             cp = ConfigParser.SafeConfigParser()
             cp.read(config)
-            self.repos = cleannames(cp.items("paths"))
+            self.repos = []
+            if cp.has_section('paths'):
+                self.repos.extend(cleannames(cp.items('paths')))
+            if cp.has_section('collections'):
+                for prefix, root in cp.items('collections'):
+                    for path in util.walkrepos(root):
+                        repo = os.path.normpath(path)
+                        name = repo
+                        if name.startswith(prefix):
+                            name = name[len(prefix):]
+                        self.repos.append((name.lstrip(os.sep), repo))
             self.repos.sort()
 
     def run(self, req=hgrequest()):
@@ -1089,9 +1028,10 @@ class hgwebdir(object):
         def footer(**map):
             yield tmpl("footer", **map)
 
-        m = os.path.join(templatepath(), "map")
-        tmpl = templater(m, common_filters,
-                         {"header": header, "footer": footer})
+        m = os.path.join(templater.templatepath(), "map")
+        tmpl = templater.templater(m, templater.common_filters,
+                                   defaults={"header": header,
+                                             "footer": footer})
 
         def entries(**map):
             parity = 0
@@ -1136,4 +1076,10 @@ class hgwebdir(object):
             else:
                 req.write(tmpl("notfound", repo=virtual))
         else:
-            req.write(tmpl("index", entries=entries))
+            if req.form.has_key('static'):
+                static = os.path.join(templater.templatepath(), "static")
+                fname = req.form['static'][0]
+                req.write(staticfile(static, fname)
+                          or tmpl("error", error="%r not found" % fname))
+            else:
+                req.write(tmpl("index", entries=entries))

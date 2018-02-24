@@ -59,12 +59,12 @@ list of commands (use "hg help -v" to show aliases and global options):
  locate      locate files matching specific patterns
  log         show revision history of entire repository or files
  manifest    output the latest or given revision of the project manifest
+ merge       Merge working directory with another revision
  outgoing    show changesets not found in destination
  parents     show the parents of the working dir or revision
  paths       show definition of symbolic path names
  pull        pull changes from the specified source
  push        push changes to the specified destination
- rawcommit   raw commit interface (DEPRECATED)
  recover     roll back an interrupted transaction
  remove      remove the specified files on the next commit
  rename      rename files; equivalent of copy + remove
@@ -101,12 +101,12 @@ list of commands (use "hg help -v" to show aliases and global options):
  locate      locate files matching specific patterns
  log         show revision history of entire repository or files
  manifest    output the latest or given revision of the project manifest
+ merge       Merge working directory with another revision
  outgoing    show changesets not found in destination
  parents     show the parents of the working dir or revision
  paths       show definition of symbolic path names
  pull        pull changes from the specified source
  push        push changes to the specified destination
- rawcommit   raw commit interface (DEPRECATED)
  recover     roll back an interrupted transaction
  remove      remove the specified files on the next commit
  rename      rename files; equivalent of copy + remove
@@ -171,10 +171,12 @@ diff repository (or selected files)
 
 options:
 
- -r --rev      revision
- -a --text     treat all files as text
- -I --include  include names matching the given patterns
- -X --exclude  exclude names matching the given patterns
+ -r --rev               revision
+ -a --text              treat all files as text
+ -p --show-function     show which function each change is in
+ -w --ignore-all-space  ignore white space when comparing lines
+ -I --include           include names matching the given patterns
+ -X --exclude           exclude names matching the given patterns
 hg status [OPTION]... [FILE]...
 
 show changed files in the working directory
@@ -188,6 +190,7 @@ show changed files in the working directory
     R = removed
     ! = deleted, but still tracked
     ? = not tracked
+    I = ignored (not shown by default)
 
 aliases: st
 
@@ -198,6 +201,7 @@ options:
  -r --removed    show only removed files
  -d --deleted    show only deleted (but tracked) files
  -u --unknown    show only unknown (not tracked) files
+ -i --ignored    show ignored files
  -n --no-status  hide status prefix
  -0 --print0     end filenames with NUL, for use with xargs
  -I --include    include names matching the given patterns
