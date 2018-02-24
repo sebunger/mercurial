@@ -7,7 +7,7 @@
 
 from node import nullid, nullrev, hex, bin
 from i18n import _
-import scmutil, util, filemerge, copies, subrepo, encoding
+import scmutil, util, filemerge, copies, subrepo
 import errno, os, shutil
 
 class mergestate(object):
@@ -96,15 +96,23 @@ def _checkunknown(wctx, mctx, folding):
             raise util.Abort(_("untracked file in working directory differs"
                                " from file in requested revision: '%s'") % fn)
 
-def _checkcollision(mctx):
+def _checkcollision(mctx, wctx):
     "check for case folding collisions in the destination context"
     folded = {}
     for fn in mctx:
-        fold = encoding.lower(fn)
+        fold = util.normcase(fn)
         if fold in folded:
             raise util.Abort(_("case-folding collision between %s and %s")
                              % (fn, folded[fold]))
         folded[fold] = fn
+
+    if wctx:
+        for fn in wctx:
+            fold = util.normcase(fn)
+            mfn = folded.get(fold, None)
+            if mfn and (mfn != fn):
+                raise util.Abort(_("case-folding collision between %s and %s")
+                                 % (mfn, fn))
 
 def _forgetremoved(wctx, mctx, branchmerge):
     """
@@ -549,7 +557,7 @@ def update(repo, node, branchmerge, force, partial, ancestor=None):
         if not force:
             _checkunknown(wc, p2, folding)
         if folding:
-            _checkcollision(p2)
+            _checkcollision(p2, branchmerge and p1)
         action += _forgetremoved(wc, p2, branchmerge)
         action += manifestmerge(repo, wc, p2, pa, overwrite, partial)
 

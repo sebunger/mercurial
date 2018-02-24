@@ -677,6 +677,12 @@ do not mark a new bookmark active
 hg branch [\-fC] [NAME]
 .ft P
 .fi
+.IP Note
+.
+Branch names are permanent and global. Use \%\fBhg bookmark\fP\: to create a
+light\-weight bookmark instead. See \%\fBhg help glossary\fP\: for more
+information about named branches and bookmarks.
+.RE
 .sp
 With no argument, show the current branch name. With one argument,
 set the working directory branch name (the branch will not exist
@@ -693,12 +699,6 @@ change.
 .sp
 Use the command \%\fBhg update\fP\: to switch to an existing branch. Use
 \%\fBhg commit \-\-close\-branch\fP\: to mark this branch as closed.
-.IP Note
-.
-Branch names are permanent. Use \%\fBhg bookmark\fP\: to create a
-light\-weight bookmark instead. See \%\fBhg help glossary\fP\: for more
-information about named branches and bookmarks.
-.RE
 .sp
 Returns 0 on success.
 .sp
@@ -1522,9 +1522,9 @@ Changesets that are ancestors of the current revision, that have
 already been grafted, or that are merges will be skipped.
 .sp
 If a graft merge results in conflicts, the graft process is
-aborted so that the current merge can be manually resolved. Once
-all conflicts are addressed, the graft process can be continued
-with the \-c/\-\-continue option.
+interrupted so that the current merge can be manually resolved.
+Once all conflicts are addressed, the graft process can be
+continued with the \-c/\-\-continue option.
 .IP Note
 .
 The \-c/\-\-continue option does not reapply earlier options.
@@ -3099,11 +3099,9 @@ push (with this repository as the destination)
 unbundle
 .UNINDENT
 .sp
-It\(aqs possible to lose data with rollback: commit, update back to
-an older changeset, and then rollback. The update removes the
-changes you committed from the working directory, and rollback
-removes them from history. To avoid data loss, you must pass
-\-\-force in this case.
+To avoid permanent data loss, rollback will refuse to rollback a
+commit transaction if it isn\(aqt checked out. Use \-\-force to
+override this protection.
 .sp
 This command is not intended for use on public repositories. Once
 changes are visible for pull by other users, rolling a transaction
@@ -3315,13 +3313,14 @@ Examples:
 .INDENT 0.0
 .IP \(bu 2
 .
-show changes in the working directory relative to a changeset:
-.INDENT 2.0
-.INDENT 3.5
+show changes in the working directory relative to a
+changeset:
 .sp
+.nf
+.ft C
 hg status \-\-rev 9353
-.UNINDENT
-.UNINDENT
+.ft P
+.fi
 .IP \(bu 2
 .
 show all changes including copies in an existing changeset:
@@ -8095,6 +8094,12 @@ patterns =
 .sp
 Files that match one of these patterns will be added as largefiles
 regardless of their size.
+.sp
+The \fBlargefiles.minsize\fP and \fBlargefiles.patterns\fP config options
+will be ignored for any repositories not already containing a
+largefile. To add the first largefile to a repository, you must
+explicitly do so with the \-\-large flag passed to the \%\fBhg add\fP\:
+command.
 .SS Commands
 .SS lfconvert
 .sp
@@ -10355,18 +10360,6 @@ zc\-test = http://example.com:8000/test
 .SH FILES
 .INDENT 0.0
 .TP
-.B \fB.hgignore\fP
-.sp
-This file contains regular expressions (one per line) that
-describe file names that should be ignored by \fBhg\fP. For details,
-see \%\fBhgignore\fP(5)\:.
-.TP
-.B \fB.hgtags\fP
-.sp
-This file contains changeset hash values and text tag names (one
-of each separated by spaces) that correspond to tagged versions of
-the repository contents.
-.TP
 .B \fB/etc/mercurial/hgrc\fP, \fB$HOME/.hgrc\fP, \fB.hg/hgrc\fP
 .sp
 This file contains defaults and configuration. Values in
@@ -10374,6 +10367,40 @@ This file contains defaults and configuration. Values in
 settings made in the global \fB/etc/mercurial/hgrc\fP configuration.
 See \%\fBhgrc\fP(5)\: for details of the contents and format of these
 files.
+.TP
+.B \fB.hgignore\fP
+.sp
+This file contains regular expressions (one per line) that
+describe file names that should be ignored by \fBhg\fP. For details,
+see \%\fBhgignore\fP(5)\:.
+.TP
+.B \fB.hgsub\fP
+.sp
+This file defines the locations of all subrepositories, and
+tells where the subrepository checkouts came from. For details, see
+\%\fBhg help subrepos\fP\:.
+.TP
+.B \fB.hgsubstate\fP
+.sp
+This file is where Mercurial stores all nested repository states. \fINB: This
+file should not be edited manually.\fP
+.TP
+.B \fB.hgtags\fP
+.sp
+This file contains changeset hash values and text tag names (one
+of each separated by spaces) that correspond to tagged versions of
+the repository contents. The file content is encoded using UTF\-8.
+.TP
+.B \fB.hg/last\-message.txt\fP
+.sp
+This file is used by \%\fBhg commit\fP\: to store a backup of the commit message
+in case the commit fails.
+.TP
+.B \fB.hg/localtags\fP
+.sp
+This file can be used to define local tags which are not shared among
+repositories. The file format is the same as for \fB.hgtags\fP, but it is
+encoded using the local system encoding.
 .UNINDENT
 .sp
 Some commands (e.g. revert) produce backup files ending in \fB.orig\fP,

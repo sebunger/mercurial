@@ -594,6 +594,12 @@ the bookmarks extension must be enabled.</p>
 <pre class="literal-block">
 hg branch [-fC] [NAME]
 </pre>
+<div class="note">
+<p class="first admonition-title">Note</p>
+<p class="last">Branch names are permanent and global. Use <a class="reference external" href="hg.1.html#bookmark"><tt class="docutils literal">hg bookmark</tt></a> to create a
+light-weight bookmark instead. See <a class="reference external" href="hg.1.html#glossary"><tt class="docutils literal">hg help glossary</tt></a> for more
+information about named branches and bookmarks.</p>
+</div>
 <p>With no argument, show the current branch name. With one argument,
 set the working directory branch name (the branch will not exist
 in the repository until the next commit). Standard practice
@@ -606,12 +612,6 @@ the parent of the working directory, negating a previous branch
 change.</p>
 <p>Use the command <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> to switch to an existing branch. Use
 <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--close-branch</span></tt></a> to mark this branch as closed.</p>
-<div class="note">
-<p class="first admonition-title">Note</p>
-<p class="last">Branch names are permanent. Use <a class="reference external" href="hg.1.html#bookmark"><tt class="docutils literal">hg bookmark</tt></a> to create a
-light-weight bookmark instead. See <a class="reference external" href="hg.1.html#glossary"><tt class="docutils literal">hg help glossary</tt></a> for more
-information about named branches and bookmarks.</p>
-</div>
 <p>Returns 0 on success.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -1246,9 +1246,9 @@ description from the source changesets.</p>
 <p>Changesets that are ancestors of the current revision, that have
 already been grafted, or that are merges will be skipped.</p>
 <p>If a graft merge results in conflicts, the graft process is
-aborted so that the current merge can be manually resolved. Once
-all conflicts are addressed, the graft process can be continued
-with the -c/--continue option.</p>
+interrupted so that the current merge can be manually resolved.
+Once all conflicts are addressed, the graft process can be
+continued with the -c/--continue option.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The -c/--continue option does not reapply earlier options.</p>
@@ -2505,11 +2505,9 @@ and their effects can be rolled back:</p>
 <li>push (with this repository as the destination)</li>
 <li>unbundle</li>
 </ul>
-<p>It's possible to lose data with rollback: commit, update back to
-an older changeset, and then rollback. The update removes the
-changes you committed from the working directory, and rollback
-removes them from history. To avoid data loss, you must pass
---force in this case.</p>
+<p>To avoid permanent data loss, rollback will refuse to rollback a
+commit transaction if it isn't checked out. Use --force to
+override this protection.</p>
 <p>This command is not intended for use on public repositories. Once
 changes are visible for pull by other users, rolling a transaction
 back locally is ineffective (someone else may already have pulled
@@ -2687,10 +2685,11 @@ I = ignored
 <div class="verbose container">
 <p>Examples:</p>
 <ul>
-<li><p class="first">show changes in the working directory relative to a changeset:</p>
-<blockquote>
-<p>hg status --rev 9353</p>
-</blockquote>
+<li><p class="first">show changes in the working directory relative to a
+changeset:</p>
+<pre class="literal-block">
+hg status --rev 9353
+</pre>
 </li>
 <li><p class="first">show all changes including copies in an existing changeset:</p>
 <pre class="literal-block">
@@ -6309,6 +6308,11 @@ patterns =
 </pre>
 <p>Files that match one of these patterns will be added as largefiles
 regardless of their size.</p>
+<p>The <tt class="docutils literal">largefiles.minsize</tt> and <tt class="docutils literal">largefiles.patterns</tt> config options
+will be ignored for any repositories not already containing a
+largefile. To add the first largefile to a repository, you must
+explicitly do so with the --large flag passed to the <a class="reference external" href="hg.1.html#add"><tt class="docutils literal">hg add</tt></a>
+command.</p>
 <div class="section" id="id22">
 <h3>Commands</h3>
 <div class="section" id="lfconvert">
@@ -8165,20 +8169,34 @@ zc-test = http://example.com:8000/test
 <div class="section" id="files">
 <h1><a class="toc-backref" href="#contents">Files</a></h1>
 <dl class="docutils">
-<dt><tt class="docutils literal">.hgignore</tt></dt>
-<dd>This file contains regular expressions (one per line) that
-describe file names that should be ignored by <strong>hg</strong>. For details,
-see <a class="reference external" href="hgignore.5.html"><strong>hgignore</strong>(5)</a>.</dd>
-<dt><tt class="docutils literal">.hgtags</tt></dt>
-<dd>This file contains changeset hash values and text tag names (one
-of each separated by spaces) that correspond to tagged versions of
-the repository contents.</dd>
 <dt><tt class="docutils literal">/etc/mercurial/hgrc</tt>, <tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt>, <tt class="docutils literal">.hg/hgrc</tt></dt>
 <dd>This file contains defaults and configuration. Values in
 <tt class="docutils literal">.hg/hgrc</tt> override those in <tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt>, and these override
 settings made in the global <tt class="docutils literal">/etc/mercurial/hgrc</tt> configuration.
 See <a class="reference external" href="hgrc.5.html"><strong>hgrc</strong>(5)</a> for details of the contents and format of these
 files.</dd>
+<dt><tt class="docutils literal">.hgignore</tt></dt>
+<dd>This file contains regular expressions (one per line) that
+describe file names that should be ignored by <strong>hg</strong>. For details,
+see <a class="reference external" href="hgignore.5.html"><strong>hgignore</strong>(5)</a>.</dd>
+<dt><tt class="docutils literal">.hgsub</tt></dt>
+<dd>This file defines the locations of all subrepositories, and
+tells where the subrepository checkouts came from. For details, see
+<a class="reference external" href="hg.1.html#subrepos"><tt class="docutils literal">hg help subrepos</tt></a>.</dd>
+<dt><tt class="docutils literal">.hgsubstate</tt></dt>
+<dd>This file is where Mercurial stores all nested repository states. <em>NB: This
+file should not be edited manually.</em></dd>
+<dt><tt class="docutils literal">.hgtags</tt></dt>
+<dd>This file contains changeset hash values and text tag names (one
+of each separated by spaces) that correspond to tagged versions of
+the repository contents. The file content is encoded using UTF-8.</dd>
+<dt><tt class="docutils literal"><span class="pre">.hg/last-message.txt</span></tt></dt>
+<dd>This file is used by <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit</tt></a> to store a backup of the commit message
+in case the commit fails.</dd>
+<dt><tt class="docutils literal">.hg/localtags</tt></dt>
+<dd>This file can be used to define local tags which are not shared among
+repositories. The file format is the same as for <tt class="docutils literal">.hgtags</tt>, but it is
+encoded using the local system encoding.</dd>
 </dl>
 <p>Some commands (e.g. revert) produce backup files ending in <tt class="docutils literal">.orig</tt>,
 if the <tt class="docutils literal">.orig</tt> file already exists and is not tracked by Mercurial,
