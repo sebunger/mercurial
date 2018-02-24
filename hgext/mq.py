@@ -212,7 +212,7 @@ class queue:
             if not pushable:
                 if why:
                     write(_('skipping %s - guarded by %r\n') %
-                          (self.series[idx], ' '.join(why)))
+                          (self.series[idx], why))
                 else:
                     write(_('skipping %s - no matching guards\n') %
                           self.series[idx])
@@ -702,6 +702,7 @@ class queue:
         if saveheads:
             backupch = repo.changegroupsubset(savebases.keys(), saveheads, 'strip')
             chgrpfile = bundle(backupch)
+            chgrpfile = 'file:%s' % chgrpfile
 
         stripall(rev, revnum)
 
@@ -744,7 +745,7 @@ class queue:
                 return matches[0]
             if len(self.series) > 0 and len(self.applied) > 0:
                 if s == 'qtip':
-                    return self.series[self.series_end()-1]
+                    return self.series[self.series_end(True)-1]
                 if s == 'qbase':
                     return self.series[0]
             return None
@@ -1475,6 +1476,7 @@ def init(ui, repo, **opts):
         fp = r.wopener('.hgignore', 'w')
         print >> fp, 'syntax: glob'
         print >> fp, 'status'
+        print >> fp, 'guards'
         fp.close()
         r.wopener('series', 'w').close()
         r.add(['.hgignore', 'series'])
