@@ -23,8 +23,8 @@ searchentry = shortlogentry.tmpl
 changeset = changeset.tmpl
 manifest = manifest.tmpl
 
-direntry = '<tr class="fileline parity{parity}"><td class="name"><a href="{url}file/{node|short}{path|urlescape}{sessionvars%urlparameter}"><img src="{staticurl}coal-folder.png"> {basename|escape}/</a> <a href="{url}file/{node|short}{path|urlescape}/{emptydirs|urlescape}{sessionvars%urlparameter}">{emptydirs|escape}</a><td class="size"></td><td class="permissions">drwxr-xr-x</td></tr>'
-fileentry = '<tr class="fileline parity{parity}"><td class="filename"><a href="{url}file/{node|short}/{file|urlescape}#l1{sessionvars%urlparameter}"><img src="{staticurl}coal-file.png"> {basename|escape}</a></td><td class="size">{size}</td><td class="permissions">{permissions|permissions}</td></tr>'
+direntry = '<tr class="fileline parity{parity}"><td class="name"><a href="{url}file/{node|short}{path|urlescape}{sessionvars%urlparameter}"><img src="{staticurl}coal-folder.png" alt="dir."/> {basename|escape}/</a> <a href="{url}file/{node|short}{path|urlescape}/{emptydirs|urlescape}{sessionvars%urlparameter}">{emptydirs|escape}</a></td><td class="size"></td><td class="permissions">drwxr-xr-x</td></tr>'
+fileentry = '<tr class="fileline parity{parity}"><td class="filename"><a href="{url}file/{node|short}/{file|urlescape}#l1{sessionvars%urlparameter}"><img src="{staticurl}coal-file.png" alt="file"/> {basename|escape}</a></td><td class="size">{size}</td><td class="permissions">{permissions|permissions}</td></tr>'
 
 filerevision = filerevision.tmpl
 fileannotate = fileannotate.tmpl
@@ -51,7 +51,7 @@ filerevchild = '<a href="{url}file/{node|short}/{file|urlescape}{sessionvars%url
 filerename = '{file|escape}@'
 filelogrename = '<tr><th>base:</th><td><a href="{url}file/{node|short}/{file|urlescape}{sessionvars%urlparameter}">{file|escape}@{node|short}</a></td></tr>'
 fileannotateparent = '<tr><td class="metatag">parent:</td><td><a href="{url}annotate/{node|short}/{file|urlescape}{sessionvars%urlparameter}">{rename%filerename}{node|short}</a></td></tr>'
-changesetchild = '<a href="{url}rev/{node|short}{sessionvars%urlparameter}">{node|short}</a>'
+changesetchild = ' <a href="{url}rev/{node|short}{sessionvars%urlparameter}">{node|short}</a>'
 changelogchild = '<tr><th class="child">child</th><td class="child"><a href="{url}rev/{node|short}{sessionvars%urlparameter}">{node|short}</a></td></tr>'
 fileannotatechild = '<tr><td class="metatag">child:</td><td><a href="{url}annotate/{node|short}/{file|urlescape}{sessionvars%urlparameter}">{node|short}</a></td></tr>'
 tags = tags.tmpl
