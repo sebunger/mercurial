@@ -1253,6 +1253,14 @@ generate this file manually. The form must be as follows:</p>
 </dd>
 <dt><tt class="docutils literal">cache</tt></dt>
 <dd>Whether to support caching in hgweb. Defaults to True.</dd>
+<dt><tt class="docutils literal">collapse</tt></dt>
+<dd>With <tt class="docutils literal">descend</tt> enabled, repositories in subdirectories are shown at
+a single level alongside repositories in the current path. With
+<tt class="docutils literal">collapse</tt> also enabled, repositories residing at a deeper level than
+the current path are grouped behind navigable directory entries that
+lead to the locations of these repositories. In effect, this setting
+collapses each collection of repositories found within a subdirectory
+into a single entry for that subdirectory. Default is False.</dd>
 <dt><tt class="docutils literal">contact</tt></dt>
 <dd>Name or email address of the person in charge of the repository.
 Defaults to ui.username or <tt class="docutils literal">$EMAIL</tt> or &quot;unknown&quot; if unset or empty.</dd>

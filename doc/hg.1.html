@@ -1895,6 +1895,8 @@ hg log -r &quot;last(tagged())::&quot; --template &quot;{desc|firstline}\n&quot;
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
 <p>See <a class="reference external" href="hg.1.html#revisions"><tt class="docutils literal">hg help revisions</tt></a> and <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for more about
 specifying revisions.</p>
+<p>See <a class="reference external" href="hg.1.html#templates"><tt class="docutils literal">hg help templates</tt></a> for more about pre-packaged styles and
+specifying custom templates.</p>
 <p>Returns 0 on success.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
@@ -4599,7 +4601,7 @@ file or in Mercurial configuration. See the <tt class="docutils literal">[subpat
 hgrc(5) for more details.</p>
 </div>
 <div class="section" id="template-usage">
-<span id="templates"></span><span id="templating"></span><h1><a class="toc-backref" href="#contents">Template Usage</a></h1>
+<span id="style"></span><span id="template"></span><span id="templates"></span><span id="templating"></span><h1><a class="toc-backref" href="#contents">Template Usage</a></h1>
 <p>Mercurial allows you to customize output of commands through
 templates. You can either pass in a template from the command
 line, via the --template option, or select an existing
