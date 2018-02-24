@@ -12,7 +12,7 @@ from mercurial import ui, hg, scmutil, util, templater
 from mercurial import error, encoding
 from common import ErrorResponse, get_mtime, staticfile, paritygen, \
                    get_contact, HTTP_OK, HTTP_NOT_FOUND, HTTP_SERVER_ERROR
-from hgweb_mod import hgweb
+from hgweb_mod import hgweb, makebreadcrumb
 from request import wsgirequest
 import webutil
 
@@ -133,6 +133,12 @@ class hgwebdir(object):
         if self.stripecount:
             self.stripecount = int(self.stripecount)
         self._baseurl = self.ui.config('web', 'baseurl')
+        prefix = self.ui.config('web', 'prefix', '')
+        if prefix.startswith('/'):
+            prefix = prefix[1:]
+        if prefix.endswith('/'):
+            prefix = prefix[:-1]
+        self.prefix = prefix
         self.lastrefresh = time.time()
 
     def run(self):
@@ -310,7 +316,8 @@ class hgwebdir(object):
                                description_sort="",
                                lastchange=d,
                                lastchange_sort=d[1]-d[0],
-                               archives=[])
+                               archives=[],
+                               isdirectory=True)
 
                     seendirs.add(name)
                     yield row
@@ -394,6 +401,7 @@ class hgwebdir(object):
         self.updatereqenv(req.env)
 
         return tmpl("index", entries=entries, subdir=subdir,
+                    pathdef=makebreadcrumb('/' + subdir, self.prefix),
                     sortcolumn=sortcolumn, descending=descending,
                     **dict(sort))
 

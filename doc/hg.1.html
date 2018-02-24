@@ -140,6 +140,9 @@ repository.</dd>
 <tr><td class="option-group">
 <kbd><span class="option">-h</span>, <span class="option">--help</span></kbd></td>
 <td>display help and exit</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--hidden</span></kbd></td>
+<td>consider hidden changesets</td></tr>
 </tbody>
 </table>
 </div>
@@ -494,6 +497,11 @@ hg bisect --skip
 hg bisect --skip 23
 </pre>
 </li>
+<li><p class="first">skip all revisions that do not touch directories <tt class="docutils literal">foo</tt> or <tt class="docutils literal">bar</tt></p>
+<blockquote>
+<p>hg bisect --skip '!( file(&quot;path:foo&quot;) &amp; file(&quot;path:bar&quot;) )'</p>
+</blockquote>
+</li>
 <li><p class="first">forget the current bisection:</p>
 <pre class="literal-block">
 hg bisect --reset
@@ -580,6 +588,9 @@ the bookmark is assigned to that revision.</p>
 push</tt></a> and <a class="reference external" href="hg.1.html#pull"><tt class="docutils literal">hg help pull</tt></a>). This requires both the local and remote
 repositories to support bookmarks. For versions prior to 1.8, this means
 the bookmarks extension must be enabled.</p>
+<p>If you set a bookmark called '&#64;', new clones of the repository will
+have that revision checked out (and the bookmark made active) by
+default.</p>
 <p>With -i/--inactive, the new bookmark will not be made the active
 bookmark. If -r/--rev is given, the new bookmark will not be made
 active even if -i/--inactive is not given. If no NAME is given, the
@@ -603,7 +614,9 @@ current active bookmark will be marked inactive.</p>
 <td>rename a given bookmark</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-i</span>, <span class="option">--inactive</span></kbd></td>
-<td>mark a bookmark inactive</td></tr>
+<td><p class="first">mark a bookmark inactive</p>
+<p class="last">aliases: bookmark</p>
+</td></tr>
 </tbody>
 </table>
 </div>
@@ -794,6 +807,8 @@ their ancestors. These options (or 'clone src#rev dest') imply
 --pull, even for local source repositories. Note that specifying a
 tag will include the tagged changeset but not the changeset
 containing the tag.</p>
+<p>If the source repository has a bookmark called '&#64;' set, that
+revision will be checked out in the new repository by default.</p>
 <p>To check out a particular version, use -u/--update, or
 -U/--noupdate to create a clone with no working directory.</p>
 <div class="verbose container">
@@ -825,6 +840,7 @@ latest head of that branch)</li>
 <li>the changeset specified with -r</li>
 <li>the tipmost head specified with -b</li>
 <li>the tipmost head specified with the url#branch source syntax</li>
+<li>the revision marked with the '&#64;' bookmark, if present</li>
 <li>the tipmost head of the default branch</li>
 <li>tip</li>
 </ol>
@@ -1954,9 +1970,6 @@ specifying custom templates.</p>
 <tr><td class="option-group">
 <kbd><span class="option">-P</span>, <span class="option">--prune</span></kbd></td>
 <td>do not display revision or any of its ancestors</td></tr>
-<tr><td class="option-group">
-<kbd><span class="option">--hidden</span></kbd></td>
-<td>show hidden changesets (DEPRECATED)</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
@@ -4336,6 +4349,10 @@ use the prefix <cite>literal:</cite>.</p>
 <dd><p class="first">Mutable changesets marked as successors of public changesets.</p>
 <p class="last">Only non-public and non-obsolete changesets can be <cite>bumped</cite>.</p>
 </dd>
+<dt><tt class="docutils literal">bundle()</tt></dt>
+<dd><p class="first">Changesets in the bundle.</p>
+<p class="last">Bundle must be specified by the -R option.</p>
+</dd>
 <dt><tt class="docutils literal">children(set)</tt></dt>
 <dd>Child changesets of changesets in set.</dd>
 <dt><tt class="docutils literal">closed()</tt></dt>
@@ -4356,6 +4373,8 @@ present, or all converted changesets if no identifier is specified.</dd>
 <dd>Changesets that were created by a graft, transplant or rebase operation,
 with the given revisions specified as the source.  Omitting the optional set
 is the same as passing all().</dd>
+<dt><tt class="docutils literal">divergent()</tt></dt>
+<dd>Final successors of changesets with an alternative set of final successors.</dd>
 <dt><tt class="docutils literal">draft()</tt></dt>
 <dd>Changeset in draft phase.</dd>
 <dt><tt class="docutils literal">extinct()</tt></dt>
@@ -4552,7 +4571,7 @@ hg log -r &quot;sort(date('May 2008'), user)&quot;
 <li><p class="first">Changesets mentioning &quot;bug&quot; or &quot;issue&quot; that are not in a tagged
 release:</p>
 <pre class="literal-block">
-hg log -r &quot;(keyword(bug) or keyword(issue)) and not ancestors(tagged())&quot;
+hg log -r &quot;(keyword(bug) or keyword(issue)) and not ancestors(tag())&quot;
 </pre>
 </li>
 </ul>
@@ -4911,6 +4930,66 @@ address.</td>
 </tr>
 </tbody>
 </table>
+<p>Note that a filter is nothing more than a function call, i.e.
+<tt class="docutils literal">expr|filter</tt> is equivalent to <tt class="docutils literal">filter(expr)</tt>.</p>
+<p>In addition to filters, there are some basic built-in functions:</p>
+<ul class="simple">
+<li>if(expr, then[, else])</li>
+<li>ifeq(expr, expr, then[, else])</li>
+<li>sub(pat, repl, expr)</li>
+<li>join(list, sep)</li>
+<li>label(label, expr)</li>
+<li>date(date[, fmt])</li>
+<li>fill(text[, width])</li>
+</ul>
+<p>Also, for any expression that returns a list, there is a list operator:</p>
+<ul class="simple">
+<li>expr % &quot;{template}&quot;</li>
+</ul>
+<p>Some sample command line templates:</p>
+<ul>
+<li><p class="first">Format lists, e.g. files:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;files:\n{files % '  {file}\n'}&quot;
+</pre>
+</li>
+<li><p class="first">Join the list of files with a &quot;, &quot;:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;files: {join(files, ', ')}\n&quot;
+</pre>
+</li>
+<li><p class="first">Format date:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;{date(date, '%Y')}\n&quot;
+</pre>
+</li>
+<li><p class="first">Output the description set to a fill-width of 30:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;{fill(desc, '30')}&quot;
+</pre>
+</li>
+<li><p class="first">Use a conditional to test for the default branch:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;{ifeq(branch, 'default', 'on the main branch',
+'on branch {branch}')}\n&quot;
+</pre>
+</li>
+<li><p class="first">Append a newline if not empty:</p>
+<pre class="literal-block">
+$ hg tip --template &quot;{if(author, '{author}\n')}&quot;
+</pre>
+</li>
+<li><p class="first">Label the output for use with the color extension:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;{label('changeset.{phase}', node|short)}\n&quot;
+</pre>
+</li>
+<li><p class="first">Invert the firstline filter, i.e. everything but the first line:</p>
+<pre class="literal-block">
+$ hg log -r 0 --template &quot;{sub(r'^.*\n?\n?', '', desc)}\n&quot;
+</pre>
+</li>
+</ul>
 </div>
 <div class="section" id="url-paths">
 <span id="urls"></span><h1><a class="toc-backref" href="#contents">URL Paths</a></h1>
@@ -5861,12 +5940,17 @@ conversion process will add the most recent revision on the
 branch indicated in the regex as the second parent of the
 changeset. Default is <tt class="docutils literal">{{mergefrombranch <span class="pre">([-\w]+)}}</span></tt></td>
 </tr>
-<tr class="field"><th class="field-name">hook.cvslog:</th><td class="field-body">Specify a Python function to be called at the end of
+<tr class="field"><th class="field-name" colspan="2">convert.localtimezone:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">use local time (as determined by the TZ
+environment variable) for changeset date/times. The default
+is False (use UTC).</td>
+</tr>
+<tr class="field"><th class="field-name">hooks.cvslog:</th><td class="field-body">Specify a Python function to be called at the end of
 gathering the CVS log. The function is passed a list with the
 log entries, and can modify the entries in-place, or add or
 delete them.</td>
 </tr>
-<tr class="field"><th class="field-name" colspan="2">hook.cvschangesets:</th></tr>
+<tr class="field"><th class="field-name" colspan="2">hooks.cvschangesets:</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">Specify a Python function to be called after
 the changesets are calculated from the CVS log. The
 function is passed a list with the changeset entries, and can
@@ -5907,6 +5991,11 @@ default is <tt class="docutils literal">tags</tt>.</td>
 <tr class="field"><th class="field-name" colspan="2">convert.svn.trunk:</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">specify the name of the trunk branch. The
 default is <tt class="docutils literal">trunk</tt>.</td>
+</tr>
+<tr class="field"><th class="field-name" colspan="2">convert.localtimezone:</th></tr>
+<tr class="field"><td>&nbsp;</td><td class="field-body">use local time (as determined by the TZ
+environment variable) for changeset date/times. The default
+is False (use UTC).</td>
 </tr>
 </tbody>
 </table>
@@ -6405,9 +6494,6 @@ directory.</p>
 <kbd><span class="option">-P</span>, <span class="option">--prune</span></kbd></td>
 <td>do not display revision or any of its ancestors</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">--hidden</span></kbd></td>
-<td>show hidden changesets (DEPRECATED)</td></tr>
-<tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
 <tr><td class="option-group">
@@ -6566,7 +6652,7 @@ pick c561b4e977df Add beta
 pick 030b686bedc4 Add gamma
 pick 7c2fd3b9020c Add delta
 
-# Edit history between 633536316234 and 7c2fd3b9020c
+# Edit history between c561b4e977df and 7c2fd3b9020c
 #
 # Commands:
 #  p, pick = use commit
@@ -6585,7 +6671,7 @@ pick 030b686bedc4 Add gamma
 pick c561b4e977df Add beta
 fold 7c2fd3b9020c Add delta
 
-# Edit history between 633536316234 and 7c2fd3b9020c
+# Edit history between c561b4e977df and 7c2fd3b9020c
 #
 # Commands:
 #  p, pick = use commit
@@ -6642,8 +6728,8 @@ much work it will be to rearrange history, or that you made a mistake,
 you can use <tt class="docutils literal">hg histedit <span class="pre">--abort</span></tt> to abandon the new changes you
 have made and return to the state before you attempted to edit your
 history.</p>
-<p>If we clone the example repository above and add three more changes, such that
-we have the following history:</p>
+<p>If we clone the histedit-ed example repository above and add four more
+changes, such that we have the following history:</p>
 <pre class="literal-block">
 &#64;  6[tip]   038383181893   2009-04-27 18:04 -0500   stefan
 |    Add theta
@@ -8471,6 +8557,8 @@ development tree.</p>
 with others. Doing so will force everybody else to perform the
 same rebase or they will end up with duplicated changesets after
 pulling in your rebased changesets.</p>
+<p>In its default configuration, Mercurial will prevent you from
+rebasing published changes. See <a class="reference external" href="hg.1.html#phases"><tt class="docutils literal">hg help phases</tt></a> for details.</p>
 <p>If you don't specify a destination changeset (<tt class="docutils literal"><span class="pre">-d/--dest</span></tt>),
 rebase uses the tipmost head of the current named branch as the
 destination. (The destination changeset is not modified by
@@ -8486,6 +8574,10 @@ back to but not including the common ancestor with dest. Thus,
 specify any changeset in the source branch, and rebase will select
 the whole branch. If you specify neither <tt class="docutils literal"><span class="pre">-s</span></tt> nor <tt class="docutils literal"><span class="pre">-b</span></tt>, rebase
 uses the parent of the working directory as the base.</p>
+<p>For advanced usage, a third way is available through the <tt class="docutils literal"><span class="pre">--rev</span></tt>
+option. It allows you to specify an arbitrary set of changesets to
+rebase. Descendants of revs you specify with this option are not
+automatically included in the rebase.</p>
 <p>By default, rebase recreates the changesets in the source branch
 as descendants of dest and then destroys the originals. Use
 <tt class="docutils literal"><span class="pre">--keep</span></tt> to preserve the original source changesets. Some

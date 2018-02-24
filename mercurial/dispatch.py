@@ -183,8 +183,8 @@ def _runcatch(req):
         else:
             raise
     except OSError, inst:
-        if getattr(inst, "filename", None):
-            ui.warn(_("abort: %s: %s\n") % (inst.strerror, inst.filename))
+        if getattr(inst, "filename", None) is not None:
+            ui.warn(_("abort: %s: '%s'\n") % (inst.strerror, inst.filename))
         else:
             ui.warn(_("abort: %s\n") % inst.strerror)
     except KeyboardInterrupt:
@@ -217,11 +217,11 @@ def _runcatch(req):
         ct = tuplever(compare)
         worst = None, ct, ''
         for name, mod in extensions.extensions():
-            testedwith = getattr(mod, 'testedwith', 'unknown')
+            testedwith = getattr(mod, 'testedwith', '')
             report = getattr(mod, 'buglink', _('the extension author.'))
-            if testedwith == 'unknown':
+            if not testedwith.strip():
                 # We found an untested extension. It's likely the culprit.
-                worst = name, testedwith, report
+                worst = name, 'unknown', report
                 break
             if compare not in testedwith.split() and testedwith != 'internal':
                 tested = [tuplever(v) for v in testedwith.split()]
@@ -710,6 +710,8 @@ def _dispatch(req):
                 repo = hg.repository(ui, path=path)
                 if not repo.local():
                     raise util.Abort(_("repository '%s' is not local") % path)
+                if options['hidden']:
+                    repo = repo.unfiltered()
                 repo.ui.setconfig("bundle", "mainreporoot", repo.root)
             except error.RequirementError:
                 raise

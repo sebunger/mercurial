@@ -840,12 +840,6 @@ selected by file pattern match.</dd>
 <dd>Always prompt for merge success, regardless of success reported by tool.</dd>
 </dl>
 </dd>
-<dt><tt class="docutils literal">checkchanged</tt></dt>
-<dd>True is equivalent to <tt class="docutils literal">check = changed</tt>.
-Default: False</dd>
-<dt><tt class="docutils literal">checkconflicts</tt></dt>
-<dd>True is equivalent to <tt class="docutils literal">check = conflicts</tt>.
-Default: False</dd>
 <dt><tt class="docutils literal">fixeol</tt></dt>
 <dd>Attempt to fix up EOL changes caused by the merge tool.
 Default: False</dd>
@@ -975,6 +969,17 @@ Default: 1000.</dd>
 <dd>File path where profiling data or report should be saved. If the
 file exists, it is replaced. Default: None, data is printed on
 stderr</dd>
+<dt><tt class="docutils literal">sort</tt></dt>
+<dd>Sort field.  Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
+One of <tt class="docutils literal">callcount</tt>, <tt class="docutils literal">reccallcount</tt>, <tt class="docutils literal">totaltime</tt> and
+<tt class="docutils literal">inlinetime</tt>.
+Default: inlinetime.</dd>
+<dt><tt class="docutils literal">nested</tt></dt>
+<dd>Show at most this number of lines of drill-down info in a tree structure
+after each main entry. This can help explain the difference between Total
+and Inline.
+Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
+Default: 5.</dd>
 </dl>
 </div>
 <div class="section" id="revsetalias">
@@ -1224,6 +1229,9 @@ examined after the deny_read list.</dd>
 <dt><tt class="docutils literal">allowzip</tt></dt>
 <dd>(DEPRECATED) Whether to allow .zip downloading of repository
 revisions. Default is False. This feature creates temporary files.</dd>
+<dt><tt class="docutils literal">archivesubrepos</tt></dt>
+<dd>Whether to recurse into subrepositories when archiving. Default is
+False.</dd>
 <dt><tt class="docutils literal">baseurl</tt></dt>
 <dd>Base URL to use when publishing URLs in other locations, so
 third-party tools like email notification hooks can construct

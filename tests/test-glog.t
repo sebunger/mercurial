@@ -2042,19 +2042,16 @@ Test subdir
   $ cd ..
 
 Test --hidden
+ (enable obsolete)
 
-  $ cat > $HGTMP/testhidden.py << EOF
-  > from mercurial import util
-  > def reposetup(ui, repo):
-  >     for line in repo.opener('hidden'):
-  >         ctx = repo[line.strip()]
-  >         repo.hiddenrevs.add(ctx.rev())
-  >     if repo.revs('children(%ld) - %ld',  repo.hiddenrevs,  repo.hiddenrevs):
-  >       raise util.Abort('hidden revision with children!')
+  $ cat > ${TESTTMP}/obs.py << EOF
+  > import mercurial.obsolete
+  > mercurial.obsolete._enabled = True
   > EOF
-  $ echo '[extensions]' >> .hg/hgrc
-  $ echo "hidden=$HGTMP/testhidden.py" >> .hg/hgrc
-  $ hg id --debug -i -r 8 > .hg/hidden
+  $ echo '[extensions]' >> $HGRCPATH
+  $ echo "obs=${TESTTMP}/obs.py" >> $HGRCPATH
+
+  $ hg debugobsolete `hg id --debug -i -r 8`
   $ testlog
   []
   []
@@ -2110,6 +2107,19 @@ The almost-empty template should do something sane too ...
   o
   |
   o
+  
+
+issue3772
+
+  $ hg glog -r :null
+  o  changeset:   -1:000000000000
+     user:
+     date:        Thu Jan 01 00:00:00 1970 +0000
+  
+  $ hg glog -r null:null
+  o  changeset:   -1:000000000000
+     user:
+     date:        Thu Jan 01 00:00:00 1970 +0000
   
 
   $ cd ..

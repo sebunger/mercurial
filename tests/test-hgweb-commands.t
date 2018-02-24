@@ -275,10 +275,16 @@ Logs and changes
   <ul>
    <li><a href="/help">help</a></li>
   </ul>
+  <p>
+  <div class="atom-logo">
+  <a href="/atom-log" title="subscribe to atom feed">
+  <img class="atom-logo" src="/static/feed-icon-14x14.png" alt="atom feed">
+  </a>
+  </div>
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>log</h3>
   
   <form class="search" action="/log">
@@ -380,7 +386,7 @@ Logs and changes
   
   <div class="main">
   
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>changeset 0:2ef0ac749a14  <span class="tag">1.0</span>  <span class="tag">anotherthing</span> </h3>
   
   <form class="search" action="/log">
@@ -514,7 +520,7 @@ Logs and changes
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>searching for 'base'</h3>
   
   <form class="search" action="/log">
@@ -628,7 +634,7 @@ File-related
   </div>
   
   <div class="main">
-  <h2><a href="/">test</a></h2>
+  <h2 class="breadcrumb"><a href="/">Mercurial</a> </h2>
   <h3>view foo @ 1:a4f92ed23982</h3>
   
   <form class="search" action="/log">
@@ -738,8 +744,8 @@ Overviews
   <body>
   
   <div class="page_header">
-  <a href="http://mercurial.selenic.com/" title="Mercurial" style="float: right;">Mercurial</a><a href="/summary?style=gitweb">test</a> / summary
-  
+  <a href="http://mercurial.selenic.com/" title="Mercurial" style="float: right;">Mercurial</a>
+  <a href="/">Mercurial</a>  / summary
   <form action="/log">
   <input type="hidden" name="style" value="gitweb" />
   <div class="search">
@@ -941,7 +947,8 @@ Overviews
   <body>
   
   <div class="page_header">
-  <a href="http://mercurial.selenic.com/" title="Mercurial" style="float: right;">Mercurial</a><a href="/summary?style=gitweb">test</a> / graph
+  <a href="http://mercurial.selenic.com/" title="Mercurial" style="float: right;">Mercurial</a>
+  <a href="/">Mercurial</a>  / graph
   </div>
   
   <form action="/log">
@@ -961,8 +968,8 @@ Overviews
   <a href="/file/cad8025a2e87?style=gitweb">files</a> |
   <a href="/help?style=gitweb">help</a>
   <br/>
-  <a href="/graph/3?style=gitweb&revcount=30">less</a>
-  <a href="/graph/3?style=gitweb&revcount=120">more</a>
+  <a href="/graph/3?revcount=30&style=gitweb">less</a>
+  <a href="/graph/3?revcount=120&style=gitweb">more</a>
   | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/tip?style=gitweb">tip</a> <br/>
   </div>
   
@@ -1034,8 +1041,8 @@ Overviews
   </script>
   
   <div class="page_nav">
-  <a href="/graph/3?style=gitweb&revcount=30">less</a>
-  <a href="/graph/3?style=gitweb&revcount=120">more</a>
+  <a href="/graph/3?revcount=30&style=gitweb">less</a>
+  <a href="/graph/3?revcount=120&style=gitweb">more</a>
   | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/tip?style=gitweb">tip</a> 
   </div>
   
@@ -1354,5 +1361,79 @@ Test paging
   changeset:   b4e73ffab476
 
   $ cat errors.log
+
+bookmarks view doesn't choke on bookmarks on secret changesets (issue3774)
+
+  $ hg phase -fs 4
+  $ hg bookmark -r4 secret
+  $ cat > hgweb.cgi <<HGWEB
+  > from mercurial import demandimport; demandimport.enable()
+  > from mercurial.hgweb import hgweb
+  > from mercurial.hgweb import wsgicgi
+  > app = hgweb('.', 'test')
+  > wsgicgi.launch(app)
+  > HGWEB
+  $ . "$TESTDIR/cgienv"
+  $ PATH_INFO=/bookmarks; export PATH_INFO
+  $ QUERY_STRING='style=raw'
+  $ python hgweb.cgi | grep -v ETag:
+  Status: 200 Script output follows\r (esc)
+  Content-Type: text/plain; charset=ascii\r (esc)
+  \r (esc)
+
+listbookmarks hides secret bookmarks
+
+  $ PATH_INFO=/; export PATH_INFO
+  $ QUERY_STRING='cmd=listkeys&namespace=bookmarks'
+  $ python hgweb.cgi
+  Status: 200 Script output follows\r (esc)
+  Content-Type: application/mercurial-0.1\r (esc)
+  Content-Length: 0\r (esc)
+  \r (esc)
+
+search works with filtering
+
+  $ PATH_INFO=/log; export PATH_INFO
+  $ QUERY_STRING='rev=babar'
+  $ python hgweb.cgi > search
+  $ grep Status search
+  Status: 200 Script output follows\r (esc)
+
+summary works with filtering (issue3810)
+
+  $ PATH_INFO=/summary; export PATH_INFO
+  $ QUERY_STRING='style=monoblue'; export QUERY_STRING
+  $ python hgweb.cgi > summary.out
+  $ grep "^Status" summary.out
+  Status: 200 Script output follows\r (esc)
+
+proper status for filtered revision
+
+
+(missing rev)
+
+  $ PATH_INFO=/rev/5; export PATH_INFO
+  $ QUERY_STRING='style=raw'
+  $ python hgweb.cgi #> search
+  Status: 404 Not Found\r (esc)
+  ETag: *\r (glob) (esc)
+  Content-Type: text/plain; charset=ascii\r (esc)
+  \r (esc)
+  
+  error: unknown revision '5'
+
+
+
+(filtered rev)
+
+  $ PATH_INFO=/rev/4; export PATH_INFO
+  $ QUERY_STRING='style=raw'
+  $ python hgweb.cgi #> search
+  Status: 404 Not Found\r (esc)
+  ETag: *\r (glob) (esc)
+  Content-Type: text/plain; charset=ascii\r (esc)
+  \r (esc)
+  
+  error: unknown revision '4'
 
   $ cd ..

@@ -172,11 +172,15 @@
                     will add the most recent revision on the branch indicated in
                     the regex as the second parent of the changeset. Default is
                     "{{mergefrombranch ([-\w]+)}}"
-      hook.cvslog   Specify a Python function to be called at the end of
+      convert.localtimezone
+                    use local time (as determined by the TZ environment
+                    variable) for changeset date/times. The default is False
+                    (use UTC).
+      hooks.cvslog  Specify a Python function to be called at the end of
                     gathering the CVS log. The function is passed a list with
                     the log entries, and can modify the entries in-place, or add
                     or delete them.
-      hook.cvschangesets
+      hooks.cvschangesets
                     Specify a Python function to be called after the changesets
                     are calculated from the CVS log. The function is passed a
                     list with the changeset entries, and can modify the
@@ -211,6 +215,10 @@
       convert.svn.trunk
                     specify the name of the trunk branch. The default is
                     "trunk".
+      convert.localtimezone
+                    use local time (as determined by the TZ environment
+                    variable) for changeset date/times. The default is False
+                    (use UTC).
   
       Source history can be retrieved starting at a specific revision, instead
       of being integrally converted. Only single branch conversions are
@@ -308,7 +316,7 @@ conversion to dir without permissions should fail
   $ chmod 000 bogusdir
 
   $ hg convert a bogusdir
-  abort: Permission denied: bogusdir
+  abort: Permission denied: 'bogusdir'
   [255]
 
 user permissions should succeed

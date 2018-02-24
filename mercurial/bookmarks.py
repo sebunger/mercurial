@@ -7,40 +7,80 @@
 
 from mercurial.i18n import _
 from mercurial.node import hex
-from mercurial import encoding, error, util, obsolete, phases
+from mercurial import encoding, error, util, obsolete
 import errno, os
 
-def read(repo):
-    '''Parse .hg/bookmarks file and return a dictionary
+class bmstore(dict):
+    """Storage for bookmarks.
 
-    Bookmarks are stored as {HASH}\\s{NAME}\\n (localtags format) values
-    in the .hg/bookmarks file.
-    Read the file and return a (name=>nodeid) dictionary
-    '''
-    bookmarks = {}
-    try:
-        for line in repo.opener('bookmarks'):
-            line = line.strip()
-            if not line:
-                continue
-            if ' ' not in line:
-                repo.ui.warn(_('malformed line in .hg/bookmarks: %r\n') % line)
-                continue
-            sha, refspec = line.split(' ', 1)
-            refspec = encoding.tolocal(refspec)
+    This object should do all bookmark reads and writes, so that it's
+    fairly simple to replace the storage underlying bookmarks without
+    having to clone the logic surrounding bookmarks.
+
+    This particular bmstore implementation stores bookmarks as
+    {hash}\s{name}\n (the same format as localtags) in
+    .hg/bookmarks. The mapping is stored as {name: nodeid}.
+
+    This class does NOT handle the "current" bookmark state at this
+    time.
+    """
+
+    def __init__(self, repo):
+        dict.__init__(self)
+        self._repo = repo
+        try:
+            for line in repo.vfs('bookmarks'):
+                line = line.strip()
+                if not line:
+                    continue
+                if ' ' not in line:
+                    repo.ui.warn(_('malformed line in .hg/bookmarks: %r\n')
+                                 % line)
+                    continue
+                sha, refspec = line.split(' ', 1)
+                refspec = encoding.tolocal(refspec)
+                try:
+                    self[refspec] = repo.changelog.lookup(sha)
+                except LookupError:
+                    pass
+        except IOError, inst:
+            if inst.errno != errno.ENOENT:
+                raise
+
+    def write(self):
+        '''Write bookmarks
+
+        Write the given bookmark => hash dictionary to the .hg/bookmarks file
+        in a format equal to those of localtags.
+
+        We also store a backup of the previous state in undo.bookmarks that
+        can be copied back on rollback.
+        '''
+        repo = self._repo
+        if repo._bookmarkcurrent not in self:
+            setcurrent(repo, None)
+
+        wlock = repo.wlock()
+        try:
+
+            file = repo.vfs('bookmarks', 'w', atomictemp=True)
+            for name, node in self.iteritems():
+                file.write("%s %s\n" % (hex(node), encoding.fromlocal(name)))
+            file.close()
+
+            # touch 00changelog.i so hgweb reloads bookmarks (no lock needed)
             try:
-                bookmarks[refspec] = repo.changelog.lookup(sha)
-            except LookupError:
+                os.utime(repo.sjoin('00changelog.i'), None)
+            except OSError:
                 pass
-    except IOError, inst:
-        if inst.errno != errno.ENOENT:
-            raise
-    return bookmarks
+
+        finally:
+            wlock.release()
 
 def readcurrent(repo):
     '''Get the current bookmark
 
-    If we use gittishsh branches we have a current bookmark that
+    If we use gittish branches we have a current bookmark that
     we are on. This function returns the name of the bookmark. It
     is stored in .hg/bookmarks.current
     '''
@@ -59,37 +99,6 @@ def readcurrent(repo):
     finally:
         file.close()
     return mark
-
-def write(repo):
-    '''Write bookmarks
-
-    Write the given bookmark => hash dictionary to the .hg/bookmarks file
-    in a format equal to those of localtags.
-
-    We also store a backup of the previous state in undo.bookmarks that
-    can be copied back on rollback.
-    '''
-    refs = repo._bookmarks
-
-    if repo._bookmarkcurrent not in refs:
-        setcurrent(repo, None)
-
-    wlock = repo.wlock()
-    try:
-
-        file = repo.opener('bookmarks', 'w', atomictemp=True)
-        for refspec, node in refs.iteritems():
-            file.write("%s %s\n" % (hex(node), encoding.fromlocal(refspec)))
-        file.close()
-
-        # touch 00changelog.i so hgweb reloads bookmarks (no lock needed)
-        try:
-            os.utime(repo.sjoin('00changelog.i'), None)
-        except OSError:
-            pass
-
-    finally:
-        wlock.release()
 
 def setcurrent(repo, mark):
     '''Set the name of the bookmark that we are currently on
@@ -125,6 +134,19 @@ def unsetcurrent(repo):
     finally:
         wlock.release()
 
+def iscurrent(repo, mark=None, parents=None):
+    '''Tell whether the current bookmark is also active
+
+    I.e., the bookmark listed in .hg/bookmarks.current also points to a
+    parent of the working directory.
+    '''
+    if not mark:
+        mark = repo._bookmarkcurrent
+    if not parents:
+        parents = [p.node() for p in repo[None].parents()]
+    marks = repo._bookmarks
+    return (mark in marks and marks[mark] in parents)
+
 def updatecurrentbookmark(repo, oldnode, curbranch):
     try:
         return update(repo, oldnode, repo.branchtip(curbranch))
@@ -134,6 +156,20 @@ def updatecurrentbookmark(repo, oldnode, curbranch):
         else:
             raise util.Abort(_("branch %s not found") % curbranch)
 
+def deletedivergent(repo, deletefrom, bm):
+    '''Delete divergent versions of bm on nodes in deletefrom.
+
+    Return True if at least one bookmark was deleted, False otherwise.'''
+    deleted = False
+    marks = repo._bookmarks
+    divergent = [b for b in marks if b.split('@', 1)[0] == bm.split('@', 1)[0]]
+    for mark in divergent:
+        if mark and marks[mark] in deletefrom:
+            if mark != bm:
+                del marks[mark]
+                deleted = True
+    return deleted
+
 def update(repo, parents, node):
     marks = repo._bookmarks
     update = False
@@ -141,18 +177,18 @@ def update(repo, parents, node):
     if not cur:
         return False
 
-    toupdate = [b for b in marks if b.split('@', 1)[0] == cur.split('@', 1)[0]]
-    for mark in toupdate:
-        if mark and marks[mark] in parents:
-            old = repo[marks[mark]]
-            new = repo[node]
-            if old.descendant(new) and mark == cur:
-                marks[cur] = new.node()
-                update = True
-            if mark != cur:
-                del marks[mark]
+    if marks[cur] in parents:
+        old = repo[marks[cur]]
+        new = repo[node]
+        if old.descendant(new):
+            marks[cur] = new.node()
+            update = True
+
+    if deletedivergent(repo, parents, cur):
+        update = True
+
     if update:
-        repo._writebookmarks(marks)
+        marks.write()
     return update
 
 def listbookmarks(repo):
@@ -161,9 +197,10 @@ def listbookmarks(repo):
     marks = getattr(repo, '_bookmarks', {})
 
     d = {}
+    hasnode = repo.changelog.hasnode
     for k, v in marks.iteritems():
         # don't expose local divergent bookmarks
-        if '@' not in k or k.endswith('@'):
+        if hasnode(v) and ('@' not in k or k.endswith('@')):
             d[k] = hex(v)
     return d
 
@@ -179,7 +216,7 @@ def pushbookmark(repo, key, old, new):
             if new not in repo:
                 return False
             marks[key] = repo[new].node()
-        write(repo)
+        marks.write()
         return True
     finally:
         w.release()
@@ -188,16 +225,17 @@ def updatefromremote(ui, repo, remote, path):
     ui.debug("checking for updated bookmarks\n")
     rb = remote.listkeys('bookmarks')
     changed = False
-    for k in rb.keys():
-        if k in repo._bookmarks:
-            nr, nl = rb[k], repo._bookmarks[k]
+    localmarks = repo._bookmarks
+    for k in sorted(rb):
+        if k in localmarks:
+            nr, nl = rb[k], localmarks[k]
             if nr in repo:
                 cr = repo[nr]
                 cl = repo[nl]
                 if cl.rev() >= cr.rev():
                     continue
                 if validdest(repo, cl, cr):
-                    repo._bookmarks[k] = cr.node()
+                    localmarks[k] = cr.node()
                     changed = True
                     ui.status(_("updating bookmark %s\n") % k)
                 else:
@@ -208,7 +246,7 @@ def updatefromremote(ui, repo, remote, path):
                     # find a unique @ suffix
                     for x in range(1, 100):
                         n = '%s@%d' % (kd, x)
-                        if n not in repo._bookmarks:
+                        if n not in localmarks:
                             break
                     # try to use an @pathalias suffix
                     # if an @pathalias already exists, we overwrite (update) it
@@ -216,17 +254,17 @@ def updatefromremote(ui, repo, remote, path):
                         if path == u:
                             n = '%s@%s' % (kd, p)
 
-                    repo._bookmarks[n] = cr.node()
+                    localmarks[n] = cr.node()
                     changed = True
                     ui.warn(_("divergent bookmark %s stored as %s\n") % (k, n))
         elif rb[k] in repo:
             # add remote bookmarks for changes we already have
-            repo._bookmarks[k] = repo[rb[k]].node()
+            localmarks[k] = repo[rb[k]].node()
             changed = True
             ui.status(_("adding remote bookmark %s\n") % k)
 
     if changed:
-        write(repo)
+        localmarks.write()
 
 def diff(ui, dst, src):
     ui.status(_("searching for changed bookmarks\n"))
@@ -246,6 +284,7 @@ def diff(ui, dst, src):
 
 def validdest(repo, old, new):
     """Is the new bookmark destination a valid update from the old one"""
+    repo = repo.unfiltered()
     if old == new:
         # Old == new -> nothing to update.
         return False
@@ -263,14 +302,10 @@ def validdest(repo, old, new):
         while len(validdests) != plen:
             plen = len(validdests)
             succs = set(c.node() for c in validdests)
-            for c in validdests:
-                if c.phase() > phases.public:
-                    # obsolescence marker does not apply to public changeset
-                    succs.update(obsolete.allsuccessors(repo.obsstore,
-                                                        [c.node()]))
+            mutable = [c.node() for c in validdests if c.mutable()]
+            succs.update(obsolete.allsuccessors(repo.obsstore, mutable))
             known = (n for n in succs if n in nm)
             validdests = set(repo.set('%ln::', known))
-        validdests.remove(old)
         return new in validdests
     else:
         return old.descendant(new)

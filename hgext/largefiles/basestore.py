@@ -26,14 +26,8 @@ class StoreError(Exception):
         self.detail = detail
 
     def longmessage(self):
-        if self.url:
-            return ('%s: %s\n'
-                    '(failed URL: %s)\n'
-                    % (self.filename, self.detail, self.url))
-        else:
-            return ('%s: %s\n'
-                    '(no default or default-push path set in hgrc)\n'
-                    % (self.filename, self.detail))
+        return (_("error getting id %s from url %s for file %s: %s\n") %
+                 (self.hash, self.url, self.filename, self.detail))
 
     def __str__(self):
         return "%s: %s" % (self.url, self.detail)
@@ -73,7 +67,7 @@ class basestore(object):
             ui.note(_('getting %s:%s\n') % (filename, hash))
 
             storefilename = lfutil.storepath(self.repo, hash)
-            tmpfile = util.atomictempfile(storefilename,
+            tmpfile = util.atomictempfile(storefilename + '.tmp',
                                           createmode=self.repo.store.createmode)
 
             try:
@@ -81,16 +75,17 @@ class basestore(object):
             except StoreError, err:
                 ui.warn(err.longmessage())
                 hhash = ""
+            tmpfile.close() # has probably already been closed!
 
             if hhash != hash:
                 if hhash != "":
                     ui.warn(_('%s: data corruption (expected %s, got %s)\n')
                             % (filename, hash, hhash))
-                tmpfile.discard() # no-op if it's already closed
+                util.unlink(storefilename + '.tmp')
                 missing.append(filename)
                 continue
 
-            tmpfile.close()
+            util.rename(storefilename + '.tmp', storefilename)
             lfutil.linktousercache(self.repo, hash)
             success.append((filename, hhash))
 
@@ -111,8 +106,9 @@ class basestore(object):
             cctx = self.repo[rev]
             cset = "%d:%s" % (cctx.rev(), node.short(cctx.node()))
 
-            failed = util.any(self._verifyfile(
-                cctx, cset, contents, standin, verified) for standin in cctx)
+            for standin in cctx:
+                if self._verifyfile(cctx, cset, contents, standin, verified):
+                    failed = True
 
         numrevs = len(verified)
         numlfiles = len(set([fname for (fname, fnode) in verified]))
@@ -169,6 +165,7 @@ def _openstore(repo, remote=None, put=False):
             path = ''
             remote = repo
         else:
+            path, _branches = hg.parseurl(path)
             remote = hg.peer(repo, {}, path)
 
     # The path could be a scheme so use Mercurial's normal functionality

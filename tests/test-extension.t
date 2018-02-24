@@ -200,6 +200,7 @@ hide outer repo
       --profile           print command execution profile
       --version           output version information and exit
    -h --help              display help and exit
+      --hidden            consider hidden changesets
   
   [+] marked option can be specified multiple times
 
@@ -230,6 +231,7 @@ hide outer repo
       --profile           print command execution profile
       --version           output version information and exit
    -h --help              display help and exit
+      --hidden            consider hidden changesets
   
   [+] marked option can be specified multiple times
   $ echo 'debugextension = !' >> $HGRCPATH
@@ -497,6 +499,16 @@ No declared supported version, extension complains:
   ** If that fixes the bug please report it to the extension author.
   ** Python * (glob)
   ** Mercurial Distributed SCM * (glob)
+  ** Extensions loaded: throw
+empty declaration of supported version, extension complains:
+  $ echo "testedwith = ''" >> throw.py
+  $ hg --config extensions.throw=throw.py throw 2>&1 | egrep '^\*\*'
+  ** Unknown exception encountered with possibly-broken third-party extension throw
+  ** which supports versions unknown of Mercurial.
+  ** Please disable throw and try your action again.
+  ** If that fixes the bug please report it to the extension author.
+  ** Python * (glob)
+  ** Mercurial Distributed SCM (*) (glob)
   ** Extensions loaded: throw
 If the extension specifies a buglink, show that:
   $ echo 'buglink = "http://example.com/bts"' >> throw.py

@@ -113,7 +113,7 @@ def repository(ui, path='', create=False):
     if not repo:
         raise util.Abort(_("repository '%s' is not local") %
                          (path or peer.url()))
-    return repo
+    return repo.filtered('visible')
 
 def peer(uiorrepo, opts, path, create=False):
     '''return a repository peer for the specified path'''
@@ -122,7 +122,7 @@ def peer(uiorrepo, opts, path, create=False):
 
 def defaultdest(source):
     '''return default destination of clone if none is given'''
-    return os.path.basename(os.path.normpath(util.url(source).path))
+    return os.path.basename(os.path.normpath(util.url(source).path or ''))
 
 def share(ui, source, dest=None, update=True):
     '''create a shared repository'''
@@ -288,17 +288,7 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
         elif os.listdir(dest):
             raise util.Abort(_("destination '%s' is not empty") % dest)
 
-    class DirCleanup(object):
-        def __init__(self, dir_):
-            self.rmtree = shutil.rmtree
-            self.dir_ = dir_
-        def close(self):
-            self.dir_ = None
-        def cleanup(self):
-            if self.dir_:
-                self.rmtree(self.dir_, True)
-
-    srclock = destlock = dircleanup = None
+    srclock = destlock = cleandir = None
     srcrepo = srcpeer.local()
     try:
         abspath = origsource
@@ -306,7 +296,7 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
             abspath = os.path.abspath(util.urllocalpath(origsource))
 
         if islocal(dest):
-            dircleanup = DirCleanup(dest)
+            cleandir = dest
 
         copy = False
         if (srcrepo and srcrepo.cancopy() and islocal(dest)
@@ -330,13 +320,13 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                 os.mkdir(dest)
             else:
                 # only clean up directories we create ourselves
-                dircleanup.dir_ = hgdir
+                cleandir = hgdir
             try:
                 destpath = hgdir
                 util.makedir(destpath, notindexed=True)
             except OSError, inst:
                 if inst.errno == errno.EEXIST:
-                    dircleanup.close()
+                    cleandir = None
                     raise util.Abort(_("destination '%s' already exists")
                                      % dest)
                 raise
@@ -364,7 +354,7 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
                                 # only pass ui when no srcrepo
             except OSError, inst:
                 if inst.errno == errno.EEXIST:
-                    dircleanup.close()
+                    cleandir = None
                     raise util.Abort(_("destination '%s' already exists")
                                      % dest)
                 raise
@@ -384,21 +374,21 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
             else:
                 raise util.Abort(_("clone from remote to remote not supported"))
 
-        if dircleanup:
-            dircleanup.close()
+        cleandir = None
 
         # clone all bookmarks except divergent ones
         destrepo = destpeer.local()
         if destrepo and srcpeer.capable("pushkey"):
             rb = srcpeer.listkeys('bookmarks')
+            marks = destrepo._bookmarks
             for k, n in rb.iteritems():
                 try:
                     m = destrepo.lookup(n)
-                    destrepo._bookmarks[k] = m
+                    marks[k] = m
                 except error.RepoLookupError:
                     pass
             if rb:
-                bookmarks.write(destrepo)
+                marks.write()
         elif srcrepo and destpeer.capable("pushkey"):
             for k, n in srcrepo._bookmarks.iteritems():
                 destpeer.pushkey('bookmarks', k, '', hex(n))
@@ -450,8 +440,8 @@ def clone(ui, peeropts, source, dest=None, pull=False, rev=None,
         return srcpeer, destpeer
     finally:
         release(srclock, destlock)
-        if dircleanup is not None:
-            dircleanup.cleanup()
+        if cleandir is not None:
+            shutil.rmtree(cleandir, True)
         if srcpeer is not None:
             srcpeer.close()
 
@@ -565,7 +555,7 @@ def _outgoing(ui, repo, dest, opts):
         revs = [repo.lookup(rev) for rev in scmutil.revrange(repo, revs)]
 
     other = peer(repo, opts, dest)
-    outgoing = discovery.findcommonoutgoing(repo, other, revs,
+    outgoing = discovery.findcommonoutgoing(repo.unfiltered(), other, revs,
                                             force=opts.get('force'))
     o = outgoing.missing
     if not o:

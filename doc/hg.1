@@ -122,6 +122,10 @@ output version information and exit
 .B \-h,  \-\-help
 .
 display help and exit
+.TP
+.B \-\-hidden
+.
+consider hidden changesets
 .UNINDENT
 .SH COMMANDS
 .SS add
@@ -555,6 +559,15 @@ hg bisect \-\-skip 23
 .fi
 .IP \(bu 2
 .
+skip all revisions that do not touch directories \fBfoo\fP or \fBbar\fP
+.INDENT 2.0
+.INDENT 3.5
+.sp
+hg bisect \-\-skip \(aq!( file("path:foo") & file("path:bar") )\(aq
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+.
 forget the current bisection:
 .sp
 .nf
@@ -673,6 +686,10 @@ push\fP\: and \%\fBhg help pull\fP\:). This requires both the local and remote
 repositories to support bookmarks. For versions prior to 1.8, this means
 the bookmarks extension must be enabled.
 .sp
+If you set a bookmark called \(aq@\(aq, new clones of the repository will
+have that revision checked out (and the bookmark made active) by
+default.
+.sp
 With \-i/\-\-inactive, the new bookmark will not be made the active
 bookmark. If \-r/\-\-rev is given, the new bookmark will not be made
 active even if \-i/\-\-inactive is not given. If no NAME is given, the
@@ -700,6 +717,8 @@ rename a given bookmark
 .B \-i,  \-\-inactive
 .
 mark a bookmark inactive
+.sp
+aliases: bookmark
 .UNINDENT
 .SS branch
 .sp
@@ -926,6 +945,9 @@ their ancestors. These options (or \(aqclone src#rev dest\(aq) imply
 tag will include the tagged changeset but not the changeset
 containing the tag.
 .sp
+If the source repository has a bookmark called \(aq@\(aq set, that
+revision will be checked out in the new repository by default.
+.sp
 To check out a particular version, use \-u/\-\-update, or
 \-U/\-\-noupdate to create a clone with no working directory.
 .sp
@@ -977,8 +999,11 @@ the tipmost head specified with \-b
 the tipmost head specified with the url#branch source syntax
 .IP g. 3
 .
-the tipmost head of the default branch
+the revision marked with the \(aq@\(aq bookmark, if present
 .IP h. 3
+.
+the tipmost head of the default branch
+.IP i. 3
 .
 tip
 .UNINDENT
@@ -2434,10 +2459,6 @@ show changesets within the given named branch
 .B \-P,  \-\-prune
 .
 do not display revision or any of its ancestors
-.TP
-.B \-\-hidden
-.
-show hidden changesets (DEPRECATED)
 .TP
 .B \-p,  \-\-patch
 .
@@ -5673,6 +5694,12 @@ Mutable changesets marked as successors of public changesets.
 .sp
 Only non\-public and non\-obsolete changesets can be \fIbumped\fP.
 .TP
+.B \fBbundle()\fP
+.sp
+Changesets in the bundle.
+.sp
+Bundle must be specified by the \-R option.
+.TP
 .B \fBchildren(set)\fP
 .sp
 Child changesets of changesets in set.
@@ -5708,6 +5735,10 @@ Changesets which are descendants of changesets in set.
 Changesets that were created by a graft, transplant or rebase operation,
 with the given revisions specified as the source.  Omitting the optional set
 is the same as passing all().
+.TP
+.B \fBdivergent()\fP
+.sp
+Final successors of changesets with an alternative set of final successors.
 .TP
 .B \fBdraft()\fP
 .sp
@@ -6033,7 +6064,7 @@ release:
 .sp
 .nf
 .ft C
-hg log \-r "(keyword(bug) or keyword(issue)) and not ancestors(tagged())"
+hg log \-r "(keyword(bug) or keyword(issue)) and not ancestors(tag())"
 .ft P
 .fi
 .UNINDENT
@@ -6535,6 +6566,118 @@ Any text. Escapes all "special" characters. For example,
 .
 Any text. Returns a short representation of a user name or email
 address.
+.UNINDENT
+.sp
+Note that a filter is nothing more than a function call, i.e.
+\fBexpr|filter\fP is equivalent to \fBfilter(expr)\fP.
+.sp
+In addition to filters, there are some basic built\-in functions:
+.INDENT 0.0
+.IP \(bu 2
+.
+if(expr, then[, else])
+.IP \(bu 2
+.
+ifeq(expr, expr, then[, else])
+.IP \(bu 2
+.
+sub(pat, repl, expr)
+.IP \(bu 2
+.
+join(list, sep)
+.IP \(bu 2
+.
+label(label, expr)
+.IP \(bu 2
+.
+date(date[, fmt])
+.IP \(bu 2
+.
+fill(text[, width])
+.UNINDENT
+.sp
+Also, for any expression that returns a list, there is a list operator:
+.INDENT 0.0
+.IP \(bu 2
+.
+expr % "{template}"
+.UNINDENT
+.sp
+Some sample command line templates:
+.INDENT 0.0
+.IP \(bu 2
+.
+Format lists, e.g. files:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "files:\en{files % \(aq  {file}\en\(aq}"
+.ft P
+.fi
+.IP \(bu 2
+.
+Join the list of files with a ", ":
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "files: {join(files, \(aq, \(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Format date:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{date(date, \(aq%Y\(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Output the description set to a fill\-width of 30:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{fill(desc, \(aq30\(aq)}"
+.ft P
+.fi
+.IP \(bu 2
+.
+Use a conditional to test for the default branch:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{ifeq(branch, \(aqdefault\(aq, \(aqon the main branch\(aq,
+\(aqon branch {branch}\(aq)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Append a newline if not empty:
+.sp
+.nf
+.ft C
+$ hg tip \-\-template "{if(author, \(aq{author}\en\(aq)}"
+.ft P
+.fi
+.IP \(bu 2
+.
+Label the output for use with the color extension:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{label(\(aqchangeset.{phase}\(aq, node|short)}\en"
+.ft P
+.fi
+.IP \(bu 2
+.
+Invert the firstline filter, i.e. everything but the first line:
+.sp
+.nf
+.ft C
+$ hg log \-r 0 \-\-template "{sub(r\(aq^.*\en?\en?\(aq, \(aq\(aq, desc)}\en"
+.ft P
+.fi
 .UNINDENT
 .SH URL PATHS
 .sp
@@ -7678,14 +7821,20 @@ conversion process will add the most recent revision on the
 branch indicated in the regex as the second parent of the
 changeset. Default is \fB{{mergefrombranch ([\-\ew]+)}}\fP
 .TP
-.B hook.cvslog
+.B convert.localtimezone
+.
+use local time (as determined by the TZ
+environment variable) for changeset date/times. The default
+is False (use UTC).
+.TP
+.B hooks.cvslog
 .
 Specify a Python function to be called at the end of
 gathering the CVS log. The function is passed a list with the
 log entries, and can modify the entries in\-place, or add or
 delete them.
 .TP
-.B hook.cvschangesets
+.B hooks.cvschangesets
 .
 Specify a Python function to be called after
 the changesets are calculated from the CVS log. The
@@ -7727,6 +7876,12 @@ default is \fBtags\fP.
 .
 specify the name of the trunk branch. The
 default is \fBtrunk\fP.
+.TP
+.B convert.localtimezone
+.
+use local time (as determined by the TZ
+environment variable) for changeset date/times. The default
+is False (use UTC).
 .UNINDENT
 .sp
 Source history can be retrieved starting at a specific revision,
@@ -8294,10 +8449,6 @@ show changesets within the given named branch
 .
 do not display revision or any of its ancestors
 .TP
-.B \-\-hidden
-.
-show hidden changesets (DEPRECATED)
-.TP
 .B \-p,  \-\-patch
 .
 show patch
@@ -8484,7 +8635,7 @@ pick c561b4e977df Add beta
 pick 030b686bedc4 Add gamma
 pick 7c2fd3b9020c Add delta
 
-# Edit history between 633536316234 and 7c2fd3b9020c
+# Edit history between c561b4e977df and 7c2fd3b9020c
 #
 # Commands:
 #  p, pick = use commit
@@ -8507,7 +8658,7 @@ pick 030b686bedc4 Add gamma
 pick c561b4e977df Add beta
 fold 7c2fd3b9020c Add delta
 
-# Edit history between 633536316234 and 7c2fd3b9020c
+# Edit history between c561b4e977df and 7c2fd3b9020c
 #
 # Commands:
 #  p, pick = use commit
@@ -8578,8 +8729,8 @@ you can use \fBhg histedit \-\-abort\fP to abandon the new changes you
 have made and return to the state before you attempted to edit your
 history.
 .sp
-If we clone the example repository above and add three more changes, such that
-we have the following history:
+If we clone the histedit\-ed example repository above and add four more
+changes, such that we have the following history:
 .sp
 .nf
 .ft C
@@ -10795,6 +10946,9 @@ with others. Doing so will force everybody else to perform the
 same rebase or they will end up with duplicated changesets after
 pulling in your rebased changesets.
 .sp
+In its default configuration, Mercurial will prevent you from
+rebasing published changes. See \%\fBhg help phases\fP\: for details.
+.sp
 If you don\(aqt specify a destination changeset (\fB\-d/\-\-dest\fP),
 rebase uses the tipmost head of the current named branch as the
 destination. (The destination changeset is not modified by
@@ -10811,6 +10965,11 @@ back to but not including the common ancestor with dest. Thus,
 specify any changeset in the source branch, and rebase will select
 the whole branch. If you specify neither \fB\-s\fP nor \fB\-b\fP, rebase
 uses the parent of the working directory as the base.
+.sp
+For advanced usage, a third way is available through the \fB\-\-rev\fP
+option. It allows you to specify an arbitrary set of changesets to
+rebase. Descendants of revs you specify with this option are not
+automatically included in the rebase.
 .sp
 By default, rebase recreates the changesets in the source branch
 as descendants of dest and then destroys the originals. Use

@@ -166,10 +166,65 @@ set.
   o  0:cd010b8cd998 A
   
   $ hg debugobsolete
-  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 08483444fef91d6224f6655ee586a65d263ad34c 0 {'date': '*', 'user': 'test'} (glob)
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {'date': '*', 'user': 'test'} (glob)
   5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '*', 'user': 'test'} (glob)
-  32af7686d403cf45b5d95f2d70cebea587ac806a 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '*', 'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {'date': '*', 'user': 'test'} (glob)
 
+
+More complex case were part of the rebase set were already rebased
+
+  $ hg rebase --rev 'desc(D)' --dest 'desc(H)'
+  $ hg debugobsolete
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {'date': '*', 'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '*', 'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {'date': '*', 'user': 'test'} (glob)
+  08483444fef91d6224f6655ee586a65d263ad34c cbc07f26687521cecfc9a141bf5ecfc0fd2b8531 0 {'date': '* *', 'user': 'test'} (glob)
+  $ hg log -G
+  @  11:cbc07f266875 D
+  |
+  | o  10:5ae4c968c6ac C
+  | |
+  | x  9:08483444fef9 D
+  | |
+  | o  8:8877864f1edb B
+  | |
+  o |  7:02de42196ebe H
+  | |
+  | o  6:eea13746799a G
+  |/|
+  o |  5:24b6387c8c8c F
+  | |
+  | o  4:9520eea781bc E
+  |/
+  o  0:cd010b8cd998 A
+  
+  $ hg rebase --source 'desc(B)' --dest 'tip'
+  $ hg debugobsolete
+  42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 0 {'date': '* *', 'user': 'test'} (glob)
+  5fddd98957c8a54a4d436dfe1da9d87f21a1b97b 5ae4c968c6aca831df823664e706c9d4aa34473d 0 {'date': '* *', 'user': 'test'} (glob)
+  32af7686d403cf45b5d95f2d70cebea587ac806a 0 {'date': '* *', 'user': 'test'} (glob)
+  08483444fef91d6224f6655ee586a65d263ad34c cbc07f26687521cecfc9a141bf5ecfc0fd2b8531 0 {'date': '* *', 'user': 'test'} (glob)
+  8877864f1edb05d0e07dc4ba77b67a80a7b86672 b1861c79d66ec3aa1b607ac3c9fb819e38b12238 0 {'date': '* *', 'user': 'test'} (glob)
+  08483444fef91d6224f6655ee586a65d263ad34c 0 {'date': '* *', 'user': 'test'} (glob)
+  5ae4c968c6aca831df823664e706c9d4aa34473d dd4be135457a404ce5541de427ae1d98a28f4acd 0 {'date': '* *', 'user': 'test'} (glob)
+  $ hg log --rev 'divergent()'
+  $ hg log -G
+  @  13:dd4be135457a C
+  |
+  o  12:b1861c79d66e B
+  |
+  o  11:cbc07f266875 D
+  |
+  o  7:02de42196ebe H
+  |
+  | o  6:eea13746799a G
+  |/|
+  o |  5:24b6387c8c8c F
+  | |
+  | o  4:9520eea781bc E
+  |/
+  o  0:cd010b8cd998 A
+  
 
   $ cd ..
 
@@ -279,4 +334,125 @@ not be rebased.
   32af7686d403cf45b5d95f2d70cebea587ac806a cf44d2f5a9f4297a62be94cbdd3dff7c7dc54258 0 {'date': '*', 'user': 'test'} (glob)
   42ccdea3bb16d28e1848c95fe2e44c000f3f21b1 7c6027df6a99d93f461868e5433f63bde20b6dfb 0 {'date': '*', 'user': 'test'} (glob)
 
+Test that rewriting leaving instability behind is allowed
+---------------------------------------------------------------------
+
+  $ hg log -r 'children(8)'
+  9:cf44d2f5a9f4 D (no-eol)
+  $ hg rebase -r 8
+  $ hg log -G
+  @  11:0d8f238b634c C
+  |
+  o  10:7c6027df6a99 B
+  |
+  | o  9:cf44d2f5a9f4 D
+  | |
+  | x  8:e273c5e7d2d2 C
+  | |
+  o |  7:02de42196ebe H
+  | |
+  | o  6:eea13746799a G
+  |/|
+  o |  5:24b6387c8c8c F
+  | |
+  | o  4:9520eea781bc E
+  |/
+  o  0:cd010b8cd998 A
+  
+
+
+Test multiple root handling
+------------------------------------
+
+  $ hg rebase --dest 4 --rev '7+11+9'
+  $ hg log -G
+  @  14:1e8370e38cca C
+  |
+  | o  13:102b4c1d889b D
+  | |
+  o |  12:bfe264faf697 H
+  |/
+  | o  10:7c6027df6a99 B
+  | |
+  | x  7:02de42196ebe H
+  | |
+  +---o  6:eea13746799a G
+  | |/
+  | o  5:24b6387c8c8c F
+  | |
+  o |  4:9520eea781bc E
+  |/
+  o  0:cd010b8cd998 A
+  
   $ cd ..
+
+test on rebase dropping a merge
+
+(setup)
+
+  $ hg init dropmerge
+  $ cd dropmerge
+  $ hg unbundle "$TESTDIR/bundles/rebase.hg"
+  adding changesets
+  adding manifests
+  adding file changes
+  added 8 changesets with 7 changes to 7 files (+2 heads)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  $ hg up 3
+  4 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg merge 7
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg ci -m 'M'
+  $ echo I > I
+  $ hg add I
+  $ hg ci -m I
+  $ hg log -G
+  @  9:4bde274eefcf I
+  |
+  o    8:53a6a128b2b7 M
+  |\
+  | o  7:02de42196ebe H
+  | |
+  | | o  6:eea13746799a G
+  | |/|
+  | o |  5:24b6387c8c8c F
+  | | |
+  | | o  4:9520eea781bc E
+  | |/
+  o |  3:32af7686d403 D
+  | |
+  o |  2:5fddd98957c8 C
+  | |
+  o |  1:42ccdea3bb16 B
+  |/
+  o  0:cd010b8cd998 A
+  
+(actual test)
+
+  $ hg rebase --dest 6 --rev '((desc(H) + desc(D))::) - desc(M)'
+  $ hg log -G
+  @  12:acd174b7ab39 I
+  |
+  o  11:6c11a6218c97 H
+  |
+  | o  10:b5313c85b22e D
+  |/
+  | o    8:53a6a128b2b7 M
+  | |\
+  | | x  7:02de42196ebe H
+  | | |
+  o---+  6:eea13746799a G
+  | | |
+  | | o  5:24b6387c8c8c F
+  | | |
+  o---+  4:9520eea781bc E
+   / /
+  x |  3:32af7686d403 D
+  | |
+  o |  2:5fddd98957c8 C
+  | |
+  o |  1:42ccdea3bb16 B
+  |/
+  o  0:cd010b8cd998 A
+  
