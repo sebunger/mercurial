@@ -423,6 +423,24 @@ Example for ``~/.hgrc``::
   myfeature = ~/.hgext/myfeature.py
 
 
+``hostfingerprints``
+""""""""""""""""""""
+
+Fingerprints of the certificates of known HTTPS servers.
+A HTTPS connection to a server with a fingerprint configured here will
+only succeed if the servers certificate matches the fingerprint.
+This is very similar to how ssh known hosts works.
+The fingerprint is the SHA-1 hash value of the DER encoded certificate.
+The CA chain and web.cacerts is not used for servers with a fingerprint.
+
+For example::
+
+    [hostfingerprints]
+    hg.intevation.org = 38:76:52:7c:87:26:9a:8f:4a:f8:d3:de:08:45:3b:ea:d6:4b:ee:cc
+
+This feature is only supported when using Python 2.6 or later.
+
+
 ``format``
 """"""""""
 
@@ -991,10 +1009,11 @@ The full set of options is:
     third-party tools like email notification hooks can construct
     URLs. Example: ``http://hgserver/repos/``.
 ``cacerts``
-    Path to file containing a list of PEM encoded certificate authority
-    certificates. If specified on the client, then it will verify the identity
-    of remote HTTPS servers with these certificates. The form must be
-    as follows::
+    Path to file containing a list of PEM encoded certificate
+    authority certificates. Environment variables and ``~user``
+    constructs are expanded in the filename. If specified on the
+    client, then it will verify the identity of remote HTTPS servers
+    with these certificates. The form must be as follows::
 
         -----BEGIN CERTIFICATE-----
         ... (certificate in base64 PEM encoding) ...
@@ -1011,6 +1030,9 @@ The full set of options is:
     You can use OpenSSL's CA certificate file if your platform has one.
     On most Linux systems this will be ``/etc/ssl/certs/ca-certificates.crt``.
     Otherwise you will have to generate this file manually.
+
+    To disable SSL verification temporarily, specify ``--insecure`` from
+    command line.
 ``contact``
     Name or email address of the person in charge of the repository.
     Defaults to ui.username or ``$EMAIL`` or "unknown" if unset or empty.

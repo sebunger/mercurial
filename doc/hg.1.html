@@ -575,6 +575,9 @@ permissions, copy/rename information, and revision history.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -711,6 +714,9 @@ latest head of that branch)</li>
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -1280,6 +1286,9 @@ changesets twice if the incoming is followed by a pull.</p>
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
+<tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
 <td><p class="first">recurse into subrepositories</p>
 <p class="last">aliases: in</p>
@@ -1309,6 +1318,9 @@ See <a class="reference external" href="hg.1.html#urls"><tt class="docutils lite
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -1578,6 +1590,9 @@ be pushed if a push was requested.</p>
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
 <tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
+<tr><td class="option-group">
 <kbd><span class="option">-S</span>, <span class="option">--subrepos</span></kbd></td>
 <td><p class="first">recurse into subrepositories</p>
 <p class="last">aliases: out</p>
@@ -1676,6 +1691,9 @@ See <a class="reference external" href="hg.1.html#urls"><tt class="docutils lite
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -1725,6 +1743,9 @@ URLs. If DESTINATION is omitted, a default path will be used.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -4767,6 +4788,9 @@ order, use --switch-parent.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -5274,6 +5298,9 @@ would be created by <a class="reference external" href="hg.1.html#init"><tt clas
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -6384,6 +6411,9 @@ hgrc. See the [email] section in hgrc(5) for details.</p>
 <tr><td class="option-group">
 <kbd><span class="option">--remotecmd</span></kbd></td>
 <td>specify hg command to run on the remote side</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--insecure</span></kbd></td>
+<td>do not verify server certificate (ignoring web.cacerts config)</td></tr>
 </tbody>
 </table>
 </div>
@@ -6837,7 +6867,7 @@ case-insensitive file system.</li>
 <ul class="simple">
 <li>You should use single encoding in one repository.</li>
 <li>If the repository path ends with 0x5c, .hg/hgrc cannot be read.</li>
-<li>win32mbcs is not compatible with fixutf8 extention.</li>
+<li>win32mbcs is not compatible with fixutf8 extension.</li>
 </ul>
 <p>By default, win32mbcs uses encoding.encoding decided by Mercurial.
 You can specify the encoding by config option:</p>

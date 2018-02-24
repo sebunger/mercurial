@@ -488,22 +488,38 @@ class httphandler(keepalive.HTTPHandler):
 
 def _verifycert(cert, hostname):
     '''Verify that cert (in socket.getpeercert() format) matches hostname.
-    CRLs and subjectAltName are not handled.
+    CRLs is not handled.
 
     Returns error message if any problems are found and None on success.
     '''
     if not cert:
         return _('no certificate received')
     dnsname = hostname.lower()
+    def matchdnsname(certname):
+        return (certname == dnsname or
+                '.' in dnsname and certname == '*.' + dnsname.split('.', 1)[1])
+
+    san = cert.get('subjectAltName', [])
+    if san:
+        certnames = [value.lower() for key, value in san if key == 'DNS']
+        for name in certnames:
+            if matchdnsname(name):
+                return None
+        return _('certificate is for %s') % ', '.join(certnames)
+
+    # subject is only checked when subjectAltName is empty
     for s in cert.get('subject', []):
         key, value = s[0]
         if key == 'commonName':
-            certname = value.lower()
-            if (certname == dnsname or
-                '.' in dnsname and certname == '*.' + dnsname.split('.', 1)[1]):
+            try:
+                # 'subject' entries are unicode
+                certname = value.lower().encode('ascii')
+            except UnicodeEncodeError:
+                return _('IDN in certificate not supported')
+            if matchdnsname(certname):
                 return None
             return _('certificate is for %s') % certname
-    return _('no commonName found in certificate')
+    return _('no commonName or subjectAltName found in certificate')
 
 if has_https:
     class BetterHTTPS(httplib.HTTPSConnection):
@@ -512,25 +528,52 @@ if has_https:
         def connect(self):
             if hasattr(self, 'ui'):
                 cacerts = self.ui.config('web', 'cacerts')
+                if cacerts:
+                    cacerts = util.expandpath(cacerts)
             else:
                 cacerts = None
 
-            if cacerts:
+            hostfingerprint = self.ui.config('hostfingerprints', self.host)
+            if cacerts and not hostfingerprint:
                 sock = _create_connection((self.host, self.port))
                 self.sock = _ssl_wrap_socket(sock, self.key_file,
                         self.cert_file, cert_reqs=CERT_REQUIRED,
                         ca_certs=cacerts)
                 msg = _verifycert(self.sock.getpeercert(), self.host)
                 if msg:
-                    raise util.Abort(_('%s certificate error: %s') %
-                                     (self.host, msg))
+                    raise util.Abort(_('%s certificate error: %s '
+                                       '(use --insecure to connect '
+                                       'insecurely)') % (self.host, msg))
                 self.ui.debug('%s certificate successfully verified\n' %
                               self.host)
             else:
-                self.ui.warn(_("warning: %s certificate not verified "
-                               "(check web.cacerts config setting)\n") %
-                             self.host)
                 httplib.HTTPSConnection.connect(self)
+                if hasattr(self.sock, 'getpeercert'):
+                    peercert = self.sock.getpeercert(True)
+                    peerfingerprint = util.sha1(peercert).hexdigest()
+                    nicefingerprint = ":".join([peerfingerprint[x:x + 2]
+                        for x in xrange(0, len(peerfingerprint), 2)])
+                    if hostfingerprint:
+                        if peerfingerprint.lower() != \
+                                hostfingerprint.replace(':', '').lower():
+                            raise util.Abort(_('invalid certificate for %s '
+                                               'with fingerprint %s') %
+                                             (self.host, nicefingerprint))
+                        self.ui.debug('%s certificate matched fingerprint %s\n' %
+                                      (self.host, nicefingerprint))
+                    else:
+                        self.ui.warn(_('warning: %s certificate '
+                                       'with fingerprint %s not verified '
+                                       '(check hostfingerprints or web.cacerts '
+                                       'config setting)\n') %
+                                     (self.host, nicefingerprint))
+                else: # python 2.5 ?
+                    if hostfingerprint:
+                        raise util.Abort(_('no certificate for %s '
+                                           'with fingerprint') % self.host)
+                    self.ui.warn(_('warning: %s certificate not verified '
+                                   '(check web.cacerts config setting)\n') %
+                                 self.host)
 
     class httpsconnection(BetterHTTPS):
         response_class = keepalive.HTTPResponse

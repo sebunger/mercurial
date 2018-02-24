@@ -546,11 +546,11 @@ def remoteui(src, opts):
         dst.setconfig('bundle', 'mainreporoot', r)
 
     # copy selected local settings to the remote ui
-    for sect in ('auth', 'http_proxy'):
+    for sect in ('auth', 'hostfingerprints', 'http_proxy'):
         for key, val in src.configitems(sect):
             dst.setconfig(sect, key, val)
     v = src.config('web', 'cacerts')
     if v:
-        dst.setconfig('web', 'cacerts', v)
+        dst.setconfig('web', 'cacerts', util.expandpath(v))
 
     return dst

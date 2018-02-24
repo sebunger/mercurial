@@ -640,6 +640,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS cat
 .sp
@@ -820,6 +824,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS commit
 .sp
@@ -1510,6 +1518,10 @@ specify ssh command to use
 .
 specify hg command to run on the remote side
 .TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
@@ -1544,6 +1556,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS locate
 .sp
@@ -1867,6 +1883,10 @@ specify ssh command to use
 .
 specify hg command to run on the remote side
 .TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
@@ -1984,6 +2004,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS push
 .sp
@@ -2045,6 +2069,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS recover
 .sp
@@ -6068,6 +6096,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS gpg
 .sp
@@ -6654,6 +6686,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS qcommit
 .sp
@@ -7983,6 +8019,10 @@ specify ssh command to use
 .B \-\-remotecmd
 .
 specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .SS progress
 .sp
@@ -8530,7 +8570,7 @@ You should use single encoding in one repository.
 If the repository path ends with 0x5c, .hg/hgrc cannot be read.
 .IP \(bu 2
 .
-win32mbcs is not compatible with fixutf8 extention.
+win32mbcs is not compatible with fixutf8 extension.
 .UNINDENT
 .sp
 By default, win32mbcs uses encoding.encoding decided by Mercurial.
