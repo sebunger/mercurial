@@ -1745,6 +1745,9 @@ def _makelogrevset(repo, pats, opts, revs):
             else:
                 slowpath = False
 
+    fpats = ('_patsfollow', '_patsfollowfirst')
+    fnopats = (('_ancestors', '_fancestors'),
+               ('_descendants', '_fdescendants'))
     if slowpath:
         # See walkchangerevs() slow path.
         #
@@ -1763,11 +1766,10 @@ def _makelogrevset(repo, pats, opts, revs):
             matchargs.append('x:' + p)
         matchargs = ','.join(('%r' % p) for p in matchargs)
         opts['_matchfiles'] = matchargs
+        if follow:
+            opts[fnopats[0][followfirst]] = '.'
     else:
         if follow:
-            fpats = ('_patsfollow', '_patsfollowfirst')
-            fnopats = (('_ancestors', '_fancestors'),
-                       ('_descendants', '_fdescendants'))
             if pats:
                 # follow() revset interprets its file argument as a
                 # manifest entry, so use match.files(), not pats.
@@ -1793,7 +1795,7 @@ def _makelogrevset(repo, pats, opts, revs):
                 filematcher = lambda rev: match
 
     expr = []
-    for op, val in opts.iteritems():
+    for op, val in sorted(opts.iteritems()):
         if not val:
             continue
         if op not in opt2revset:
@@ -2531,12 +2533,16 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
             dsmodified = modified
             dsadded = added
             dsremoved = removed
+            # store all local modifications, useful later for rename detection
+            localchanges = dsmodified | dsadded
             modified, added, removed = set(), set(), set()
         else:
             changes = repo.status(node1=parent, match=m)
             dsmodified = set(changes[0])
             dsadded    = set(changes[1])
             dsremoved  = set(changes[2])
+            # store all local modifications, useful later for rename detection
+            localchanges = dsmodified | dsadded
 
             # only take into account for removes between wc and target
             clean |= dsremoved - removed
@@ -2570,7 +2576,7 @@ def revert(ui, repo, ctx, parents, *pats, **opts):
 
         # if f is a rename, update `names` to also revert the source
         cwd = repo.getcwd()
-        for f in dsadded:
+        for f in localchanges:
             src = repo.dirstate.copied(f)
             # XXX should we check for rename down to target node?
             if src and src not in names and repo.dirstate[src] == 'r':
