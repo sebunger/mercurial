@@ -3292,13 +3292,6 @@ set appropriately if this Mercurial is not installed system-wide.</dd>
 extensions. Extensions may add new commands, add options to
 existing commands, change the default behavior of commands, or
 implement hooks.</p>
-<p>Extensions are not loaded by default for a variety of reasons:
-they can increase startup overhead; they may be meant for advanced
-usage only; they may provide potentially dangerous abilities (such
-as letting you destroy or modify history); they might not be ready
-for prime time; or they may alter some usual behaviors of stock
-Mercurial. It is thus up to the user to activate extensions as
-needed.</p>
 <p>To enable the &quot;foo&quot; extension, either shipped with Mercurial or in the
 Python search path, create an entry for it in your configuration file,
 like this:</p>
@@ -3311,6 +3304,14 @@ foo =
 [extensions]
 myfeature = ~/.hgext/myfeature.py
 </pre>
+<p>See <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a> for more information on configuration files.</p>
+<p>Extensions are not loaded by default for a variety of reasons:
+they can increase startup overhead; they may be meant for advanced
+usage only; they may provide potentially dangerous abilities (such
+as letting you destroy or modify history); they might not be ready
+for prime time; or they may alter some usual behaviors of stock
+Mercurial. It is thus up to the user to activate extensions as
+needed.</p>
 <p>To explicitly disable an extension enabled in a configuration file of
 broader scope, prepend its path with !:</p>
 <pre class="literal-block">
@@ -4201,7 +4202,7 @@ repository to disable publishing in its configuration file:</p>
 [phases]
 publish = False
 </pre>
-<p>See <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a> for more information on config files.</p>
+<p>See <a class="reference external" href="hg.1.html#config"><tt class="docutils literal">hg help config</tt></a> for more information on configuration files.</p>
 <div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Servers running older versions of Mercurial are treated as
