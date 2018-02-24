@@ -6,7 +6,7 @@
 # GNU General Public License version 2 or any later version.
 
 import error
-import sys, unicodedata, locale, os
+import unicodedata, locale, os
 
 def _getpreferredencoding():
     '''
@@ -15,7 +15,7 @@ def _getpreferredencoding():
     for Python 2.7 and up. This is the same corrected code for earlier
     Python versions.
 
-    However, we can't use a version check for this method, as some distributions 
+    However, we can't use a version check for this method, as some distributions
     patch Python to fix this. Instead, we use it as a 'fixer' for the mac-roman
     encoding, as it is unlikely that this encoding is the actually expected.
     '''
@@ -87,11 +87,17 @@ def fromlocal(s):
     except LookupError, k:
         raise error.Abort("%s, please check your locale settings" % k)
 
+# How to treat ambiguous-width characters. Set to 'wide' to treat as wide.
+ambiguous = os.environ.get("HGENCODINGAMBIGUOUS", "narrow")
+
 def colwidth(s):
     "Find the column width of a UTF-8 string for display"
     d = s.decode(encoding, 'replace')
     if hasattr(unicodedata, 'east_asian_width'):
+        wide = "WF"
+        if ambiguous == "wide":
+            wide = "WFA"
         w = unicodedata.east_asian_width
-        return sum([w(c) in 'WFA' and 2 or 1 for c in d])
+        return sum([w(c) in wide and 2 or 1 for c in d])
     return len(d)
 

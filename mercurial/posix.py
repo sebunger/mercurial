@@ -144,7 +144,7 @@ if sys.platform == 'darwin':
         try:
             fd = os.open(path, O_SYMLINK)
         except OSError, err:
-            if err.errno is errno.ENOENT:
+            if err.errno == errno.ENOENT:
                 return path
             raise
 
@@ -272,7 +272,7 @@ def spawndetached(args):
 def gethgcmd():
     return sys.argv[:1]
 
-def termwidth_():
+def termwidth():
     try:
         import termios, array, fcntl
         for dev in (sys.stderr, sys.stdout, sys.stdin):

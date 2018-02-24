@@ -24,6 +24,8 @@ It only supports a small subset of reStructuredText:
 
 - definition lists
 
+- specific admonitions
+
 - bullet lists (items must start with '-')
 
 - enumerated lists (no autonumbering)
@@ -37,6 +39,8 @@ It only supports a small subset of reStructuredText:
 
 import re, sys
 import util, encoding
+from i18n import _
+
 
 def replace(text, substs):
     utext = text.decode(encoding.encoding)
@@ -44,25 +48,21 @@ def replace(text, substs):
         utext = utext.replace(f, t)
     return utext.encode(encoding.encoding)
 
+
+_blockre = re.compile(r"\n(?:\s*\n)+")
+
 def findblocks(text):
     """Find continuous blocks of lines in text.
 
     Returns a list of dictionaries representing the blocks. Each block
     has an 'indent' field and a 'lines' field.
     """
-    blocks = [[]]
-    lines = text.splitlines()
-    for line in lines:
-        if line.strip():
-            blocks[-1].append(line)
-        elif blocks[-1]:
-            blocks.append([])
-    if not blocks[-1]:
-        del blocks[-1]
-
-    for i, block in enumerate(blocks):
-        indent = min((len(l) - len(l.lstrip())) for l in block)
-        blocks[i] = dict(indent=indent, lines=[l[indent:] for l in block])
+    blocks = []
+    for b in _blockre.split(text.strip()):
+        lines = b.splitlines()
+        indent = min((len(l) - len(l.lstrip())) for l in lines)
+        lines = [l[indent:] for l in lines]
+        blocks.append(dict(indent=indent, lines=lines))
     return blocks
 
 
@@ -248,7 +248,7 @@ def findsections(blocks):
         # +------------------------------+
         if (block['type'] == 'paragraph' and
             len(block['lines']) == 2 and
-            len(block['lines'][0]) == len(block['lines'][1]) and
+            encoding.colwidth(block['lines'][0]) == len(block['lines'][1]) and
             _sectionre.match(block['lines'][1])):
             block['underline'] = block['lines'][1][0]
             block['type'] = 'section'
@@ -292,19 +292,73 @@ def addmargins(blocks):
             i += 2
     return blocks
 
+def prunecomments(blocks):
+    """Remove comments."""
+    i = 0
+    while i < len(blocks):
+        b = blocks[i]
+        if b['type'] == 'paragraph' and b['lines'][0].startswith('.. '):
+            del blocks[i]
+        else:
+            i += 1
+    return blocks
+
+_admonitionre = re.compile(r"\.\. (admonition|attention|caution|danger|"
+                           r"error|hint|important|note|tip|warning)::",
+                           flags=re.IGNORECASE)
+
+def findadmonitions(blocks):
+    """
+    Makes the type of the block an admonition block if
+    the first line is an admonition directive
+    """
+    i = 0
+    while i < len(blocks):
+        m = _admonitionre.match(blocks[i]['lines'][0])
+        if m:
+            blocks[i]['type'] = 'admonition'
+            admonitiontitle = blocks[i]['lines'][0][3:m.end() - 2].lower()
+
+            firstline = blocks[i]['lines'][0][m.end() + 1:]
+            if firstline:
+                blocks[i]['lines'].insert(1, '   ' + firstline)
+
+            blocks[i]['admonitiontitle'] = admonitiontitle
+            del blocks[i]['lines'][0]
+        i = i + 1
+    return blocks
+
+_admonitiontitles = {'attention': _('Attention:'),
+                     'caution': _('Caution:'),
+                     'danger': _('!Danger!')  ,
+                     'error': _('Error:'),
+                     'hint': _('Hint:'),
+                     'important': _('Important:'),
+                     'note': _('Note:'),
+                     'tip': _('Tip:'),
+                     'warning': _('Warning!')}
 
 def formatblock(block, width):
     """Format a block according to width."""
     if width <= 0:
         width = 78
     indent = ' ' * block['indent']
+    if block['type'] == 'admonition':
+        admonition = _admonitiontitles[block['admonitiontitle']]
+        hang = len(block['lines'][-1]) - len(block['lines'][-1].lstrip())
+
+        defindent = indent + hang * ' '
+        text = ' '.join(map(str.strip, block['lines']))
+        return '%s\n%s' % (indent + admonition, util.wrap(text, width=width,
+                                           initindent=defindent,
+                                           hangindent=defindent))
     if block['type'] == 'margin':
         return ''
     if block['type'] == 'literal':
         indent += '  '
         return indent + ('\n' + indent).join(block['lines'])
     if block['type'] == 'section':
-        underline = len(block['lines'][0]) * block['underline']
+        underline = encoding.colwidth(block['lines'][0]) * block['underline']
         return "%s%s\n%s%s" % (indent, block['lines'][0],indent, underline)
     if block['type'] == 'definition':
         term = indent + block['lines'][0]
@@ -362,7 +416,9 @@ def format(text, width, indent=0, keep=None):
     blocks = hgrole(blocks)
     blocks = splitparagraphs(blocks)
     blocks = updatefieldlists(blocks)
+    blocks = prunecomments(blocks)
     blocks = addmargins(blocks)
+    blocks = findadmonitions(blocks)
     text = '\n'.join(formatblock(b, width) for b in blocks)
     if keep is None:
         return text
@@ -388,5 +444,7 @@ if __name__ == "__main__":
     blocks = debug(splitparagraphs, blocks)
     blocks = debug(updatefieldlists, blocks)
     blocks = debug(findsections, blocks)
+    blocks = debug(prunecomments, blocks)
     blocks = debug(addmargins, blocks)
+    blocks = debug(findadmonitions, blocks)
     print '\n'.join(formatblock(b, 30) for b in blocks)

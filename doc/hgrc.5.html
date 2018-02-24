@@ -51,14 +51,15 @@
 <li><a class="reference internal" href="#paths" id="id19"><tt class="docutils literal">paths</tt></a></li>
 <li><a class="reference internal" href="#profiling" id="id20"><tt class="docutils literal">profiling</tt></a></li>
 <li><a class="reference internal" href="#server" id="id21"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id22"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id23"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id24"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id22"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id23"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id24"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id25"><tt class="docutils literal">web</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id25">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id26">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id27">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id26">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id27">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id28">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="synopsis">
@@ -242,8 +243,11 @@ definitions. This is almost always a bad idea!</p>
 </div>
 <div class="section" id="auth">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">auth</tt></a></h2>
-<p>Authentication credentials for HTTP authentication. Each line has
-the following format:</p>
+<p>Authentication credentials for HTTP authentication. This section
+allows you to store usernames and passwords for use when logging
+<em>into</em> HTTP servers. See the <a class="reference internal" href="#web">web</a> configuration section if you want to
+configure <em>who</em> can login to your HTTP server.</p>
+<p>Each line has the following format:</p>
 <pre class="literal-block">
 &lt;name&gt;.&lt;argument&gt; = &lt;value&gt;
 </pre>
@@ -461,6 +465,13 @@ fncache) to allow longer filenames and avoids using Windows
 reserved names, e.g. &quot;nul&quot;. Enabled by default. Disabling this
 option ensures that the on-disk format of newly created
 repositories will be compatible with Mercurial before version 1.1.</dd>
+<dt><tt class="docutils literal">dotencode</tt></dt>
+<dd>Enable or disable the &quot;dotencode&quot; repository format which enhances
+the &quot;fncache&quot; repository format (which has to be enabled to use
+dotencode) to avoid issues with filenames starting with ._ on
+Mac OS X and spaces on Windows. Enabled by default. Disabling this
+option ensures that the on-disk format of newly created
+repositories will be compatible with Mercurial before version 1.7.</dd>
 </dl>
 </div>
 <div class="section" id="merge-patterns">
@@ -818,6 +829,22 @@ checking that all new file revisions specified in manifests are
 present. Default is False.</dd>
 </dl>
 </div>
+<div class="section" id="subpaths">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">subpaths</tt></a></h2>
+<p>Defines subrepositories source locations rewriting rules of the form:</p>
+<pre class="literal-block">
+&lt;pattern&gt; = &lt;replacement&gt;
+</pre>
+<p>Where <tt class="docutils literal">pattern</tt> is a regular expression matching the source and
+<tt class="docutils literal">replacement</tt> is the replacement string used to rewrite it. Groups
+can be matched in <tt class="docutils literal">pattern</tt> and referenced in <tt class="docutils literal">replacements</tt>. For
+instance:</p>
+<pre class="literal-block">
+http://server/(.*)-hg/ = http://hg.server/\1/
+</pre>
+<p>rewrites <tt class="docutils literal"><span class="pre">http://server/foo-hg/</span></tt> into <tt class="docutils literal"><span class="pre">http://hg.server/foo/</span></tt>.</p>
+<p>All patterns are applied in definition order.</p>
+</div>
 <div class="section" id="trusted">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">trusted</tt></a></h2>
 <p>Mercurial will not use the settings in the
@@ -873,23 +900,9 @@ format, see the <a class="reference external" href="hgignore.5.html"><strong>hgi
 <dt><tt class="docutils literal">logtemplate</tt></dt>
 <dd>Template string for commands that print changesets.</dd>
 <dt><tt class="docutils literal">merge</tt></dt>
-<dd><p class="first">The conflict resolution program to use during a manual merge.
-There are some internal tools available:</p>
-<dl class="last docutils">
-<dt><tt class="docutils literal">internal:local</tt></dt>
-<dd>keep the local version</dd>
-<dt><tt class="docutils literal">internal:other</tt></dt>
-<dd>use the other version</dd>
-<dt><tt class="docutils literal">internal:merge</tt></dt>
-<dd>use the internal non-interactive merge tool</dd>
-<dt><tt class="docutils literal">internal:fail</tt></dt>
-<dd>fail to merge</dd>
-</dl>
-</dd>
-</dl>
-<p>For more information on configuring merge tools see the
-<a class="reference internal" href="#merge-tools">merge-tools</a> section.</p>
-<dl class="docutils">
+<dd>The conflict resolution program to use during a manual merge.
+For more information on merge tools see <a class="reference external" href="hg.1.html#merge-tools"><tt class="docutils literal">hg help <span class="pre">merge-tools</span></tt></a>.
+For configuring merge tools see the <a class="reference internal" href="#merge-tools">merge-tools</a> section.</dd>
 <dt><tt class="docutils literal">patch</tt></dt>
 <dd>command to use to apply patches. Look for <tt class="docutils literal">gpatch</tt> or <tt class="docutils literal">patch</tt> in
 PATH if unset.</dd>
@@ -935,7 +948,25 @@ username are expanded.</dd>
 </div>
 <div class="section" id="web">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">web</tt></a></h2>
-<p>Web interface configuration.</p>
+<p>Web interface configuration. The settings in this section apply to
+both the builtin webserver (started by <a class="reference external" href="hg.1.html#serve"><tt class="docutils literal">hg serve</tt></a>) and the script you
+run through a webserver (<tt class="docutils literal">hgweb.cgi</tt> and the derivatives for FastCGI
+and WSGI).</p>
+<p>The Mercurial webserver does no authentication (it does not prompt for
+usernames and passwords to validate <em>who</em> users are), but it does do
+authorization (it grants or denies access for <em>authenticated users</em>
+based on settings in this section). You must either configure your
+webserver to do authentication for you, or disable the authorization
+checks.</p>
+<p>For a quick setup in a trusted environment, e.g., a private LAN, where
+you want it to accept pushes from anybody, you can use the following
+command line:</p>
+<pre class="literal-block">
+$ hg --config web.allow_push=* --config web.push_ssl=False serve
+</pre>
+<p>Note that this will allow anybody to push anything to the server and
+that this should not be used for public servers.</p>
+<p>The full set of options is:</p>
 <dl class="docutils">
 <dt><tt class="docutils literal">accesslog</tt></dt>
 <dd>Where to output the access log. Default is stdout.</dd>

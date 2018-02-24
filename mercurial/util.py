@@ -17,7 +17,7 @@ from i18n import _
 import error, osutil, encoding
 import errno, re, shutil, sys, tempfile, traceback
 import os, stat, time, calendar, textwrap, unicodedata, signal
-import imp
+import imp, socket
 
 # Python compatibility
 
@@ -38,9 +38,15 @@ def _fastsha1(s):
 
 import __builtin__
 
-def fakebuffer(sliceable, offset=0):
-    return sliceable[offset:]
-if not hasattr(__builtin__, 'buffer'):
+if sys.version_info[0] < 3:
+    def fakebuffer(sliceable, offset=0):
+        return sliceable[offset:]
+else:
+    def fakebuffer(sliceable, offset=0):
+        return memoryview(sliceable)[offset:]
+try:
+    buffer
+except NameError:
     __builtin__.buffer = fakebuffer
 
 import subprocess
@@ -286,7 +292,7 @@ def pathto(root, n1, n2):
     b.reverse()
     return os.sep.join((['..'] * len(a)) + b) or '.'
 
-def canonpath(root, cwd, myname):
+def canonpath(root, cwd, myname, auditor=None):
     """return the canonical path of myname, given cwd and root"""
     if endswithsep(root):
         rootsep = root
@@ -296,10 +302,11 @@ def canonpath(root, cwd, myname):
     if not os.path.isabs(name):
         name = os.path.join(root, cwd, name)
     name = os.path.normpath(name)
-    audit_path = path_auditor(root)
+    if auditor is None:
+        auditor = path_auditor(root)
     if name != rootsep and name.startswith(rootsep):
         name = name[len(rootsep):]
-        audit_path(name)
+        auditor(name)
         return pconvert(name)
     elif name == root:
         return ''
@@ -323,7 +330,7 @@ def canonpath(root, cwd, myname):
                     return ''
                 rel.reverse()
                 name = os.path.join(*rel)
-                audit_path(name)
+                auditor(name)
                 return pconvert(name)
             dirname, basename = os.path.split(name)
             rel.append(basename)
@@ -425,15 +432,6 @@ def checksignature(func):
 
     return check
 
-# os.path.lexists is not available on python2.3
-def lexists(filename):
-    "test whether a file with this name exists. does not follow symlinks"
-    try:
-        os.lstat(filename)
-    except:
-        return False
-    return True
-
 def unlink(f):
     """unlink and remove the directory if it is empty"""
     os.unlink(f)
@@ -494,12 +492,15 @@ class path_auditor(object):
     - starts at the root of a windows drive
     - contains ".."
     - traverses a symlink (e.g. a/symlink_here/b)
-    - inside a nested repository'''
+    - inside a nested repository (a callback can be used to approve
+      some nested repositories, e.g., subrepositories)
+    '''
 
-    def __init__(self, root):
+    def __init__(self, root, callback=None):
         self.audited = set()
         self.auditeddir = set()
         self.root = root
+        self.callback = callback
 
     def __call__(self, path):
         if path in self.audited:
@@ -532,8 +533,9 @@ class path_auditor(object):
                                 (path, prefix))
                 elif (stat.S_ISDIR(st.st_mode) and
                       os.path.isdir(os.path.join(curpath, '.hg'))):
-                    raise Abort(_('path %r is inside repo %r') %
-                                (path, prefix))
+                    if not self.callback or not self.callback(curpath):
+                        raise Abort(_('path %r is inside repo %r') %
+                                    (path, prefix))
         parts.pop()
         prefixes = []
         while parts:
@@ -714,9 +716,25 @@ def checklink(path):
     except (OSError, AttributeError):
         return False
 
-def needbinarypatch():
-    """return True if patches should be applied in binary mode by default."""
-    return os.name == 'nt'
+def checknlink(testfile):
+    '''check whether hardlink count reporting works properly'''
+    f = testfile + ".hgtmp"
+
+    try:
+        os_link(testfile, f)
+    except OSError:
+        return False
+
+    try:
+        # nlinks() may behave differently for files on Windows shares if
+        # the file is open.
+        fd = open(f)
+        return nlinks(f) > 1
+    finally:
+        fd.close()
+        os.unlink(f)
+
+    return False
 
 def endswithsep(path):
     '''Check path ends with os.sep or os.altsep.'''
@@ -815,6 +833,7 @@ class atomictempfile(object):
 
 def makedirs(name, mode=None):
     """recursive directory creation with parent mode inheritance"""
+    parent = os.path.abspath(os.path.dirname(name))
     try:
         os.mkdir(name)
         if mode is not None:
@@ -823,9 +842,8 @@ def makedirs(name, mode=None):
     except OSError, err:
         if err.errno == errno.EEXIST:
             return
-        if err.errno != errno.ENOENT:
+        if not name or parent == name or err.errno != errno.ENOENT:
             raise
-    parent = os.path.abspath(os.path.dirname(name))
     makedirs(parent, mode)
     makedirs(name, mode)
 
@@ -838,10 +856,11 @@ class opener(object):
     def __init__(self, base, audit=True):
         self.base = base
         if audit:
-            self.audit_path = path_auditor(base)
+            self.auditor = path_auditor(base)
         else:
-            self.audit_path = always
+            self.auditor = always
         self.createmode = None
+        self._trustnlink = None
 
     @propertycache
     def _can_symlink(self):
@@ -853,32 +872,52 @@ class opener(object):
         os.chmod(name, self.createmode & 0666)
 
     def __call__(self, path, mode="r", text=False, atomictemp=False):
-        self.audit_path(path)
+        self.auditor(path)
         f = os.path.join(self.base, path)
 
         if not text and "b" not in mode:
             mode += "b" # for that other OS
 
         nlink = -1
-        if mode not in ("r", "rb"):
-            try:
-                nlink = nlinks(f)
-            except OSError:
-                nlink = 0
-                d = os.path.dirname(f)
-                if not os.path.isdir(d):
-                    makedirs(d, self.createmode)
+        st_mode = None
+        dirname, basename = os.path.split(f)
+        # If basename is empty, then the path is malformed because it points
+        # to a directory. Let the posixfile() call below raise IOError.
+        if basename and mode not in ('r', 'rb'):
             if atomictemp:
+                if not os.path.isdir(dirname):
+                    makedirs(dirname, self.createmode)
                 return atomictempfile(f, mode, self.createmode)
-            if nlink > 1:
-                rename(mktempcopy(f), f)
+            try:
+                if 'w' in mode:
+                    st_mode = os.lstat(f).st_mode & 0777
+                    os.unlink(f)
+                    nlink = 0
+                else:
+                    # nlinks() may behave differently for files on Windows
+                    # shares if the file is open.
+                    fd = open(f)
+                    nlink = nlinks(f)
+                    fd.close()
+            except (OSError, IOError):
+                nlink = 0
+                if not os.path.isdir(dirname):
+                    makedirs(dirname, self.createmode)
+            if nlink > 0:
+                if self._trustnlink is None:
+                    self._trustnlink = nlink > 1 or checknlink(f)
+                if nlink > 1 or not self._trustnlink:
+                    rename(mktempcopy(f), f)
         fp = posixfile(f, mode)
         if nlink == 0:
-            self._fixfilemode(f)
+            if st_mode is None:
+                self._fixfilemode(f)
+            else:
+                os.chmod(f, st_mode)
         return fp
 
     def symlink(self, src, dst):
-        self.audit_path(dst)
+        self.auditor(dst)
         linkname = os.path.join(self.base, dst)
         try:
             os.unlink(linkname)
@@ -908,7 +947,17 @@ class chunkbuffer(object):
     def __init__(self, in_iter):
         """in_iter is the iterator that's iterating over the input chunks.
         targetsize is how big a buffer to try to maintain."""
-        self.iter = iter(in_iter)
+        def splitbig(chunks):
+            for chunk in chunks:
+                if len(chunk) > 2**20:
+                    pos = 0
+                    while pos < len(chunk):
+                        end = pos + 2 ** 18
+                        yield chunk[pos:end]
+                        pos = end
+                else:
+                    yield chunk
+        self.iter = splitbig(in_iter)
         self._queue = []
 
     def read(self, l):
@@ -939,7 +988,6 @@ class chunkbuffer(object):
 
         return buf
 
-
 def filechunkiter(f, size=65536, limit=None):
     """Create a generator that produces the data in the file size
     (default 65536) bytes at a time, up to optional limit (default is
@@ -967,7 +1015,11 @@ def makedate():
         tz = time.altzone
     else:
         tz = time.timezone
-    return time.mktime(lt), tz
+    t = time.mktime(lt)
+    if t < 0:
+        hint = _("check your clock")
+        raise Abort(_("negative timestamp: %d") % t, hint=hint)
+    return t, tz
 
 def datestr(date=None, format='%a %b %d %H:%M:%S %Y %1%2'):
     """represent a (unixtime, offset) tuple as a localized time.
@@ -975,6 +1027,9 @@ def datestr(date=None, format='%a %b %d %H:%M:%S %Y %1%2'):
     number of seconds away from UTC. if timezone is false, do not
     append time zone to string."""
     t, tz = date or makedate()
+    if t < 0:
+        t = 0   # time.gmtime(lt) fails on Windows for lt < -43200
+        tz = 0
     if "%1" in format or "%2" in format:
         sign = (tz > 0) and "-" or "+"
         minutes = abs(tz) // 60
@@ -1058,13 +1113,15 @@ def parsedate(date, formats=None, defaults=None):
             else:
                 break
         else:
-            raise Abort(_('invalid date: %r ') % date)
+            raise Abort(_('invalid date: %r') % date)
     # validate explicit (probably user-specified) date and
     # time zone offset. values must fit in signed 32 bits for
     # current 32-bit linux runtimes. timezones go from UTC-12
     # to UTC+14
     if abs(when) > 0x7fffffff:
         raise Abort(_('date exceeds 32 bits: %d') % when)
+    if when < 0:
+        raise Abort(_('negative date value: %d') % when)
     if offset < -50400 or offset > 43200:
         raise Abort(_('impossible time zone offset: %d') % offset)
     return when, offset
@@ -1306,9 +1363,7 @@ class MBTextWrapper(textwrap.TextWrapper):
 
 #### naming convention of above implementation follows 'textwrap' module
 
-def wrap(line, width=None, initindent='', hangindent=''):
-    if width is None:
-        width = termwidth() - 2
+def wrap(line, width, initindent='', hangindent=''):
     maxindent = max(len(hangindent), len(initindent))
     if width <= maxindent:
         # adjust for weird terminal size
@@ -1386,10 +1441,44 @@ except NameError:
                 return False
         return True
 
-def termwidth():
-    if 'COLUMNS' in os.environ:
-        try:
-            return int(os.environ['COLUMNS'])
-        except ValueError:
-            pass
-    return termwidth_()
+def interpolate(prefix, mapping, s, fn=None):
+    """Return the result of interpolating items in the mapping into string s.
+
+    prefix is a single character string, or a two character string with
+    a backslash as the first character if the prefix needs to be escaped in
+    a regular expression.
+
+    fn is an optional function that will be applied to the replacement text
+    just before replacement.
+    """
+    fn = fn or (lambda s: s)
+    r = re.compile(r'%s(%s)' % (prefix, '|'.join(mapping.keys())))
+    return r.sub(lambda x: fn(mapping[x.group()[1:]]), s)
+
+def getport(port):
+    """Return the port for a given network service.
+
+    If port is an integer, it's returned as is. If it's a string, it's
+    looked up using socket.getservbyname(). If there's no matching
+    service, util.Abort is raised.
+    """
+    try:
+        return int(port)
+    except ValueError:
+        pass
+
+    try:
+        return socket.getservbyname(port)
+    except socket.error:
+        raise Abort(_("no port number associated with service '%s'") % port)
+
+_booleans = {'1': True, 'yes': True, 'true': True, 'on': True, 'always': True,
+             '0': False, 'no': False, 'false': False, 'off': False,
+             'never': False}
+
+def parsebool(s):
+    """Parse s into a boolean.
+
+    If s is not a valid boolean, returns None.
+    """
+    return _booleans.get(s.lower(), None)
