@@ -104,7 +104,7 @@ repository.</dd>
 <td>enable additional output</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--config</span></kbd></td>
-<td>set/override config option</td></tr>
+<td>set/override config option (use 'section.name=value')</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--debug</span></kbd></td>
 <td>enable debugging output</td></tr>
@@ -144,6 +144,20 @@ repository.</p>
 <p>The files will be added to the repository at the next commit. To
 undo an add before that, see hg forget.</p>
 <p>If no names are given, add all files to the repository.</p>
+<div class="verbose container">
+<p>An example showing how new (unknown) files are added
+automatically by <tt class="docutils literal"><span class="pre">hg</span> <span class="pre">add</span></tt>:</p>
+<pre class="literal-block">
+$ ls
+foo.c
+$ hg status
+? foo.c
+$ hg add
+adding foo.c
+$ hg status
+A foo.c
+</pre>
+</div>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -216,14 +230,20 @@ nor desirable.</p>
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
 <td>annotate the specified revision</td></tr>
 <tr><td class="option-group">
-<kbd><span class="option">-f</span>, <span class="option">--follow</span></kbd></td>
-<td>follow file copies and renames</td></tr>
+<kbd><span class="option">--follow</span></kbd></td>
+<td>follow copies/renames and list the filename (DEPRECATED)</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--no-follow</span></kbd></td>
+<td>don't follow copies and renames</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--text</span></kbd></td>
 <td>treat all files as text</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-u</span>, <span class="option">--user</span></kbd></td>
 <td>list the author (long with -v)</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-f</span>, <span class="option">--file</span></kbd></td>
+<td>list the filename</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--date</span></kbd></td>
 <td>list the date (short with -q)</td></tr>
@@ -454,8 +474,8 @@ is considered active if it contains repository heads.</p>
 <dt><tt class="docutils literal"><span class="pre">bundle</span> <span class="pre">[-f]</span> <span class="pre">[-t</span> <span class="pre">TYPE]</span> <span class="pre">[-a]</span> <span class="pre">[-r</span> <span class="pre">REV]...</span> <span class="pre">[--base</span> <span class="pre">REV]...</span> <span class="pre">FILE</span> <span class="pre">[DEST]</span></tt></dt>
 <dd><p class="first">Generate a compressed changegroup file collecting changesets not
 known to be in another repository.</p>
-<p>If no destination repository is specified the destination is
-assumed to have all the nodes specified by one or more --base
+<p>If you omit the destination repository, then hg assumes the
+destination will have all the nodes you specify with --base
 parameters. To create a bundle containing all changesets, use
 -a/--all (or --base null).</p>
 <p>You can change compression method with the -t/--type option.
@@ -474,13 +494,16 @@ permissions, copy/rename information, and revision history.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
-<td>run even when remote repository is unrelated</td></tr>
+<td>run even when the destination is unrelated</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a changeset up to which you would like to bundle</td></tr>
+<td>a changeset intended to be added to the destination</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
+<td>a specific branch you would like to bundle</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--base</span></kbd></td>
-<td>a base changeset to specify instead of a destination</td></tr>
+<td>a base changeset assumed to be available at the destination</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></td>
 <td>bundle all changesets in the repository</td></tr>
@@ -559,6 +582,8 @@ out (in order of precedence):</p>
 <ol class="loweralpha simple">
 <li>the changeset, tag or branch specified with -u/--updaterev</li>
 <li>the changeset, tag or branch given with the first -r/--rev</li>
+<li>the branch given with the first -b/--branch</li>
+<li>the branch given with the url#branch source syntax</li>
 <li>the head of the default branch</li>
 </ol>
 <p>Use 'hg clone -u . src dst' to checkout the source repository's
@@ -597,14 +622,17 @@ metadata under the .hg directory, such as mq.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-U</span>, <span class="option">--noupdate</span></kbd></td>
-<td>the clone will only contain a repository (no working copy)</td></tr>
+<td>the clone will include an empty working copy (only a repository)</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-u</span>, <span class="option">--updaterev</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>revision, tag or branch to check out</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>clone only the specified revisions and ancestors</td></tr>
+<td>include the specified changeset</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
+<td>clone only the specified branch</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--pull</span></kbd></td>
 <td>use pull protocol to copy metadata</td></tr>
@@ -704,7 +732,7 @@ before that, see hg revert.</p>
 </dd>
 </dl>
 <dl class="docutils" id="diff">
-<dt><tt class="docutils literal"><span class="pre">diff</span> <span class="pre">[OPTION]...</span> <span class="pre">[-r</span> <span class="pre">REV1</span> <span class="pre">[-r</span> <span class="pre">REV2]]</span> <span class="pre">[FILE]...</span></tt></dt>
+<dt><tt class="docutils literal"><span class="pre">diff</span> <span class="pre">[OPTION]...</span> <span class="pre">([-c</span> <span class="pre">REV]</span> <span class="pre">|</span> <span class="pre">[-r</span> <span class="pre">REV1</span> <span class="pre">[-r</span> <span class="pre">REV2]])</span> <span class="pre">[FILE]...</span></tt></dt>
 <dd><p class="first">Show differences between revisions for the specified files.</p>
 <p>Differences between files are shown using the unified diff format.</p>
 <p>NOTE: diff may generate unexpected results for merges, as it will
@@ -715,6 +743,8 @@ between those revisions. If only one revision is specified then
 that revision is compared to the working directory, and, when no
 revisions are specified, the working directory files are compared
 to its parent.</p>
+<p>Alternatively you can specify -c/--change with a revision to see
+the changes in that changeset relative to its first parent.</p>
 <p>Without the -a/--text option, diff will avoid generating diffs of
 files it detects as binary. With -a, diff will generate a diff
 anyway, probably with undesirable results.</p>
@@ -739,7 +769,7 @@ format. For more information, read 'hg help diffs'.</p>
 <td>use git extended diff format</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--nodates</span></kbd></td>
-<td>don't include dates in diff headers</td></tr>
+<td>omit dates from diff headers</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-p</span>, <span class="option">--show-function</span></kbd></td>
 </tr>
@@ -778,8 +808,9 @@ format. For more information, read 'hg help diffs'.</p>
 <dl class="docutils" id="export">
 <dt><tt class="docutils literal"><span class="pre">export</span> <span class="pre">[OPTION]...</span> <span class="pre">[-o</span> <span class="pre">OUTFILESPEC]</span> <span class="pre">REV...</span></tt></dt>
 <dd><p class="first">Print the changeset header and diffs for one or more revisions.</p>
-<p>The information shown in the changeset header is: author,
-changeset hash, parent(s) and commit comment.</p>
+<p>The information shown in the changeset header is: author, date,
+branch name (if non-default), changeset hash, parent(s) and commit
+comment.</p>
 <p>NOTE: export may generate unexpected diff output for merge
 changesets, as it will compare the merge changeset against its
 first parent only.</p>
@@ -827,6 +858,9 @@ second parent. It can be useful to review a merge.</p>
 </tr>
 <tr><td>&nbsp;</td><td>diff against the second parent</td></tr>
 <tr><td class="option-group">
+<kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
+<td>revisions to export</td></tr>
+<tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--text</span></kbd></td>
 <td>treat all files as text</td></tr>
 <tr><td class="option-group">
@@ -834,7 +868,7 @@ second parent. It can be useful to review a merge.</p>
 <td>use git extended diff format</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--nodates</span></kbd></td>
-<td>don't include dates in diff headers</td></tr>
+<td>omit dates from diff headers</td></tr>
 </tbody>
 </table>
 </dd>
@@ -921,22 +955,19 @@ use the --all flag.</p>
 </dl>
 <dl class="docutils" id="heads">
 <dt><tt class="docutils literal"><span class="pre">heads</span> <span class="pre">[-ac]</span> <span class="pre">[-r</span> <span class="pre">STARTREV]</span> <span class="pre">[REV]...</span></tt></dt>
-<dd><p class="first">With no arguments, show all repository head changesets.</p>
+<dd><p class="first">With no arguments, show all repository branch heads.</p>
 <p>Repository &quot;heads&quot; are changesets with no child changesets. They are
 where development generally takes place and are the usual targets
-for update and merge operations.</p>
-<p>If one or more REV is given, the &quot;branch heads&quot; will be shown for
-the named branch associated with the specified changeset(s).</p>
-<p>Branch heads are changesets on a named branch with no descendants on
-the same branch. A branch head could be a &quot;true&quot; (repository) head,
-or it could be the last changeset on that branch before it was
-merged into another branch, or it could be the last changeset on the
-branch before a new branch was created. If none of the branch heads
-are true heads, the branch is considered inactive.</p>
+for update and merge operations. Branch heads are changesets that have
+no child changeset on the same branch.</p>
+<p>If one or more REVs are given, only branch heads on the branches
+associated with the specified changesets are shown.</p>
 <p>If -c/--closed is specified, also show branch heads marked closed
 (see hg commit --close-branch).</p>
 <p>If STARTREV is specified, only those heads that are descendants of
 STARTREV will be displayed.</p>
+<p>If -t/--topo is specified, named branch mechanics will be ignored and only
+changesets without children will be shown.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -946,8 +977,11 @@ STARTREV will be displayed.</p>
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
 <td>show only heads which are descendants of REV</td></tr>
 <tr><td class="option-group">
+<kbd><span class="option">-t</span>, <span class="option">--topo</span></kbd></td>
+<td>show topological heads only</td></tr>
+<tr><td class="option-group">
 <kbd><span class="option">-a</span>, <span class="option">--active</span></kbd></td>
-<td>show only the active branch heads from open branches</td></tr>
+<td>show active branchheads only [DEPRECATED]</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--closed</span></kbd></td>
 <td>show normal and closed branch heads</td></tr>
@@ -1089,7 +1123,7 @@ changesets twice if the incoming is followed by a pull.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
-<td>run even when remote repository is unrelated</td></tr>
+<td>run even if remote repository is unrelated</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-n</span>, <span class="option">--newest-first</span></kbd></td>
 </tr>
@@ -1099,7 +1133,10 @@ changesets twice if the incoming is followed by a pull.</p>
 <td>file to store the bundles into</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a specific remote revision up to which you would like to pull</td></tr>
+<td>a remote changeset intended to be added</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
+<td>a specific branch you would like to pull</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
@@ -1172,7 +1209,7 @@ contain whitespace as multiple filenames.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>search the repository as it stood at REV</td></tr>
+<td>search the repository as it is in REV</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-0</span>, <span class="option">--print0</span></kbd></td>
 <td>end filenames with NUL, for use with xargs</td></tr>
@@ -1334,7 +1371,7 @@ explicit revision with which to merge with must be provided.</p>
 <dd><p class="first">Show changesets not found in the specified destination repository
 or the default push location. These are the changesets that would
 be pushed if a push was requested.</p>
-<p>See pull for valid destination format details.</p>
+<p>See pull for details of valid destination formats.</p>
 <p>options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -1342,14 +1379,17 @@ be pushed if a push was requested.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-f</span>, <span class="option">--force</span></kbd></td>
-<td>run even when remote repository is unrelated</td></tr>
+<td>run even when the destination is unrelated</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a specific revision up to which you would like to push</td></tr>
+<td>a changeset intended to be included in the destination</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-n</span>, <span class="option">--newest-first</span></kbd></td>
 </tr>
 <tr><td>&nbsp;</td><td>show newest record first</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
+<td>a specific branch you would like to push</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-p</span>, <span class="option">--patch</span></kbd></td>
 <td>show patch</td></tr>
@@ -1394,7 +1434,7 @@ argument to --rev if given) is printed.</p>
 <tbody valign="top">
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>show parents from the specified revision</td></tr>
+<td>show parents of the specified revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--style</span></kbd></td>
 <td>display using template map file</td></tr>
@@ -1440,7 +1480,10 @@ See 'hg help urls' for more information.</p>
 <td>run even when remote repository is unrelated</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a specific remote revision up to which you would like to pull</td></tr>
+<td>a remote changeset intended to be added</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
+<td>a specific branch you would like to pull</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
 <td>specify ssh command to use</td></tr>
@@ -1453,7 +1496,7 @@ See 'hg help urls' for more information.</p>
 </dl>
 <dl class="docutils" id="push">
 <dt><tt class="docutils literal"><span class="pre">push</span> <span class="pre">[-f]</span> <span class="pre">[-r</span> <span class="pre">REV]...</span> <span class="pre">[-e</span> <span class="pre">CMD]</span> <span class="pre">[--remotecmd</span> <span class="pre">CMD]</span> <span class="pre">[DEST]</span></tt></dt>
-<dd><p class="first">Push changes from the local repository to the given destination.</p>
+<dd><p class="first">Push changes from the local repository to the specified destination.</p>
 <p>This is the symmetrical operation for pull. It moves changes from
 the current repository to a different one. If the destination is
 local this is identical to a pull in that directory from the
@@ -1475,7 +1518,10 @@ URLs. If DESTINATION is omitted, a default path will be used.</p>
 <td>force push</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>a specific revision up to which you would like to push</td></tr>
+<td>a changeset intended to be included in the destination</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-b</span>, <span class="option">--branch</span></kbd></td>
+<td>a specific branch you would like to push</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-e</span>, <span class="option">--ssh</span></kbd></td>
 <td>specify ssh command to use</td></tr>
@@ -1575,21 +1621,30 @@ before that, see hg revert.</p>
 </dl>
 <dl class="docutils" id="resolve">
 <dt><tt class="docutils literal"><span class="pre">resolve</span> <span class="pre">[OPTION]...</span> <span class="pre">[FILE]...</span></tt></dt>
-<dd><p class="first">This command can cleanly retry unresolved file merges using file
-revisions preserved from the last update or merge.</p>
-<p>If a conflict is resolved manually, please note that the changes
-will be overwritten if the merge is retried with resolve. The
--m/--mark switch should be used to mark the file as resolved.</p>
-<p>You can specify a set of files to operate on, or use the -a/--all
-switch to select all unresolved files.</p>
-<p>This command also allows listing resolved files and manually
-indicating whether or not files are resolved. All files must be
-marked as resolved before a commit is permitted.</p>
-<p>The codes used to show the status of files are:</p>
-<pre class="literal-block">
-U = unresolved
-R = resolved
-</pre>
+<dd><p class="first">This command includes several actions that are often useful while
+performing a merge, after running <tt class="docutils literal"><span class="pre">merge</span></tt> but before running
+<tt class="docutils literal"><span class="pre">commit</span></tt>.  (It is only meaningful if your working directory has
+two parents.)  It is most relevant for merges with unresolved
+conflicts, which are typically a result of non-interactive merging with
+<tt class="docutils literal"><span class="pre">internal:merge</span></tt> or a command-line merge tool like <tt class="docutils literal"><span class="pre">diff3</span></tt>.</p>
+<p>The available actions are:</p>
+<blockquote>
+<ol class="arabic simple">
+<li>list files that were merged with conflicts (U, for unresolved)
+and without conflicts (R, for resolved): <tt class="docutils literal"><span class="pre">hg</span> <span class="pre">resolve</span> <span class="pre">-l</span></tt>
+(this is like <tt class="docutils literal"><span class="pre">status</span></tt> for merges)</li>
+<li>record that you have resolved conflicts in certain files:
+<tt class="docutils literal"><span class="pre">hg</span> <span class="pre">resolve</span> <span class="pre">-m</span> <span class="pre">[file</span> <span class="pre">...]</span></tt> (default: mark all unresolved files)</li>
+<li>forget that you have resolved conflicts in certain files:
+<tt class="docutils literal"><span class="pre">hg</span> <span class="pre">resolve</span> <span class="pre">-u</span> <span class="pre">[file</span> <span class="pre">...]</span></tt> (default: unmark all resolved files)</li>
+<li>discard your current attempt(s) at resolving conflicts and
+restart the merge from scratch: <tt class="docutils literal"><span class="pre">hg</span> <span class="pre">resolve</span> <span class="pre">file...</span></tt>
+(or <tt class="docutils literal"><span class="pre">-a</span></tt> for all unresolved files)</li>
+</ol>
+</blockquote>
+<p>Note that Mercurial will not let you commit files with unresolved merge
+conflicts.  You must use <tt class="docutils literal"><span class="pre">hg</span> <span class="pre">resolve</span> <span class="pre">-m</span> <span class="pre">...</span></tt> before you can commit
+after a conflicting merge.</p>
 <p>options:</p>
 <table class="last docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -1629,8 +1684,8 @@ change the working directory parents.)</p>
 to the contents they had in the parent of the working directory.
 This restores the contents of the affected files to an unmodified
 state and unschedules adds, removes, copies, and renames. If the
-working directory has two parents, you must explicitly specify the
-revision to revert to.</p>
+working directory has two parents, you must explicitly specify a
+revision.</p>
 <p>Using the -r/--rev option, revert the given files or directories
 to their contents as of a specific revision. This can be helpful
 to &quot;roll back&quot; some or all of an earlier change. See 'hg help
@@ -1659,7 +1714,7 @@ To disable these backups, use --no-backup.</p>
 <td>tipmost revision matching date</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-r</span>, <span class="option">--rev</span></kbd></td>
-<td>revision to revert to</td></tr>
+<td>revert to the specified revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--no-backup</span></kbd></td>
 <td>do not save backup copies of files</td></tr>
@@ -1691,7 +1746,7 @@ and their effects can be rolled back:</p>
 <li>commit</li>
 <li>import</li>
 <li>pull</li>
-<li>push (with this repository as destination)</li>
+<li>push (with this repository as the destination)</li>
 <li>unbundle</li>
 </ul>
 <p class="last">This command is not intended for use on public repositories. Once
@@ -1808,7 +1863,8 @@ report permission changes and diff only reports changes relative
 to one merge parent.</p>
 <p>If one revision is given, it is used as the base revision.
 If two revisions are given, the differences between them are
-shown.</p>
+shown. The --change option can also be used as a shortcut to list
+the changed files of a revision from its first parent.</p>
 <p>The codes used to show the status of files are:</p>
 <pre class="literal-block">
 M = modified
@@ -1862,6 +1918,9 @@ I = ignored
 <tr><td class="option-group">
 <kbd><span class="option">--rev</span></kbd></td>
 <td>show difference from revision</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--change</span></kbd></td>
+<td>list the changed files of a revision</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-I</span>, <span class="option">--include</span></kbd></td>
 <td>include names matching the given patterns</td></tr>
@@ -2209,6 +2268,15 @@ from the current repository is read.</p>
 <li>otherwise, the file itself will be added</li>
 </ul>
 </dd>
+<dt>HGPLAIN</dt>
+<dd><p class="first">When set, this disables any options in .hgrc that might change
+Mercurial's default output. This includes encoding, defaults,
+verbose mode, debug mode, quiet mode, tracebacks, and
+localization. This can be useful when scripting against Mercurial
+in the face of existing user configuration.</p>
+<p class="last">Equivalent options set via command line flags or environment
+variables are not overridden.</p>
+</dd>
 <dt>HGUSER</dt>
 <dd><p class="first">This is the string used as the author of a commit. If not set,
 available values will be considered in this order:</p>
@@ -2335,37 +2403,40 @@ keywords are usually available for templating a log-like command:</p>
 <tbody valign="top">
 <tr class="field"><th class="field-name">author:</th><td class="field-body">String. The unmodified author of the changeset.</td>
 </tr>
-<tr class="field"><th class="field-name">branches:</th><td class="field-body">String. The name of the branch on which the changeset
-was committed. Will be empty if the branch name was
-default.</td>
+<tr class="field"><th class="field-name">branches:</th><td class="field-body">String. The name of the branch on which the changeset was
+committed. Will be empty if the branch name was default.</td>
 </tr>
-<tr class="field"><th class="field-name">date:</th><td class="field-body">Date information. The date when the changeset was
-committed.</td>
+<tr class="field"><th class="field-name">date:</th><td class="field-body">Date information. The date when the changeset was committed.</td>
 </tr>
 <tr class="field"><th class="field-name">desc:</th><td class="field-body">String. The text of the changeset description.</td>
 </tr>
-<tr class="field"><th class="field-name">diffstat:</th><td class="field-body">String. Statistics of changes with the following
-format: &quot;modified files: +added/-removed lines&quot;</td>
+<tr class="field"><th class="field-name">diffstat:</th><td class="field-body">String. Statistics of changes with the following format:
+&quot;modified files: +added/-removed lines&quot;</td>
 </tr>
-<tr class="field"><th class="field-name">files:</th><td class="field-body">List of strings. All files modified, added, or removed
-by this changeset.</td>
+<tr class="field"><th class="field-name">files:</th><td class="field-body">List of strings. All files modified, added, or removed by this
+changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">file_adds:</th><td class="field-body">List of strings. Files added by this changeset.</td>
+</tr>
+<tr class="field"><th class="field-name">file_copies:</th><td class="field-body">List of strings. Files copied in this changeset with
+their sources.</td>
+</tr>
+<tr class="field"><th class="field-name" colspan="2">file_copies_switch:</th></tr>
+<tr><td>&nbsp;</td><td class="field-body">List of strings. Like &quot;file_copies&quot; but displayed
+only if the --copied switch is set.</td>
 </tr>
 <tr class="field"><th class="field-name">file_mods:</th><td class="field-body">List of strings. Files modified by this changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">file_dels:</th><td class="field-body">List of strings. Files removed by this changeset.</td>
 </tr>
-<tr class="field"><th class="field-name">node:</th><td class="field-body">String. The changeset identification hash, as a
-40-character hexadecimal string.</td>
+<tr class="field"><th class="field-name">node:</th><td class="field-body">String. The changeset identification hash, as a 40-character
+hexadecimal string.</td>
 </tr>
 <tr class="field"><th class="field-name">parents:</th><td class="field-body">List of strings. The parents of the changeset.</td>
 </tr>
-<tr class="field"><th class="field-name">rev:</th><td class="field-body">Integer. The repository-local changeset revision
-number.</td>
+<tr class="field"><th class="field-name">rev:</th><td class="field-body">Integer. The repository-local changeset revision number.</td>
 </tr>
-<tr class="field"><th class="field-name">tags:</th><td class="field-body">List of strings. Any tags associated with the
-changeset.</td>
+<tr class="field"><th class="field-name">tags:</th><td class="field-body">List of strings. Any tags associated with the changeset.</td>
 </tr>
 <tr class="field"><th class="field-name">latesttag:</th><td class="field-body">String. Most recent global tag in the ancestors of this
 changeset.</td>
@@ -2392,34 +2463,30 @@ $ hg tip --template &quot;{date|isodate}\n&quot;
 <tr class="field"><th class="field-name">addbreaks:</th><td class="field-body">Any text. Add an XHTML &quot;&lt;br /&gt;&quot; tag before the end of
 every line except the last.</td>
 </tr>
-<tr class="field"><th class="field-name">age:</th><td class="field-body">Date. Returns a human-readable date/time difference
-between the given date/time and the current
-date/time.</td>
+<tr class="field"><th class="field-name">age:</th><td class="field-body">Date. Returns a human-readable date/time difference between the
+given date/time and the current date/time.</td>
 </tr>
-<tr class="field"><th class="field-name">basename:</th><td class="field-body">Any text. Treats the text as a path, and returns the
-last component of the path after splitting by the
-path separator (ignoring trailing separators). For
-example, &quot;foo/bar/baz&quot; becomes &quot;baz&quot; and &quot;foo/bar//&quot;
-becomes &quot;bar&quot;.</td>
+<tr class="field"><th class="field-name">basename:</th><td class="field-body">Any text. Treats the text as a path, and returns the last
+component of the path after splitting by the path separator
+(ignoring trailing separators). For example, &quot;foo/bar/baz&quot; becomes
+&quot;baz&quot; and &quot;foo/bar//&quot; becomes &quot;bar&quot;.</td>
 </tr>
-<tr class="field"><th class="field-name">stripdir:</th><td class="field-body">Treat the text as path and strip a directory level,
-if possible. For example, &quot;foo&quot; and &quot;foo/bar&quot; becomes
-&quot;foo&quot;.</td>
+<tr class="field"><th class="field-name">stripdir:</th><td class="field-body">Treat the text as path and strip a directory level, if
+possible. For example, &quot;foo&quot; and &quot;foo/bar&quot; becomes &quot;foo&quot;.</td>
 </tr>
-<tr class="field"><th class="field-name">date:</th><td class="field-body">Date. Returns a date in a Unix date format, including
-the timezone: &quot;Mon Sep 04 15:13:13 2006 0700&quot;.</td>
+<tr class="field"><th class="field-name">date:</th><td class="field-body">Date. Returns a date in a Unix date format, including the
+timezone: &quot;Mon Sep 04 15:13:13 2006 0700&quot;.</td>
 </tr>
-<tr class="field"><th class="field-name">domain:</th><td class="field-body">Any text. Finds the first string that looks like an
-email address, and extracts just the domain
-component. Example: <tt class="docutils literal"><span class="pre">User</span> <span class="pre">&lt;user&#64;example.com&gt;</span></tt> becomes
-<tt class="docutils literal"><span class="pre">example.com</span></tt>.</td>
+<tr class="field"><th class="field-name">domain:</th><td class="field-body">Any text. Finds the first string that looks like an email
+address, and extracts just the domain component. Example: <tt class="docutils literal"><span class="pre">User</span>
+<span class="pre">&lt;user&#64;example.com&gt;</span></tt> becomes <tt class="docutils literal"><span class="pre">example.com</span></tt>.</td>
 </tr>
-<tr class="field"><th class="field-name">email:</th><td class="field-body">Any text. Extracts the first string that looks like
-an email address. Example: <tt class="docutils literal"><span class="pre">User</span> <span class="pre">&lt;user&#64;example.com&gt;</span></tt>
-becomes <tt class="docutils literal"><span class="pre">user&#64;example.com</span></tt>.</td>
+<tr class="field"><th class="field-name">email:</th><td class="field-body">Any text. Extracts the first string that looks like an email
+address. Example: <tt class="docutils literal"><span class="pre">User</span> <span class="pre">&lt;user&#64;example.com&gt;</span></tt> becomes
+<tt class="docutils literal"><span class="pre">user&#64;example.com</span></tt>.</td>
 </tr>
-<tr class="field"><th class="field-name">escape:</th><td class="field-body">Any text. Replaces the special XML/XHTML characters
-&quot;&amp;&quot;, &quot;&lt;&quot; and &quot;&gt;&quot; with XML entities.</td>
+<tr class="field"><th class="field-name">escape:</th><td class="field-body">Any text. Replaces the special XML/XHTML characters &quot;&amp;&quot;, &quot;&lt;&quot;
+and &quot;&gt;&quot; with XML entities.</td>
 </tr>
 <tr class="field"><th class="field-name">fill68:</th><td class="field-body">Any text. Wraps the text to fit in 68 columns.</td>
 </tr>
@@ -2429,44 +2496,43 @@ becomes <tt class="docutils literal"><span class="pre">user&#64;example.com</spa
 </tr>
 <tr class="field"><th class="field-name">nonempty:</th><td class="field-body">Any text. Returns '(none)' if the string is empty.</td>
 </tr>
-<tr class="field"><th class="field-name">hgdate:</th><td class="field-body">Date. Returns the date as a pair of numbers:
-&quot;1157407993 25200&quot; (Unix timestamp, timezone offset).</td>
+<tr class="field"><th class="field-name">hgdate:</th><td class="field-body">Date. Returns the date as a pair of numbers: &quot;1157407993
+25200&quot; (Unix timestamp, timezone offset).</td>
 </tr>
-<tr class="field"><th class="field-name">isodate:</th><td class="field-body">Date. Returns the date in ISO 8601 format:
-&quot;2009-08-18 13:00 +0200&quot;.</td>
+<tr class="field"><th class="field-name">isodate:</th><td class="field-body">Date. Returns the date in ISO 8601 format: &quot;2009-08-18 13:00
++0200&quot;.</td>
 </tr>
 <tr class="field"><th class="field-name">isodatesec:</th><td class="field-body">Date. Returns the date in ISO 8601 format, including
-seconds: &quot;2009-08-18 13:00:13 +0200&quot;. See also the
-rfc3339date filter.</td>
+seconds: &quot;2009-08-18 13:00:13 +0200&quot;. See also the rfc3339date
+filter.</td>
 </tr>
 <tr class="field"><th class="field-name">localdate:</th><td class="field-body">Date. Converts a date to local date.</td>
 </tr>
-<tr class="field"><th class="field-name">obfuscate:</th><td class="field-body">Any text. Returns the input text rendered as a
-sequence of XML entities.</td>
+<tr class="field"><th class="field-name">obfuscate:</th><td class="field-body">Any text. Returns the input text rendered as a sequence of
+XML entities.</td>
 </tr>
 <tr class="field"><th class="field-name">person:</th><td class="field-body">Any text. Returns the text before an email address.</td>
 </tr>
-<tr class="field"><th class="field-name">rfc822date:</th><td class="field-body">Date. Returns a date using the same format used in
-email headers: &quot;Tue, 18 Aug 2009 13:00:13 +0200&quot;.</td>
+<tr class="field"><th class="field-name">rfc822date:</th><td class="field-body">Date. Returns a date using the same format used in email
+headers: &quot;Tue, 18 Aug 2009 13:00:13 +0200&quot;.</td>
 </tr>
 <tr class="field"><th class="field-name">rfc3339date:</th><td class="field-body">Date. Returns a date using the Internet date format
 specified in RFC 3339: &quot;2009-08-18T13:00:13+02:00&quot;.</td>
 </tr>
-<tr class="field"><th class="field-name">short:</th><td class="field-body">Changeset hash. Returns the short form of a changeset
-hash, i.e. a 12-byte hexadecimal string.</td>
+<tr class="field"><th class="field-name">short:</th><td class="field-body">Changeset hash. Returns the short form of a changeset hash,
+i.e. a 12-byte hexadecimal string.</td>
 </tr>
 <tr class="field"><th class="field-name">shortdate:</th><td class="field-body">Date. Returns a date like &quot;2006-09-18&quot;.</td>
 </tr>
 <tr class="field"><th class="field-name">strip:</th><td class="field-body">Any text. Strips all leading and trailing whitespace.</td>
 </tr>
-<tr class="field"><th class="field-name">tabindent:</th><td class="field-body">Any text. Returns the text, with every line except
-the first starting with a tab character.</td>
+<tr class="field"><th class="field-name">tabindent:</th><td class="field-body">Any text. Returns the text, with every line except the
+first starting with a tab character.</td>
 </tr>
-<tr class="field"><th class="field-name">urlescape:</th><td class="field-body">Any text. Escapes all &quot;special&quot; characters. For
-example, &quot;foo bar&quot; becomes &quot;foo%20bar&quot;.</td>
+<tr class="field"><th class="field-name">urlescape:</th><td class="field-body">Any text. Escapes all &quot;special&quot; characters. For example,
+&quot;foo bar&quot; becomes &quot;foo%20bar&quot;.</td>
 </tr>
-<tr class="field"><th class="field-name">user:</th><td class="field-body">Any text. Returns the user portion of an email
-address.</td>
+<tr class="field"><th class="field-name">user:</th><td class="field-body">Any text. Returns the user portion of an email address.</td>
 </tr>
 </tbody>
 </table>
@@ -2619,6 +2685,8 @@ baz = !
 <tr class="field"><th class="field-name">parentrevspec:</th><td class="field-body">interpret suffixes to refer to ancestor revisions</td>
 </tr>
 <tr class="field"><th class="field-name">patchbomb:</th><td class="field-body">command to send changesets as (a series of) patch emails</td>
+</tr>
+<tr class="field"><th class="field-name">progress:</th><td class="field-body">show progress bars for some actions</td>
 </tr>
 <tr class="field"><th class="field-name">purge:</th><td class="field-body">command to delete untracked files from the working directory</td>
 </tr>

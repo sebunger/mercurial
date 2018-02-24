@@ -97,7 +97,7 @@ restricted = ('merge record resolve qfold qimport qnew qpush qrefresh qrecord'
               ' transplant')
 
 # provide cvs-like UTC date filter
-utcdate = lambda x: util.datestr(x, '%Y/%m/%d %H:%M:%S')
+utcdate = lambda x: util.datestr((x[0], 0), '%Y/%m/%d %H:%M:%S')
 
 # make keyword tools accessible
 kwtools = {'templater': None, 'hgcmd': '', 'inc': [], 'exc': ['.hg*']}
@@ -113,7 +113,8 @@ class kwtemplater(object):
         'Author': '{author|user}',
         'Date': '{date|utcdate}',
         'RCSfile': '{file|basename},v',
-        'RCSFile': '{file|basename},v', # kept only for backwards compatibility
+        'RCSFile': '{file|basename},v', # kept for backwards compatibility
+                                        # with hg-keyword
         'Source': '{root}/{file},v',
         'Id': '{file|basename},v {node|short} {date|utcdate} {author|user}',
         'Header': '{root}/{file},v {node|short} {date|utcdate} {author|user}',
@@ -293,7 +294,6 @@ def demo(ui, repo, *args, **opts):
         for k, v in sorted(items):
             ui.write('%s = %s\n' % (k, v))
 
-    msg = 'hg keyword config and expansion example'
     fn = 'demo.txt'
     branchname = 'demobranch'
     tmpdir = tempfile.mkdtemp('', 'kwdemo.')
@@ -354,7 +354,8 @@ def demo(ui, repo, *args, **opts):
         if name.split('.', 1)[0].find('commit') > -1:
             repo.ui.setconfig('hooks', name, '')
     ui.note(_('unhooked all commit hooks\n'))
-    ui.note('hg -R "%s" ci -m "%s"\n' % (tmpdir, msg))
+    msg = _('hg keyword configuration and expansion example')
+    ui.note("hg -R '%s' ci -m '%s'\n" % (tmpdir, msg))
     repo.commit(text=msg)
     ui.status(_('\n\tkeywords expanded\n'))
     ui.write(repo.wread(fn))
@@ -488,24 +489,8 @@ def reposetup(ui, repo):
             try:
                 wlock = self.wlock()
                 lock = self.lock()
-                # store and postpone commit hooks
-                commithooks = {}
-                for name, cmd in ui.configitems('hooks'):
-                    if name.split('.', 1)[0] == 'commit':
-                        commithooks[name] = cmd
-                        ui.setconfig('hooks', name, None)
-                if commithooks:
-                    # store parents for commit hooks
-                    p1, p2 = ctx.p1(), ctx.p2()
-                    xp1, xp2 = p1.hex(), p2 and p2.hex() or ''
-
                 n = super(kwrepo, self).commitctx(ctx, error)
-
                 kwt.overwrite(n, True, None)
-                if commithooks:
-                    for name, cmd in commithooks.iteritems():
-                        ui.setconfig('hooks', name, cmd)
-                    self.hook('commit', node=n, parent1=xp1, parent2=xp2)
                 return n
             finally:
                 release(lock, wlock)

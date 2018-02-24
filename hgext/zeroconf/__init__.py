@@ -24,7 +24,7 @@ You can discover zeroconf enabled repositories by running "hg paths"::
 '''
 
 import Zeroconf, socket, time, os
-from mercurial import ui
+from mercurial import ui, hg, encoding
 from mercurial import extensions
 from mercurial.hgweb import hgweb_mod
 from mercurial.hgweb import hgwebdir_mod
@@ -49,7 +49,7 @@ def getip():
         dumbip = socket.gethostbyaddr(socket.gethostname())[2][0]
         if not dumbip.startswith('127.') and ':' not in dumbip:
             return dumbip
-    except socket.gaierror:
+    except (socket.gaierror, socket.herror):
         dumbip = '127.0.0.1'
 
     # works elsewhere, but actually sends a packet
@@ -156,7 +156,14 @@ def configitems(orig, self, section, untrusted=False):
         repos += getzcpaths()
     return repos
 
+def defaultdest(orig, source):
+    for name, path in getzcpaths():
+        if path == source:
+            return name.encode(encoding.encoding)
+    return orig(source)
+
 extensions.wrapfunction(ui.ui, 'config', config)
 extensions.wrapfunction(ui.ui, 'configitems', configitems)
+extensions.wrapfunction(hg, 'defaultdest', defaultdest)
 hgweb_mod.hgweb = hgwebzc
 hgwebdir_mod.hgwebdir = hgwebdirzc

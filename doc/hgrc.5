@@ -42,6 +42,7 @@ installed. \fB*.rc\fP files from a single directory are read in
 alphabetical order, later ones overriding earlier ones. Where multiple
 paths are given below, settings from earlier paths override later
 ones.
+.sp
 .nf
 (Unix, Windows) \fB<repo>/.hg/hgrc\fP
 .fi
@@ -58,6 +59,7 @@ trusted user or to a trusted group. See the documentation for the
 \%trusted\: section below for more details.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
 (Unix) \fB$HOME/.hgrc\fP
 (Windows) \fB%USERPROFILE%\e.hgrc\fP
@@ -76,6 +78,7 @@ directory. Options in these files override per\-system and per\-installation
 options.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
 (Unix) \fB/etc/mercurial/hgrc\fP
 (Unix) \fB/etc/mercurial/hgrc.d/*.rc\fP
@@ -90,6 +93,7 @@ executed by any user in any directory. Options in these files
 override per\-installation options.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
 (Unix) \fB<install\-root>/etc/mercurial/hgrc\fP
 (Unix) \fB<install\-root>/etc/mercurial/hgrc.d/*.rc\fP
@@ -106,10 +110,11 @@ in \fB/shared/tools/etc/mercurial/hgrc\fP. Options in these files apply
 to all Mercurial commands executed by any user in any directory.
 .UNINDENT
 .UNINDENT
+.sp
 .nf
-(Windows) \fBC:\eMercurial\eMercurial.ini\fP
-(Windows) \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP
 (Windows) \fB<install\-dir>\eMercurial.ini\fP
+(Windows) \fB<install\-dir>\ehgrc.d\e*.rc\fP
+(Windows) \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP
 .fi
 .sp
 .INDENT 0.0
@@ -120,7 +125,10 @@ which Mercurial is running. Options in these files apply to all
 Mercurial commands executed by any user in any directory. Registry
 keys contain PATH\-like strings, every part of which must reference
 a \fBMercurial.ini\fP file or be a directory where \fB*.rc\fP files will
-be read.
+be read.  Mercurial checks each of these locations in the specified
+order until one or more configuration files are detected.  If the
+pywin32 extensions are not installed, Mercurial will only look for
+site\-wide configuration in \fBC:\eMercurial\eMercurial.ini\fP.
 .UNINDENT
 .UNINDENT
 .SH SYNTAX
@@ -560,7 +568,8 @@ Default: 0.
 .TP
 .B \fBexecutable\fP
 .sp
-Either just the name of the executable or its pathname.
+Either just the name of the executable or its pathname.  On Windows,
+the path can use environment variables with ${ProgramFiles} syntax.
 Default: the tool name.
 .TP
 .B \fBargs\fP
@@ -817,6 +826,11 @@ Optional. Password to authenticate with at the proxy server.
 .B \fBuser\fP
 .sp
 Optional. User name to authenticate with at the proxy server.
+.TP
+.B \fBalways\fP
+.sp
+Optional. Always use the proxy, even for localhost and any entries
+in \fBhttp_proxy.no\fP. True or False. Default: False.
 .UNINDENT
 .SS \fBsmtp\fP
 .sp
@@ -862,9 +876,13 @@ command or with Mercurial Queues extension.
 .B \fBeol\fP
 .sp
 When set to \(aqstrict\(aq patch content and patched files end of lines
-are preserved. When set to \fBlf\fP or \fBcrlf\fP, both files end of lines
-are ignored when patching and the result line endings are
-normalized to either LF (Unix) or CRLF (Windows).
+are preserved. When set to \fBlf\fP or \fBcrlf\fP, both files end of
+lines are ignored when patching and the result line endings are
+normalized to either LF (Unix) or CRLF (Windows). When set to
+\fBauto\fP, end of lines are again ignored while patching but line
+endings in patched files are normalized to their original setting
+on a per\-file basis. If target file does not exist or has no end
+of line, patch line endings are preserved.
 Default: strict.
 .UNINDENT
 .SS \fBpaths\fP
@@ -934,7 +952,15 @@ server and client. Over a LAN (100 Mbps or better) or a very fast
 WAN, an uncompressed streaming clone is a lot faster (~10x) than a
 regular clone. Over most WAN connections (anything slower than
 about 6 Mbps), uncompressed streaming is slower, because of the
-extra data transfer overhead. Default is False.
+extra data transfer overhead. This mode will also temporarily hold
+the write lock while determining what data to transfer.
+Default is True.
+.TP
+.B \fBvalidate\fP
+.sp
+Whether to validate the completeness of pushed changesets by
+checking that all new file revisions specified in manifests are
+present. Default is False.
 .UNINDENT
 .SS \fBtrusted\fP
 .sp
@@ -1166,6 +1192,32 @@ revisions. Default is False. This feature creates temporary files.
 Base URL to use when publishing URLs in other locations, so
 third\-party tools like email notification hooks can construct
 URLs. Example: \fBhttp://hgserver/repos/\fP.
+.TP
+.B \fBcacerts\fP
+.sp
+Path to file containing a list of PEM encoded certificate authorities
+that may be used to verify an SSL server\(aqs identity. The form must be
+as follows:
+.sp
+.nf
+.ft C
+\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+\&... (certificate in base64 PEM encoding) ...
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+\&... (certificate in base64 PEM encoding) ...
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+.ft P
+.fi
+.sp
+This feature is only supported when using Python 2.6. If you wish to
+use it with earlier versions of Python, install the backported
+version of the ssl library that is available from
+\fBhttp://pypi.python.org\fP.
+.sp
+You can use OpenSSL\(aqs CA certificate file if your platform has one.
+On most Linux systems this will be \fB/etc/ssl/certs/ca\-certificates.crt\fP.
+Otherwise you will have to generate this file manually.
 .TP
 .B \fBcontact\fP
 .sp

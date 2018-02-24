@@ -14,6 +14,7 @@ from mercurial import demandimport
 demandimport.ignore.extend([
         'bzrlib.transactions',
         'bzrlib.urlutils',
+        'ElementPath',
     ])
 
 from mercurial.i18n import _
@@ -170,7 +171,7 @@ class bzr_source(converter_source):
         return changes
 
     def _gettreechanges(self, current, origin):
-        revid = current._revision_id;
+        revid = current._revision_id
         changes = []
         renames = {}
         for (fileid, paths, changed_content, versioned, parent, name,
@@ -203,7 +204,8 @@ class bzr_source(converter_source):
                         changes.append((frompath, revid))
                         changes.append((topath, revid))
                         # add to mode cache
-                        mode = ((entry.executable and 'x') or (entry.kind == 'symlink' and 's')
+                        mode = ((entry.executable and 'x')
+                                or (entry.kind == 'symlink' and 's')
                                 or '')
                         self._modecache[(topath, revid)] = mode
                         # register the change as move

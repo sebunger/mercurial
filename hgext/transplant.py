@@ -393,13 +393,13 @@ def hasnode(repo, node):
 def browserevs(ui, repo, nodes, opts):
     '''interactively transplant changesets'''
     def browsehelp(ui):
-        ui.write('y: transplant this changeset\n'
-                 'n: skip this changeset\n'
-                 'm: merge at this changeset\n'
-                 'p: show patch\n'
-                 'c: commit selected changesets\n'
-                 'q: cancel transplant\n'
-                 '?: show this help\n')
+        ui.write(_('y: transplant this changeset\n'
+                   'n: skip this changeset\n'
+                   'm: merge at this changeset\n'
+                   'p: show patch\n'
+                   'c: commit selected changesets\n'
+                   'q: cancel transplant\n'
+                   '?: show this help\n'))
 
     displayer = cmdutil.show_changeset(ui, repo, opts)
     transplants = []
@@ -418,7 +418,7 @@ def browserevs(ui, repo, nodes, opts):
                     ui.write(chunk)
                 action = None
             elif action not in ('y', 'n', 'm', 'c', 'q'):
-                ui.write('no such option\n')
+                ui.write(_('no such option\n'))
                 action = None
         if action == 'y':
             transplants.append(node)
@@ -430,6 +430,7 @@ def browserevs(ui, repo, nodes, opts):
             transplants = ()
             merges = ()
             break
+    displayer.close()
     return (transplants, merges)
 
 def transplant(ui, repo, *revs, **opts):
@@ -488,7 +489,7 @@ def transplant(ui, repo, *revs, **opts):
 
     def incwalk(repo, incoming, branches, match=util.always):
         if not branches:
-            branches=None
+            branches = None
         for node in repo.changelog.nodesbetween(incoming, branches)[0]:
             if match(node):
                 yield node
@@ -505,7 +506,7 @@ def transplant(ui, repo, *revs, **opts):
 
     def checkopts(opts, revs):
         if opts.get('continue'):
-            if filter(lambda opt: opts.get(opt), ('branch', 'all', 'merge')):
+            if opts.get('branch') or opts.get('all') or opts.get('merge'):
                 raise util.Abort(_('--continue is incompatible with '
                                    'branch, all or merge'))
             return
@@ -551,7 +552,7 @@ def transplant(ui, repo, *revs, **opts):
             tp.resume(repo, source, opts)
             return
 
-        tf=tp.transplantfilter(repo, source, p1)
+        tf = tp.transplantfilter(repo, source, p1)
         if opts.get('prune'):
             prune = [source.lookup(r)
                      for r in cmdutil.revrange(source, opts.get('prune'))]

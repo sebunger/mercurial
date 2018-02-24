@@ -74,6 +74,13 @@ hg clone -r0 a b
 hg --cwd a export tip | hg --cwd b import -
 rm -r b
 
+echo % import two patches in one stream
+hg init b
+hg --cwd a export 0:tip | hg --cwd b import -
+hg --cwd a id
+hg --cwd b id
+rm -r b
+
 echo % override commit message
 hg clone -r0 a b
 hg --cwd a export tip | hg --cwd b import -m 'override' -
@@ -189,7 +196,10 @@ echo line0 >> a
 echo line1 >> a
 echo line0 >> a
 hg ci -m brancha
-hg import -v tip.patch
+hg import --no-commit -v tip.patch
+hg revert -a
+echo '% test fuzziness with eol=auto'
+hg --config patch.eol=auto import --no-commit -v tip.patch
 cd ..
 
 # Test hunk touching empty files (issue906)
@@ -365,3 +375,30 @@ hg import -d '0 0' a.patch
 hg parents -v
 cd ..
 
+echo '% tricky header splitting'
+cat > trickyheaders.patch <<EOF
+From: User A <user@a>
+Subject: [PATCH] from: tricky!
+
+# HG changeset patch
+# User User B
+# Date 1266264441 18000
+# Branch stable
+# Node ID f2be6a1170ac83bf31cb4ae0bad00d7678115bc0
+# Parent  0000000000000000000000000000000000000000
+from: tricky!
+
+That is not a header.
+
+diff -r 000000000000 -r f2be6a1170ac foo
+--- /dev/null
++++ b/foo
+@@ -0,0 +1,1 @@
++foo
+EOF
+
+hg init trickyheaders
+cd trickyheaders
+hg import -d '0 0' ../trickyheaders.patch
+hg export --git tip
+cd ..
