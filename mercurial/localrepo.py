@@ -320,7 +320,8 @@ class localrepository(repo.repository):
         # TODO: rename this function?
         tiprev = len(self) - 1
         if lrev != tiprev:
-            self._updatebranchcache(partial, lrev + 1, tiprev + 1)
+            ctxgen = (self[r] for r in xrange(lrev + 1, tiprev + 1))
+            self._updatebranchcache(partial, ctxgen)
             self._writebranchcache(partial, self.changelog.tip(), tiprev)
 
         return partial
@@ -398,11 +399,10 @@ class localrepository(repo.repository):
         except (IOError, OSError):
             pass
 
-    def _updatebranchcache(self, partial, start, end):
+    def _updatebranchcache(self, partial, ctxgen):
         # collect new branch entries
         newbranches = {}
-        for r in xrange(start, end):
-            c = self[r]
+        for c in ctxgen:
             newbranches.setdefault(c.branch(), []).append(c.node())
         # if older branchheads are reachable from new ones, they aren't
         # really branchheads. Note checking parents is insufficient:
@@ -1091,10 +1091,11 @@ class localrepository(repo.repository):
                     rejected.append(f)
                     continue
                 if st.st_size > 10000000:
-                    self.ui.warn(_("%s: files over 10MB may cause memory and"
-                                   " performance problems\n"
-                                   "(use 'hg revert %s' to unadd the file)\n")
-                                   % (f, f))
+                    self.ui.warn(_("%s: up to %d MB of RAM may be required "
+                                   "to manage this file\n"
+                                   "(use 'hg revert %s' to cancel the "
+                                   "pending addition)\n")
+                                   % (f, 3 * st.st_size // 1000000, f))
                 if not (stat.S_ISREG(st.st_mode) or stat.S_ISLNK(st.st_mode)):
                     self.ui.warn(_("%s not added: only files and symlinks "
                                    "supported currently\n") % f)
@@ -1502,30 +1503,22 @@ class localrepository(repo.repository):
         update, updated_heads = self.findoutgoing(remote, common, remote_heads)
         msng_cl, bases, heads = self.changelog.nodesbetween(update, revs)
 
-        def checkbranch(lheads, rheads, updatelb, branchname=None):
+        def checkbranch(lheads, rheads, branchname=None):
             '''
             check whether there are more local heads than remote heads on
             a specific branch.
 
             lheads: local branch heads
             rheads: remote branch heads
-            updatelb: outgoing local branch bases
             '''
 
             warn = 0
 
-            if not revs and len(lheads) > len(rheads):
+            if len(lheads) > len(rheads):
                 warn = 1
             else:
-                # add local heads involved in the push
-                updatelheads = [self.changelog.heads(x, lheads)
-                                for x in updatelb]
-                newheads = set(sum(updatelheads, [])) & set(lheads)
-
-                if not newheads:
-                    return True
-
                 # add heads we don't have or that are not involved in the push
+                newheads = set(lheads)
                 for r in rheads:
                     if r in self.changelog.nodemap:
                         desc = self.changelog.heads(r, heads)
@@ -1574,9 +1567,8 @@ class localrepository(repo.repository):
                         localbrheads = self.branchmap()
                     else:
                         localbrheads = {}
-                        for n in heads:
-                            branch = self[n].branch()
-                            localbrheads.setdefault(branch, []).append(n)
+                        ctxgen = (self[n] for n in msng_cl)
+                        self._updatebranchcache(localbrheads, ctxgen)
 
                     newbranches = list(set(localbrheads) - set(remotebrheads))
                     if newbranches: # new branch requires --force
@@ -1590,10 +1582,10 @@ class localrepository(repo.repository):
                     for branch, lheads in localbrheads.iteritems():
                         if branch in remotebrheads:
                             rheads = remotebrheads[branch]
-                            if not checkbranch(lheads, rheads, update, branch):
+                            if not checkbranch(lheads, rheads, branch):
                                 return None, 0
                 else:
-                    if not checkbranch(heads, remote_heads, update):
+                    if not checkbranch(heads, remote_heads):
                         return None, 0
 
             if inc:
@@ -1826,9 +1818,9 @@ class localrepository(repo.repository):
             cnt = 0
             for chnk in group:
                 yield chnk
-                self.ui.progress(_('bundle changes'), cnt, unit=_('chunks'))
+                self.ui.progress(_('bundling changes'), cnt, unit=_('chunks'))
                 cnt += 1
-            self.ui.progress(_('bundle changes'), None, unit=_('chunks'))
+            self.ui.progress(_('bundling changes'), None, unit=_('chunks'))
 
 
             # Figure out which manifest nodes (of the ones we think might be
@@ -1854,9 +1846,9 @@ class localrepository(repo.repository):
             cnt = 0
             for chnk in group:
                 yield chnk
-                self.ui.progress(_('bundle manifests'), cnt, unit=_('chunks'))
+                self.ui.progress(_('bundling manifests'), cnt, unit=_('chunks'))
                 cnt += 1
-            self.ui.progress(_('bundle manifests'), None, unit=_('chunks'))
+            self.ui.progress(_('bundling manifests'), None, unit=_('chunks'))
 
             # These are no longer needed, dereference and toss the memory for
             # them.
@@ -1897,7 +1889,7 @@ class localrepository(repo.repository):
                                              lookup_filenode_link_func(fname))
                     for chnk in group:
                         self.ui.progress(
-                            _('bundle files'), cnt, item=fname, unit=_('chunks'))
+                            _('bundling files'), cnt, item=fname, unit=_('chunks'))
                         cnt += 1
                         yield chnk
                 if fname in msng_filenode_set:
@@ -1905,7 +1897,7 @@ class localrepository(repo.repository):
                     del msng_filenode_set[fname]
             # Signal that no more groups are left.
             yield changegroup.closechunk()
-            self.ui.progress(_('bundle files'), None, unit=_('chunks'))
+            self.ui.progress(_('bundling files'), None, unit=_('chunks'))
 
             if msng_cl_lst:
                 self.hook('outgoing', node=hex(msng_cl_lst[0]), source=source)
@@ -1954,19 +1946,19 @@ class localrepository(repo.repository):
 
             cnt = 0
             for chnk in cl.group(nodes, identity, collect):
-                self.ui.progress(_('bundle changes'), cnt, unit=_('chunks'))
+                self.ui.progress(_('bundling changes'), cnt, unit=_('chunks'))
                 cnt += 1
                 yield chnk
-            self.ui.progress(_('bundle changes'), None, unit=_('chunks'))
+            self.ui.progress(_('bundling changes'), None, unit=_('chunks'))
 
             mnfst = self.manifest
             nodeiter = gennodelst(mnfst)
             cnt = 0
             for chnk in mnfst.group(nodeiter, lookuprevlink_func(mnfst)):
-                self.ui.progress(_('bundle manifests'), cnt, unit=_('chunks'))
+                self.ui.progress(_('bundling manifests'), cnt, unit=_('chunks'))
                 cnt += 1
                 yield chnk
-            self.ui.progress(_('bundle manifests'), None, unit=_('chunks'))
+            self.ui.progress(_('bundling manifests'), None, unit=_('chunks'))
 
             cnt = 0
             for fname in sorted(changedfiles):
@@ -1981,10 +1973,10 @@ class localrepository(repo.repository):
                     lookup = lookuprevlink_func(filerevlog)
                     for chnk in filerevlog.group(nodeiter, lookup):
                         self.ui.progress(
-                            _('bundle files'), cnt, item=fname, unit=_('chunks'))
+                            _('bundling files'), cnt, item=fname, unit=_('chunks'))
                         cnt += 1
                         yield chnk
-            self.ui.progress(_('bundle files'), None, unit=_('chunks'))
+            self.ui.progress(_('bundling files'), None, unit=_('chunks'))
 
             yield changegroup.closechunk()
 

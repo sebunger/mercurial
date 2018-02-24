@@ -16,7 +16,6 @@ directory. Applied patches are both patch files and changesets.
 
 Common tasks (use "hg help command" for more details)::
 
-  prepare repository to work with patches   qinit
   create new patch                          qnew
   import existing patch                     qimport
 
@@ -97,13 +96,11 @@ class patchheader(object):
 
         for line in file(pf):
             line = line.rstrip()
-            if line.startswith('diff --git'):
+            if (line.startswith('diff --git')
+                or (diffstart and line.startswith('+++ '))):
                 diffstart = 2
                 break
-            if diffstart:
-                if line.startswith('+++ '):
-                    diffstart = 2
-                break
+            diffstart = 0 # reset
             if line.startswith("--- "):
                 diffstart = 1
                 continue
@@ -1880,7 +1877,7 @@ def clone(ui, source, dest=None, **opts):
     default. Use -p <url> to change.
 
     The patch directory must be a nested Mercurial repository, as
-    would be created by qinit -c.
+    would be created by init --mq.
     '''
     def patchdir(repo):
         url = repo.url()
@@ -1898,7 +1895,7 @@ def clone(ui, source, dest=None, **opts):
         hg.repository(ui, patchespath)
     except error.RepoError:
         raise util.Abort(_('versioned patch repository not found'
-                           ' (see qinit -c)'))
+                           ' (see init --mq)'))
     qbase, destrev = None, None
     if sr.local():
         if sr.mq.applied:
@@ -1934,7 +1931,7 @@ def clone(ui, source, dest=None, **opts):
 def commit(ui, repo, *pats, **opts):
     """commit changes in the queue repository (DEPRECATED)
 
-    This command is deprecated; use hg --mq commit instead."""
+    This command is deprecated; use hg commit --mq instead."""
     q = repo.mq
     r = q.qrepo()
     if not r:
@@ -1989,9 +1986,8 @@ def new(ui, repo, patch, *args, **opts):
     """create a new patch
 
     qnew creates a new patch on top of the currently-applied patch (if
-    any). It will refuse to run if there are any outstanding changes
-    unless -f/--force is specified, in which case the patch will be
-    initialized with them. You may also use -I/--include,
+    any). The patch will be initialized with any outstanding changes
+    in the working directory. You may also use -I/--include,
     -X/--exclude, and/or a list of files after the patch name to add
     only changes to matching files to the new patch, leaving the rest
     as uncommitted modifications.
@@ -2606,7 +2602,8 @@ def reposetup(ui, repo):
             start = lrev + 1
             if start < qbase:
                 # update the cache (excluding the patches) and save it
-                self._updatebranchcache(partial, lrev + 1, qbase)
+                ctxgen = (self[r] for r in xrange(lrev + 1, qbase))
+                self._updatebranchcache(partial, ctxgen)
                 self._writebranchcache(partial, cl.node(qbase - 1), qbase - 1)
                 start = qbase
             # if start = qbase, the cache is as updated as it should be.
@@ -2614,7 +2611,8 @@ def reposetup(ui, repo):
             # we might as well use it, but we won't save it.
 
             # update the cache up to the tip
-            self._updatebranchcache(partial, start, len(cl))
+            ctxgen = (self[r] for r in xrange(start, len(cl)))
+            self._updatebranchcache(partial, ctxgen)
 
             return partial
 
@@ -2634,7 +2632,16 @@ def mqinit(orig, ui, *args, **kwargs):
     if not mq:
         return orig(ui, *args, **kwargs)
 
-    repopath = cmdutil.findrepo(os.getcwd())
+    if args:
+        repopath = args[0]
+        if not hg.islocal(repopath):
+            raise util.Abort(_('only a local queue repository '
+                               'may be initialized'))
+    else:
+        repopath = cmdutil.findrepo(os.getcwd())
+        if not repopath:
+            raise util.Abort(_('There is no Mercurial repository here '
+                               '(.hg not found)'))
     repo = hg.repository(ui, repopath)
     return qinit(ui, repo, True)
 
@@ -2661,9 +2668,10 @@ def uisetup(ui):
     entry = extensions.wrapcommand(commands.table, 'init', mqinit)
     entry[1].extend(mqopt)
 
+    norepo = commands.norepo.split(" ")
     for cmd in commands.table.keys():
         cmd = cmdutil.parsealiases(cmd)[0]
-        if cmd in commands.norepo:
+        if cmd in norepo:
             continue
         entry = extensions.wrapcommand(commands.table, cmd, mqcommand)
         entry[1].extend(mqopt)

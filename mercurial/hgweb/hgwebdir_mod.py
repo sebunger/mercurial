@@ -6,7 +6,7 @@
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
 
-import os, re, time
+import os, re, time, urlparse
 from mercurial.i18n import _
 from mercurial import ui, hg, util, templater
 from mercurial import error, encoding
@@ -229,9 +229,7 @@ class hgwebdir(object):
                     parts.insert(0, req.env['PATH_INFO'].rstrip('/'))
                 if req.env['SCRIPT_NAME']:
                     parts.insert(0, req.env['SCRIPT_NAME'])
-                m = re.match('((?:https?://)?)(.*)', '/'.join(parts))
-                # squish repeated slashes out of the path component
-                url = m.group(1) + re.sub('/+', '/', m.group(2)) + '/'
+                url = re.sub(r'/+', '/', '/'.join(parts) + '/')
 
                 # update time with local timezone
                 try:
@@ -284,8 +282,7 @@ class hgwebdir(object):
                 for column in sortable]
 
         self.refresh()
-        if self._baseurl is not None:
-            req.env['SCRIPT_NAME'] = self._baseurl
+        self.updatereqenv(req.env)
 
         return tmpl("index", entries=entries, subdir=subdir,
                     sortcolumn=sortcolumn, descending=descending,
@@ -308,8 +305,7 @@ class hgwebdir(object):
         def config(section, name, default=None, untrusted=True):
             return self.ui.config(section, name, default, untrusted)
 
-        if self._baseurl is not None:
-            req.env['SCRIPT_NAME'] = self._baseurl
+        self.updatereqenv(req.env)
 
         url = req.env.get('SCRIPT_NAME', '')
         if not url.endswith('/'):
@@ -339,3 +335,19 @@ class hgwebdir(object):
                                              "staticurl": staticurl,
                                              "sessionvars": sessionvars})
         return tmpl
+
+    def updatereqenv(self, env):
+        def splitnetloc(netloc):
+            if ':' in netloc:
+                return netloc.split(':', 1)
+            else:
+                return (netloc, None)
+
+        if self._baseurl is not None:
+            urlcomp = urlparse.urlparse(self._baseurl)
+            host, port = splitnetloc(urlcomp[1])
+            path = urlcomp[2]
+            env['SERVER_NAME'] = host
+            if port:
+                env['SERVER_PORT'] = port
+            env['SCRIPT_NAME'] = path
