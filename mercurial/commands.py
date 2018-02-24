@@ -1066,7 +1066,7 @@ def bundle(ui, repo, fname, dest=None, **opts):
         dest = ui.expandpath(dest or 'default-push', dest or 'default')
         dest, branches = hg.parseurl(dest, opts.get('branch'))
         other = hg.peer(repo, opts, dest)
-        revs, checkout = hg.addbranchrevs(repo, other, branches, revs)
+        revs, checkout = hg.addbranchrevs(repo, repo, branches, revs)
         heads = revs and map(repo.lookup, revs) or revs
         outgoing = discovery.findcommonoutgoing(repo, other,
                                                 onlyheads=heads,
@@ -2106,7 +2106,9 @@ def debugknown(ui, repopath, *ids, **opts):
         ] + commitopts2,
          _('[OBSOLETED [REPLACEMENT] [REPL... ]'))
 def debugobsolete(ui, repo, precursor=None, *successors, **opts):
-    """create arbitrary obsolete marker"""
+    """create arbitrary obsolete marker
+
+    With no arguments it it display the list obsolescence marker."""
     def parsenodeid(s):
         try:
             # We do not use revsingle/revrange functions here to accept
