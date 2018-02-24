@@ -464,7 +464,8 @@ merged separately.
 .sp
 See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
 .sp
-Returns 0 on success.
+Returns 0 on success, 1 if nothing to backout or there are unresolved
+files.
 .sp
 Options:
 .INDENT 0.0
@@ -2825,7 +2826,7 @@ public < draft < secret
 .ft P
 .fi
 .sp
-Return 0 on success, 1 if no phases were changed or some could not
+Returns 0 on success, 1 if no phases were changed or some could not
 be changed.
 .sp
 Options:
@@ -6126,6 +6127,10 @@ The keys can be:
 .B \fBtag([name])\fP
 .sp
 The specified tag by name, or all tagged revisions if no name is given.
+.sp
+If \fIname\fP starts with \fIre:\fP, the remainder of the name is treated as
+a regular expression. To match a tag that actually starts with \fIre:\fP,
+use the prefix \fIliteral:\fP.
 .TP
 .B \fBunstable()\fP
 .sp
@@ -7958,9 +7963,10 @@ directories. The \fBinclude\fP or \fBexclude\fP directive with the
 longest matching path applies, so line order does not matter.
 .sp
 The \fBinclude\fP directive causes a file, or all files under a
-directory, to be included in the destination repository, and the
-exclusion of all other files and directories not explicitly
-included. The \fBexclude\fP directive causes files or directories to
+directory, to be included in the destination repository. The default
+if there are no \fBinclude\fP statements is to include everything.
+If there are any \fBinclude\fP statements, nothing else is included.
+The \fBexclude\fP directive causes files or directories to
 be omitted. The \fBrename\fP directive renames a file or directory if
 it is converted. To rename from a subdirectory into the root of
 the repository, use \fB.\fP as the path to rename to.

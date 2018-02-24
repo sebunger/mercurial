@@ -1416,6 +1416,12 @@ Behind the scenes, this will throw ValueError
   abort: template filter 'datefilter' is not compatible with keyword 'author'
   [255]
 
+Thrown an error if a template function doesn't exist
+
+  $ hg tip --template '{foo()}\n'
+  hg: parse error: unknown function 'foo'
+  [255]
+
   $ cd ..
 
 
@@ -1610,6 +1616,92 @@ Test string escaping:
   <>\n<]>
   <>\n<
 
+"string-escape"-ed "\x5c\x786e" becomes r"\x6e" (once) or r"n" (twice)
+
+  $ hg log -R a -r 0 --template '{if("1", "\x5c\x786e", "NG")}\n'
+  \x6e
+  $ hg log -R a -r 0 --template '{if("1", r"\x5c\x786e", "NG")}\n'
+  \x5c\x786e
+  $ hg log -R a -r 0 --template '{if("", "NG", "\x5c\x786e")}\n'
+  \x6e
+  $ hg log -R a -r 0 --template '{if("", "NG", r"\x5c\x786e")}\n'
+  \x5c\x786e
+
+  $ hg log -R a -r 2 --template '{ifeq("no perso\x6e", desc, "\x5c\x786e", "NG")}\n'
+  \x6e
+  $ hg log -R a -r 2 --template '{ifeq(r"no perso\x6e", desc, "NG", r"\x5c\x786e")}\n'
+  \x5c\x786e
+  $ hg log -R a -r 2 --template '{ifeq(desc, "no perso\x6e", "\x5c\x786e", "NG")}\n'
+  \x6e
+  $ hg log -R a -r 2 --template '{ifeq(desc, r"no perso\x6e", "NG", r"\x5c\x786e")}\n'
+  \x5c\x786e
+
+  $ hg log -R a -r 8 --template '{join(files, "\n")}\n'
+  fourth
+  second
+  third
+  $ hg log -R a -r 8 --template '{join(files, r"\n")}\n'
+  fourth\nsecond\nthird
+
+  $ hg log -R a -r 2 --template '{rstdoc("1st\n\n2nd", "htm\x6c")}'
+  <p>
+  1st
+  </p>
+  <p>
+  2nd
+  </p>
+  $ hg log -R a -r 2 --template '{rstdoc(r"1st\n\n2nd", "html")}'
+  <p>
+  1st\n\n2nd
+  </p>
+  $ hg log -R a -r 2 --template '{rstdoc("1st\n\n2nd", r"htm\x6c")}'
+  1st
+  
+  2nd
+
+  $ hg log -R a -r 2 --template '{strip(desc, "\x6e")}\n'
+  o perso
+  $ hg log -R a -r 2 --template '{strip(desc, r"\x6e")}\n'
+  no person
+  $ hg log -R a -r 2 --template '{strip("no perso\x6e", "\x6e")}\n'
+  o perso
+  $ hg log -R a -r 2 --template '{strip(r"no perso\x6e", r"\x6e")}\n'
+  no perso
+
+  $ hg log -R a -r 2 --template '{sub("\\x6e", "\x2d", desc)}\n'
+  -o perso-
+  $ hg log -R a -r 2 --template '{sub(r"\\x6e", "-", desc)}\n'
+  no person
+  $ hg log -R a -r 2 --template '{sub("n", r"\x2d", desc)}\n'
+  \x2do perso\x2d
+  $ hg log -R a -r 2 --template '{sub("n", "\x2d", "no perso\x6e")}\n'
+  -o perso-
+  $ hg log -R a -r 2 --template '{sub("n", r"\x2d", r"no perso\x6e")}\n'
+  \x2do perso\x6e
+
+  $ hg log -R a -r 8 --template '{files % "{file}\n"}'
+  fourth
+  second
+  third
+  $ hg log -R a -r 8 --template '{files % r"{file}\n"}\n'
+  fourth\nsecond\nthird\n
+
+Test string escapeing in nested expression:
+
+  $ hg log -R a -r 8 --template '{ifeq(r"\x6e", if("1", "\x5c\x786e"), join(files, "\x5c\x786e"))}\n'
+  fourth\x6esecond\x6ethird
+  $ hg log -R a -r 8 --template '{ifeq(if("1", r"\x6e"), "\x5c\x786e", join(files, "\x5c\x786e"))}\n'
+  fourth\x6esecond\x6ethird
+
+  $ hg log -R a -r 8 --template '{join(files, ifeq(branch, "default", "\x5c\x786e"))}\n'
+  fourth\x6esecond\x6ethird
+  $ hg log -R a -r 8 --template '{join(files, ifeq(branch, "default", r"\x5c\x786e"))}\n'
+  fourth\x5c\x786esecond\x5c\x786ethird
+
+  $ hg log -R a -r 3:4 --template '{rev}:{sub(if("1", "\x6e"), ifeq(branch, "foo", r"\x5c\x786e", "\x5c\x786e"), desc)}\n'
+  3:\x6eo user, \x6eo domai\x6e
+  4:\x5c\x786eew bra\x5c\x786ech
+
 Test recursive evaluation:
 
   $ hg init r
@@ -1622,7 +1714,49 @@ Test recursive evaluation:
   $ hg log -r 0 --template '{if(rev, "{author} {rev}")}\n'
   test 0
 
+  $ hg branch -q 'text.{rev}'
+  $ echo aa >> aa
+  $ hg ci -u '{node|short}' -m 'desc to be wrapped desc to be wrapped'
+
+  $ hg log -r 1 --template '{fill(desc, "20", author, branch)}'
+  {node|short}desc to
+  text.{rev}be wrapped
+  text.{rev}desc to be
+  text.{rev}wrapped (no-eol)
+  $ hg log -r 1 --template '{fill(desc, "20", "{node|short}:", "text.{rev}:")}'
+  bcc7ff960b8e:desc to
+  text.1:be wrapped
+  text.1:desc to be
+  text.1:wrapped (no-eol)
+
+  $ hg log -r 1 --template '{sub(r"[0-9]", "-", author)}'
+  {node|short} (no-eol)
+  $ hg log -r 1 --template '{sub(r"[0-9]", "-", "{node|short}")}'
+  bcc-ff---b-e (no-eol)
+
+  $ cat >> .hg/hgrc <<EOF
+  > [extensions]
+  > color=
+  > [color]
+  > mode=ansi
+  > text.{rev} = red
+  > text.1 = green
+  > EOF
+  $ hg log --color=always -r 1 --template '{label(branch, "text\n")}'
+  \x1b[0;31mtext\x1b[0m (esc)
+  $ hg log --color=always -r 1 --template '{label("text.{rev}", "text\n")}'
+  \x1b[0;32mtext\x1b[0m (esc)
+
 Test branches inside if statement:
 
   $ hg log -r 0 --template '{if(branches, "yes", "no")}\n'
   no
+
+  $ cd ..
+
+Test stringify on sub expressions
+
+  $ hg log -R a -r 8 --template '{join(files, if("1", if("1", ", ")))}\n'
+  fourth, second, third
+  $ hg log -R a -r 8 --template '{strip(if("1", if("1", "-abc-")), if("1", if("1", "-")))}\n'
+  abc
