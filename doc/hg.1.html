@@ -5728,7 +5728,7 @@ output, such as JSON. For more, see <a class="reference external" href="hg.1.htm
 <p><a class="reference external" href="hg.1.html#serve"><tt class="docutils literal">hg serve</tt></a> can also start a &quot;command server.&quot; Clients can connect
 to this server and issue Mercurial commands over a special protocol.
 For more details on the command server, including links to client
-libraries, see <a class="reference external" href="https://mercurial.selenic.com/wiki/CommandServer">https://mercurial.selenic.com/wiki/CommandServer</a>.</p>
+libraries, see <a class="reference external" href="https://www.mercurial-scm.org/wiki/CommandServer">https://www.mercurial-scm.org/wiki/CommandServer</a>.</p>
 <p><a class="reference external" href="hg.1.html#serve"><tt class="docutils literal">hg serve</tt></a> based interfaces (the hgweb and command servers) have the
 advantage over simple <tt class="docutils literal">hg</tt> process invocations in that they are
 likely more efficient. This is because there is significant overhead
@@ -6374,6 +6374,17 @@ leftpad(s, w) = pad(s, w, ' ', True)
 </pre>
 <p>defines two symbol aliases, <tt class="docutils literal">r</tt> and <tt class="docutils literal">rn</tt>, and a function alias
 <tt class="docutils literal">leftpad()</tt>.</p>
+<p>It's also possible to specify complete template strings, using the
+<tt class="docutils literal">templates</tt> section. The syntax used is the general template string syntax.</p>
+<p>For example,</p>
+<pre class="literal-block">
+[templates]
+nodedate = &quot;{node|short}: {date(date, &quot;%Y-%m-%d&quot;)}\n&quot;
+</pre>
+<p>defines a template, <tt class="docutils literal">nodedate</tt>, which can be called like:</p>
+<pre class="literal-block">
+$ hg log -r . -Tnodedate
+</pre>
 <p>Some sample command line templates:</p>
 <ul>
 <li><p class="first">Format lists, e.g. files:</p>
