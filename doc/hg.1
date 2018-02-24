@@ -1,4 +1,4 @@
-.\" Man page generated from reStructeredText.
+.\" Man page generated from reStructuredText.
 .
 .TH HG 1 "" "" "Mercurial Manual"
 .SH NAME
@@ -544,7 +544,7 @@ hg bisect \-\-bad
 .fi
 .IP \(bu 2
 .
-mark the current revision, or a known revision, to be skipped (eg. if
+mark the current revision, or a known revision, to be skipped (e.g. if
 that revision is not usable because of another issue):
 .sp
 .nf
@@ -3830,6 +3830,10 @@ integrity, validating the hashes and checksums of each entry in
 the changelog, manifest, and tracked files, as well as the
 integrity of their crosslinks and indices.
 .sp
+Please see \%http://mercurial.selenic.com/wiki/RepositoryCorruption\:
+for more information about recovery from corruption of the
+repository.
+.sp
 Returns 0 on success, 1 if errors are encountered.
 .SS version
 .sp
@@ -5091,7 +5095,7 @@ collections
 .UNINDENT
 .UNINDENT
 .sp
-The \fBweb\fP options are thorougly described in \%\fBhg help config\fP\:.
+The \fBweb\fP options are thoroughly described in \%\fBhg help config\fP\:.
 .sp
 The \fBpaths\fP section maps URL paths to paths of repositories in the
 filesystem. hgweb will not expose the filesystem directly \- only
@@ -5624,7 +5628,7 @@ Changesets marked in the specified bisect status:
 \fBgood\fP, \fBbad\fP, \fBskip\fP: csets explicitly marked as good/bad/skip
 .IP \(bu 2
 .
-\fBgoods\fP, \fBbads\fP      : csets topologicaly good/bad
+\fBgoods\fP, \fBbads\fP      : csets topologically good/bad
 .IP \(bu 2
 .
 \fBrange\fP              : csets taking part in the bisection
@@ -5658,6 +5662,16 @@ changesets.
 If \fIstring\fP starts with \fIre:\fP, the remainder of the name is treated as
 a regular expression. To match a branch that actually starts with \fIre:\fP,
 use the prefix \fIliteral:\fP.
+.TP
+.B \fBbranchpoint()\fP
+.sp
+Changesets with more than one child.
+.TP
+.B \fBbumped()\fP
+.sp
+Mutable changesets marked as successors of public changesets.
+.sp
+Only non\-public and non\-obsolete changesets can be \fIbumped\fP.
 .TP
 .B \fBchildren(set)\fP
 .sp
@@ -5750,6 +5764,10 @@ Changeset is a named branch head.
 .B \fBheads(set)\fP
 .sp
 Members of set with no children in set.
+.TP
+.B \fBhidden()\fP
+.sp
+Hidden changesets.
 .TP
 .B \fBid(string)\fP
 .sp
@@ -6040,21 +6058,21 @@ Nested repository references. They are defined in \fB.hgsub\fP, which
 should be placed in the root of working directory, and
 tell where the subrepository checkouts come from. Mercurial
 subrepositories are referenced like:
-.INDENT 3.0
-.INDENT 3.5
 .sp
-path/to/nested = \%https://example.com/nested/repo/path\:
-.UNINDENT
-.UNINDENT
+.nf
+.ft C
+path/to/nested = https://example.com/nested/repo/path
+.ft P
+.fi
 .sp
 Git and Subversion subrepos are also supported:
-.INDENT 3.0
-.INDENT 3.5
 .sp
+.nf
+.ft C
 path/to/nested = [git]git://example.com/nested/repo/path
 path/to/nested = [svn]https://example.com/nested/trunk/path
-.UNINDENT
-.UNINDENT
+.ft P
+.fi
 .sp
 where \fBpath/to/nested\fP is the checkout location relatively to the
 parent Mercurial root, and \fBhttps://example.com/nested/repo/path\fP
@@ -6307,6 +6325,28 @@ Integer. Longest path to the latest tag.
 String. The changeset identification hash, as a 40 hexadecimal
 digit string.
 .TP
+.B p1node
+.
+String. The identification hash of the changeset\(aqs first parent,
+as a 40 digit hexadecimal string. If the changeset has no parents, all
+digits are 0.
+.TP
+.B p1rev
+.
+Integer. The repository\-local revision number of the changeset\(aqs
+first parent, or \-1 if the changeset has no parents.
+.TP
+.B p2node
+.
+String. The identification hash of the changeset\(aqs second
+parent, as a 40 digit hexadecimal string. If the changeset has no second
+parent, all digits are 0.
+.TP
+.B p2rev
+.
+Integer. The repository\-local revision number of the changeset\(aqs
+second parent, or \-1 if the changeset has no second parent.
+.TP
 .B parents
 .
 List of strings. The parents of the changeset in "rev:node"
@@ -6388,7 +6428,7 @@ Any text. Returns the user portion of an email address.
 .B escape
 .
 Any text. Replaces the special XML/XHTML characters "&", "<"
-and ">" with XML entities.
+and ">" with XML entities, and filters out NUL characters.
 .TP
 .B fill68
 .
@@ -6837,7 +6877,7 @@ Access via XMLRPC/email uses XMLRPC to query Bugzilla, but sends
 email to the Bugzilla email interface to submit comments to bugs.
 The From: address in the email is set to the email address of the Mercurial
 user, so the comment appears to come from the Mercurial user. In the event
-that the Mercurial user email is not recognised by Bugzilla as a Bugzilla
+that the Mercurial user email is not recognized by Bugzilla as a Bugzilla
 user, the email associated with the Bugzilla username used to log into
 Bugzilla is used instead as the source of the comment. Marking bugs fixed
 works on all supported Bugzilla versions.
@@ -6847,7 +6887,7 @@ Configuration items common to all access modes:
 .TP
 .B bugzilla.version
 .
-This access type to use. Values recognised are:
+The access type to use. Values recognized are:
 .INDENT 7.0
 .TP
 .B \fBxmlrpc\fP
@@ -7492,7 +7532,7 @@ and can be run repeatedly to copy new commits.
 .sp
 The authormap is a simple text file that maps each source commit
 author to a destination commit author. It is handy for source SCMs
-that use unix logins to identify authors (eg: CVS). One line per
+that use unix logins to identify authors (e.g.: CVS). One line per
 author mapping and the line format is:
 .sp
 .nf
@@ -8321,7 +8361,7 @@ project = foo
 # Style to use (optional)
 #style = foo
 # The URL of the CIA notification service (optional)
-# You can use mailto: URLs to send by email, eg
+# You can use mailto: URLs to send by email, e.g.
 # mailto:cia@cia.vc
 # Make sure to set email.from if you do this.
 #url = http://cia.vc/
@@ -10165,19 +10205,28 @@ multiple recipients to a single repository:
 .nf
 .ft C
 [usersubs]
-# key is subscriber email, value is a comma\-separated list of repo glob
-# patterns
+# key is subscriber email, value is a comma\-separated list of repo patterns
 user@host = pattern
 
 [reposubs]
-# key is glob pattern, value is a comma\-separated list of subscriber
-# emails
+# key is repo pattern, value is a comma\-separated list of subscriber emails
 pattern = user@host
 .ft P
 .fi
 .sp
-Glob patterns are matched against absolute path to repository
-root.
+A \fBpattern\fP is a \fBglob\fP matching the absolute path to a repository,
+optionally combined with a revset expression. A revset expression, if
+present, is separated from the glob by a hash. Example:
+.sp
+.nf
+.ft C
+[reposubs]
+*/widgets#branch(release) = qa\-team@example.com
+.ft P
+.fi
+.sp
+This sends to \fBqa\-team@example.com\fP whenever a changeset on the \fBrelease\fP
+branch triggers a notification in any repository ending in \fBwidgets\fP.
 .sp
 In order to place them under direct user management, \fB[usersubs]\fP and
 \fB[reposubs]\fP sections may be placed in a separate \fBhgrc\fP file and
@@ -10424,7 +10473,7 @@ installed, the result of running diffstat on the patch is inserted.
 .sp
 Finally, the patch itself, as generated by \%\fBhg export\fP\:.
 .sp
-With the \-d/\-\-diffstat or \-c/\-\-confirm options, you will be presented
+With the \-d/\-\-diffstat or \-\-confirm options, you will be presented
 with a final summary of all messages and asked for confirmation before
 the messages are sent.
 .sp
