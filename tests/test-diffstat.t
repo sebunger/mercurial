@@ -35,7 +35,7 @@ Narrow diffstat:
 
   $ hg ci -m appenda
 
-  >>> open("c", "wb").write("\0")
+  >>> open("c", "wb").write(b"\0")
   $ touch d
   $ hg add c d
 
@@ -54,7 +54,7 @@ Binary git diffstat:
 
   $ hg ci -m createb
 
-  >>> open("file with spaces", "wb").write("\0")
+  >>> open("file with spaces", "wb").write(b"\0")
   $ hg add "file with spaces"
 
 Filename with spaces diffstat:
@@ -68,6 +68,57 @@ Filename with spaces git diffstat:
   $ hg diff --stat --git
    file with spaces |  Bin 
    1 files changed, 0 insertions(+), 0 deletions(-)
+
+Filename without "a/" or "b/" (issue5759):
+
+  $ hg diff --config 'diff.noprefix=1' -c1 --stat --git
+   a |  3 +++
+   1 files changed, 3 insertions(+), 0 deletions(-)
+  $ hg diff --config 'diff.noprefix=1' -c2 --stat --git
+   c |  Bin 
+   d |    0 
+   2 files changed, 0 insertions(+), 0 deletions(-)
+
+  $ hg log --config 'diff.noprefix=1' -r '1:' -p --stat --git
+  changeset:   1:3a95b07bb77f
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     appenda
+  
+   a |  3 +++
+   1 files changed, 3 insertions(+), 0 deletions(-)
+  
+  diff --git a a
+  --- a
+  +++ a
+  @@ -211,3 +211,6 @@
+   a
+   a
+   a
+  +a
+  +a
+  +a
+  
+  changeset:   2:c60a6c753773
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     createb
+  
+   c |  Bin 
+   d |    0 
+   2 files changed, 0 insertions(+), 0 deletions(-)
+  
+  diff --git c c
+  new file mode 100644
+  index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..f76dd238ade08917e6712764a16a22005a50573d
+  GIT binary patch
+  literal 1
+  Ic${MZ000310RR91
+  
+  diff --git d d
+  new file mode 100644
+  
 
 diffstat within directories:
 
@@ -100,7 +151,7 @@ diffstat within directories:
    1 files changed, 1 insertions(+), 0 deletions(-)
 
   $ hg diff --stat --root ../dir1 ../dir2
-  warning: ../dir2 not inside relative root . (glob)
+  warning: ../dir2 not inside relative root .
 
   $ hg diff --stat --root . -I old
 

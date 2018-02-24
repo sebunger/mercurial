@@ -2153,6 +2153,15 @@ Alias definitions for revsets. See \%\fBhg help revsets\fP\: for details.
 Controls generic server settings.
 .INDENT 0.0
 .TP
+.B \fBbookmarks\-pushkey\-compat\fP
+.sp
+Trigger pushkey hook when being pushed bookmark updates. This config exist
+for compatibility purpose (default to True)
+.sp
+If you use \fBpushkey\fP and \fBpre\-pushkey\fP hooks to control bookmark
+movement we recommend you migrate them to \fBtxnclose\-bookmark\fP and
+\fBpretxnclose\-bookmark\fP.
+.TP
 .B \fBcompressionengines\fP
 .sp
 List of compression engines and their relative priority to advertise
@@ -2675,6 +2684,8 @@ trusted user or group.
 .TP
 .B \fBslash\fP
 .sp
+(Deprecated. Use \fBslashpath\fP template filter instead.)
+.sp
 Display paths using a slash (\fB/\fP) as the path separator. This
 only makes a difference on systems where the default path
 separator is not the slash character (e.g. Windows uses the
@@ -2688,6 +2699,11 @@ Display copies in the status command.
 .B \fBssh\fP
 .sp
 Command to use for SSH connections. (default: \fBssh\fP)
+.TP
+.B \fBssherrorhint\fP
+.sp
+A hint shown to the user in the case of SSH error (e.g.
+\fBPlease see http://company/internalwiki/ssh.html\fP)
 .TP
 .B \fBstrict\fP
 .sp
@@ -2716,6 +2732,11 @@ used. (default: 78)
 .sp
 The timeout used when a lock is held (in seconds), a negative value
 means no timeout. (default: 600)
+.TP
+.B \fBtimeout.warn\fP
+.sp
+Time (in seconds) before a warning is printed about held lock. A negative
+value means no warning. (default: 0)
 .TP
 .B \fBtraceback\fP
 .sp
@@ -2775,7 +2796,7 @@ command line:
 .sp
 .nf
 .ft C
-$ hg \-\-config web.allow_push=* \-\-config web.push_ssl=False serve
+$ hg \-\-config web.allow\-push=* \-\-config web.push_ssl=False serve
 .ft P
 .fi
 .sp
@@ -2810,18 +2831,18 @@ revisions.
 revisions.
 (default: False)
 .TP
-.B \fBallowpull\fP
+.B \fBallow\-pull\fP
 .sp
 Whether to allow pulling from the repository. (default: True)
 .TP
-.B \fBallow_push\fP
+.B \fBallow\-push\fP
 .sp
 Whether to allow pushing to the repository. If empty or not set,
 pushing is not allowed. If the special value \fB*\fP, any remote
 user can push, including unauthenticated users. Otherwise, the
 remote user must have been authenticated, and the authenticated
 user name must be present in this list. The contents of the
-allow_push list are examined after the deny_push list.
+allow\-push list are examined after the deny_push list.
 .TP
 .B \fBallow_read\fP
 .sp
@@ -2931,7 +2952,7 @@ Whether to deny pushing to the repository. If empty or not set,
 push is not denied. If the special value \fB*\fP, all remote users are
 denied push. Otherwise, unauthenticated users are all denied, and
 any authenticated user name present in this list is also denied. The
-contents of the deny_push list are examined before the allow_push list.
+contents of the deny_push list are examined before the allow\-push list.
 .TP
 .B \fBdeny_read\fP
 .sp
@@ -3117,6 +3138,11 @@ directory updates in parallel on Unix\-like systems, which greatly
 helps performance.
 .INDENT 0.0
 .TP
+.B \fBenabled\fP
+.sp
+Whether to enable workers code to be used.
+(default: true)
+.TP
 .B \fBnumcpus\fP
 .sp
 Number of CPUs to use for parallel operations. A zero or
@@ -3162,7 +3188,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2017 Matt Mackall.
+Mercurial is copyright 2005\-2018 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.
