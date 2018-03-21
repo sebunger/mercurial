@@ -3066,9 +3066,10 @@ changed files and full commit message are shown.
 .sp
 With \-\-graph the revisions are shown as an ASCII art DAG with the most
 recent changeset at the top.
-\(aqo\(aq is a changeset, \(aq@\(aq is a working directory parent, \(aqx\(aq is obsolete,
-and \(aq+\(aq represents a fork where the changeset from the lines below is a
-parent of the \(aqo\(aq merge on the same line.
+\(aqo\(aq is a changeset, \(aq@\(aq is a working directory parent, \(aq_\(aq closes a branch,
+\(aqx\(aq is obsolete, \(aq*\(aq is unstable, and \(aq+\(aq represents a fork where the
+changeset from the lines below is a parent of the \(aqo\(aq merge on the same
+line.
 Paths in the DAG are represented with \(aq|\(aq, \(aq/\(aq and so forth. \(aq:\(aq in place
 of a \(aq|\(aq indicates one or more revisions in a path are omitted.
 .sp
@@ -9499,7 +9500,7 @@ Some notes about using SSH with Mercurial:
 .IP \(bu 2
 .
 SSH requires an accessible shell account on the destination machine
-and a copy of hg in the remote path or specified with as remotecmd.
+and a copy of hg in the remote path or specified with remotecmd.
 .IP \(bu 2
 .
 path is relative to the remote user\(aqs home directory by default. Use
