@@ -2,6 +2,7 @@ mercurial (4.6-1) UNRELEASED; urgency=medium
 
   * Make uscan recognize "4.6rc1" as a release candidate
   * New upstream release.
+  * Document embedded third party code licenses in debian/copyright.
 
  -- Julien Cristau <jcristau@debian.org>  Fri, 11 May 2018 11:37:54 +0200
 
