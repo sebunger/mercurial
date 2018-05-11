@@ -4,6 +4,8 @@ mercurial (4.6-1) UNRELEASED; urgency=medium
   * New upstream release.
   * Document embedded third party code licenses in debian/copyright.
   * Drop obsolete X-Python-Versions control field.
+  * Fix typo in deb_specific__disable_libdir_replacement.patch description
+    (thanks, lintian!)
 
  -- Julien Cristau <jcristau@debian.org>  Fri, 11 May 2018 11:37:54 +0200
 

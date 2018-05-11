@@ -1,6 +1,6 @@
 Description: Disabled hginstallscripts @LIBDIR@ replacement in setup.py.
  setup.py replaces @LIBDIR@ in the hg script, with a path that differs between
- Python verisons.
+ Python versions.
  libdir in hg doesn't need to be set if mercurial is available in the public
  namespace, as it is in Debian.
  hg doesn't alter sys.paths if this replacement hasn't happened.
