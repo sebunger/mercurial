@@ -1,4 +1,6 @@
-mercurial (4.6-1) UNRELEASED; urgency=medium
+mercurial (4.6-1) unstable; urgency=medium
+
+  * Team upload
 
   [ Julien Cristau ]
   * Make uscan recognize "4.6rc1" as a release candidate
@@ -15,7 +17,7 @@ mercurial (4.6-1) UNRELEASED; urgency=medium
     (closes: #895200, #893012)
   * Disable hgsubversion and mercurial-git autopkgtests (closes: #890191)
 
- -- Julien Cristau <jcristau@debian.org>  Fri, 11 May 2018 11:37:54 +0200
+ -- Julien Cristau <jcristau@debian.org>  Fri, 11 May 2018 18:19:39 +0200
 
 mercurial (4.5.3-1) unstable; urgency=medium
 
