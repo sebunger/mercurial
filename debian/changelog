@@ -12,6 +12,7 @@ mercurial (4.6-1) UNRELEASED; urgency=medium
   * Pass the same TESTFLAGS to the autopkg tests, as done for the test
     during package build, and make the blacklist work correctly
     (closes: #895200, #893012)
+  * Disable hgsubversion and mercurial-git autopkgtests (closes: #890191)
 
  -- Julien Cristau <jcristau@debian.org>  Fri, 11 May 2018 11:37:54 +0200
 
