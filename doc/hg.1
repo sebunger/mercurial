@@ -1054,13 +1054,15 @@ hg bundle [\-f] [\-t BUNDLESPEC] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST
 .ft P
 .fi
 .sp
-Generate a bundle file containing data to be added to a repository.
+Generate a bundle file containing data to be transferred to another
+repository.
 .sp
 To create a bundle containing all changesets, use \-a/\-\-all
 (or \-\-base null). Otherwise, hg assumes the destination will have
 all the nodes you specify with \-\-base parameters. Otherwise, hg
 will assume the repository has all the nodes in destination, or
-default\-push/default if no destination is specified.
+default\-push/default if no destination is specified, where destination
+is the repository you provide through DEST option.
 .sp
 You can change bundle format with the \-t/\-\-type option. See
 \%\fBhg help bundlespec\fP\: for documentation on this format. By default,
@@ -1132,7 +1134,9 @@ Print the specified files as they were at the given revision. If
 no revision is given, the parent of the working directory is used.
 .sp
 Output may be to a file, in which case the name of the file is
-given using a format string. The formatting rules as follows:
+given using a template string. See \%\fBhg help templates\fP\:. In addition
+to the common template keywords, the following formatting rules are
+supported:
 .INDENT 0.0
 .TP
 .B \fB%%\fP
@@ -1170,6 +1174,10 @@ zero\-padded changeset revision number
 .B \fB%b\fP
 .sp
 basename of the exporting repository
+.TP
+.B \fB\e\fP
+.sp
+literal "" character
 .UNINDENT
 .sp
 Returns 0 on success.
@@ -1297,12 +1305,13 @@ tip
 .UNINDENT
 .sp
 When cloning from servers that support it, Mercurial may fetch
-pre\-generated data from a server\-advertised URL. When this is done,
-hooks operating on incoming changesets and changegroups may fire twice,
-once for the bundle fetched from the URL and another for any additional
-data not fetched from this URL. In addition, if an error occurs, the
-repository may be rolled back to a partial clone. This behavior may
-change in future releases. See \%\fBhg help \-e clonebundles\fP\: for more.
+pre\-generated data from a server\-advertised URL or inline from the
+same stream. When this is done, hooks operating on incoming changesets
+and changegroups may fire more than once, once for each pre\-generated
+bundle and as well as for any additional remaining data. In addition,
+if an error occurs, the repository may be rolled back to a partial
+clone. This behavior may change in future releases.
+See \%\fBhg help \-e clonebundles\fP\: for more.
 .sp
 Examples:
 .INDENT 0.0
@@ -1379,11 +1388,11 @@ revision, tag, or branch to check out
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-include the specified changeset
+do not clone everything, but include this changeset and its ancestors
 .TP
 .BI \-b,  \-\-branch \ <BRANCH[+]>
 .
-clone only the specified branch
+do not clone everything, but include this branch\(aqs changesets and their ancestors
 .TP
 .B \-\-pull
 .
@@ -1568,7 +1577,7 @@ With one argument of the form section.name, print just the value
 of that config item.
 .sp
 With multiple arguments, print names and values of all config
-items with matching section names.
+items with matching section names or section.names.
 .sp
 With \-\-edit, start an editor on the user\-level config file. With
 \-\-global, edit the system\-wide config file. With \-\-local, edit the
@@ -1854,7 +1863,9 @@ first parent only.
 .RE
 .sp
 Output may be to a file, in which case the name of the file is
-given using a format string. The formatting rules are as follows:
+given using a template string. See \%\fBhg help templates\fP\:. In addition
+to the common template keywords, the following formatting rules are
+supported:
 .INDENT 0.0
 .TP
 .B \fB%%\fP
@@ -1892,6 +1903,10 @@ zero\-padded sequence number, starting at 1
 .B \fB%r\fP
 .sp
 zero\-padded changeset revision number
+.TP
+.B \fB\e\fP
+.sp
+literal "" character
 .UNINDENT
 .sp
 Without the \-a/\-\-text option, export will avoid generating diffs
@@ -1970,6 +1985,10 @@ generate binary diffs in git mode (default)
 .B \-\-nodates
 .
 omit dates from diff headers
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template (EXPERIMENTAL)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -2130,6 +2149,10 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
+.B \-i,  \-\-interactive
+.
+use interactive mode
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -2137,6 +2160,10 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -3731,6 +3758,12 @@ or URL and adds them to a local repository (the current one unless
 \-R is specified). By default, this does not update the copy of the
 project in the working directory.
 .sp
+When cloning from servers that support it, Mercurial may fetch
+pre\-generated data. When this is done, hooks operating on incoming
+changesets and changegroups may fire more than once, once for each
+pre\-generated bundle and as well as for any additional remaining
+data. See \%\fBhg help \-e clonebundles\fP\: for more.
+.sp
 Use \%\fBhg incoming\fP\: if you want to see what would have been added
 by a pull at the time you issued this command. If you then decide
 to add those changes to the repository, you should use \%\fBhg pull
@@ -4025,6 +4058,10 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -7027,6 +7064,10 @@ To access a subtopic, use "hg help internals.{subtopic\-name}"
 .INDENT 3.5
 .INDENT 0.0
 .TP
+.B bundle2
+.
+Bundle2
+.TP
 .B bundles
 .
 Bundles
@@ -8832,6 +8873,10 @@ of your configuration file.
 .
 String. The changeset phase name.
 .TP
+.B reporoot
+.
+String. The root directory of the current repository.
+.TP
 .B rev
 .
 Integer. The repository\-local changeset revision number.
@@ -8891,6 +8936,11 @@ For example, "foo/bar/baz" becomes "baz" and "foo/bar//" becomes "".
 .B count
 .
 List or text. Returns the length as an integer.
+.TP
+.B dirname
+.
+Any text. Treats the text as a path, and strips the last
+component of the path after splitting by the path separator.
 .TP
 .B domain
 .
@@ -8987,7 +9037,7 @@ i.e. a 12 hexadecimal digit string.
 .TP
 .B shortbisect
 .
-Any text. Treats \fItext\fP as a bisection status, and
+Any text. Treats \fIlabel\fP as a bisection status, and
 returns a single\-character representing the status (G: good, B: bad,
 S: skipped, U: untested, I: ignored). Returns single space if \fItext\fP
 is not a valid bisection status.
@@ -9120,6 +9170,11 @@ the string "null".
 .
 Converts a date to the specified timezone.
 The default is local date.
+.TP
+.B mailmap(author)
+.
+Return the author, updated according to the value
+set in the .mailmap file
 .TP
 .B max(iterable)
 .
@@ -10356,7 +10411,7 @@ Options:
 .TP
 .BI \-r,  \-\-rev \ <REV>
 .
-show children of the specified revision
+show children of the specified revision (default: .)
 .TP
 .BI \-\-style \ <STYLE>
 .
@@ -10477,7 +10532,8 @@ advertise pre\-generated bundles to seed clones
 "clonebundles" is a server\-side extension used to advertise the existence
 of pre\-generated, externally hosted bundle files to clients that are
 cloning so that cloning can be faster, more reliable, and require less
-resources on the server.
+resources on the server. "pullbundles" is a related feature for sending
+pre\-generated bundle files to clients as part of pull operations.
 .sp
 Cloning can be a CPU and I/O intensive operation on servers. Traditionally,
 the server, in response to a client\(aqs request to clone, dynamically generates
@@ -10487,8 +10543,12 @@ generate the same outgoing bundle in response to each clone request. For
 servers with large repositories or with high clone volume, the load from
 clones can make scaling the server challenging and costly.
 .sp
-This extension provides server operators the ability to offload potentially
-expensive clone load to an external service. Here\(aqs how it works.
+This extension provides server operators the ability to offload
+potentially expensive clone load to an external service. Pre\-generated
+bundles also allow using more CPU intensive compression, reducing the
+effective bandwidth requirements.
+.sp
+Here\(aqs how clone bundles work:
 .INDENT 0.0
 .IP 1. 3
 .
@@ -10518,7 +10578,7 @@ server\-specified URL.
 The client reconnects to the original server and performs the equivalent
 of \%\fBhg pull\fP\: to retrieve all repository data not in the bundle. (The
 repository could have been updated between when the bundle was created
-and when the client started the clone.)
+and when the client started the clone.) This may use "pullbundles".
 .UNINDENT
 .sp
 Instead of the server generating full repository bundles for every clone
@@ -10528,6 +10588,31 @@ However, this is only data that has been added/changed since the bundle was
 created. For large, established repositories, this can reduce server load for
 clones to less than 1% of original.
 .sp
+Here\(aqs how pullbundles work:
+.INDENT 0.0
+.IP 1. 3
+.
+A manifest file listing available bundles and describing the revisions
+is added to the Mercurial repository on the server.
+.IP 2. 3
+.
+A new\-enough client informs the server that it supports partial pulls
+and initiates a pull.
+.IP 3. 3
+.
+If the server has pull bundles enabled and sees the client advertising
+partial pulls, it checks for a matching pull bundle in the manifest.
+A bundle matches if the format is supported by the client, the client
+has the required revisions already and needs something from the bundle.
+.IP 4. 3
+.
+If there is at least one matching bundle, the server sends it to the client.
+.IP 5. 3
+.
+The client applies the bundle and notices that the server reply was
+incomplete. It initiates another pull.
+.UNINDENT
+.sp
 To work, this extension requires the following of server operators:
 .INDENT 0.0
 .IP \(bu 2
@@ -10536,9 +10621,9 @@ Generating bundle files of repository content (typically periodically,
 such as once per day).
 .IP \(bu 2
 .
-A file server that clients have network access to and that Python knows
-how to talk to through its normal URL handling facility (typically an
-HTTP server).
+Clone bundles: A file server that clients have network access to and that
+Python knows how to talk to through its normal URL handling facility
+(typically an HTTP/HTTPS server).
 .IP \(bu 2
 .
 A process for keeping the bundles manifest in sync with available bundle
@@ -10554,7 +10639,7 @@ Bundle files can be generated with the \%\fBhg bundle\fP\: command. Typically
 \%\fBhg bundle \-\-all\fP\: is used to produce a bundle of the entire repository.
 .sp
 \%\fBhg debugcreatestreamclonebundle\fP\: can be used to produce a special
-\fIstreaming clone bundle\fP. These are bundle files that are extremely efficient
+\fIstreaming clonebundle\fP. These are bundle files that are extremely efficient
 to produce and consume (read: fast). However, they are larger than
 traditional bundle formats and require that clients support the exact set
 of repository data store formats in use by the repository that created them.
@@ -10566,7 +10651,8 @@ streaming clone bundles incompatible with older Mercurial versions.\fP
 A server operator is responsible for creating a \fB.hg/clonebundles.manifest\fP
 file containing the list of available bundle files suitable for seeding
 clones. If this file does not exist, the repository will not advertise the
-existence of clone bundles when clients connect.
+existence of clone bundles when clients connect. For pull bundles,
+\fB.hg/pullbundles.manifest\fP is used.
 .sp
 The manifest file contains a newline (n) delimited list of entries.
 .sp
@@ -10581,6 +10667,9 @@ Each line in this file defines an available bundle. Lines have the format:
 That is, a URL followed by an optional, space\-delimited list of key=value
 pairs describing additional properties of this bundle. Both keys and values
 are URI encoded.
+.sp
+For pull bundles, the URL is a path under the \fB.hg\fP directory of the
+repository.
 .sp
 Keys in UPPERCASE are reserved for use by Mercurial and are defined below.
 All non\-uppercase keys can be used by site installations. An example use
@@ -10632,6 +10721,17 @@ URL or clients running old Python releases may not be able to clone
 with the clonebundles facility.
 .sp
 Value should be "true".
+.TP
+.B heads
+.
+Used for pull bundles. This contains the \fB;\fP separated changeset
+hashes of the heads of the bundle content.
+.TP
+.B bases
+.
+Used for pull bundles. This contains the \fB;\fP separated changeset
+hashes of the roots of the bundle content. This can be skipped if
+the bundle was created without \fB\-\-base\fP.
 .UNINDENT
 .sp
 Manifests can contain multiple entries. Assuming metadata is defined, clients
@@ -11353,6 +11453,11 @@ diff programs are called with a configurable set of options and two
 non\-option arguments: paths to directories containing snapshots of
 files to compare.
 .sp
+If there is more than one file being compared and the "child" revision
+is the working directory, any modifications made in the external diff
+program will be copied back to the working directory from the temporary
+directory.
+.sp
 The extdiff extension also allows you to configure new diff commands, so
 you do not need to type \%\fBhg extdiff \-p kdiff3\fP\: always.
 .sp
@@ -11583,6 +11688,119 @@ specify hg command to run on the remote side
 .B \-\-insecure
 .
 do not verify server certificate (ignoring web.cacerts config)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS fix
+.sp
+rewrite file content in changesets or working copy (EXPERIMENTAL)
+.sp
+Provides a command that runs configured tools on the contents of modified files,
+writing back any fixes to the working copy or replacing changesets.
+.sp
+Here is an example configuration that causes \%\fBhg fix\fP\: to apply automatic
+formatting fixes to modified lines in C++ code:
+.sp
+.nf
+.ft C
+[fix]
+clang\-format:command=clang\-format \-\-assume\-filename={rootpath}
+clang\-format:linerange=\-\-lines={first}:{last}
+clang\-format:fileset=set:**.cpp or **.hpp
+.ft P
+.fi
+.sp
+The :command suboption forms the first part of the shell command that will be
+used to fix a file. The content of the file is passed on standard input, and the
+fixed file content is expected on standard output. If there is any output on
+standard error, the file will not be affected. Some values may be substituted
+into the command:
+.sp
+.nf
+.ft C
+{rootpath}  The path of the file being fixed, relative to the repo root
+{basename}  The name of the file being fixed, without the directory path
+.ft P
+.fi
+.sp
+If the :linerange suboption is set, the tool will only be run if there are
+changed lines in a file. The value of this suboption is appended to the shell
+command once for every range of changed lines in the file. Some values may be
+substituted into the command:
+.sp
+.nf
+.ft C
+{first}   The 1\-based line number of the first line in the modified range
+{last}    The 1\-based line number of the last line in the modified range
+.ft P
+.fi
+.sp
+The :fileset suboption determines which files will be passed through each
+configured tool. See \%\fBhg help fileset\fP\: for possible values. If there are file
+arguments to \%\fBhg fix\fP\:, the intersection of these filesets is used.
+.sp
+There is also a configurable limit for the maximum size of file that will be
+processed by \%\fBhg fix\fP\::
+.sp
+.nf
+.ft C
+[fix]
+maxfilesize=2MB
+.ft P
+.fi
+.SS Commands
+.SS fix
+.sp
+rewrite file content in changesets or working directory:
+.sp
+.nf
+.ft C
+hg fix [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Runs any configured tools to fix the content of files. Only affects files
+with changes, unless file arguments are provided. Only affects changed lines
+of files, unless the \-\-whole flag is used. Some tools may always affect the
+whole file regardless of \-\-whole.
+.sp
+If revisions are specified with \-\-rev, those revisions will be checked, and
+they may be replaced with new revisions that have fixed file content.  It is
+desirable to specify all descendants of each specified revision, so that the
+fixes propagate to the descendants. If all descendants are fixed at the same
+time, no merging, rebasing, or evolution will be required.
+.sp
+If \-\-working\-dir is used, files with uncommitted changes in the working copy
+will be fixed. If the checked\-out revision is also fixed, the working
+directory will update to the replacement revision.
+.sp
+When determining what lines of each file to fix at each revision, the whole
+set of revisions being fixed is considered, so that fixes to earlier
+revisions are not forgotten in later ones. The \-\-base flag can be used to
+override this default behavior, though it is not usually desirable to do so.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-all
+.
+fix all non\-public non\-obsolete revisions
+.TP
+.BI \-\-base \ <REV[+]>
+.
+revisions to diff against (overrides automatic selection, and applies to every revision being fixed)
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+revisions to fix
+.TP
+.B \-w,  \-\-working\-dir
+.
+fix the working directory
+.TP
+.B \-\-whole
+.
+always fix every line of a file
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -12389,6 +12607,92 @@ display with template (EXPERIMENTAL)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS infinitepush
+.INDENT 0.0
+.INDENT 3.5
+.sp
+store some pushes in a remote blob store on the server (EXPERIMENTAL)
+.INDENT 0.0
+.INDENT 3.5
+.sp
+[infinitepush]
+# Server\-side and client\-side option. Pattern of the infinitepush bookmark
+branchpattern = PATTERN
+.sp
+# Server or client
+server = False
+.sp
+# Server\-side option. Possible values: \(aqdisk\(aq or \(aqsql\(aq. Fails if not set
+indextype = disk
+.sp
+# Server\-side option. Used only if indextype=sql.
+# Format: \(aqIP:PORT:DB_NAME:USER:PASSWORD\(aq
+sqlhost = IP:PORT:DB_NAME:USER:PASSWORD
+.sp
+# Server\-side option. Used only if indextype=disk.
+# Filesystem path to the index store
+indexpath = PATH
+.sp
+# Server\-side option. Possible values: \(aqdisk\(aq or \(aqexternal\(aq
+# Fails if not set
+storetype = disk
+.sp
+# Server\-side option.
+# Path to the binary that will save bundle to the bundlestore
+# Formatted cmd line will be passed to it (see \fIput_args\fP)
+put_binary = put
+.sp
+# Serser\-side option. Used only if storetype=external.
+# Format cmd\-line string for put binary. Placeholder: {filename}
+put_args = {filename}
+.sp
+# Server\-side option.
+# Path to the binary that get bundle from the bundlestore.
+# Formatted cmd line will be passed to it (see \fIget_args\fP)
+get_binary = get
+.sp
+# Serser\-side option. Used only if storetype=external.
+# Format cmd\-line string for get binary. Placeholders: {filename} {handle}
+get_args = {filename} {handle}
+.sp
+# Server\-side option
+logfile = FIlE
+.sp
+# Server\-side option
+loglevel = DEBUG
+.sp
+# Server\-side option. Used only if indextype=sql.
+# Sets mysql wait_timeout option.
+waittimeout = 300
+.sp
+# Server\-side option. Used only if indextype=sql.
+# Sets mysql innodb_lock_wait_timeout option.
+locktimeout = 120
+.sp
+# Server\-side option. Used only if indextype=sql.
+# Name of the repository
+reponame = \(aq\(aq
+.sp
+# Client\-side option. Used by \-\-list\-remote option. List of remote scratch
+# patterns to list if no patterns are specified.
+defaultremotepatterns = [\(aq*\(aq]
+.sp
+# Instructs infinitepush to forward all received bundle2 parts to the
+# bundle for storage. Defaults to False.
+storeallparts = True
+.sp
+# routes each incoming push to the bundlestore. defaults to False
+pushtobundlestore = True
+.sp
+[remotenames]
+# Client\-side option
+# This option should be set only if remotenames extension is enabled.
+# Whether remote bookmarks are tracked by remotenames extension.
+bookmarks = True
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .SS journal
 .sp
 track previous positions of bookmarks (EXPERIMENTAL)
@@ -12977,7 +13281,9 @@ Configs:
 #   git\-lfs endpoint
 # \- file:///tmp/path
 #   local filesystem, usually for testing
-# if unset, lfs will prompt setting this when it must use this value.
+# if unset, lfs will assume the remote repository also handles blob storage
+# for http(s) URLs.  Otherwise, lfs will prompt to set this when it must
+# use this value.
 # (default: unset)
 url = https://example.com/repo.git/info/lfs
 
@@ -14214,6 +14520,82 @@ show only the first patch
 .
 print first line of patch header
 .UNINDENT
+.SS narrow
+.sp
+create clones which fetch history data for subset of files (EXPERIMENTAL)
+.SS Commands
+.SS tracked
+.sp
+show or change the current narrowspec:
+.sp
+.nf
+.ft C
+hg tracked [OPTIONS]... [REMOTE]
+.ft P
+.fi
+.sp
+With no argument, shows the current narrowspec entries, one per line. Each
+line will be prefixed with \(aqI\(aq or \(aqX\(aq for included or excluded patterns,
+respectively.
+.sp
+The narrowspec is comprised of expressions to match remote files and/or
+directories that should be pulled into your client.
+The narrowspec has \fIinclude\fP and \fIexclude\fP expressions, with excludes always
+trumping includes: that is, if a file matches an exclude expression, it will
+be excluded even if it also matches an include expression.
+Excluding files that were never included has no effect.
+.sp
+Each included or excluded entry is in the format described by
+\(aqhg help patterns\(aq.
+.sp
+The options allow you to add or remove included and excluded expressions.
+.sp
+If \-\-clear is specified, then all previous includes and excludes are DROPPED
+and replaced by the new ones specified to \-\-addinclude and \-\-addexclude.
+If \-\-clear is specified without any further options, the narrowspec will be
+empty and will not match any files.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-\-addinclude \ <VALUE[+]>
+.
+new paths to include
+.TP
+.BI \-\-removeinclude \ <VALUE[+]>
+.
+old paths to no longer include
+.TP
+.BI \-\-addexclude \ <VALUE[+]>
+.
+new paths to exclude
+.TP
+.BI \-\-removeexclude \ <VALUE[+]>
+.
+old paths to no longer exclude
+.TP
+.B \-\-clear
+.
+whether to replace the existing narrowspec
+.TP
+.B \-\-force\-delete\-local\-changes
+.
+forces deletion of local changes when narrowing
+.TP
+.BI \-e,  \-\-ssh \ <CMD>
+.
+specify ssh command to use
+.TP
+.BI \-\-remotecmd \ <CMD>
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS notify
 .sp
 hooks for sending email push notifications
@@ -14356,6 +14738,11 @@ Template to use when running as a changegroup hook, overriding
 .
 Maximum number of diff lines to include in notification email. Set to 0
 to disable the diff, or \-1 to include all of it. Default: 300.
+.TP
+.B notify.maxdiffstat
+.
+Maximum number of diffstat lines to include in notification email. Set to \-1
+to include all of it. Default: \-1.
 .TP
 .B notify.maxsubject
 .
@@ -15071,6 +15458,10 @@ continue an interrupted rebase
 .
 abort an interrupted rebase
 .TP
+.BI \-\-auto\-orphans \ <VALUE>
+.
+automatically rebase orphan revisions in the specified revset (EXPERIMENTAL)
+.TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template (EXPERIMENTAL)
@@ -15374,6 +15765,33 @@ must be on the same local disk. If ORIGIN is omitted, looks for
 Do not attempt any read operations on this repository while the
 command is running. (Both repositories will be locked against
 writes.)
+.SS remotenames
+.INDENT 0.0
+.INDENT 3.5
+.sp
+showing remotebookmarks and remotebranches in UI (EXPERIMENTAL)
+.UNINDENT
+.UNINDENT
+.sp
+By default both remotebookmarks and remotebranches are turned on. Config knob to
+control the individually are as follows.
+.sp
+Config options to tweak the default behaviour:
+.INDENT 0.0
+.TP
+.B remotenames.bookmarks
+.
+Boolean value to enable or disable showing of remotebookmarks (default: True)
+.TP
+.B remotenames.branches
+.
+Boolean value to enable or disable showing of remotebranches (default: True)
+.TP
+.B remotenames.hoistedpeer
+.
+Name of the peer whose remotebookmarks should be hoisted into the top\-level
+namespace (default: \(aqdefault\(aq)
+.UNINDENT
 .SS schemes
 .sp
 extend schemes with shortcuts to repository swarms
@@ -16112,6 +16530,9 @@ This command undoes the effect of a local commit, returning the affected
 files to their uncommitted state. This means that files modified or
 deleted in the changeset will be left unchanged, and so will remain
 modified in the working directory.
+.sp
+If no files are specified, the commit will be pruned, unless \-\-keep is
+given.
 .sp
 Options:
 .INDENT 0.0

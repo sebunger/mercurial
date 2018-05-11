@@ -56,7 +56,7 @@ regardless of the commit message in the patch)
   $ cat > dummypatch.py <<EOF
   > from __future__ import print_function
   > print('patching file a')
-  > file('a', 'wb').write('line2\n')
+  > open('a', 'wb').write(b'line2\n')
   > EOF
   $ hg clone -r0 a b
   adding changesets
@@ -285,13 +285,13 @@ override commit message
   $ rm -r b
 
   $ cat > mkmsg.py <<EOF
-  > import email.Message, sys
-  > msg = email.Message.Message()
+  > import email.message, sys
+  > msg = email.message.Message()
   > patch = open(sys.argv[1], 'rb').read()
-  > msg.set_payload('email commit message\n' + patch)
+  > msg.set_payload(b'email commit message\n' + patch)
   > msg['Subject'] = 'email patch'
   > msg['From'] = 'email patcher'
-  > file(sys.argv[2], 'wb').write(msg.as_string())
+  > open(sys.argv[2], 'wb').write(bytes(msg))
   > EOF
 
 
@@ -383,13 +383,13 @@ subject: duplicate detection, removal of [PATCH]
 The '---' tests the gitsendmail handling without proper mail headers
 
   $ cat > mkmsg2.py <<EOF
-  > import email.Message, sys
-  > msg = email.Message.Message()
+  > import email.message, sys
+  > msg = email.message.Message()
   > patch = open(sys.argv[1], 'rb').read()
-  > msg.set_payload('email patch\n\nnext line\n---\n' + patch)
+  > msg.set_payload(b'email patch\n\nnext line\n---\n' + patch)
   > msg['Subject'] = '[PATCH] email patch'
   > msg['From'] = 'email patcher'
-  > file(sys.argv[2], 'wb').write(msg.as_string())
+  > open(sys.argv[2], 'wb').write(bytes(msg))
   > EOF
 
 
@@ -734,6 +734,42 @@ Test fuzziness (ambiguous patch location, fuzz=2)
   $ hg revert -a
   reverting a
 
+Test --exact failure
+
+  $ sed 's/^# Parent .*/# Parent '"`hg log -r. -T '{node}'`"'/' \
+  > < fuzzy-tip.patch > fuzzy-reparent.patch
+  $ hg import --config patch.fuzz=0 --exact fuzzy-reparent.patch
+  applying fuzzy-reparent.patch
+  patching file a
+  Hunk #1 FAILED at 0
+  1 out of 1 hunks FAILED -- saving rejects to file a.rej
+  abort: patch failed to apply
+  [255]
+  $ hg up -qC
+  $ hg import --config patch.fuzz=2 --exact fuzzy-reparent.patch
+  applying fuzzy-reparent.patch
+  patching file a
+  Hunk #1 succeeded at 2 with fuzz 1 (offset 0 lines).
+  transaction abort!
+  rollback completed
+  abort: patch is damaged or loses information
+  [255]
+  $ hg up -qC
+
+  $ grep '^#' fuzzy-tip.patch > empty.patch
+  $ cat <<'EOF' >> empty.patch
+  > change
+  > 
+  > diff -r bb90ef1daa38 -r 0e9b883378d4 a
+  > --- a/a	Thu Jan 01 00:00:00 1970 +0000
+  > --- b/a	Thu Jan 01 00:00:00 1970 +0000
+  > EOF
+  $ hg import --exact empty.patch
+  applying empty.patch
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  abort: patch is damaged or loses information
+  [255]
+  $ hg up -qC
 
 import with --no-commit should have written .hg/last-message.txt
 
@@ -829,7 +865,7 @@ Test importing a patch ending with a binary file removal
   $ hg init binaryremoval
   $ cd binaryremoval
   $ echo a > a
-  $ $PYTHON -c "file('b', 'wb').write('a\x00b')"
+  $ $PYTHON -c "open('b', 'wb').write(b'a\x00b')"
   $ hg ci -Am addall
   adding a
   adding b
@@ -1839,17 +1875,17 @@ Importing some extra header
   > import mercurial.cmdutil
   > 
   > def processfoo(repo, data, extra, opts):
-  >     if 'foo' in data:
-  >         extra['foo'] = data['foo']
+  >     if b'foo' in data:
+  >         extra[b'foo'] = data[b'foo']
   > def postimport(ctx):
-  >     if 'foo' in ctx.extra():
-  >         ctx.repo().ui.write('imported-foo: %s\n' % ctx.extra()['foo'])
+  >     if b'foo' in ctx.extra():
+  >         ctx.repo().ui.write(b'imported-foo: %s\n' % ctx.extra()[b'foo'])
   > 
-  > mercurial.patch.patchheadermap.append(('Foo', 'foo'))
-  > mercurial.cmdutil.extrapreimport.append('foo')
-  > mercurial.cmdutil.extrapreimportmap['foo'] = processfoo
-  > mercurial.cmdutil.extrapostimport.append('foo')
-  > mercurial.cmdutil.extrapostimportmap['foo'] = postimport
+  > mercurial.patch.patchheadermap.append((b'Foo', b'foo'))
+  > mercurial.cmdutil.extrapreimport.append(b'foo')
+  > mercurial.cmdutil.extrapreimportmap[b'foo'] = processfoo
+  > mercurial.cmdutil.extrapostimport.append(b'foo')
+  > mercurial.cmdutil.extrapostimportmap[b'foo'] = postimport
   > EOF
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
@@ -1916,4 +1952,27 @@ test import crash (issue5375)
   applying patch from stdin
   a not tracked!
   abort: source file 'a' does not exist
+  [255]
+
+test immature end of hunk
+
+  $ hg import - <<'EOF'
+  > diff --git a/foo b/foo
+  > --- a/foo
+  > --- b/foo
+  > @@ -0,0 +1,1 @@
+  > EOF
+  applying patch from stdin
+  abort: bad hunk #1: incomplete hunk
+  [255]
+
+  $ hg import - <<'EOF'
+  > diff --git a/foo b/foo
+  > --- a/foo
+  > --- b/foo
+  > @@ -0,0 +1,1 @@
+  > \ No newline at end of file
+  > EOF
+  applying patch from stdin
+  abort: bad hunk #1: incomplete hunk
   [255]
