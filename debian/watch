@@ -1,5 +1,5 @@
 # format version number, currently 3; this line is compulsory!
 version=3
 
-opts="uversionmangle=s/-rc/~rc/,pgpsigurlmangle=s/$/.asc/" \
+opts="uversionmangle=s/-?rc/~rc/,pgpsigurlmangle=s/$/.asc/" \
   https://www.mercurial-scm.org/release/mercurial-(.*)\.tar\.gz
