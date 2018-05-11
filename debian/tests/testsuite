@@ -1,5 +1,5 @@
 #!/bin/sh
 
-set -e
+set -ex
 
-exec make tests TESTFLAGS="--with-hg=/usr/bin/hg --blacklist=debian/mercurial.test_blacklist"
+exec make tests TESTFLAGS="--verbose --timeout 1440 --with-hg=/usr/bin/hg --blacklist=$(pwd)/debian/mercurial.test_blacklist"

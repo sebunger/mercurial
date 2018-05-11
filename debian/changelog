@@ -1,11 +1,17 @@
 mercurial (4.6-1) UNRELEASED; urgency=medium
 
+  [ Julien Cristau ]
   * Make uscan recognize "4.6rc1" as a release candidate
   * New upstream release.
   * Document embedded third party code licenses in debian/copyright.
   * Drop obsolete X-Python-Versions control field.
   * Fix typo in deb_specific__disable_libdir_replacement.patch description
     (thanks, lintian!)
+
+  [ Matthias Klose ]
+  * Pass the same TESTFLAGS to the autopkg tests, as done for the test
+    during package build, and make the blacklist work correctly
+    (closes: #895200, #893012)
 
  -- Julien Cristau <jcristau@debian.org>  Fri, 11 May 2018 11:37:54 +0200
 
