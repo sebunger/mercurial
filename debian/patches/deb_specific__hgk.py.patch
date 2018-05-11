@@ -1,10 +1,8 @@
 Set default hgk path for hgk outside bin.
 
-Index: mercurial-4.5/hgext/hgk.py
-===================================================================
---- mercurial-4.5.orig/hgext/hgk.py	2018-02-11 07:35:22.497308614 +0200
-+++ mercurial-4.5/hgext/hgk.py	2018-02-11 07:35:22.493308544 +0200
-@@ -66,7 +66,7 @@
+--- mercurial.orig/hgext/hgk.py
++++ mercurial/hgext/hgk.py
+@@ -65,7 +65,7 @@ configtable = {}
  configitem = registrar.configitem(configtable)
  
  configitem('hgk', 'path',

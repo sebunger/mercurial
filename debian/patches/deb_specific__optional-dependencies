@@ -1,10 +1,8 @@
 Suggest Debian packages for some optional dependencies.
 
-Index: mercurial-4.5/hgext/bugzilla.py
-===================================================================
---- mercurial-4.5.orig/hgext/bugzilla.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/bugzilla.py	2018-02-11 07:35:32.365483051 +0200
-@@ -451,7 +451,8 @@
+--- mercurial.orig/hgext/bugzilla.py
++++ mercurial/hgext/bugzilla.py
+@@ -455,7 +455,8 @@ class bzmysql(bzaccess):
              import MySQLdb as mysql
              bzmysql._MySQLdb = mysql
          except ImportError as err:
@@ -14,11 +12,9 @@ Index: mercurial-4.5/hgext/bugzilla.py
  
          bzaccess.__init__(self, ui)
  
-Index: mercurial-4.5/hgext/convert/bzr.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/bzr.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/bzr.py	2018-02-11 07:35:32.365483051 +0200
-@@ -55,7 +55,8 @@
+--- mercurial.orig/hgext/convert/bzr.py
++++ mercurial/hgext/convert/bzr.py
+@@ -55,7 +55,8 @@ class bzr_source(common.converter_source
              # access bzrlib stuff
              bzrdir
          except NameError:
@@ -28,33 +24,29 @@ Index: mercurial-4.5/hgext/convert/bzr.py
  
          path = os.path.abspath(path)
          self._checkrepotype(path)
-Index: mercurial-4.5/hgext/convert/common.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/common.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/common.py	2018-02-11 07:35:32.365483051 +0200
-@@ -40,14 +40,15 @@
+--- mercurial.orig/hgext/convert/common.py
++++ mercurial/hgext/convert/common.py
+@@ -97,14 +97,15 @@ def decodeargs(s):
  class MissingTool(Exception):
      pass
  
 -def checktool(exe, name=None, abort=True):
 +def checktool(exe, name=None, abort=True, debname=None):
      name = name or exe
-     if not util.findexe(exe):
+     if not procutil.findexe(exe):
          if abort:
              exc = error.Abort
          else:
              exc = MissingTool
 -        raise exc(_('cannot find required "%s" tool') % name)
 +        raise exc(_('cannot find required "%s" tool') % name +
-+                   (debname and _(' (try installing the %s package)') % debname or ''))
++                  (debname and _(' (try installing the %s package)') % debname or ''))
  
  class NoRepo(Exception):
      pass
-Index: mercurial-4.5/hgext/convert/cvs.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/cvs.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/cvs.py	2018-02-11 07:35:32.365483051 +0200
-@@ -39,7 +39,7 @@
+--- mercurial.orig/hgext/convert/cvs.py
++++ mercurial/hgext/convert/cvs.py
+@@ -43,7 +43,7 @@ class convert_cvs(converter_source):
          if not os.path.exists(cvs):
              raise NoRepo(_("%s does not look like a CVS checkout") % path)
  
@@ -63,11 +55,9 @@ Index: mercurial-4.5/hgext/convert/cvs.py
  
          self.changeset = None
          self.files = {}
-Index: mercurial-4.5/hgext/convert/darcs.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/darcs.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/darcs.py	2018-02-11 07:35:32.365483051 +0200
-@@ -49,14 +49,15 @@
+--- mercurial.orig/hgext/convert/darcs.py
++++ mercurial/hgext/convert/darcs.py
+@@ -50,14 +50,15 @@ class darcs_source(common.converter_sour
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo(_("%s does not look like a darcs repository") % path)
  
@@ -85,11 +75,9 @@ Index: mercurial-4.5/hgext/convert/darcs.py
  
          self.path = os.path.realpath(path)
  
-Index: mercurial-4.5/hgext/convert/git.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/git.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/git.py	2018-02-11 07:35:32.365483051 +0200
-@@ -95,7 +95,7 @@
+--- mercurial.orig/hgext/convert/git.py
++++ mercurial/hgext/convert/git.py
+@@ -95,7 +95,7 @@ class convert_git(common.converter_sourc
          else:
              self.simopt = []
  
@@ -98,12 +86,10 @@ Index: mercurial-4.5/hgext/convert/git.py
  
          self.path = path
          self.submodules = []
-Index: mercurial-4.5/hgext/convert/gnuarch.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/gnuarch.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/gnuarch.py	2018-02-11 07:35:32.365483051 +0200
-@@ -51,7 +51,8 @@
-             if util.findexe('tla'):
+--- mercurial.orig/hgext/convert/gnuarch.py
++++ mercurial/hgext/convert/gnuarch.py
+@@ -54,7 +54,8 @@ class gnuarch_source(common.converter_so
+             if procutil.findexe('tla'):
                  self.execmd = 'tla'
              else:
 -                raise error.Abort(_('cannot find a GNU Arch tool'))
@@ -112,11 +98,9 @@ Index: mercurial-4.5/hgext/convert/gnuarch.py
  
          common.commandline.__init__(self, ui, self.execmd)
  
-Index: mercurial-4.5/hgext/convert/monotone.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/monotone.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/monotone.py	2018-02-11 07:35:32.365483051 +0200
-@@ -75,7 +75,7 @@
+--- mercurial.orig/hgext/convert/monotone.py
++++ mercurial/hgext/convert/monotone.py
+@@ -76,7 +76,7 @@ class monotone_source(common.converter_s
          self.files = None
          self.dirs  = None
  
@@ -125,11 +109,9 @@ Index: mercurial-4.5/hgext/convert/monotone.py
  
      def mtnrun(self, *args, **kwargs):
          if self.automatestdio:
-Index: mercurial-4.5/hgext/convert/subversion.py
-===================================================================
---- mercurial-4.5.orig/hgext/convert/subversion.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/hgext/convert/subversion.py	2018-02-11 07:36:44.178752480 +0200
-@@ -295,16 +295,19 @@
+--- mercurial.orig/hgext/convert/subversion.py
++++ mercurial/hgext/convert/subversion.py
+@@ -300,16 +300,19 @@ class svn_source(converter_source):
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -152,7 +134,7 @@ Index: mercurial-4.5/hgext/convert/subversion.py
  
          self.lastrevs = {}
  
-@@ -1113,6 +1116,8 @@
+@@ -1119,6 +1122,8 @@ class svn_sink(converter_sink, commandli
          return self.join('hg-authormap')
  
      def __init__(self, ui, repotype, path):
@@ -161,11 +143,9 @@ Index: mercurial-4.5/hgext/convert/subversion.py
  
          converter_sink.__init__(self, ui, repotype, path)
          commandline.__init__(self, ui, 'svn')
-Index: mercurial-4.5/mercurial/hgweb/server.py
-===================================================================
---- mercurial-4.5.orig/mercurial/hgweb/server.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/mercurial/hgweb/server.py	2018-02-11 07:35:32.369483121 +0200
-@@ -240,7 +240,8 @@
+--- mercurial.orig/mercurial/hgweb/server.py
++++ mercurial/mercurial/hgweb/server.py
+@@ -258,7 +258,8 @@ class _httprequesthandlerssl(_httpreques
              from .. import sslutil
              sslutil.modernssl
          except ImportError:
@@ -175,11 +155,9 @@ Index: mercurial-4.5/mercurial/hgweb/server.py
  
          certfile = ui.config('web', 'certificate')
  
-Index: mercurial-4.5/mercurial/sslutil.py
-===================================================================
---- mercurial-4.5.orig/mercurial/sslutil.py	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/mercurial/sslutil.py	2018-02-11 07:35:32.369483121 +0200
-@@ -248,7 +248,9 @@
+--- mercurial.orig/mercurial/sslutil.py
++++ mercurial/mercurial/sslutil.py
+@@ -253,7 +253,9 @@ def _hostsettings(ui, hostname):
                  cafile = util.expandpath(cafile)
                  if not os.path.exists(cafile):
                      raise error.Abort(_('could not find web.cacerts: %s') %
@@ -190,11 +168,9 @@ Index: mercurial-4.5/mercurial/sslutil.py
              elif s['allowloaddefaultcerts']:
                  # CAs not defined in config. Try to find system bundles.
                  cafile = _defaultcacerts(ui)
-Index: mercurial-4.5/tests/test-https.t
-===================================================================
---- mercurial-4.5.orig/tests/test-https.t	2018-02-11 07:35:32.369483121 +0200
-+++ mercurial-4.5/tests/test-https.t	2018-02-11 07:35:32.369483121 +0200
-@@ -29,7 +29,7 @@
+--- mercurial.orig/tests/test-https.t
++++ mercurial/tests/test-https.t
+@@ -29,7 +29,7 @@ cacert not found
  
    $ hg in --config web.cacerts=no-such.pem https://localhost:$HGPORT/
    warning: connecting to localhost using legacy security technology (TLS 1.0); see https://mercurial-scm.org/wiki/SecureConnections for more info (?)
