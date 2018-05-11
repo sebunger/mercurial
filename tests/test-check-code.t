@@ -13,8 +13,6 @@ New errors are not allowed. Warnings are strongly discouraged.
   > -X mercurial/thirdparty \
   > | sed 's-\\-/-g' | "$check_code" --warnings --per-file=0 - || false
   Skipping i18n/polib.py it has no-che?k-code (glob)
-  Skipping mercurial/httpclient/__init__.py it has no-che?k-code (glob)
-  Skipping mercurial/httpclient/_readers.py it has no-che?k-code (glob)
   Skipping mercurial/statprof.py it has no-che?k-code (glob)
   Skipping tests/badserverext.py it has no-che?k-code (glob)
 
@@ -53,3 +51,15 @@ Prevent adding new files in the root directory accidentally.
   hgeditor
   hgweb.cgi
   setup.py
+
+Prevent adding modules which could be shadowed by ancient .so/.dylib.
+
+  $ testrepohg files \
+  > mercurial/base85.py \
+  > mercurial/bdiff.py \
+  > mercurial/diffhelpers.py \
+  > mercurial/mpatch.py \
+  > mercurial/osutil.py \
+  > mercurial/parsers.py \
+  > mercurial/zstd.py
+  [1]

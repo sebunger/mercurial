@@ -1710,13 +1710,18 @@ syntax.
 .sp
 The arguments to pass to the tool executable. You can refer to the
 files being merged as well as the output file through these
-variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP. The meaning
-of \fB$local\fP and \fB$other\fP can vary depending on which action is being
-performed. During and update or merge, \fB$local\fP represents the original
-state of the file, while \fB$other\fP represents the commit you are updating
-to or the commit you are merging with. During a rebase \fB$local\fP
-represents the destination of the rebase, and \fB$other\fP represents the
-commit being rebased.
+variables: \fB$base\fP, \fB$local\fP, \fB$other\fP, \fB$output\fP.
+.sp
+The meaning of \fB$local\fP and \fB$other\fP can vary depending on which action is
+being performed. During an update or merge, \fB$local\fP represents the original
+state of the file, while \fB$other\fP represents the commit you are updating to or
+the commit you are merging with. During a rebase, \fB$local\fP represents the
+destination of the rebase, and \fB$other\fP represents the commit being rebased.
+.sp
+Some operations define custom labels to assist with identifying the revisions,
+accessible via \fB$labellocal\fP, \fB$labelother\fP, and \fB$labelbase\fP. If custom
+labels are not available, these will be \fBlocal\fP, \fBother\fP, and \fBbase\fP,
+respectively.
 (default: \fB$local $base $other\fP)
 .TP
 .B \fBpremerge\fP
@@ -1764,6 +1769,23 @@ Attempt to fix up EOL changes caused by the merge tool.
 .B \fBgui\fP
 .sp
 This tool requires a graphical interface to run. (default: False)
+.TP
+.B \fBmergemarkers\fP
+.sp
+Controls whether the labels passed via \fB$labellocal\fP, \fB$labelother\fP, and
+\fB$labelbase\fP are \fBdetailed\fP (respecting \fBmergemarkertemplate\fP) or
+\fBbasic\fP. If \fBpremerge\fP is \fBkeep\fP or \fBkeep\-merge3\fP, the conflict
+markers generated during premerge will be \fBdetailed\fP if either this option or
+the corresponding option in the \fB[ui]\fP section is \fBdetailed\fP.
+(default: \fBbasic\fP)
+.TP
+.B \fBmergemarkertemplate\fP
+.sp
+This setting can be used to override \fBmergemarkertemplate\fP from the \fB[ui]\fP
+section on a per\-tool basis; this applies to the \fB$label\fP\-prefixed variables
+and to the conflict markers that are generated if \fBpremerge\fP is \fBkeep\(ga or
+\(ga\(gakeep\-merge3\fP. See the corresponding variable in \fB[ui]\fP for more
+information.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -1955,8 +1977,7 @@ profiler (named \fBstat\fP).
 .sp
 In this section description, \(aqprofiling data\(aq stands for the raw data
 collected during profiling, while \(aqprofiling report\(aq stands for a
-statistical text report generated from the profiling data. The
-profiling is done using lsprof.
+statistical text report generated from the profiling data.
 .INDENT 0.0
 .TP
 .B \fBenabled\fP
@@ -2057,7 +2078,7 @@ Number of lines to show. Specific to the \fBls\fP instrumenting profiler.
 Show at most this number of lines of drill\-down info after each main entry.
 This can help explain the difference between Total and Inline.
 Specific to the \fBls\fP instrumenting profiler.
-(default: 5)
+(default: 0)
 .TP
 .B \fBshowmin\fP
 .sp
@@ -2207,6 +2228,21 @@ When set, servers will refuse attempts to do pull\-based clones.
 If this option is set, \fBpreferuncompressed\fP and/or clone bundles
 are highly recommended. Partial clones will still be allowed.
 (default: False)
+.TP
+.B \fBstreamunbundle\fP
+.sp
+When set, servers will apply data sent from the client directly,
+otherwise it will be written to a temporary file first. This option
+effectively prevents concurrent pushes.
+.TP
+.B \fBpullbundle\fP
+.sp
+When set, the server will check pullbundle.manifest for bundles
+covering the requested heads and common nodes. The first matching
+entry will be streamed to the client.
+.sp
+For HTTP transport, the stream will still use zlib compression
+for older clients.
 .TP
 .B \fBconcurrent\-push\-mode\fP
 .sp
@@ -2606,6 +2642,8 @@ specified by the \fB\-\-encoding\fP global option, \fBHGENCODING\fP or other
 environment variables that govern your locale. If the encoding of the merge
 markers is different from the encoding of the merged files,
 serious problems may occur.
+.sp
+Can be overridden per\-merge\-tool, see the \fB[merge\-tools]\fP section.
 .TP
 .B \fBorigbackuppath\fP
 .sp
@@ -3068,6 +3106,10 @@ required, refreshing may negatively impact performance.
 .sp
 Values less than or equal to 0 always refresh.
 (default: 20)
+.TP
+.B \fBserver\-header\fP
+.sp
+Value for HTTP \fBServer\fP response header.
 .TP
 .B \fBstaticurl\fP
 .sp

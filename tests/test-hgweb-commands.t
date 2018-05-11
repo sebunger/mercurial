@@ -6,11 +6,6 @@ The following things are tested elsewhere and are therefore omitted:
 - unbundle, tested in test-push-http
 - changegroupsubset, tested in test-pull
 
-  $ cat << EOF >> $HGRCPATH
-  > [format]
-  > usegeneraldelta=yes
-  > EOF
-
 Set up the repo
 
   $ hg init test
@@ -903,6 +898,7 @@ Logs and changes
    <td class="date age">Thu, 01 Jan 1970 00:00:00 +0000</td>
   </tr>
   
+  
   <tr>
    <th class="author">parents</th>
    <td class="author"></td>
@@ -920,9 +916,9 @@ Logs and changes
     <td class="diffstat">
        2 files changed, 2 insertions(+), 0 deletions(-)
   
-      <a id="diffstatexpand" href="javascript:toggleDiffstat()">[<tt>+</tt>]</a>
+      <a id="diffstatexpand" class="diffstattoggle" href="#">[<tt>+</tt>]</a>
       <div id="diffstatdetails" style="display:none;">
-        <a href="javascript:toggleDiffstat()">[<tt>-</tt>]</a>
+        <a class="diffstattoggle" href="#">[<tt>-</tt>]</a>
         <table class="diffstat-table stripes2">  <tr>
       <td class="diffstat-file"><a href="#l1.1">da/foo</a></td>
       <td class="diffstat-total" align="right">1</td>
@@ -946,7 +942,7 @@ Logs and changes
   </table>
   
   <div class="overflow">
-  <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="javascript:toggleLinewrap()">on</a></div>
+  <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="#">on</a></div>
   <div class="sourcefirst"> line diff</div>
   <div class="stripes2 diffblocks">
   <div class="bottomline inc-lineno"><pre class="sourcelines wrap">
@@ -1346,7 +1342,7 @@ File-related
   </table>
   
   <div class="overflow">
-  <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="javascript:toggleLinewrap()">on</a></div>
+  <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="#">on</a></div>
   <div class="sourcefirst"> line source</div>
   <pre class="sourcelines stripes4 wrap bottomline"
        data-logurl="/log/1/foo"
@@ -1480,7 +1476,7 @@ File-related
   </table>
   
   <div class="overflow">
-  <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="javascript:toggleLinewrap()">on</a></div>
+  <div class="sourcefirst linewraptoggle">line wrap: <a class="linewraplink" href="#">on</a></div>
   <div class="sourcefirst"> line source</div>
   <pre class="sourcelines stripes4 wrap bottomline"
        data-logurl="/log/2/foo"
@@ -1914,7 +1910,20 @@ capabilities
   $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=capabilities'; echo
   200 Script output follows
   
-  lookup changegroupsubset branchmap pushkey known getbundle unbundlehash batch $USUAL_BUNDLE2_CAPS_SERVER$ unbundle=HG10GZ,HG10BZ,HG10UN httpheader=1024 httpmediatype=0.1rx,0.1tx,0.2tx compression=$BUNDLE2_COMPRESSIONS$
+  batch branchmap $USUAL_BUNDLE2_CAPS_SERVER$ changegroupsubset compression=$BUNDLE2_COMPRESSIONS$ getbundle httpheader=1024 httpmediatype=0.1rx,0.1tx,0.2tx known lookup pushkey unbundle=HG10GZ,HG10BZ,HG10UN unbundlehash
+
+wire protocol command to wrong base URL
+
+  $ get-with-headers.py $LOCALIP:$HGPORT 'foo?cmd=capabilities' -
+  404 Not Found
+  content-length: 12
+  content-type: application/mercurial-0.1
+  date: $HTTP_DATE$
+  server: testing stub value
+  
+  0
+  Not Found
+  [1]
 
 heads
 
@@ -2113,10 +2122,10 @@ capabilities
 
 (plain version to check the format)
 
-  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=capabilities' | dd ibs=75 count=1 2> /dev/null; echo
+  $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=capabilities' | dd ibs=76 count=1 2> /dev/null; echo
   200 Script output follows
   
-  lookup changegroupsubset branchmap pushkey known
+  batch branchmap bundle2=HG20%0Abookmarks%0Achange
 
 (spread version to check the content)
 
@@ -2126,21 +2135,21 @@ capabilities
   output
   follows
   
-  lookup
-  changegroupsubset
-  branchmap
-  pushkey
-  known
-  getbundle
-  unbundlehash
   batch
-  stream-preferred
-  streamreqs=generaldelta,revlogv1
+  branchmap
   $USUAL_BUNDLE2_CAPS_SERVER$
-  unbundle=HG10GZ,HG10BZ,HG10UN
+  changegroupsubset
+  compression=$BUNDLE2_COMPRESSIONS$
+  getbundle
   httpheader=1024
   httpmediatype=0.1rx,0.1tx,0.2tx
-  compression=$BUNDLE2_COMPRESSIONS$
+  known
+  lookup
+  pushkey
+  stream-preferred
+  streamreqs=generaldelta,revlogv1
+  unbundle=HG10GZ,HG10BZ,HG10UN
+  unbundlehash
 
 heads
 
