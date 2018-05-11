@@ -72,9 +72,8 @@ install-archindep:
 	# Move templates and help installed by setup.py to their FHS-correct location
 	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/templates \
 	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/help \
+	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/locale \
 	   $(CURDIR)/debian/mercurial-common/usr/share/mercurial
-	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/locale \
-	   $(CURDIR)/debian/mercurial-common/usr/share
 	# If more than one Python version is supported, clean up the templates
 	# and help installed for the other versions
 	-rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/templates \

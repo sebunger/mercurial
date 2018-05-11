@@ -7,6 +7,7 @@ mercurial (4.6-1) UNRELEASED; urgency=medium
   * Drop obsolete X-Python-Versions control field.
   * Fix typo in deb_specific__disable_libdir_replacement.patch description
     (thanks, lintian!)
+  * Install translations where hg will look for them (closes: #886797)
 
   [ Matthias Klose ]
   * Pass the same TESTFLAGS to the autopkg tests, as done for the test
