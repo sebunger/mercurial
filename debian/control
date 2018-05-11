@@ -23,7 +23,6 @@ Standards-Version: 4.0.0
 Homepage: https://www.mercurial-scm.org/
 Vcs-Git: https://salsa.debian.org/python-team/applications/mercurial.git
 Vcs-Browser: https://salsa.debian.org/python-team/applications/mercurial
-X-Python-Version: >= 2.4
 
 Package: mercurial-common
 Architecture: all
