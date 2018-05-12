@@ -1,0 +1,26 @@
+# HG changeset patch
+# User Julien Cristau <jcristau@debian.org>
+# Date 1526156968 -7200
+#      Sat May 12 22:29:28 2018 +0200
+# Branch stable
+# Node ID 62a9e55e4e1cefcbec4609f9ea955939248386ef
+# Parent  8f0befcd604cc73a96ec22afd95dd90cda344e40
+bdiff: fix yet more fallout from xdiff long/int64 conversion (issue5885)
+
+"l" in Py_BuildValue's format string means long, so passing int64_t
+instead results in fireworks on 32bit architectures.
+
+Differential Revision: https://phab.mercurial-scm.org/D3538
+
+diff --git a/mercurial/cext/bdiff.c b/mercurial/cext/bdiff.c
+--- a/mercurial/cext/bdiff.c
++++ b/mercurial/cext/bdiff.c
+@@ -261,7 +261,7 @@ static int hunk_consumer(int64_t a1, int
+                          void *priv)
+ {
+ 	PyObject *rl = (PyObject *)priv;
+-	PyObject *m = Py_BuildValue("llll", a1, a2, b1, b2);
++	PyObject *m = Py_BuildValue("LLLL", a1, a2, b1, b2);
+ 	if (!m)
+ 		return -1;
+ 	if (PyList_Append(rl, m) != 0) {

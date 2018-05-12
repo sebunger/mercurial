@@ -1,3 +1,9 @@
+mercurial (4.6-2) unstable; urgency=medium
+
+  * Fix xdiff on 32bit (closes: #898491)
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 12 May 2018 23:51:44 +0200
+
 mercurial (4.6-1) unstable; urgency=medium
 
   * Team upload
