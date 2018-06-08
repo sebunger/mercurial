@@ -1,3 +1,10 @@
+mercurial (4.6.1-1) unstable; urgency=medium
+
+  * New upstream bugfix release
+    + fix security issues in mpatch (closes: #901050)
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 08 Jun 2018 13:56:22 +0200
+
 mercurial (4.6-2) unstable; urgency=medium
 
   * Fix xdiff on 32bit (closes: #898491)
