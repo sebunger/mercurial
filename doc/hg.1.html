@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.13.1: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.12: http://docutils.sourceforge.net/" />
 <title>hg</title>
 <meta name="author" content="Matt Mackall &lt;mpm&#64;selenic.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -22,9 +22,9 @@
 <td>Matt Mackall &lt;<a class="reference external" href="mailto:mpm&#64;selenic.com">mpm&#64;selenic.com</a>&gt;</td></tr>
 <tr><th class="docinfo-name">Organization:</th>
 <td>Mercurial</td></tr>
-<tr class="manual-section field"><th class="docinfo-name">Manual section:</th><td class="field-body">1</td>
+<tr class="field"><th class="docinfo-name">Manual section:</th><td class="field-body">1</td>
 </tr>
-<tr class="manual-group field"><th class="docinfo-name">Manual group:</th><td class="field-body">Mercurial Manual</td>
+<tr class="field"><th class="docinfo-name">Manual group:</th><td class="field-body">Mercurial Manual</td>
 </tr>
 </tbody>
 </table>
@@ -175,7 +175,7 @@ repository.</p>
 undo an add before that, see <a class="reference external" href="hg.1.html#forget"><tt class="docutils literal">hg forget</tt></a>.</p>
 <p>If no names are given, add all files to the repository (except
 files matching <tt class="docutils literal">.hgignore</tt>).</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <blockquote>
 <ul>
@@ -252,7 +252,7 @@ can be expensive. After using this option, <a class="reference external" href="h
 used to check which files were identified as moved or renamed. If
 not specified, -s/--similarity defaults to 100 and only renames of
 identical files are detected.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <blockquote>
 <ul>
@@ -428,7 +428,7 @@ hg archive [OPTION]... DEST
 directory; use -r/--rev to specify a different revision.</p>
 <p>The archive type is automatically detected based on file
 extension (to override, use -t/--type).</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">create a zip file containing the 1.0 release:</p>
@@ -515,12 +515,12 @@ current working directory. If no conflicts were encountered,
 it will be committed immediately.</p>
 <p>If REV is the parent of the working directory, then this new changeset
 is committed automatically (unless --no-commit is specified).</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><a class="reference external" href="hg.1.html#backout"><tt class="docutils literal">hg backout</tt></a> cannot be used to fix either an unwanted or
 incorrect merge.</p>
 </div>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">Reverse the effect of the parent of the working directory.
@@ -635,7 +635,7 @@ used to mark revisions as good or bad: status 0 means good, 125
 means to skip the revision, 127 (command not found) will abort the
 bisection, and any other non-zero exit status means the revision
 is bad.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Some examples:</p>
 <ul>
 <li><p class="first">start a bisection with known bad revision 34, and good revision 12:</p>
@@ -755,7 +755,7 @@ be created. Using <a class="reference external" href="hg.1.html#merge"><tt class
 the active bookmark's name.</p>
 <p>A bookmark named '&#64;' has the special property that <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> will
 check it out by default if it exists.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">create an active bookmark for a new line of development:</p>
@@ -822,7 +822,7 @@ hg book -f &#64;
 <pre class="literal-block">
 hg branch [-fC] [NAME]
 </pre>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Branch names are permanent and global. Use <a class="reference external" href="hg.1.html#bookmark"><tt class="docutils literal">hg bookmark</tt></a> to create a
 light-weight bookmark instead. See <a class="reference external" href="hg.1.html#glossary"><tt class="docutils literal">hg help glossary</tt></a> for more
@@ -1064,12 +1064,12 @@ that storage settings and requirements on the remote are applied locally:
 a modern client may inherit legacy or inefficient storage used by the
 remote or a legacy Mercurial client may not be able to clone from a
 modern Mercurial remote.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Specifying a tag will include the tagged changeset but not the
 changeset containing the tag.</p>
 </div>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>For efficiency, hardlinks are used for cloning whenever the
 source and destination are on the same filesystem (note this
 applies only to the repository data, not to the working
@@ -1212,7 +1212,7 @@ the editor will open with the message of the amended commit.</p>
 or changesets that have children.</p>
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
 <p>Returns 0 on success, 1 if nothing changed.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">commit all files ending in .py:</p>
@@ -1386,7 +1386,7 @@ hg diff [OPTION]... ([-c REV] | [-r REV1 [-r REV2]]) [FILE]...
 </pre>
 <p>Show differences between revisions for the specified files.</p>
 <p>Differences between files are shown using the unified diff format.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><a class="reference external" href="hg.1.html#diff"><tt class="docutils literal">hg diff</tt></a> may generate unexpected results for merges, as it will
 default to comparing against the working directory's first
@@ -1404,7 +1404,7 @@ files it detects as binary. With -a, diff will generate a diff
 anyway, probably with undesirable results.</p>
 <p>Use the -g/--git option to generate diffs in the git extended diff
 format. For more information, read <a class="reference external" href="hg.1.html#diffs"><tt class="docutils literal">hg help diffs</tt></a>.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">compare a file in the current working directory to its parent:</p>
@@ -1524,7 +1524,7 @@ If no revision is given, the parent of the working directory is used.</p>
 <p>The information shown in the changeset header is: author, date,
 branch name (if non-default), changeset hash, parent(s) and commit
 comment.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><a class="reference external" href="hg.1.html#export"><tt class="docutils literal">hg export</tt></a> may generate unexpected diff output for merge
 changesets, as it will compare the merge changeset against its
@@ -1567,7 +1567,7 @@ diff anyway, probably with undesirable results.</p>
 format. See <a class="reference external" href="hg.1.html#diffs"><tt class="docutils literal">hg help diffs</tt></a> for more information.</p>
 <p>With the --switch-parent option, the diff will be against the
 second parent. It can be useful to review a merge.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">use export and import to transplant a bugfix to the current
@@ -1639,7 +1639,7 @@ specified revision for given files (excluding removed files).
 Files can be specified as filenames or filesets.</p>
 <p>If no files are given to match, this command prints the names
 of all files under Mercurial control.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">list all files under the current directory:</p>
@@ -1721,7 +1721,7 @@ entire project history, and it does not delete them from the
 working directory.</p>
 <p>To delete the file from the working directory, see <a class="reference external" href="hg.1.html#remove"><tt class="docutils literal">hg remove</tt></a>.</p>
 <p>To undo a forget before the next commit, see <a class="reference external" href="hg.1.html#add"><tt class="docutils literal">hg add</tt></a>.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">forget newly-added binary files:</p>
@@ -1786,12 +1786,12 @@ This is useful when the revisions have since been backed out.</p>
 interrupted so that the current merge can be manually resolved.
 Once all conflicts are addressed, the graft process can be
 continued with the -c/--continue option.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The -c/--continue option does not reapply earlier options, except
 for --force.</p>
 </div>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">copy a single change to the stable branch and edit its description:</p>
@@ -2044,7 +2044,7 @@ repository including the working directory. Specify -r. to get information
 of the working directory parent without scanning uncommitted changes.</p>
 <p>Specifying a path to a repository root or Mercurial bundle will
 cause lookup to operate on that repository/bundle.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">generate a build identifier for the working directory:</p>
@@ -2153,7 +2153,7 @@ by hand before <a class="reference external" href="hg.1.html#commit"><tt class="
 changeset. This flag exists to let people import patches that
 partially apply without losing the associated metadata (author,
 date, description, ...).</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">When no hunks apply cleanly, <a class="reference external" href="hg.1.html#import"><tt class="docutils literal">hg import <span class="pre">--partial</span></tt></a> will create
 an empty changeset, importing only the patch metadata.</p>
@@ -2166,7 +2166,7 @@ internal tool, the fuzz can also be configured via <tt class="docutils literal">
 See <a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config</tt></a> for more information about configuration
 files and how to use these options.</p>
 <p>See <a class="reference external" href="hg.1.html#dates"><tt class="docutils literal">hg help dates</tt></a> for a list of formats valid for -d/--date.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">import a traditional patch from a website and detect renames:</p>
@@ -2282,7 +2282,7 @@ hg incoming [-p] [-n] [-M] [-f] [-r REV]... [--bundle FILENAME] [SOURCE]
 pull location. These are the changesets that would have been pulled
 by <a class="reference external" href="hg.1.html#pull"><tt class="docutils literal">hg pull</tt></a> at the time you issued this command.</p>
 <p>See pull for valid source format details.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>With -B/--bookmarks, the result of bookmark comparison between
 local and remote repositories is displayed. With -v/--verbose,
 status is also displayed for each bookmark like below:</p>
@@ -2312,7 +2312,7 @@ status of each bookmark:</p>
 existing only in the remote repository are treated as <tt class="docutils literal">added</tt>,
 even if it is in fact locally deleted.</p>
 </div>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>For remote repository, using --bundle avoids downloading the
 changesets twice if the incoming is followed by a pull.</p>
 <p>Examples:</p>
@@ -2516,34 +2516,34 @@ changeset from the lines below is a parent of the 'o' merge on the same
 line.
 Paths in the DAG are represented with '|', '/' and so forth. ':' in place
 of a '|' indicates one or more revisions in a path are omitted.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 Use -L/--line-range FILE,M:N options to follow the history of lines
 from M to N in FILE. With -p/--patch only diff hunks affecting
 specified line range will be shown. This option requires --follow;
 it can be specified multiple times. Currently, this option is not
 compatible with --graph. This option is experimental.</div>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log <span class="pre">--patch</span></tt></a> may generate unexpected diff output for merge
 changesets, as it will only compare the merge changeset against
 its first parent. Also, only files different from BOTH parents
 will appear in files:.</p>
 </div>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">For performance reasons, <a class="reference external" href="hg.1.html#log"><tt class="docutils literal">hg log FILE</tt></a> may omit duplicate changes
 made on branches and will not show removals or mode changes. To
 see all such changes, use the --removed switch.</p>
 </div>
-<div class="verbose docutils container">
-<div class="admonition note">
+<div class="verbose container">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The history resulting from -L/--line-range options depends on diff
 options; for instance if white-spaces are ignored, respective changes
 with only white-spaces in specified line range will not be listed.</p>
 </div>
 </div>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Some examples:</p>
 <ul>
 <li><p class="first">changesets with full descriptions and file lists:</p>
@@ -2809,7 +2809,7 @@ hg outgoing [-M] [-p] [-n] [-f] [-r REV]... [DEST]
 or the default push location. These are the changesets that would
 be pushed if a push was requested.</p>
 <p>See pull for details of valid destination formats.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>With -B/--bookmarks, the result of bookmark comparison between
 local and remote repositories is displayed. With -v/--verbose,
 status is also displayed for each bookmark like below:</p>
@@ -2975,7 +2975,7 @@ When <tt class="docutils literal"><span class="pre">default-push</span></tt> is 
 <tt class="docutils literal">default</tt> will be used for pull; otherwise <tt class="docutils literal">default</tt> is used
 as the fallback for both.  When cloning a repository, the clone
 source is written as <tt class="docutils literal">default</tt> in <tt class="docutils literal">.hg/hgrc</tt>.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><tt class="docutils literal">default</tt> and <tt class="docutils literal"><span class="pre">default-push</span></tt> apply to all inbound (e.g.
 <a class="reference external" href="hg.1.html#incoming"><tt class="docutils literal">hg incoming</tt></a>) and outbound (e.g. <a class="reference external" href="hg.1.html#outgoing"><tt class="docutils literal">hg outgoing</tt></a>, <a class="reference external" href="hg.1.html#email"><tt class="docutils literal">hg email</tt></a>
@@ -3116,7 +3116,7 @@ before pushing.</p>
 <p>Use --new-branch if you want to allow push to create a new named
 branch that is not present at the destination. This allows you to
 only create a new branch without forcing other changes.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Extra care should be taken with the -f/--force option,
 which will push all new heads on all branches, an action which will
@@ -3130,7 +3130,7 @@ repository. Specifying <tt class="docutils literal">.</tt> is equivalent to spec
 bookmark's name.</p>
 <p>Please see <a class="reference external" href="hg.1.html#urls"><tt class="docutils literal">hg help urls</tt></a> for important details about <tt class="docutils literal"><span class="pre">ssh://</span></tt>
 URLs. If DESTINATION is omitted, a default path will be used.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>The --pushvars option sends strings to the server that become
 environment variables prepended with <tt class="docutils literal">HG_USERVAR_</tt>. For example,
 <tt class="docutils literal"><span class="pre">--pushvars</span> ENABLE_FEATURE=true</tt>, provides the server side hooks with
@@ -3212,7 +3212,7 @@ hg remove [OPTION]... FILE...
 <p>This command schedules the files to be removed at the next commit.
 To undo a remove before that, see <a class="reference external" href="hg.1.html#revert"><tt class="docutils literal">hg revert</tt></a>. To undo added
 files, see <a class="reference external" href="hg.1.html#forget"><tt class="docutils literal">hg forget</tt></a>.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>-A/--after can be used to remove only files that have already
 been deleted, -f/--force can be used to force deletion, and -Af
 can be used to remove files from the next revision without
@@ -3265,7 +3265,7 @@ states are Added [A], Clean [C], Modified [M] and Missing [!]
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><a class="reference external" href="hg.1.html#remove"><tt class="docutils literal">hg remove</tt></a> never deletes files in Added [A] state from the
 working directory, not even if <tt class="docutils literal"><span class="pre">--force</span></tt> is specified.</p>
@@ -3378,7 +3378,7 @@ In the printed list, <tt class="docutils literal">U</tt> = unresolved and <tt cl
 You can use <tt class="docutils literal">set:unresolved()</tt> or <tt class="docutils literal">set:resolved()</tt> to filter
 the list. See <a class="reference external" href="hg.1.html#filesets"><tt class="docutils literal">hg help filesets</tt></a> for details.</li>
 </ul>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Mercurial will not let you commit files with unresolved merge
 conflicts. You must use <a class="reference external" href="hg.1.html#resolve"><tt class="docutils literal">hg resolve <span class="pre">-m</span> ...</tt></a> before you can
@@ -3432,7 +3432,7 @@ commit after a conflicting merge.</p>
 <pre class="literal-block">
 hg revert [OPTION]... [-r REV] [NAME]...
 </pre>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">To check out earlier revisions, you should use <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update REV</tt></a>.
 To cancel an uncommitted merge (and lose your changes),
@@ -3514,7 +3514,7 @@ the working directory.</p>
 <p>Transactions are used to encapsulate the effects of all commands
 that create new changesets or propagate existing changesets into a
 repository.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>For example, the following commands are transactional, and their
 effects can be rolled back:</p>
 <ul class="simple">
@@ -3675,7 +3675,7 @@ Unless options described with &quot;show only ...&quot; are given, the
 options -mardu are used.</p>
 <p>Option -q/--quiet hides untracked (unknown and ignored) files
 unless explicitly requested with -u/--unknown or -i/--ignored.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last"><a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a> may appear to disagree with diff if permissions have
 changed or a merge has occurred. The standard diff format does
@@ -3697,7 +3697,7 @@ C = clean
 I = ignored
   = origin of the previous file (with --copies)
 </pre>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>The -t/--terse option abbreviates the output by showing only the directory
 name if all the files in it share the same status. The option takes an
 argument indicating the statuses to abbreviate: 'm' for 'modified', 'a'
@@ -3997,7 +3997,7 @@ directory's parent and there are uncommitted changes, the update is
 aborted. With the -c/--check option, the working directory is checked
 for uncommitted changes; if none are found, the working directory is
 updated to the specified changeset.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>The -C/--clean, -c/--check, and -m/--merge options control what
 happens if the working directory contains uncommitted changes.
 At most of one of them can be specified.</p>
@@ -4206,7 +4206,7 @@ color = yes
 color = no
 </pre>
 <p>See <a class="reference external" href="hgrc.5.html#ui"><tt class="docutils literal">hg help config.ui.color</tt></a> for details.</p>
-<div class="windows docutils container">
+<div class="windows container">
 The default pager on Windows does not support color, so enabling the pager
 will effectively disable color.  See <a class="reference external" href="hgrc.5.html#ui"><tt class="docutils literal">hg help config.ui.paginate</tt></a> to disable
 the pager.  Alternately, MSYS and Cygwin shells provide <cite>less</cite> as a pager,
@@ -5267,7 +5267,7 @@ regexp pattern, start it with <tt class="docutils literal">^</tt>.</p>
 <p>Subdirectories can have their own .hgignore settings by adding
 <tt class="docutils literal"><span class="pre">subinclude:path/to/subdir/.hgignore</span></tt> to the root <tt class="docutils literal">.hgignore</tt>. See
 <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for details on <tt class="docutils literal">subinclude:</tt> and <tt class="docutils literal">include:</tt>.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Patterns specified in other than <tt class="docutils literal">.hgignore</tt> are always rooted.
 Please see <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for details.</p>
@@ -5681,7 +5681,7 @@ it will by default not be used for symlinks and binary files.</li>
 internal <tt class="docutils literal">:merge</tt> is used.</li>
 <li>Otherwise, <tt class="docutils literal">:prompt</tt> is used.</li>
 </ol>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">After selecting a merge program, Mercurial will by default attempt
 to merge the files using a simple merge algorithm first. Only if it doesn't
@@ -5707,7 +5707,7 @@ pager = less -FRX
 environment variable $PAGER. If $PAGER is not set, pager.pager from the default
 or system configuration is used. If none of these are set, a default pager will
 be used, typically <cite>less</cite> on Unix and <cite>more</cite> on Windows.</p>
-<div class="windows docutils container">
+<div class="windows container">
 On Windows, <cite>more</cite> is not color aware, so using it effectively disables color.
 MSYS and Cygwin shells provide <cite>less</cite> as a pager, which can be configured to
 support ANSI color codes.  See <a class="reference external" href="hgrc.5.html#color"><tt class="docutils literal">hg help config.color.pagermode</tt></a> to configure
@@ -5744,7 +5744,7 @@ at a time.</p>
 <p>By default, Mercurial treats filenames as shell-style extended glob
 patterns.</p>
 <p>Alternate pattern notations must be specified explicitly.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Patterns specified in <tt class="docutils literal">.hgignore</tt> are not rooted.
 Please see <a class="reference external" href="hg.1.html#hgignore"><tt class="docutils literal">hg help hgignore</tt></a> for details.</p>
@@ -5861,7 +5861,7 @@ client and server
 
 - secret changesets are neither pushed, pulled, or cloned
 </pre>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Pulling a draft changeset from a publishing server does not mark it
 as public on the server side due to the read-only nature of pull.</p>
@@ -5874,12 +5874,12 @@ repository to disable publishing in its configuration file:</p>
 publish = False
 </pre>
 <p>See <a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config</tt></a> for more information on configuration files.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Servers running older versions of Mercurial are treated as
 publishing.</p>
 </div>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Changesets in secret phase are not exchanged with the server. This
 applies to their content: file names, file contents, and changeset
@@ -6417,7 +6417,7 @@ libraries, see <a class="reference external" href="https://www.mercurial-scm.org
 advantage over simple <tt class="docutils literal">hg</tt> process invocations in that they are
 likely more efficient. This is because there is significant overhead
 to spawn new Python processes.</p>
-<div class="admonition tip">
+<div class="tip">
 <p class="first admonition-title">Tip</p>
 <p class="last">If you need to invoke several <tt class="docutils literal">hg</tt> processes in short order and/or
 performance is important to you, use of a server-based interface
@@ -6514,7 +6514,7 @@ you get exactly the data you want formatted how you want it. For
 example, <tt class="docutils literal">log <span class="pre">-T</span> <span class="pre">{node}\n</span></tt> can be used to print a newline
 delimited list of changeset nodes instead of a human-tailored
 output containing authors, dates, descriptions, etc.</p>
-<div class="admonition tip">
+<div class="tip">
 <p class="first admonition-title">Tip</p>
 <p class="last">If parsing raw command output is too complicated, consider
 using templates to make your life easier.</p>
@@ -6523,7 +6523,7 @@ using templates to make your life easier.</p>
 Mercurial ships with the machine-readable styles <tt class="docutils literal">json</tt> and <tt class="docutils literal">xml</tt>,
 which provide JSON and XML output, respectively. These are useful for
 producing output that is machine readable as-is.</p>
-<div class="admonition important">
+<div class="important">
 <p class="first admonition-title">Important</p>
 <p>The <tt class="docutils literal">json</tt> and <tt class="docutils literal">xml</tt> styles are considered experimental. While
 they may be attractive to use for easily obtaining machine-readable
@@ -6612,7 +6612,7 @@ capture whatever information is required to restore the
 subrepositories to the state they were committed in a parent
 repository changeset. Mercurial automatically record the nested
 repositories states when committing in the parent repository.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The <tt class="docutils literal">.hgsubstate</tt> file should not be edited manually.</p>
 </div>
@@ -7086,7 +7086,7 @@ the current working directory.</td>
 <tr class="field"><th class="field-name" colspan="2">rstdoc(text, style):</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">Format reStructuredText.</td>
 </tr>
-<tr class="field"><th class="field-name" colspan="2">separate(sep, args):</th></tr>
+<tr class="field"><th class="field-name" colspan="2">separate(sep, args...):</th></tr>
 <tr class="field"><td>&nbsp;</td><td class="field-body">Add a separator between non-empty arguments.</td>
 </tr>
 <tr class="field"><th class="field-name" colspan="2">shortest(node, minlength=4):</th></tr>
@@ -8757,7 +8757,7 @@ destination directory, and update the .hgsubstate file automatically if the
 destination subrepositories contain the &lt;dest&gt;/&lt;sub&gt;/.hg/shamap file.
 Converting a repository with subrepositories requires converting a single
 repository at a time, from the bottom up.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>An example showing how to convert a repository with subrepositories:</p>
 <pre class="literal-block">
 # so convert knows the type when it sees a non empty destination
@@ -8910,7 +8910,7 @@ Makefile = LF
 [repository]
 native = LF
 </pre>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The rules will first apply when files are touched in the working
 directory, e.g. by updating to null and back to tip to touch all files.</p>
@@ -9786,7 +9786,7 @@ specified. The first revision returned by the revset is used. By
 default, this selects the editable history that is unique to the
 ancestry of the working directory.</li>
 </ul>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>If you use --outgoing, this command will abort if there are ambiguous
 outgoing revisions. For example, if there are multiple branches
 containing outgoing revisions.</p>
@@ -9795,7 +9795,7 @@ instead of --outgoing to specify edit target revision exactly in
 such ambiguous situation. See <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for detail about
 selecting revisions.</p>
 </div>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <blockquote>
 <ul>
@@ -10044,7 +10044,7 @@ x*    = ignore
 # prefer svn- over cvs-like default keywordmaps
 svn = True
 </pre>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">The more specific you are in your filename patterns the less you
 lose speed in huge repositories.</p>
@@ -10338,7 +10338,7 @@ hg lfpull -r REV... [-e CMD] [--remotecmd CMD] [SOURCE]
 locally, pulling from a remote repository to the local cache.</p>
 <p>If SOURCE is omitted, the 'default' path will be used.
 See <a class="reference external" href="hg.1.html#urls"><tt class="docutils literal">hg help urls</tt></a> for more information.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Some examples:</p>
 <ul>
 <li><p class="first">pull largefiles for all branch heads:</p>
@@ -10916,7 +10916,7 @@ a negative guard (&quot;-foo&quot;) is never pushed if the <a class="reference e
 has activated it.</p>
 <p>With no arguments, print the currently active guards.
 With arguments, set guards for the named patch.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">Specifying negative guards now requires '--'.</p>
 </div>
@@ -12112,7 +12112,7 @@ As a caveat: the tool will not be used to mediate when a file was
 deleted, there is no hook presently available for this.</p>
 <p>If a rebase is interrupted to manually resolve a conflict, it can be
 continued with --continue/-c or aborted with --abort/-a.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 <p>Examples:</p>
 <ul>
 <li><p class="first">move &quot;local changes&quot; (current commit back to branching point)
@@ -12599,7 +12599,7 @@ hg share [-U] [-B] SOURCE [DEST]
 </pre>
 <p>Initialize a new repository and working directory that shares its
 history (and optionally bookmarks) with another repository.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p class="last">using rollback or extensions that destroy/modify history (mq,
 rebase, etc.) can cause considerable confusion with shared
@@ -12766,7 +12766,7 @@ restore branch information to the working directory.</p>
 backup directory. Only the N most recent backups are kept. N
 defaults to 10 but can be overridden using the <tt class="docutils literal">shelve.maxbackups</tt>
 configuration option.</p>
-<div class="verbose docutils container">
+<div class="verbose container">
 Timestamp in seconds is used to decide order of backups. More
 than <tt class="docutils literal">maxbackups</tt> backups are kept, if same timestamp
 prevents from deciding exact order of them, for safety.</div>
@@ -12830,7 +12830,7 @@ hg show VIEW
 <p>A requested view of repository data is displayed.</p>
 <p>If no view is requested, the list of available views is shown and the
 command aborts.</p>
-<div class="admonition note">
+<div class="note">
 <p class="first admonition-title">Note</p>
 <p>There are no backwards compatibility guarantees for the output of this
 command. Output may change in any future Mercurial release.</p>
