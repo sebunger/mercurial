@@ -1,9 +1,10 @@
-mercurial (4.7-1) UNRELEASED; urgency=medium
+mercurial (4.7-1) unstable; urgency=medium
 
+  * Team upload.
   * New upstream release
   * Add Recommends on sensible-utils (thanks, lintian).
 
- -- Julien Cristau <jcristau@debian.org>  Wed, 08 Aug 2018 10:11:51 +0200
+ -- Julien Cristau <jcristau@debian.org>  Wed, 08 Aug 2018 14:34:59 +0200
 
 mercurial (4.6.1-1) unstable; urgency=medium
 
