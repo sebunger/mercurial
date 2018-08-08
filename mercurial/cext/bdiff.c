@@ -155,15 +155,9 @@ cleanup:
 		PyEval_RestoreThread(_save);
 	PyBuffer_Release(&ba);
 	PyBuffer_Release(&bb);
-	if (al) {
-		free(al);
-	}
-	if (bl) {
-		free(bl);
-	}
-	if (l.next) {
-		bdiff_freehunks(l.next);
-	}
+	free(al);
+	free(bl);
+	bdiff_freehunks(l.next);
 	return result;
 }
 

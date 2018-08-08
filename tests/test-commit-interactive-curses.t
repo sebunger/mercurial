@@ -68,7 +68,7 @@ Check that commit -i works with no changes
 Committing only one file
 
   $ echo "a" >> a
-  >>> open('b', 'wb').write("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n")
+  >>> open('b', 'wb').write(b"1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n") and None
   $ hg add b
   $ cat <<EOF >testModeCommands
   > TOGGLE
@@ -214,6 +214,14 @@ Amend option works
   @@ -0,0 +1,1 @@
   +hello world
 
+Make file empty
+  $ printf "" > x
+  $ cat <<EOF >testModeCommands
+  > X
+  > EOF
+  $ hg ci -i -m emptify -d "0 0"
+  $ hg update -C '.^' -q
+
 Editing a hunk puts you back on that hunk when done editing (issue5041)
 To do that, we change two lines in a file, pretend to edit the second line,
 exit, toggle the line selected at the end of the edit and commit.
@@ -236,7 +244,7 @@ of the edit.
   > X
   > EOF
   $ printf "printf 'editor ran\n'; exit 0" > editor.sh
-  $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit  -i -m "edit hunk" -d "0 0"
+  $ HGEDITOR="\"sh\" \"`pwd`/editor.sh\"" hg commit  -i -m "edit hunk" -d "0 0" -q
   editor ran
   $ hg cat -r . x
   foo
@@ -358,6 +366,16 @@ If only the default is set, we'll use that for the feature, too
   > interface = curses
   > EOF
   $ chunkselectorinterface
+  curses
+
+If TERM=dumb, we use text, even if the config says curses
+  $ chunkselectorinterface
+  curses
+  $ TERM=dumb chunkselectorinterface
+  text
+(Something is keeping TERM=dumb in the environment unless I do this, it's not
+scoped to just that previous command like in many shells)
+  $ TERM=xterm chunkselectorinterface
   curses
 
 It is possible to override the default interface with a feature specific

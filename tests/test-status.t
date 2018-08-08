@@ -123,11 +123,11 @@ tweaking defaults works
   ? b/in_b (glob)
   ? in_root
   $ HGPLAINEXCEPT=tweakdefaults hg status --cwd a --config ui.tweakdefaults=yes
-  ? 1/in_a_1 (glob)
+  ? 1/in_a_1
   ? in_a
-  ? ../b/1/in_b_1 (glob)
-  ? ../b/2/in_b_2 (glob)
-  ? ../b/in_b (glob)
+  ? ../b/1/in_b_1
+  ? ../b/2/in_b_2
+  ? ../b/in_b
   ? ../in_root (glob)
 
 relative paths can be requested
@@ -221,6 +221,16 @@ hg status -A:
   I ignored
   C .hgignore
   C modified
+
+  $ hg status -A -T '{status} {path} {node|shortest}\n'
+  A added ffff
+  A copied ffff
+  R removed ffff
+  ! deleted ffff
+  ? unknown ffff
+  I ignored ffff
+  C .hgignore ffff
+  C modified ffff
 
   $ hg status -A -Tjson
   [
@@ -465,12 +475,12 @@ hg status of binary file starting with '\1\n', a separator for metadata:
 
   $ hg init repo5
   $ cd repo5
-  >>> open("010a", r"wb").write(b"\1\nfoo")
+  >>> open("010a", r"wb").write(b"\1\nfoo") and None
   $ hg ci -q -A -m 'initial checkin'
   $ hg status -A
   C 010a
 
-  >>> open("010a", r"wb").write(b"\1\nbar")
+  >>> open("010a", r"wb").write(b"\1\nbar") and None
   $ hg status -A
   M 010a
   $ hg ci -q -m 'modify 010a'
