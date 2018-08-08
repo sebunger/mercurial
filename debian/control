@@ -27,7 +27,7 @@ Vcs-Browser: https://salsa.debian.org/python-team/applications/mercurial
 Package: mercurial-common
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
-Recommends: ca-certificates, mercurial (>= ${source:Version})
+Recommends: ca-certificates, mercurial (>= ${source:Version}), sensible-utils
 Suggests: python-mysqldb, python-openssl, python-pygments, wish
 Breaks: mercurial (<< ${source:Version})
 Replaces: mercurial (<< 2.6.3)

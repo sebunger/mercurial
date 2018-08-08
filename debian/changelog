@@ -1,6 +1,7 @@
 mercurial (4.7-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * Add Recommends on sensible-utils (thanks, lintian).
 
  -- Julien Cristau <jcristau@debian.org>  Wed, 08 Aug 2018 10:11:51 +0200
 
