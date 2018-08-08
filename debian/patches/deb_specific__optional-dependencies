@@ -57,7 +57,7 @@ Suggest Debian packages for some optional dependencies.
          self.files = {}
 --- mercurial.orig/hgext/convert/darcs.py
 +++ mercurial/hgext/convert/darcs.py
-@@ -50,14 +50,15 @@ class darcs_source(common.converter_sour
+@@ -51,14 +51,15 @@ class darcs_source(common.converter_sour
          if not os.path.exists(os.path.join(path, '_darcs')):
              raise NoRepo(_("%s does not look like a darcs repository") % path)
  
@@ -111,7 +111,7 @@ Suggest Debian packages for some optional dependencies.
          if self.automatestdio:
 --- mercurial.orig/hgext/convert/subversion.py
 +++ mercurial/hgext/convert/subversion.py
-@@ -300,16 +300,19 @@ class svn_source(converter_source):
+@@ -299,16 +299,19 @@ class svn_source(converter_source):
              raise NoRepo(_("%s does not look like a Subversion repository")
                           % url)
          if svn is None:
@@ -145,7 +145,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- mercurial.orig/mercurial/hgweb/server.py
 +++ mercurial/mercurial/hgweb/server.py
-@@ -258,7 +258,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -260,7 +260,8 @@ class _httprequesthandlerssl(_httpreques
              from .. import sslutil
              sslutil.modernssl
          except ImportError:

@@ -9,7 +9,7 @@ Author: Javi Merino <vicho@debian.org>
 
 --- mercurial.orig/mercurial/util.py
 +++ mercurial/mercurial/util.py
-@@ -1541,6 +1541,8 @@ def pathto(root, n1, n2):
+@@ -1516,6 +1516,8 @@ def pathto(root, n1, n2):
  if procutil.mainfrozen() and getattr(sys, 'frozen', None) != 'macosx_app':
      # executable version (py2exe) doesn't support __file__
      datapath = os.path.dirname(pycompat.sysexecutable)
