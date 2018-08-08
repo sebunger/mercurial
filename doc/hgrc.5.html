@@ -65,22 +65,23 @@
 <li><a class="reference internal" href="#progress" id="id33"><tt class="docutils literal">progress</tt></a></li>
 <li><a class="reference internal" href="#rebase" id="id34"><tt class="docutils literal">rebase</tt></a></li>
 <li><a class="reference internal" href="#revsetalias" id="id35"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#server" id="id36"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id37"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id38"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#subrepos" id="id39"><tt class="docutils literal">subrepos</tt></a></li>
-<li><a class="reference internal" href="#templatealias" id="id40"><tt class="docutils literal">templatealias</tt></a></li>
-<li><a class="reference internal" href="#templates" id="id41"><tt class="docutils literal">templates</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id42"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id43"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id44"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id45"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id46"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#storage" id="id36"><tt class="docutils literal">storage</tt></a></li>
+<li><a class="reference internal" href="#server" id="id37"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id38"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id39"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#subrepos" id="id40"><tt class="docutils literal">subrepos</tt></a></li>
+<li><a class="reference internal" href="#templatealias" id="id41"><tt class="docutils literal">templatealias</tt></a></li>
+<li><a class="reference internal" href="#templates" id="id42"><tt class="docutils literal">templates</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id43"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id44"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id45"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id46"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id47"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id47">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id48">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id49">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id48">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id49">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id50">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -480,6 +481,9 @@ a different color mode than the pager program.</p>
 <dt><tt class="docutils literal">status.relative</tt></dt>
 <dd>Make paths in <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a> output relative to the current directory.
 (default: False)</dd>
+<dt><tt class="docutils literal">status.terse</tt></dt>
+<dd>Default value for the --terse flag, which condenes status output.
+(default: empty)</dd>
 <dt><tt class="docutils literal">update.check</tt></dt>
 <dd>Determines what level of checking <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> will perform before moving
 to a destination revision. Valid values are <tt class="docutils literal">abort</tt>, <tt class="docutils literal">none</tt>,
@@ -714,6 +718,8 @@ for related options for the annotate command.</p>
 <dd>Ignore changes whose lines are all blank.</dd>
 <dt><tt class="docutils literal">unified</tt></dt>
 <dd>Number of lines of context to show.</dd>
+<dt><tt class="docutils literal"><span class="pre">word-diff</span></tt></dt>
+<dd>Highlight changed words.</dd>
 </dl>
 </div>
 <div class="section" id="email">
@@ -790,6 +796,12 @@ myfeature = ~/.hgext/myfeature.py
 </div>
 <div class="section" id="format">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">format</tt></a></h2>
+<p>Configuration that controls the repository format. Newer format options are more
+powerful but incompatible with some older versions of Mercurial. Format options
+are considered at repository initialization only. You need to make a new clone
+for config change to be taken into account.</p>
+<p>For more details about repository format and version compatibility, see
+<a class="reference external" href="https://www.mercurial-scm.org/wiki/MissingRequirement">https://www.mercurial-scm.org/wiki/MissingRequirement</a></p>
 <dl class="docutils">
 <dt><tt class="docutils literal">usegeneraldelta</tt></dt>
 <dd><p class="first">Enable or disable the &quot;generaldelta&quot; repository format which improves
@@ -879,6 +891,22 @@ it is passed are listed with names in the form <tt class="docutils literal">$HG_
 They contain the type of hook which triggered the run and the full name
 of the hook in the config, respectively. In the example above, this will
 be <tt class="docutils literal">$HG_HOOKTYPE=incoming</tt> and <tt class="docutils literal">$HG_HOOKNAME=incoming.email</tt>.</p>
+<div class="windows container">
+<p>Some basic Unix syntax can be enabled for portability, including <tt class="docutils literal">$VAR</tt>
+and <tt class="docutils literal">${VAR}</tt> style variables.  A <tt class="docutils literal">~</tt> followed by <tt class="docutils literal">\</tt> or <tt class="docutils literal">/</tt> will
+be expanded to <tt class="docutils literal">%USERPROFILE%</tt> to simulate a subset of tilde expansion
+on Unix.  To use a literal <tt class="docutils literal">$</tt> or <tt class="docutils literal">~</tt>, it must be escaped with a back
+slash or inside of a strong quote.  Strong quotes will be replaced by
+double quotes after processing.</p>
+<p>This feature is enabled by adding a prefix of <tt class="docutils literal">tonative.</tt> to the hook
+name on a new line, and setting it to <tt class="docutils literal">True</tt>.  For example:</p>
+<pre class="literal-block">
+[hooks]
+incoming.autobuild = /my/build/hook
+# enable translation to cmd.exe syntax for autobuild hook
+tonative.incoming.autobuild = True
+</pre>
+</div>
 <dl class="docutils">
 <dt><tt class="docutils literal">changegroup</tt></dt>
 <dd>Run after a changegroup has been added via push, pull or unbundle.  The ID of
@@ -1564,6 +1592,9 @@ stderr)</dd>
 One of <tt class="docutils literal">callcount</tt>, <tt class="docutils literal">reccallcount</tt>, <tt class="docutils literal">totaltime</tt> and
 <tt class="docutils literal">inlinetime</tt>.
 (default: inlinetime)</dd>
+<dt><tt class="docutils literal"><span class="pre">time-track</span></tt></dt>
+<dd>Control if the stat profiler track <tt class="docutils literal">cpu</tt> or <tt class="docutils literal">real</tt> time.
+(default: <tt class="docutils literal">cpu</tt>)</dd>
 <dt><tt class="docutils literal">limit</tt></dt>
 <dd>Number of lines to show. Specific to the <tt class="docutils literal">ls</tt> instrumenting profiler.
 (default: 30)</dd>
@@ -1637,6 +1668,20 @@ rebase of obsolete changesets.</dd>
 <div class="section" id="revsetalias">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">revsetalias</tt></a></h2>
 <p>Alias definitions for revsets. See <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for details.</p>
+</div>
+<div class="section" id="storage">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">storage</tt></a></h2>
+<p>Control the strategy Mercurial uses internally to store history. Options in this
+category impact performance and repository size.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">revlog.optimize-delta-parent-choice</span></tt></dt>
+<dd><p class="first">When storing a merge revision, both parents will be equally considered as
+a possible delta base. This results in better delta selection and improved
+revlog compression. This option is enabled by default.</p>
+<p class="last">Turning this option off can result in large increase of repository size for
+repository with many merges.</p>
+</dd>
+</dl>
 </div>
 <div class="section" id="server">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">server</tt></a></h2>
@@ -1959,6 +2004,10 @@ Possible values are 'text' and 'curses'.</dd>
 <dd>Select the interface for change recording (e.g. <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">-i</span></tt></a>).
 Possible values are 'text' and 'curses'.
 This config overrides the interface specified by ui.interface.</dd>
+<dt><tt class="docutils literal"><span class="pre">large-file-limit</span></tt></dt>
+<dd>Largest file size that gives no memory use warning.
+Possible values are integers or 0 to disable the check.
+(default: 10000000)</dd>
 <dt><tt class="docutils literal">logtemplate</tt></dt>
 <dd>Template string for commands that print changesets.</dd>
 <dt><tt class="docutils literal">merge</tt></dt>
@@ -2129,7 +2178,7 @@ that this should not be used for public servers.</p>
 <dd>Where to output the access log. (default: stdout)</dd>
 <dt><tt class="docutils literal">address</tt></dt>
 <dd>Interface address to bind to. (default: all)</dd>
-<dt><tt class="docutils literal">allow_archive</tt></dt>
+<dt><tt class="docutils literal"><span class="pre">allow-archive</span></tt></dt>
 <dd>List of archive format (bz2, gz, zip) allowed for downloading.
 (default: empty)</dd>
 <dt><tt class="docutils literal">allowbz2</tt></dt>

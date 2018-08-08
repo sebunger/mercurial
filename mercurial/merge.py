@@ -903,6 +903,23 @@ def _forgetremoved(wctx, mctx, branchmerge):
     return actions
 
 def _checkcollision(repo, wmf, actions):
+    """
+    Check for case-folding collisions.
+    """
+
+    # If the repo is narrowed, filter out files outside the narrowspec.
+    narrowmatch = repo.narrowmatch()
+    if not narrowmatch.always():
+        wmf = wmf.matches(narrowmatch)
+        if actions:
+            narrowactions = {}
+            for m, actionsfortype in actions.iteritems():
+                narrowactions[m] = []
+                for (f, args, msg) in actionsfortype:
+                    if narrowmatch(f):
+                        narrowactions[m].append((f, args, msg))
+            actions = narrowactions
+
     # build provisional merged manifest up
     pmmf = set(wmf)
 
@@ -1072,6 +1089,33 @@ def checkpathconflicts(repo, wctx, mctx, actions):
             repo.ui.warn(_("%s: is both a file and a directory\n") % p)
         raise error.Abort(_("destination manifest contains path conflicts"))
 
+def _filternarrowactions(narrowmatch, branchmerge, actions):
+    """
+    Filters out actions that can ignored because the repo is narrowed.
+
+    Raise an exception if the merge cannot be completed because the repo is
+    narrowed.
+    """
+    nooptypes = set(['k']) # TODO: handle with nonconflicttypes
+    nonconflicttypes = set('a am c cm f g r e'.split())
+    # We mutate the items in the dict during iteration, so iterate
+    # over a copy.
+    for f, action in list(actions.items()):
+        if narrowmatch(f):
+            pass
+        elif not branchmerge:
+            del actions[f] # just updating, ignore changes outside clone
+        elif action[0] in nooptypes:
+            del actions[f] # merge does not affect file
+        elif action[0] in nonconflicttypes:
+            raise error.Abort(_('merge affects file \'%s\' outside narrow, '
+                                'which is not yet supported') % f,
+                              hint=_('merging in the other direction '
+                                     'may work'))
+        else:
+            raise error.Abort(_('conflict in file \'%s\' is outside '
+                                'narrow clone') % f)
+
 def manifestmerge(repo, wctx, p2, pa, branchmerge, force, matcher,
                   acceptremote, followcopies, forcefulldiff=False):
     """
@@ -1106,8 +1150,10 @@ def manifestmerge(repo, wctx, p2, pa, branchmerge, force, matcher,
     copied = set(copy.values())
     copied.update(movewithdir.values())
 
-    if '.hgsubstate' in m1:
-        # check whether sub state is modified
+    if '.hgsubstate' in m1 and wctx.rev() is None:
+        # Check whether sub state is modified, and overwrite the manifest
+        # to flag the change. If wctx is a committed revision, we shouldn't
+        # care for the dirty state of the working directory.
         if any(wctx.sub(s).dirty() for s in wctx.substate):
             m1['.hgsubstate'] = modifiednodeid
 
@@ -1256,6 +1302,11 @@ def manifestmerge(repo, wctx, p2, pa, branchmerge, force, matcher,
         # If we are merging, look for path conflicts.
         checkpathconflicts(repo, wctx, p2, actions)
 
+    narrowmatch = repo.narrowmatch()
+    if not narrowmatch.always():
+        # Updates "actions" in place
+        _filternarrowactions(narrowmatch, branchmerge, actions)
+
     return actions, diverge, renamedelete
 
 def _resolvetrivial(repo, wctx, mctx, ancestor, actions):
@@ -1373,14 +1424,13 @@ def calculateupdates(repo, wctx, mctx, ancestors, branchmerge, force,
                 del actions[f]
         repo.ui.note(_('end of auction\n\n'))
 
-    _resolvetrivial(repo, wctx, mctx, ancestors[0], actions)
-
     if wctx.rev() is None:
         fractions = _forgetremoved(wctx, mctx, branchmerge)
         actions.update(fractions)
 
     prunedactions = sparse.filterupdatesactions(repo, wctx, mctx, branchmerge,
                                                 actions)
+    _resolvetrivial(repo, wctx, mctx, ancestors[0], actions)
 
     return prunedactions, diverge, renamedelete
 
@@ -1490,27 +1540,6 @@ class updateresult(object):
         return (not self.updatedcount and not self.mergedcount
                 and not self.removedcount and not self.unresolvedcount)
 
-    # TODO remove container emulation once consumers switch to new API.
-
-    def __getitem__(self, x):
-        util.nouideprecwarn('access merge.update() results by name instead of '
-                            'index', '4.6', 2)
-        if x == 0:
-            return self.updatedcount
-        elif x == 1:
-            return self.mergedcount
-        elif x == 2:
-            return self.removedcount
-        elif x == 3:
-            return self.unresolvedcount
-        else:
-            raise IndexError('can only access items 0-3')
-
-    def __len__(self):
-        util.nouideprecwarn('access merge.update() results by name instead of '
-                            'index', '4.6', 2)
-        return 4
-
 def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     """apply the merge action list to the working directory
 
@@ -1556,10 +1585,6 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
         if f1 != f and move:
             moves.append(f1)
 
-    _updating = _('updating')
-    _files = _('files')
-    progress = repo.ui.progress
-
     # remove renamed files after safely stored
     for f in moves:
         if wctx[f].lexists():
@@ -1569,7 +1594,8 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
 
     numupdates = sum(len(l) for m, l in actions.items()
                      if m != ACTION_KEEP)
-    z = 0
+    progress = repo.ui.makeprogress(_('updating'), unit=_('files'),
+                                    total=numupdates)
 
     if [a for a in actions[ACTION_REMOVE] if a[0] == '.hgsubstate']:
         subrepoutil.submerge(repo, wctx, mctx, wctx, overwrite, labels)
@@ -1586,8 +1612,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
             s(_("the remote file has been renamed to %s\n") % f1)
         s(_("resolve manually then use 'hg resolve --mark %s'\n") % f)
         ms.addpath(f, f1, fo)
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
 
     # When merging in-memory, we can't support worker processes, so set the
     # per-item cost at 0 in that case.
@@ -1597,8 +1622,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     prog = worker.worker(repo.ui, cost, batchremove, (repo, wctx),
                          actions[ACTION_REMOVE])
     for i, item in prog:
-        z += i
-        progress(_updating, z, item=item, total=numupdates, unit=_files)
+        progress.increment(step=i, item=item)
     removed = len(actions[ACTION_REMOVE])
 
     # resolve path conflicts (must come before getting)
@@ -1610,15 +1634,16 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
             wctx[f].audit()
             wctx[f].write(wctx.filectx(f0).data(), wctx.filectx(f0).flags())
             wctx[f0].remove()
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
 
-    # get in parallel
+    # get in parallel.
+    threadsafe = repo.ui.configbool('experimental',
+                                    'worker.wdir-get-thread-safe')
     prog = worker.worker(repo.ui, cost, batchget, (repo, mctx, wctx),
-                         actions[ACTION_GET])
+                         actions[ACTION_GET],
+                         threadsafe=threadsafe)
     for i, item in prog:
-        z += i
-        progress(_updating, z, item=item, total=numupdates, unit=_files)
+        progress.increment(step=i, item=item)
     updated = len(actions[ACTION_GET])
 
     if [a for a in actions[ACTION_GET] if a[0] == '.hgsubstate']:
@@ -1627,20 +1652,17 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     # forget (manifest only, just log it) (must come first)
     for f, args, msg in actions[ACTION_FORGET]:
         repo.ui.debug(" %s: %s -> f\n" % (f, msg))
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
 
     # re-add (manifest only, just log it)
     for f, args, msg in actions[ACTION_ADD]:
         repo.ui.debug(" %s: %s -> a\n" % (f, msg))
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
 
     # re-add/mark as modified (manifest only, just log it)
     for f, args, msg in actions[ACTION_ADD_MODIFIED]:
         repo.ui.debug(" %s: %s -> am\n" % (f, msg))
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
 
     # keep (noop, just log it)
     for f, args, msg in actions[ACTION_KEEP]:
@@ -1650,8 +1672,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     # directory rename, move local
     for f, args, msg in actions[ACTION_DIR_RENAME_MOVE_LOCAL]:
         repo.ui.debug(" %s: %s -> dm\n" % (f, msg))
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
         f0, flags = args
         repo.ui.note(_("moving %s to %s\n") % (f0, f))
         wctx[f].audit()
@@ -1662,8 +1683,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     # local directory rename, get
     for f, args, msg in actions[ACTION_LOCAL_DIR_RENAME_GET]:
         repo.ui.debug(" %s: %s -> dg\n" % (f, msg))
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
         f0, flags = args
         repo.ui.note(_("getting %s to %s\n") % (f0, f))
         wctx[f].write(mctx.filectx(f0).data(), flags)
@@ -1672,8 +1692,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
     # exec
     for f, args, msg in actions[ACTION_EXEC]:
         repo.ui.debug(" %s: %s -> e\n" % (f, msg))
-        z += 1
-        progress(_updating, z, item=f, total=numupdates, unit=_files)
+        progress.increment(item=f)
         flags, = args
         wctx[f].audit()
         wctx[f].setflags('l' in flags, 'x' in flags)
@@ -1708,8 +1727,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
         tocomplete = []
         for f, args, msg in mergeactions:
             repo.ui.debug(" %s: %s -> m (premerge)\n" % (f, msg))
-            z += 1
-            progress(_updating, z, item=f, total=numupdates, unit=_files)
+            progress.increment(item=f)
             if f == '.hgsubstate': # subrepo states need updating
                 subrepoutil.submerge(repo, wctx, mctx, wctx.ancestor(mctx),
                                      overwrite, labels)
@@ -1723,8 +1741,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
         # merge
         for f, args, msg in tocomplete:
             repo.ui.debug(" %s: %s -> m (merge)\n" % (f, msg))
-            z += 1
-            progress(_updating, z, item=f, total=numupdates, unit=_files)
+            progress.increment(item=f, total=numupdates)
             ms.resolve(f, wctx)
 
     finally:
@@ -1772,7 +1789,7 @@ def applyupdates(repo, actions, wctx, mctx, overwrite, labels=None):
         actions[ACTION_MERGE] = [a for a in actions[ACTION_MERGE]
                                  if a[0] in mfiles]
 
-    progress(_updating, None, total=numupdates, unit=_files)
+    progress.complete()
     return updateresult(updated, merged, removed, unresolved)
 
 def recordupdates(repo, actions, branchmerge):
@@ -2179,7 +2196,8 @@ def update(repo, node, branchmerge, force, ancestor=None,
                   error=stats.unresolvedcount)
     return stats
 
-def graft(repo, ctx, pctx, labels, keepparent=False):
+def graft(repo, ctx, pctx, labels, keepparent=False,
+          keepconflictparent=False):
     """Do a graft-like merge.
 
     This is a merge where the merge ancestor is chosen such that one
@@ -2192,6 +2210,7 @@ def graft(repo, ctx, pctx, labels, keepparent=False):
     pctx - merge base, usually ctx.p1()
     labels - merge labels eg ['local', 'graft']
     keepparent - keep second parent if any
+    keepparent - if unresolved, keep parent used for the merge
 
     """
     # If we're grafting a descendant onto an ancestor, be sure to pass
@@ -2205,11 +2224,15 @@ def graft(repo, ctx, pctx, labels, keepparent=False):
     stats = update(repo, ctx.node(), True, True, pctx.node(),
                    mergeancestor=mergeancestor, labels=labels)
 
-    pother = nullid
-    parents = ctx.parents()
-    if keepparent and len(parents) == 2 and pctx in parents:
-        parents.remove(pctx)
-        pother = parents[0].node()
+
+    if keepconflictparent and stats.unresolvedcount:
+        pother = ctx.node()
+    else:
+        pother = nullid
+        parents = ctx.parents()
+        if keepparent and len(parents) == 2 and pctx in parents:
+            parents.remove(pctx)
+            pother = parents[0].node()
 
     with repo.dirstate.parentchange():
         repo.setparents(repo['.'].node(), pother)

@@ -1913,6 +1913,9 @@ Without the \-a/\-\-text option, export will avoid generating diffs
 of files it detects as binary. With \-a, export will generate a
 diff anyway, probably with undesirable results.
 .sp
+With \-B/\-\-bookmark changesets reachable by the given bookmark are
+selected.
+.sp
 Use the \-g/\-\-git option to generate diffs in the git extended diff
 format. See \%\fBhg help diffs\fP\: for more information.
 .sp
@@ -1957,6 +1960,10 @@ Returns 0 on success.
 .sp
 Options:
 .INDENT 0.0
+.TP
+.BI \-B,  \-\-bookmark \ <VALUE>
+.
+export changes only reachable by given bookmark
 .TP
 .BI \-o,  \-\-output \ <FORMAT>
 .
@@ -2203,11 +2210,8 @@ If a graft merge results in conflicts, the graft process is
 interrupted so that the current merge can be manually resolved.
 Once all conflicts are addressed, the graft process can be
 continued with the \-c/\-\-continue option.
-.IP Note
-.
-The \-c/\-\-continue option does not reapply earlier options, except
-for \-\-force.
-.RE
+.sp
+The \-c/\-\-continue option reapplies all the earlier options.
 .sp
 Examples:
 .INDENT 0.0
@@ -2274,6 +2278,14 @@ revisions to graft
 .
 resume interrupted graft
 .TP
+.B \-\-stop
+.
+stop interrupted graft
+.TP
+.B \-\-abort
+.
+abort interrupted graft
+.TP
 .B \-e,  \-\-edit
 .
 invoke editor on commit messages
@@ -2281,6 +2293,10 @@ invoke editor on commit messages
 .B \-\-log
 .
 append graft info to log message
+.TP
+.B \-\-no\-commit
+.
+don\(aqt commit, just apply the changes in working directory
 .TP
 .B \-f,  \-\-force
 .
@@ -2329,7 +2345,7 @@ By default, grep prints the most recent revision number for each
 file in which it finds a match. To get it to print every revision
 that contains a change in match status ("\-" for a match that becomes
 a non\-match, or "+" for a non\-match that becomes a match), use the
-\-\-all flag.
+\-\-diff flag.
 .sp
 PATTERN can be any Python (roughly Perl\-compatible) regular
 expression.
@@ -2349,7 +2365,11 @@ end fields with NUL
 .TP
 .B \-\-all
 .
-print all revisions that match
+print all revisions that match (DEPRECATED)
+.TP
+.B \-\-diff
+.
+print all revisions when the term was introduced or removed
 .TP
 .B \-a,  \-\-text
 .
@@ -2374,6 +2394,10 @@ print matching line numbers
 .BI \-r,  \-\-rev \ <REV[+]>
 .
 only search files changed within revision range
+.TP
+.B \-\-all\-files
+.
+include all files in the changeset while grepping (EXPERIMENTAL)
 .TP
 .B \-u,  \-\-user
 .
@@ -4487,6 +4511,10 @@ use IPv6 in addition to IPv4
 .
 SSL certificate file
 .TP
+.B \-\-print\-url
+.
+start and print only the URL
+.TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
@@ -4653,7 +4681,7 @@ hide status prefix
 .TP
 .BI \-t,  \-\-terse \ <VALUE>
 .
-show the terse output (EXPERIMENTAL)
+show the terse output (EXPERIMENTAL) (default: nothing)
 .TP
 .B \-C,  \-\-copies
 .
@@ -5400,6 +5428,38 @@ The log command also accepts date ranges:
 .
 \fB\-DAYS\fP \- within a given number of days of today
 .UNINDENT
+.SH DEPRECATED FEATURES
+.sp
+Mercurial evolves over time, some features, options, commands may be replaced by
+better and more secure alternatives. This topic will help you migrating your
+existing usage and/or configuration to newer features.
+.SS Commands
+.sp
+The following commands are still available but their use are not recommended:
+.sp
+\fBlocate\fP
+.sp
+This command has been replaced by \fIhg files\fP.
+.sp
+\fBparents\fP
+.sp
+This command can be replaced by \fIhg summary\fP or \fIhg log\fP with appropriate
+revsets. See \fIhg help revsets\fP for more information.
+.sp
+\fBtip\fP
+.sp
+The recommended alternative is \fIhg heads\fP.
+.SS Options
+.INDENT 0.0
+.TP
+.B \fBweb.allowpull\fP
+.sp
+Renamed to \fIallow\-pull\fP.
+.TP
+.B \fBweb.allow_push\fP
+.sp
+Renamed to \fIallow\-push\fP.
+.UNINDENT
 .SH DIFF FORMATS
 .sp
 Mercurial\(aqs default format for showing changes between two versions of
@@ -5887,8 +5947,7 @@ File that matches the active .hgignore pattern.
 .TP
 .B \fBignored()\fP
 .sp
-File that is ignored according to \%\fBhg status\fP\:. These files will only be
-considered if this predicate is used.
+File that is ignored according to \%\fBhg status\fP\:.
 .TP
 .B \fBmissing()\fP
 .sp
@@ -5952,10 +6011,13 @@ Subrepositories whose paths match the given pattern.
 .sp
 File that is marked as a symlink.
 .TP
+.B \fBtracked()\fP
+.sp
+File that is under Mercurial control.
+.TP
 .B \fBunknown()\fP
 .sp
-File that is unknown according to \%\fBhg status\fP\:. These files will only be
-considered if this predicate is used.
+File that is unknown according to \%\fBhg status\fP\:.
 .TP
 .B \fBunresolved()\fP
 .sp
@@ -7826,6 +7888,15 @@ Child changesets of changesets in set.
 .sp
 Changeset is closed.
 .TP
+.B \fBcommonancestors(set)\fP
+.sp
+Returns all common ancestors of the set.
+.sp
+This method is for calculating "::x and ::y" (i.e. all the ancestors that
+are common to both x and y) in an easy and optimized way. We can\(aqt quite
+use "::head()" because that revset returns "::x + ::y + ..." for each head
+in the repo (whereas we want "::x \fIand\fP ::y").
+.TP
 .B \fBcontains(pattern)\fP
 .sp
 The revision\(aqs manifest contains a file matching pattern (but might not
@@ -8017,6 +8088,10 @@ The changesets in a given namespace.
 .sp
 Pattern matching is supported for \fInamespace\fP. See
 \%\fBhg help revisions.patterns\fP\:.
+.TP
+.B \fBnone()\fP
+.sp
+No changesets.
 .TP
 .B \fBobsolete()\fP
 .sp
@@ -8933,6 +9008,19 @@ Any text. Treats the text as a path, and returns the last
 component of the path after splitting by the path separator.
 For example, "foo/bar/baz" becomes "baz" and "foo/bar//" becomes "".
 .TP
+.B commondir
+.
+List of text. Treats each list item as file name with /
+as path separator and returns the longest common directory
+prefix shared by all list items.
+Returns the empty string if no common prefix exists.
+.sp
+The list items are not normalized, i.e. "foo/../bar" is handled as
+file "bar" in the directory "foo/..". Leading slashes are ignored.
+.sp
+For example, ["foo/bar/baz", "foo/baz/bar"] becomes "foo" and
+["foo/bar", "baz"] becomes "".
+.TP
 .B count
 .
 List or text. Returns the length as an integer.
@@ -8995,6 +9083,10 @@ Date. Returns the date in ISO 8601 format: "2009\-08\-18 13:00
 Date. Returns the date in ISO 8601 format, including
 seconds: "2009\-08\-18 13:00:13 +0200". See also the rfc3339date
 filter.
+.TP
+.B json
+.
+Any object. Serializes the object to a JSON formatted text.
 .TP
 .B lower
 .
@@ -9121,6 +9213,11 @@ All files of the current changeset matching the pattern. See
 Fill many
 paragraphs with optional indentation. See the "fill" filter.
 .TP
+.B filter(iterable[, expr])
+.
+Remove empty elements from a list or a dict. If expr specified, it\(aqs
+applied to each element to test emptiness.
+.TP
 .B get(dict, key)
 .
 Get an attribute/key from an object. Some keywords
@@ -9164,7 +9261,8 @@ automatic colorization.
 The global tags matching the given pattern on the
 most recent globally tagged ancestor of this changeset.
 If no such tags exist, the "{tag}" template resolves to
-the string "null".
+the string "null". See \%\fBhg help revisions.patterns\fP\: for the pattern
+syntax.
 .TP
 .B localdate(date[, tz])
 .
@@ -9686,6 +9784,37 @@ Use the \fBacl.deny\fP and \fBacl.allow\fP sections to have path\-based
 access control. Keys in these sections accept a subtree pattern (with
 a glob syntax by default). The corresponding values follow the same
 syntax as the other sections above.
+.SS Bookmark\-based Access Control
+.sp
+Use the \fBacl.deny.bookmarks\fP and \fBacl.allow.bookmarks\fP sections to
+have bookmark\-based access control. Keys in these sections can be
+either:
+.INDENT 0.0
+.IP \(bu 2
+.
+a bookmark name, or
+.IP \(bu 2
+.
+an asterisk, to match any bookmark;
+.UNINDENT
+.sp
+The corresponding values can be either:
+.INDENT 0.0
+.IP \(bu 2
+.
+a comma\-separated list containing users and groups, or
+.IP \(bu 2
+.
+an asterisk, to match anyone;
+.UNINDENT
+.sp
+You can add the "!" prefix to a user or group name to invert the sense
+of the match.
+.sp
+Note: for interactions between clients and servers using Mercurial 3.6+
+a rejection will generally reject the entire push, for interactions
+involving older clients, the commit transactions will already be accepted,
+and only the bookmark movement will be rejected.
 .SS Groups
 .sp
 Group names must be prefixed with an \fB@\fP symbol. Specifying a group
@@ -9893,6 +10022,15 @@ comes from an unrecorded mv.
 The threshold at which a file is considered a move can be set with the
 \fBautomv.similarity\fP config option. This option takes a percentage between 0
 (disabled) and 100 (files must be identical), the default is 95.
+.SS beautifygraph
+.sp
+beautify log \-G output by using Unicode characters (EXPERIMENTAL)
+.INDENT 0.0
+.INDENT 3.5
+.sp
+A terminal with UTF\-8 support and monospace narrow text are required.
+.UNINDENT
+.UNINDENT
 .SS blackbox
 .sp
 log repository events to a blackbox for debugging
@@ -10987,6 +11125,16 @@ The default is 0.
 .B convert.hg.revs
 .
 revset specifying the source revisions to convert.
+.UNINDENT
+.SS Bazaar Source
+.sp
+The following options can be used with \fB\-\-config\fP:
+.INDENT 0.0
+.TP
+.B convert.bzr.saverev
+.
+whether to store the original Bazaar commit ID in
+the metadata of the destination commit. The default is True.
 .UNINDENT
 .SS CVS Source
 .sp
@@ -14752,6 +14900,10 @@ Maximum number of characters in email\(aqs subject line. Default: 67.
 .
 Set to True to include a diffstat before diff content. Default: True.
 .TP
+.B notify.showfunc
+.
+If set, override \fBdiff.showfunc\fP for the diff content. Default: None.
+.TP
 .B notify.merge
 .
 If True, send notifications for merge changesets. Default: True.
@@ -15462,9 +15614,17 @@ abort an interrupted rebase
 .
 automatically rebase orphan revisions in the specified revset (EXPERIMENTAL)
 .TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template (EXPERIMENTAL)
+.TP
+.B \-\-confirm
+.
+ask before applying actions
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -16031,7 +16191,7 @@ use the given name for the shelved commit
 .TP
 .B \-p,  \-\-patch
 .
-show patch
+output patches for changes (provide the names of the shelved changes as positional arguments)
 .TP
 .B \-i,  \-\-interactive
 .
@@ -16039,7 +16199,7 @@ interactive mode, only works while creating a shelve
 .TP
 .B \-\-stat
 .
-output diffstat\-style summary of changes
+output diffstat\-style summary of changes (provide the names of the shelved changes as positional arguments)
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -16349,11 +16509,11 @@ force removal of changesets, discard uncommitted changes (no backup)
 .TP
 .B \-\-no\-backup
 .
-no backups
+do not save backup bundle
 .TP
 .B \-\-nobackup
 .
-no backups (DEPRECATED)
+do not save backup bundle (DEPRECATED)
 .TP
 .B \-n
 .

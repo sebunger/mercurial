@@ -570,6 +570,11 @@ a different color mode than the pager program.
 Make paths in \%\fBhg status\fP\: output relative to the current directory.
 (default: False)
 .TP
+.B \fBstatus.terse\fP
+.sp
+Default value for the \-\-terse flag, which condenes status output.
+(default: empty)
+.TP
 .B \fBupdate.check\fP
 .sp
 Determines what level of checking \%\fBhg update\fP\: will perform before moving
@@ -937,6 +942,10 @@ Ignore changes whose lines are all blank.
 .B \fBunified\fP
 .sp
 Number of lines of context to show.
+.TP
+.B \fBword\-diff\fP
+.sp
+Highlight changed words.
 .UNINDENT
 .SS \fBemail\fP
 .sp
@@ -1042,6 +1051,14 @@ myfeature = ~/.hgext/myfeature.py
 .ft P
 .fi
 .SS \fBformat\fP
+.sp
+Configuration that controls the repository format. Newer format options are more
+powerful but incompatible with some older versions of Mercurial. Format options
+are considered at repository initialization only. You need to make a new clone
+for config change to be taken into account.
+.sp
+For more details about repository format and version compatibility, see
+\%https://www.mercurial\-scm.org/wiki/MissingRequirement\:
 .INDENT 0.0
 .TP
 .B \fBusegeneraldelta\fP
@@ -1159,6 +1176,25 @@ it is passed are listed with names in the form \fB$HG_foo\fP. The
 They contain the type of hook which triggered the run and the full name
 of the hook in the config, respectively. In the example above, this will
 be \fB$HG_HOOKTYPE=incoming\fP and \fB$HG_HOOKNAME=incoming.email\fP.
+.sp
+Some basic Unix syntax can be enabled for portability, including \fB$VAR\fP
+and \fB${VAR}\fP style variables.  A \fB~\fP followed by \fB\e\fP or \fB/\fP will
+be expanded to \fB%USERPROFILE%\fP to simulate a subset of tilde expansion
+on Unix.  To use a literal \fB$\fP or \fB~\fP, it must be escaped with a back
+slash or inside of a strong quote.  Strong quotes will be replaced by
+double quotes after processing.
+.sp
+This feature is enabled by adding a prefix of \fBtonative.\fP to the hook
+name on a new line, and setting it to \fBTrue\fP.  For example:
+.sp
+.nf
+.ft C
+[hooks]
+incoming.autobuild = /my/build/hook
+# enable translation to cmd.exe syntax for autobuild hook
+tonative.incoming.autobuild = True
+.ft P
+.fi
 .INDENT 0.0
 .TP
 .B \fBchangegroup\fP
@@ -2068,6 +2104,11 @@ One of \fBcallcount\fP, \fBreccallcount\fP, \fBtotaltime\fP and
 \fBinlinetime\fP.
 (default: inlinetime)
 .TP
+.B \fBtime\-track\fP
+.sp
+Control if the stat profiler track \fBcpu\fP or \fBreal\fP time.
+(default: \fBcpu\fP)
+.TP
 .B \fBlimit\fP
 .sp
 Number of lines to show. Specific to the \fBls\fP instrumenting profiler.
@@ -2169,6 +2210,21 @@ rebase of obsolete changesets.
 .SS \fBrevsetalias\fP
 .sp
 Alias definitions for revsets. See \%\fBhg help revsets\fP\: for details.
+.SS \fBstorage\fP
+.sp
+Control the strategy Mercurial uses internally to store history. Options in this
+category impact performance and repository size.
+.INDENT 0.0
+.TP
+.B \fBrevlog.optimize\-delta\-parent\-choice\fP
+.sp
+When storing a merge revision, both parents will be equally considered as
+a possible delta base. This results in better delta selection and improved
+revlog compression. This option is enabled by default.
+.sp
+Turning this option off can result in large increase of repository size for
+repository with many merges.
+.UNINDENT
 .SS \fBserver\fP
 .sp
 Controls generic server settings.
@@ -2608,6 +2664,12 @@ Select the interface for change recording (e.g. \%\fBhg commit \-i\fP\:).
 Possible values are \(aqtext\(aq and \(aqcurses\(aq.
 This config overrides the interface specified by ui.interface.
 .TP
+.B \fBlarge\-file\-limit\fP
+.sp
+Largest file size that gives no memory use warning.
+Possible values are integers or 0 to disable the check.
+(default: 10000000)
+.TP
 .B \fBlogtemplate\fP
 .sp
 Template string for commands that print changesets.
@@ -2852,7 +2914,7 @@ Where to output the access log. (default: stdout)
 .sp
 Interface address to bind to. (default: all)
 .TP
-.B \fBallow_archive\fP
+.B \fBallow\-archive\fP
 .sp
 List of archive format (bz2, gz, zip) allowed for downloading.
 (default: empty)

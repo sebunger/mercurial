@@ -135,12 +135,22 @@ static int find_lines(lazymanifest *self, char *data, Py_ssize_t len)
 	return 0;
 }
 
+static void lazymanifest_init_early(lazymanifest *self)
+{
+	self->pydata = NULL;
+	self->lines = NULL;
+	self->numlines = 0;
+	self->maxlines = 0;
+}
+
 static int lazymanifest_init(lazymanifest *self, PyObject *args)
 {
 	char *data;
 	Py_ssize_t len;
 	int err, ret;
 	PyObject *pydata;
+
+	lazymanifest_init_early(self);
 	if (!PyArg_ParseTuple(args, "S", &pydata)) {
 		return -1;
 	}
@@ -185,15 +195,13 @@ static void lazymanifest_dealloc(lazymanifest *self)
 {
 	/* free any extra lines we had to allocate */
 	int i;
-	for (i = 0; i < self->numlines; i++) {
+	for (i = 0; self->lines && (i < self->numlines); i++) {
 		if (self->lines[i].from_malloc) {
 			free(self->lines[i].start);
 		}
 	}
-	if (self->lines) {
-		free(self->lines);
-		self->lines = NULL;
-	}
+	free(self->lines);
+	self->lines = NULL;
 	if (self->pydata) {
 		Py_DECREF(self->pydata);
 		self->pydata = NULL;
@@ -670,6 +678,7 @@ static lazymanifest *lazymanifest_copy(lazymanifest *self)
 	if (!copy) {
 		goto nomem;
 	}
+	lazymanifest_init_early(copy);
 	copy->numlines = self->numlines;
 	copy->livelines = self->livelines;
 	copy->dirty = false;
@@ -707,6 +716,7 @@ static lazymanifest *lazymanifest_filtercopy(
 	if (!copy) {
 		goto nomem;
 	}
+	lazymanifest_init_early(copy);
 	copy->dirty = true;
 	copy->lines = malloc(self->maxlines * sizeof(line));
 	if (!copy->lines) {

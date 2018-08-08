@@ -136,7 +136,7 @@ class requestcontext(object):
         logourl = self.config('web', 'logourl')
         logoimg = self.config('web', 'logoimg')
         staticurl = (self.config('web', 'staticurl')
-                     or req.apppath + '/static/')
+                     or req.apppath.rstrip('/') + '/static/')
         if not staticurl.endswith('/'):
             staticurl += '/'
 
@@ -441,6 +441,8 @@ class hgweb(object):
             res.headers['Content-Type'] = ctype
             return rctx.sendtemplate('error', error=pycompat.bytestr(e))
         except ErrorResponse as e:
+            for k, v in e.headers:
+                res.headers[k] = v
             res.status = statusmessage(e.code, pycompat.bytestr(e))
             res.headers['Content-Type'] = ctype
             return rctx.sendtemplate('error', error=pycompat.bytestr(e))
