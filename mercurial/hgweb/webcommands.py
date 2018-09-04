@@ -276,9 +276,9 @@ def _search(web):
         if not funcsused.issubset(revset.safesymbols):
             return MODE_KEYWORD, query
 
-        mfunc = revset.match(web.repo.ui, revdef,
-                             lookup=revset.lookupfn(web.repo))
         try:
+            mfunc = revset.match(web.repo.ui, revdef,
+                                 lookup=revset.lookupfn(web.repo))
             revs = mfunc(web.repo)
             return MODE_REVSET, revs
             # ParseError: wrongly placed tokens, wrongs arguments, etc
@@ -394,12 +394,12 @@ def changelog(web, shortlog=False):
         ctx = web.repo['tip']
         symrev = 'tip'
 
-    def changelist():
+    def changelist(maxcount):
         revs = []
         if pos != -1:
             revs = web.repo.changelog.revs(pos, 0)
 
-        for entry in webutil.changelistentries(web, revs, revcount, parity):
+        for entry in webutil.changelistentries(web, revs, maxcount, parity):
             yield entry
 
     if shortlog:
@@ -426,7 +426,7 @@ def changelog(web, shortlog=False):
 
     changenav = webutil.revnav(web.repo).gen(pos, revcount, count)
 
-    entries = list(changelist())
+    entries = list(changelist(revcount + 1))
     latestentry = entries[:1]
     if len(entries) > revcount:
         nextentry = entries[-1:]
