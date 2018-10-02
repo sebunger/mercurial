@@ -1,3 +1,9 @@
+mercurial (4.7.2-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Julien Cristau <jcristau@mozilla.com>  Tue, 02 Oct 2018 16:36:05 +0200
+
 mercurial (4.7.1-1) unstable; urgency=medium
 
   * New upstream release
