@@ -5,4 +5,3 @@ contrib/mq.el usr/share/emacs/site-lisp
 debian/cacerts.rc etc/mercurial/hgrc.d/
 debian/hgrc etc/mercurial/
 debian/tmp/usr/lib
-mercurial/default.d/mergetools.rc etc/mercurial/hgrc.d/

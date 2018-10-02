@@ -1,1 +1,2 @@
 rm_conffile /etc/bash_completion.d/mercurial 3.5.1-2~ mercurial-common
+rm_conffile /etc/mercurial/hgrc.d/mergetools.rc 4.7.2-1~ mercurial-common
