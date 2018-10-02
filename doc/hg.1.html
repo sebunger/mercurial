@@ -6143,12 +6143,7 @@ changesets.</p>
 <dt><tt class="docutils literal">closed()</tt></dt>
 <dd>Changeset is closed.</dd>
 <dt><tt class="docutils literal">commonancestors(set)</tt></dt>
-<dd><p class="first">Returns all common ancestors of the set.</p>
-<p class="last">This method is for calculating &quot;::x and ::y&quot; (i.e. all the ancestors that
-are common to both x and y) in an easy and optimized way. We can't quite
-use &quot;::head()&quot; because that revset returns &quot;::x + ::y + ...&quot; for each head
-in the repo (whereas we want &quot;::x <em>and</em> ::y&quot;).</p>
-</dd>
+<dd>Changesets that are ancestors of every changeset in set.</dd>
 <dt><tt class="docutils literal">contains(pattern)</tt></dt>
 <dd><p class="first">The revision's manifest contains a file matching pattern (but might not
 modify it). See <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for information about file patterns.</p>
