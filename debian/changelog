@@ -1,9 +1,10 @@
-mercurial (4.7.2-1) UNRELEASED; urgency=medium
+mercurial (4.7.2-1) unstable; urgency=medium
 
+  * Team upload.
   * New upstream release.
   * Stop installing mergetools.rc in /etc/mercurial/hgrc.d (closes: #909224).
 
- -- Julien Cristau <jcristau@mozilla.com>  Tue, 02 Oct 2018 16:36:05 +0200
+ -- Julien Cristau <jcristau@mozilla.com>  Thu, 04 Oct 2018 15:10:15 +0200
 
 mercurial (4.7.1-1) unstable; urgency=medium
 
