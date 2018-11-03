@@ -61,7 +61,7 @@ def lsprofile(ui, fp):
         else:
             # format == 'text'
             stats = lsprof.Stats(p.getstats())
-            stats.sort(field)
+            stats.sort(pycompat.sysstr(field))
             stats.pprint(limit=limit, file=fp, climit=climit)
 
 @contextlib.contextmanager
@@ -101,7 +101,8 @@ def statprofile(ui, fp):
     else:
         ui.warn(_("invalid sampling frequency '%s' - ignoring\n") % freq)
 
-    track = ui.config('profiling', 'time-track')
+    track = ui.config('profiling', 'time-track',
+                      pycompat.iswindows and 'cpu' or 'real')
     statprof.start(mechanism='thread', track=track)
 
     try:

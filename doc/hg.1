@@ -354,6 +354,40 @@ it detects as binary. With \-a, annotate will annotate the file
 anyway, although the results will probably be neither useful
 nor desirable.
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B lines
+.
+List of lines with annotation data.
+.TP
+.B path
+.
+String. Repository\-absolute path of the specified file.
+.UNINDENT
+.sp
+And each entry of \fB{lines}\fP provides the following sub\-keywords in
+addition to \fB{date}\fP, \fB{node}\fP, \fB{rev}\fP, \fB{user}\fP, etc.
+.INDENT 0.0
+.TP
+.B line
+.
+String. Line content.
+.TP
+.B lineno
+.
+Integer. Line number at that revision.
+.TP
+.B path
+.
+String. Repository\-absolute path of the file at that revision.
+.UNINDENT
+.sp
+See \%\fBhg help templates.operators\fP\: for the list expansion syntax.
+.sp
 Returns 0 on success.
 .sp
 Options:
@@ -429,7 +463,7 @@ exclude names matching the given patterns
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -649,7 +683,7 @@ revision to backout
 .
 invoke editor on commit messages
 .TP
-.BI \-t,  \-\-tool \ <VALUE>
+.BI \-t,  \-\-tool \ <TOOL>
 .
 specify merge tool
 .TP
@@ -874,11 +908,23 @@ Bookmarks can be pushed and pulled between repositories (see
 diverged, a new \(aqdivergent bookmark\(aq of the form \%\(aqname@path\:\(aq will
 be created. Using \%\fBhg merge\fP\: will resolve the divergence.
 .sp
-Specifying bookmark as \(aq.\(aq to \-m or \-d options is equivalent to specifying
+Specifying bookmark as \(aq.\(aq to \-m/\-d/\-l options is equivalent to specifying
 the active bookmark\(aqs name.
 .sp
 A bookmark named \(aq@\(aq has the special property that \%\fBhg clone\fP\: will
 check it out by default if it exists.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions such as \fB{bookmark}\fP. See also
+\%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B active
+.
+Boolean. True if the bookmark is active.
+.UNINDENT
 .sp
 Examples:
 .INDENT 0.0
@@ -927,6 +973,15 @@ move the \(aq@\(aq bookmark from another branch:
 hg book \-f @
 .ft P
 .fi
+.IP \(bu 2
+.
+print only the active bookmark name:
+.sp
+.nf
+.ft C
+hg book \-ql .
+.ft P
+.fi
 .UNINDENT
 .sp
 Options:
@@ -952,9 +1007,13 @@ rename a given bookmark
 .
 mark a bookmark inactive
 .TP
+.B \-l,  \-\-list
+.
+list existing bookmarks
+.TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .sp
 aliases: bookmark
 .UNINDENT
@@ -1027,6 +1086,26 @@ been marked closed (see \%\fBhg commit \-\-close\-branch\fP\:).
 .sp
 Use the command \%\fBhg update\fP\: to switch to an existing branch.
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions such as \fB{branch}\fP. See also
+\%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B active
+.
+Boolean. True if the branch is active.
+.TP
+.B closed
+.
+Boolean. True if the branch is closed.
+.TP
+.B current
+.
+Boolean. True if it is the current branch.
+.UNINDENT
+.sp
 Returns 0.
 .sp
 Options:
@@ -1042,7 +1121,7 @@ show normal and closed branches
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .SS bundle
 .sp
@@ -1180,6 +1259,21 @@ basename of the exporting repository
 literal "" character
 .UNINDENT
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B data
+.
+String. File content.
+.TP
+.B path
+.
+String. Repository\-absolute path of the file.
+.UNINDENT
+.sp
 Returns 0 on success.
 .sp
 Options:
@@ -1207,7 +1301,7 @@ exclude names matching the given patterns
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -1588,6 +1682,24 @@ for each config item.
 .sp
 See \%\fBhg help config\fP\: for more information about config files.
 .sp
+Template:
+.sp
+The following keywords are supported. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B name
+.
+String. Config name.
+.TP
+.B source
+.
+String. Filename and line number where the item is defined.
+.TP
+.B value
+.
+String. Config value.
+.UNINDENT
+.sp
 Returns 0 on success, 1 if NAME does not exist.
 .sp
 Options:
@@ -1611,7 +1723,7 @@ edit global config
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .sp
 aliases: showconfig debugconfig
 .UNINDENT
@@ -1922,6 +2034,21 @@ format. See \%\fBhg help diffs\fP\: for more information.
 With the \-\-switch\-parent option, the diff will be against the
 second parent. It can be useful to review a merge.
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B diff
+.
+String. Diff content.
+.TP
+.B parents
+.
+List of strings. Parent nodes of the changeset.
+.UNINDENT
+.sp
 Examples:
 .INDENT 0.0
 .IP \(bu 2
@@ -1961,7 +2088,7 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.BI \-B,  \-\-bookmark \ <VALUE>
+.BI \-B,  \-\-bookmark \ <BOOKMARK>
 .
 export changes only reachable by given bookmark
 .TP
@@ -1995,7 +2122,7 @@ omit dates from diff headers
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -2015,6 +2142,25 @@ Files can be specified as filenames or filesets.
 .sp
 If no files are given to match, this command prints the names
 of all files under Mercurial control.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B flags
+.
+String. Character denoting file\(aqs symlink and executable bits.
+.TP
+.B path
+.
+String. Repository\-absolute path of the file.
+.TP
+.B size
+.
+Integer. Size of the file in bytes.
+.UNINDENT
 .sp
 Examples:
 .INDENT 0.0
@@ -2100,7 +2246,7 @@ exclude names matching the given patterns
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .TP
 .B \-S,  \-\-subrepos
 .
@@ -2318,7 +2464,7 @@ record the specified date as commit date
 .
 record the specified user as committer
 .TP
-.BI \-t,  \-\-tool \ <VALUE>
+.BI \-t,  \-\-tool \ <TOOL>
 .
 specify merge tool
 .TP
@@ -2353,6 +2499,44 @@ expression.
 If no FILEs are specified (and \-f/\-\-follow isn\(aqt set), all files in
 the repository are searched, including those that don\(aqt exist in the
 current branch or have been deleted in a prior changeset.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B change
+.
+String. Character denoting insertion \fB+\fP or removal \fB\-\fP.
+Available if \fB\-\-diff\fP is specified.
+.TP
+.B lineno
+.
+Integer. Line number of the match.
+.TP
+.B path
+.
+String. Repository\-absolute path of the file.
+.TP
+.B texts
+.
+List of text chunks.
+.UNINDENT
+.sp
+And each entry of \fB{texts}\fP provides the following sub\-keywords.
+.INDENT 0.0
+.TP
+.B matched
+.
+Boolean. True if the chunk matches the specified pattern.
+.TP
+.B text
+.
+String. Chunk content.
+.UNINDENT
+.sp
+See \%\fBhg help templates.operators\fP\: for the list expansion syntax.
 .sp
 Returns 0 if a match is found, 1 otherwise.
 .sp
@@ -2409,7 +2593,7 @@ list the date (short with \-q)
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -2485,7 +2669,7 @@ show help for a given topic or a help overview:
 .sp
 .nf
 .ft C
-hg help [\-ecks] [TOPIC]
+hg help [\-eck] [\-s PLATFORM] [TOPIC]
 .ft P
 .fi
 .sp
@@ -2511,7 +2695,7 @@ show only help for commands
 .
 show topics matching keyword
 .TP
-.BI \-s,  \-\-system \ <VALUE[+]>
+.BI \-s,  \-\-system \ <PLATFORM[+]>
 .
 show help for specific platform(s)
 .UNINDENT
@@ -2538,6 +2722,26 @@ of the working directory parent without scanning uncommitted changes.
 .sp
 Specifying a path to a repository root or Mercurial bundle will
 cause lookup to operate on that repository/bundle.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B dirty
+.
+String. Character \fB+\fP denoting if the working directory has
+uncommitted changes.
+.TP
+.B id
+.
+String. One or two nodes, optionally followed by \fB+\fP.
+.TP
+.B parents
+.
+List of strings. Parent nodes of the changeset.
+.UNINDENT
 .sp
 Examples:
 .INDENT 0.0
@@ -2616,7 +2820,7 @@ do not verify server certificate (ignoring web.cacerts config)
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .sp
 aliases: id
 .UNINDENT
@@ -3421,7 +3625,7 @@ list files from all revisions
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .SS merge
 .sp
@@ -3477,7 +3681,7 @@ review revisions to merge (no merge is performed)
 .
 abort the ongoing merge
 .TP
-.BI \-t,  \-\-tool \ <VALUE>
+.BI \-t,  \-\-tool \ <TOOL>
 .
 specify merge tool
 .UNINDENT
@@ -3703,6 +3907,24 @@ and \%\fBhg bundle\fP\:) operations.
 .sp
 See \%\fBhg help urls\fP\: for more information.
 .sp
+Template:
+.sp
+The following keywords are supported. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B name
+.
+String. Symbolic name of the path alias.
+.TP
+.B pushurl
+.
+String. URL for push operations.
+.TP
+.B url
+.
+String. URL or directory path for the other operations.
+.UNINDENT
+.sp
 Returns 0 on success.
 .sp
 Options:
@@ -3710,7 +3932,7 @@ Options:
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .SS phase
 .sp
@@ -4171,9 +4393,9 @@ The resolve command can be used in the following ways:
 .INDENT 0.0
 .IP \(bu 2
 .
-\%\fBhg resolve [\-\-tool TOOL] FILE...\fP\:: attempt to re\-merge the specified
-files, discarding any previous merge attempts. Re\-merging is not
-performed for files already marked as resolved. Use \fB\-\-all/\-a\fP
+\%\fBhg resolve [\-\-re\-merge] [\-\-tool TOOL] FILE...\fP\:: attempt to re\-merge
+the specified files, discarding any previous merge attempts. Re\-merging
+is not performed for files already marked as resolved. Use \fB\-\-all/\-a\fP
 to select all unresolved files. \fB\-\-tool\fP can be used to specify
 the merge tool used for the given files. It overrides the HGMERGE
 environment variable and your configuration files.  Previous file
@@ -4201,6 +4423,21 @@ conflicts. You must use \%\fBhg resolve \-m ...\fP\: before you can
 commit after a conflicting merge.
 .RE
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B mergestatus
+.
+String. Character denoting merge conflicts, \fBU\fP or \fBR\fP.
+.TP
+.B path
+.
+String. Repository\-absolute path of the file.
+.UNINDENT
+.sp
 Returns 0 on success, 1 if any files fail a resolve attempt.
 .sp
 Options:
@@ -4226,7 +4463,11 @@ mark files as unresolved
 .
 hide status prefix
 .TP
-.BI \-t,  \-\-tool \ <VALUE>
+.B \-\-re\-merge
+.
+re\-merge files
+.TP
+.BI \-t,  \-\-tool \ <TOOL>
 .
 specify merge tool
 .TP
@@ -4240,7 +4481,7 @@ exclude names matching the given patterns
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -4586,6 +4827,26 @@ You can skip displaying some of these states by setting
 \fBcommands.status.skipstates\fP to one or more of: \(aqbisect\(aq, \(aqgraft\(aq,
 \(aqhistedit\(aq, \(aqmerge\(aq, \(aqrebase\(aq, or \(aqunshelve\(aq.
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B path
+.
+String. Repository\-absolute path of the file.
+.TP
+.B source
+.
+String. Repository\-absolute path of the file originated from.
+Available if \fB\-\-copies\fP is specified.
+.TP
+.B status
+.
+String. Character denoting file\(aqs status.
+.UNINDENT
+.sp
 Examples:
 .INDENT 0.0
 .IP \(bu 2
@@ -4713,7 +4974,7 @@ recurse into subrepositories
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -4838,6 +5099,18 @@ This lists both regular and local tags. When the \-v/\-\-verbose
 switch is used, a third column "local" is printed for local tags.
 When the \-q/\-\-quiet switch is used, only the tag name is printed.
 .sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions such as \fB{tag}\fP. See also
+\%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B type
+.
+String. \fBlocal\fP for local tags.
+.UNINDENT
+.sp
 Returns 0 on success.
 .sp
 Options:
@@ -4845,7 +5118,7 @@ Options:
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .SS tip
 .sp
@@ -4999,7 +5272,7 @@ tipmost revision matching date
 .
 revision
 .TP
-.BI \-t,  \-\-tool \ <VALUE>
+.BI \-t,  \-\-tool \ <TOOL>
 .
 specify merge tool
 .sp
@@ -5037,14 +5310,39 @@ hg version
 .ft P
 .fi
 .sp
-output version and copyright information
+Template:
+.sp
+The following keywords are supported. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B extensions
+.
+List of extensions.
+.TP
+.B ver
+.
+String. Version number.
+.UNINDENT
+.sp
+And each entry of \fB{extensions}\fP provides the following sub\-keywords
+in addition to \fB{ver}\fP.
+.INDENT 0.0
+.TP
+.B bundled
+.
+Boolean. True if included in the release.
+.TP
+.B name
+.
+String. Extension name.
+.UNINDENT
 .sp
 Options:
 .INDENT 0.0
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .SH BUNDLE FILE FORMATS
 .sp
@@ -5750,6 +6048,10 @@ command to display statistics about repository history
 .B clonebundles
 .
 advertise pre\-generated bundles to seed clones
+.TP
+.B closehead
+.
+close arbitrary heads without checking them out first
 .TP
 .B convert
 .
@@ -7134,6 +7436,10 @@ Bundle2
 .
 Bundles
 .TP
+.B cbor
+.
+CBOR
+.TP
 .B censor
 .
 Censor
@@ -7157,6 +7463,14 @@ Revision Logs
 .B wireprotocol
 .
 Wire Protocol
+.TP
+.B wireprotocolrpc
+.
+Wire Protocol RPC
+.TP
+.B wireprotocolv2
+.
+Wire Protocol Version 2
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -7208,20 +7522,28 @@ same directory as \fBa.txt\fP.
 .sp
 This implies premerge. Therefore, files aren\(aqt dumped, if premerge
 runs successfully. Use :forcedump to forcibly write files out.
+.sp
+(actual capabilities: binary, symlink)
 .TP
 .B \fB:fail\fP
 .sp
 Rather than attempting to merge files that were modified on both
 branches, it marks them as unresolved. The resolve command must be
 used to resolve these conflicts.
+.sp
+(actual capabilities: binary, symlink)
 .TP
 .B \fB:forcedump\fP
 .sp
 Creates three versions of the files as same as :dump, but omits premerge.
+.sp
+(actual capabilities: binary, symlink)
 .TP
 .B \fB:local\fP
 .sp
 Uses the local \fIp1()\fP version of files as the merged version.
+.sp
+(actual capabilities: binary, symlink)
 .TP
 .B \fB:merge\fP
 .sp
@@ -7250,11 +7572,15 @@ side of the merge and one for the base content.
 .B \fB:other\fP
 .sp
 Uses the other \fIp2()\fP version of files as the merged version.
+.sp
+(actual capabilities: binary, symlink)
 .TP
 .B \fB:prompt\fP
 .sp
 Asks the user which of the local \fIp1()\fP or the other \fIp2()\fP version to
 keep as the merged version.
+.sp
+(actual capabilities: binary, symlink)
 .TP
 .B \fB:tagmerge\fP
 .sp
@@ -7267,8 +7593,9 @@ files. It will use both left and right sides for conflict regions.
 No markers are inserted.
 .UNINDENT
 .sp
-Internal tools are always available and do not require a GUI but will by default
-not handle symlinks or binary files.
+Internal tools are always available and do not require a GUI but will
+by default not handle symlinks or binary files. See next section for
+detail about "actual capabilities" described above.
 .SS Choosing a merge tool
 .sp
 Mercurial uses these rules when deciding which merge tool to use:
@@ -7287,8 +7614,7 @@ must be executable by the shell.
 .
 If the filename of the file to be merged matches any of the patterns in the
 merge\-patterns configuration section, the first usable merge tool
-corresponding to a matching pattern is used. Here, binary capabilities of the
-merge tool are not considered.
+corresponding to a matching pattern is used.
 .IP 4. 3
 .
 If ui.merge is set it will be considered next. If the value is not the name
@@ -7310,6 +7636,91 @@ internal \fB:merge\fP is used.
 .
 Otherwise, \fB:prompt\fP is used.
 .UNINDENT
+.sp
+For historical reason, Mercurial treats merge tools as below while
+examining rules above.
+.TS
+center;
+|l|l|l|l|.
+_
+T{
+step
+T}	T{
+specified via
+T}	T{
+binary
+T}	T{
+symlink
+T}
+_
+T{
+.INDENT 0.0
+.IP 1. 3
+.UNINDENT
+T}	T{
+\-\-tool
+T}	T{
+o/o
+T}	T{
+o/o
+T}
+_
+T{
+.INDENT 0.0
+.IP 2. 3
+.UNINDENT
+T}	T{
+HGMERGE
+T}	T{
+o/o
+T}	T{
+o/o
+T}
+_
+T{
+.INDENT 0.0
+.IP 3. 3
+.UNINDENT
+T}	T{
+merge\-patterns
+T}	T{
+o/o(*)
+T}	T{
+x/?(*)
+T}
+_
+T{
+.INDENT 0.0
+.IP 4. 3
+.UNINDENT
+T}	T{
+ui.merge
+T}	T{
+x/?(*)
+T}	T{
+x/?(*)
+T}
+_
+.TE
+.sp
+Each capability column indicates Mercurial behavior for
+internal/external merge tools at examining each rule.
+.INDENT 0.0
+.IP \(bu 2
+.
+"o": "assume that a tool has capability"
+.IP \(bu 2
+.
+"x": "assume that a tool does not have capability"
+.IP \(bu 2
+.
+"?": "check actual capability of a tool"
+.UNINDENT
+.sp
+If \fBmerge.strict\-capability\-check\fP configuration is true, Mercurial
+checks capabilities of merge tools strictly in (*) cases above (= each
+capability column becomes "?/?"). It is false by default for backward
+compatibility.
 .IP Note
 .
 After selecting a merge program, Mercurial will by default attempt
@@ -8159,6 +8570,14 @@ Revision with the given numeric identifier.
 .sp
 Reverse order of set.
 .TP
+.B \fBrevset(set)\fP
+.sp
+Strictly interpret the content as a revset.
+.sp
+The content of this special predicate will be strictly interpreted as a
+revset. For example, \fBrevset(id(0))\fP will be interpreted as "id(0)"
+without possible ambiguity with a "id(0)" bookmark or tag.
+.TP
 .B \fBroots(set)\fP
 .sp
 Changesets in set with no parent changeset in set.
@@ -8804,7 +9223,7 @@ String. The active bookmark, if it is associated with the changeset.
 .TP
 .B author
 .
-String. The unmodified author of the changeset.
+Alias for \fB{user}\fP
 .TP
 .B bisect
 .
@@ -8962,6 +9381,10 @@ List of strings. Any tags associated with the changeset.
 .B termwidth
 .
 Integer. The width of the current terminal.
+.TP
+.B user
+.
+String. The unmodified author of the changeset.
 .TP
 .B verbosity
 .
@@ -9281,7 +9704,7 @@ Return the min of an iterable
 .
 Calculate a mod b such that a / b + a mod b == a
 .TP
-.B pad(text, width[, fillchar=\(aq \(aq[, left=False]])
+.B pad(text, width[, fillchar=\(aq \(aq[, left=False[, truncate=False]]])
 .
 Pad text with a
 fill character.
@@ -9711,6 +10134,102 @@ prefer it over \(aqdefault\(aq if both are defined.
 .SH EXTENSIONS
 .sp
 This section contains help for extensions that are distributed together with Mercurial. Help for other extensions is available in the help system.
+.SS absorb
+.sp
+apply working directory changes to changesets (EXPERIMENTAL)
+.sp
+The absorb extension provides a command to use annotate information to
+amend modified chunks into the corresponding non\-public changesets.
+.sp
+.nf
+.ft C
+[absorb]
+# only check 50 recent non\-public changesets at most
+max\-stack\-size = 50
+# whether to add noise to new commits to avoid obsolescence cycle
+add\-noise = 1
+# make \(gaamend \-\-correlated\(ga a shortcut to the main command
+amend\-flag = correlated
+
+[color]
+absorb.description = yellow
+absorb.node = blue bold
+absorb.path = bold
+.ft P
+.fi
+.SS Commands
+.SS absorb
+.sp
+incorporate corrections into the stack of draft changesets:
+.sp
+.nf
+.ft C
+hg absorb [OPTION] [FILE]...
+.ft P
+.fi
+.sp
+absorb analyzes each change in your working directory and attempts to
+amend the changed lines into the changesets in your stack that first
+introduced those lines.
+.sp
+If absorb cannot find an unambiguous changeset to amend for a change,
+that change will be left in the working directory, untouched. They can be
+observed by \%\fBhg status\fP\: or \%\fBhg diff\fP\: afterwards. In other words,
+absorb does not write to the working directory.
+.sp
+Changesets outside the revset \fI::. and not public() and not merge()\fP will
+not be changed.
+.sp
+Changesets that become empty after applying the changes will be deleted.
+.sp
+By default, absorb will show what it plans to do and prompt for
+confirmation.  If you are confident that the changes will be absorbed
+to the correct place, run \%\fBhg absorb \-a\fP\: to apply the changes
+immediately.
+.sp
+Returns 0 on success, 1 if all chunks were ignored and nothing amended.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-a,  \-\-apply\-changes
+.
+apply changes without prompting for confirmation
+.TP
+.B \-p,  \-\-print\-changes
+.
+always print which changesets are modified by which changes
+.TP
+.B \-i,  \-\-interactive
+.
+interactively select which chunks to apply (EXPERIMENTAL)
+.TP
+.B \-e,  \-\-edit\-lines
+.
+edit what lines belong to which changesets before commit (EXPERIMENTAL)
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.TP
+.BI \-\-style \ <STYLE>
+.
+display using template map file (DEPRECATED)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS acl
 .sp
 hooks for controlling repository access
@@ -10894,6 +11413,57 @@ message informing them how to bypass the clone bundles facility when a failure
 occurs. So server operators should prepare for some people to follow these
 instructions when a failure occurs, thus driving more load to the original
 Mercurial server when the bundle hosting service fails.
+.SS closehead
+.sp
+close arbitrary heads without checking them out first
+.SS Commands
+.SS close\-head
+.sp
+close the given head revisions:
+.sp
+.nf
+.ft C
+hg close\-head [OPTION]... [REV]...
+.ft P
+.fi
+.sp
+This is equivalent to checking out each revision in a clean tree and running
+\fBhg commit \-\-close\-branch\fP, except that it doesn\(aqt change the working
+directory.
+.sp
+The commit message must be specified with \-l or \-m.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+revision to check
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: close\-heads
+.UNINDENT
+.UNINDENT
 .SS commitextras
 .sp
 adds a new flag extras to commit (ADVANCED)
@@ -11755,6 +12325,95 @@ service = hg
 The executable entry defines the full path to the factotum binary. The
 mountpoint entry defines the path to the factotum file service. Lastly, the
 service entry controls the service name used when reading keys.
+.SS fastannotate
+.sp
+yet another annotate implementation that might be faster (EXPERIMENTAL)
+.sp
+The fastannotate extension provides a \(aqfastannotate\(aq command that makes
+use of the linelog data structure as a cache layer and is expected to
+be faster than the vanilla \(aqannotate\(aq if the cache is present.
+.sp
+In most cases, fastannotate requires a setup that mainbranch is some pointer
+that always moves forward, to be most efficient.
+.sp
+Using fastannotate together with linkrevcache would speed up building the
+annotate cache greatly. Run "debugbuildlinkrevcache" before
+"debugbuildannotatecache".
+.sp
+.nf
+.ft C
+[fastannotate]
+# specify the main branch head. the internal linelog will only contain
+# the linear (ignoring p2) "mainbranch". since linelog cannot move
+# backwards without a rebuild, this should be something that always moves
+# forward, usually it is "master" or "@".
+mainbranch = master
+
+# fastannotate supports different modes to expose its feature.
+# a list of combination:
+# \- fastannotate: expose the feature via the "fastannotate" command which
+#   deals with everything in a most efficient way, and provides extra
+#   features like \-\-deleted etc.
+# \- fctx: replace fctx.annotate implementation. note:
+#     a. it is less efficient than the "fastannotate" command
+#     b. it will make it practically impossible to access the old (disk
+#        side\-effect free) annotate implementation
+#     c. it implies "hgweb".
+# \- hgweb: replace hgweb\(aqs annotate implementation. conflict with "fctx".
+# (default: fastannotate)
+modes = fastannotate
+
+# default format when no format flags are used (default: number)
+defaultformat = changeset, user, date
+
+# serve the annotate cache via wire protocol (default: False)
+# tip: the .hg/fastannotate directory is portable \- can be rsynced
+server = True
+
+# build annotate cache on demand for every client request (default: True)
+# disabling it could make server response faster, useful when there is a
+# cronjob building the cache.
+serverbuildondemand = True
+
+# update local annotate cache from remote on demand
+client = False
+
+# path to use when connecting to the remote server (default: default)
+remotepath = default
+
+# minimal length of the history of a file required to fetch linelog from
+# the server. (default: 10)
+clientfetchthreshold = 10
+
+# use flock instead of the file existence lock
+# flock may not work well on some network filesystems, but they avoid
+# creating and deleting files frequently, which is faster when updating
+# the annotate cache in batch. if you have issues with this option, set it
+# to False. (default: True if flock is supported, False otherwise)
+useflock = True
+
+# for "fctx" mode, always follow renames regardless of command line option.
+# this is a BC with the original command but will reduced the space needed
+# for annotate cache, and is useful for client\-server setup since the
+# server will only provide annotate cache with default options (i.e. with
+# follow). do not affect "fastannotate" mode. (default: True)
+forcefollow = True
+
+# for "fctx" mode, always treat file as text files, to skip the "isbinary"
+# check. this is consistent with the "fastannotate" command and could help
+# to avoid a file fetch if remotefilelog is used. (default: True)
+forcetext = True
+
+# use unfiltered repo for better performance.
+unfilteredrepo = True
+
+# sacrifice correctness in some corner cases for performance. it does not
+# affect the correctness of the annotate cache being built. the option
+# is experimental and may disappear in the future (default: False)
+perfhack = True
+.ft P
+.fi
+.SS Commands
 .SS fetch
 .sp
 pull, update and merge in one command (DEPRECATED)
@@ -12746,7 +13405,7 @@ first revision to be edited
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -14713,6 +15372,10 @@ old paths to no longer include
 .
 new paths to exclude
 .TP
+.BI \-\-import\-rules \ <VALUE>
+.
+import narrowspecs from a file
+.TP
 .BI \-\-removeexclude \ <VALUE[+]>
 .
 old paths to no longer exclude
@@ -15148,7 +15811,7 @@ send changes not found in the target repository
 .
 send changes not in target as a binary bundle
 .TP
-.BI \-B,  \-\-bookmark \ <VALUE>
+.BI \-B,  \-\-bookmark \ <BOOKMARK>
 .
 send changes only reachable by given bookmark
 .TP
@@ -15184,11 +15847,11 @@ send patches as attachments
 .
 send patches as inline attachments
 .TP
-.BI \-\-bcc \ <VALUE[+]>
+.BI \-\-bcc \ <EMAIL[+]>
 .
 email addresses of blind carbon copy recipients
 .TP
-.BI \-c,  \-\-cc \ <VALUE[+]>
+.BI \-c,  \-\-cc \ <EMAIL[+]>
 .
 email addresses of copy recipients
 .TP
@@ -15200,15 +15863,15 @@ ask for confirmation before sending
 .
 add diffstat output to messages
 .TP
-.BI \-\-date \ <VALUE>
+.BI \-\-date \ <DATE>
 .
 use the given date as the sending date
 .TP
-.BI \-\-desc \ <VALUE>
+.BI \-\-desc \ <FILE>
 .
 use the given file as the series description
 .TP
-.BI \-f,  \-\-from \ <VALUE>
+.BI \-f,  \-\-from \ <EMAIL>
 .
 email address of sender
 .TP
@@ -15216,27 +15879,27 @@ email address of sender
 .
 print messages that would be sent
 .TP
-.BI \-m,  \-\-mbox \ <VALUE>
+.BI \-m,  \-\-mbox \ <FILE>
 .
 write messages to mbox file instead of sending them
 .TP
-.BI \-\-reply\-to \ <VALUE[+]>
+.BI \-\-reply\-to \ <EMAIL[+]>
 .
 email addresses replies should be sent to
 .TP
-.BI \-s,  \-\-subject \ <VALUE>
+.BI \-s,  \-\-subject \ <TEXT>
 .
 subject of first message (intro or single patch)
 .TP
-.BI \-\-in\-reply\-to \ <VALUE>
+.BI \-\-in\-reply\-to \ <MSGID>
 .
 message identifier to reply to
 .TP
-.BI \-\-flag \ <VALUE[+]>
+.BI \-\-flag \ <FLAG[+]>
 .
 flags to add in subject prefixes
 .TP
-.BI \-t,  \-\-to \ <VALUE[+]>
+.BI \-t,  \-\-to \ <EMAIL[+]>
 .
 email addresses of recipients
 .TP
@@ -15254,6 +15917,133 @@ do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS phabricator
+.sp
+simple Phabricator integration (EXPERIMENTAL)
+.sp
+This extension provides a \fBphabsend\fP command which sends a stack of
+changesets to Phabricator, and a \fBphabread\fP command which prints a stack of
+revisions in a format suitable for \%\fBhg import\fP\:, and a \fBphabupdate\fP command
+to update statuses in batch.
+.sp
+By default, Phabricator requires \fBTest Plan\fP which might prevent some
+changeset from being sent. The requirement could be disabled by changing
+\fBdifferential.require\-test\-plan\-field\fP config server side.
+.sp
+Config:
+.sp
+.nf
+.ft C
+[phabricator]
+# Phabricator URL
+url = https://phab.example.com/
+
+# Repo callsign. If a repo has a URL https://$HOST/diffusion/FOO, then its
+# callsign is "FOO".
+callsign = FOO
+
+# curl command to use. If not set (default), use builtin HTTP library to
+# communicate. If set, use the specified curl command. This could be useful
+# if you need to specify advanced options that is not easily supported by
+# the internal library.
+curlcmd = curl \-\-connect\-timeout 2 \-\-retry 3 \-\-silent
+
+[auth]
+example.schemes = https
+example.prefix = phab.example.com
+
+# API token. Get it from https://$HOST/conduit/login/
+example.phabtoken = cli\-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+.ft P
+.fi
+.SS Commands
+.SS phabread
+.sp
+.nf
+.ft C
+hg phabread DREVSPEC [OPTIONS]
+.ft P
+.fi
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-stack
+.
+read dependencies
+.TP
+.BI \-\-test\-vcr \ <VALUE>
+.
+Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise will mock all http requests using the specified vcr file. (ADVANCED)
+.UNINDENT
+.SS phabsend
+.sp
+.nf
+.ft C
+hg phabsend REV [OPTIONS]
+.ft P
+.fi
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+revisions to send
+.TP
+.B \-\-amend
+.
+update commit messages (default: True)
+.TP
+.BI \-\-reviewer \ <VALUE[+]>
+.
+specify reviewers
+.TP
+.B \-\-confirm
+.
+ask for confirmation before sending
+.TP
+.BI \-\-test\-vcr \ <VALUE>
+.
+Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise will mock all http requests using the specified vcr file. (ADVANCED)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS phabupdate
+.sp
+.nf
+.ft C
+hg phabupdate DREVSPEC [OPTIONS]
+.ft P
+.fi
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-accept
+.
+accept revisions
+.TP
+.B \-\-reject
+.
+reject revisions
+.TP
+.B \-\-abandon
+.
+abandon revisions
+.TP
+.B \-\-reclaim
+.
+reclaim revisions
+.TP
+.BI \-m,  \-\-comment \ <VALUE>
+.
+comment on the last revision
+.TP
+.BI \-\-test\-vcr \ <VALUE>
+.
+Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise will mock all http requests using the specified vcr file. (ADVANCED)
+.UNINDENT
 .SS purge
 .sp
 command to delete untracked files from the working directory
@@ -15430,7 +16220,8 @@ As a caveat: the tool will not be used to mediate when a file was
 deleted, there is no hook presently available for this.
 .sp
 If a rebase is interrupted to manually resolve a conflict, it can be
-continued with \-\-continue/\-c or aborted with \-\-abort/\-a.
+continued with \-\-continue/\-c, aborted with \-\-abort/\-a, or stopped with
+\-\-stop.
 .sp
 Examples:
 .INDENT 0.0
@@ -15597,6 +16388,10 @@ keep original branch names
 .
 specify merge tool
 .TP
+.B \-\-stop
+.
+stop interrupted rebase
+.TP
 .B \-c,  \-\-continue
 .
 continue an interrupted rebase
@@ -15615,7 +16410,7 @@ do not perform actions, just print output
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
-display with template (EXPERIMENTAL)
+display with template
 .TP
 .B \-\-confirm
 .
@@ -16448,6 +17243,46 @@ record the specified date as commit date
 .
 record the specified user as committer
 .UNINDENT
+.SS sqlitestore
+.sp
+store repository data in SQLite (EXPERIMENTAL)
+.sp
+The sqlitestore extension enables the storage of repository data in SQLite.
+.sp
+This extension is HIGHLY EXPERIMENTAL. There are NO BACKWARDS COMPATIBILITY
+GUARANTEES. This means that repositories created with this extension may
+only be usable with the exact version of this extension/Mercurial that was
+used. The extension attempts to enforce this in order to prevent repository
+corruption.
+.sp
+In addition, several features are not yet supported or have known bugs:
+.INDENT 0.0
+.IP \(bu 2
+.
+Only some data is stored in SQLite. Changeset, manifest, and other repository
+data is not yet stored in SQLite.
+.IP \(bu 2
+.
+Transactions are not robust. If the process is aborted at the right time
+during transaction close/rollback, the repository could be in an inconsistent
+state. This problem will diminish once all repository data is tracked by
+SQLite.
+.IP \(bu 2
+.
+Bundle repositories do not work (the ability to use e.g.
+\fIhg \-R <bundle\-file> log\fP to automatically overlay a bundle on top of the
+existing repository).
+.IP \(bu 2
+.
+Various other features don\(aqt work.
+.UNINDENT
+.sp
+This extension should work for basic clone/pull, update, and commit workflows.
+Some history rewriting operations may fail due to lack of support for bundle
+repositories.
+.sp
+To use, activate the extension and set the \fBstorage.new\-repo\-backend\fP config
+option to \fBsqlite\fP to enable new repositories to use SQLite for storage.
 .SS strip
 .sp
 strip changesets and their descendants from history
@@ -16518,7 +17353,7 @@ ignored  (DEPRECATED)
 .
 do not modify working directory during strip
 .TP
-.BI \-B,  \-\-bookmark \ <VALUE[+]>
+.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
 .
 remove revs only reachable from given bookmark
 .UNINDENT

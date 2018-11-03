@@ -565,6 +565,28 @@ a different color mode than the pager program.
 .SS \fBcommands\fP
 .INDENT 0.0
 .TP
+.B \fBresolve.confirm\fP
+.sp
+Confirm before performing action if no filename is passed.
+(default: False)
+.TP
+.B \fBresolve.explicit\-re\-merge\fP
+.sp
+Require uses of \fBhg resolve\fP to specify which action it should perform,
+instead of re\-merging files by default.
+(default: False)
+.TP
+.B \fBresolve.mark\-check\fP
+.sp
+Determines what level of checking \%\fBhg resolve \-\-mark\fP\: will perform before
+marking files as resolved. Valid values are \fBnone\(ga, \(ga\(gawarn\fP, and
+\fBabort\fP. \fBwarn\fP will output a warning listing the file(s) that still
+have conflict markers in them, but will still mark everything resolved.
+\fBabort\fP will output the same warning but will not mark things as resolved.
+If \-\-all is passed and this is set to \fBabort\fP, only a warning will be
+shown (an error will not be raised).
+(default: \fBnone\fP)
+.TP
 .B \fBstatus.relative\fP
 .sp
 Make paths in \%\fBhg status\fP\: output relative to the current directory.
@@ -1644,6 +1666,16 @@ Optional. User name to authenticate with at the proxy server.
 Optional. Always use the proxy, even for localhost and any entries
 in \fBhttp_proxy.no\fP. (default: False)
 .UNINDENT
+.SS \fBhttp\fP
+.sp
+Used to configure access to Mercurial repositories via HTTP.
+.INDENT 0.0
+.TP
+.B \fBtimeout\fP
+.sp
+If set, blocking operations will timeout after that many seconds.
+(default: None)
+.UNINDENT
 .SS \fBmerge\fP
 .sp
 This section specifies behavior during merges and updates.
@@ -1676,6 +1708,12 @@ halt the merge process on any merge tool failure. The merge process
 can be restarted by using the \fBresolve\fP command. When a merge is
 halted, the repository is left in a normal \fBunresolved\fP merge state.
 (default: \fBcontinue\fP)
+.TP
+.B \fBstrict\-capability\-check\fP
+.sp
+Whether capabilities of internal merge tools are checked strictly
+or not, while examining rules to decide merge tool to be used.
+(default: False)
 .UNINDENT
 .SS \fBmerge\-patterns\fP
 .sp
@@ -2107,7 +2145,7 @@ One of \fBcallcount\fP, \fBreccallcount\fP, \fBtotaltime\fP and
 .B \fBtime\-track\fP
 .sp
 Control if the stat profiler track \fBcpu\fP or \fBreal\fP time.
-(default: \fBcpu\fP)
+(default: \fBcpu\fP on Windows, otherwise \fBreal\fP)
 .TP
 .B \fBlimit\fP
 .sp
@@ -2362,6 +2400,11 @@ Large repositories using the \fIgeneraldelta\fP storage format should
 consider setting this option because converting \fIgeneraldelta\fP
 repositories to the exchange format required by the bundle1 data
 format can consume a lot of CPU.
+.TP
+.B \fBbundle2.stream\fP
+.sp
+Whether to allow clients to pull using the bundle2 streaming protocol.
+(default: True)
 .TP
 .B \fBzliblevel\fP
 .sp
@@ -2854,8 +2897,40 @@ By default Mercurial\(aqs behavior changes very little from release
 to release, but over time the recommended config settings
 shift. Enable this config to opt in to get automatic tweaks to
 Mercurial\(aqs behavior over time. This config setting will have no
-effet if \fBHGPLAIN\(ga is set or \(ga\(gaHGPLAINEXCEPT\fP is set and does
+effect if \fBHGPLAIN\fP is set or \fBHGPLAINEXCEPT\fP is set and does
 not include \fBtweakdefaults\fP. (default: False)
+.sp
+It currently means:
+.sp
+.nf
+.ft C
+[ui]
+# The rollback command is dangerous. As a rule, don\(aqt use it.
+rollback = False
+# Make \(gahg status\(ga report copy information
+statuscopies = yes
+# Prefer curses UIs when available. Revert to plain\-text with \(gatext\(ga.
+interface = curses
+
+[commands]
+# Grep working directory by default.
+grep.all\-files = True
+# Make \(gahg status\(ga emit cwd\-relative paths by default.
+status.relative = yes
+# Refuse to perform an \(gahg update\(ga that would cause a file content merge
+update.check = noconflict
+# Show conflicts information in \(gahg status\(ga
+status.verbose = True
+# Refuse to perform \(gahg resolve \-\-mark\(ga on files that still have conflict
+# markers
+resolve.mark\-check = abort
+
+[diff]
+git = 1
+showfunc = 1
+word\-diff = 1
+.ft P
+.fi
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -3172,6 +3247,10 @@ Values less than or equal to 0 always refresh.
 .B \fBserver\-header\fP
 .sp
 Value for HTTP \fBServer\fP response header.
+.TP
+.B \fBstatic\fP
+.sp
+Directory where static files are served from.
 .TP
 .B \fBstaticurl\fP
 .sp
