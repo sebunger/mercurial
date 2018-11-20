@@ -1,10 +1,11 @@
-mercurial (4.8-1) UNRELEASED; urgency=medium
+mercurial (4.8-1) unstable; urgency=medium
 
+  * Team upload.
   * New upstream release.
   * Add build-dep on "less" for tests.
   * Add test-wireproto-exchangev2.t to blacklist, it seems to be racy.
 
- -- Julien Cristau <jcristau@debian.org>  Sat, 03 Nov 2018 18:12:58 +0100
+ -- Julien Cristau <jcristau@debian.org>  Tue, 20 Nov 2018 15:47:36 +0100
 
 mercurial (4.7.2-1) unstable; urgency=medium
 
