@@ -46,7 +46,7 @@ Suggest Debian packages for some optional dependencies.
      pass
 --- mercurial.orig/hgext/convert/cvs.py
 +++ mercurial/hgext/convert/cvs.py
-@@ -43,7 +43,7 @@ class convert_cvs(converter_source):
+@@ -42,7 +42,7 @@ class convert_cvs(converter_source):
          if not os.path.exists(cvs):
              raise NoRepo(_("%s does not look like a CVS checkout") % path)
  
@@ -88,7 +88,7 @@ Suggest Debian packages for some optional dependencies.
          self.submodules = []
 --- mercurial.orig/hgext/convert/gnuarch.py
 +++ mercurial/hgext/convert/gnuarch.py
-@@ -54,7 +54,8 @@ class gnuarch_source(common.converter_so
+@@ -56,7 +56,8 @@ class gnuarch_source(common.converter_so
              if procutil.findexe('tla'):
                  self.execmd = 'tla'
              else:
@@ -145,7 +145,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- mercurial.orig/mercurial/hgweb/server.py
 +++ mercurial/mercurial/hgweb/server.py
-@@ -260,7 +260,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -264,7 +264,8 @@ class _httprequesthandlerssl(_httpreques
              from .. import sslutil
              sslutil.modernssl
          except ImportError:
