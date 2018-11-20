@@ -1,6 +1,7 @@
 mercurial (4.8-1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Add build-dep on "less" for tests.
 
  -- Julien Cristau <jcristau@debian.org>  Sat, 03 Nov 2018 18:12:58 +0100
 
