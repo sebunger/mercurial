@@ -12751,9 +12751,22 @@ example.phabtoken = cli-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 <h3>Commands</h3>
 <div class="section" id="phabread">
 <h4>phabread</h4>
+<p>print patches from Phabricator suitable for importing:</p>
 <pre class="literal-block">
 hg phabread DREVSPEC [OPTIONS]
 </pre>
+<p>DREVSPEC could be a Differential Revision identity, like <tt class="docutils literal">D123</tt>, or just
+the number <tt class="docutils literal">123</tt>. It could also have common operators like <tt class="docutils literal">+</tt>, <tt class="docutils literal">-</tt>,
+<tt class="docutils literal">&amp;</tt>, <tt class="docutils literal">(</tt>, <tt class="docutils literal">)</tt> for complex queries. Prefix <tt class="docutils literal">:</tt> could be used to
+select a stack.</p>
+<p><tt class="docutils literal">abandoned</tt>, <tt class="docutils literal">accepted</tt>, <tt class="docutils literal">closed</tt>, <tt class="docutils literal">needsreview</tt>, <tt class="docutils literal">needsrevision</tt>
+could be used to filter patches by status. For performance reason, they
+only represent a subset of non-status selections and cannot be used alone.</p>
+<p>For example, <tt class="docutils literal"><span class="pre">:D6+8-(2+D4)</span></tt> selects a stack up to D6, plus D8 and exclude
+D2 and D4. <tt class="docutils literal">:D9 &amp; needsreview</tt> selects &quot;Needs Review&quot; revisions in a
+stack up to D9.</p>
+<p>If --stack is given, follow dependencies information and read all patches.
+It is equivalent to the <tt class="docutils literal">:</tt> operator.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -12771,9 +12784,30 @@ hg phabread DREVSPEC [OPTIONS]
 </div>
 <div class="section" id="phabsend">
 <h4>phabsend</h4>
+<p>upload changesets to Phabricator:</p>
 <pre class="literal-block">
 hg phabsend REV [OPTIONS]
 </pre>
+<p>If there are multiple revisions specified, they will be send as a stack
+with a linear dependencies relationship using the order specified by the
+revset.</p>
+<p>For the first time uploading changesets, local tags will be created to
+maintain the association. After the first time, phabsend will check
+obsstore and tags information so it can figure out whether to update an
+existing Differential Revision, or create a new one.</p>
+<p>If --amend is set, update commit messages so they have the
+<tt class="docutils literal">Differential Revision</tt> URL, remove related tags. This is similar to what
+arcanist will do, and is more desired in author-push workflows. Otherwise,
+use local tags to record the <tt class="docutils literal">Differential Revision</tt> association.</p>
+<p>The --confirm option lets you confirm changesets before sending them. You
+can also add following to your configuration file to make it default
+behaviour:</p>
+<pre class="literal-block">
+[phabsend]
+confirm = true
+</pre>
+<p>phabsend will check obsstore and the above association to decide whether to
+update an existing Differential Revision, or create a new one.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />
@@ -12803,9 +12837,11 @@ hg phabsend REV [OPTIONS]
 </div>
 <div class="section" id="phabupdate">
 <h4>phabupdate</h4>
+<p>update Differential Revision in batch:</p>
 <pre class="literal-block">
 hg phabupdate DREVSPEC [OPTIONS]
 </pre>
+<p>DREVSPEC selects revisions. See <a class="reference external" href="hg.1.html#phabread"><tt class="docutils literal">hg help phabread</tt></a> for its usage.</p>
 <p>Options:</p>
 <table class="docutils option-list" frame="void" rules="none">
 <col class="option" />

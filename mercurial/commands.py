@@ -2478,10 +2478,11 @@ def _dograft(ui, repo, *revs, **opts):
                     revs.remove(ids[n])
             elif ctx.hex() in ids:
                 r = ids[ctx.hex()]
-                ui.warn(_('skipping already grafted revision %d:%s '
-                          '(was grafted from %d:%s)\n') %
-                        (r, repo[r], rev, ctx))
-                revs.remove(r)
+                if r in revs:
+                    ui.warn(_('skipping already grafted revision %d:%s '
+                              '(was grafted from %d:%s)\n') %
+                            (r, repo[r], rev, ctx))
+                    revs.remove(r)
         if not revs:
             return -1
 
@@ -4912,7 +4913,7 @@ def resolve(ui, repo, *pats, **opts):
         if hasconflictmarkers:
             ui.warn(_('warning: the following files still have conflict '
                       'markers:\n  ') + '\n  '.join(hasconflictmarkers) + '\n')
-            if markcheck == 'abort' and not all:
+            if markcheck == 'abort' and not all and not pats:
                 raise error.Abort(_('conflict markers detected'),
                                   hint=_('use --all to mark anyway'))
 

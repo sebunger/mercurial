@@ -15959,11 +15959,29 @@ example.phabtoken = cli\-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 .SS Commands
 .SS phabread
 .sp
+print patches from Phabricator suitable for importing:
+.sp
 .nf
 .ft C
 hg phabread DREVSPEC [OPTIONS]
 .ft P
 .fi
+.sp
+DREVSPEC could be a Differential Revision identity, like \fBD123\fP, or just
+the number \fB123\fP. It could also have common operators like \fB+\fP, \fB\-\fP,
+\fB&\fP, \fB(\fP, \fB)\fP for complex queries. Prefix \fB:\fP could be used to
+select a stack.
+.sp
+\fBabandoned\fP, \fBaccepted\fP, \fBclosed\fP, \fBneedsreview\fP, \fBneedsrevision\fP
+could be used to filter patches by status. For performance reason, they
+only represent a subset of non\-status selections and cannot be used alone.
+.sp
+For example, \fB:D6+8\-(2+D4)\fP selects a stack up to D6, plus D8 and exclude
+D2 and D4. \fB:D9 & needsreview\fP selects "Needs Review" revisions in a
+stack up to D9.
+.sp
+If \-\-stack is given, follow dependencies information and read all patches.
+It is equivalent to the \fB:\fP operator.
 .sp
 Options:
 .INDENT 0.0
@@ -15978,11 +15996,41 @@ Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise 
 .UNINDENT
 .SS phabsend
 .sp
+upload changesets to Phabricator:
+.sp
 .nf
 .ft C
 hg phabsend REV [OPTIONS]
 .ft P
 .fi
+.sp
+If there are multiple revisions specified, they will be send as a stack
+with a linear dependencies relationship using the order specified by the
+revset.
+.sp
+For the first time uploading changesets, local tags will be created to
+maintain the association. After the first time, phabsend will check
+obsstore and tags information so it can figure out whether to update an
+existing Differential Revision, or create a new one.
+.sp
+If \-\-amend is set, update commit messages so they have the
+\fBDifferential Revision\fP URL, remove related tags. This is similar to what
+arcanist will do, and is more desired in author\-push workflows. Otherwise,
+use local tags to record the \fBDifferential Revision\fP association.
+.sp
+The \-\-confirm option lets you confirm changesets before sending them. You
+can also add following to your configuration file to make it default
+behaviour:
+.sp
+.nf
+.ft C
+[phabsend]
+confirm = true
+.ft P
+.fi
+.sp
+phabsend will check obsstore and the above association to decide whether to
+update an existing Differential Revision, or create a new one.
 .sp
 Options:
 .INDENT 0.0
@@ -16011,11 +16059,15 @@ Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise 
 [+] marked option can be specified multiple times
 .SS phabupdate
 .sp
+update Differential Revision in batch:
+.sp
 .nf
 .ft C
 hg phabupdate DREVSPEC [OPTIONS]
 .ft P
 .fi
+.sp
+DREVSPEC selects revisions. See \%\fBhg help phabread\fP\: for its usage.
 .sp
 Options:
 .INDENT 0.0
