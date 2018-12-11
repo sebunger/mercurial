@@ -1,3 +1,10 @@
+mercurial (4.8.1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream bugfix release.
+
+ -- Julien Cristau <jcristau@debian.org>  Tue, 11 Dec 2018 18:14:10 +0100
+
 mercurial (4.8-2) unstable; urgency=medium
 
   * Team upload.
