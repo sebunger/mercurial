@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- mercurial.orig/mercurial/ui.py
 +++ mercurial/mercurial/ui.py
-@@ -1595,7 +1595,7 @@ class ui(object):
+@@ -1592,7 +1592,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:

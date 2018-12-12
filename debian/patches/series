@@ -1,3 +1,4 @@
+proposed_upstream__test-http-bad-server.patch
 deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
 deb_specific__optional-dependencies

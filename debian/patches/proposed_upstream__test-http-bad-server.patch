@@ -1,0 +1,109 @@
+# HG changeset patch
+# User Julien Cristau <jcristau@mozilla.com>
+# Date 1544593279 -3600
+#      Wed Dec 12 06:41:19 2018 +0100
+# Branch stable
+# Node ID 21f5810df84864ec01ca69ec1f36ddb54b6749fe
+# Parent  4265bfb53dd3c8961993a8af8a41691bcf03d6d7
+test: fix test-http-bad-server with current python 2.7
+
+https://github.com/python/cpython/pull/2825 changed the exception
+message for empty http status line.
+
+Differential Revision: https://phab.mercurial-scm.org/D5412
+
+diff --git a/tests/test-http-bad-server.t b/tests/test-http-bad-server.t
+--- a/tests/test-http-bad-server.t
++++ b/tests/test-http-bad-server.t
+@@ -64,50 +64,50 @@ The flakiness in this output was observa
+   $ killdaemons.py $DAEMON_PIDS
+ 
+ Failure to read all bytes in initial HTTP request should yield connection related error message
+ 
+   $ hg serve --config badserver.closeafterrecvbytes=1 -p $HGPORT -d --pid-file=hg.pid -E error.log
+   $ cat hg.pid > $DAEMON_PIDS
+ 
+   $ hg clone http://localhost:$HGPORT/ clone
+-  abort: error: bad HTTP status line: ''
++  abort: error: bad HTTP status line: * (glob)
+   [255]
+ 
+   $ killdaemons.py $DAEMON_PIDS
+ 
+   $ cat error.log
+   readline(1 from 65537) -> (1) G
+   read limit reached; closing socket
+ 
+   $ rm -f error.log
+ 
+ Same failure, but server reads full HTTP request line
+ 
+   $ hg serve --config badserver.closeafterrecvbytes=40 -p $HGPORT -d --pid-file=hg.pid -E error.log
+   $ cat hg.pid > $DAEMON_PIDS
+   $ hg clone http://localhost:$HGPORT/ clone
+-  abort: error: bad HTTP status line: ''
++  abort: error: bad HTTP status line: * (glob)
+   [255]
+ 
+   $ killdaemons.py $DAEMON_PIDS
+ 
+   $ cat error.log
+   readline(40 from 65537) -> (33) GET /?cmd=capabilities HTTP/1.1\r\n
+   readline(7 from -1) -> (7) Accept-
+   read limit reached; closing socket
+ 
+   $ rm -f error.log
+ 
+ Failure on subsequent HTTP request on the same socket (cmd?batch)
+ 
+   $ hg serve --config badserver.closeafterrecvbytes=210,223 -p $HGPORT -d --pid-file=hg.pid -E error.log
+   $ cat hg.pid > $DAEMON_PIDS
+   $ hg clone http://localhost:$HGPORT/ clone
+-  abort: error: bad HTTP status line: ''
++  abort: error: bad HTTP status line: * (glob)
+   [255]
+ 
+   $ killdaemons.py $DAEMON_PIDS
+ 
+   $ cat error.log
+   readline(210 from 65537) -> (33) GET /?cmd=capabilities HTTP/1.1\r\n
+   readline(177 from -1) -> (27) Accept-Encoding: identity\r\n
+   readline(150 from -1) -> (35) accept: application/mercurial-0.1\r\n
+@@ -136,17 +136,17 @@ Failure on subsequent HTTP request on th
+   $ rm -f error.log
+ 
+ Failure to read getbundle HTTP request
+ 
+   $ hg serve --config badserver.closeafterrecvbytes=308,317,304 -p $HGPORT -d --pid-file=hg.pid -E error.log
+   $ cat hg.pid > $DAEMON_PIDS
+   $ hg clone http://localhost:$HGPORT/ clone
+   requesting all changes
+-  abort: error: bad HTTP status line: ''
++  abort: error: bad HTTP status line: * (glob)
+   [255]
+ 
+   $ killdaemons.py $DAEMON_PIDS
+ 
+   $ cat error.log
+   readline(1 from -1) -> (1) x (?)
+   readline(1 from -1) -> (1) x (?)
+   readline(308 from 65537) -> (33) GET /?cmd=capabilities HTTP/1.1\r\n
+@@ -195,17 +195,17 @@ Failure to read getbundle HTTP request
+   $ rm -f error.log
+ 
+ Now do a variation using POST to send arguments
+ 
+   $ hg serve --config experimental.httppostargs=true --config badserver.closeafterrecvbytes=329,344 -p $HGPORT -d --pid-file=hg.pid -E error.log
+   $ cat hg.pid > $DAEMON_PIDS
+ 
+   $ hg clone http://localhost:$HGPORT/ clone
+-  abort: error: bad HTTP status line: ''
++  abort: error: bad HTTP status line: * (glob)
+   [255]
+ 
+   $ killdaemons.py $DAEMON_PIDS
+ 
+   $ cat error.log
+   readline(329 from 65537) -> (33) GET /?cmd=capabilities HTTP/1.1\r\n
+   readline(296 from -1) -> (27) Accept-Encoding: identity\r\n
+   readline(269 from -1) -> (35) accept: application/mercurial-0.1\r\n

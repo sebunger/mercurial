@@ -1,3 +1,9 @@
+mercurial (4.8.1-2) unstable; urgency=medium
+
+  * test: fix test-http-bad-server with current python 2.7 (fixes FTBFS)
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 12 Dec 2018 06:58:28 +0100
+
 mercurial (4.8.1-1) unstable; urgency=medium
 
   * Team upload.
