@@ -9,7 +9,7 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
 --- mercurial.orig/tests/run-tests.py
 +++ mercurial/tests/run-tests.py
-@@ -2931,7 +2931,7 @@ class TestRunner(object):
+@@ -2996,7 +2996,7 @@ class TestRunner(object):
                   sys.executable)
              mypython = os.path.join(self._tmpbindir, pyexename)
              try:

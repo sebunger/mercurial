@@ -145,7 +145,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, 'svn')
 --- mercurial.orig/mercurial/hgweb/server.py
 +++ mercurial/mercurial/hgweb/server.py
-@@ -264,7 +264,8 @@ class _httprequesthandlerssl(_httpreques
+@@ -271,7 +271,8 @@ class _httprequesthandlerssl(_httpreques
              from .. import sslutil
              sslutil.modernssl
          except ImportError:

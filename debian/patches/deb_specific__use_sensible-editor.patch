@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- mercurial.orig/mercurial/ui.py
 +++ mercurial/mercurial/ui.py
-@@ -1592,7 +1592,7 @@ class ui(object):
+@@ -1689,7 +1689,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -325,7 +325,7 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- mercurial.orig/mercurial/help/config.txt
 +++ mercurial/mercurial/help/config.txt
-@@ -2178,7 +2178,8 @@ User interface controls.
+@@ -2191,7 +2191,8 @@ User interface controls.
      Print debugging information. (default: False)
  
  ``editor``
