@@ -594,7 +594,7 @@ Make paths in \%\fBhg status\fP\: output relative to the current directory.
 .TP
 .B \fBstatus.terse\fP
 .sp
-Default value for the \-\-terse flag, which condenes status output.
+Default value for the \-\-terse flag, which condenses status output.
 (default: empty)
 .TP
 .B \fBupdate.check\fP
@@ -2190,6 +2190,10 @@ possible. Some progress bars only offer indeterminate information, while others
 have a definite end point.
 .INDENT 0.0
 .TP
+.B \fBdebug\fP
+.sp
+Whether to print debug info when updating the progress bar. (default: False)
+.TP
 .B \fBdelay\fP
 .sp
 Number of seconds (float) before showing the progress bar. (default: 3)
@@ -2248,6 +2252,18 @@ rebase of obsolete changesets.
 .SS \fBrevsetalias\fP
 .sp
 Alias definitions for revsets. See \%\fBhg help revsets\fP\: for details.
+.SS \fBrewrite\fP
+.INDENT 0.0
+.TP
+.B \fBbackup\-bundle\fP
+.sp
+Whether to save stripped changesets to a bundle file. (default: True)
+.TP
+.B \fBupdate\-timestamp\fP
+.sp
+If true, updates the date and time of the changeset to current. It is only
+applicable for hg amend in current version.
+.UNINDENT
 .SS \fBstorage\fP
 .sp
 Control the strategy Mercurial uses internally to store history. Options in this
@@ -2750,6 +2766,20 @@ serious problems may occur.
 .sp
 Can be overridden per\-merge\-tool, see the \fB[merge\-tools]\fP section.
 .TP
+.B \fBmessage\-output\fP
+.sp
+Where to write status and error messages. (default: \fBstdio\fP)
+.INDENT 7.0
+.TP
+.B \fBstderr\fP
+.sp
+Everything to stderr.
+.TP
+.B \fBstdio\fP
+.sp
+Status to stdout, and error to stderr.
+.UNINDENT
+.TP
 .B \fBorigbackuppath\fP
 .sp
 The path to a directory used to store generated .orig files. If the path is
@@ -2808,6 +2838,17 @@ Alias for \fBignore\fP.
 .UNINDENT
 .sp
 On Windows, this configuration option is ignored and the command aborted.
+.TP
+.B \fBpre\-merge\-tool\-output\-template\fP
+.sp
+A template that is printed before executing an external merge tool. This can
+be used to print out additional context that might be useful to have during
+the conflict resolution, such as the description of the various commits
+involved or bookmarks/tags.
+.sp
+Additional information is available in the \fBlocal\(ga, \(ga\(gabase\fP, and \fBother\fP
+dicts. For example: \fB{local.label}\fP, \fB{base.name}\fP, or
+\fB{other.islink}\fP.
 .TP
 .B \fBquiet\fP
 .sp

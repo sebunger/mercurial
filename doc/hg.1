@@ -1119,10 +1119,16 @@ show only branches that have unmerged heads (DEPRECATED)
 .
 show normal and closed branches
 .TP
+.BI \-r,  \-\-rev \ <VALUE[+]>
+.
+show branch name(s) of the given rev
+.TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS bundle
 .sp
 create a bundle file:
@@ -2359,6 +2365,41 @@ continued with the \-c/\-\-continue option.
 .sp
 The \-c/\-\-continue option reapplies all the earlier options.
 .sp
+The \-\-base option exposes more of how graft internally uses merge with a
+custom base revision. \-\-base can be used to specify another ancestor than
+the first and only parent.
+.sp
+The command:
+.sp
+.nf
+.ft C
+hg graft \-r 345 \-\-base 234
+.ft P
+.fi
+.sp
+is thus pretty much the same as:
+.sp
+.nf
+.ft C
+hg diff \-r 234 \-r 345 | hg import
+.ft P
+.fi
+.sp
+but using merge to resolve conflicts and track moved files.
+.sp
+The result of a merge can thus be backported as a single commit by
+specifying one of the merge parents as base, and thus effectively
+grafting the changes from the other side.
+.sp
+It is also possible to collapse multiple changesets and clean up history
+by specifying another ancestor as base, much like rebase \-\-collapse
+\-\-keep.
+.sp
+The commit message can be tweaked after the fact using commit \-\-amend .
+.sp
+For using non\-ancestors as the base to backout changes, see the backout
+command and the hidden \-\-parent option.
+.sp
 Examples:
 .INDENT 0.0
 .IP \(bu 2
@@ -2407,6 +2448,25 @@ show revisions sorted by date:
 hg log \-r "sort(all(), date)"
 .ft P
 .fi
+.IP \(bu 2
+.
+backport the result of a merge as a single commit:
+.sp
+.nf
+.ft C
+hg graft \-r 123 \-\-base 123^
+.ft P
+.fi
+.IP \(bu 2
+.
+land a feature branch as one changeset:
+.sp
+.nf
+.ft C
+hg up \-cr default
+hg graft \-r featureX \-\-base "ancestor(\(aqfeatureX\(aq, \(aqdefault\(aq)"
+.ft P
+.fi
 .UNINDENT
 .sp
 See \%\fBhg help revisions\fP\: for more about specifying revisions.
@@ -2419,6 +2479,10 @@ Options:
 .BI \-r,  \-\-rev \ <REV[+]>
 .
 revisions to graft
+.TP
+.BI \-\-base \ <REV>
+.
+base revision when doing the graft merge (ADVANCED)
 .TP
 .B \-c,  \-\-continue
 .
@@ -4151,6 +4215,10 @@ allow pushing a new branch
 .BI \-\-pushvars \ <VALUE[+]>
 .
 variables that can be sent to server (ADVANCED)
+.TP
+.B \-\-publish
+.
+push the changeset as public (EXPERIMENTAL)
 .TP
 .BI \-e,  \-\-ssh \ <CMD>
 .
@@ -7072,15 +7140,20 @@ Regular expression, Python/Perl syntax.
 .B \fBglob\fP
 .sp
 Shell\-style glob.
+.TP
+.B \fBrootglob\fP
+.sp
+A variant of \fBglob\fP that is rooted (see below).
 .UNINDENT
 .sp
 The chosen syntax stays in effect when parsing all patterns that
 follow, until another syntax is selected.
 .sp
-Neither glob nor regexp patterns are rooted. A glob\-syntax pattern of
-the form \fB*.c\fP will match a file ending in \fB.c\fP in any directory,
-and a regexp pattern of the form \fB\e.c$\fP will do the same. To root a
-regexp pattern, start it with \fB^\fP.
+Neither \fBglob\fP nor regexp patterns are rooted. A glob\-syntax
+pattern of the form \fB*.c\fP will match a file ending in \fB.c\fP in any
+directory, and a regexp pattern of the form \fB\e.c$\fP will do the
+same. To root a regexp pattern, start it with \fB^\fP. To get the same
+effect with glob\-syntax, you have to use \fBrootglob\fP.
 .sp
 Subdirectories can have their own .hgignore settings by adding
 \fBsubinclude:path/to/subdir/.hgignore\fP to the root \fB.hgignore\fP. See
@@ -7451,6 +7524,10 @@ Changegroups
 .B config
 .
 Config Registrar
+.TP
+.B extensions
+.
+Extension API
 .TP
 .B requirements
 .
@@ -7823,7 +7900,9 @@ absolute path (relative to the repository root).
 .sp
 To use an extended glob, start a name with \fBglob:\fP. Globs are rooted
 at the current directory; a glob such as \fB*.c\fP will only match files
-in the current directory ending with \fB.c\fP.
+in the current directory ending with \fB.c\fP. \fBrootglob:\fP can be used
+instead of \fBglob:\fP for a glob that is rooted at the root of the
+repository.
 .sp
 The supported glob syntax extensions are \fB**\fP to match any string
 across path separators and \fB{a,b}\fP to mean "a or b".
@@ -7873,6 +7952,7 @@ foo/**         any file in directory foo plus all its subdirectories,
 foo/*.c        any name ending in ".c" in the directory foo
 foo/**.c       any name ending in ".c" in any subdirectory of foo
                including itself.
+rootglob:*.c   any name ending in ".c" in the root of the repository
 .ft P
 .fi
 .sp
@@ -9325,27 +9405,15 @@ namespace.
 String. The changeset identification hash, as a 40 hexadecimal
 digit string.
 .TP
-.B p1node
+.B p1
 .
-String. The identification hash of the changeset\(aqs first parent,
-as a 40 digit hexadecimal string. If the changeset has no parents, all
-digits are 0.
+Changeset. The changeset\(aqs first parent. \fB{p1.rev}\fP for the revision
+number, and \fB{p1.node}\fP for the identification hash.
 .TP
-.B p1rev
+.B p2
 .
-Integer. The repository\-local revision number of the changeset\(aqs
-first parent, or \-1 if the changeset has no parents.
-.TP
-.B p2node
-.
-String. The identification hash of the changeset\(aqs second
-parent, as a 40 digit hexadecimal string. If the changeset has no second
-parent, all digits are 0.
-.TP
-.B p2rev
-.
-Integer. The repository\-local revision number of the changeset\(aqs
-second parent, or \-1 if the changeset has no second parent.
+Changeset. The changeset\(aqs second parent. \fB{p2.rev}\fP for the revision
+number, and \fB{p2.node}\fP for the identification hash.
 .TP
 .B parents
 .
@@ -9722,6 +9790,11 @@ Execute a revision set query. See
 .B rstdoc(text, style)
 .
 Format reStructuredText.
+.TP
+.B search(pattern, text)
+.
+Look for the first text matching the regular expression pattern.
+Groups are accessible as \fB{1}\fP, \fB{2}\fP, ... in %\-mapped template.
 .TP
 .B separate(sep, args...)
 .
@@ -10500,6 +10573,10 @@ use interactive mode
 .
 store a note on the amend
 .TP
+.B \-D,  \-\-currentdate
+.
+record the current date as commit date
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -10575,6 +10652,11 @@ track = incoming
 maxsize = 1.5 MB
 # rotate up to N log files when the current one gets too big
 maxfiles = 3
+
+[blackbox]
+# Include nanoseconds in log entries with %f (see Python function
+# datetime.datetime.strftime)
+date\-format = \(aq%Y\-%m\-%d @ %H:%M:%S.%f\(aq
 .ft P
 .fi
 .SS Commands
@@ -10596,6 +10678,54 @@ Options:
 .BI \-l,  \-\-limit \ <VALUE>
 .
 the number of events to show (default: 10)
+.UNINDENT
+.SS bookflow
+.sp
+implements bookmark\-based branching (EXPERIMENTAL)
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+Disables creation of new branches (config: enable_branches=False).
+.IP \(bu 2
+.
+Requires an active bookmark on commit (config: require_bookmark=True).
+.IP \(bu 2
+.
+Doesn\(aqt move the active bookmark on update, only on commit.
+.IP \(bu 2
+.
+Requires \(aq\-\-rev\(aq for moving an existing bookmark.
+.IP \(bu 2
+.
+Protects special bookmarks (config: protect=@).
+.UNINDENT
+.sp
+flow related commands
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B hg book NAME
+.
+create a new bookmark
+.TP
+.B hg book NAME \-r REV
+.
+move bookmark to revision (fast\-forward)
+.TP
+.B hg up|co NAME
+.
+switch to bookmark
+.TP
+.B hg push \-B .
+.
+push active bookmark
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
 .UNINDENT
 .SS bugzilla
 .sp
@@ -12508,15 +12638,17 @@ formatting fixes to modified lines in C++ code:
 [fix]
 clang\-format:command=clang\-format \-\-assume\-filename={rootpath}
 clang\-format:linerange=\-\-lines={first}:{last}
-clang\-format:fileset=set:**.cpp or **.hpp
+clang\-format:pattern=set:**.cpp or **.hpp
 .ft P
 .fi
 .sp
 The :command suboption forms the first part of the shell command that will be
 used to fix a file. The content of the file is passed on standard input, and the
-fixed file content is expected on standard output. If there is any output on
-standard error, the file will not be affected. Some values may be substituted
-into the command:
+fixed file content is expected on standard output. Any output on standard error
+will be displayed as a warning. If the exit status is not zero, the file will
+not be affected. A placeholder warning is displayed if there is a non\-zero exit
+status but no standard error output. Some values may be substituted into the
+command:
 .sp
 .nf
 .ft C
@@ -12537,9 +12669,9 @@ substituted into the command:
 .ft P
 .fi
 .sp
-The :fileset suboption determines which files will be passed through each
-configured tool. See \%\fBhg help fileset\fP\: for possible values. If there are file
-arguments to \%\fBhg fix\fP\:, the intersection of these filesets is used.
+The :pattern suboption determines which files will be passed through each
+configured tool. See \%\fBhg help patterns\fP\: for possible values. If there are file
+arguments to \%\fBhg fix\fP\:, the intersection of these patterns is used.
 .sp
 There is also a configurable limit for the maximum size of file that will be
 processed by \%\fBhg fix\fP\::
@@ -12547,9 +12679,44 @@ processed by \%\fBhg fix\fP\::
 .nf
 .ft C
 [fix]
-maxfilesize=2MB
+maxfilesize = 2MB
 .ft P
 .fi
+.sp
+Normally, execution of configured tools will continue after a failure (indicated
+by a non\-zero exit status). It can also be configured to abort after the first
+such failure, so that no files will be affected if any tool fails. This abort
+will also cause \%\fBhg fix\fP\: to exit with a non\-zero status:
+.sp
+.nf
+.ft C
+[fix]
+failure = abort
+.ft P
+.fi
+.sp
+When multiple tools are configured to affect a file, they execute in an order
+defined by the :priority suboption. The priority suboption has a default value
+of zero for each tool. Tools are executed in order of descending priority. The
+execution order of tools with equal priority is unspecified. For example, you
+could use the \(aqsort\(aq and \(aqhead\(aq utilities to keep only the 10 smallest numbers
+in a text file by ensuring that \(aqsort\(aq runs before \(aqhead\(aq:
+.sp
+.nf
+.ft C
+[fix]
+sort:command = sort \-n
+head:command = head \-n 10
+sort:pattern = numbers.txt
+head:pattern = numbers.txt
+sort:priority = 2
+head:priority = 1
+.ft P
+.fi
+.sp
+To account for changes made by each tool, the line numbers used for incremental
+formatting are recomputed before executing the next tool. So, each tool may see
+different values for the arguments added by the :linerange suboption.
 .SS Commands
 .SS fix
 .sp
@@ -14126,15 +14293,16 @@ send ui.log() data to a subprocess (EXPERIMENTAL)
 This extension lets you specify a shell command per ui.log() event,
 sending all remaining arguments to as environment variables to that command.
 .sp
-Each positional argument to the method results in a \fIMSG[N]\fP key in the
-environment, starting at 1 (so \fIMSG1\fP, \fIMSG2\fP, etc.). Each keyword argument
-is set as a \fIOPT_UPPERCASE_KEY\fP variable (so the key is uppercased, and
-prefixed with \fIOPT_\fP). The original event name is passed in the \fIEVENT\fP
-environment variable, and the process ID of mercurial is given in \fIHGPID\fP.
+Positional arguments construct a log message, which is passed in the \fIMSG1\fP
+environment variables. Each keyword argument is set as a \fIOPT_UPPERCASE_KEY\fP
+variable (so the key is uppercased, and prefixed with \fIOPT_\fP). The original
+event name is passed in the \fIEVENT\fP environment variable, and the process ID
+of mercurial is given in \fIHGPID\fP.
 .sp
-So given a call \fIui.log(\(aqfoo\(aq, \(aqbar\(aq, \(aqbaz\(aq, spam=\(aqeggs\(aq), a script configured
-for the \(gafoo\fP event can expect an environment with \fIMSG1=bar\fP, \fIMSG2=baz\fP, and
-\fIOPT_SPAM=eggs\fP.
+So given a call \fIui.log(\(aqfoo\(aq, \(aqbar %s
+\(aq, \(aqbaz\(aq, spam=\(aqeggs\(aq), a script
+configured for the \(gafoo\fP event can expect an environment with \fIMSG1=bar baz\fP,
+and \fIOPT_SPAM=eggs\fP.
 .sp
 Scripts are configured in the \fI[logtoprocess]\fP section, each key an event name.
 For example:
@@ -14142,7 +14310,7 @@ For example:
 .nf
 .ft C
 [logtoprocess]
-commandexception = echo "$MSG2$MSG3" > /var/log/mercurial_exceptions.log
+commandexception = echo "$MSG1" > /var/log/mercurial_exceptions.log
 .ft P
 .fi
 .sp
@@ -15387,6 +15555,10 @@ whether to replace the existing narrowspec
 .B \-\-force\-delete\-local\-changes
 .
 forces deletion of local changes when narrowing
+.TP
+.B \-\-update\-working\-copy
+.
+update working copy when the store has changed
 .TP
 .BI \-e,  \-\-ssh \ <CMD>
 .
@@ -16767,6 +16939,262 @@ must be on the same local disk. If ORIGIN is omitted, looks for
 Do not attempt any read operations on this repository while the
 command is running. (Both repositories will be locked against
 writes.)
+.SS remotefilelog
+.sp
+remotefilelog causes Mercurial to lazilly fetch file contents (EXPERIMENTAL)
+.sp
+This extension is HIGHLY EXPERIMENTAL. There are NO BACKWARDS COMPATIBILITY
+GUARANTEES. This means that repositories created with this extension may
+only be usable with the exact version of this extension/Mercurial that was
+used. The extension attempts to enforce this in order to prevent repository
+corruption.
+.sp
+remotefilelog works by fetching file contents lazily and storing them
+in a cache on the client rather than in revlogs. This allows enormous
+histories to be transferred only partially, making them easier to
+operate on.
+.sp
+Configs:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+\fBpacks.maxchainlen\fP specifies the maximum delta chain length in pack files
+.sp
+\fBpacks.maxpacksize\fP specifies the maximum pack file size
+.INDENT 0.0
+.TP
+.B \fBpacks.maxpackfilecount\fP specifies the maximum number of packs in the
+.sp
+shared cache (trees only for now)
+.UNINDENT
+.sp
+\fBremotefilelog.backgroundprefetch\fP runs prefetch in background when True
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.bgprefetchrevs\fP specifies revisions to fetch on commit and
+.sp
+update, and on other commands that use them. Different from pullprefetch.
+.UNINDENT
+.sp
+\fBremotefilelog.gcrepack\fP does garbage collection during repack when True
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.nodettl\fP specifies maximum TTL of a node in seconds before
+.sp
+it is garbage collected
+.UNINDENT
+.sp
+\fBremotefilelog.repackonhggc\fP runs repack on hg gc when True
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.prefetchdays\fP specifies the maximum age of a commit in
+.sp
+days after which it is no longer prefetched.
+.TP
+.B \fBremotefilelog.prefetchdelay\fP specifies delay between background
+.sp
+prefetches in seconds after operations that change the working copy parent
+.TP
+.B \fBremotefilelog.data.gencountlimit\fP constraints the minimum number of data
+.sp
+pack files required to be considered part of a generation. In particular,
+minimum number of packs files > gencountlimit.
+.TP
+.B \fBremotefilelog.data.generations\fP list for specifying the lower bound of
+.sp
+each generation of the data pack files. For example, list [\(aq100MB\(aq,\(aq1MB\(aq]
+or [\(aq1MB\(aq, \(aq100MB\(aq] will lead to three generations: [0, 1MB), [
+1MB, 100MB) and [100MB, infinity).
+.TP
+.B \fBremotefilelog.data.maxrepackpacks\fP the maximum number of pack files to
+.sp
+include in an incremental data repack.
+.TP
+.B \fBremotefilelog.data.repackmaxpacksize\fP the maximum size of a pack file for
+.sp
+it to be considered for an incremental data repack.
+.TP
+.B \fBremotefilelog.data.repacksizelimit\fP the maximum total size of pack files
+.sp
+to include in an incremental data repack.
+.TP
+.B \fBremotefilelog.history.gencountlimit\fP constraints the minimum number of
+.sp
+history pack files required to be considered part of a generation. In
+particular, minimum number of packs files > gencountlimit.
+.TP
+.B \fBremotefilelog.history.generations\fP list for specifying the lower bound of
+.sp
+each generation of the history pack files. For example, list [
+\(aq100MB\(aq, \(aq1MB\(aq] or [\(aq1MB\(aq, \(aq100MB\(aq] will lead to three generations: [
+0, 1MB), [1MB, 100MB) and [100MB, infinity).
+.TP
+.B \fBremotefilelog.history.maxrepackpacks\fP the maximum number of pack files to
+.sp
+include in an incremental history repack.
+.TP
+.B \fBremotefilelog.history.repackmaxpacksize\fP the maximum size of a pack file
+.sp
+for it to be considered for an incremental history repack.
+.TP
+.B \fBremotefilelog.history.repacksizelimit\fP the maximum total size of pack
+.sp
+files to include in an incremental history repack.
+.TP
+.B \fBremotefilelog.backgroundrepack\fP automatically consolidate packs in the
+.sp
+background
+.UNINDENT
+.sp
+\fBremotefilelog.cachepath\fP path to cache
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.cachegroup\fP if set, make cache directory sgid to this
+.sp
+group
+.UNINDENT
+.sp
+\fBremotefilelog.cacheprocess\fP binary to invoke for fetching file data
+.sp
+\fBremotefilelog.debug\fP turn on remotefilelog\-specific debug output
+.sp
+\fBremotefilelog.excludepattern\fP pattern of files to exclude from pulls
+.sp
+\fBremotefilelog.includepattern\fP pattern of files to include in pulls
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.fetchwarning\fP: message to print when too many
+.sp
+single\-file fetches occur
+.UNINDENT
+.sp
+\fBremotefilelog.getfilesstep\fP number of files to request in a single RPC
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.getfilestype\fP if set to \(aqthreaded\(aq use threads to fetch
+.sp
+files, otherwise use optimistic fetching
+.TP
+.B \fBremotefilelog.pullprefetch\fP revset for selecting files that should be
+.sp
+eagerly downloaded rather than lazily
+.TP
+.B \fBremotefilelog.reponame\fP name of the repo. If set, used to partition
+.sp
+data from other repos in a shared store.
+.UNINDENT
+.sp
+\fBremotefilelog.server\fP if true, enable server\-side functionality
+.sp
+\fBremotefilelog.servercachepath\fP path for caching blobs on the server
+.INDENT 0.0
+.TP
+.B \fBremotefilelog.serverexpiration\fP number of days to keep cached server
+.sp
+blobs
+.TP
+.B \fBremotefilelog.validatecache\fP if set, check cache entries for corruption
+.sp
+before returning blobs
+.TP
+.B \fBremotefilelog.validatecachelog\fP if set, check cache entries for
+.sp
+corruption before returning metadata
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Commands
+.SS gc
+.sp
+garbage collect the client and server filelog caches:
+.sp
+.nf
+.ft C
+hg gc [REPO...]
+.ft P
+.fi
+.sp
+garbage collect the client and server filelog caches
+.SS prefetch
+.sp
+prefetch file revisions from the server:
+.sp
+.nf
+.ft C
+hg prefetch [OPTIONS] [FILE...]
+.ft P
+.fi
+.sp
+Prefetchs file revisions for the specified revs and stores them in the
+local remotefilelog cache.  If no rev is specified, the default rev is
+used which is the union of dot, draft, pullprefetch and bgprefetchrev.
+File names or patterns can be used to limit which files are downloaded.
+.sp
+Return 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+prefetch the specified revisions
+.TP
+.B \-\-repack
+.
+run repack after prefetch
+.TP
+.BI \-b,  \-\-base \ <VALUE>
+.
+rev that is assumed to already be local
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS repack
+.sp
+.nf
+.ft C
+hg repack [OPTIONS]
+.ft P
+.fi
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-background
+.
+run in a background process
+.TP
+.B \-\-incremental
+.
+do an incremental repack
+.TP
+.B \-\-packsonly
+.
+only repack packs (skip loose objects)
+.UNINDENT
+.SS verifyremotefilelog
+.sp
+.nf
+.ft C
+hg verifyremotefilelogs <directory>
+.ft P
+.fi
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-d,  \-\-decompress
+.
+decompress the filelogs first
+.UNINDENT
 .SS remotenames
 .INDENT 0.0
 .INDENT 3.5

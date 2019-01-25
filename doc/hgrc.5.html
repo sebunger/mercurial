@@ -66,23 +66,24 @@
 <li><a class="reference internal" href="#progress" id="id34"><tt class="docutils literal">progress</tt></a></li>
 <li><a class="reference internal" href="#rebase" id="id35"><tt class="docutils literal">rebase</tt></a></li>
 <li><a class="reference internal" href="#revsetalias" id="id36"><tt class="docutils literal">revsetalias</tt></a></li>
-<li><a class="reference internal" href="#storage" id="id37"><tt class="docutils literal">storage</tt></a></li>
-<li><a class="reference internal" href="#server" id="id38"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id39"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id40"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#subrepos" id="id41"><tt class="docutils literal">subrepos</tt></a></li>
-<li><a class="reference internal" href="#templatealias" id="id42"><tt class="docutils literal">templatealias</tt></a></li>
-<li><a class="reference internal" href="#templates" id="id43"><tt class="docutils literal">templates</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id44"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id45"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id46"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id47"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id48"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#rewrite" id="id37"><tt class="docutils literal">rewrite</tt></a></li>
+<li><a class="reference internal" href="#storage" id="id38"><tt class="docutils literal">storage</tt></a></li>
+<li><a class="reference internal" href="#server" id="id39"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id40"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id41"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#subrepos" id="id42"><tt class="docutils literal">subrepos</tt></a></li>
+<li><a class="reference internal" href="#templatealias" id="id43"><tt class="docutils literal">templatealias</tt></a></li>
+<li><a class="reference internal" href="#templates" id="id44"><tt class="docutils literal">templates</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id45"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id46"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#web" id="id47"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id48"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id49"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id49">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id50">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id51">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id50">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id51">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id52">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -499,7 +500,7 @@ shown (an error will not be raised).
 <dd>Make paths in <a class="reference external" href="hg.1.html#status"><tt class="docutils literal">hg status</tt></a> output relative to the current directory.
 (default: False)</dd>
 <dt><tt class="docutils literal">status.terse</tt></dt>
-<dd>Default value for the --terse flag, which condenes status output.
+<dd>Default value for the --terse flag, which condenses status output.
 (default: empty)</dd>
 <dt><tt class="docutils literal">update.check</tt></dt>
 <dd>Determines what level of checking <a class="reference external" href="hg.1.html#update"><tt class="docutils literal">hg update</tt></a> will perform before moving
@@ -1657,6 +1658,8 @@ display. Values format is the same as <tt class="docutils literal">showmin</tt>.
 possible. Some progress bars only offer indeterminate information, while others
 have a definite end point.</p>
 <dl class="docutils">
+<dt><tt class="docutils literal">debug</tt></dt>
+<dd>Whether to print debug info when updating the progress bar. (default: False)</dd>
 <dt><tt class="docutils literal">delay</tt></dt>
 <dd>Number of seconds (float) before showing the progress bar. (default: 3)</dd>
 <dt><tt class="docutils literal">changedelay</tt></dt>
@@ -1698,6 +1701,16 @@ rebase of obsolete changesets.</dd>
 <div class="section" id="revsetalias">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">revsetalias</tt></a></h2>
 <p>Alias definitions for revsets. See <a class="reference external" href="hg.1.html#revsets"><tt class="docutils literal">hg help revsets</tt></a> for details.</p>
+</div>
+<div class="section" id="rewrite">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">rewrite</tt></a></h2>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">backup-bundle</span></tt></dt>
+<dd>Whether to save stripped changesets to a bundle file. (default: True)</dd>
+<dt><tt class="docutils literal"><span class="pre">update-timestamp</span></tt></dt>
+<dd>If true, updates the date and time of the changeset to current. It is only
+applicable for hg amend in current version.</dd>
+</dl>
 </div>
 <div class="section" id="storage">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">storage</tt></a></h2>
@@ -2068,6 +2081,15 @@ markers is different from the encoding of the merged files,
 serious problems may occur.</p>
 <p class="last">Can be overridden per-merge-tool, see the <tt class="docutils literal"><span class="pre">[merge-tools]</span></tt> section.</p>
 </dd>
+<dt><tt class="docutils literal"><span class="pre">message-output</span></tt></dt>
+<dd><p class="first">Where to write status and error messages. (default: <tt class="docutils literal">stdio</tt>)</p>
+<dl class="last docutils">
+<dt><tt class="docutils literal">stderr</tt></dt>
+<dd>Everything to stderr.</dd>
+<dt><tt class="docutils literal">stdio</tt></dt>
+<dd>Status to stdout, and error to stderr.</dd>
+</dl>
+</dd>
 <dt><tt class="docutils literal">origbackuppath</tt></dt>
 <dd>The path to a directory used to store generated .orig files. If the path is
 not a directory, one will be created.  If set, files stored in this
@@ -2109,6 +2131,15 @@ file).</dd>
 </dl>
 <div class="windows last container">
 On Windows, this configuration option is ignored and the command aborted.</div>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">pre-merge-tool-output-template</span></tt></dt>
+<dd><p class="first">A template that is printed before executing an external merge tool. This can
+be used to print out additional context that might be useful to have during
+the conflict resolution, such as the description of the various commits
+involved or bookmarks/tags.</p>
+<p class="last">Additional information is available in the <tt class="docutils literal">local`, ``base</tt>, and <tt class="docutils literal">other</tt>
+dicts. For example: <tt class="docutils literal">{local.label}</tt>, <tt class="docutils literal">{base.name}</tt>, or
+<tt class="docutils literal">{other.islink}</tt>.</p>
 </dd>
 <dt><tt class="docutils literal">quiet</tt></dt>
 <dd>Reduce the amount of output printed.
