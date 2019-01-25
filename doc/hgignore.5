@@ -94,15 +94,20 @@ Regular expression, Python/Perl syntax.
 .B \fBglob\fP
 .sp
 Shell\-style glob.
+.TP
+.B \fBrootglob\fP
+.sp
+A variant of \fBglob\fP that is rooted (see below).
 .UNINDENT
 .sp
 The chosen syntax stays in effect when parsing all patterns that
 follow, until another syntax is selected.
 .sp
-Neither glob nor regexp patterns are rooted. A glob\-syntax pattern of
-the form \fB*.c\fP will match a file ending in \fB.c\fP in any directory,
-and a regexp pattern of the form \fB\e.c$\fP will do the same. To root a
-regexp pattern, start it with \fB^\fP.
+Neither \fBglob\fP nor regexp patterns are rooted. A glob\-syntax
+pattern of the form \fB*.c\fP will match a file ending in \fB.c\fP in any
+directory, and a regexp pattern of the form \fB\e.c$\fP will do the
+same. To root a regexp pattern, start it with \fB^\fP. To get the same
+effect with glob\-syntax, you have to use \fBrootglob\fP.
 .sp
 Subdirectories can have their own .hgignore settings by adding
 \fBsubinclude:path/to/subdir/.hgignore\fP to the root \fB.hgignore\fP. See

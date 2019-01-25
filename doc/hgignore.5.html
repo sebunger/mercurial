@@ -79,13 +79,16 @@ syntax: NAME
 <dd>Regular expression, Python/Perl syntax.</dd>
 <dt><tt class="docutils literal">glob</tt></dt>
 <dd>Shell-style glob.</dd>
+<dt><tt class="docutils literal">rootglob</tt></dt>
+<dd>A variant of <tt class="docutils literal">glob</tt> that is rooted (see below).</dd>
 </dl>
 <p>The chosen syntax stays in effect when parsing all patterns that
 follow, until another syntax is selected.</p>
-<p>Neither glob nor regexp patterns are rooted. A glob-syntax pattern of
-the form <tt class="docutils literal">*.c</tt> will match a file ending in <tt class="docutils literal">.c</tt> in any directory,
-and a regexp pattern of the form <tt class="docutils literal">\.c$</tt> will do the same. To root a
-regexp pattern, start it with <tt class="docutils literal">^</tt>.</p>
+<p>Neither <tt class="docutils literal">glob</tt> nor regexp patterns are rooted. A glob-syntax
+pattern of the form <tt class="docutils literal">*.c</tt> will match a file ending in <tt class="docutils literal">.c</tt> in any
+directory, and a regexp pattern of the form <tt class="docutils literal">\.c$</tt> will do the
+same. To root a regexp pattern, start it with <tt class="docutils literal">^</tt>. To get the same
+effect with glob-syntax, you have to use <tt class="docutils literal">rootglob</tt>.</p>
 <p>Subdirectories can have their own .hgignore settings by adding
 <tt class="docutils literal"><span class="pre">subinclude:path/to/subdir/.hgignore</span></tt> to the root <tt class="docutils literal">.hgignore</tt>. See
 <a class="reference external" href="hg.1.html#patterns"><tt class="docutils literal">hg help patterns</tt></a> for details on <tt class="docutils literal">subinclude:</tt> and <tt class="docutils literal">include:</tt>.</p>
