@@ -1,8 +1,8 @@
-mercurial (4.9~rc0-1) UNRELEASED; urgency=medium
+mercurial (4.9~rc0-1) experimental; urgency=medium
 
   * New upstream release candidate.
 
- -- Julien Cristau <jcristau@debian.org>  Fri, 25 Jan 2019 03:27:49 +0100
+ -- Julien Cristau <jcristau@debian.org>  Fri, 25 Jan 2019 17:47:04 +0100
 
 mercurial (4.8.2-1) unstable; urgency=medium
 
