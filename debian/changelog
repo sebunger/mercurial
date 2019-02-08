@@ -1,3 +1,9 @@
+mercurial (4.9-2) unstable; urgency=medium
+
+  * Bump Breaks on mercurial-git (closes: #921572)
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 08 Feb 2019 15:59:25 +0100
+
 mercurial (4.9-1) unstable; urgency=medium
 
   * New upstream release.
