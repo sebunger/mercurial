@@ -1,3 +1,24 @@
 Tests: testsuite
-Depends: @, zip, unzip, netbase, python-subversion, cvs, bzr, tla, gcc, python2.7-dev, less
+Depends:
+    @,
+    zip,
+    unzip,
+    netbase,
+    subversion,
+    python-subversion,
+    cvs,
+    bzr,
+    tla,
+    git,
+    darcs,
+    gcc,
+    python2.7-dev,
+    less,
+    gettext,
+    pylint,
+    python-pygments,
+    python-docutils,
+    sqlite3,
+    python-fuzzywuzzy,
+    python-vcr,
 Restrictions: allow-stderr

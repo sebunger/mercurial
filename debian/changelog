@@ -2,6 +2,17 @@ mercurial (4.9-3) UNRELEASED; urgency=medium
 
   * Drop autopkgtests dependency on monotone.  It's RC buggy, not in buster,
     and uninstallable in sid (closes: #919924).  Thanks, Graham Inggs!
+  * Add autopkgtests dependencies:
+    - subversion (for test-subrepo-svn.t, test-convert-svn-*.t)
+    - gettext (for test-gendoc-*.t)
+    - pylint (for test-check-pylint.t)
+    - python-pygments (for test-highlight.t)
+    - git (for test-convert-git.t, test-subrepo-git.t)
+    - python-docutils (for test-gendoc.t)
+    - sqlite3 (for test-wireproto-exchangev2-shallow.t, test-sqlitestore.t)
+    - python-fuzzywuzzy (for test-releasenotes-*.t)
+    - python-vcr (for test-phabricator.t)
+    - darcs (for test-convert-darcs.t)
 
  -- Julien Cristau <jcristau@debian.org>  Mon, 18 Feb 2019 21:53:00 +0100
 
