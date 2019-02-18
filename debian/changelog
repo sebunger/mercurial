@@ -1,3 +1,10 @@
+mercurial (4.9-3) UNRELEASED; urgency=medium
+
+  * Drop autopkgtests dependency on monotone.  It's RC buggy, not in buster,
+    and uninstallable in sid (closes: #919924).  Thanks, Graham Inggs!
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 18 Feb 2019 21:53:00 +0100
+
 mercurial (4.9-2) unstable; urgency=medium
 
   * Bump Breaks on mercurial-git (closes: #921572)
