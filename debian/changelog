@@ -1,5 +1,6 @@
 mercurial (4.9-3) UNRELEASED; urgency=medium
 
+  [ Julien Cristau ]
   * Drop autopkgtests dependency on monotone.  It's RC buggy, not in buster,
     and uninstallable in sid (closes: #919924).  Thanks, Graham Inggs!
   * Add autopkgtests dependencies:
@@ -13,6 +14,9 @@ mercurial (4.9-3) UNRELEASED; urgency=medium
     - python-fuzzywuzzy (for test-releasenotes-*.t)
     - python-vcr (for test-phabricator.t)
     - darcs (for test-convert-darcs.t)
+
+  [ Ondřej Nový ]
+  * Use debhelper-compat instead of debian/compat.
 
  -- Julien Cristau <jcristau@debian.org>  Mon, 18 Feb 2019 21:53:00 +0100
 
