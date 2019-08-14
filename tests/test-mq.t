@@ -305,6 +305,7 @@ patch:
 working dir diff:
 
   $ hg diff --nodates -q
+  diff -r dde259bd5934 a
   --- a/a
   +++ b/a
   @@ -1,1 +1,2 @@
@@ -810,7 +811,7 @@ strip with local changes, should complain
   $ echo y>y
   $ hg add y
   $ hg strip tip
-  abort: local changes found
+  abort: uncommitted changes
   [255]
 
 --force strip with local changes
@@ -1406,7 +1407,7 @@ apply force, should discard changes in hello, but not bye
   $ hg qpush -f --verbose --config 'ui.origbackuppath=.hg/origbackups'
   applying empty
   creating directory: $TESTTMP/forcepush/.hg/origbackups
-  saving current version of hello.txt as $TESTTMP/forcepush/.hg/origbackups/hello.txt
+  saving current version of hello.txt as .hg/origbackups/hello.txt
   patching file hello.txt
   committing files:
   hello.txt

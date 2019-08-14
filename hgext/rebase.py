@@ -108,7 +108,9 @@ def _revsetdestrebase(repo, subset, x):
 
 @revsetpredicate('_destautoorphanrebase')
 def _revsetdestautoorphanrebase(repo, subset, x):
-    """automatic rebase destination for a single orphan revision"""
+    # ``_destautoorphanrebase()``
+
+    # automatic rebase destination for a single orphan revision.
     unfi = repo.unfiltered()
     obsoleted = unfi.revs('obsolete()')
 
@@ -767,7 +769,7 @@ def rebase(ui, repo, **opts):
       3. Use ``--base`` to select a changeset; rebase will find ancestors
          and their descendants which are not also ancestors of the destination.
 
-      4. If you do not specify any of ``--rev``, ``source``, or ``--base``,
+      4. If you do not specify any of ``--rev``, ``--source``, or ``--base``,
          rebase will use ``--base .`` as above.
 
     If ``--source`` or ``--rev`` is used, special names ``SRC`` and ``ALLSRC``
@@ -848,8 +850,9 @@ def rebase(ui, repo, **opts):
       singletransaction = True
 
     By default, rebase writes to the working copy, but you can configure it to
-    run in-memory for for better performance, and to allow it to run if the
-    working copy is dirty::
+    run in-memory for better performance. When the rebase is not moving the
+    parent(s) of the working copy (AKA the "currently checked out changesets"),
+    this may also allow it to run even if the working copy is dirty::
 
       [rebase]
       experimental.inmemory = True
@@ -949,6 +952,9 @@ def _dryrunrebase(ui, repo, action, opts):
         except error.InMemoryMergeConflictsError:
             ui.status(_('hit a merge conflict\n'))
             return 1
+        except error.Abort:
+            needsabort = False
+            raise
         else:
             if confirm:
                 ui.status(_('rebase completed successfully\n'))
@@ -1278,7 +1284,7 @@ def rebasenode(repo, rev, p1, base, collapse, dest, wctx):
     return stats
 
 def adjustdest(repo, rev, destmap, state, skipped):
-    """adjust rebase destination given the current rebase state
+    r"""adjust rebase destination given the current rebase state
 
     rev is what is being rebased. Return a list of two revs, which are the
     adjusted destinations for rev's p1 and p2, respectively. If a parent is
@@ -1804,7 +1810,6 @@ def clearrebased(ui, repo, destmap, state, skipped, collapsedas=None,
 
 def pullrebase(orig, ui, repo, *args, **opts):
     'Call rebase after pull if the latter has been invoked with --rebase'
-    ret = None
     if opts.get(r'rebase'):
         if ui.configbool('commands', 'rebase.requiredest'):
             msg = _('rebase destination required by configuration')
@@ -1817,7 +1822,7 @@ def pullrebase(orig, ui, repo, *args, **opts):
                 ui.debug('--update and --rebase are not compatible, ignoring '
                          'the update flag\n')
 
-            cmdutil.checkunfinished(repo)
+            cmdutil.checkunfinished(repo, skipmerge=True)
             cmdutil.bailifchanged(repo, hint=_('cannot pull with rebase: '
                 'please commit or shelve your changes first'))
 
@@ -1879,8 +1884,8 @@ def _computeobsoletenotrebased(repo, rebaseobsrevs, destmap):
     obsolete successors.
     """
     obsoletenotrebased = {}
-    obsoletewithoutsuccessorindestination = set([])
-    obsoleteextinctsuccessors = set([])
+    obsoletewithoutsuccessorindestination = set()
+    obsoleteextinctsuccessors = set()
 
     assert repo.filtername is None
     cl = repo.changelog
@@ -1918,6 +1923,22 @@ def _computeobsoletenotrebased(repo, rebaseobsrevs, destmap):
         obsoleteextinctsuccessors,
     )
 
+def abortrebase(ui, repo):
+    with repo.wlock(), repo.lock():
+        rbsrt = rebaseruntime(repo, ui)
+        rbsrt._prepareabortorcontinue(isabort=True)
+
+def continuerebase(ui, repo):
+    with repo.wlock(), repo.lock():
+        rbsrt = rebaseruntime(repo, ui)
+        ms = mergemod.mergestate.read(repo)
+        mergeutil.checkunresolved(ms)
+        retcode = rbsrt._prepareabortorcontinue(isabort=False)
+        if retcode is not None:
+            return retcode
+        rbsrt._performrebase(None)
+        rbsrt._finishrebase()
+
 def summaryhook(ui, repo):
     if not repo.vfs.exists('rebasestate'):
         return
@@ -1945,8 +1966,6 @@ def uisetup(ui):
     entry[1].append(('t', 'tool', '',
                      _("specify merge tool for rebase")))
     cmdutil.summaryhooks.add('rebase', summaryhook)
-    cmdutil.unfinishedstates.append(
-        ['rebasestate', False, False, _('rebase in progress'),
-         _("use 'hg rebase --continue' or 'hg rebase --abort'")])
-    cmdutil.afterresolvedstates.append(
-        ['rebasestate', _('hg rebase --continue')])
+    statemod.addunfinished('rebase', fname='rebasestate', stopflag=True,
+                            continueflag=True, abortfunc=abortrebase,
+                            continuefunc=continuerebase)

@@ -64,7 +64,8 @@ def mvcheck(orig, ui, repo, *pats, **opts):
         if threshold > 0:
             match = scmutil.match(repo[None], pats, opts)
             added, removed = _interestingfiles(repo, match)
-            renames = _findrenames(repo, match, added, removed,
+            uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+            renames = _findrenames(repo, uipathfn, added, removed,
                                    threshold / 100.0)
 
     with repo.wlock():
@@ -80,16 +81,16 @@ def _interestingfiles(repo, matcher):
 
     """
     stat = repo.status(match=matcher)
-    added = stat[1]
-    removed = stat[2]
+    added = stat.added
+    removed = stat.removed
 
-    copy = copies._forwardcopies(repo['.'], repo[None], matcher)
+    copy = copies.pathcopies(repo['.'], repo[None], matcher)
     # remove the copy files for which we already have copy info
     added = [f for f in added if f not in copy]
 
     return added, removed
 
-def _findrenames(repo, matcher, added, removed, similarity):
+def _findrenames(repo, uipathfn, added, removed, similarity):
     """Find what files in added are really moved files.
 
     Any file named in removed that is at least similarity% similar to a file
@@ -103,7 +104,7 @@ def _findrenames(repo, matcher, added, removed, similarity):
             if repo.ui.verbose:
                 repo.ui.status(
                     _('detected move of %s as %s (%d%% similar)\n') % (
-                        matcher.rel(src), matcher.rel(dst), score * 100))
+                        uipathfn(src), uipathfn(dst), score * 100))
             renames[dst] = src
     if renames:
         repo.ui.status(_('detected move of %d files\n') % len(renames))

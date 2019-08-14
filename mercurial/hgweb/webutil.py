@@ -409,12 +409,6 @@ def whyunstable(context, mapping):
 
 whyunstable._requires = {'repo', 'ctx'}
 
-# helper to mark a function as a new-style template keyword; can be removed
-# once old-style function gets unsupported and new-style becomes the default
-def _kwfunc(f):
-    f._requires = ()
-    return f
-
 def commonentry(repo, ctx):
     node = scmutil.binnode(ctx)
     return {
@@ -439,8 +433,8 @@ def commonentry(repo, ctx):
         'branches': nodebranchdict(repo, ctx),
         'tags': nodetagsdict(repo, node),
         'bookmarks': nodebookmarksdict(repo, node),
-        'parent': _kwfunc(lambda context, mapping: parents(ctx)),
-        'child': _kwfunc(lambda context, mapping: children(ctx)),
+        'parent': lambda context, mapping: parents(ctx),
+        'child': lambda context, mapping: children(ctx),
     }
 
 def changelistentry(web, ctx):
@@ -456,13 +450,13 @@ def changelistentry(web, ctx):
     files = listfilediffs(ctx.files(), n, web.maxfiles)
 
     entry = commonentry(repo, ctx)
-    entry.update(
-        allparents=_kwfunc(lambda context, mapping: parents(ctx)),
-        parent=_kwfunc(lambda context, mapping: parents(ctx, rev - 1)),
-        child=_kwfunc(lambda context, mapping: children(ctx, rev + 1)),
-        changelogtag=showtags,
-        files=files,
-    )
+    entry.update({
+        'allparents': lambda context, mapping: parents(ctx),
+        'parent': lambda context, mapping: parents(ctx, rev - 1),
+        'child': lambda context, mapping: children(ctx, rev + 1),
+        'changelogtag': showtags,
+        'files': files,
+    })
     return entry
 
 def changelistentries(web, revs, maxcount, parityfn):
@@ -529,7 +523,7 @@ def changesetentry(web, ctx):
         changesetbranch=showbranch,
         files=templateutil.mappedgenerator(_listfilesgen,
                                            args=(ctx, web.stripecount)),
-        diffsummary=_kwfunc(lambda context, mapping: diffsummary(diffstatsgen)),
+        diffsummary=lambda context, mapping: diffsummary(diffstatsgen),
         diffstat=diffstats,
         archives=web.archivelist(ctx.hex()),
         **pycompat.strkwargs(commonentry(web.repo, ctx)))
@@ -565,16 +559,14 @@ def _prettyprintdifflines(context, lines, blockno, lineidprefix):
 def _diffsgen(context, repo, ctx, basectx, files, style, stripecount,
               linerange, lineidprefix):
     if files:
-        m = match.exact(repo.root, repo.getcwd(), files)
+        m = match.exact(files)
     else:
-        m = match.always(repo.root, repo.getcwd())
+        m = match.always()
 
     diffopts = patch.diffopts(repo.ui, untrusted=True)
-    node1 = basectx.node()
-    node2 = ctx.node()
     parity = paritygen(stripecount)
 
-    diffhunks = patch.diffhunks(repo, node1, node2, m, opts=diffopts)
+    diffhunks = patch.diffhunks(repo, basectx, ctx, m, opts=diffopts)
     for blockno, (fctx1, fctx2, header, hunks) in enumerate(diffhunks, 1):
         if style != 'raw':
             header = header[1:]

@@ -112,8 +112,10 @@ the extension is unknown.
    resolve       redo merges or set/view the merge status of files
    revert        restore files to their checkout state
    root          print the root (top) of the current working directory
+   shelve        save and set aside changes from the working directory
    status        show changed files in the working directory
    summary       summarize working directory state
+   unshelve      restore a shelved change to the working directory
    update        update working directory (or switch revisions)
   
   Change import/export:
@@ -238,8 +240,10 @@ the extension is unknown.
    resolve       redo merges or set/view the merge status of files
    revert        restore files to their checkout state
    root          print the root (top) of the current working directory
+   shelve        save and set aside changes from the working directory
    status        show changed files in the working directory
    summary       summarize working directory state
+   unshelve      restore a shelved change to the working directory
    update        update working directory (or switch revisions)
   
   Change import/export:
@@ -375,7 +379,6 @@ Test extension help:
        relink        recreates hardlinks between repository clones
        schemes       extend schemes with shortcuts to repository swarms
        share         share a common history between several working directories
-       shelve        save and restore changes to the working directory
        strip         strip changesets and their descendants from history
        transplant    command to transplant changesets from another branch
        win32mbcs     allow the use of MBCS paths with problematic encodings
@@ -399,11 +402,13 @@ Test short command list with verbose option
   
   basic commands:
   
+   abort         abort an unfinished operation (EXPERIMENTAL)
    add           add the specified files on the next commit
    annotate, blame
                  show changeset information by line for each file
    clone         make a copy of an existing repository
    commit, ci    commit the specified files or all outstanding changes
+   continue      resumes an interrupted operation (EXPERIMENTAL)
    diff          diff repository (or selected files)
    export        dump the header and diffs for one or more changesets
    forget        forget the specified files on the next commit
@@ -557,6 +562,10 @@ Test the textwidth config option
   
       Returns 0 on success.
   
+  options:
+  
+   -T --template TEMPLATE display with template
+  
   (some details hidden, use --verbose to show
   complete help)
 
@@ -614,6 +623,8 @@ Test command without options
       information about recovery from corruption of the repository.
   
       Returns 0 on success, 1 if errors are encountered.
+  
+  options:
   
   (some details hidden, use --verbose to show complete help)
 
@@ -825,7 +836,6 @@ this is a section and erroring out weirdly.
   > @command(b'hashelp', [], b'hg hashelp', norepo=True)
   > def hashelp(ui, *args, **kwargs):
   >     """Extension command's help"""
-  >     pass
   > 
   > def uisetup(ui):
   >     ui.setconfig(b'alias', b'shellalias', b'!echo hi', b'helpext')
@@ -1012,8 +1022,14 @@ Test list of internal help commands
    debugoptADV   (no help text available)
    debugoptDEP   (no help text available)
    debugoptEXP   (no help text available)
+   debugp1copies
+                 dump copy information compared to p1
+   debugp2copies
+                 dump copy information compared to p2
    debugpathcomplete
                  complete part or all of a tracked path
+   debugpathcopies
+                 show copies between two revisions
    debugpeer     establish a connection to a peer repository
    debugpickmergetool
                  examine which merge tool is chosen for specified file
@@ -1071,6 +1087,7 @@ internals topic renders index of available sub-topics
        changegroups  Changegroups
        config        Config Registrar
        extensions    Extension API
+       mergestate    Mergestate
        requirements  Repository Requirements
        revlogs       Revision Logs
        wireprotocol  Wire Protocol
@@ -1296,6 +1313,13 @@ sub-topics can be accessed
       *empty chunk* at the end of each *delta group* denotes the boundary to the
       next filelog sub-segment.
 
+non-existent subtopics print an error
+
+  $ hg help internals.foo
+  abort: no such help topic: internals.foo
+  (try 'hg help --keyword foo')
+  [255]
+
 test advanced, deprecated and experimental options are hidden in command help
   $ hg help debugoptADV
   hg debugoptADV
@@ -1504,6 +1528,10 @@ Separate sections from subsections
   
       "sparse-revlog"
   
+      "revlog-compression"
+  
+      "bookmarks-in-store"
+  
       "profiling"
       -----------
   
@@ -1672,7 +1700,7 @@ Test unfound keyword
 Test omit indicating for help
 
   $ cat > addverboseitems.py <<EOF
-  > '''extension to test omit indicating.
+  > r'''extension to test omit indicating.
   > 
   > This paragraph is never omitted (for extension)
   > 
@@ -1685,7 +1713,7 @@ Test omit indicating for help
   > '''
   > from __future__ import absolute_import
   > from mercurial import commands, help
-  > testtopic = b"""This paragraph is never omitted (for topic).
+  > testtopic = br"""This paragraph is never omitted (for topic).
   > 
   > .. container:: verbose
   > 
@@ -2327,6 +2355,13 @@ Dish up an empty repo; serve it cold.
   <tr><td colspan="2"><h2><a name="main" href="#main">Main Commands</a></h2></td></tr>
   
   <tr><td>
+  <a href="/help/abort">
+  abort
+  </a>
+  </td><td>
+  abort an unfinished operation (EXPERIMENTAL)
+  </td></tr>
+  <tr><td>
   <a href="/help/add">
   add
   </a>
@@ -2353,6 +2388,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   commit the specified files or all outstanding changes
+  </td></tr>
+  <tr><td>
+  <a href="/help/continue">
+  continue
+  </a>
+  </td><td>
+  resumes an interrupted operation (EXPERIMENTAL)
   </td></tr>
   <tr><td>
   <a href="/help/diff">
@@ -2682,6 +2724,13 @@ Dish up an empty repo; serve it cold.
   (no help text available)
   </td></tr>
   <tr><td>
+  <a href="/help/shelve">
+  shelve
+  </a>
+  </td><td>
+  save and set aside changes from the working directory
+  </td></tr>
+  <tr><td>
   <a href="/help/tag">
   tag
   </a>
@@ -2701,6 +2750,13 @@ Dish up an empty repo; serve it cold.
   </a>
   </td><td>
   apply one or more bundle files
+  </td></tr>
+  <tr><td>
+  <a href="/help/unshelve">
+  unshelve
+  </a>
+  </td><td>
+  restore a shelved change to the working directory
   </td></tr>
   <tr><td>
   <a href="/help/verify">
@@ -3416,6 +3472,13 @@ Sub-topic indexes rendered properly
   </a>
   </td><td>
   Extension API
+  </td></tr>
+  <tr><td>
+  <a href="/help/internals.mergestate">
+  mergestate
+  </a>
+  </td><td>
+  Mergestate
   </td></tr>
   <tr><td>
   <a href="/help/internals.requirements">

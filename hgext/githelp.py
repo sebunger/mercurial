@@ -25,6 +25,7 @@ from mercurial import (
     encoding,
     error,
     fancyopts,
+    pycompat,
     registrar,
     scmutil,
 )
@@ -83,21 +84,22 @@ def parseoptions(ui, cmdoptions, args):
             args = fancyopts.fancyopts(list(args), cmdoptions, opts, True)
             break
         except getopt.GetoptError as ex:
-            flag = None
-            if "requires argument" in ex.msg:
+            if r"requires argument" in ex.msg:
                 raise
-            if ('--' + ex.opt) in ex.msg:
-                flag = '--' + ex.opt
-            elif ('-' + ex.opt) in ex.msg:
-                flag = '-' + ex.opt
+            if (r'--' + ex.opt) in ex.msg:
+                flag = '--' + pycompat.bytestr(ex.opt)
+            elif (r'-' + ex.opt) in ex.msg:
+                flag = '-' + pycompat.bytestr(ex.opt)
             else:
-                raise error.Abort(_("unknown option %s") % ex.opt)
+                raise error.Abort(_("unknown option %s") %
+                                  pycompat.bytestr(ex.opt))
             try:
                 args.remove(flag)
             except Exception:
                 msg = _("unknown option '%s' packed with other options")
                 hint = _("please try passing the option as its own flag: -%s")
-                raise error.Abort(msg % ex.opt, hint=hint % ex.opt)
+                raise error.Abort(msg % pycompat.bytestr(ex.opt),
+                                  hint=hint % pycompat.bytestr(ex.opt))
 
             ui.warn(_("ignoring unknown option %s\n") % flag)
 
@@ -119,7 +121,12 @@ class Command(object):
             for k, values in sorted(self.opts.iteritems()):
                 for v in values:
                     if v:
-                        cmd += " %s %s" % (k, v)
+                        if isinstance(v, int):
+                            fmt = ' %s %d'
+                        else:
+                            fmt = ' %s %s'
+
+                        cmd += fmt % (k, v)
                     else:
                         cmd += " %s" % (k,)
         if self.args:
@@ -185,12 +192,15 @@ def am(ui, repo, *args, **kwargs):
 def apply(ui, repo, *args, **kwargs):
     cmdoptions = [
         ('p', 'p', int, ''),
+        ('', 'directory', '', ''),
     ]
     args, opts = parseoptions(ui, cmdoptions, args)
 
     cmd = Command('import --no-commit')
     if (opts.get('p')):
         cmd['-p'] = opts.get('p')
+    if opts.get('directory'):
+        cmd['--prefix'] = opts.get('directory')
     cmd.extend(args)
 
     ui.status((bytes(cmd)), "\n")
@@ -674,6 +684,7 @@ def mergetool(ui, repo, *args, **kwargs):
 def mv(ui, repo, *args, **kwargs):
     cmdoptions = [
         ('f', 'force', None, ''),
+        ('n', 'dry-run', None, ''),
     ]
     args, opts = parseoptions(ui, cmdoptions, args)
 
@@ -682,6 +693,8 @@ def mv(ui, repo, *args, **kwargs):
 
     if opts.get('force'):
         cmd['-f'] = None
+    if opts.get('dry_run'):
+        cmd['-n'] = None
 
     ui.status((bytes(cmd)), "\n")
 
@@ -910,6 +923,7 @@ def show(ui, repo, *args, **kwargs):
 
 def stash(ui, repo, *args, **kwargs):
     cmdoptions = [
+        ('p', 'patch', None, ''),
     ]
     args, opts = parseoptions(ui, cmdoptions, args)
 
@@ -918,6 +932,17 @@ def stash(ui, repo, *args, **kwargs):
 
     if action == 'list':
         cmd['-l'] = None
+        if opts.get('patch'):
+            cmd['-p'] = None
+    elif action == 'show':
+        if opts.get('patch'):
+            cmd['-p'] = None
+        else:
+            cmd['--stat'] = None
+        if len(args) > 1:
+            cmd.append(args[1])
+    elif action == 'clear':
+        cmd['--cleanup'] = None
     elif action == 'drop':
         cmd['-d'] = None
         if len(args) > 1:
@@ -930,10 +955,9 @@ def stash(ui, repo, *args, **kwargs):
             cmd.append(args[1])
         if action == 'apply':
             cmd['--keep'] = None
-    elif (action == 'branch' or action == 'show' or action == 'clear'
-        or action == 'create'):
+    elif action == 'branch' or action == 'create':
         ui.status(_("note: Mercurial doesn't have equivalents to the "
-                    "git stash branch, show, clear, or create actions\n\n"))
+                    "git stash branch or create actions\n\n"))
         return
     else:
         if len(args) > 0:

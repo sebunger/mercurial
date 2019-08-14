@@ -565,6 +565,11 @@ a different color mode than the pager program.
 .SS \fBcommands\fP
 .INDENT 0.0
 .TP
+.B \fBcommit.post\-status\fP
+.sp
+Show status of files in the working directory after successful commit.
+(default: False)
+.TP
 .B \fBresolve.confirm\fP
 .sp
 Confirm before performing action if no filename is passed.
@@ -1137,6 +1142,24 @@ performance (by using shortened delta chains.)
 Repositories with this on\-disk format require Mercurial version 4.7
 .sp
 Enabled by default.
+.TP
+.B \fBrevlog\-compression\fP
+.sp
+Compression algorithm used by revlog. Supported value are \fIzlib\fP and \fIzstd\fP.
+The \fIzlib\fP engine is the historical default of Mercurial. \fIzstd\fP is a newer
+format that is usually a net win over \fIzlib\fP operating faster at better
+compression rate. Use \fIzstd\fP to reduce CPU usage.
+.sp
+On some system, Mercurial installation may lack \fIzstd\fP supports. Default is \fIzlib\fP.
+.TP
+.B \fBbookmarks\-in\-store\fP
+.sp
+Store bookmarks in .hg/store/. This means that bookmarks are shared when
+using \fIhg share\fP regardless of the \fI\-B\fP option.
+.sp
+Repositories with this on\-disk format require Mercurial version 5.1.
+.sp
+Disabled by default.
 .UNINDENT
 .SS \fBgraph\fP
 .sp
@@ -2193,6 +2216,12 @@ Only used by the \fBstat\fP profiler.
 For the \fBchrome\fP format, default is \fB0.999\fP.
 .sp
 The option is unused on other formats.
+.TP
+.B \fBshowtime\fP
+.sp
+Show time taken as absolute durations, in addition to percentages.
+Only used by the \fBhotpath\fP format.
+(default: true)
 .UNINDENT
 .SS \fBprogress\fP
 .sp
@@ -2289,6 +2318,58 @@ revlog compression. This option is enabled by default.
 .sp
 Turning this option off can result in large increase of repository size for
 repository with many merges.
+.TP
+.B \fBrevlog.reuse\-external\-delta\-parent\fP
+.sp
+Control the order in which delta parents are considered when adding new
+revisions from an external source.
+(typically: apply bundle from \fIhg pull\fP or \fIhg push\fP).
+.sp
+New revisions are usually provided as a delta against other revisions. By
+default, Mercurial will try to reuse this delta first, therefore using the
+same "delta parent" as the source. Directly using delta\(aqs from the source
+reduces CPU usage and usually speeds up operation. However, in some case,
+the source might have sub\-optimal delta bases and forcing their reevaluation
+is useful. For example, pushes from an old client could have sub\-optimal
+delta\(aqs parent that the server want to optimize. (lack of general delta, bad
+parents, choice, lack of sparse\-revlog, etc).
+.sp
+This option is enabled by default. Turning it off will ensure bad delta
+parent choices from older client do not propagate to this repository, at
+the cost of a small increase in CPU consumption.
+.sp
+Note: this option only control the order in which delta parents are
+considered.  Even when disabled, the existing delta from the source will be
+reused if the same delta parent is selected.
+.TP
+.B \fBrevlog.reuse\-external\-delta\fP
+.sp
+Control the reuse of delta from external source.
+(typically: apply bundle from \fIhg pull\fP or \fIhg push\fP).
+.sp
+New revisions are usually provided as a delta against another revision. By
+default, Mercurial will not recompute the same delta again, trusting
+externally provided deltas. There have been rare cases of small adjustment
+to the diffing algorithm in the past. So in some rare case, recomputing
+delta provided by ancient clients can provides better results. Disabling
+this option means going through a full delta recomputation for all incoming
+revisions. It means a large increase in CPU usage and will slow operations
+down.
+.sp
+This option is enabled by default. When disabled, it also disables the
+related \fBstorage.revlog.reuse\-external\-delta\-parent\fP option.
+.TP
+.B \fBrevlog.zlib.level\fP
+.sp
+Zlib compression level used when storing data into the repository. Accepted
+Value range from 1 (lowest compression) to 9 (highest compression). Zlib
+default value is 6.
+.TP
+.B \fBrevlog.zstd.level\fP
+.sp
+zstd compression level used when storing data into the repository. Accepted
+Value range from 1 (lowest compression) to 22 (highest compression).
+(default 3)
 .UNINDENT
 .SS \fBserver\fP
 .sp
@@ -2461,6 +2542,14 @@ delivering better compression ratios.
 This option only impacts the HTTP server.
 .sp
 See also \fBserver.zliblevel\fP.
+.TP
+.B \fBview\fP
+.sp
+Repository filter used when exchanging revisions with the peer.
+.sp
+The default view (\fBserved\fP) excludes secret and hidden changesets.
+Another useful value is \fBimmutable\fP (no draft, secret or hidden
+changesets). (EXPERIMENTAL)
 .UNINDENT
 .SS \fBsmtp\fP
 .sp
@@ -2866,6 +2955,10 @@ dicts. For example: \fB{local.label}\fP, \fB{base.name}\fP, or
 Reduce the amount of output printed.
 (default: False)
 .TP
+.B \fBrelative\-paths\fP
+.sp
+Prefer relative paths in the UI.
+.TP
 .B \fBremotecmd\fP
 .sp
 Remote command to use for clone/push/pull operations.
@@ -2963,16 +3056,18 @@ rollback = False
 statuscopies = yes
 # Prefer curses UIs when available. Revert to plain\-text with \(gatext\(ga.
 interface = curses
+# Make compatible commands emit cwd\-relative paths by default.
+relative\-paths = yes
 
 [commands]
 # Grep working directory by default.
 grep.all\-files = True
-# Make \(gahg status\(ga emit cwd\-relative paths by default.
-status.relative = yes
 # Refuse to perform an \(gahg update\(ga that would cause a file content merge
 update.check = noconflict
 # Show conflicts information in \(gahg status\(ga
 status.verbose = True
+# Make \(gahg resolve\(ga with no action (like \(ga\-m\(ga) fail instead of re\-merging.
+resolve.explicit\-re\-merge = True
 
 [diff]
 git = 1

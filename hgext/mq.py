@@ -144,9 +144,21 @@ except KeyError:
     stripext = extensions.load(dummyui(), 'strip', '')
 
 strip = stripext.strip
-checksubstate = stripext.checksubstate
-checklocalchanges = stripext.checklocalchanges
 
+def checksubstate(repo, baserev=None):
+    '''return list of subrepos at a different revision than substate.
+    Abort if any subrepos have uncommitted changes.'''
+    inclsubs = []
+    wctx = repo[None]
+    if baserev:
+        bctx = repo[baserev]
+    else:
+        bctx = wctx.p1()
+    for s in sorted(wctx.substate):
+        wctx.sub(s).bailifchanged(True)
+        if s not in bctx.substate or bctx.sub(s).dirty():
+            inclsubs.append(s)
+    return inclsubs
 
 # Patch names looks like unix-file names.
 # They must be joinable with queue directory and result in the patch path.
@@ -738,10 +750,10 @@ class queue(object):
         for f in sorted(files):
             absf = repo.wjoin(f)
             if os.path.lexists(absf):
+                absorig = scmutil.backuppath(self.ui, repo, f)
                 self.ui.note(_('saving current version of %s as %s\n') %
-                             (f, scmutil.origpath(self.ui, repo, f)))
+                             (f, os.path.relpath(absorig)))
 
-                absorig = scmutil.origpath(self.ui, repo, absf)
                 if copy:
                     util.copyfile(absf, absorig)
                 else:
@@ -970,7 +982,7 @@ class queue(object):
                         repo.dirstate.remove(f)
                     for f in merged:
                         repo.dirstate.merge(f)
-                    p1, p2 = repo.dirstate.parents()
+                    p1 = repo.dirstate.p1()
                     repo.setparents(p1, merge)
 
             if all_files and '.hgsubstate' in all_files:
@@ -1149,7 +1161,19 @@ class queue(object):
             # plain versions for i18n tool to detect them
             _("local changes found, qrefresh first")
             _("local changed subrepos found, qrefresh first")
-        return checklocalchanges(repo, force, excsuffix)
+
+        s = repo.status()
+        if not force:
+            cmdutil.checkunfinished(repo)
+            if s.modified or s.added or s.removed or s.deleted:
+                _("local changes found") # i18n tool detection
+                raise error.Abort(_("local changes found" + excsuffix))
+            if checksubstate(repo):
+                _("local changed subrepos found") # i18n tool detection
+                raise error.Abort(_("local changed subrepos found" + excsuffix))
+        else:
+            cmdutil.checkunfinished(repo, skipmerge=True)
+        return s
 
     _reserved = ('series', 'status', 'guards', '.', '..')
     def checkreservedname(self, name):
@@ -1181,7 +1205,7 @@ class queue(object):
     def makepatchname(self, title, fallbackname):
         """Return a suitable filename for title, adding a suffix to make
         it unique in the existing list"""
-        namebase = re.sub('[\s\W_]+', '_', title.lower()).strip('_')
+        namebase = re.sub(br'[\s\W_]+', b'_', title.lower()).strip(b'_')
         namebase = namebase[:75] # avoid too long name (issue5117)
         if namebase:
             try:
@@ -1394,7 +1418,7 @@ class queue(object):
         diffopts = self.diffopts()
         with repo.wlock():
             heads = []
-            for hs in repo.branchmap().itervalues():
+            for hs in repo.branchmap().iterheads():
                 heads.extend(hs)
             if not heads:
                 heads = [nullid]
@@ -1700,8 +1724,7 @@ class queue(object):
             # but we do it backwards to take advantage of manifest/changelog
             # caching against the next repo.status call
             mm, aa, dd = repo.status(patchparent, top)[:3]
-            changes = repo.changelog.read(top)
-            man = repo.manifestlog[changes[0]].read()
+            ctx = repo[top]
             aaa = aa[:]
             match1 = scmutil.match(repo[None], pats, opts)
             # in short mode, we only diff the files included in the
@@ -1778,13 +1801,12 @@ class queue(object):
                         repo.dirstate.add(dst)
                     # remember the copies between patchparent and qtip
                     for dst in aaa:
-                        f = repo.file(dst)
-                        src = f.renamed(man[dst])
+                        src = ctx[dst].copysource()
                         if src:
-                            copies.setdefault(src[0], []).extend(
+                            copies.setdefault(src, []).extend(
                                 copies.get(dst, []))
                             if dst in a:
-                                copies[src[0]].append(dst)
+                                copies[src].append(dst)
                         # we can't copy a file created by the patch itself
                         if dst in copies:
                             del copies[dst]
@@ -1813,7 +1835,7 @@ class queue(object):
                 for f in forget:
                     repo.dirstate.drop(f)
 
-                user = ph.user or changes[1]
+                user = ph.user or ctx.user()
 
                 oldphase = repo[top].phase()
 
@@ -1942,7 +1964,7 @@ class queue(object):
                 self.ui.write(patchname, label='qseries.' + state)
             self.ui.write('\n')
 
-        applied = set([p.name for p in self.applied])
+        applied = {p.name for p in self.applied}
         if length is None:
             length = len(self.series) - start
         if not missing:
@@ -3521,7 +3543,7 @@ def reposetup(ui, repo):
             if self.mq.applied and self.mq.checkapplied and not force:
                 parents = self.dirstate.parents()
                 patches = [s.node for s in self.mq.applied]
-                if parents[0] in patches or parents[1] in patches:
+                if any(p in patches for p in parents):
                     raise error.Abort(errmsg)
 
         def commit(self, text="", user=None, date=None, match=None,
@@ -3660,7 +3682,7 @@ def revsetmq(repo, subset, x):
     """Changesets managed by MQ.
     """
     revsetlang.getargs(x, 0, 0, _("mq takes no arguments"))
-    applied = set([repo[r.node].rev() for r in repo.mq.applied])
+    applied = {repo[r.node].rev() for r in repo.mq.applied}
     return smartset.baseset([r for r in subset if r in applied])
 
 # tell hggettext to extract docstrings from these functions:

@@ -15,8 +15,8 @@
   > hgphab.prefix = phab.mercurial-scm.org
   > # When working on the extension and making phabricator interaction
   > # changes, edit this to be a real phabricator token. When done, edit
-  > # it back, and make sure to also edit your VCR transcripts to match
-  > # whatever value you put here.
+  > # it back. The VCR transcripts will be auto-sanitised to replace your real
+  > # token with this value.
   > hgphab.phabtoken = cli-hahayouwish
   > EOF
   $ VCR="$TESTDIR/phabricator"
@@ -32,6 +32,8 @@ this test.
 Basic phabread:
   $ hg phabread --test-vcr "$VCR/phabread-4480.json" D4480 | head
   # HG changeset patch
+  # Date 1536771503 0
+  # Parent  a5de21c9e3703f8e8eb064bd7d893ff2f703c66a
   exchangev2: start to implement pull with wire protocol v2
   
   Wire protocol version 2 will take a substantially different
@@ -39,8 +41,6 @@ Basic phabread:
   is concerned).
   
   This commit establishes a new exchangev2 module for holding
-  code related to exchange using wire protocol v2. I could have
-  added things to the existing exchange module. But it is already
 
 phabupdate with an accept:
   $ hg phabupdate --accept D4564 \
@@ -48,22 +48,24 @@ phabupdate with an accept:
   >  --test-vcr "$VCR/accept-4564.json"
 
 Create a differential diff:
+  $ HGENCODING=utf-8; export HGENCODING
   $ echo alpha > alpha
-  $ hg ci --addremove -m 'create alpha for phabricator test'
+  $ hg ci --addremove -m 'create alpha for phabricator test €'
   adding alpha
   $ hg phabsend -r . --test-vcr "$VCR/phabsend-create-alpha.json"
-  D4596 - created - 5206a4fa1e6c: create alpha for phabricator test
-  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/5206a4fa1e6c-dec9e777-phabsend.hg
+  D1190 - created - d386117f30e6: create alpha for phabricator test \xe2\x82\xac (esc)
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/d386117f30e6-24ffe649-phabsend.hg
   $ echo more >> alpha
   $ HGEDITOR=true hg ci --amend
-  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/d8f232f7d799-c573510a-amend.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/a86ed7d85e86-b7a54f3b-amend.hg
   $ echo beta > beta
   $ hg ci --addremove -m 'create beta for phabricator test'
   adding beta
   $ hg phabsend -r ".^::" --test-vcr "$VCR/phabsend-update-alpha-create-beta.json"
-  D4596 - updated - f70265671c65: create alpha for phabricator test
-  D4597 - created - 1a5640df7bbf: create beta for phabricator test
-  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/1a5640df7bbf-6daf3e6e-phabsend.hg
+  D1190 - updated - d940d39fb603: create alpha for phabricator test \xe2\x82\xac (esc)
+  D1191 - created - 4b2486dfc8c7: create beta for phabricator test
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/4b2486dfc8c7-d90584fa-phabsend.hg
+  $ unset HGENCODING
 
 The amend won't explode after posting a public commit.  The local tag is left
 behind to identify it.
@@ -74,13 +76,13 @@ behind to identify it.
   $ echo 'draft change' > alpha
   $ hg ci -m 'create draft change for phabricator testing'
   $ hg phabsend --amend -r '.^::' --test-vcr "$VCR/phabsend-create-public.json"
-  D5544 - created - 540a21d3fbeb: create public change for phabricator testing
-  D5545 - created - 6bca752686cd: create draft change for phabricator testing
-  warning: not updating public commit 2:540a21d3fbeb
-  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/6bca752686cd-41faefb4-phabsend.hg
+  D1192 - created - 24ffd6bca53a: create public change for phabricator testing
+  D1193 - created - ac331633be79: create draft change for phabricator testing
+  warning: not updating public commit 2:24ffd6bca53a
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/ac331633be79-719b961c-phabsend.hg
   $ hg tags -v
-  tip                                3:620a50fd6ed9
-  D5544                              2:540a21d3fbeb local
+  tip                                3:a19f1434f9a5
+  D1192                              2:24ffd6bca53a local
 
   $ hg debugcallconduit user.search --test-vcr "$VCR/phab-conduit.json" <<EOF
   > {
@@ -105,15 +107,47 @@ behind to identify it.
 
 Template keywords
   $ hg log -T'{rev} {phabreview|json}\n'
-  3 {"id": "D5545", "url": "https://phab.mercurial-scm.org/D5545"}
-  2 {"id": "D5544", "url": "https://phab.mercurial-scm.org/D5544"}
-  1 {"id": "D4597", "url": "https://phab.mercurial-scm.org/D4597"}
-  0 {"id": "D4596", "url": "https://phab.mercurial-scm.org/D4596"}
+  3 {"id": "D1193", "url": "https://phab.mercurial-scm.org/D1193"}
+  2 {"id": "D1192", "url": "https://phab.mercurial-scm.org/D1192"}
+  1 {"id": "D1191", "url": "https://phab.mercurial-scm.org/D1191"}
+  0 {"id": "D1190", "url": "https://phab.mercurial-scm.org/D1190"}
 
   $ hg log -T'{rev} {if(phabreview, "{phabreview.url} {phabreview.id}")}\n'
-  3 https://phab.mercurial-scm.org/D5545 D5545
-  2 https://phab.mercurial-scm.org/D5544 D5544
-  1 https://phab.mercurial-scm.org/D4597 D4597
-  0 https://phab.mercurial-scm.org/D4596 D4596
+  3 https://phab.mercurial-scm.org/D1193 D1193
+  2 https://phab.mercurial-scm.org/D1192 D1192
+  1 https://phab.mercurial-scm.org/D1191 D1191
+  0 https://phab.mercurial-scm.org/D1190 D1190
+
+Commenting when phabsending:
+  $ echo comment > comment
+  $ hg ci --addremove -m "create comment for phabricator test"
+  adding comment
+  $ hg phabsend -r . -m "For default branch" --test-vcr "$VCR/phabsend-comment-created.json"
+  D1253 - created - a7ee4bac036a: create comment for phabricator test
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/a7ee4bac036a-8009b5a0-phabsend.hg
+  $ echo comment2 >> comment
+  $ hg ci --amend
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/81fce7de1b7d-05339e5b-amend.hg
+  $ hg phabsend -r . -m "Address review comments" --test-vcr "$VCR/phabsend-comment-updated.json"
+  D1253 - updated - 1acd4b60af38: create comment for phabricator test
+
+Phabreading a DREV with a local:commits time as a string:
+  $ hg phabread --test-vcr "$VCR/phabread-str-time.json" D1285
+  # HG changeset patch
+  # User test <test>
+  # Date 1562019844 0
+  # Branch default
+  # Node ID da5c8c6bf23a36b6e3af011bc3734460692c23ce
+  # Parent  1f634396406d03e565ed645370e5fecd062cf215
+  test string time
+  
+  Differential Revision: https://phab.mercurial-scm.org/D1285
+  diff --git a/test b/test
+  new file mode 100644
+  --- /dev/null
+  +++ b/test
+  @@ * @@ (glob)
+  +test
+  
 
   $ cd ..

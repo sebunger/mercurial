@@ -1,11 +1,7 @@
 #require svn15
 
   $ SVNREPOPATH=`pwd`/svn-repo
-#if windows
-  $ SVNREPOURL=file:///`"$PYTHON" -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
-#else
-  $ SVNREPOURL=file://`"$PYTHON" -c "import urllib, sys; sys.stdout.write(urllib.quote(sys.argv[1]))" "$SVNREPOPATH"`
-#endif
+  $ SVNREPOURL="`"$PYTHON" $TESTDIR/svnurlof.py \"$SVNREPOPATH\"`"
 
   $ filter_svn_output () {
   >     egrep -v 'Committing|Transmitting|Updating|(^$)' || true
@@ -325,9 +321,11 @@ Sticky subrepositories, file changes
   $ cd ..
   $ hg update tip
    subrepository s diverged (local revision: 2, remote revision: 3)
-  (M)erge, keep (l)ocal [working copy] or keep (r)emote [destination]? m
+  you can (m)erge, keep (l)ocal [working copy] or keep (r)emote [destination].
+  what do you want to do? m
    subrepository sources for s differ
-  use (l)ocal source (2) or (r)emote source (3)? l
+  you can use (l)ocal source (2) or (r)emote source (3).
+  what do you want to do? l
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id -n
   2+
@@ -356,9 +354,11 @@ Sticky subrepository, revision updates
   $ cd ..
   $ hg update 1
    subrepository s diverged (local revision: 3, remote revision: 2)
-  (M)erge, keep (l)ocal [working copy] or keep (r)emote [destination]? m
+  you can (m)erge, keep (l)ocal [working copy] or keep (r)emote [destination].
+  what do you want to do? m
    subrepository sources for s differ (in checked out version)
-  use (l)ocal source (1) or (r)emote source (2)? l
+  you can use (l)ocal source (1) or (r)emote source (2).
+  what do you want to do? l
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id -n
   1+
@@ -379,9 +379,11 @@ Sticky subrepository, file changes and revision updates
   1+
   $ hg update tip
    subrepository s diverged (local revision: 3, remote revision: 3)
-  (M)erge, keep (l)ocal [working copy] or keep (r)emote [destination]? m
+  you can (m)erge, keep (l)ocal [working copy] or keep (r)emote [destination].
+  what do you want to do? m
    subrepository sources for s differ
-  use (l)ocal source (1) or (r)emote source (3)? l
+  you can use (l)ocal source (1) or (r)emote source (3).
+  what do you want to do? l
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id -n
   2+
@@ -413,7 +415,8 @@ Test subrepo already at intended revision:
   $ cd ..
   $ hg update 1
    subrepository s diverged (local revision: 3, remote revision: 2)
-  (M)erge, keep (l)ocal [working copy] or keep (r)emote [destination]? m
+  you can (m)erge, keep (l)ocal [working copy] or keep (r)emote [destination].
+  what do you want to do? m
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg id -n
   1+

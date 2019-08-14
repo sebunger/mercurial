@@ -143,7 +143,7 @@ def rawindexentries(ui, repos, req, subdir=''):
                 path = path[:-len(discarded) - 1]
 
                 try:
-                    r = hg.repository(ui, path)
+                    hg.repository(ui, path)
                     directory = False
                 except (IOError, error.RepoError):
                     pass
@@ -414,14 +414,10 @@ class hgwebdir(object):
                     return self.makeindex(req, res, tmpl, subdir)
 
             def _virtualdirs():
-                # Check the full virtual path, each parent, and the root ('')
-                if virtual != '':
-                    yield virtual
-
-                    for p in util.finddirs(virtual):
-                        yield p
-
-                yield ''
+                # Check the full virtual path, and each parent
+                yield virtual
+                for p in util.finddirs(virtual):
+                    yield p
 
             for virtualrepo in _virtualdirs():
                 real = repos.get(virtualrepo)
@@ -510,7 +506,7 @@ class hgwebdir(object):
         if style == styles[0]:
             vars['style'] = style
 
-        sessionvars = webutil.sessionvars(vars, r'?')
+        sessionvars = webutil.sessionvars(vars, '?')
         logourl = config('web', 'logourl')
         logoimg = config('web', 'logoimg')
         staticurl = (config('web', 'staticurl')

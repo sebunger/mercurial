@@ -156,6 +156,15 @@ configuration file::
   [histedit]
   linelen = 120      # truncate rule lines at 120 characters
 
+The summary of a change can be customized as well::
+
+  [histedit]
+  summary-template = '{rev} {bookmarks} {desc|firstline}'
+
+The customized summary should be kept short enough that rule lines
+will fit in the configured line length. See above if that requires
+customization.
+
 ``hg histedit`` attempts to automatically choose an appropriate base
 revision to use. To change which base revision is used, define a
 revset in your configuration file::
@@ -192,6 +201,7 @@ except ImportError:
     termios = None
 
 import functools
+import locale
 import os
 import struct
 
@@ -248,6 +258,8 @@ configitem('histedit', 'singletransaction',
 configitem('ui', 'interface.histedit',
     default=None,
 )
+configitem('histedit', 'summary-template',
+           default='{rev} {desc|firstline}')
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
 # extensions which SHIP WITH MERCURIAL. Non-mainline extensions should
@@ -480,8 +492,11 @@ class histeditaction(object):
         <hash> <rev> <summary>
         """
         ctx = self.repo[self.node]
-        summary = _getsummary(ctx)
-        line = '%s %s %d %s' % (self.verb, ctx, ctx.rev(), summary)
+        ui = self.repo.ui
+        summary = cmdutil.rendertemplate(
+            ctx, ui.config('histedit', 'summary-template')) or ''
+        summary = summary.splitlines()[0]
+        line = '%s %s %s' % (self.verb, ctx, summary)
         # trim to 75 columns by default so it's not stupidly wide in my editor
         # (the 5 more are left for verb)
         maxlen = self.repo.ui.configint('histedit', 'linelen')
@@ -508,17 +523,14 @@ class histeditaction(object):
         rulectx = repo[self.node]
         repo.ui.pushbuffer(error=True, labeled=True)
         hg.update(repo, self.state.parentctxnode, quietempty=True)
+        repo.ui.popbuffer()
         stats = applychanges(repo.ui, repo, rulectx, {})
         repo.dirstate.setbranch(rulectx.branch())
         if stats.unresolvedcount:
-            buf = repo.ui.popbuffer()
-            repo.ui.write(buf)
             raise error.InterventionRequired(
                 _('Fix up the change (%s %s)') %
                 (self.verb, node.short(self.node)),
                 hint=_('hg histedit --continue to resume'))
-        else:
-            repo.ui.popbuffer()
 
     def continuedirty(self):
         """Continues the action when changes have been applied to the working
@@ -575,12 +587,14 @@ def commitfuncfor(repo, src):
 
 def applychanges(ui, repo, ctx, opts):
     """Merge changeset from ctx (only) in the current working directory"""
-    wcpar = repo.dirstate.parents()[0]
+    wcpar = repo.dirstate.p1()
     if ctx.p1().node() == wcpar:
         # edits are "in place" we do not need to make any merge,
         # just applies changes on parent for editing
+        ui.pushbuffer()
         cmdutil.revert(ui, repo, ctx, (wcpar, node.nullid), all=True)
         stats = mergemod.updateresult(0, 0, 0, 0)
+        ui.popbuffer()
     else:
         try:
             # ui.forcemerge is an internal variable, do not document
@@ -608,7 +622,7 @@ def collapse(repo, firstctx, lastctx, commitopts, skipprompt=False):
         if not c.mutable():
             raise error.ParseError(
                 _("cannot fold into public change %s") % node.short(c.node()))
-    base = firstctx.parents()[0]
+    base = firstctx.p1()
 
     # commit a new version of the old changeset, including the update
     # collect all files which might be affected
@@ -631,7 +645,7 @@ def collapse(repo, firstctx, lastctx, commitopts, skipprompt=False):
                                       fctx.path(), fctx.data(),
                                       islink='l' in flags,
                                       isexec='x' in flags,
-                                      copied=copied.get(path))
+                                      copysource=copied.get(path))
             return mctx
         return None
 
@@ -693,7 +707,7 @@ def action(verbs, message, priority=False, internal=False):
 class pick(histeditaction):
     def run(self):
         rulectx = self.repo[self.node]
-        if rulectx.parents()[0].node() == self.state.parentctxnode:
+        if rulectx.p1().node() == self.state.parentctxnode:
             self.repo.ui.debug('node %s unchanged\n' % node.short(self.node))
             return rulectx, []
 
@@ -724,7 +738,7 @@ class fold(histeditaction):
         super(fold, self).verify(prev, expected, seen)
         repo = self.repo
         if not prev:
-            c = repo[self.node].parents()[0]
+            c = repo[self.node].p1()
         elif not prev.verb in ('pick', 'base'):
             return
         else:
@@ -795,7 +809,7 @@ class fold(histeditaction):
         return False
 
     def finishfold(self, ui, repo, ctx, oldctx, newnode, internalchanges):
-        parent = ctx.parents()[0].node()
+        parent = ctx.p1().node()
         hg.updaterepo(repo, parent, overwrite=False)
         ### prepare new commit data
         commitopts = {}
@@ -943,7 +957,8 @@ ACTION_LABELS = {
     'roll': '^roll',
 }
 
-COLOR_HELP, COLOR_SELECTED, COLOR_OK, COLOR_WARN  = 1, 2, 3, 4
+COLOR_HELP, COLOR_SELECTED, COLOR_OK, COLOR_WARN, COLOR_CURRENT  = 1, 2, 3, 4, 5
+COLOR_DIFF_ADD_LINE, COLOR_DIFF_DEL_LINE, COLOR_DIFF_OFFSET = 6, 7, 8
 
 E_QUIT, E_HISTEDIT = 1, 2
 E_PAGEDOWN, E_PAGEUP, E_LINEUP, E_LINEDOWN, E_RESIZE = 3, 4, 5, 6, 7
@@ -1059,6 +1074,8 @@ def movecursor(state, oldpos, newpos):
 def changemode(state, mode):
     curmode, _ = state['mode']
     state['mode'] = (mode, curmode)
+    if mode == MODE_PATCH:
+        state['modes'][MODE_PATCH]['patchcontents'] = patchcontents(state)
 
 def makeselection(state, pos):
     state['selected'] = pos
@@ -1114,7 +1131,7 @@ def changeview(state, delta, unit):
     if mode != MODE_PATCH:
         return
     mode_state = state['modes'][mode]
-    num_lines = len(patchcontents(state))
+    num_lines = len(mode_state['patchcontents'])
     page_height = state['page_height']
     unit = page_height if unit == 'page' else 1
     num_pages = 1 + (num_lines - 1) / page_height
@@ -1207,22 +1224,42 @@ def addln(win, y, x, line, color=None):
     else:
         win.addstr(y, x, line)
 
+def _trunc_head(line, n):
+    if len(line) <= n:
+        return line
+    return '> ' + line[-(n - 2):]
+def _trunc_tail(line, n):
+    if len(line) <= n:
+        return line
+    return line[:n - 2] + ' >'
+
 def patchcontents(state):
     repo = state['repo']
     rule = state['rules'][state['pos']]
     displayer = logcmdutil.changesetdisplayer(repo.ui, repo, {
-        'patch': True, 'verbose': True
+        "patch": True,  "template": "status"
     }, buffered=True)
-    displayer.show(rule.ctx)
-    displayer.close()
+    overrides = {('ui',  'verbose'): True}
+    with repo.ui.configoverride(overrides, source='histedit'):
+        displayer.show(rule.ctx)
+        displayer.close()
     return displayer.hunk[rule.ctx.rev()].splitlines()
 
 def _chisteditmain(repo, rules, stdscr):
+    try:
+        curses.use_default_colors()
+    except curses.error:
+        pass
+
     # initialize color pattern
     curses.init_pair(COLOR_HELP, curses.COLOR_WHITE, curses.COLOR_BLUE)
     curses.init_pair(COLOR_SELECTED, curses.COLOR_BLACK, curses.COLOR_WHITE)
     curses.init_pair(COLOR_WARN, curses.COLOR_BLACK, curses.COLOR_YELLOW)
     curses.init_pair(COLOR_OK, curses.COLOR_BLACK, curses.COLOR_GREEN)
+    curses.init_pair(COLOR_CURRENT, curses.COLOR_WHITE, curses.COLOR_MAGENTA)
+    curses.init_pair(COLOR_DIFF_ADD_LINE, curses.COLOR_GREEN, -1)
+    curses.init_pair(COLOR_DIFF_DEL_LINE, curses.COLOR_RED, -1)
+    curses.init_pair(COLOR_DIFF_OFFSET, curses.COLOR_MAGENTA, -1)
 
     # don't display the cursor
     try:
@@ -1246,18 +1283,30 @@ def _chisteditmain(repo, rules, stdscr):
         line = "changeset: {0}:{1:<12}".format(ctx.rev(), ctx)
         win.addstr(1, 1, line[:length])
 
-        line = "user:      {0}".format(stringutil.shortuser(ctx.user()))
+        line = "user:      {0}".format(ctx.user())
         win.addstr(2, 1, line[:length])
 
         bms = repo.nodebookmarks(ctx.node())
         line = "bookmark:  {0}".format(' '.join(bms))
         win.addstr(3, 1, line[:length])
 
-        line = "files:     {0}".format(','.join(ctx.files()))
+        line = "summary:   {0}".format(ctx.description().splitlines()[0])
         win.addstr(4, 1, line[:length])
 
-        line = "summary:   {0}".format(ctx.description().splitlines()[0])
-        win.addstr(5, 1, line[:length])
+        line = "files:     "
+        win.addstr(5, 1, line)
+        fnx = 1 + len(line)
+        fnmaxx = length - fnx + 1
+        y = 5
+        fnmaxn = maxy - (1 + y) - 1
+        files = ctx.files()
+        for i, line1 in enumerate(files):
+            if len(files) > fnmaxn and i == fnmaxn - 1:
+                win.addstr(y, fnx, _trunc_tail(','.join(files[i:]), fnmaxx))
+                y = y + 1
+                break
+            win.addstr(y, fnx, _trunc_head(line1, fnmaxx))
+            y = y + 1
 
         conflicts = rule.conflicts
         if len(conflicts) > 0:
@@ -1266,7 +1315,7 @@ def _chisteditmain(repo, rules, stdscr):
         else:
             conflictstr = 'no overlap'
 
-        win.addstr(6, 1, conflictstr[:length])
+        win.addstr(y, 1, conflictstr[:length])
         win.noutrefresh()
 
     def helplines(mode):
@@ -1313,29 +1362,45 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
             if y + start == selected:
                 addln(rulesscr, y, 2, rule, curses.color_pair(COLOR_SELECTED))
             elif y + start == pos:
-                addln(rulesscr, y, 2, rule, curses.A_BOLD)
+                addln(rulesscr, y, 2, rule,
+                      curses.color_pair(COLOR_CURRENT) | curses.A_BOLD)
             else:
                 addln(rulesscr, y, 2, rule)
         rulesscr.noutrefresh()
 
-    def renderstring(win, state, output):
+    def renderstring(win, state, output, diffcolors=False):
         maxy, maxx = win.getmaxyx()
         length = min(maxy - 1, len(output))
         for y in range(0, length):
-            win.addstr(y, 0, output[y])
+            line = output[y]
+            if diffcolors:
+                if line and line[0] == '+':
+                    win.addstr(
+                        y, 0, line, curses.color_pair(COLOR_DIFF_ADD_LINE))
+                elif line and line[0] == '-':
+                    win.addstr(
+                        y, 0, line, curses.color_pair(COLOR_DIFF_DEL_LINE))
+                elif line.startswith('@@ '):
+                    win.addstr(
+                        y, 0, line, curses.color_pair(COLOR_DIFF_OFFSET))
+                else:
+                    win.addstr(y, 0, line)
+            else:
+                win.addstr(y, 0, line)
         win.noutrefresh()
 
     def renderpatch(win, state):
         start = state['modes'][MODE_PATCH]['line_offset']
-        renderstring(win, state, patchcontents(state)[start:])
+        content = state['modes'][MODE_PATCH]['patchcontents']
+        renderstring(win, state, content[start:], diffcolors=True)
 
     def layout(mode):
         maxy, maxx = stdscr.getmaxyx()
         helplen = len(helplines(mode))
         return {
-            'commit': (8, maxx),
+            'commit': (12, maxx),
             'help': (helplen, maxx),
-            'main': (maxy - helplen - 8, maxx),
+            'main': (maxy - helplen - 12, maxx),
         }
 
     def drawvertwin(size, y, x):
@@ -1459,7 +1524,7 @@ def _chistedit(ui, repo, *freeargs, **opts):
                 'exactly one common root'))
         root = rr[0].node()
 
-        topmost, empty = repo.dirstate.parents()
+        topmost = repo.dirstate.p1()
         revs = between(repo, root, topmost, keep)
         if not revs:
             raise error.Abort(_('%s is not an ancestor of working directory') %
@@ -1468,14 +1533,18 @@ def _chistedit(ui, repo, *freeargs, **opts):
         ctxs = []
         for i, r in enumerate(revs):
             ctxs.append(histeditrule(repo[r], i))
+        # Curses requires setting the locale or it will default to the C
+        # locale. This sets the locale to the user's default system
+        # locale.
+        locale.setlocale(locale.LC_ALL, r'')
         rc = curses.wrapper(functools.partial(_chisteditmain, repo, ctxs))
         curses.echo()
         curses.endwin()
         if rc is False:
-            ui.write(_("chistedit aborted\n"))
+            ui.write(_("histedit aborted\n"))
             return 0
         if type(rc) is list:
-            ui.status(_("running histedit\n"))
+            ui.status(_("performing changes\n"))
             rules = makecommands(rc)
             filename = repo.vfs.join('chistedit')
             with open(filename, 'w+') as fp:
@@ -1760,7 +1829,7 @@ def _continuehistedit(ui, repo, state):
             state.write(tr=tr)
             actobj = state.actions[0]
             progress.increment(item=actobj.torule())
-            ui.debug('histedit: processing %s %s\n' % (actobj.verb,\
+            ui.debug('histedit: processing %s %s\n' % (actobj.verb,
                                                        actobj.torule()))
             parentctx, replacement_ = actobj.run()
             state.parentctxnode = parentctx.node()
@@ -1849,6 +1918,14 @@ def _aborthistedit(ui, repo, state, nobackup=False):
     finally:
             state.clear()
 
+def hgaborthistedit(ui, repo):
+    state = histeditstate(repo)
+    nobackup = not ui.configbool('rewrite', 'backup-bundle')
+    with repo.wlock() as wlock, repo.lock() as lock:
+        state.wlock = wlock
+        state.lock = lock
+        _aborthistedit(ui, repo, state, nobackup=nobackup)
+
 def _edithisteditplan(ui, repo, state, rules):
     state.read()
     if not rules:
@@ -1859,7 +1936,7 @@ def _edithisteditplan(ui, repo, state, rules):
     else:
         rules = _readfile(ui, rules)
     actions = parserules(rules, state)
-    ctxs = [repo[act.node] \
+    ctxs = [repo[act.node]
             for act in state.actions if act.node]
     warnverifyactions(ui, repo, actions, state, ctxs)
     state.actions = actions
@@ -1873,7 +1950,7 @@ def _newhistedit(ui, repo, state, revs, freeargs, opts):
     cmdutil.checkunfinished(repo)
     cmdutil.bailifchanged(repo)
 
-    topmost, empty = repo.dirstate.parents()
+    topmost = repo.dirstate.p1()
     if outg:
         if freeargs:
             remote = freeargs[0]
@@ -1902,7 +1979,7 @@ def _newhistedit(ui, repo, state, revs, freeargs, opts):
     actions = parserules(rules, state)
     warnverifyactions(ui, repo, actions, state, ctxs)
 
-    parentctxnode = repo[root].parents()[0].node()
+    parentctxnode = repo[root].p1().node()
 
     state.parentctxnode = parentctxnode
     state.actions = actions
@@ -2243,8 +2320,5 @@ def summaryhook(ui, repo):
 
 def extsetup(ui):
     cmdutil.summaryhooks.add('histedit', summaryhook)
-    cmdutil.unfinishedstates.append(
-        ['histedit-state', False, True, _('histedit in progress'),
-         _("use 'hg histedit --continue' or 'hg histedit --abort'")])
-    cmdutil.afterresolvedstates.append(
-        ['histedit-state', _('hg histedit --continue')])
+    statemod.addunfinished('histedit', fname='histedit-state', allowcommit=True,
+                            continueflag=True, abortfunc=hgaborthistedit)

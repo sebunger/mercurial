@@ -240,19 +240,19 @@ Test reporting of path conflicts
   |/
   o  0: b173517d0057 'a'
   
-  $ mkdir c
-  $ echo c > c/c
-  $ hg add c/c
-  $ hg ci -m 'c/c'
+  $ mkdir -p c/subdir
+  $ echo c > c/subdir/file.txt
+  $ hg add c/subdir/file.txt
+  $ hg ci -m 'c/subdir/file.txt'
   $ hg rebase -r . -d 3 -n
   starting dry-run rebase; repository will not be changed
-  rebasing 8:755f0104af9b "c/c" (tip)
-  abort: error: 'c/c' conflicts with file 'c' in 3.
+  rebasing 8:e147e6e3c490 "c/subdir/file.txt" (tip)
+  abort: error: 'c/subdir/file.txt' conflicts with file 'c' in 3.
   [255]
   $ hg rebase -r 3 -d . -n
   starting dry-run rebase; repository will not be changed
   rebasing 3:844a7de3e617 "c"
-  abort: error: file 'c' cannot be written because  'c/' is a folder in 755f0104af9b (containing 1 entries: c/c)
+  abort: error: file 'c' cannot be written because  'c/' is a directory in e147e6e3c490 (containing 1 entries: c/subdir/file.txt)
   [255]
 
   $ cd ..
@@ -718,3 +718,146 @@ issue5960: this was raising an AttributeError exception
   diff --git a/foo.txt b/foo.txt
   old mode 100644
   new mode 100755
+
+Test rebasing a commit with copy information, but no content changes
+
+  $ cd ..
+  $ hg clone -q repo1 merge-and-rename
+  $ cd merge-and-rename
+  $ cat << EOF >> .hg/hgrc
+  > [experimental]
+  > evolution.createmarkers=True
+  > evolution.allowunstable=True
+  > EOF
+  $ hg co -q 1
+  $ hg mv d e
+  $ hg ci -qm 'rename d to e'
+  $ hg co -q 3
+  $ hg merge -q 4
+  $ hg ci -m 'merge'
+  $ hg co -q 2
+  $ mv d e
+  $ hg addremove -qs 0
+  $ hg ci -qm 'untracked rename of d to e'
+  $ hg debugobsolete -q `hg log -T '{node}' -r 4` `hg log -T '{node}' -r .`
+  1 new orphan changesets
+  $ hg tglog
+  @  6: 676538af172d 'untracked rename of d to e'
+  |
+  | *    5: 574d92ad16fc 'merge'
+  | |\
+  | | x  4: 2c8b5dad7956 'rename d to e'
+  | | |
+  | o |  3: ca58782ad1e4 'b'
+  |/ /
+  o /  2: 814f6bd05178 'c'
+  |/
+  o  1: 02952614a83d 'd'
+  |
+  o  0: b173517d0057 'a'
+  
+  $ hg rebase -b 5 -d tip
+  rebasing 3:ca58782ad1e4 "b"
+  rebasing 5:574d92ad16fc "merge"
+  note: not rebasing 5:574d92ad16fc "merge", its destination already has all its changes
+
+  $ cd ..
+
+Test rebasing a commit with copy information
+
+  $ hg init rebase-rename
+  $ cd rebase-rename
+  $ echo a > a
+  $ hg ci -Aqm 'add a'
+  $ echo a2 > a
+  $ hg ci -m 'modify a'
+  $ hg co -q 0
+  $ hg mv a b
+  $ hg ci -qm 'rename a to b'
+  $ hg rebase -d 1
+  rebasing 2:b977edf6f839 "rename a to b" (tip)
+  merging a and b to b
+  saved backup bundle to $TESTTMP/rebase-rename/.hg/strip-backup/b977edf6f839-0864f570-rebase.hg
+  $ hg st --copies --change .
+  A b
+    a
+  R a
+  $ cd ..
+
+Test rebasing a commit with copy information, where the target is empty
+
+  $ hg init rebase-rename-empty
+  $ cd rebase-rename-empty
+  $ echo a > a
+  $ hg ci -Aqm 'add a'
+  $ cat > a
+  $ hg ci -m 'make a empty'
+  $ hg co -q 0
+  $ hg mv a b
+  $ hg ci -qm 'rename a to b'
+  $ hg rebase -d 1
+  rebasing 2:b977edf6f839 "rename a to b" (tip)
+  merging a and b to b
+  saved backup bundle to $TESTTMP/rebase-rename-empty/.hg/strip-backup/b977edf6f839-0864f570-rebase.hg
+  $ hg st --copies --change .
+  A b
+    a
+  R a
+  $ cd ..
+Rebase across a copy with --collapse
+
+  $ hg init rebase-rename-collapse
+  $ cd rebase-rename-collapse
+  $ echo a > a
+  $ hg ci -Aqm 'add a'
+  $ hg mv a b
+  $ hg ci -m 'rename a to b'
+  $ hg co -q 0
+  $ echo a2 > a
+  $ hg ci -qm 'modify a'
+  $ hg rebase -r . -d 1 --collapse
+  rebasing 2:41c4ea50d4cf "modify a" (tip)
+  merging b and a to b
+  saved backup bundle to $TESTTMP/rebase-rename-collapse/.hg/strip-backup/41c4ea50d4cf-b90b7994-rebase.hg
+  $ cd ..
+
+Test rebasing when the file we are merging in destination is empty
+
+  $ hg init test
+  $ cd test
+  $ echo a > foo
+  $ hg ci -Aqm 'added a to foo'
+
+  $ rm foo
+  $ touch foo
+  $ hg di
+  diff --git a/foo b/foo
+  --- a/foo
+  +++ b/foo
+  @@ -1,1 +0,0 @@
+  -a
+
+  $ hg ci -m "make foo an empty file"
+
+  $ hg up '.^'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo b > foo
+  $ hg di
+  diff --git a/foo b/foo
+  --- a/foo
+  +++ b/foo
+  @@ -1,1 +1,1 @@
+  -a
+  +b
+  $ hg ci -m "add b to foo"
+  created new head
+
+  $ hg rebase -r . -d 1 --config ui.merge=internal:merge3
+  rebasing 2:fb62b706688e "add b to foo" (tip)
+  merging foo
+  hit merge conflicts; re-running rebase without in-memory merge
+  rebasing 2:fb62b706688e "add b to foo" (tip)
+  merging foo
+  warning: conflicts while merging foo! (edit, then use 'hg resolve --mark')
+  unresolved conflicts (see hg resolve, then hg rebase --continue)
+  [1]

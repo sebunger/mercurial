@@ -146,11 +146,13 @@ Interactive mode
   > EOS
   diff --git a/F b/F
   new file mode 100644
-  examine changes to 'F'? [Ynesfdaq?] y
+  examine changes to 'F'?
+  (enter ? for help) [Ynesfdaq?] y
   
   diff --git a/G b/G
   new file mode 100644
-  examine changes to 'G'? [Ynesfdaq?] n
+  examine changes to 'G'?
+  (enter ? for help) [Ynesfdaq?] n
   
   saved backup bundle to $TESTTMP/repo1/.hg/strip-backup/507be9bdac71-c8077452-amend.hg (obsstore-off !)
   $ hg log -r . -T '{files}\n'
@@ -449,3 +451,21 @@ Bad combination of date options:
   [255]
 
   $ cd ..
+
+Corner case of amend from issue6157:
+- working copy parent has a change to file `a`
+- working copy has the inverse change
+- we amend the working copy parent for files other than `a`
+hg used to include the changes to `a` anyway.
+
+  $ hg init 6157; cd 6157
+  $ echo a > a; echo b > b; hg commit -qAm_
+  $ echo a2 > a; hg commit -qm_
+  $ hg diff --stat -c .
+   a |  2 +-
+   1 files changed, 1 insertions(+), 1 deletions(-)
+  $ echo a > a; echo b2 > b; hg amend -q b
+  $ hg diff --stat -c .
+   a |  2 +-
+   b |  2 +-
+   2 files changed, 2 insertions(+), 2 deletions(-)

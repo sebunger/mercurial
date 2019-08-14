@@ -16,6 +16,7 @@ import ssl
 
 from .i18n import _
 from . import (
+    encoding,
     error,
     node,
     pycompat,
@@ -348,6 +349,17 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
     if not serverhostname:
         raise error.Abort(_('serverhostname argument is required'))
 
+    if b'SSLKEYLOGFILE' in encoding.environ:
+        try:
+            import sslkeylog
+            sslkeylog.set_keylog(pycompat.fsdecode(
+                encoding.environ[b'SSLKEYLOGFILE']))
+            ui.warn(
+                b'sslkeylog enabled by SSLKEYLOGFILE environment variable\n')
+        except ImportError:
+            ui.warn(b'sslkeylog module missing, '
+                    b'but SSLKEYLOGFILE set in environment\n')
+
     for f in (keyfile, certfile):
         if f and not os.path.exists(f):
             raise error.Abort(
@@ -430,6 +442,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
                           'error)\n'))
         except ssl.SSLError:
             pass
+
         # Try to print more helpful error messages for known failures.
         if util.safehasattr(e, 'reason'):
             # This error occurs when the client and server don't share a
@@ -437,7 +450,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
             # outright. Hopefully the reason for this error is that we require
             # TLS 1.1+ and the server only supports TLS 1.0. Whatever the
             # reason, try to emit an actionable warning.
-            if e.reason == 'UNSUPPORTED_PROTOCOL':
+            if e.reason == r'UNSUPPORTED_PROTOCOL':
                 # We attempted TLS 1.0+.
                 if settings['protocolui'] == 'tls1.0':
                     # We support more than just TLS 1.0+. If this happens,
@@ -453,7 +466,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
                             'server; see '
                             'https://mercurial-scm.org/wiki/SecureConnections '
                             'for more info)\n') % (
-                                serverhostname,
+                                pycompat.bytesurl(serverhostname),
                                 ', '.join(sorted(supportedprotocols))))
                     else:
                         ui.warn(_(
@@ -462,7 +475,8 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
                             'supports TLS 1.0 because it has known security '
                             'vulnerabilities; see '
                             'https://mercurial-scm.org/wiki/SecureConnections '
-                            'for more info)\n') % serverhostname)
+                            'for more info)\n') %
+                                pycompat.bytesurl(serverhostname))
                 else:
                     # We attempted TLS 1.1+. We can only get here if the client
                     # supports the configured protocol. So the likely reason is
@@ -472,19 +486,20 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
                         '(could not negotiate a common security protocol (%s+) '
                         'with %s; the likely cause is Mercurial is configured '
                         'to be more secure than the server can support)\n') % (
-                        settings['protocolui'], serverhostname))
+                        settings['protocolui'],
+                        pycompat.bytesurl(serverhostname)))
                     ui.warn(_('(consider contacting the operator of this '
                               'server and ask them to support modern TLS '
                               'protocol versions; or, set '
                               'hostsecurity.%s:minimumprotocol=tls1.0 to allow '
                               'use of legacy, less secure protocols when '
                               'communicating with this server)\n') %
-                            serverhostname)
+                            pycompat.bytesurl(serverhostname))
                     ui.warn(_(
                         '(see https://mercurial-scm.org/wiki/SecureConnections '
                         'for more info)\n'))
 
-            elif (e.reason == 'CERTIFICATE_VERIFY_FAILED' and
+            elif (e.reason == r'CERTIFICATE_VERIFY_FAILED' and
                 pycompat.iswindows):
 
                 ui.warn(_('(the full certificate chain may not be available '
@@ -719,7 +734,7 @@ def _defaultcacerts(ui):
         certs = certifi.where()
         if os.path.exists(certs):
             ui.debug('using ca certificates from certifi\n')
-            return certs
+            return pycompat.fsencode(certs)
     except (ImportError, AttributeError):
         pass
 

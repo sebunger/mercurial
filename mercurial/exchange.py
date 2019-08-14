@@ -49,7 +49,7 @@ from .utils import (
 urlerr = util.urlerr
 urlreq = util.urlreq
 
-_NARROWACL_SECTION = 'narrowhgacl'
+_NARROWACL_SECTION = 'narrowacl'
 
 # Maps bundle version human names to changegroup versions.
 _bundlespeccgversions = {'v1': '01',
@@ -297,7 +297,6 @@ def getbundlespec(ui, fh):
                                               'client'))
             elif part.type == 'stream2' and version is None:
                 # A stream2 part requires to be part of a v2 bundle
-                version = "v2"
                 requirements = urlreq.unquote(part.params['requirements'])
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
@@ -540,10 +539,12 @@ def push(repo, remote, force=False, revs=None, newbranch=False, bookmarks=(),
     # get lock as we might write phase data
     wlock = lock = None
     try:
-        # bundle2 push may receive a reply bundle touching bookmarks or other
-        # things requiring the wlock. Take it now to ensure proper ordering.
+        # bundle2 push may receive a reply bundle touching bookmarks
+        # requiring the wlock. Take it now to ensure proper ordering.
         maypushback = pushop.ui.configbool('experimental', 'bundle2.pushback')
-        if (not _forcebundle1(pushop)) and maypushback:
+        if ((not _forcebundle1(pushop)) and
+            maypushback and
+            not bookmod.bookmarksinstore(repo)):
             wlock = pushop.repo.wlock()
         lock = pushop.repo.lock()
         pushop.trmanager = transactionmanager(pushop.repo,
@@ -557,18 +558,18 @@ def push(repo, remote, force=False, revs=None, newbranch=False, bookmarks=(),
                % stringutil.forcebytestr(err))
         pushop.ui.debug(msg)
 
-    with wlock or util.nullcontextmanager(), \
-            lock or util.nullcontextmanager(), \
-            pushop.trmanager or util.nullcontextmanager():
-        pushop.repo.checkpush(pushop)
-        _checkpublish(pushop)
-        _pushdiscovery(pushop)
-        if not _forcebundle1(pushop):
-            _pushbundle2(pushop)
-        _pushchangeset(pushop)
-        _pushsyncphase(pushop)
-        _pushobsolete(pushop)
-        _pushbookmark(pushop)
+    with wlock or util.nullcontextmanager():
+        with lock or util.nullcontextmanager():
+            with pushop.trmanager or util.nullcontextmanager():
+                pushop.repo.checkpush(pushop)
+                _checkpublish(pushop)
+                _pushdiscovery(pushop)
+                if not _forcebundle1(pushop):
+                    _pushbundle2(pushop)
+                _pushchangeset(pushop)
+                _pushsyncphase(pushop)
+                _pushobsolete(pushop)
+                _pushbookmark(pushop)
 
     if repo.ui.configbool('experimental', 'remotenames'):
         logexchange.pullremotenames(repo, remote)
@@ -708,8 +709,8 @@ def _pushdiscoverybookmarks(pushop):
 
     remotebookmark = listkeys(remote, 'bookmarks')
 
-    explicit = set([repo._bookmarks.expandname(bookmark)
-                    for bookmark in pushop.bookmarks])
+    explicit = {repo._bookmarks.expandname(bookmark)
+                for bookmark in pushop.bookmarks}
 
     remotebookmark = bookmod.unhexlifybookmarks(remotebookmark)
     comp = bookmod.comparebookmarks(repo, repo._bookmarks, remotebookmark)
@@ -921,7 +922,7 @@ def _pushb2ctx(pushop, bundler):
                       if v in changegroup.supportedoutgoingversions(
                           pushop.repo)]
         if not cgversions:
-            raise ValueError(_('no common changegroup version'))
+            raise error.Abort(_('no common changegroup version'))
         version = max(cgversions)
     cgstream = changegroup.makestream(pushop.repo, pushop.outgoing, version,
                                       'push')
@@ -1549,7 +1550,10 @@ def pull(repo, remote, heads=None, force=False, bookmarks=(), opargs=None,
             raise error.Abort(msg)
 
     pullop.trmanager = transactionmanager(repo, 'pull', remote.url())
-    with repo.wlock(), repo.lock(), pullop.trmanager:
+    wlock = util.nullcontextmanager()
+    if not bookmod.bookmarksinstore(repo):
+        wlock = repo.wlock()
+    with wlock, repo.lock(), pullop.trmanager:
         # Use the modern wire protocol, if available.
         if remote.capable('command-changesetdata'):
             exchangev2.pull(pullop)
@@ -2185,7 +2189,7 @@ def _getbundlechangegrouppart(bundler, repo, source, bundlecaps=None,
         cgversions = [v for v in cgversions
                       if v in changegroup.supportedoutgoingversions(repo)]
         if not cgversions:
-            raise ValueError(_('no common changegroup version'))
+            raise error.Abort(_('no common changegroup version'))
         version = max(cgversions)
 
     outgoing = _computeoutgoing(repo, heads, common)
@@ -2214,13 +2218,10 @@ def _getbundlechangegrouppart(bundler, repo, source, bundlecaps=None,
 
     if (kwargs.get(r'narrow', False) and kwargs.get(r'narrow_acl', False)
         and (include or exclude)):
-        narrowspecpart = bundler.newpart('narrow:spec')
-        if include:
-            narrowspecpart.addparam(
-                'include', '\n'.join(include), mandatory=True)
-        if exclude:
-            narrowspecpart.addparam(
-                'exclude', '\n'.join(exclude), mandatory=True)
+        # this is mandatory because otherwise ACL clients won't work
+        narrowspecpart = bundler.newpart('Narrow:responsespec')
+        narrowspecpart.data = '%s\0%s' % ('\n'.join(include),
+                                           '\n'.join(exclude))
 
 @getbundle2partsgenerator('bookmarks')
 def _getbundlebookmarkpart(bundler, repo, source, bundlecaps=None,
@@ -2229,7 +2230,7 @@ def _getbundlebookmarkpart(bundler, repo, source, bundlecaps=None,
     if not kwargs.get(r'bookmarks', False):
         return
     if 'bookmarks' not in b2caps:
-        raise ValueError(_('no common bookmarks exchange method'))
+        raise error.Abort(_('no common bookmarks exchange method'))
     books  = bookmod.listbinbookmarks(repo)
     data = bookmod.binaryencode(books)
     if data:
@@ -2264,7 +2265,7 @@ def _getbundlephasespart(bundler, repo, source, bundlecaps=None,
     """add phase heads part to the requested bundle"""
     if kwargs.get(r'phases', False):
         if not 'heads' in b2caps.get('phases'):
-            raise ValueError(_('no common phases exchange method'))
+            raise error.Abort(_('no common phases exchange method'))
         if heads is None:
             heads = repo.heads()
 
@@ -2399,7 +2400,8 @@ def unbundle(repo, cg, heads, source, url):
             try:
                 def gettransaction():
                     if not lockandtr[2]:
-                        lockandtr[0] = repo.wlock()
+                        if not bookmod.bookmarksinstore(repo):
+                            lockandtr[0] = repo.wlock()
                         lockandtr[1] = repo.lock()
                         lockandtr[2] = repo.transaction(source)
                         lockandtr[2].hookargs['source'] = source
@@ -2548,8 +2550,8 @@ def isstreamclonespec(bundlespec):
         return True
 
     # Stream clone v2
-    if (bundlespec.wirecompression == 'UN' and \
-        bundlespec.wireversion == '02' and \
+    if (bundlespec.wirecompression == 'UN' and
+        bundlespec.wireversion == '02' and
         bundlespec.contentopts.get('streamv2')):
         return True
 

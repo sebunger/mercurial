@@ -34,13 +34,15 @@
 //! [`LazyAncestors`]: struct.LazyAncestors.html
 //! [`MissingAncestors`]: struct.MissingAncestors.html
 //! [`AncestorsIterator`]: struct.AncestorsIterator.html
-use crate::conversion::rev_pyiter_collect;
-use cindex::Index;
+use crate::{
+    cindex::Index,
+    conversion::{py_set, rev_pyiter_collect},
+    exceptions::GraphError,
+};
 use cpython::{
     ObjectProtocol, PyClone, PyDict, PyList, PyModule, PyObject, PyResult,
-    PyTuple, Python, PythonObject, ToPyObject,
+    Python, PythonObject, ToPyObject,
 };
-use exceptions::GraphError;
 use hg::Revision;
 use hg::{
     AncestorsIterator as CoreIterator, LazyAncestors as CoreLazy,
@@ -88,24 +90,6 @@ impl AncestorsIterator {
     pub fn from_inner(py: Python, ait: CoreIterator<Index>) -> PyResult<Self> {
         Self::create_instance(py, RefCell::new(Box::new(ait)))
     }
-}
-
-/// Copy and convert an `HashSet<Revision>` in a Python set
-///
-/// This will probably turn useless once `PySet` support lands in
-/// `rust-cpython`.
-///
-/// This builds a Python tuple, then calls Python's "set()" on it
-fn py_set(py: Python, set: &HashSet<Revision>) -> PyResult<PyObject> {
-    let as_vec: Vec<PyObject> = set
-        .iter()
-        .map(|rev| rev.to_py_object(py).into_object())
-        .collect();
-    let as_pytuple = PyTuple::new(py, as_vec.as_slice());
-
-    let locals = PyDict::new(py);
-    locals.set_item(py, "obj", as_pytuple.to_py_object(py))?;
-    py.eval("set(obj)", None, Some(&locals))
 }
 
 py_class!(pub class LazyAncestors |py| {

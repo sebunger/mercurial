@@ -104,38 +104,6 @@ def getlatesttags(context, mapping, pattern=None):
         latesttags[rev] = pdate, pdist + 1, ptag
     return latesttags[rev]
 
-def getrenamedfn(repo, endrev=None):
-    rcache = {}
-    if endrev is None:
-        endrev = len(repo)
-
-    def getrenamed(fn, rev):
-        '''looks up all renames for a file (up to endrev) the first
-        time the file is given. It indexes on the changerev and only
-        parses the manifest if linkrev != changerev.
-        Returns rename info for fn at changerev rev.'''
-        if fn not in rcache:
-            rcache[fn] = {}
-            fl = repo.file(fn)
-            for i in fl:
-                lr = fl.linkrev(i)
-                renamed = fl.renamed(fl.node(i))
-                rcache[fn][lr] = renamed and renamed[0]
-                if lr >= endrev:
-                    break
-        if rev in rcache[fn]:
-            return rcache[fn][rev]
-
-        # If linkrev != rev (i.e. rev not found in rcache) fallback to
-        # filectx logic.
-        try:
-            renamed = repo[rev][fn].renamed()
-            return renamed and renamed[0]
-        except error.LookupError:
-            return None
-
-    return getrenamed
-
 def getlogcolumns():
     """Return a dict of log column labels"""
     _ = pycompat.identity  # temporarily disable gettext
@@ -322,16 +290,6 @@ def _getfilestatusmap(context, mapping, listall=False):
             statmap.update((f, char) for f in files)
     return revcache['filestatusmap']  # {path: statchar}
 
-def _showfilesbystat(context, mapping, name, index):
-    stat = _getfilestatus(context, mapping)
-    files = stat[index]
-    return templateutil.compatfileslist(context, mapping, name, files)
-
-@templatekeyword('file_adds', requires={'ctx', 'revcache'})
-def showfileadds(context, mapping):
-    """List of strings. Files added by this changeset."""
-    return _showfilesbystat(context, mapping, 'file_add', 1)
-
 @templatekeyword('file_copies',
                  requires={'repo', 'ctx', 'cache', 'revcache'})
 def showfilecopies(context, mapping):
@@ -343,14 +301,10 @@ def showfilecopies(context, mapping):
     cache = context.resource(mapping, 'cache')
     copies = context.resource(mapping, 'revcache').get('copies')
     if copies is None:
-        if 'getrenamed' not in cache:
-            cache['getrenamed'] = getrenamedfn(repo)
-        copies = []
-        getrenamed = cache['getrenamed']
-        for fn in ctx.files():
-            rename = getrenamed(fn, ctx.rev())
-            if rename:
-                copies.append((fn, rename))
+        if 'getcopies' not in cache:
+            cache['getcopies'] = scmutil.getcopiesfn(repo)
+        getcopies = cache['getcopies']
+        copies = getcopies(ctx)
     return templateutil.compatfilecopiesdict(context, mapping, 'file_copy',
                                              copies)
 
@@ -366,15 +320,26 @@ def showfilecopiesswitch(context, mapping):
     return templateutil.compatfilecopiesdict(context, mapping, 'file_copy',
                                              copies)
 
+@templatekeyword('file_adds', requires={'ctx', 'revcache'})
+def showfileadds(context, mapping):
+    """List of strings. Files added by this changeset."""
+    ctx = context.resource(mapping, 'ctx')
+    return templateutil.compatfileslist(context, mapping, 'file_add',
+                                        ctx.filesadded())
+
 @templatekeyword('file_dels', requires={'ctx', 'revcache'})
 def showfiledels(context, mapping):
     """List of strings. Files removed by this changeset."""
-    return _showfilesbystat(context, mapping, 'file_del', 2)
+    ctx = context.resource(mapping, 'ctx')
+    return templateutil.compatfileslist(context, mapping, 'file_del',
+                                        ctx.filesremoved())
 
 @templatekeyword('file_mods', requires={'ctx', 'revcache'})
 def showfilemods(context, mapping):
     """List of strings. Files modified by this changeset."""
-    return _showfilesbystat(context, mapping, 'file_mod', 0)
+    ctx = context.resource(mapping, 'ctx')
+    return templateutil.compatfileslist(context, mapping, 'file_mod',
+                                        ctx.filesmodified())
 
 @templatekeyword('files', requires={'ctx'})
 def showfiles(context, mapping):
@@ -554,6 +519,17 @@ def shownamespaces(context, mapping):
 
     return _hybrid(f, namespaces, makemap, pycompat.identity)
 
+@templatekeyword('negrev', requires={'repo', 'ctx'})
+def shownegrev(context, mapping):
+    """Integer. The repository-local changeset negative revision number,
+    which counts in the opposite direction."""
+    ctx = context.resource(mapping, 'ctx')
+    rev = ctx.rev()
+    if rev is None or rev < 0:  # wdir() or nullrev?
+        return None
+    repo = context.resource(mapping, 'repo')
+    return rev - len(repo)
+
 @templatekeyword('node', requires={'ctx'})
 def shownode(context, mapping):
     """String. The changeset identification hash, as a 40 hexadecimal
@@ -593,7 +569,7 @@ def showpeerurls(context, mapping):
 
 @templatekeyword("predecessors", requires={'repo', 'ctx'})
 def showpredecessors(context, mapping):
-    """Returns the list of the closest visible successors. (EXPERIMENTAL)"""
+    """Returns the list of the closest visible predecessors. (EXPERIMENTAL)"""
     repo = context.resource(mapping, 'repo')
     ctx = context.resource(mapping, 'ctx')
     predecessors = sorted(obsutil.closestpredecessors(repo, ctx.node()))
@@ -796,7 +772,7 @@ def showsubrepos(context, mapping):
     substate = ctx.substate
     if not substate:
         return compatlist(context, mapping, 'subrepo', [])
-    psubstate = ctx.parents()[0].substate or {}
+    psubstate = ctx.p1().substate or {}
     subrepos = []
     for sub in substate:
         if sub not in psubstate or substate[sub] != psubstate[sub]:

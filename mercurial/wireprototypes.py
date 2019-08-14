@@ -18,6 +18,7 @@ from . import (
     util,
 )
 from .utils import (
+    compression,
     interfaceutil,
 )
 
@@ -29,7 +30,9 @@ SSHV2 = 'exp-ssh-v2-0003'
 HTTP_WIREPROTO_V2 = 'exp-http-v2-0003'
 
 NARROWCAP = 'exp-narrow-1'
-ELLIPSESCAP = 'exp-ellipses-1'
+ELLIPSESCAP1 = 'exp-ellipses-1'
+ELLIPSESCAP = 'exp-ellipses-2'
+SUPPORTED_ELLIPSESCAP = (ELLIPSESCAP1, ELLIPSESCAP)
 
 # All available wire protocol transports.
 TRANSPORTS = {
@@ -316,12 +319,12 @@ class commanddict(dict):
 
 def supportedcompengines(ui, role):
     """Obtain the list of supported compression engines for a request."""
-    assert role in (util.CLIENTROLE, util.SERVERROLE)
+    assert role in (compression.CLIENTROLE, compression.SERVERROLE)
 
-    compengines = util.compengines.supportedwireengines(role)
+    compengines = compression.compengines.supportedwireengines(role)
 
     # Allow config to override default list and ordering.
-    if role == util.SERVERROLE:
+    if role == compression.SERVERROLE:
         configengines = ui.configlist('server', 'compressionengines')
         config = 'server.compressionengines'
     else:

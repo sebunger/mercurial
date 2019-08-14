@@ -31,8 +31,9 @@ from mercurial.utils import (
     stringutil,
 )
 
-_NARROWACL_SECTION = 'narrowhgacl'
+_NARROWACL_SECTION = 'narrowacl'
 _CHANGESPECPART = 'narrow:changespec'
+_RESSPECS = 'narrow:responsespec'
 _SPECPART = 'narrow:spec'
 _SPECPART_INCLUDE = 'include'
 _SPECPART_EXCLUDE = 'exclude'
@@ -50,21 +51,25 @@ def getbundlechangegrouppart_narrow(bundler, repo, source,
     assert repo.ui.configbool('experimental', 'narrowservebrokenellipses')
 
     cgversions = b2caps.get('changegroup')
-    if cgversions:  # 3.1 and 3.2 ship with an empty value
-        cgversions = [v for v in cgversions
-                      if v in changegroup.supportedoutgoingversions(repo)]
-        if not cgversions:
-            raise ValueError(_('no common changegroup version'))
-        version = max(cgversions)
-    else:
-        raise ValueError(_("server does not advertise changegroup version,"
-                           " can't negotiate support for ellipsis nodes"))
+    cgversions = [v for v in cgversions
+                  if v in changegroup.supportedoutgoingversions(repo)]
+    if not cgversions:
+        raise ValueError(_('no common changegroup version'))
+    version = max(cgversions)
 
-    include = sorted(filter(bool, kwargs.get(r'includepats', [])))
-    exclude = sorted(filter(bool, kwargs.get(r'excludepats', [])))
-    newmatch = narrowspec.match(repo.root, include=include, exclude=exclude)
+    oldinclude = sorted(filter(bool, kwargs.get(r'oldincludepats', [])))
+    oldexclude = sorted(filter(bool, kwargs.get(r'oldexcludepats', [])))
+    newinclude = sorted(filter(bool, kwargs.get(r'includepats', [])))
+    newexclude = sorted(filter(bool, kwargs.get(r'excludepats', [])))
+    known = {bin(n) for n in kwargs.get(r'known', [])}
+    generateellipsesbundle2(bundler, repo, oldinclude, oldexclude, newinclude,
+                            newexclude, version, common, heads, known,
+                            kwargs.get(r'depth', None))
 
-    depth = kwargs.get(r'depth', None)
+def generateellipsesbundle2(bundler, repo, oldinclude, oldexclude, newinclude,
+                            newexclude, version, common, heads, known, depth):
+    newmatch = narrowspec.match(repo.root, include=newinclude,
+                                exclude=newexclude)
     if depth is not None:
         depth = int(depth)
         if depth < 1:
@@ -72,10 +77,7 @@ def getbundlechangegrouppart_narrow(bundler, repo, source,
 
     heads = set(heads or repo.heads())
     common = set(common or [nullid])
-    oldinclude = sorted(filter(bool, kwargs.get(r'oldincludepats', [])))
-    oldexclude = sorted(filter(bool, kwargs.get(r'oldexcludepats', [])))
-    known = {bin(n) for n in kwargs.get(r'known', [])}
-    if known and (oldinclude != include or oldexclude != exclude):
+    if known and (oldinclude != newinclude or oldexclude != newexclude):
         # Steps:
         # 1. Send kill for "$known & ::common"
         #
@@ -142,12 +144,31 @@ def getbundlechangegrouppart_narrow(bundler, repo, source,
 
 @bundle2.parthandler(_SPECPART, (_SPECPART_INCLUDE, _SPECPART_EXCLUDE))
 def _handlechangespec_2(op, inpart):
+    # XXX: This bundle2 handling is buggy and should be removed after hg5.2 is
+    # released. New servers will send a mandatory bundle2 part named
+    # 'Narrowspec' and will send specs as data instead of params.
+    # Refer to issue5952 and 6019
     includepats = set(inpart.params.get(_SPECPART_INCLUDE, '').splitlines())
     excludepats = set(inpart.params.get(_SPECPART_EXCLUDE, '').splitlines())
     narrowspec.validatepatterns(includepats)
     narrowspec.validatepatterns(excludepats)
 
     if not repository.NARROW_REQUIREMENT in op.repo.requirements:
+        op.repo.requirements.add(repository.NARROW_REQUIREMENT)
+        op.repo._writerequirements()
+    op.repo.setnarrowpats(includepats, excludepats)
+    narrowspec.copytoworkingcopy(op.repo)
+
+@bundle2.parthandler(_RESSPECS)
+def _handlenarrowspecs(op, inpart):
+    data = inpart.read()
+    inc, exc = data.split('\0')
+    includepats = set(inc.splitlines())
+    excludepats = set(exc.splitlines())
+    narrowspec.validatepatterns(includepats)
+    narrowspec.validatepatterns(excludepats)
+
+    if repository.NARROW_REQUIREMENT not in op.repo.requirements:
         op.repo.requirements.add(repository.NARROW_REQUIREMENT)
         op.repo._writerequirements()
     op.repo.setnarrowpats(includepats, excludepats)

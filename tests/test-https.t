@@ -2,6 +2,12 @@
 
 Proper https client requires the built-in ssl from Python 2.6.
 
+Disable the system configuration which may set stricter TLS requirements.
+This test expects that legacy TLS versions are supported.
+
+  $ OPENSSL_CONF=
+  $ export OPENSSL_CONF
+
 Make server certificates:
 
   $ CERTSDIR="$TESTDIR/sslcerts"
@@ -207,7 +213,7 @@ pull without cacert
   $ cd copy-pull
   $ cat >> .hg/hgrc <<EOF
   > [hooks]
-  > changegroup = sh -c "printenv.py changegroup"
+  > changegroup = sh -c "printenv.py --line changegroup"
   > EOF
   $ hg pull $DISABLECACERTS
   pulling from https://localhost:$HGPORT/
@@ -226,7 +232,16 @@ pull without cacert
   adding file changes
   added 1 changesets with 1 changes to 1 files
   new changesets 5fed3813f7f5
-  changegroup hook: HG_HOOKNAME=changegroup HG_HOOKTYPE=changegroup HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_NODE_LAST=5fed3813f7f5e1824344fdc9cf8f63bb662c292d HG_SOURCE=pull HG_TXNID=TXN:$ID$ HG_URL=https://localhost:$HGPORT/
+  changegroup hook: HG_HOOKNAME=changegroup
+  HG_HOOKTYPE=changegroup
+  HG_NODE=5fed3813f7f5e1824344fdc9cf8f63bb662c292d
+  HG_NODE_LAST=5fed3813f7f5e1824344fdc9cf8f63bb662c292d
+  HG_SOURCE=pull
+  HG_TXNID=TXN:$ID$
+  HG_TXNNAME=pull
+  https://localhost:$HGPORT/
+  HG_URL=https://localhost:$HGPORT/
+  
   (run 'hg update' to get a working copy)
   $ cd ..
 
@@ -473,26 +488,26 @@ Clients requiring newer TLS version than what server supports fail
   (could not negotiate a common security protocol (tls1.1+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
   (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
   (see https://mercurial-scm.org/wiki/SecureConnections for more info)
-  abort: error: *unsupported protocol* (glob)
+  abort: error: .*(unsupported protocol|wrong ssl version).* (re)
   [255]
 
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.1 id https://localhost:$HGPORT/
   (could not negotiate a common security protocol (tls1.1+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
   (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
   (see https://mercurial-scm.org/wiki/SecureConnections for more info)
-  abort: error: *unsupported protocol* (glob)
+  abort: error: .*(unsupported protocol|wrong ssl version).* (re)
   [255]
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.2 id https://localhost:$HGPORT/
   (could not negotiate a common security protocol (tls1.2+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
   (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
   (see https://mercurial-scm.org/wiki/SecureConnections for more info)
-  abort: error: *unsupported protocol* (glob)
+  abort: error: .*(unsupported protocol|wrong ssl version).* (re)
   [255]
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.2 id https://localhost:$HGPORT1/
   (could not negotiate a common security protocol (tls1.2+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
   (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
   (see https://mercurial-scm.org/wiki/SecureConnections for more info)
-  abort: error: *unsupported protocol* (glob)
+  abort: error: .*(unsupported protocol|wrong ssl version).* (re)
   [255]
 
 --insecure will allow TLS 1.0 connections and override configs
@@ -515,7 +530,7 @@ The per-host config option by itself works
   (could not negotiate a common security protocol (tls1.2+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
   (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
   (see https://mercurial-scm.org/wiki/SecureConnections for more info)
-  abort: error: *unsupported protocol* (glob)
+  abort: error: .*(unsupported protocol|wrong ssl version).* (re)
   [255]
 
 .hg/hgrc file [hostsecurity] settings are applied to remote ui instances (issue5305)
@@ -528,7 +543,7 @@ The per-host config option by itself works
   (could not negotiate a common security protocol (tls1.2+) with localhost; the likely cause is Mercurial is configured to be more secure than the server can support)
   (consider contacting the operator of this server and ask them to support modern TLS protocol versions; or, set hostsecurity.localhost:minimumprotocol=tls1.0 to allow use of legacy, less secure protocols when communicating with this server)
   (see https://mercurial-scm.org/wiki/SecureConnections for more info)
-  abort: error: *unsupported protocol* (glob)
+  abort: error: .*(unsupported protocol|wrong ssl version).* (re)
   [255]
 
   $ killdaemons.py hg0.pid
@@ -624,7 +639,7 @@ without client certificate:
 
   $ P="$CERTSDIR" hg id https://localhost:$HGPORT/
   warning: connecting to localhost using legacy security technology (TLS 1.0); see https://mercurial-scm.org/wiki/SecureConnections for more info (?)
-  abort: error: *handshake failure* (glob)
+  abort: error: .*(\$ECONNRESET\$|certificate required|handshake failure).* (re)
   [255]
 
 with client certificate:

@@ -49,6 +49,11 @@ configitem('gpg', '.*',
 
 # Custom help category
 _HELP_CATEGORY = 'gpg'
+help.CATEGORY_ORDER.insert(
+    help.CATEGORY_ORDER.index(registrar.command.CATEGORY_HELP),
+    _HELP_CATEGORY
+)
+help.CATEGORY_NAMES[_HELP_CATEGORY] = 'Signing changes (GPG)'
 
 class gpg(object):
     def __init__(self, path, key=None):
@@ -297,7 +302,7 @@ def _dosign(ui, repo, *revs, **opts):
         return
 
     if not opts["force"]:
-        msigs = match.exact(repo.root, '', ['.hgsigs'])
+        msigs = match.exact(['.hgsigs'])
         if any(repo.status(match=msigs, unknown=True, ignored=True)):
             raise error.Abort(_("working copy of .hgsigs is changed "),
                              hint=_("please commit .hgsigs manually"))

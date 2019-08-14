@@ -12,9 +12,9 @@
   >     """
   >     if 3 not in subset:
   >        if 2 in subset:
-  >            return baseset([2,2])
+  >            return baseset([2, 2])
   >        return baseset()
-  >     return baseset([3,3,2,2])
+  >     return baseset([3, 3, 2, 2])
   > 
   > mercurial.revset.symbols[b'r3232'] = r3232
   > EOF
@@ -472,6 +472,12 @@ keyword arguments
   $ log 'extra(unknown=branch)'
   hg: parse error: extra got an unexpected keyword argument 'unknown'
   [255]
+  $ log 'extra((), x)'
+  hg: parse error: first argument to extra must be a string
+  [255]
+  $ log 'extra(label=x, ())'
+  hg: parse error: extra got an invalid argument
+  [255]
 
   $ try 'foo=bar|baz'
   (keyvalue
@@ -643,10 +649,13 @@ parse errors of relation, subscript and relation-subscript operators:
   [255]
 
   $ hg debugrevspec '.#generations[a]'
-  hg: parse error: relation subscript must be an integer
+  hg: parse error: relation subscript must be an integer or a range
   [255]
   $ hg debugrevspec '.#generations[1-2]'
-  hg: parse error: relation subscript must be an integer
+  hg: parse error: relation subscript must be an integer or a range
+  [255]
+  $ hg debugrevspec '.#generations[foo:bar]'
+  hg: parse error: relation subscript bounds must be integers
   [255]
 
 suggested relations
@@ -1274,6 +1283,31 @@ test ancestors/descendants relation subscript:
   $ log '.#g[(-1)]'
   8
 
+  $ log '6#generations[0:1]'
+  6
+  7
+  $ log '6#generations[-1:1]'
+  4
+  5
+  6
+  7
+  $ log '6#generations[0:]'
+  6
+  7
+  $ log '5#generations[:0]'
+  0
+  1
+  3
+  5
+  $ log '3#generations[:]'
+  0
+  1
+  3
+  5
+  6
+  7
+  $ log 'tip#generations[1:-1]'
+
   $ hg debugrevspec -p parsed 'roots(:)#g[2]'
   * parsed:
   (relsubscript
@@ -1687,11 +1721,9 @@ min: empty on unordered set
   4
   $ log 'modifies("*")'
   4
-  6
   $ log 'modifies("set:modified()")'
   4
   $ log 'id(5)'
-  2
   $ log 'only(9)'
   8
   9
@@ -1800,12 +1832,12 @@ Test explicit numeric revision
 
 Test hexadecimal revision
   $ log 'id(2)'
-  $ log 'id(5)'
-  2
-  $ hg --config experimental.revisions.prefixhexnode=yes log --template '{rev}\n' -r 'id(x5)'
-  2
-  $ hg --config experimental.revisions.prefixhexnode=yes log --template '{rev}\n' -r 'x5'
-  2
+  $ log 'id(8)'
+  3
+  $ hg --config experimental.revisions.prefixhexnode=yes log --template '{rev}\n' -r 'id(x8)'
+  3
+  $ hg --config experimental.revisions.prefixhexnode=yes log --template '{rev}\n' -r 'x8'
+  3
   $ hg --config experimental.revisions.prefixhexnode=yes log --template '{rev}\n' -r 'id(x)'
   $ hg --config experimental.revisions.prefixhexnode=yes log --template '{rev}\n' -r 'x'
   abort: 00changelog.i@: ambiguous identifier!
@@ -1928,25 +1960,26 @@ For tests consistency
   2147483647
 
 Test working-directory integer revision and node id
-(BUG: '0:wdir()' is still needed to populate wdir revision)
 
-  $ hg debugrevspec '0:wdir() & 2147483647'
+  $ hg debugrevspec '2147483647'
   2147483647
-  $ hg debugrevspec '0:wdir() & rev(2147483647)'
+  $ hg debugrevspec 'rev(2147483647)'
   2147483647
-  $ hg debugrevspec '0:wdir() & ffffffffffffffffffffffffffffffffffffffff'
+  $ hg debugrevspec 'ffffffffffffffffffffffffffffffffffffffff'
   2147483647
-  $ hg debugrevspec '0:wdir() & ffffffffffff'
+  $ hg debugrevspec 'ffffffffffff'
   2147483647
-  $ hg debugrevspec '0:wdir() & id(ffffffffffffffffffffffffffffffffffffffff)'
+  $ hg debugrevspec 'id(ffffffffffffffffffffffffffffffffffffffff)'
   2147483647
-  $ hg debugrevspec '0:wdir() & id(ffffffffffff)'
+  $ hg debugrevspec 'id(ffffffffffff)'
   2147483647
+  $ hg debugrevspec 'ffffffffffff+000000000000'
+  2147483647
+  -1
 
   $ cd ..
 
 Test short 'ff...' hash collision
-(BUG: '0:wdir()' is still needed to populate wdir revision)
 
   $ hg init wdir-hashcollision
   $ cd wdir-hashcollision
@@ -1972,21 +2005,21 @@ Test short 'ff...' hash collision
   $ hg debugobsolete fffbae3886c8fbb2114296380d276fd37715d571
   obsoleted 1 changesets
 
-  $ hg debugrevspec '0:wdir() & fff'
+  $ hg debugrevspec 'fff'
   abort: 00changelog.i@fff: ambiguous identifier!
   [255]
-  $ hg debugrevspec '0:wdir() & ffff'
+  $ hg debugrevspec 'ffff'
   abort: 00changelog.i@ffff: ambiguous identifier!
   [255]
-  $ hg debugrevspec '0:wdir() & fffb'
+  $ hg debugrevspec 'fffb'
   abort: 00changelog.i@fffb: ambiguous identifier!
   [255]
 BROKEN should be '2' (node lookup uses unfiltered repo)
-  $ hg debugrevspec '0:wdir() & id(fffb)'
+  $ hg debugrevspec 'id(fffb)'
 BROKEN should be '2' (node lookup uses unfiltered repo)
-  $ hg debugrevspec '0:wdir() & ffff8'
+  $ hg debugrevspec 'ffff8'
   4
-  $ hg debugrevspec '0:wdir() & fffff'
+  $ hg debugrevspec 'fffff'
   2147483647
 
   $ cd ..
@@ -2041,6 +2074,17 @@ itself isn't returned unless it is explicitly populated.
   $ log 'parents(merge())'
   4
   5
+
+  $ hg merge 7
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ log '0:wdir() & merge()'
+  6
+  2147483647
+  $ hg update -qC .
+  $ log '0:wdir() & merge()'
+  6
+
   $ log 'p1(branchpoint())'
   0
   2
@@ -2050,7 +2094,6 @@ itself isn't returned unless it is explicitly populated.
   2
   $ log 'removes(a)'
   2
-  6
   $ log 'roots(all())'
   0
   $ log 'reverse(2 or 3 or 4 or 5)'
@@ -2664,7 +2707,6 @@ test sorting two sorted collections in different orders
 
   $ log 'sort(outgoing() or reverse(removes(a)), rev)'
   2
-  6
   8
   9
 
@@ -2673,7 +2715,6 @@ test sorting two sorted collections in different orders backwards
   $ log 'sort(outgoing() or reverse(removes(a)), -rev)'
   9
   8
-  6
   2
 
 test empty sort key which is noop
@@ -2950,3 +2991,63 @@ test multiline revset with errors
   * set:
   <baseset+ [0]>
   0
+
+abort if the revset doesn't expect given size
+  $ log 'expectsize()'
+  hg: parse error: invalid set of arguments
+  [255]
+  $ log 'expectsize(0:2, a)'
+  hg: parse error: expectsize requires a size range or a positive integer
+  [255]
+  $ log 'expectsize(0:2, 3)'
+  0
+  1
+  2
+
+  $ log 'expectsize(2:0, 3)'
+  2
+  1
+  0
+  $ log 'expectsize(0:1, 1)'
+  abort: revset size mismatch. expected 1, got 2!
+  [255]
+  $ log 'expectsize(0:4, -1)'
+  hg: parse error: negative size
+  [255]
+  $ log 'expectsize(0:2, 2:4)'
+  0
+  1
+  2
+  $ log 'expectsize(0:1, 3:5)'
+  abort: revset size mismatch. expected between 3 and 5, got 2!
+  [255]
+  $ log 'expectsize(0:1, -1:2)'
+  hg: parse error: negative size
+  [255]
+  $ log 'expectsize(0:1, 1:-2)'
+  hg: parse error: negative size
+  [255]
+  $ log 'expectsize(0:2, a:4)'
+  hg: parse error: size range bounds must be integers
+  [255]
+  $ log 'expectsize(0:2, 2:b)'
+  hg: parse error: size range bounds must be integers
+  [255]
+  $ log 'expectsize(0:2, 2:)'
+  0
+  1
+  2
+  $ log 'expectsize(0:2, :5)'
+  0
+  1
+  2
+  $ log 'expectsize(0:2, :)'
+  0
+  1
+  2
+  $ log 'expectsize(0:2, 4:)'
+  abort: revset size mismatch. expected between 4 and 11, got 3!
+  [255]
+  $ log 'expectsize(0:2, :2)'
+  abort: revset size mismatch. expected between 0 and 2, got 3!
+  [255]

@@ -22,6 +22,7 @@ from . import (
     error,
     pycompat,
     revlog,
+    util,
 )
 from .utils import (
     dateutil,
@@ -34,16 +35,24 @@ def _string_escape(text):
     """
     >>> from .pycompat import bytechr as chr
     >>> d = {b'nl': chr(10), b'bs': chr(92), b'cr': chr(13), b'nul': chr(0)}
-    >>> s = b"ab%(nl)scd%(bs)s%(bs)sn%(nul)sab%(cr)scd%(bs)s%(nl)s" % d
+    >>> s = b"ab%(nl)scd%(bs)s%(bs)sn%(nul)s12ab%(cr)scd%(bs)s%(nl)s" % d
     >>> s
-    'ab\\ncd\\\\\\\\n\\x00ab\\rcd\\\\\\n'
+    'ab\\ncd\\\\\\\\n\\x0012ab\\rcd\\\\\\n'
     >>> res = _string_escape(s)
-    >>> s == stringutil.unescapestr(res)
+    >>> s == _string_unescape(res)
     True
     """
     # subset of the string_escape codec
     text = text.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r')
     return text.replace('\0', '\\0')
+
+def _string_unescape(text):
+    if '\\0' in text:
+        # fix up \0 without getting into trouble with \\0
+        text = text.replace('\\\\', '\\\\\n')
+        text = text.replace('\\0', '\0')
+        text = text.replace('\n', '')
+    return stringutil.unescapestr(text)
 
 def decodeextra(text):
     """
@@ -59,19 +68,66 @@ def decodeextra(text):
     extra = _defaultextra.copy()
     for l in text.split('\0'):
         if l:
-            if '\\0' in l:
-                # fix up \0 without getting into trouble with \\0
-                l = l.replace('\\\\', '\\\\\n')
-                l = l.replace('\\0', '\0')
-                l = l.replace('\n', '')
-            k, v = stringutil.unescapestr(l).split(':', 1)
+            k, v = _string_unescape(l).split(':', 1)
             extra[k] = v
     return extra
 
 def encodeextra(d):
     # keys must be sorted to produce a deterministic changelog entry
-    items = [_string_escape('%s:%s' % (k, d[k])) for k in sorted(d)]
+    items = [
+        _string_escape('%s:%s' % (k, pycompat.bytestr(d[k])))
+        for k in sorted(d)
+    ]
     return "\0".join(items)
+
+def encodecopies(files, copies):
+    items = []
+    for i, dst in enumerate(files):
+        if dst in copies:
+            items.append('%d\0%s' % (i, copies[dst]))
+    if len(items) != len(copies):
+        raise error.ProgrammingError('some copy targets missing from file list')
+    return "\n".join(items)
+
+def decodecopies(files, data):
+    try:
+        copies = {}
+        if not data:
+            return copies
+        for l in data.split('\n'):
+            strindex, src = l.split('\0')
+            i = int(strindex)
+            dst = files[i]
+            copies[dst] = src
+        return copies
+    except (ValueError, IndexError):
+        # Perhaps someone had chosen the same key name (e.g. "p1copies") and
+        # used different syntax for the value.
+        return None
+
+def encodefileindices(files, subset):
+    subset = set(subset)
+    indices = []
+    for i, f in enumerate(files):
+        if f in subset:
+            indices.append('%d' % i)
+    return '\n'.join(indices)
+
+def decodefileindices(files, data):
+    try:
+        subset = []
+        if not data:
+            return subset
+        for strindex in data.split('\n'):
+            i = int(strindex)
+            if i < 0 or i >= len(files):
+                return None
+            subset.append(files[i])
+        return subset
+    except (ValueError, IndexError):
+        # Perhaps someone had chosen the same key name (e.g. "added") and
+        # used different syntax for the value.
+        return None
 
 def stripdesc(desc):
     """strip trailing whitespace and leading and trailing empty lines"""
@@ -168,6 +224,10 @@ class _changelogrevision(object):
     user = attr.ib(default='')
     date = attr.ib(default=(0, 0))
     files = attr.ib(default=attr.Factory(list))
+    filesadded = attr.ib(default=None)
+    filesremoved = attr.ib(default=None)
+    p1copies = attr.ib(default=None)
+    p2copies = attr.ib(default=None)
     description = attr.ib(default='')
 
 class changelogrevision(object):
@@ -179,8 +239,8 @@ class changelogrevision(object):
     """
 
     __slots__ = (
-        u'_offsets',
-        u'_text',
+        r'_offsets',
+        r'_text',
     )
 
     def __new__(cls, text):
@@ -272,6 +332,26 @@ class changelogrevision(object):
         return self._text[off[2] + 1:off[3]].split('\n')
 
     @property
+    def filesadded(self):
+        rawindices = self.extra.get('filesadded')
+        return rawindices and decodefileindices(self.files, rawindices)
+
+    @property
+    def filesremoved(self):
+        rawindices = self.extra.get('filesremoved')
+        return rawindices and decodefileindices(self.files, rawindices)
+
+    @property
+    def p1copies(self):
+        rawcopies = self.extra.get('p1copies')
+        return rawcopies and decodecopies(self.files, rawcopies)
+
+    @property
+    def p2copies(self):
+        rawcopies = self.extra.get('p2copies')
+        return rawcopies and decodecopies(self.files, rawcopies)
+
+    @property
     def description(self):
         return encoding.tolocal(self._text[self._offsets[3] + 2:])
 
@@ -344,8 +424,26 @@ class changelog(revlog.revlog):
             if i not in self.filteredrevs:
                 yield i
 
-    def reachableroots(self, minroot, heads, roots, includepath=False):
-        return self.index.reachableroots2(minroot, heads, roots, includepath)
+    def _checknofilteredinrevs(self, revs):
+        """raise the appropriate error if 'revs' contains a filtered revision
+
+        This returns a version of 'revs' to be used thereafter by the caller.
+        In particular, if revs is an iterator, it is converted into a set.
+        """
+        safehasattr = util.safehasattr
+        if safehasattr(revs, '__next__'):
+            # Note that inspect.isgenerator() is not true for iterators,
+            revs = set(revs)
+
+        filteredrevs = self.filteredrevs
+        if safehasattr(revs, 'first'):  # smartset
+            offenders = revs & filteredrevs
+        else:
+            offenders = filteredrevs.intersection(revs)
+
+        for rev in offenders:
+            raise error.FilteredIndexError(rev)
+        return revs
 
     def headrevs(self, revs=None):
         if revs is None and self.filteredrevs:
@@ -356,6 +454,8 @@ class changelog(revlog.revlog):
             except AttributeError:
                 return self._headrevs()
 
+        if self.filteredrevs:
+            revs = self._checknofilteredinrevs(revs)
         return super(changelog, self).headrevs(revs)
 
     def strip(self, *args, **kwargs):
@@ -503,7 +603,8 @@ class changelog(revlog.revlog):
         return l[3:]
 
     def add(self, manifest, files, desc, transaction, p1, p2,
-                  user, date=None, extra=None):
+                  user, date=None, extra=None, p1copies=None, p2copies=None,
+                  filesadded=None, filesremoved=None):
         # Convert to UTF-8 encoded bytestrings as the very first
         # thing: calling any method on a localstr object will turn it
         # into a str object and the cached UTF-8 string is thus lost.
@@ -532,10 +633,23 @@ class changelog(revlog.revlog):
             elif branch in (".", "null", "tip"):
                 raise error.StorageError(_('the name \'%s\' is reserved')
                                          % branch)
+        extrasentries = p1copies, p2copies, filesadded, filesremoved
+        if extra is None and any(x is not None for x in extrasentries):
+            extra = {}
+        sortedfiles = sorted(files)
+        if p1copies is not None:
+            extra['p1copies'] = encodecopies(sortedfiles, p1copies)
+        if p2copies is not None:
+            extra['p2copies'] = encodecopies(sortedfiles, p2copies)
+        if filesadded is not None:
+            extra['filesadded'] = encodefileindices(sortedfiles, filesadded)
+        if filesremoved is not None:
+            extra['filesremoved'] = encodefileindices(sortedfiles, filesremoved)
+
         if extra:
             extra = encodeextra(extra)
             parseddate = "%s %s" % (parseddate, extra)
-        l = [hex(manifest), user, parseddate] + sorted(files) + ["", desc]
+        l = [hex(manifest), user, parseddate] + sortedfiles + ["", desc]
         text = "\n".join(l)
         return self.addrevision(text, transaction, len(self), p1, p2)
 

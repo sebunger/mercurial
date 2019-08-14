@@ -260,25 +260,29 @@ qrecord a.patch
   > EOF
   diff --git a/1.txt b/1.txt
   2 hunks, 2 lines changed
-  examine changes to '1.txt'? [Ynesfdaq?] y
+  examine changes to '1.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
    1
   -2
   +2 2
    3
-  record change 1/4 to '1.txt'? [Ynesfdaq?] y
+  record change 1/4 to '1.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -3,3 +3,3 @@
    3
   -4
   +4 4
    5
-  record change 2/4 to '1.txt'? [Ynesfdaq?] n
+  record change 2/4 to '1.txt'?
+  (enter ? for help) [Ynesfdaq?] n
   
   diff --git a/2.txt b/2.txt
   1 hunks, 1 lines changed
-  examine changes to '2.txt'? [Ynesfdaq?] y
+  examine changes to '2.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,5 +1,5 @@
    a
@@ -287,11 +291,13 @@ qrecord a.patch
    c
    d
    e
-  record change 3/4 to '2.txt'? [Ynesfdaq?] y
+  record change 3/4 to '2.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   diff --git a/dir/a.txt b/dir/a.txt
   1 hunks, 1 lines changed
-  examine changes to 'dir/a.txt'? [Ynesfdaq?] n
+  examine changes to 'dir/a.txt'?
+  (enter ? for help) [Ynesfdaq?] n
   
 
 After qrecord a.patch 'tip'"
@@ -361,7 +367,8 @@ qrecord b.patch
   > EOF
   diff --git a/1.txt b/1.txt
   1 hunks, 1 lines changed
-  examine changes to '1.txt'? [Ynesfdaq?] y
+  examine changes to '1.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,5 +1,5 @@
    1
@@ -370,11 +377,13 @@ qrecord b.patch
   -4
   +4 4
    5
-  record change 1/2 to '1.txt'? [Ynesfdaq?] y
+  record change 1/2 to '1.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   diff --git a/dir/a.txt b/dir/a.txt
   1 hunks, 1 lines changed
-  examine changes to 'dir/a.txt'? [Ynesfdaq?] y
+  examine changes to 'dir/a.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,4 +1,4 @@
   -hello world
@@ -382,7 +391,8 @@ qrecord b.patch
    
    someone
    up
-  record change 2/2 to 'dir/a.txt'? [Ynesfdaq?] y
+  record change 2/2 to 'dir/a.txt'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
 After qrecord b.patch 'tip'
@@ -422,3 +432,42 @@ After qrecord b.patch 'diff'
   $ hg diff --nodates
 
   $ cd ..
+
+qrecord should throw an error when histedit in process
+
+  $ hg init issue5981
+  $ cd issue5981
+  $ cat >> $HGRCPATH <<EOF
+  > [extensions]
+  > histedit=
+  > mq=
+  > EOF
+  $ echo > a
+  $ hg ci -Am 'foo bar'
+  adding a
+  $ hg log
+  changeset:   0:ea55e2ae468f
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     foo bar
+  
+  $ hg histedit tip --commands - 2>&1 <<EOF
+  > edit ea55e2ae468f foo bar
+  > EOF
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  Editing (ea55e2ae468f), you may commit or record as needed now.
+  (hg histedit --continue to resume)
+  [1]
+  $ echo 'foo bar' > a
+  $ hg qrecord -d '0 0' -m aaa a.patch <<EOF
+  > y
+  > y
+  > n
+  > y
+  > y
+  > n
+  > EOF
+  abort: histedit in progress
+  (use 'hg histedit --continue' or 'hg histedit --abort')
+  [255]

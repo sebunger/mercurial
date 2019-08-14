@@ -42,7 +42,6 @@ MOVE_BACK_RANGE = 5
 FILENAME='SPARSE-REVLOG-TEST-FILE'
 NB_LINES = 10500
 ALWAYS_CHANGE_LINES = 500
-FILENAME = 'SPARSE-REVLOG-TEST-FILE'
 OTHER_CHANGES = 300
 
 def nextcontent(previous_content):
@@ -119,7 +118,7 @@ def run(target):
                 hg('merge', 'min(head())')
             updatefile(FILENAME, idx)
             hg('commit', '--message', 'commit #%d' % idx)
-        hg('bundle', '--all', target)
+        hg('bundle', '--all', target, '--config', 'devel.bundle.delta=p1')
         with open(target, 'rb') as bundle:
             data = bundle.read()
             digest = hashlib.md5(data).hexdigest()

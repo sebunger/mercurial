@@ -199,7 +199,7 @@ def _setupdirstate(ui):
     def walk(orig, self, match, subrepos, unknown, ignored, full=True):
         # hack to not exclude explicitly-specified paths so that they can
         # be warned later on e.g. dirstate.add()
-        em = matchmod.exact(match._root, match._cwd, match.files())
+        em = matchmod.exact(match.files())
         sm = matchmod.unionmatcher([self._sparsematcher, em])
         match = matchmod.intersectmatchers(match, sm)
         return orig(self, match, subrepos, unknown, ignored, full)
@@ -228,7 +228,7 @@ def _setupdirstate(ui):
     hint = _('include file with `hg debugsparse --include <pattern>` or use ' +
              '`hg add -s <file>` to include file directory while adding')
     for func in editfuncs:
-        def _wrapper(orig, self, *args):
+        def _wrapper(orig, self, *args, **kwargs):
             sparsematch = self._sparsematcher
             if not sparsematch.always():
                 for f in args:
@@ -237,7 +237,7 @@ def _setupdirstate(ui):
                         raise error.Abort(_("cannot add '%s' - it is outside "
                                             "the sparse checkout") % f,
                                           hint=hint)
-            return orig(self, *args)
+            return orig(self, *args, **kwargs)
         extensions.wrapfunction(dirstate.dirstate, func, _wrapper)
 
 @command('debugsparse', [
@@ -318,9 +318,10 @@ def debugsparse(ui, repo, *pats, **opts):
             if temporaryincludes:
                 ui.status(_("Temporarily Included Files (for merge/rebase):\n"))
                 ui.status(("\n".join(temporaryincludes) + "\n"))
+            return
         else:
-            ui.status(_('repo is not sparse\n'))
-        return
+            raise error.Abort(_('the debugsparse command is only supported on'
+                                ' sparse repositories'))
 
     if include or exclude or delete or reset or enableprofile or disableprofile:
         sparse.updateconfig(repo, pats, opts, include=include, exclude=exclude,

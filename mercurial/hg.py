@@ -38,6 +38,7 @@ from . import (
     narrowspec,
     node,
     phases,
+    pycompat,
     repository as repositorymod,
     scmutil,
     sshpeer,
@@ -57,7 +58,15 @@ sharedbookmarks = 'bookmarks'
 
 def _local(path):
     path = util.expandpath(util.urllocalpath(path))
-    return (os.path.isfile(path) and bundlerepo or localrepo)
+
+    try:
+        isfile = os.path.isfile(path)
+    # Python 2 raises TypeError, Python 3 ValueError.
+    except (TypeError, ValueError) as e:
+        raise error.Abort(_('invalid path %s: %s') % (
+            path, pycompat.bytestr(e)))
+
+    return isfile and bundlerepo or localrepo
 
 def addbranchrevs(lrepo, other, branches, revs):
     peer = other.peer() # a courtesy to callers using a localrepo for other
@@ -144,13 +153,13 @@ def islocal(repo):
             return False
     return repo.local()
 
-def openpath(ui, path):
+def openpath(ui, path, sendaccept=True):
     '''open path with open if local, url.open if remote'''
     pathurl = util.url(path, parsequery=False, parsefragment=False)
     if pathurl.islocal():
         return util.posixfile(pathurl.localpath(), 'rb')
     else:
-        return url.open(ui, path)
+        return url.open(ui, path, sendaccept=sendaccept)
 
 # a list of (ui, repo) functions called for wire peer initialization
 wirepeersetupfuncs = []
@@ -282,25 +291,20 @@ def unshare(ui, repo):
     called.
     """
 
-    destlock = lock = None
-    lock = repo.lock()
-    try:
+    with repo.lock():
         # we use locks here because if we race with commit, we
         # can end up with extra data in the cloned revlogs that's
         # not pointed to by changesets, thus causing verify to
         # fail
-
         destlock = copystore(ui, repo, repo.path)
+        with destlock or util.nullcontextmanager():
 
-        sharefile = repo.vfs.join('sharedpath')
-        util.rename(sharefile, sharefile + '.old')
+            sharefile = repo.vfs.join('sharedpath')
+            util.rename(sharefile, sharefile + '.old')
 
-        repo.requirements.discard('shared')
-        repo.requirements.discard('relshared')
-        repo._writerequirements()
-    finally:
-        destlock and destlock.release()
-        lock and lock.release()
+            repo.requirements.discard('shared')
+            repo.requirements.discard('relshared')
+            repo._writerequirements()
 
     # Removing share changes some fundamental properties of the repo instance.
     # So we instantiate a new repo object and operate on it rather than
@@ -952,29 +956,32 @@ def merge(repo, node, force=None, remind=True, mergeforce=False, labels=None,
           abort=False):
     """Branch merge with node, resolving changes. Return true if any
     unresolved conflicts."""
-    if not abort:
-        stats = mergemod.update(repo, node, branchmerge=True, force=force,
-                                mergeforce=mergeforce, labels=labels)
-    else:
-        ms = mergemod.mergestate.read(repo)
-        if ms.active():
-            # there were conflicts
-            node = ms.localctx.hex()
-        else:
-            # there were no conficts, mergestate was not stored
-            node = repo['.'].hex()
+    if abort:
+        return abortmerge(repo.ui, repo)
 
-        repo.ui.status(_("aborting the merge, updating back to"
-                         " %s\n") % node[:12])
-        stats = mergemod.update(repo, node, branchmerge=False, force=True,
-                                labels=labels)
-
+    stats = mergemod.update(repo, node, branchmerge=True, force=force,
+                            mergeforce=mergeforce, labels=labels)
     _showstats(repo, stats)
     if stats.unresolvedcount:
         repo.ui.status(_("use 'hg resolve' to retry unresolved file merges "
                          "or 'hg merge --abort' to abandon\n"))
-    elif remind and not abort:
+    elif remind:
         repo.ui.status(_("(branch merge, don't forget to commit)\n"))
+    return stats.unresolvedcount > 0
+
+def abortmerge(ui, repo):
+    ms = mergemod.mergestate.read(repo)
+    if ms.active():
+        # there were conflicts
+        node = ms.localctx.hex()
+    else:
+        # there were no conficts, mergestate was not stored
+        node = repo['.'].hex()
+
+    repo.ui.status(_("aborting the merge, updating back to"
+                     " %s\n") % node[:12])
+    stats = mergemod.update(repo, node, branchmerge=False, force=True)
+    _showstats(repo, stats)
     return stats.unresolvedcount > 0
 
 def _incoming(displaychlist, subreporecurse, ui, repo, source,
@@ -1088,9 +1095,9 @@ def outgoing(ui, repo, dest, opts):
     recurse()
     return 0 # exit code is zero since we found outgoing changes
 
-def verify(repo):
+def verify(repo, level=None):
     """verify the consistency of a repository"""
-    ret = verifymod.verify(repo)
+    ret = verifymod.verify(repo, level=level)
 
     # Broken subrepo references in hidden csets don't seem worth worrying about,
     # since they can't be pushed/pulled, and --hidden can be used if they are a
