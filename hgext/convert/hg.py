@@ -105,10 +105,6 @@ class mercurial_sink(common.converter_sink):
         if not branch:
             branch = 'default'
         pbranches = [(b[0], b[1] and b[1] or 'default') for b in pbranches]
-        if pbranches:
-            pbranch = pbranches[0][1]
-        else:
-            pbranch = 'default'
 
         branchpath = os.path.join(self.path, branch)
         if setbranch:
@@ -343,7 +339,11 @@ class mercurial_sink(common.converter_sink):
                                    phases.phasenames[commit.phase], 'convert')
 
             with self.repo.transaction("convert") as tr:
-                node = nodemod.hex(self.repo.commitctx(ctx))
+                if self.repo.ui.config('convert', 'hg.preserve-hash'):
+                    origctx = commit.ctx
+                else:
+                    origctx = None
+                node = nodemod.hex(self.repo.commitctx(ctx, origctx=origctx))
 
                 # If the node value has changed, but the phase is lower than
                 # draft, set it back to draft since it hasn't been exposed
@@ -561,7 +561,7 @@ class mercurial_source(common.converter_source):
             if name in self.ignored:
                 continue
             try:
-                copysource, _copynode = ctx.filectx(name).renamed()
+                copysource = ctx.filectx(name).copysource()
                 if copysource in self.ignored:
                     continue
                 # Ignore copy sources not in parent revisions
@@ -595,7 +595,8 @@ class mercurial_source(common.converter_source):
                              extra=ctx.extra(),
                              sortkey=ctx.rev(),
                              saverev=self.saverev,
-                             phase=ctx.phase())
+                             phase=ctx.phase(),
+                             ctx=ctx)
 
     def numcommits(self):
         return len(self.repo)

@@ -578,7 +578,7 @@ Test orig files go where we want them
   $ echo moremore >> anotherlarge
   $ hg revert anotherlarge -v --config 'ui.origbackuppath=.hg/origbackups'
   creating directory: $TESTTMP/addrm2/.hg/origbackups/.hglf/sub
-  saving current version of ../.hglf/sub/anotherlarge as $TESTTMP/addrm2/.hg/origbackups/.hglf/sub/anotherlarge
+  saving current version of ../.hglf/sub/anotherlarge as ../.hg/origbackups/.hglf/sub/anotherlarge
   reverting ../.hglf/sub/anotherlarge
   creating directory: $TESTTMP/addrm2/.hg/origbackups/sub
   found 90c622cf65cebe75c5842f9136c459333faf392e in store
@@ -957,8 +957,8 @@ Merge conflicts:
   $ hg merge
   largefile f-different has a merge conflict
   ancestor was 09d2af8dd22201dd8d48e5dcfcaed281ff9422c7
-  keep (l)ocal e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e or
-  take (o)ther 7448d8798a4380162d4b56f9b452e2f6f9e24e7a? l
+  you can keep (l)ocal e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e or take (o)ther 7448d8798a4380162d4b56f9b452e2f6f9e24e7a.
+  what do you want to do? l
   getting changed largefiles
   1 largefiles updated, 0 removed
   0 files updated, 4 files merged, 0 files removed, 0 files unresolved

@@ -1875,6 +1875,10 @@ help/ shows help topics
   {
     "earlycommands": [
       {
+        "summary": "abort an unfinished operation (EXPERIMENTAL)",
+        "topic": "abort"
+      },
+      {
         "summary": "add the specified files on the next commit",
         "topic": "add"
       },
@@ -1889,6 +1893,10 @@ help/ shows help topics
       {
         "summary": "commit the specified files or all outstanding changes",
         "topic": "commit"
+      },
+      {
+        "summary": "resumes an interrupted operation (EXPERIMENTAL)",
+        "topic": "continue"
       },
       {
         "summary": "diff repository (or selected files)",
@@ -2057,6 +2065,10 @@ help/ shows help topics
         "topic": "root"
       },
       {
+        "summary": "save and set aside changes from the working directory",
+        "topic": "shelve"
+      },
+      {
         "summary": "add one or more tags for the current or given revision",
         "topic": "tag"
       },
@@ -2067,6 +2079,10 @@ help/ shows help topics
       {
         "summary": "apply one or more bundle files",
         "topic": "unbundle"
+      },
+      {
+        "summary": "restore a shelved change to the working directory",
+        "topic": "unshelve"
       },
       {
         "summary": "verify the integrity of the repository",
@@ -2196,7 +2212,8 @@ Error page shouldn't crash
 Commit message with Japanese Kanji 'Noh', which ends with '\x5c'
 
   $ echo foo >> da/foo
-  $ HGENCODING=cp932 hg ci -m `"$PYTHON" -c 'print("\x94\x5c")'`
+  >>> open('msg', 'wb').write(b'\x94\x5c\x0a') and None
+  $ HGENCODING=cp932 hg ci -l msg
 
 Commit message with null character
 

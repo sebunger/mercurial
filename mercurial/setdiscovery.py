@@ -92,69 +92,6 @@ def _updatesample(revs, heads, sample, parentfn, quicksamplesize=0):
                 dist.setdefault(p, d + 1)
                 visit.append(p)
 
-def _takequicksample(repo, headrevs, revs, size):
-    """takes a quick sample of size <size>
-
-    It is meant for initial sampling and focuses on querying heads and close
-    ancestors of heads.
-
-    :dag: a dag object
-    :headrevs: set of head revisions in local DAG to consider
-    :revs: set of revs to discover
-    :size: the maximum size of the sample"""
-    if len(revs) <= size:
-        return list(revs)
-    sample = set(repo.revs('heads(%ld)', revs))
-
-    if len(sample) >= size:
-        return _limitsample(sample, size)
-
-    _updatesample(None, headrevs, sample, repo.changelog.parentrevs,
-                  quicksamplesize=size)
-    return sample
-
-def _takefullsample(repo, headrevs, revs, size):
-    if len(revs) <= size:
-        return list(revs)
-    sample = set(repo.revs('heads(%ld)', revs))
-
-    # update from heads
-    revsheads = set(repo.revs('heads(%ld)', revs))
-    _updatesample(revs, revsheads, sample, repo.changelog.parentrevs)
-
-    # update from roots
-    revsroots = set(repo.revs('roots(%ld)', revs))
-
-    # _updatesample() essentially does interaction over revisions to look up
-    # their children. This lookup is expensive and doing it in a loop is
-    # quadratic. We precompute the children for all relevant revisions and
-    # make the lookup in _updatesample() a simple dict lookup.
-    #
-    # Because this function can be called multiple times during discovery, we
-    # may still perform redundant work and there is room to optimize this by
-    # keeping a persistent cache of children across invocations.
-    children = {}
-
-    parentrevs = repo.changelog.parentrevs
-    for rev in repo.changelog.revs(start=min(revsroots)):
-        # Always ensure revision has an entry so we don't need to worry about
-        # missing keys.
-        children.setdefault(rev, [])
-
-        for prev in parentrevs(rev):
-            if prev == nullrev:
-                continue
-
-            children.setdefault(prev, []).append(rev)
-
-    _updatesample(revs, revsroots, sample, children.__getitem__)
-    assert sample
-    sample = _limitsample(sample, size)
-    if len(sample) < size:
-        more = size - len(sample)
-        sample.update(random.sample(list(revs - sample), more))
-    return sample
-
 def _limitsample(sample, desiredlen):
     """return a random subset of sample of at most desiredlen item"""
     if len(sample) > desiredlen:
@@ -173,21 +110,23 @@ class partialdiscovery(object):
     (all tracked revisions are known locally)
     """
 
-    def __init__(self, repo, targetheads):
+    def __init__(self, repo, targetheads, respectsize):
         self._repo = repo
         self._targetheads = targetheads
         self._common = repo.changelog.incrementalmissingrevs()
         self._undecided = None
         self.missing = set()
+        self._childrenmap = None
+        self._respectsize = respectsize
 
     def addcommons(self, commons):
-        """registrer nodes known as common"""
+        """register nodes known as common"""
         self._common.addbases(commons)
         if self._undecided is not None:
             self._common.removeancestorsfrom(self._undecided)
 
     def addmissings(self, missings):
-        """registrer some nodes as missing"""
+        """register some nodes as missing"""
         newmissing = self._repo.revs('%ld::%ld', missings, self.undecided)
         if newmissing:
             self.missing.update(newmissing)
@@ -222,17 +161,106 @@ class partialdiscovery(object):
         self._undecided = set(self._common.missingancestors(self._targetheads))
         return self._undecided
 
+    def stats(self):
+        return {
+            'undecided': len(self.undecided),
+        }
+
     def commonheads(self):
         """the heads of the known common set"""
         # heads(common) == heads(common.bases) since common represents
         # common.bases and all its ancestors
         return self._common.basesheads()
 
+    def _parentsgetter(self):
+        getrev = self._repo.changelog.index.__getitem__
+        def getparents(r):
+            return getrev(r)[5:7]
+        return getparents
+
+    def _childrengetter(self):
+
+        if self._childrenmap is not None:
+            # During discovery, the `undecided` set keep shrinking.
+            # Therefore, the map computed for an iteration N will be
+            # valid for iteration N+1. Instead of computing the same
+            # data over and over we cached it the first time.
+            return self._childrenmap.__getitem__
+
+        # _updatesample() essentially does interaction over revisions to look
+        # up their children. This lookup is expensive and doing it in a loop is
+        # quadratic. We precompute the children for all relevant revisions and
+        # make the lookup in _updatesample() a simple dict lookup.
+        self._childrenmap = children = {}
+
+        parentrevs = self._parentsgetter()
+        revs = self.undecided
+
+        for rev in sorted(revs):
+            # Always ensure revision has an entry so we don't need to worry
+            # about missing keys.
+            children[rev] = []
+            for prev in parentrevs(rev):
+                if prev == nullrev:
+                    continue
+                c = children.get(prev)
+                if c is not None:
+                    c.append(rev)
+        return children.__getitem__
+
+    def takequicksample(self, headrevs, size):
+        """takes a quick sample of size <size>
+
+        It is meant for initial sampling and focuses on querying heads and close
+        ancestors of heads.
+
+        :headrevs: set of head revisions in local DAG to consider
+        :size: the maximum size of the sample"""
+        revs = self.undecided
+        if len(revs) <= size:
+            return list(revs)
+        sample = set(self._repo.revs('heads(%ld)', revs))
+
+        if len(sample) >= size:
+            return _limitsample(sample, size)
+
+        _updatesample(None, headrevs, sample, self._parentsgetter(),
+                      quicksamplesize=size)
+        return sample
+
+    def takefullsample(self, headrevs, size):
+        revs = self.undecided
+        if len(revs) <= size:
+            return list(revs)
+        repo = self._repo
+        sample = set(repo.revs('heads(%ld)', revs))
+        parentrevs = self._parentsgetter()
+
+        # update from heads
+        revsheads = sample.copy()
+        _updatesample(revs, revsheads, sample, parentrevs)
+
+        # update from roots
+        revsroots = set(repo.revs('roots(%ld)', revs))
+        childrenrevs = self._childrengetter()
+        _updatesample(revs, revsroots, sample, childrenrevs)
+        assert sample
+
+        if not self._respectsize:
+            size = max(size, min(len(revsroots), len(revsheads)))
+
+        sample = _limitsample(sample, size)
+        if len(sample) < size:
+            more = size - len(sample)
+            sample.update(random.sample(list(revs - sample), more))
+        return sample
+
 def findcommonheads(ui, local, remote,
                     initialsamplesize=100,
                     fullsamplesize=200,
                     abortwhenunrelated=True,
-                    ancestorsof=None):
+                    ancestorsof=None,
+                    samplegrowth=1.05):
     '''Return a tuple (common, anyincoming, remoteheads) used to identify
     missing nodes from or in remote.
     '''
@@ -251,9 +279,63 @@ def findcommonheads(ui, local, remote,
     # early exit if we know all the specified remote heads already
     ui.debug("query 1; heads\n")
     roundtrips += 1
-    sample = _limitsample(ownheads, initialsamplesize)
-    # indices between sample and externalized version must match
-    sample = list(sample)
+    # We also ask remote about all the local heads. That set can be arbitrarily
+    # large, so we used to limit it size to `initialsamplesize`. We no longer
+    # do as it proved counter productive. The skipped heads could lead to a
+    # large "undecided" set, slower to be clarified than if we asked the
+    # question for all heads right away.
+    #
+    # We are already fetching all server heads using the `heads` commands,
+    # sending a equivalent number of heads the other way should not have a
+    # significant impact.  In addition, it is very likely that we are going to
+    # have to issue "known" request for an equivalent amount of revisions in
+    # order to decide if theses heads are common or missing.
+    #
+    # find a detailled analysis below.
+    #
+    # Case A: local and server both has few heads
+    #
+    #     Ownheads is below initialsamplesize, limit would not have any effect.
+    #
+    # Case B: local has few heads and server has many
+    #
+    #     Ownheads is below initialsamplesize, limit would not have any effect.
+    #
+    # Case C: local and server both has many heads
+    #
+    #     We now transfert some more data, but not significantly more than is
+    #     already transfered to carry the server heads.
+    #
+    # Case D: local has many heads, server has few
+    #
+    #   D.1 local heads are mostly known remotely
+    #
+    #     All the known head will have be part of a `known` request at some
+    #     point for the discovery to finish. Sending them all earlier is
+    #     actually helping.
+    #
+    #     (This case is fairly unlikely, it requires the numerous heads to all
+    #     be merged server side in only a few heads)
+    #
+    #   D.2 local heads are mostly missing remotely
+    #
+    #     To determine that the heads are missing, we'll have to issue `known`
+    #     request for them or one of their ancestors. This amount of `known`
+    #     request will likely be in the same order of magnitude than the amount
+    #     of local heads.
+    #
+    #     The only case where we can be more efficient using `known` request on
+    #     ancestors are case were all the "missing" local heads are based on a
+    #     few changeset, also "missing".  This means we would have a "complex"
+    #     graph (with many heads) attached to, but very independant to a the
+    #     "simple" graph on the server. This is a fairly usual case and have
+    #     not been met in the wild so far.
+    if remote.limitedarguments:
+        sample = _limitsample(ownheads, initialsamplesize)
+        # indices between sample and externalized version must match
+        sample = list(sample)
+    else:
+        sample = ownheads
 
     with remote.commandexecutor() as e:
         fheads = e.callcommand('heads', {})
@@ -272,18 +354,18 @@ def findcommonheads(ui, local, remote,
     # compatibility reasons)
     ui.status(_("searching for changes\n"))
 
-    srvheads = []
+    knownsrvheads = []  # revnos of remote heads that are known locally
     for node in srvheadhashes:
         if node == nullid:
             continue
 
         try:
-            srvheads.append(clrev(node))
+            knownsrvheads.append(clrev(node))
         # Catches unknown and filtered nodes.
         except error.LookupError:
             continue
 
-    if len(srvheads) == len(srvheadhashes):
+    if len(knownsrvheads) == len(srvheadhashes):
         ui.debug("all remote heads known locally\n")
         return srvheadhashes, False, srvheadhashes
 
@@ -294,10 +376,10 @@ def findcommonheads(ui, local, remote,
 
     # full blown discovery
 
-    disco = partialdiscovery(local, ownheads)
+    disco = partialdiscovery(local, ownheads, remote.limitedarguments)
     # treat remote heads (and maybe own heads) as a first implicit sample
     # response
-    disco.addcommons(srvheads)
+    disco.addcommons(knownsrvheads)
     disco.addinfo(zip(sample, yesno))
 
     full = False
@@ -309,19 +391,23 @@ def findcommonheads(ui, local, remote,
                 ui.note(_("sampling from both directions\n"))
             else:
                 ui.debug("taking initial sample\n")
-            samplefunc = _takefullsample
+            samplefunc = disco.takefullsample
             targetsize = fullsamplesize
+            if not remote.limitedarguments:
+                fullsamplesize = int(fullsamplesize * samplegrowth)
         else:
             # use even cheaper initial sample
             ui.debug("taking quick initial sample\n")
-            samplefunc = _takequicksample
+            samplefunc = disco.takequicksample
             targetsize = initialsamplesize
-        sample = samplefunc(local, ownheads, disco.undecided, targetsize)
+        sample = samplefunc(ownheads, targetsize)
 
         roundtrips += 1
         progress.update(roundtrips)
+        stats = disco.stats()
         ui.debug("query %i; still undecided: %i, sample size is: %i\n"
-                 % (roundtrips, len(disco.undecided), len(sample)))
+                 % (roundtrips, stats['undecided'], len(sample)))
+
         # indices between sample and externalized version must match
         sample = list(sample)
 
@@ -340,7 +426,7 @@ def findcommonheads(ui, local, remote,
     ui.debug("%d total queries in %.4fs\n" % (roundtrips, elapsed))
     msg = ('found %d common and %d unknown server heads,'
            ' %d roundtrips in %.4fs\n')
-    missing = set(result) - set(srvheads)
+    missing = set(result) - set(knownsrvheads)
     ui.log('discovery', msg, len(result), len(missing), roundtrips,
            elapsed)
 

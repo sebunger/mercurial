@@ -53,17 +53,17 @@ from . import (
     pycompat,
     rcutil,
     registrar,
-    repair,
     revsetlang,
     rewriteutil,
     scmutil,
     server,
+    shelve as shelvemod,
     state as statemod,
     streamclone,
     tags as tagsmod,
-    templatekw,
     ui as uimod,
     util,
+    verify as verifymod,
     wireprotoserver,
 )
 from .utils import (
@@ -131,6 +131,29 @@ debugrevlogopts = cmdutil.debugrevlogopts
 
 # Commands start here, listed alphabetically
 
+@command('abort',
+    dryrunopts, helpcategory=command.CATEGORY_CHANGE_MANAGEMENT,
+    helpbasic=True)
+def abort(ui, repo, **opts):
+    """abort an unfinished operation (EXPERIMENTAL)
+
+    Aborts a multistep operation like graft, histedit, rebase, merge,
+    and unshelve if they are in an unfinished state.
+
+    use --dry-run/-n to dry run the command.
+    """
+    dryrun = opts.get(r'dry_run')
+    abortstate = cmdutil.getunfinishedstate(repo)
+    if not abortstate:
+        raise error.Abort(_('no operation in progress'))
+    if not abortstate.abortfunc:
+        raise error.Abort((_("%s in progress but does not support 'hg abort'") %
+                            (abortstate._opname)), hint=abortstate.hint())
+    if dryrun:
+        ui.status(_('%s in progress, will be aborted\n') % (abortstate._opname))
+        return
+    return abortstate.abortfunc(ui, repo)
+
 @command('add',
     walkopts + subrepoopts + dryrunopts,
     _('[OPTION]... [FILE]...'),
@@ -180,7 +203,8 @@ def add(ui, repo, *pats, **opts):
     """
 
     m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
-    rejected = cmdutil.add(ui, repo, m, "", False, **opts)
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+    rejected = cmdutil.add(ui, repo, m, "", uipathfn, False, **opts)
     return rejected and 1 or 0
 
 @command('addremove',
@@ -254,7 +278,9 @@ def addremove(ui, repo, *pats, **opts):
     if not opts.get('similarity'):
         opts['similarity'] = '100'
     matcher = scmutil.match(repo[None], pats, opts)
-    return scmutil.addremove(repo, matcher, "", opts)
+    relative = scmutil.anypats(pats, opts)
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=relative)
+    return scmutil.addremove(repo, matcher, "", uipathfn, opts)
 
 @command('annotate|blame',
     [('r', 'rev', '', _('annotate the specified revision'), _('REV')),
@@ -407,12 +433,13 @@ def annotate(ui, repo, *pats, **opts):
     if skiprevs:
         skiprevs = scmutil.revrange(repo, skiprevs)
 
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
     for abs in ctx.walk(m):
         fctx = ctx[abs]
         rootfm.startitem()
         rootfm.data(path=abs)
         if not opts.get('text') and fctx.isbinary():
-            rootfm.plain(_("%s: binary file\n") % m.rel(abs))
+            rootfm.plain(_("%s: binary file\n") % uipathfn(abs))
             continue
 
         fm = rootfm.nested('lines', tmpl='{rev}: {line}')
@@ -1102,7 +1129,7 @@ def branch(ui, repo, label=None, **opts):
 
     with repo.wlock():
         if opts.get('clean'):
-            label = repo[None].p1().branch()
+            label = repo['.'].branch()
             repo.dirstate.setbranch(label)
             ui.status(_('reset working directory to branch %s\n') % label)
         elif label:
@@ -1122,11 +1149,11 @@ def branch(ui, repo, label=None, **opts):
             ui.status(_('marked working directory as branch %s\n') % label)
 
             # find any open named branches aside from default
-            others = [n for n, h, t, c in repo.branchmap().iterbranches()
-                      if n != "default" and not c]
-            if not others:
-                ui.status(_('(branches are permanent and global, '
-                            'did you want a bookmark?)\n'))
+            for n, h, t, c in repo.branchmap().iterbranches():
+                if n != "default" and not c:
+                    return 0
+            ui.status(_('(branches are permanent and global, '
+                        'did you want a bookmark?)\n'))
 
 @command('branches',
     [('a', 'active', False,
@@ -1579,6 +1606,8 @@ def clone(ui, source, dest=None, **opts):
     ('', 'amend', None, _('amend the parent of the working directory')),
     ('s', 'secret', None, _('use the secret phase for committing')),
     ('e', 'edit', None, _('invoke editor on commit messages')),
+    ('', 'force-close-branch', None,
+     _('forcibly close branch from a non-head changeset (ADVANCED)')),
     ('i', 'interactive', None, _('use interactive mode')),
     ] + walkopts + commitopts + commitopts2 + subrepoopts,
     _('[OPTION]... [FILE]...'),
@@ -1666,14 +1695,22 @@ def _docommit(ui, repo, *pats, **opts):
     bheads = repo.branchheads(branch)
 
     extra = {}
-    if opts.get('close_branch'):
+    if opts.get('close_branch') or opts.get('force_close_branch'):
         extra['close'] = '1'
 
-        if not bheads:
-            raise error.Abort(_('can only close branch heads'))
+        if repo['.'].closesbranch():
+            raise error.Abort(_('current revision is already a branch closing'
+                                ' head'))
+        elif not bheads:
+            raise error.Abort(_('branch "%s" has no heads to close') % branch)
+        elif (branch == repo['.'].branch() and repo['.'].node() not in bheads
+              and not opts.get('force_close_branch')):
+            hint = _('use --force-close-branch to close branch from a non-head'
+                     ' changeset')
+            raise error.Abort(_('can only close branch heads'), hint=hint)
         elif opts.get('amend'):
-            if repo[None].parents()[0].p1().branch() != branch and \
-                    repo[None].parents()[0].p2().branch() != branch:
+            if (repo['.'].p1().branch() != branch and
+                repo['.'].p2().branch() != branch):
                 raise error.Abort(_('can only close branch heads'))
 
     if opts.get('amend'):
@@ -1728,6 +1765,10 @@ def _docommit(ui, repo, *pats, **opts):
             return 1
 
     cmdutil.commitstatus(repo, node, branch, bheads, opts)
+
+    if not ui.quiet and ui.configbool('commands', 'commit.post-status'):
+        status(ui, repo, modified=True, added=True, removed=True, deleted=True,
+               unknown=True, subrepos=opts.get('subrepos'))
 
 @command('config|showconfig|debugconfig',
     [('u', 'untrusted', None, _('show untrusted configuration options')),
@@ -1850,11 +1891,35 @@ def config(ui, repo, *values, **opts):
         return 0
     return 1
 
+@command('continue',
+    dryrunopts, helpcategory=command.CATEGORY_CHANGE_MANAGEMENT,
+    helpbasic=True)
+def continuecmd(ui, repo, **opts):
+    """resumes an interrupted operation (EXPERIMENTAL)
+
+    Finishes a multistep operation like graft, histedit, rebase, merge,
+    and unshelve if they are in an interrupted state.
+
+    use --dry-run/-n to dry run the command.
+    """
+    dryrun = opts.get(r'dry_run')
+    contstate = cmdutil.getunfinishedstate(repo)
+    if not contstate:
+        raise error.Abort(_('no operation in progress'))
+    if not contstate.continuefunc:
+        raise error.Abort((_("%s in progress but does not support "
+                             "'hg continue'") % (contstate._opname)),
+                             hint=contstate.continuemsg())
+    if dryrun:
+        ui.status(_('%s in progress, will be resumed\n') % (contstate._opname))
+        return
+    return contstate.continuefunc(ui, repo)
+
 @command('copy|cp',
     [('A', 'after', None, _('record a copy that has already occurred')),
     ('f', 'force', None, _('forcibly copy over an existing managed file')),
     ] + walkopts + dryrunopts,
-    _('[OPTION]... [SOURCE]... DEST'),
+    _('[OPTION]... SOURCE... DEST'),
     helpcategory=command.CATEGORY_FILE_CONTENTS)
 def copy(ui, repo, *pats, **opts):
     """mark files as copied for the next commit
@@ -2209,8 +2274,10 @@ def files(ui, repo, *pats, **opts):
 
     m = scmutil.match(ctx, pats, opts)
     ui.pager('files')
+    uipathfn = scmutil.getuipathfn(ctx.repo(), legacyrelativevalue=True)
     with ui.formatter('files', opts) as fm:
-        return cmdutil.files(ui, ctx, m, fm, fmt, opts.get('subrepos'))
+        return cmdutil.files(ui, ctx, m, uipathfn, fm, fmt,
+                             opts.get('subrepos'))
 
 @command(
     'forget',
@@ -2254,7 +2321,8 @@ def forget(ui, repo, *pats, **opts):
 
     m = scmutil.match(repo[None], pats, opts)
     dryrun, interactive = opts.get('dry_run'), opts.get('interactive')
-    rejected = cmdutil.forget(ui, repo, m, prefix="",
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+    rejected = cmdutil.forget(ui, repo, m, prefix="", uipathfn=uipathfn,
                               explicitonly=False, dryrun=dryrun,
                               interactive=interactive)[0]
     return rejected and 1 or 0
@@ -2443,14 +2511,14 @@ def _dograft(ui, repo, *revs, **opts):
                 opts.get('currentuser'), opts.get('rev'))):
             raise error.Abort(_("cannot specify any other flag with '--abort'"))
 
-        return _abortgraft(ui, repo, graftstate)
+        return cmdutil.abortgraft(ui, repo, graftstate)
     elif opts.get('continue'):
         cont = True
         if revs:
             raise error.Abort(_("can't specify --continue and revisions"))
         # read in unfinished revisions
         if graftstate.exists():
-            statedata = _readgraftstate(repo, graftstate)
+            statedata = cmdutil.readgraftstate(repo, graftstate)
             if statedata.get('date'):
                 opts['date'] = statedata['date']
             if statedata.get('user'):
@@ -2620,70 +2688,6 @@ def _dograft(ui, repo, *revs, **opts):
 
     return 0
 
-def _abortgraft(ui, repo, graftstate):
-    """abort the interrupted graft and rollbacks to the state before interrupted
-    graft"""
-    if not graftstate.exists():
-        raise error.Abort(_("no interrupted graft to abort"))
-    statedata = _readgraftstate(repo, graftstate)
-    newnodes = statedata.get('newnodes')
-    if newnodes is None:
-        # and old graft state which does not have all the data required to abort
-        # the graft
-        raise error.Abort(_("cannot abort using an old graftstate"))
-
-    # changeset from which graft operation was started
-    startctx = None
-    if len(newnodes) > 0:
-        startctx = repo[newnodes[0]].p1()
-    else:
-        startctx = repo['.']
-    # whether to strip or not
-    cleanup = False
-    if newnodes:
-        newnodes = [repo[r].rev() for r in newnodes]
-        cleanup = True
-        # checking that none of the newnodes turned public or is public
-        immutable = [c for c in newnodes if not repo[c].mutable()]
-        if immutable:
-            repo.ui.warn(_("cannot clean up public changesets %s\n")
-                         % ', '.join(bytes(repo[r]) for r in immutable),
-                         hint=_("see 'hg help phases' for details"))
-            cleanup = False
-
-        # checking that no new nodes are created on top of grafted revs
-        desc = set(repo.changelog.descendants(newnodes))
-        if desc - set(newnodes):
-            repo.ui.warn(_("new changesets detected on destination "
-                           "branch, can't strip\n"))
-            cleanup = False
-
-        if cleanup:
-            with repo.wlock(), repo.lock():
-                hg.updaterepo(repo, startctx.node(), overwrite=True)
-                # stripping the new nodes created
-                strippoints = [c.node() for c in repo.set("roots(%ld)",
-                                                          newnodes)]
-                repair.strip(repo.ui, repo, strippoints, backup=False)
-
-    if not cleanup:
-        # we don't update to the startnode if we can't strip
-        startctx = repo['.']
-        hg.updaterepo(repo, startctx.node(), overwrite=True)
-
-    ui.status(_("graft aborted\n"))
-    ui.status(_("working directory is now at %s\n") % startctx.hex()[:12])
-    graftstate.delete()
-    return 0
-
-def _readgraftstate(repo, graftstate):
-    """read the graft state file and return a dict of the data stored in it"""
-    try:
-        return graftstate.read()
-    except error.CorruptedState:
-        nodes = repo.vfs.read('graftstate').splitlines()
-        return {'nodes': nodes}
-
 def _stopgraft(ui, repo, graftstate):
     """stop the interrupted graft"""
     if not graftstate.exists():
@@ -2694,6 +2698,12 @@ def _stopgraft(ui, repo, graftstate):
     ui.status(_("stopped the interrupted graft\n"))
     ui.status(_("working directory is now at %s\n") % pctx.hex()[:12])
     return 0
+
+statemod.addunfinished(
+    'graft', fname='graftstate', clearable=True, stopflag=True,
+    continueflag=True, abortfunc=cmdutil.hgabortgraft,
+    cmdhint=_("use 'hg graft --continue' or 'hg graft --stop' to stop")
+)
 
 @command('grep',
     [('0', 'print0', None, _('end fields with NUL')),
@@ -2849,6 +2859,7 @@ def grep(ui, repo, pattern, *pats, **opts):
                 for i in pycompat.xrange(blo, bhi):
                     yield ('+', b[i])
 
+    uipathfn = scmutil.getuipathfn(repo)
     def display(fm, fn, ctx, pstates, states):
         rev = scmutil.intrev(ctx)
         if fm.isplain():
@@ -2868,7 +2879,7 @@ def grep(ui, repo, pattern, *pats, **opts):
             except error.WdirUnsupported:
                 return ctx[fn].isbinary()
 
-        fieldnamemap = {'filename': 'path', 'linenumber': 'lineno'}
+        fieldnamemap = {'linenumber': 'lineno'}
         if diff:
             iter = difflinestates(pstates, states)
         else:
@@ -2876,27 +2887,29 @@ def grep(ui, repo, pattern, *pats, **opts):
         for change, l in iter:
             fm.startitem()
             fm.context(ctx=ctx)
-            fm.data(node=fm.hexfunc(scmutil.binnode(ctx)))
+            fm.data(node=fm.hexfunc(scmutil.binnode(ctx)), path=fn)
+            fm.plain(uipathfn(fn), label='grep.filename')
 
             cols = [
-                ('filename', '%s', fn, True),
-                ('rev', '%d', rev, not plaingrep),
-                ('linenumber', '%d', l.linenum, opts.get('line_number')),
+                ('rev', '%d', rev, not plaingrep, ''),
+                ('linenumber', '%d', l.linenum, opts.get('line_number'), ''),
             ]
             if diff:
-                cols.append(('change', '%s', change, True))
+                cols.append(
+                    ('change', '%s', change, True,
+                     'grep.inserted ' if change == '+' else 'grep.deleted ')
+                )
             cols.extend([
-                ('user', '%s', formatuser(ctx.user()), opts.get('user')),
+                ('user', '%s', formatuser(ctx.user()), opts.get('user'), ''),
                 ('date', '%s', fm.formatdate(ctx.date(), datefmt),
-                 opts.get('date')),
+                 opts.get('date'), ''),
             ])
-            lastcol = next(
-                name for name, fmt, data, cond in reversed(cols) if cond)
-            for name, fmt, data, cond in cols:
-                field = fieldnamemap.get(name, name)
-                fm.condwrite(cond, field, fmt, data, label='grep.%s' % name)
-                if cond and name != lastcol:
+            for name, fmt, data, cond, extra_label in cols:
+                if cond:
                     fm.plain(sep, label='grep.sep')
+                field = fieldnamemap.get(name, name)
+                label = extra_label + ('grep.%s' % name)
+                fm.condwrite(cond, field, fmt, data, label=label)
             if not opts.get('files_with_matches'):
                 fm.plain(sep, label='grep.sep')
                 if not opts.get('text') and binary():
@@ -2926,12 +2939,13 @@ def grep(ui, repo, pattern, *pats, **opts):
             fm.data(matched=False)
         fm.end()
 
-    skip = {}
+    skip = set()
     revfiles = {}
     match = scmutil.match(repo[None], pats, opts)
     found = False
     follow = opts.get('follow')
 
+    getrenamed = scmutil.getrenamedfn(repo)
     def prep(ctx, fns):
         rev = ctx.rev()
         pctx = ctx.p1()
@@ -2945,16 +2959,15 @@ def grep(ui, repo, pattern, *pats, **opts):
                 fnode = ctx.filenode(fn)
             except error.LookupError:
                 continue
-            try:
-                copied = flog.renamed(fnode)
-            except error.WdirUnsupported:
-                copied = ctx[fn].renamed()
-            copy = follow and copied and copied[0]
-            if copy:
-                copies.setdefault(rev, {})[fn] = copy
-            if fn in skip:
+
+            copy = None
+            if follow:
+                copy = getrenamed(fn, rev)
                 if copy:
-                    skip[copy] = True
+                    copies.setdefault(rev, {})[fn] = copy
+                    if fn in skip:
+                        skip.add(copy)
+            if fn in skip:
                 continue
             files.append(fn)
 
@@ -2983,16 +2996,16 @@ def grep(ui, repo, pattern, *pats, **opts):
             copy = copies.get(rev, {}).get(fn)
             if fn in skip:
                 if copy:
-                    skip[copy] = True
+                    skip.add(copy)
                 continue
             pstates = matches.get(parent, {}).get(copy or fn, [])
             if pstates or states:
                 r = display(fm, fn, ctx, pstates, states)
                 found = found or r
                 if r and not diff and not all_files:
-                    skip[fn] = True
+                    skip.add(fn)
                     if copy:
-                        skip[copy] = True
+                        skip.add(copy)
         del revfiles[rev]
         # We will keep the matches dict for the duration of the window
         # clear the matches dict once the window is over
@@ -3488,7 +3501,7 @@ def import_(ui, repo, patch1=None, *patches, **opts):
                 else:
                     patchurl = os.path.join(base, patchurl)
                     ui.status(_('applying %s\n') % patchurl)
-                    patchfile = hg.openpath(ui, patchurl)
+                    patchfile = hg.openpath(ui, patchurl, sendaccept=False)
 
                 haspatch = False
                 for hunk in patch.split(patchfile):
@@ -3683,11 +3696,12 @@ def locate(ui, repo, *pats, **opts):
         filesgen = sorted(repo.dirstate.matches(m))
     else:
         filesgen = ctx.matches(m)
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=bool(pats))
     for abs in filesgen:
         if opts.get('fullpath'):
             ui.write(repo.wjoin(abs), end)
         else:
-            ui.write(((pats and m.rel(abs)) or abs), end)
+            ui.write(uipathfn(abs), end)
         ret = 0
 
     return ret
@@ -3706,7 +3720,8 @@ def locate(ui, repo, *pats, **opts):
      _('follow line range of specified file (EXPERIMENTAL)'),
      _('FILE,RANGE')),
     ('', 'removed', None, _('include revisions where files were removed')),
-    ('m', 'only-merges', None, _('show only merges (DEPRECATED)')),
+    ('m', 'only-merges', None,
+     _('show only merges (DEPRECATED) (use -r "merge()" instead)')),
     ('u', 'user', [], _('revisions committed by user'), _('USER')),
     ('', 'only-branch', [],
      _('show only changesets within the given named branch (DEPRECATED)'),
@@ -3867,12 +3882,12 @@ def log(ui, repo, *pats, **opts):
         # then filter the result by logcmdutil._makerevset() and --limit
         revs, differ = logcmdutil.getlinerangerevs(repo, revs, opts)
 
-    getrenamed = None
+    getcopies = None
     if opts.get('copies'):
         endrev = None
         if revs:
             endrev = revs.max() + 1
-        getrenamed = templatekw.getrenamedfn(repo, endrev=endrev)
+        getcopies = scmutil.getcopiesfn(repo, endrev=endrev)
 
     ui.pager('log')
     displayer = logcmdutil.changesetdisplayer(ui, repo, opts, differ,
@@ -3881,7 +3896,7 @@ def log(ui, repo, *pats, **opts):
         displayfn = logcmdutil.displaygraphrevs
     else:
         displayfn = logcmdutil.displayrevs
-    displayfn(ui, repo, revs, displayer, getrenamed)
+    displayfn(ui, repo, revs, displayer, getcopies)
 
 @command('manifest',
     [('r', 'rev', '', _('revision to display'), _('REV')),
@@ -3974,7 +3989,7 @@ def merge(ui, repo, node=None, **opts):
     If no revision is specified, the working directory's parent is a
     head revision, and the current branch contains exactly one other
     head, the other head is merged with by default. Otherwise, an
-    explicit revision with which to merge with must be provided.
+    explicit revision with which to merge must be provided.
 
     See :hg:`help resolve` for information on handling file conflicts.
 
@@ -3990,6 +4005,10 @@ def merge(ui, repo, node=None, **opts):
     if abort and repo.dirstate.p2() == nullid:
         cmdutil.wrongtooltocontinue(repo, _('merge'))
     if abort:
+        state = cmdutil.getunfinishedstate(repo)
+        if state and state._opname != 'merge':
+            raise error.Abort(_('cannot abort merge with %s in progress') %
+                                (state._opname), hint=state.hint())
         if node:
             raise error.Abort(_("cannot specify a node with --abort"))
         if opts.get('rev'):
@@ -4026,6 +4045,14 @@ def merge(ui, repo, node=None, **opts):
         labels = ['working copy', 'merge rev']
         return hg.merge(repo, node, force=force, mergeforce=force,
                         labels=labels, abort=abort)
+
+statemod.addunfinished(
+    'merge', fname=None, clearable=True, allowcommit=True,
+    cmdmsg=_('outstanding uncommitted merge'), abortfunc=hg.abortmerge,
+    statushint=_('To continue:    hg commit\n'
+                 'To abort:       hg merge --abort'),
+    cmdhint=_("use 'hg commit' or 'hg merge --abort'")
+)
 
 @command('outgoing|out',
     [('f', 'force', None, _('run even when the destination is unrelated')),
@@ -4361,7 +4388,7 @@ def postincoming(ui, repo, modheads, optupdate, checkout, brev):
             msg = _("not updating: %s") % stringutil.forcebytestr(inst)
             hint = inst.hint
             raise error.UpdateAbort(msg, hint=hint)
-    if modheads > 1:
+    if modheads is not None and modheads > 1:
         currentbranchheads = len(repo.branchheads())
         if currentbranchheads == modheads:
             ui.status(_("(run 'hg heads' to see heads, 'hg merge' to merge)\n"))
@@ -4479,7 +4506,7 @@ def pull(ui, repo, source="default", **opts):
             brev = None
 
             if checkout:
-                checkout = repo.changelog.rev(checkout)
+                checkout = repo.unfiltered().changelog.rev(checkout)
 
                 # order below depends on implementation of
                 # hg.addbranchrevs(). opts['bookmark'] is ignored,
@@ -4494,7 +4521,10 @@ def pull(ui, repo, source="default", **opts):
             try:
                 ret = postincoming(ui, repo, modheads, opts.get('update'),
                                    checkout, brev)
-
+            except error.FilteredRepoLookupError as exc:
+                msg = _('cannot update to target: %s') % exc.args[0]
+                exc.args = (msg,) + exc.args[1:]
+                raise
             finally:
                 del repo._subtoppath
 
@@ -4643,8 +4673,11 @@ def push(ui, repo, dest=None, **opts):
 
     return result
 
-@command('recover', [], helpcategory=command.CATEGORY_MAINTENANCE)
-def recover(ui, repo):
+@command('recover',
+    [('','verify', True, "run `hg verify` after succesful recover"),
+    ],
+    helpcategory=command.CATEGORY_MAINTENANCE)
+def recover(ui, repo, **opts):
     """roll back an interrupted transaction
 
     Recover from an interrupted commit or pull.
@@ -4655,8 +4688,15 @@ def recover(ui, repo):
 
     Returns 0 if successful, 1 if nothing to recover or verify fails.
     """
-    if repo.recover():
-        return hg.verify(repo)
+    ret = repo.recover()
+    if ret:
+        if opts[r'verify']:
+            return hg.verify(repo)
+        else:
+            msg = _("(verify step skipped, run  `hg verify` to check your "
+                    "repository content)\n")
+            ui.warn(msg)
+            return 0
     return 1
 
 @command('remove|rm',
@@ -4714,12 +4754,13 @@ def remove(ui, repo, *pats, **opts):
 
     m = scmutil.match(repo[None], pats, opts)
     subrepos = opts.get('subrepos')
-    return cmdutil.remove(ui, repo, m, "", after, force, subrepos,
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=True)
+    return cmdutil.remove(ui, repo, m, "", uipathfn, after, force, subrepos,
                           dryrun=dryrun)
 
 @command('rename|move|mv',
     [('A', 'after', None, _('record a rename that has already occurred')),
-    ('f', 'force', None, _('forcibly copy over an existing managed file')),
+    ('f', 'force', None, _('forcibly move over an existing managed file')),
     ] + walkopts + dryrunopts,
     _('[OPTION]... SOURCE... DEST'),
     helpcategory=command.CATEGORY_WORKING_DIRECTORY)
@@ -4809,8 +4850,8 @@ def resolve(ui, repo, *pats, **opts):
     opts = pycompat.byteskwargs(opts)
     confirm = ui.configbool('commands', 'resolve.confirm')
     flaglist = 'all mark unmark list no_status re_merge'.split()
-    all, mark, unmark, show, nostatus, remerge = \
-        [opts.get(o) for o in flaglist]
+    all, mark, unmark, show, nostatus, remerge = [
+        opts.get(o) for o in flaglist]
 
     actioncount = len(list(filter(None, [show, mark, unmark, remerge])))
     if actioncount > 1:
@@ -4839,6 +4880,8 @@ def resolve(ui, repo, *pats, **opts):
                                  b'$$ &Yes $$ &No')):
                 raise error.Abort(_('user quit'))
 
+    uipathfn = scmutil.getuipathfn(repo)
+
     if show:
         ui.pager('resolve')
         fm = ui.formatter('resolve', opts)
@@ -4866,7 +4909,8 @@ def resolve(ui, repo, *pats, **opts):
             fm.startitem()
             fm.context(ctx=wctx)
             fm.condwrite(not nostatus, 'mergestatus', '%s ', key, label=label)
-            fm.write('path', '%s\n', f, label=label)
+            fm.data(path=f)
+            fm.plain('%s\n' % uipathfn(f), label=label)
         fm.end()
         return 0
 
@@ -4912,11 +4956,11 @@ def resolve(ui, repo, *pats, **opts):
                 if mark:
                     if exact:
                         ui.warn(_('not marking %s as it is driver-resolved\n')
-                                % f)
+                                % uipathfn(f))
                 elif unmark:
                     if exact:
                         ui.warn(_('not unmarking %s as it is driver-resolved\n')
-                                % f)
+                                % uipathfn(f))
                 else:
                     runconclude = True
                 continue
@@ -4930,14 +4974,14 @@ def resolve(ui, repo, *pats, **opts):
                     ms.mark(f, mergemod.MERGE_RECORD_UNRESOLVED_PATH)
                 elif ms[f] == mergemod.MERGE_RECORD_UNRESOLVED_PATH:
                     ui.warn(_('%s: path conflict must be resolved manually\n')
-                            % f)
+                            % uipathfn(f))
                 continue
 
             if mark:
                 if markcheck:
                     fdata = repo.wvfs.tryread(f)
-                    if filemerge.hasconflictmarkers(fdata) and \
-                        ms[f] != mergemod.MERGE_RECORD_RESOLVED:
+                    if (filemerge.hasconflictmarkers(fdata) and
+                        ms[f] != mergemod.MERGE_RECORD_RESOLVED):
                         hasconflictmarkers.append(f)
                 ms.mark(f, mergemod.MERGE_RECORD_RESOLVED)
             elif unmark:
@@ -4968,14 +5012,15 @@ def resolve(ui, repo, *pats, **opts):
                 if complete:
                     try:
                         util.rename(a + ".resolve",
-                                    scmutil.origpath(ui, repo, a))
+                                    scmutil.backuppath(ui, repo, f))
                     except OSError as inst:
                         if inst.errno != errno.ENOENT:
                             raise
 
         if hasconflictmarkers:
             ui.warn(_('warning: the following files still have conflict '
-                      'markers:\n  ') + '\n  '.join(hasconflictmarkers) + '\n')
+                      'markers:\n') + ''.join('  ' + uipathfn(f) + '\n'
+                                              for f in hasconflictmarkers))
             if markcheck == 'abort' and not all and not pats:
                 raise error.Abort(_('conflict markers detected'),
                                   hint=_('use --all to mark anyway'))
@@ -4994,7 +5039,7 @@ def resolve(ui, repo, *pats, **opts):
             # replace filemerge's .orig file with our resolve file
             a = repo.wjoin(f)
             try:
-                util.rename(a + ".resolve", scmutil.origpath(ui, repo, a))
+                util.rename(a + ".resolve", scmutil.backuppath(ui, repo, f))
             except OSError as inst:
                 if inst.errno != errno.ENOENT:
                     raise
@@ -5190,16 +5235,30 @@ def rollback(ui, repo, **opts):
                          force=opts.get(r'force'))
 
 @command(
-    'root', [], intents={INTENT_READONLY},
+    'root', [] + formatteropts, intents={INTENT_READONLY},
     helpcategory=command.CATEGORY_WORKING_DIRECTORY)
-def root(ui, repo):
+def root(ui, repo, **opts):
     """print the root (top) of the current working directory
 
     Print the root directory of the current repository.
 
+    .. container:: verbose
+
+      Template:
+
+      The following keywords are supported in addition to the common template
+      keywords and functions. See also :hg:`help templates`.
+
+      :hgpath:    String. Path to the .hg directory.
+      :storepath: String. Path to the directory holding versioned data.
+
     Returns 0 on success.
     """
-    ui.write(repo.root + "\n")
+    opts = pycompat.byteskwargs(opts)
+    with ui.formatter('root', opts) as fm:
+        fm.startitem()
+        fm.write('reporoot', '%s\n', repo.root)
+        fm.data(hgpath=repo.path, storepath=repo.spath)
 
 @command('serve',
     [('A', 'accesslog', '', _('name of access log file to write to'),
@@ -5271,6 +5330,106 @@ def serve(ui, repo, **opts):
 
     service = server.createservice(ui, repo, opts)
     return server.runservice(opts, initfn=service.init, runfn=service.run)
+
+@command('shelve',
+         [('A', 'addremove', None,
+           _('mark new/missing files as added/removed before shelving')),
+          ('u', 'unknown', None,
+           _('store unknown files in the shelve')),
+          ('', 'cleanup', None,
+           _('delete all shelved changes')),
+          ('', 'date', '',
+           _('shelve with the specified commit date'), _('DATE')),
+          ('d', 'delete', None,
+           _('delete the named shelved change(s)')),
+          ('e', 'edit', False,
+           _('invoke editor on commit messages')),
+          ('k', 'keep', False,
+           _('shelve, but keep changes in the working directory')),
+          ('l', 'list', None,
+           _('list current shelves')),
+          ('m', 'message', '',
+           _('use text as shelve message'), _('TEXT')),
+          ('n', 'name', '',
+           _('use the given name for the shelved commit'), _('NAME')),
+          ('p', 'patch', None,
+           _('output patches for changes (provide the names of the shelved '
+             'changes as positional arguments)')),
+          ('i', 'interactive', None,
+           _('interactive mode')),
+          ('', 'stat', None,
+           _('output diffstat-style summary of changes (provide the names of '
+             'the shelved changes as positional arguments)')
+           )] + cmdutil.walkopts,
+         _('hg shelve [OPTION]... [FILE]...'),
+         helpcategory=command.CATEGORY_WORKING_DIRECTORY)
+def shelve(ui, repo, *pats, **opts):
+    '''save and set aside changes from the working directory
+
+    Shelving takes files that "hg status" reports as not clean, saves
+    the modifications to a bundle (a shelved change), and reverts the
+    files so that their state in the working directory becomes clean.
+
+    To restore these changes to the working directory, using "hg
+    unshelve"; this will work even if you switch to a different
+    commit.
+
+    When no files are specified, "hg shelve" saves all not-clean
+    files. If specific files or directories are named, only changes to
+    those files are shelved.
+
+    In bare shelve (when no files are specified, without interactive,
+    include and exclude option), shelving remembers information if the
+    working directory was on newly created branch, in other words working
+    directory was on different branch than its first parent. In this
+    situation unshelving restores branch information to the working directory.
+
+    Each shelved change has a name that makes it easier to find later.
+    The name of a shelved change defaults to being based on the active
+    bookmark, or if there is no active bookmark, the current named
+    branch.  To specify a different name, use ``--name``.
+
+    To see a list of existing shelved changes, use the ``--list``
+    option. For each shelved change, this will print its name, age,
+    and description; use ``--patch`` or ``--stat`` for more details.
+
+    To delete specific shelved changes, use ``--delete``. To delete
+    all shelved changes, use ``--cleanup``.
+    '''
+    opts = pycompat.byteskwargs(opts)
+    allowables = [
+        ('addremove', {'create'}), # 'create' is pseudo action
+        ('unknown', {'create'}),
+        ('cleanup', {'cleanup'}),
+#       ('date', {'create'}), # ignored for passing '--date "0 0"' in tests
+        ('delete', {'delete'}),
+        ('edit', {'create'}),
+        ('keep', {'create'}),
+        ('list', {'list'}),
+        ('message', {'create'}),
+        ('name', {'create'}),
+        ('patch', {'patch', 'list'}),
+        ('stat', {'stat', 'list'}),
+    ]
+    def checkopt(opt):
+        if opts.get(opt):
+            for i, allowable in allowables:
+                if opts[i] and opt not in allowable:
+                    raise error.Abort(_("options '--%s' and '--%s' may not be "
+                                       "used together") % (opt, i))
+            return True
+    if checkopt('cleanup'):
+        if pats:
+            raise error.Abort(_("cannot specify names when using '--cleanup'"))
+        return shelvemod.cleanupcmd(ui, repo)
+    elif checkopt('delete'):
+        return shelvemod.deletecmd(ui, repo, pats)
+    elif checkopt('list'):
+        return shelvemod.listcmd(ui, repo, pats, opts)
+    elif checkopt('patch') or checkopt('stat'):
+        return shelvemod.patchcmds(ui, repo, pats, opts)
+    else:
+        return shelvemod.createcmd(ui, repo, pats, opts)
 
 _NOTTERSE = 'nothing'
 
@@ -5413,10 +5572,11 @@ def status(ui, repo, *pats, **opts):
         repo = scmutil.unhidehashlikerevs(repo, revs, 'nowarn')
         ctx1, ctx2 = scmutil.revpair(repo, revs)
 
-    if pats or ui.configbool('commands', 'status.relative'):
-        cwd = repo.getcwd()
-    else:
-        cwd = ''
+    forcerelativevalue = None
+    if ui.hasconfig('commands', 'status.relative'):
+        forcerelativevalue = ui.configbool('commands', 'status.relative')
+    uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=bool(pats),
+                                   forcerelativevalue=forcerelativevalue)
 
     if opts.get('print0'):
         end = '\0'
@@ -5467,10 +5627,10 @@ def status(ui, repo, *pats, **opts):
                 fm.context(ctx=ctx2)
                 fm.data(path=f)
                 fm.condwrite(showchar, 'status', '%s ', char, label=label)
-                fm.plain(fmt % repo.pathto(f, cwd), label=label)
+                fm.plain(fmt % uipathfn(f), label=label)
                 if f in copy:
                     fm.data(source=copy[f])
-                    fm.plain(('  %s' + end) % repo.pathto(copy[f], cwd),
+                    fm.plain(('  %s' + end) % uipathfn(copy[f]),
                              label='status.copied')
 
     if ((ui.verbose or ui.configbool('commands', 'status.verbose'))
@@ -5503,7 +5663,6 @@ def summary(ui, repo, **opts):
     pnode = parents[0].node()
     marks = []
 
-    ms = None
     try:
         ms = mergemod.mergestate.read(repo)
     except error.UnsupportedMergeRecords as e:
@@ -5830,6 +5989,10 @@ def tag(ui, repo, name1, *names, **opts):
                 expectedtype = 'global'
 
             for n in names:
+                if repo.tagtype(n) == 'global':
+                    alltags = tagsmod.findglobaltags(ui, repo)
+                    if alltags[n][0] == nullid:
+                        raise error.Abort(_("tag '%s' is already removed") % n)
                 if not repo.tagtype(n):
                     raise error.Abort(_("tag '%s' does not exist") % n)
                 if repo.tagtype(n) != expectedtype:
@@ -5908,7 +6071,6 @@ def tags(ui, repo, **opts):
     ui.pager('tags')
     fm = ui.formatter('tags', opts)
     hexfunc = fm.hexfunc
-    tagtype = ""
 
     for t, n in reversed(repo.tagslist()):
         hn = hexfunc(n)
@@ -5996,6 +6158,76 @@ def unbundle(ui, repo, fname1, *fnames, **opts):
             modheads = bundle2.combinechangegroupresults(op)
 
     return postincoming(ui, repo, modheads, opts.get(r'update'), None, None)
+
+@command('unshelve',
+         [('a', 'abort', None,
+           _('abort an incomplete unshelve operation')),
+          ('c', 'continue', None,
+           _('continue an incomplete unshelve operation')),
+          ('i', 'interactive', None,
+           _('use interactive mode (EXPERIMENTAL)')),
+          ('k', 'keep', None,
+           _('keep shelve after unshelving')),
+          ('n', 'name', '',
+           _('restore shelved change with given name'), _('NAME')),
+          ('t', 'tool', '', _('specify merge tool')),
+          ('', 'date', '',
+           _('set date for temporary commits (DEPRECATED)'), _('DATE'))],
+         _('hg unshelve [OPTION]... [FILE]... [-n SHELVED]'),
+         helpcategory=command.CATEGORY_WORKING_DIRECTORY)
+def unshelve(ui, repo, *shelved, **opts):
+    """restore a shelved change to the working directory
+
+    This command accepts an optional name of a shelved change to
+    restore. If none is given, the most recent shelved change is used.
+
+    If a shelved change is applied successfully, the bundle that
+    contains the shelved changes is moved to a backup location
+    (.hg/shelve-backup).
+
+    Since you can restore a shelved change on top of an arbitrary
+    commit, it is possible that unshelving will result in a conflict
+    between your changes and the commits you are unshelving onto. If
+    this occurs, you must resolve the conflict, then use
+    ``--continue`` to complete the unshelve operation. (The bundle
+    will not be moved until you successfully complete the unshelve.)
+
+    (Alternatively, you can use ``--abort`` to abandon an unshelve
+    that causes a conflict. This reverts the unshelved changes, and
+    leaves the bundle in place.)
+
+    If bare shelved change (when no files are specified, without interactive,
+    include and exclude option) was done on newly created branch it would
+    restore branch information to the working directory.
+
+    After a successful unshelve, the shelved changes are stored in a
+    backup directory. Only the N most recent backups are kept. N
+    defaults to 10 but can be overridden using the ``shelve.maxbackups``
+    configuration option.
+
+    .. container:: verbose
+
+       Timestamp in seconds is used to decide order of backups. More
+       than ``maxbackups`` backups are kept, if same timestamp
+       prevents from deciding exact order of them, for safety.
+
+       Selected changes can be unshelved with ``--interactive`` flag.
+       The working directory is updated with the selected changes, and
+       only the unselected changes remain shelved.
+       Note: The whole shelve is applied to working directory first before
+       running interactively. So, this will bring up all the conflicts between
+       working directory and the shelve, irrespective of which changes will be
+       unshelved.
+    """
+    with repo.wlock():
+        return shelvemod.dounshelve(ui, repo, *shelved, **opts)
+
+statemod.addunfinished(
+    'unshelve', fname='shelvedstate', continueflag=True,
+    abortfunc=shelvemod.hgabortunshelve,
+    continuefunc=shelvemod.hgcontinueunshelve,
+    cmdmsg=_('unshelve already in progress'),
+)
 
 @command('update|up|checkout|co',
     [('C', 'clean', None, _('discard uncommitted changes (no backup)')),
@@ -6093,7 +6325,6 @@ def update(ui, repo, node=None, **opts):
 
     with repo.wlock():
         cmdutil.clearunfinished(repo)
-
         if date:
             rev = cmdutil.finddate(ui, repo, date)
 
@@ -6117,8 +6348,10 @@ def update(ui, repo, node=None, **opts):
                 ui.warn("(%s)\n" % obsfatemsg)
         return ret
 
-@command('verify', [], helpcategory=command.CATEGORY_MAINTENANCE)
-def verify(ui, repo):
+@command('verify',
+         [('', 'full', False, 'perform more checks (EXPERIMENTAL)')],
+         helpcategory=command.CATEGORY_MAINTENANCE)
+def verify(ui, repo, **opts):
     """verify the integrity of the repository
 
     Verify the integrity of the current repository.
@@ -6134,7 +6367,12 @@ def verify(ui, repo):
 
     Returns 0 on success, 1 if errors are encountered.
     """
-    return hg.verify(repo)
+    opts = pycompat.byteskwargs(opts)
+
+    level = None
+    if opts['full']:
+        level = verifymod.VERIFY_FULL
+    return hg.verify(repo, level)
 
 @command(
     'version', [] + formatteropts, helpcategory=command.CATEGORY_HELP,
@@ -6203,16 +6441,6 @@ def version_(ui, **opts):
 def loadcmdtable(ui, name, cmdtable):
     """Load command functions from specified cmdtable
     """
-    cmdtable = cmdtable.copy()
-    for cmd in list(cmdtable):
-        if not cmd.startswith('^'):
-            continue
-        ui.deprecwarn("old-style command registration '%s' in extension '%s'"
-                      % (cmd, name), '4.8')
-        entry = cmdtable.pop(cmd)
-        entry[0].helpbasic = True
-        cmdtable[cmd[1:]] = entry
-
     overrides = [cmd for cmd in cmdtable if cmd in table]
     if overrides:
         ui.warn(_("extension '%s' overrides commands: %s\n")

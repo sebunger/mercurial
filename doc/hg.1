@@ -138,439 +138,1033 @@ when to paginate (boolean, always, auto, or never) (default: auto)
 .sp
 [+] marked option can be specified multiple times
 .SH COMMANDS
-.SS add
+.SS Repository creation
+.SS clone
 .sp
-add the specified files on the next commit:
+make a copy of an existing repository:
 .sp
 .nf
 .ft C
-hg add [OPTION]... [FILE]...
+hg clone [OPTION]... SOURCE [DEST]
 .ft P
 .fi
 .sp
-Schedule files to be version controlled and added to the
-repository.
+Create a copy of an existing repository in a new directory.
 .sp
-The files will be added to the repository at the next commit. To
-undo an add before that, see \%\fBhg forget\fP\:.
+If no destination directory name is specified, it defaults to the
+basename of the source.
 .sp
-If no names are given, add all files to the repository (except
-files matching \fB.hgignore\fP).
+The location of the source is added to the new repository\(aqs
+\fB.hg/hgrc\fP file, as the default to be used for future pulls.
+.sp
+Only local paths and \fBssh://\fP URLs are supported as
+destinations. For \fBssh://\fP destinations, no working directory or
+\fB.hg/hgrc\fP will be created on the remote side.
+.sp
+If the source repository has a bookmark called \(aq@\(aq set, that
+revision will be checked out in the new repository by default.
+.sp
+To check out a particular version, use \-u/\-\-update, or
+\-U/\-\-noupdate to create a clone with no working directory.
+.sp
+To pull only a subset of changesets, specify one or more revisions
+identifiers with \-r/\-\-rev or branches with \-b/\-\-branch. The
+resulting clone will contain only the specified changesets and
+their ancestors. These options (or \(aqclone src#rev dest\(aq) imply
+\-\-pull, even for local source repositories.
+.sp
+In normal clone mode, the remote normalizes repository data into a common
+exchange format and the receiving end translates this data into its local
+storage format. \-\-stream activates a different clone mode that essentially
+copies repository files from the remote with minimal data processing. This
+significantly reduces the CPU cost of a clone both remotely and locally.
+However, it often increases the transferred data size by 30\-40%. This can
+result in substantially faster clones where I/O throughput is plentiful,
+especially for larger repositories. A side\-effect of \-\-stream clones is
+that storage settings and requirements on the remote are applied locally:
+a modern client may inherit legacy or inefficient storage used by the
+remote or a legacy Mercurial client may not be able to clone from a
+modern Mercurial remote.
+.IP Note
+.
+Specifying a tag will include the tagged changeset but not the
+changeset containing the tag.
+.RE
+.sp
+For efficiency, hardlinks are used for cloning whenever the
+source and destination are on the same filesystem (note this
+applies only to the repository data, not to the working
+directory). Some filesystems, such as AFS, implement hardlinking
+incorrectly, but do not report errors. In these cases, use the
+\-\-pull option to avoid hardlinking.
+.sp
+Mercurial will update the working directory to the first applicable
+revision from this list:
+.INDENT 0.0
+.IP a. 3
+.
+null if \-U or the source repository has no changesets
+.IP b. 3
+.
+if \-u . and the source repository is local, the first parent of
+the source repository\(aqs working directory
+.IP c. 3
+.
+the changeset specified with \-u (if a branch name, this means the
+latest head of that branch)
+.IP d. 3
+.
+the changeset specified with \-r
+.IP e. 3
+.
+the tipmost head specified with \-b
+.IP f. 3
+.
+the tipmost head specified with the url#branch source syntax
+.IP g. 3
+.
+the revision marked with the \(aq@\(aq bookmark, if present
+.IP h. 3
+.
+the tipmost head of the default branch
+.IP i. 3
+.
+tip
+.UNINDENT
+.sp
+When cloning from servers that support it, Mercurial may fetch
+pre\-generated data from a server\-advertised URL or inline from the
+same stream. When this is done, hooks operating on incoming changesets
+and changegroups may fire more than once, once for each pre\-generated
+bundle and as well as for any additional remaining data. In addition,
+if an error occurs, the repository may be rolled back to a partial
+clone. This behavior may change in future releases.
+See \%\fBhg help \-e clonebundles\fP\: for more.
 .sp
 Examples:
 .INDENT 0.0
-.INDENT 3.5
-.INDENT 0.0
 .IP \(bu 2
 .
-New (unknown) files are added
-automatically by \%\fBhg add\fP\::
+clone a remote repository to a new directory named hg/:
 .sp
 .nf
 .ft C
-$ ls
-foo.c
-$ hg status
-? foo.c
-$ hg add
-adding foo.c
-$ hg status
-A foo.c
+hg clone https://www.mercurial\-scm.org/repo/hg/
 .ft P
 .fi
 .IP \(bu 2
 .
-Specific files to be added can be specified:
+create a lightweight local clone:
 .sp
 .nf
 .ft C
-$ ls
-bar.c  foo.c
-$ hg status
-? bar.c
-? foo.c
-$ hg add bar.c
-$ hg status
-A bar.c
-? foo.c
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.sp
-Returns 0 if all files are successfully added.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
-.TP
-.B \-n,  \-\-dry\-run
-.
-do not perform actions, just print output
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS addremove
-.sp
-add all new files, delete all missing files:
-.sp
-.nf
-.ft C
-hg addremove [OPTION]... [FILE]...
-.ft P
-.fi
-.sp
-Add all new files and remove all missing files from the
-repository.
-.sp
-Unless names are given, new files are ignored if they match any of
-the patterns in \fB.hgignore\fP. As with add, these changes take
-effect at the next commit.
-.sp
-Use the \-s/\-\-similarity option to detect renamed files. This
-option takes a percentage between 0 (disabled) and 100 (files must
-be identical) as its parameter. With a parameter greater than 0,
-this compares every removed file with every added file and records
-those similar enough as renames. Detecting renamed files this way
-can be expensive. After using this option, \%\fBhg status \-C\fP\: can be
-used to check which files were identified as moved or renamed. If
-not specified, \-s/\-\-similarity defaults to 100 and only renames of
-identical files are detected.
-.sp
-Examples:
-.INDENT 0.0
-.INDENT 3.5
-.INDENT 0.0
-.IP \(bu 2
-.
-A number of files (bar.c and foo.c) are new,
-while foobar.c has been removed (without using \%\fBhg remove\fP\:)
-from the repository:
-.sp
-.nf
-.ft C
-$ ls
-bar.c foo.c
-$ hg status
-! foobar.c
-? bar.c
-? foo.c
-$ hg addremove
-adding bar.c
-adding foo.c
-removing foobar.c
-$ hg status
-A bar.c
-A foo.c
-R foobar.c
+hg clone project/ project\-feature/
 .ft P
 .fi
 .IP \(bu 2
 .
-A file foobar.c was moved to foo.c without using \%\fBhg rename\fP\:.
-Afterwards, it was edited slightly:
+clone from an absolute path on an ssh server (note double\-slash):
 .sp
 .nf
 .ft C
-$ ls
-foo.c
-$ hg status
-! foobar.c
-? foo.c
-$ hg addremove \-\-similarity 90
-removing foobar.c
-adding foo.c
-recording removal of foobar.c as rename to foo.c (94% similar)
-$ hg status \-C
-A foo.c
-  foobar.c
-R foobar.c
+hg clone ssh://user@server//home/projects/alpha/
 .ft P
 .fi
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.sp
-Returns 0 if all files are successfully added.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-s,  \-\-similarity \ <SIMILARITY>
+.IP \(bu 2
 .
-guess renamed files by similarity (0<=s<=100)
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.B \-n,  \-\-dry\-run
-.
-do not perform actions, just print output
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS annotate
-.sp
-show changeset information by line for each file:
+do a streaming clone while checking out a specified version:
 .sp
 .nf
 .ft C
-hg annotate [\-r REV] [\-f] [\-a] [\-u] [\-d] [\-n] [\-c] [\-l] FILE...
+hg clone \-\-stream http://server/repo \-u 1.5
 .ft P
 .fi
-.sp
-List changes in files, showing the revision id responsible for
-each line.
-.sp
-This command is useful for discovering when a change was made and
-by whom.
-.sp
-If you include \-\-file, \-\-user, or \-\-date, the revision number is
-suppressed unless you also include \-\-number.
-.sp
-Without the \-a/\-\-text option, annotate will avoid processing files
-it detects as binary. With \-a, annotate will annotate the file
-anyway, although the results will probably be neither useful
-nor desirable.
-.sp
-Template:
-.sp
-The following keywords are supported in addition to the common template
-keywords and functions. See also \%\fBhg help templates\fP\:.
-.INDENT 0.0
-.TP
-.B lines
+.IP \(bu 2
 .
-List of lines with annotation data.
-.TP
-.B path
+create a repository without changesets after a particular revision:
+.sp
+.nf
+.ft C
+hg clone \-r 04e544 experimental/ good/
+.ft P
+.fi
+.IP \(bu 2
 .
-String. Repository\-absolute path of the specified file.
+clone (and track) a particular named branch:
+.sp
+.nf
+.ft C
+hg clone https://www.mercurial\-scm.org/repo/hg/#stable
+.ft P
+.fi
 .UNINDENT
 .sp
-And each entry of \fB{lines}\fP provides the following sub\-keywords in
-addition to \fB{date}\fP, \fB{node}\fP, \fB{rev}\fP, \fB{user}\fP, etc.
-.INDENT 0.0
-.TP
-.B line
-.
-String. Line content.
-.TP
-.B lineno
-.
-Integer. Line number at that revision.
-.TP
-.B path
-.
-String. Repository\-absolute path of the file at that revision.
-.UNINDENT
-.sp
-See \%\fBhg help templates.operators\fP\: for the list expansion syntax.
+See \%\fBhg help urls\fP\: for details on specifying URLs.
 .sp
 Returns 0 on success.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.BI \-r,  \-\-rev \ <REV>
+.B \-U,  \-\-noupdate
 .
-annotate the specified revision
+the clone will include an empty working directory (only a repository)
 .TP
-.B \-\-follow
+.BI \-u,  \-\-updaterev \ <REV>
 .
-follow copies/renames and list the filename (DEPRECATED)
+revision, tag, or branch to check out
 .TP
-.B \-\-no\-follow
+.BI \-r,  \-\-rev \ <REV[+]>
 .
-don\(aqt follow copies and renames
+do not clone everything, but include this changeset and its ancestors
 .TP
-.B \-a,  \-\-text
+.BI \-b,  \-\-branch \ <BRANCH[+]>
 .
-treat all files as text
+do not clone everything, but include this branch\(aqs changesets and their ancestors
 .TP
-.B \-u,  \-\-user
+.B \-\-pull
 .
-list the author (long with \-v)
+use pull protocol to copy metadata
 .TP
-.B \-f,  \-\-file
+.B \-\-uncompressed
 .
-list the filename
+an alias to \-\-stream (DEPRECATED)
 .TP
-.B \-d,  \-\-date
+.B \-\-stream
 .
-list the date (short with \-q)
+clone with minimal data processing
 .TP
-.B \-n,  \-\-number
+.BI \-e,  \-\-ssh \ <CMD>
 .
-list the revision number (default)
+specify ssh command to use
 .TP
-.B \-c,  \-\-changeset
+.BI \-\-remotecmd \ <CMD>
 .
-list the changeset
+specify hg command to run on the remote side
 .TP
-.B \-l,  \-\-line\-number
+.B \-\-insecure
 .
-show line number at the first appearance
+do not verify server certificate (ignoring web.cacerts config)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS init
+.sp
+create a new repository in the given directory:
+.sp
+.nf
+.ft C
+hg init [\-e CMD] [\-\-remotecmd CMD] [DEST]
+.ft P
+.fi
+.sp
+Initialize a new repository in the given directory. If the given
+directory does not exist, it will be created.
+.sp
+If no directory is given, the current directory is used.
+.sp
+It is possible to specify an \fBssh://\fP URL as the destination.
+See \%\fBhg help urls\fP\: for more information.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
 .TP
-.BI \-\-skip \ <REV[+]>
+.BI \-e,  \-\-ssh \ <CMD>
 .
-revision to not display (EXPERIMENTAL)
+specify ssh command to use
 .TP
-.B \-w,  \-\-ignore\-all\-space
+.BI \-\-remotecmd \ <CMD>
 .
-ignore white space when comparing lines
+specify hg command to run on the remote side
 .TP
-.B \-b,  \-\-ignore\-space\-change
+.B \-\-insecure
 .
-ignore changes in the amount of white space
+do not verify server certificate (ignoring web.cacerts config)
+.UNINDENT
+.SS Remote repository management
+.SS incoming
+.sp
+show new changesets found in source:
+.sp
+.nf
+.ft C
+hg incoming [\-p] [\-n] [\-M] [\-f] [\-r REV]... [\-\-bundle FILENAME] [SOURCE]
+.ft P
+.fi
+.sp
+Show new changesets found in the specified path/URL or the default
+pull location. These are the changesets that would have been pulled
+by \%\fBhg pull\fP\: at the time you issued this command.
+.sp
+See pull for valid source format details.
+.sp
+With \-B/\-\-bookmarks, the result of bookmark comparison between
+local and remote repositories is displayed. With \-v/\-\-verbose,
+status is also displayed for each bookmark like below:
+.sp
+.nf
+.ft C
+BM1               01234567890a added
+BM2               1234567890ab advanced
+BM3               234567890abc diverged
+BM4               34567890abcd changed
+.ft P
+.fi
+.sp
+The action taken locally when pulling depends on the
+status of each bookmark:
+.INDENT 0.0
 .TP
-.B \-B,  \-\-ignore\-blank\-lines
-.
-ignore changes whose lines are all blank
+.B \fBadded\fP
+.sp
+pull will create it
 .TP
-.B \-Z,  \-\-ignore\-space\-at\-eol
-.
-ignore changes in whitespace at EOL
+.B \fBadvanced\fP
+.sp
+pull will update it
 .TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
+.B \fBdiverged\fP
+.sp
+pull will create a divergent bookmark
 .TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.B \fBchanged\fP
+.sp
+result depends on remote changesets
+.UNINDENT
+.sp
+From the point of view of pulling behavior, bookmark
+existing only in the remote repository are treated as \fBadded\fP,
+even if it is in fact locally deleted.
+.sp
+For remote repository, using \-\-bundle avoids downloading the
+changesets twice if the incoming is followed by a pull.
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
 .
-exclude names matching the given patterns
+show incoming changes with patches and full description:
+.sp
+.nf
+.ft C
+hg incoming \-vp
+.ft P
+.fi
+.IP \(bu 2
+.
+show incoming changes excluding merges, store a bundle:
+.sp
+.nf
+.ft C
+hg in \-vpM \-\-bundle incoming.hg
+hg pull incoming.hg
+.ft P
+.fi
+.IP \(bu 2
+.
+briefly list changes inside a bundle:
+.sp
+.nf
+.ft C
+hg in changes.hg \-T "{desc|firstline}\en"
+.ft P
+.fi
+.UNINDENT
+.sp
+Returns 0 if there are incoming changes, 1 otherwise.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-f,  \-\-force
+.
+run even if remote repository is unrelated
+.TP
+.B \-n,  \-\-newest\-first
+.
+show newest record first
+.TP
+.BI \-\-bundle \ <FILE>
+.
+file to store the bundles into
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+a remote changeset intended to be added
+.TP
+.B \-B,  \-\-bookmarks
+.
+compare bookmarks
+.TP
+.BI \-b,  \-\-branch \ <BRANCH[+]>
+.
+a specific branch you would like to pull
+.TP
+.B \-p,  \-\-patch
+.
+show patch
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.BI \-l,  \-\-limit \ <NUM>
+.
+limit number of changes displayed
+.TP
+.B \-M,  \-\-no\-merges
+.
+do not show merges
+.TP
+.B \-\-stat
+.
+output diffstat\-style summary of changes
+.TP
+.B \-G,  \-\-graph
+.
+show the revision DAG
+.TP
+.BI \-\-style \ <STYLE>
+.
+display using template map file (DEPRECATED)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.TP
+.BI \-e,  \-\-ssh \ <CMD>
+.
+specify ssh command to use
+.TP
+.BI \-\-remotecmd \ <CMD>
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: in
+.UNINDENT
+.UNINDENT
+.SS outgoing
+.sp
+show changesets not found in the destination:
+.sp
+.nf
+.ft C
+hg outgoing [\-M] [\-p] [\-n] [\-f] [\-r REV]... [DEST]
+.ft P
+.fi
+.sp
+Show changesets not found in the specified destination repository
+or the default push location. These are the changesets that would
+be pushed if a push was requested.
+.sp
+See pull for details of valid destination formats.
+.sp
+With \-B/\-\-bookmarks, the result of bookmark comparison between
+local and remote repositories is displayed. With \-v/\-\-verbose,
+status is also displayed for each bookmark like below:
+.sp
+.nf
+.ft C
+BM1               01234567890a added
+BM2                            deleted
+BM3               234567890abc advanced
+BM4               34567890abcd diverged
+BM5               4567890abcde changed
+.ft P
+.fi
+.sp
+The action taken when pushing depends on the
+status of each bookmark:
+.INDENT 0.0
+.TP
+.B \fBadded\fP
+.sp
+push with \fB\-B\fP will create it
+.TP
+.B \fBdeleted\fP
+.sp
+push with \fB\-B\fP will delete it
+.TP
+.B \fBadvanced\fP
+.sp
+push will update it
+.TP
+.B \fBdiverged\fP
+.sp
+push with \fB\-B\fP will update it
+.TP
+.B \fBchanged\fP
+.sp
+push with \fB\-B\fP will update it
+.UNINDENT
+.sp
+From the point of view of pushing behavior, bookmarks
+existing only in the remote repository are treated as
+\fBdeleted\fP, even if it is in fact added remotely.
+.sp
+Returns 0 if there are outgoing changes, 1 otherwise.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-f,  \-\-force
+.
+run even when the destination is unrelated
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+a changeset intended to be included in the destination
+.TP
+.B \-n,  \-\-newest\-first
+.
+show newest record first
+.TP
+.B \-B,  \-\-bookmarks
+.
+compare bookmarks
+.TP
+.BI \-b,  \-\-branch \ <BRANCH[+]>
+.
+a specific branch you would like to push
+.TP
+.B \-p,  \-\-patch
+.
+show patch
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.BI \-l,  \-\-limit \ <NUM>
+.
+limit number of changes displayed
+.TP
+.B \-M,  \-\-no\-merges
+.
+do not show merges
+.TP
+.B \-\-stat
+.
+output diffstat\-style summary of changes
+.TP
+.B \-G,  \-\-graph
+.
+show the revision DAG
+.TP
+.BI \-\-style \ <STYLE>
+.
+display using template map file (DEPRECATED)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.TP
+.BI \-e,  \-\-ssh \ <CMD>
+.
+specify ssh command to use
+.TP
+.BI \-\-remotecmd \ <CMD>
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: out
+.UNINDENT
+.UNINDENT
+.SS paths
+.sp
+show aliases for remote repositories:
+.sp
+.nf
+.ft C
+hg paths [NAME]
+.ft P
+.fi
+.sp
+Show definition of symbolic path name NAME. If no name is given,
+show definition of all available names.
+.sp
+Option \-q/\-\-quiet suppresses all output when searching for NAME
+and shows only the path names when listing all definitions.
+.sp
+Path names are defined in the [paths] section of your
+configuration file and in \fB/etc/mercurial/hgrc\fP. If run inside a
+repository, \fB.hg/hgrc\fP is used, too.
+.sp
+The path names \fBdefault\fP and \fBdefault\-push\fP have a special
+meaning.  When performing a push or pull operation, they are used
+as fallbacks if no location is specified on the command\-line.
+When \fBdefault\-push\fP is set, it will be used for push and
+\fBdefault\fP will be used for pull; otherwise \fBdefault\fP is used
+as the fallback for both.  When cloning a repository, the clone
+source is written as \fBdefault\fP in \fB.hg/hgrc\fP.
+.IP Note
+.
+\fBdefault\fP and \fBdefault\-push\fP apply to all inbound (e.g.
+\%\fBhg incoming\fP\:) and outbound (e.g. \%\fBhg outgoing\fP\:, \%\fBhg email\fP\:
+and \%\fBhg bundle\fP\:) operations.
+.RE
+.sp
+See \%\fBhg help urls\fP\: for more information.
+.sp
+Template:
+.sp
+The following keywords are supported. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B name
+.
+String. Symbolic name of the path alias.
+.TP
+.B pushurl
+.
+String. URL for push operations.
+.TP
+.B url
+.
+String. URL or directory path for the other operations.
+.UNINDENT
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
 .TP
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template
 .UNINDENT
+.SS pull
+.sp
+pull changes from the specified source:
+.sp
+.nf
+.ft C
+hg pull [\-u] [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [SOURCE]
+.ft P
+.fi
+.sp
+Pull changes from a remote repository to a local one.
+.sp
+This finds all changes from the repository at the specified path
+or URL and adds them to a local repository (the current one unless
+\-R is specified). By default, this does not update the copy of the
+project in the working directory.
+.sp
+When cloning from servers that support it, Mercurial may fetch
+pre\-generated data. When this is done, hooks operating on incoming
+changesets and changegroups may fire more than once, once for each
+pre\-generated bundle and as well as for any additional remaining
+data. See \%\fBhg help \-e clonebundles\fP\: for more.
+.sp
+Use \%\fBhg incoming\fP\: if you want to see what would have been added
+by a pull at the time you issued this command. If you then decide
+to add those changes to the repository, you should use \%\fBhg pull
+\-r X\fP\: where \fBX\fP is the last changeset listed by \%\fBhg incoming\fP\:.
+.sp
+If SOURCE is omitted, the \(aqdefault\(aq path will be used.
+See \%\fBhg help urls\fP\: for more information.
+.sp
+Specifying bookmark as \fB.\fP is equivalent to specifying the active
+bookmark\(aqs name.
+.sp
+Returns 0 on success, 1 if an update had unresolved files.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-u,  \-\-update
+.
+update to new branch head if new descendants were pulled
+.TP
+.B \-f,  \-\-force
+.
+run even when remote repository is unrelated
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+a remote changeset intended to be added
+.TP
+.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
+.
+bookmark to pull
+.TP
+.BI \-b,  \-\-branch \ <BRANCH[+]>
+.
+a specific branch you would like to pull
+.TP
+.BI \-e,  \-\-ssh \ <CMD>
+.
+specify ssh command to use
+.TP
+.BI \-\-remotecmd \ <CMD>
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.INDENT 0.0
-.INDENT 3.5
+.SS push
 .sp
-aliases: blame
-.UNINDENT
-.UNINDENT
-.SS archive
-.sp
-create an unversioned archive of a repository revision:
+push changes to the specified destination:
 .sp
 .nf
 .ft C
-hg archive [OPTION]... DEST
+hg push [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [DEST]
 .ft P
 .fi
 .sp
-By default, the revision used is the parent of the working
-directory; use \-r/\-\-rev to specify a different revision.
+Push changesets from the local repository to the specified
+destination.
 .sp
-The archive type is automatically detected based on file
-extension (to override, use \-t/\-\-type).
+This operation is symmetrical to pull: it is identical to a pull
+in the destination repository from the current one.
 .sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
+By default, push will not allow creation of new heads at the
+destination, since multiple heads would make it unclear which head
+to use. In this situation, it is recommended to pull and merge
+before pushing.
+.sp
+Use \-\-new\-branch if you want to allow push to create a new named
+branch that is not present at the destination. This allows you to
+only create a new branch without forcing other changes.
+.IP Note
 .
-create a zip file containing the 1.0 release:
+Extra care should be taken with the \-f/\-\-force option,
+which will push all new heads on all branches, an action which will
+almost always cause confusion for collaborators.
+.RE
+.sp
+If \-r/\-\-rev is used, the specified revision and all its ancestors
+will be pushed to the remote repository.
+.sp
+If \-B/\-\-bookmark is used, the specified bookmarked revision, its
+ancestors, and the bookmark will be pushed to the remote
+repository. Specifying \fB.\fP is equivalent to specifying the active
+bookmark\(aqs name.
+.sp
+Please see \%\fBhg help urls\fP\: for important details about \fBssh://\fP
+URLs. If DESTINATION is omitted, a default path will be used.
+.sp
+The \-\-pushvars option sends strings to the server that become
+environment variables prepended with \fBHG_USERVAR_\fP. For example,
+\fB\-\-pushvars ENABLE_FEATURE=true\fP, provides the server side hooks with
+\fBHG_USERVAR_ENABLE_FEATURE=true\fP as part of their environment.
+.sp
+pushvars can provide for user\-overridable hooks as well as set debug
+levels. One example is having a hook that blocks commits containing
+conflict markers, but enables the user to override the hook if the file
+is using conflict markers for testing purposes or the file format has
+strings that look like conflict markers.
+.sp
+By default, servers will ignore \fI\-\-pushvars\fP. To enable it add the
+following to your configuration file:
 .sp
 .nf
 .ft C
-hg archive \-r 1.0 project\-1.0.zip
+[push]
+pushvars.server = true
 .ft P
 .fi
-.IP \(bu 2
-.
-create a tarball excluding .hg files:
 .sp
-.nf
-.ft C
-hg archive project.tar.gz \-X ".hg*"
-.ft P
-.fi
-.UNINDENT
+Returns 0 if push was successful, 1 if nothing to push.
 .sp
-Valid types are:
+Options:
 .INDENT 0.0
 .TP
-.B \fBfiles\fP
-.sp
-a directory full of files (default)
+.B \-f,  \-\-force
+.
+force push
 .TP
-.B \fBtar\fP
-.sp
-tar archive, uncompressed
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+a changeset intended to be included in the destination
 .TP
-.B \fBtbz2\fP
-.sp
-tar archive, compressed using bzip2
+.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
+.
+bookmark to push
 .TP
-.B \fBtgz\fP
-.sp
-tar archive, compressed using gzip
+.BI \-b,  \-\-branch \ <BRANCH[+]>
+.
+a specific branch you would like to push
 .TP
-.B \fBuzip\fP
-.sp
-zip archive, uncompressed
+.B \-\-new\-branch
+.
+allow pushing a new branch
 .TP
-.B \fBzip\fP
-.sp
-zip archive, compressed using deflate
+.BI \-\-pushvars \ <VALUE[+]>
+.
+variables that can be sent to server (ADVANCED)
+.TP
+.B \-\-publish
+.
+push the changeset as public (EXPERIMENTAL)
+.TP
+.BI \-e,  \-\-ssh \ <CMD>
+.
+specify ssh command to use
+.TP
+.BI \-\-remotecmd \ <CMD>
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
 .sp
-The exact name of the destination archive or directory is given
-using a format string; see \%\fBhg help export\fP\: for details.
+[+] marked option can be specified multiple times
+.SS serve
 .sp
-Each member added to an archive file has a directory prefix
-prepended. Use \-p/\-\-prefix to specify a format string for the
-prefix. The default is the basename of the archive, with suffixes
-removed.
+start stand\-alone webserver:
+.sp
+.nf
+.ft C
+hg serve [OPTION]...
+.ft P
+.fi
+.sp
+Start a local HTTP repository browser and pull server. You can use
+this for ad\-hoc sharing and browsing of repositories. It is
+recommended to use a real web server to serve a repository for
+longer periods of time.
+.sp
+Please note that the server does not implement access control.
+This means that, by default, anybody can read from the server and
+nobody can write to it by default. Set the \fBweb.allow\-push\fP
+option to \fB*\fP to allow everybody to push to the server. You
+should use a real web server if you need to authenticate users.
+.sp
+By default, the server logs accesses to stdout and errors to
+stderr. Use the \-A/\-\-accesslog and \-E/\-\-errorlog options to log to
+files.
+.sp
+To have the server choose a free port number to listen on, specify
+a port number of 0; in this case, the server will print the port
+number it uses.
 .sp
 Returns 0 on success.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.B \-\-no\-decode
+.BI \-A,  \-\-accesslog \ <FILE>
 .
-do not pass files through decoders
+name of access log file to write to
 .TP
-.BI \-p,  \-\-prefix \ <PREFIX>
+.B \-d,  \-\-daemon
 .
-directory prefix for files in archive
+run server in background
 .TP
-.BI \-r,  \-\-rev \ <REV>
+.BI \-\-daemon\-postexec \ <VALUE[+]>
 .
-revision to distribute
+used internally by daemon mode
 .TP
-.BI \-t,  \-\-type \ <TYPE>
+.BI \-E,  \-\-errorlog \ <FILE>
 .
-type of distribution to create
+name of error log file to write to
+.TP
+.BI \-p,  \-\-port \ <PORT>
+.
+port to listen on (default: 8000)
+.TP
+.BI \-a,  \-\-address \ <ADDR>
+.
+address to listen on (default: all interfaces)
+.TP
+.BI \-\-prefix \ <PREFIX>
+.
+prefix path to serve from (default: server root)
+.TP
+.BI \-n,  \-\-name \ <NAME>
+.
+name to show in web pages (default: working directory)
+.TP
+.BI \-\-web\-conf \ <FILE>
+.
+name of the hgweb config file (see \(aqhg help hgweb\(aq)
+.TP
+.BI \-\-webdir\-conf \ <FILE>
+.
+name of the hgweb config file (DEPRECATED)
+.TP
+.BI \-\-pid\-file \ <FILE>
+.
+name of file to write process ID to
+.TP
+.B \-\-stdio
+.
+for remote clients (ADVANCED)
+.TP
+.BI \-\-cmdserver \ <MODE>
+.
+for remote clients (ADVANCED)
+.TP
+.BI \-t,  \-\-templates \ <TEMPLATE>
+.
+web templates to use
+.TP
+.BI \-\-style \ <STYLE>
+.
+template style to use
+.TP
+.B \-6,  \-\-ipv6
+.
+use IPv6 in addition to IPv4
+.TP
+.BI \-\-certificate \ <FILE>
+.
+SSL certificate file
+.TP
+.B \-\-print\-url
+.
+start and print only the URL
 .TP
 .B \-S,  \-\-subrepos
 .
 recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS Change creation
+.SS commit
+.sp
+commit the specified files or all outstanding changes:
+.sp
+.nf
+.ft C
+hg commit [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Commit changes to the given files into the repository. Unlike a
+centralized SCM, this operation is a local operation. See
+\%\fBhg push\fP\: for a way to actively distribute your changes.
+.sp
+If a list of files is omitted, all changes reported by \%\fBhg status\fP\:
+will be committed.
+.sp
+If you are committing the result of a merge, do not provide any
+filenames or \-I/\-X filters.
+.sp
+If no commit message is specified, Mercurial starts your
+configured editor where you can enter a message. In case your
+commit fails, you will find a backup of your message in
+\fB.hg/last\-message.txt\fP.
+.sp
+The \-\-close\-branch flag can be used to mark the current branch
+head closed. When all heads of a branch are closed, the branch
+will be considered closed and no longer listed.
+.sp
+The \-\-amend flag can be used to amend the parent of the
+working directory with a new commit that contains the changes
+in the parent in addition to those currently reported by \%\fBhg status\fP\:,
+if there are any. The old commit is stored in a backup bundle in
+\fB.hg/strip\-backup\fP (see \%\fBhg help bundle\fP\: and \%\fBhg help unbundle\fP\:
+on how to restore it).
+.sp
+Message, user and date are taken from the amended commit unless
+specified. When a message isn\(aqt specified on the command line,
+the editor will open with the message of the amended commit.
+.sp
+It is not possible to amend public changesets (see \%\fBhg help phases\fP\:)
+or changesets that have children.
+.sp
+See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
+.sp
+Returns 0 on success, 1 if nothing changed.
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+commit all files ending in .py:
+.sp
+.nf
+.ft C
+hg commit \-\-include "set:**.py"
+.ft P
+.fi
+.IP \(bu 2
+.
+commit all non\-binary files:
+.sp
+.nf
+.ft C
+hg commit \-\-exclude "set:binary()"
+.ft P
+.fi
+.IP \(bu 2
+.
+amend the current commit and set the date to now:
+.sp
+.nf
+.ft C
+hg commit \-\-amend \-\-date now
+.ft P
+.fi
+.UNINDENT
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-A,  \-\-addremove
+.
+mark new/missing files as added/removed before committing
+.TP
+.B \-\-close\-branch
+.
+mark a branch head as closed
+.TP
+.B \-\-amend
+.
+amend the parent of the working directory
+.TP
+.B \-s,  \-\-secret
+.
+use the secret phase for committing
+.TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
+.TP
+.B \-\-force\-close\-branch
+.
+forcibly close branch from a non\-head changeset (ADVANCED)
+.TP
+.B \-i,  \-\-interactive
+.
+use interactive mode
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -579,9 +1173,58 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: ci
+.UNINDENT
+.UNINDENT
+.SS Change manipulation
+.SS abort
+.sp
+abort an unfinished operation (EXPERIMENTAL):
+.sp
+.nf
+.ft C
+hg abort
+.ft P
+.fi
+.sp
+Aborts a multistep operation like graft, histedit, rebase, merge,
+and unshelve if they are in an unfinished state.
+.sp
+use \-\-dry\-run/\-n to dry run the command.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.UNINDENT
 .SS backout
 .sp
 reverse effect of earlier changeset:
@@ -713,176 +1356,299 @@ record the specified user as committer
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS bisect
+.SS continue
 .sp
-subdivision search of changesets:
-.sp
-.nf
-.ft C
-hg bisect [\-gbsr] [\-U] [\-c CMD] [REV]
-.ft P
-.fi
-.sp
-This command helps to find changesets which introduce problems. To
-use, mark the earliest changeset you know exhibits the problem as
-bad, then mark the latest changeset which is free from the problem
-as good. Bisect will update your working directory to a revision
-for testing (unless the \-U/\-\-noupdate option is specified). Once
-you have performed tests, mark the working directory as good or
-bad, and bisect will either update to another candidate changeset
-or announce that it has found the bad revision.
-.sp
-As a shortcut, you can also use the revision argument to mark a
-revision as good or bad without checking it out first.
-.sp
-If you supply a command, it will be used for automatic bisection.
-The environment variable HG_NODE will contain the ID of the
-changeset being tested. The exit status of the command will be
-used to mark revisions as good or bad: status 0 means good, 125
-means to skip the revision, 127 (command not found) will abort the
-bisection, and any other non\-zero exit status means the revision
-is bad.
-.sp
-Some examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-start a bisection with known bad revision 34, and good revision 12:
+resumes an interrupted operation (EXPERIMENTAL):
 .sp
 .nf
 .ft C
-hg bisect \-\-bad 34
-hg bisect \-\-good 12
+hg continue
 .ft P
 .fi
-.IP \(bu 2
-.
-advance the current bisection by marking current revision as good or
-bad:
 .sp
-.nf
-.ft C
-hg bisect \-\-good
-hg bisect \-\-bad
-.ft P
-.fi
-.IP \(bu 2
-.
-mark the current revision, or a known revision, to be skipped (e.g. if
-that revision is not usable because of another issue):
+Finishes a multistep operation like graft, histedit, rebase, merge,
+and unshelve if they are in an interrupted state.
 .sp
-.nf
-.ft C
-hg bisect \-\-skip
-hg bisect \-\-skip 23
-.ft P
-.fi
-.IP \(bu 2
-.
-skip all revisions that do not touch directories \fBfoo\fP or \fBbar\fP:
-.sp
-.nf
-.ft C
-hg bisect \-\-skip "!( file(\(aqpath:foo\(aq) & file(\(aqpath:bar\(aq) )"
-.ft P
-.fi
-.IP \(bu 2
-.
-forget the current bisection:
-.sp
-.nf
-.ft C
-hg bisect \-\-reset
-.ft P
-.fi
-.IP \(bu 2
-.
-use \(aqmake && make tests\(aq to automatically find the first broken
-revision:
-.sp
-.nf
-.ft C
-hg bisect \-\-reset
-hg bisect \-\-bad 34
-hg bisect \-\-good 12
-hg bisect \-\-command "make && make tests"
-.ft P
-.fi
-.IP \(bu 2
-.
-see all changesets whose states are already known in the current
-bisection:
-.sp
-.nf
-.ft C
-hg log \-r "bisect(pruned)"
-.ft P
-.fi
-.IP \(bu 2
-.
-see the changeset currently being bisected (especially useful
-if running with \-U/\-\-noupdate):
-.sp
-.nf
-.ft C
-hg log \-r "bisect(current)"
-.ft P
-.fi
-.IP \(bu 2
-.
-see all changesets that took part in the current bisection:
-.sp
-.nf
-.ft C
-hg log \-r "bisect(range)"
-.ft P
-.fi
-.IP \(bu 2
-.
-you can even get a nice graph:
-.sp
-.nf
-.ft C
-hg log \-\-graph \-r "bisect(range)"
-.ft P
-.fi
-.UNINDENT
-.sp
-See \%\fBhg help revisions.bisect\fP\: for more about the \fIbisect()\fP predicate.
-.sp
-Returns 0 on success.
+use \-\-dry\-run/\-n to dry run the command.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.B \-r,  \-\-reset
+.B \-n,  \-\-dry\-run
 .
-reset bisect state
-.TP
-.B \-g,  \-\-good
-.
-mark changeset good
-.TP
-.B \-b,  \-\-bad
-.
-mark changeset bad
-.TP
-.B \-s,  \-\-skip
-.
-skip testing changeset
-.TP
-.B \-e,  \-\-extend
-.
-extend the bisect range
-.TP
-.BI \-c,  \-\-command \ <CMD>
-.
-use command to check changeset state
-.TP
-.B \-U,  \-\-noupdate
-.
-do not update to target
+do not perform actions, just print output
 .UNINDENT
+.SS graft
+.sp
+copy changes from other branches onto the current branch:
+.sp
+.nf
+.ft C
+hg graft [OPTION]... [\-r REV]... REV...
+.ft P
+.fi
+.sp
+This command uses Mercurial\(aqs merge logic to copy individual
+changes from other branches without merging branches in the
+history graph. This is sometimes known as \(aqbackporting\(aq or
+\(aqcherry\-picking\(aq. By default, graft will copy user, date, and
+description from the source changesets.
+.sp
+Changesets that are ancestors of the current revision, that have
+already been grafted, or that are merges will be skipped.
+.sp
+If \-\-log is specified, log messages will have a comment appended
+of the form:
+.sp
+.nf
+.ft C
+(grafted from CHANGESETHASH)
+.ft P
+.fi
+.sp
+If \-\-force is specified, revisions will be grafted even if they
+are already ancestors of, or have been grafted to, the destination.
+This is useful when the revisions have since been backed out.
+.sp
+If a graft merge results in conflicts, the graft process is
+interrupted so that the current merge can be manually resolved.
+Once all conflicts are addressed, the graft process can be
+continued with the \-c/\-\-continue option.
+.sp
+The \-c/\-\-continue option reapplies all the earlier options.
+.sp
+The \-\-base option exposes more of how graft internally uses merge with a
+custom base revision. \-\-base can be used to specify another ancestor than
+the first and only parent.
+.sp
+The command:
+.sp
+.nf
+.ft C
+hg graft \-r 345 \-\-base 234
+.ft P
+.fi
+.sp
+is thus pretty much the same as:
+.sp
+.nf
+.ft C
+hg diff \-r 234 \-r 345 | hg import
+.ft P
+.fi
+.sp
+but using merge to resolve conflicts and track moved files.
+.sp
+The result of a merge can thus be backported as a single commit by
+specifying one of the merge parents as base, and thus effectively
+grafting the changes from the other side.
+.sp
+It is also possible to collapse multiple changesets and clean up history
+by specifying another ancestor as base, much like rebase \-\-collapse
+\-\-keep.
+.sp
+The commit message can be tweaked after the fact using commit \-\-amend .
+.sp
+For using non\-ancestors as the base to backout changes, see the backout
+command and the hidden \-\-parent option.
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+copy a single change to the stable branch and edit its description:
+.sp
+.nf
+.ft C
+hg update stable
+hg graft \-\-edit 9393
+.ft P
+.fi
+.IP \(bu 2
+.
+graft a range of changesets with one exception, updating dates:
+.sp
+.nf
+.ft C
+hg graft \-D "2085::2093 and not 2091"
+.ft P
+.fi
+.IP \(bu 2
+.
+continue a graft after resolving conflicts:
+.sp
+.nf
+.ft C
+hg graft \-c
+.ft P
+.fi
+.IP \(bu 2
+.
+show the source of a grafted changeset:
+.sp
+.nf
+.ft C
+hg log \-\-debug \-r .
+.ft P
+.fi
+.IP \(bu 2
+.
+show revisions sorted by date:
+.sp
+.nf
+.ft C
+hg log \-r "sort(all(), date)"
+.ft P
+.fi
+.IP \(bu 2
+.
+backport the result of a merge as a single commit:
+.sp
+.nf
+.ft C
+hg graft \-r 123 \-\-base 123^
+.ft P
+.fi
+.IP \(bu 2
+.
+land a feature branch as one changeset:
+.sp
+.nf
+.ft C
+hg up \-cr default
+hg graft \-r featureX \-\-base "ancestor(\(aqfeatureX\(aq, \(aqdefault\(aq)"
+.ft P
+.fi
+.UNINDENT
+.sp
+See \%\fBhg help revisions\fP\: for more about specifying revisions.
+.sp
+Returns 0 on successful completion.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+revisions to graft
+.TP
+.BI \-\-base \ <REV>
+.
+base revision when doing the graft merge (ADVANCED)
+.TP
+.B \-c,  \-\-continue
+.
+resume interrupted graft
+.TP
+.B \-\-stop
+.
+stop interrupted graft
+.TP
+.B \-\-abort
+.
+abort interrupted graft
+.TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
+.TP
+.B \-\-log
+.
+append graft info to log message
+.TP
+.B \-\-no\-commit
+.
+don\(aqt commit, just apply the changes in working directory
+.TP
+.B \-f,  \-\-force
+.
+force graft
+.TP
+.B \-D,  \-\-currentdate
+.
+record the current date as commit date
+.TP
+.B \-U,  \-\-currentuser
+.
+record the current user as committer
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.TP
+.BI \-t,  \-\-tool \ <TOOL>
+.
+specify merge tool
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS merge
+.sp
+merge another revision into working directory:
+.sp
+.nf
+.ft C
+hg merge [\-P] [[\-r] REV]
+.ft P
+.fi
+.sp
+The current working directory is updated with all changes made in
+the requested revision since the last common predecessor revision.
+.sp
+Files that changed between either parent are marked as changed for
+the next commit and a commit must be performed before any further
+updates to the repository are allowed. The next commit will have
+two parents.
+.sp
+\fB\-\-tool\fP can be used to specify the merge tool used for file
+merges. It overrides the HGMERGE environment variable and your
+configuration files. See \%\fBhg help merge\-tools\fP\: for options.
+.sp
+If no revision is specified, the working directory\(aqs parent is a
+head revision, and the current branch contains exactly one other
+head, the other head is merged with by default. Otherwise, an
+explicit revision with which to merge must be provided.
+.sp
+See \%\fBhg help resolve\fP\: for information on handling file conflicts.
+.sp
+To undo an uncommitted merge, use \%\fBhg merge \-\-abort\fP\: which
+will check out a clean copy of the original merge parent, losing
+all changes.
+.sp
+Returns 0 on success, 1 if there are unresolved files.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-f,  \-\-force
+.
+force a merge including outstanding changes (DEPRECATED)
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+revision to merge
+.TP
+.B \-P,  \-\-preview
+.
+review revisions to merge (no merge is performed)
+.TP
+.B \-\-abort
+.
+abort the ongoing merge
+.TP
+.BI \-t,  \-\-tool \ <TOOL>
+.
+specify merge tool
+.UNINDENT
+.SS Change organization
 .SS bookmarks
 .sp
 create a new bookmark or list existing bookmarks:
@@ -1129,82 +1895,312 @@ display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS bundle
+.SS phase
 .sp
-create a bundle file:
+set or show the current phase name:
 .sp
 .nf
 .ft C
-hg bundle [\-f] [\-t BUNDLESPEC] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]
+hg phase [\-p|\-d|\-s] [\-f] [\-r] [REV...]
 .ft P
 .fi
 .sp
-Generate a bundle file containing data to be transferred to another
-repository.
+With no argument, show the phase name of the current revision(s).
 .sp
-To create a bundle containing all changesets, use \-a/\-\-all
-(or \-\-base null). Otherwise, hg assumes the destination will have
-all the nodes you specify with \-\-base parameters. Otherwise, hg
-will assume the repository has all the nodes in destination, or
-default\-push/default if no destination is specified, where destination
-is the repository you provide through DEST option.
+With one of \-p/\-\-public, \-d/\-\-draft or \-s/\-\-secret, change the
+phase value of the specified revisions.
 .sp
-You can change bundle format with the \-t/\-\-type option. See
-\%\fBhg help bundlespec\fP\: for documentation on this format. By default,
-the most appropriate format is used and compression defaults to
-bzip2.
+Unless \-f/\-\-force is specified, \%\fBhg phase\fP\: won\(aqt move changesets from a
+lower phase to a higher phase. Phases are ordered as follows:
 .sp
-The bundle file can then be transferred using conventional means
-and applied to another repository with the unbundle or pull
-command. This is useful when direct push and pull are not
-available or when exporting an entire repository is undesirable.
+.nf
+.ft C
+public < draft < secret
+.ft P
+.fi
 .sp
-Applying bundles preserves all changeset contents including
-permissions, copy/rename information, and revision history.
+Returns 0 on success, 1 if some phases could not be changed.
 .sp
-Returns 0 on success, 1 if no changes found.
+(For more information about the phases concept, see \%\fBhg help phases\fP\:.)
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-p,  \-\-public
+.
+set changeset phase to public
+.TP
+.B \-d,  \-\-draft
+.
+set changeset phase to draft
+.TP
+.B \-s,  \-\-secret
+.
+set changeset phase to secret
+.TP
+.B \-f,  \-\-force
+.
+allow to move boundary backward
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+target revision
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS tag
+.sp
+add one or more tags for the current or given revision:
+.sp
+.nf
+.ft C
+hg tag [\-f] [\-l] [\-m TEXT] [\-d DATE] [\-u USER] [\-r REV] NAME...
+.ft P
+.fi
+.sp
+Name a particular revision using <name>.
+.sp
+Tags are used to name particular revisions of the repository and are
+very useful to compare different revisions, to go back to significant
+earlier versions or to mark branch points as releases, etc. Changing
+an existing tag is normally disallowed; use \-f/\-\-force to override.
+.sp
+If no revision is given, the parent of the working directory is
+used.
+.sp
+To facilitate version control, distribution, and merging of tags,
+they are stored as a file named ".hgtags" which is managed similarly
+to other project files and can be hand\-edited if necessary. This
+also means that tagging creates a new commit. The file
+".hg/localtags" is used for local tags (not shared among
+repositories).
+.sp
+Tag commits are usually made at the head of a branch. If the parent
+of the working directory is not a branch head, \%\fBhg tag\fP\: aborts; use
+\-f/\-\-force to force the tag commit to be based on a non\-head
+changeset.
+.sp
+See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
+.sp
+Since tag names have priority over branch names during revision
+lookup, using an existing branch name as a tag name is discouraged.
+.sp
+Returns 0 on success.
 .sp
 Options:
 .INDENT 0.0
 .TP
 .B \-f,  \-\-force
 .
-run even when the destination is unrelated
+force tag
 .TP
-.BI \-r,  \-\-rev \ <REV[+]>
+.B \-l,  \-\-local
 .
-a changeset intended to be added to the destination
+make the tag local
 .TP
-.BI \-b,  \-\-branch \ <BRANCH[+]>
+.BI \-r,  \-\-rev \ <REV>
 .
-a specific branch you would like to bundle
+revision to tag
 .TP
-.BI \-\-base \ <REV[+]>
+.B \-\-remove
 .
-a base changeset assumed to be available at the destination
+remove a tag
 .TP
-.B \-a,  \-\-all
+.B \-e,  \-\-edit
 .
-bundle all changesets in the repository
+invoke editor on commit messages
 .TP
-.BI \-t,  \-\-type \ <TYPE>
+.BI \-m,  \-\-message \ <TEXT>
 .
-bundle compression type to use (default: bzip2)
+use text as commit message
 .TP
-.BI \-e,  \-\-ssh \ <CMD>
+.BI \-d,  \-\-date \ <DATE>
 .
-specify ssh command to use
+record the specified date as commit date
 .TP
-.BI \-\-remotecmd \ <CMD>
+.BI \-u,  \-\-user \ <USER>
 .
-specify hg command to run on the remote side
+record the specified user as committer
+.UNINDENT
+.SS tags
+.sp
+list repository tags:
+.sp
+.nf
+.ft C
+hg tags
+.ft P
+.fi
+.sp
+This lists both regular and local tags. When the \-v/\-\-verbose
+switch is used, a third column "local" is printed for local tags.
+When the \-q/\-\-quiet switch is used, only the tag name is printed.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions such as \fB{tag}\fP. See also
+\%\fBhg help templates\fP\:.
+.INDENT 0.0
 .TP
-.B \-\-insecure
+.B type
 .
-do not verify server certificate (ignoring web.cacerts config)
+String. \fBlocal\fP for local tags.
+.UNINDENT
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.UNINDENT
+.SS File content management
+.SS annotate
+.sp
+show changeset information by line for each file:
+.sp
+.nf
+.ft C
+hg annotate [\-r REV] [\-f] [\-a] [\-u] [\-d] [\-n] [\-c] [\-l] FILE...
+.ft P
+.fi
+.sp
+List changes in files, showing the revision id responsible for
+each line.
+.sp
+This command is useful for discovering when a change was made and
+by whom.
+.sp
+If you include \-\-file, \-\-user, or \-\-date, the revision number is
+suppressed unless you also include \-\-number.
+.sp
+Without the \-a/\-\-text option, annotate will avoid processing files
+it detects as binary. With \-a, annotate will annotate the file
+anyway, although the results will probably be neither useful
+nor desirable.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B lines
+.
+List of lines with annotation data.
+.TP
+.B path
+.
+String. Repository\-absolute path of the specified file.
+.UNINDENT
+.sp
+And each entry of \fB{lines}\fP provides the following sub\-keywords in
+addition to \fB{date}\fP, \fB{node}\fP, \fB{rev}\fP, \fB{user}\fP, etc.
+.INDENT 0.0
+.TP
+.B line
+.
+String. Line content.
+.TP
+.B lineno
+.
+Integer. Line number at that revision.
+.TP
+.B path
+.
+String. Repository\-absolute path of the file at that revision.
+.UNINDENT
+.sp
+See \%\fBhg help templates.operators\fP\: for the list expansion syntax.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+annotate the specified revision
+.TP
+.B \-\-follow
+.
+follow copies/renames and list the filename (DEPRECATED)
+.TP
+.B \-\-no\-follow
+.
+don\(aqt follow copies and renames
+.TP
+.B \-a,  \-\-text
+.
+treat all files as text
+.TP
+.B \-u,  \-\-user
+.
+list the author (long with \-v)
+.TP
+.B \-f,  \-\-file
+.
+list the filename
+.TP
+.B \-d,  \-\-date
+.
+list the date (short with \-q)
+.TP
+.B \-n,  \-\-number
+.
+list the revision number (default)
+.TP
+.B \-c,  \-\-changeset
+.
+list the changeset
+.TP
+.B \-l,  \-\-line\-number
+.
+show line number at the first appearance
+.TP
+.BI \-\-skip \ <REV[+]>
+.
+revision to not display (EXPERIMENTAL)
+.TP
+.B \-w,  \-\-ignore\-all\-space
+.
+ignore white space when comparing lines
+.TP
+.B \-b,  \-\-ignore\-space\-change
+.
+ignore changes in the amount of white space
+.TP
+.B \-B,  \-\-ignore\-blank\-lines
+.
+ignore changes whose lines are all blank
+.TP
+.B \-Z,  \-\-ignore\-space\-at\-eol
+.
+ignore changes in whitespace at EOL
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: blame
+.UNINDENT
+.UNINDENT
 .SS cat
 .sp
 output the current or given revision of files:
@@ -1311,435 +2307,13 @@ display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS clone
-.sp
-make a copy of an existing repository:
-.sp
-.nf
-.ft C
-hg clone [OPTION]... SOURCE [DEST]
-.ft P
-.fi
-.sp
-Create a copy of an existing repository in a new directory.
-.sp
-If no destination directory name is specified, it defaults to the
-basename of the source.
-.sp
-The location of the source is added to the new repository\(aqs
-\fB.hg/hgrc\fP file, as the default to be used for future pulls.
-.sp
-Only local paths and \fBssh://\fP URLs are supported as
-destinations. For \fBssh://\fP destinations, no working directory or
-\fB.hg/hgrc\fP will be created on the remote side.
-.sp
-If the source repository has a bookmark called \(aq@\(aq set, that
-revision will be checked out in the new repository by default.
-.sp
-To check out a particular version, use \-u/\-\-update, or
-\-U/\-\-noupdate to create a clone with no working directory.
-.sp
-To pull only a subset of changesets, specify one or more revisions
-identifiers with \-r/\-\-rev or branches with \-b/\-\-branch. The
-resulting clone will contain only the specified changesets and
-their ancestors. These options (or \(aqclone src#rev dest\(aq) imply
-\-\-pull, even for local source repositories.
-.sp
-In normal clone mode, the remote normalizes repository data into a common
-exchange format and the receiving end translates this data into its local
-storage format. \-\-stream activates a different clone mode that essentially
-copies repository files from the remote with minimal data processing. This
-significantly reduces the CPU cost of a clone both remotely and locally.
-However, it often increases the transferred data size by 30\-40%. This can
-result in substantially faster clones where I/O throughput is plentiful,
-especially for larger repositories. A side\-effect of \-\-stream clones is
-that storage settings and requirements on the remote are applied locally:
-a modern client may inherit legacy or inefficient storage used by the
-remote or a legacy Mercurial client may not be able to clone from a
-modern Mercurial remote.
-.IP Note
-.
-Specifying a tag will include the tagged changeset but not the
-changeset containing the tag.
-.RE
-.sp
-For efficiency, hardlinks are used for cloning whenever the
-source and destination are on the same filesystem (note this
-applies only to the repository data, not to the working
-directory). Some filesystems, such as AFS, implement hardlinking
-incorrectly, but do not report errors. In these cases, use the
-\-\-pull option to avoid hardlinking.
-.sp
-Mercurial will update the working directory to the first applicable
-revision from this list:
-.INDENT 0.0
-.IP a. 3
-.
-null if \-U or the source repository has no changesets
-.IP b. 3
-.
-if \-u . and the source repository is local, the first parent of
-the source repository\(aqs working directory
-.IP c. 3
-.
-the changeset specified with \-u (if a branch name, this means the
-latest head of that branch)
-.IP d. 3
-.
-the changeset specified with \-r
-.IP e. 3
-.
-the tipmost head specified with \-b
-.IP f. 3
-.
-the tipmost head specified with the url#branch source syntax
-.IP g. 3
-.
-the revision marked with the \(aq@\(aq bookmark, if present
-.IP h. 3
-.
-the tipmost head of the default branch
-.IP i. 3
-.
-tip
-.UNINDENT
-.sp
-When cloning from servers that support it, Mercurial may fetch
-pre\-generated data from a server\-advertised URL or inline from the
-same stream. When this is done, hooks operating on incoming changesets
-and changegroups may fire more than once, once for each pre\-generated
-bundle and as well as for any additional remaining data. In addition,
-if an error occurs, the repository may be rolled back to a partial
-clone. This behavior may change in future releases.
-See \%\fBhg help \-e clonebundles\fP\: for more.
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-clone a remote repository to a new directory named hg/:
-.sp
-.nf
-.ft C
-hg clone https://www.mercurial\-scm.org/repo/hg/
-.ft P
-.fi
-.IP \(bu 2
-.
-create a lightweight local clone:
-.sp
-.nf
-.ft C
-hg clone project/ project\-feature/
-.ft P
-.fi
-.IP \(bu 2
-.
-clone from an absolute path on an ssh server (note double\-slash):
-.sp
-.nf
-.ft C
-hg clone ssh://user@server//home/projects/alpha/
-.ft P
-.fi
-.IP \(bu 2
-.
-do a streaming clone while checking out a specified version:
-.sp
-.nf
-.ft C
-hg clone \-\-stream http://server/repo \-u 1.5
-.ft P
-.fi
-.IP \(bu 2
-.
-create a repository without changesets after a particular revision:
-.sp
-.nf
-.ft C
-hg clone \-r 04e544 experimental/ good/
-.ft P
-.fi
-.IP \(bu 2
-.
-clone (and track) a particular named branch:
-.sp
-.nf
-.ft C
-hg clone https://www.mercurial\-scm.org/repo/hg/#stable
-.ft P
-.fi
-.UNINDENT
-.sp
-See \%\fBhg help urls\fP\: for details on specifying URLs.
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-U,  \-\-noupdate
-.
-the clone will include an empty working directory (only a repository)
-.TP
-.BI \-u,  \-\-updaterev \ <REV>
-.
-revision, tag, or branch to check out
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-do not clone everything, but include this changeset and its ancestors
-.TP
-.BI \-b,  \-\-branch \ <BRANCH[+]>
-.
-do not clone everything, but include this branch\(aqs changesets and their ancestors
-.TP
-.B \-\-pull
-.
-use pull protocol to copy metadata
-.TP
-.B \-\-uncompressed
-.
-an alias to \-\-stream (DEPRECATED)
-.TP
-.B \-\-stream
-.
-clone with minimal data processing
-.TP
-.BI \-e,  \-\-ssh \ <CMD>
-.
-specify ssh command to use
-.TP
-.BI \-\-remotecmd \ <CMD>
-.
-specify hg command to run on the remote side
-.TP
-.B \-\-insecure
-.
-do not verify server certificate (ignoring web.cacerts config)
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS commit
-.sp
-commit the specified files or all outstanding changes:
-.sp
-.nf
-.ft C
-hg commit [OPTION]... [FILE]...
-.ft P
-.fi
-.sp
-Commit changes to the given files into the repository. Unlike a
-centralized SCM, this operation is a local operation. See
-\%\fBhg push\fP\: for a way to actively distribute your changes.
-.sp
-If a list of files is omitted, all changes reported by \%\fBhg status\fP\:
-will be committed.
-.sp
-If you are committing the result of a merge, do not provide any
-filenames or \-I/\-X filters.
-.sp
-If no commit message is specified, Mercurial starts your
-configured editor where you can enter a message. In case your
-commit fails, you will find a backup of your message in
-\fB.hg/last\-message.txt\fP.
-.sp
-The \-\-close\-branch flag can be used to mark the current branch
-head closed. When all heads of a branch are closed, the branch
-will be considered closed and no longer listed.
-.sp
-The \-\-amend flag can be used to amend the parent of the
-working directory with a new commit that contains the changes
-in the parent in addition to those currently reported by \%\fBhg status\fP\:,
-if there are any. The old commit is stored in a backup bundle in
-\fB.hg/strip\-backup\fP (see \%\fBhg help bundle\fP\: and \%\fBhg help unbundle\fP\:
-on how to restore it).
-.sp
-Message, user and date are taken from the amended commit unless
-specified. When a message isn\(aqt specified on the command line,
-the editor will open with the message of the amended commit.
-.sp
-It is not possible to amend public changesets (see \%\fBhg help phases\fP\:)
-or changesets that have children.
-.sp
-See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
-.sp
-Returns 0 on success, 1 if nothing changed.
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-commit all files ending in .py:
-.sp
-.nf
-.ft C
-hg commit \-\-include "set:**.py"
-.ft P
-.fi
-.IP \(bu 2
-.
-commit all non\-binary files:
-.sp
-.nf
-.ft C
-hg commit \-\-exclude "set:binary()"
-.ft P
-.fi
-.IP \(bu 2
-.
-amend the current commit and set the date to now:
-.sp
-.nf
-.ft C
-hg commit \-\-amend \-\-date now
-.ft P
-.fi
-.UNINDENT
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-A,  \-\-addremove
-.
-mark new/missing files as added/removed before committing
-.TP
-.B \-\-close\-branch
-.
-mark a branch head as closed
-.TP
-.B \-\-amend
-.
-amend the parent of the working directory
-.TP
-.B \-s,  \-\-secret
-.
-use the secret phase for committing
-.TP
-.B \-e,  \-\-edit
-.
-invoke editor on commit messages
-.TP
-.B \-i,  \-\-interactive
-.
-use interactive mode
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.BI \-m,  \-\-message \ <TEXT>
-.
-use text as commit message
-.TP
-.BI \-l,  \-\-logfile \ <FILE>
-.
-read commit message from file
-.TP
-.BI \-d,  \-\-date \ <DATE>
-.
-record the specified date as commit date
-.TP
-.BI \-u,  \-\-user \ <USER>
-.
-record the specified user as committer
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.INDENT 0.0
-.INDENT 3.5
-.sp
-aliases: ci
-.UNINDENT
-.UNINDENT
-.SS config
-.sp
-show combined config settings from all hgrc files:
-.sp
-.nf
-.ft C
-hg config [\-u] [NAME]...
-.ft P
-.fi
-.sp
-With no arguments, print names and values of all config items.
-.sp
-With one argument of the form section.name, print just the value
-of that config item.
-.sp
-With multiple arguments, print names and values of all config
-items with matching section names or section.names.
-.sp
-With \-\-edit, start an editor on the user\-level config file. With
-\-\-global, edit the system\-wide config file. With \-\-local, edit the
-repository\-level config file.
-.sp
-With \-\-debug, the source (filename and line number) is printed
-for each config item.
-.sp
-See \%\fBhg help config\fP\: for more information about config files.
-.sp
-Template:
-.sp
-The following keywords are supported. See also \%\fBhg help templates\fP\:.
-.INDENT 0.0
-.TP
-.B name
-.
-String. Config name.
-.TP
-.B source
-.
-String. Filename and line number where the item is defined.
-.TP
-.B value
-.
-String. Config value.
-.UNINDENT
-.sp
-Returns 0 on success, 1 if NAME does not exist.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-u,  \-\-untrusted
-.
-show untrusted configuration options
-.TP
-.B \-e,  \-\-edit
-.
-edit user config
-.TP
-.B \-l,  \-\-local
-.
-edit repository config
-.TP
-.B \-g,  \-\-global
-.
-edit global config
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.sp
-aliases: showconfig debugconfig
-.UNINDENT
 .SS copy
 .sp
 mark files as copied for the next commit:
 .sp
 .nf
 .ft C
-hg copy [OPTION]... [SOURCE]... DEST
+hg copy [OPTION]... SOURCE... DEST
 .ft P
 .fi
 .sp
@@ -1957,587 +2531,6 @@ recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS export
-.sp
-dump the header and diffs for one or more changesets:
-.sp
-.nf
-.ft C
-hg export [OPTION]... [\-o OUTFILESPEC] [\-r] [REV]...
-.ft P
-.fi
-.sp
-Print the changeset header and diffs for one or more revisions.
-If no revision is given, the parent of the working directory is used.
-.sp
-The information shown in the changeset header is: author, date,
-branch name (if non\-default), changeset hash, parent(s) and commit
-comment.
-.IP Note
-.
-\%\fBhg export\fP\: may generate unexpected diff output for merge
-changesets, as it will compare the merge changeset against its
-first parent only.
-.RE
-.sp
-Output may be to a file, in which case the name of the file is
-given using a template string. See \%\fBhg help templates\fP\:. In addition
-to the common template keywords, the following formatting rules are
-supported:
-.INDENT 0.0
-.TP
-.B \fB%%\fP
-.sp
-literal "%" character
-.TP
-.B \fB%H\fP
-.sp
-changeset hash (40 hexadecimal digits)
-.TP
-.B \fB%N\fP
-.sp
-number of patches being generated
-.TP
-.B \fB%R\fP
-.sp
-changeset revision number
-.TP
-.B \fB%b\fP
-.sp
-basename of the exporting repository
-.TP
-.B \fB%h\fP
-.sp
-short\-form changeset hash (12 hexadecimal digits)
-.TP
-.B \fB%m\fP
-.sp
-first line of the commit message (only alphanumeric characters)
-.TP
-.B \fB%n\fP
-.sp
-zero\-padded sequence number, starting at 1
-.TP
-.B \fB%r\fP
-.sp
-zero\-padded changeset revision number
-.TP
-.B \fB\e\fP
-.sp
-literal "" character
-.UNINDENT
-.sp
-Without the \-a/\-\-text option, export will avoid generating diffs
-of files it detects as binary. With \-a, export will generate a
-diff anyway, probably with undesirable results.
-.sp
-With \-B/\-\-bookmark changesets reachable by the given bookmark are
-selected.
-.sp
-Use the \-g/\-\-git option to generate diffs in the git extended diff
-format. See \%\fBhg help diffs\fP\: for more information.
-.sp
-With the \-\-switch\-parent option, the diff will be against the
-second parent. It can be useful to review a merge.
-.sp
-Template:
-.sp
-The following keywords are supported in addition to the common template
-keywords and functions. See also \%\fBhg help templates\fP\:.
-.INDENT 0.0
-.TP
-.B diff
-.
-String. Diff content.
-.TP
-.B parents
-.
-List of strings. Parent nodes of the changeset.
-.UNINDENT
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-use export and import to transplant a bugfix to the current
-branch:
-.sp
-.nf
-.ft C
-hg export \-r 9353 | hg import \-
-.ft P
-.fi
-.IP \(bu 2
-.
-export all the changesets between two revisions to a file with
-rename information:
-.sp
-.nf
-.ft C
-hg export \-\-git \-r 123:150 > changes.txt
-.ft P
-.fi
-.IP \(bu 2
-.
-split outgoing changes into a series of patches with
-descriptive names:
-.sp
-.nf
-.ft C
-hg export \-r "outgoing()" \-o "%n\-%m.patch"
-.ft P
-.fi
-.UNINDENT
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-B,  \-\-bookmark \ <BOOKMARK>
-.
-export changes only reachable by given bookmark
-.TP
-.BI \-o,  \-\-output \ <FORMAT>
-.
-print output to file with formatted name
-.TP
-.B \-\-switch\-parent
-.
-diff against the second parent
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-revisions to export
-.TP
-.B \-a,  \-\-text
-.
-treat all files as text
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.B \-\-binary
-.
-generate binary diffs in git mode (default)
-.TP
-.B \-\-nodates
-.
-omit dates from diff headers
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS files
-.sp
-list tracked files:
-.sp
-.nf
-.ft C
-hg files [OPTION]... [FILE]...
-.ft P
-.fi
-.sp
-Print files under Mercurial control in the working directory or
-specified revision for given files (excluding removed files).
-Files can be specified as filenames or filesets.
-.sp
-If no files are given to match, this command prints the names
-of all files under Mercurial control.
-.sp
-Template:
-.sp
-The following keywords are supported in addition to the common template
-keywords and functions. See also \%\fBhg help templates\fP\:.
-.INDENT 0.0
-.TP
-.B flags
-.
-String. Character denoting file\(aqs symlink and executable bits.
-.TP
-.B path
-.
-String. Repository\-absolute path of the file.
-.TP
-.B size
-.
-Integer. Size of the file in bytes.
-.UNINDENT
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-list all files under the current directory:
-.sp
-.nf
-.ft C
-hg files .
-.ft P
-.fi
-.IP \(bu 2
-.
-shows sizes and flags for current revision:
-.sp
-.nf
-.ft C
-hg files \-vr .
-.ft P
-.fi
-.IP \(bu 2
-.
-list all files named README:
-.sp
-.nf
-.ft C
-hg files \-I "**/README"
-.ft P
-.fi
-.IP \(bu 2
-.
-list all binary files:
-.sp
-.nf
-.ft C
-hg files "set:binary()"
-.ft P
-.fi
-.IP \(bu 2
-.
-find files containing a regular expression:
-.sp
-.nf
-.ft C
-hg files "set:grep(\(aqbob\(aq)"
-.ft P
-.fi
-.IP \(bu 2
-.
-search tracked file contents with xargs and grep:
-.sp
-.nf
-.ft C
-hg files \-0 | xargs \-0 grep foo
-.ft P
-.fi
-.UNINDENT
-.sp
-See \%\fBhg help patterns\fP\: and \%\fBhg help filesets\fP\: for more information
-on specifying file patterns.
-.sp
-Returns 0 if a match is found, 1 otherwise.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-r,  \-\-rev \ <REV>
-.
-search the repository as it is in REV
-.TP
-.B \-0,  \-\-print0
-.
-end filenames with NUL, for use with xargs
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS forget
-.sp
-forget the specified files on the next commit:
-.sp
-.nf
-.ft C
-hg forget [OPTION]... FILE...
-.ft P
-.fi
-.sp
-Mark the specified files so they will no longer be tracked
-after the next commit.
-.sp
-This only removes files from the current branch, not from the
-entire project history, and it does not delete them from the
-working directory.
-.sp
-To delete the file from the working directory, see \%\fBhg remove\fP\:.
-.sp
-To undo a forget before the next commit, see \%\fBhg add\fP\:.
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-forget newly\-added binary files:
-.sp
-.nf
-.ft C
-hg forget "set:added() and binary()"
-.ft P
-.fi
-.IP \(bu 2
-.
-forget files that would be excluded by .hgignore:
-.sp
-.nf
-.ft C
-hg forget "set:hgignore()"
-.ft P
-.fi
-.UNINDENT
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-i,  \-\-interactive
-.
-use interactive mode
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.B \-n,  \-\-dry\-run
-.
-do not perform actions, just print output
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS graft
-.sp
-copy changes from other branches onto the current branch:
-.sp
-.nf
-.ft C
-hg graft [OPTION]... [\-r REV]... REV...
-.ft P
-.fi
-.sp
-This command uses Mercurial\(aqs merge logic to copy individual
-changes from other branches without merging branches in the
-history graph. This is sometimes known as \(aqbackporting\(aq or
-\(aqcherry\-picking\(aq. By default, graft will copy user, date, and
-description from the source changesets.
-.sp
-Changesets that are ancestors of the current revision, that have
-already been grafted, or that are merges will be skipped.
-.sp
-If \-\-log is specified, log messages will have a comment appended
-of the form:
-.sp
-.nf
-.ft C
-(grafted from CHANGESETHASH)
-.ft P
-.fi
-.sp
-If \-\-force is specified, revisions will be grafted even if they
-are already ancestors of, or have been grafted to, the destination.
-This is useful when the revisions have since been backed out.
-.sp
-If a graft merge results in conflicts, the graft process is
-interrupted so that the current merge can be manually resolved.
-Once all conflicts are addressed, the graft process can be
-continued with the \-c/\-\-continue option.
-.sp
-The \-c/\-\-continue option reapplies all the earlier options.
-.sp
-The \-\-base option exposes more of how graft internally uses merge with a
-custom base revision. \-\-base can be used to specify another ancestor than
-the first and only parent.
-.sp
-The command:
-.sp
-.nf
-.ft C
-hg graft \-r 345 \-\-base 234
-.ft P
-.fi
-.sp
-is thus pretty much the same as:
-.sp
-.nf
-.ft C
-hg diff \-r 234 \-r 345 | hg import
-.ft P
-.fi
-.sp
-but using merge to resolve conflicts and track moved files.
-.sp
-The result of a merge can thus be backported as a single commit by
-specifying one of the merge parents as base, and thus effectively
-grafting the changes from the other side.
-.sp
-It is also possible to collapse multiple changesets and clean up history
-by specifying another ancestor as base, much like rebase \-\-collapse
-\-\-keep.
-.sp
-The commit message can be tweaked after the fact using commit \-\-amend .
-.sp
-For using non\-ancestors as the base to backout changes, see the backout
-command and the hidden \-\-parent option.
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-copy a single change to the stable branch and edit its description:
-.sp
-.nf
-.ft C
-hg update stable
-hg graft \-\-edit 9393
-.ft P
-.fi
-.IP \(bu 2
-.
-graft a range of changesets with one exception, updating dates:
-.sp
-.nf
-.ft C
-hg graft \-D "2085::2093 and not 2091"
-.ft P
-.fi
-.IP \(bu 2
-.
-continue a graft after resolving conflicts:
-.sp
-.nf
-.ft C
-hg graft \-c
-.ft P
-.fi
-.IP \(bu 2
-.
-show the source of a grafted changeset:
-.sp
-.nf
-.ft C
-hg log \-\-debug \-r .
-.ft P
-.fi
-.IP \(bu 2
-.
-show revisions sorted by date:
-.sp
-.nf
-.ft C
-hg log \-r "sort(all(), date)"
-.ft P
-.fi
-.IP \(bu 2
-.
-backport the result of a merge as a single commit:
-.sp
-.nf
-.ft C
-hg graft \-r 123 \-\-base 123^
-.ft P
-.fi
-.IP \(bu 2
-.
-land a feature branch as one changeset:
-.sp
-.nf
-.ft C
-hg up \-cr default
-hg graft \-r featureX \-\-base "ancestor(\(aqfeatureX\(aq, \(aqdefault\(aq)"
-.ft P
-.fi
-.UNINDENT
-.sp
-See \%\fBhg help revisions\fP\: for more about specifying revisions.
-.sp
-Returns 0 on successful completion.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-revisions to graft
-.TP
-.BI \-\-base \ <REV>
-.
-base revision when doing the graft merge (ADVANCED)
-.TP
-.B \-c,  \-\-continue
-.
-resume interrupted graft
-.TP
-.B \-\-stop
-.
-stop interrupted graft
-.TP
-.B \-\-abort
-.
-abort interrupted graft
-.TP
-.B \-e,  \-\-edit
-.
-invoke editor on commit messages
-.TP
-.B \-\-log
-.
-append graft info to log message
-.TP
-.B \-\-no\-commit
-.
-don\(aqt commit, just apply the changes in working directory
-.TP
-.B \-f,  \-\-force
-.
-force graft
-.TP
-.B \-D,  \-\-currentdate
-.
-record the current date as commit date
-.TP
-.B \-U,  \-\-currentuser
-.
-record the current user as committer
-.TP
-.BI \-d,  \-\-date \ <DATE>
-.
-record the specified date as commit date
-.TP
-.BI \-u,  \-\-user \ <USER>
-.
-record the specified user as committer
-.TP
-.BI \-t,  \-\-tool \ <TOOL>
-.
-specify merge tool
-.TP
-.B \-n,  \-\-dry\-run
-.
-do not perform actions, just print output
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
 .SS grep
 .sp
 search revision history for a pattern in specified files:
@@ -2669,6 +2662,177 @@ exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS Change navigation
+.SS bisect
+.sp
+subdivision search of changesets:
+.sp
+.nf
+.ft C
+hg bisect [\-gbsr] [\-U] [\-c CMD] [REV]
+.ft P
+.fi
+.sp
+This command helps to find changesets which introduce problems. To
+use, mark the earliest changeset you know exhibits the problem as
+bad, then mark the latest changeset which is free from the problem
+as good. Bisect will update your working directory to a revision
+for testing (unless the \-U/\-\-noupdate option is specified). Once
+you have performed tests, mark the working directory as good or
+bad, and bisect will either update to another candidate changeset
+or announce that it has found the bad revision.
+.sp
+As a shortcut, you can also use the revision argument to mark a
+revision as good or bad without checking it out first.
+.sp
+If you supply a command, it will be used for automatic bisection.
+The environment variable HG_NODE will contain the ID of the
+changeset being tested. The exit status of the command will be
+used to mark revisions as good or bad: status 0 means good, 125
+means to skip the revision, 127 (command not found) will abort the
+bisection, and any other non\-zero exit status means the revision
+is bad.
+.sp
+Some examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+start a bisection with known bad revision 34, and good revision 12:
+.sp
+.nf
+.ft C
+hg bisect \-\-bad 34
+hg bisect \-\-good 12
+.ft P
+.fi
+.IP \(bu 2
+.
+advance the current bisection by marking current revision as good or
+bad:
+.sp
+.nf
+.ft C
+hg bisect \-\-good
+hg bisect \-\-bad
+.ft P
+.fi
+.IP \(bu 2
+.
+mark the current revision, or a known revision, to be skipped (e.g. if
+that revision is not usable because of another issue):
+.sp
+.nf
+.ft C
+hg bisect \-\-skip
+hg bisect \-\-skip 23
+.ft P
+.fi
+.IP \(bu 2
+.
+skip all revisions that do not touch directories \fBfoo\fP or \fBbar\fP:
+.sp
+.nf
+.ft C
+hg bisect \-\-skip "!( file(\(aqpath:foo\(aq) & file(\(aqpath:bar\(aq) )"
+.ft P
+.fi
+.IP \(bu 2
+.
+forget the current bisection:
+.sp
+.nf
+.ft C
+hg bisect \-\-reset
+.ft P
+.fi
+.IP \(bu 2
+.
+use \(aqmake && make tests\(aq to automatically find the first broken
+revision:
+.sp
+.nf
+.ft C
+hg bisect \-\-reset
+hg bisect \-\-bad 34
+hg bisect \-\-good 12
+hg bisect \-\-command "make && make tests"
+.ft P
+.fi
+.IP \(bu 2
+.
+see all changesets whose states are already known in the current
+bisection:
+.sp
+.nf
+.ft C
+hg log \-r "bisect(pruned)"
+.ft P
+.fi
+.IP \(bu 2
+.
+see the changeset currently being bisected (especially useful
+if running with \-U/\-\-noupdate):
+.sp
+.nf
+.ft C
+hg log \-r "bisect(current)"
+.ft P
+.fi
+.IP \(bu 2
+.
+see all changesets that took part in the current bisection:
+.sp
+.nf
+.ft C
+hg log \-r "bisect(range)"
+.ft P
+.fi
+.IP \(bu 2
+.
+you can even get a nice graph:
+.sp
+.nf
+.ft C
+hg log \-\-graph \-r "bisect(range)"
+.ft P
+.fi
+.UNINDENT
+.sp
+See \%\fBhg help revisions.bisect\fP\: for more about the \fIbisect()\fP predicate.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-r,  \-\-reset
+.
+reset bisect state
+.TP
+.B \-g,  \-\-good
+.
+mark changeset good
+.TP
+.B \-b,  \-\-bad
+.
+mark changeset bad
+.TP
+.B \-s,  \-\-skip
+.
+skip testing changeset
+.TP
+.B \-e,  \-\-extend
+.
+extend the bisect range
+.TP
+.BI \-c,  \-\-command \ <CMD>
+.
+use command to check changeset state
+.TP
+.B \-U,  \-\-noupdate
+.
+do not update to target
+.UNINDENT
 .SS heads
 .sp
 show branch heads:
@@ -2727,44 +2891,6 @@ display using template map file (DEPRECATED)
 .
 display with template
 .UNINDENT
-.SS help
-.sp
-show help for a given topic or a help overview:
-.sp
-.nf
-.ft C
-hg help [\-eck] [\-s PLATFORM] [TOPIC]
-.ft P
-.fi
-.sp
-With no arguments, print a list of commands with short help messages.
-.sp
-Given a topic, extension, or command name, print help for that
-topic.
-.sp
-Returns 0 if successful.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-e,  \-\-extension
-.
-show only help for extensions
-.TP
-.B \-c,  \-\-command
-.
-show only help for commands
-.TP
-.B \-k,  \-\-keyword
-.
-show topics matching keyword
-.TP
-.BI \-s,  \-\-system \ <PLATFORM[+]>
-.
-show help for specific platform(s)
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
 .SS identify
 .sp
 identify the working directory or specified revision:
@@ -2888,474 +3014,6 @@ display with template
 .sp
 aliases: id
 .UNINDENT
-.SS import
-.sp
-import an ordered set of patches:
-.sp
-.nf
-.ft C
-hg import [OPTION]... PATCH...
-.ft P
-.fi
-.sp
-Import a list of patches and commit them individually (unless
-\-\-no\-commit is specified).
-.sp
-To read a patch from standard input (stdin), use "\-" as the patch
-name. If a URL is specified, the patch will be downloaded from
-there.
-.sp
-Import first applies changes to the working directory (unless
-\-\-bypass is specified), import will abort if there are outstanding
-changes.
-.sp
-Use \-\-bypass to apply and commit patches directly to the
-repository, without affecting the working directory. Without
-\-\-exact, patches will be applied on top of the working directory
-parent revision.
-.sp
-You can import a patch straight from a mail message. Even patches
-as attachments work (to use the body part, it must have type
-text/plain or text/x\-patch). From and Subject headers of email
-message are used as default committer and commit message. All
-text/plain body parts before first diff are added to the commit
-message.
-.sp
-If the imported patch was generated by \%\fBhg export\fP\:, user and
-description from patch override values from message headers and
-body. Values given on command line with \-m/\-\-message and \-u/\-\-user
-override these.
-.sp
-If \-\-exact is specified, import will set the working directory to
-the parent of each patch before applying it, and will abort if the
-resulting changeset has a different ID than the one recorded in
-the patch. This will guard against various ways that portable
-patch formats and mail systems might fail to transfer Mercurial
-data or metadata. See \%\fBhg bundle\fP\: for lossless transmission.
-.sp
-Use \-\-partial to ensure a changeset will be created from the patch
-even if some hunks fail to apply. Hunks that fail to apply will be
-written to a <target\-file>.rej file. Conflicts can then be resolved
-by hand before \%\fBhg commit \-\-amend\fP\: is run to update the created
-changeset. This flag exists to let people import patches that
-partially apply without losing the associated metadata (author,
-date, description, ...).
-.IP Note
-.
-When no hunks apply cleanly, \%\fBhg import \-\-partial\fP\: will create
-an empty changeset, importing only the patch metadata.
-.RE
-.sp
-With \-s/\-\-similarity, hg will attempt to discover renames and
-copies in the patch in the same way as \%\fBhg addremove\fP\:.
-.sp
-It is possible to use external patch programs to perform the patch
-by setting the \fBui.patch\fP configuration option. For the default
-internal tool, the fuzz can also be configured via \fBpatch.fuzz\fP.
-See \%\fBhg help config\fP\: for more information about configuration
-files and how to use these options.
-.sp
-See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-import a traditional patch from a website and detect renames:
-.sp
-.nf
-.ft C
-hg import \-s 80 http://example.com/bugfix.patch
-.ft P
-.fi
-.IP \(bu 2
-.
-import a changeset from an hgweb server:
-.sp
-.nf
-.ft C
-hg import https://www.mercurial\-scm.org/repo/hg/rev/5ca8c111e9aa
-.ft P
-.fi
-.IP \(bu 2
-.
-import all the patches in an Unix\-style mbox:
-.sp
-.nf
-.ft C
-hg import incoming\-patches.mbox
-.ft P
-.fi
-.IP \(bu 2
-.
-import patches from stdin:
-.sp
-.nf
-.ft C
-hg import \-
-.ft P
-.fi
-.IP \(bu 2
-.
-attempt to exactly restore an exported changeset (not always
-possible):
-.sp
-.nf
-.ft C
-hg import \-\-exact proposed\-fix.patch
-.ft P
-.fi
-.IP \(bu 2
-.
-use an external tool to apply a patch which is too fuzzy for
-the default internal tool.
-.INDENT 2.0
-.INDENT 3.5
-.sp
-hg import \-\-config ui.patch="patch \-\-merge" fuzzy.patch
-.UNINDENT
-.UNINDENT
-.IP \(bu 2
-.
-change the default fuzzing from 2 to a less strict 7
-.INDENT 2.0
-.INDENT 3.5
-.sp
-hg import \-\-config ui.fuzz=7 fuzz.patch
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.sp
-Returns 0 on success, 1 on partial success (see \-\-partial).
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-p,  \-\-strip \ <NUM>
-.
-directory strip option for patch. This has the same meaning as the corresponding patch option (default: 1)
-.TP
-.BI \-b,  \-\-base \ <PATH>
-.
-base path (DEPRECATED)
-.TP
-.B \-e,  \-\-edit
-.
-invoke editor on commit messages
-.TP
-.B \-f,  \-\-force
-.
-skip check for outstanding uncommitted changes (DEPRECATED)
-.TP
-.B \-\-no\-commit
-.
-don\(aqt commit, just update the working directory
-.TP
-.B \-\-bypass
-.
-apply patch without touching the working directory
-.TP
-.B \-\-partial
-.
-commit even if some hunks fail
-.TP
-.B \-\-exact
-.
-abort if patch would apply lossily
-.TP
-.BI \-\-prefix \ <DIR>
-.
-apply patch to subdirectory
-.TP
-.B \-\-import\-branch
-.
-use any branch information in patch (implied by \-\-exact)
-.TP
-.BI \-m,  \-\-message \ <TEXT>
-.
-use text as commit message
-.TP
-.BI \-l,  \-\-logfile \ <FILE>
-.
-read commit message from file
-.TP
-.BI \-d,  \-\-date \ <DATE>
-.
-record the specified date as commit date
-.TP
-.BI \-u,  \-\-user \ <USER>
-.
-record the specified user as committer
-.TP
-.BI \-s,  \-\-similarity \ <SIMILARITY>
-.
-guess renamed files by similarity (0<=s<=100)
-.sp
-aliases: patch
-.UNINDENT
-.SS incoming
-.sp
-show new changesets found in source:
-.sp
-.nf
-.ft C
-hg incoming [\-p] [\-n] [\-M] [\-f] [\-r REV]... [\-\-bundle FILENAME] [SOURCE]
-.ft P
-.fi
-.sp
-Show new changesets found in the specified path/URL or the default
-pull location. These are the changesets that would have been pulled
-by \%\fBhg pull\fP\: at the time you issued this command.
-.sp
-See pull for valid source format details.
-.sp
-With \-B/\-\-bookmarks, the result of bookmark comparison between
-local and remote repositories is displayed. With \-v/\-\-verbose,
-status is also displayed for each bookmark like below:
-.sp
-.nf
-.ft C
-BM1               01234567890a added
-BM2               1234567890ab advanced
-BM3               234567890abc diverged
-BM4               34567890abcd changed
-.ft P
-.fi
-.sp
-The action taken locally when pulling depends on the
-status of each bookmark:
-.INDENT 0.0
-.TP
-.B \fBadded\fP
-.sp
-pull will create it
-.TP
-.B \fBadvanced\fP
-.sp
-pull will update it
-.TP
-.B \fBdiverged\fP
-.sp
-pull will create a divergent bookmark
-.TP
-.B \fBchanged\fP
-.sp
-result depends on remote changesets
-.UNINDENT
-.sp
-From the point of view of pulling behavior, bookmark
-existing only in the remote repository are treated as \fBadded\fP,
-even if it is in fact locally deleted.
-.sp
-For remote repository, using \-\-bundle avoids downloading the
-changesets twice if the incoming is followed by a pull.
-.sp
-Examples:
-.INDENT 0.0
-.IP \(bu 2
-.
-show incoming changes with patches and full description:
-.sp
-.nf
-.ft C
-hg incoming \-vp
-.ft P
-.fi
-.IP \(bu 2
-.
-show incoming changes excluding merges, store a bundle:
-.sp
-.nf
-.ft C
-hg in \-vpM \-\-bundle incoming.hg
-hg pull incoming.hg
-.ft P
-.fi
-.IP \(bu 2
-.
-briefly list changes inside a bundle:
-.sp
-.nf
-.ft C
-hg in changes.hg \-T "{desc|firstline}\en"
-.ft P
-.fi
-.UNINDENT
-.sp
-Returns 0 if there are incoming changes, 1 otherwise.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-f,  \-\-force
-.
-run even if remote repository is unrelated
-.TP
-.B \-n,  \-\-newest\-first
-.
-show newest record first
-.TP
-.BI \-\-bundle \ <FILE>
-.
-file to store the bundles into
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-a remote changeset intended to be added
-.TP
-.B \-B,  \-\-bookmarks
-.
-compare bookmarks
-.TP
-.BI \-b,  \-\-branch \ <BRANCH[+]>
-.
-a specific branch you would like to pull
-.TP
-.B \-p,  \-\-patch
-.
-show patch
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.BI \-l,  \-\-limit \ <NUM>
-.
-limit number of changes displayed
-.TP
-.B \-M,  \-\-no\-merges
-.
-do not show merges
-.TP
-.B \-\-stat
-.
-output diffstat\-style summary of changes
-.TP
-.B \-G,  \-\-graph
-.
-show the revision DAG
-.TP
-.BI \-\-style \ <STYLE>
-.
-display using template map file (DEPRECATED)
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.TP
-.BI \-e,  \-\-ssh \ <CMD>
-.
-specify ssh command to use
-.TP
-.BI \-\-remotecmd \ <CMD>
-.
-specify hg command to run on the remote side
-.TP
-.B \-\-insecure
-.
-do not verify server certificate (ignoring web.cacerts config)
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.INDENT 0.0
-.INDENT 3.5
-.sp
-aliases: in
-.UNINDENT
-.UNINDENT
-.SS init
-.sp
-create a new repository in the given directory:
-.sp
-.nf
-.ft C
-hg init [\-e CMD] [\-\-remotecmd CMD] [DEST]
-.ft P
-.fi
-.sp
-Initialize a new repository in the given directory. If the given
-directory does not exist, it will be created.
-.sp
-If no directory is given, the current directory is used.
-.sp
-It is possible to specify an \fBssh://\fP URL as the destination.
-See \%\fBhg help urls\fP\: for more information.
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-e,  \-\-ssh \ <CMD>
-.
-specify ssh command to use
-.TP
-.BI \-\-remotecmd \ <CMD>
-.
-specify hg command to run on the remote side
-.TP
-.B \-\-insecure
-.
-do not verify server certificate (ignoring web.cacerts config)
-.UNINDENT
-.SS locate
-.sp
-locate files matching specific patterns (DEPRECATED):
-.sp
-.nf
-.ft C
-hg locate [OPTION]... [PATTERN]...
-.ft P
-.fi
-.sp
-Print files under Mercurial control in the working directory whose
-names match the given patterns.
-.sp
-By default, this command searches all directories in the working
-directory. To search just the current directory and its
-subdirectories, use "\-\-include .".
-.sp
-If no patterns are given to match, this command prints the names
-of all files under Mercurial control in the working directory.
-.sp
-If you want to feed the output of this command into the "xargs"
-command, use the \-0 option to both this command and "xargs". This
-will avoid the problem of "xargs" treating single filenames that
-contain whitespace as multiple filenames.
-.sp
-See \%\fBhg help files\fP\: for a more versatile command.
-.sp
-Returns 0 if a match is found, 1 otherwise.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-r,  \-\-rev \ <REV>
-.
-search the repository as it is in REV
-.TP
-.B \-0,  \-\-print0
-.
-end filenames with NUL, for use with xargs
-.TP
-.B \-f,  \-\-fullpath
-.
-print complete paths from the filesystem root
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
 .SS log
 .sp
 show revision history of entire repository or files:
@@ -3588,7 +3246,7 @@ include revisions where files were removed
 .TP
 .B \-m,  \-\-only\-merges
 .
-show only merges (DEPRECATED)
+show only merges (DEPRECATED) (use \-r "merge()" instead)
 .TP
 .BI \-u,  \-\-user \ <USER[+]>
 .
@@ -3654,241 +3312,6 @@ exclude names matching the given patterns
 aliases: history
 .UNINDENT
 .UNINDENT
-.SS manifest
-.sp
-output the current or given revision of the project manifest:
-.sp
-.nf
-.ft C
-hg manifest [\-r REV]
-.ft P
-.fi
-.sp
-Print a list of version controlled files for the given revision.
-If no revision is given, the first parent of the working directory
-is used, or the null revision if no revision is checked out.
-.sp
-With \-v, print file permissions, symlink and executable bits.
-With \-\-debug, print file revision hashes.
-.sp
-If option \-\-all is specified, the list of all files from all revisions
-is printed. This includes deleted and renamed files.
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-r,  \-\-rev \ <REV>
-.
-revision to display
-.TP
-.B \-\-all
-.
-list files from all revisions
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.UNINDENT
-.SS merge
-.sp
-merge another revision into working directory:
-.sp
-.nf
-.ft C
-hg merge [\-P] [[\-r] REV]
-.ft P
-.fi
-.sp
-The current working directory is updated with all changes made in
-the requested revision since the last common predecessor revision.
-.sp
-Files that changed between either parent are marked as changed for
-the next commit and a commit must be performed before any further
-updates to the repository are allowed. The next commit will have
-two parents.
-.sp
-\fB\-\-tool\fP can be used to specify the merge tool used for file
-merges. It overrides the HGMERGE environment variable and your
-configuration files. See \%\fBhg help merge\-tools\fP\: for options.
-.sp
-If no revision is specified, the working directory\(aqs parent is a
-head revision, and the current branch contains exactly one other
-head, the other head is merged with by default. Otherwise, an
-explicit revision with which to merge with must be provided.
-.sp
-See \%\fBhg help resolve\fP\: for information on handling file conflicts.
-.sp
-To undo an uncommitted merge, use \%\fBhg merge \-\-abort\fP\: which
-will check out a clean copy of the original merge parent, losing
-all changes.
-.sp
-Returns 0 on success, 1 if there are unresolved files.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-f,  \-\-force
-.
-force a merge including outstanding changes (DEPRECATED)
-.TP
-.BI \-r,  \-\-rev \ <REV>
-.
-revision to merge
-.TP
-.B \-P,  \-\-preview
-.
-review revisions to merge (no merge is performed)
-.TP
-.B \-\-abort
-.
-abort the ongoing merge
-.TP
-.BI \-t,  \-\-tool \ <TOOL>
-.
-specify merge tool
-.UNINDENT
-.SS outgoing
-.sp
-show changesets not found in the destination:
-.sp
-.nf
-.ft C
-hg outgoing [\-M] [\-p] [\-n] [\-f] [\-r REV]... [DEST]
-.ft P
-.fi
-.sp
-Show changesets not found in the specified destination repository
-or the default push location. These are the changesets that would
-be pushed if a push was requested.
-.sp
-See pull for details of valid destination formats.
-.sp
-With \-B/\-\-bookmarks, the result of bookmark comparison between
-local and remote repositories is displayed. With \-v/\-\-verbose,
-status is also displayed for each bookmark like below:
-.sp
-.nf
-.ft C
-BM1               01234567890a added
-BM2                            deleted
-BM3               234567890abc advanced
-BM4               34567890abcd diverged
-BM5               4567890abcde changed
-.ft P
-.fi
-.sp
-The action taken when pushing depends on the
-status of each bookmark:
-.INDENT 0.0
-.TP
-.B \fBadded\fP
-.sp
-push with \fB\-B\fP will create it
-.TP
-.B \fBdeleted\fP
-.sp
-push with \fB\-B\fP will delete it
-.TP
-.B \fBadvanced\fP
-.sp
-push will update it
-.TP
-.B \fBdiverged\fP
-.sp
-push with \fB\-B\fP will update it
-.TP
-.B \fBchanged\fP
-.sp
-push with \fB\-B\fP will update it
-.UNINDENT
-.sp
-From the point of view of pushing behavior, bookmarks
-existing only in the remote repository are treated as
-\fBdeleted\fP, even if it is in fact added remotely.
-.sp
-Returns 0 if there are outgoing changes, 1 otherwise.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-f,  \-\-force
-.
-run even when the destination is unrelated
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-a changeset intended to be included in the destination
-.TP
-.B \-n,  \-\-newest\-first
-.
-show newest record first
-.TP
-.B \-B,  \-\-bookmarks
-.
-compare bookmarks
-.TP
-.BI \-b,  \-\-branch \ <BRANCH[+]>
-.
-a specific branch you would like to push
-.TP
-.B \-p,  \-\-patch
-.
-show patch
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.BI \-l,  \-\-limit \ <NUM>
-.
-limit number of changes displayed
-.TP
-.B \-M,  \-\-no\-merges
-.
-do not show merges
-.TP
-.B \-\-stat
-.
-output diffstat\-style summary of changes
-.TP
-.B \-G,  \-\-graph
-.
-show the revision DAG
-.TP
-.BI \-\-style \ <STYLE>
-.
-display using template map file (DEPRECATED)
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.TP
-.BI \-e,  \-\-ssh \ <CMD>
-.
-specify ssh command to use
-.TP
-.BI \-\-remotecmd \ <CMD>
-.
-specify hg command to run on the remote side
-.TP
-.B \-\-insecure
-.
-do not verify server certificate (ignoring web.cacerts config)
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.INDENT 0.0
-.INDENT 3.5
-.sp
-aliases: out
-.UNINDENT
-.UNINDENT
 .SS parents
 .sp
 show the parents of the working directory or revision (DEPRECATED):
@@ -3935,58 +3358,410 @@ display using template map file (DEPRECATED)
 .
 display with template
 .UNINDENT
-.SS paths
+.SS tip
 .sp
-show aliases for remote repositories:
+show the tip revision (DEPRECATED):
 .sp
 .nf
 .ft C
-hg paths [NAME]
+hg tip [\-p] [\-g]
 .ft P
 .fi
 .sp
-Show definition of symbolic path name NAME. If no name is given,
-show definition of all available names.
+The tip revision (usually just called the tip) is the changeset
+most recently added to the repository (and therefore the most
+recently changed head).
 .sp
-Option \-q/\-\-quiet suppresses all output when searching for NAME
-and shows only the path names when listing all definitions.
+If you have just made a commit, that commit will be the tip. If
+you have just pulled changes from another repository, the tip of
+that repository becomes the current tip. The "tip" tag is special
+and cannot be renamed or assigned to a different changeset.
 .sp
-Path names are defined in the [paths] section of your
-configuration file and in \fB/etc/mercurial/hgrc\fP. If run inside a
-repository, \fB.hg/hgrc\fP is used, too.
+This command is deprecated, please use \%\fBhg heads\fP\: instead.
 .sp
-The path names \fBdefault\fP and \fBdefault\-push\fP have a special
-meaning.  When performing a push or pull operation, they are used
-as fallbacks if no location is specified on the command\-line.
-When \fBdefault\-push\fP is set, it will be used for push and
-\fBdefault\fP will be used for pull; otherwise \fBdefault\fP is used
-as the fallback for both.  When cloning a repository, the clone
-source is written as \fBdefault\fP in \fB.hg/hgrc\fP.
-.IP Note
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-p,  \-\-patch
 .
-\fBdefault\fP and \fBdefault\-push\fP apply to all inbound (e.g.
-\%\fBhg incoming\fP\:) and outbound (e.g. \%\fBhg outgoing\fP\:, \%\fBhg email\fP\:
-and \%\fBhg bundle\fP\:) operations.
-.RE
+show patch
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.BI \-\-style \ <STYLE>
+.
+display using template map file (DEPRECATED)
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.UNINDENT
+.SS Working directory management
+.SS add
 .sp
-See \%\fBhg help urls\fP\: for more information.
+add the specified files on the next commit:
+.sp
+.nf
+.ft C
+hg add [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Schedule files to be version controlled and added to the
+repository.
+.sp
+The files will be added to the repository at the next commit. To
+undo an add before that, see \%\fBhg forget\fP\:.
+.sp
+If no names are given, add all files to the repository (except
+files matching \fB.hgignore\fP).
+.sp
+Examples:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+New (unknown) files are added
+automatically by \%\fBhg add\fP\::
+.sp
+.nf
+.ft C
+$ ls
+foo.c
+$ hg status
+? foo.c
+$ hg add
+adding foo.c
+$ hg status
+A foo.c
+.ft P
+.fi
+.IP \(bu 2
+.
+Specific files to be added can be specified:
+.sp
+.nf
+.ft C
+$ ls
+bar.c  foo.c
+$ hg status
+? bar.c
+? foo.c
+$ hg add bar.c
+$ hg status
+A bar.c
+? foo.c
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Returns 0 if all files are successfully added.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS addremove
+.sp
+add all new files, delete all missing files:
+.sp
+.nf
+.ft C
+hg addremove [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Add all new files and remove all missing files from the
+repository.
+.sp
+Unless names are given, new files are ignored if they match any of
+the patterns in \fB.hgignore\fP. As with add, these changes take
+effect at the next commit.
+.sp
+Use the \-s/\-\-similarity option to detect renamed files. This
+option takes a percentage between 0 (disabled) and 100 (files must
+be identical) as its parameter. With a parameter greater than 0,
+this compares every removed file with every added file and records
+those similar enough as renames. Detecting renamed files this way
+can be expensive. After using this option, \%\fBhg status \-C\fP\: can be
+used to check which files were identified as moved or renamed. If
+not specified, \-s/\-\-similarity defaults to 100 and only renames of
+identical files are detected.
+.sp
+Examples:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+A number of files (bar.c and foo.c) are new,
+while foobar.c has been removed (without using \%\fBhg remove\fP\:)
+from the repository:
+.sp
+.nf
+.ft C
+$ ls
+bar.c foo.c
+$ hg status
+! foobar.c
+? bar.c
+? foo.c
+$ hg addremove
+adding bar.c
+adding foo.c
+removing foobar.c
+$ hg status
+A bar.c
+A foo.c
+R foobar.c
+.ft P
+.fi
+.IP \(bu 2
+.
+A file foobar.c was moved to foo.c without using \%\fBhg rename\fP\:.
+Afterwards, it was edited slightly:
+.sp
+.nf
+.ft C
+$ ls
+foo.c
+$ hg status
+! foobar.c
+? foo.c
+$ hg addremove \-\-similarity 90
+removing foobar.c
+adding foo.c
+recording removal of foobar.c as rename to foo.c (94% similar)
+$ hg status \-C
+A foo.c
+  foobar.c
+R foobar.c
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Returns 0 if all files are successfully added.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-s,  \-\-similarity \ <SIMILARITY>
+.
+guess renamed files by similarity (0<=s<=100)
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS files
+.sp
+list tracked files:
+.sp
+.nf
+.ft C
+hg files [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Print files under Mercurial control in the working directory or
+specified revision for given files (excluding removed files).
+Files can be specified as filenames or filesets.
+.sp
+If no files are given to match, this command prints the names
+of all files under Mercurial control.
 .sp
 Template:
 .sp
-The following keywords are supported. See also \%\fBhg help templates\fP\:.
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
 .INDENT 0.0
 .TP
-.B name
+.B flags
 .
-String. Symbolic name of the path alias.
+String. Character denoting file\(aqs symlink and executable bits.
 .TP
-.B pushurl
+.B path
 .
-String. URL for push operations.
+String. Repository\-absolute path of the file.
 .TP
-.B url
+.B size
 .
-String. URL or directory path for the other operations.
+Integer. Size of the file in bytes.
+.UNINDENT
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+list all files under the current directory:
+.sp
+.nf
+.ft C
+hg files .
+.ft P
+.fi
+.IP \(bu 2
+.
+shows sizes and flags for current revision:
+.sp
+.nf
+.ft C
+hg files \-vr .
+.ft P
+.fi
+.IP \(bu 2
+.
+list all files named README:
+.sp
+.nf
+.ft C
+hg files \-I "**/README"
+.ft P
+.fi
+.IP \(bu 2
+.
+list all binary files:
+.sp
+.nf
+.ft C
+hg files "set:binary()"
+.ft P
+.fi
+.IP \(bu 2
+.
+find files containing a regular expression:
+.sp
+.nf
+.ft C
+hg files "set:grep(\(aqbob\(aq)"
+.ft P
+.fi
+.IP \(bu 2
+.
+search tracked file contents with xargs and grep:
+.sp
+.nf
+.ft C
+hg files \-0 | xargs \-0 grep foo
+.ft P
+.fi
+.UNINDENT
+.sp
+See \%\fBhg help patterns\fP\: and \%\fBhg help filesets\fP\: for more information
+on specifying file patterns.
+.sp
+Returns 0 if a match is found, 1 otherwise.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+search the repository as it is in REV
+.TP
+.B \-0,  \-\-print0
+.
+end filenames with NUL, for use with xargs
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS forget
+.sp
+forget the specified files on the next commit:
+.sp
+.nf
+.ft C
+hg forget [OPTION]... FILE...
+.ft P
+.fi
+.sp
+Mark the specified files so they will no longer be tracked
+after the next commit.
+.sp
+This only removes files from the current branch, not from the
+entire project history, and it does not delete them from the
+working directory.
+.sp
+To delete the file from the working directory, see \%\fBhg remove\fP\:.
+.sp
+To undo a forget before the next commit, see \%\fBhg add\fP\:.
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+forget newly\-added binary files:
+.sp
+.nf
+.ft C
+hg forget "set:added() and binary()"
+.ft P
+.fi
+.IP \(bu 2
+.
+forget files that would be excluded by .hgignore:
+.sp
+.nf
+.ft C
+hg forget "set:hgignore()"
+.ft P
+.fi
 .UNINDENT
 .sp
 Returns 0 on success.
@@ -3994,263 +3769,78 @@ Returns 0 on success.
 Options:
 .INDENT 0.0
 .TP
-.BI \-T,  \-\-template \ <TEMPLATE>
+.B \-i,  \-\-interactive
 .
-display with template
+use interactive mode
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
 .UNINDENT
-.SS phase
 .sp
-set or show the current phase name:
+[+] marked option can be specified multiple times
+.SS locate
 .sp
-.nf
-.ft C
-hg phase [\-p|\-d|\-s] [\-f] [\-r] [REV...]
-.ft P
-.fi
-.sp
-With no argument, show the phase name of the current revision(s).
-.sp
-With one of \-p/\-\-public, \-d/\-\-draft or \-s/\-\-secret, change the
-phase value of the specified revisions.
-.sp
-Unless \-f/\-\-force is specified, \%\fBhg phase\fP\: won\(aqt move changesets from a
-lower phase to a higher phase. Phases are ordered as follows:
+locate files matching specific patterns (DEPRECATED):
 .sp
 .nf
 .ft C
-public < draft < secret
+hg locate [OPTION]... [PATTERN]...
 .ft P
 .fi
 .sp
-Returns 0 on success, 1 if some phases could not be changed.
+Print files under Mercurial control in the working directory whose
+names match the given patterns.
 .sp
-(For more information about the phases concept, see \%\fBhg help phases\fP\:.)
+By default, this command searches all directories in the working
+directory. To search just the current directory and its
+subdirectories, use "\-\-include .".
+.sp
+If no patterns are given to match, this command prints the names
+of all files under Mercurial control in the working directory.
+.sp
+If you want to feed the output of this command into the "xargs"
+command, use the \-0 option to both this command and "xargs". This
+will avoid the problem of "xargs" treating single filenames that
+contain whitespace as multiple filenames.
+.sp
+See \%\fBhg help files\fP\: for a more versatile command.
+.sp
+Returns 0 if a match is found, 1 otherwise.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.B \-p,  \-\-public
+.BI \-r,  \-\-rev \ <REV>
 .
-set changeset phase to public
+search the repository as it is in REV
 .TP
-.B \-d,  \-\-draft
+.B \-0,  \-\-print0
 .
-set changeset phase to draft
+end filenames with NUL, for use with xargs
 .TP
-.B \-s,  \-\-secret
+.B \-f,  \-\-fullpath
 .
-set changeset phase to secret
+print complete paths from the filesystem root
 .TP
-.B \-f,  \-\-force
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
-allow to move boundary backward
+include names matching the given patterns
 .TP
-.BI \-r,  \-\-rev \ <REV[+]>
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
-target revision
+exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS pull
-.sp
-pull changes from the specified source:
-.sp
-.nf
-.ft C
-hg pull [\-u] [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [SOURCE]
-.ft P
-.fi
-.sp
-Pull changes from a remote repository to a local one.
-.sp
-This finds all changes from the repository at the specified path
-or URL and adds them to a local repository (the current one unless
-\-R is specified). By default, this does not update the copy of the
-project in the working directory.
-.sp
-When cloning from servers that support it, Mercurial may fetch
-pre\-generated data. When this is done, hooks operating on incoming
-changesets and changegroups may fire more than once, once for each
-pre\-generated bundle and as well as for any additional remaining
-data. See \%\fBhg help \-e clonebundles\fP\: for more.
-.sp
-Use \%\fBhg incoming\fP\: if you want to see what would have been added
-by a pull at the time you issued this command. If you then decide
-to add those changes to the repository, you should use \%\fBhg pull
-\-r X\fP\: where \fBX\fP is the last changeset listed by \%\fBhg incoming\fP\:.
-.sp
-If SOURCE is omitted, the \(aqdefault\(aq path will be used.
-See \%\fBhg help urls\fP\: for more information.
-.sp
-Specifying bookmark as \fB.\fP is equivalent to specifying the active
-bookmark\(aqs name.
-.sp
-Returns 0 on success, 1 if an update had unresolved files.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-u,  \-\-update
-.
-update to new branch head if new descendants were pulled
-.TP
-.B \-f,  \-\-force
-.
-run even when remote repository is unrelated
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-a remote changeset intended to be added
-.TP
-.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
-.
-bookmark to pull
-.TP
-.BI \-b,  \-\-branch \ <BRANCH[+]>
-.
-a specific branch you would like to pull
-.TP
-.BI \-e,  \-\-ssh \ <CMD>
-.
-specify ssh command to use
-.TP
-.BI \-\-remotecmd \ <CMD>
-.
-specify hg command to run on the remote side
-.TP
-.B \-\-insecure
-.
-do not verify server certificate (ignoring web.cacerts config)
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS push
-.sp
-push changes to the specified destination:
-.sp
-.nf
-.ft C
-hg push [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [DEST]
-.ft P
-.fi
-.sp
-Push changesets from the local repository to the specified
-destination.
-.sp
-This operation is symmetrical to pull: it is identical to a pull
-in the destination repository from the current one.
-.sp
-By default, push will not allow creation of new heads at the
-destination, since multiple heads would make it unclear which head
-to use. In this situation, it is recommended to pull and merge
-before pushing.
-.sp
-Use \-\-new\-branch if you want to allow push to create a new named
-branch that is not present at the destination. This allows you to
-only create a new branch without forcing other changes.
-.IP Note
-.
-Extra care should be taken with the \-f/\-\-force option,
-which will push all new heads on all branches, an action which will
-almost always cause confusion for collaborators.
-.RE
-.sp
-If \-r/\-\-rev is used, the specified revision and all its ancestors
-will be pushed to the remote repository.
-.sp
-If \-B/\-\-bookmark is used, the specified bookmarked revision, its
-ancestors, and the bookmark will be pushed to the remote
-repository. Specifying \fB.\fP is equivalent to specifying the active
-bookmark\(aqs name.
-.sp
-Please see \%\fBhg help urls\fP\: for important details about \fBssh://\fP
-URLs. If DESTINATION is omitted, a default path will be used.
-.sp
-The \-\-pushvars option sends strings to the server that become
-environment variables prepended with \fBHG_USERVAR_\fP. For example,
-\fB\-\-pushvars ENABLE_FEATURE=true\fP, provides the server side hooks with
-\fBHG_USERVAR_ENABLE_FEATURE=true\fP as part of their environment.
-.sp
-pushvars can provide for user\-overridable hooks as well as set debug
-levels. One example is having a hook that blocks commits containing
-conflict markers, but enables the user to override the hook if the file
-is using conflict markers for testing purposes or the file format has
-strings that look like conflict markers.
-.sp
-By default, servers will ignore \fI\-\-pushvars\fP. To enable it add the
-following to your configuration file:
-.sp
-.nf
-.ft C
-[push]
-pushvars.server = true
-.ft P
-.fi
-.sp
-Returns 0 if push was successful, 1 if nothing to push.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-f,  \-\-force
-.
-force push
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-a changeset intended to be included in the destination
-.TP
-.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
-.
-bookmark to push
-.TP
-.BI \-b,  \-\-branch \ <BRANCH[+]>
-.
-a specific branch you would like to push
-.TP
-.B \-\-new\-branch
-.
-allow pushing a new branch
-.TP
-.BI \-\-pushvars \ <VALUE[+]>
-.
-variables that can be sent to server (ADVANCED)
-.TP
-.B \-\-publish
-.
-push the changeset as public (EXPERIMENTAL)
-.TP
-.BI \-e,  \-\-ssh \ <CMD>
-.
-specify ssh command to use
-.TP
-.BI \-\-remotecmd \ <CMD>
-.
-specify hg command to run on the remote side
-.TP
-.B \-\-insecure
-.
-do not verify server certificate (ignoring web.cacerts config)
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS recover
-.sp
-roll back an interrupted transaction:
-.sp
-.nf
-.ft C
-hg recover
-.ft P
-.fi
-.sp
-Recover from an interrupted commit or pull.
-.sp
-This command tries to fix the repository status after an
-interrupted operation. It should only be necessary when Mercurial
-suggests it.
-.sp
-Returns 0 if successful, 1 if nothing to recover or verify fails.
 .SS remove
 .sp
 remove the specified files on the next commit:
@@ -4417,7 +4007,7 @@ record a rename that has already occurred
 .TP
 .B \-f,  \-\-force
 .
-forcibly copy over an existing managed file
+forcibly move over an existing managed file
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -4633,78 +4223,6 @@ do not perform actions, just print output
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS rollback
-.sp
-roll back the last transaction (DANGEROUS) (DEPRECATED):
-.sp
-.nf
-.ft C
-hg rollback
-.ft P
-.fi
-.sp
-Please use \%\fBhg commit \-\-amend\fP\: instead of rollback to correct
-mistakes in the last commit.
-.sp
-This command should be used with care. There is only one level of
-rollback, and there is no way to undo a rollback. It will also
-restore the dirstate at the time of the last transaction, losing
-any dirstate changes since that time. This command does not alter
-the working directory.
-.sp
-Transactions are used to encapsulate the effects of all commands
-that create new changesets or propagate existing changesets into a
-repository.
-.sp
-For example, the following commands are transactional, and their
-effects can be rolled back:
-.INDENT 0.0
-.IP \(bu 2
-.
-commit
-.IP \(bu 2
-.
-import
-.IP \(bu 2
-.
-pull
-.IP \(bu 2
-.
-push (with this repository as the destination)
-.IP \(bu 2
-.
-unbundle
-.UNINDENT
-.sp
-To avoid permanent data loss, rollback will refuse to rollback a
-commit transaction if it isn\(aqt checked out. Use \-\-force to
-override this protection.
-.sp
-The rollback command can be entirely disabled by setting the
-\fBui.rollback\fP configuration setting to false. If you\(aqre here
-because you want to use rollback and it\(aqs disabled, you can
-re\-enable the command by setting \fBui.rollback\fP to true.
-.sp
-This command is not intended for use on public repositories. Once
-changes are visible for pull by other users, rolling a transaction
-back locally is ineffective (someone else may already have pulled
-the changes). Furthermore, a race is possible with readers of the
-repository; for example an in\-progress pull from the repository
-may fail if a rollback is performed.
-.sp
-Returns 0 on success, 1 if no rollback data is available.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-n,  \-\-dry\-run
-.
-do not perform actions, just print output
-.TP
-.B \-f,  \-\-force
-.
-ignore safety measures
-.UNINDENT
 .SS root
 .sp
 print the root (top) of the current working directory:
@@ -4717,116 +4235,132 @@ hg root
 .sp
 Print the root directory of the current repository.
 .sp
-Returns 0 on success.
-.SS serve
+Template:
 .sp
-start stand\-alone webserver:
-.sp
-.nf
-.ft C
-hg serve [OPTION]...
-.ft P
-.fi
-.sp
-Start a local HTTP repository browser and pull server. You can use
-this for ad\-hoc sharing and browsing of repositories. It is
-recommended to use a real web server to serve a repository for
-longer periods of time.
-.sp
-Please note that the server does not implement access control.
-This means that, by default, anybody can read from the server and
-nobody can write to it by default. Set the \fBweb.allow\-push\fP
-option to \fB*\fP to allow everybody to push to the server. You
-should use a real web server if you need to authenticate users.
-.sp
-By default, the server logs accesses to stdout and errors to
-stderr. Use the \-A/\-\-accesslog and \-E/\-\-errorlog options to log to
-files.
-.sp
-To have the server choose a free port number to listen on, specify
-a port number of 0; in this case, the server will print the port
-number it uses.
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B hgpath
+.
+String. Path to the .hg directory.
+.TP
+.B storepath
+.
+String. Path to the directory holding versioned data.
+.UNINDENT
 .sp
 Returns 0 on success.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.BI \-A,  \-\-accesslog \ <FILE>
+.BI \-T,  \-\-template \ <TEMPLATE>
 .
-name of access log file to write to
+display with template
+.UNINDENT
+.SS shelve
+.sp
+save and set aside changes from the working directory:
+.sp
+.nf
+.ft C
+hg shelve [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Shelving takes files that "hg status" reports as not clean, saves
+the modifications to a bundle (a shelved change), and reverts the
+files so that their state in the working directory becomes clean.
+.sp
+To restore these changes to the working directory, using "hg
+unshelve"; this will work even if you switch to a different
+commit.
+.sp
+When no files are specified, "hg shelve" saves all not\-clean
+files. If specific files or directories are named, only changes to
+those files are shelved.
+.sp
+In bare shelve (when no files are specified, without interactive,
+include and exclude option), shelving remembers information if the
+working directory was on newly created branch, in other words working
+directory was on different branch than its first parent. In this
+situation unshelving restores branch information to the working directory.
+.sp
+Each shelved change has a name that makes it easier to find later.
+The name of a shelved change defaults to being based on the active
+bookmark, or if there is no active bookmark, the current named
+branch.  To specify a different name, use \fB\-\-name\fP.
+.sp
+To see a list of existing shelved changes, use the \fB\-\-list\fP
+option. For each shelved change, this will print its name, age,
+and description; use \fB\-\-patch\fP or \fB\-\-stat\fP for more details.
+.sp
+To delete specific shelved changes, use \fB\-\-delete\fP. To delete
+all shelved changes, use \fB\-\-cleanup\fP.
+.sp
+Options:
+.INDENT 0.0
 .TP
-.B \-d,  \-\-daemon
+.B \-A,  \-\-addremove
 .
-run server in background
+mark new/missing files as added/removed before shelving
 .TP
-.BI \-\-daemon\-postexec \ <VALUE[+]>
+.B \-u,  \-\-unknown
 .
-used internally by daemon mode
+store unknown files in the shelve
 .TP
-.BI \-E,  \-\-errorlog \ <FILE>
+.B \-\-cleanup
 .
-name of error log file to write to
+delete all shelved changes
 .TP
-.BI \-p,  \-\-port \ <PORT>
+.BI \-\-date \ <DATE>
 .
-port to listen on (default: 8000)
+shelve with the specified commit date
 .TP
-.BI \-a,  \-\-address \ <ADDR>
+.B \-d,  \-\-delete
 .
-address to listen on (default: all interfaces)
+delete the named shelved change(s)
 .TP
-.BI \-\-prefix \ <PREFIX>
+.B \-e,  \-\-edit
 .
-prefix path to serve from (default: server root)
+invoke editor on commit messages
+.TP
+.B \-k,  \-\-keep
+.
+shelve, but keep changes in the working directory
+.TP
+.B \-l,  \-\-list
+.
+list current shelves
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as shelve message
 .TP
 .BI \-n,  \-\-name \ <NAME>
 .
-name to show in web pages (default: working directory)
+use the given name for the shelved commit
 .TP
-.BI \-\-web\-conf \ <FILE>
+.B \-p,  \-\-patch
 .
-name of the hgweb config file (see \(aqhg help hgweb\(aq)
+output patches for changes (provide the names of the shelved changes as positional arguments)
 .TP
-.BI \-\-webdir\-conf \ <FILE>
+.B \-i,  \-\-interactive
 .
-name of the hgweb config file (DEPRECATED)
+interactive mode
 .TP
-.BI \-\-pid\-file \ <FILE>
+.B \-\-stat
 .
-name of file to write process ID to
+output diffstat\-style summary of changes (provide the names of the shelved changes as positional arguments)
 .TP
-.B \-\-stdio
+.BI \-I,  \-\-include \ <PATTERN[+]>
 .
-for remote clients (ADVANCED)
+include names matching the given patterns
 .TP
-.BI \-\-cmdserver \ <MODE>
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
-for remote clients (ADVANCED)
-.TP
-.BI \-t,  \-\-templates \ <TEMPLATE>
-.
-web templates to use
-.TP
-.BI \-\-style \ <STYLE>
-.
-template style to use
-.TP
-.B \-6,  \-\-ipv6
-.
-use IPv6 in addition to IPv4
-.TP
-.BI \-\-certificate \ <FILE>
-.
-SSL certificate file
-.TP
-.B \-\-print\-url
-.
-start and print only the URL
-.TP
-.B \-S,  \-\-subrepos
-.
-recurse into subrepositories
+exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -5079,177 +4613,85 @@ check for push and pull
 .sp
 aliases: sum
 .UNINDENT
-.SS tag
+.SS unshelve
 .sp
-add one or more tags for the current or given revision:
+restore a shelved change to the working directory:
 .sp
 .nf
 .ft C
-hg tag [\-f] [\-l] [\-m TEXT] [\-d DATE] [\-u USER] [\-r REV] NAME...
+hg unshelve [OPTION]... [FILE]... [\-n SHELVED]
 .ft P
 .fi
 .sp
-Name a particular revision using <name>.
+This command accepts an optional name of a shelved change to
+restore. If none is given, the most recent shelved change is used.
 .sp
-Tags are used to name particular revisions of the repository and are
-very useful to compare different revisions, to go back to significant
-earlier versions or to mark branch points as releases, etc. Changing
-an existing tag is normally disallowed; use \-f/\-\-force to override.
+If a shelved change is applied successfully, the bundle that
+contains the shelved changes is moved to a backup location
+(.hg/shelve\-backup).
 .sp
-If no revision is given, the parent of the working directory is
-used.
+Since you can restore a shelved change on top of an arbitrary
+commit, it is possible that unshelving will result in a conflict
+between your changes and the commits you are unshelving onto. If
+this occurs, you must resolve the conflict, then use
+\fB\-\-continue\fP to complete the unshelve operation. (The bundle
+will not be moved until you successfully complete the unshelve.)
 .sp
-To facilitate version control, distribution, and merging of tags,
-they are stored as a file named ".hgtags" which is managed similarly
-to other project files and can be hand\-edited if necessary. This
-also means that tagging creates a new commit. The file
-".hg/localtags" is used for local tags (not shared among
-repositories).
+(Alternatively, you can use \fB\-\-abort\fP to abandon an unshelve
+that causes a conflict. This reverts the unshelved changes, and
+leaves the bundle in place.)
 .sp
-Tag commits are usually made at the head of a branch. If the parent
-of the working directory is not a branch head, \%\fBhg tag\fP\: aborts; use
-\-f/\-\-force to force the tag commit to be based on a non\-head
-changeset.
+If bare shelved change (when no files are specified, without interactive,
+include and exclude option) was done on newly created branch it would
+restore branch information to the working directory.
 .sp
-See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
+After a successful unshelve, the shelved changes are stored in a
+backup directory. Only the N most recent backups are kept. N
+defaults to 10 but can be overridden using the \fBshelve.maxbackups\fP
+configuration option.
 .sp
-Since tag names have priority over branch names during revision
-lookup, using an existing branch name as a tag name is discouraged.
+Timestamp in seconds is used to decide order of backups. More
+than \fBmaxbackups\fP backups are kept, if same timestamp
+prevents from deciding exact order of them, for safety.
 .sp
-Returns 0 on success.
+Selected changes can be unshelved with \fB\-\-interactive\fP flag.
+The working directory is updated with the selected changes, and
+only the unselected changes remain shelved.
+Note: The whole shelve is applied to working directory first before
+running interactively. So, this will bring up all the conflicts between
+working directory and the shelve, irrespective of which changes will be
+unshelved.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.B \-f,  \-\-force
+.B \-a,  \-\-abort
 .
-force tag
+abort an incomplete unshelve operation
 .TP
-.B \-l,  \-\-local
+.B \-c,  \-\-continue
 .
-make the tag local
+continue an incomplete unshelve operation
 .TP
-.BI \-r,  \-\-rev \ <REV>
+.B \-i,  \-\-interactive
 .
-revision to tag
+use interactive mode (EXPERIMENTAL)
 .TP
-.B \-\-remove
+.B \-k,  \-\-keep
 .
-remove a tag
+keep shelve after unshelving
 .TP
-.B \-e,  \-\-edit
+.BI \-n,  \-\-name \ <NAME>
 .
-invoke editor on commit messages
+restore shelved change with given name
 .TP
-.BI \-m,  \-\-message \ <TEXT>
+.BI \-t,  \-\-tool \ <VALUE>
 .
-use text as commit message
+specify merge tool
 .TP
-.BI \-d,  \-\-date \ <DATE>
+.BI \-\-date \ <DATE>
 .
-record the specified date as commit date
-.TP
-.BI \-u,  \-\-user \ <USER>
-.
-record the specified user as committer
-.UNINDENT
-.SS tags
-.sp
-list repository tags:
-.sp
-.nf
-.ft C
-hg tags
-.ft P
-.fi
-.sp
-This lists both regular and local tags. When the \-v/\-\-verbose
-switch is used, a third column "local" is printed for local tags.
-When the \-q/\-\-quiet switch is used, only the tag name is printed.
-.sp
-Template:
-.sp
-The following keywords are supported in addition to the common template
-keywords and functions such as \fB{tag}\fP. See also
-\%\fBhg help templates\fP\:.
-.INDENT 0.0
-.TP
-.B type
-.
-String. \fBlocal\fP for local tags.
-.UNINDENT
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.UNINDENT
-.SS tip
-.sp
-show the tip revision (DEPRECATED):
-.sp
-.nf
-.ft C
-hg tip [\-p] [\-g]
-.ft P
-.fi
-.sp
-The tip revision (usually just called the tip) is the changeset
-most recently added to the repository (and therefore the most
-recently changed head).
-.sp
-If you have just made a commit, that commit will be the tip. If
-you have just pulled changes from another repository, the tip of
-that repository becomes the current tip. The "tip" tag is special
-and cannot be renamed or assigned to a different changeset.
-.sp
-This command is deprecated, please use \%\fBhg heads\fP\: instead.
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-p,  \-\-patch
-.
-show patch
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.BI \-\-style \ <STYLE>
-.
-display using template map file (DEPRECATED)
-.TP
-.BI \-T,  \-\-template \ <TEMPLATE>
-.
-display with template
-.UNINDENT
-.SS unbundle
-.sp
-apply one or more bundle files:
-.sp
-.nf
-.ft C
-hg unbundle [\-u] FILE...
-.ft P
-.fi
-.sp
-Apply one or more bundle files generated by \%\fBhg bundle\fP\:.
-.sp
-Returns 0 on success, 1 if an update has unresolved files.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-u,  \-\-update
-.
-update to new branch head if changesets were unbundled
+set date for temporary commits (DEPRECATED)
 .UNINDENT
 .SS update
 .sp
@@ -5346,6 +4788,728 @@ specify merge tool
 .sp
 aliases: up checkout co
 .UNINDENT
+.SS Change import/export
+.SS archive
+.sp
+create an unversioned archive of a repository revision:
+.sp
+.nf
+.ft C
+hg archive [OPTION]... DEST
+.ft P
+.fi
+.sp
+By default, the revision used is the parent of the working
+directory; use \-r/\-\-rev to specify a different revision.
+.sp
+The archive type is automatically detected based on file
+extension (to override, use \-t/\-\-type).
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+create a zip file containing the 1.0 release:
+.sp
+.nf
+.ft C
+hg archive \-r 1.0 project\-1.0.zip
+.ft P
+.fi
+.IP \(bu 2
+.
+create a tarball excluding .hg files:
+.sp
+.nf
+.ft C
+hg archive project.tar.gz \-X ".hg*"
+.ft P
+.fi
+.UNINDENT
+.sp
+Valid types are:
+.INDENT 0.0
+.TP
+.B \fBfiles\fP
+.sp
+a directory full of files (default)
+.TP
+.B \fBtar\fP
+.sp
+tar archive, uncompressed
+.TP
+.B \fBtbz2\fP
+.sp
+tar archive, compressed using bzip2
+.TP
+.B \fBtgz\fP
+.sp
+tar archive, compressed using gzip
+.TP
+.B \fBuzip\fP
+.sp
+zip archive, uncompressed
+.TP
+.B \fBzip\fP
+.sp
+zip archive, compressed using deflate
+.UNINDENT
+.sp
+The exact name of the destination archive or directory is given
+using a format string; see \%\fBhg help export\fP\: for details.
+.sp
+Each member added to an archive file has a directory prefix
+prepended. Use \-p/\-\-prefix to specify a format string for the
+prefix. The default is the basename of the archive, with suffixes
+removed.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-no\-decode
+.
+do not pass files through decoders
+.TP
+.BI \-p,  \-\-prefix \ <PREFIX>
+.
+directory prefix for files in archive
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+revision to distribute
+.TP
+.BI \-t,  \-\-type \ <TYPE>
+.
+type of distribution to create
+.TP
+.B \-S,  \-\-subrepos
+.
+recurse into subrepositories
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS bundle
+.sp
+create a bundle file:
+.sp
+.nf
+.ft C
+hg bundle [\-f] [\-t BUNDLESPEC] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]
+.ft P
+.fi
+.sp
+Generate a bundle file containing data to be transferred to another
+repository.
+.sp
+To create a bundle containing all changesets, use \-a/\-\-all
+(or \-\-base null). Otherwise, hg assumes the destination will have
+all the nodes you specify with \-\-base parameters. Otherwise, hg
+will assume the repository has all the nodes in destination, or
+default\-push/default if no destination is specified, where destination
+is the repository you provide through DEST option.
+.sp
+You can change bundle format with the \-t/\-\-type option. See
+\%\fBhg help bundlespec\fP\: for documentation on this format. By default,
+the most appropriate format is used and compression defaults to
+bzip2.
+.sp
+The bundle file can then be transferred using conventional means
+and applied to another repository with the unbundle or pull
+command. This is useful when direct push and pull are not
+available or when exporting an entire repository is undesirable.
+.sp
+Applying bundles preserves all changeset contents including
+permissions, copy/rename information, and revision history.
+.sp
+Returns 0 on success, 1 if no changes found.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-f,  \-\-force
+.
+run even when the destination is unrelated
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+a changeset intended to be added to the destination
+.TP
+.BI \-b,  \-\-branch \ <BRANCH[+]>
+.
+a specific branch you would like to bundle
+.TP
+.BI \-\-base \ <REV[+]>
+.
+a base changeset assumed to be available at the destination
+.TP
+.B \-a,  \-\-all
+.
+bundle all changesets in the repository
+.TP
+.BI \-t,  \-\-type \ <TYPE>
+.
+bundle compression type to use (default: bzip2)
+.TP
+.BI \-e,  \-\-ssh \ <CMD>
+.
+specify ssh command to use
+.TP
+.BI \-\-remotecmd \ <CMD>
+.
+specify hg command to run on the remote side
+.TP
+.B \-\-insecure
+.
+do not verify server certificate (ignoring web.cacerts config)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS export
+.sp
+dump the header and diffs for one or more changesets:
+.sp
+.nf
+.ft C
+hg export [OPTION]... [\-o OUTFILESPEC] [\-r] [REV]...
+.ft P
+.fi
+.sp
+Print the changeset header and diffs for one or more revisions.
+If no revision is given, the parent of the working directory is used.
+.sp
+The information shown in the changeset header is: author, date,
+branch name (if non\-default), changeset hash, parent(s) and commit
+comment.
+.IP Note
+.
+\%\fBhg export\fP\: may generate unexpected diff output for merge
+changesets, as it will compare the merge changeset against its
+first parent only.
+.RE
+.sp
+Output may be to a file, in which case the name of the file is
+given using a template string. See \%\fBhg help templates\fP\:. In addition
+to the common template keywords, the following formatting rules are
+supported:
+.INDENT 0.0
+.TP
+.B \fB%%\fP
+.sp
+literal "%" character
+.TP
+.B \fB%H\fP
+.sp
+changeset hash (40 hexadecimal digits)
+.TP
+.B \fB%N\fP
+.sp
+number of patches being generated
+.TP
+.B \fB%R\fP
+.sp
+changeset revision number
+.TP
+.B \fB%b\fP
+.sp
+basename of the exporting repository
+.TP
+.B \fB%h\fP
+.sp
+short\-form changeset hash (12 hexadecimal digits)
+.TP
+.B \fB%m\fP
+.sp
+first line of the commit message (only alphanumeric characters)
+.TP
+.B \fB%n\fP
+.sp
+zero\-padded sequence number, starting at 1
+.TP
+.B \fB%r\fP
+.sp
+zero\-padded changeset revision number
+.TP
+.B \fB\e\fP
+.sp
+literal "" character
+.UNINDENT
+.sp
+Without the \-a/\-\-text option, export will avoid generating diffs
+of files it detects as binary. With \-a, export will generate a
+diff anyway, probably with undesirable results.
+.sp
+With \-B/\-\-bookmark changesets reachable by the given bookmark are
+selected.
+.sp
+Use the \-g/\-\-git option to generate diffs in the git extended diff
+format. See \%\fBhg help diffs\fP\: for more information.
+.sp
+With the \-\-switch\-parent option, the diff will be against the
+second parent. It can be useful to review a merge.
+.sp
+Template:
+.sp
+The following keywords are supported in addition to the common template
+keywords and functions. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B diff
+.
+String. Diff content.
+.TP
+.B parents
+.
+List of strings. Parent nodes of the changeset.
+.UNINDENT
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+use export and import to transplant a bugfix to the current
+branch:
+.sp
+.nf
+.ft C
+hg export \-r 9353 | hg import \-
+.ft P
+.fi
+.IP \(bu 2
+.
+export all the changesets between two revisions to a file with
+rename information:
+.sp
+.nf
+.ft C
+hg export \-\-git \-r 123:150 > changes.txt
+.ft P
+.fi
+.IP \(bu 2
+.
+split outgoing changes into a series of patches with
+descriptive names:
+.sp
+.nf
+.ft C
+hg export \-r "outgoing()" \-o "%n\-%m.patch"
+.ft P
+.fi
+.UNINDENT
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-B,  \-\-bookmark \ <BOOKMARK>
+.
+export changes only reachable by given bookmark
+.TP
+.BI \-o,  \-\-output \ <FORMAT>
+.
+print output to file with formatted name
+.TP
+.B \-\-switch\-parent
+.
+diff against the second parent
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+revisions to export
+.TP
+.B \-a,  \-\-text
+.
+treat all files as text
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.B \-\-binary
+.
+generate binary diffs in git mode (default)
+.TP
+.B \-\-nodates
+.
+omit dates from diff headers
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS import
+.sp
+import an ordered set of patches:
+.sp
+.nf
+.ft C
+hg import [OPTION]... PATCH...
+.ft P
+.fi
+.sp
+Import a list of patches and commit them individually (unless
+\-\-no\-commit is specified).
+.sp
+To read a patch from standard input (stdin), use "\-" as the patch
+name. If a URL is specified, the patch will be downloaded from
+there.
+.sp
+Import first applies changes to the working directory (unless
+\-\-bypass is specified), import will abort if there are outstanding
+changes.
+.sp
+Use \-\-bypass to apply and commit patches directly to the
+repository, without affecting the working directory. Without
+\-\-exact, patches will be applied on top of the working directory
+parent revision.
+.sp
+You can import a patch straight from a mail message. Even patches
+as attachments work (to use the body part, it must have type
+text/plain or text/x\-patch). From and Subject headers of email
+message are used as default committer and commit message. All
+text/plain body parts before first diff are added to the commit
+message.
+.sp
+If the imported patch was generated by \%\fBhg export\fP\:, user and
+description from patch override values from message headers and
+body. Values given on command line with \-m/\-\-message and \-u/\-\-user
+override these.
+.sp
+If \-\-exact is specified, import will set the working directory to
+the parent of each patch before applying it, and will abort if the
+resulting changeset has a different ID than the one recorded in
+the patch. This will guard against various ways that portable
+patch formats and mail systems might fail to transfer Mercurial
+data or metadata. See \%\fBhg bundle\fP\: for lossless transmission.
+.sp
+Use \-\-partial to ensure a changeset will be created from the patch
+even if some hunks fail to apply. Hunks that fail to apply will be
+written to a <target\-file>.rej file. Conflicts can then be resolved
+by hand before \%\fBhg commit \-\-amend\fP\: is run to update the created
+changeset. This flag exists to let people import patches that
+partially apply without losing the associated metadata (author,
+date, description, ...).
+.IP Note
+.
+When no hunks apply cleanly, \%\fBhg import \-\-partial\fP\: will create
+an empty changeset, importing only the patch metadata.
+.RE
+.sp
+With \-s/\-\-similarity, hg will attempt to discover renames and
+copies in the patch in the same way as \%\fBhg addremove\fP\:.
+.sp
+It is possible to use external patch programs to perform the patch
+by setting the \fBui.patch\fP configuration option. For the default
+internal tool, the fuzz can also be configured via \fBpatch.fuzz\fP.
+See \%\fBhg help config\fP\: for more information about configuration
+files and how to use these options.
+.sp
+See \%\fBhg help dates\fP\: for a list of formats valid for \-d/\-\-date.
+.sp
+Examples:
+.INDENT 0.0
+.IP \(bu 2
+.
+import a traditional patch from a website and detect renames:
+.sp
+.nf
+.ft C
+hg import \-s 80 http://example.com/bugfix.patch
+.ft P
+.fi
+.IP \(bu 2
+.
+import a changeset from an hgweb server:
+.sp
+.nf
+.ft C
+hg import https://www.mercurial\-scm.org/repo/hg/rev/5ca8c111e9aa
+.ft P
+.fi
+.IP \(bu 2
+.
+import all the patches in an Unix\-style mbox:
+.sp
+.nf
+.ft C
+hg import incoming\-patches.mbox
+.ft P
+.fi
+.IP \(bu 2
+.
+import patches from stdin:
+.sp
+.nf
+.ft C
+hg import \-
+.ft P
+.fi
+.IP \(bu 2
+.
+attempt to exactly restore an exported changeset (not always
+possible):
+.sp
+.nf
+.ft C
+hg import \-\-exact proposed\-fix.patch
+.ft P
+.fi
+.IP \(bu 2
+.
+use an external tool to apply a patch which is too fuzzy for
+the default internal tool.
+.INDENT 2.0
+.INDENT 3.5
+.sp
+hg import \-\-config ui.patch="patch \-\-merge" fuzzy.patch
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+.
+change the default fuzzing from 2 to a less strict 7
+.INDENT 2.0
+.INDENT 3.5
+.sp
+hg import \-\-config ui.fuzz=7 fuzz.patch
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Returns 0 on success, 1 on partial success (see \-\-partial).
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-p,  \-\-strip \ <NUM>
+.
+directory strip option for patch. This has the same meaning as the corresponding patch option (default: 1)
+.TP
+.BI \-b,  \-\-base \ <PATH>
+.
+base path (DEPRECATED)
+.TP
+.B \-e,  \-\-edit
+.
+invoke editor on commit messages
+.TP
+.B \-f,  \-\-force
+.
+skip check for outstanding uncommitted changes (DEPRECATED)
+.TP
+.B \-\-no\-commit
+.
+don\(aqt commit, just update the working directory
+.TP
+.B \-\-bypass
+.
+apply patch without touching the working directory
+.TP
+.B \-\-partial
+.
+commit even if some hunks fail
+.TP
+.B \-\-exact
+.
+abort if patch would apply lossily
+.TP
+.BI \-\-prefix \ <DIR>
+.
+apply patch to subdirectory
+.TP
+.B \-\-import\-branch
+.
+use any branch information in patch (implied by \-\-exact)
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.TP
+.BI \-s,  \-\-similarity \ <SIMILARITY>
+.
+guess renamed files by similarity (0<=s<=100)
+.sp
+aliases: patch
+.UNINDENT
+.SS unbundle
+.sp
+apply one or more bundle files:
+.sp
+.nf
+.ft C
+hg unbundle [\-u] FILE...
+.ft P
+.fi
+.sp
+Apply one or more bundle files generated by \%\fBhg bundle\fP\:.
+.sp
+Returns 0 on success, 1 if an update has unresolved files.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-u,  \-\-update
+.
+update to new branch head if changesets were unbundled
+.UNINDENT
+.SS Repository maintenance
+.SS manifest
+.sp
+output the current or given revision of the project manifest:
+.sp
+.nf
+.ft C
+hg manifest [\-r REV]
+.ft P
+.fi
+.sp
+Print a list of version controlled files for the given revision.
+If no revision is given, the first parent of the working directory
+is used, or the null revision if no revision is checked out.
+.sp
+With \-v, print file permissions, symlink and executable bits.
+With \-\-debug, print file revision hashes.
+.sp
+If option \-\-all is specified, the list of all files from all revisions
+is printed. This includes deleted and renamed files.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+revision to display
+.TP
+.B \-\-all
+.
+list files from all revisions
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.UNINDENT
+.SS recover
+.sp
+roll back an interrupted transaction:
+.sp
+.nf
+.ft C
+hg recover
+.ft P
+.fi
+.sp
+Recover from an interrupted commit or pull.
+.sp
+This command tries to fix the repository status after an
+interrupted operation. It should only be necessary when Mercurial
+suggests it.
+.sp
+Returns 0 if successful, 1 if nothing to recover or verify fails.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-verify
+.
+run \fIhg verify\fP after succesful recover (default: True)
+.UNINDENT
+.SS rollback
+.sp
+roll back the last transaction (DANGEROUS) (DEPRECATED):
+.sp
+.nf
+.ft C
+hg rollback
+.ft P
+.fi
+.sp
+Please use \%\fBhg commit \-\-amend\fP\: instead of rollback to correct
+mistakes in the last commit.
+.sp
+This command should be used with care. There is only one level of
+rollback, and there is no way to undo a rollback. It will also
+restore the dirstate at the time of the last transaction, losing
+any dirstate changes since that time. This command does not alter
+the working directory.
+.sp
+Transactions are used to encapsulate the effects of all commands
+that create new changesets or propagate existing changesets into a
+repository.
+.sp
+For example, the following commands are transactional, and their
+effects can be rolled back:
+.INDENT 0.0
+.IP \(bu 2
+.
+commit
+.IP \(bu 2
+.
+import
+.IP \(bu 2
+.
+pull
+.IP \(bu 2
+.
+push (with this repository as the destination)
+.IP \(bu 2
+.
+unbundle
+.UNINDENT
+.sp
+To avoid permanent data loss, rollback will refuse to rollback a
+commit transaction if it isn\(aqt checked out. Use \-\-force to
+override this protection.
+.sp
+The rollback command can be entirely disabled by setting the
+\fBui.rollback\fP configuration setting to false. If you\(aqre here
+because you want to use rollback and it\(aqs disabled, you can
+re\-enable the command by setting \fBui.rollback\fP to true.
+.sp
+This command is not intended for use on public repositories. Once
+changes are visible for pull by other users, rolling a transaction
+back locally is ineffective (someone else may already have pulled
+the changes). Furthermore, a race is possible with readers of the
+repository; for example an in\-progress pull from the repository
+may fail if a rollback is performed.
+.sp
+Returns 0 on success, 1 if no rollback data is available.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-n,  \-\-dry\-run
+.
+do not perform actions, just print output
+.TP
+.B \-f,  \-\-force
+.
+ignore safety measures
+.UNINDENT
 .SS verify
 .sp
 verify the integrity of the repository:
@@ -5368,6 +5532,125 @@ for more information about recovery from corruption of the
 repository.
 .sp
 Returns 0 on success, 1 if errors are encountered.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-full
+.
+perform more checks (EXPERIMENTAL)
+.UNINDENT
+.SS Help
+.SS config
+.sp
+show combined config settings from all hgrc files:
+.sp
+.nf
+.ft C
+hg config [\-u] [NAME]...
+.ft P
+.fi
+.sp
+With no arguments, print names and values of all config items.
+.sp
+With one argument of the form section.name, print just the value
+of that config item.
+.sp
+With multiple arguments, print names and values of all config
+items with matching section names or section.names.
+.sp
+With \-\-edit, start an editor on the user\-level config file. With
+\-\-global, edit the system\-wide config file. With \-\-local, edit the
+repository\-level config file.
+.sp
+With \-\-debug, the source (filename and line number) is printed
+for each config item.
+.sp
+See \%\fBhg help config\fP\: for more information about config files.
+.sp
+Template:
+.sp
+The following keywords are supported. See also \%\fBhg help templates\fP\:.
+.INDENT 0.0
+.TP
+.B name
+.
+String. Config name.
+.TP
+.B source
+.
+String. Filename and line number where the item is defined.
+.TP
+.B value
+.
+String. Config value.
+.UNINDENT
+.sp
+Returns 0 on success, 1 if NAME does not exist.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-u,  \-\-untrusted
+.
+show untrusted configuration options
+.TP
+.B \-e,  \-\-edit
+.
+edit user config
+.TP
+.B \-l,  \-\-local
+.
+edit repository config
+.TP
+.B \-g,  \-\-global
+.
+edit global config
+.TP
+.BI \-T,  \-\-template \ <TEMPLATE>
+.
+display with template
+.sp
+aliases: showconfig debugconfig
+.UNINDENT
+.SS help
+.sp
+show help for a given topic or a help overview:
+.sp
+.nf
+.ft C
+hg help [\-eck] [\-s PLATFORM] [TOPIC]
+.ft P
+.fi
+.sp
+With no arguments, print a list of commands with short help messages.
+.sp
+Given a topic, extension, or command name, print help for that
+topic.
+.sp
+Returns 0 if successful.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-e,  \-\-extension
+.
+show only help for extensions
+.TP
+.B \-c,  \-\-command
+.
+show only help for commands
+.TP
+.B \-k,  \-\-keyword
+.
+show topics matching keyword
+.TP
+.BI \-s,  \-\-system \ <PLATFORM[+]>
+.
+show help for specific platform(s)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS version
 .sp
 output version and copyright information:
@@ -5412,6 +5695,7 @@ Options:
 .
 display with template
 .UNINDENT
+.SS Uncategorized commands
 .SH BUNDLE FILE FORMATS
 .sp
 Mercurial supports generating standalone "bundle" files that hold repository
@@ -6196,10 +6480,6 @@ extend schemes with shortcuts to repository swarms
 .B share
 .
 share a common history between several working directories
-.TP
-.B shelve
-.
-save and restore changes to the working directory
 .TP
 .B strip
 .
@@ -7529,6 +7809,10 @@ Config Registrar
 .
 Extension API
 .TP
+.B mergestate
+.
+Mergestate
+.TP
 .B requirements
 .
 Repository Requirements
@@ -8426,6 +8710,15 @@ is the same as passing all().
 .sp
 Changeset in draft phase.
 .TP
+.B \fBexpectsize(set[, size])\fP
+.sp
+Return the given revset if size matches the revset size.
+Abort if the revset doesn\(aqt expect given size.
+size can either be an integer range or an integer.
+.sp
+For example, \fBexpectsize(0:1, 3:5)\fP will abort as revset size is 2 and
+2 is not between 3 and 5 inclusive.
+.TP
 .B \fBextinct()\fP
 .sp
 Obsolete changesets with obsolete descendants only.
@@ -8459,9 +8752,6 @@ result, use \fBfile()\fP.
 The pattern without explicit kind like \fBglob:\fP is expected to be
 relative to the current directory and match against a file exactly
 for efficiency.
-.sp
-If some linkrev points to revisions filtered by the current repoview, we\(aqll
-work around it to return a non\-filtered value.
 .TP
 .B \fBfirst(set, [n])\fP
 .sp
@@ -9003,9 +9293,11 @@ using templates to make your life easier.
 .RE
 .sp
 The \fB\-T/\-\-template\fP argument allows specifying pre\-defined styles.
-Mercurial ships with the machine\-readable styles \fBjson\fP and \fBxml\fP,
-which provide JSON and XML output, respectively. These are useful for
-producing output that is machine readable as\-is.
+Mercurial ships with the machine\-readable styles \fBcbor\fP, \fBjson\fP,
+and \fBxml\fP, which provide CBOR, JSON, and XML output, respectively.
+These are useful for producing output that is machine readable as\-is.
+.sp
+(Mercurial 5.0 is required for CBOR style.)
 .IP Important
 .
 The \fBjson\fP and \fBxml\fP styles are considered experimental. While
@@ -9183,8 +9475,10 @@ Subversion subrepositories will print a warning and abort.
 .B diff
 .
 diff does not recurse in subrepos unless \-S/\-\-subrepos is
-specified. Changes are displayed as usual, on the subrepositories
-elements. Subversion subrepositories are currently silently ignored.
+specified.  However, if you specify the full path of a file or
+directory in a subrepo, it will be diffed even without
+\-S/\-\-subrepos being specified.  Subversion subrepositories are
+currently silently ignored.
 .TP
 .B files
 .
@@ -9400,6 +9694,11 @@ Integer. Longest path to the latest tag.
 Dict of lists. Names attached to this changeset per
 namespace.
 .TP
+.B negrev
+.
+Integer. The repository\-local changeset negative revision number,
+which counts in the opposite direction.
+.TP
 .B node
 .
 String. The changeset identification hash, as a 40 hexadecimal
@@ -9493,6 +9792,10 @@ given date/time and the current date/time.
 Any text. Treats the text as a path, and returns the last
 component of the path after splitting by the path separator.
 For example, "foo/bar/baz" becomes "baz" and "foo/bar//" becomes "".
+.TP
+.B cbor
+.
+Any object. Serializes the object to CBOR bytes.
 .TP
 .B commondir
 .
@@ -9672,6 +9975,18 @@ Note that a filter is nothing more than a function call, i.e.
 .sp
 In addition to filters, there are some basic built\-in functions:
 .INDENT 0.0
+.TP
+.B config(section, name[, default])
+.
+Returns the requested hgrc config option as a string.
+.TP
+.B configbool(section, name[, default])
+.
+Returns the requested hgrc config option as a boolean.
+.TP
+.B configint(section, name[, default])
+.
+Returns the requested hgrc config option as an integer.
 .TP
 .B date(date[, fmt])
 .
@@ -10231,6 +10546,7 @@ absorb.path = bold
 .ft P
 .fi
 .SS Commands
+.SS Change creation
 .SS absorb
 .sp
 incorporate corrections into the stack of draft changesets:
@@ -10539,6 +10855,7 @@ provide the amend command (EXPERIMENTAL)
 This extension provides an \fBamend\fP command that is similar to
 \fBcommit \-\-amend\fP but does not prompt an editor.
 .SS Commands
+.SS Change creation
 .SS amend
 .sp
 amend the working copy parent with all or specified outstanding changes:
@@ -10627,7 +10944,8 @@ A terminal with UTF\-8 support and monospace narrow text are required.
 log repository events to a blackbox for debugging
 .sp
 Logs event information to .hg/blackbox.log to help debug and diagnose problems.
-The events that get logged can be configured via the blackbox.track config key.
+The events that get logged can be configured via the blackbox.track and
+blackbox.ignore config keys.
 .sp
 Examples:
 .sp
@@ -10635,6 +10953,7 @@ Examples:
 .ft C
 [blackbox]
 track = *
+ignore = pythonhook
 # dirty is *EXPENSIVE* (slow);
 # each log entry indicates \(ga+\(ga if the repository is dirty, like :hg:\(gaid\(ga.
 dirty = True
@@ -10660,6 +10979,7 @@ date\-format = \(aq%Y\-%m\-%d @ %H:%M:%S.%f\(aq
 .ft P
 .fi
 .SS Commands
+.SS Repository maintenance
 .SS blackbox
 .sp
 view the recent repository events:
@@ -11135,6 +11455,7 @@ simply fail when asked to produce censored data. Others, like \fBhg verify\fP an
 function in a meaningful way. Such commands only tolerate censored file
 revisions if they are allowed by the "censor.policy=ignore" config option.
 .SS Commands
+.SS Repository maintenance
 .SS censor
 .sp
 .nf
@@ -11161,6 +11482,7 @@ command to display child changesets (DEPRECATED)
 This extension is deprecated. You should use \%\fBhg log \-r
 "children(REV)"\fP\: instead.
 .SS Commands
+.SS Change navigation
 .SS children
 .sp
 show the children of the given or working directory revision:
@@ -11207,6 +11529,7 @@ display with template
 .sp
 command to display statistics about repository history
 .SS Commands
+.SS Repository maintenance
 .SS churn
 .sp
 histogram of changes to the repository:
@@ -11547,6 +11870,7 @@ Mercurial server when the bundle hosting service fails.
 .sp
 close arbitrary heads without checking them out first
 .SS Commands
+.SS Change manipulation
 .SS close\-head
 .sp
 close the given head revisions:
@@ -11601,6 +11925,7 @@ adds a new flag extras to commit (ADVANCED)
 .sp
 import revisions from foreign VCS repositories into Mercurial
 .SS Commands
+.SS Uncategorized commands
 .SS convert
 .sp
 convert a foreign SCM repository to a Mercurial one.:
@@ -12115,6 +12440,13 @@ True.
 .
 records the given string as a \(aqconvert_source\(aq extra
 value on each commit made in the target repository. The default is None.
+.TP
+.B convert.hg.preserve\-hash
+.
+only works with mercurial sources. Make convert
+prevent performance improvement to the list of modified files in commits
+when such an improvement would cause the hash of a commit to change.
+The default is False.
 .UNINDENT
 .SS All Destinations
 .sp
@@ -12352,11 +12684,30 @@ kdiff3.diffargs=\-\-L1 \(aq$plabel1\(aq \-\-L2 \(aq$clabel\(aq $parent $child
 .ft P
 .fi
 .sp
+If a program has a graphical interface, it might be interesting to tell
+Mercurial about it. It will prevent the program from being mistakenly
+used in a terminal\-only environment (such as an SSH terminal session),
+and will make \%\fBhg extdiff \-\-per\-file\fP\: open multiple file diffs at once
+instead of one by one (if you still want to open file diffs one by one,
+you can use the \-\-confirm option).
+.sp
+Declaring that a tool has a graphical interface can be done with the
+\fBgui\fP flag next to where \fBdiffargs\fP are specified:
+.sp
+.nf
+.ft C
+[diff\-tools]
+kdiff3.diffargs=\-\-L1 \(aq$plabel1\(aq \-\-L2 \(aq$clabel\(aq $parent $child
+kdiff3.gui = true
+.ft P
+.fi
+.sp
 You can use \-I/\-X and list of file or directory names like normal
 \%\fBhg diff\fP\: command. The extdiff extension makes snapshots of only
 needed files, so running the external diff program will actually be
 pretty fast (at least faster than having to compare the entire tree).
 .SS Commands
+.SS File content management
 .SS extdiff
 .sp
 use external program to diff repository (or selected files):
@@ -12372,15 +12723,28 @@ an external program. The default program used is diff, with
 default options "\-Npru".
 .sp
 To select a different program, use the \-p/\-\-program option. The
-program will be passed the names of two directories to compare. To
-pass additional options to the program, use \-o/\-\-option. These
-will be passed before the names of the directories to compare.
+program will be passed the names of two directories to compare,
+unless the \-\-per\-file option is specified (see below). To pass
+additional options to the program, use \-o/\-\-option. These will be
+passed before the names of the directories or files to compare.
 .sp
 When two revision arguments are given, then changes are shown
 between those revisions. If only one revision is specified then
 that revision is compared to the working directory, and, when no
 revisions are specified, the working directory files are compared
 to its parent.
+.sp
+The \-\-per\-file option runs the external program repeatedly on each
+file to diff, instead of once on two directories. By default,
+this happens one by one, where the next file diff is open in the
+external program only once the previous external program (for the
+previous file diff) has exited. If the external program has a
+graphical interface, it can open all the file diffs at once instead
+of one by one. See \%\fBhg help \-e extdiff\fP\: for information about how
+to tell Mercurial that a given program has a graphical interface.
+.sp
+The \-\-confirm option will prompt the user before each invocation of
+the external program. It is ignored if \-\-per\-file isn\(aqt specified.
 .sp
 Options:
 .INDENT 0.0
@@ -12400,6 +12764,14 @@ revision
 .BI \-c,  \-\-change \ <REV>
 .
 change made by revision
+.TP
+.B \-\-per\-file
+.
+compare each file instead of revision snapshots
+.TP
+.B \-\-confirm
+.
+prompt user before each external program invocation
 .TP
 .B \-\-patch
 .
@@ -12544,10 +12916,12 @@ perfhack = True
 .ft P
 .fi
 .SS Commands
+.SS Uncategorized commands
 .SS fetch
 .sp
 pull, update and merge in one command (DEPRECATED)
 .SS Commands
+.SS Remote repository management
 .SS fetch
 .sp
 pull changes from a remote repository, merge new changes if needed.:
@@ -12717,7 +13091,46 @@ head:priority = 1
 To account for changes made by each tool, the line numbers used for incremental
 formatting are recomputed before executing the next tool. So, each tool may see
 different values for the arguments added by the :linerange suboption.
+.sp
+Each fixer tool is allowed to return some metadata in addition to the fixed file
+content. The metadata must be placed before the file content on stdout,
+separated from the file content by a zero byte. The metadata is parsed as a JSON
+value (so, it should be UTF\-8 encoded and contain no zero bytes). A fixer tool
+is expected to produce this metadata encoding if and only if the :metadata
+suboption is true:
+.sp
+.nf
+.ft C
+[fix]
+tool:command = tool \-\-prepend\-json\-metadata
+tool:metadata = true
+.ft P
+.fi
+.sp
+The metadata values are passed to hooks, which can be used to print summaries or
+perform other post\-fixing work. The supported hooks are:
+.sp
+.nf
+.ft C
+"postfixfile"
+  Run once for each file in each revision where any fixer tools made changes
+  to the file content. Provides "$HG_REV" and "$HG_PATH" to identify the file,
+  and "$HG_METADATA" with a map of fixer names to metadata values from fixer
+  tools that affected the file. Fixer tools that didn\(aqt affect the file have a
+  valueof None. Only fixer tools that executed are present in the metadata.
+
+"postfix"
+  Run once after all files and revisions have been handled. Provides
+  "$HG_REPLACEMENTS" with information about what revisions were created and
+  made obsolete. Provides a boolean "$HG_WDIRWRITTEN" to indicate whether any
+  files in the working copy were updated. Provides a list "$HG_METADATA"
+  mapping fixer tool names to lists of metadata values returned from
+  executions that modified a file. This aggregates the same metadata
+  previously passed to the "postfixfile" hook.
+.ft P
+.fi
 .SS Commands
+.SS File content management
 .SS fix
 .sp
 rewrite file content in changesets or working directory:
@@ -12875,6 +13288,7 @@ hg update master
 If an unknown command or parameter combination is detected, an error is
 produced.
 .SS Commands
+.SS Help
 .SS githelp
 .sp
 suggests the Mercurial equivalent of the given git command:
@@ -12896,6 +13310,7 @@ aliases: git
 .sp
 commands to sign and verify changesets
 .SS Commands
+.SS Signing changes (GPG)
 .SS sigcheck
 .sp
 verify all the signatures there may be for a particular revision:
@@ -12982,6 +13397,7 @@ This extension adds a \-\-graph option to the incoming, outgoing and log
 commands. When this options is given, an ASCII representation of the
 revision graph is also shown.
 .SS Commands
+.SS Change navigation
 .SS glog
 .sp
 show revision history alongside an ASCII revision graph:
@@ -13131,6 +13547,7 @@ vdiff=vdiff
 Revisions context menu will now display additional entries to fire
 vdiff on hovered and selected revisions.
 .SS Commands
+.SS Change navigation
 .SS view
 .sp
 start interactive history viewer:
@@ -13150,6 +13567,7 @@ Options:
 .
 limit number of changes displayed
 .UNINDENT
+.SS Uncategorized commands
 .SS highlight
 .sp
 syntax highlighting for hgweb (requires Pygments)
@@ -13352,6 +13770,19 @@ linelen = 120      # truncate rule lines at 120 characters
 .ft P
 .fi
 .sp
+The summary of a change can be customized as well:
+.sp
+.nf
+.ft C
+[histedit]
+summary\-template = \(aq{rev} {bookmarks} {desc|firstline}\(aq
+.ft P
+.fi
+.sp
+The customized summary should be kept short enough that rule lines
+will fit in the configured line length. See above if that requires
+customization.
+.sp
 \fBhg histedit\fP attempts to automatically choose an appropriate base
 revision to use. To change which base revision is used, define a
 revset in your configuration file:
@@ -13387,6 +13818,7 @@ singletransaction = True
 .ft P
 .fi
 .SS Commands
+.SS Change manipulation
 .SS histedit
 .sp
 interactively edit changeset history:
@@ -13669,6 +14101,7 @@ track previous positions of bookmarks (EXPERIMENTAL)
 This extension adds a new command: \fIhg journal\fP, which shows you where
 bookmarks were previously located.
 .SS Commands
+.SS Change organization
 .SS journal
 .sp
 show the previous position of bookmarks and the working copy:
@@ -13806,6 +14239,7 @@ Expansions spanning more than one line and incremental expansions,
 like CVS\(aq $Log$, are not supported. A keyword template map "Log =
 {desc}" expands to the first line of the changeset description.
 .SS Commands
+.SS Uncategorized commands
 .SS kwdemo
 .sp
 print [keywordmaps] configuration and an expansion example:
@@ -14064,6 +14498,7 @@ largefile. To add the first largefile to a repository, you must
 explicitly do so with the \-\-large flag passed to the \%\fBhg add\fP\:
 command.
 .SS Commands
+.SS Uncategorized commands
 .SS lfconvert
 .sp
 convert a normal repository to a largefiles repository:
@@ -14286,6 +14721,7 @@ usercache = /path/to/global/cache
 .ft P
 .fi
 .SS Commands
+.SS Uncategorized commands
 .SS logtoprocess
 .sp
 send ui.log() data to a subprocess (EXPERIMENTAL)
@@ -14392,29 +14828,7 @@ such as \-f/\-\-force or \-\-exact are passed, this setting is ignored.
 This extension used to provide a strip command. This command now lives
 in the strip extension.
 .SS Commands
-.SS qapplied
-.sp
-print the patches already applied:
-.sp
-.nf
-.ft C
-hg qapplied [\-1] [\-s] [PATCH]
-.ft P
-.fi
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-1,  \-\-last
-.
-show only the preceding applied patch
-.TP
-.B \-s,  \-\-summary
-.
-print first line of patch header
-.UNINDENT
+.SS Repository creation
 .SS qclone
 .sp
 clone main and patch repository at same time:
@@ -14470,6 +14884,33 @@ specify hg command to run on the remote side
 .
 do not verify server certificate (ignoring web.cacerts config)
 .UNINDENT
+.SS qinit
+.sp
+init a new queue repository (DEPRECATED):
+.sp
+.nf
+.ft C
+hg qinit [\-c]
+.ft P
+.fi
+.sp
+The queue repository is unversioned by default. If
+\-c/\-\-create\-repo is specified, qinit will create a separate nested
+repository for patches (qinit \-c may also be run later to convert
+an unversioned patch repository into a versioned one). You can use
+qcommit to commit changes to this queue repository.
+.sp
+This command is deprecated. Without \-c, it\(aqs implied by other relevant
+commands. With \-c, use \%\fBhg init \-\-mq\fP\: instead.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-c,  \-\-create\-repo
+.
+create queue repository
+.UNINDENT
+.SS Change creation
 .SS qcommit
 .sp
 commit changes in the queue repository (DEPRECATED):
@@ -14504,6 +14945,10 @@ use the secret phase for committing
 .B \-e,  \-\-edit
 .
 invoke editor on commit messages
+.TP
+.B \-\-force\-close\-branch
+.
+forcibly close branch from a non\-head changeset (ADVANCED)
 .TP
 .B \-i,  \-\-interactive
 .
@@ -14545,122 +14990,68 @@ recurse into subrepositories
 aliases: qci
 .UNINDENT
 .UNINDENT
-.SS qdelete
+.SS qnew
 .sp
-remove patches from queue:
+create a new patch:
 .sp
 .nf
 .ft C
-hg qdelete [\-k] [PATCH]...
+hg qnew [\-e] [\-m TEXT] [\-l FILE] PATCH [FILE]...
 .ft P
 .fi
 .sp
-The patches must not be applied, and at least one patch is required. Exact
-patch identifiers must be given. With \-k/\-\-keep, the patch files are
-preserved in the patch directory.
+qnew creates a new patch on top of the currently\-applied patch (if
+any). The patch will be initialized with any outstanding changes
+in the working directory. You may also use \-I/\-\-include,
+\-X/\-\-exclude, and/or a list of files after the patch name to add
+only changes to matching files to the new patch, leaving the rest
+as uncommitted modifications.
 .sp
-To stop managing a patch and move it into permanent history,
-use the \%\fBhg qfinish\fP\: command.
+\-u/\-\-user and \-d/\-\-date can be used to set the (given) user and
+date, respectively. \-U/\-\-currentuser and \-D/\-\-currentdate set user
+to current user and date to current date.
+.sp
+\-e/\-\-edit, \-m/\-\-message or \-l/\-\-logfile set the patch header as
+well as the commit message. If none is specified, the header is
+empty and the commit message is \(aq[mq]: PATCH\(aq.
+.sp
+Use the \-g/\-\-git option to keep the patch in the git extended diff
+format. Read the diffs help topic for more information on why this
+is important for preserving permission changes and copy/rename
+information.
+.sp
+Returns 0 on successful creation of a new patch.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.B \-k,  \-\-keep
+.B \-e,  \-\-edit
 .
-keep patch file
+invoke editor on commit messages
 .TP
-.BI \-r,  \-\-rev \ <REV[+]>
+.B \-f,  \-\-force
 .
-stop managing a revision (DEPRECATED)
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.INDENT 0.0
-.INDENT 3.5
-.sp
-aliases: qremove qrm
-.UNINDENT
-.UNINDENT
-.SS qdiff
-.sp
-diff of the current patch and subsequent modifications:
-.sp
-.nf
-.ft C
-hg qdiff [OPTION]... [FILE]...
-.ft P
-.fi
-.sp
-Shows a diff which includes the current patch as well as any
-changes which have been made in the working directory since the
-last refresh (thus showing what the current patch would become
-after a qrefresh).
-.sp
-Use \%\fBhg diff\fP\: if you only want to see the changes made since the
-last qrefresh, or \%\fBhg export qtip\fP\: if you want to see changes
-made by the current patch without including changes made since the
-qrefresh.
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-a,  \-\-text
-.
-treat all files as text
+import uncommitted changes (DEPRECATED)
 .TP
 .B \-g,  \-\-git
 .
 use git extended diff format
 .TP
-.B \-\-binary
+.B \-U,  \-\-currentuser
 .
-generate binary diffs in git mode (default)
+add "From: <current user>" to patch
 .TP
-.B \-\-nodates
+.BI \-u,  \-\-user \ <USER>
 .
-omit dates from diff headers
+add "From: <USER>" to patch
 .TP
-.B \-\-noprefix
+.B \-D,  \-\-currentdate
 .
-omit a/ and b/ prefixes from filenames
+add "Date: <current date>" to patch
 .TP
-.B \-p,  \-\-show\-function
+.BI \-d,  \-\-date \ <DATE>
 .
-show which function each change is in
-.TP
-.B \-\-reverse
-.
-produce a diff that undoes the changes
-.TP
-.B \-w,  \-\-ignore\-all\-space
-.
-ignore white space when comparing lines
-.TP
-.B \-b,  \-\-ignore\-space\-change
-.
-ignore changes in the amount of white space
-.TP
-.B \-B,  \-\-ignore\-blank\-lines
-.
-ignore changes whose lines are all blank
-.TP
-.B \-Z,  \-\-ignore\-space\-at\-eol
-.
-ignore changes in whitespace at EOL
-.TP
-.BI \-U,  \-\-unified \ <NUM>
-.
-number of lines of context to show
-.TP
-.B \-\-stat
-.
-output diffstat\-style summary of changes
-.TP
-.BI \-\-root \ <DIR>
-.
-produce diffs relative to subdirectory
+add "Date: <DATE>" to patch
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -14669,41 +15060,95 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
-.SS qfinish
+.SS qrefresh
 .sp
-move applied patches into repository history:
+update the current patch:
 .sp
 .nf
 .ft C
-hg qfinish [\-a] [REV]...
+hg qrefresh [\-I] [\-X] [\-e] [\-m TEXT] [\-l FILE] [\-s] [FILE]...
 .ft P
 .fi
 .sp
-Finishes the specified revisions (corresponding to applied
-patches) by moving them out of mq control into regular repository
-history.
+If any file patterns are provided, the refreshed patch will
+contain only the modifications that match those patterns; the
+remaining modifications will remain in the working directory.
 .sp
-Accepts a revision range or the \-a/\-\-applied option. If \-\-applied
-is specified, all applied mq revisions are removed from mq
-control. Otherwise, the given revisions must be at the base of the
-stack of applied patches.
+If \-s/\-\-short is specified, files currently included in the patch
+will be refreshed just like matched files and remain in the patch.
 .sp
-This can be especially useful if your changes have been applied to
-an upstream repository, or if you are about to push your changes
-to upstream.
+If \-e/\-\-edit is specified, Mercurial will start your configured editor for
+you to enter a message. In case qrefresh fails, you will find a backup of
+your message in \fB.hg/last\-message.txt\fP.
+.sp
+hg add/remove/copy/rename work as usual, though you might want to
+use git\-style patches (\-g/\-\-git or [diff] git=1) to track copies
+and renames. See the diffs help topic for more information on the
+git diff format.
 .sp
 Returns 0 on success.
 .sp
 Options:
 .INDENT 0.0
 .TP
-.B \-a,  \-\-applied
+.B \-e,  \-\-edit
 .
-finish all applied changesets
+invoke editor on commit messages
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.B \-s,  \-\-short
+.
+refresh only files already in the patch and specified files
+.TP
+.B \-U,  \-\-currentuser
+.
+add/update author field in patch with current user
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+add/update author field in patch with given user
+.TP
+.B \-D,  \-\-currentdate
+.
+add/update date field in patch with current date
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+add/update date field in patch with given date
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
 .UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS Change manipulation
 .SS qfold
 .sp
 fold the named patches into the current patch:
@@ -14744,6 +15189,98 @@ use text as commit message
 .BI \-l,  \-\-logfile \ <FILE>
 .
 read commit message from file
+.UNINDENT
+.SS Change organization
+.SS qapplied
+.sp
+print the patches already applied:
+.sp
+.nf
+.ft C
+hg qapplied [\-1] [\-s] [PATCH]
+.ft P
+.fi
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-1,  \-\-last
+.
+show only the preceding applied patch
+.TP
+.B \-s,  \-\-summary
+.
+print first line of patch header
+.UNINDENT
+.SS qdelete
+.sp
+remove patches from queue:
+.sp
+.nf
+.ft C
+hg qdelete [\-k] [PATCH]...
+.ft P
+.fi
+.sp
+The patches must not be applied, and at least one patch is required. Exact
+patch identifiers must be given. With \-k/\-\-keep, the patch files are
+preserved in the patch directory.
+.sp
+To stop managing a patch and move it into permanent history,
+use the \%\fBhg qfinish\fP\: command.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-k,  \-\-keep
+.
+keep patch file
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+stop managing a revision (DEPRECATED)
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: qremove qrm
+.UNINDENT
+.UNINDENT
+.SS qfinish
+.sp
+move applied patches into repository history:
+.sp
+.nf
+.ft C
+hg qfinish [\-a] [REV]...
+.ft P
+.fi
+.sp
+Finishes the specified revisions (corresponding to applied
+patches) by moving them out of mq control into regular repository
+history.
+.sp
+Accepts a revision range or the \-a/\-\-applied option. If \-\-applied
+is specified, all applied mq revisions are removed from mq
+control. Otherwise, the given revisions must be at the base of the
+stack of applied patches.
+.sp
+This can be especially useful if your changes have been applied to
+an upstream repository, or if you are about to push your changes
+to upstream.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-a,  \-\-applied
+.
+finish all applied changesets
 .UNINDENT
 .SS qgoto
 .sp
@@ -14827,187 +15364,6 @@ hg qheader [PATCH]
 .fi
 .sp
 Returns 0 on success.
-.SS qimport
-.sp
-import a patch or existing changeset:
-.sp
-.nf
-.ft C
-hg qimport [\-e] [\-n NAME] [\-f] [\-g] [\-P] [\-r REV]... [FILE]...
-.ft P
-.fi
-.sp
-The patch is inserted into the series after the last applied
-patch. If no patches have been applied, qimport prepends the patch
-to the series.
-.sp
-The patch will have the same name as its source file unless you
-give it a new one with \-n/\-\-name.
-.sp
-You can register an existing patch inside the patch directory with
-the \-e/\-\-existing flag.
-.sp
-With \-f/\-\-force, an existing patch of the same name will be
-overwritten.
-.sp
-An existing changeset may be placed under mq control with \-r/\-\-rev
-(e.g. qimport \-\-rev . \-n patch will place the current revision
-under mq control). With \-g/\-\-git, patches imported with \-\-rev will
-use the git diff format. See the diffs help topic for information
-on why this is important for preserving rename/copy information
-and permission changes. Use \%\fBhg qfinish\fP\: to remove changesets
-from mq control.
-.sp
-To import a patch from standard input, pass \- as the patch file.
-When importing from standard input, a patch name must be specified
-using the \-\-name flag.
-.sp
-To import an existing patch while renaming it:
-.sp
-.nf
-.ft C
-hg qimport \-e existing\-patch \-n new\-name
-.ft P
-.fi
-.sp
-Returns 0 if import succeeded.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-e,  \-\-existing
-.
-import file in patch directory
-.TP
-.BI \-n,  \-\-name \ <NAME>
-.
-name of patch file
-.TP
-.B \-f,  \-\-force
-.
-overwrite existing files
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-place existing revisions under mq control
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.B \-P,  \-\-push
-.
-qpush after importing
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS qinit
-.sp
-init a new queue repository (DEPRECATED):
-.sp
-.nf
-.ft C
-hg qinit [\-c]
-.ft P
-.fi
-.sp
-The queue repository is unversioned by default. If
-\-c/\-\-create\-repo is specified, qinit will create a separate nested
-repository for patches (qinit \-c may also be run later to convert
-an unversioned patch repository into a versioned one). You can use
-qcommit to commit changes to this queue repository.
-.sp
-This command is deprecated. Without \-c, it\(aqs implied by other relevant
-commands. With \-c, use \%\fBhg init \-\-mq\fP\: instead.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-c,  \-\-create\-repo
-.
-create queue repository
-.UNINDENT
-.SS qnew
-.sp
-create a new patch:
-.sp
-.nf
-.ft C
-hg qnew [\-e] [\-m TEXT] [\-l FILE] PATCH [FILE]...
-.ft P
-.fi
-.sp
-qnew creates a new patch on top of the currently\-applied patch (if
-any). The patch will be initialized with any outstanding changes
-in the working directory. You may also use \-I/\-\-include,
-\-X/\-\-exclude, and/or a list of files after the patch name to add
-only changes to matching files to the new patch, leaving the rest
-as uncommitted modifications.
-.sp
-\-u/\-\-user and \-d/\-\-date can be used to set the (given) user and
-date, respectively. \-U/\-\-currentuser and \-D/\-\-currentdate set user
-to current user and date to current date.
-.sp
-\-e/\-\-edit, \-m/\-\-message or \-l/\-\-logfile set the patch header as
-well as the commit message. If none is specified, the header is
-empty and the commit message is \(aq[mq]: PATCH\(aq.
-.sp
-Use the \-g/\-\-git option to keep the patch in the git extended diff
-format. Read the diffs help topic for more information on why this
-is important for preserving permission changes and copy/rename
-information.
-.sp
-Returns 0 on successful creation of a new patch.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-e,  \-\-edit
-.
-invoke editor on commit messages
-.TP
-.B \-f,  \-\-force
-.
-import uncommitted changes (DEPRECATED)
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.B \-U,  \-\-currentuser
-.
-add "From: <current user>" to patch
-.TP
-.BI \-u,  \-\-user \ <USER>
-.
-add "From: <USER>" to patch
-.TP
-.B \-D,  \-\-currentdate
-.
-add "Date: <current date>" to patch
-.TP
-.BI \-d,  \-\-date \ <DATE>
-.
-add "Date: <DATE>" to patch
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.BI \-m,  \-\-message \ <TEXT>
-.
-use text as commit message
-.TP
-.BI \-l,  \-\-logfile \ <FILE>
-.
-read commit message from file
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
 .SS qnext
 .sp
 print the name of the next pushable patch:
@@ -15201,83 +15557,6 @@ delete reference to queue
 .
 delete queue, and remove patch dir
 .UNINDENT
-.SS qrefresh
-.sp
-update the current patch:
-.sp
-.nf
-.ft C
-hg qrefresh [\-I] [\-X] [\-e] [\-m TEXT] [\-l FILE] [\-s] [FILE]...
-.ft P
-.fi
-.sp
-If any file patterns are provided, the refreshed patch will
-contain only the modifications that match those patterns; the
-remaining modifications will remain in the working directory.
-.sp
-If \-s/\-\-short is specified, files currently included in the patch
-will be refreshed just like matched files and remain in the patch.
-.sp
-If \-e/\-\-edit is specified, Mercurial will start your configured editor for
-you to enter a message. In case qrefresh fails, you will find a backup of
-your message in \fB.hg/last\-message.txt\fP.
-.sp
-hg add/remove/copy/rename work as usual, though you might want to
-use git\-style patches (\-g/\-\-git or [diff] git=1) to track copies
-and renames. See the diffs help topic for more information on the
-git diff format.
-.sp
-Returns 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-e,  \-\-edit
-.
-invoke editor on commit messages
-.TP
-.B \-g,  \-\-git
-.
-use git extended diff format
-.TP
-.B \-s,  \-\-short
-.
-refresh only files already in the patch and specified files
-.TP
-.B \-U,  \-\-currentuser
-.
-add/update author field in patch with current user
-.TP
-.BI \-u,  \-\-user \ <USER>
-.
-add/update author field in patch with given user
-.TP
-.B \-D,  \-\-currentdate
-.
-add/update date field in patch with current date
-.TP
-.BI \-d,  \-\-date \ <DATE>
-.
-add/update date field in patch with given date
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.TP
-.BI \-m,  \-\-message \ <TEXT>
-.
-use text as commit message
-.TP
-.BI \-l,  \-\-logfile \ <FILE>
-.
-read commit message from file
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
 .SS qrename
 .sp
 rename a patch:
@@ -15490,10 +15769,178 @@ show only the first patch
 .
 print first line of patch header
 .UNINDENT
+.SS File content management
+.SS qdiff
+.sp
+diff of the current patch and subsequent modifications:
+.sp
+.nf
+.ft C
+hg qdiff [OPTION]... [FILE]...
+.ft P
+.fi
+.sp
+Shows a diff which includes the current patch as well as any
+changes which have been made in the working directory since the
+last refresh (thus showing what the current patch would become
+after a qrefresh).
+.sp
+Use \%\fBhg diff\fP\: if you only want to see the changes made since the
+last qrefresh, or \%\fBhg export qtip\fP\: if you want to see changes
+made by the current patch without including changes made since the
+qrefresh.
+.sp
+Returns 0 on success.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-a,  \-\-text
+.
+treat all files as text
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.B \-\-binary
+.
+generate binary diffs in git mode (default)
+.TP
+.B \-\-nodates
+.
+omit dates from diff headers
+.TP
+.B \-\-noprefix
+.
+omit a/ and b/ prefixes from filenames
+.TP
+.B \-p,  \-\-show\-function
+.
+show which function each change is in
+.TP
+.B \-\-reverse
+.
+produce a diff that undoes the changes
+.TP
+.B \-w,  \-\-ignore\-all\-space
+.
+ignore white space when comparing lines
+.TP
+.B \-b,  \-\-ignore\-space\-change
+.
+ignore changes in the amount of white space
+.TP
+.B \-B,  \-\-ignore\-blank\-lines
+.
+ignore changes whose lines are all blank
+.TP
+.B \-Z,  \-\-ignore\-space\-at\-eol
+.
+ignore changes in whitespace at EOL
+.TP
+.BI \-U,  \-\-unified \ <NUM>
+.
+number of lines of context to show
+.TP
+.B \-\-stat
+.
+output diffstat\-style summary of changes
+.TP
+.BI \-\-root \ <DIR>
+.
+produce diffs relative to subdirectory
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.SS Change import/export
+.SS qimport
+.sp
+import a patch or existing changeset:
+.sp
+.nf
+.ft C
+hg qimport [\-e] [\-n NAME] [\-f] [\-g] [\-P] [\-r REV]... [FILE]...
+.ft P
+.fi
+.sp
+The patch is inserted into the series after the last applied
+patch. If no patches have been applied, qimport prepends the patch
+to the series.
+.sp
+The patch will have the same name as its source file unless you
+give it a new one with \-n/\-\-name.
+.sp
+You can register an existing patch inside the patch directory with
+the \-e/\-\-existing flag.
+.sp
+With \-f/\-\-force, an existing patch of the same name will be
+overwritten.
+.sp
+An existing changeset may be placed under mq control with \-r/\-\-rev
+(e.g. qimport \-\-rev . \-n patch will place the current revision
+under mq control). With \-g/\-\-git, patches imported with \-\-rev will
+use the git diff format. See the diffs help topic for information
+on why this is important for preserving rename/copy information
+and permission changes. Use \%\fBhg qfinish\fP\: to remove changesets
+from mq control.
+.sp
+To import a patch from standard input, pass \- as the patch file.
+When importing from standard input, a patch name must be specified
+using the \-\-name flag.
+.sp
+To import an existing patch while renaming it:
+.sp
+.nf
+.ft C
+hg qimport \-e existing\-patch \-n new\-name
+.ft P
+.fi
+.sp
+Returns 0 if import succeeded.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-e,  \-\-existing
+.
+import file in patch directory
+.TP
+.BI \-n,  \-\-name \ <NAME>
+.
+name of patch file
+.TP
+.B \-f,  \-\-force
+.
+overwrite existing files
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+place existing revisions under mq control
+.TP
+.B \-g,  \-\-git
+.
+use git extended diff format
+.TP
+.B \-P,  \-\-push
+.
+qpush after importing
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS narrow
 .sp
 create clones which fetch history data for subset of files (EXPERIMENTAL)
 .SS Commands
+.SS Uncategorized commands
 .SS tracked
 .sp
 show or change the current narrowspec:
@@ -15524,6 +15971,10 @@ If \-\-clear is specified, then all previous includes and excludes are DROPPED
 and replaced by the new ones specified to \-\-addinclude and \-\-addexclude.
 If \-\-clear is specified without any further options, the narrowspec will be
 empty and will not match any files.
+.sp
+\-\-import\-rules accepts a path to a file containing rules, allowing you to
+add \-\-addinclude, \-\-addexclude rules in bulk. Like the other include and
+exclude switches, the changes are applied immediately.
 .sp
 Options:
 .INDENT 0.0
@@ -15868,6 +16319,7 @@ flagtemplate = "{separate(\(aq \(aq,
 You can set patchbomb to always ask for confirmation by setting
 \fBpatchbomb.confirm\fP to true.
 .SS Commands
+.SS Change import/export
 .SS email
 .sp
 send changesets by email:
@@ -16129,6 +16581,7 @@ example.phabtoken = cli\-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 .ft P
 .fi
 .SS Commands
+.SS Change import/export
 .SS phabread
 .sp
 print patches from Phabricator suitable for importing:
@@ -16219,6 +16672,14 @@ update commit messages (default: True)
 .
 specify reviewers
 .TP
+.BI \-\-blocker \ <VALUE[+]>
+.
+specify blocking reviewers
+.TP
+.BI \-m,  \-\-comment \ <VALUE>
+.
+add a comment to Revisions with new/updated Diffs
+.TP
 .B \-\-confirm
 .
 ask for confirmation before sending
@@ -16268,10 +16729,12 @@ comment on the last revision
 .
 Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise will mock all http requests using the specified vcr file. (ADVANCED)
 .UNINDENT
+.SS Uncategorized commands
 .SS purge
 .sp
 command to delete untracked files from the working directory
 .SS Commands
+.SS Repository maintenance
 .SS purge
 .sp
 removes files not tracked by Mercurial:
@@ -16374,6 +16837,7 @@ repository.
 For more information:
 \%https://mercurial\-scm.org/wiki/RebaseExtension\:
 .SS Commands
+.SS Change manipulation
 .SS rebase
 .sp
 move changeset (and descendants) to a different branch:
@@ -16417,7 +16881,7 @@ Use \fB\-\-base\fP to select a changeset; rebase will find ancestors
 and their descendants which are not also ancestors of the destination.
 .IP 4. 3
 .
-If you do not specify any of \fB\-\-rev\fP, \fBsource\fP, or \fB\-\-base\fP,
+If you do not specify any of \fB\-\-rev\fP, \fB\-\-source\fP, or \fB\-\-base\fP,
 rebase will use \fB\-\-base .\fP as above.
 .UNINDENT
 .UNINDENT
@@ -16542,8 +17006,9 @@ singletransaction = True
 .fi
 .sp
 By default, rebase writes to the working copy, but you can configure it to
-run in\-memory for for better performance, and to allow it to run if the
-working copy is dirty:
+run in\-memory for better performance. When the rebase is not moving the
+parent(s) of the working copy (AKA the "currently checked out changesets"),
+this may also allow it to run even if the working copy is dirty:
 .sp
 .nf
 .ft C
@@ -16649,6 +17114,7 @@ commands to interactively select changes for commit/qrefresh (DEPRECATED)
 The feature provided by this extension has been moved into core Mercurial as
 \%\fBhg commit \-\-interactive\fP\:.
 .SS Commands
+.SS Change creation
 .SS qrecord
 .sp
 interactively record a new patch:
@@ -16724,6 +17190,10 @@ use the secret phase for committing
 .
 invoke editor on commit messages
 .TP
+.B \-\-force\-close\-branch
+.
+forcibly close branch from a non\-head changeset (ADVANCED)
+.TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
 include names matching the given patterns
@@ -16779,6 +17249,7 @@ releases. Maintaining these files can be difficult and time consuming.
 The \%\fBhg releasenotes\fP\: command provided by this extension makes the
 process simpler by automating it.
 .SS Commands
+.SS Change navigation
 .SS releasenotes
 .sp
 parse release notes from commit messages into an output file:
@@ -16904,10 +17375,12 @@ checks for validity of admonitions (if any)
 .
 list the available admonitions with their title
 .UNINDENT
+.SS Uncategorized commands
 .SS relink
 .sp
 recreates hardlinks between repository clones
 .SS Commands
+.SS Repository maintenance
 .SS relink
 .sp
 recreate hardlinks between two repositories:
@@ -17104,6 +17577,7 @@ corruption before returning metadata
 .UNINDENT
 .UNINDENT
 .SS Commands
+.SS Uncategorized commands
 .SS gc
 .sp
 garbage collect the client and server filelog caches:
@@ -17276,6 +17750,7 @@ kiln = https://{1}.kilnhg.com/Repo/
 You can override a predefined scheme by defining a new scheme with the
 same name.
 .SS Commands
+.SS Uncategorized commands
 .SS share
 .sp
 share a common history between several working directories
@@ -17313,6 +17788,7 @@ that was cloned before.
 The default naming mode is "identity".
 .UNINDENT
 .SS Commands
+.SS Repository creation
 .SS share
 .sp
 create a new shared repository:
@@ -17352,6 +17828,7 @@ also share bookmarks
 .
 point to source using a relative path (EXPERIMENTAL)
 .UNINDENT
+.SS Repository maintenance
 .SS unshare
 .sp
 convert a shared repository to a normal one:
@@ -17363,192 +17840,6 @@ hg unshare
 .fi
 .sp
 Copy the store data to the repo and remove the sharedpath data.
-.SS shelve
-.sp
-save and restore changes to the working directory
-.sp
-The "hg shelve" command saves changes made to the working directory
-and reverts those changes, resetting the working directory to a clean
-state.
-.sp
-Later on, the "hg unshelve" command restores the changes saved by "hg
-shelve". Changes can be restored even after updating to a different
-parent, in which case Mercurial\(aqs merge machinery will resolve any
-conflicts if necessary.
-.sp
-You can have more than one shelved change outstanding at a time; each
-shelved change has a distinct name. For details, see the help for "hg
-shelve".
-.SS Commands
-.SS shelve
-.sp
-save and set aside changes from the working directory:
-.sp
-.nf
-.ft C
-hg shelve [OPTION]... [FILE]...
-.ft P
-.fi
-.sp
-Shelving takes files that "hg status" reports as not clean, saves
-the modifications to a bundle (a shelved change), and reverts the
-files so that their state in the working directory becomes clean.
-.sp
-To restore these changes to the working directory, using "hg
-unshelve"; this will work even if you switch to a different
-commit.
-.sp
-When no files are specified, "hg shelve" saves all not\-clean
-files. If specific files or directories are named, only changes to
-those files are shelved.
-.sp
-In bare shelve (when no files are specified, without interactive,
-include and exclude option), shelving remembers information if the
-working directory was on newly created branch, in other words working
-directory was on different branch than its first parent. In this
-situation unshelving restores branch information to the working directory.
-.sp
-Each shelved change has a name that makes it easier to find later.
-The name of a shelved change defaults to being based on the active
-bookmark, or if there is no active bookmark, the current named
-branch.  To specify a different name, use \fB\-\-name\fP.
-.sp
-To see a list of existing shelved changes, use the \fB\-\-list\fP
-option. For each shelved change, this will print its name, age,
-and description; use \fB\-\-patch\fP or \fB\-\-stat\fP for more details.
-.sp
-To delete specific shelved changes, use \fB\-\-delete\fP. To delete
-all shelved changes, use \fB\-\-cleanup\fP.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-A,  \-\-addremove
-.
-mark new/missing files as added/removed before shelving
-.TP
-.B \-u,  \-\-unknown
-.
-store unknown files in the shelve
-.TP
-.B \-\-cleanup
-.
-delete all shelved changes
-.TP
-.BI \-\-date \ <DATE>
-.
-shelve with the specified commit date
-.TP
-.B \-d,  \-\-delete
-.
-delete the named shelved change(s)
-.TP
-.B \-e,  \-\-edit
-.
-invoke editor on commit messages
-.TP
-.B \-l,  \-\-list
-.
-list current shelves
-.TP
-.BI \-m,  \-\-message \ <TEXT>
-.
-use text as shelve message
-.TP
-.BI \-n,  \-\-name \ <NAME>
-.
-use the given name for the shelved commit
-.TP
-.B \-p,  \-\-patch
-.
-output patches for changes (provide the names of the shelved changes as positional arguments)
-.TP
-.B \-i,  \-\-interactive
-.
-interactive mode, only works while creating a shelve
-.TP
-.B \-\-stat
-.
-output diffstat\-style summary of changes (provide the names of the shelved changes as positional arguments)
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.SS unshelve
-.sp
-restore a shelved change to the working directory:
-.sp
-.nf
-.ft C
-hg unshelve [[\-n] SHELVED]
-.ft P
-.fi
-.sp
-This command accepts an optional name of a shelved change to
-restore. If none is given, the most recent shelved change is used.
-.sp
-If a shelved change is applied successfully, the bundle that
-contains the shelved changes is moved to a backup location
-(.hg/shelve\-backup).
-.sp
-Since you can restore a shelved change on top of an arbitrary
-commit, it is possible that unshelving will result in a conflict
-between your changes and the commits you are unshelving onto. If
-this occurs, you must resolve the conflict, then use
-\fB\-\-continue\fP to complete the unshelve operation. (The bundle
-will not be moved until you successfully complete the unshelve.)
-.sp
-(Alternatively, you can use \fB\-\-abort\fP to abandon an unshelve
-that causes a conflict. This reverts the unshelved changes, and
-leaves the bundle in place.)
-.sp
-If bare shelved change(when no files are specified, without interactive,
-include and exclude option) was done on newly created branch it would
-restore branch information to the working directory.
-.sp
-After a successful unshelve, the shelved changes are stored in a
-backup directory. Only the N most recent backups are kept. N
-defaults to 10 but can be overridden using the \fBshelve.maxbackups\fP
-configuration option.
-.sp
-Timestamp in seconds is used to decide order of backups. More
-than \fBmaxbackups\fP backups are kept, if same timestamp
-prevents from deciding exact order of them, for safety.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-a,  \-\-abort
-.
-abort an incomplete unshelve operation
-.TP
-.B \-c,  \-\-continue
-.
-continue an incomplete unshelve operation
-.TP
-.B \-k,  \-\-keep
-.
-keep shelve after unshelving
-.TP
-.BI \-n,  \-\-name \ <NAME>
-.
-restore shelved change with given name
-.TP
-.BI \-t,  \-\-tool \ <VALUE>
-.
-specify merge tool
-.TP
-.BI \-\-date \ <DATE>
-.
-set date for temporary commits (DEPRECATED)
-.UNINDENT
 .SS show
 .sp
 unified command to show various repository information (EXPERIMENTAL)
@@ -17571,6 +17862,7 @@ Aliases that would conflict with existing registrations will not be
 performed.
 .UNINDENT
 .SS Commands
+.SS Change navigation
 .SS show
 .sp
 show various repository information:
@@ -17682,10 +17974,12 @@ tools/tests/**
 .ft P
 .fi
 .SS Commands
+.SS Uncategorized commands
 .SS split
 .sp
 command to split a changeset into smaller ones (EXPERIMENTAL)
 .SS Commands
+.SS Change manipulation
 .SS split
 .sp
 split a changeset into smaller ones:
@@ -17770,6 +18064,7 @@ strip changesets and their descendants from history
 This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.
 .SS Commands
+.SS Repository maintenance
 .SS strip
 .sp
 strip changesets and all their descendants from the repository:
@@ -17836,6 +18131,10 @@ do not modify working directory during strip
 .BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
 .
 remove revs only reachable from given bookmark
+.TP
+.B \-\-soft
+.
+simply drop changesets from visible history (EXPERIMENTAL)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -17849,6 +18148,7 @@ possibly in another repository. The transplant is done using \(aqdiff\(aq patche
 Transplanted patches are recorded in .hg/transplant/transplants, as a
 map from a changeset hash to its hash in the source repository.
 .SS Commands
+.SS Change manipulation
 .SS transplant
 .sp
 transplant changesets from another branch:
@@ -17972,6 +18272,7 @@ files to their uncommitted state. This means that files modified, added or
 removed in the changeset will be left unchanged, and so will remain modified,
 added and removed in the working directory.
 .SS Commands
+.SS Change manipulation
 .SS unamend
 .sp
 undo the most recent amend operation on a current changeset:
@@ -18010,6 +18311,10 @@ Options:
 .B \-\-keep
 .
 allow an empty commit after uncommiting
+.TP
+.B \-\-allow\-dirty\-working\-copy
+.
+allow uncommit with outstanding changes
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .

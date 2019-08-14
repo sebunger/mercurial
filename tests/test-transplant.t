@@ -39,12 +39,13 @@
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   (branch merge, don't forget to commit)
   $ hg transplant 1
-  abort: outstanding uncommitted merges
+  abort: outstanding uncommitted merge
+  (use 'hg commit' or 'hg merge --abort')
   [255]
   $ hg up -qC tip
   $ echo b0 > b1
   $ hg transplant 1
-  abort: outstanding local changes
+  abort: uncommitted changes
   [255]
   $ hg up -qC tip
   $ echo b2 > b2
@@ -461,7 +462,7 @@ transplant -c shouldn't use an old changeset
   baz
   foo
 
-test multiple revisions and --continue
+test multiple revisions, --continue and hg status --verbose
 
   $ hg up -qC 0
   $ echo bazbaz > baz
@@ -481,6 +482,15 @@ test multiple revisions and --continue
   abort: transplant in progress
   (use 'hg transplant --continue' or 'hg update' to abort)
   [255]
+  $ hg status -v
+  A bar
+  ? baz.rej
+  ? foo.rej
+  # The repository is in an unfinished *transplant* state.
+  
+  # To continue:    hg transplant --continue
+  # To abort:       hg update
+  
   $ echo fixed > baz
   $ hg transplant --continue
   9d6d6b5a8275 transplanted as d80c49962290
@@ -599,6 +609,7 @@ test interactive transplant
   > EOF
   0:17ab29e464c6
   apply changeset? [ynmpcq?]: p
+  diff -r 000000000000 -r 17ab29e464c6 r1
   --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
   +++ b/r1	Thu Jan 01 00:00:00 1970 +0000
   @@ -0,0 +1,1 @@

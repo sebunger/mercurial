@@ -138,8 +138,8 @@ class cacheconnection(object):
     def connect(self, cachecommand):
         if self.pipeo:
             raise error.Abort(_("cache connection already open"))
-        self.pipei, self.pipeo, self.pipee, self.subprocess = \
-            procutil.popen4(cachecommand)
+        self.pipei, self.pipeo, self.pipee, self.subprocess = (
+            procutil.popen4(cachecommand))
         self.connected = True
 
     def close(self):
@@ -396,6 +396,9 @@ class fileserverclient(object):
                                 batchdefault = 10
                             batchsize = self.ui.configint(
                                 'remotefilelog', 'batchsize', batchdefault)
+                            self.ui.debug(
+                                b'requesting %d files from '
+                                b'remotefilelog server...\n' % len(missed))
                             _getfilesbatch(
                                 remote, self.receivemissing, progress.increment,
                                 missed, idmap, batchsize)
@@ -544,7 +547,7 @@ class fileserverclient(object):
                     if fetchwarning:
                         self.ui.warn(fetchwarning + '\n')
                 self.logstacktrace()
-            missingids = [(file, hex(id)) for file, id in missingids]
+            missingids = [(file, hex(id)) for file, id in sorted(missingids)]
             fetched += len(missingids)
             start = time.time()
             missingids = self.request(missingids)

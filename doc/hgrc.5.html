@@ -480,6 +480,9 @@ a different color mode than the pager program.</p>
 <div class="section" id="commands">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">commands</tt></a></h2>
 <dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">commit.post-status</span></tt></dt>
+<dd>Show status of files in the working directory after successful commit.
+(default: False)</dd>
 <dt><tt class="docutils literal">resolve.confirm</tt></dt>
 <dd>Confirm before performing action if no filename is passed.
 (default: False)</dd>
@@ -860,6 +863,19 @@ smaller store. For repositories with many revisions, it also helps
 performance (by using shortened delta chains.)</p>
 <p>Repositories with this on-disk format require Mercurial version 4.7</p>
 <p class="last">Enabled by default.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">revlog-compression</span></tt></dt>
+<dd><p class="first">Compression algorithm used by revlog. Supported value are <cite>zlib</cite> and <cite>zstd</cite>.
+The <cite>zlib</cite> engine is the historical default of Mercurial. <cite>zstd</cite> is a newer
+format that is usually a net win over <cite>zlib</cite> operating faster at better
+compression rate. Use <cite>zstd</cite> to reduce CPU usage.</p>
+<p class="last">On some system, Mercurial installation may lack <cite>zstd</cite> supports. Default is <cite>zlib</cite>.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">bookmarks-in-store</span></tt></dt>
+<dd><p class="first">Store bookmarks in .hg/store/. This means that bookmarks are shared when
+using <cite>hg share</cite> regardless of the <cite>-B</cite> option.</p>
+<p>Repositories with this on-disk format require Mercurial version 5.1.</p>
+<p class="last">Disabled by default.</p>
 </dd>
 </dl>
 </div>
@@ -1658,6 +1674,10 @@ display. Values format is the same as <tt class="docutils literal">showmin</tt>.
 <p>For the <tt class="docutils literal">chrome</tt> format, default is <tt class="docutils literal">0.999</tt>.</p>
 <p class="last">The option is unused on other formats.</p>
 </dd>
+<dt><tt class="docutils literal">showtime</tt></dt>
+<dd>Show time taken as absolute durations, in addition to percentages.
+Only used by the <tt class="docutils literal">hotpath</tt> format.
+(default: true)</dd>
 </dl>
 </div>
 <div class="section" id="progress">
@@ -1732,6 +1752,47 @@ revlog compression. This option is enabled by default.</p>
 <p class="last">Turning this option off can result in large increase of repository size for
 repository with many merges.</p>
 </dd>
+<dt><tt class="docutils literal"><span class="pre">revlog.reuse-external-delta-parent</span></tt></dt>
+<dd><p class="first">Control the order in which delta parents are considered when adding new
+revisions from an external source.
+(typically: apply bundle from <cite>hg pull</cite> or <cite>hg push</cite>).</p>
+<p>New revisions are usually provided as a delta against other revisions. By
+default, Mercurial will try to reuse this delta first, therefore using the
+same &quot;delta parent&quot; as the source. Directly using delta's from the source
+reduces CPU usage and usually speeds up operation. However, in some case,
+the source might have sub-optimal delta bases and forcing their reevaluation
+is useful. For example, pushes from an old client could have sub-optimal
+delta's parent that the server want to optimize. (lack of general delta, bad
+parents, choice, lack of sparse-revlog, etc).</p>
+<p>This option is enabled by default. Turning it off will ensure bad delta
+parent choices from older client do not propagate to this repository, at
+the cost of a small increase in CPU consumption.</p>
+<p class="last">Note: this option only control the order in which delta parents are
+considered.  Even when disabled, the existing delta from the source will be
+reused if the same delta parent is selected.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">revlog.reuse-external-delta</span></tt></dt>
+<dd><p class="first">Control the reuse of delta from external source.
+(typically: apply bundle from <cite>hg pull</cite> or <cite>hg push</cite>).</p>
+<p>New revisions are usually provided as a delta against another revision. By
+default, Mercurial will not recompute the same delta again, trusting
+externally provided deltas. There have been rare cases of small adjustment
+to the diffing algorithm in the past. So in some rare case, recomputing
+delta provided by ancient clients can provides better results. Disabling
+this option means going through a full delta recomputation for all incoming
+revisions. It means a large increase in CPU usage and will slow operations
+down.</p>
+<p class="last">This option is enabled by default. When disabled, it also disables the
+related <tt class="docutils literal"><span class="pre">storage.revlog.reuse-external-delta-parent</span></tt> option.</p>
+</dd>
+<dt><tt class="docutils literal">revlog.zlib.level</tt></dt>
+<dd>Zlib compression level used when storing data into the repository. Accepted
+Value range from 1 (lowest compression) to 9 (highest compression). Zlib
+default value is 6.</dd>
+<dt><tt class="docutils literal">revlog.zstd.level</tt></dt>
+<dd>zstd compression level used when storing data into the repository. Accepted
+Value range from 1 (lowest compression) to 22 (highest compression).
+(default 3)</dd>
 </dl>
 </div>
 <div class="section" id="server">
@@ -1854,6 +1915,12 @@ for wire protocol commands. <tt class="docutils literal">1</tt> is the minimal a
 delivering better compression ratios.</p>
 <p>This option only impacts the HTTP server.</p>
 <p class="last">See also <tt class="docutils literal">server.zliblevel</tt>.</p>
+</dd>
+<dt><tt class="docutils literal">view</tt></dt>
+<dd><p class="first">Repository filter used when exchanging revisions with the peer.</p>
+<p class="last">The default view (<tt class="docutils literal">served</tt>) excludes secret and hidden changesets.
+Another useful value is <tt class="docutils literal">immutable</tt> (no draft, secret or hidden
+changesets). (EXPERIMENTAL)</p>
 </dd>
 </dl>
 </div>
@@ -2152,6 +2219,8 @@ dicts. For example: <tt class="docutils literal">{local.label}</tt>, <tt class="
 <dt><tt class="docutils literal">quiet</tt></dt>
 <dd>Reduce the amount of output printed.
 (default: False)</dd>
+<dt><tt class="docutils literal"><span class="pre">relative-paths</span></tt></dt>
+<dd>Prefer relative paths in the UI.</dd>
 <dt><tt class="docutils literal">remotecmd</tt></dt>
 <dd>Remote command to use for clone/push/pull operations.
 (default: <tt class="docutils literal">hg</tt>)</dd>
@@ -2218,16 +2287,18 @@ rollback = False
 statuscopies = yes
 # Prefer curses UIs when available. Revert to plain-text with `text`.
 interface = curses
+# Make compatible commands emit cwd-relative paths by default.
+relative-paths = yes
 
 [commands]
 # Grep working directory by default.
 grep.all-files = True
-# Make `hg status` emit cwd-relative paths by default.
-status.relative = yes
 # Refuse to perform an `hg update` that would cause a file content merge
 update.check = noconflict
 # Show conflicts information in `hg status`
 status.verbose = True
+# Make `hg resolve` with no action (like `-m`) fail instead of re-merging.
+resolve.explicit-re-merge = True
 
 [diff]
 git = 1

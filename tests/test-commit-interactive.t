@@ -26,10 +26,8 @@ Select no files
   > EOF
   diff --git a/empty-rw b/empty-rw
   new file mode 100644
-  examine changes to 'empty-rw'? [Ynesfdaq?] n
-  
-  no changes to record
-  [1]
+  abort: empty commit message
+  [255]
 
   $ hg tip -p
   changeset:   -1:000000000000
@@ -47,8 +45,6 @@ Select files but no hunks
   > EOF
   diff --git a/empty-rw b/empty-rw
   new file mode 100644
-  examine changes to 'empty-rw'? [Ynesfdaq?] y
-  
   abort: empty commit message
   [255]
 
@@ -72,12 +68,9 @@ Record empty file
 
   $ hg commit -i -d '0 0' -m empty empty-rw<<EOF
   > y
-  > y
   > EOF
   diff --git a/empty-rw b/empty-rw
   new file mode 100644
-  examine changes to 'empty-rw'? [Ynesfdaq?] y
-  
 
   $ hg tip -p
   changeset:   0:c0708cf4e46e
@@ -107,7 +100,8 @@ Rename empty file
   diff --git a/empty-rw b/empty-rename
   rename from empty-rw
   rename to empty-rename
-  examine changes to 'empty-rw' and 'empty-rename'? [Ynesfdaq?] y
+  examine changes to 'empty-rw' and 'empty-rename'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -128,7 +122,8 @@ Copy empty file
   diff --git a/empty-rename b/empty-copy
   copy from empty-rename
   copy to empty-copy
-  examine changes to 'empty-rename' and 'empty-copy'? [Ynesfdaq?] y
+  examine changes to 'empty-rename' and 'empty-copy'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -148,7 +143,8 @@ Delete empty file
   > EOF
   diff --git a/empty-copy b/empty-copy
   deleted file mode 100644
-  examine changes to 'empty-copy'? [Ynesfdaq?] y
+  examine changes to 'empty-copy'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -171,7 +167,8 @@ Add binary file
   diff --git a/tip.bundle b/tip.bundle
   new file mode 100644
   this is a binary file
-  examine changes to 'tip.bundle'? [Ynesfdaq?] y
+  examine changes to 'tip.bundle'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -194,7 +191,8 @@ Change binary file
   > EOF
   diff --git a/tip.bundle b/tip.bundle
   this modifies a binary file (all or nothing)
-  examine changes to 'tip.bundle'? [Ynesfdaq?] y
+  examine changes to 'tip.bundle'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -220,7 +218,8 @@ Rename and change binary file
   rename from tip.bundle
   rename to top.bundle
   this modifies a binary file (all or nothing)
-  examine changes to 'tip.bundle' and 'top.bundle'? [Ynesfdaq?] y
+  examine changes to 'tip.bundle' and 'top.bundle'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -249,8 +248,6 @@ Add plain file
   > EOF
   diff --git a/plain b/plain
   new file mode 100644
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -0,0 +1,10 @@
   +1
   +2
@@ -262,7 +259,8 @@ Add plain file
   +8
   +9
   +10
-  record this change to 'plain'? [Ynesfdaq?] y
+  record this change to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
   $ hg tip -p
   changeset:   7:11fb457c1be4
@@ -306,14 +304,13 @@ Modify end of plain file, also test that diffopts are accounted for
   > EOF
   diff --git a/plain b/plain
   1 hunks, 1 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -8,3 +8,4 @@ 7
    8
    9
    10
   +11
-  record this change to 'plain'? [Ynesfdaq?] y
+  record this change to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
 Modify end of plain file, no EOL
@@ -325,15 +322,14 @@ Modify end of plain file, no EOL
   > EOF
   diff --git a/plain b/plain
   1 hunks, 1 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -9,3 +9,4 @@ 8
    9
    10
    11
   +7264f99c5f5ff3261504828afa4fb4d406c3af54
   \ No newline at end of file
-  record this change to 'plain'? [Ynesfdaq?] y
+  record this change to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
 Record showfunc should preserve function across sections
@@ -414,7 +410,8 @@ Record showfunc should preserve function across sections
   > EOF
   diff --git a/f1.py b/f1.py
   3 hunks, 6 lines changed
-  examine changes to 'f1.py'? [Ynesfdaq?] y
+  examine changes to 'f1.py'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -2,8 +2,8 @@ def annotate(ui, repo, *pats, **opts):
        """show changeset information by line for each file
@@ -426,7 +423,8 @@ Record showfunc should preserve function across sections
        This command is useful for discovering when a change was made and
        by whom.
    
-  record change 1/3 to 'f1.py'? [Ynesfdaq?] y
+  record change 1/3 to 'f1.py'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -6,11 +6,7 @@ def annotate(ui, repo, *pats, **opts):
    
@@ -440,7 +438,8 @@ Record showfunc should preserve function across sections
        Without the -a/--text option, annotate will avoid processing files
        it detects as binary. With -a, annotate will annotate the file
        anyway, although the results will probably be neither useful
-  record change 2/3 to 'f1.py'? [Ynesfdaq?] y
+  record change 2/3 to 'f1.py'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -26,7 +22,7 @@ def archive(ui, repo, dest, **opts):
        directory; use -r/--rev to specify a different revision.
@@ -451,7 +450,8 @@ Record showfunc should preserve function across sections
    
        .. container:: verbose
    
-  record change 3/3 to 'f1.py'? [Ynesfdaq?] y
+  record change 3/3 to 'f1.py'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
 Modify end of plain file, add EOL
@@ -467,8 +467,6 @@ Modify end of plain file, add EOL
   > EOF
   diff --git a/plain b/plain
   1 hunks, 1 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -9,4 +9,4 @@ 8
    9
    10
@@ -476,15 +474,15 @@ Modify end of plain file, add EOL
   -7264f99c5f5ff3261504828afa4fb4d406c3af54
   \ No newline at end of file
   +7264f99c5f5ff3261504828afa4fb4d406c3af54
-  record change 1/2 to 'plain'? [Ynesfdaq?] y
+  record change 1/2 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
   diff --git a/plain2 b/plain2
   new file mode 100644
-  examine changes to 'plain2'? [Ynesfdaq?] y
-  
   @@ -0,0 +1,1 @@
   +1
-  record change 2/2 to 'plain2'? [Ynesfdaq?] y
+  record change 2/2 to 'plain2'?
+  (enter ? for help) [Ynesfdaq?] y
   
 Modify beginning, trim end, record both, add another file to test
 changes numbering
@@ -504,15 +502,14 @@ changes numbering
   > EOF
   diff --git a/plain b/plain
   2 hunks, 3 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -1,4 +1,4 @@
   -1
   +2
    2
    3
    4
-  record change 1/3 to 'plain'? [Ynesfdaq?] y
+  record change 1/3 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -8,5 +8,3 @@ 7
    8
@@ -520,16 +517,16 @@ changes numbering
    10
   -11
   -7264f99c5f5ff3261504828afa4fb4d406c3af54
-  record change 2/3 to 'plain'? [Ynesfdaq?] y
+  record change 2/3 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
   diff --git a/plain2 b/plain2
   1 hunks, 1 lines changed
-  examine changes to 'plain2'? [Ynesfdaq?] y
-  
   @@ -1,1 +1,2 @@
    1
   +2
-  record change 3/3 to 'plain2'? [Ynesfdaq?] y
+  record change 3/3 to 'plain2'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -572,14 +569,11 @@ Trim beginning, modify end
 Record end
 
   $ hg commit -i -d '11 0' -m end-only plain <<EOF
-  > y
   > n
   > y
   > EOF
   diff --git a/plain b/plain
   2 hunks, 4 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -1,9 +1,6 @@
   -2
   -2
@@ -590,7 +584,8 @@ Record end
    7
    8
    9
-  record change 1/2 to 'plain'? [Ynesfdaq?] n
+  record change 1/2 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] n
   
   @@ -4,7 +1,7 @@
    4
@@ -601,7 +596,8 @@ Record end
    9
   -10
   +10.new
-  record change 2/2 to 'plain'? [Ynesfdaq?] y
+  record change 2/2 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -630,8 +626,6 @@ Record beginning
   > EOF
   diff --git a/plain b/plain
   1 hunks, 3 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -1,6 +1,3 @@
   -2
   -2
@@ -639,7 +633,8 @@ Record beginning
    4
    5
    6
-  record this change to 'plain'? [Ynesfdaq?] y
+  record this change to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -671,14 +666,11 @@ Add to beginning, trim from end
 Record end
 
   $ hg commit -i --traceback -d '13 0' -m end-again plain<<EOF
-  > y
   > n
   > y
   > EOF
   diff --git a/plain b/plain
   2 hunks, 4 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -1,6 +1,9 @@
   +1
   +2
@@ -689,7 +681,8 @@ Record end
    7
    8
    9
-  record change 1/2 to 'plain'? [Ynesfdaq?] n
+  record change 1/2 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] n
   
   @@ -1,7 +4,6 @@
    4
@@ -699,7 +692,8 @@ Record end
    8
    9
   -10.new
-  record change 2/2 to 'plain'? [Ynesfdaq?] y
+  record change 2/2 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
 Add to beginning, middle, end
@@ -714,20 +708,18 @@ Record beginning, middle, and test that format-breaking diffopts are ignored
   $ hg commit -i --config diff.noprefix=True -d '14 0' -m middle-only plain <<EOF
   > y
   > y
-  > y
   > n
   > EOF
   diff --git a/plain b/plain
   3 hunks, 7 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -1,2 +1,5 @@
   +1
   +2
   +3
    4
    5
-  record change 1/3 to 'plain'? [Ynesfdaq?] y
+  record change 1/3 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,6 +4,8 @@
    4
@@ -738,7 +730,8 @@ Record beginning, middle, and test that format-breaking diffopts are ignored
    7
    8
    9
-  record change 2/3 to 'plain'? [Ynesfdaq?] y
+  record change 2/3 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -3,4 +8,6 @@
    6
@@ -747,7 +740,8 @@ Record beginning, middle, and test that format-breaking diffopts are ignored
    9
   +10
   +11
-  record change 3/3 to 'plain'? [Ynesfdaq?] n
+  record change 3/3 to 'plain'?
+  (enter ? for help) [Ynesfdaq?] n
   
 
   $ hg tip -p
@@ -781,15 +775,14 @@ Record end
   > EOF
   diff --git a/plain b/plain
   1 hunks, 2 lines changed
-  examine changes to 'plain'? [Ynesfdaq?] y
-  
   @@ -9,3 +9,5 @@ 6
    7
    8
    9
   +10
   +11
-  record this change to 'plain'? [Ynesfdaq?] y
+  record this change to 'plain'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -809,12 +802,26 @@ Record end
   +10
   +11
   
+Interactive commit can name a directory instead of files (issue6131)
 
   $ mkdir subdir
-  $ cd subdir
-  $ echo a > a
-  $ hg ci -d '16 0' -Amsubdir
+  $ echo a > subdir/a
+  $ hg ci -d '16 0' -i subdir -Amsubdir <<EOF
+  > y
+  > y
+  > EOF
   adding subdir/a
+  diff --git a/subdir/a b/subdir/a
+  new file mode 100644
+  examine changes to 'subdir/a'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -0,0 +1,1 @@
+  +a
+  record this change to 'subdir/a'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  $ cd subdir
 
   $ echo a >> a
   $ hg commit -i -d '16 0' -m subdir-change a <<EOF
@@ -823,12 +830,11 @@ Record end
   > EOF
   diff --git a/subdir/a b/subdir/a
   1 hunks, 1 lines changed
-  examine changes to 'subdir/a'? [Ynesfdaq?] y
-  
   @@ -1,1 +1,2 @@
    a
   +a
-  record this change to 'subdir/a'? [Ynesfdaq?] y
+  record this change to 'subdir/a'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip -p
@@ -863,7 +869,8 @@ Help, quit
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] ?
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] ?
   
   y - yes, record this change
   n - no, skip this change
@@ -874,10 +881,44 @@ Help, quit
   a - record all changes to all remaining files
   q - quit, recording no changes
   ? - ? (display help)
-  examine changes to 'subdir/f1'? [Ynesfdaq?] q
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] q
   
   abort: user quit
   [255]
+
+Patterns
+
+  $ hg commit -i 'glob:f*' << EOF
+  > y
+  > n
+  > y
+  > n
+  > EOF
+  diff --git a/subdir/f1 b/subdir/f1
+  1 hunks, 1 lines changed
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -1,1 +1,2 @@
+   a
+  +a
+  record change 1/2 to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] n
+  
+  diff --git a/subdir/f2 b/subdir/f2
+  1 hunks, 1 lines changed
+  examine changes to 'subdir/f2'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -1,1 +1,2 @@
+   b
+  +b
+  record change 2/2 to 'subdir/f2'?
+  (enter ? for help) [Ynesfdaq?] n
+  
+  no changes to record
+  [1]
 
 #if gettext
 
@@ -931,11 +972,13 @@ Skip
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] s
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] s
   
   diff --git a/subdir/f2 b/subdir/f2
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f2'? [Ynesfdaq?] abort: response expected
+  examine changes to 'subdir/f2'?
+  (enter ? for help) [Ynesfdaq?] abort: response expected
   [255]
 
 No
@@ -945,11 +988,13 @@ No
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] n
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] n
   
   diff --git a/subdir/f2 b/subdir/f2
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f2'? [Ynesfdaq?] abort: response expected
+  examine changes to 'subdir/f2'?
+  (enter ? for help) [Ynesfdaq?] abort: response expected
   [255]
 
 f, quit
@@ -960,11 +1005,13 @@ f, quit
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] f
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] f
   
   diff --git a/subdir/f2 b/subdir/f2
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f2'? [Ynesfdaq?] q
+  examine changes to 'subdir/f2'?
+  (enter ? for help) [Ynesfdaq?] q
   
   abort: user quit
   [255]
@@ -977,11 +1024,13 @@ s, all
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] s
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] s
   
   diff --git a/subdir/f2 b/subdir/f2
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f2'? [Ynesfdaq?] a
+  examine changes to 'subdir/f2'?
+  (enter ? for help) [Ynesfdaq?] a
   
 
   $ hg tip -p
@@ -1006,7 +1055,8 @@ f
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] f
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] f
   
 
   $ hg tip -p
@@ -1039,13 +1089,15 @@ Preserve chmod +x
   old mode 100644
   new mode 100755
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,2 +1,3 @@
    a
    a
   +a
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip --config diff.git=True -p
@@ -1076,14 +1128,16 @@ Preserve execute permission on original
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,4 @@
    a
    a
    a
   +b
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip --config diff.git=True -p
@@ -1116,14 +1170,16 @@ Preserve chmod -x
   old mode 100755
   new mode 100644
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -2,3 +2,4 @@ a
    a
    a
    b
   +c
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip --config diff.git=True -p
@@ -1160,13 +1216,15 @@ Mock "Preserve chmod +x"
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,2 +1,3 @@
    a
    a
   +a
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip --config diff.git=True -p
@@ -1195,14 +1253,16 @@ Mock "Preserve execute permission on original"
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,4 @@
    a
    a
    a
   +b
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip --config diff.git=True -p
@@ -1233,14 +1293,16 @@ Mock "Preserve chmod -x"
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -2,3 +2,4 @@ a
    a
    a
    b
   +c
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg tip --config diff.git=True -p
@@ -1318,7 +1380,8 @@ Editing patch (and ignoring trailing text)
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 2 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] y
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
   -This is the first line
@@ -1326,7 +1389,8 @@ Editing patch (and ignoring trailing text)
   +This line has changed
   +This change will be committed
    This is the third line
-  record this change to 'editedfile'? [Ynesfdaq?] e
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   $ cat editedfile
   This line has changed
@@ -1347,10 +1411,12 @@ Trying to edit patch for whole file
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 1 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] e
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   cannot edit patch for whole file
-  examine changes to 'editedfile'? [Ynesfdaq?] q
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] q
   
   abort: user quit
   [255]
@@ -1371,7 +1437,8 @@ Removing changes from patch
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 3 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] y
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
   -This is the first line
@@ -1380,7 +1447,8 @@ Removing changes from patch
   +This change will not be committed
   +This is the second line
   +This line has been added
-  record this change to 'editedfile'? [Ynesfdaq?] e
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   no changes to record
   [1]
@@ -1409,7 +1477,8 @@ Invalid patch
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 3 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] y
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
   -This is the first line
@@ -1418,7 +1487,8 @@ Invalid patch
   +This change will not be committed
   +This is the second line
   +This line has been added
-  record this change to 'editedfile'? [Ynesfdaq?] e
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   patching file editedfile
   Hunk #1 FAILED at 0
@@ -1456,7 +1526,8 @@ Malformed patch - error handling
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 3 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] y
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
   -This is the first line
@@ -1465,7 +1536,8 @@ Malformed patch - error handling
   +This change will not be committed
   +This is the second line
   +This line has been added
-  record this change to 'editedfile'? [Ynesfdaq?] e
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   abort: error parsing patch: unhandled transition: range -> range
   [255]
@@ -1480,7 +1552,8 @@ session
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 3 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] y
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
   -This is the first line
@@ -1489,10 +1562,12 @@ session
   +This change will not be committed
   +This is the second line
   +This line has been added
-  record this change to 'editedfile'? [Ynesfdaq?] e
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   editor exited with exit code 1
-  record this change to 'editedfile'? [Ynesfdaq?] n
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] n
   
   no changes to record
   [1]
@@ -1511,7 +1586,8 @@ random text in random positions is still an error
   > EOF
   diff --git a/editedfile b/editedfile
   1 hunks, 3 lines changed
-  examine changes to 'editedfile'? [Ynesfdaq?] y
+  examine changes to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,3 +1,3 @@
   -This is the first line
@@ -1520,7 +1596,8 @@ random text in random positions is still an error
   +This change will not be committed
   +This is the second line
   +This line has been added
-  record this change to 'editedfile'? [Ynesfdaq?] e
+  record this change to 'editedfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   abort: error parsing patch: unhandled transition: file -> other
   [255]
@@ -1551,14 +1628,16 @@ Ignore win32text deprecation warning for now:
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -3,3 +3,4 @@ a
    a
    b
    c
   +d
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
 
   $ hg status -A subdir/f1
@@ -1590,14 +1669,16 @@ Test --user when ui.username not set
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   1 hunks, 1 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -4,3 +4,4 @@ a
    b
    c
    d
   +e
-  record this change to 'subdir/f1'? [Ynesfdaq?] y
+  record this change to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   $ hg status -A subdir/f1
   C subdir/f1
@@ -1621,14 +1702,16 @@ Moving files
   rename from plain
   rename to plain3
   1 hunks, 1 lines changed
-  examine changes to 'plain' and 'plain3'? [Ynesfdaq?] y
+  examine changes to 'plain' and 'plain3'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -11,3 +11,4 @@ 8
    9
    10
    11
   +somechange
-  record this change to 'plain3'? [Ynesfdaq?] y
+  record this change to 'plain3'?
+  (enter ? for help) [Ynesfdaq?] y
   
 The #if execbit block above changes the hash here on some systems
   $ hg status -A plain3
@@ -1660,13 +1743,15 @@ Editing patch of newly added file
   > EOF
   diff --git a/newfile b/newfile
   new file mode 100644
-  examine changes to 'newfile'? [Ynesfdaq?] y
+  examine changes to 'newfile'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -0,0 +1,3 @@
   +This is the first line
   +This is the second line
   +This is the third line
-  record this change to 'newfile'? [Ynesfdaq?] e
+  record this change to 'newfile'?
+  (enter ? for help) [Ynesfdaq?] e
   
   $ hg cat -r tip newfile
   This is the very line
@@ -1691,11 +1776,13 @@ Add new file from within a subdirectory
   > EOF
   diff --git a/folder/bar b/folder/bar
   new file mode 100644
-  examine changes to 'folder/bar'? [Ynesfdaq?] y
+  examine changes to 'folder/bar'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -0,0 +1,1 @@
   +foo
-  record this change to 'folder/bar'? [Ynesfdaq?] y
+  record this change to 'folder/bar'?
+  (enter ? for help) [Ynesfdaq?] y
   
 The #if execbit block above changes the hashes here on some systems
   $ hg tip -p
@@ -1776,7 +1863,8 @@ even if none of mode, size and timestamp is changed on the filesystem
   > EOF
   diff --git a/subdir/f1 b/subdir/f1
   2 hunks, 2 lines changed
-  examine changes to 'subdir/f1'? [Ynesfdaq?] y
+  examine changes to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,6 +1,6 @@
   -a
@@ -1786,7 +1874,8 @@ even if none of mode, size and timestamp is changed on the filesystem
    b
    c
    d
-  record change 1/2 to 'subdir/f1'? [Ynesfdaq?] y
+  record change 1/2 to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -2,6 +2,6 @@
    a
@@ -1796,7 +1885,8 @@ even if none of mode, size and timestamp is changed on the filesystem
    d
   -e
   +E
-  record change 2/2 to 'subdir/f1'? [Ynesfdaq?] n
+  record change 2/2 to 'subdir/f1'?
+  (enter ? for help) [Ynesfdaq?] n
   
   $ cat >> .hg/hgrc <<EOF
   > [extensions]
@@ -1807,3 +1897,88 @@ even if none of mode, size and timestamp is changed on the filesystem
   n   0         -1 unset               subdir/f1
   $ hg status -A subdir/f1
   M subdir/f1
+
+Test commands.commit.interactive.unified=0
+
+  $ hg init $TESTTMP/b
+  $ cd $TESTTMP/b
+  $ cat > foo <<EOF
+  > 1
+  > 2
+  > 3
+  > 4
+  > 5
+  > EOF
+  $ hg ci -qAm initial
+  $ cat > foo <<EOF
+  > 1
+  > change1
+  > 2
+  > 3
+  > change2
+  > 4
+  > 5
+  > EOF
+  $ printf 'y\ny\ny\n' | hg ci -im initial --config commands.commit.interactive.unified=0
+  diff --git a/foo b/foo
+  2 hunks, 2 lines changed
+  examine changes to 'foo'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -1,0 +2,1 @@ 1
+  +change1
+  record change 1/2 to 'foo'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -3,0 +5,1 @@ 3
+  +change2
+  record change 2/2 to 'foo'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  $ cd $TESTTMP
+
+Test diff.ignoreblanklines=1
+
+  $ hg init c
+  $ cd c
+  $ cat > foo <<EOF
+  > 1
+  > 2
+  > 3
+  > 4
+  > 5
+  > EOF
+  $ hg ci -qAm initial
+  $ cat > foo <<EOF
+  > 1
+  > 
+  > 2
+  > 3
+  > change2
+  > 4
+  > 5
+  > EOF
+  $ printf 'y\ny\ny\n' | hg ci -im initial --config diff.ignoreblanklines=1
+  diff --git a/foo b/foo
+  2 hunks, 2 lines changed
+  examine changes to 'foo'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -1,3 +1,4 @@
+   1
+  +
+   2
+   3
+  record change 1/2 to 'foo'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+  @@ -2,4 +3,5 @@
+   2
+   3
+  +change2
+   4
+   5
+  record change 2/2 to 'foo'?
+  (enter ? for help) [Ynesfdaq?] y
+  
+

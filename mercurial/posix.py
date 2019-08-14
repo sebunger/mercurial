@@ -30,7 +30,6 @@ from . import (
 
 osutil = policy.importmod(r'osutil')
 
-posixfile = open
 normpath = os.path.normpath
 samestat = os.path.samestat
 try:
@@ -51,6 +50,19 @@ expandglobs = False
 
 umask = os.umask(0)
 os.umask(umask)
+
+if not pycompat.ispy3:
+    def posixfile(name, mode=r'r', buffering=-1):
+        fp = open(name, mode=mode, buffering=buffering)
+        # The position when opening in append mode is implementation defined, so
+        # make it consistent by always seeking to the end.
+        if r'a' in mode:
+            fp.seek(0, os.SEEK_END)
+        return fp
+else:
+    # The underlying file object seeks as required in Python 3:
+    # https://github.com/python/cpython/blob/v3.7.3/Modules/_io/fileio.c#L474
+    posixfile = open
 
 def split(p):
     '''Same as posixpath.split, but faster
@@ -575,15 +587,16 @@ def groupname(gid=None):
     if gid is None:
         gid = os.getgid()
     try:
-        return grp.getgrgid(gid)[0]
+        return pycompat.fsencode(grp.getgrgid(gid)[0])
     except KeyError:
-        return str(gid)
+        return pycompat.bytestr(gid)
 
 def groupmembers(name):
     """Return the list of members of the group with the given
     name, KeyError if the group does not exist.
     """
-    return list(grp.getgrnam(name).gr_mem)
+    name = pycompat.fsdecode(name)
+    return pycompat.rapply(pycompat.fsencode, list(grp.getgrnam(name).gr_mem))
 
 def spawndetached(args):
     return os.spawnvp(os.P_NOWAIT | getattr(os, 'P_DETACH', 0),

@@ -270,7 +270,8 @@ qpush
   $ hg qpush
   applying 1
    subrepository sub diverged (local revision: b2fdb12cd82b, remote revision: aa037b301eba)
-  (M)erge, keep (l)ocal or keep (r)emote? m
+  you can (m)erge, keep (l)ocal or keep (r)emote.
+  what do you want to do? m
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   now at: 1
   $ hg status -AS
@@ -295,16 +296,6 @@ handle subrepos safely on qrecord
   A .hgsub
   A sub/a
   % qrecord --config ui.interactive=1 -m0 0.diff
-  diff --git a/.hgsub b/.hgsub
-  new file mode 100644
-  examine changes to '.hgsub'? [Ynesfdaq?] y
-  
-  @@ -0,0 +1,1 @@
-  +sub = sub
-  record this change to '.hgsub'? [Ynesfdaq?] y
-  
-  warning: subrepo spec file '.hgsub' not found
-  warning: subrepo spec file '.hgsub' not found
   abort: uncommitted changes in subrepository "sub"
   [255]
   % update substate when adding .hgsub w/clean updated subrepo
@@ -313,11 +304,13 @@ handle subrepos safely on qrecord
   % qrecord --config ui.interactive=1 -m0 0.diff
   diff --git a/.hgsub b/.hgsub
   new file mode 100644
-  examine changes to '.hgsub'? [Ynesfdaq?] y
+  examine changes to '.hgsub'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -0,0 +1,1 @@
   +sub = sub
-  record this change to '.hgsub'? [Ynesfdaq?] y
+  record this change to '.hgsub'?
+  (enter ? for help) [Ynesfdaq?] y
   
   warning: subrepo spec file '.hgsub' not found
   warning: subrepo spec file '.hgsub' not found
@@ -333,15 +326,6 @@ handle subrepos safely on qrecord
   M .hgsub
   A sub2/a
   % qrecord --config ui.interactive=1 -m1 1.diff
-  diff --git a/.hgsub b/.hgsub
-  1 hunks, 1 lines changed
-  examine changes to '.hgsub'? [Ynesfdaq?] y
-  
-  @@ -1,1 +1,2 @@
-   sub = sub
-  +sub2 = sub2
-  record this change to '.hgsub'? [Ynesfdaq?] y
-  
   abort: uncommitted changes in subrepository "sub2"
   [255]
   % update substate when modifying .hgsub w/clean updated subrepo
@@ -350,12 +334,14 @@ handle subrepos safely on qrecord
   % qrecord --config ui.interactive=1 -m1 1.diff
   diff --git a/.hgsub b/.hgsub
   1 hunks, 1 lines changed
-  examine changes to '.hgsub'? [Ynesfdaq?] y
+  examine changes to '.hgsub'?
+  (enter ? for help) [Ynesfdaq?] y
   
   @@ -1,1 +1,2 @@
    sub = sub
   +sub2 = sub2
-  record this change to '.hgsub'? [Ynesfdaq?] y
+  record this change to '.hgsub'?
+  (enter ? for help) [Ynesfdaq?] y
   
   path sub
    source   sub
@@ -377,7 +363,8 @@ handle subrepos safely on qrecord
   % qrecord --config ui.interactive=1 -m2 2.diff
   diff --git a/.hgsub b/.hgsub
   deleted file mode 100644
-  examine changes to '.hgsub'? [Ynesfdaq?] y
+  examine changes to '.hgsub'?
+  (enter ? for help) [Ynesfdaq?] y
   
   % debugsub should be empty
 
@@ -393,7 +380,8 @@ handle subrepos safely on qrecord
   % qrecord --config ui.interactive=1 -m3 3.diff
   diff --git a/.hgsub b/.hgsub
   deleted file mode 100644
-  examine changes to '.hgsub'? [Ynesfdaq?] y
+  examine changes to '.hgsub'?
+  (enter ? for help) [Ynesfdaq?] y
   
   % debugsub should be empty
 

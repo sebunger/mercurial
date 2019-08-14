@@ -1,5 +1,6 @@
 Show all commands except debug commands
   $ hg debugcomplete
+  abort
   add
   addremove
   annotate
@@ -14,6 +15,7 @@ Show all commands except debug commands
   clone
   commit
   config
+  continue
   copy
   diff
   export
@@ -45,18 +47,21 @@ Show all commands except debug commands
   rollback
   root
   serve
+  shelve
   status
   summary
   tag
   tags
   tip
   unbundle
+  unshelve
   update
   verify
   version
 
 Show all commands that start with "a"
   $ hg debugcomplete a
+  abort
   add
   addremove
   annotate
@@ -103,7 +108,10 @@ Show debug commands if there are no other candidates
   debugmergestate
   debugnamecomplete
   debugobsolete
+  debugp1copies
+  debugp2copies
   debugpathcomplete
+  debugpathcopies
   debugpeer
   debugpickmergetool
   debugpushkey
@@ -225,11 +233,12 @@ Show the options for the "serve" command
 Show an error if we use --options with an ambiguous abbreviation
   $ hg debugcomplete --options s
   hg: command 's' is ambiguous:
-      serve showconfig status summary
+      serve shelve showconfig status summary
   [255]
 
 Show all commands + options
   $ hg debugcommands
+  abort: dry-run
   add: include, exclude, subrepos, dry-run
   addremove: similarity, subrepos, include, exclude, dry-run
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template
@@ -242,8 +251,9 @@ Show all commands + options
   bundle: force, rev, branch, base, all, type, ssh, remotecmd, insecure
   cat: output, rev, decode, include, exclude, template
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, insecure
-  commit: addremove, close-branch, amend, secret, edit, interactive, include, exclude, message, logfile, date, user, subrepos
+  commit: addremove, close-branch, amend, secret, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos
   config: untrusted, edit, local, global, template
+  continue: dry-run
   copy: after, force, include, exclude, dry-run
   debugancestor: 
   debugapplystreamclonebundle: 
@@ -260,7 +270,7 @@ Show all commands + options
   debugdate: extended
   debugdeltachain: changelog, manifest, dir, template
   debugdirstate: nodates, dates, datesort
-  debugdiscovery: old, nonheads, rev, ssh, remotecmd, insecure
+  debugdiscovery: old, nonheads, rev, seed, ssh, remotecmd, insecure
   debugdownload: output
   debugextensions: template
   debugfileset: rev, all-files, show-matcher, show-stage
@@ -279,7 +289,10 @@ Show all commands + options
   debugmergestate: 
   debugnamecomplete: 
   debugobsolete: flags, record-parents, rev, exclusive, index, delete, date, user, template
+  debugp1copies: rev
+  debugp2copies: rev
   debugpathcomplete: full, normal, added, removed
+  debugpathcopies: include, exclude
   debugpeer: 
   debugpickmergetool: rev, changedelete, include, exclude, tool
   debugpushkey: 
@@ -326,22 +339,24 @@ Show all commands + options
   phase: public, draft, secret, force, rev
   pull: update, force, rev, bookmark, branch, ssh, remotecmd, insecure
   push: force, rev, bookmark, branch, new-branch, pushvars, publish, ssh, remotecmd, insecure
-  recover: 
+  recover: verify
   remove: after, force, subrepos, include, exclude, dry-run
   rename: after, force, include, exclude, dry-run
   resolve: all, list, mark, unmark, no-status, re-merge, tool, include, exclude, template
   revert: all, date, rev, no-backup, interactive, include, exclude, dry-run
   rollback: dry-run, force
-  root: 
+  root: template
   serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate, print-url, subrepos
+  shelve: addremove, unknown, cleanup, date, delete, edit, keep, list, message, name, patch, interactive, stat, include, exclude
   status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, terse, copies, print0, rev, change, include, exclude, subrepos, template
   summary: remote
   tag: force, local, rev, remove, edit, message, date, user
   tags: template
   tip: patch, git, style, template
   unbundle: update
+  unshelve: abort, continue, interactive, keep, name, tool, date
   update: clean, check, merge, date, rev, tool
-  verify: 
+  verify: full
   version: template
 
   $ hg init a

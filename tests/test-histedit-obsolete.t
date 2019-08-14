@@ -1,3 +1,12 @@
+#testcases abortcommand abortflag
+
+#if abortflag
+  $ cat >> $HGRCPATH <<EOF
+  > [alias]
+  > abort = histedit --abort
+  > EOF
+#endif
+
   $ . "$TESTDIR/histedit-helpers.sh"
 
 Enable obsolete
@@ -216,7 +225,6 @@ Test that rewriting leaving instability behind is allowed
   > edit b346ab9a313d 6 c
   > EOF
   0 files updated, 0 files merged, 1 files removed, 0 files unresolved
-  adding c
   Editing (b346ab9a313d), you may commit or record as needed now.
   (hg histedit --continue to resume)
   [1]
@@ -351,7 +359,6 @@ New-commit as draft (default)
   > pick ee118ab9fa44 16 k
   > EOF
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
-  adding f
   Editing (b449568bf7fc), you may commit or record as needed now.
   (hg histedit --continue to resume)
   [1]
@@ -394,7 +401,6 @@ New-commit as secret (config)
   > pick ee118ab9fa44 16 k
   > EOF
   0 files updated, 0 files merged, 6 files removed, 0 files unresolved
-  adding f
   Editing (b449568bf7fc), you may commit or record as needed now.
   (hg histedit --continue to resume)
   [1]
@@ -525,7 +531,13 @@ attempted later.
   (hg histedit --continue to resume)
   [1]
 
-  $ hg histedit --abort
+#if abortcommand
+when in dry-run mode
+  $ hg abort --dry-run
+  histedit in progress, will be aborted
+#endif
+
+  $ hg abort
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   saved backup bundle to $TESTTMP/abort/.hg/strip-backup/4dc06258baa6-dff4ef05-backup.hg
 

@@ -35,6 +35,9 @@ from .utils import (
 parsers = policy.importmod(r'parsers')
 propertycache = util.propertycache
 
+# Allow tests to more easily test the alternate path in manifestdict.fastdelta()
+FASTDELTA_TEXTDIFF_THRESHOLD = 1000
+
 def _parse(data):
     # This method does a little bit of excessive-looking
     # precondition checking. This is so that the behavior of this
@@ -123,17 +126,36 @@ def _cmp(a, b):
     return (a > b) - (a < b)
 
 class _lazymanifest(object):
-    def __init__(self, data, positions=None, extrainfo=None, extradata=None):
+    """A pure python manifest backed by a byte string.  It is supplimented with
+    internal lists as it is modified, until it is compacted back to a pure byte
+    string.
+
+    ``data`` is the initial manifest data.
+
+    ``positions`` is a list of offsets, one per manifest entry.  Positive
+    values are offsets into ``data``, negative values are offsets into the
+    ``extradata`` list.  When an entry is removed, its entry is dropped from
+    ``positions``.  The values are encoded such that when walking the list and
+    indexing into ``data`` or ``extradata`` as appropriate, the entries are
+    sorted by filename.
+
+    ``extradata`` is a list of (key, hash, flags) for entries that were added or
+    modified since the manifest was created or compacted.
+    """
+    def __init__(self, data, positions=None, extrainfo=None, extradata=None,
+                 hasremovals=False):
         if positions is None:
             self.positions = self.findlines(data)
             self.extrainfo = [0] * len(self.positions)
             self.data = data
             self.extradata = []
+            self.hasremovals = False
         else:
             self.positions = positions[:]
             self.extrainfo = extrainfo[:]
             self.extradata = extradata[:]
             self.data = data
+            self.hasremovals = hasremovals
 
     def findlines(self, data):
         if not data:
@@ -240,7 +262,10 @@ class _lazymanifest(object):
         self.positions = self.positions[:needle] + self.positions[needle + 1:]
         self.extrainfo = self.extrainfo[:needle] + self.extrainfo[needle + 1:]
         if cur >= 0:
+            # This does NOT unsort the list as far as the search functions are
+            # concerned, as they only examine lines mapped by self.positions.
             self.data = self.data[:cur] + '\x00' + self.data[cur + 1:]
+            self.hasremovals = True
 
     def __setitem__(self, key, value):
         if not isinstance(key, bytes):
@@ -276,14 +301,13 @@ class _lazymanifest(object):
     def copy(self):
         # XXX call _compact like in C?
         return _lazymanifest(self.data, self.positions, self.extrainfo,
-            self.extradata)
+            self.extradata, self.hasremovals)
 
     def _compact(self):
         # hopefully not called TOO often
-        if len(self.extradata) == 0:
+        if len(self.extradata) == 0 and not self.hasremovals:
             return
         l = []
-        last_cut = 0
         i = 0
         offset = 0
         self.extrainfo = [0] * len(self.positions)
@@ -291,11 +315,25 @@ class _lazymanifest(object):
             if self.positions[i] >= 0:
                 cur = self.positions[i]
                 last_cut = cur
+
+                # Collect all contiguous entries in the buffer at the current
+                # offset, breaking out only for added/modified items held in
+                # extradata, or a deleted line prior to the next position.
                 while True:
                     self.positions[i] = offset
                     i += 1
                     if i == len(self.positions) or self.positions[i] < 0:
                         break
+
+                    # A removed file has no positions[] entry, but does have an
+                    # overwritten first byte.  Break out and find the end of the
+                    # current good entry/entries if there is a removed file
+                    # before the next position.
+                    if (self.hasremovals
+                        and self.data.find('\n\x00', cur,
+                                           self.positions[i]) != -1):
+                        break
+
                     offset += self.positions[i] - cur
                     cur = self.positions[i]
                 end_cut = self.data.find('\n', cur)
@@ -314,6 +352,7 @@ class _lazymanifest(object):
                     offset += len(l[-1])
                     i += 1
         self.data = ''.join(l)
+        self.hasremovals = False
         self.extradata = []
 
     def _pack(self, d):
@@ -467,9 +506,9 @@ class manifestdict(object):
             if match(fn):
                 yield fn
 
-        # for dirstate.walk, files=['.'] means "walk the whole tree".
+        # for dirstate.walk, files=[''] means "walk the whole tree".
         # follow that here, too
-        fset.discard('.')
+        fset.discard('')
 
         for fn in sorted(fset):
             if not self.hasdir(fn):
@@ -559,7 +598,7 @@ class manifestdict(object):
         addbuf = util.buffer(base)
 
         changes = list(changes)
-        if len(changes) < 1000:
+        if len(changes) < FASTDELTA_TEXTDIFF_THRESHOLD:
             # start with a readonly loop that finds the offset of
             # each line and creates the deltas
             for f, todelete in changes:
@@ -1039,9 +1078,9 @@ class treemanifest(object):
                 fset.remove(fn)
             yield fn
 
-        # for dirstate.walk, files=['.'] means "walk the whole tree".
+        # for dirstate.walk, files=[''] means "walk the whole tree".
         # follow that here, too
-        fset.discard('.')
+        fset.discard('')
 
         for fn in sorted(fset):
             if not self.hasdir(fn):
@@ -1049,7 +1088,7 @@ class treemanifest(object):
 
     def _walk(self, match):
         '''Recursively generates matching file names for walk().'''
-        visit = match.visitchildrenset(self._dir[:-1] or '.')
+        visit = match.visitchildrenset(self._dir[:-1])
         if not visit:
             return
 
@@ -1077,7 +1116,7 @@ class treemanifest(object):
         '''recursively generate a new manifest filtered by the match argument.
         '''
 
-        visit = match.visitchildrenset(self._dir[:-1] or '.')
+        visit = match.visitchildrenset(self._dir[:-1])
         if visit == 'all':
             return self.copy()
         ret = treemanifest(self._dir)
@@ -1236,7 +1275,7 @@ class treemanifest(object):
             return m._dirs.get(d, emptytree)._node
 
         # let's skip investigating things that `match` says we do not need.
-        visit = match.visitchildrenset(self._dir[:-1] or '.')
+        visit = match.visitchildrenset(self._dir[:-1])
         visit = self._loadchildrensetlazy(visit)
         if visit == 'this' or visit == 'all':
             visit = None
@@ -1255,7 +1294,7 @@ class treemanifest(object):
 
         If `matcher` is provided, it only returns subtrees that match.
         """
-        if matcher and not matcher.visitdir(self._dir[:-1] or '.'):
+        if matcher and not matcher.visitdir(self._dir[:-1]):
             return
         if not matcher or matcher(self._dir[:-1]):
             yield self
@@ -1277,6 +1316,9 @@ class manifestfulltextcache(util.lrucachedict):
     These are written in reverse cache order (oldest to newest).
 
     """
+
+    _file = 'manifestfulltextcache'
+
     def __init__(self, max):
         super(manifestfulltextcache, self).__init__(max)
         self._dirty = False
@@ -1288,7 +1330,7 @@ class manifestfulltextcache(util.lrucachedict):
             return
 
         try:
-            with self._opener('manifestfulltextcache') as fp:
+            with self._opener(self._file) as fp:
                 set = super(manifestfulltextcache, self).__setitem__
                 # ignore trailing data, this is a cache, corruption is skipped
                 while True:
@@ -1314,8 +1356,7 @@ class manifestfulltextcache(util.lrucachedict):
         if not self._dirty or self._opener is None:
             return
         # rotate backwards to the first used node
-        with self._opener(
-                'manifestfulltextcache', 'w', atomictemp=True, checkambig=True
+        with self._opener(self._file, 'w', atomictemp=True, checkambig=True
             ) as fp:
             node = self._head.prev
             while True:
@@ -1376,6 +1417,10 @@ class manifestfulltextcache(util.lrucachedict):
             self.write()
         self._read = False
 
+# and upper bound of what we expect from compression
+# (real live value seems to be "3")
+MAXCOMPRESSION = 3
+
 @interfaceutil.implementer(repository.imanifeststorage)
 class manifestrevlog(object):
     '''A revlog that stores manifest texts. This is responsible for caching the
@@ -1426,7 +1471,8 @@ class manifestrevlog(object):
         self._revlog = revlog.revlog(opener, indexfile,
                                      # only root indexfile is cached
                                      checkambig=not bool(tree),
-                                     mmaplargeindex=True)
+                                     mmaplargeindex=True,
+                                     upperboundcomp=MAXCOMPRESSION)
 
         self.index = self._revlog.index
         self.version = self._revlog.version
@@ -1434,10 +1480,13 @@ class manifestrevlog(object):
 
     def _setupmanifestcachehooks(self, repo):
         """Persist the manifestfulltextcache on lock release"""
-        if not util.safehasattr(repo, '_lockref'):
+        if not util.safehasattr(repo, '_wlockref'):
             return
 
-        self._fulltextcache._opener = repo.cachevfs
+        self._fulltextcache._opener = repo.wcachevfs
+        if repo._currentlock(repo._wlockref) is None:
+            return
+
         reporef = weakref.ref(repo)
         manifestrevlogref = weakref.ref(self)
 
@@ -1451,8 +1500,7 @@ class manifestrevlog(object):
                 return
             self._fulltextcache.write()
 
-        if repo._currentlock(repo._lockref) is not None:
-            repo._afterlock(persistmanifestcache)
+        repo._afterlock(persistmanifestcache)
 
     @property
     def fulltextcache(self):
@@ -1483,8 +1531,8 @@ class manifestrevlog(object):
 
             _checkforbidden(added)
             # combine the changed lists into one sorted iterator
-            work = heapq.merge([(x, False) for x in added],
-                               [(x, True) for x in removed])
+            work = heapq.merge([(x, False) for x in sorted(added)],
+                               [(x, True) for x in sorted(removed)])
 
             arraytext, deltatext = m.fastdelta(self.fulltextcache[p1], work)
             cachedelta = self._revlog.rev(p1), deltatext
@@ -1682,7 +1730,7 @@ class manifestlog(object):
             return self._dirmancache[tree][node]
 
         if not self._narrowmatch.always():
-            if not self._narrowmatch.visitdir(tree[:-1] or '.'):
+            if not self._narrowmatch.visitdir(tree[:-1]):
                 return excludeddirmanifestctx(tree, node)
         if tree:
             if self._rootstore._treeondisk:
@@ -1875,7 +1923,7 @@ class treemanifestctx(object):
     def _storage(self):
         narrowmatch = self._manifestlog._narrowmatch
         if not narrowmatch.always():
-            if not narrowmatch.visitdir(self._dir[:-1] or '.'):
+            if not narrowmatch.visitdir(self._dir[:-1]):
                 return excludedmanifestrevlog(self._dir)
         return self._manifestlog.getstorage(self._dir)
 

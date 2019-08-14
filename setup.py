@@ -32,6 +32,7 @@ if os.environ.get('HGALLOWPYTHON3', ''):
     ])
 
 import sys, platform
+import sysconfig
 if sys.version_info[0] >= 3:
     printf = eval('print')
     libdir_escape = 'unicode_escape'
@@ -85,13 +86,30 @@ if sys.version_info[0] != 2:
 
     if badpython:
         error = """
-Mercurial only supports Python 2.7.
 Python {py} detected.
-Please re-run with Python 2.7.
-""".format(py=sys.version_info)
+
+Mercurial currently has beta support for Python 3 and use of Python 2.7 is
+recommended for the best experience.
+
+Please re-run with Python 2.7 for a faster, less buggy experience.
+
+If you would like to beta test Mercurial with Python 3, this error can
+be suppressed by defining the HGPYTHON3 environment variable when invoking
+this command. No special environment variables or configuration changes are
+necessary to run `hg` with Python 3.
+
+See https://www.mercurial-scm.org/wiki/Python3 for more on Mercurial's
+Python 3 support.
+""".format(py='.'.join('%d' % x for x in sys.version_info[0:2]))
 
         printf(error, file=sys.stderr)
         sys.exit(1)
+
+if sys.version_info[0] >= 3:
+    DYLIB_SUFFIX = sysconfig.get_config_vars()['EXT_SUFFIX']
+else:
+    # deprecated in Python 3
+    DYLIB_SUFFIX = sysconfig.get_config_vars()['SO']
 
 # Solaris Python packaging brain damage
 try:
@@ -240,9 +258,9 @@ try:
 except ImportError:
     py2exeloaded = False
 
-def runcmd(cmd, env):
+def runcmd(cmd, env, cwd=None):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE, env=env)
+                         stderr=subprocess.PIPE, env=env, cwd=cwd)
     out, err = p.communicate()
     return p.returncode, out, err
 
@@ -435,12 +453,13 @@ class hgbuildmo(build):
 
 class hgdist(Distribution):
     pure = False
+    rust = hgrustext is not None
     cffi = ispypy
 
-    global_options = Distribution.global_options + \
-                     [('pure', None, "use pure (slow) Python "
-                        "code instead of C extensions"),
-                     ]
+    global_options = Distribution.global_options + [
+        ('pure', None, "use pure (slow) Python code instead of C extensions"),
+        ('rust', None, "use Rust extensions additionally to C extensions"),
+    ]
 
     def has_ext_modules(self):
         # self.ext_modules is emptied in hgbuildpy.finalize_options which is
@@ -450,18 +469,25 @@ class hgdist(Distribution):
 # This is ugly as a one-liner. So use a variable.
 buildextnegops = dict(getattr(build_ext, 'negative_options', {}))
 buildextnegops['no-zstd'] = 'zstd'
+buildextnegops['no-rust'] = 'rust'
 
 class hgbuildext(build_ext):
     user_options = build_ext.user_options + [
         ('zstd', None, 'compile zstd bindings [default]'),
         ('no-zstd', None, 'do not compile zstd bindings'),
+        ('rust', None,
+         'compile Rust extensions if they are in use '
+         '(requires Cargo) [default]'),
+        ('no-rust', None, 'do not compile Rust extensions'),
     ]
 
-    boolean_options = build_ext.boolean_options + ['zstd']
+    boolean_options = build_ext.boolean_options + ['zstd', 'rust']
     negative_opt = buildextnegops
 
     def initialize_options(self):
         self.zstd = True
+        self.rust = True
+
         return build_ext.initialize_options(self)
 
     def build_extensions(self):
@@ -474,14 +500,19 @@ class hgbuildext(build_ext):
             self.extensions = [e for e in self.extensions
                                if e.name != 'mercurial.zstd']
 
-        for rustext in ruststandalones:
-            rustext.build('' if self.inplace else self.build_lib)
+        # Build Rust standalon extensions if it'll be used
+        # and its build is not explictely disabled (for external build
+        # as Linux distributions would do)
+        if self.distribution.rust and self.rust and hgrustext != 'direct-ffi':
+            for rustext in ruststandalones:
+                rustext.build('' if self.inplace else self.build_lib)
 
         return build_ext.build_extensions(self)
 
     def build_extension(self, ext):
-        if isinstance(ext, RustExtension):
-            ext.rustbuild()
+        if (self.distribution.rust and self.rust
+            and isinstance(ext, RustExtension)):
+                ext.rustbuild()
         try:
             build_ext.build_extension(self, ext)
         except CCompilerError:
@@ -543,13 +574,14 @@ class hgbuildpy(build_py):
         basepath = os.path.join(self.build_lib, 'mercurial')
         self.mkpath(basepath)
 
+        rust = self.distribution.rust
         if self.distribution.pure:
             modulepolicy = 'py'
         elif self.build_lib == '.':
-            # in-place build should run without rebuilding C extensions
-            modulepolicy = 'allow'
+            # in-place build should run without rebuilding and Rust extensions
+            modulepolicy = 'rust+c-allow' if rust else 'allow'
         else:
-            modulepolicy = 'c'
+            modulepolicy = 'rust+c' if rust else 'c'
 
         content = b''.join([
             b'# this file is autogenerated by setup.py\n',
@@ -584,9 +616,9 @@ class buildhgextindex(Command):
         if err or returncode != 0:
             raise DistutilsExecError(err)
 
-        with open(self._indexfilename, 'w') as f:
-            f.write('# this file is autogenerated by setup.py\n')
-            f.write('docs = ')
+        with open(self._indexfilename, 'wb') as f:
+            f.write(b'# this file is autogenerated by setup.py\n')
+            f.write(b'docs = ')
             f.write(out)
 
 class buildhgexe(build_ext):
@@ -666,7 +698,7 @@ class buildhgexe(build_ext):
             self.addlongpathsmanifest()
 
     def addlongpathsmanifest(self):
-        """Add manifest pieces so that hg.exe understands long paths
+        r"""Add manifest pieces so that hg.exe understands long paths
 
         This is an EXPERIMENTAL feature, use with care.
         To enable long paths support, one needs to do two things:
@@ -702,6 +734,117 @@ class buildhgexe(build_ext):
     def hgexepath(self):
         dir = os.path.dirname(self.get_ext_fullpath('dummy'))
         return os.path.join(self.build_temp, dir, 'hg.exe')
+
+class hgbuilddoc(Command):
+    description = 'build documentation'
+    user_options = [
+        ('man', None, 'generate man pages'),
+        ('html', None, 'generate html pages'),
+    ]
+
+    def initialize_options(self):
+        self.man = None
+        self.html = None
+
+    def finalize_options(self):
+        # If --man or --html are set, only generate what we're told to.
+        # Otherwise generate everything.
+        have_subset = self.man is not None or self.html is not None
+
+        if have_subset:
+            self.man = True if self.man else False
+            self.html = True if self.html else False
+        else:
+            self.man = True
+            self.html = True
+
+    def run(self):
+        def normalizecrlf(p):
+            with open(p, 'rb') as fh:
+                orig = fh.read()
+
+            if b'\r\n' not in orig:
+                return
+
+            log.info('normalizing %s to LF line endings' % p)
+            with open(p, 'wb') as fh:
+                fh.write(orig.replace(b'\r\n', b'\n'))
+
+        def gentxt(root):
+            txt = 'doc/%s.txt' % root
+            log.info('generating %s' % txt)
+            res, out, err = runcmd(
+                [sys.executable, 'gendoc.py', root],
+                os.environ,
+                cwd='doc')
+            if res:
+                raise SystemExit('error running gendoc.py: %s' %
+                                 '\n'.join([out, err]))
+
+            with open(txt, 'wb') as fh:
+                fh.write(out)
+
+        def gengendoc(root):
+            gendoc = 'doc/%s.gendoc.txt' % root
+
+            log.info('generating %s' % gendoc)
+            res, out, err = runcmd(
+                [sys.executable, 'gendoc.py', '%s.gendoc' % root],
+                os.environ,
+                cwd='doc')
+            if res:
+                raise SystemExit('error running gendoc: %s' %
+                                 '\n'.join([out, err]))
+
+            with open(gendoc, 'wb') as fh:
+                fh.write(out)
+
+        def genman(root):
+            log.info('generating doc/%s' % root)
+            res, out, err = runcmd(
+                [sys.executable, 'runrst', 'hgmanpage', '--halt', 'warning',
+                 '--strip-elements-with-class', 'htmlonly',
+                 '%s.txt' % root, root],
+                os.environ,
+                cwd='doc')
+            if res:
+                raise SystemExit('error running runrst: %s' %
+                                 '\n'.join([out, err]))
+
+            normalizecrlf('doc/%s' % root)
+
+        def genhtml(root):
+            log.info('generating doc/%s.html' % root)
+            res, out, err = runcmd(
+                [sys.executable, 'runrst', 'html', '--halt', 'warning',
+                 '--link-stylesheet', '--stylesheet-path', 'style.css',
+                 '%s.txt' % root, '%s.html' % root],
+                os.environ,
+                cwd='doc')
+            if res:
+                raise SystemExit('error running runrst: %s' %
+                                 '\n'.join([out, err]))
+
+            normalizecrlf('doc/%s.html' % root)
+
+        # This logic is duplicated in doc/Makefile.
+        sources = set(f for f in os.listdir('mercurial/help')
+                      if re.search(r'[0-9]\.txt$', f))
+
+        # common.txt is a one-off.
+        gentxt('common')
+
+        for source in sorted(sources):
+            assert source[-4:] == '.txt'
+            root = source[:-4]
+
+            gentxt(root)
+            gengendoc(root)
+
+            if self.man:
+                genman(root)
+            if self.html:
+                genhtml(root)
 
 class hginstall(install):
 
@@ -827,7 +970,85 @@ class hginstallscripts(install_scripts):
             with open(outfile, 'wb') as fp:
                 fp.write(data)
 
+# virtualenv installs custom distutils/__init__.py and
+# distutils/distutils.cfg files which essentially proxy back to the
+# "real" distutils in the main Python install. The presence of this
+# directory causes py2exe to pick up the "hacked" distutils package
+# from the virtualenv and "import distutils" will fail from the py2exe
+# build because the "real" distutils files can't be located.
+#
+# We work around this by monkeypatching the py2exe code finding Python
+# modules to replace the found virtualenv distutils modules with the
+# original versions via filesystem scanning. This is a bit hacky. But
+# it allows us to use virtualenvs for py2exe packaging, which is more
+# deterministic and reproducible.
+#
+# It's worth noting that the common StackOverflow suggestions for this
+# problem involve copying the original distutils files into the
+# virtualenv or into the staging directory after setup() is invoked.
+# The former is very brittle and can easily break setup(). Our hacking
+# of the found modules routine has a similar result as copying the files
+# manually. But it makes fewer assumptions about how py2exe works and
+# is less brittle.
+
+# This only catches virtualenvs made with virtualenv (as opposed to
+# venv, which is likely what Python 3 uses).
+py2exehacked = py2exeloaded and getattr(sys, 'real_prefix', None) is not None
+
+if py2exehacked:
+    from distutils.command.py2exe import py2exe as buildpy2exe
+    from py2exe.mf import Module as py2exemodule
+
+    class hgbuildpy2exe(buildpy2exe):
+        def find_needed_modules(self, mf, files, modules):
+            res = buildpy2exe.find_needed_modules(self, mf, files, modules)
+
+            # Replace virtualenv's distutils modules with the real ones.
+            modules = {}
+            for k, v in res.modules.items():
+                if k != 'distutils' and not k.startswith('distutils.'):
+                    modules[k] = v
+
+            res.modules = modules
+
+            import opcode
+            distutilsreal = os.path.join(os.path.dirname(opcode.__file__),
+                                         'distutils')
+
+            for root, dirs, files in os.walk(distutilsreal):
+                for f in sorted(files):
+                    if not f.endswith('.py'):
+                        continue
+
+                    full = os.path.join(root, f)
+
+                    parents = ['distutils']
+
+                    if root != distutilsreal:
+                        rel = os.path.relpath(root, distutilsreal)
+                        parents.extend(p for p in rel.split(os.sep))
+
+                    modname = '%s.%s' % ('.'.join(parents), f[:-3])
+
+                    if modname.startswith('distutils.tests.'):
+                        continue
+
+                    if modname.endswith('.__init__'):
+                        modname = modname[:-len('.__init__')]
+                        path = os.path.dirname(full)
+                    else:
+                        path = None
+
+                    res.modules[modname] = py2exemodule(modname, full,
+                                                        path=path)
+
+            if 'distutils' not in res.modules:
+                raise SystemExit('could not find distutils modules')
+
+            return res
+
 cmdclass = {'build': hgbuild,
+            'build_doc': hgbuilddoc,
             'build_mo': hgbuildmo,
             'build_ext': hgbuildext,
             'build_py': hgbuildpy,
@@ -838,6 +1059,9 @@ cmdclass = {'build': hgbuild,
             'install_scripts': hginstallscripts,
             'build_hgexe': buildhgexe,
             }
+
+if py2exehacked:
+    cmdclass['py2exe'] = hgbuildpy2exe
 
 packages = ['mercurial',
             'mercurial.cext',
@@ -863,6 +1087,12 @@ packages = ['mercurial',
 if sys.version_info[0] == 2:
     packages.extend(['mercurial.thirdparty.concurrent',
                      'mercurial.thirdparty.concurrent.futures'])
+
+if 'HG_PY2EXE_EXTRA_INSTALL_PACKAGES' in os.environ:
+    # py2exe can't cope with namespace packages very well, so we have to
+    # install any hgext3rd.* extensions that we want in the final py2exe
+    # image here. This is gross, but you gotta do what you gotta do.
+    packages.extend(os.environ['HG_PY2EXE_EXTRA_INSTALL_PACKAGES'].split(' '))
 
 common_depends = ['mercurial/bitmanipulation.h',
                   'mercurial/compat.h',
@@ -923,8 +1153,6 @@ class RustExtension(Extension):
     def __init__(self, mpath, sources, rustlibname, subcrate,
                  py3_features=None, **kw):
         Extension.__init__(self, mpath, sources, **kw)
-        if hgrustext is None:
-            return
         srcdir = self.rustsrcdir = os.path.join('rust', subcrate)
         self.py3_features = py3_features
 
@@ -939,9 +1167,20 @@ class RustExtension(Extension):
                                 for fname in fnames
                                 if os.path.splitext(fname)[1] == '.rs')
 
+    @staticmethod
+    def rustdylibsuffix():
+        """Return the suffix for shared libraries produced by rustc.
+
+        See also: https://doc.rust-lang.org/reference/linkage.html
+        """
+        if sys.platform == 'darwin':
+            return '.dylib'
+        elif os.name == 'nt':
+            return '.dll'
+        else:
+            return '.so'
+
     def rustbuild(self):
-        if hgrustext is None:
-            return
         env = os.environ.copy()
         if 'HGTEST_RESTOREENV' in env:
             # Mercurial tests change HOME to a temporary directory,
@@ -956,10 +1195,14 @@ class RustExtension(Extension):
             import pwd
             env['HOME'] = pwd.getpwuid(os.getuid()).pw_dir
 
-        cargocmd = ['cargo', 'build', '-vv', '--release']
+        cargocmd = ['cargo', 'rustc', '-vv', '--release']
         if sys.version_info[0] == 3 and self.py3_features is not None:
             cargocmd.extend(('--features', self.py3_features,
                              '--no-default-features'))
+        cargocmd.append('--')
+        if sys.platform == 'darwin':
+            cargocmd.extend(("-C", "link-arg=-undefined",
+                             "-C", "link-arg=dynamic_lookup"))
         try:
             subprocess.check_call(cargocmd, env=env, cwd=self.rustsrcdir)
         except OSError as exc:
@@ -973,7 +1216,8 @@ class RustExtension(Extension):
         except subprocess.CalledProcessError:
             raise RustCompilationError(
                 "Cargo failed. Working directory: %r, "
-                "command: %r, environment: %r" % (self.rustsrcdir, cmd, env))
+                "command: %r, environment: %r"
+                % (self.rustsrcdir, cargocmd, env))
 
 class RustEnhancedExtension(RustExtension):
     """A C Extension, conditionally enhanced with Rust code.
@@ -992,6 +1236,10 @@ class RustEnhancedExtension(RustExtension):
         self.libraries.append(rustlibname)
         self.library_dirs.append(self.rusttargetdir)
 
+    def rustbuild(self):
+        if hgrustext == 'direct-ffi':
+            RustExtension.rustbuild(self)
+
 class RustStandaloneExtension(RustExtension):
 
     def __init__(self, pydottedname, rustcrate, dylibname, **kw):
@@ -1003,9 +1251,9 @@ class RustStandaloneExtension(RustExtension):
         self.rustbuild()
         target = [target_dir]
         target.extend(self.name.split('.'))
-        ext = '.so'  # TODO Unix only
-        target[-1] += ext
-        shutil.copy2(os.path.join(self.rusttargetdir, self.dylibname + ext),
+        target[-1] += DYLIB_SUFFIX
+        shutil.copy2(os.path.join(self.rusttargetdir,
+                                  self.dylibname + self.rustdylibsuffix()),
                      os.path.join(*target))
 
 
@@ -1046,13 +1294,9 @@ extmodules = [
         ]),
     Extension('hgext.fsmonitor.pywatchman.bser',
               ['hgext/fsmonitor/pywatchman/bser.c']),
+    RustStandaloneExtension('mercurial.rustext', 'hg-cpython', 'librusthg',
+                            py3_features='python3'),
     ]
-
-if hgrustext == 'cpython':
-    extmodules.append(
-        RustStandaloneExtension('mercurial.rustext', 'hg-cpython', 'librusthg',
-                                py3_features='python3')
-    )
 
 
 sys.path.insert(0, 'contrib/python-zstandard')
@@ -1129,17 +1373,50 @@ setupversion = version.decode('ascii')
 
 extra = {}
 
+py2exepackages = [
+    'hgdemandimport',
+    'hgext3rd',
+    'hgext',
+    'email',
+    # implicitly imported per module policy
+    # (cffi wouldn't be used as a frozen exe)
+    'mercurial.cext',
+    #'mercurial.cffi',
+    'mercurial.pure',
+]
+
+py2exeexcludes = []
+py2exedllexcludes = ['crypt32.dll']
+
 if issetuptools:
     extra['python_requires'] = supportedpy
+
 if py2exeloaded:
     extra['console'] = [
         {'script':'hg',
          'copyright':'Copyright (C) 2005-2019 Matt Mackall and others',
          'product_version':version}]
-    # sub command of 'build' because 'py2exe' does not handle sub_commands
-    build.sub_commands.insert(0, ('build_hgextindex', None))
+    # Sub command of 'build' because 'py2exe' does not handle sub_commands.
+    # Need to override hgbuild because it has a private copy of
+    # build.sub_commands.
+    hgbuild.sub_commands.insert(0, ('build_hgextindex', None))
     # put dlls in sub directory so that they won't pollute PATH
     extra['zipfile'] = 'lib/library.zip'
+
+    # We allow some configuration to be supplemented via environment
+    # variables. This is better than setup.cfg files because it allows
+    # supplementing configs instead of replacing them.
+    extrapackages = os.environ.get('HG_PY2EXE_EXTRA_PACKAGES')
+    if extrapackages:
+        py2exepackages.extend(extrapackages.split(' '))
+
+    excludes = os.environ.get('HG_PY2EXE_EXTRA_EXCLUDES')
+    if excludes:
+        py2exeexcludes.extend(excludes.split(' '))
+
+    dllexcludes = os.environ.get('HG_PY2EXE_EXTRA_DLL_EXCLUDES')
+    if dllexcludes:
+        py2exedllexcludes.extend(dllexcludes.split(' '))
 
 if os.name == 'nt':
     # Windows binary file versions for exe/dll files must have the
@@ -1220,16 +1497,10 @@ setup(name='mercurial',
       distclass=hgdist,
       options={
           'py2exe': {
-              'packages': [
-                  'hgdemandimport',
-                  'hgext',
-                  'email',
-                  # implicitly imported per module policy
-                  # (cffi wouldn't be used as a frozen exe)
-                  'mercurial.cext',
-                  #'mercurial.cffi',
-                  'mercurial.pure',
-              ],
+              'bundle_files': 3,
+              'dll_excludes': py2exedllexcludes,
+              'excludes': py2exeexcludes,
+              'packages': py2exepackages,
           },
           'bdist_mpkg': {
               'zipdist': False,

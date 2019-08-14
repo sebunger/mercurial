@@ -201,44 +201,40 @@ def _headssummary(pushop):
     outgoing = pushop.outgoing
     cl = repo.changelog
     headssum = {}
+    missingctx = set()
     # A. Create set of branches involved in the push.
-    branches = set(repo[n].branch() for n in outgoing.missing)
+    branches = set()
+    for n in outgoing.missing:
+        ctx = repo[n]
+        missingctx.add(ctx)
+        branches.add(ctx.branch())
 
     with remote.commandexecutor() as e:
         remotemap = e.callcommand('branchmap', {}).result()
 
-    newbranches = branches - set(remotemap)
-    branches.difference_update(newbranches)
-
-    # A. register remote heads
-    remotebranches = set()
+    knownnode = cl.hasnode # do not use nodemap until it is filtered
+    # A. register remote heads of branches which are in outgoing set
     for branch, heads in remotemap.iteritems():
-        remotebranches.add(branch)
+        # don't add head info about branches which we don't have locally
+        if branch not in branches:
+            continue
         known = []
         unsynced = []
-        knownnode = cl.hasnode # do not use nodemap until it is filtered
         for h in heads:
             if knownnode(h):
                 known.append(h)
             else:
                 unsynced.append(h)
         headssum[branch] = (known, list(known), unsynced)
+
     # B. add new branch data
-    missingctx = list(repo[n] for n in outgoing.missing)
-    touchedbranches = set()
-    for ctx in missingctx:
-        branch = ctx.branch()
-        touchedbranches.add(branch)
+    for branch in branches:
         if branch not in headssum:
             headssum[branch] = (None, [], [])
 
-    # C drop data about untouched branches:
-    for branch in remotebranches - touchedbranches:
-        del headssum[branch]
-
-    # D. Update newmap with outgoing changes.
+    # C. Update newmap with outgoing changes.
     # This will possibly add new heads and remove existing ones.
-    newmap = branchmap.branchcache((branch, heads[1])
+    newmap = branchmap.remotebranchcache((branch, heads[1])
                                  for branch, heads in headssum.iteritems()
                                  if heads[0] is not None)
     newmap.update(repo, (ctx.rev() for ctx in missingctx))
@@ -347,10 +343,19 @@ def checkheads(pushop):
     # 1. Check for new branches on the remote.
     if newbranches and not newbranch:  # new branch requires --new-branch
         branchnames = ', '.join(sorted(newbranches))
-        raise error.Abort(_("push creates new remote branches: %s!")
-                           % branchnames,
-                         hint=_("use 'hg push --new-branch' to create"
-                                " new remote branches"))
+        # Calculate how many of the new branches are closed branches
+        closedbranches = set()
+        for tag, heads, tip, isclosed in repo.branchmap().iterbranches():
+            if isclosed:
+                closedbranches.add(tag)
+        closedbranches = (closedbranches & set(newbranches))
+        if closedbranches:
+            errmsg = (_("push creates new remote branches: %s (%d closed)!")
+                        % (branchnames, len(closedbranches)))
+        else:
+            errmsg = (_("push creates new remote branches: %s!")% branchnames)
+        hint=_("use 'hg push --new-branch' to create new remote branches")
+        raise error.Abort(errmsg, hint=hint)
 
     # 2. Find heads that we need not warn about
     nowarnheads = _nowarnheads(pushop)

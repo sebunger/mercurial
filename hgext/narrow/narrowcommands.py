@@ -146,7 +146,7 @@ def pullbundle2extraprepare(orig, pullop, kwargs):
         kwargs['excludepats'] = exclude
     # calculate known nodes only in ellipses cases because in non-ellipses cases
     # we have all the nodes
-    if wireprototypes.ELLIPSESCAP in pullop.remote.capabilities():
+    if wireprototypes.ELLIPSESCAP1 in pullop.remote.capabilities():
         kwargs['known'] = [node.hex(ctx.node()) for ctx in
                            repo.set('::%ln', pullop.common)
                            if ctx.node() != node.nullid]
@@ -216,7 +216,7 @@ def _narrow(ui, repo, remote, commoninc, oldincludes, oldexcludes,
                     todelete.append(f)
             elif f.startswith('meta/'):
                 dir = f[5:-13]
-                dirs = ['.'] + sorted(util.dirs({dir})) + [dir]
+                dirs = sorted(util.dirs({dir})) + [dir]
                 include = True
                 for d in dirs:
                     visit = newmatch.visitdir(d)
@@ -253,7 +253,14 @@ def _widen(ui, repo, remote, commoninc, oldincludes, oldexcludes,
     # then send that information to server whether we want ellipses or not.
     # Theoretically a non-ellipses repo should be able to use narrow
     # functionality from an ellipses enabled server
-    ellipsesremote = wireprototypes.ELLIPSESCAP in remote.capabilities()
+    remotecap = remote.capabilities()
+    ellipsesremote = any(cap in remotecap
+                         for cap in wireprototypes.SUPPORTED_ELLIPSESCAP)
+
+    # check whether we are talking to a server which supports old version of
+    # ellipses capabilities
+    isoldellipses = (ellipsesremote and wireprototypes.ELLIPSESCAP1 in
+                     remotecap and wireprototypes.ELLIPSESCAP not in remotecap)
 
     def pullbundle2extraprepare_widen(orig, pullop, kwargs):
         orig(pullop, kwargs)
@@ -271,19 +278,22 @@ def _widen(ui, repo, remote, commoninc, oldincludes, oldexcludes,
     # silence the devel-warning of applying an empty changegroup
     overrides = {('devel', 'all-warnings'): False}
 
+    common = commoninc[0]
     with ui.uninterruptible():
-        common = commoninc[0]
         if ellipsesremote:
             ds = repo.dirstate
             p1, p2 = ds.p1(), ds.p2()
             with ds.parentchange():
                 ds.setparents(node.nullid, node.nullid)
-            with wrappedextraprepare,\
-                 repo.ui.configoverride(overrides, 'widen'):
+        if isoldellipses:
+            with wrappedextraprepare:
                 exchange.pull(repo, remote, heads=common)
-            with ds.parentchange():
-                ds.setparents(p1, p2)
         else:
+            known = []
+            if ellipsesremote:
+                known = [node.hex(ctx.node()) for ctx in
+                         repo.set('::%ln', common)
+                         if ctx.node() != node.nullid]
             with remote.commandexecutor() as e:
                 bundle = e.callcommand('narrow_widen', {
                     'oldincludes': oldincludes,
@@ -292,15 +302,20 @@ def _widen(ui, repo, remote, commoninc, oldincludes, oldexcludes,
                     'newexcludes': newexcludes,
                     'cgversion': '03',
                     'commonheads': common,
-                    'known': [],
-                    'ellipses': False,
+                    'known': known,
+                    'ellipses': ellipsesremote,
                 }).result()
 
-            with repo.transaction('widening') as tr,\
-                 repo.ui.configoverride(overrides, 'widen'):
-                tgetter = lambda: tr
-                bundle2.processbundle(repo, bundle,
-                        transactiongetter=tgetter)
+            trmanager = exchange.transactionmanager(repo, 'widen', remote.url())
+            with trmanager, repo.ui.configoverride(overrides, 'widen'):
+                op = bundle2.bundleoperation(repo, trmanager.transaction,
+                                             source='widen')
+                # TODO: we should catch error.Abort here
+                bundle2.processbundle(repo, bundle, op=op)
+
+        if ellipsesremote:
+            with ds.parentchange():
+                ds.setparents(p1, p2)
 
         with repo.transaction('widening'):
             repo.setnewnarrowpats()
@@ -345,10 +360,14 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     and replaced by the new ones specified to --addinclude and --addexclude.
     If --clear is specified without any further options, the narrowspec will be
     empty and will not match any files.
+
+    --import-rules accepts a path to a file containing rules, allowing you to
+    add --addinclude, --addexclude rules in bulk. Like the other include and
+    exclude switches, the changes are applied immediately.
     """
     opts = pycompat.byteskwargs(opts)
     if repository.NARROW_REQUIREMENT not in repo.requirements:
-        raise error.Abort(_('the narrow command is only supported on '
+        raise error.Abort(_('the tracked command is only supported on '
                             'respositories cloned with --narrow'))
 
     # Before supporting, decide whether it "hg tracked --clear" should mean

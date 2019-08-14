@@ -8,6 +8,7 @@
 from __future__ import absolute_import
 
 import errno
+import functools
 import hashlib
 import os
 import stat
@@ -23,6 +24,9 @@ from . import (
 )
 
 parsers = policy.importmod(r'parsers')
+# how much bytes should be read from fncache in one read
+# It is done to prevent loading large fncache files into memory
+fncache_chunksize = 10 ** 6
 
 def _matchtrackedpath(path, matcher):
     """parses a fncache entry and returns whether the entry is tracking a path
@@ -36,7 +40,7 @@ def _matchtrackedpath(path, matcher):
     if path.startswith('data/'):
         return matcher(path[len('data/'):-len('.i')])
     elif path.startswith('meta/'):
-        return matcher.visitdir(path[len('meta/'):-len('/00manifest.i')] or '.')
+        return matcher.visitdir(path[len('meta/'):-len('/00manifest.i')])
 
     raise error.ProgrammingError("cannot decode path %s" % path)
 
@@ -333,7 +337,7 @@ def _calcmode(vfs):
         mode = None
     return mode
 
-_data = ('narrowspec data meta 00manifest.d 00manifest.i'
+_data = ('bookmarks narrowspec data meta 00manifest.d 00manifest.i'
          ' 00changelog.d 00changelog.i phaseroots obsstore')
 
 def isrevlog(f, kind, st):
@@ -463,14 +467,35 @@ class fncache(object):
             # skip nonexistent file
             self.entries = set()
             return
-        self.entries = set(decodedir(fp.read()).splitlines())
+
+        self.entries = set()
+        chunk = b''
+        for c in iter(functools.partial(fp.read, fncache_chunksize), b''):
+            chunk += c
+            try:
+                p = chunk.rindex(b'\n')
+                self.entries.update(decodedir(chunk[:p + 1]).splitlines())
+                chunk = chunk[p + 1:]
+            except ValueError:
+                # substring '\n' not found, maybe the entry is bigger than the
+                # chunksize, so let's keep iterating
+                pass
+
+        if chunk:
+            raise error.Abort(_("fncache does not ends with a newline"),
+                              hint=_("use 'hg debugrebuildfncache' to rebuild"
+                                     " the fncache"))
+        self._checkentries(fp)
+        fp.close()
+
+    def _checkentries(self, fp):
+        """ make sure there is no empty string in entries """
         if '' in self.entries:
             fp.seek(0)
             for n, line in enumerate(util.iterfile(fp)):
                 if not line.rstrip('\n'):
                     t = _('invalid entry in fncache, line %d') % (n + 1)
                     raise error.Abort(t)
-        fp.close()
 
     def write(self, tr):
         if self._dirty:
@@ -587,7 +612,7 @@ class fncachestore(basicstore):
                     raise
 
     def copylist(self):
-        d = ('narrowspec data meta dh fncache phaseroots obsstore'
+        d = ('bookmarks narrowspec data meta dh fncache phaseroots obsstore'
              ' 00manifest.d 00manifest.i 00changelog.d 00changelog.i')
         return (['requires', '00changelog.i'] +
                 ['store/' + f for f in d.split()])

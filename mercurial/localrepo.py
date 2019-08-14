@@ -122,6 +122,24 @@ class storecache(_basefilecache):
     def join(self, obj, fname):
         return obj.sjoin(fname)
 
+class mixedrepostorecache(_basefilecache):
+    """filecache for a mix files in .hg/store and outside"""
+    def __init__(self, *pathsandlocations):
+        # scmutil.filecache only uses the path for passing back into our
+        # join(), so we can safely pass a list of paths and locations
+        super(mixedrepostorecache, self).__init__(*pathsandlocations)
+        _cachedfiles.update(pathsandlocations)
+
+    def join(self, obj, fnameandlocation):
+        fname, location = fnameandlocation
+        if location == 'plain':
+            return obj.vfs.join(fname)
+        else:
+            if location != '':
+                raise error.ProgrammingError('unexpected location: %s' %
+                                             location)
+            return obj.sjoin(fname)
+
 def isfilecached(repo, name):
     """check if a repo has already cached "name" filecache-ed property
 
@@ -643,8 +661,10 @@ def gathersupportedrequirements(ui):
     # Add derived requirements from registered compression engines.
     for name in util.compengines:
         engine = util.compengines[name]
-        if engine.revlogheader():
+        if engine.available() and engine.revlogheader():
             supported.add(b'exp-compression-%s' % name)
+            if engine.name() == 'zstd':
+                supported.add(b'revlog-compression-zstd')
 
     return supported
 
@@ -752,7 +772,15 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
                                      b'revlog.optimize-delta-parent-choice')
     options[b'deltabothparents'] = deltabothparents
 
-    options[b'lazydeltabase'] = not scmutil.gddeltaconfig(ui)
+    lazydelta = ui.configbool(b'storage', b'revlog.reuse-external-delta')
+    lazydeltabase = False
+    if lazydelta:
+        lazydeltabase = ui.configbool(b'storage',
+                                      b'revlog.reuse-external-delta-parent')
+    if lazydeltabase is None:
+        lazydeltabase = not scmutil.gddeltaconfig(ui)
+    options[b'lazydelta'] = lazydelta
+    options[b'lazydeltabase'] = lazydeltabase
 
     chainspan = ui.configbytes(b'experimental', b'maxdeltachainspan')
     if 0 <= chainspan:
@@ -786,8 +814,24 @@ def resolverevlogstorevfsoptions(ui, requirements, features):
         options[b'maxchainlen'] = maxchainlen
 
     for r in requirements:
-        if r.startswith(b'exp-compression-'):
-            options[b'compengine'] = r[len(b'exp-compression-'):]
+        # we allow multiple compression engine requirement to co-exist because
+        # strickly speaking, revlog seems to support mixed compression style.
+        #
+        # The compression used for new entries will be "the last one"
+        prefix = r.startswith
+        if prefix('revlog-compression-') or prefix('exp-compression-'):
+            options[b'compengine'] = r.split('-', 2)[2]
+
+    options[b'zlib.level'] = ui.configint(b'storage', b'revlog.zlib.level')
+    if options[b'zlib.level'] is not None:
+        if not (0 <= options[b'zlib.level'] <= 9):
+            msg = _('invalid value for `storage.revlog.zlib.level` config: %d')
+            raise error.Abort(msg % options[b'zlib.level'])
+    options[b'zstd.level'] = ui.configint(b'storage', b'revlog.zstd.level')
+    if options[b'zstd.level'] is not None:
+        if not (0 <= options[b'zstd.level'] <= 22):
+            msg = _('invalid value for `storage.revlog.zstd.level` config: %d')
+            raise error.Abort(msg % options[b'zstd.level'])
 
     if repository.NARROW_REQUIREMENT in requirements:
         options[b'enableellipsis'] = True
@@ -865,6 +909,7 @@ class localrepository(object):
         'treemanifest',
         REVLOGV2_REQUIREMENT,
         SPARSEREVLOG_REQUIREMENT,
+        bookmarks.BOOKMARKS_IN_STORE_REQUIREMENT,
     }
     _basesupported = supportedformats | {
         'store',
@@ -992,7 +1037,7 @@ class localrepository(object):
 
         self._dirstatevalidatewarned = False
 
-        self._branchcaches = {}
+        self._branchcaches = branchmap.BranchMapCache()
         self._revbranchcache = None
         self._filterpats = {}
         self._datafilters = {}
@@ -1023,6 +1068,8 @@ class localrepository(object):
         self._sparsesignaturecache = {}
         # Signature to cached matcher instance.
         self._sparsematchercache = {}
+
+        self._extrafilterid = repoview.extrafilter(ui)
 
     def _getvfsward(self, origfunc):
         """build a ward for self.vfs"""
@@ -1160,13 +1207,32 @@ class localrepository(object):
         return self
 
     def filtered(self, name, visibilityexceptions=None):
-        """Return a filtered version of a repository"""
+        """Return a filtered version of a repository
+
+        The `name` parameter is the identifier of the requested view. This
+        will return a repoview object set "exactly" to the specified view.
+
+        This function does not apply recursive filtering to a repository. For
+        example calling `repo.filtered("served")` will return a repoview using
+        the "served" view, regardless of the initial view used by `repo`.
+
+        In other word, there is always only one level of `repoview` "filtering".
+        """
+        if self._extrafilterid is not None and '%' not in name:
+            name = name + '%'  + self._extrafilterid
+
         cls = repoview.newtype(self.unfiltered().__class__)
         return cls(self, name, visibilityexceptions)
 
-    @repofilecache('bookmarks', 'bookmarks.current')
+    @mixedrepostorecache(('bookmarks', 'plain'), ('bookmarks.current', 'plain'),
+                         ('bookmarks', ''), ('00changelog.i', ''))
     def _bookmarks(self):
         return bookmarks.bmstore(self)
+
+    def _refreshchangelog(self):
+        """make sure the in memory changelog match the on-disk one"""
+        if ('changelog' in vars(self) and self.currenttransaction() is None):
+            del self.changelog
 
     @property
     def _activebookmark(self):
@@ -1227,14 +1293,14 @@ class localrepository(object):
     @storecache(narrowspec.FILENAME)
     def _storenarrowmatch(self):
         if repository.NARROW_REQUIREMENT not in self.requirements:
-            return matchmod.always(self.root, '')
+            return matchmod.always()
         include, exclude = self.narrowpats
         return narrowspec.match(self.root, include=include, exclude=exclude)
 
     @storecache(narrowspec.FILENAME)
     def _narrowmatch(self):
         if repository.NARROW_REQUIREMENT not in self.requirements:
-            return matchmod.always(self.root, '')
+            return matchmod.always()
         narrowspec.checkworkingcopynarrowspec(self)
         include, exclude = self.narrowpats
         return narrowspec.match(self.root, include=include, exclude=exclude)
@@ -1252,7 +1318,7 @@ class localrepository(object):
             if includeexact and not self._narrowmatch.always():
                 # do not exclude explicitly-specified paths so that they can
                 # be warned later on
-                em = matchmod.exact(match._root, match._cwd, match.files())
+                em = matchmod.exact(match.files())
                 nm = matchmod.unionmatcher([self._narrowmatch, em])
                 return matchmod.intersectmatchers(match, nm)
             return matchmod.intersectmatchers(match, self._narrowmatch)
@@ -1520,8 +1586,7 @@ class localrepository(object):
     def branchmap(self):
         '''returns a dictionary {branch: [branchheads]} with branchheads
         ordered by increasing revision number'''
-        branchmap.updatecache(self)
-        return self._branchcaches[self.filtername]
+        return self._branchcaches[self]
 
     @unfilteredmethod
     def revbranchcache(self):
@@ -1546,10 +1611,13 @@ class localrepository(object):
                 pass
 
     def lookup(self, key):
-        return scmutil.revsymbol(self, key).node()
+        node = scmutil.revsymbol(self, key).node()
+        if node is None:
+            raise error.RepoLookupError(_("unknown revision '%s'") % key)
+        return node
 
     def lookupbranch(self, key):
-        if key in self.branchmap():
+        if self.branchmap().hasbranch(key):
             return key
 
         return scmutil.revsymbol(self, key).branch()
@@ -1811,7 +1879,6 @@ class localrepository(object):
                     args = tr.hookargs.copy()
                     args.update(bookmarks.preparehookargs(name, old, new))
                     repo.hook('pretxnclose-bookmark', throw=True,
-                              txnname=desc,
                               **pycompat.strkwargs(args))
             if hook.hashook(repo.ui, 'pretxnclose-phase'):
                 cl = repo.unfiltered().changelog
@@ -1819,11 +1886,11 @@ class localrepository(object):
                     args = tr.hookargs.copy()
                     node = hex(cl.node(rev))
                     args.update(phases.preparehookargs(node, old, new))
-                    repo.hook('pretxnclose-phase', throw=True, txnname=desc,
+                    repo.hook('pretxnclose-phase', throw=True,
                               **pycompat.strkwargs(args))
 
             repo.hook('pretxnclose', throw=True,
-                      txnname=desc, **pycompat.strkwargs(tr.hookargs))
+                      **pycompat.strkwargs(tr.hookargs))
         def releasefn(tr, success):
             repo = reporef()
             if success:
@@ -1857,6 +1924,7 @@ class localrepository(object):
         tr.changes['bookmarks'] = {}
 
         tr.hookargs['txnid'] = txnid
+        tr.hookargs['txnname'] = desc
         # note: writing the fncache only during finalize mean that the file is
         # outdated when running hooks. As fncache is used for streaming clone,
         # this is not expected to break anything that happen during the hooks.
@@ -1878,7 +1946,7 @@ class localrepository(object):
                         args = tr.hookargs.copy()
                         args.update(bookmarks.preparehookargs(name, old, new))
                         repo.hook('txnclose-bookmark', throw=False,
-                                  txnname=desc, **pycompat.strkwargs(args))
+                                  **pycompat.strkwargs(args))
 
                 if hook.hashook(repo.ui, 'txnclose-phase'):
                     cl = repo.unfiltered().changelog
@@ -1887,10 +1955,10 @@ class localrepository(object):
                         args = tr.hookargs.copy()
                         node = hex(cl.node(rev))
                         args.update(phases.preparehookargs(node, old, new))
-                        repo.hook('txnclose-phase', throw=False, txnname=desc,
+                        repo.hook('txnclose-phase', throw=False,
                                   **pycompat.strkwargs(args))
 
-                repo.hook('txnclose', throw=False, txnname=desc,
+                repo.hook('txnclose', throw=False,
                           **pycompat.strkwargs(hookargs))
             reporef()._afterlock(hookfunc)
         tr.addfinalize('txnclose-hook', txnclosehook)
@@ -1902,7 +1970,7 @@ class localrepository(object):
         def txnaborthook(tr2):
             """To be run if transaction is aborted
             """
-            reporef().hook('txnabort', throw=False, txnname=desc,
+            reporef().hook('txnabort', throw=False,
                            **pycompat.strkwargs(tr2.hookargs))
         tr.addabort('txnabort-hook', txnaborthook)
         # avoid eager cache invalidation. in-memory data should be identical
@@ -1919,7 +1987,7 @@ class localrepository(object):
                 (self.vfs, 'journal.dirstate'),
                 (self.vfs, 'journal.branch'),
                 (self.vfs, 'journal.desc'),
-                (self.vfs, 'journal.bookmarks'),
+                (bookmarks.bookmarksvfs(self), 'journal.bookmarks'),
                 (self.svfs, 'journal.phaseroots'))
 
     def undofiles(self):
@@ -1934,8 +2002,9 @@ class localrepository(object):
                           encoding.fromlocal(self.dirstate.branch()))
         self.vfs.write("journal.desc",
                           "%d\n%s\n" % (len(self), desc))
-        self.vfs.write("journal.bookmarks",
-                          self.vfs.tryread("bookmarks"))
+        bookmarksvfs = bookmarks.bookmarksvfs(self)
+        bookmarksvfs.write("journal.bookmarks",
+                           bookmarksvfs.tryread("bookmarks"))
         self.svfs.write("journal.phaseroots",
                            self.svfs.tryread("phaseroots"))
 
@@ -2005,14 +2074,14 @@ class localrepository(object):
         vfsmap = {'plain': self.vfs, '': self.svfs}
         transaction.rollback(self.svfs, vfsmap, 'undo', ui.warn,
                              checkambigfiles=_cachedfiles)
-        if self.vfs.exists('undo.bookmarks'):
-            self.vfs.rename('undo.bookmarks', 'bookmarks', checkambig=True)
+        bookmarksvfs = bookmarks.bookmarksvfs(self)
+        if bookmarksvfs.exists('undo.bookmarks'):
+            bookmarksvfs.rename('undo.bookmarks', 'bookmarks', checkambig=True)
         if self.svfs.exists('undo.phaseroots'):
             self.svfs.rename('undo.phaseroots', 'phaseroots', checkambig=True)
         self.invalidate()
 
-        parentgone = (parents[0] not in self.changelog.nodemap or
-                      parents[1] not in self.changelog.nodemap)
+        parentgone = any(p not in self.changelog.nodemap for p in parents)
         if parentgone:
             # prevent dirstateguard from overwriting already restored one
             dsguard.close()
@@ -2074,13 +2143,15 @@ class localrepository(object):
             return
 
         if tr is None or tr.changes['origrepolen'] < len(self):
-            # updating the unfiltered branchmap should refresh all the others,
+            # accessing the 'ser ved' branchmap should refresh all the others,
             self.ui.debug('updating the branch cache\n')
-            branchmap.updatecache(self.filtered('served'))
+            self.filtered('served').branchmap()
+            self.filtered('served.hidden').branchmap()
 
         if full:
-            rbc = self.revbranchcache()
-            for r in self.changelog:
+            unfi = self.unfiltered()
+            rbc = unfi.revbranchcache()
+            for r in unfi.changelog:
                 rbc.branchinfo(r)
             rbc.write()
 
@@ -2088,13 +2159,19 @@ class localrepository(object):
             for ctx in self['.'].parents():
                 ctx.manifest()  # accessing the manifest is enough
 
+            # accessing fnode cache warms the cache
+            tagsmod.fnoderevs(self.ui, unfi, unfi.changelog.revs())
+            # accessing tags warm the cache
+            self.tags()
+            self.filtered('served').tags()
+
     def invalidatecaches(self):
 
         if r'_tagscache' in vars(self):
             # can't use delattr on proxy
             del self.__dict__[r'_tagscache']
 
-        self.unfiltered()._branchcaches.clear()
+        self._branchcaches.clear()
         self.invalidatevolatilesets()
         self._sparsesignaturecache.clear()
 
@@ -2218,8 +2295,12 @@ class localrepository(object):
             l.lock()
             return l
 
-        l = self._lock(self.svfs, "lock", wait, None,
-                       self.invalidate, _('repository %s') % self.origroot)
+        l = self._lock(vfs=self.svfs,
+                       lockname="lock",
+                       wait=wait,
+                       releasefn=None,
+                       acquirefn=self.invalidate,
+                       desc=_('repository %s') % self.origroot)
         self._lockref = weakref.ref(l)
         return l
 
@@ -2277,7 +2358,8 @@ class localrepository(object):
         """Returns the wlock if it's held, or None if it's not."""
         return self._currentlock(self._wlockref)
 
-    def _filecommit(self, fctx, manifest1, manifest2, linkrev, tr, changelist):
+    def _filecommit(self, fctx, manifest1, manifest2, linkrev, tr, changelist,
+                    includecopymeta):
         """
         commit an individual file as part of a larger transaction
         """
@@ -2289,14 +2371,17 @@ class localrepository(object):
             node = fctx.filenode()
             if node in [fparent1, fparent2]:
                 self.ui.debug('reusing %s filelog entry\n' % fname)
-                if manifest1.flags(fname) != fctx.flags():
+                if ((fparent1 != nullid and
+                     manifest1.flags(fname) != fctx.flags()) or
+                    (fparent2 != nullid and
+                     manifest2.flags(fname) != fctx.flags())):
                     changelist.append(fname)
                 return node
 
         flog = self.file(fname)
         meta = {}
-        copy = fctx.renamed()
-        if copy and copy[0] != fname:
+        cfname = fctx.copysource()
+        if cfname and cfname != fname:
             # Mark the new revision of this file as a copy of another
             # file.  This copy data will effectively act as a parent
             # of this new revision.  If this is a merge, the first
@@ -2316,14 +2401,13 @@ class localrepository(object):
             #    \- 2 --- 4        as the merge base
             #
 
-            cfname = copy[0]
-            crev = manifest1.get(cfname)
+            cnode = manifest1.get(cfname)
             newfparent = fparent2
 
             if manifest2: # branch merge
-                if fparent2 == nullid or crev is None: # copied on remote side
+                if fparent2 == nullid or cnode is None: # copied on remote side
                     if cfname in manifest2:
-                        crev = manifest2[cfname]
+                        cnode = manifest2[cfname]
                         newfparent = fparent1
 
             # Here, we used to search backwards through history to try to find
@@ -2335,10 +2419,11 @@ class localrepository(object):
             # expect this outcome it can be fixed, but this is the correct
             # behavior in this circumstance.
 
-            if crev:
-                self.ui.debug(" %s: copy %s:%s\n" % (fname, cfname, hex(crev)))
-                meta["copy"] = cfname
-                meta["copyrev"] = hex(crev)
+            if cnode:
+                self.ui.debug(" %s: copy %s:%s\n" % (fname, cfname, hex(cnode)))
+                if includecopymeta:
+                    meta["copy"] = cfname
+                    meta["copyrev"] = hex(cnode)
                 fparent1, fparent2 = nullid, newfparent
             else:
                 self.ui.warn(_("warning: can't find ancestor for '%s' "
@@ -2402,18 +2487,15 @@ class localrepository(object):
             raise error.Abort('%s: %s' % (f, msg))
 
         if not match:
-            match = matchmod.always(self.root, '')
+            match = matchmod.always()
 
         if not force:
             vdirs = []
             match.explicitdir = vdirs.append
             match.bad = fail
 
-        wlock = lock = tr = None
-        try:
-            wlock = self.wlock()
-            lock = self.lock() # for recent changelog (see issue4368)
-
+        # lock() for recent changelog (see issue4368)
+        with self.wlock(), self.lock():
             wctx = self[None]
             merge = len(wctx.parents()) > 1
 
@@ -2460,10 +2542,11 @@ class localrepository(object):
 
             # commit subs and write new state
             if subs:
+                uipathfn = scmutil.getuipathfn(self)
                 for s in sorted(commitsubs):
                     sub = wctx.sub(s)
                     self.ui.status(_('committing subrepository %s\n') %
-                                   subrepoutil.subrelpath(sub))
+                                   uipathfn(subrepoutil.subrelpath(sub)))
                     sr = sub.commit(cctx._text, user, date)
                     newstate[s] = (newstate[s][0], sr)
                 subrepoutil.writestate(self, newstate)
@@ -2473,33 +2556,29 @@ class localrepository(object):
             try:
                 self.hook("precommit", throw=True, parent1=hookp1,
                           parent2=hookp2)
-                tr = self.transaction('commit')
-                ret = self.commitctx(cctx, True)
+                with self.transaction('commit'):
+                    ret = self.commitctx(cctx, True)
+                    # update bookmarks, dirstate and mergestate
+                    bookmarks.update(self, [p1, p2], ret)
+                    cctx.markcommitted(ret)
+                    ms.reset()
             except: # re-raises
                 if edited:
                     self.ui.write(
                         _('note: commit message saved in %s\n') % msgfn)
                 raise
-            # update bookmarks, dirstate and mergestate
-            bookmarks.update(self, [p1, p2], ret)
-            cctx.markcommitted(ret)
-            ms.reset()
-            tr.close()
 
-        finally:
-            lockmod.release(tr, lock, wlock)
-
-        def commithook(node=hex(ret), parent1=hookp1, parent2=hookp2):
+        def commithook():
             # hack for command that use a temporary commit (eg: histedit)
             # temporary commit got stripped before hook release
             if self.changelog.hasnode(ret):
-                self.hook("commit", node=node, parent1=parent1,
-                          parent2=parent2)
+                self.hook("commit", node=hex(ret), parent1=hookp1,
+                          parent2=hookp2)
         self._afterlock(commithook)
         return ret
 
     @unfilteredmethod
-    def commitctx(self, ctx, error=False):
+    def commitctx(self, ctx, error=False, origctx=None):
         """Add a new revision to current repository.
         Revision information is passed via the context argument.
 
@@ -2507,15 +2586,27 @@ class localrepository(object):
         modified/added/removed files. On merge, it may be wider than the
         ctx.files() to be committed, since any file nodes derived directly
         from p1 or p2 are excluded from the committed ctx.files().
+
+        origctx is for convert to work around the problem that bug
+        fixes to the files list in changesets change hashes. For
+        convert to be the identity, it can pass an origctx and this
+        function will use the same files list when it makes sense to
+        do so.
         """
 
-        tr = None
         p1, p2 = ctx.p1(), ctx.p2()
         user = ctx.user()
 
-        lock = self.lock()
-        try:
-            tr = self.transaction("commit")
+        writecopiesto = self.ui.config('experimental', 'copies.write-to')
+        writefilecopymeta = writecopiesto != 'changeset-only'
+        writechangesetcopy = (writecopiesto in
+                              ('changeset-only', 'compatibility'))
+        p1copies, p2copies = None, None
+        if writechangesetcopy:
+            p1copies = ctx.p1copies()
+            p2copies = ctx.p2copies()
+        filesadded, filesremoved = None, None
+        with self.lock(), self.transaction("commit") as tr:
             trp = weakref.proxy(tr)
 
             if ctx.manifestnode():
@@ -2523,6 +2614,9 @@ class localrepository(object):
                 self.ui.debug('reusing known manifest\n')
                 mn = ctx.manifestnode()
                 files = ctx.files()
+                if writechangesetcopy:
+                    filesadded = ctx.filesadded()
+                    filesremoved = ctx.filesremoved()
             elif ctx.files():
                 m1ctx = p1.manifestctx()
                 m2ctx = p2.manifestctx()
@@ -2538,8 +2632,9 @@ class localrepository(object):
                 removed = list(ctx.removed())
                 linkrev = len(self)
                 self.ui.note(_("committing files:\n"))
+                uipathfn = scmutil.getuipathfn(self)
                 for f in sorted(ctx.modified() + ctx.added()):
-                    self.ui.note(f + "\n")
+                    self.ui.note(uipathfn(f) + "\n")
                     try:
                         fctx = ctx[f]
                         if fctx is None:
@@ -2547,22 +2642,66 @@ class localrepository(object):
                         else:
                             added.append(f)
                             m[f] = self._filecommit(fctx, m1, m2, linkrev,
-                                                    trp, changed)
+                                                    trp, changed,
+                                                    writefilecopymeta)
                             m.setflag(f, fctx.flags())
-                    except OSError as inst:
-                        self.ui.warn(_("trouble committing %s!\n") % f)
+                    except OSError:
+                        self.ui.warn(_("trouble committing %s!\n") %
+                                     uipathfn(f))
                         raise
                     except IOError as inst:
                         errcode = getattr(inst, 'errno', errno.ENOENT)
                         if error or errcode and errcode != errno.ENOENT:
-                            self.ui.warn(_("trouble committing %s!\n") % f)
+                            self.ui.warn(_("trouble committing %s!\n") %
+                                         uipathfn(f))
                         raise
 
                 # update manifest
-                removed = [f for f in sorted(removed) if f in m1 or f in m2]
-                drop = [f for f in removed if f in m]
+                removed = [f for f in removed if f in m1 or f in m2]
+                drop = sorted([f for f in removed if f in m])
                 for f in drop:
                     del m[f]
+                if p2.rev() != nullrev:
+                    @util.cachefunc
+                    def mas():
+                        p1n = p1.node()
+                        p2n = p2.node()
+                        cahs = self.changelog.commonancestorsheads(p1n, p2n)
+                        if not cahs:
+                            cahs = [nullrev]
+                        return [self[r].manifest() for r in cahs]
+                    def deletionfromparent(f):
+                        # When a file is removed relative to p1 in a merge, this
+                        # function determines whether the absence is due to a
+                        # deletion from a parent, or whether the merge commit
+                        # itself deletes the file. We decide this by doing a
+                        # simplified three way merge of the manifest entry for
+                        # the file. There are two ways we decide the merge
+                        # itself didn't delete a file:
+                        # - neither parent (nor the merge) contain the file
+                        # - exactly one parent contains the file, and that
+                        #   parent has the same filelog entry as the merge
+                        #   ancestor (or all of them if there two). In other
+                        #   words, that parent left the file unchanged while the
+                        #   other one deleted it.
+                        # One way to think about this is that deleting a file is
+                        # similar to emptying it, so the list of changed files
+                        # should be similar either way. The computation
+                        # described above is not done directly in _filecommit
+                        # when creating the list of changed files, however
+                        # it does something very similar by comparing filelog
+                        # nodes.
+                        if f in m1:
+                            return (f not in m2
+                                    and all(f in ma and ma.find(f) == m1.find(f)
+                                            for ma in mas()))
+                        elif f in m2:
+                            return all(f in ma and ma.find(f) == m2.find(f)
+                                       for ma in mas())
+                        else:
+                            return True
+                    removed = [f for f in removed if not deletionfromparent(f)]
+
                 files = changed + removed
                 md = None
                 if not files:
@@ -2585,8 +2724,13 @@ class localrepository(object):
                     mn = mctx.write(trp, linkrev,
                                     p1.manifestnode(), p2.manifestnode(),
                                     added, drop, match=self.narrowmatch())
+
+                    if writechangesetcopy:
+                        filesadded = [f for f in changed
+                                      if not (f in m1 or f in m2)]
+                        filesremoved = removed
                 else:
-                    self.ui.debug('reusing manifest form p1 (listed files '
+                    self.ui.debug('reusing manifest from p1 (listed files '
                                   'actually unchanged)\n')
                     mn = p1.manifestnode()
             else:
@@ -2594,12 +2738,26 @@ class localrepository(object):
                 mn = p1.manifestnode()
                 files = []
 
+            if writecopiesto == 'changeset-only':
+                # If writing only to changeset extras, use None to indicate that
+                # no entry should be written. If writing to both, write an empty
+                # entry to prevent the reader from falling back to reading
+                # filelogs.
+                p1copies = p1copies or None
+                p2copies = p2copies or None
+                filesadded = filesadded or None
+                filesremoved = filesremoved or None
+
+            if origctx and origctx.manifestnode() == mn:
+                files = origctx.files()
+
             # update changelog
             self.ui.note(_("committing changelog\n"))
             self.changelog.delayupdate(tr)
             n = self.changelog.add(mn, files, ctx.description(),
                                    trp, p1.node(), p2.node(),
-                                   user, ctx.date(), ctx.extra().copy())
+                                   user, ctx.date(), ctx.extra().copy(),
+                                   p1copies, p2copies, filesadded, filesremoved)
             xp1, xp2 = p1.hex(), p2 and p2.hex() or ''
             self.hook('pretxncommit', throw=True, node=hex(n), parent1=xp1,
                       parent2=xp2)
@@ -2612,12 +2770,7 @@ class localrepository(object):
                 #
                 # if minimal phase was 0 we don't need to retract anything
                 phases.registernew(self, tr, targetphase, [n])
-            tr.close()
             return n
-        finally:
-            if tr:
-                tr.release()
-            lock.release()
 
     @unfilteredmethod
     def destroying(self):
@@ -2727,7 +2880,7 @@ class localrepository(object):
         if branch is None:
             branch = self[None].branch()
         branches = self.branchmap()
-        if branch not in branches:
+        if not branches.hasbranch(branch):
             return []
         # the cache returns heads ordered lowest to highest
         bheads = list(reversed(branches.branchheads(branch, closed=closed)))
@@ -2906,16 +3059,18 @@ def newreporequirements(ui, createopts):
             if ui.configbool('format', 'dotencode'):
                 requirements.add('dotencode')
 
-    compengine = ui.config('experimental', 'format.compression')
+    compengine = ui.config('format', 'revlog-compression')
     if compengine not in util.compengines:
         raise error.Abort(_('compression engine %s defined by '
-                            'experimental.format.compression not available') %
+                            'format.revlog-compression not available') %
                           compengine,
                           hint=_('run "hg debuginstall" to list available '
                                  'compression engines'))
 
     # zlib is the historical default and doesn't need an explicit requirement.
-    if compengine != 'zlib':
+    elif compengine == 'zstd':
+        requirements.add('revlog-compression-zstd')
+    elif compengine != 'zlib':
         requirements.add('exp-compression-%s' % compengine)
 
     if scmutil.gdinitconfig(ui):
@@ -2940,6 +3095,9 @@ def newreporequirements(ui, createopts):
 
     if createopts.get('lfs'):
         requirements.add('lfs')
+
+    if ui.configbool('format', 'bookmarks-in-store'):
+        requirements.add(bookmarks.BOOKMARKS_IN_STORE_REQUIREMENT)
 
     return requirements
 

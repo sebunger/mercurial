@@ -31,31 +31,13 @@ command = registrar.command(cmdtable)
 # leave the attribute unspecified.
 testedwith = 'ships-with-hg-core'
 
-def checksubstate(repo, baserev=None):
-    '''return list of subrepos at a different revision than substate.
-    Abort if any subrepos have uncommitted changes.'''
-    inclsubs = []
-    wctx = repo[None]
-    if baserev:
-        bctx = repo[baserev]
-    else:
-        bctx = wctx.parents()[0]
-    for s in sorted(wctx.substate):
-        wctx.sub(s).bailifchanged(True)
-        if s not in bctx.substate or bctx.sub(s).dirty():
-            inclsubs.append(s)
-    return inclsubs
-
-def checklocalchanges(repo, force=False, excsuffix=''):
-    cmdutil.checkunfinished(repo)
+def checklocalchanges(repo, force=False):
     s = repo.status()
     if not force:
-        if s.modified or s.added or s.removed or s.deleted:
-            _("local changes found") # i18n tool detection
-            raise error.Abort(_("local changes found" + excsuffix))
-        if checksubstate(repo):
-            _("local changed subrepos found") # i18n tool detection
-            raise error.Abort(_("local changed subrepos found" + excsuffix))
+        cmdutil.checkunfinished(repo)
+        cmdutil.bailifchanged(repo)
+    else:
+        cmdutil.checkunfinished(repo, skipmerge=True)
     return s
 
 def _findupdatetarget(repo, nodes):
@@ -76,7 +58,8 @@ def _findupdatetarget(repo, nodes):
 
     return unode
 
-def strip(ui, repo, revs, update=True, backup=True, force=None, bookmarks=None):
+def strip(ui, repo, revs, update=True, backup=True, force=None, bookmarks=None,
+          soft=False):
     with repo.wlock(), repo.lock():
 
         if update:
@@ -85,7 +68,10 @@ def strip(ui, repo, revs, update=True, backup=True, force=None, bookmarks=None):
             hg.clean(repo, urev)
             repo.dirstate.write(repo.currenttransaction())
 
-        repair.strip(ui, repo, revs, backup)
+        if soft:
+            repair.softstrip(ui, repo, revs, backup)
+        else:
+            repair.strip(ui, repo, revs, backup)
 
         repomarks = repo._bookmarks
         if bookmarks:
@@ -110,7 +96,10 @@ def strip(ui, repo, revs, update=True, backup=True, force=None, bookmarks=None):
           ('k', 'keep', None, _("do not modify working directory during "
                                 "strip")),
           ('B', 'bookmark', [], _("remove revs only reachable from given"
-                                  " bookmark"), _('BOOKMARK'))],
+                                  " bookmark"), _('BOOKMARK')),
+          ('', 'soft', None,
+          _("simply drop changesets from visible history (EXPERIMENTAL)")),
+         ],
           _('hg strip [-k] [-f] [-B bookmark] [-r] REV...'),
           helpcategory=command.CATEGORY_MAINTENANCE)
 def stripcmd(ui, repo, *revs, **opts):
@@ -235,6 +224,7 @@ def stripcmd(ui, repo, *revs, **opts):
 
 
         strip(ui, repo, revs, backup=backup, update=update,
-              force=opts.get('force'), bookmarks=bookmarks)
+              force=opts.get('force'), bookmarks=bookmarks,
+              soft=opts['soft'])
 
     return 0

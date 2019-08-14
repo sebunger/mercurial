@@ -203,7 +203,7 @@ state = ProfileState()
 class CodeSite(object):
     cache = {}
 
-    __slots__ = (u'path', u'lineno', u'function', u'source')
+    __slots__ = (r'path', r'lineno', r'function', r'source')
 
     def __init__(self, path, lineno, function):
         assert isinstance(path, bytes)
@@ -263,7 +263,7 @@ class CodeSite(object):
         return r'%s:%s' % (self.filename(), self.function)
 
 class Sample(object):
-    __slots__ = (u'stack', u'time')
+    __slots__ = (r'stack', r'time')
 
     def __init__(self, stack, time):
         self.stack = stack
@@ -678,6 +678,7 @@ def display_hotpath(data, fp, limit=0.05, **kwargs):
     for sample in data.samples:
         root.add(sample.stack[::-1], sample.time - lasttime)
         lasttime = sample.time
+    showtime = kwargs.get(r'showtime', True)
 
     def _write(node, depth, multiple_siblings):
         site = node.site
@@ -695,7 +696,9 @@ def display_hotpath(data, fp, limit=0.05, **kwargs):
             # lots of string formatting
             listpattern = ''.ljust(indent) +\
                           ('\\' if multiple_siblings else '|') +\
-                          ' %4.1f%%  %s %s'
+                          ' %4.1f%%' +\
+                          (' %5.2fs' % node.count if showtime else '') +\
+                          '  %s %s'
             liststring = listpattern % (node.count / root.count * 100,
                                         filename, function)
             codepattern = '%' + ('%d' % (55 - len(liststring))) + 's %d:  %s'
@@ -816,9 +819,6 @@ def write_to_chrome(data, fp, minthreshold=0.005, maxthreshold=0.999):
             id2stack[-1].update(parent=parent)
         return myid
 
-    def endswith(a, b):
-        return list(a)[-len(b):] == list(b)
-
     # The sampling profiler can sample multiple times without
     # advancing the clock, potentially causing the Chrome trace viewer
     # to render single-pixel columns that we cannot zoom in on.  We
@@ -858,9 +858,6 @@ def write_to_chrome(data, fp, minthreshold=0.005, maxthreshold=0.999):
     # events given only stack snapshots.
 
     for sample in data.samples:
-        tos = sample.stack[0]
-        name = tos.function
-        path = simplifypath(tos.path)
         stack = tuple((('%s:%d' % (simplifypath(frame.path), frame.lineno),
                         frame.function) for frame in sample.stack))
         qstack = collections.deque(stack)
