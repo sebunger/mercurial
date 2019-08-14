@@ -1,4 +1,4 @@
-mercurial (5.1-1) UNRELEASED; urgency=medium
+mercurial (5.1-1) experimental; urgency=medium
 
   [ Julien Cristau ]
   * Drop autopkgtests dependency on monotone.  It's RC buggy, not in buster,
@@ -14,14 +14,12 @@ mercurial (5.1-1) UNRELEASED; urgency=medium
     - python-fuzzywuzzy (for test-releasenotes-*.t)
     - python-vcr (for test-phabricator.t)
     - darcs (for test-convert-darcs.t)
+  * New upstream release.
 
   [ Ondřej Nový ]
   * Use debhelper-compat instead of debian/compat.
 
-  [ Julien Cristau ]
-  * New upstream release.
-
- -- Julien Cristau <jcristau@debian.org>  Mon, 18 Feb 2019 21:53:00 +0100
+ -- Julien Cristau <jcristau@debian.org>  Wed, 14 Aug 2019 15:47:28 +0200
 
 mercurial (4.9-2) unstable; urgency=medium
 
