@@ -13,7 +13,7 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- mercurial.orig/mercurial/ui.py
 +++ mercurial/mercurial/ui.py
-@@ -1722,7 +1722,7 @@ class ui(object):
+@@ -1732,7 +1732,7 @@ class ui(object):
              # avoid confusion.
              editor = 'E'
          else:
@@ -325,7 +325,7 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- mercurial.orig/mercurial/help/config.txt
 +++ mercurial/mercurial/help/config.txt
-@@ -2201,7 +2201,8 @@ User interface controls.
+@@ -2283,7 +2283,8 @@ User interface controls.
      Print debugging information. (default: False)
  
  ``editor``
@@ -412,7 +412,7 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- mercurial.orig/mercurial/debugcommands.py
 +++ mercurial/mercurial/debugcommands.py
-@@ -1313,15 +1313,15 @@ def debuginstall(ui, **opts):
+@@ -1359,15 +1359,15 @@ def debuginstall(ui, **opts):
      editorbin = procutil.shellsplit(editor)[0]
      fm.write('editor', _("checking commit editor... (%s)\n"), editorbin)
      cmdpath = procutil.findexe(editorbin)

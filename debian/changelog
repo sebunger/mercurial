@@ -1,4 +1,4 @@
-mercurial (4.9-3) UNRELEASED; urgency=medium
+mercurial (5.1-1) UNRELEASED; urgency=medium
 
   [ Julien Cristau ]
   * Drop autopkgtests dependency on monotone.  It's RC buggy, not in buster,
@@ -17,6 +17,9 @@ mercurial (4.9-3) UNRELEASED; urgency=medium
 
   [ Ondřej Nový ]
   * Use debhelper-compat instead of debian/compat.
+
+  [ Julien Cristau ]
+  * New upstream release.
 
  -- Julien Cristau <jcristau@debian.org>  Mon, 18 Feb 2019 21:53:00 +0100
 
