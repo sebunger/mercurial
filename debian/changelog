@@ -1,4 +1,4 @@
-mercurial (5.1-2) UNRELEASED; urgency=medium
+mercurial (5.1-2) experimental; urgency=medium
 
   * Add patch from https://github.com/indygreg/python-zstandard/pull/91
     to fix test failure on s390x.
@@ -7,7 +7,7 @@ mercurial (5.1-2) UNRELEASED; urgency=medium
   * Run blacklisted tests but ignore their results, so we can figure out
     if they still fail and how often.
 
- -- Julien Cristau <jcristau@debian.org>  Thu, 22 Aug 2019 14:12:18 +0200
+ -- Julien Cristau <jcristau@debian.org>  Thu, 22 Aug 2019 18:36:05 +0200
 
 mercurial (5.1-1) experimental; urgency=medium
 
