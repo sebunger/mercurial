@@ -1,0 +1,35 @@
+From cf9d01b3edbbb52f52806d07b9186c4748b19cbd Mon Sep 17 00:00:00 2001
+From: Julien Cristau <jcristau@debian.org>
+Date: Thu, 22 Aug 2019 10:56:38 +0200
+Subject: [PATCH] Fix ZstdDecompressor on 64-bit big-endian
+
+When parsing the python arguments, using "I" (int) in the format string
+but passing a pointer to size_t means that, on big endian, we're only
+initializing the high-order bits of the size_t.  Use "n" (Py_ssize_t)
+format instead, which should be the right size.
+
+[https://github.com/indygreg/python-zstandard/pull/91]
+---
+ c-ext/decompressor.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/contrib/python-zstandard/c-ext/decompressor.c b/contrib/python-zstandard/c-ext/decompressor.c
+index ecf037c..d7d5f86 100644
+--- a/contrib/python-zstandard/c-ext/decompressor.c
++++ b/contrib/python-zstandard/c-ext/decompressor.c
+@@ -68,13 +68,13 @@ static int Decompressor_init(ZstdDecompressor* self, PyObject* args, PyObject* k
+ 	};
+ 
+ 	ZstdCompressionDict* dict = NULL;
+-	size_t maxWindowSize = 0;
++	Py_ssize_t maxWindowSize = 0;
+ 	ZSTD_format_e format = ZSTD_f_zstd1;
+ 
+ 	self->dctx = NULL;
+ 	self->dict = NULL;
+ 
+-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O!II:ZstdDecompressor", kwlist,
++	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O!nI:ZstdDecompressor", kwlist,
+ 		&ZstdCompressionDictType, &dict, &maxWindowSize, &format)) {
+ 		return -1;
+ 	}
