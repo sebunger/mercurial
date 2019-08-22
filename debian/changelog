@@ -4,6 +4,8 @@ mercurial (5.1-2) UNRELEASED; urgency=medium
     to fix test failure on s390x.
   * Skip test-repo-compengines.t due to differences on big-endian.
   * This should fix FTBFS and closes: #935150.
+  * Run blacklisted tests but ignore their results, so we can figure out
+    if they still fail and how often.
 
  -- Julien Cristau <jcristau@debian.org>  Thu, 22 Aug 2019 14:12:18 +0200
 

@@ -44,8 +44,9 @@ ifneq ($(or $(ARCH_IS_MIPS), $(ARCH_IS_KFREEBSD-i386), $(ARCH_IS_ARMEL), $(ARCH_
 endif
 
 	http_proxy='' dh_auto_test -- TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
-
 	file-rename 's/\.deb-backup$$//' $(CURDIR)/tests/*
+	# run blacklisted tests but ignore their results
+	for t in `grep ^test debian/mercurial.test_blacklist`; do $(MAKE) $$t || :; done
 endif
 
 override_dh_auto_install: $(PYVERS:%=install-python%)
