@@ -1,3 +1,9 @@
+mercurial (5.1-3) UNRELEASED; urgency=medium
+
+  * Actually only run the blacklisted tests in the ignored run.
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 23 Aug 2019 08:22:56 +0200
+
 mercurial (5.1-2) experimental; urgency=medium
 
   * Add patch from https://github.com/indygreg/python-zstandard/pull/91
