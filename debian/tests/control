@@ -19,6 +19,4 @@ Depends:
     python-pygments,
     python-docutils,
     sqlite3,
-    python-fuzzywuzzy,
-    python-vcr,
 Restrictions: allow-stderr
