@@ -1,3 +1,9 @@
+mercurial (5.1.1-1) UNRELEASED; urgency=medium
+
+  * New upstream bugfix release.
+
+ -- Julien Cristau <jcristau@debian.org>  Fri, 06 Sep 2019 12:02:24 +0200
+
 mercurial (5.1-4) unstable; urgency=medium
 
   * Remove python-vcr and python-fuzzywuzzy autopkgtest dependencies,

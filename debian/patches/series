@@ -1,4 +1,3 @@
-for_upstream_python-zstandard-64be.patch
 deb_specific__use_sensible-editor.patch
 deb_specific__hgk.py.patch
 deb_specific__optional-dependencies
