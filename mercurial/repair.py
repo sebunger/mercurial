@@ -109,6 +109,9 @@ def strip(ui, repo, nodelist, backup=True, topic='backup'):
     repo = repo.unfiltered()
     repo.destroying()
     vfs = repo.vfs
+    # load bookmark before changelog to avoid side effect from outdated
+    # changelog (see repo._refreshchangelog)
+    repo._bookmarks
     cl = repo.changelog
 
     # TODO handle undo of merge sets
@@ -389,9 +392,7 @@ def rebuildfncache(ui, repo):
 
     with repo.lock():
         fnc = repo.store.fncache
-        # Trigger load of fncache.
-        if 'irrelevant' in fnc:
-            pass
+        fnc.ensureloaded(warn=ui.warn)
 
         oldentries = set(fnc.entries)
         newentries = set()
