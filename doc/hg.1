@@ -2533,29 +2533,33 @@ recurse into subrepositories
 [+] marked option can be specified multiple times
 .SS grep
 .sp
-search revision history for a pattern in specified files:
+search for a pattern in specified files:
 .sp
 .nf
 .ft C
-hg grep [OPTION]... PATTERN [FILE]...
+hg grep [\-\-diff] [OPTION]... PATTERN [FILE]...
 .ft P
 .fi
 .sp
-Search revision history for a regular expression in the specified
-files or the entire project.
+Search the working directory or revision history for a regular
+expression in the specified files for the entire repository.
 .sp
-By default, grep prints the most recent revision number for each
-file in which it finds a match. To get it to print every revision
-that contains a change in match status ("\-" for a match that becomes
-a non\-match, or "+" for a non\-match that becomes a match), use the
-\-\-diff flag.
+By default, grep searches the repository files in the working
+directory and prints the files where it finds a match. To specify
+historical revisions instead of the working directory, use the
+\-\-rev flag.
+.sp
+To search instead historical revision differences that contains a
+change in match status ("\-" for a match that becomes a non\-match,
+or "+" for a non\-match that becomes a match), use the \-\-diff flag.
 .sp
 PATTERN can be any Python (roughly Perl\-compatible) regular
 expression.
 .sp
-If no FILEs are specified (and \-f/\-\-follow isn\(aqt set), all files in
-the repository are searched, including those that don\(aqt exist in the
-current branch or have been deleted in a prior changeset.
+If no FILEs are specified and the \-\-rev flag isn\(aqt supplied, all
+files in the working directory are searched. When using the \-\-rev
+flag and specifying FILEs, use the \-\-follow argument to also
+follow the specified FILEs across renames and copies.
 .sp
 Template:
 .sp
@@ -2610,7 +2614,7 @@ print all revisions that match (DEPRECATED)
 .TP
 .B \-\-diff
 .
-print all revisions when the term was introduced or removed
+search revision differences for when the pattern was added or removed
 .TP
 .B \-a,  \-\-text
 .
@@ -2634,11 +2638,11 @@ print matching line numbers
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-only search files changed within revision range
+search files changed within revision range
 .TP
 .B \-\-all\-files
 .
-include all files in the changeset while grepping (EXPERIMENTAL)
+include all files in the changeset while grepping (DEPRECATED)
 .TP
 .B \-u,  \-\-user
 .
@@ -4845,6 +4849,10 @@ tar archive, compressed using bzip2
 .B \fBtgz\fP
 .sp
 tar archive, compressed using gzip
+.TP
+.B \fBtxz\fP
+.sp
+tar archive, compressed using lzma (only in Python 3)
 .TP
 .B \fBuzip\fP
 .sp
@@ -10886,13 +10894,17 @@ invoke editor on commit messages
 .
 use interactive mode
 .TP
+.B \-\-close\-branch
+.
+mark a branch as closed, hiding it from the branch list
+.TP
+.B \-s,  \-\-secret
+.
+use the secret phase for committing
+.TP
 .BI \-n,  \-\-note \ <VALUE>
 .
 store a note on the amend
-.TP
-.B \-D,  \-\-currentdate
-.
-record the current date as commit date
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -10917,6 +10929,14 @@ record the specified date as commit date
 .BI \-u,  \-\-user \ <USER>
 .
 record the specified user as committer
+.TP
+.B \-D,  \-\-currentdate
+.
+record the current date as commit date
+.TP
+.B \-U,  \-\-currentuser
+.
+record the current user as committer
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
@@ -12887,13 +12907,6 @@ remotepath = default
 # the server. (default: 10)
 clientfetchthreshold = 10
 
-# use flock instead of the file existence lock
-# flock may not work well on some network filesystems, but they avoid
-# creating and deleting files frequently, which is faster when updating
-# the annotate cache in batch. if you have issues with this option, set it
-# to False. (default: True if flock is supported, False otherwise)
-useflock = True
-
 # for "fctx" mode, always follow renames regardless of command line option.
 # this is a BC with the original command but will reduced the space needed
 # for annotate cache, and is useful for client\-server setup since the
@@ -13043,9 +13056,20 @@ substituted into the command:
 .ft P
 .fi
 .sp
+Deleted sections of a file will be ignored by :linerange, because there is no
+corresponding line range in the version being fixed.
+.sp
+By default, tools that set :linerange will only be executed if there is at least
+one changed line range. This is meant to prevent accidents like running a code
+formatter in such a way that it unexpectedly reformats the whole file. If such a
+tool needs to operate on unchanged files, it should set the :skipclean suboption
+to false.
+.sp
 The :pattern suboption determines which files will be passed through each
-configured tool. See \%\fBhg help patterns\fP\: for possible values. If there are file
-arguments to \%\fBhg fix\fP\:, the intersection of these patterns is used.
+configured tool. See \%\fBhg help patterns\fP\: for possible values. However, all
+patterns are relative to the repo root, even if that text says they are relative
+to the current working directory. If there are file arguments to \%\fBhg fix\fP\:, the
+intersection of these patterns is used.
 .sp
 There is also a configurable limit for the maximum size of file that will be
 processed by \%\fBhg fix\fP\::
@@ -13129,6 +13153,13 @@ perform other post\-fixing work. The supported hooks are:
   previously passed to the "postfixfile" hook.
 .ft P
 .fi
+.sp
+Fixer tools are run the in repository\(aqs root directory. This allows them to read
+configuration files from the working copy, or even write to the working copy.
+The working copy is not updated to match the revision being fixed. In fact,
+several revisions may be fixed in parallel. Writes to the working copy are not
+amended into the revision being fixed; fixer tools should always write fixed
+file content back to stdout as documented above.
 .SS Commands
 .SS File content management
 .SS fix
@@ -14013,6 +14044,13 @@ display with template
 .INDENT 3.5
 .sp
 store some pushes in a remote blob store on the server (EXPERIMENTAL)
+.UNINDENT
+.UNINDENT
+.sp
+IMPORTANT: if you use this extension, please contact
+\%mercurial\-devel@mercurial\-scm.org\: ASAP. This extension is believed to
+be unused and barring learning of users of this functionality, we will
+delete this code at the end of 2020.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -14090,8 +14128,6 @@ pushtobundlestore = True
 # This option should be set only if remotenames extension is enabled.
 # Whether remote bookmarks are tracked by remotenames extension.
 bookmarks = True
-.UNINDENT
-.UNINDENT
 .UNINDENT
 .UNINDENT
 .SS journal
@@ -14645,33 +14681,31 @@ locally.  Both committing and downloading an LFS file will link the
 file to a usercache, to speed up future access.  See the \fIusercache\fP
 config setting described below.
 .sp
-.hglfs:
+The extension reads its configuration from a versioned \fB.hglfs\fP
+configuration file found in the root of the working directory. The
+\fB.hglfs\fP file uses the same syntax as all other Mercurial
+configuration files. It uses a single section, \fB[track]\fP.
+.sp
+The \fB[track]\fP section specifies which files are stored as LFS (or
+not). Each line is keyed by a file pattern, with a predicate value.
+The first file pattern match is used, so put more specific patterns
+first.  The available predicates are \fBall()\fP, \fBnone()\fP, and
+\fBsize()\fP. See "hg help filesets.size" for the latter.
+.sp
+Example versioned \fB.hglfs\fP file:
 .sp
 .nf
 .ft C
-The extension reads its configuration from a versioned \(ga\(ga.hglfs\(ga\(ga
-configuration file found in the root of the working directory. The
-\(ga\(ga.hglfs\(ga\(ga file uses the same syntax as all other Mercurial
-configuration files. It uses a single section, \(ga\(ga[track]\(ga\(ga.
+[track]
+# No Makefile or python file, anywhere, will be LFS
+**Makefile = none()
+**.py = none()
 
-The \(ga\(ga[track]\(ga\(ga section specifies which files are stored as LFS (or
-not). Each line is keyed by a file pattern, with a predicate value.
-The first file pattern match is used, so put more specific patterns
-first.  The available predicates are \(ga\(gaall()\(ga\(ga, \(ga\(ganone()\(ga\(ga, and
-\(ga\(gasize()\(ga\(ga. See "hg help filesets.size" for the latter.
+**.zip = all()
+**.exe = size(">1MB")
 
-Example versioned \(ga\(ga.hglfs\(ga\(ga file::
-
-  [track]
-  # No Makefile or python file, anywhere, will be LFS
-  **Makefile = none()
-  **.py = none()
-
-  **.zip = all()
-  **.exe = size(">1MB")
-
-  # Catchall for everything not matched above
-  ** = size(">10MB")
+# Catchall for everything not matched above
+** = size(">10MB")
 .ft P
 .fi
 .sp
@@ -15940,7 +15974,7 @@ qpush after importing
 .sp
 create clones which fetch history data for subset of files (EXPERIMENTAL)
 .SS Commands
-.SS Uncategorized commands
+.SS Repository maintenance
 .SS tracked
 .sp
 show or change the current narrowspec:
@@ -15972,6 +16006,11 @@ and replaced by the new ones specified to \-\-addinclude and \-\-addexclude.
 If \-\-clear is specified without any further options, the narrowspec will be
 empty and will not match any files.
 .sp
+If \-\-auto\-remove\-includes is specified, then those includes that don\(aqt match
+any files modified by currently visible local commits (those not shared by
+the remote) will be added to the set of explicitly specified includes to
+remove.
+.sp
 \-\-import\-rules accepts a path to a file containing rules, allowing you to
 add \-\-addinclude, \-\-addexclude rules in bulk. Like the other include and
 exclude switches, the changes are applied immediately.
@@ -15986,6 +16025,10 @@ new paths to include
 .BI \-\-removeinclude \ <VALUE[+]>
 .
 old paths to no longer include
+.TP
+.B \-\-auto\-remove\-includes
+.
+automatically choose unused includes to remove
 .TP
 .BI \-\-addexclude \ <VALUE[+]>
 .
@@ -16141,6 +16184,13 @@ turn them into relative paths. For example, \fBnotify.strip=3\fP will change
 .B notify.domain
 .
 Default email domain for sender or recipients with no explicit domain.
+It is also used for the domain part of the \fBMessage\-Id\fP when using
+\fBnotify.messageidseed\fP.
+.TP
+.B notify.messageidseed
+.
+Create deterministic \fBMessage\-Id\fP headers for the mails based on the seed
+and the revision identifier of the first commit in the changeset.
 .TP
 .B notify.style
 .
@@ -17577,18 +17627,7 @@ corruption before returning metadata
 .UNINDENT
 .UNINDENT
 .SS Commands
-.SS Uncategorized commands
-.SS gc
-.sp
-garbage collect the client and server filelog caches:
-.sp
-.nf
-.ft C
-hg gc [REPO...]
-.ft P
-.fi
-.sp
-garbage collect the client and server filelog caches
+.SS Repository maintenance
 .SS prefetch
 .sp
 prefetch file revisions from the server:
@@ -17631,6 +17670,18 @@ exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS Uncategorized commands
+.SS gc
+.sp
+garbage collect the client and server filelog caches:
+.sp
+.nf
+.ft C
+hg gc [REPO...]
+.ft P
+.fi
+.sp
+garbage collect the client and server filelog caches
 .SS repack
 .sp
 .nf
@@ -17826,7 +17877,7 @@ also share bookmarks
 .TP
 .B \-\-relative
 .
-point to source using a relative path (EXPERIMENTAL)
+point to source using a relative path
 .UNINDENT
 .SS Repository maintenance
 .SS unshare
@@ -18253,6 +18304,10 @@ invoke editor on commit messages
 .
 append transplant info to log message
 .TP
+.B \-\-stop
+.
+stop interrupted transplant
+.TP
 .B \-c,  \-\-continue
 .
 continue last transplant session after fixing conflicts
@@ -18310,11 +18365,15 @@ Options:
 .TP
 .B \-\-keep
 .
-allow an empty commit after uncommiting
+allow an empty commit after uncommitting
 .TP
 .B \-\-allow\-dirty\-working\-copy
 .
 allow uncommit with outstanding changes
+.TP
+.BI \-n,  \-\-note \ <TEXT>
+.
+store a note on uncommit
 .TP
 .BI \-I,  \-\-include \ <PATTERN[+]>
 .
@@ -18323,6 +18382,30 @@ include names matching the given patterns
 .BI \-X,  \-\-exclude \ <PATTERN[+]>
 .
 exclude names matching the given patterns
+.TP
+.BI \-m,  \-\-message \ <TEXT>
+.
+use text as commit message
+.TP
+.BI \-l,  \-\-logfile \ <FILE>
+.
+read commit message from file
+.TP
+.BI \-d,  \-\-date \ <DATE>
+.
+record the specified date as commit date
+.TP
+.BI \-u,  \-\-user \ <USER>
+.
+record the specified user as committer
+.TP
+.B \-D,  \-\-currentdate
+.
+record the current date as commit date
+.TP
+.B \-U,  \-\-currentuser
+.
+record the current user as committer
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times

@@ -570,6 +570,15 @@ a different color mode than the pager program.
 Show status of files in the working directory after successful commit.
 (default: False)
 .TP
+.B \fBpush.require\-revs\fP
+.sp
+Require revisions to push be specified using one or more mechanisms such as
+specifying them positionally on the command line, using \fB\-r\fP, \fB\-b\fP,
+and/or \fB\-B\fP on the command line, or using \fBpaths.<path>:pushrev\fP in the
+configuration. If this is enabled and revisions are not specified, the
+command aborts.
+(default: False)
+.TP
 .B \fBresolve.confirm\fP
 .sp
 Confirm before performing action if no filename is passed.
@@ -2302,7 +2311,8 @@ Whether to save stripped changesets to a bundle file. (default: True)
 .B \fBupdate\-timestamp\fP
 .sp
 If true, updates the date and time of the changeset to current. It is only
-applicable for hg amend in current version.
+applicable for \fIhg amend\fP, \fIhg commit \-\-amend\fP and \fIhg uncommit\fP in the
+current version.
 .UNINDENT
 .SS \fBstorage\fP
 .sp
