@@ -11,11 +11,11 @@ Forwarded: not-needed
 
 --- mercurial.orig/setup.py
 +++ mercurial/setup.py
-@@ -1056,7 +1056,6 @@ cmdclass = {'build': hgbuild,
-             'build_hgextindex': buildhgextindex,
-             'install': hginstall,
-             'install_lib': hginstalllib,
--            'install_scripts': hginstallscripts,
-             'build_hgexe': buildhgexe,
-             }
+@@ -1218,7 +1218,6 @@ cmdclass = {
+     'build_hgextindex': buildhgextindex,
+     'install': hginstall,
+     'install_lib': hginstalllib,
+-    'install_scripts': hginstallscripts,
+     'build_hgexe': buildhgexe,
+ }
  

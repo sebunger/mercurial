@@ -2,33 +2,33 @@ Suggest Debian packages for some optional dependencies.
 
 --- mercurial.orig/hgext/bugzilla.py
 +++ mercurial/hgext/bugzilla.py
-@@ -456,7 +456,8 @@ class bzmysql(bzaccess):
-             import MySQLdb as mysql
+@@ -468,7 +468,8 @@ class bzmysql(bzaccess):
              bzmysql._MySQLdb = mysql
          except ImportError as err:
--            raise error.Abort(_('python mysql support not available: %s') % err)
-+            raise error.Abort(_('python mysql support not available: %s') % err +
-+                              _(' (try installing the %s package)') % 'python-mysqldb')
+             raise error.Abort(
+-                _(b'python mysql support not available: %s') % err
++                _(b'python mysql support not available: %s') % err +
++                _(b' (try installing the %s package)') % b'python-mysqldb'
+             )
  
          bzaccess.__init__(self, ui)
- 
 --- mercurial.orig/hgext/convert/bzr.py
 +++ mercurial/hgext/convert/bzr.py
-@@ -55,7 +55,8 @@ class bzr_source(common.converter_source
+@@ -57,7 +57,8 @@ class bzr_source(common.converter_source
              # access bzrlib stuff
              bzrdir
          except NameError:
--            raise common.NoRepo(_('Bazaar modules could not be loaded'))
-+            raise common.NoRepo(_('Bazaar modules could not be loaded') +
-+                         _(' (try installing the %s package)') % 'bzr')
+-            raise common.NoRepo(_(b'Bazaar modules could not be loaded'))
++            raise common.NoRepo(_(b'Bazaar modules could not be loaded') +
++                                _(b' (try installing the %s package)') % b'bzr')
  
          path = os.path.abspath(path)
          self._checkrepotype(path)
 --- mercurial.orig/hgext/convert/common.py
 +++ mercurial/hgext/convert/common.py
-@@ -97,14 +97,15 @@ def decodeargs(s):
- class MissingTool(Exception):
+@@ -103,14 +103,15 @@ class MissingTool(Exception):
      pass
+ 
  
 -def checktool(exe, name=None, abort=True):
 +def checktool(exe, name=None, abort=True, debname=None):
@@ -38,136 +38,130 @@ Suggest Debian packages for some optional dependencies.
              exc = error.Abort
          else:
              exc = MissingTool
--        raise exc(_('cannot find required "%s" tool') % name)
-+        raise exc(_('cannot find required "%s" tool') % name +
-+                  (debname and _(' (try installing the %s package)') % debname or ''))
+-        raise exc(_(b'cannot find required "%s" tool') % name)
++        raise exc(_(b'cannot find required "%s" tool') % name +
++                  (debname and _(b' (try installing the %s package)') % debname or b''))
+ 
  
  class NoRepo(Exception):
-     pass
 --- mercurial.orig/hgext/convert/cvs.py
 +++ mercurial/hgext/convert/cvs.py
-@@ -42,7 +42,7 @@ class convert_cvs(converter_source):
+@@ -48,7 +48,7 @@ class convert_cvs(converter_source):
          if not os.path.exists(cvs):
-             raise NoRepo(_("%s does not look like a CVS checkout") % path)
+             raise NoRepo(_(b"%s does not look like a CVS checkout") % path)
  
--        checktool('cvs')
-+        checktool('cvs', debname='cvs')
+-        checktool(b'cvs')
++        checktool(b'cvs', debname=b'cvs')
  
          self.changeset = None
          self.files = {}
 --- mercurial.orig/hgext/convert/darcs.py
 +++ mercurial/hgext/convert/darcs.py
-@@ -51,14 +51,15 @@ class darcs_source(common.converter_sour
-         if not os.path.exists(os.path.join(path, '_darcs')):
-             raise NoRepo(_("%s does not look like a darcs repository") % path)
+@@ -53,7 +53,7 @@ class darcs_source(common.converter_sour
+         if not os.path.exists(os.path.join(path, b'_darcs')):
+             raise NoRepo(_(b"%s does not look like a darcs repository") % path)
  
--        common.checktool('darcs')
-+        common.checktool('darcs', debname='darcs')
-         version = self.run0('--version').splitlines()[0].strip()
-         if version < '2.1':
-             raise error.Abort(_('darcs version 2.1 or newer needed (found %r)')
-                               % version)
+-        common.checktool(b'darcs')
++        common.checktool(b'darcs', debname=b'darcs')
+         version = self.run0(b'--version').splitlines()[0].strip()
+         if version < b'2.1':
+             raise error.Abort(
+@@ -61,7 +61,8 @@ class darcs_source(common.converter_sour
+             )
  
-         if "ElementTree" not in globals():
--            raise error.Abort(_("Python ElementTree module is not available"))
-+            raise error.Abort(_("Python ElementTree module is not available") +
-+                              _(" (try installing the %s package)") % 'python-celementtree')
+         if b"ElementTree" not in globals():
+-            raise error.Abort(_(b"Python ElementTree module is not available"))
++            raise error.Abort(_(b"Python ElementTree module is not available") +
++                              _(b" (try installing the %s package)") % b'python-celementtree')
  
          self.path = os.path.realpath(path)
  
 --- mercurial.orig/hgext/convert/git.py
 +++ mercurial/hgext/convert/git.py
-@@ -96,7 +96,7 @@ class convert_git(common.converter_sourc
+@@ -100,7 +100,7 @@ class convert_git(common.converter_sourc
          else:
              self.simopt = []
  
--        common.checktool('git', 'git')
-+        common.checktool('git', 'git', debname="git-core")
+-        common.checktool(b'git', b'git')
++        common.checktool(b'git', b'git', debname=b'git')
  
          self.path = path
          self.submodules = []
 --- mercurial.orig/hgext/convert/gnuarch.py
 +++ mercurial/hgext/convert/gnuarch.py
-@@ -56,7 +56,8 @@ class gnuarch_source(common.converter_so
-             if procutil.findexe('tla'):
-                 self.execmd = 'tla'
+@@ -57,7 +57,8 @@ class gnuarch_source(common.converter_so
+             if procutil.findexe(b'tla'):
+                 self.execmd = b'tla'
              else:
--                raise error.Abort(_('cannot find a GNU Arch tool'))
-+                raise error.Abort(_('cannot find a GNU Arch tool') +
-+                                  _(' (try installing the %s package)') % 'tla')
+-                raise error.Abort(_(b'cannot find a GNU Arch tool'))
++                raise error.Abort(_(b'cannot find a GNU Arch tool') +
++                                  _(b' (try installing the %s package)') % b'tla')
  
          common.commandline.__init__(self, ui, self.execmd)
  
 --- mercurial.orig/hgext/convert/monotone.py
 +++ mercurial/hgext/convert/monotone.py
-@@ -76,7 +76,7 @@ class monotone_source(common.converter_s
+@@ -87,7 +87,7 @@ class monotone_source(common.converter_s
          self.files = None
-         self.dirs  = None
+         self.dirs = None
  
--        common.checktool('mtn', abort=False)
-+        common.checktool('mtn', abort=False, debname='monotone')
+-        common.checktool(b'mtn', abort=False)
++        common.checktool(b'mtn', abort=False, debname=b'monotone')
  
      def mtnrun(self, *args, **kwargs):
          if self.automatestdio:
 --- mercurial.orig/hgext/convert/subversion.py
 +++ mercurial/hgext/convert/subversion.py
-@@ -299,16 +299,19 @@ class svn_source(converter_source):
-             raise NoRepo(_("%s does not look like a Subversion repository")
-                          % url)
+@@ -366,7 +366,8 @@ class svn_source(converter_source):
+                 _(b"%s does not look like a Subversion repository") % url
+             )
          if svn is None:
--            raise MissingTool(_('could not load Subversion python bindings'))
-+            raise MissingTool(_('could not load Subversion python bindings') +
-+                              _(' (try installing the %s package)') % 'python-subversion')
+-            raise MissingTool(_(b'could not load Subversion python bindings'))
++            raise MissingTool(_(b'could not load Subversion python bindings') +
++                              _(b' (try installing the %s package)') % b'python-subversion')
  
          try:
              version = svn.core.SVN_VER_MAJOR, svn.core.SVN_VER_MINOR
-             if version < (1, 4):
-                 raise MissingTool(_('Subversion python bindings %d.%d found, '
--                                    '1.4 or later required') % version)
-+                                    '1.4 or later required') % version +
-+                                  _(' (try upgrading the %s package)') % 'python-subversion')
+@@ -376,14 +377,16 @@ class svn_source(converter_source):
+                         b'Subversion python bindings %d.%d found, '
+                         b'1.4 or later required'
+                     )
+-                    % version
++                    % version +
++                    _(b' (try upgrading the %s package)') % b'python-subversion'
+                 )
          except AttributeError:
-             raise MissingTool(_('Subversion python bindings are too old, 1.4 '
--                                'or later required'))
-+                                'or later required') +
-+                              _(' (try upgrading the %s package)') % 'python-subversion')
+             raise MissingTool(
+                 _(
+                     b'Subversion python bindings are too old, 1.4 '
+                     b'or later required'
+-                )
++                ) +
++                _(b' (try upgrading the %s package)') % b'python-subversion'
+             )
  
          self.lastrevs = {}
- 
-@@ -1118,6 +1121,8 @@ class svn_sink(converter_sink, commandli
-         return self.join('hg-authormap')
+@@ -1288,6 +1291,8 @@ class svn_sink(converter_sink, commandli
+         return self.join(b'hg-authormap')
  
      def __init__(self, ui, repotype, path):
-+        common.checktool('svn', debname='subversion')
-+        common.checktool('svnadmin', debname='subversion')
++        common.checktool(b'svn', debname=b'subversion')
++        common.checktool(b'svnadmin', debname=b'subversion')
  
          converter_sink.__init__(self, ui, repotype, path)
-         commandline.__init__(self, ui, 'svn')
---- mercurial.orig/mercurial/hgweb/server.py
-+++ mercurial/mercurial/hgweb/server.py
-@@ -276,7 +276,8 @@ class _httprequesthandlerssl(_httpreques
-             from .. import sslutil
-             sslutil.modernssl
-         except ImportError:
--            raise error.Abort(_("SSL support is unavailable"))
-+            raise error.Abort(_("SSL support is unavailable") +
-+                              _(" (try installing the %s package)") % 'python-openssl')
- 
-         certfile = ui.config('web', 'certificate')
- 
+         commandline.__init__(self, ui, b'svn')
 --- mercurial.orig/mercurial/sslutil.py
 +++ mercurial/mercurial/sslutil.py
-@@ -254,7 +254,9 @@ def _hostsettings(ui, hostname):
+@@ -275,7 +275,8 @@ def _hostsettings(ui, hostname):
                  cafile = util.expandpath(cafile)
                  if not os.path.exists(cafile):
-                     raise error.Abort(_('could not find web.cacerts: %s') %
--                                      cafile)
-+                                      cafile +
-+                                      _(' (try installing the %s package)') %
-+                                        'ca-certificates')
-             elif s['allowloaddefaultcerts']:
+                     raise error.Abort(
+-                        _(b'could not find web.cacerts: %s') % cafile
++                        _(b'could not find web.cacerts: %s') % cafile +
++                        _(b' (try installing the %s package)') % b'ca-certificates'
+                     )
+             elif s[b'allowloaddefaultcerts']:
                  # CAs not defined in config. Try to find system bundles.
-                 cafile = _defaultcacerts(ui)
 --- mercurial.orig/tests/test-https.t
 +++ mercurial/tests/test-https.t
 @@ -35,7 +35,7 @@ cacert not found

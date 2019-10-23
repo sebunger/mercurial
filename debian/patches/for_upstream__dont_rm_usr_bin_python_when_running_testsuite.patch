@@ -9,8 +9,8 @@ Bug: http://bz.selenic.com/show_bug.cgi?id=4045
 
 --- mercurial.orig/tests/run-tests.py
 +++ mercurial/tests/run-tests.py
-@@ -3021,7 +3021,7 @@ class TestRunner(object):
-                  sysexecutable)
+@@ -3379,7 +3379,7 @@ class TestRunner(object):
+             )
              mypython = os.path.join(self._tmpbindir, pyexename)
              try:
 -                if os.readlink(mypython) == sysexecutable:

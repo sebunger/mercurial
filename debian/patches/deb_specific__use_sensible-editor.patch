@@ -13,15 +13,15 @@ Use sensible-editor as default instead of vi.
          EDITOR="$EDITOR -nw"
 --- mercurial.orig/mercurial/ui.py
 +++ mercurial/mercurial/ui.py
-@@ -1732,7 +1732,7 @@ class ui(object):
+@@ -1874,7 +1874,7 @@ class ui(object):
              # avoid confusion.
-             editor = 'E'
+             editor = b'E'
          else:
--            editor = 'vi'
-+            editor = 'sensible-editor'
-         return (encoding.environ.get("HGEDITOR") or
-                 self.config("ui", "editor", editor))
- 
+-            editor = b'vi'
++            editor = b'sensible-editor'
+         return encoding.environ.get(b"HGEDITOR") or self.config(
+             b"ui", b"editor", editor
+         )
 --- mercurial.orig/i18n/da.po
 +++ mercurial/i18n/da.po
 @@ -8752,7 +8752,7 @@ msgstr ""
@@ -325,7 +325,7 @@ Use sensible-editor as default instead of vi.
      This is used by Python to find imported modules and may need to be
 --- mercurial.orig/mercurial/help/config.txt
 +++ mercurial/mercurial/help/config.txt
-@@ -2283,7 +2283,8 @@ User interface controls.
+@@ -2292,7 +2292,8 @@ User interface controls.
      Print debugging information. (default: False)
  
  ``editor``
@@ -412,23 +412,33 @@ Use sensible-editor as default instead of vi.
  "PYTHONPATH\n"
 --- mercurial.orig/mercurial/debugcommands.py
 +++ mercurial/mercurial/debugcommands.py
-@@ -1359,15 +1359,15 @@ def debuginstall(ui, **opts):
-     editorbin = procutil.shellsplit(editor)[0]
-     fm.write('editor', _("checking commit editor... (%s)\n"), editorbin)
+@@ -1646,17 +1646,17 @@ def debuginstall(ui, **opts):
+     fm.write(b'editor', _(b"checking commit editor... (%s)\n"), editorbin)
      cmdpath = procutil.findexe(editorbin)
--    fm.condwrite(not cmdpath and editor == 'vi', 'vinotfound',
-+    fm.condwrite(not cmdpath and editor == 'sensible-editor', 'vinotfound',
-                  _(" No commit editor set and can't find %s in PATH\n"
-                    " (specify a commit editor in your configuration"
--                   " file)\n"), not cmdpath and editor == 'vi' and editorbin)
--    fm.condwrite(not cmdpath and editor != 'vi', 'editornotfound',
-+                   " file)\n"), not cmdpath and editor == 'sensible-editor' and editorbin)
-+    fm.condwrite(not cmdpath and editor != 'sensible-editor', 'editornotfound',
-                  _(" Can't find editor '%s' in PATH\n"
-                    " (specify a commit editor in your configuration"
-                    " file)\n"), not cmdpath and editorbin)
--    if not cmdpath and editor != 'vi':
-+    if not cmdpath and editor != 'sensible-editor':
+     fm.condwrite(
+-        not cmdpath and editor == b'vi',
++        not cmdpath and editor == b'sensible-editor',
+         b'vinotfound',
+         _(
+             b" No commit editor set and can't find %s in PATH\n"
+             b" (specify a commit editor in your configuration"
+             b" file)\n"
+         ),
+-        not cmdpath and editor == b'vi' and editorbin,
++        not cmdpath and editor == b'sensible-editor' and editorbin,
+     )
+     fm.condwrite(
+-        not cmdpath and editor != b'vi',
++        not cmdpath and editor != b'sensible-editor',
+         b'editornotfound',
+         _(
+             b" Can't find editor '%s' in PATH\n"
+@@ -1665,7 +1665,7 @@ def debuginstall(ui, **opts):
+         ),
+         not cmdpath and editorbin,
+     )
+-    if not cmdpath and editor != b'vi':
++    if not cmdpath and editor != b'sensible-editor':
          problems += 1
  
      # check username

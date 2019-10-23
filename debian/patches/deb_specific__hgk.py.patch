@@ -5,9 +5,9 @@ Set default hgk path for hgk outside bin.
 @@ -65,7 +65,7 @@ configtable = {}
  configitem = registrar.configitem(configtable)
  
- configitem('hgk', 'path',
--    default='hgk',
-+    default='/usr/share/mercurial/hgk',
+ configitem(
+-    b'hgk', b'path', default=b'hgk',
++    b'hgk', b'path', default=b'/usr/share/mercurial/hgk',
  )
  
- @command('debug-diff-tree',
+ 
