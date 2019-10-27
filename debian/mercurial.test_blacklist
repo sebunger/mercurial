@@ -28,19 +28,5 @@ test-commandserver.t
 test-largefiles.t
 test-wireproto-exchangev2.t
 
-# https://bz.mercurial-scm.org/show_bug.cgi?id=6188
-# zstd gives different results on big-endian:
-# --- /<<PKGBUILDDIR>>/tests/test-repo-compengines.t
-# +++ /<<PKGBUILDDIR>>/tests/test-repo-compengines.t.err
-# @@ -171,7 +171,7 @@
-#    $ $RUNTESTDIR/f -s zstd-*/.hg/store/data/*
-#    zstd-level-1/.hg/store/data/a.i: size=4097
-#    zstd-level-22/.hg/store/data/a.i: size=4091
-# -  zstd-level-default/.hg/store/data/a.i: size=4094
-# +  zstd-level-default/.hg/store/data/a.i: size=4102
-#  
-#  Test error cases
-#  
-#
-# ERROR: test-repo-compengines.t output changed
-test-repo-compengines.t
+# https://bz.mercurial-scm.org/show_bug.cgi?id=6211
+test-remotefilelog-bgprefetch.t

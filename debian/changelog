@@ -1,3 +1,10 @@
+mercurial (5.2~rc0-2) UNRELEASED; urgency=medium
+
+  * Re-enable test-repo-compengines.t, fixed upstream.
+  * Disable test-remotefilelog-bgprefetch.t for being flaky.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 27 Oct 2019 15:56:33 +0100
+
 mercurial (5.2~rc0-1) experimental; urgency=medium
 
   * New upstream release candidate.
