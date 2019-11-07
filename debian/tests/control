@@ -19,4 +19,8 @@ Depends:
     python-pygments,
     python-docutils,
     sqlite3,
+    clang-format,
+#   python-vcr, (https://tracker.debian.org/news/1056660/accepted-vcrpy-201-4-source-into-unstable/)
+#   python-fuzzywuzzy, (Bug#936574)
+#   black (>= 19.10b0), (Bug#944292)
 Restrictions: allow-stderr

@@ -2,6 +2,8 @@ mercurial (5.2-2) UNRELEASED; urgency=medium
 
   * for_upstream__dont_rm_usr_bin_python_when_running_testsuite.patch: drop,
     obsolete since 2014.
+  * autopkgtest: add clang-format dependency, list other optional dependencies
+    that are currently disabled.
 
  -- Julien Cristau <jcristau@debian.org>  Wed, 06 Nov 2019 20:56:11 +0100
 
