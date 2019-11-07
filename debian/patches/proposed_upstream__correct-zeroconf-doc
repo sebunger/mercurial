@@ -1,5 +1,7 @@
 Correct the documentation for the zeroconf extension.
 
+https://phab.mercurial-scm.org/D7302
+
 Index: mercurial-4.5/hgext/zeroconf/__init__.py
 ===================================================================
 --- mercurial-4.5.orig/hgext/zeroconf/__init__.py	2018-02-11 07:36:48.718832734 +0200
