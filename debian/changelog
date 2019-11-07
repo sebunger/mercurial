@@ -4,6 +4,8 @@ mercurial (5.2-2) UNRELEASED; urgency=medium
     obsolete since 2014.
   * autopkgtest: add clang-format dependency, list other optional dependencies
     that are currently disabled.
+  * Replace deb_specific__use_sensible-editor.patch with a config snippet that
+    sets default values for ui.editor and pager.pager.
 
  -- Julien Cristau <jcristau@debian.org>  Wed, 06 Nov 2019 20:56:11 +0100
 
