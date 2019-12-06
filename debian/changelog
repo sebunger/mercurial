@@ -1,5 +1,6 @@
-mercurial (5.2-2) UNRELEASED; urgency=medium
+mercurial (5.2.1-1) UNRELEASED; urgency=medium
 
+  * New upstream bugfix release.
   * for_upstream__dont_rm_usr_bin_python_when_running_testsuite.patch: drop,
     obsolete since 2014.
   * autopkgtest: add clang-format dependency, list other optional dependencies
@@ -8,7 +9,7 @@ mercurial (5.2-2) UNRELEASED; urgency=medium
     sets default values for ui.editor and pager.pager.
   * Bump hgsubversion Breaks.
 
- -- Julien Cristau <jcristau@debian.org>  Wed, 06 Nov 2019 20:56:11 +0100
+ -- Julien Cristau <jcristau@debian.org>  Fri, 06 Dec 2019 15:12:14 +0100
 
 mercurial (5.2-1) unstable; urgency=medium
 
