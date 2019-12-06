@@ -1568,7 +1568,7 @@ class localrepository(object):
             else:
                 raise error.ProgrammingError(
                     b"unsupported changeid '%s' of type %s"
-                    % (changeid, type(changeid))
+                    % (changeid, pycompat.bytestr(type(changeid)))
                 )
 
             return context.changectx(self, rev, node)
@@ -2086,11 +2086,10 @@ class localrepository(object):
             tracktags(tr2)
             repo = reporef()
 
-            r = repo.ui.configsuboptions(
-                b'experimental', b'single-head-per-branch'
-            )
-            singlehead, singleheadsub = r
+            singleheadopt = (b'experimental', b'single-head-per-branch')
+            singlehead = repo.ui.configbool(*singleheadopt)
             if singlehead:
+                singleheadsub = repo.ui.configsuboptions(*singleheadopt)[1]
                 accountclosed = singleheadsub.get(
                     b"account-closed-heads", False
                 )
@@ -3199,7 +3198,7 @@ class localrepository(object):
         # When using the same lock to commit and strip, the phasecache is left
         # dirty after committing. Then when we strip, the repo is invalidated,
         # causing those changes to disappear.
-        if b'_phasecache' in vars(self):
+        if '_phasecache' in vars(self):
             self._phasecache.write()
 
     @unfilteredmethod
