@@ -13,13 +13,10 @@
 //!
 use crate::exceptions::{PatternError, PatternFileError};
 use cpython::{
-    PyBytes, PyDict, PyModule, PyObject, PyResult, PyString, PyTuple, Python,
-    ToPyObject,
+    PyBytes, PyDict, PyModule, PyObject, PyResult, PyTuple, Python, ToPyObject,
 };
-use hg::{
-    build_single_regex, read_pattern_file, utils::files::get_path_from_bytes,
-    LineNumber, PatternTuple,
-};
+use hg::utils::files;
+use hg::{build_single_regex, read_pattern_file, LineNumber, PatternTuple};
 use std::path::PathBuf;
 
 /// Rust does not like functions with different return signatures.
@@ -39,7 +36,7 @@ fn read_pattern_file_wrapper(
     source_info: bool,
 ) -> PyResult<PyTuple> {
     let bytes = file_path.extract::<PyBytes>(py)?;
-    let path = get_path_from_bytes(bytes.data(py));
+    let path = files::get_path_from_bytes(bytes.data(py));
     match read_pattern_file(path, warn) {
         Ok((patterns, warnings)) => {
             if source_info {
@@ -66,12 +63,12 @@ fn read_pattern_file_wrapper(
 fn warnings_to_py_bytes(
     py: Python,
     warnings: &[(PathBuf, Vec<u8>)],
-) -> Vec<(PyString, PyBytes)> {
+) -> Vec<(PyBytes, PyBytes)> {
     warnings
         .iter()
         .map(|(path, syn)| {
             (
-                PyString::new(py, &path.to_string_lossy()),
+                PyBytes::new(py, &files::get_bytes_from_path(path)),
                 PyBytes::new(py, syn),
             )
         })
