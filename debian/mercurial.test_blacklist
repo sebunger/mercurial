@@ -27,6 +27,3 @@ test-https.t
 test-commandserver.t
 test-largefiles.t
 test-wireproto-exchangev2.t
-
-# https://bz.mercurial-scm.org/show_bug.cgi?id=6211
-test-remotefilelog-bgprefetch.t
