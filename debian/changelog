@@ -1,10 +1,11 @@
-mercurial (5.2.2-1) UNRELEASED; urgency=medium
+mercurial (5.2.2-1) unstable; urgency=medium
 
+  * Team upload.
   * New upstream release
   * Remove test-remotefilelog-bgprefetch.t from the blacklist, it's
     hopefully more reliable now.
 
- -- Julien Cristau <jcristau@debian.org>  Tue, 07 Jan 2020 14:54:37 +0100
+ -- Julien Cristau <jcristau@debian.org>  Thu, 09 Jan 2020 16:06:17 +0100
 
 mercurial (5.2.1-1) unstable; urgency=medium
 
