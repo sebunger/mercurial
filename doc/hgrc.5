@@ -109,7 +109,7 @@ On Unix, the following files are consulted:
 \fB/etc/mercurial/hgrc.d/*.rc\fP (per\-system)
 .IP \(bu 2
 .
-\fB<internal>/default.d/*.rc\fP (defaults)
+\fB<internal>/*.rc\fP (defaults)
 .UNINDENT
 .sp
 On Windows, the following files are consulted:
@@ -131,7 +131,7 @@ On Windows, the following files are consulted:
 \fB%HOME%\eMercurial.ini\fP (per\-user)
 .IP \(bu 2
 .
-\fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP (per\-installation)
+\fBHKEY_LOCAL_MACHINE\eSOFTWARE\eMercurial\fP (per\-system)
 .IP \(bu 2
 .
 \fB<install\-dir>\ehgrc.d\e*.rc\fP (per\-installation)
@@ -140,15 +140,22 @@ On Windows, the following files are consulted:
 \fB<install\-dir>\eMercurial.ini\fP (per\-installation)
 .IP \(bu 2
 .
-\fB<internal>/default.d/*.rc\fP (defaults)
+\fB%PROGRAMDATA%\eMercurial\ehgrc\fP (per\-system)
+.IP \(bu 2
+.
+\fB%PROGRAMDATA%\eMercurial\eMercurial.ini\fP (per\-system)
+.IP \(bu 2
+.
+\fB%PROGRAMDATA%\eMercurial\ehgrc.d\e*.rc\fP (per\-system)
+.IP \(bu 2
+.
+\fB<internal>/*.rc\fP (defaults)
 .UNINDENT
 .IP Note
 .
 The registry key \fBHKEY_LOCAL_MACHINE\eSOFTWARE\eWow6432Node\eMercurial\fP
 is used when running 32\-bit Python on 64\-bit Windows.
 .RE
-.sp
-On Windows 9x, \fB%HOME%\fP is replaced by \fB%APPDATA%\fP.
 .sp
 On Plan9, the following files are consulted:
 .INDENT 0.0
@@ -172,7 +179,7 @@ On Plan9, the following files are consulted:
 \fB/lib/mercurial/hgrc.d/*.rc\fP (per\-system)
 .IP \(bu 2
 .
-\fB<internal>/default.d/*.rc\fP (defaults)
+\fB<internal>/*.rc\fP (defaults)
 .UNINDENT
 .sp
 Per\-repository configuration options only apply in a
@@ -568,6 +575,13 @@ a different color mode than the pager program.
 .B \fBcommit.post\-status\fP
 .sp
 Show status of files in the working directory after successful commit.
+(default: False)
+.TP
+.B \fBmerge.require\-rev\fP
+.sp
+Require that the revision to merge the current commit with be specified on
+the command line. If this is enabled and a revision is not specified, the
+command aborts.
 (default: False)
 .TP
 .B \fBpush.require\-revs\fP
@@ -1089,9 +1103,9 @@ myfeature = ~/.hgext/myfeature.py
 .SS \fBformat\fP
 .sp
 Configuration that controls the repository format. Newer format options are more
-powerful but incompatible with some older versions of Mercurial. Format options
+powerful, but incompatible with some older versions of Mercurial. Format options
 are considered at repository initialization only. You need to make a new clone
-for config change to be taken into account.
+for config changes to be taken into account.
 .sp
 For more details about repository format and version compatibility, see
 \%https://www.mercurial\-scm.org/wiki/MissingRequirement\:
@@ -1100,9 +1114,9 @@ For more details about repository format and version compatibility, see
 .B \fBusegeneraldelta\fP
 .sp
 Enable or disable the "generaldelta" repository format which improves
-repository compression by allowing "revlog" to store delta against arbitrary
-revision instead of the previous stored one. This provides significant
-improvement for repositories with branches.
+repository compression by allowing "revlog" to store deltas against
+arbitrary revisions instead of the previously stored one. This provides
+significant improvement for repositories with branches.
 .sp
 Repositories with this on\-disk format require Mercurial version 1.9.
 .sp
@@ -1112,7 +1126,7 @@ Enabled by default.
 .sp
 Enable or disable the "dotencode" repository format which enhances
 the "fncache" repository format (which has to be enabled to use
-dotencode) to avoid issues with filenames starting with ._ on
+dotencode) to avoid issues with filenames starting with "._" on
 Mac OS X and spaces on Windows.
 .sp
 Repositories with this on\-disk format require Mercurial version 1.7.
@@ -1154,12 +1168,14 @@ Enabled by default.
 .TP
 .B \fBrevlog\-compression\fP
 .sp
-Compression algorithm used by revlog. Supported value are \fIzlib\fP and \fIzstd\fP.
-The \fIzlib\fP engine is the historical default of Mercurial. \fIzstd\fP is a newer
-format that is usually a net win over \fIzlib\fP operating faster at better
-compression rate. Use \fIzstd\fP to reduce CPU usage.
+Compression algorithm used by revlog. Supported values are \fIzlib\fP and
+\fIzstd\fP. The \fIzlib\fP engine is the historical default of Mercurial. \fIzstd\fP is
+a newer format that is usually a net win over \fIzlib\fP, operating faster at
+better compression rates. Use \fIzstd\fP to reduce CPU usage.
 .sp
-On some system, Mercurial installation may lack \fIzstd\fP supports. Default is \fIzlib\fP.
+On some systems, the Mercurial installation may lack \fIzstd\fP support.
+.sp
+Default is \fIzlib\fP.
 .TP
 .B \fBbookmarks\-in\-store\fP
 .sp
@@ -3525,7 +3541,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2019 Matt Mackall.
+Mercurial is copyright 2005\-2020 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

@@ -9,8 +9,11 @@
 
 import distutils.version
 import getpass
+import glob
 import os
 import pathlib
+import re
+import shutil
 import subprocess
 import tarfile
 import zipfile
@@ -77,6 +80,66 @@ def windows_10_sdk_info():
         'bin_x86': bin_version / 'x86',
         'bin_x64': bin_version / 'x64',
     }
+
+
+def normalize_windows_version(version):
+    """Normalize Mercurial version string so WiX/Inno accepts it.
+
+    Version strings have to be numeric ``A.B.C[.D]`` to conform with MSI's
+    requirements.
+
+    We normalize RC version or the commit count to a 4th version component.
+    We store this in the 4th component because ``A.B.C`` releases do occur
+    and we want an e.g. ``5.3rc0`` version to be semantically less than a
+    ``5.3.1rc2`` version. This requires always reserving the 3rd version
+    component for the point release and the ``X.YrcN`` release is always
+    point release 0.
+
+    In the case of an RC and presence of ``+`` suffix data, we can't use both
+    because the version format is limited to 4 components. We choose to use
+    RC and throw away the commit count in the suffix. This means we could
+    produce multiple installers with the same normalized version string.
+
+    >>> normalize_windows_version("5.3")
+    '5.3.0'
+
+    >>> normalize_windows_version("5.3rc0")
+    '5.3.0.0'
+
+    >>> normalize_windows_version("5.3rc1")
+    '5.3.0.1'
+
+    >>> normalize_windows_version("5.3rc1+2-abcdef")
+    '5.3.0.1'
+
+    >>> normalize_windows_version("5.3+2-abcdef")
+    '5.3.0.2'
+    """
+    if '+' in version:
+        version, extra = version.split('+', 1)
+    else:
+        extra = None
+
+    # 4.9rc0
+    if version[:-1].endswith('rc'):
+        rc = int(version[-1:])
+        version = version[:-3]
+    else:
+        rc = None
+
+    # Ensure we have at least X.Y version components.
+    versions = [int(v) for v in version.split('.')]
+    while len(versions) < 3:
+        versions.append(0)
+
+    if len(versions) < 4:
+        if rc is not None:
+            versions.append(rc)
+        elif extra:
+            # <commit count>-<hash>+<date>
+            versions.append(int(extra.split('-')[0]))
+
+    return '.'.join('%d' % x for x in versions[0:4])
 
 
 def find_signtool():
@@ -164,3 +227,60 @@ def python_exe_info(python_exe: pathlib.Path):
         'version': version,
         'py3': version >= distutils.version.LooseVersion('3'),
     }
+
+
+def process_install_rules(
+    rules: list, source_dir: pathlib.Path, dest_dir: pathlib.Path
+):
+    for source, dest in rules:
+        if '*' in source:
+            if not dest.endswith('/'):
+                raise ValueError('destination must end in / when globbing')
+
+            # We strip off the source path component before the first glob
+            # character to construct the relative install path.
+            prefix_end_index = source[: source.index('*')].rindex('/')
+            relative_prefix = source_dir / source[0:prefix_end_index]
+
+            for res in glob.glob(str(source_dir / source), recursive=True):
+                source_path = pathlib.Path(res)
+
+                if source_path.is_dir():
+                    continue
+
+                rel_path = source_path.relative_to(relative_prefix)
+
+                dest_path = dest_dir / dest[:-1] / rel_path
+
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                print('copying %s to %s' % (source_path, dest_path))
+                shutil.copy(source_path, dest_path)
+
+        # Simple file case.
+        else:
+            source_path = pathlib.Path(source)
+
+            if dest.endswith('/'):
+                dest_path = pathlib.Path(dest) / source_path.name
+            else:
+                dest_path = pathlib.Path(dest)
+
+            full_source_path = source_dir / source_path
+            full_dest_path = dest_dir / dest_path
+
+            full_dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(full_source_path, full_dest_path)
+            print('copying %s to %s' % (full_source_path, full_dest_path))
+
+
+def read_version_py(source_dir):
+    """Read the mercurial/__version__.py file to resolve the version string."""
+    p = source_dir / 'mercurial' / '__version__.py'
+
+    with p.open('r', encoding='utf-8') as fh:
+        m = re.search('version = b"([^"]+)"', fh.read(), re.MULTILINE)
+
+        if not m:
+            raise Exception('could not parse %s' % p)
+
+        return m.group(1)

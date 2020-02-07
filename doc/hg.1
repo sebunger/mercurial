@@ -2163,7 +2163,7 @@ show line number at the first appearance
 .TP
 .BI \-\-skip \ <REV[+]>
 .
-revision to not display (EXPERIMENTAL)
+revset to not display (EXPERIMENTAL)
 .TP
 .B \-w,  \-\-ignore\-all\-space
 .
@@ -4623,7 +4623,7 @@ restore a shelved change to the working directory:
 .sp
 .nf
 .ft C
-hg unshelve [OPTION]... [FILE]... [\-n SHELVED]
+hg unshelve [OPTION]... [[\-n] SHELVED]
 .ft P
 .fi
 .sp
@@ -4645,9 +4645,9 @@ will not be moved until you successfully complete the unshelve.)
 that causes a conflict. This reverts the unshelved changes, and
 leaves the bundle in place.)
 .sp
-If bare shelved change (when no files are specified, without interactive,
-include and exclude option) was done on newly created branch it would
-restore branch information to the working directory.
+If bare shelved change (without interactive, include and exclude
+option) was done on newly created branch it would restore branch
+information to the working directory.
 .sp
 After a successful unshelve, the shelved changes are stored in a
 backup directory. Only the N most recent backups are kept. N
@@ -5308,6 +5308,10 @@ directory strip option for patch. This has the same meaning as the corresponding
 .
 base path (DEPRECATED)
 .TP
+.B \-\-secret
+.
+use the secret phase for committing
+.TP
 .B \-e,  \-\-edit
 .
 invoke editor on commit messages
@@ -5444,7 +5448,7 @@ Options:
 .TP
 .B \-\-verify
 .
-run \fIhg verify\fP after succesful recover (default: True)
+run \fIhg verify\fP after successful recover (default: True)
 .UNINDENT
 .SS rollback
 .sp
@@ -6223,6 +6227,10 @@ if it\(aqs a directory, all files ending with .rc are added
 .
 otherwise, the file itself will be added
 .UNINDENT
+.TP
+.B HGRCSKIPREPO
+.
+When set, the .hg/hgrc from repositories are not read.
 .TP
 .B HGPLAIN
 .
@@ -7554,7 +7562,7 @@ The web server has a default style associated with it. Styles map to
 a collection of named templates. Each template is used to render a
 specific piece of data, such as a changeset or diff.
 .sp
-The style for the current request can be overwritten two ways. First,
+The style for the current request can be overridden two ways. First,
 if \fB{command}\fP contains a hyphen (\fB\-\fP), the text before the hyphen
 defines the style. For example, \fB/atom\-log\fP will render the \fBlog\fP
 command handler with the \fBatom\fP style. The second way to set the
@@ -9227,6 +9235,15 @@ system config files. Note that these approaches can have unintended
 consequences, as the user and system config files often define things
 like the username and extensions that may be required to interface
 with a repository.
+.TP
+.B HGRCSKIPREPO
+.
+When set, the .hg/hgrc from repositories are not read.
+.sp
+Note that not reading the repository\(aqs configuration can have
+unintended consequences, as the repository config files can define
+things like extensions that are required for access to the
+repository.
 .UNINDENT
 .SS Command\-line Flags
 .sp
@@ -11474,6 +11491,9 @@ simply fail when asked to produce censored data. Others, like \fBhg verify\fP an
 \fBhg update\fP, must be capable of tolerating censored data to continue to
 function in a meaningful way. Such commands only tolerate censored file
 revisions if they are allowed by the "censor.policy=ignore" config option.
+.sp
+A few informative commands such as \fBhg grep\fP will unconditionally
+ignore censored data and merely report that it was encountered.
 .SS Commands
 .SS Repository maintenance
 .SS censor
@@ -13141,7 +13161,7 @@ perform other post\-fixing work. The supported hooks are:
   to the file content. Provides "$HG_REV" and "$HG_PATH" to identify the file,
   and "$HG_METADATA" with a map of fixer names to metadata values from fixer
   tools that affected the file. Fixer tools that didn\(aqt affect the file have a
-  valueof None. Only fixer tools that executed are present in the metadata.
+  value of None. Only fixer tools that executed are present in the metadata.
 
 "postfix"
   Run once after all files and revisions have been handled. Provides
@@ -13154,7 +13174,7 @@ perform other post\-fixing work. The supported hooks are:
 .ft P
 .fi
 .sp
-Fixer tools are run the in repository\(aqs root directory. This allows them to read
+Fixer tools are run in the repository\(aqs root directory. This allows them to read
 configuration files from the working copy, or even write to the working copy.
 The working copy is not updated to match the revision being fixed. In fact,
 several revisions may be fixed in parallel. Writes to the working copy are not
@@ -16600,6 +16620,10 @@ changesets to Phabricator, and a \fBphabread\fP command which prints a stack of
 revisions in a format suitable for \%\fBhg import\fP\:, and a \fBphabupdate\fP command
 to update statuses in batch.
 .sp
+A "phabstatus" view for \%\fBhg show\fP\: is also provided; it displays status
+information of Phabricator differentials associated with unfinished
+changesets.
+.sp
 By default, Phabricator requires \fBTest Plan\fP which might prevent some
 changeset from being sent. The requirement could be disabled by changing
 \fBdifferential.require\-test\-plan\-field\fP config server side.
@@ -18524,9 +18548,9 @@ pretxnchangegroup.crlf = python:hgext.win32text.forbidcrlf
 .sp
 discover and advertise repositories on the local network
 .sp
-Zeroconf\-enabled repositories will be announced in a network without
-the need to configure a server or a service. They can be discovered
-without knowing their actual IP address.
+The zeroconf extension will advertise \%\fBhg serve\fP\: instances over
+DNS\-SD so that they can be discovered using the \%\fBhg paths\fP\: command
+without knowing the server\(aqs IP address.
 .sp
 To allow other people to discover your repository using run
 \%\fBhg serve\fP\: in your repository:
@@ -18615,7 +18639,7 @@ Source code repository: \%https://www.mercurial\-scm.org/repo/hg\:
 Mailing list: \%https://www.mercurial\-scm.org/mailman/listinfo/mercurial/\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2019 Matt Mackall.
+Copyright (C) 2005\-2020 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.
