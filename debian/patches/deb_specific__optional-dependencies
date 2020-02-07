@@ -152,7 +152,7 @@ Suggest Debian packages for some optional dependencies.
          commandline.__init__(self, ui, b'svn')
 --- mercurial.orig/mercurial/sslutil.py
 +++ mercurial/mercurial/sslutil.py
-@@ -275,7 +275,8 @@ def _hostsettings(ui, hostname):
+@@ -276,7 +276,8 @@ def _hostsettings(ui, hostname):
                  cafile = util.expandpath(cafile)
                  if not os.path.exists(cafile):
                      raise error.Abort(
