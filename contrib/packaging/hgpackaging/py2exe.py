@@ -15,8 +15,46 @@ from .downloads import download_entry
 from .util import (
     extract_tar_to_directory,
     extract_zip_to_directory,
+    process_install_rules,
     python_exe_info,
 )
+
+
+STAGING_RULES = [
+    ('contrib/bash_completion', 'contrib/'),
+    ('contrib/hgk', 'contrib/hgk.tcl'),
+    ('contrib/hgweb.fcgi', 'contrib/'),
+    ('contrib/hgweb.wsgi', 'contrib/'),
+    ('contrib/logo-droplets.svg', 'contrib/'),
+    ('contrib/mercurial.el', 'contrib/'),
+    ('contrib/mq.el', 'contrib/'),
+    ('contrib/tcsh_completion', 'contrib/'),
+    ('contrib/tcsh_completion_build.sh', 'contrib/'),
+    ('contrib/vim/*', 'contrib/vim/'),
+    ('contrib/win32/postinstall.txt', 'ReleaseNotes.txt'),
+    ('contrib/win32/ReadMe.html', 'ReadMe.html'),
+    ('contrib/xml.rnc', 'contrib/'),
+    ('contrib/zsh_completion', 'contrib/'),
+    ('dist/hg.exe', './'),
+    ('dist/lib/*.dll', 'lib/'),
+    ('dist/lib/*.pyd', 'lib/'),
+    ('dist/lib/library.zip', 'lib/'),
+    ('dist/Microsoft.VC*.CRT.manifest', './'),
+    ('dist/msvc*.dll', './'),
+    ('dist/python*.dll', './'),
+    ('doc/*.html', 'doc/'),
+    ('doc/style.css', 'doc/'),
+    ('mercurial/helptext/**/*.txt', 'helptext/'),
+    ('mercurial/defaultrc/*.rc', 'defaultrc/'),
+    ('mercurial/locale/**/*', 'locale/'),
+    ('mercurial/templates/**/*', 'templates/'),
+    ('COPYING', 'Copying.txt'),
+]
+
+# List of paths to exclude from the staging area.
+STAGING_EXCLUDES = [
+    'doc/hg-ssh.8.html',
+]
 
 
 def build_py2exe(
@@ -169,3 +207,39 @@ def build_py2exe(
         env=env,
         check=True,
     )
+
+
+def stage_install(
+    source_dir: pathlib.Path, staging_dir: pathlib.Path, lower_case=False
+):
+    """Copy all files to be installed to a directory.
+
+    This allows packaging to simply walk a directory tree to find source
+    files.
+    """
+    if lower_case:
+        rules = []
+        for source, dest in STAGING_RULES:
+            # Only lower directory names.
+            if '/' in dest:
+                parent, leaf = dest.rsplit('/', 1)
+                dest = '%s/%s' % (parent.lower(), leaf)
+            rules.append((source, dest))
+    else:
+        rules = STAGING_RULES
+
+    process_install_rules(rules, source_dir, staging_dir)
+
+    # Write out a default editor.rc file to configure notepad as the
+    # default editor.
+    with (staging_dir / 'defaultrc' / 'editor.rc').open(
+        'w', encoding='utf-8'
+    ) as fh:
+        fh.write('[ui]\neditor = notepad\n')
+
+    # Purge any files we don't want to be there.
+    for f in STAGING_EXCLUDES:
+        p = staging_dir / f
+        if p.exists():
+            print('removing %s' % p)
+            p.unlink()

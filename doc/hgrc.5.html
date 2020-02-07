@@ -144,7 +144,7 @@ ones.</p>
 <li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/etc/mercurial/hgrc.d/*.rc</span></tt> (per-installation)</li>
 <li><tt class="docutils literal">/etc/mercurial/hgrc</tt> (per-system)</li>
 <li><tt class="docutils literal"><span class="pre">/etc/mercurial/hgrc.d/*.rc</span></tt> (per-system)</li>
-<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/default.d/*.rc</span></tt> (defaults)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/*.rc</span></tt> (defaults)</li>
 </ul>
 </div>
 <div class="verbose-windows container">
@@ -155,10 +155,13 @@ ones.</p>
 <li><tt class="docutils literal"><span class="pre">%USERPROFILE%\Mercurial.ini</span></tt> (per-user)</li>
 <li><tt class="docutils literal"><span class="pre">%HOME%\.hgrc</span></tt> (per-user)</li>
 <li><tt class="docutils literal"><span class="pre">%HOME%\Mercurial.ini</span></tt> (per-user)</li>
-<li><tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</tt> (per-installation)</li>
+<li><tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Mercurial</tt> (per-system)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\hgrc.d\*.rc</span></tt> (per-installation)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;install-dir&gt;\Mercurial.ini</span></tt> (per-installation)</li>
-<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/default.d/*.rc</span></tt> (defaults)</li>
+<li><tt class="docutils literal"><span class="pre">%PROGRAMDATA%\Mercurial\hgrc</span></tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">%PROGRAMDATA%\Mercurial\Mercurial.ini</span></tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">%PROGRAMDATA%\Mercurial\hgrc.d\*.rc</span></tt> (per-system)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/*.rc</span></tt> (defaults)</li>
 </ul>
 <div class="note">
 <p class="first admonition-title">Note</p>
@@ -166,8 +169,6 @@ ones.</p>
 is used when running 32-bit Python on 64-bit Windows.</p>
 </div>
 </div>
-<div class="windows container">
-On Windows 9x, <tt class="docutils literal">%HOME%</tt> is replaced by <tt class="docutils literal">%APPDATA%</tt>.</div>
 <div class="verbose-plan9 container">
 <p>On Plan9, the following files are consulted:</p>
 <ul class="simple">
@@ -177,7 +178,7 @@ On Windows 9x, <tt class="docutils literal">%HOME%</tt> is replaced by <tt class
 <li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc.d/*.rc</span></tt> (per-installation)</li>
 <li><tt class="docutils literal">/lib/mercurial/hgrc</tt> (per-system)</li>
 <li><tt class="docutils literal"><span class="pre">/lib/mercurial/hgrc.d/*.rc</span></tt> (per-system)</li>
-<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/default.d/*.rc</span></tt> (defaults)</li>
+<li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/*.rc</span></tt> (defaults)</li>
 </ul>
 </div>
 <p>Per-repository configuration options only apply in a
@@ -482,6 +483,11 @@ a different color mode than the pager program.</p>
 <dl class="docutils">
 <dt><tt class="docutils literal"><span class="pre">commit.post-status</span></tt></dt>
 <dd>Show status of files in the working directory after successful commit.
+(default: False)</dd>
+<dt><tt class="docutils literal"><span class="pre">merge.require-rev</span></tt></dt>
+<dd>Require that the revision to merge the current commit with be specified on
+the command line. If this is enabled and a revision is not specified, the
+command aborts.
 (default: False)</dd>
 <dt><tt class="docutils literal"><span class="pre">push.require-revs</span></tt></dt>
 <dd>Require revisions to push be specified using one or more mechanisms such as
@@ -825,24 +831,24 @@ myfeature = ~/.hgext/myfeature.py
 <div class="section" id="format">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">format</tt></a></h2>
 <p>Configuration that controls the repository format. Newer format options are more
-powerful but incompatible with some older versions of Mercurial. Format options
+powerful, but incompatible with some older versions of Mercurial. Format options
 are considered at repository initialization only. You need to make a new clone
-for config change to be taken into account.</p>
+for config changes to be taken into account.</p>
 <p>For more details about repository format and version compatibility, see
 <a class="reference external" href="https://www.mercurial-scm.org/wiki/MissingRequirement">https://www.mercurial-scm.org/wiki/MissingRequirement</a></p>
 <dl class="docutils">
 <dt><tt class="docutils literal">usegeneraldelta</tt></dt>
 <dd><p class="first">Enable or disable the &quot;generaldelta&quot; repository format which improves
-repository compression by allowing &quot;revlog&quot; to store delta against arbitrary
-revision instead of the previous stored one. This provides significant
-improvement for repositories with branches.</p>
+repository compression by allowing &quot;revlog&quot; to store deltas against
+arbitrary revisions instead of the previously stored one. This provides
+significant improvement for repositories with branches.</p>
 <p>Repositories with this on-disk format require Mercurial version 1.9.</p>
 <p class="last">Enabled by default.</p>
 </dd>
 <dt><tt class="docutils literal">dotencode</tt></dt>
 <dd><p class="first">Enable or disable the &quot;dotencode&quot; repository format which enhances
 the &quot;fncache&quot; repository format (which has to be enabled to use
-dotencode) to avoid issues with filenames starting with ._ on
+dotencode) to avoid issues with filenames starting with &quot;._&quot; on
 Mac OS X and spaces on Windows.</p>
 <p>Repositories with this on-disk format require Mercurial version 1.7.</p>
 <p class="last">Enabled by default.</p>
@@ -872,11 +878,12 @@ performance (by using shortened delta chains.)</p>
 <p class="last">Enabled by default.</p>
 </dd>
 <dt><tt class="docutils literal"><span class="pre">revlog-compression</span></tt></dt>
-<dd><p class="first">Compression algorithm used by revlog. Supported value are <cite>zlib</cite> and <cite>zstd</cite>.
-The <cite>zlib</cite> engine is the historical default of Mercurial. <cite>zstd</cite> is a newer
-format that is usually a net win over <cite>zlib</cite> operating faster at better
-compression rate. Use <cite>zstd</cite> to reduce CPU usage.</p>
-<p class="last">On some system, Mercurial installation may lack <cite>zstd</cite> supports. Default is <cite>zlib</cite>.</p>
+<dd><p class="first">Compression algorithm used by revlog. Supported values are <cite>zlib</cite> and
+<cite>zstd</cite>. The <cite>zlib</cite> engine is the historical default of Mercurial. <cite>zstd</cite> is
+a newer format that is usually a net win over <cite>zlib</cite>, operating faster at
+better compression rates. Use <cite>zstd</cite> to reduce CPU usage.</p>
+<p>On some systems, the Mercurial installation may lack <cite>zstd</cite> support.</p>
+<p class="last">Default is <cite>zlib</cite>.</p>
 </dd>
 <dt><tt class="docutils literal"><span class="pre">bookmarks-in-store</span></tt></dt>
 <dd><p class="first">Store bookmarks in .hg/store/. This means that bookmarks are shared when
@@ -2631,7 +2638,7 @@ enabled.
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2019 Matt Mackall.
+Mercurial is copyright 2005-2020 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <span class="target" id="common"></span><!-- Common link and substitution definitions. -->
