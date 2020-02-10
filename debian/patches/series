@@ -1,4 +1,3 @@
 deb_specific__hgk.py.patch
 deb_specific__optional-dependencies
 deb_specific__disable_libdir_replacement.patch
-deb_specific__fix_fhs_paths.patch

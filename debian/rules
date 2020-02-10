@@ -70,24 +70,10 @@ install-archdep:
 		-type d -empty -delete
 
 install-archindep:
-	# Move templates and help installed by setup.py to their FHS-correct location
-	mv $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/templates \
-	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/helptext \
-	   $(CURDIR)/debian/mercurial-common/usr/lib/python$(PYVER_DEFAULT)/dist-packages/mercurial/locale \
-	   $(CURDIR)/debian/mercurial-common/usr/share/mercurial
-	# If more than one Python version is supported, clean up the templates
-	# and help installed for the other versions
-	-rm -rf $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/templates \
-	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/help \
-	        $(CURDIR)/debian/mercurial-common/usr/lib/python*/dist-packages/mercurial/locale \
 	# remove arch-dependent python stuff
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
 		-type d -empty -delete
-
-override_dh_python2-arch:
-	dh_python2
-	find debian/mercurial/usr/share -type d -empty -delete ; \
 
 override_dh_auto_clean: mercurial/__version__.py
 	cp -a mercurial/__version__.py mercurial/__version__.py.save
