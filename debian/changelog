@@ -2,7 +2,6 @@ mercurial (5.3.1-1) UNRELEASED; urgency=medium
 
   * New upstream release
     - drop proposed_upstream__correct-zeroconf-doc, included upstream.
-    - update deb_specific__fix_fhs_paths.patch
   * Stop moving the help text and templates to /usr/share/mercurial, doesn't
     work right with the changes in 5.3 and isn't worth the effort.
 
