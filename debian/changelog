@@ -1,4 +1,4 @@
-mercurial (5.3-1) UNRELEASED; urgency=medium
+mercurial (5.3.1-1) UNRELEASED; urgency=medium
 
   * New upstream release
     - drop proposed_upstream__correct-zeroconf-doc, included upstream.
@@ -6,7 +6,7 @@ mercurial (5.3-1) UNRELEASED; urgency=medium
   * Stop moving the help text and templates to /usr/share/mercurial, doesn't
     work right with the changes in 5.3 and isn't worth the effort.
 
- -- Julien Cristau <jcristau@debian.org>  Fri, 07 Feb 2020 15:08:10 +0100
+ -- Julien Cristau <jcristau@debian.org>  Thu, 05 Mar 2020 20:37:39 +0100
 
 mercurial (5.2.2-1) unstable; urgency=medium
 
