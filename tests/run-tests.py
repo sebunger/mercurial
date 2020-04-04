@@ -1626,7 +1626,7 @@ class TTest(Test):
             return self._have.get(allreqs)
 
         # TODO do something smarter when all other uses of hghave are gone.
-        runtestdir = os.path.abspath(os.path.dirname(_bytespath(__file__)))
+        runtestdir = osenvironb[b'RUNTESTDIR']
         tdir = runtestdir.replace(b'\\', b'/')
         proc = Popen4(
             b'%s -c "%s/hghave %s"' % (self._shell, tdir, allreqs),
@@ -1770,7 +1770,7 @@ class TTest(Test):
 
         if self._case:
             casestr = b'#'.join(self._case)
-            if isinstance(self._case, str):
+            if isinstance(casestr, str):
                 quoted = shellquote(casestr)
             else:
                 quoted = shellquote(casestr.decode('utf8')).encode('utf8')
