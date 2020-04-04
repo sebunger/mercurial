@@ -1,3 +1,9 @@
+mercurial (5.3.2-1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Julien Cristau <jcristau@debian.org>  Sat, 04 Apr 2020 12:11:02 +0200
+
 mercurial (5.3.1-1) unstable; urgency=medium
 
   * Team upload.
