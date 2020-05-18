@@ -2,3 +2,4 @@ debian/hg-ssh.8
 doc/hg.1
 doc/hgignore.5
 doc/hgrc.5
+contrib/chg/chg.1
