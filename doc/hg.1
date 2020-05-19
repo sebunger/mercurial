@@ -808,6 +808,10 @@ update to new branch head if new descendants were pulled
 .
 run even when remote repository is unrelated
 .TP
+.B \-\-confirm
+.
+confirm pull before applying changes
+.TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
 a remote changeset intended to be added
@@ -1523,7 +1527,7 @@ hg graft \-r featureX \-\-base "ancestor(\(aqfeatureX\(aq, \(aqdefault\(aq)"
 .sp
 See \%\fBhg help revisions\fP\: for more about specifying revisions.
 .sp
-Returns 0 on successful completion.
+Returns 0 on successful completion, 1 if there are unresolved files.
 .sp
 Options:
 .INDENT 0.0
@@ -2325,17 +2329,28 @@ By default, this command copies the contents of files as they
 exist in the working directory. If invoked with \-A/\-\-after, the
 operation is recorded, but no copying is performed.
 .sp
-This command takes effect with the next commit. To undo a copy
-before that, see \%\fBhg revert\fP\:.
+To undo marking a file as copied, use \-\-forget. With that option,
+all given (positional) arguments are unmarked as copies. The destination
+file(s) will be left in place (still tracked).
+.sp
+This command takes effect with the next commit by default.
 .sp
 Returns 0 on success, 1 if errors are encountered.
 .sp
 Options:
 .INDENT 0.0
 .TP
+.B \-\-forget
+.
+unmark a file as copied
+.TP
 .B \-A,  \-\-after
 .
 record a copy that has already occurred
+.TP
+.BI \-\-at\-rev \ <REV>
+.
+(un)mark copies in the given revision (EXPERIMENTAL)
 .TP
 .B \-f,  \-\-force
 .
@@ -2467,7 +2482,7 @@ treat all files as text
 .TP
 .B \-g,  \-\-git
 .
-use git extended diff format
+use git extended diff format (DEFAULT: diff.git)
 .TP
 .B \-\-binary
 .
@@ -2483,7 +2498,7 @@ omit a/ and b/ prefixes from filenames
 .TP
 .B \-p,  \-\-show\-function
 .
-show which function each change is in
+show which function each change is in (DEFAULT: diff.showfunc)
 .TP
 .B \-\-reverse
 .
@@ -4552,7 +4567,7 @@ show the terse output (EXPERIMENTAL) (default: nothing)
 .TP
 .B \-C,  \-\-copies
 .
-show source of copied files
+show source of copied files (DEFAULT: ui.statuscopies)
 .TP
 .B \-0,  \-\-print0
 .
@@ -5141,7 +5156,7 @@ treat all files as text
 .TP
 .B \-g,  \-\-git
 .
-use git extended diff format
+use git extended diff format (DEFAULT: diff.git)
 .TP
 .B \-\-binary
 .
@@ -5448,7 +5463,7 @@ Options:
 .TP
 .B \-\-verify
 .
-run \fIhg verify\fP after successful recover (default: True)
+run \fIhg verify\fP after successful recover
 .UNINDENT
 .SS rollback
 .sp
@@ -6436,6 +6451,10 @@ command to allow external programs to compare revisions
 .B factotum
 .
 http authentication with factotum
+.TP
+.B fastexport
+.
+export repositories as git fast\-import stream
 .TP
 .B githelp
 .
@@ -8683,6 +8702,18 @@ Changeset is closed.
 .sp
 Changesets that are ancestors of every changeset in set.
 .TP
+.B \fBconflictlocal()\fP
+.sp
+The local side of the merge, if currently in an unresolved merge.
+.sp
+"merge" here includes merge conflicts from e.g. \(aqhg rebase\(aq or \(aqhg graft\(aq.
+.TP
+.B \fBconflictother()\fP
+.sp
+The other side of the merge, if currently in an unresolved merge.
+.sp
+"merge" here includes merge conflicts from e.g. \(aqhg rebase\(aq or \(aqhg graft\(aq.
+.TP
 .B \fBcontains(pattern)\fP
 .sp
 The revision\(aqs manifest contains a file matching pattern (but might not
@@ -8734,10 +8765,6 @@ size can either be an integer range or an integer.
 .sp
 For example, \fBexpectsize(0:1, 3:5)\fP will abort as revset size is 2 and
 2 is not between 3 and 5 inclusive.
-.TP
-.B \fBextinct()\fP
-.sp
-Obsolete changesets with obsolete descendants only.
 .TP
 .B \fBextra(label, [value])\fP
 .sp
@@ -8885,10 +8912,6 @@ Pattern matching is supported for \fInamespace\fP. See
 .sp
 No changesets.
 .TP
-.B \fBobsolete()\fP
-.sp
-Mutable changeset with a newer version.
-.TP
 .B \fBonly(set, [set])\fP
 .sp
 Changesets that are ancestors of the first set that are not ancestors
@@ -9007,10 +9030,6 @@ specifies what topographical branches to prioritize in the sort.
 .sp
 Changesets that add, modify or remove the given subrepo.  If no subrepo
 pattern is named, any subrepo changes are returned.
-.TP
-.B \fBsuccessors(set)\fP
-.sp
-All successors for set, including the given set themselves
 .TP
 .B \fBtag([name])\fP
 .sp
@@ -10160,6 +10179,10 @@ strips all leading and trailing whitespace.
 Perform text substitution
 using regular expressions.
 .TP
+.B subsetparents(rev, revset)
+.
+Look up parents of the rev in the sub graph given by the revset.
+.TP
 .B word(number, text[, separator])
 .
 Return the nth word from a string.
@@ -10616,7 +10639,7 @@ always print which changesets are modified by which changes
 .TP
 .B \-i,  \-\-interactive
 .
-interactively select which chunks to apply (EXPERIMENTAL)
+interactively select which chunks to apply
 .TP
 .B \-e,  \-\-edit\-lines
 .
@@ -12950,6 +12973,46 @@ perfhack = True
 .fi
 .SS Commands
 .SS Uncategorized commands
+.SS fastexport
+.sp
+export repositories as git fast\-import stream
+.SS Commands
+.SS Change import/export
+.SS fastexport
+.sp
+export repository as git fast\-import stream:
+.sp
+.nf
+.ft C
+hg fastexport [OPTION]... [REV]...
+.ft P
+.fi
+.sp
+This command lets you dump a repository as a human\-readable text stream.
+It can be piped into corresponding import routines like "git fast\-import".
+Incremental dumps can be created by using marks files.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.BI \-r,  \-\-rev \ <REV[+]>
+.
+revisions to export
+.TP
+.BI \-i,  \-\-import\-marks \ <FILE>
+.
+old marks file to read
+.TP
+.BI \-e,  \-\-export\-marks \ <FILE>
+.
+new marks file to write
+.TP
+.BI \-A,  \-\-authormap \ <FILE>
+.
+remap usernames using this file
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
 .SS fetch
 .sp
 pull, update and merge in one command (DEPRECATED)
@@ -13225,7 +13288,11 @@ revisions to diff against (overrides automatic selection, and applies to every r
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-revisions to fix
+revisions to fix (ADVANCED)
+.TP
+.BI \-s,  \-\-source \ <REV[+]>
+.
+fix the specified revisions and their descendants
 .TP
 .B \-w,  \-\-working\-dir
 .
@@ -13323,6 +13390,12 @@ warn_update_file_count = (integer)
 If \fBwarn_when_unused\fP is set and fsmonitor isn\(aqt enabled, a warning will
 be printed during working directory updates if this many files will be
 created.
+.SS git
+.sp
+grant Mercurial the ability to operate on Git repositories. (EXPERIMENTAL)
+.sp
+This is currently super experimental. It probably will consume your
+firstborn a la Rumpelstiltskin, etc.
 .SS githelp
 .sp
 try mapping git commands to Mercurial commands
@@ -14059,6 +14132,22 @@ display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS hooklib
+.sp
+collection of simple hooks for common tasks (EXPERIMENTAL)
+.sp
+This extension provides a number of simple hooks to handle issues
+commonly found in repositories with many contributors:
+\- email notification when changesets move from draft to public phase
+\- email notification when changesets are obsoleted
+\- enforcement of draft phase for all incoming changesets
+\- enforcement of a no\-branch\-merge policy
+\- enforcement of a no\-multiple\-heads policy
+.sp
+The implementation of the hooks is subject to change, e.g. whether to
+implement them as individual hooks or merge them into the notify
+extension as option. The functionality itself is planned to be supported
+long\-term.
 .SS infinitepush
 .INDENT 0.0
 .INDENT 3.5
@@ -15855,7 +15944,7 @@ treat all files as text
 .TP
 .B \-g,  \-\-git
 .
-use git extended diff format
+use git extended diff format (DEFAULT: diff.git)
 .TP
 .B \-\-binary
 .
@@ -15871,7 +15960,7 @@ omit a/ and b/ prefixes from filenames
 .TP
 .B \-p,  \-\-show\-function
 .
-show which function each change is in
+show which function each change is in (DEFAULT: diff.showfunc)
 .TP
 .B \-\-reverse
 .
@@ -16268,6 +16357,16 @@ If set, append mails to this mbox file instead of sending. Default: None.
 If set, use the committer of the first changeset in a changegroup for
 the "From" field of the notification mail. If not set, take the user
 from the pushing repo.  Default: False.
+.TP
+.B notify.reply\-to\-predecessor (EXPERIMENTAL)
+.
+If set and the changeset has a predecessor in the repository, try to thread
+the notification mail with the predecessor. This adds the "In\-Reply\-To" header
+to the notification mail with a reference to the predecessor with the smallest
+revision number. Mail threads can still be torn, especially when changesets
+are folded.
+.sp
+This option must  be used in combination with \fBnotify.messageidseed\fP.
 .UNINDENT
 .sp
 If set, the following entries will also be used to customize the
@@ -16656,20 +16755,48 @@ example.phabtoken = cli\-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 .fi
 .SS Commands
 .SS Change import/export
+.SS phabimport
+.sp
+import patches from Phabricator for the specified Differential Revisions:
+.sp
+.nf
+.ft C
+hg phabimport DREVSPEC... [OPTIONS]
+.ft P
+.fi
+.sp
+The patches are read and applied starting at the parent of the working
+directory.
+.sp
+See \fBhg help phabread\fP for how to specify DREVSPEC.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-\-stack
+.
+import dependencies as well
+.TP
+.BI \-\-test\-vcr \ <VALUE>
+.
+Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise will mock all http requests using the specified vcr file. (ADVANCED)
+.UNINDENT
 .SS phabread
 .sp
 print patches from Phabricator suitable for importing:
 .sp
 .nf
 .ft C
-hg phabread DREVSPEC [OPTIONS]
+hg phabread DREVSPEC... [OPTIONS]
 .ft P
 .fi
 .sp
 DREVSPEC could be a Differential Revision identity, like \fBD123\fP, or just
 the number \fB123\fP. It could also have common operators like \fB+\fP, \fB\-\fP,
 \fB&\fP, \fB(\fP, \fB)\fP for complex queries. Prefix \fB:\fP could be used to
-select a stack.
+select a stack.  If multiple DREVSPEC values are given, the result is the
+union of each individually evaluated value.  No attempt is currently made
+to reorder the values to run from parent to child.
 .sp
 \fBabandoned\fP, \fBaccepted\fP, \fBclosed\fP, \fBneedsreview\fP, \fBneedsrevision\fP
 could be used to filter patches by status. For performance reason, they
@@ -16728,6 +16855,12 @@ confirm = true
 .ft P
 .fi
 .sp
+By default, a separate review will be created for each commit that is
+selected, and will have the same parent/child relationship in Phabricator.
+If \fB\-\-fold\fP is set, multiple commits are rolled up into a single review
+as if diffed from the parent of the first revision to the last.  The commit
+messages are concatenated in the summary field on Phabricator.
+.sp
 phabsend will check obsstore and the above association to decide whether to
 update an existing Differential Revision, or create a new one.
 .sp
@@ -16758,6 +16891,10 @@ add a comment to Revisions with new/updated Diffs
 .
 ask for confirmation before sending
 .TP
+.B \-\-fold
+.
+combine the revisions into one review
+.TP
 .BI \-\-test\-vcr \ <VALUE>
 .
 Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise will mock all http requests using the specified vcr file. (ADVANCED)
@@ -16770,7 +16907,7 @@ update Differential Revision in batch:
 .sp
 .nf
 .ft C
-hg phabupdate DREVSPEC [OPTIONS]
+hg phabupdate DREVSPEC... [OPTIONS]
 .ft P
 .fi
 .sp
@@ -16840,7 +16977,7 @@ But it will leave untouched:
 Modified and unmodified tracked files
 .IP \(bu 2
 .
-Ignored files (unless \-\-all is specified)
+Ignored files (unless \-i or \-\-all is specified)
 .IP \(bu 2
 .
 New files added to the repository (with \%\fBhg add\fP\:)
@@ -16868,6 +17005,10 @@ abort if an error occurs
 .B \-\-all
 .
 purge ignored files too
+.TP
+.B \-i,  \-\-ignored
+.
+purge only ignored files
 .TP
 .B \-\-dirs
 .
@@ -16918,7 +17059,7 @@ move changeset (and descendants) to a different branch:
 .sp
 .nf
 .ft C
-hg rebase [\-s REV | \-b REV] [\-d REV] [OPTION]
+hg rebase [[\-s REV]... | [\-b REV]... | [\-r REV]...] [\-d REV] [OPTION]...
 .ft P
 .fi
 .sp
@@ -17099,11 +17240,11 @@ unresolved conflicts.
 Options:
 .INDENT 0.0
 .TP
-.BI \-s,  \-\-source \ <REV>
+.BI \-s,  \-\-source \ <REV[+]>
 .
-rebase the specified changeset and descendants
+rebase the specified changesets and their descendants
 .TP
-.BI \-b,  \-\-base \ <REV>
+.BI \-b,  \-\-base \ <REV[+]>
 .
 rebase everything from branching point of specified changeset
 .TP

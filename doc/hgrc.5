@@ -1171,7 +1171,8 @@ Enabled by default.
 Compression algorithm used by revlog. Supported values are \fIzlib\fP and
 \fIzstd\fP. The \fIzlib\fP engine is the historical default of Mercurial. \fIzstd\fP is
 a newer format that is usually a net win over \fIzlib\fP, operating faster at
-better compression rates. Use \fIzstd\fP to reduce CPU usage.
+better compression rates. Use \fIzstd\fP to reduce CPU usage. Multiple values
+can be specified, the first available one will be used.
 .sp
 On some systems, the Mercurial installation may lack \fIzstd\fP support.
 .sp
@@ -2479,15 +2480,15 @@ Level of allowed race condition between two pushing clients.
 .IP \(bu 2
 .
 \(aqstrict\(aq: push is abort if another client touched the repository
-while the push was preparing. (default)
+while the push was preparing.
 .IP \(bu 2
 .
 \(aqcheck\-related\(aq: push is only aborted if it affects head that got also
-affected while the push was preparing.
+affected while the push was preparing. (default since 5.4)
 .UNINDENT
 .sp
-This requires compatible client (version 4.3 and later). Old client will
-use \(aqstrict\(aq.
+\(aqcheck\-related\(aq only takes effect for compatible clients (version
+4.3 and later). Older clients will use \(aqstrict\(aq.
 .TP
 .B \fBvalidate\fP
 .sp
