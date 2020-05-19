@@ -2558,7 +2558,7 @@ def diff(
                 fctx2 is not None
             ), b'fctx2 unexpectly None in diff hunks filtering'
             hunks = hunksfilterfn(fctx2, hunks)
-        text = b''.join(sum((list(hlines) for hrange, hlines in hunks), []))
+        text = b''.join(b''.join(hlines) for hrange, hlines in hunks)
         if hdr and (text or len(hdr) > 1):
             yield b'\n'.join(hdr) + b'\n'
         if text:
@@ -2888,7 +2888,7 @@ def _filepairs(modified, added, removed, copy, opts):
     or 'rename' (the latter two only if opts.git is set).'''
     gone = set()
 
-    copyto = dict([(v, k) for k, v in copy.items()])
+    copyto = {v: k for k, v in copy.items()}
 
     addedset, removedset = set(added), set(removed)
 

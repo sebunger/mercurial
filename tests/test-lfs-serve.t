@@ -65,6 +65,7 @@ missing processor for flag '0x2000'!" if the extension is only loaded on one sid
   > debugprocessors = $TESTTMP/debugprocessors.py
   > [experimental]
   > lfs.disableusercache = True
+  > lfs.worker-enable = False
   > [lfs]
   > threshold=10
   > [web]
@@ -131,12 +132,6 @@ non-lfs content, and the extension enabled.
   
   requirements
      preserved: dotencode, fncache, generaldelta, revlogv1, sparserevlog, store
-  
-  sidedata
-     Allows storage of extra data alongside a revision.
-  
-  copies-sdc
-     Allows to use more efficient algorithm to deal with copy tracing.
   
   beginning upgrade...
   repository locked and read-only
