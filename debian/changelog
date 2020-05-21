@@ -10,6 +10,7 @@ mercurial (5.4-1) UNRELEASED; urgency=medium
     the keyring for upstream tarball signatures.
   * New upstream release.
   * Fix test-doctest.py now assuming it's being run from a hg repo.
+  * autopkgtests: explicitly run the testsuite with python2.
 
  -- Julien Cristau <jcristau@debian.org>  Tue, 19 May 2020 17:42:40 +0200
 
