@@ -1,3 +1,7 @@
+# Fails often on mipsen
+# https://bz.mercurial-scm.org/show_bug.cgi?id=6271
+test-nointerrupt.t
+
 # test-clonebundles.t fails in the reproducible-builds setup due to no
 #  name resolution:
 # --- /build/mercurial-3.7.2/tests/test-clonebundles.t
