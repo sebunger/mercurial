@@ -1,6 +1,9 @@
 mercurial (5.4-2) UNRELEASED; urgency=medium
 
   * Blacklist test-nointerrupt.t for being racy.
+  * Don't install the hgext.git extension as that namespace is used by
+    the mercurial-git package, and ours is still very experimental.
+    Closes: #961245
 
  -- Julien Cristau <jcristau@debian.org>  Thu, 28 May 2020 10:18:35 +0200
 

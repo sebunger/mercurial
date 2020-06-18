@@ -51,6 +51,9 @@ endif
 endif
 
 override_dh_auto_install: $(PYVERS:%=install-python%)
+	# #961245: mercurial-git grabbed the hgext/git directory years
+	# ago, so don't install our experimental extension there for now
+	rm -rf debian/tmp/usr/lib/python*/*-packages/hgext/git
 
 install-python%:
 	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
