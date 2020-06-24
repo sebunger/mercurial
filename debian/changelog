@@ -1,10 +1,11 @@
-mercurial (5.4-3) UNRELEASED; urgency=medium
+mercurial (5.4.1-1) UNRELEASED; urgency=medium
 
   * Team upload.
   * Remove python-subversion from autopkgtest dependencies
     (closes: #956007)
+  * New upstream bugfix release.
 
- -- Julien Cristau <jcristau@debian.org>  Wed, 24 Jun 2020 14:35:36 +0200
+ -- Julien Cristau <jcristau@debian.org>  Wed, 24 Jun 2020 15:23:45 +0200
 
 mercurial (5.4-2) unstable; urgency=medium
 
