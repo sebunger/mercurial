@@ -11,7 +11,7 @@
 
 Test single file
 
-# One recoded copy, one copy to record after commit
+# One recorded copy, one copy to record after commit
   $ hg cp d1/b d1/c
   $ cp d1/b d1/d
   $ hg add d1/d
@@ -23,6 +23,11 @@ Test single file
 # Errors out without --after for now
   $ hg cp --at-rev . d1/b d1/d
   abort: --at-rev requires --after
+  [255]
+# Errors out with non-existent source
+  $ hg cp -A --at-rev . d1/non-existent d1/d
+  d1/non-existent: no such file in rev 55d1fd85ef0a
+  abort: no files to copy
   [255]
 # Errors out with non-existent destination
   $ hg cp -A --at-rev . d1/b d1/non-existent
@@ -38,10 +43,26 @@ Test single file
   A d1/d
     d1/b
 
-Test using directory as destination
+Test moved file (not copied)
 
   $ hg co 0
   0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+  $ mv d1/b d1/d
+  $ hg rm -A d1/b
+  $ hg add d1/d
+  $ hg ci -m 'move d1/b to d1/d'
+  created new head
+  $ hg cp -A --at-rev . d1/b d1/d
+  saved backup bundle to $TESTTMP/.hg/strip-backup/519850c3ea27-153c8fbb-copy.hg
+  $ hg st -C --change .
+  A d1/d
+    d1/b
+  R d1/b
+
+Test using directory as destination
+
+  $ hg co 0
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ cp -R d1 d3
   $ hg add d3
   adding d3/a

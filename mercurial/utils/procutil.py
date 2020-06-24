@@ -16,6 +16,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 
 from ..i18n import _
@@ -48,9 +49,11 @@ def isatty(fp):
         return False
 
 
-# glibc determines buffering on first write to stdout - if we replace a TTY
-# destined stdout with a pipe destined stdout (e.g. pager), we want line
-# buffering (or unbuffered, on Windows)
+# Python 2 uses the C library's standard I/O streams. Glibc determines
+# buffering on first write to stdout - if we replace a TTY destined stdout with
+# a pipe destined stdout (e.g. pager), we want line buffering (or unbuffered,
+# on Windows).
+# Python 3 rolls its own standard I/O streams.
 if isatty(stdout):
     if pycompat.iswindows:
         # Windows doesn't support line buffering
@@ -604,6 +607,15 @@ else:
             pid = os.fork()
             if pid:
                 if not ensurestart:
+                    # Even though we're not waiting on the child process,
+                    # we still must call waitpid() on it at some point so
+                    # it's not a zombie/defunct. This is especially relevant for
+                    # chg since the parent process won't die anytime soon.
+                    # We use a thread to make the overhead tiny.
+                    def _do_wait():
+                        os.waitpid(pid, 0)
+
+                    threading.Thread(target=_do_wait, daemon=True).start()
                     return
                 # Parent process
                 (_pid, status) = os.waitpid(pid, 0)
