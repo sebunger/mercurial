@@ -5,7 +5,7 @@ Depends:
     unzip,
     netbase,
     subversion,
-    python-subversion,
+#    python-subversion, (Bug#956007)
     cvs,
     bzr,
     tla,
