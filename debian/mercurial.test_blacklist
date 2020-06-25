@@ -27,6 +27,9 @@ test-check-pyflakes.t
 # scenarios are possible to correctly construct.
 test-https.t
 
+# https://bz.mercurial-scm.org/show_bug.cgi?id=6150
+test-narrow-shallow.t
+
 # These tests are flaky, still need to investigate why:
 test-commandserver.t
 test-largefiles.t
