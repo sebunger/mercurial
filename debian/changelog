@@ -4,6 +4,7 @@ mercurial (5.4.1-1) UNRELEASED; urgency=medium
   * Remove python-subversion from autopkgtest dependencies
     (closes: #956007)
   * New upstream bugfix release.
+  * Fix test-clone-uncompressed.t failure on slow/loaded hosts.
 
  -- Julien Cristau <jcristau@debian.org>  Wed, 24 Jun 2020 15:23:45 +0200
 
