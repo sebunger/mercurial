@@ -30,6 +30,9 @@ test-https.t
 # https://bz.mercurial-scm.org/show_bug.cgi?id=6150
 test-narrow-shallow.t
 
+# https://bz.mercurial-scm.org/show_bug.cgi?id=6294
+test-debugcommands.t
+
 # These tests are flaky, still need to investigate why:
 test-commandserver.t
 test-largefiles.t
