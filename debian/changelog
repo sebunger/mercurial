@@ -1,4 +1,4 @@
-mercurial (5.4.1-1) UNRELEASED; urgency=medium
+mercurial (5.4.1-1) unstable; urgency=medium
 
   * Team upload.
   * Remove python-subversion from autopkgtest dependencies
@@ -8,7 +8,7 @@ mercurial (5.4.1-1) UNRELEASED; urgency=medium
   * Blacklist test-narrow-shallow.t for occasional failures.
   * Blacklist test-debugcommands.t for occasional failures.
 
- -- Julien Cristau <jcristau@debian.org>  Wed, 24 Jun 2020 15:23:45 +0200
+ -- Julien Cristau <jcristau@debian.org>  Thu, 25 Jun 2020 12:18:13 +0200
 
 mercurial (5.4-2) unstable; urgency=medium
 
