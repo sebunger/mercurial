@@ -5,18 +5,21 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@ --with python2,bash-completion
+	dh $@ --with python3,bash-completion
 
-PYVERS=$(shell pyversions -vs)
-PYVER_DEFAULT=$(shell pyversions -vd)
+PYVERS=$(shell py3versions -vs)
+PYVER_DEFAULT=$(shell py3versions -vd)
 DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
 ifeq ($(DEB_HOST_ARCH),mips64el)
         # Work around #871514
         export DEB_CFLAGS_MAINT_APPEND = -mno-lra
 endif
 
+override_dh_python3:
+	dh_python3 --shebang=/usr/bin/python3
+
 override_dh_auto_build:
-	$(MAKE) all
+	$(MAKE) all PYTHON=python$(PYVER_DEFAULT)
 	$(MAKE) -C contrib/chg all
 	# Do not start a line with a word with a dot in a manpage
 	sed -i -e 's,^[.]\(hgignore\|hg/hgrc\),\\fP\1,' doc/hg.1
@@ -44,10 +47,10 @@ ifneq ($(or $(ARCH_IS_MIPS), $(ARCH_IS_KFREEBSD-i386), $(ARCH_IS_ARMEL), $(ARCH_
 		sed -i.deb-backup -e 's/sleep 1/sleep 2/' $(CURDIR)/tests/test-pull-pull-corruption.t
 endif
 
-	http_proxy='' dh_auto_test -- TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
+	http_proxy='' dh_auto_test -- PYTHON=python$(PYVER_DEFAULT) TESTFLAGS="--verbose --timeout 1440 $(PARALLEL_TEST_JOBS) --blacklist $(CURDIR)/debian/mercurial.test_blacklist"
 	file-rename 's/\.deb-backup$$//' $(CURDIR)/tests/*
 	# run blacklisted tests but ignore their results
-	-cd tests && python run-tests.py --verbose `grep ^test ../debian/mercurial.test_blacklist`
+	-cd tests && python3 run-tests.py --verbose `grep ^test ../debian/mercurial.test_blacklist`
 endif
 
 override_dh_auto_install: $(PYVERS:%=install-python%)
@@ -79,9 +82,13 @@ install-archindep:
 		-name '*.so' ! -type d -delete , \
 		-type d -empty -delete
 
+override_dh_python3-arch:
+	dh_python3
+	find debian/mercurial/usr/share -type d -empty -delete ; \
+
 override_dh_auto_clean: mercurial/__version__.py
 	cp -a mercurial/__version__.py mercurial/__version__.py.save
-	dh_auto_clean
+	dh_auto_clean -- PYTHON=python3
 	mv mercurial/__version__.py.save mercurial/__version__.py
 	$(RM) -rv tmp/
 

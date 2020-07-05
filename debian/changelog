@@ -20,6 +20,17 @@ mercurial (5.4-2) unstable; urgency=medium
 
  -- Julien Cristau <jcristau@debian.org>  Thu, 18 Jun 2020 15:38:51 +0200
 
+mercurial (5.4-1+exp1) experimental; urgency=medium
+
+  * Team upload.
+  * Use python3 (closes: #937009).
+  * mercurial Provides python3-mercurial so extensions can depend on
+    that instead of a hazardous versioned dependency.
+  * Add Breaks on all extensions.  To be updated as we don't know what
+    version will use python3.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 21 May 2020 12:44:39 +0200
+
 mercurial (5.4-1) unstable; urgency=medium
 
   * Team upload.

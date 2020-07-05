@@ -14,7 +14,7 @@
 # hgext.bookmarks =
 
 # bugzilla integration
-# requires python-mysqldb
+# requires python3-mysqldb
 # hgext.bugzilla =
 
 # show the children of the given or working dir revision
@@ -33,11 +33,11 @@
 # requires:
 # - bzr to convert from Bazaar
 # - cvs to convert from CVS
-# - python-celementtree or python-elementtree to convert from Darcs
-# - git-core to convert from Git
+# - darcs to convert from Darcs
+# - git to convert from Git
 # - tla to convert from GNU Arch
 # - monotone to convert from Monotone
-# - python-subversion to convert from Subversion
+# - python3-subversion to convert from Subversion
 # hgext.convert =
 
 # external diff program support
@@ -65,7 +65,7 @@
 # hgext.hgk =
 
 # syntax highlighting in hgweb
-# requires python-pygments
+# requires python3-pygments
 # hgext.highlight =
 
 # lets you split a merge into pieces

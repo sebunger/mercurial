@@ -8,7 +8,7 @@ Suggest Debian packages for some optional dependencies.
              raise error.Abort(
 -                _(b'python mysql support not available: %s') % err
 +                _(b'python mysql support not available: %s') % err +
-+                _(b' (try installing the %s package)') % b'python-mysqldb'
++                _(b' (try installing the %s package)') % b'python3-mysqldb'
              )
  
          bzaccess.__init__(self, ui)
@@ -66,16 +66,6 @@ Suggest Debian packages for some optional dependencies.
          version = self.run0(b'--version').splitlines()[0].strip()
          if version < b'2.1':
              raise error.Abort(
-@@ -61,7 +61,8 @@ class darcs_source(common.converter_sour
-             )
- 
-         if b"ElementTree" not in globals():
--            raise error.Abort(_(b"Python ElementTree module is not available"))
-+            raise error.Abort(_(b"Python ElementTree module is not available") +
-+                              _(b" (try installing the %s package)") % b'python-celementtree')
- 
-         self.path = os.path.realpath(path)
- 
 --- mercurial.orig/hgext/convert/git.py
 +++ mercurial/hgext/convert/git.py
 @@ -100,7 +100,7 @@ class convert_git(common.converter_sourc
@@ -118,7 +108,7 @@ Suggest Debian packages for some optional dependencies.
          if svn is None:
 -            raise MissingTool(_(b'could not load Subversion python bindings'))
 +            raise MissingTool(_(b'could not load Subversion python bindings') +
-+                              _(b' (try installing the %s package)') % b'python-subversion')
++                              _(b' (try installing the %s package)') % b'python3-subversion')
  
          try:
              version = svn.core.SVN_VER_MAJOR, svn.core.SVN_VER_MINOR

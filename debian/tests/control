@@ -5,22 +5,22 @@ Depends:
     unzip,
     netbase,
     subversion,
-#    python-subversion, (Bug#956007)
+#    python3-subversion,
     cvs,
     bzr,
     tla,
     git,
     darcs,
     gcc,
-    python2.7-dev,
+    python3-dev,
     less,
     gettext,
-    pylint,
-    python-pygments,
-    python-docutils,
+    pylint3,
+    python3-pygments,
+    python3-docutils,
     sqlite3,
     clang-format,
-#   python-vcr, (https://tracker.debian.org/news/1056660/accepted-vcrpy-201-4-source-into-unstable/)
-#   python-fuzzywuzzy, (Bug#936574)
-#   black (>= 19.10b0), (Bug#944292)
+    python3-vcr,
+    python3-fuzzywuzzy,
+    black (>= 19.10b0),
 Restrictions: allow-stderr
