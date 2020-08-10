@@ -97,4 +97,3 @@ mercurial/__version__.py:
 	@echo "Restore it from sources before building the package"
 	@echo "Aborting."
 	exit 1
-
