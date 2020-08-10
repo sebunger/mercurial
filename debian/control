@@ -53,7 +53,7 @@ Suggests: kdiff3 | kdiff3-qt | kompare | meld | tkcvs | mgdiff, qct
 Breaks:
  hgsubversion (<= 1.9.3+git20190419+6a6ce-3),
  hgview-common,
- mercurial-crecord (<= 0.20151121-2),
+ mercurial-crecord (<< 0.20151121-2~),
  mercurial-git (<= 0.8.12-1.2),
  qct,
  mercurial-keyring (<= 1.3.0-1),

@@ -1,11 +1,12 @@
-mercurial (5.4.1-3) UNRELEASED; urgency=low
+mercurial (5.4.1-3) unstable; urgency=medium
 
   * Trim trailing whitespace.
   * Bump debhelper from deprecated 9 to 13.
   * Rely on pre-initialized dpkg-architecture variables.
   * Set Rules-Requires-Root: no.
+  * Adjust Breaks: mercurial-crecord (closes: #968035).
 
- -- Tristan Seligmann <mithrandi@lorien.mithrandi.net>  Mon, 10 Aug 2020 23:06:15 -0000
+ -- Tristan Seligmann <mithrandi@debian.org>  Mon, 10 Aug 2020 23:06:15 -0000
 
 mercurial (5.4.1-2) unstable; urgency=medium
 
