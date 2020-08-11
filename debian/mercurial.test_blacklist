@@ -37,6 +37,7 @@ test-debugcommands.t
 test-commandserver.t
 test-largefiles.t
 test-wireproto-exchangev2.t
+test-wireproto-exchangev2-shallow.t
 
 # Debian doesn't care about the formatting and this needs to run from an hg repo
 test-check-format.t
