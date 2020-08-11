@@ -22,5 +22,4 @@ Depends:
     clang-format,
     python3-vcr,
     python3-fuzzywuzzy,
-    black (>= 19.10b0),
 Restrictions: allow-stderr
