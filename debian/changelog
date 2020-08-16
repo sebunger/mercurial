@@ -2,6 +2,7 @@ mercurial (5.5-1) UNRELEASED; urgency=medium
 
   * New upstream release.
     - Fix Python 3 issues with hgext.convert.subversion (closes: #968466).
+  * Install zsh completion to vendor-completions (closes: #963253).
 
  -- Tristan Seligmann <mithrandi@debian.org>  Sun, 16 Aug 2020 09:47:06 +0200
 

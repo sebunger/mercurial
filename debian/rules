@@ -61,8 +61,7 @@ override_dh_auto_install: $(PYVERS:%=install-python%)
 install-python%:
 	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
 
-override_dh_install:
-	dh_install
+execute_after_dh_install:
 	if test -d $(CURDIR)/debian/mercurial ; then \
 		$(MAKE) -f debian/rules install-archdep ; \
 	fi
@@ -81,6 +80,8 @@ install-archindep:
 	find debian/mercurial-common/usr/lib \
 		-name '*.so' ! -type d -delete , \
 		-type d -empty -delete
+	install -DTm 644 contrib/zsh_completion \
+	    debian/mercurial-common/usr/share/zsh/vendor-completions/_mercurial
 
 override_dh_python3-arch:
 	dh_python3
