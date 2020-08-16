@@ -152,6 +152,49 @@ chg waits for pager if runcommand raises
   crash-pager: going to crash
   [255]
 
+no stdout data should be printed after pager quits, and the buffered data
+should never persist (issue6207)
+
+"killed!" may be printed if terminated by SIGPIPE, which isn't important
+in this test.
+
+  $ cat > $TESTTMP/bulkwrite.py <<'EOF'
+  > import time
+  > from mercurial import error, registrar
+  > cmdtable = {}
+  > command = registrar.command(cmdtable)
+  > @command(b'bulkwrite')
+  > def bulkwrite(ui, repo, *pats, **opts):
+  >     ui.write(b'going to write massive data\n')
+  >     ui.flush()
+  >     t = time.time()
+  >     while time.time() - t < 2:
+  >         ui.write(b'x' * 1023 + b'\n')  # will be interrupted by SIGPIPE
+  >     raise error.Abort(b"write() doesn't block")
+  > EOF
+
+  $ cat > $TESTTMP/fakepager.py <<'EOF'
+  > import sys
+  > import time
+  > sys.stdout.write('paged! %r\n' % sys.stdin.readline())
+  > time.sleep(1)  # new data will be written
+  > EOF
+
+  $ cat >> .hg/hgrc <<EOF
+  > [extensions]
+  > bulkwrite = $TESTTMP/bulkwrite.py
+  > EOF
+
+  $ chg bulkwrite --pager=on --color no --config ui.formatted=True
+  paged! 'going to write massive data\n'
+  killed! (?)
+  [255]
+
+  $ chg bulkwrite --pager=on --color no --config ui.formatted=True
+  paged! 'going to write massive data\n'
+  killed! (?)
+  [255]
+
   $ cd ..
 
 server lifecycle
@@ -229,13 +272,13 @@ check that server events are recorded:
   server.log.1
 
 print only the last 10 lines, since we aren't sure how many records are
-preserved (since setprocname isn't available on py3, the 10th-most-recent line
-is different when using py3):
+preserved (since setprocname isn't available on py3 and pure version,
+the 10th-most-recent line is different when using py3):
 
   $ cat log/server.log.1 log/server.log | tail -10 | filterlog
-  YYYY/MM/DD HH:MM:SS (PID)> confighash = ... mtimehash = ... (py3 !)
+  YYYY/MM/DD HH:MM:SS (PID)> confighash = ... mtimehash = ... (no-setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> forked worker process (pid=...)
-  YYYY/MM/DD HH:MM:SS (PID)> setprocname: ... (no-py3 !)
+  YYYY/MM/DD HH:MM:SS (PID)> setprocname: ... (setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> received fds: ...
   YYYY/MM/DD HH:MM:SS (PID)> chdir to '$TESTTMP/extreload'
   YYYY/MM/DD HH:MM:SS (PID)> setumask 18
@@ -366,7 +409,7 @@ check server log:
 
   $ cat log/server.log | filterlog
   YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...)
-  YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...)
+  YYYY/MM/DD HH:MM:SS (PID)> worker process exited (pid=...) (?)
   YYYY/MM/DD HH:MM:SS (PID)> init cached
   YYYY/MM/DD HH:MM:SS (PID)> id -R cached
   YYYY/MM/DD HH:MM:SS (PID)> loaded repo into cache: $TESTTMP/cached (in  ...s)

@@ -36,6 +36,7 @@ from mercurial import (
     extensions,
     hg,
     merge as mergemod,
+    mergestate as mergestatemod,
     mergeutil,
     node as nodemod,
     obsolete,
@@ -205,6 +206,9 @@ class rebaseruntime(object):
         self.backupf = ui.configbool(b'rewrite', b'backup-bundle')
         self.keepf = opts.get(b'keep', False)
         self.keepbranchesf = opts.get(b'keepbranches', False)
+        self.skipemptysuccessorf = rewriteutil.skip_empty_successor(
+            repo.ui, b'rebase'
+        )
         self.obsoletenotrebased = {}
         self.obsoletewithoutsuccessorindestination = set()
         self.inmemory = inmemory
@@ -367,7 +371,9 @@ class rebaseruntime(object):
         skippedset.update(obsoleteextinctsuccessors)
         _checkobsrebase(self.repo, self.ui, obsoleteset, skippedset)
 
-    def _prepareabortorcontinue(self, isabort, backup=True, suppwarns=False):
+    def _prepareabortorcontinue(
+        self, isabort, backup=True, suppwarns=False, dryrun=False, confirm=False
+    ):
         self.resume = True
         try:
             self.restorestatus()
@@ -390,7 +396,12 @@ class rebaseruntime(object):
 
         if isabort:
             backup = backup and self.backupf
-            return self._abort(backup=backup, suppwarns=suppwarns)
+            return self._abort(
+                backup=backup,
+                suppwarns=suppwarns,
+                dryrun=dryrun,
+                confirm=confirm,
+            )
 
     def _preparenewrebase(self, destmap):
         if not destmap:
@@ -521,11 +532,11 @@ class rebaseruntime(object):
         extra = {b'rebase_source': ctx.hex()}
         for c in self.extrafns:
             c(ctx, extra)
-        keepbranch = self.keepbranchesf and repo[p1].branch() != ctx.branch()
         destphase = max(ctx.phase(), phases.draft)
-        overrides = {(b'phases', b'new-commit'): destphase}
-        if keepbranch:
-            overrides[(b'ui', b'allowemptycommit')] = True
+        overrides = {
+            (b'phases', b'new-commit'): destphase,
+            (b'ui', b'allowemptycommit'): not self.skipemptysuccessorf,
+        }
         with repo.ui.configoverride(overrides, b'rebase'):
             if self.inmemory:
                 newnode = commitmemorynode(
@@ -537,7 +548,7 @@ class rebaseruntime(object):
                     user=ctx.user(),
                     date=date,
                 )
-                mergemod.mergestate.clean(repo)
+                mergestatemod.mergestate.clean(repo)
             else:
                 newnode = commitnode(
                     repo,
@@ -619,12 +630,7 @@ class rebaseruntime(object):
                         if self.inmemory:
                             raise error.InMemoryMergeConflictsError()
                         else:
-                            raise error.InterventionRequired(
-                                _(
-                                    b'unresolved conflicts (see hg '
-                                    b'resolve, then hg rebase --continue)'
-                                )
-                            )
+                            raise error.ConflictResolutionRequired(b'rebase')
             if not self.collapsef:
                 merging = p2 != nullrev
                 editform = cmdutil.mergeeditform(merging, b'rebase')
@@ -645,6 +651,14 @@ class rebaseruntime(object):
             if newnode is not None:
                 self.state[rev] = repo[newnode].rev()
                 ui.debug(b'rebased as %s\n' % short(newnode))
+                if repo[newnode].isempty():
+                    ui.warn(
+                        _(
+                            b'note: created empty successor for %s, its '
+                            b'destination already has all its changes\n'
+                        )
+                        % desc
+                    )
             else:
                 if not self.collapsef:
                     ui.warn(
@@ -749,7 +763,7 @@ class rebaseruntime(object):
         ):
             bookmarks.activate(repo, self.activebookmark)
 
-    def _abort(self, backup=True, suppwarns=False):
+    def _abort(self, backup=True, suppwarns=False, dryrun=False, confirm=False):
         '''Restore the repository to its original state.'''
 
         repo = self.repo
@@ -793,7 +807,10 @@ class rebaseruntime(object):
 
                 updateifonnodes = set(rebased)
                 updateifonnodes.update(self.destmap.values())
-                updateifonnodes.add(self.originalwd)
+
+                if not dryrun and not confirm:
+                    updateifonnodes.add(self.originalwd)
+
                 shouldupdate = repo[b'.'].rev() in updateifonnodes
 
                 # Update away from the rebase if necessary
@@ -1074,7 +1091,7 @@ def rebase(ui, repo, **opts):
             )
             # TODO: Make in-memory merge not use the on-disk merge state, so
             # we don't have to clean it here
-            mergemod.mergestate.clean(repo)
+            mergestatemod.mergestate.clean(repo)
             clearstatus(repo)
             clearcollapsemsg(repo)
             return _dorebase(ui, repo, action, opts, inmemory=False)
@@ -1119,7 +1136,10 @@ def _dryrunrebase(ui, repo, action, opts):
                     rbsrt._finishrebase()
                 else:
                     rbsrt._prepareabortorcontinue(
-                        isabort=True, backup=False, suppwarns=True
+                        isabort=True,
+                        backup=False,
+                        suppwarns=True,
+                        confirm=confirm,
                     )
                 needsabort = False
             else:
@@ -1134,7 +1154,10 @@ def _dryrunrebase(ui, repo, action, opts):
             if needsabort:
                 # no need to store backup in case of dryrun
                 rbsrt._prepareabortorcontinue(
-                    isabort=True, backup=False, suppwarns=True
+                    isabort=True,
+                    backup=False,
+                    suppwarns=True,
+                    dryrun=opts.get(b'dry_run'),
                 )
 
 
@@ -1175,7 +1198,7 @@ def _origrebase(
             if action == b'abort' and opts.get(b'tool', False):
                 ui.warn(_(b'tool option will be ignored\n'))
             if action == b'continue':
-                ms = mergemod.mergestate.read(repo)
+                ms = mergestatemod.mergestate.read(repo)
                 mergeutil.checkunresolved(ms)
 
             retcode = rbsrt._prepareabortorcontinue(
@@ -1413,16 +1436,16 @@ def externalparent(repo, state, destancestors):
 def commitmemorynode(repo, wctx, editor, extra, user, date, commitmsg):
     '''Commit the memory changes with parents p1 and p2.
     Return node of committed revision.'''
-    # Replicates the empty check in ``repo.commit``.
-    if wctx.isempty() and not repo.ui.configbool(b'ui', b'allowemptycommit'):
-        return None
-
     # By convention, ``extra['branch']`` (set by extrafn) clobbers
     # ``branch`` (used when passing ``--keepbranches``).
     branch = None
     if b'branch' in extra:
         branch = extra[b'branch']
 
+    # FIXME: We call _compact() because it's required to correctly detect
+    # changed files. This was added to fix a regression shortly before the 5.5
+    # release. A proper fix will be done in the default branch.
+    wctx._compact()
     memctx = wctx.tomemctx(
         commitmsg,
         date=date,
@@ -1431,6 +1454,8 @@ def commitmemorynode(repo, wctx, editor, extra, user, date, commitmsg):
         branch=branch,
         editor=editor,
     )
+    if memctx.isempty() and not repo.ui.configbool(b'ui', b'allowemptycommit'):
+        return None
     commitres = repo.commitctx(memctx)
     wctx.clean()  # Might be reused
     return commitres
@@ -2185,7 +2210,7 @@ def abortrebase(ui, repo):
 def continuerebase(ui, repo):
     with repo.wlock(), repo.lock():
         rbsrt = rebaseruntime(repo, ui)
-        ms = mergemod.mergestate.read(repo)
+        ms = mergestatemod.mergestate.read(repo)
         mergeutil.checkunresolved(ms)
         retcode = rbsrt._prepareabortorcontinue(isabort=False)
         if retcode is not None:

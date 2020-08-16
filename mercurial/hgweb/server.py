@@ -313,7 +313,7 @@ class _httprequesthandlerssl(_httprequesthandler):
         try:
             from .. import sslutil
 
-            sslutil.modernssl
+            sslutil.wrapserversocket
         except ImportError:
             raise error.Abort(_(b"SSL support is unavailable"))
 
@@ -382,7 +382,7 @@ class MercurialHTTPServer(_mixin, httpservermod.httpserver, object):
         self.errorlog = elog
 
         self.addr, self.port = self.socket.getsockname()[0:2]
-        self.fqaddr = socket.getfqdn(addr[0])
+        self.fqaddr = self.server_name
 
         self.serverheader = ui.config(b'web', b'server-header')
 

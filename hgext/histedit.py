@@ -201,7 +201,6 @@ except ImportError:
     termios = None
 
 import functools
-import locale
 import os
 import struct
 
@@ -224,6 +223,7 @@ from mercurial import (
     hg,
     logcmdutil,
     merge as mergemod,
+    mergestate as mergestatemod,
     mergeutil,
     node,
     obsolete,
@@ -1710,11 +1710,8 @@ def _chistedit(ui, repo, freeargs, opts):
         ctxs = []
         for i, r in enumerate(revs):
             ctxs.append(histeditrule(ui, repo[r], i))
-        # Curses requires setting the locale or it will default to the C
-        # locale. This sets the locale to the user's default system
-        # locale.
-        locale.setlocale(locale.LC_ALL, '')
-        rc = curses.wrapper(functools.partial(_chisteditmain, repo, ctxs))
+        with util.with_lc_ctype():
+            rc = curses.wrapper(functools.partial(_chisteditmain, repo, ctxs))
         curses.echo()
         curses.endwin()
         if rc is False:
@@ -2289,7 +2286,7 @@ def _getsummary(ctx):
 def bootstrapcontinue(ui, state, opts):
     repo = state.repo
 
-    ms = mergemod.mergestate.read(repo)
+    ms = mergestatemod.mergestate.read(repo)
     mergeutil.checkunresolved(ms)
 
     if state.actions:

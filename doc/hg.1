@@ -3062,7 +3062,8 @@ changed files and full commit message are shown.
 .sp
 With \-\-graph the revisions are shown as an ASCII art DAG with the most
 recent changeset at the top.
-\(aqo\(aq is a changeset, \(aq@\(aq is a working directory parent, \(aq_\(aq closes a branch,
+\(aqo\(aq is a changeset, \(aq@\(aq is a working directory parent, \(aq%\(aq is a changeset
+involved in an unresolved merge conflict, \(aq_\(aq closes a branch,
 \(aqx\(aq is obsolete, \(aq*\(aq is unstable, and \(aq+\(aq represents a fork where the
 changeset from the lines below is a parent of the \(aqo\(aq merge on the same
 line.
@@ -4543,7 +4544,7 @@ show only removed files
 .TP
 .B \-d,  \-\-deleted
 .
-show only deleted (but tracked) files
+show only missing files
 .TP
 .B \-c,  \-\-clean
 .
@@ -6788,7 +6789,9 @@ after the command.
 .sp
 Every flag has at least a long name, such as \-\-repository. Some flags may also
 have a short one\-letter name, such as the equivalent \-R. Using the short or long
-name is equivalent and has the same effect.
+name is equivalent and has the same effect. The long name may be abbreviated to
+any unambiguous prefix. For example, \%\fBhg commit \-\-amend\fP\: can be abbreviated
+to \%\fBhg commit \-\-am\fP\:.
 .sp
 Flags that have a short name can also be bundled together \- for instance, to
 specify both \-\-edit (short \-e) and \-\-interactive (short \-i), one could use:
@@ -7496,6 +7499,10 @@ syntax: regexp
 ^\e.pc/
 .ft P
 .fi
+.SS Debugging
+.sp
+Use the \fBdebugignore\fP command to see if and why a file is ignored, or to
+see the combined ignore pattern. See \%\fBhg help debugignore\fP\: for details.
 .SH CONFIGURING HGWEB
 .sp
 Mercurial\(aqs internal web server, hgweb, can serve either a single
@@ -7815,6 +7822,10 @@ To access a subtopic, use "hg help internals.{subtopic\-name}"
 .INDENT 0.0
 .INDENT 3.5
 .INDENT 0.0
+.TP
+.B bid\-merge
+.
+Bid Merge Algorithm
 .TP
 .B bundle2
 .
@@ -11889,6 +11900,15 @@ URL or clients running old Python releases may not be able to clone
 with the clonebundles facility.
 .sp
 Value should be "true".
+.TP
+.B REQUIREDRAM
+.
+Value specifies expected memory requirements to decode the payload.
+Values can have suffixes for common bytes sizes. e.g. "64MB".
+.sp
+This key is often used with zstd\-compressed bundles using a high
+compression level / window size, which can require 100+ MB of memory
+to decode.
 .TP
 .B heads
 .
@@ -16924,6 +16944,10 @@ accept revisions
 .
 reject revisions
 .TP
+.B \-\-request\-review
+.
+request review on revisions
+.TP
 .B \-\-abandon
 .
 abandon revisions
@@ -16931,6 +16955,26 @@ abandon revisions
 .B \-\-reclaim
 .
 reclaim revisions
+.TP
+.B \-\-close
+.
+close revisions
+.TP
+.B \-\-reopen
+.
+reopen revisions
+.TP
+.B \-\-plan\-changes
+.
+plan changes for revisions
+.TP
+.B \-\-resign
+.
+resign as a reviewer from revisions
+.TP
+.B \-\-commandeer
+.
+commandeer revisions
 .TP
 .BI \-m,  \-\-comment \ <VALUE>
 .
@@ -16945,7 +16989,7 @@ Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise 
 .sp
 command to delete untracked files from the working directory
 .SS Commands
-.SS Repository maintenance
+.SS Working directory management
 .SS purge
 .sp
 removes files not tracked by Mercurial:
@@ -17970,6 +18014,15 @@ same name.
 .SS share
 .sp
 share a common history between several working directories
+.sp
+The share extension introduces a new command \%\fBhg share\fP\: to create a new
+working directory. This is similar to \%\fBhg clone\fP\:, but doesn\(aqt involve
+copying or linking the storage of the repository. This allows working on
+different branches or changes in parallel without the associated cost in
+terms of disk space.
+.sp
+Note: destructive operations or extensions like \%\fBhg rollback\fP\: should be
+used with care as they can result in confusing problems.
 .SS Automatic Pooled Storage for Clones
 .sp
 When this extension is active, \%\fBhg clone\fP\: can be configured to

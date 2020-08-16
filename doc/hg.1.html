@@ -2546,7 +2546,8 @@ each commit. When the -v/--verbose switch is used, the list of
 changed files and full commit message are shown.</p>
 <p>With --graph the revisions are shown as an ASCII art DAG with the most
 recent changeset at the top.
-'o' is a changeset, '&#64;' is a working directory parent, '_' closes a branch,
+'o' is a changeset, '&#64;' is a working directory parent, '%' is a changeset
+involved in an unresolved merge conflict, '_' closes a branch,
 'x' is obsolete, '*' is unstable, and '+' represents a fork where the
 changeset from the lines below is a parent of the 'o' merge on the same
 line.
@@ -3746,7 +3747,7 @@ hg status -v -t mardu
 <td>show only removed files</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-d</span>, <span class="option">--deleted</span></kbd></td>
-<td>show only deleted (but tracked) files</td></tr>
+<td>show only missing files</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">-c</span>, <span class="option">--clean</span></kbd></td>
 <td>show only files without changes</td></tr>
@@ -5444,7 +5445,9 @@ any command - those are seen in <a class="reference external" href="hg.1.html#-v
 after the command.</p>
 <p>Every flag has at least a long name, such as --repository. Some flags may also
 have a short one-letter name, such as the equivalent -R. Using the short or long
-name is equivalent and has the same effect.</p>
+name is equivalent and has the same effect. The long name may be abbreviated to
+any unambiguous prefix. For example, <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--amend</span></tt></a> can be abbreviated
+to <a class="reference external" href="hg.1.html#commit"><tt class="docutils literal">hg commit <span class="pre">--am</span></tt></a>.</p>
 <p>Flags that have a short name can also be bundled together - for instance, to
 specify both --edit (short -e) and --interactive (short -i), one could use:</p>
 <pre class="literal-block">
@@ -5957,6 +5960,11 @@ syntax: regexp
 ^\.pc/
 </pre>
 </div>
+<div class="section" id="debugging">
+<h2>Debugging</h2>
+<p>Use the <tt class="docutils literal">debugignore</tt> command to see if and why a file is ignored, or to
+see the combined ignore pattern. See <a class="reference external" href="hg.1.html#debugignore"><tt class="docutils literal">hg help debugignore</tt></a> for details.</p>
+</div>
 </div>
 <div class="section" id="configuring-hgweb">
 <span id="hgweb"></span><h1><a class="toc-backref" href="#contents">Configuring hgweb</a></h1>
@@ -6224,6 +6232,8 @@ is captured by this handler.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
+<tr class="field"><th class="field-name">bid-merge:</th><td class="field-body">Bid Merge Algorithm</td>
+</tr>
 <tr class="field"><th class="field-name">bundle2:</th><td class="field-body">Bundle2</td>
 </tr>
 <tr class="field"><th class="field-name">bundles:</th><td class="field-body">Bundles</td>
@@ -9353,6 +9363,13 @@ an opaque SSL failure at connection time.</p>
 URL or clients running old Python releases may not be able to clone
 with the clonebundles facility.</p>
 <p class="last">Value should be &quot;true&quot;.</p>
+</dd>
+<dt>REQUIREDRAM</dt>
+<dd><p class="first">Value specifies expected memory requirements to decode the payload.
+Values can have suffixes for common bytes sizes. e.g. &quot;64MB&quot;.</p>
+<p class="last">This key is often used with zstd-compressed bundles using a high
+compression level / window size, which can require 100+ MB of memory
+to decode.</p>
 </dd>
 <dt>heads</dt>
 <dd>Used for pull bundles. This contains the <tt class="docutils literal">;</tt> separated changeset
@@ -13652,12 +13669,31 @@ hg phabupdate DREVSPEC... [OPTIONS]
 <tr><td class="option-group">
 <kbd><span class="option">--reject</span></kbd></td>
 <td>reject revisions</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">--request-review</span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>request review on revisions</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--abandon</span></kbd></td>
 <td>abandon revisions</td></tr>
 <tr><td class="option-group">
 <kbd><span class="option">--reclaim</span></kbd></td>
 <td>reclaim revisions</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--close</span></kbd></td>
+<td>close revisions</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--reopen</span></kbd></td>
+<td>reopen revisions</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--plan-changes</span></kbd></td>
+<td>plan changes for revisions</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--resign</span></kbd></td>
+<td>resign as a reviewer from revisions</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--commandeer</span></kbd></td>
+<td>commandeer revisions</td></tr>
 <tr><td class="option-group" colspan="2">
 <kbd><span class="option">-m</span>, <span class="option">--comment <var>&lt;VALUE&gt;</var></span></kbd></td>
 </tr>
@@ -13681,7 +13717,7 @@ hg phabupdate DREVSPEC... [OPTIONS]
 <div class="section" id="id101">
 <h3>Commands</h3>
 <div class="section" id="id102">
-<h4>Repository maintenance</h4>
+<h4>Working directory management</h4>
 <div class="section" id="id103">
 <h5>purge</h5>
 <p>removes files not tracked by Mercurial:</p>
@@ -14489,6 +14525,13 @@ same name.</p>
 <div class="section" id="share">
 <h2><a class="toc-backref" href="#id231">share</a></h2>
 <p>share a common history between several working directories</p>
+<p>The share extension introduces a new command <a class="reference external" href="hg.1.html#share"><tt class="docutils literal">hg share</tt></a> to create a new
+working directory. This is similar to <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a>, but doesn't involve
+copying or linking the storage of the repository. This allows working on
+different branches or changes in parallel without the associated cost in
+terms of disk space.</p>
+<p>Note: destructive operations or extensions like <a class="reference external" href="hg.1.html#rollback"><tt class="docutils literal">hg rollback</tt></a> should be
+used with care as they can result in confusing problems.</p>
 <div class="section" id="automatic-pooled-storage-for-clones">
 <h3>Automatic Pooled Storage for Clones</h3>
 <p>When this extension is active, <a class="reference external" href="hg.1.html#clone"><tt class="docutils literal">hg clone</tt></a> can be configured to
