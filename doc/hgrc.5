@@ -541,6 +541,26 @@ static\-http and static\-https respectively, as well.
 .sp
 If no suitable authentication entry is found, the user is prompted
 for credentials as usual if required by the remote.
+.SS \fBcmdserver\fP
+.sp
+Controls command server settings. (ADVANCED)
+.INDENT 0.0
+.TP
+.B \fBmessage\-encodings\fP
+.sp
+List of encodings for the \fBm\fP (message) channel. The first encoding
+supported by the server will be selected and advertised in the hello
+message. This is useful only when \fBui.message\-output\fP is set to
+\fBchannel\fP. Supported encodings are \fBcbor\fP.
+.TP
+.B \fBshutdown\-on\-interrupt\fP
+.sp
+If set to false, the server\(aqs main loop will continue running after
+SIGINT received. \fBruncommand\fP requests can still be interrupted by
+SIGINT. Close the write end of the pipe to shut down the server
+process gracefully.
+(default: True)
+.UNINDENT
 .SS \fBcolor\fP
 .sp
 Configure the Mercurial color mode. For details about how to define your custom
@@ -2331,6 +2351,19 @@ If true, updates the date and time of the changeset to current. It is only
 applicable for \fIhg amend\fP, \fIhg commit \-\-amend\fP and \fIhg uncommit\fP in the
 current version.
 .UNINDENT
+.sp
+\fBempty\-successor\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+Control what happens with empty successors that are the result of rewrite
+operations. If set to \fBskip\fP, the successor is not created. If set to
+\fBkeep\fP, the empty successor is created and kept.
+.sp
+Currently, only the rebase and absorb commands consider this configuration.
+(EXPERIMENTAL)
+.UNINDENT
+.UNINDENT
 .SS \fBstorage\fP
 .sp
 Control the strategy Mercurial uses internally to store history. Options in this
@@ -2897,6 +2930,10 @@ Can be overridden per\-merge\-tool, see the \fB[merge\-tools]\fP section.
 .sp
 Where to write status and error messages. (default: \fBstdio\fP)
 .INDENT 7.0
+.TP
+.B \fBchannel\fP
+.sp
+Use separate channel for structured output. (Command\-server only)
 .TP
 .B \fBstderr\fP
 .sp

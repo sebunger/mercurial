@@ -22,6 +22,7 @@ import errno
 import gc
 import hashlib
 import itertools
+import locale
 import mmap
 import os
 import platform as pyplatform
@@ -204,6 +205,8 @@ def nouideprecwarn(msg, version, stacklevel=1):
             b" update your code.)"
         ) % version
         warnings.warn(pycompat.sysstr(msg), DeprecationWarning, stacklevel + 1)
+        # on python 3 with chg, we will need to explicitly flush the output
+        sys.stderr.flush()
 
 
 DIGESTS = {
@@ -1378,8 +1381,8 @@ def acceptintervention(tr=None):
 
 
 @contextlib.contextmanager
-def nullcontextmanager():
-    yield
+def nullcontextmanager(enter_result=None):
+    yield enter_result
 
 
 class _lrucachenode(object):
@@ -2844,7 +2847,7 @@ if pyplatform.python_implementation() == b'CPython' and sys.version_info < (
     # [1]: fixed by changeset 67dc99a989cd in the cpython hg repo.
     #
     # Here we workaround the EINTR issue for fileobj.__iter__. Other methods
-    # like "read*" are ignored for now, as Python < 2.7.4 is a minority.
+    # like "read*" work fine, as we do not support Python < 2.7.4.
     #
     # Although we can workaround the EINTR issue for fp.__iter__, it is slower:
     # "for x in fp" is 4x faster than "for x in iter(fp.readline, '')" in
@@ -2856,39 +2859,6 @@ if pyplatform.python_implementation() == b'CPython' and sys.version_info < (
     # affects things like pipes, sockets, ttys etc. We treat "normal" (S_ISREG)
     # files approximately as "fast" files and use the fast (unsafe) code path,
     # to minimize the performance impact.
-    if sys.version_info >= (2, 7, 4):
-        # fp.readline deals with EINTR correctly, use it as a workaround.
-        def _safeiterfile(fp):
-            return iter(fp.readline, b'')
-
-    else:
-        # fp.read* are broken too, manually deal with EINTR in a stupid way.
-        # note: this may block longer than necessary because of bufsize.
-        def _safeiterfile(fp, bufsize=4096):
-            fd = fp.fileno()
-            line = b''
-            while True:
-                try:
-                    buf = os.read(fd, bufsize)
-                except OSError as ex:
-                    # os.read only raises EINTR before any data is read
-                    if ex.errno == errno.EINTR:
-                        continue
-                    else:
-                        raise
-                line += buf
-                if b'\n' in buf:
-                    splitted = line.splitlines(True)
-                    line = b''
-                    for l in splitted:
-                        if l[-1] == b'\n':
-                            yield l
-                        else:
-                            line = l
-                if not buf:
-                    break
-            if line:
-                yield line
 
     def iterfile(fp):
         fastpath = True
@@ -2897,7 +2867,8 @@ if pyplatform.python_implementation() == b'CPython' and sys.version_info < (
         if fastpath:
             return fp
         else:
-            return _safeiterfile(fp)
+            # fp.readline deals with EINTR correctly, use it as a workaround.
+            return iter(fp.readline, b'')
 
 
 else:
@@ -3626,3 +3597,73 @@ def uvarintdecodestream(fh):
         if not (byte & 0x80):
             return result
         shift += 7
+
+
+# Passing the '' locale means that the locale should be set according to the
+# user settings (environment variables).
+# Python sometimes avoids setting the global locale settings. When interfacing
+# with C code (e.g. the curses module or the Subversion bindings), the global
+# locale settings must be initialized correctly. Python 2 does not initialize
+# the global locale settings on interpreter startup. Python 3 sometimes
+# initializes LC_CTYPE, but not consistently at least on Windows. Therefore we
+# explicitly initialize it to get consistent behavior if it's not already
+# initialized. Since CPython commit 177d921c8c03d30daa32994362023f777624b10d,
+# LC_CTYPE is always initialized. If we require Python 3.8+, we should re-check
+# if we can remove this code.
+@contextlib.contextmanager
+def with_lc_ctype():
+    oldloc = locale.setlocale(locale.LC_CTYPE, None)
+    if oldloc == 'C':
+        try:
+            try:
+                locale.setlocale(locale.LC_CTYPE, '')
+            except locale.Error:
+                # The likely case is that the locale from the environment
+                # variables is unknown.
+                pass
+            yield
+        finally:
+            locale.setlocale(locale.LC_CTYPE, oldloc)
+    else:
+        yield
+
+
+def _estimatememory():
+    """Provide an estimate for the available system memory in Bytes.
+
+    If no estimate can be provided on the platform, returns None.
+    """
+    if pycompat.sysplatform.startswith(b'win'):
+        # On Windows, use the GlobalMemoryStatusEx kernel function directly.
+        from ctypes import c_long as DWORD, c_ulonglong as DWORDLONG
+        from ctypes.wintypes import Structure, byref, sizeof, windll
+
+        class MEMORYSTATUSEX(Structure):
+            _fields_ = [
+                ('dwLength', DWORD),
+                ('dwMemoryLoad', DWORD),
+                ('ullTotalPhys', DWORDLONG),
+                ('ullAvailPhys', DWORDLONG),
+                ('ullTotalPageFile', DWORDLONG),
+                ('ullAvailPageFile', DWORDLONG),
+                ('ullTotalVirtual', DWORDLONG),
+                ('ullAvailVirtual', DWORDLONG),
+                ('ullExtendedVirtual', DWORDLONG),
+            ]
+
+        x = MEMORYSTATUSEX()
+        x.dwLength = sizeof(x)
+        windll.kernel32.GlobalMemoryStatusEx(byref(x))
+        return x.ullAvailPhys
+
+    # On newer Unix-like systems and Mac OSX, the sysconf interface
+    # can be used. _SC_PAGE_SIZE is part of POSIX; _SC_PHYS_PAGES
+    # seems to be implemented on most systems.
+    try:
+        pagesize = os.sysconf(os.sysconf_names['SC_PAGE_SIZE'])
+        pages = os.sysconf(os.sysconf_names['SC_PHYS_PAGES'])
+        return pagesize * pages
+    except OSError:  # sysconf can fail
+        pass
+    except KeyError:  # unknown parameter
+        pass

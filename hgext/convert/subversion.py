@@ -3,6 +3,8 @@
 # Copyright(C) 2007 Daniel Holth et al
 from __future__ import absolute_import
 
+import codecs
+import locale
 import os
 import re
 import xml.dom.minidom
@@ -55,12 +57,44 @@ try:
     import warnings
 
     warnings.filterwarnings(
-        b'ignore', module=b'svn.core', category=DeprecationWarning
+        'ignore', module='svn.core', category=DeprecationWarning
     )
     svn.core.SubversionException  # trigger import to catch error
 
 except ImportError:
     svn = None
+
+
+# In Subversion, paths and URLs are Unicode (encoded as UTF-8), which
+# Subversion converts from / to native strings when interfacing with the OS.
+# When passing paths and URLs to Subversion, we have to recode them such that
+# it roundstrips with what Subversion is doing.
+
+fsencoding = None
+
+
+def init_fsencoding():
+    global fsencoding, fsencoding_is_utf8
+    if fsencoding is not None:
+        return
+    if pycompat.iswindows:
+        # On Windows, filenames are Unicode, but we store them using the MBCS
+        # encoding.
+        fsencoding = 'mbcs'
+    else:
+        # This is the encoding used to convert UTF-8 back to natively-encoded
+        # strings in Subversion 1.14.0 or earlier with APR 1.7.0 or earlier.
+        with util.with_lc_ctype():
+            fsencoding = locale.nl_langinfo(locale.CODESET) or 'ISO-8859-1'
+    fsencoding = codecs.lookup(fsencoding).name
+    fsencoding_is_utf8 = fsencoding == codecs.lookup('utf-8').name
+
+
+def fs2svn(s):
+    if fsencoding_is_utf8:
+        return s
+    else:
+        return s.decode(fsencoding).encode('utf-8')
 
 
 class SvnPathNotFound(Exception):
@@ -106,8 +140,15 @@ def quote(s):
 
 
 def geturl(path):
+    """Convert path or URL to a SVN URL, encoded in UTF-8.
+
+    This can raise UnicodeDecodeError if the path or URL can't be converted to
+    unicode using `fsencoding`.
+    """
     try:
-        return svn.client.url_from_path(svn.core.svn_path_canonicalize(path))
+        return svn.client.url_from_path(
+            svn.core.svn_path_canonicalize(fs2svn(path))
+        )
     except svn.core.SubversionException:
         # svn.client.url_from_path() fails with local repositories
         pass
@@ -117,7 +158,7 @@ def geturl(path):
             path = b'/' + util.normpath(path)
         # Module URL is later compared with the repository URL returned
         # by svn API, which is UTF-8.
-        path = encoding.tolocal(path)
+        path = fs2svn(path)
         path = b'file://%s' % quote(path)
     return svn.core.svn_path_canonicalize(path)
 
@@ -187,13 +228,14 @@ def debugsvnlog(ui, **opts):
     """Fetch SVN log in a subprocess and channel them back to parent to
     avoid memory collection issues.
     """
-    if svn is None:
-        raise error.Abort(
-            _(b'debugsvnlog could not load Subversion python bindings')
-        )
+    with util.with_lc_ctype():
+        if svn is None:
+            raise error.Abort(
+                _(b'debugsvnlog could not load Subversion python bindings')
+            )
 
-    args = decodeargs(ui.fin.read())
-    get_log_child(ui.fout, *args)
+        args = decodeargs(ui.fin.read())
+        get_log_child(ui.fout, *args)
 
 
 class logstream(object):
@@ -283,7 +325,9 @@ def filecheck(ui, path, proto):
 def httpcheck(ui, path, proto):
     try:
         opener = urlreq.buildopener()
-        rsp = opener.open(b'%s://%s/!svn/ver/0/.svn' % (proto, path), b'rb')
+        rsp = opener.open(
+            pycompat.strurl(b'%s://%s/!svn/ver/0/.svn' % (proto, path)), b'rb'
+        )
         data = rsp.read()
     except urlerr.httperror as inst:
         if inst.code != 404:
@@ -310,6 +354,32 @@ protomap = {
 }
 
 
+class NonUtf8PercentEncodedBytes(Exception):
+    pass
+
+
+# Subversion paths are Unicode. Since the percent-decoding is done on
+# UTF-8-encoded strings, percent-encoded bytes are interpreted as UTF-8.
+def url2pathname_like_subversion(unicodepath):
+    if pycompat.ispy3:
+        # On Python 3, we have to pass unicode to urlreq.url2pathname().
+        # Percent-decoded bytes get decoded using UTF-8 and the 'replace' error
+        # handler.
+        unicodepath = urlreq.url2pathname(unicodepath)
+        if u'\N{REPLACEMENT CHARACTER}' in unicodepath:
+            raise NonUtf8PercentEncodedBytes
+        else:
+            return unicodepath
+    else:
+        # If we passed unicode on Python 2, it would be converted using the
+        # latin-1 encoding. Therefore, we pass UTF-8-encoded bytes.
+        unicodepath = urlreq.url2pathname(unicodepath.encode('utf-8'))
+        try:
+            return unicodepath.decode('utf-8')
+        except UnicodeDecodeError:
+            raise NonUtf8PercentEncodedBytes
+
+
 def issvnurl(ui, url):
     try:
         proto, path = url.split(b'://', 1)
@@ -321,12 +391,58 @@ def issvnurl(ui, url):
                 and path[2:6].lower() == b'%3a/'
             ):
                 path = path[:2] + b':/' + path[6:]
-            path = urlreq.url2pathname(path)
+            try:
+                unicodepath = path.decode(fsencoding)
+            except UnicodeDecodeError:
+                ui.warn(
+                    _(
+                        b'Subversion requires that file URLs can be converted '
+                        b'to Unicode using the current locale encoding (%s)\n'
+                    )
+                    % pycompat.sysbytes(fsencoding)
+                )
+                return False
+            try:
+                unicodepath = url2pathname_like_subversion(unicodepath)
+            except NonUtf8PercentEncodedBytes:
+                ui.warn(
+                    _(
+                        b'Subversion does not support non-UTF-8 '
+                        b'percent-encoded bytes in file URLs\n'
+                    )
+                )
+                return False
+            # Below, we approximate how Subversion checks the path. On Unix, we
+            # should therefore convert the path to bytes using `fsencoding`
+            # (like Subversion does). On Windows, the right thing would
+            # actually be to leave the path as unicode. For now, we restrict
+            # the path to MBCS.
+            path = unicodepath.encode(fsencoding)
     except ValueError:
         proto = b'file'
         path = os.path.abspath(url)
+        try:
+            path.decode(fsencoding)
+        except UnicodeDecodeError:
+            ui.warn(
+                _(
+                    b'Subversion requires that paths can be converted to '
+                    b'Unicode using the current locale encoding (%s)\n'
+                )
+                % pycompat.sysbytes(fsencoding)
+            )
+            return False
     if proto == b'file':
         path = util.pconvert(path)
+    elif proto in (b'http', 'https'):
+        if not encoding.isasciistr(path):
+            ui.warn(
+                _(
+                    b"Subversion sources don't support non-ASCII characters in "
+                    b"HTTP(S) URLs. Please percent-encode them.\n"
+                )
+            )
+            return False
     check = protomap.get(proto, lambda *args: False)
     while b'/' in path:
         if check(ui, path, proto):
@@ -353,6 +469,7 @@ class svn_source(converter_source):
     def __init__(self, ui, repotype, url, revs=None):
         super(svn_source, self).__init__(ui, repotype, url, revs=revs)
 
+        init_fsencoding()
         if not (
             url.startswith(b'svn://')
             or url.startswith(b'svn+ssh://')
@@ -401,18 +518,19 @@ class svn_source(converter_source):
         self.url = geturl(url)
         self.encoding = b'UTF-8'  # Subversion is always nominal UTF-8
         try:
-            self.transport = transport.SvnRaTransport(url=self.url)
-            self.ra = self.transport.ra
-            self.ctx = self.transport.client
-            self.baseurl = svn.ra.get_repos_root(self.ra)
-            # Module is either empty or a repository path starting with
-            # a slash and not ending with a slash.
-            self.module = urlreq.unquote(self.url[len(self.baseurl) :])
-            self.prevmodule = None
-            self.rootmodule = self.module
-            self.commits = {}
-            self.paths = {}
-            self.uuid = svn.ra.get_uuid(self.ra)
+            with util.with_lc_ctype():
+                self.transport = transport.SvnRaTransport(url=self.url)
+                self.ra = self.transport.ra
+                self.ctx = self.transport.client
+                self.baseurl = svn.ra.get_repos_root(self.ra)
+                # Module is either empty or a repository path starting with
+                # a slash and not ending with a slash.
+                self.module = urlreq.unquote(self.url[len(self.baseurl) :])
+                self.prevmodule = None
+                self.rootmodule = self.module
+                self.commits = {}
+                self.paths = {}
+                self.uuid = svn.ra.get_uuid(self.ra)
         except svn.core.SubversionException:
             ui.traceback()
             svnversion = b'%d.%d.%d' % (
@@ -458,7 +576,8 @@ class svn_source(converter_source):
             )
 
         try:
-            self.head = self.latest(self.module, latest)
+            with util.with_lc_ctype():
+                self.head = self.latest(self.module, latest)
         except SvnPathNotFound:
             self.head = None
         if not self.head:
@@ -474,6 +593,13 @@ class svn_source(converter_source):
         else:
             self.wc = None
         self.convertfp = None
+
+    def before(self):
+        self.with_lc_ctype = util.with_lc_ctype()
+        self.with_lc_ctype.__enter__()
+
+    def after(self):
+        self.with_lc_ctype.__exit__(None, None, None)
 
     def setrevmap(self, revmap):
         lastrevs = {}
@@ -516,7 +642,9 @@ class svn_source(converter_source):
                         % (name, path)
                     )
                 return None
-            self.ui.note(_(b'found %s at %r\n') % (name, path))
+            self.ui.note(
+                _(b'found %s at %r\n') % (name, pycompat.bytestr(path))
+            )
             return path
 
         rev = optrev(self.last_changed)
@@ -597,7 +725,7 @@ class svn_source(converter_source):
             self.removed = set()
 
         files.sort()
-        files = zip(files, [rev] * len(files))
+        files = pycompat.ziplist(files, [rev] * len(files))
         return (files, copies)
 
     def getchanges(self, rev, full):
@@ -641,9 +769,9 @@ class svn_source(converter_source):
     def checkrevformat(self, revstr, mapname=b'splicemap'):
         """ fails if revision format does not match the correct format"""
         if not re.match(
-            r'svn:[0-9a-f]{8,8}-[0-9a-f]{4,4}-'
-            r'[0-9a-f]{4,4}-[0-9a-f]{4,4}-[0-9a-f]'
-            r'{12,12}(.*)@[0-9]+$',
+            br'svn:[0-9a-f]{8,8}-[0-9a-f]{4,4}-'
+            br'[0-9a-f]{4,4}-[0-9a-f]{4,4}-[0-9a-f]'
+            br'{12,12}(.*)@[0-9]+$',
             revstr,
         ):
             raise error.Abort(
@@ -773,7 +901,7 @@ class svn_source(converter_source):
         self.convertfp.flush()
 
     def revid(self, revnum, module=None):
-        return b'svn:%s%s@%s' % (self.uuid, module or self.module, revnum)
+        return b'svn:%s%s@%d' % (self.uuid, module or self.module, revnum)
 
     def revnum(self, rev):
         return int(rev.split(b'@')[-1])
@@ -796,7 +924,7 @@ class svn_source(converter_source):
                         # We do not know the latest changed revision,
                         # keep the first one with changed paths.
                         break
-                    if revnum <= stop:
+                    if stop is not None and revnum <= stop:
                         break
 
                     for p in paths:
@@ -898,12 +1026,12 @@ class svn_source(converter_source):
                 if not copyfrom_path:
                     continue
                 self.ui.debug(
-                    b"copied to %s from %s@%s\n"
+                    b"copied to %s from %s@%d\n"
                     % (entrypath, copyfrom_path, ent.copyfrom_rev)
                 )
                 copies[self.recode(entrypath)] = self.recode(copyfrom_path)
             elif kind == 0:  # gone, but had better be a deleted *file*
-                self.ui.debug(b"gone from %s\n" % ent.copyfrom_rev)
+                self.ui.debug(b"gone from %d\n" % ent.copyfrom_rev)
                 pmodule, prevnum = revsplit(parents[0])[1:]
                 parentpath = pmodule + b"/" + entrypath
                 fromkind = self._checkpath(entrypath, prevnum, pmodule)
@@ -1189,7 +1317,10 @@ class svn_source(converter_source):
                 return relative
 
         # The path is outside our tracked tree...
-        self.ui.debug(b'%r is not under %r, ignoring\n' % (path, module))
+        self.ui.debug(
+            b'%r is not under %r, ignoring\n'
+            % (pycompat.bytestr(path), pycompat.bytestr(module))
+        )
         return None
 
     def _checkpath(self, path, revnum, module=None):
@@ -1235,7 +1366,7 @@ class svn_source(converter_source):
         arg = encodeargs(args)
         hgexe = procutil.hgexecutable()
         cmd = b'%s debugsvnlog' % procutil.shellquote(hgexe)
-        stdin, stdout = procutil.popen2(procutil.quotecommand(cmd))
+        stdin, stdout = procutil.popen2(cmd)
         stdin.write(arg)
         try:
             stdin.close()

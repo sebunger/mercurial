@@ -651,7 +651,10 @@ class revlog(object):
                 nodemap_data = nodemaputil.persisted_data(self)
                 if nodemap_data is not None:
                     docket = nodemap_data[0]
-                    if d[0][docket.tip_rev][7] == docket.tip_node:
+                    if (
+                        len(d[0]) > docket.tip_rev
+                        and d[0][docket.tip_rev][7] == docket.tip_node
+                    ):
                         # no changelog tampering
                         self._nodemap_docket = docket
                         index.update_nodemap_data(*nodemap_data)
@@ -1520,7 +1523,7 @@ class revlog(object):
 
         def disambiguate(hexnode, minlength):
             """Disambiguate against wdirid."""
-            for length in range(minlength, 41):
+            for length in range(minlength, len(hexnode) + 1):
                 prefix = hexnode[:length]
                 if not maybewdir(prefix):
                     return prefix
@@ -1537,12 +1540,12 @@ class revlog(object):
                 pass
 
         if node == wdirid:
-            for length in range(minlength, 41):
+            for length in range(minlength, len(hexnode) + 1):
                 prefix = hexnode[:length]
                 if isvalid(prefix):
                     return prefix
 
-        for length in range(minlength, 41):
+        for length in range(minlength, len(hexnode) + 1):
             prefix = hexnode[:length]
             if isvalid(prefix):
                 return disambiguate(hexnode, length)

@@ -1595,7 +1595,7 @@ class TTest(Test):
             casepath = b'#'.join(case)
             self.name = '%s#%s' % (self.name, _bytes2sys(casepath))
             self.errpath = b'%s#%s.err' % (self.errpath[:-4], casepath)
-            self._tmpname += b'-%s' % casepath
+            self._tmpname += b'-%s' % casepath.replace(b'#', b'-')
         self._have = {}
 
     @property
@@ -2069,7 +2069,7 @@ class TTest(Test):
         if el.endswith(b" (esc)\n"):
             if PYTHON3:
                 el = el[:-7].decode('unicode_escape') + '\n'
-                el = el.encode('utf-8')
+                el = el.encode('latin-1')
             else:
                 el = el[:-7].decode('string-escape') + '\n'
         if el == l or os.name == 'nt' and el[:-1] + b'\r\n' == l:
@@ -2260,7 +2260,7 @@ class TestResult(unittest._TextTestResult):
                         'changes)'
                     )
                 else:
-                    self.stream.write('Accept this change? [n] ')
+                    self.stream.write('Accept this change? [y/N] ')
                     self.stream.flush()
                     answer = sys.stdin.readline().strip()
                     if answer.lower() in ('y', 'yes'):
@@ -3681,7 +3681,7 @@ class TestRunner(object):
         for p in osenvironb.get(b'PATH', dpb).split(sepb):
             name = os.path.join(p, program)
             if os.name == 'nt' or os.access(name, os.X_OK):
-                return name
+                return _bytes2sys(name)
         return None
 
     def _checktools(self):
@@ -3692,7 +3692,7 @@ class TestRunner(object):
             found = self._findprogram(p)
             p = p.decode("utf-8")
             if found:
-                vlog("# Found prerequisite", p, "at", _bytes2sys(found))
+                vlog("# Found prerequisite", p, "at", found)
             else:
                 print("WARNING: Did not find prerequisite tool: %s " % p)
 

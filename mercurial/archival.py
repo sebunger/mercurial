@@ -189,7 +189,12 @@ class tarit(object):
                     name, pycompat.sysstr(mode), gzfileobj
                 )
             else:
-                return tarfile.open(name, pycompat.sysstr(mode + kind), fileobj)
+                try:
+                    return tarfile.open(
+                        name, pycompat.sysstr(mode + kind), fileobj
+                    )
+                except tarfile.CompressionError as e:
+                    raise error.Abort(pycompat.bytestr(e))
 
         if isinstance(dest, bytes):
             self.z = taropen(b'w:', name=dest)
@@ -364,7 +369,7 @@ def archive(
     if total:
         files.sort()
         scmutil.prefetchfiles(
-            repo, [ctx.rev()], scmutil.matchfiles(repo, files)
+            repo, [(ctx.rev(), scmutil.matchfiles(repo, files))]
         )
         progress = repo.ui.makeprogress(
             _(b'archiving'), unit=_(b'files'), total=total
