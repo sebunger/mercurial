@@ -82,6 +82,8 @@ install-archindep:
 		-type d -empty -delete
 	install -DTm 644 contrib/zsh_completion \
 	    debian/mercurial-common/usr/share/zsh/vendor-completions/_mercurial
+	install -DTm 644 tests/run-tests.py \
+	    debian/mercurial-common/usr/share/mercurial/tests/run-tests.py
 
 override_dh_python3-arch:
 	dh_python3
