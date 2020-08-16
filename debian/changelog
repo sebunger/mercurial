@@ -1,3 +1,10 @@
+mercurial (5.5-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - Fix Python 3 issues with hgext.convert.subversion (closes: #968466).
+
+ -- Tristan Seligmann <mithrandi@debian.org>  Sun, 16 Aug 2020 09:47:06 +0200
+
 mercurial (5.4.1-3) unstable; urgency=medium
 
   * Trim trailing whitespace.
