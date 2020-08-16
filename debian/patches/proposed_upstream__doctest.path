@@ -1,3 +1,8 @@
+From: Python Applications Packaging Team
+ <python-apps-team@lists.alioth.debian.org>
+Date: Sun, 16 Aug 2020 11:03:07 +0200
+Subject: proposed_upstream__doctest.path
+
 # HG changeset patch
 # User Julien Cristau <jcristau@debian.org>
 # Date 1589916203 -7200
@@ -10,9 +15,14 @@ This assumption fails when building and running tests from a source
 tarball, e.g.
 
 Differential Revision: https://phab.mercurial-scm.org/D8571
+---
+ tests/test-doctest.py | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
 
---- mercurial.orig/tests/test-doctest.py
-+++ mercurial/tests/test-doctest.py
+diff --git a/tests/test-doctest.py b/tests/test-doctest.py
+index abd677f..4360f2c 100644
+--- a/tests/test-doctest.py
++++ b/tests/test-doctest.py
 @@ -6,7 +6,6 @@ from __future__ import print_function
  import doctest
  import os

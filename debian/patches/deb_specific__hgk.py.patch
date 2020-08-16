@@ -1,7 +1,17 @@
-Set default hgk path for hgk outside bin.
+From: Python Applications Packaging Team
+ <python-apps-team@lists.alioth.debian.org>
+Date: Sun, 16 Aug 2020 11:03:07 +0200
+Subject: deb_specific__hgk.py
 
---- mercurial.orig/hgext/hgk.py
-+++ mercurial/hgext/hgk.py
+Set default hgk path for hgk outside bin.
+---
+ hgext/hgk.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hgext/hgk.py b/hgext/hgk.py
+index 5e12637..0c3ecb8 100644
+--- a/hgext/hgk.py
++++ b/hgext/hgk.py
 @@ -65,7 +65,7 @@ configtable = {}
  configitem = registrar.configitem(configtable)
  
