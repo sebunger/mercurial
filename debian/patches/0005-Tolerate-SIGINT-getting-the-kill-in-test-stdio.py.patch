@@ -1,0 +1,21 @@
+From: Tristan Seligmann <mithrandi@debian.org>
+Date: Mon, 17 Aug 2020 10:30:26 +0200
+Subject: Tolerate SIGINT getting the kill in test-stdio.py.
+
+---
+ tests/test-stdio.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/test-stdio.py b/tests/test-stdio.py
+index d41bd53..82934db 100755
+--- a/tests/test-stdio.py
++++ b/tests/test-stdio.py
+@@ -200,7 +200,7 @@ class TestStdio(unittest.TestCase):
+                 raise
+             finally:
+                 retcode = proc.wait()
+-            self.assertEqual(retcode, 0)
++            self.assertIn(retcode, [0, -2])
+             if post_child_check is not None:
+                 post_child_check()
+ 

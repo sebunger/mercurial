@@ -2,3 +2,4 @@ proposed_upstream__doctest.path
 deb_specific__hgk.py.patch
 deb_specific__optional-dependencies
 deb_specific__disable_libdir_replacement.patch
+0005-Tolerate-SIGINT-getting-the-kill-in-test-stdio.py.patch
