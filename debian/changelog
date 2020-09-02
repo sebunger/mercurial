@@ -1,3 +1,10 @@
+mercurial (5.5.1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream bugfix release.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 02 Sep 2020 10:26:16 +0200
+
 mercurial (5.5-2) unstable; urgency=medium
 
   * (Hopefully) fix flakiness in test-stdio.py.
