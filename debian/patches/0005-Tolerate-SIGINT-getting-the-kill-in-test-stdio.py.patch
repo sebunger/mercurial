@@ -2,6 +2,7 @@ From: Tristan Seligmann <mithrandi@debian.org>
 Date: Mon, 17 Aug 2020 10:30:26 +0200
 Subject: Tolerate SIGINT getting the kill in test-stdio.py.
 
+Forwarded: https://bz.mercurial-scm.org/show_bug.cgi?id=6402
 ---
  tests/test-stdio.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
