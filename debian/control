@@ -22,8 +22,8 @@ Build-Depends:
  less <!nocheck>,
 Standards-Version: 4.5.0
 Homepage: https://www.mercurial-scm.org/
-Vcs-Git: https://salsa.debian.org/python-team/applications/mercurial.git
-Vcs-Browser: https://salsa.debian.org/python-team/applications/mercurial
+Vcs-Git: https://salsa.debian.org/python-team/packages/mercurial.git
+Vcs-Browser: https://salsa.debian.org/python-team/packages/mercurial
 Rules-Requires-Root: no
 
 Package: mercurial-common
