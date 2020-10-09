@@ -8,7 +8,7 @@ Uploaders:
  Tristan Seligmann <mithrandi@debian.org>,
 Build-Depends:
  bash-completion,
- debhelper-compat (= 11),
+ debhelper-compat (= 10),
  dh-python,
  gettext,
  netbase,

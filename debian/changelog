@@ -1,4 +1,11 @@
-mercurial (5.5.2-1ppa2) UNRELEASED; urgency=medium
+mercurial (5.5.2-1ppa3~) bionic; urgency=medium
+
+  * Take compat level all the way back to 10
+  * Fix the dh_install step with regards to arch indep stuff etc.
+
+ -- Sebastian Unger <sebunger44@gmail.com>  Sat, 10 Oct 2020 00:14:28 +1300
+
+mercurial (5.5.2-1ppa2) bionic; urgency=medium
 
   * New upstream version
   * Reduce compat debhelper-compat to 11 for bionic
