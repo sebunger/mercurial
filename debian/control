@@ -7,7 +7,7 @@ Uploaders:
  Julien Cristau <jcristau@debian.org>,
 Build-Depends:
  bash-completion,
- debhelper-compat (= 11),
+ debhelper-compat (= 10),
  dh-python,
  gettext,
  netbase <!nocheck>,

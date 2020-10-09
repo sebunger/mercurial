@@ -57,7 +57,8 @@ override_dh_auto_install: $(PYVERS:%=install-python%)
 install-python%:
 	python$* setup.py install --root $(CURDIR)/debian/tmp --install-layout=deb
 
-execute_after_dh_install:
+override_dh_install:
+	dh_install
 	if test -d $(CURDIR)/debian/mercurial ; then \
 		$(MAKE) -f debian/rules install-archdep ; \
 	fi
