@@ -1,4 +1,4 @@
-mercurial (5.5.2-1ppa1) UNRELEASED; urgency=medium
+mercurial (5.5.2-1ppa2) UNRELEASED; urgency=medium
 
   * New upstream version
   * Reduce compat debhelper-compat to 11 for bionic
