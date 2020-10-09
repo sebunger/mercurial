@@ -1,6 +1,7 @@
 mercurial (5.5.2-1ppa1) UNRELEASED; urgency=medium
 
   * New upstream version
+  * Reduce compat debhelper-compat to 11 for bionic
 
  -- Sebastian Unger <sebunger44@gmail.com>  Fri, 09 Oct 2020 20:36:59 +1300
 
