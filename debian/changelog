@@ -1,3 +1,9 @@
+mercurial (5.5.2-1ppa1) UNRELEASED; urgency=medium
+
+  * New upstream version
+
+ -- Sebastian Unger <sebunger44@gmail.com>  Fri, 09 Oct 2020 20:36:59 +1300
+
 mercurial (5.5.1-1ppa1) focal; urgency=medium
 
   * Reduced build dependency on debhelper to 12.
