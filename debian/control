@@ -3,9 +3,8 @@ Section: vcs
 Priority: optional
 Maintainer: Debian Python Team <team+python@tracker.debian.org>
 Uploaders:
- Vincent Danjean <vdanjean@debian.org>,
- Javi Merino <vicho@debian.org>,
  Tristan Seligmann <mithrandi@debian.org>,
+ Julien Cristau <jcristau@debian.org>,
 Build-Depends:
  bash-completion,
  debhelper-compat (= 13),
