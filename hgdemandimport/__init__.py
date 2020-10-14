@@ -46,11 +46,13 @@ IGNORES = {
     # setuptools' pkg_resources.py expects "from __main__ import x" to
     # raise ImportError if x not defined
     '__main__',
+    '_ast',  # https://bugs.python.org/issue41631
     '_ssl',  # conditional imports in the stdlib, issue1964
     '_sre',  # issue4920
     'rfc822',
     'mimetools',
     'sqlalchemy.events',  # has import-time side effects (issue5085)
+    'sqlalchemy.dialects',  # similar problems as above
     # setuptools 8 expects this module to explode early when not on windows
     'distutils.msvc9compiler',
     '__builtin__',

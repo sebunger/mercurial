@@ -62,6 +62,19 @@ def pinnedrevs(repo):
         rev = cl.index.get_rev
         pinned.update(rev(t[0]) for t in tags.values())
         pinned.discard(None)
+
+    # Avoid cycle: mercurial.filemerge -> mercurial.templater ->
+    # mercurial.templatefuncs -> mercurial.revset -> mercurial.repoview ->
+    # mercurial.mergestate -> mercurial.filemerge
+    from . import mergestate
+
+    ms = mergestate.mergestate.read(repo)
+    if ms.active():
+        for node in (ms.local, ms.other):
+            rev = cl.index.get_rev(node)
+            if rev is not None:
+                pinned.add(rev)
+
     return pinned
 
 
