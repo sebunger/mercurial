@@ -1,11 +1,15 @@
-mercurial (5.5.1-2) UNRELEASED; urgency=medium
+mercurial (5.5.2-1) unstable; urgency=medium
 
+  [ Ondřej Nový ]
   * d/control: Update Maintainer field with new Debian Python Team
     contact address.
   * d/control: Update Vcs-* fields with new Debian Python Team Salsa
     layout.
 
- -- Ondřej Nový <onovy@debian.org>  Thu, 24 Sep 2020 08:48:40 +0200
+  [ Julien Cristau ]
+  * New upstream bugfix release
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 14 Oct 2020 14:45:55 +0200
 
 mercurial (5.5.1-1) unstable; urgency=medium
 
