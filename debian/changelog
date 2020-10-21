@@ -1,4 +1,4 @@
-mercurial (5.5.2-1ppa3~) bionic; urgency=medium
+mercurial (5.5.2-1ppa3) bionic; urgency=medium
 
   * Take compat level all the way back to 10
   * Fix the dh_install step with regards to arch indep stuff etc.
