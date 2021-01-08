@@ -1,15 +1,10 @@
-From: Python Applications Packaging Team
- <python-apps-team@lists.alioth.debian.org>
-Date: Sun, 16 Aug 2020 11:03:07 +0200
-Subject: proposed_upstream__doctest.path
-
 # HG changeset patch
 # User Julien Cristau <jcristau@debian.org>
 # Date 1589916203 -7200
 #      Tue May 19 21:23:23 2020 +0200
 # Node ID de789b6b188b62cf38c5c5cfe760cff9a48c52f5
 # Parent  3b7aabd02e11fcfc015b3a90a0c52d971a7b8a83
-test: make test-doctest.py not assume it's run from a mercurial repo
+test: make test-doctest.py work when it's not run from a mercurial repo
 
 This assumption fails when building and running tests from a source
 tarball, e.g.
@@ -19,10 +14,8 @@ Differential Revision: https://phab.mercurial-scm.org/D8571
  tests/test-doctest.py | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)
 
-diff --git a/tests/test-doctest.py b/tests/test-doctest.py
-index abd677f..4360f2c 100644
---- a/tests/test-doctest.py
-+++ b/tests/test-doctest.py
+--- mercurial.orig/tests/test-doctest.py
++++ mercurial/tests/test-doctest.py
 @@ -6,7 +6,6 @@ from __future__ import print_function
  import doctest
  import os
@@ -31,11 +24,14 @@ index abd677f..4360f2c 100644
  import sys
  
  ispy3 = sys.version_info[0] >= 3
-@@ -70,11 +69,18 @@ testmod_arg_overrides = {
+@@ -70,14 +69,18 @@ testmod_arg_overrides = {
  
  fileset = 'set:(**.py)'
  
 -cwd = os.path.dirname(os.environ["TESTDIR"])
+-
+-if not os.path.isdir(os.path.join(cwd, ".hg")):
+-    sys.exit(0)
 -
 -files = subprocess.check_output(
 -    "hg files --print0 \"%s\"" % fileset, shell=True, cwd=cwd,

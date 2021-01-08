@@ -1,5 +1,6 @@
-mercurial (5.5.2-2) UNRELEASED; urgency=medium
+mercurial (5.6.1-1) UNRELEASED; urgency=medium
 
+  * New upstream release.
   * Update Uploaders: remove vicho and vdanjean, add jcristau.  With
     thanks for their past contributions!
 
