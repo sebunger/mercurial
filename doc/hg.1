@@ -2329,9 +2329,9 @@ By default, this command copies the contents of files as they
 exist in the working directory. If invoked with \-A/\-\-after, the
 operation is recorded, but no copying is performed.
 .sp
-To undo marking a file as copied, use \-\-forget. With that option,
-all given (positional) arguments are unmarked as copies. The destination
-file(s) will be left in place (still tracked).
+To undo marking a destination file as copied, use \-\-forget. With that
+option, all given (positional) arguments are unmarked as copies. The
+destination file(s) will be left in place (still tracked).
 .sp
 This command takes effect with the next commit by default.
 .sp
@@ -2342,7 +2342,7 @@ Options:
 .TP
 .B \-\-forget
 .
-unmark a file as copied
+unmark a destination file as copied
 .TP
 .B \-A,  \-\-after
 .
@@ -2625,7 +2625,7 @@ end fields with NUL
 .TP
 .B \-\-all
 .
-print all revisions that match (DEPRECATED)
+an alias to \-\-diff (DEPRECATED)
 .TP
 .B \-\-diff
 .
@@ -4024,6 +4024,10 @@ Options:
 .B \-A,  \-\-after
 .
 record a rename that has already occurred
+.TP
+.BI \-\-at\-rev \ <REV>
+.
+(un)mark renames in the given revision (EXPERIMENTAL)
 .TP
 .B \-f,  \-\-force
 .
@@ -5614,6 +5618,10 @@ String. Filename and line number where the item is defined.
 String. Config value.
 .UNINDENT
 .sp
+The \-\-shared flag can be used to edit the config file of shared source
+repository. It only works when you have shared using the experimental
+share safe feature.
+.sp
 Returns 0 on success, 1 if NAME does not exist.
 .sp
 Options:
@@ -5630,6 +5638,10 @@ edit user config
 .B \-l,  \-\-local
 .
 edit repository config
+.TP
+.B \-\-shared
+.
+edit shared source repository config (EXPERIMENTAL)
 .TP
 .B \-g,  \-\-global
 .
@@ -8764,6 +8776,13 @@ Changesets that were created by a graft, transplant or rebase operation,
 with the given revisions specified as the source.  Omitting the optional set
 is the same as passing all().
 .TP
+.B \fBdiffcontains(pattern)\fP
+.sp
+Search revision differences for when the pattern was added or removed.
+.sp
+The pattern may be a substring literal or a regular expression. See
+\%\fBhg help revisions.patterns\fP\:.
+.TP
 .B \fBdraft()\fP
 .sp
 Changeset in draft phase.
@@ -9031,6 +9050,9 @@ The keys can be:
 .IP \(bu 2
 .
 \fBtopo\fP for a reverse topographical sort
+.IP \(bu 2
+.
+\fBnode\fP the nodeid of the revision
 .UNINDENT
 .sp
 The \fBtopo\fP sort order cannot be combined with other sort keys. This sort
@@ -11639,6 +11661,9 @@ hg churn \-f "%Y\-%m" \-s \-c
 
 # display count of lines changed in every year
 hg churn \-f "%Y" \-s
+
+# display count of lines changed in a time range
+hg churn \-d "2020\-04 to 2020\-09"
 .ft P
 .fi
 .sp
@@ -13280,15 +13305,15 @@ with changes, unless file arguments are provided. Only affects changed lines
 of files, unless the \-\-whole flag is used. Some tools may always affect the
 whole file regardless of \-\-whole.
 .sp
-If revisions are specified with \-\-rev, those revisions will be checked, and
-they may be replaced with new revisions that have fixed file content.  It is
-desirable to specify all descendants of each specified revision, so that the
-fixes propagate to the descendants. If all descendants are fixed at the same
-time, no merging, rebasing, or evolution will be required.
-.sp
 If \-\-working\-dir is used, files with uncommitted changes in the working copy
-will be fixed. If the checked\-out revision is also fixed, the working
-directory will update to the replacement revision.
+will be fixed. Note that no backup are made.
+.sp
+If revisions are specified with \-\-source, those revisions and their
+descendants will be checked, and they may be replaced with new revisions
+that have fixed file content. By automatically including the descendants,
+no merging, rebasing, or evolution will be required. If an ancestor of the
+working copy is included, then the working copy itself will also be fixed,
+and the working copy will be updated to the fixed parent.
 .sp
 When determining what lines of each file to fix at each revision, the whole
 set of revisions being fixed is considered, so that fixes to earlier
@@ -13404,6 +13429,8 @@ beneficial to performance but isn\(aqt enabled.
 .ft C
 [fsmonitor]
 warn_update_file_count = (integer)
+# or when mercurial is built with rust support
+warn_update_file_count_rust = (integer)
 .ft P
 .fi
 .sp

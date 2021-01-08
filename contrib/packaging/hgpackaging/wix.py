@@ -165,7 +165,9 @@ def make_files_xml(staging_dir: pathlib.Path, is_x64) -> str:
         if dir_name == '.':
             parent_directory_id = 'INSTALLDIR'
         else:
-            parent_directory_id = 'hg.dir.%s' % dir_name.replace('/', '.')
+            parent_directory_id = 'hg.dir.%s' % dir_name.replace(
+                '/', '.'
+            ).replace('-', '_')
 
         fragment = doc.createElement('Fragment')
         directory_ref = doc.createElement('DirectoryRef')
@@ -178,7 +180,9 @@ def make_files_xml(staging_dir: pathlib.Path, is_x64) -> str:
                 and '/' not in possible_child
                 and possible_child != '.'
             ):
-                child_directory_id = 'hg.dir.%s' % possible_child
+                child_directory_id = ('hg.dir.%s' % possible_child).replace(
+                    '-', '_'
+                )
                 name = possible_child
             else:
                 if not possible_child.startswith('%s/' % dir_name):
@@ -189,7 +193,7 @@ def make_files_xml(staging_dir: pathlib.Path, is_x64) -> str:
 
                 child_directory_id = 'hg.dir.%s' % possible_child.replace(
                     '/', '.'
-                )
+                ).replace('-', '_')
 
             directory = doc.createElement('Directory')
             directory.setAttribute('Id', child_directory_id)
@@ -315,7 +319,7 @@ def build_installer_py2exe(
     hg_build_dir = source_dir / 'build'
 
     requirements_txt = (
-        source_dir / 'contrib' / 'packaging' / 'requirements_win32.txt'
+        source_dir / 'contrib' / 'packaging' / 'requirements-windows-py2.txt'
     )
 
     build_py2exe(
