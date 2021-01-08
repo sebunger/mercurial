@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -184,13 +185,46 @@ static void setcmdserveropts(struct cmdserveropts *opts)
 		abortmsg("too long TMPDIR or CHGSOCKNAME (r = %d)", r);
 }
 
+/* If the current program is, say, /a/b/c/chg, returns /a/b/c/hg. */
+static char *getrelhgcmd(void)
+{
+	ssize_t n;
+	char *res, *slash;
+	int maxsize = 4096;
+	res = malloc(maxsize);
+	if (res == NULL)
+		goto cleanup;
+	n = readlink("/proc/self/exe", res, maxsize);
+	if (n < 0 || n >= maxsize)
+		goto cleanup;
+	res[n] = '\0';
+	slash = strrchr(res, '/');
+	if (slash == NULL)
+		goto cleanup;
+	/* 4 is strlen("/hg") + nul byte */
+	if (slash + 4 >= res + maxsize)
+		goto cleanup;
+	memcpy(slash, "/hg", 4);
+	return res;
+cleanup:
+	free(res);
+	return NULL;
+}
+
 static const char *gethgcmd(void)
 {
 	static const char *hgcmd = NULL;
+#ifdef HGPATHREL
+	int tryrelhgcmd = 1;
+#else
+	int tryrelhgcmd = 0;
+#endif
 	if (!hgcmd) {
 		hgcmd = getenv("CHGHG");
 		if (!hgcmd || hgcmd[0] == '\0')
 			hgcmd = getenv("HG");
+		if (tryrelhgcmd && (!hgcmd || hgcmd[0] == '\0'))
+			hgcmd = getrelhgcmd();
 		if (!hgcmd || hgcmd[0] == '\0')
 #ifdef HGPATH
 			hgcmd = (HGPATH);
@@ -234,6 +268,38 @@ static void execcmdserver(const struct cmdserveropts *opts)
 		if (setenv("CHGORIG_LC_CTYPE", lc_ctype_env, 1) != 0) {
 			abortmsgerrno("failed to setenv CHGORIG_LC_CTYPE");
 		}
+	}
+
+	/* close any open files to avoid hanging locks */
+	DIR *dp = opendir("/proc/self/fd");
+	if (dp != NULL) {
+		debugmsg("closing files based on /proc contents");
+		struct dirent *de;
+		while ((de = readdir(dp))) {
+			errno = 0;
+			char *end;
+			long fd_value = strtol(de->d_name, &end, 10);
+			if (end == de->d_name) {
+				/* unable to convert to int (. or ..) */
+				continue;
+			}
+			if (errno == ERANGE) {
+				debugmsg("tried to parse %s, but range error "
+				         "occurred",
+				         de->d_name);
+				continue;
+			}
+			if (fd_value > STDERR_FILENO && fd_value != dirfd(dp)) {
+				debugmsg("closing fd %ld", fd_value);
+				int res = close(fd_value);
+				if (res) {
+					debugmsg("tried to close fd %ld: %d "
+					         "(errno: %d)",
+					         fd_value, res, errno);
+				}
+			}
+		}
+		closedir(dp);
 	}
 
 	if (putenv("CHGINTERNALMARK=") != 0)
@@ -373,8 +439,15 @@ static int runinstructions(struct cmdserveropts *opts, const char **insts)
 }
 
 /*
- * Test whether the command is unsupported or not. This is not designed to
- * cover all cases. But it's fast, does not depend on the server.
+ * Test whether the command and the environment is unsupported or not.
+ *
+ * If any of the stdio file descriptors are not present (rare, but some tools
+ * might spawn new processes without stdio instead of redirecting them to the
+ * null device), then mark it as not supported because attachio won't work
+ * correctly.
+ *
+ * The command list is not designed to cover all cases. But it's fast, and does
+ * not depend on the server.
  */
 static int isunsupported(int argc, const char *argv[])
 {
@@ -384,6 +457,13 @@ static int isunsupported(int argc, const char *argv[])
 	};
 	unsigned int state = 0;
 	int i;
+	/* use fcntl to test missing stdio fds */
+	if (fcntl(STDIN_FILENO, F_GETFD) == -1 ||
+	    fcntl(STDOUT_FILENO, F_GETFD) == -1 ||
+	    fcntl(STDERR_FILENO, F_GETFD) == -1) {
+		debugmsg("stdio fds are missing");
+		return 1;
+	}
 	for (i = 0; i < argc; ++i) {
 		if (strcmp(argv[i], "--") == 0)
 			break;
