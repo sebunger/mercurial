@@ -1,10 +1,10 @@
-mercurial (5.6.1-1) UNRELEASED; urgency=medium
+mercurial (5.6.1-1) unstable; urgency=medium
 
   * New upstream release.
   * Update Uploaders: remove vicho and vdanjean, add jcristau.  With
     thanks for their past contributions!
 
- -- Julien Cristau <jcristau@debian.org>  Wed, 14 Oct 2020 15:06:44 +0200
+ -- Julien Cristau <jcristau@debian.org>  Fri, 08 Jan 2021 17:16:53 +0100
 
 mercurial (5.5.2-1) unstable; urgency=medium
 
