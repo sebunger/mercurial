@@ -1,3 +1,10 @@
+mercurial (5.6.1-2) unstable; urgency=medium
+
+  * tests: make test-subrepo-git.t compatible with git's master->main
+    rename (closes: #980576).
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 01 Feb 2021 17:47:09 +0100
+
 mercurial (5.6.1-1) unstable; urgency=medium
 
   * New upstream release.

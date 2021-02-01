@@ -1,3 +1,4 @@
+from_upstream-test-subrepo-new-git.patch
 proposed_upstream__doctest.path
 deb_specific__hgk.py.patch
 deb_specific__optional-dependencies
