@@ -8,6 +8,7 @@ from mercurial.node import (
     nullhex,
     nullid,
     nullrev,
+    sha1nodeconstants,
     wdirhex,
 )
 from mercurial import (
@@ -67,7 +68,8 @@ class baselog(object):  # revlog.revlog):
 
     def hasnode(self, n):
         t = self._db.execute(
-            'SELECT node FROM changelog WHERE node = ?', (n,)
+            'SELECT node FROM changelog WHERE node = ?',
+            (pycompat.sysstr(n),),
         ).fetchone()
         return t is not None
 
@@ -146,7 +148,7 @@ class changelog(baselog):
 
     def revs(self, start=0, stop=None):
         if stop is None:
-            stop = self.tip()
+            stop = self.tiprev()
         t = self._db.execute(
             'SELECT rev FROM changelog '
             'WHERE rev >= ? AND rev <= ? '
@@ -158,8 +160,11 @@ class changelog(baselog):
     def tiprev(self):
         t = self._db.execute(
             'SELECT rev FROM changelog ' 'ORDER BY REV DESC ' 'LIMIT 1'
-        )
-        return next(t)
+        ).fetchone()
+
+        if t is not None:
+            return t[0]
+        return -1
 
     def _partialmatch(self, id):
         if wdirhex.startswith(id):
@@ -167,7 +172,8 @@ class changelog(baselog):
         candidates = [
             bin(x[0])
             for x in self._db.execute(
-                'SELECT node FROM changelog WHERE node LIKE ?', (id + b'%',)
+                'SELECT node FROM changelog WHERE node LIKE ?',
+                (pycompat.sysstr(id + b'%'),),
             )
         ]
         if nullhex.startswith(id):
@@ -215,9 +221,10 @@ class changelog(baselog):
             n = self.node(nodeorrev)
         else:
             n = nodeorrev
+        extra = {b'branch': b'default'}
         # handle looking up nullid
         if n == nullid:
-            return hgchangelog._changelogrevision(extra={})
+            return hgchangelog._changelogrevision(extra=extra, manifest=nullid)
         hn = gitutil.togitnode(n)
         # We've got a real commit!
         files = [
@@ -233,7 +240,7 @@ class changelog(baselog):
             for r in self._db.execute(
                 'SELECT filename FROM changedfiles '
                 'WHERE node = ? and filenode = ?',
-                (hn, nullhex),
+                (hn, gitutil.nullgit),
             )
         ]
         c = self.gitrepo[hn]
@@ -247,7 +254,7 @@ class changelog(baselog):
             filesremoved=filesremoved,
             description=c.message.encode('utf8'),
             # TODO do we want to handle extra? how?
-            extra={b'branch': b'default'},
+            extra=extra,
         )
 
     def ancestors(self, revs, stoprev=0, inclusive=False):
@@ -422,6 +429,8 @@ class changelog(baselog):
 
 
 class manifestlog(baselog):
+    nodeconstants = sha1nodeconstants
+
     def __getitem__(self, node):
         return self.get(b'', node)
 

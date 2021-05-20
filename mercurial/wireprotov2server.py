@@ -1,5 +1,5 @@
 # Copyright 21 May 2005 - (c) 2005 Jake Edge <jake@edge2.net>
-# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
+# Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
@@ -88,7 +88,9 @@ def handlehttpv2request(rctx, req, res, checkperm, urlparts):
     try:
         checkperm(rctx, req, b'pull' if permission == b'ro' else b'push')
     except hgwebcommon.ErrorResponse as e:
-        res.status = hgwebcommon.statusmessage(e.code, pycompat.bytestr(e))
+        res.status = hgwebcommon.statusmessage(
+            e.code, stringutil.forcebytestr(e)
+        )
         for k, v in e.headers:
             res.headers[k] = v
         res.setbodybytes(b'permission denied')
@@ -1580,7 +1582,8 @@ def rawstorefiledata(repo, proto, files, pathfilter):
 
     # TODO this is a bunch of storage layer interface abstractions because
     # it assumes revlogs.
-    for name, encodedname, size in topfiles:
+    for rl_type, name, encodedname, size in topfiles:
+        # XXX use the `rl_type` for that
         if b'changelog' in files and name.startswith(b'00changelog'):
             pass
         elif b'manifestlog' in files and name.startswith(b'00manifest'):

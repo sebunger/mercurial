@@ -11,6 +11,7 @@ from ..i18n import _
 from .. import (
     error,
     localrepo,
+    pycompat,
     requirements,
     revlog,
     util,
@@ -18,9 +19,16 @@ from .. import (
 
 from ..utils import compression
 
+if pycompat.TYPE_CHECKING:
+    from typing import (
+        List,
+        Type,
+    )
+
+
 # list of requirements that request a clone of all revlog if added/removed
 RECLONES_REQUIREMENTS = {
-    b'generaldelta',
+    requirements.GENERALDELTA_REQUIREMENT,
     requirements.SPARSEREVLOG_REQUIREMENT,
 }
 
@@ -66,6 +74,18 @@ class improvement(object):
     postdowngrademessage
        Message intended for humans which will be shown post an upgrade
        operation in which this improvement was removed
+
+    touches_filelogs (bool)
+        Whether this improvement touches filelogs
+
+    touches_manifests (bool)
+        Whether this improvement touches manifests
+
+    touches_changelog (bool)
+        Whether this improvement touches changelog
+
+    touches_requirements (bool)
+        Whether this improvement changes repository requirements
     """
 
     def __init__(self, name, type, description, upgrademessage):
@@ -75,6 +95,12 @@ class improvement(object):
         self.upgrademessage = upgrademessage
         self.postupgrademessage = None
         self.postdowngrademessage = None
+        # By default for now, we assume every improvement touches
+        # all the things
+        self.touches_filelogs = True
+        self.touches_manifests = True
+        self.touches_changelog = True
+        self.touches_requirements = True
 
     def __eq__(self, other):
         if not isinstance(other, improvement):
@@ -89,7 +115,7 @@ class improvement(object):
         return hash(self.name)
 
 
-allformatvariant = []
+allformatvariant = []  # type: List[Type['formatvariant']]
 
 
 def registerformatvariant(cls):
@@ -127,6 +153,12 @@ class formatvariant(improvement):
     # Message intended for humans which will be shown post an upgrade
     # operation in which this improvement was removed
     postdowngrademessage = None
+
+    # By default for now, we assume every improvement touches all the things
+    touches_filelogs = True
+    touches_manifests = True
+    touches_changelog = True
+    touches_requirements = True
 
     def __init__(self):
         raise NotImplementedError()
@@ -173,7 +205,7 @@ class requirementformatvariant(formatvariant):
 class fncache(requirementformatvariant):
     name = b'fncache'
 
-    _requirement = b'fncache'
+    _requirement = requirements.FNCACHE_REQUIREMENT
 
     default = True
 
@@ -193,7 +225,7 @@ class fncache(requirementformatvariant):
 class dotencode(requirementformatvariant):
     name = b'dotencode'
 
-    _requirement = b'dotencode'
+    _requirement = requirements.DOTENCODE_REQUIREMENT
 
     default = True
 
@@ -212,7 +244,7 @@ class dotencode(requirementformatvariant):
 class generaldelta(requirementformatvariant):
     name = b'generaldelta'
 
-    _requirement = b'generaldelta'
+    _requirement = requirements.GENERALDELTA_REQUIREMENT
 
     default = True
 
@@ -267,6 +299,12 @@ class sharesafe(requirementformatvariant):
         b' New shares will be created in safe mode.'
     )
 
+    # upgrade only needs to change the requirements
+    touches_filelogs = False
+    touches_manifests = False
+    touches_changelog = False
+    touches_requirements = True
+
 
 @registerformatvariant
 class sparserevlog(requirementformatvariant):
@@ -292,22 +330,6 @@ class sparserevlog(requirementformatvariant):
         b'time. This allows for better delta chains, making a '
         b'better compression and faster exchange with server.'
     )
-
-
-@registerformatvariant
-class sidedata(requirementformatvariant):
-    name = b'sidedata'
-
-    _requirement = requirements.SIDEDATA_REQUIREMENT
-
-    default = False
-
-    description = _(
-        b'Allows storage of extra data alongside a revision, '
-        b'unlocking various caching options.'
-    )
-
-    upgrademessage = _(b'Allows storage of extra data alongside a revision.')
 
 
 @registerformatvariant
@@ -338,6 +360,15 @@ class copiessdc(requirementformatvariant):
     upgrademessage = _(
         b'Allows to use more efficient algorithm to deal with ' b'copy tracing.'
     )
+
+
+@registerformatvariant
+class revlogv2(requirementformatvariant):
+    name = b'revlog-v2'
+    _requirement = requirements.REVLOGV2_REQUIREMENT
+    default = False
+    description = _(b'Version 2 of the revlog.')
+    upgrademessage = _(b'very experimental')
 
 
 @registerformatvariant
@@ -372,10 +403,21 @@ class removecldeltachain(formatvariant):
         return True
 
 
+_has_zstd = (
+    b'zstd' in util.compengines
+    and util.compengines[b'zstd'].available()
+    and util.compengines[b'zstd'].revlogheader()
+)
+
+
 @registerformatvariant
 class compressionengine(formatvariant):
     name = b'compression'
-    default = b'zlib'
+
+    if _has_zstd:
+        default = b'zstd'
+    else:
+        default = b'zlib'
 
     description = _(
         b'Compresion algorithm used to compress data. '
@@ -405,7 +447,9 @@ class compressionengine(formatvariant):
         # return the first valid value as the selection code would do
         for comp in compengines:
             if comp in util.compengines:
-                return comp
+                e = util.compengines[comp]
+                if e.available() and e.revlogheader():
+                    return comp
 
         # no valide compression found lets display it all for clarity
         return b','.join(compengines)
@@ -626,6 +670,7 @@ class UpgradeOperation(object):
         upgrade_actions,
         removed_actions,
         revlogs_to_process,
+        backup_store,
     ):
         self.ui = ui
         self.new_requirements = new_requirements
@@ -669,6 +714,75 @@ class UpgradeOperation(object):
         self.force_re_delta_both_parents = (
             b're-delta-multibase' in self._upgrade_actions_names
         )
+
+        # should this operation create a backup of the store
+        self.backup_store = backup_store
+
+        # whether the operation touches different revlogs at all or not
+        self.touches_filelogs = self._touches_filelogs()
+        self.touches_manifests = self._touches_manifests()
+        self.touches_changelog = self._touches_changelog()
+        # whether the operation touches requirements file or not
+        self.touches_requirements = self._touches_requirements()
+        self.touches_store = (
+            self.touches_filelogs
+            or self.touches_manifests
+            or self.touches_changelog
+        )
+        # does the operation only touches repository requirement
+        self.requirements_only = (
+            self.touches_requirements and not self.touches_store
+        )
+
+    def _touches_filelogs(self):
+        for a in self.upgrade_actions:
+            # in optimisations, we re-process the revlogs again
+            if a.type == OPTIMISATION:
+                return True
+            elif a.touches_filelogs:
+                return True
+        for a in self.removed_actions:
+            if a.touches_filelogs:
+                return True
+        return False
+
+    def _touches_manifests(self):
+        for a in self.upgrade_actions:
+            # in optimisations, we re-process the revlogs again
+            if a.type == OPTIMISATION:
+                return True
+            elif a.touches_manifests:
+                return True
+        for a in self.removed_actions:
+            if a.touches_manifests:
+                return True
+        return False
+
+    def _touches_changelog(self):
+        for a in self.upgrade_actions:
+            # in optimisations, we re-process the revlogs again
+            if a.type == OPTIMISATION:
+                return True
+            elif a.touches_changelog:
+                return True
+        for a in self.removed_actions:
+            if a.touches_changelog:
+                return True
+        return False
+
+    def _touches_requirements(self):
+        for a in self.upgrade_actions:
+            # optimisations are used to re-process revlogs and does not result
+            # in a requirement being added or removed
+            if a.type == OPTIMISATION:
+                pass
+            elif a.touches_requirements:
+                return True
+        for a in self.removed_actions:
+            if a.touches_requirements:
+                return True
+
+        return False
 
     def _write_labeled(self, l, label):
         """
@@ -757,9 +871,7 @@ def requiredsourcerequirements(repo):
     """
     return {
         # Introduced in Mercurial 0.9.2.
-        b'revlogv1',
-        # Introduced in Mercurial 0.9.2.
-        b'store',
+        requirements.STORE_REQUIREMENT,
     }
 
 
@@ -781,9 +893,21 @@ def blocksourcerequirements(repo):
     }
 
 
+def check_revlog_version(reqs):
+    """Check that the requirements contain at least one Revlog version"""
+    all_revlogs = {
+        requirements.REVLOGV1_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
+    }
+    if not all_revlogs.intersection(reqs):
+        msg = _(b'cannot upgrade repository; missing a revlog version')
+        raise error.Abort(msg)
+
+
 def check_source_requirements(repo):
     """Ensure that no existing requirements prevent the repository upgrade"""
 
+    check_revlog_version(repo.requirements)
     required = requiredsourcerequirements(repo)
     missingreqs = required - repo.requirements
     if missingreqs:
@@ -815,6 +939,8 @@ def supportremovedrequirements(repo):
         requirements.COPIESSDC_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
         requirements.SHARESAFE_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
+        requirements.REVLOGV1_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -834,16 +960,17 @@ def supporteddestrequirements(repo):
     Extensions should monkeypatch this to add their custom requirements.
     """
     supported = {
-        b'dotencode',
-        b'fncache',
-        b'generaldelta',
-        b'revlogv1',
-        b'store',
+        requirements.DOTENCODE_REQUIREMENT,
+        requirements.FNCACHE_REQUIREMENT,
+        requirements.GENERALDELTA_REQUIREMENT,
+        requirements.REVLOGV1_REQUIREMENT,  # allowed in case of downgrade
+        requirements.STORE_REQUIREMENT,
         requirements.SPARSEREVLOG_REQUIREMENT,
         requirements.SIDEDATA_REQUIREMENT,
         requirements.COPIESSDC_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
         requirements.SHARESAFE_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -865,14 +992,16 @@ def allowednewrequirements(repo):
     future, unknown requirements from accidentally being added.
     """
     supported = {
-        b'dotencode',
-        b'fncache',
-        b'generaldelta',
+        requirements.DOTENCODE_REQUIREMENT,
+        requirements.FNCACHE_REQUIREMENT,
+        requirements.GENERALDELTA_REQUIREMENT,
         requirements.SPARSEREVLOG_REQUIREMENT,
         requirements.SIDEDATA_REQUIREMENT,
         requirements.COPIESSDC_REQUIREMENT,
         requirements.NODEMAP_REQUIREMENT,
         requirements.SHARESAFE_REQUIREMENT,
+        requirements.REVLOGV1_REQUIREMENT,
+        requirements.REVLOGV2_REQUIREMENT,
     }
     for name in compression.compengines:
         engine = compression.compengines[name]
@@ -885,7 +1014,7 @@ def allowednewrequirements(repo):
 
 def check_requirements_changes(repo, new_reqs):
     old_reqs = repo.requirements
-
+    check_revlog_version(repo.requirements)
     support_removal = supportremovedrequirements(repo)
     no_remove_reqs = old_reqs - new_reqs - support_removal
     if no_remove_reqs:

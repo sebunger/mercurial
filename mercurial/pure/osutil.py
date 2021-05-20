@@ -1,6 +1,6 @@
 # osutil.py - pure Python version of osutil.c
 #
-#  Copyright 2009 Matt Mackall <mpm@selenic.com> and others
+#  Copyright 2009 Olivia Mackall <olivia@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
@@ -172,7 +172,7 @@ if not pycompat.iswindows:
 else:
     import msvcrt
 
-    _kernel32 = ctypes.windll.kernel32
+    _kernel32 = ctypes.windll.kernel32  # pytype: disable=module-attr
 
     _DWORD = ctypes.c_ulong
     _LPCSTR = _LPSTR = ctypes.c_char_p
@@ -216,7 +216,7 @@ else:
     _kernel32.CreateFileA.restype = _HANDLE
 
     def _raiseioerror(name):
-        err = ctypes.WinError()
+        err = ctypes.WinError()  # pytype: disable=module-attr
         raise IOError(
             err.errno, '%s: %s' % (encoding.strfromlocal(name), err.strerror)
         )
@@ -271,7 +271,7 @@ else:
             if fh == _INVALID_HANDLE_VALUE:
                 _raiseioerror(name)
 
-            fd = msvcrt.open_osfhandle(fh, flags)
+            fd = msvcrt.open_osfhandle(fh, flags)  # pytype: disable=module-attr
             if fd == -1:
                 _kernel32.CloseHandle(fh)
                 _raiseioerror(name)

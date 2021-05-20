@@ -103,6 +103,7 @@ from mercurial import (
 from mercurial.utils import (
     procutil,
     stringutil,
+    urlutil,
 )
 from . import show
 
@@ -366,7 +367,7 @@ def urlencodenested(params):
                     process(k, v)
 
     process(b'', params)
-    return util.urlreq.urlencode(flatparams)
+    return urlutil.urlreq.urlencode(flatparams)
 
 
 def readurltoken(ui):
@@ -381,7 +382,7 @@ def readurltoken(ui):
             _(b'config %s.%s is required') % (b'phabricator', b'url')
         )
 
-    res = httpconnectionmod.readauthforuri(ui, url, util.url(url).user)
+    res = httpconnectionmod.readauthforuri(ui, url, urlutil.url(url).user)
     token = None
 
     if res:
@@ -402,7 +403,7 @@ def readurltoken(ui):
 def callconduit(ui, name, params):
     """call Conduit API, params is a dict. return json.loads result, or None"""
     host, token = readurltoken(ui)
-    url, authinfo = util.url(b'/'.join([host, b'api', name])).authinfo()
+    url, authinfo = urlutil.url(b'/'.join([host, b'api', name])).authinfo()
     ui.debug(b'Conduit Call: %s %s\n' % (url, pycompat.byterepr(params)))
     params = params.copy()
     params[b'__conduit__'] = {

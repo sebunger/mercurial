@@ -1,6 +1,6 @@
 # sslutil.py - SSL handling for mercurial
 #
-# Copyright 2005, 2006, 2007, 2008 Matt Mackall <mpm@selenic.com>
+# Copyright 2005, 2006, 2007, 2008 Olivia Mackall <olivia@selenic.com>
 # Copyright 2006, 2007 Alexis S. L. Carvalho <alexis@cecm.usp.br>
 # Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
@@ -269,7 +269,7 @@ def wrapsocket(sock, keyfile, certfile, ui, serverhostname=None):
 
     if b'SSLKEYLOGFILE' in encoding.environ:
         try:
-            import sslkeylog
+            import sslkeylog  # pytype: disable=import-error
 
             sslkeylog.set_keylog(
                 pycompat.fsdecode(encoding.environ[b'SSLKEYLOGFILE'])
@@ -543,7 +543,9 @@ def wrapserversocket(
     # Use the list of more secure ciphers if found in the ssl module.
     if util.safehasattr(ssl, b'_RESTRICTED_SERVER_CIPHERS'):
         sslcontext.options |= getattr(ssl, 'OP_CIPHER_SERVER_PREFERENCE', 0)
+        # pytype: disable=module-attr
         sslcontext.set_ciphers(ssl._RESTRICTED_SERVER_CIPHERS)
+        # pytype: enable=module-attr
 
     if requireclientcert:
         sslcontext.verify_mode = ssl.CERT_REQUIRED

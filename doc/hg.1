@@ -552,6 +552,8 @@ recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -564,7 +566,7 @@ show changesets not found in the destination:
 .sp
 .nf
 .ft C
-hg outgoing [\-M] [\-p] [\-n] [\-f] [\-r REV]... [DEST]
+hg outgoing [\-M] [\-p] [\-n] [\-f] [\-r REV]... [DEST]...
 .ft P
 .fi
 .sp
@@ -692,6 +694,8 @@ recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -767,7 +771,7 @@ pull changes from the specified source:
 .sp
 .nf
 .ft C
-hg pull [\-u] [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [SOURCE]
+hg pull [\-u] [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [SOURCE]...
 .ft P
 .fi
 .sp
@@ -791,6 +795,10 @@ to add those changes to the repository, you should use \%\fBhg pull
 .sp
 If SOURCE is omitted, the \(aqdefault\(aq path will be used.
 See \%\fBhg help urls\fP\: for more information.
+.sp
+If multiple sources are specified, they will be pulled sequentially as if
+the command was run multiple time. If \-\-update is specify and the command
+will stop at the first failed \-\-update.
 .sp
 Specifying bookmark as \fB.\fP is equivalent to specifying the active
 bookmark\(aqs name.
@@ -844,7 +852,7 @@ push changes to the specified destination:
 .sp
 .nf
 .ft C
-hg push [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [DEST]
+hg push [\-f] [\-r REV]... [\-e CMD] [\-\-remotecmd CMD] [DEST]...
 .ft P
 .fi
 .sp
@@ -880,6 +888,9 @@ current bookmarks.
 .sp
 Please see \%\fBhg help urls\fP\: for important details about \fBssh://\fP
 URLs. If DESTINATION is omitted, a default path will be used.
+.sp
+When passed multiple destinations, push will process them one after the
+other, but stop should an error occur.
 .sp
 The \-\-pushvars option sends strings to the server that become
 environment variables prepended with \fBHG_USERVAR_\fP. For example,
@@ -1205,6 +1216,8 @@ recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1789,8 +1802,14 @@ list existing bookmarks
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template
+.UNINDENT
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: bookmark
+.UNINDENT
 .UNINDENT
 .SS branch
 .sp
@@ -2204,6 +2223,8 @@ display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -2336,7 +2357,8 @@ operation is recorded, but no copying is performed.
 .sp
 To undo marking a destination file as copied, use \-\-forget. With that
 option, all given (positional) arguments are unmarked as copies. The
-destination file(s) will be left in place (still tracked).
+destination file(s) will be left in place (still tracked). Note that
+\%\fBhg copy \-\-forget\fP\: behaves the same way as \%\fBhg rename \-\-forget\fP\:.
 .sp
 This command takes effect with the next commit by default.
 .sp
@@ -2375,6 +2397,8 @@ do not perform actions, just print output
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -3046,8 +3070,14 @@ do not verify server certificate (ignoring web.cacerts config)
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template
+.UNINDENT
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: id
+.UNINDENT
 .UNINDENT
 .SS log
 .sp
@@ -3346,6 +3376,8 @@ exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -3881,6 +3913,108 @@ exclude names matching the given patterns
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.SS purge
+.sp
+removes files not tracked by Mercurial:
+.sp
+.nf
+.ft C
+hg purge [OPTION]... [DIR]...
+.ft P
+.fi
+.sp
+Delete files not known to Mercurial. This is useful to test local
+and uncommitted changes in an otherwise\-clean source tree.
+.sp
+This means that purge will delete the following by default:
+.INDENT 0.0
+.IP \(bu 2
+.
+Unknown files: files marked with "?" by \%\fBhg status\fP\:
+.IP \(bu 2
+.
+Empty directories: in fact Mercurial ignores directories unless
+they contain files under source control management
+.UNINDENT
+.sp
+But it will leave untouched:
+.INDENT 0.0
+.IP \(bu 2
+.
+Modified and unmodified tracked files
+.IP \(bu 2
+.
+Ignored files (unless \-i or \-\-all is specified)
+.IP \(bu 2
+.
+New files added to the repository (with \%\fBhg add\fP\:)
+.UNINDENT
+.sp
+The \-\-files and \-\-dirs options can be used to direct purge to delete
+only files, only directories, or both. If neither option is given,
+both will be deleted.
+.sp
+If directories are given on the command line, only files in these
+directories are considered.
+.sp
+Be careful with purge, as you could irreversibly delete some files
+you forgot to add to the repository. If you only want to print the
+list of files that this program would delete, use the \-\-print
+option.
+.sp
+Options:
+.INDENT 0.0
+.TP
+.B \-a,  \-\-abort\-on\-err
+.
+abort if an error occurs
+.TP
+.B \-\-all
+.
+purge ignored files too
+.TP
+.B \-i,  \-\-ignored
+.
+purge only ignored files
+.TP
+.B \-\-dirs
+.
+purge empty directories
+.TP
+.B \-\-files
+.
+purge files
+.TP
+.B \-p,  \-\-print
+.
+print filenames instead of deleting them
+.TP
+.B \-0,  \-\-print0
+.
+end filenames with NUL, for use with xargs (implies \-p/\-\-print)
+.TP
+.B \-\-confirm
+.
+ask before permanently deleting files
+.TP
+.BI \-I,  \-\-include \ <PATTERN[+]>
+.
+include names matching the given patterns
+.TP
+.BI \-X,  \-\-exclude \ <PATTERN[+]>
+.
+exclude names matching the given patterns
+.UNINDENT
+.sp
+[+] marked option can be specified multiple times
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+aliases: clean
+.UNINDENT
+.UNINDENT
 .SS remove
 .sp
 remove the specified files on the next commit:
@@ -4009,6 +4143,8 @@ do not perform actions, just print output
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -4033,13 +4169,22 @@ By default, this command copies the contents of files as they
 exist in the working directory. If invoked with \-A/\-\-after, the
 operation is recorded, but no copying is performed.
 .sp
-This command takes effect at the next commit. To undo a rename
-before that, see \%\fBhg revert\fP\:.
+To undo marking a destination file as renamed, use \-\-forget. With that
+option, all given (positional) arguments are unmarked as renames. The
+destination file(s) will be left in place (still tracked). The source
+file(s) will not be restored. Note that \%\fBhg rename \-\-forget\fP\: behaves
+the same way as \%\fBhg copy \-\-forget\fP\:.
+.sp
+This command takes effect with the next commit by default.
 .sp
 Returns 0 on success, 1 if errors are encountered.
 .sp
 Options:
 .INDENT 0.0
+.TP
+.B \-\-forget
+.
+unmark a destination file as renamed
 .TP
 .B \-A,  \-\-after
 .
@@ -4067,6 +4212,8 @@ do not perform actions, just print output
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -4624,6 +4771,8 @@ display with template
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -4654,8 +4803,14 @@ Options:
 .B \-\-remote
 .
 check for push and pull
+.UNINDENT
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: sum
+.UNINDENT
 .UNINDENT
 .SS unshelve
 .sp
@@ -4829,8 +4984,14 @@ revision
 .BI \-t,  \-\-tool \ <TOOL>
 .
 specify merge tool
+.UNINDENT
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: up checkout co
+.UNINDENT
 .UNINDENT
 .SS Change import/export
 .SS archive
@@ -4952,7 +5113,7 @@ create a bundle file:
 .sp
 .nf
 .ft C
-hg bundle [\-f] [\-t BUNDLESPEC] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]
+hg bundle [\-f] [\-t BUNDLESPEC] [\-a] [\-r REV]... [\-\-base REV]... FILE [DEST]...
 .ft P
 .fi
 .sp
@@ -4964,7 +5125,7 @@ To create a bundle containing all changesets, use \-a/\-\-all
 all the nodes you specify with \-\-base parameters. Otherwise, hg
 will assume the repository has all the nodes in destination, or
 default\-push/default if no destination is specified, where destination
-is the repository you provide through DEST option.
+is the repositories you provide through DEST option.
 .sp
 You can change bundle format with the \-t/\-\-type option. See
 \%\fBhg help bundlespec\fP\: for documentation on this format. By default,
@@ -5403,8 +5564,14 @@ record the specified user as committer
 .BI \-s,  \-\-similarity \ <SIMILARITY>
 .
 guess renamed files by similarity (0<=s<=100)
+.UNINDENT
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: patch
+.UNINDENT
 .UNINDENT
 .SS unbundle
 .sp
@@ -5677,8 +5844,14 @@ edit global config
 .BI \-T,  \-\-template \ <TEMPLATE>
 .
 display with template
+.UNINDENT
+.\" 
+.
+.INDENT 0.0
+.INDENT 3.5
 .sp
 aliases: showconfig debugconfig
+.UNINDENT
 .UNINDENT
 .SS help
 .sp
@@ -6535,10 +6708,6 @@ hooks for sending email push notifications
 .B patchbomb
 .
 command to send changesets as (a series of) patch emails
-.TP
-.B purge
-.
-command to delete untracked files from the working directory
 .TP
 .B rebase
 .
@@ -8969,6 +9138,12 @@ The changesets in a given namespace.
 Pattern matching is supported for \fInamespace\fP. See
 \%\fBhg help revisions.patterns\fP\:.
 .TP
+.B \fBnodefromfile(path)\fP
+.sp
+An alias for \fB::.\fP (ancestors of the working directory\(aqs first parent).
+If file pattern is specified, the histories of files matching given
+pattern in the revision given by startrev are followed, including copies.
+.TP
 .B \fBnone()\fP
 .sp
 No changesets.
@@ -10553,6 +10728,7 @@ file://local/filesystem/path[#revision]
 http://[user[:pass]@]host[:port]/[path][#revision]
 https://[user[:pass]@]host[:port]/[path][#revision]
 ssh://[user@]host[:port]/[path][#revision]
+path://pathname
 .ft P
 .fi
 .sp
@@ -10636,6 +10812,19 @@ pull\-like commands (including incoming and outgoing).
 The push command will look for a path named \(aqdefault\-push\(aq, and
 prefer it over \(aqdefault\(aq if both are defined.
 .UNINDENT
+.sp
+These alias can also be use in the \fIpath://\fP scheme:
+.sp
+.nf
+.ft C
+[paths]
+alias1 = URL1
+alias2 = path://alias1
+\&...
+.ft P
+.fi
+.sp
+check \%\fBhg help config.paths\fP\: for details about the behavior of such "sub\-path".
 .SH EXTENSIONS
 .sp
 This section contains help for extensions that are distributed together with Mercurial. Help for other extensions is available in the help system.
@@ -11104,7 +11293,7 @@ maxfiles = 3
 [blackbox]
 # Include nanoseconds in log entries with %f (see Python function
 # datetime.datetime.strftime)
-date\-format = \(aq%Y\-%m\-%d @ %H:%M:%S.%f\(aq
+date\-format = %Y\-%m\-%d @ %H:%M:%S.%f
 .ft P
 .fi
 .SS Commands
@@ -12056,6 +12245,8 @@ revision to check
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -12602,6 +12793,24 @@ All destination types accept the following options:
 does not convert tags from the source repo to the target
 repo. The default is False.
 .UNINDENT
+.SS Subversion Destination
+.sp
+Original commit dates are not preserved by default.
+.INDENT 0.0
+.TP
+.B convert.svn.dangerous\-set\-commit\-dates
+.
+preserve original commit dates,
+forcefully setting \fBsvn:date\fP revision properties. This option is
+DANGEROUS and may break some subversion functionality for the resulting
+repository (e.g. filtering revisions with date ranges in \fBsvn log\fP),
+as original commit dates are not guaranteed to be monotonically
+increasing.
+.UNINDENT
+.sp
+For commit dates setting to work destination repository must have
+\fBpre\-revprop\-change\fP hook configured to allow setting of \fBsvn:date\fP
+revision properties. See Subversion documentation for more details.
 .sp
 Options:
 .INDENT 0.0
@@ -13512,6 +13721,8 @@ hg githelp
 .fi
 .sp
 Usage: hg githelp \-\- <git command>
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -15215,6 +15426,8 @@ recurse into subrepositories
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -15475,6 +15688,8 @@ stop managing a revision (DEPRECATED)
 .UNINDENT
 .sp
 [+] marked option can be specified multiple times
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -15802,6 +16017,8 @@ With one argument, renames the current patch to PATCH1.
 With two arguments, renames PATCH1 to PATCH2.
 .sp
 Returns 0 on success.
+.\" 
+.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -16246,6 +16463,10 @@ whether to replace the existing narrowspec
 .B \-\-force\-delete\-local\-changes
 .
 forces deletion of local changes when narrowing
+.TP
+.B \-\-backup
+.
+back up local changes when narrowing (default: True)
 .TP
 .B \-\-update\-working\-copy
 .
@@ -17073,105 +17294,10 @@ Path to a vcr file. If nonexistent, will record a new vcr transcript, otherwise 
 .SS Uncategorized commands
 .SS purge
 .sp
-command to delete untracked files from the working directory
-.SS Commands
-.SS Working directory management
-.SS purge
+command to delete untracked files from the working directory (DEPRECATED)
 .sp
-removes files not tracked by Mercurial:
-.sp
-.nf
-.ft C
-hg purge [OPTION]... [DIR]...
-.ft P
-.fi
-.sp
-Delete files not known to Mercurial. This is useful to test local
-and uncommitted changes in an otherwise\-clean source tree.
-.sp
-This means that purge will delete the following by default:
-.INDENT 0.0
-.IP \(bu 2
-.
-Unknown files: files marked with "?" by \%\fBhg status\fP\:
-.IP \(bu 2
-.
-Empty directories: in fact Mercurial ignores directories unless
-they contain files under source control management
-.UNINDENT
-.sp
-But it will leave untouched:
-.INDENT 0.0
-.IP \(bu 2
-.
-Modified and unmodified tracked files
-.IP \(bu 2
-.
-Ignored files (unless \-i or \-\-all is specified)
-.IP \(bu 2
-.
-New files added to the repository (with \%\fBhg add\fP\:)
-.UNINDENT
-.sp
-The \-\-files and \-\-dirs options can be used to direct purge to delete
-only files, only directories, or both. If neither option is given,
-both will be deleted.
-.sp
-If directories are given on the command line, only files in these
-directories are considered.
-.sp
-Be careful with purge, as you could irreversibly delete some files
-you forgot to add to the repository. If you only want to print the
-list of files that this program would delete, use the \-\-print
-option.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.B \-a,  \-\-abort\-on\-err
-.
-abort if an error occurs
-.TP
-.B \-\-all
-.
-purge ignored files too
-.TP
-.B \-i,  \-\-ignored
-.
-purge only ignored files
-.TP
-.B \-\-dirs
-.
-purge empty directories
-.TP
-.B \-\-files
-.
-purge files
-.TP
-.B \-p,  \-\-print
-.
-print filenames instead of deleting them
-.TP
-.B \-0,  \-\-print0
-.
-end filenames with NUL, for use with xargs (implies \-p/\-\-print)
-.TP
-.BI \-I,  \-\-include \ <PATTERN[+]>
-.
-include names matching the given patterns
-.TP
-.BI \-X,  \-\-exclude \ <PATTERN[+]>
-.
-exclude names matching the given patterns
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
-.INDENT 0.0
-.INDENT 3.5
-.sp
-aliases: clean
-.UNINDENT
-.UNINDENT
+The functionality of this extension has been included in core Mercurial since
+version 5.7. Please use \%\fBhg purge ...\fP\: instead. \%\fBhg purge \-\-confirm\fP\: is now the default, unless the extension is enabled for backward compatibility.
 .SS rebase
 .sp
 command to move sets of revisions to a different ancestor
@@ -18854,7 +18980,7 @@ below) when you find them.
 \%\fBhgignore\fP(5)\:, \%\fBhgrc\fP(5)\:
 .SH AUTHOR
 .sp
-Written by Matt Mackall <\%mpm@selenic.com\:>
+Written by Olivia Mackall <\%olivia@selenic.com\:>
 .SH RESOURCES
 .sp
 Main Web Site: \%https://mercurial\-scm.org/\:
@@ -18864,13 +18990,13 @@ Source code repository: \%https://www.mercurial\-scm.org/repo/hg\:
 Mailing list: \%https://www.mercurial\-scm.org/mailman/listinfo/mercurial/\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2021 Matt Mackall.
+Copyright (C) 2005\-2021 Olivia Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.
 .
 .SH AUTHOR
-Matt Mackall <mpm@selenic.com>
+Olivia Mackall <olivia@selenic.com>
 
 Organization: Mercurial
 .\" Generated by docutils manpage writer.

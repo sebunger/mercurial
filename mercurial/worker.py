@@ -104,7 +104,9 @@ if pycompat.ispy3:
 else:
 
     def ismainthread():
+        # pytype: disable=module-attr
         return isinstance(threading.current_thread(), threading._MainThread)
+        # pytype: enable=module-attr
 
     def _blockingreader(wrapped):
         return wrapped
@@ -440,7 +442,7 @@ def partition(lst, nslices):
     we ever write workers that need to preserve grouping in input
     we should consider allowing callers to specify a partition strategy.
 
-    mpm is not a fan of this partitioning strategy when files are involved.
+    olivia is not a fan of this partitioning strategy when files are involved.
     In his words:
 
         Single-threaded Mercurial makes a point of creating and visiting
