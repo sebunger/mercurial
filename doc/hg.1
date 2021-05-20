@@ -875,7 +875,8 @@ will be pushed to the remote repository.
 If \-B/\-\-bookmark is used, the specified bookmarked revision, its
 ancestors, and the bookmark will be pushed to the remote
 repository. Specifying \fB.\fP is equivalent to specifying the active
-bookmark\(aqs name.
+bookmark\(aqs name. Use the \-\-all\-bookmarks option for pushing all
+current bookmarks.
 .sp
 Please see \%\fBhg help urls\fP\: for important details about \fBssh://\fP
 URLs. If DESTINATION is omitted, a default path will be used.
@@ -917,6 +918,10 @@ a changeset intended to be included in the destination
 .BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
 .
 bookmark to push
+.TP
+.B \-\-all\-bookmarks
+.
+push all bookmarks (EXPERIMENTAL)
 .TP
 .BI \-b,  \-\-branch \ <BRANCH[+]>
 .
@@ -1437,7 +1442,7 @@ is thus pretty much the same as:
 .sp
 .nf
 .ft C
-hg diff \-r 234 \-r 345 | hg import
+hg diff \-\-from 234 \-\-to 345 | hg import
 .ft P
 .fi
 .sp
@@ -2317,7 +2322,7 @@ mark files as copied for the next commit:
 .sp
 .nf
 .ft C
-hg copy [OPTION]... SOURCE... DEST
+hg copy [OPTION]... (SOURCE... DEST | \-\-forget DEST...)
 .ft P
 .fi
 .sp
@@ -2382,7 +2387,7 @@ diff repository (or selected files):
 .sp
 .nf
 .ft C
-hg diff [OPTION]... ([\-c REV] | [\-r REV1 [\-r REV2]]) [FILE]...
+hg diff [OPTION]... ([\-c REV] | [\-\-from REV1] [\-\-to REV2]) [FILE]...
 .ft P
 .fi
 .sp
@@ -2396,14 +2401,17 @@ default to comparing against the working directory\(aqs first
 parent changeset if no revisions are specified.
 .RE
 .sp
-When two revision arguments are given, then changes are shown
-between those revisions. If only one revision is specified then
-that revision is compared to the working directory, and, when no
-revisions are specified, the working directory files are compared
-to its first parent.
+By default, the working directory files are compared to its first parent. To
+see the differences from another revision, use \-\-from. To see the difference
+to another revision, use \-\-to. For example, \%\fBhg diff \-\-from .^\fP\: will show
+the differences from the working copy\(aqs grandparent to the working copy,
+\%\fBhg diff \-\-to .\fP\: will show the diff from the working copy to its parent
+(i.e. the reverse of the default), and \%\fBhg diff \-\-from 1.0 \-\-to 1.2\fP\: will
+show the diff between those two revisions.
 .sp
-Alternatively you can specify \-c/\-\-change with a revision to see
-the changes in that changeset relative to its first parent.
+Alternatively you can specify \-c/\-\-change with a revision to see the changes
+in that changeset relative to its first parent (i.e. \%\fBhg diff \-c 42\fP\: is
+equivalent to \%\fBhg diff \-\-from 42^ \-\-to 42\fP\:)
 .sp
 Without the \-a/\-\-text option, diff will avoid generating diffs of
 files it detects as binary. With \-a, diff will generate a diff
@@ -2429,7 +2437,7 @@ compare two historical versions of a directory, with rename info:
 .sp
 .nf
 .ft C
-hg diff \-\-git \-r 1.0:1.2 lib/
+hg diff \-\-git \-\-from 1.0 \-\-to 1.2 lib/
 .ft P
 .fi
 .IP \(bu 2
@@ -2438,7 +2446,7 @@ get change stats relative to the last change on some date:
 .sp
 .nf
 .ft C
-hg diff \-\-stat \-r "date(\(aqmay 2\(aq)"
+hg diff \-\-stat \-\-from "date(\(aqmay 2\(aq)"
 .ft P
 .fi
 .IP \(bu 2
@@ -2456,9 +2464,9 @@ compare a revision and its parents:
 .sp
 .nf
 .ft C
-hg diff \-c 9353         # compare against first parent
-hg diff \-r 9353^:9353   # same using revset syntax
-hg diff \-r 9353^2:9353  # compare against the second parent
+hg diff \-c 9353                  # compare against first parent
+hg diff \-\-from 9353^ \-\-to 9353   # same using revset syntax
+hg diff \-\-from 9353^2 \-\-to 9353  # compare against the second parent
 .ft P
 .fi
 .UNINDENT
@@ -2470,7 +2478,15 @@ Options:
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-revision
+revision (DEPRECATED)
+.TP
+.BI \-\-from \ <REV1>
+.
+revision to diff from
+.TP
+.BI \-\-to \ <REV2>
+.
+revision to diff to
 .TP
 .BI \-c,  \-\-change \ <REV>
 .
@@ -3047,13 +3063,13 @@ Print the revision history of the specified files or the entire
 project.
 .sp
 If no revision range is specified, the default is \fBtip:0\fP unless
-\-\-follow is set, in which case the working directory parent is
-used as the starting revision.
+\-\-follow is set.
 .sp
 File history is shown without following rename or copy history of
 files. Use \-f/\-\-follow with a filename to follow history across
 renames and copies. \-\-follow without a filename will only show
-ancestors of the starting revision.
+ancestors of the starting revisions. The starting revisions can be
+specified by \-r/\-\-rev, which default to the working directory parent.
 .sp
 By default this command prints revision number and changeset id,
 tags, non\-trivial parents, user, date and time, and a summary for
@@ -3224,7 +3240,7 @@ revisions.
 .sp
 See \%\fBhg help templates\fP\: for more about pre\-packaged styles and
 specifying custom templates. The default template used by the log
-command can be customized via the \fBui.logtemplate\fP configuration
+command can be customized via the \fBcommand\-templates.log\fP configuration
 setting.
 .sp
 Returns 0 on success.
@@ -3254,7 +3270,7 @@ do case\-insensitive search for a given text
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-show the specified revision or revset
+revisions to select or follow from
 .TP
 .BI \-L,  \-\-line\-range \ <FILE,RANGE[+]>
 .
@@ -3279,6 +3295,10 @@ show only changesets within the given named branch (DEPRECATED)
 .BI \-b,  \-\-branch \ <BRANCH[+]>
 .
 show changesets within the given named branch
+.TP
+.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
+.
+show changesets within the given bookmark
 .TP
 .BI \-P,  \-\-prune \ <REV[+]>
 .
@@ -5600,6 +5620,9 @@ for each config item.
 .sp
 See \%\fBhg help config\fP\: for more information about config files.
 .sp
+\-\-non\-shared flag is used to edit \fI.hg/hgrc\-not\-shared\fP config file.
+This file is not shared across shares when in share\-safe mode.
+.sp
 Template:
 .sp
 The following keywords are supported. See also \%\fBhg help templates\fP\:.
@@ -5642,6 +5665,10 @@ edit repository config
 .B \-\-shared
 .
 edit shared source repository config (EXPERIMENTAL)
+.TP
+.B \-\-non\-shared
+.
+edit non shared config (EXPERIMENTAL)
 .TP
 .B \-g,  \-\-global
 .
@@ -6116,7 +6143,7 @@ The log command also accepts date ranges:
 \fBDATE to DATE\fP \- a date range, inclusive
 .IP \(bu 2
 .
-\fB\-DAYS\fP \- within a given number of days of today
+\fB\-DAYS\fP \- within a given number of days from today
 .UNINDENT
 .SH DEPRECATED FEATURES
 .sp
@@ -6528,10 +6555,6 @@ extend schemes with shortcuts to repository swarms
 .B share
 .
 share a common history between several working directories
-.TP
-.B strip
-.
-strip changesets and their descendants from history
 .TP
 .B transplant
 .
@@ -7987,6 +8010,14 @@ Uses the internal non\-interactive simple merge algorithm for merging
 files. It will fail if there are any conflicts and leave markers in
 the partially merged file. Marker will have three sections, one from each
 side of the merge and one for the base content.
+.TP
+.B \fB:mergediff\fP
+.sp
+Uses the internal non\-interactive simple merge algorithm for merging
+files. It will fail if there are any conflicts and leave markers in
+the partially merged file. The marker will have two sections, one with the
+content from one side of the merge, and one with a diff from the base
+content to the content on the other side. (experimental)
 .TP
 .B \fB:other\fP
 .sp
@@ -9780,6 +9811,11 @@ which counts in the opposite direction.
 .
 String. The changeset identification hash, as a 40 hexadecimal
 digit string.
+.TP
+.B onelinesummary
+.
+String. A one\-line summary for the ctx (not including trailing newline).
+The default template be overridden in command\-templates.oneline\-summary.
 .TP
 .B p1
 .
@@ -12836,11 +12872,8 @@ unless the \-\-per\-file option is specified (see below). To pass
 additional options to the program, use \-o/\-\-option. These will be
 passed before the names of the directories or files to compare.
 .sp
-When two revision arguments are given, then changes are shown
-between those revisions. If only one revision is specified then
-that revision is compared to the working directory, and, when no
-revisions are specified, the working directory files are compared
-to its parent.
+The \-\-from, \-\-to, and \-\-change options work the same way they do for
+\%\fBhg diff\fP\:.
 .sp
 The \-\-per\-file option runs the external program repeatedly on each
 file to diff, instead of once on two directories. By default,
@@ -12867,7 +12900,15 @@ pass option to comparison program
 .TP
 .BI \-r,  \-\-rev \ <REV[+]>
 .
-revision
+revision (DEPRECATED)
+.TP
+.BI \-\-from \ <REV1>
+.
+revision to diff from
+.TP
+.BI \-\-to \ <REV2>
+.
+revision to diff to
 .TP
 .BI \-c,  \-\-change \ <REV>
 .
@@ -13799,7 +13840,7 @@ pick 7c2fd3b9020c Add delta
 #
 # Commands:
 #  p, pick = use commit
-#  e, edit = use commit, but stop for amending
+#  e, edit = use commit, but allow edits before making new commit
 #  f, fold = use commit, but combine it with the one above
 #  r, roll = like fold, but discard this commit\(aqs description and date
 #  d, drop = remove commit from history
@@ -13826,7 +13867,7 @@ fold 7c2fd3b9020c Add delta
 #
 # Commands:
 #  p, pick = use commit
-#  e, edit = use commit, but stop for amending
+#  e, edit = use commit, but allow edits before making new commit
 #  f, fold = use commit, but combine it with the one above
 #  r, roll = like fold, but discard this commit\(aqs description and date
 #  d, drop = remove commit from history
@@ -16792,6 +16833,20 @@ callsign = FOO
 # the internal library.
 curlcmd = curl \-\-connect\-timeout 2 \-\-retry 3 \-\-silent
 
+# retry failed command N time (default 0). Useful when using the extension
+# over flakly connection.
+#
+# We wait \(garetry.interval\(ga between each retry, in seconds.
+# (default 1 second).
+retry = 3
+retry.interval = 10
+
+# the retry option can combine well with the http.timeout one.
+#
+# For example to give up on http request after 20 seconds:
+[http]
+timeout=20
+
 [auth]
 example.schemes = https
 example.prefix = phab.example.com
@@ -16954,7 +17009,7 @@ update Differential Revision in batch:
 .sp
 .nf
 .ft C
-hg phabupdate DREVSPEC... [OPTIONS]
+hg phabupdate [DREVSPEC...| \-r REV...] [OPTIONS]
 .ft P
 .fi
 .sp
@@ -17006,6 +17061,10 @@ commandeer revisions
 .BI \-m,  \-\-comment \ <VALUE>
 .
 comment on the last revision
+.TP
+.BI \-r,  \-\-rev \ <REV>
+.
+local revision to update
 .TP
 .BI \-\-test\-vcr \ <VALUE>
 .
@@ -18083,6 +18142,23 @@ that was cloned before.
 .sp
 The default naming mode is "identity".
 .UNINDENT
+.sp
+Sharing requirements and configs of source repository with shares:
+.sp
+By default creating a shared repository only enables sharing a common
+history and does not share requirements and configs between them. This
+may lead to problems in some cases, for example when you upgrade the
+storage format from one repository but does not set related configs
+in the shares.
+.sp
+Setting \fIformat.exp\-share\-safe = True\fP enables sharing configs and
+requirements. This only applies to shares which are done after enabling
+the config option.
+.sp
+For enabling this in existing shares, enable the config option and reshare.
+.sp
+For resharing existing shares, make sure your working directory is clean
+and there are no untracked files, delete that share and create a new share.
 .SS Commands
 .SS Repository creation
 .SS share
@@ -18355,85 +18431,13 @@ To use, activate the extension and set the \fBstorage.new\-repo\-backend\fP conf
 option to \fBsqlite\fP to enable new repositories to use SQLite for storage.
 .SS strip
 .sp
-strip changesets and their descendants from history
+strip changesets and their descendants from history (DEPRECATED)
+.sp
+The functionality of this extension has been included in core Mercurial
+since version 5.7. Please use \%\fBhg debugstrip ...\fP\: instead.
 .sp
 This extension allows you to strip changesets and all their descendants from the
 repository. See the command help for details.
-.SS Commands
-.SS Repository maintenance
-.SS strip
-.sp
-strip changesets and all their descendants from the repository:
-.sp
-.nf
-.ft C
-hg strip [\-k] [\-f] [\-B bookmark] [\-r] REV...
-.ft P
-.fi
-.sp
-The strip command removes the specified changesets and all their
-descendants. If the working directory has uncommitted changes, the
-operation is aborted unless the \-\-force flag is supplied, in which
-case changes will be discarded.
-.sp
-If a parent of the working directory is stripped, then the working
-directory will automatically be updated to the most recent
-available ancestor of the stripped parent after the operation
-completes.
-.sp
-Any stripped changesets are stored in \fB.hg/strip\-backup\fP as a
-bundle (see \%\fBhg help bundle\fP\: and \%\fBhg help unbundle\fP\:). They can
-be restored by running \%\fBhg unbundle .hg/strip\-backup/BUNDLE\fP\:,
-where BUNDLE is the bundle file created by the strip. Note that
-the local revision numbers will in general be different after the
-restore.
-.sp
-Use the \-\-no\-backup option to discard the backup bundle once the
-operation completes.
-.sp
-Strip is not a history\-rewriting operation and can be used on
-changesets in the public phase. But if the stripped changesets have
-been pushed to a remote repository you will likely pull them again.
-.sp
-Return 0 on success.
-.sp
-Options:
-.INDENT 0.0
-.TP
-.BI \-r,  \-\-rev \ <REV[+]>
-.
-strip specified revision (optional, can specify revisions without this option)
-.TP
-.B \-f,  \-\-force
-.
-force removal of changesets, discard uncommitted changes (no backup)
-.TP
-.B \-\-no\-backup
-.
-do not save backup bundle
-.TP
-.B \-\-nobackup
-.
-do not save backup bundle (DEPRECATED)
-.TP
-.B \-n
-.
-ignored  (DEPRECATED)
-.TP
-.B \-k,  \-\-keep
-.
-do not modify working directory during strip
-.TP
-.BI \-B,  \-\-bookmark \ <BOOKMARK[+]>
-.
-remove revs only reachable from given bookmark
-.TP
-.B \-\-soft
-.
-simply drop changesets from visible history (EXPERIMENTAL)
-.UNINDENT
-.sp
-[+] marked option can be specified multiple times
 .SS transplant
 .sp
 command to transplant changesets from another branch
@@ -18860,7 +18864,7 @@ Source code repository: \%https://www.mercurial\-scm.org/repo/hg\:
 Mailing list: \%https://www.mercurial\-scm.org/mailman/listinfo/mercurial/\:
 .SH COPYING
 .sp
-Copyright (C) 2005\-2020 Matt Mackall.
+Copyright (C) 2005\-2021 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

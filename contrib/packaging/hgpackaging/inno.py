@@ -33,6 +33,11 @@ EXTRA_PACKAGES = {
     'win32ctypes',
 }
 
+EXTRA_INCLUDES = {
+    '_curses',
+    '_curses_panel',
+}
+
 EXTRA_INSTALL_RULES = [
     ('contrib/win32/mercurial.ini', 'defaultrc/mercurial.rc'),
 ]
@@ -78,6 +83,7 @@ def build_with_py2exe(
         'inno',
         requirements_txt,
         extra_packages=EXTRA_PACKAGES,
+        extra_includes=EXTRA_INCLUDES,
     )
 
     # Purge the staging directory for every build so packaging is
@@ -198,7 +204,11 @@ def build_installer(
     except jinja2.TemplateSyntaxError as e:
         raise Exception(
             'template syntax error at %s:%d: %s'
-            % (e.name, e.lineno, e.message,)
+            % (
+                e.name,
+                e.lineno,
+                e.message,
+            )
         )
 
     content = template.render(package_files=package_files)
