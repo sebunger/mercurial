@@ -540,7 +540,7 @@ def makelocalrepository(baseui, path, intents=None):
         except ValueError as e:
             # Can be raised on Python 3.8 when path is invalid.
             raise error.Abort(
-                _(b'invalid path %s: %s') % (path, pycompat.bytestr(e))
+                _(b'invalid path %s: %s') % (path, stringutil.forcebytestr(e))
             )
 
         raise error.RepoError(_(b'repository %s not found') % path)
@@ -568,7 +568,7 @@ def makelocalrepository(baseui, path, intents=None):
     # repository was shared the old way. We check the share source .hg/requires
     # for SHARESAFE_REQUIREMENT to detect whether the current repository needs
     # to be reshared
-    hint = _("see `hg help config.format.use-share-safe` for more information")
+    hint = _(b"see `hg help config.format.use-share-safe` for more information")
     if requirementsmod.SHARESAFE_REQUIREMENT in requirements:
 
         if (
@@ -1135,7 +1135,7 @@ class revlogfilestorage(object):
     """File storage when using revlogs."""
 
     def file(self, path):
-        if path[0] == b'/':
+        if path.startswith(b'/'):
             path = path[1:]
 
         return filelog.filelog(self.svfs, path)
@@ -1146,7 +1146,7 @@ class revlognarrowfilestorage(object):
     """File storage when using revlogs and narrow files."""
 
     def file(self, path):
-        if path[0] == b'/':
+        if path.startswith(b'/'):
             path = path[1:]
 
         return filelog.narrowfilelog(self.svfs, path, self._storenarrowmatch)

@@ -1341,6 +1341,13 @@ incoming.email = /my/email/hook
 incoming.autobuild = /my/build/hook
 # force autobuild hook to run before other incoming hooks
 priority.incoming.autobuild = 1
+###  control HGPLAIN setting when running autobuild hook
+# HGPLAIN always set (default from Mercurial 5.7)
+incoming.autobuild:run\-with\-plain = yes
+# HGPLAIN never set
+incoming.autobuild:run\-with\-plain = no
+# HGPLAIN inherited from environment (default before Mercurial 5.7)
+incoming.autobuild:run\-with\-plain = auto
 .ft P
 .fi
 .sp
@@ -3256,8 +3263,6 @@ It currently means:
 .nf
 .ft C
 [ui]
-# Gives detailed exit codes for input/user errors, config errors, etc.
-detailed\-exit\-code = True
 # The rollback command is dangerous. As a rule, don\(aqt use it.
 rollback = False
 # Make \(gahg status\(ga report copy information
