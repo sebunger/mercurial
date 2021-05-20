@@ -1006,6 +1006,13 @@ incoming.email = /my/email/hook
 incoming.autobuild = /my/build/hook
 # force autobuild hook to run before other incoming hooks
 priority.incoming.autobuild = 1
+###  control HGPLAIN setting when running autobuild hook
+# HGPLAIN always set (default from Mercurial 5.7)
+incoming.autobuild:run-with-plain = yes
+# HGPLAIN never set
+incoming.autobuild:run-with-plain = no
+# HGPLAIN inherited from environment (default before Mercurial 5.7)
+incoming.autobuild:run-with-plain = auto
 </pre>
 <p>Most hooks are run with environment variables set that give useful
 additional information. For each hook below, the environment variables
@@ -2422,8 +2429,6 @@ not include <tt class="docutils literal">tweakdefaults</tt>. (default: False)</p
 <p>It currently means:</p>
 <pre class="literal-block">
 [ui]
-# Gives detailed exit codes for input/user errors, config errors, etc.
-detailed-exit-code = True
 # The rollback command is dangerous. As a rule, don't use it.
 rollback = False
 # Make `hg status` report copy information

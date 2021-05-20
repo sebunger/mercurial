@@ -1310,8 +1310,14 @@ coreconfigitem(
 )
 coreconfigitem(
     b'hooks',
-    b'.*',
+    b'[^:]*',
     default=dynamicdefault,
+    generic=True,
+)
+coreconfigitem(
+    b'hooks',
+    b'.*:run-with-plain',
+    default=True,
     generic=True,
 )
 coreconfigitem(
