@@ -1,3 +1,11 @@
+mercurial (5.8-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - Add OpenPGP key for Pulkit Goyal <7895pulkit@gmail.com>.
+    - Refresh patches.
+
+ -- Nicolas Dandrimont <olasd@debian.org>  Thu, 20 May 2021 17:09:35 +0200
+
 mercurial (5.6.1-4) unstable; urgency=medium
 
   * Revert -mno-lra workaround on mips64el, #871514 was fixed. Fixes
