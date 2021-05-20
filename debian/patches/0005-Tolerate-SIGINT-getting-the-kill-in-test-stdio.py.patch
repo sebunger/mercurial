@@ -8,7 +8,7 @@ Forwarded: https://bz.mercurial-scm.org/show_bug.cgi?id=6402
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/tests/test-stdio.py b/tests/test-stdio.py
-index d41bd53..82934db 100755
+index 9b242b7..7f8f582 100755
 --- a/tests/test-stdio.py
 +++ b/tests/test-stdio.py
 @@ -200,7 +200,7 @@ class TestStdio(unittest.TestCase):

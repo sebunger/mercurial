@@ -9,15 +9,15 @@ Set default hgk path for hgk outside bin.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/hgext/hgk.py b/hgext/hgk.py
-index 5e12637..0c3ecb8 100644
+index 2aab9e9..18edb20 100644
 --- a/hgext/hgk.py
 +++ b/hgext/hgk.py
-@@ -65,7 +65,7 @@ configtable = {}
- configitem = registrar.configitem(configtable)
- 
+@@ -67,7 +67,7 @@ configitem = registrar.configitem(configtable)
  configitem(
--    b'hgk', b'path', default=b'hgk',
-+    b'hgk', b'path', default=b'/usr/share/mercurial/hgk',
+     b'hgk',
+     b'path',
+-    default=b'hgk',
++    default=b'/usr/share/mercurial/hgk',
  )
  
  

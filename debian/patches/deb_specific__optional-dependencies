@@ -19,10 +19,10 @@ Suggest Debian packages for some optional dependencies.
  11 files changed, 24 insertions(+), 14 deletions(-)
 
 diff --git a/hgext/bugzilla.py b/hgext/bugzilla.py
-index cee1e9f..5a8b901 100644
+index c15beb2..5f03b75 100644
 --- a/hgext/bugzilla.py
 +++ b/hgext/bugzilla.py
-@@ -468,7 +468,8 @@ class bzmysql(bzaccess):
+@@ -504,7 +504,8 @@ class bzmysql(bzaccess):
              bzmysql._MySQLdb = mysql
          except ImportError as err:
              raise error.Abort(
@@ -33,10 +33,10 @@ index cee1e9f..5a8b901 100644
  
          bzaccess.__init__(self, ui)
 diff --git a/hgext/convert/bzr.py b/hgext/convert/bzr.py
-index f7aff9f..0b3fef3 100644
+index 6148c72..d33399e 100644
 --- a/hgext/convert/bzr.py
 +++ b/hgext/convert/bzr.py
-@@ -57,7 +57,8 @@ class bzr_source(common.converter_source):
+@@ -61,7 +61,8 @@ class bzr_source(common.converter_source):
              # access bzrlib stuff
              bzrdir
          except NameError:
@@ -47,7 +47,7 @@ index f7aff9f..0b3fef3 100644
          path = os.path.abspath(path)
          self._checkrepotype(path)
 diff --git a/hgext/convert/common.py b/hgext/convert/common.py
-index 29d7be8..d36891c 100644
+index 1f8d6dc..61ef62a 100644
 --- a/hgext/convert/common.py
 +++ b/hgext/convert/common.py
 @@ -111,14 +111,15 @@ class MissingTool(Exception):
@@ -69,7 +69,7 @@ index 29d7be8..d36891c 100644
  
  class NoRepo(Exception):
 diff --git a/hgext/convert/cvs.py b/hgext/convert/cvs.py
-index 685d558..74e0576 100644
+index 8361316..20d2921 100644
 --- a/hgext/convert/cvs.py
 +++ b/hgext/convert/cvs.py
 @@ -48,7 +48,7 @@ class convert_cvs(converter_source):
@@ -82,7 +82,7 @@ index 685d558..74e0576 100644
          self.changeset = None
          self.files = {}
 diff --git a/hgext/convert/darcs.py b/hgext/convert/darcs.py
-index 7ea0b14..f061ef6 100644
+index 57444a5..2bc76b6 100644
 --- a/hgext/convert/darcs.py
 +++ b/hgext/convert/darcs.py
 @@ -53,7 +53,7 @@ class darcs_source(common.converter_source, common.commandline):
@@ -95,7 +95,7 @@ index 7ea0b14..f061ef6 100644
          if version < b'2.1':
              raise error.Abort(
 diff --git a/hgext/convert/git.py b/hgext/convert/git.py
-index 10f594e..4133cd8 100644
+index 4e3f8d8..561f04d 100644
 --- a/hgext/convert/git.py
 +++ b/hgext/convert/git.py
 @@ -100,7 +100,7 @@ class convert_git(common.converter_source, common.commandline):
@@ -135,10 +135,10 @@ index a00cdf8..8daa1c1 100644
      def mtnrun(self, *args, **kwargs):
          if self.automatestdio:
 diff --git a/hgext/convert/subversion.py b/hgext/convert/subversion.py
-index b67a724..47e0970 100644
+index a8edcdb..a0e0967 100644
 --- a/hgext/convert/subversion.py
 +++ b/hgext/convert/subversion.py
-@@ -483,7 +483,8 @@ class svn_source(converter_source):
+@@ -494,7 +494,8 @@ class svn_source(converter_source):
                  _(b"%s does not look like a Subversion repository") % url
              )
          if svn is None:
@@ -148,7 +148,7 @@ index b67a724..47e0970 100644
  
          try:
              version = svn.core.SVN_VER_MAJOR, svn.core.SVN_VER_MINOR
-@@ -493,14 +494,16 @@ class svn_source(converter_source):
+@@ -504,14 +505,16 @@ class svn_source(converter_source):
                          b'Subversion python bindings %d.%d found, '
                          b'1.4 or later required'
                      )
@@ -167,7 +167,7 @@ index b67a724..47e0970 100644
              )
  
          self.lastrevs = {}
-@@ -1419,6 +1422,8 @@ class svn_sink(converter_sink, commandline):
+@@ -1436,6 +1439,8 @@ class svn_sink(converter_sink, commandline):
          return self.join(b'hg-authormap')
  
      def __init__(self, ui, repotype, path):
@@ -177,7 +177,7 @@ index b67a724..47e0970 100644
          converter_sink.__init__(self, ui, repotype, path)
          commandline.__init__(self, ui, b'svn')
 diff --git a/mercurial/sslutil.py b/mercurial/sslutil.py
-index e606c44..fc4ed04 100644
+index b8c2196..f675d92 100644
 --- a/mercurial/sslutil.py
 +++ b/mercurial/sslutil.py
 @@ -199,7 +199,8 @@ def _hostsettings(ui, hostname):
@@ -191,7 +191,7 @@ index e606c44..fc4ed04 100644
              elif s[b'allowloaddefaultcerts']:
                  # CAs not defined in config. Try to find system bundles.
 diff --git a/tests/test-https.t b/tests/test-https.t
-index fa98126..f568b19 100644
+index 8070f72..7682e80 100644
 --- a/tests/test-https.t
 +++ b/tests/test-https.t
 @@ -34,7 +34,7 @@ Make server certificates:
