@@ -1,6 +1,6 @@
 # verify.py - repository integrity checking for Mercurial
 #
-# Copyright 2006, 2007 Matt Mackall <mpm@selenic.com>
+# Copyright 2006, 2007 Olivia Mackall <olivia@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
@@ -13,6 +13,9 @@ from .i18n import _
 from .node import (
     nullid,
     short,
+)
+from .utils import (
+    stringutil,
 )
 
 from . import (
@@ -81,7 +84,7 @@ class verifier(object):
 
     def _exc(self, linkrev, msg, inst, filename=None):
         """record exception raised during the verify process"""
-        fmsg = pycompat.bytestr(inst)
+        fmsg = stringutil.forcebytestr(inst)
         if not fmsg:
             fmsg = pycompat.byterepr(inst)
         self._err(linkrev, b"%s: %s" % (msg, fmsg), filename)
@@ -413,7 +416,7 @@ class verifier(object):
             storefiles = set()
             subdirs = set()
             revlogv1 = self.revlogv1
-            for f, f2, size in repo.store.datafiles():
+            for t, f, f2, size in repo.store.datafiles():
                 if not f:
                     self._err(None, _(b"cannot decode filename '%s'") % f2)
                 elif (size > 0 or not revlogv1) and f.startswith(b'meta/'):
@@ -431,6 +434,7 @@ class verifier(object):
                 filenodes.setdefault(f, {}).update(onefilenodes)
 
         if not dir and subdirnodes:
+            assert subdirprogress is not None  # help pytype
             subdirprogress.complete()
             if self.warnorphanstorefiles:
                 for f in sorted(storefiles):
@@ -476,7 +480,7 @@ class verifier(object):
         ui.status(_(b"checking files\n"))
 
         storefiles = set()
-        for f, f2, size in repo.store.datafiles():
+        for rl_type, f, f2, size in repo.store.datafiles():
             if not f:
                 self._err(None, _(b"cannot decode filename '%s'") % f2)
             elif (size > 0 or not revlogv1) and f.startswith(b'data/'):

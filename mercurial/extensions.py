@@ -1,6 +1,6 @@
 # extensions.py - extension handling for mercurial
 #
-# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
+# Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
@@ -912,6 +912,7 @@ def enabled(shortname=True):
     exts = {}
     for ename, ext in extensions():
         doc = gettext(ext.__doc__) or _(b'(no help text available)')
+        assert doc is not None  # help pytype
         if shortname:
             ename = ename.split(b'.')[-1]
         exts[ename] = doc.splitlines()[0].strip()
@@ -929,7 +930,11 @@ def notloaded():
 def moduleversion(module):
     '''return version information from given module as a string'''
     if util.safehasattr(module, b'getversion') and callable(module.getversion):
-        version = module.getversion()
+        try:
+            version = module.getversion()
+        except Exception:
+            version = b'unknown'
+
     elif util.safehasattr(module, b'__version__'):
         version = module.__version__
     else:

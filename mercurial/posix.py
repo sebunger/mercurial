@@ -1,6 +1,6 @@
 # posix.py - Posix utility function implementations for Mercurial
 #
-#  Copyright 2005-2009 Matt Mackall <mpm@selenic.com> and others
+#  Copyright 2005-2009 Olivia Mackall <olivia@selenic.com> and others
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
@@ -321,9 +321,10 @@ def checklink(path):
                     fullpath = os.path.join(cachedir, target)
                     open(fullpath, b'w').close()
                 except IOError as inst:
-                    if (
-                        inst[0] == errno.EACCES
-                    ):  # pytype: disable=unsupported-operands
+                    # pytype: disable=unsupported-operands
+                    if inst[0] == errno.EACCES:
+                        # pytype: enable=unsupported-operands
+
                         # If we can't write to cachedir, just pretend
                         # that the fs is readonly and by association
                         # that the fs won't support symlinks. This

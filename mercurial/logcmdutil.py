@@ -1,6 +1,6 @@
 # logcmdutil.py - utility for log-like commands
 #
-# Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
+# Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
@@ -14,6 +14,7 @@ import posixpath
 from .i18n import _
 from .node import (
     nullid,
+    nullrev,
     wdirid,
     wdirrev,
 )
@@ -27,6 +28,7 @@ from . import (
     graphmod,
     match as matchmod,
     mdiff,
+    merge,
     patch,
     pathutil,
     pycompat,
@@ -51,6 +53,7 @@ if pycompat.TYPE_CHECKING:
         Dict,
         List,
         Optional,
+        Sequence,
         Tuple,
     )
 
@@ -71,6 +74,36 @@ def getlimit(opts):
     else:
         limit = None
     return limit
+
+
+def diff_parent(ctx):
+    """get the context object to use as parent when diffing
+
+
+    If diff.merge is enabled, an overlayworkingctx of the auto-merged parents will be returned.
+    """
+    repo = ctx.repo()
+    if repo.ui.configbool(b"diff", b"merge") and ctx.p2().rev() != nullrev:
+        # avoid cycle context -> subrepo -> cmdutil -> logcmdutil
+        from . import context
+
+        wctx = context.overlayworkingctx(repo)
+        wctx.setbase(ctx.p1())
+        with repo.ui.configoverride(
+            {
+                (
+                    b"ui",
+                    b"forcemerge",
+                ): b"internal:merge3-lie-about-conflicts",
+            },
+            b"merge-diff",
+        ):
+            repo.ui.pushbuffer()
+            merge.merge(ctx.p2(), wc=wctx)
+            repo.ui.popbuffer()
+        return wctx
+    else:
+        return ctx.p1()
 
 
 def diffordiffstat(
@@ -216,7 +249,7 @@ class changesetdiffer(object):
             ui,
             ctx.repo(),
             diffopts,
-            ctx.p1(),
+            diff_parent(ctx),
             ctx,
             match=self._makefilematcher(ctx),
             stat=stat,
@@ -723,7 +756,7 @@ class walkopts(object):
 
 
 def parseopts(ui, pats, opts):
-    # type: (Any, List[bytes], Dict[bytes, Any]) -> walkopts
+    # type: (Any, Sequence[bytes], Dict[bytes, Any]) -> walkopts
     """Parse log command options into walkopts
 
     The returned walkopts will be passed in to getrevs() or makewalker().

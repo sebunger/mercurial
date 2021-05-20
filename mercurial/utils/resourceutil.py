@@ -1,7 +1,7 @@
 # resourceutil.py - utility for looking up resources
 #
 #  Copyright 2005 K. Thananchayan <thananck@yahoo.com>
-#  Copyright 2005-2007 Matt Mackall <mpm@selenic.com>
+#  Copyright 2005-2007 Olivia Mackall <olivia@selenic.com>
 #  Copyright 2006 Vadim Gelfer <vadim.gelfer@gmail.com>
 #
 # This software may be used and distributed according to the terms of the
@@ -70,12 +70,14 @@ try:
         )
 
     def is_resource(package, name):
-        return resources.is_resource(
+        return resources.is_resource(  # pytype: disable=module-attr
             pycompat.sysstr(package), encoding.strfromlocal(name)
         )
 
     def contents(package):
+        # pytype: disable=module-attr
         for r in resources.contents(pycompat.sysstr(package)):
+            # pytype: enable=module-attr
             yield encoding.strtolocal(r)
 
 

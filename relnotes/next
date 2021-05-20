@@ -1,11 +1,16 @@
 == New Features ==
+ 
+
+== Default Format Change ==
+
+These changes affects newly created repositories (or new clone) done with
+Mercurial 5.8.
 
 
 == New Experimental Features ==
 
 
 == Bug Fixes ==
-
 
 
 == Backwards Compatibility Changes ==
