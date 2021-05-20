@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.12: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.14: http://docutils.sourceforge.net/" />
 <title>hgrc</title>
 <meta name="author" content="Bryan O'Sullivan &lt;bos&#64;serpentine.com&gt;" />
 <meta name="organization" content="Mercurial" />
@@ -22,9 +22,9 @@
 <td>Bryan O'Sullivan &lt;<a class="reference external" href="mailto:bos&#64;serpentine.com">bos&#64;serpentine.com</a>&gt;</td></tr>
 <tr><th class="docinfo-name">Organization:</th>
 <td>Mercurial</td></tr>
-<tr class="field"><th class="docinfo-name">Manual section:</th><td class="field-body">5</td>
+<tr class="manual-section field"><th class="docinfo-name">Manual section:</th><td class="field-body">5</td>
 </tr>
-<tr class="field"><th class="docinfo-name">Manual group:</th><td class="field-body">Mercurial Manual</td>
+<tr class="manual-group field"><th class="docinfo-name">Manual group:</th><td class="field-body">Mercurial Manual</td>
 </tr>
 </tbody>
 </table>
@@ -68,23 +68,25 @@
 <li><a class="reference internal" href="#rebase" id="id36"><tt class="docutils literal">rebase</tt></a></li>
 <li><a class="reference internal" href="#revsetalias" id="id37"><tt class="docutils literal">revsetalias</tt></a></li>
 <li><a class="reference internal" href="#rewrite" id="id38"><tt class="docutils literal">rewrite</tt></a></li>
-<li><a class="reference internal" href="#storage" id="id39"><tt class="docutils literal">storage</tt></a></li>
-<li><a class="reference internal" href="#server" id="id40"><tt class="docutils literal">server</tt></a></li>
-<li><a class="reference internal" href="#smtp" id="id41"><tt class="docutils literal">smtp</tt></a></li>
-<li><a class="reference internal" href="#subpaths" id="id42"><tt class="docutils literal">subpaths</tt></a></li>
-<li><a class="reference internal" href="#subrepos" id="id43"><tt class="docutils literal">subrepos</tt></a></li>
-<li><a class="reference internal" href="#templatealias" id="id44"><tt class="docutils literal">templatealias</tt></a></li>
-<li><a class="reference internal" href="#templates" id="id45"><tt class="docutils literal">templates</tt></a></li>
-<li><a class="reference internal" href="#trusted" id="id46"><tt class="docutils literal">trusted</tt></a></li>
-<li><a class="reference internal" href="#ui" id="id47"><tt class="docutils literal">ui</tt></a></li>
-<li><a class="reference internal" href="#web" id="id48"><tt class="docutils literal">web</tt></a></li>
-<li><a class="reference internal" href="#websub" id="id49"><tt class="docutils literal">websub</tt></a></li>
-<li><a class="reference internal" href="#worker" id="id50"><tt class="docutils literal">worker</tt></a></li>
+<li><a class="reference internal" href="#share" id="id39"><tt class="docutils literal">share</tt></a></li>
+<li><a class="reference internal" href="#storage" id="id40"><tt class="docutils literal">storage</tt></a></li>
+<li><a class="reference internal" href="#server" id="id41"><tt class="docutils literal">server</tt></a></li>
+<li><a class="reference internal" href="#smtp" id="id42"><tt class="docutils literal">smtp</tt></a></li>
+<li><a class="reference internal" href="#subpaths" id="id43"><tt class="docutils literal">subpaths</tt></a></li>
+<li><a class="reference internal" href="#subrepos" id="id44"><tt class="docutils literal">subrepos</tt></a></li>
+<li><a class="reference internal" href="#templatealias" id="id45"><tt class="docutils literal">templatealias</tt></a></li>
+<li><a class="reference internal" href="#templates" id="id46"><tt class="docutils literal">templates</tt></a></li>
+<li><a class="reference internal" href="#trusted" id="id47"><tt class="docutils literal">trusted</tt></a></li>
+<li><a class="reference internal" href="#ui" id="id48"><tt class="docutils literal">ui</tt></a></li>
+<li><a class="reference internal" href="#command-templates" id="id49"><tt class="docutils literal"><span class="pre">command-templates</span></tt></a></li>
+<li><a class="reference internal" href="#web" id="id50"><tt class="docutils literal">web</tt></a></li>
+<li><a class="reference internal" href="#websub" id="id51"><tt class="docutils literal">websub</tt></a></li>
+<li><a class="reference internal" href="#worker" id="id52"><tt class="docutils literal">worker</tt></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#author" id="id51">Author</a></li>
-<li><a class="reference internal" href="#see-also" id="id52">See Also</a></li>
-<li><a class="reference internal" href="#copying" id="id53">Copying</a></li>
+<li><a class="reference internal" href="#author" id="id53">Author</a></li>
+<li><a class="reference internal" href="#see-also" id="id54">See Also</a></li>
+<li><a class="reference internal" href="#copying" id="id55">Copying</a></li>
 </ul>
 </div>
 <div class="section" id="description">
@@ -120,12 +122,12 @@ These files do not exist by default and you will have to create the
 appropriate configuration files yourself:</p>
 <p>Local configuration is put into the per-repository <tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> file.</p>
 <p>Global configuration like the username setting is typically put into:</p>
-<div class="windows container">
+<div class="windows docutils container">
 <ul class="simple">
 <li><tt class="docutils literal"><span class="pre">%USERPROFILE%\mercurial.ini</span></tt> (on Windows)</li>
 </ul>
 </div>
-<div class="unix-plan9 container">
+<div class="unix-plan9 docutils container">
 <ul class="simple">
 <li><tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt> (on Unix, Plan9)</li>
 </ul>
@@ -135,9 +137,10 @@ installed. <tt class="docutils literal">*.rc</tt> files from a single directory 
 alphabetical order, later ones overriding earlier ones. Where multiple
 paths are given below, settings from earlier paths override later
 ones.</p>
-<div class="verbose-unix container">
+<div class="verbose-unix docutils container">
 <p>On Unix, the following files are consulted:</p>
 <ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc-not-shared</span></tt> (per-repository)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> (per-repository)</li>
 <li><tt class="docutils literal"><span class="pre">$HOME/.hgrc</span></tt> (per-user)</li>
 <li><tt class="docutils literal"><span class="pre">${XDG_CONFIG_HOME:-$HOME/.config}/hg/hgrc</span></tt> (per-user)</li>
@@ -148,9 +151,10 @@ ones.</p>
 <li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/*.rc</span></tt> (defaults)</li>
 </ul>
 </div>
-<div class="verbose-windows container">
+<div class="verbose-windows docutils container">
 <p>On Windows, the following files are consulted:</p>
 <ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc-not-shared</span></tt> (per-repository)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> (per-repository)</li>
 <li><tt class="docutils literal"><span class="pre">%USERPROFILE%\.hgrc</span></tt> (per-user)</li>
 <li><tt class="docutils literal"><span class="pre">%USERPROFILE%\Mercurial.ini</span></tt> (per-user)</li>
@@ -164,15 +168,16 @@ ones.</p>
 <li><tt class="docutils literal"><span class="pre">%PROGRAMDATA%\Mercurial\hgrc.d\*.rc</span></tt> (per-system)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;internal&gt;/*.rc</span></tt> (defaults)</li>
 </ul>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">The registry key <tt class="docutils literal">HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Mercurial</tt>
 is used when running 32-bit Python on 64-bit Windows.</p>
 </div>
 </div>
-<div class="verbose-plan9 container">
+<div class="verbose-plan9 docutils container">
 <p>On Plan9, the following files are consulted:</p>
 <ul class="simple">
+<li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc-not-shared</span></tt> (per-repository)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;repo&gt;/.hg/hgrc</span></tt> (per-repository)</li>
 <li><tt class="docutils literal">$home/lib/hgrc</tt> (per-user)</li>
 <li><tt class="docutils literal"><span class="pre">&lt;install-root&gt;/lib/mercurial/hgrc</span></tt> (per-installation)</li>
@@ -186,7 +191,7 @@ is used when running 32-bit Python on 64-bit Windows.</p>
 particular repository. This file is not version-controlled, and
 will not get transferred during a &quot;clone&quot; operation. Options in
 this file override options in all other configuration files.</p>
-<div class="unix-plan9 container">
+<div class="unix-plan9 docutils container">
 On Plan 9 and Unix, most of this file will be ignored if it doesn't
 belong to a trusted user or to a trusted group. See
 <a class="reference external" href="hgrc.5.html#trusted"><tt class="docutils literal">hg help config.trusted</tt></a> for more details.</div>
@@ -197,7 +202,7 @@ options.</p>
 <p>Per-installation configuration files are searched for in the
 directory where Mercurial is installed. <tt class="docutils literal"><span class="pre">&lt;install-root&gt;</span></tt> is the
 parent directory of the <strong>hg</strong> executable (or symlink) being run.</p>
-<div class="unix-plan9 container">
+<div class="unix-plan9 docutils container">
 For example, if installed in <tt class="docutils literal">/shared/tools/bin/hg</tt>, Mercurial
 will look in <tt class="docutils literal">/shared/tools/etc/mercurial/hgrc</tt>. Options in these
 files apply to all Mercurial commands executed by any user in any
@@ -219,6 +224,11 @@ configuration files should never be edited by users or administrators but can
 be overridden in other configuration files. So far the directory only contains
 merge tool configuration but packagers can also put other default configuration
 there.</p>
+<p>On versions 5.7 and later, if share-safe functionality is enabled,
+shares will read config file of share source too.
+<cite>&lt;share-source/.hg/hgrc&gt;</cite> is read before reading <cite>&lt;repo/.hg/hgrc&gt;</cite>.</p>
+<p>For configs which should not be shared, <cite>&lt;repo/.hg/hgrc-not-shared&gt;</cite>
+should be used.</p>
 </div>
 <div class="section" id="syntax">
 <h1><a class="toc-backref" href="#contents">Syntax</a></h1>
@@ -324,7 +334,7 @@ changesets. You can define subsequent aliases using earlier ones:</p>
 <pre class="literal-block">
 stable5 = latest -b stable
 </pre>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">It is possible to create aliases with the same names as
 existing commands, which will then override the original
@@ -355,7 +365,7 @@ useful when you want to call further Mercurial commands in a shell
 alias, as was done above for the purge alias. In addition,
 <tt class="docutils literal">$HG_ARGS</tt> expands to the arguments given to Mercurial. In the <tt class="docutils literal">hg
 echo foo</tt> call above, <tt class="docutils literal">$HG_ARGS</tt> would expand to <tt class="docutils literal">echo foo</tt>.</p>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">Some global configuration options such as <tt class="docutils literal"><span class="pre">-R</span></tt> are
 processed before shell aliases and will thus not be passed to
@@ -609,7 +619,7 @@ changeset = {desc}\n\n
     HG: Everything below will be removed.
     {diff()}
 </pre>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p>For some problematic encodings (see <a class="reference external" href="hg.1.html#win32mbcs"><tt class="docutils literal">hg help win32mbcs</tt></a> for
 detail), this customization should be configured carefully, to
@@ -718,8 +728,8 @@ with the name of a temporary file that contains the data to be
 filtered by the command. The string <tt class="docutils literal">OUTFILE</tt> is replaced with the name
 of an empty temporary file, where the filtered data must be written by
 the command.</p>
-<div class="windows container">
-<div class="note">
+<div class="windows docutils container">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">The tempfile mechanism is recommended for Windows systems,
 where the standard shell I/O redirection operators often have
@@ -879,6 +889,44 @@ reserved names, e.g. &quot;nul&quot;.</p>
 <p>Repositories with this on-disk format require Mercurial version 1.1.</p>
 <p class="last">Enabled by default.</p>
 </dd>
+<dt><tt class="docutils literal"><span class="pre">use-persistent-nodemap</span></tt></dt>
+<dd><p class="first">Enable or disable the &quot;persistent-nodemap&quot; feature which improves
+performance if the rust extensions are available.</p>
+<p>The &quot;persistence-nodemap&quot; persist the &quot;node -&gt; rev&quot; on disk removing the
+need to dynamically build that mapping for each Mercurial invocation. This
+significantly reduce the startup cost of various local and server-side
+operation for larger repository.</p>
+<p>The performance improving version of this feature is currently only
+implemented in Rust, so people not using a version of Mercurial compiled
+with the Rust part  might actually suffer some slowdown. For this reason,
+Such version will by default refuse to access such repositories. That
+behavior can be controlled by configuration. Check
+<a class="reference external" href="hgrc.5.html#storage"><tt class="docutils literal">hg help <span class="pre">config.storage.revlog.persistent-nodemap.slowpath</span></tt></a> for details.</p>
+<p>Repository with this on-disk format require Mercurial version 5.4 or above.</p>
+<p class="last">Disabled by default.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">use-share-safe</span></tt></dt>
+<dd><p class="first">Enforce &quot;safe&quot; behaviors for all &quot;shares&quot; that access this repository.</p>
+<p>With this feature, &quot;shares&quot; using this repository as a source will:</p>
+<ul class="simple">
+<li>read the source repository's configuration (<cite>&lt;source&gt;/.hg/hgrc</cite>).</li>
+<li>read and use the source repository's &quot;requirements&quot;
+(except the working copy specific one).</li>
+</ul>
+<p>Without this feature, &quot;shares&quot; using this repository as a source will:</p>
+<ul class="simple">
+<li>keep tracking the repository &quot;requirements&quot; in the share only, ignoring
+the source &quot;requirements&quot;, possibly diverging from them.</li>
+<li>ignore source repository config. This can create problems, like silently
+ignoring important hooks.</li>
+</ul>
+<p>Beware that existing shares will not be upgraded/downgraded, and by
+default, Mercurial will refuse to interact with them until the mismatch
+is resolved. See <a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config <span class="pre">share.safe-mismatch.source-safe</span></tt></a> and
+<a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config <span class="pre">share.safe-mismatch.source-not-safe</span></tt></a> for details.</p>
+<p>Introduced in Mercurial 5.7.</p>
+<p class="last">Disabled by default.</p>
+</dd>
 <dt><tt class="docutils literal">usestore</tt></dt>
 <dd><p class="first">Enable or disable the &quot;store&quot; repository format which improves
 compatibility with systems that fold case or otherwise mangle
@@ -966,7 +1014,7 @@ it is passed are listed with names in the form <tt class="docutils literal">$HG_
 They contain the type of hook which triggered the run and the full name
 of the hook in the config, respectively. In the example above, this will
 be <tt class="docutils literal">$HG_HOOKTYPE=incoming</tt> and <tt class="docutils literal">$HG_HOOKNAME=incoming.email</tt>.</p>
-<div class="windows container">
+<div class="windows docutils container">
 <p>Some basic Unix syntax can be enabled for portability, including <tt class="docutils literal">$VAR</tt>
 and <tt class="docutils literal">${VAR}</tt> style variables.  A <tt class="docutils literal">~</tt> followed by <tt class="docutils literal">\</tt> or <tt class="docutils literal">/</tt> will
 be expanded to <tt class="docutils literal">%USERPROFILE%</tt> to simulate a subset of tilde expansion
@@ -1156,7 +1204,7 @@ new parent is in <tt class="docutils literal">$HG_PARENT1</tt>. If updating to a
 parent is in <tt class="docutils literal">$HG_PARENT2</tt>. If the update succeeded, <tt class="docutils literal">$HG_ERROR=0</tt>. If the
 update failed (e.g. because conflicts were not resolved), <tt class="docutils literal">$HG_ERROR=1</tt>.</dd>
 </dl>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">It is generally better to use standard hooks rather than the
 generic pre- and post- command hooks, as they are guaranteed to be
@@ -1164,7 +1212,7 @@ called in the appropriate contexts for influencing transactions.
 Also, hooks like &quot;commit&quot; will be called in all contexts that
 generate a commit (e.g. tag) and not just the commit command.</p>
 </div>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">Environment variables with empty values may not be passed to
 hooks on platforms such as Windows. As an example, <tt class="docutils literal">$HG_PARENT2</tt>
@@ -1406,7 +1454,7 @@ myHtmlTool.priority = 1
 (default: 0)</dd>
 <dt><tt class="docutils literal">executable</tt></dt>
 <dd><p class="first">Either just the name of the executable or its pathname.</p>
-<div class="windows container">
+<div class="windows docutils container">
 On Windows, the path can use environment variables with ${ProgramFiles}
 syntax.</div>
 <p class="last">(default: the tool name)</p>
@@ -1428,12 +1476,13 @@ respectively.
 </dd>
 <dt><tt class="docutils literal">premerge</tt></dt>
 <dd>Attempt to run internal non-interactive 3-way merge tool before
-launching external tool.  Options are <tt class="docutils literal">true</tt>, <tt class="docutils literal">false</tt>, <tt class="docutils literal">keep</tt> or
-<tt class="docutils literal"><span class="pre">keep-merge3</span></tt>. The <tt class="docutils literal">keep</tt> option will leave markers in the file if the
-premerge fails. The <tt class="docutils literal"><span class="pre">keep-merge3</span></tt> will do the same but include information
-about the base of the merge in the marker (see internal :merge3 in
-<a class="reference external" href="hg.1.html#merge-tools"><tt class="docutils literal">hg help <span class="pre">merge-tools</span></tt></a>).
-(default: True)</dd>
+launching external tool.  Options are <tt class="docutils literal">true</tt>, <tt class="docutils literal">false</tt>, <tt class="docutils literal">keep</tt>,
+<tt class="docutils literal"><span class="pre">keep-merge3</span></tt>, or <tt class="docutils literal"><span class="pre">keep-mergediff</span></tt> (experimental). The <tt class="docutils literal">keep</tt> option
+will leave markers in the file if the premerge fails. The <tt class="docutils literal"><span class="pre">keep-merge3</span></tt>
+will do the same but include information about the base of the merge in the
+marker (see internal :merge3 in <a class="reference external" href="hg.1.html#merge-tools"><tt class="docutils literal">hg help <span class="pre">merge-tools</span></tt></a>). The
+<tt class="docutils literal"><span class="pre">keep-mergediff</span></tt> option is similar but uses a different marker style
+(see internal :merge3 in <a class="reference external" href="hg.1.html#merge-tools"><tt class="docutils literal">hg help <span class="pre">merge-tools</span></tt></a>). (default: True)</dd>
 <dt><tt class="docutils literal">binary</tt></dt>
 <dd>This tool can merge binary files. (default: False, unless tool
 was selected by file pattern match)</dd>
@@ -1463,13 +1512,13 @@ markers generated during premerge will be <tt class="docutils literal">detailed<
 the corresponding option in the <tt class="docutils literal">[ui]</tt> section is <tt class="docutils literal">detailed</tt>.
 (default: <tt class="docutils literal">basic</tt>)</dd>
 <dt><tt class="docutils literal">mergemarkertemplate</tt></dt>
-<dd>This setting can be used to override <tt class="docutils literal">mergemarkertemplate</tt> from the <tt class="docutils literal">[ui]</tt>
-section on a per-tool basis; this applies to the <tt class="docutils literal">$label</tt>-prefixed variables
-and to the conflict markers that are generated if <tt class="docutils literal">premerge</tt> is <tt class="docutils literal">keep` or
-<span class="pre">``keep-merge3</span></tt>. See the corresponding variable in <tt class="docutils literal">[ui]</tt> for more
-information.</dd>
+<dd>This setting can be used to override <tt class="docutils literal">mergemarker</tt> from the
+<tt class="docutils literal"><span class="pre">[command-templates]</span></tt> section on a per-tool basis; this applies to the
+<tt class="docutils literal">$label</tt>-prefixed variables and to the conflict markers that are generated
+if <tt class="docutils literal">premerge</tt> is <tt class="docutils literal">keep` or <span class="pre">``keep-merge3</span></tt>. See the corresponding variable
+in <tt class="docutils literal">[ui]</tt> for more information.</dd>
 </dl>
-<div class="windows container">
+<div class="windows docutils container">
 <dl class="docutils">
 <dt><tt class="docutils literal">regkey</tt></dt>
 <dd>Windows registry key which describes install location of this
@@ -1782,6 +1831,57 @@ operations. If set to <tt class="docutils literal">skip</tt>, the successor is n
 (EXPERIMENTAL)</p>
 </blockquote>
 </div>
+<div class="section" id="share">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal">share</tt></a></h2>
+<p><tt class="docutils literal"><span class="pre">safe-mismatch.source-safe</span></tt></p>
+<blockquote>
+<p>Controls what happens when the shared repository does not use the
+share-safe mechanism but its source repository does.</p>
+<p>Possible values are <cite>abort</cite> (default), <cite>allow</cite>, <cite>upgrade-abort</cite> and
+<cite>upgrade-abort</cite>.</p>
+<p><tt class="docutils literal">abort</tt>
+Disallows running any command and aborts
+<tt class="docutils literal">allow</tt>
+Respects the feature presence in the share source
+<tt class="docutils literal"><span class="pre">upgrade-abort</span></tt>
+tries to upgrade the share to use share-safe; if it fails, aborts
+<tt class="docutils literal"><span class="pre">upgrade-allow</span></tt>
+tries to upgrade the share; if it fails, continue by
+respecting the share source setting</p>
+<p>Check <a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config <span class="pre">format.use-share-safe</span></tt></a> for details about the
+share-safe feature.</p>
+</blockquote>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">safe-mismatch.source-safe.warn</span></tt></dt>
+<dd>Shows a warning on operations if the shared repository does not use
+share-safe, but the source repository does.
+(default: True)</dd>
+</dl>
+<p><tt class="docutils literal"><span class="pre">safe-mismatch.source-not-safe</span></tt></p>
+<blockquote>
+<p>Controls what happens when the shared repository uses the share-safe
+mechanism but its source does not.</p>
+<p>Possible values are <cite>abort</cite> (default), <cite>allow</cite>, <cite>downgrade-abort</cite> and
+<cite>downgrade-abort</cite>.</p>
+<p><tt class="docutils literal">abort</tt>
+Disallows running any command and aborts
+<tt class="docutils literal">allow</tt>
+Respects the feature presence in the share source
+<tt class="docutils literal"><span class="pre">downgrade-abort</span></tt>
+tries to downgrade the share to not use share-safe; if it fails, aborts
+<tt class="docutils literal"><span class="pre">downgrade-allow</span></tt>
+tries to downgrade the share to not use share-safe;
+if it fails, continue by respecting the shared source setting</p>
+<p>Check <a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config <span class="pre">format.use-share-safe</span></tt></a> for details about the
+share-safe feature.</p>
+</blockquote>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">safe-mismatch.source-not-safe.warn</span></tt></dt>
+<dd>Shows a warning on operations if the shared repository uses share-safe,
+but the source repository does not.
+(default: True)</dd>
+</dl>
+</div>
 <div class="section" id="storage">
 <h2><a class="toc-backref" href="#contents"><tt class="docutils literal">storage</tt></a></h2>
 <p>Control the strategy Mercurial uses internally to store history. Options in this
@@ -1793,6 +1893,24 @@ a possible delta base. This results in better delta selection and improved
 revlog compression. This option is enabled by default.</p>
 <p class="last">Turning this option off can result in large increase of repository size for
 repository with many merges.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">revlog.persistent-nodemap.mmap</span></tt></dt>
+<dd><p class="first">Whether to use the Operating System &quot;memory mapping&quot; feature (when
+possible) to access the persistent nodemap data. This improve performance
+and reduce memory pressure.</p>
+<p>Default to True.</p>
+<p class="last">For details on the &quot;persistent-nodemap&quot; feature, see:
+<a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config <span class="pre">format.use-persistent-nodemap</span></tt></a>.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">revlog.persistent-nodemap.slow-path</span></tt></dt>
+<dd><p class="first">Control the behavior of Merucrial when using a repository with &quot;persistent&quot;
+nodemap with an installation of Mercurial without a fast implementation for
+the feature:</p>
+<p><tt class="docutils literal">allow</tt>: Silently use the slower implementation to access the repository.
+<tt class="docutils literal">warn</tt>: Warn, but use the slower implementation to access the repository.
+<tt class="docutils literal">abort</tt>: Prevent access to such repositories. (This is the default)</p>
+<p class="last">For details on the &quot;persistent-nodemap&quot; feature, see:
+<a class="reference external" href="hgrc.5.html"><tt class="docutils literal">hg help config <span class="pre">format.use-persistent-nodemap</span></tt></a>.</p>
 </dd>
 <dt><tt class="docutils literal"><span class="pre">revlog.reuse-external-delta-parent</span></tt></dt>
 <dd><p class="first">Control the order in which delta parents are considered when adding new
@@ -2149,8 +2267,7 @@ changes, abort the commit.
 <dd>Encoding to try if it's not possible to decode the changelog using
 UTF-8. (default: ISO-8859-1)</dd>
 <dt><tt class="docutils literal">graphnodetemplate</tt></dt>
-<dd>The template used to print changeset nodes in an ASCII revision graph.
-(default: <tt class="docutils literal">{graphnode}</tt>)</dd>
+<dd>(DEPRECATED) Use <tt class="docutils literal"><span class="pre">command-templates.graphnode</span></tt> instead.</dd>
 <dt><tt class="docutils literal">ignore</tt></dt>
 <dd>A file to read per-user ignore patterns from. This file should be
 in the same format as a repository-wide .hgignore file. Filenames
@@ -2172,32 +2289,19 @@ This config overrides the interface specified by ui.interface.</dd>
 Possible values are integers or 0 to disable the check.
 (default: 10000000)</dd>
 <dt><tt class="docutils literal">logtemplate</tt></dt>
-<dd>Template string for commands that print changesets.</dd>
+<dd>(DEPRECATED) Use <tt class="docutils literal"><span class="pre">command-templates.log</span></tt> instead.</dd>
 <dt><tt class="docutils literal">merge</tt></dt>
 <dd>The conflict resolution program to use during a manual merge.
 For more information on merge tools see <a class="reference external" href="hg.1.html#merge-tools"><tt class="docutils literal">hg help <span class="pre">merge-tools</span></tt></a>.
 For configuring merge tools see the <tt class="docutils literal"><span class="pre">[merge-tools]</span></tt> section.</dd>
 <dt><tt class="docutils literal">mergemarkers</tt></dt>
-<dd>Sets the merge conflict marker label styling. The <tt class="docutils literal">detailed</tt>
-style uses the <tt class="docutils literal">mergemarkertemplate</tt> setting to style the labels.
+<dd>Sets the merge conflict marker label styling. The <tt class="docutils literal">detailed</tt> style
+uses the <tt class="docutils literal"><span class="pre">command-templates.mergemarker</span></tt> setting to style the labels.
 The <tt class="docutils literal">basic</tt> style just uses 'local' and 'other' as the marker label.
 One of <tt class="docutils literal">basic</tt> or <tt class="docutils literal">detailed</tt>.
 (default: <tt class="docutils literal">basic</tt>)</dd>
 <dt><tt class="docutils literal">mergemarkertemplate</tt></dt>
-<dd><p class="first">The template used to print the commit description next to each conflict
-marker during merge conflicts. See <a class="reference external" href="hg.1.html#templates"><tt class="docutils literal">hg help templates</tt></a> for the template
-format.</p>
-<p>Defaults to showing the hash, tags, branches, bookmarks, author, and
-the first line of the commit description.</p>
-<p>If you use non-ASCII characters in names for tags, branches, bookmarks,
-authors, and/or commit descriptions, you must pay attention to encodings of
-managed files. At template expansion, non-ASCII characters use the encoding
-specified by the <tt class="docutils literal"><span class="pre">--encoding</span></tt> global option, <tt class="docutils literal">HGENCODING</tt> or other
-environment variables that govern your locale. If the encoding of the merge
-markers is different from the encoding of the merged files,
-serious problems may occur.</p>
-<p class="last">Can be overridden per-merge-tool, see the <tt class="docutils literal"><span class="pre">[merge-tools]</span></tt> section.</p>
-</dd>
+<dd>(DEPRECATED) Use <tt class="docutils literal"><span class="pre">command-templates.mergemarker</span></tt> instead.</dd>
 <dt><tt class="docutils literal"><span class="pre">message-output</span></tt></dt>
 <dd><p class="first">Where to write status and error messages. (default: <tt class="docutils literal">stdio</tt>)</p>
 <dl class="last docutils">
@@ -2248,18 +2352,11 @@ file).</dd>
 <dt><tt class="docutils literal">false</tt></dt>
 <dd>Alias for <tt class="docutils literal">ignore</tt>.</dd>
 </dl>
-<div class="windows last container">
+<div class="windows last docutils container">
 On Windows, this configuration option is ignored and the command aborted.</div>
 </dd>
 <dt><tt class="docutils literal"><span class="pre">pre-merge-tool-output-template</span></tt></dt>
-<dd><p class="first">A template that is printed before executing an external merge tool. This can
-be used to print out additional context that might be useful to have during
-the conflict resolution, such as the description of the various commits
-involved or bookmarks/tags.</p>
-<p class="last">Additional information is available in the <tt class="docutils literal">local`, ``base</tt>, and <tt class="docutils literal">other</tt>
-dicts. For example: <tt class="docutils literal">{local.label}</tt>, <tt class="docutils literal">{base.name}</tt>, or
-<tt class="docutils literal">{other.islink}</tt>.</p>
-</dd>
+<dd>(DEPRECATED) Use <tt class="docutils literal"><span class="pre">command-template.pre-merge-tool-output</span></tt> instead.</dd>
 <dt><tt class="docutils literal">quiet</tt></dt>
 <dd>Reduce the amount of output printed.
 (default: False)</dd>
@@ -2325,6 +2422,8 @@ not include <tt class="docutils literal">tweakdefaults</tt>. (default: False)</p
 <p>It currently means:</p>
 <pre class="literal-block">
 [ui]
+# Gives detailed exit codes for input/user errors, config errors, etc.
+detailed-exit-code = True
 # The rollback command is dangerous. As a rule, don't use it.
 rollback = False
 # Make `hg status` report copy information
@@ -2363,6 +2462,48 @@ hgrc file)</p>
 </dd>
 <dt><tt class="docutils literal">verbose</tt></dt>
 <dd>Increase the amount of output printed. (default: False)</dd>
+</dl>
+</div>
+<div class="section" id="command-templates">
+<h2><a class="toc-backref" href="#contents"><tt class="docutils literal"><span class="pre">command-templates</span></tt></a></h2>
+<p>Templates used for customizing the output of commands.</p>
+<dl class="docutils">
+<dt><tt class="docutils literal">graphnode</tt></dt>
+<dd>The template used to print changeset nodes in an ASCII revision graph.
+(default: <tt class="docutils literal">{graphnode}</tt>)</dd>
+<dt><tt class="docutils literal">log</tt></dt>
+<dd>Template string for commands that print changesets.</dd>
+<dt><tt class="docutils literal">mergemarker</tt></dt>
+<dd><p class="first">The template used to print the commit description next to each conflict
+marker during merge conflicts. See <a class="reference external" href="hg.1.html#templates"><tt class="docutils literal">hg help templates</tt></a> for the template
+format.</p>
+<p>Defaults to showing the hash, tags, branches, bookmarks, author, and
+the first line of the commit description.</p>
+<p>If you use non-ASCII characters in names for tags, branches, bookmarks,
+authors, and/or commit descriptions, you must pay attention to encodings of
+managed files. At template expansion, non-ASCII characters use the encoding
+specified by the <tt class="docutils literal"><span class="pre">--encoding</span></tt> global option, <tt class="docutils literal">HGENCODING</tt> or other
+environment variables that govern your locale. If the encoding of the merge
+markers is different from the encoding of the merged files,
+serious problems may occur.</p>
+<p class="last">Can be overridden per-merge-tool, see the <tt class="docutils literal"><span class="pre">[merge-tools]</span></tt> section.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">oneline-summary</span></tt></dt>
+<dd><p class="first">A template used by <cite>hg rebase</cite> and other commands for showing a one-line
+summary of a commit. If the template configured here is longer than one
+line, then only the first line is used.</p>
+<p class="last">The template can be overridden per command by defining a template in
+<cite>oneline-summary.&lt;command&gt;</cite>, where <cite>&lt;command&gt;</cite> can be e.g. &quot;rebase&quot;.</p>
+</dd>
+<dt><tt class="docutils literal"><span class="pre">pre-merge-tool-output</span></tt></dt>
+<dd><p class="first">A template that is printed before executing an external merge tool. This can
+be used to print out additional context that might be useful to have during
+the conflict resolution, such as the description of the various commits
+involved or bookmarks/tags.</p>
+<p class="last">Additional information is available in the <tt class="docutils literal">local`, ``base</tt>, and <tt class="docutils literal">other</tt>
+dicts. For example: <tt class="docutils literal">{local.label}</tt>, <tt class="docutils literal">{base.name}</tt>, or
+<tt class="docutils literal">{other.islink}</tt>.</p>
+</dd>
 </dl>
 </div>
 <div class="section" id="web">
@@ -2667,7 +2808,7 @@ enabled.
 <div class="section" id="copying">
 <h1><a class="toc-backref" href="#contents">Copying</a></h1>
 <p>This manual page is copyright 2005 Bryan O'Sullivan.
-Mercurial is copyright 2005-2020 Matt Mackall.
+Mercurial is copyright 2005-2021 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.</p>
 <span class="target" id="common"></span><!-- Common link and substitution definitions. -->

@@ -88,6 +88,9 @@ On Unix, the following files are consulted:
 .INDENT 0.0
 .IP \(bu 2
 .
+\fB<repo>/.hg/hgrc\-not\-shared\fP (per\-repository)
+.IP \(bu 2
+.
 \fB<repo>/.hg/hgrc\fP (per\-repository)
 .IP \(bu 2
 .
@@ -114,6 +117,9 @@ On Unix, the following files are consulted:
 .sp
 On Windows, the following files are consulted:
 .INDENT 0.0
+.IP \(bu 2
+.
+\fB<repo>/.hg/hgrc\-not\-shared\fP (per\-repository)
 .IP \(bu 2
 .
 \fB<repo>/.hg/hgrc\fP (per\-repository)
@@ -159,6 +165,9 @@ is used when running 32\-bit Python on 64\-bit Windows.
 .sp
 On Plan9, the following files are consulted:
 .INDENT 0.0
+.IP \(bu 2
+.
+\fB<repo>/.hg/hgrc\-not\-shared\fP (per\-repository)
 .IP \(bu 2
 .
 \fB<repo>/.hg/hgrc\fP (per\-repository)
@@ -224,6 +233,13 @@ configuration files should never be edited by users or administrators but can
 be overridden in other configuration files. So far the directory only contains
 merge tool configuration but packagers can also put other default configuration
 there.
+.sp
+On versions 5.7 and later, if share\-safe functionality is enabled,
+shares will read config file of share source too.
+\fI<share\-source/.hg/hgrc>\fP is read before reading \fI<repo/.hg/hgrc>\fP.
+.sp
+For configs which should not be shared, \fI<repo/.hg/hgrc\-not\-shared>\fP
+should be used.
 .SH SYNTAX
 .sp
 A configuration file consists of sections, led by a \fB[section]\fP header
@@ -1164,6 +1180,63 @@ Repositories with this on\-disk format require Mercurial version 1.1.
 .sp
 Enabled by default.
 .TP
+.B \fBuse\-persistent\-nodemap\fP
+.sp
+Enable or disable the "persistent\-nodemap" feature which improves
+performance if the rust extensions are available.
+.sp
+The "persistence\-nodemap" persist the "node \-> rev" on disk removing the
+need to dynamically build that mapping for each Mercurial invocation. This
+significantly reduce the startup cost of various local and server\-side
+operation for larger repository.
+.sp
+The performance improving version of this feature is currently only
+implemented in Rust, so people not using a version of Mercurial compiled
+with the Rust part  might actually suffer some slowdown. For this reason,
+Such version will by default refuse to access such repositories. That
+behavior can be controlled by configuration. Check
+\%\fBhg help config.storage.revlog.persistent\-nodemap.slowpath\fP\: for details.
+.sp
+Repository with this on\-disk format require Mercurial version 5.4 or above.
+.sp
+Disabled by default.
+.TP
+.B \fBuse\-share\-safe\fP
+.sp
+Enforce "safe" behaviors for all "shares" that access this repository.
+.sp
+With this feature, "shares" using this repository as a source will:
+.INDENT 7.0
+.IP \(bu 2
+.
+read the source repository\(aqs configuration (\fI<source>/.hg/hgrc\fP).
+.IP \(bu 2
+.
+read and use the source repository\(aqs "requirements"
+(except the working copy specific one).
+.UNINDENT
+.sp
+Without this feature, "shares" using this repository as a source will:
+.INDENT 7.0
+.IP \(bu 2
+.
+keep tracking the repository "requirements" in the share only, ignoring
+the source "requirements", possibly diverging from them.
+.IP \(bu 2
+.
+ignore source repository config. This can create problems, like silently
+ignoring important hooks.
+.UNINDENT
+.sp
+Beware that existing shares will not be upgraded/downgraded, and by
+default, Mercurial will refuse to interact with them until the mismatch
+is resolved. See \%\fBhg help config share.safe\-mismatch.source\-safe\fP\: and
+\%\fBhg help config share.safe\-mismatch.source\-not\-safe\fP\: for details.
+.sp
+Introduced in Mercurial 5.7.
+.sp
+Disabled by default.
+.TP
 .B \fBusestore\fP
 .sp
 Enable or disable the "store" repository format which improves
@@ -1881,12 +1954,13 @@ respectively.
 .B \fBpremerge\fP
 .sp
 Attempt to run internal non\-interactive 3\-way merge tool before
-launching external tool.  Options are \fBtrue\fP, \fBfalse\fP, \fBkeep\fP or
-\fBkeep\-merge3\fP. The \fBkeep\fP option will leave markers in the file if the
-premerge fails. The \fBkeep\-merge3\fP will do the same but include information
-about the base of the merge in the marker (see internal :merge3 in
-\%\fBhg help merge\-tools\fP\:).
-(default: True)
+launching external tool.  Options are \fBtrue\fP, \fBfalse\fP, \fBkeep\fP,
+\fBkeep\-merge3\fP, or \fBkeep\-mergediff\fP (experimental). The \fBkeep\fP option
+will leave markers in the file if the premerge fails. The \fBkeep\-merge3\fP
+will do the same but include information about the base of the merge in the
+marker (see internal :merge3 in \%\fBhg help merge\-tools\fP\:). The
+\fBkeep\-mergediff\fP option is similar but uses a different marker style
+(see internal :merge3 in \%\fBhg help merge\-tools\fP\:). (default: True)
 .TP
 .B \fBbinary\fP
 .sp
@@ -1935,11 +2009,11 @@ the corresponding option in the \fB[ui]\fP section is \fBdetailed\fP.
 .TP
 .B \fBmergemarkertemplate\fP
 .sp
-This setting can be used to override \fBmergemarkertemplate\fP from the \fB[ui]\fP
-section on a per\-tool basis; this applies to the \fB$label\fP\-prefixed variables
-and to the conflict markers that are generated if \fBpremerge\fP is \fBkeep\(ga or
-\(ga\(gakeep\-merge3\fP. See the corresponding variable in \fB[ui]\fP for more
-information.
+This setting can be used to override \fBmergemarker\fP from the
+\fB[command\-templates]\fP section on a per\-tool basis; this applies to the
+\fB$label\fP\-prefixed variables and to the conflict markers that are generated
+if \fBpremerge\fP is \fBkeep\(ga or \(ga\(gakeep\-merge3\fP. See the corresponding variable
+in \fB[ui]\fP for more information.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -2364,6 +2438,73 @@ Currently, only the rebase and absorb commands consider this configuration.
 (EXPERIMENTAL)
 .UNINDENT
 .UNINDENT
+.SS \fBshare\fP
+.sp
+\fBsafe\-mismatch.source\-safe\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+Controls what happens when the shared repository does not use the
+share\-safe mechanism but its source repository does.
+.sp
+Possible values are \fIabort\fP (default), \fIallow\fP, \fIupgrade\-abort\fP and
+\fIupgrade\-abort\fP.
+.sp
+\fBabort\fP
+Disallows running any command and aborts
+\fBallow\fP
+Respects the feature presence in the share source
+\fBupgrade\-abort\fP
+tries to upgrade the share to use share\-safe; if it fails, aborts
+\fBupgrade\-allow\fP
+tries to upgrade the share; if it fails, continue by
+respecting the share source setting
+.sp
+Check \%\fBhg help config format.use\-share\-safe\fP\: for details about the
+share\-safe feature.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \fBsafe\-mismatch.source\-safe.warn\fP
+.sp
+Shows a warning on operations if the shared repository does not use
+share\-safe, but the source repository does.
+(default: True)
+.UNINDENT
+.sp
+\fBsafe\-mismatch.source\-not\-safe\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+Controls what happens when the shared repository uses the share\-safe
+mechanism but its source does not.
+.sp
+Possible values are \fIabort\fP (default), \fIallow\fP, \fIdowngrade\-abort\fP and
+\fIdowngrade\-abort\fP.
+.sp
+\fBabort\fP
+Disallows running any command and aborts
+\fBallow\fP
+Respects the feature presence in the share source
+\fBdowngrade\-abort\fP
+tries to downgrade the share to not use share\-safe; if it fails, aborts
+\fBdowngrade\-allow\fP
+tries to downgrade the share to not use share\-safe;
+if it fails, continue by respecting the shared source setting
+.sp
+Check \%\fBhg help config format.use\-share\-safe\fP\: for details about the
+share\-safe feature.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \fBsafe\-mismatch.source\-not\-safe.warn\fP
+.sp
+Shows a warning on operations if the shared repository uses share\-safe,
+but the source repository does not.
+(default: True)
+.UNINDENT
 .SS \fBstorage\fP
 .sp
 Control the strategy Mercurial uses internally to store history. Options in this
@@ -2378,6 +2519,30 @@ revlog compression. This option is enabled by default.
 .sp
 Turning this option off can result in large increase of repository size for
 repository with many merges.
+.TP
+.B \fBrevlog.persistent\-nodemap.mmap\fP
+.sp
+Whether to use the Operating System "memory mapping" feature (when
+possible) to access the persistent nodemap data. This improve performance
+and reduce memory pressure.
+.sp
+Default to True.
+.sp
+For details on the "persistent\-nodemap" feature, see:
+\%\fBhg help config format.use\-persistent\-nodemap\fP\:.
+.TP
+.B \fBrevlog.persistent\-nodemap.slow\-path\fP
+.sp
+Control the behavior of Merucrial when using a repository with "persistent"
+nodemap with an installation of Mercurial without a fast implementation for
+the feature:
+.sp
+\fBallow\fP: Silently use the slower implementation to access the repository.
+\fBwarn\fP: Warn, but use the slower implementation to access the repository.
+\fBabort\fP: Prevent access to such repositories. (This is the default)
+.sp
+For details on the "persistent\-nodemap" feature, see:
+\%\fBhg help config format.use\-persistent\-nodemap\fP\:.
 .TP
 .B \fBrevlog.reuse\-external\-delta\-parent\fP
 .sp
@@ -2856,8 +3021,7 @@ UTF\-8. (default: ISO\-8859\-1)
 .TP
 .B \fBgraphnodetemplate\fP
 .sp
-The template used to print changeset nodes in an ASCII revision graph.
-(default: \fB{graphnode}\fP)
+(DEPRECATED) Use \fBcommand\-templates.graphnode\fP instead.
 .TP
 .B \fBignore\fP
 .sp
@@ -2891,7 +3055,7 @@ Possible values are integers or 0 to disable the check.
 .TP
 .B \fBlogtemplate\fP
 .sp
-Template string for commands that print changesets.
+(DEPRECATED) Use \fBcommand\-templates.log\fP instead.
 .TP
 .B \fBmerge\fP
 .sp
@@ -2901,30 +3065,15 @@ For configuring merge tools see the \fB[merge\-tools]\fP section.
 .TP
 .B \fBmergemarkers\fP
 .sp
-Sets the merge conflict marker label styling. The \fBdetailed\fP
-style uses the \fBmergemarkertemplate\fP setting to style the labels.
+Sets the merge conflict marker label styling. The \fBdetailed\fP style
+uses the \fBcommand\-templates.mergemarker\fP setting to style the labels.
 The \fBbasic\fP style just uses \(aqlocal\(aq and \(aqother\(aq as the marker label.
 One of \fBbasic\fP or \fBdetailed\fP.
 (default: \fBbasic\fP)
 .TP
 .B \fBmergemarkertemplate\fP
 .sp
-The template used to print the commit description next to each conflict
-marker during merge conflicts. See \%\fBhg help templates\fP\: for the template
-format.
-.sp
-Defaults to showing the hash, tags, branches, bookmarks, author, and
-the first line of the commit description.
-.sp
-If you use non\-ASCII characters in names for tags, branches, bookmarks,
-authors, and/or commit descriptions, you must pay attention to encodings of
-managed files. At template expansion, non\-ASCII characters use the encoding
-specified by the \fB\-\-encoding\fP global option, \fBHGENCODING\fP or other
-environment variables that govern your locale. If the encoding of the merge
-markers is different from the encoding of the merged files,
-serious problems may occur.
-.sp
-Can be overridden per\-merge\-tool, see the \fB[merge\-tools]\fP section.
+(DEPRECATED) Use \fBcommand\-templates.mergemarker\fP instead.
 .TP
 .B \fBmessage\-output\fP
 .sp
@@ -3005,14 +3154,7 @@ On Windows, this configuration option is ignored and the command aborted.
 .TP
 .B \fBpre\-merge\-tool\-output\-template\fP
 .sp
-A template that is printed before executing an external merge tool. This can
-be used to print out additional context that might be useful to have during
-the conflict resolution, such as the description of the various commits
-involved or bookmarks/tags.
-.sp
-Additional information is available in the \fBlocal\(ga, \(ga\(gabase\fP, and \fBother\fP
-dicts. For example: \fB{local.label}\fP, \fB{base.name}\fP, or
-\fB{other.islink}\fP.
+(DEPRECATED) Use \fBcommand\-template.pre\-merge\-tool\-output\fP instead.
 .TP
 .B \fBquiet\fP
 .sp
@@ -3114,6 +3256,8 @@ It currently means:
 .nf
 .ft C
 [ui]
+# Gives detailed exit codes for input/user errors, config errors, etc.
+detailed\-exit\-code = True
 # The rollback command is dangerous. As a rule, don\(aqt use it.
 rollback = False
 # Make \(gahg status\(ga report copy information
@@ -3158,6 +3302,59 @@ hgrc file)
 .B \fBverbose\fP
 .sp
 Increase the amount of output printed. (default: False)
+.UNINDENT
+.SS \fBcommand\-templates\fP
+.sp
+Templates used for customizing the output of commands.
+.INDENT 0.0
+.TP
+.B \fBgraphnode\fP
+.sp
+The template used to print changeset nodes in an ASCII revision graph.
+(default: \fB{graphnode}\fP)
+.TP
+.B \fBlog\fP
+.sp
+Template string for commands that print changesets.
+.TP
+.B \fBmergemarker\fP
+.sp
+The template used to print the commit description next to each conflict
+marker during merge conflicts. See \%\fBhg help templates\fP\: for the template
+format.
+.sp
+Defaults to showing the hash, tags, branches, bookmarks, author, and
+the first line of the commit description.
+.sp
+If you use non\-ASCII characters in names for tags, branches, bookmarks,
+authors, and/or commit descriptions, you must pay attention to encodings of
+managed files. At template expansion, non\-ASCII characters use the encoding
+specified by the \fB\-\-encoding\fP global option, \fBHGENCODING\fP or other
+environment variables that govern your locale. If the encoding of the merge
+markers is different from the encoding of the merged files,
+serious problems may occur.
+.sp
+Can be overridden per\-merge\-tool, see the \fB[merge\-tools]\fP section.
+.TP
+.B \fBoneline\-summary\fP
+.sp
+A template used by \fIhg rebase\fP and other commands for showing a one\-line
+summary of a commit. If the template configured here is longer than one
+line, then only the first line is used.
+.sp
+The template can be overridden per command by defining a template in
+\fIoneline\-summary.<command>\fP, where \fI<command>\fP can be e.g. "rebase".
+.TP
+.B \fBpre\-merge\-tool\-output\fP
+.sp
+A template that is printed before executing an external merge tool. This can
+be used to print out additional context that might be useful to have during
+the conflict resolution, such as the description of the various commits
+involved or bookmarks/tags.
+.sp
+Additional information is available in the \fBlocal\(ga, \(ga\(gabase\fP, and \fBother\fP
+dicts. For example: \fB{local.label}\fP, \fB{base.name}\fP, or
+\fB{other.islink}\fP.
 .UNINDENT
 .SS \fBweb\fP
 .sp
@@ -3579,7 +3776,7 @@ Mercurial was written by Matt Mackall <\%mpm@selenic.com\:>.
 .SH COPYING
 .sp
 This manual page is copyright 2005 Bryan O\(aqSullivan.
-Mercurial is copyright 2005\-2020 Matt Mackall.
+Mercurial is copyright 2005\-2021 Matt Mackall.
 Free use of this software is granted under the terms of the GNU General
 Public License version 2 or any later version.
 .\" Common link and substitution definitions.

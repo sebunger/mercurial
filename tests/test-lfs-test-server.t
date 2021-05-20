@@ -420,7 +420,10 @@ lfs-test-server.
 
 TODO: give the proper error indication from `hg serve`
 
-  $ hg --repo ../repo1 update -C tip --debug
+TODO: reconsider the except base class so that the git and hg errors yield the
+same exit status.
+
+  $ hg --repo ../repo1 update -C tip --debug --config ui.detailed-exit-code=False
   http auth: user foo, password ***
   resolving manifests
    branchmerge: False, force: True, partial: False
@@ -459,7 +462,7 @@ TODO: give the proper error indication from `hg serve`
   Content-Type: text/plain; charset=utf-8 (git-server !)
   Date: $HTTP_DATE$ (git-server !)
   abort: corrupt remote lfs object: d11e1a642b60813aee592094109b406089b8dff4cb157157f753418ec7857998 (git-server !)
-  abort: LFS server error for "c": Validation error! (hg-server !)
+  abort: LFS server error for "c": Validation error (hg-server !)
   [255]
 
 The corrupted blob is not added to the usercache or local store
@@ -826,8 +829,8 @@ Check error message when the remote missed a blob:
     ]
     "transfer": "basic" (hg-server !)
   }
-  abort: LFS server error for "b": The object does not exist!
-  [255]
+  abort: LFS server error for "b": The object does not exist
+  [50]
 
 Check error message when object does not exist:
 
@@ -937,7 +940,7 @@ Check error message when object does not exist:
     ]
     "transfer": "basic" (hg-server !)
   }
-  abort: LFS server error for "a": The object does not exist!
-  [255]
+  abort: LFS server error for "a": The object does not exist
+  [50]
 
   $ "$PYTHON" $RUNTESTDIR/killdaemons.py $DAEMON_PIDS
