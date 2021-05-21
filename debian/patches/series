@@ -4,3 +4,4 @@ deb_specific__hgk.py.patch
 deb_specific__optional-dependencies
 deb_specific__disable_libdir_replacement.patch
 0005-Tolerate-SIGINT-getting-the-kill-in-test-stdio.py.patch
+python-3.9.2.patch
