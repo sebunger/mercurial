@@ -1,4 +1,6 @@
-mercurial (5.6.1-3) UNRELEASED; urgency=medium
+mercurial (5.6.1-3) unstable; urgency=medium
+
+  * Team upload.
 
   [ Helmut Grohne ]
   * Annotate test dependencies <!nocheck> (closes: #980337).
@@ -9,7 +11,7 @@ mercurial (5.6.1-3) UNRELEASED; urgency=medium
     urllib.parse.parse_qsl() behavior to only accept "&" as a separator by
     default. (closes: #986514)
 
- -- Julien Cristau <jcristau@debian.org>  Mon, 01 Feb 2021 18:00:45 +0100
+ -- Stefano Rivera <stefanor@debian.org>  Fri, 21 May 2021 12:06:47 -0400
 
 mercurial (5.6.1-2) unstable; urgency=medium
 
