@@ -10,10 +10,6 @@
 PYVERS=$(shell py3versions -vs)
 PYVER_DEFAULT=$(shell py3versions -vd)
 include /usr/share/dpkg/architecture.mk
-ifeq ($(DEB_HOST_ARCH),mips64el)
-        # Work around #871514
-        export DEB_CFLAGS_MAINT_APPEND = -mno-lra
-endif
 
 override_dh_python3:
 	dh_python3 --shebang=/usr/bin/python3
