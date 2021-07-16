@@ -106,6 +106,7 @@ copymode = platform.copymode
 expandglobs = platform.expandglobs
 getfsmountpoint = platform.getfsmountpoint
 getfstype = platform.getfstype
+get_password = platform.get_password
 groupmembers = platform.groupmembers
 groupname = platform.groupname
 isexec = platform.isexec
@@ -143,7 +144,7 @@ username = platform.username
 
 def setumask(val):
     # type: (int) -> None
-    ''' updates the umask. used by chg server '''
+    '''updates the umask. used by chg server'''
     if pycompat.iswindows:
         return
     os.umask(val)
